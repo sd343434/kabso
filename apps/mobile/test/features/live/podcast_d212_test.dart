@@ -1,4 +1,5 @@
-// D212 (owner): the hub's five live categories, the podcast live (stage,
+// D212 (owner; D237: now the party page's three kinds): the live
+// categories, the podcast live (stage,
 // raised hands, the host's hands sheet, the setup) and the chat rule for
 // every category (D236: the rules line stays as a line at the first
 // message; each join is a
@@ -10,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
@@ -18,12 +20,13 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
-import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -210,47 +213,37 @@ void main() {
       return live;
     }
 
-    testWidgets('«الكل» + the five tabs; each tab is a server-side kind, '
-        'combined with the filter pill', (tester) async {
+    testWidgets('D237: no category row on the hub; the party page has '
+        '«بث صوتي» (first, as before) · «بث بودكاست» · «بث متعدد», each a '
+        'server-side kind, combined with its header tabs', (tester) async {
       final live = await hub(tester);
       final l10n = lookupAppLocalizations(AppLanguage.ar.locale);
-      for (final c in LiveHubCategory.values) {
+      expect(find.byType(LiveHubCategoryBar), findsNothing);
+      expect(live.requests.last.kind, isNull); // the hub: every kind
+      await _openParty(tester);
+      expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+      expect(live.requests.last.kind, LiveRoomsKind.audio);
+      for (final c in LiveHubCategory.partyPage) {
         expect(find.byKey(LiveHubCategoryBar.tabKey(c)), findsOneWidget);
       }
-      expect(find.text(l10n.liveCategoryPodcast), findsOneWidget);
-      expect(find.text(l10n.liveCategoryStreamer), findsOneWidget);
-      // «الكل»: every room (no kind).
-      expect(live.requests.last.kind, isNull);
+      expect(find.text(l10n.liveCategoryStreamer), findsNothing);
       for (final (c, kind) in [
-        (LiveHubCategory.live, LiveRoomsKind.solo),
-        (LiveHubCategory.audio, LiveRoomsKind.audio),
         (LiveHubCategory.multi, LiveRoomsKind.multi),
         (LiveHubCategory.podcast, LiveRoomsKind.podcast),
       ]) {
-        await _tapTab(tester, c);
+        await _tapKind(tester, c);
         await tester.pumpAndSettle();
         expect(live.requests.last.kind, kind, reason: c.name);
       }
-      // The two rows combine: Featured + podcast.
-      await tester.tap(
-        find.byKey(LiveHubFilterBar.pillKey(LiveHubFilter.featured)),
-      );
+      // The header's tabs apply: New + podcast.
+      await _tapKind(tester, LiveHubCategory.podcast);
       await tester.pumpAndSettle();
-      expect(live.requests.last.featured, isTrue);
+      await tester.tap(find.byKey(VoiceRoomsScreen.tabKey(FeedTab.latest)));
+      await tester.pumpAndSettle();
+      expect(live.requests.last.tab, LiveRoomsTab.latest);
       expect(live.requests.last.kind, LiveRoomsKind.podcast);
       expect(find.byType(PodcastHubCard), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await _close(tester);
-    });
-
-    testWidgets('«ستريمر»: an honest «قريباً», no list call', (tester) async {
-      final live = await hub(tester);
-      final calls = live.requests.length;
-      await _tapTab(tester, LiveHubCategory.streamer);
-      await tester.pumpAndSettle();
-      expect(find.byKey(StreamerSoon.soonKey), findsOneWidget);
-      expect(find.byType(LiveHubGrid), findsNothing);
-      expect(live.requests.length, calls);
       await _close(tester);
     });
 
@@ -683,10 +676,22 @@ Future<void> _openRoomWith(
   await tester.pump(const Duration(seconds: 1));
 }
 
-/// Taps a hub category tab (the row scrolls on narrow screens).
-Future<void> _tapTab(WidgetTester tester, LiveHubCategory category) async {
+/// D237: opens the party page from the hub's party button.
+Future<void> _openParty(WidgetTester tester) async {
+  await tester.tap(find.byKey(LiveHubPartyButton.buttonKey));
+  await tester.pumpAndSettle();
+}
+
+/// Taps one of the party page's kind tabs.
+Future<void> _tapKind(WidgetTester tester, LiveHubCategory category) async {
   final tab = find.byKey(LiveHubCategoryBar.tabKey(category));
   await tester.ensureVisible(tab);
   await tester.pumpAndSettle();
   await tester.tap(tab);
+}
+
+/// D237: a hub category is now a kind tab of the party page.
+Future<void> _tapTab(WidgetTester tester, LiveHubCategory category) async {
+  await _openParty(tester);
+  await _tapKind(tester, category);
 }

@@ -7613,6 +7613,10 @@
   "@liveVoiceRoomsToLive": {"description": "D139: the Live button in the Voice rooms top bar (the owner's animated Live icon, a screen with a LIVE badge), which returns to the live hub; its tooltip and screen-reader name."},
   "liveHubFilterLabel": "عوامل التصفية",
   "@liveHubFilterLabel": {"description": "D131: the Live hub filter row, announced as a group."},
+  "liveHubFilterFollowing": "المتابَعين",
+  "@liveHubFilterFollowing": {
+    "description": "D237: the Live hub's first filter tab — lives of the people you follow."
+  },
   "liveHubFilterNearby": "القريبة",
   "@liveHubFilterNearby": {"description": "D131: hub filter, lives from hosts in the person's own country (D133 scope=nearby)."},
   "liveHubFilterPopular": "الرائج",

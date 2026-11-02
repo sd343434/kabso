@@ -5,6 +5,8 @@
 // screens and large text. D131 (ref 166): the Voice rooms screen behind the
 // party button (`kind=audio`).
 
+import 'dart:ui' show Tristate;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -117,7 +119,7 @@ Future<void> _tapPill(WidgetTester tester, LiveHubFilter f) async {
   await tester.dragUntilVisible(
     _pill(f),
     find.byType(LiveHubFilterBar),
-    Offset(f.index < 2 ? 200 : -200, 0),
+    Offset(f.index < 3 ? 200 : -200, 0),
   );
   await tester.pumpAndSettle();
   await tester.tap(_pill(f));
@@ -146,9 +148,10 @@ void main() {
           tester.getCenter(_pill(f)).dx,
       ];
       expect(xs, [...xs]..sort());
+      // D237: Following, Nearby, Popular on screen; the row scrolls on.
+      expect(find.text(en.liveHubFilterFollowing), findsOneWidget);
       expect(find.text(en.liveHubFilterNearby), findsOneWidget);
       expect(find.text(en.liveHubFilterPopular), findsOneWidget);
-      expect(find.text(en.liveHubFilterFeatured), findsOneWidget);
       expect(
         tester.getSemantics(_pill(LiveHubFilter.popular)),
         matchesSemantics(
@@ -164,8 +167,9 @@ void main() {
       // The no tabs row and no chip row of D124 are gone.
       expect(find.byKey(const ValueKey('live.chip.all')), findsNothing);
       // Measured geometry: 33 pt pills, 14.5 pt from the start.
+      // D237: Following is the first pill.
       final nearby = find.descendant(
-        of: _pill(LiveHubFilter.nearby),
+        of: _pill(LiveHubFilter.following),
         matching: find.byType(AnimatedContainer),
       );
       expect(tester.getSize(nearby).height, closeTo(33, 0.5));
@@ -194,12 +198,15 @@ void main() {
       expect(live.requests.last.cursor, isNull);
     });
 
-    testWidgets("Popular's menu: Following, All and the categories; a "
-        'choice becomes the label', (tester) async {
+    testWidgets("Popular's menu: All and the categories (D237: not "
+        'Following); a choice becomes the label', (tester) async {
       final live = await _pump(tester);
       // Tapping the selected Popular opens its menu.
       await _tapPill(tester, LiveHubFilter.popular);
-      expect(find.byKey(LiveHubFilterBar.menuFollowingKey), findsOneWidget);
+      expect(
+        find.byKey(const Key('liveHub.popularMenu.following')),
+        findsNothing,
+      );
       expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
       final slug = apiCategories().first.slug;
       await tester.tap(find.byKey(LiveHubFilterBar.menuCategoryKey(slug)));
@@ -213,19 +220,6 @@ void main() {
         ),
         findsOneWidget,
       );
-      // Following.
-      await _tapPill(tester, LiveHubFilter.popular);
-      await tester.tap(find.byKey(LiveHubFilterBar.menuFollowingKey));
-      await tester.pumpAndSettle();
-      expect(live.requests.last.tab, LiveRoomsTab.following);
-      expect(live.requests.last.category, isNull);
-      expect(
-        find.descendant(
-          of: _pill(LiveHubFilter.popular),
-          matching: find.text(en.feedTabFollowing),
-        ),
-        findsOneWidget,
-      );
       // Another filter, then back: the menu choice is kept (its list is
       // already loaded).
       await _tapPill(tester, LiveHubFilter.explore);
@@ -233,11 +227,30 @@ void main() {
       expect(
         find.descendant(
           of: _pill(LiveHubFilter.popular),
-          matching: find.text(en.feedTabFollowing),
+          matching: find.text(apiCategories().first.name),
         ),
         findsOneWidget,
       );
-      expect(find.byKey(LiveHubFilterBar.menuFollowingKey), findsNothing);
+    });
+
+    testWidgets('D237: «المتابَعين» is the first tab (the reading start), '
+        'the people I follow (every kind)', (tester) async {
+      final live = await _pump(tester);
+      expect(LiveHubFilter.values, [
+        LiveHubFilter.following,
+        LiveHubFilter.nearby,
+        LiveHubFilter.popular,
+        LiveHubFilter.featured,
+        LiveHubFilter.explore,
+      ]);
+      expect(
+        tester.getRect(_pill(LiveHubFilter.following)).left,
+        closeTo(14.5, 0.5),
+      );
+      await _tapPill(tester, LiveHubFilter.following);
+      expect(live.requests.last.tab, LiveRoomsTab.following);
+      expect(live.requests.last.kind, isNull);
+      expect(live.requests.last.category, isNull);
     });
 
     testWidgets('Nearby without a country: the honest state and "Set your '
@@ -281,6 +294,64 @@ void main() {
       await _tapPill(tester, LiveHubFilter.nearby);
       expect(find.text(en.liveNearbyEmptyTitle('Jordan')), findsOneWidget);
       expect(find.text(en.liveNearbyChangeCountry), findsOneWidget);
+    });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('D237: nobody I follow is live — the honest copy and '
+          '«عرض الرائج» (${language.name})', (tester) async {
+        final l10n = l10nFor(language);
+        final live = FakeLiveRepository(rooms: (_) => apiPage(const []));
+        setViewport(tester, GoldenViewport.phone);
+        await pumpScreen(
+          tester,
+          const LiveScreen(),
+          language: language,
+          overrides: [...liveOverrides(live, language: language)],
+        );
+        await tester.pumpAndSettle();
+        await _tapPill(tester, LiveHubFilter.following);
+        expect(find.text(l10n.liveHubFollowingEmptyTitle), findsOneWidget);
+        await tester.tap(find.text(l10n.feedSeePopular));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .getSemantics(_pill(LiveHubFilter.popular))
+              .getSemanticsData()
+              .flagsCollection
+              .isSelected,
+          Tristate.isTrue,
+        );
+      });
+    }
+
+    testWidgets('D237: no category row; every card names its kind, from the '
+        "room's mode (all kinds together)", (tester) async {
+      final live = await _pump(tester);
+      expect(find.byType(LiveHubCategoryBar), findsNothing);
+      expect(live.requests.last.kind, isNull);
+      final types = {
+        for (final card in tester.widgetList<KLiveGridCard>(
+          find.byType(KLiveGridCard),
+        ))
+          card.room.roomId: tester
+              .widget<Text>(
+                find.descendant(
+                  of: find.byWidget(card),
+                  matching: find.byKey(KLiveGridCard.typeKey),
+                ),
+              )
+              .data,
+      };
+      expect(types.values, everyElement(isNotNull));
+      expect(
+        types.values.toSet(),
+        containsAll([
+          en.liveCategoryAudio,
+          en.liveCategoryLive,
+          en.liveCategoryMulti,
+          en.pkBadge,
+        ]),
+      );
     });
 
     testWidgets('the banner still follows the 4th card', (tester) async {

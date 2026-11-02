@@ -14,6 +14,8 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
+import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -67,8 +69,13 @@ abstract final class KVoiceRoomsHeader {
   static const Color lightPage = Color(0xFFF4F6FA);
 }
 
-/// D131: `/live/voice` — the voice rooms and podcasts (`kind=audio`),
-/// opened by the Live hub's party button (owner, ref 166).
+/// D131: `/live/voice` — the voice rooms (`kind=audio`), opened by the Live
+/// hub's party button (owner, ref 166). D237 (owner): the party page holds
+/// three kinds as tabs under the header — «بث صوتي» (audio rooms, the
+/// default, as before), «بث بودكاست» (podcasts: the episode cards and the
+/// announced episodes) and «بث متعدد» (multi-guest lives) — each its own
+/// `GET /live/rooms?kind=` list with its real empty / error states; the
+/// header's tabs and scopes apply to all three.
 ///
 /// - Header: back, Follow · Hot · New (the server tabs following, popular,
 ///   new; the selected one bold with a dash under it), search and the bell.
@@ -87,6 +94,9 @@ class VoiceRoomsScreen extends ConsumerStatefulWidget {
   static const layoutKey = Key('voiceRooms.layout');
   static Key tabKey(FeedTab tab) => Key('voiceRooms.tab.${tab.name}');
   static const nearbyKey = Key('voiceRooms.scope.nearby');
+
+  /// D237: the kind tabs (audio, podcast, multi).
+  static const kindsKey = Key('voiceRooms.kinds');
   static const recommendedKey = Key('voiceRooms.scope.recommended');
   static Key categoryKey(String slug) => Key('voiceRooms.scope.$slug');
 
@@ -96,6 +106,9 @@ class VoiceRoomsScreen extends ConsumerStatefulWidget {
 
 class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
   FeedTab _tab = FeedTab.popular;
+
+  /// D237: the kind shown (audio rooms first, as before).
+  LiveHubCategory _kind = LiveHubCategory.audio;
   VoiceRoomsScope _scope = const VoiceRoomsScope.recommended();
   LiveRoomsLayout _layout = LiveRoomsLayout.list;
   late final AppLifecycleListener _lifecycle;
@@ -103,7 +116,7 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
 
   LiveRoomsQuery get _query => LiveRoomsQuery(
     tab: _tab,
-    kind: LiveRoomsKind.audio,
+    kind: _kind.kind,
     nearby: _scope.nearby,
     category: _scope.category,
   );
@@ -147,6 +160,11 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
     setState(() => _tab = tab);
   }
 
+  void _selectKind(LiveHubCategory kind) {
+    if (kind == _kind) return _refreshShown();
+    setState(() => _kind = kind);
+  }
+
   void _selectScope(VoiceRoomsScope scope) {
     if (scope == _scope) return _refreshShown();
     setState(() => _scope = scope);
@@ -169,20 +187,38 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
             onTab: _selectTab,
             onScope: _selectScope,
           ),
-          Expanded(
-            child: LiveRoomsPage(
-              key: ValueKey((_query, _layout)),
-              query: _query,
-              layout: _layout,
-              header: _SectionRow(
-                layout: _layout,
-                onToggle: () => setState(
-                  () => _layout = _layout == LiveRoomsLayout.list
-                      ? LiveRoomsLayout.grid
-                      : LiveRoomsLayout.list,
-                ),
-              ),
+          // D237: the three kinds that left the hub's category row.
+          Container(
+            width: double.infinity,
+            color: light ? p.surfaceRaised : p.surface,
+            child: LiveHubCategoryBar(
+              key: VoiceRoomsScreen.kindsKey,
+              selected: _kind,
+              onSelect: _selectKind,
             ),
+          ),
+          Expanded(
+            child: _kind == LiveHubCategory.podcast
+                // D212: the podcast's episode cards and announced episodes.
+                ? LiveRoomsPage(
+                    key: ValueKey(_query),
+                    query: _query,
+                    layout: LiveRoomsLayout.podcast,
+                    header: const ScheduledPodcastsSection(),
+                  )
+                : LiveRoomsPage(
+                    key: ValueKey((_query, _layout)),
+                    query: _query,
+                    layout: _layout,
+                    header: _SectionRow(
+                      layout: _layout,
+                      onToggle: () => setState(
+                        () => _layout = _layout == LiveRoomsLayout.list
+                            ? LiveRoomsLayout.grid
+                            : LiveRoomsLayout.list,
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),

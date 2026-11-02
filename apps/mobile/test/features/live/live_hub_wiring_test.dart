@@ -199,7 +199,11 @@ void main() {
         );
         await tester.tap(popular);
         await tester.pumpAndSettle();
-        expect(find.byKey(LiveHubFilterBar.menuFollowingKey), findsOneWidget);
+        // D237: Following is its own tab now, not in this menu.
+        expect(
+          find.byKey(const Key('liveHub.popularMenu.following')),
+          findsNothing,
+        );
         expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
         for (final c in apiCategories(ar: ar)) {
           expect(
@@ -226,16 +230,13 @@ void main() {
       });
     }
 
-    testWidgets('no categories: the menu has Following and All only', (
-      tester,
-    ) async {
+    testWidgets('no categories: the menu has All only (D237)', (tester) async {
       await _pump(tester, FakeLiveRepository());
       await tester.tap(
         find.byKey(LiveHubFilterBar.pillKey(LiveHubFilter.popular)),
       );
       await tester.pumpAndSettle();
       expect(find.byType(PopupMenuItem<Object>), findsNothing);
-      expect(find.byKey(LiveHubFilterBar.menuFollowingKey), findsOneWidget);
       expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
       expect(
         find.byKey(LiveHubFilterBar.menuCategoryKey('music')),
@@ -252,6 +253,13 @@ void main() {
       final featured = find.byKey(
         LiveHubFilterBar.pillKey(LiveHubFilter.featured),
       );
+      // D237: five pills — the row scrolls to it.
+      await tester.dragUntilVisible(
+        featured,
+        find.byType(LiveHubFilterBar),
+        const Offset(-200, 0),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(featured);
       await tester.pumpAndSettle();
       final configs = live.configCalls;

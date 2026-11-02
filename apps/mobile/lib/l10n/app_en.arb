@@ -1910,6 +1910,7 @@
   "liveVoiceRoomsTitle": "Voice rooms",
   "liveVoiceRoomsToLive": "Live",
   "liveHubFilterLabel": "Filters",
+  "liveHubFilterFollowing": "Following",
   "liveHubFilterNearby": "Nearby",
   "liveHubFilterPopular": "Popular",
   "liveHubFilterFeatured": "Featured",

@@ -10694,6 +10694,12 @@ abstract class AppLocalizations {
   /// **'عوامل التصفية'**
   String get liveHubFilterLabel;
 
+  /// D237: the Live hub's first filter tab — lives of the people you follow.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابَعين'**
+  String get liveHubFilterFollowing;
+
   /// D131: hub filter, lives from hosts in the person's own country (D133 scope=nearby).
   ///
   /// In ar, this message translates to:

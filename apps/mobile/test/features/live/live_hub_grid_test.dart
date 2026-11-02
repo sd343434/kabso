@@ -132,18 +132,20 @@ void main() {
       });
     }
 
-    testWidgets('D131 (ref 165): PK and multi-guest lives name their type '
-        'next to the live mark; a solo live shows the mark alone', (
-      tester,
-    ) async {
+    testWidgets('D131 (ref 165) / D237: every live names its category next '
+        'to the live mark (a solo live «بث مباشر» / "Live")', (tester) async {
       final l10n = l10nFor(AppLanguage.en);
       await _pumpHub(tester, rooms: 1);
       expect(
-        find.descendant(
-          of: find.byKey(LiveHubGrid.cardKey(0)),
-          matching: find.byKey(KLiveGridCard.typeKey),
-        ),
-        findsNothing,
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(LiveHubGrid.cardKey(0)),
+                matching: find.byKey(KLiveGridCard.typeKey),
+              ),
+            )
+            .data,
+        l10n.liveCategoryLive,
       );
       expect(
         find.descendant(
@@ -181,7 +183,7 @@ void main() {
         ),
       );
       expect(find.text(l10n.pkBadge), findsOneWidget);
-      expect(find.text(l10n.goLiveModeMulti), findsOneWidget);
+      expect(find.text(l10n.liveCategoryMulti), findsOneWidget);
     });
   });
 
@@ -452,21 +454,23 @@ void main() {
       router.pop();
       await tester.pumpAndSettle();
 
-      // D131: Popular ▾ Following, then the talents banner (third) →
+      // D237: the Following tab, then the talents banner (third) →
       // Popular.
       final popular = find.byKey(
         LiveHubFilterBar.pillKey(LiveHubFilter.popular),
       );
-      await tester.tap(popular);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(LiveHubFilterBar.menuFollowingKey));
+      final following = find.byKey(
+        LiveHubFilterBar.pillKey(LiveHubFilter.following),
+      );
+      await tester.tap(following);
       await tester.pumpAndSettle();
       expect(
-        find.descendant(
-          of: popular,
-          matching: find.text(l10n.feedTabFollowing),
-        ),
-        findsOneWidget,
+        tester
+            .getSemantics(following)
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
       );
       final carousel = find.byKey(KHomeBannerCarousel.carouselKey);
       for (var i = 0; i < 2; i++) {

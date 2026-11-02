@@ -82,14 +82,19 @@ class KLiveGridCard extends StatelessWidget {
       Shadow(color: Color(0x80000000), blurRadius: 4, offset: Offset(0, 1)),
     ];
     final isNew = room.viewerCount < 1;
-    final type = room.isAudio
-        ? l10n.liveGridAudio
-        : room.inPk
+    // D237 (owner): every card names its live's category, from the room's
+    // own mode (the hub has no category row any more): «بث مباشر»,
+    // «بث صوتي», «بث بودكاست», «بث متعدد»; a PK keeps «PK». (No streamer
+    // rooms exist yet, D213.)
+    final type = room.inPk
         ? l10n.pkBadge
+        : room.isPodcast
+        ? l10n.liveCategoryPodcast
+        : room.isAudio
+        ? l10n.liveCategoryAudio
         : room.isMulti
-        ? l10n.goLiveModeMulti
-        : l10n.liveGridVideo;
-    final showType = room.inPk || room.isMulti;
+        ? l10n.liveCategoryMulti
+        : l10n.liveCategoryLive;
     final base = l10n.liveCardSemantics(
       room.hostName,
       isNew
@@ -143,9 +148,12 @@ class KLiveGridCard extends StatelessWidget {
                             color: KLiveGrid.liveMark,
                             size: 10,
                           ),
-                          if (showType) ...[
-                            const SizedBox(width: KSpacing.xs),
-                            Flexible(
+                          const SizedBox(width: KSpacing.xs),
+                          // D237: the kind takes the room the count leaves
+                          // (not half of it).
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerStart,
                               child: Text(
                                 type,
                                 key: typeKey,
@@ -159,8 +167,8 @@ class KLiveGridCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          ],
-                          const Spacer(),
+                          ),
+                          const SizedBox(width: KSpacing.xs),
                           Row(
                             key: viewersKey,
                             mainAxisSize: MainAxisSize.min,

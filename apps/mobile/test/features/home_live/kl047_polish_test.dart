@@ -66,8 +66,8 @@ bool _popularShows(WidgetTester tester, String label) =>
         .evaluate()
         .isNotEmpty;
 
-/// D131: shows the old tab [tab] with the filters: Following is Popular's
-/// menu, New is Explore.
+/// D131: shows the old tab [tab] with the filters: Following is its own tab
+/// (D237), New is Explore.
 Future<void> _showTab(WidgetTester tester, FeedTab tab) async {
   final l10n = AppLocalizations.of(tester.element(find.byType(LiveScreen)));
   if (tab == FeedTab.latest) {
@@ -87,6 +87,18 @@ Future<void> _showTab(WidgetTester tester, FeedTab tab) async {
     const Offset(200, 0),
   );
   await tester.pumpAndSettle();
+  // D237: Following is its own tab (the first).
+  if (tab == FeedTab.following) {
+    await tester.dragUntilVisible(
+      _filter(LiveHubFilter.following),
+      find.byType(LiveHubFilterBar),
+      const Offset(200, 0),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_filter(LiveHubFilter.following));
+    await tester.pumpAndSettle();
+    return;
+  }
   if (!_selected(tester, _filter(LiveHubFilter.popular))) {
     await tester.tap(_filter(LiveHubFilter.popular));
     await tester.pumpAndSettle();
@@ -97,13 +109,7 @@ Future<void> _showTab(WidgetTester tester, FeedTab tab) async {
   if (_popularShows(tester, want)) return;
   await tester.tap(_filter(LiveHubFilter.popular));
   await tester.pumpAndSettle();
-  await tester.tap(
-    find.byKey(
-      tab == FeedTab.following
-          ? LiveHubFilterBar.menuFollowingKey
-          : LiveHubFilterBar.menuAllKey,
-    ),
-  );
+  await tester.tap(find.byKey(LiveHubFilterBar.menuAllKey));
   await tester.pumpAndSettle();
 }
 
@@ -696,12 +702,12 @@ void main() {
       expect(inCard(0, find.text('Arabic music night')), findsOneWidget);
       expect(
         find.bySemanticsLabel(
-          'Sara, live, New, Arabic music night, Video, Music',
+          'Sara, live, New, Arabic music night, Live, Music',
         ),
         findsOneWidget,
       );
       expect(
-        find.bySemanticsLabel('Omar, live, New, Evening chat, Video'),
+        find.bySemanticsLabel('Omar, live, New, Evening chat, Live'),
         findsOneWidget,
       );
     });

@@ -32,6 +32,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
+import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
@@ -573,10 +574,11 @@ void main() {
       });
     }
 
-    _testGolden('hub: the five categories ($language)', (tester) async {
+    _testGolden('hub: no category row, every card names its kind (D237) '
+        '($language)', (tester) async {
       await hub(tester, podcast: false);
       await _capture(tester, 'hub_categories.${language.name}@3x');
-      expect(find.byType(LiveHubCategoryBar), findsOneWidget);
+      expect(find.byType(LiveHubCategoryBar), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 12));
     });
@@ -592,8 +594,11 @@ void main() {
   });
 }
 
-/// Taps a hub category tab (the row scrolls on narrow screens).
+/// D237: a live category is a kind tab of the party page (the hub's party
+/// button).
 Future<void> _tapTab(WidgetTester tester, LiveHubCategory category) async {
+  await tester.tap(find.byKey(LiveHubPartyButton.buttonKey));
+  await tester.pumpAndSettle();
   final tab = find.byKey(LiveHubCategoryBar.tabKey(category));
   await tester.ensureVisible(tab);
   await tester.pumpAndSettle();

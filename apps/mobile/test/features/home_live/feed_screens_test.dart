@@ -67,15 +67,9 @@ bool _pillSelected(WidgetTester tester, LiveHubFilter f) =>
         .isSelected ==
     Tristate.isTrue;
 
-/// D131: Popular ▾ Following (Popular's menu).
+/// D237: the Following tab (the first filter; was Popular ▾ Following).
 Future<void> _showFollowing(WidgetTester tester) async {
-  if (!_pillSelected(tester, LiveHubFilter.popular)) {
-    await tester.tap(_pill(LiveHubFilter.popular));
-    await tester.pumpAndSettle();
-  }
-  await tester.tap(_pill(LiveHubFilter.popular));
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(LiveHubFilterBar.menuFollowingKey));
+  await tester.tap(_pill(LiveHubFilter.following));
   await tester.pumpAndSettle();
 }
 
@@ -154,12 +148,12 @@ void main() {
       });
 
       for (final language in AppLanguage.values) {
-        testWidgets('the filter row mirrors in ${language.name}: Nearby at '
-            'the reading start, 14.5 pt in', (tester) async {
+        testWidgets('the filter row mirrors in ${language.name}: Following '
+            '(D237) at the reading start, 14.5 pt in', (tester) async {
           await _pump(tester, screen, language: language);
           final nearby = tester.getRect(
             find.descendant(
-              of: _pill(LiveHubFilter.nearby),
+              of: _pill(LiveHubFilter.following),
               matching: find.byType(AnimatedContainer),
             ),
           );

@@ -24,6 +24,7 @@ class LiveRoomCardData {
     this.score = 0,
     this.isAudio = false,
     this.isMulti = false,
+    this.isPodcast = false,
     this.hostId,
     this.seatCount,
     this.occupiedSeats = 0,
@@ -58,6 +59,7 @@ class LiveRoomCardData {
       score: room.score,
       isAudio: room.mode.isVoice,
       isMulti: room.mode == LiveRoomMode.multi,
+      isPodcast: room.mode == LiveRoomMode.podcast,
       hostId: room.host.id,
       seatCount: room.seatCount,
       occupiedSeats: room.occupiedSeats,
@@ -108,6 +110,9 @@ class LiveRoomCardData {
 
   /// D131: a multi-guest video live (CP-011 `MULTI`).
   final bool isMulti;
+
+  /// D237: a podcast (v1.47-live `PODCAST`; [isAudio] too).
+  final bool isPodcast;
 
   /// D124: the host's user id (API rooms only), so the in-room swipe never
   /// moves a host away from their own live.

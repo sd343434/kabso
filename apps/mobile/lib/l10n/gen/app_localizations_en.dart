@@ -6192,6 +6192,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveHubFilterLabel => 'Filters';
 
   @override
+  String get liveHubFilterFollowing => 'Following';
+
+  @override
   String get liveHubFilterNearby => 'Nearby';
 
   @override

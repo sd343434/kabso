@@ -7,13 +7,18 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D131 (owner, ref 165): the Live hub's four filters, replacing the
-/// Following · Popular · New tabs and the category chips.
+/// D131 (owner, ref 165): the Live hub's filters, replacing the
+/// Following · Popular · New tabs and the category chips. D237 (owner):
+/// «المتابَعين» is its own tab, the first (it was a choice in Popular's
+/// menu): Following · Nearby · Popular ▾ · Featured · Explore.
 enum LiveHubFilter {
+  /// D237: lives of the people the person follows (`tab=following`).
+  following,
+
   /// Lives of hosts from the person's own country (D133 `scope=nearby`).
   nearby,
 
-  /// Popular order; its menu (▾) picks Following or a category.
+  /// Popular order; its menu (▾) picks All or a server category.
   popular,
 
   /// Hosts the team features from admin (D133 `featured=true`).
@@ -24,9 +29,11 @@ enum LiveHubFilter {
 }
 
 /// D212 (owner: «بث مباشر، بث صوتي، بث بودكاست، بث متعدد، بث ستريمر»):
-/// the hub's category tabs, «الكل» first. Each is a `kind` of
-/// `GET /live/rooms` (server-side); «ستريمر» (phone screen share, D213)
-/// has no rooms yet and shows an honest «قريباً» without a call.
+/// the live categories, each a `kind` of `GET /live/rooms` (server-side);
+/// «ستريمر» (phone screen share, D213) has no rooms yet. D237 (owner): the
+/// hub no longer has a category row — audio, podcast and multi are the
+/// tabs of the party page ([partyPage]), and every hub card names its
+/// room's category.
 enum LiveHubCategory {
   all(null),
   live(LiveRoomsKind.solo),
@@ -43,6 +50,9 @@ enum LiveHubCategory {
   /// D213: the streamer category is not built yet.
   bool get comingSoon => this == streamer;
 
+  /// D237: the party page's tabs, in order.
+  static const List<LiveHubCategory> partyPage = [audio, podcast, multi];
+
   String label(AppLocalizations l10n) => switch (this) {
     all => l10n.liveCategoryAll,
     live => l10n.liveCategoryLive,
@@ -53,57 +63,41 @@ enum LiveHubCategory {
   };
 }
 
-/// What the hub shows: a filter, and for Popular its menu choice
-/// (Following, All or one category); D212: and a category tab. The two
-/// rows combine (AND): the filter picks the list (nearby, popular,
-/// featured, newest), the category adds `kind`.
+/// What the hub shows: a filter, and for Popular its menu choice (All or
+/// one server category). D237: every kind of live together (no category
+/// row; each card names its kind).
 @immutable
 class LiveHubSelection {
-  const new({
-    this.filter = LiveHubFilter.popular,
-    this.following = false,
-    this.category,
-    this.liveCategory = LiveHubCategory.all,
-  });
+  const new({this.filter = LiveHubFilter.popular, this.category});
 
   /// The hub as another screen asks for it ("Watch live streams", a
-  /// banner's `/live?tab=…`).
+  /// banner's `/live?tab=…`; D237: following → the Following tab).
   factory forTab(FeedTab tab) => switch (tab) {
-    FeedTab.following => const LiveHubSelection(following: true),
+    FeedTab.following => const LiveHubSelection(
+      filter: LiveHubFilter.following,
+    ),
     FeedTab.popular => const LiveHubSelection(),
     FeedTab.latest => const LiveHubSelection(filter: LiveHubFilter.explore),
   };
 
-  /// D212: the category tab.
-  final LiveHubCategory liveCategory;
-
-  LiveHubSelection withCategory(LiveHubCategory next) => LiveHubSelection(
-    filter: filter,
-    following: following,
-    category: category,
-    liveCategory: next,
-  );
-
   final LiveHubFilter filter;
-
-  /// Popular's menu: Following (people the person follows).
-  final bool following;
 
   /// Popular's menu: a category slug (`null`: All).
   final String? category;
 
-  /// The room list behind this selection (D212: in its category).
-  LiveRoomsQuery get query => _filterQuery.withKind(liveCategory.kind);
+  /// The room list behind this selection: every kind (D237).
+  LiveRoomsQuery get query => _filterQuery.withKind(null);
 
   LiveRoomsQuery get _filterQuery => switch (filter) {
+    LiveHubFilter.following => const LiveRoomsQuery(tab: FeedTab.following),
     LiveHubFilter.nearby => const LiveRoomsQuery(
       tab: FeedTab.popular,
       nearby: true,
     ),
-    LiveHubFilter.popular =>
-      following
-          ? const LiveRoomsQuery(tab: FeedTab.following)
-          : LiveRoomsQuery(tab: FeedTab.popular, category: category),
+    LiveHubFilter.popular => LiveRoomsQuery(
+      tab: FeedTab.popular,
+      category: category,
+    ),
     LiveHubFilter.featured => const LiveRoomsQuery(
       tab: FeedTab.popular,
       featured: true,
@@ -111,23 +105,17 @@ class LiveHubSelection {
     LiveHubFilter.explore => const LiveRoomsQuery(tab: FeedTab.latest),
   };
 
-  LiveHubSelection withFilter(LiveHubFilter next) => LiveHubSelection(
-    filter: next,
-    following: following,
-    category: category,
-    liveCategory: liveCategory,
-  );
+  LiveHubSelection withFilter(LiveHubFilter next) =>
+      LiveHubSelection(filter: next, category: category);
 
   @override
   bool operator ==(Object other) =>
       other is LiveHubSelection &&
       other.filter == filter &&
-      other.following == following &&
-      other.category == category &&
-      other.liveCategory == liveCategory;
+      other.category == category;
 
   @override
-  int get hashCode => Object.hash(filter, following, category, liveCategory);
+  int get hashCode => Object.hash(filter, category);
 }
 
 /// Geometry of the filter row, measured on ref 165 (393 pt wide).
@@ -155,12 +143,13 @@ abstract final class KLiveHubFilters {
   static const Color lightInk = Color(0xFF2E3032);
 }
 
-/// The hub's filter row (ref 165): Nearby · Popular ▾ · Featured · Explore,
-/// rounded-rect pills on one scrolling line. The selected pill is white
+/// The hub's filter row (ref 165; D237: Following first): Following ·
+/// Nearby · Popular ▾ · Featured · Explore, rounded-rect pills on one
+/// scrolling line (in Arabic from the right). The selected pill is white
 /// with a soft shadow and a bold label (dark theme: the raised surface);
-/// the others are light grey. Popular shows its menu choice (Following or a
-/// category) as its label and its ▾ chevron; tapping it while selected
-/// opens the menu.
+/// the others are light grey. Popular shows its menu choice (a category)
+/// as its label and its ▾ chevron; tapping it while selected opens the
+/// menu (All and the server's categories).
 class LiveHubFilterBar extends StatelessWidget {
   const new({
     required this.selection,
@@ -177,12 +166,10 @@ class LiveHubFilterBar extends StatelessWidget {
 
   static Key pillKey(LiveHubFilter filter) =>
       Key('liveHub.filter.${filter.name}');
-  static const menuFollowingKey = Key('liveHub.popularMenu.following');
   static const menuAllKey = Key('liveHub.popularMenu.all');
   static Key menuCategoryKey(String slug) => Key('liveHub.popularMenu.$slug');
 
   String _popularLabel(AppLocalizations l10n) {
-    if (selection.following) return l10n.feedTabFollowing;
     final slug = selection.category;
     if (slug != null) {
       for (final c in categories) {
@@ -234,35 +221,22 @@ class LiveHubFilterBar extends StatelessWidget {
       position: RelativeRect.fromRect(rect, Offset.zero & overlay.size),
       items: [
         item(
-          menuFollowingKey,
-          l10n.feedTabFollowing,
-          const _MenuChoice.following(),
-          selected: selection.following,
-        ),
-        const PopupMenuDivider(),
-        item(
           menuAllKey,
           l10n.liveHubChipAll,
-          const _MenuChoice.category(null),
-          selected: !selection.following && selection.category == null,
+          const _MenuChoice(null),
+          selected: selection.category == null,
         ),
         for (final c in categories)
           item(
             menuCategoryKey(c.slug),
             c.name,
-            _MenuChoice.category(c.slug),
-            selected: !selection.following && selection.category == c.slug,
+            _MenuChoice(c.slug),
+            selected: selection.category == c.slug,
           ),
       ],
     );
     if (choice == null) return;
-    onSelect(
-      LiveHubSelection(
-        following: choice.following,
-        category: choice.slug,
-        liveCategory: selection.liveCategory,
-      ),
-    );
+    onSelect(LiveHubSelection(category: choice.slug));
   }
 
   @override
@@ -271,6 +245,7 @@ class LiveHubFilterBar extends StatelessWidget {
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale);
     final labels = {
+      LiveHubFilter.following: l10n.liveHubFilterFollowing,
       LiveHubFilter.nearby: l10n.liveHubFilterNearby,
       LiveHubFilter.popular: _popularLabel(l10n),
       LiveHubFilter.featured: l10n.liveHubFilterFeatured,
@@ -323,10 +298,9 @@ class LiveHubFilterBar extends StatelessWidget {
 
 @immutable
 class _MenuChoice {
-  const new following() : following = true, slug = null;
-  const new category(this.slug) : following = false;
+  const new(this.slug);
 
-  final bool following;
+  /// A category slug (`null`: All).
   final String? slug;
 }
 
@@ -447,15 +421,22 @@ abstract final class KLiveHubCategories {
   static const double gap = 16;
 }
 
-/// D212 (owner): the hub's category row — «الكل» + بث مباشر · بث صوتي ·
-/// بث بودكاست · بث متعدد · بث ستريمر — text tabs on one scrolling line, the
-/// selected one bold with a short brand-red underline. It sits under the
-/// filter pills; both apply (the filter picks the list, the tab the kind).
+/// D212 (owner): a row of live-category text tabs on one scrolling line,
+/// the selected one bold with a short brand-red underline. D237: no longer
+/// on the hub; the party page's three tabs ([LiveHubCategory.partyPage]).
 class LiveHubCategoryBar extends StatelessWidget {
-  const new({required this.selected, required this.onSelect, super.key});
+  const new({
+    required this.selected,
+    required this.onSelect,
+    super.key,
+    this.values = LiveHubCategory.partyPage,
+  });
 
   final LiveHubCategory selected;
   final ValueChanged<LiveHubCategory> onSelect;
+
+  /// The tabs, in order.
+  final List<LiveHubCategory> values;
 
   static Key tabKey(LiveHubCategory c) => Key('liveHub.category.${c.name}');
 
@@ -480,7 +461,7 @@ class LiveHubCategoryBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                for (final (i, c) in LiveHubCategory.values.indexed) ...[
+                for (final (i, c) in values.indexed) ...[
                   if (i > 0) const SizedBox(width: KLiveHubCategories.gap),
                   Semantics(
                     button: true,

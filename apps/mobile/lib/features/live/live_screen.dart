@@ -33,10 +33,12 @@ import 'package:material_ui/material_ui.dart';
 
 /// `/home` — the live-discovery hub, Kabso's home page since D48.
 ///
-/// D131 (owner, ref 165): every live video (`kind=video`: solo, PK and
-/// multi-guest) under four filters — Nearby (the person's country, D133),
-/// Popular ▾ (its menu: Following, All or a category), Featured (hosts
-/// featured from admin, D133) and Explore (the newest) — which replaced the
+/// D131 (owner, ref 165): every live under the filters — D237: Following
+/// (first), Nearby (the person's country, D133), Popular ▾ (its menu: All or
+/// a category), Featured (hosts featured from admin, D133) and Explore (the
+/// newest); every kind together, each card naming its kind (no category
+/// row; audio / podcast / multi are also the party page's tabs) — which
+/// replaced the
 /// Following · Popular · New tabs, the category chips and D129's "voice
 /// rooms · live" switch. The voice rooms open from the party button
 /// (`VoiceRoomsScreen`, `/live/voice`). D124 stays: the top bar (title,
@@ -47,7 +49,7 @@ import 'package:material_ui/material_ui.dart';
 /// unavailable state with Try again.
 ///
 /// Another screen can ask for a list through `liveHubTabRequestProvider`
-/// (following → Popular ▾ Following, popular → Popular, new → Explore).
+/// (following → Following, popular → Popular, new → Explore).
 ///
 /// Freshness (HL-H5): tapping the selected filter (except Popular, which
 /// opens its menu) re-fetches it; returning to the app after more than
@@ -134,30 +136,16 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
               categories: categories,
               onSelect: _select,
             ),
-            // D212 (owner): «الكل» + the five live categories.
-            LiveHubCategoryBar(
-              selected: _selection.liveCategory,
-              onSelect: (c) => _select(_selection.withCategory(c)),
-            ),
+            // D237 (owner): no category row — every kind together, each
+            // card names its kind; audio, podcast and multi are also the
+            // party page's tabs.
             Expanded(
-              child: switch (_selection.liveCategory) {
-                // D213: no streamer lives yet — an honest «قريباً».
-                LiveHubCategory.streamer => const StreamerSoon(),
-                LiveHubCategory.podcast => LiveRoomsPage(
-                  key: ValueKey(_selection),
-                  query: _selection.query,
-                  selection: _selection,
-                  onSelect: _select,
-                  layout: LiveRoomsLayout.podcast,
-                  header: const ScheduledPodcastsSection(),
-                ),
-                _ => LiveRoomsPage(
-                  key: ValueKey(_selection),
-                  query: _selection.query,
-                  selection: _selection,
-                  onSelect: _select,
-                ),
-              },
+              child: LiveRoomsPage(
+                key: ValueKey(_selection),
+                query: _selection.query,
+                selection: _selection,
+                onSelect: _select,
+              ),
             ),
           ],
         ),

@@ -6220,6 +6220,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveHubFilterLabel => 'عوامل التصفية';
 
   @override
+  String get liveHubFilterFollowing => 'المتابَعين';
+
+  @override
   String get liveHubFilterNearby => 'القريبة';
 
   @override
