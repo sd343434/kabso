@@ -17,21 +17,17 @@ export type LoginStep =
 type Step = LoginStep;
 
 /**
- * D249: the split card every step of the sign-in shares — the form on the reading-start side (right in Arabic), the
- * Kabi panel with the slogan on the end side (a short banner on top below 820 px), over a CSS-only blush sky. Kabi is
- * the owner's own art (`apps/mobile/assets/pk/score_bar/kabi/kabi_win.png`, the kabso_pk_powers pack); nothing from
- * the owner's third-party style reference is used. Strict CSP: no external font, image or script.
+ * D249 / D249b: the full-screen split every step of the sign-in shares (no page background around it) — the form
+ * half on the reading-start side (right in Arabic) with the owner's logo (Kabi face mark,
+ * `infra/deploy/site/assets/logo.webp`, 127×160, shown at most 76 px high), the Kabi panel with the slogan edge to
+ * edge on the end side, a short banner on top below 820 px. Kabi is the owner's own art
+ * (`apps/mobile/assets/pk/score_bar/kabi/kabi_win.png`, the kabso_pk_powers pack); nothing from the owner's
+ * third-party style reference is used. Strict CSP: no external font, image or script.
  */
 export function AuthShell({ children, tools }: { children: ReactNode; tools: ReactNode }) {
   const { t } = useApp();
   return (
     <main className="auth">
-      <div className="auth-sky" aria-hidden="true">
-        <span className="cloud c1" />
-        <span className="cloud c2" />
-        <span className="cloud c3" />
-        <span className="cloud c4" />
-      </div>
       <div className="auth-card" data-testid="auth-card">
         <section className="auth-form">
           <div className="auth-inner">

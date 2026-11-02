@@ -1647,97 +1647,34 @@ ins {
     var(--bg);
 }
 /*
- * D249 sign-in: a full-bleed blush sky (CSS gradients + blurred cloud shapes, no image), a large rounded card split
- * 50/50 — the form on the reading-start side, the Kabi panel on the end side — and a short banner on top below 820 px.
+ * D249 sign-in, D249b full screen: no page background around it — the split fills the viewport, the form half plain
+ * (raised surface) on the reading-start side, the Kabi panel edge to edge on the end side; a top banner below 820 px.
  */
 .auth {
-  --sky-top: #fbd9dc;
-  --sky-mid: #fdebec;
-  --sky-low: #fff7f5;
-  --cloud: rgba(255, 255, 255, 0.9);
-  --card-shadow: 0 2px 6px rgba(11, 11, 13, 0.05), 0 30px 80px rgba(138, 5, 12, 0.16);
   --field-bg: #f6f6f8;
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
   min-height: 100vh;
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 40px 24px;
-  background:
-    radial-gradient(60% 50% at 85% 0%, rgba(255, 59, 71, 0.22), transparent 70%),
-    radial-gradient(50% 45% at 0% 100%, rgba(229, 9, 20, 0.12), transparent 70%),
-    linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 48%, var(--sky-low) 100%);
+  background: var(--raised);
 }
 :root[data-theme='dark'] .auth {
-  --sky-top: #2a070c;
-  --sky-mid: #170609;
-  --sky-low: #0b0b0d;
-  --cloud: rgba(255, 59, 71, 0.13);
-  --card-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 30px 80px rgba(0, 0, 0, 0.6);
   --field-bg: #1e1e24;
 }
-.auth-sky {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-}
-.auth-sky .cloud {
-  position: absolute;
-  border-radius: 50%;
-  background: var(--cloud);
-  filter: blur(42px);
-}
-.auth-sky .c1 {
-  width: 520px;
-  height: 220px;
-  top: -60px;
-  inset-inline-start: -120px;
-}
-.auth-sky .c2 {
-  width: 620px;
-  height: 260px;
-  top: 6%;
-  inset-inline-end: -180px;
-}
-.auth-sky .c3 {
-  width: 700px;
-  height: 260px;
-  bottom: -120px;
-  inset-inline-start: 10%;
-}
-.auth-sky .c4 {
-  width: 360px;
-  height: 160px;
-  bottom: 18%;
-  inset-inline-end: -60px;
-  opacity: 0.7;
-}
 .auth-card {
-  position: relative;
-  width: min(960px, 100%);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 10px;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--raised);
-  border-radius: 28px;
-  box-shadow: var(--card-shadow);
-}
-:root[data-theme='dark'] .auth-card {
-  border: 1px solid var(--border);
 }
 .auth-form {
   display: flex;
   flex-direction: column;
-  padding: 40px 38px 14px;
+  padding: 48px 40px 20px;
   min-width: 0;
 }
 .auth-inner {
   width: 100%;
-  max-width: 360px;
+  max-width: 400px;
   margin: auto;
 }
 .auth-form .brand {
@@ -1748,19 +1685,18 @@ ins {
   font-weight: 600;
   padding: 0 0 18px;
 }
+/* Without a backdrop the logo's white face vanishes on the white half (D249b capture), so a very subtle tile stays. */
 .auth-logo {
   width: 84px;
   height: 84px;
   object-fit: contain;
-  padding: 11px;
+  padding: 10px;
   border-radius: 26px;
-  background: color-mix(in srgb, var(--red-500) 11%, var(--raised));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--red-500) 14%, transparent),
-    0 10px 24px color-mix(in srgb, var(--red-500) 14%, transparent);
+  background: color-mix(in srgb, var(--red-500) 6%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red-500) 9%, transparent);
 }
 .auth-form h1 {
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -1769,12 +1705,12 @@ ins {
 }
 .auth-form .auth-sub {
   text-align: center;
-  margin: 0 0 24px;
+  margin: 0 0 26px;
 }
 .auth-form input[type='text'],
 .auth-form input[type='email'],
 .auth-form input[type='password'] {
-  height: 46px;
+  height: 48px;
   background: var(--field-bg);
   border-color: transparent;
   transition:
@@ -1791,7 +1727,7 @@ ins {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent);
 }
 .auth-form .code-input {
-  height: 54px;
+  height: 56px;
 }
 .pw-wrap {
   position: relative;
@@ -1827,7 +1763,7 @@ ins {
 }
 .auth-submit {
   width: 100%;
-  height: 48px;
+  height: 50px;
   margin-top: 6px;
   font-size: 15px;
 }
@@ -1842,20 +1778,20 @@ ins {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  min-height: 580px;
-  border-radius: 20px;
-  padding: 32px 34px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 56px 64px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   color: #fff;
   background:
-    radial-gradient(70% 55% at 50% 30%, rgba(255, 120, 128, 0.55), transparent 70%),
+    radial-gradient(70% 50% at 50% 38%, rgba(255, 120, 128, 0.55), transparent 70%),
     linear-gradient(165deg, var(--red-400) 0%, var(--red-500) 38%, var(--red-600) 70%, var(--red-700) 100%);
 }
 :root[data-theme='dark'] .auth-art {
   background:
-    radial-gradient(70% 55% at 50% 30%, rgba(229, 9, 20, 0.45), transparent 70%),
+    radial-gradient(70% 50% at 50% 38%, rgba(229, 9, 20, 0.45), transparent 70%),
     linear-gradient(165deg, #b80710 0%, #8a050c 45%, #4a0307 80%, #2a0205 100%);
 }
 .auth-art::after {
@@ -1863,32 +1799,32 @@ ins {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(to top, rgba(74, 3, 7, 0.6), transparent 42%);
+  background: linear-gradient(to top, rgba(74, 3, 7, 0.6), transparent 38%);
 }
 .art-cloud {
   position: absolute;
   z-index: -2;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.32);
-  filter: blur(26px);
+  background: rgba(255, 255, 255, 0.3);
+  filter: blur(34px);
 }
 .art-cloud.a1 {
-  width: 300px;
-  height: 120px;
-  top: 6%;
-  inset-inline-start: -80px;
+  width: 440px;
+  height: 160px;
+  top: 7%;
+  inset-inline-start: -110px;
 }
 .art-cloud.a2 {
-  width: 260px;
-  height: 110px;
-  top: 30%;
-  inset-inline-end: -90px;
+  width: 380px;
+  height: 150px;
+  top: 34%;
+  inset-inline-end: -130px;
 }
 .art-cloud.a3 {
-  width: 420px;
-  height: 150px;
-  bottom: 22%;
-  inset-inline-start: 10%;
+  width: 620px;
+  height: 200px;
+  bottom: 24%;
+  inset-inline-start: 8%;
   opacity: 0.6;
 }
 :root[data-theme='dark'] .art-cloud {
@@ -1897,24 +1833,23 @@ ins {
 .art-halo {
   position: absolute;
   z-index: -1;
-  width: 380px;
-  height: 380px;
-  top: 7%;
+  width: min(560px, 46vw);
+  aspect-ratio: 1;
+  top: 40%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.12) 50%, transparent 70%);
 }
 .art-kabi {
   position: absolute;
   z-index: -1;
-  top: 9%;
+  top: 40%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 76%;
-  max-width: 360px;
+  transform: translate(-50%, -50%);
+  width: min(66%, 520px, 58vh);
   height: auto;
-  filter: drop-shadow(0 22px 28px rgba(74, 3, 7, 0.4));
+  filter: drop-shadow(0 26px 34px rgba(74, 3, 7, 0.4));
   user-select: none;
   pointer-events: none;
 }
@@ -1924,53 +1859,44 @@ ins {
 .auth-slogan {
   margin: 0;
   display: grid;
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.01em;
   text-shadow: 0 2px 14px rgba(74, 3, 7, 0.35);
 }
 .art-caption {
-  margin: 10px 0 0;
-  font-size: 14px;
+  margin: 12px 0 0;
+  font-size: 15px;
   opacity: 0.88;
 }
 @media (max-width: 820px) {
-  .auth {
-    padding: 16px;
-    place-items: start center;
-  }
   .auth-card {
     grid-template-columns: 1fr;
-    max-width: 520px;
-    border-radius: 24px;
-    padding: 8px;
-    gap: 6px;
+    grid-template-rows: auto 1fr;
   }
   .auth-art {
     order: -1;
     min-height: 0;
-    height: 150px;
-    border-radius: 18px;
+    height: 160px;
     padding: 20px 22px;
     justify-content: center;
   }
   .art-halo {
-    width: 200px;
-    height: 200px;
-    top: -10px;
+    width: 210px;
+    top: -14px;
     left: auto;
     right: auto;
-    inset-inline-end: -20px;
+    inset-inline-end: -16px;
     transform: none;
   }
   .art-kabi {
-    top: 10px;
+    top: 12px;
     left: auto;
     right: auto;
-    inset-inline-end: 6px;
+    inset-inline-end: 10px;
     transform: none;
-    width: 150px;
+    width: 156px;
   }
   .auth-slogan {
     font-size: 26px;
@@ -1982,7 +1908,10 @@ ins {
     max-width: 60%;
   }
   .auth-form {
-    padding: 26px 16px 8px;
+    padding: 28px 20px 16px;
+  }
+  .auth-inner {
+    margin: 0 auto auto;
   }
   .auth-form h1 {
     font-size: 26px;
