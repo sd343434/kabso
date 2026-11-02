@@ -82,7 +82,7 @@ test('admin panel smoke: TOTP sign-in, dashboard charts, users, agencies, end a 
 
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('heading', { name: 'تسجيل دخول المشرفين' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'مرحباً بعودتك' })).toBeVisible();
   await capture(page, '01-login');
   await page.getByLabel('البريد الإلكتروني').fill(seed.email);
   await page.getByLabel('كلمة المرور').fill(seed.password);

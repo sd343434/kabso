@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
+import kabsoLogo from '../assets/kabso_logo.webp';
 import { Avatar } from '../components';
 import { useApp } from '../context';
 import { formatNumber } from '../format';
@@ -240,9 +241,7 @@ export function Shell({
     <div className="shell">
       <aside className={`side${menuOpen ? ' open' : ''}`} aria-label={t('appName')}>
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            K
-          </span>
+          <img className="brand-logo" src={kabsoLogo} alt="" width={127} height={160} decoding="async" />
           <span className="brand-text">
             <span className="wordmark ltr">
               Kabso <b>Live</b>
