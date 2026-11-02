@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
@@ -36,6 +37,8 @@ class StreamerHostState {
     this.sdkInt,
     this.pauses = const {StreamerPause.inApp},
     this.stopped = false,
+    this.headset,
+    this.headsetTipSeen = false,
   });
 
   /// The camera bubble shown (setup and live).
@@ -69,7 +72,24 @@ class StreamerHostState {
   /// host shares it again.
   final bool stopped;
 
+  /// A headset is connected (null: not known yet).
+  final bool? headset;
+
+  /// On air: the «use headphones» tip was shown and the host went to the
+  /// game (it is shown once per live).
+  final bool headsetTipSeen;
+
   bool get paused => pauses.isNotEmpty;
+
+  /// The setup's «use headphones» tip: the game sound is on and no headset
+  /// is known to be connected (the speaker's game sound would also reach
+  /// the microphone, so viewers would hear it twice).
+  bool get headsetTipInSetup =>
+      gameAudioOn && gameAudioPossible && headset != true;
+
+  /// The same tip on air, once: until the host first goes to the game.
+  bool get headsetTipOnAir =>
+      gameAudio == StreamerGameAudio.ok && headset != true && !headsetTipSeen;
 
   /// Android 10+ can capture the game sound.
   bool get gameAudioPossible => sdkInt == null || sdkInt! >= 29;
@@ -89,6 +109,8 @@ class StreamerHostState {
     int? sdkInt,
     Set<StreamerPause>? pauses,
     bool? stopped,
+    bool? headset,
+    bool? headsetTipSeen,
   }) => StreamerHostState(
     cameraVisible: cameraVisible ?? this.cameraVisible,
     corner: corner ?? this.corner,
@@ -100,6 +122,8 @@ class StreamerHostState {
     sdkInt: sdkInt ?? this.sdkInt,
     pauses: pauses ?? this.pauses,
     stopped: stopped ?? this.stopped,
+    headset: headset ?? this.headset,
+    headsetTipSeen: headsetTipSeen ?? this.headsetTipSeen,
   );
 }
 
@@ -132,17 +156,40 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
         unawaited(platform.setSecure(on: false).then((_) {}, onError: (_) {}));
       }
     });
-    return const StreamerHostState();
+    return StreamerHostState(corner: _savedCorner());
   }
 
-  /// Reads Android's API level (the setup's game-sound note).
-  Future<void> readDevice() async {
-    if (state.sdkInt != null) return;
+  /// The corner last chosen on this phone (top left at first).
+  StreamerCorner _savedCorner() {
     try {
-      final sdk = await _platform.sdkInt();
-      if (ref.mounted) state = state.copyWith(sdkInt: sdk);
+      final wire = ref
+          .read(sharedPreferencesProvider)
+          .getString(PreferenceKeys.streamerCorner);
+      for (final c in StreamerCorner.values) {
+        if (c.wire == wire) return c;
+      }
     } on Object {
-      // Not Android: no note.
+      // No preferences (some tests): top left.
+    }
+    return StreamerCorner.topLeft;
+  }
+
+  /// Reads Android's API level (the setup's game-sound note) and whether a
+  /// headset is connected (the «use headphones» tip).
+  Future<void> readDevice() async {
+    if (state.sdkInt == null) {
+      try {
+        final sdk = await _platform.sdkInt();
+        if (ref.mounted) state = state.copyWith(sdkInt: sdk);
+      } on Object {
+        // Not Android: no note.
+      }
+    }
+    try {
+      final headset = await _platform.headsetConnected();
+      if (ref.mounted) state = state.copyWith(headset: headset);
+    } on Object {
+      // Unknown: the tip shows.
     }
   }
 
@@ -163,6 +210,15 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
   Future<void> setCorner(StreamerCorner corner) async {
     if (corner == state.corner) return;
     state = state.copyWith(corner: corner);
+    try {
+      unawaited(
+        ref
+            .read(sharedPreferencesProvider)
+            .setString(PreferenceKeys.streamerCorner, corner.wire),
+      );
+    } on Object {
+      // No preferences (some tests): this app session only.
+    }
     if (state.live) await _push(corner: corner);
   }
 
@@ -246,8 +302,12 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
   }
 
   /// Kabso left the front (the host went to the game) or came back.
-  void appInFront({required bool front}) =>
-      _setPause(StreamerPause.inApp, on: front);
+  void appInFront({required bool front}) {
+    if (!front && state.live && !state.headsetTipSeen) {
+      state = state.copyWith(headsetTipSeen: true);
+    }
+    _setPause(StreamerPause.inApp, on: front);
+  }
 
   /// The app goes to the background (to the game).
   Future<void> goToGame() => _quiet(_platform.moveToBack);
@@ -292,6 +352,7 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
         corner: state.corner,
         gameAudioOn: state.gameAudioOn,
         sdkInt: state.sdkInt,
+        headset: state.headset,
       );
     }
   }
@@ -306,6 +367,8 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
         _setPause(StreamerPause.call, on: active);
       case StreamerScreenPower(:final on):
         _setPause(StreamerPause.screenOff, on: !on);
+      case StreamerHeadset(:final connected):
+        state = state.copyWith(headset: connected);
       case StreamerRotation(:final landscape):
         unawaited(
           _push(

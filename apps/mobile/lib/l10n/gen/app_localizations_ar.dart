@@ -12731,6 +12731,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get streamerGameAudioNote => 'بعض الألعاب تمنع التقاط صوتها';
 
   @override
+  String get streamerHeadphonesTip =>
+      'استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين';
+
+  @override
   String get streamerGameAudioOld =>
       'صوت اللعبة يحتاج أندرويد 10 أو أحدث، سيُبث صوت الميكروفون فقط';
 

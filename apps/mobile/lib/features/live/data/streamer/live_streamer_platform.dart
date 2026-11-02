@@ -87,6 +87,12 @@ final class StreamerPhoneCall extends StreamerPlatformEvent {
   final bool active;
 }
 
+/// A headset was plugged in or out (on air).
+final class StreamerHeadset extends StreamerPlatformEvent {
+  const new({required this.connected});
+  final bool connected;
+}
+
 /// The display turned (a landscape game).
 final class StreamerRotation extends StreamerPlatformEvent {
   const new({required this.landscape});
@@ -97,6 +103,10 @@ final class StreamerRotation extends StreamerPlatformEvent {
 abstract interface class StreamerPlatform {
   /// Android's API level (0 elsewhere).
   Future<int> sdkInt();
+
+  /// A wired, USB or Bluetooth headset is an output now (the «use
+  /// headphones» tip). False when unknown.
+  Future<bool> headsetConnected();
 
   /// The system's screen-capture consent (MediaProjection). False: refused.
   /// Must come before the live's foreground service gains the
@@ -145,6 +155,8 @@ class ChannelStreamerPlatform implements StreamerPlatform {
         _events.add(StreamerScreenPower(on: map['on'] == true));
       case 'call':
         _events.add(StreamerPhoneCall(active: map['active'] == true));
+      case 'headset':
+        _events.add(StreamerHeadset(connected: map['connected'] == true));
       case 'rotation':
         _events.add(StreamerRotation(landscape: map['landscape'] == true));
     }
@@ -153,6 +165,10 @@ class ChannelStreamerPlatform implements StreamerPlatform {
   @override
   Future<int> sdkInt() async =>
       (await _channel.invokeMethod<int>('sdkInt')) ?? 0;
+
+  @override
+  Future<bool> headsetConnected() async =>
+      (await _channel.invokeMethod<bool>('headset')) ?? false;
 
   @override
   Future<bool> requestCapture() => rtc.Helper.requestCapturePermission();

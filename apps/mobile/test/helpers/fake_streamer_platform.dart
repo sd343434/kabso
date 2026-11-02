@@ -18,12 +18,22 @@ class FakeStreamerPlatform implements StreamerPlatform {
   final List<bool> secure = [];
   int detaches = 0;
   int toBack = 0;
+
+  /// What `headsetConnected` answers (a headset plugged in).
+  bool headset = false;
+  int headsetReads = 0;
   final _events = StreamController<StreamerPlatformEvent>.broadcast();
 
   void emit(StreamerPlatformEvent e) => _events.add(e);
 
   @override
   Future<int> sdkInt() async => sdk;
+
+  @override
+  Future<bool> headsetConnected() async {
+    headsetReads++;
+    return headset;
+  }
 
   @override
   Future<bool> requestCapture() async {

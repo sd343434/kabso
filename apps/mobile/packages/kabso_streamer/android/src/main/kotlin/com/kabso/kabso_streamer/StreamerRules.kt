@@ -64,6 +64,19 @@ object StreamerRules {
      */
     fun isPhoneCall(mode: Int): Boolean = mode == 1 || mode == 2 || mode == 4
 
+    /**
+     * `AudioDeviceInfo.getType()` outputs that play into the host's ears, so
+     * the game sound does not reach the microphone a second time: wired
+     * headset (3) and headphones (4), Bluetooth SCO (7) and A2DP (8), USB
+     * headset (22), hearing aid (23), BLE headset (26). A BLE speaker (27) is
+     * not one. A2DP is also a car or a Bluetooth speaker — Android cannot
+     * tell them apart cheaply, so the tip is then hidden too.
+     */
+    val HEADSET_TYPES = setOf(3, 4, 7, 8, 22, 23, 26)
+
+    /** Any of the connected output [types] is a headset. */
+    fun anyHeadset(types: IntArray): Boolean = types.any { it in HEADSET_TYPES }
+
     /** `Display.getRotation()`: 1 (90°) and 3 (270°) are landscape. */
     fun isLandscape(rotation: Int): Boolean = rotation == 1 || rotation == 3
 

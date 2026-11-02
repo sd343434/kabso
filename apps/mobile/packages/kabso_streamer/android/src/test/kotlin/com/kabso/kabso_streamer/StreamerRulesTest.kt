@@ -123,4 +123,13 @@ class StreamerRulesTest {
         assertNull(StreamerRules.findProjection(Any(), Projection::class.java))
         assertNull(StreamerRules.findProjection(null, Projection::class.java))
     }
+
+    @Test
+    fun headsetsAreTheEarOutputsOnly() {
+        // Wired headset / headphones, Bluetooth SCO / A2DP, USB, hearing aid, BLE headset.
+        for (t in intArrayOf(3, 4, 7, 8, 22, 23, 26)) assertTrue(StreamerRules.anyHeadset(intArrayOf(2, t)))
+        // The phone's earpiece (1) and speaker (2), HDMI (9), a BLE speaker (27).
+        assertFalse(StreamerRules.anyHeadset(intArrayOf(1, 2, 9, 27)))
+        assertFalse(StreamerRules.anyHeadset(intArrayOf()))
+    }
 }

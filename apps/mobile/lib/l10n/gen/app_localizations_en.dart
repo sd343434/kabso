@@ -12718,6 +12718,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Some games don\'t allow their sound to be captured';
 
   @override
+  String get streamerHeadphonesTip =>
+      'Use headphones so the game sound isn\'t heard twice';
+
+  @override
   String get streamerGameAudioOld =>
       'Game sound needs Android 10 or newer — only your microphone will be heard';
 

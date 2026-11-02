@@ -215,7 +215,10 @@
 - **Protected (DRM) video** (Netflix-like apps, some games' cut-scenes) is **black** in the screen capture; the
   system decides, the app cannot.
 - **Echo:** the game sound is captured digitally AND reaches the microphone through the phone's speaker (WebRTC's echo
-  canceller only knows the live's own playback): headphones avoid a doubled game sound. Not measured.
+  canceller only knows the live's own playback): headphones avoid a doubled game sound. Not measured. D213b: while
+  the game sound is on, the setup and the on-air stage (once per live, until the host goes to the game) say «استخدم
+  سماعات حتى لا يُسمع صوت اللعبة مرتين»; it is hidden when `AudioManager.getDevices` lists a wired, USB, Bluetooth
+  (SCO / A2DP / BLE) headset or a hearing aid — A2DP is also a car or a Bluetooth speaker, which hides it too.
 - **Notification:** Android shows at most 3 actions — «إنهاء», the microphone and the camera bubble; the game sound's
   mute is in the app's stage (owner question). No floating bubble over other apps (`SYSTEM_ALERT_WINDOW` is not used).
 - **Pauses:** the screen pauses for viewers («الشاشة متوقفة مؤقتاً») while Kabso is in front (privacy: chat, wallet and

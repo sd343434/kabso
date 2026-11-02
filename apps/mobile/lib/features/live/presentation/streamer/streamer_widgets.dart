@@ -296,6 +296,7 @@ class GoLiveStreamerPanel extends StatelessWidget {
   static const cameraKey = 'goLive.streamer.camera';
   static const micKey = 'goLive.streamer.mic';
   static const gameKey = 'goLive.streamer.game';
+  static const headphonesKey = Key('goLive.streamer.headphones');
 
   @override
   Widget build(BuildContext context) {
@@ -368,6 +369,14 @@ class GoLiveStreamerPanel extends StatelessWidget {
             value: host.gameAudioOn && !oldAndroid,
             onChanged: oldAndroid ? null : onGameAudio,
           ),
+          if (host.headsetTipInSetup)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(bottom: 4, end: 6),
+              child: StreamerHeadphonesTip(
+                key: headphonesKey,
+                color: white.withValues(alpha: 0.85),
+              ),
+            ),
           Padding(
             padding: const EdgeInsetsDirectional.only(top: 2, end: 6),
             child: Row(
@@ -394,6 +403,34 @@ class GoLiveStreamerPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+/// «استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين» with a headphones icon
+/// (the setup, and once on air).
+class StreamerHeadphonesTip extends StatelessWidget {
+  const new({required this.color, this.center = false, super.key});
+
+  final Color color;
+  final bool center;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: center ? MainAxisSize.min : MainAxisSize.max,
+    children: [
+      Icon(Icons.headphones_rounded, size: 14, color: color),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+          context.l10n.streamerHeadphonesTip,
+          textAlign: center ? TextAlign.center : TextAlign.start,
+          style: context.textStyles.caption.copyWith(
+            color: color,
+            fontSize: 11.5,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// A round toggle of the host's streamer stage.
@@ -491,6 +528,7 @@ class StreamerHostStage extends StatelessWidget {
   static const gameKey = Key('streamer.host.game');
   static const cameraKey = Key('streamer.host.camera');
   static const bubbleKey = Key('streamer.host.bubble');
+  static const headphonesKey = Key('streamer.host.headphones');
 
   String _status(AppLocalizations l10n) {
     if (host.pauses.contains(StreamerPause.call)) {
@@ -612,6 +650,14 @@ class StreamerHostStage extends StatelessWidget {
                       color: white.withValues(alpha: 0.6),
                       fontSize: 11,
                     ),
+                  ),
+                ],
+                if (host.headsetTipOnAir) ...[
+                  const SizedBox(height: 6),
+                  StreamerHeadphonesTip(
+                    key: headphonesKey,
+                    center: true,
+                    color: white.withValues(alpha: 0.85),
                   ),
                 ],
                 const SizedBox(height: KSpacing.md),

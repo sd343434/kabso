@@ -12206,6 +12206,10 @@
   "@streamerGameAudioNote": {
     "description": "D213 (the streamer live «بث ستريمر»)."
   },
+  "streamerHeadphonesTip": "استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين",
+  "@streamerHeadphonesTip": {
+    "description": "D213 (the streamer live): the setup's and the on-air tip while the game sound is on and no headset is connected (the speaker's game sound would reach the microphone too)."
+  },
   "streamerGameAudioOld": "صوت اللعبة يحتاج أندرويد 10 أو أحدث، سيُبث صوت الميكروفون فقط",
   "@streamerGameAudioOld": {
     "description": "D213 (the streamer live «بث ستريمر»)."

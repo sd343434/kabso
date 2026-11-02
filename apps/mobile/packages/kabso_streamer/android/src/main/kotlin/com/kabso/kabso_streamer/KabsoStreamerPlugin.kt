@@ -44,7 +44,11 @@ import io.flutter.plugin.common.MethodChannel
  * - `moveToBack`: the app goes to the background (to the game).
  * - Events: `projectionStopped`, `screen {on}`, `call {active}` (a phone
  *   call rings or is on; `AudioManager` mode, polled each second — no phone
- *   permission), `rotation {landscape}` (the display turned).
+ *   permission), `rotation {landscape}` (the display turned), `headset
+ *   {connected}` (a headset was plugged in or out; polled with the call).
+ * - `headset`: whether a wired, USB or Bluetooth headset is an output now
+ *   (`AudioManager.getDevices`, no permission) — the setup's «use
+ *   headphones» tip.
  *
  * D232 / D228 (OwnEngineFirst): the live's foreground service starts a SECOND
  * FlutterEngine whose flutter_webrtc overwrites the static
@@ -72,6 +76,7 @@ class KabsoStreamerPlugin :
     private var displayListener: DisplayManager.DisplayListener? = null
     private var lastLandscape: Boolean? = null
     private var callActive = false
+    private var lastHeadset: Boolean? = null
     private val callPoll =
         object : Runnable {
             override fun run() {
@@ -80,6 +85,11 @@ class KabsoStreamerPlugin :
                 if (active != callActive) {
                     callActive = active
                     emit("call", mapOf("active" to active))
+                }
+                val headset = headsetNow()
+                if (headset != lastHeadset) {
+                    lastHeadset = headset
+                    emit("headset", mapOf("connected" to headset))
                 }
                 main.postDelayed(this, 1000)
             }
@@ -126,6 +136,7 @@ class KabsoStreamerPlugin :
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+            "headset" -> result.success(headsetNow())
             "attach" -> attach(call.argument<Boolean>("gameAudio") ?: false, result)
             "setMicMuted" -> {
                 mixer.micMuted = call.argument<Boolean>("muted") ?: false
@@ -284,6 +295,7 @@ class KabsoStreamerPlugin :
         projection = null
         main.removeCallbacks(callPoll)
         callActive = false
+        lastHeadset = null
         screenReceiver?.let {
             try {
                 context?.unregisterReceiver(it)
@@ -308,6 +320,14 @@ class KabsoStreamerPlugin :
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
+    }
+
+    /** A headset is an output now (the minimum SDK 23 has `getDevices`). */
+    private fun headsetNow(): Boolean {
+        val am = context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        return StreamerRules.anyHeadset(
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }.toIntArray(),
+        )
     }
 
     private fun emit(method: String, args: Any?) {

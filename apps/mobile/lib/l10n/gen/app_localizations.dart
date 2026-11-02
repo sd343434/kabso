@@ -21616,6 +21616,12 @@ abstract class AppLocalizations {
   /// **'بعض الألعاب تمنع التقاط صوتها'**
   String get streamerGameAudioNote;
 
+  /// D213 (the streamer live): the setup's and the on-air tip while the game sound is on and no headset is connected (the speaker's game sound would reach the microphone too).
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين'**
+  String get streamerHeadphonesTip;
+
   /// D213 (the streamer live «بث ستريمر»).
   ///
   /// In ar, this message translates to:

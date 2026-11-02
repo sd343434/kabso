@@ -45,4 +45,9 @@ abstract final class PreferenceKeys {
   /// phone (`DEEPAR` / `FREE`; absent: the server's choice). Read and
   /// written only in debug/profile builds. Not sensitive.
   static const debugCameraFxEngine = 'debug.cameraFxEngine';
+
+  /// D213: the streamer live's camera-bubble corner last chosen on this
+  /// phone (`TOP_LEFT`…; absent: top left), the next streamer live's
+  /// starting corner. Not sensitive.
+  static const streamerCorner = 'pref.live.streamerCorner';
 }

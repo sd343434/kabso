@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
@@ -28,6 +29,7 @@ import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/component_harness.dart';
@@ -329,6 +331,61 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.textContaining('أسفل اليمين'), findsOneWidget);
+      // Owner: the host's corner is kept on this phone for the next live.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(PreferenceKeys.streamerCorner), 'BOTTOM_RIGHT');
+      await _leave(tester);
+    });
+
+    testWidgets('setup: «use headphones» while the game sound is on and no '
+        'headset is connected', (tester) async {
+      final native = FakeStreamerPlatform();
+      await _goLive(tester, start: false, platform: native);
+      expect(native.headsetReads, 1);
+      expect(find.byKey(GoLiveStreamerPanel.headphonesKey), findsOneWidget);
+      expect(
+        find.text('استخدم سماعات حتى لا يُسمع صوت اللعبة مرتين'),
+        findsOneWidget,
+      );
+      // The game sound off: nothing to hear twice.
+      await tester.tap(find.byKey(const Key(GoLiveStreamerPanel.gameKey)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveStreamerPanel.headphonesKey), findsNothing);
+      await _leave(tester);
+    });
+
+    testWidgets('setup: no tip with a headset connected (English)', (
+      tester,
+    ) async {
+      await _goLive(
+        tester,
+        start: false,
+        language: AppLanguage.en,
+        platform: FakeStreamerPlatform()..headset = true,
+      );
+      expect(find.byKey(GoLiveStreamerPanel.headphonesKey), findsNothing);
+      expect(
+        find.text("Use headphones so the game sound isn't heard twice"),
+        findsNothing,
+      );
+      await _leave(tester);
+    });
+
+    testWidgets('on air: the tip once — gone after the host goes to the game; '
+        'a headset plugged in hides it', (tester) async {
+      final h = await _goLive(tester);
+      expect(find.byKey(StreamerHostStage.headphonesKey), findsOneWidget);
+      await _toBackground(tester);
+      await _toForeground(tester);
+      expect(find.byKey(StreamerHostStage.headphonesKey), findsNothing);
+      await _leave(tester);
+
+      final again = await _goLive(tester);
+      expect(find.byKey(StreamerHostStage.headphonesKey), findsOneWidget);
+      again.platform.emit(const StreamerHeadset(connected: true));
+      await tester.pumpAndSettle();
+      expect(find.byKey(StreamerHostStage.headphonesKey), findsNothing);
+      expect(h.platform, isNot(same(again.platform)));
       await _leave(tester);
     });
 
@@ -345,6 +402,7 @@ void main() {
       );
       expect(game.onChanged, isNull);
       expect(game.value, isFalse);
+      expect(find.byKey(GoLiveStreamerPanel.headphonesKey), findsNothing);
       expect(
         find.text(
           'صوت اللعبة يحتاج أندرويد 10 أو أحدث، سيُبث صوت الميكروفون فقط',
@@ -501,6 +559,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(StreamerHostStage.gameKey), findsNothing);
+      // No game sound: no headphones tip either.
+      expect(find.byKey(StreamerHostStage.headphonesKey), findsNothing);
       await _leave(tester);
     });
   });
@@ -730,5 +790,57 @@ void main() {
     expect(s.paused, isTrue);
     expect(s.gameAudioPossible, isTrue);
     expect(const StreamerHostState(sdkInt: 28).gameAudioPossible, isFalse);
+  });
+
+  test(
+    'the bubble corner: the one saved on this phone, else top left',
+    () async {
+      Future<StreamerCorner> corner(Map<String, Object> saved) async {
+        SharedPreferences.setMockInitialValues(saved);
+        final prefs = await SharedPreferences.getInstance();
+        final c = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(c.dispose);
+        final host = c.read(liveStreamerHostProvider);
+        expect(host.startLayout.corner, host.corner);
+        return host.corner;
+      }
+
+      expect(await corner({}), StreamerCorner.topLeft);
+      expect(
+        await corner({PreferenceKeys.streamerCorner: 'BOTTOM_RIGHT'}),
+        StreamerCorner.bottomRight,
+      );
+      expect(
+        await corner({PreferenceKeys.streamerCorner: 'MIDDLE'}),
+        StreamerCorner.topLeft,
+      );
+      // No preferences at all (some tests): top left, kept in memory.
+      final bare = ProviderContainer();
+      addTearDown(bare.dispose);
+      final n = bare.read(liveStreamerHostProvider.notifier);
+      await n.setCorner(StreamerCorner.topRight);
+      expect(
+        bare.read(liveStreamerHostProvider).corner,
+        StreamerCorner.topRight,
+      );
+    },
+  );
+
+  test('the headphones tip: game sound on, no headset known', () {
+    const s = StreamerHostState();
+    expect(s.headsetTipInSetup, isTrue);
+    expect(s.copyWith(headset: true).headsetTipInSetup, isFalse);
+    expect(s.copyWith(gameAudioOn: false).headsetTipInSetup, isFalse);
+    expect(const StreamerHostState(sdkInt: 28).headsetTipInSetup, isFalse);
+    const live = StreamerHostState(live: true, gameAudio: StreamerGameAudio.ok);
+    expect(live.headsetTipOnAir, isTrue);
+    expect(live.copyWith(headsetTipSeen: true).headsetTipOnAir, isFalse);
+    expect(live.copyWith(headset: true).headsetTipOnAir, isFalse);
+    expect(
+      live.copyWith(gameAudio: StreamerGameAudio.failed).headsetTipOnAir,
+      isFalse,
+    );
   });
 }

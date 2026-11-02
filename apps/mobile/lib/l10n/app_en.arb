@@ -3958,6 +3958,7 @@
   "streamerMic": "Microphone",
   "streamerGameAudio": "Game sound",
   "streamerGameAudioNote": "Some games don't allow their sound to be captured",
+  "streamerHeadphonesTip": "Use headphones so the game sound isn't heard twice",
   "streamerGameAudioOld": "Game sound needs Android 10 or newer — only your microphone will be heard",
   "streamerPrivacyNote": "Viewers don't see your screen while you're in Kabso Live",
   "streamerConsentRefused": "Screen capture wasn't allowed, so the live didn't start",
