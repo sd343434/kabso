@@ -222,27 +222,32 @@ void main() {
         );
         final list = tester.getRect(find.byKey(LiveRoomChatLines.listKey));
         expect(row.contains(badges.center), isTrue);
-        // The badges at the row's reading start, inside its padding.
+        final name = tester.getRect(
+          _in('m:m1', find.byKey(LiveChatInlineRow.nameKey)),
+        );
+        // D234b: the name at the row's reading start, inside its padding;
+        // the badges beside it (after it in reading order), same line.
         expect(
           rtl
-              ? (row.right - badges.right - _pad).abs() < 1.5
-              : (badges.left - row.left - _pad).abs() < 1.5,
+              ? (row.right - name.right - _pad).abs() < 1.5
+              : (name.left - row.left - _pad).abs() < 1.5,
           isTrue,
         );
+        expect(
+          rtl ? badges.right <= name.left : badges.left >= name.right,
+          isTrue,
+        );
+        expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
         expect(
           rtl
               ? (list.right - row.right).abs() < 1
               : (row.left - list.left).abs() < 1,
           isTrue,
         );
-        // D230: three lines — the name, the badges under it, the text.
-        final name = tester.getRect(
-          _in('m:m1', find.byKey(LiveChatInlineRow.nameKey)),
-        );
+        // D234b: the name row (name + badges), then the text.
         final message = tester.getRect(
           _in('m:m1', find.byKey(LiveChatInlineRow.textKey)),
         );
-        expect(badges.top, greaterThanOrEqualTo(name.bottom - 0.5));
         expect(message.top, greaterThanOrEqualTo(badges.bottom - 0.5));
         expect(find.text('\u2068Huda\u2069'), findsOneWidget);
         expect(
@@ -278,13 +283,17 @@ void main() {
             _in('m:m1', find.byKey(LiveChatAuthoredLine.bubbleKey)),
           );
           expect(avatar.width, LiveChatAuthoredLine.avatar);
-          // Top-aligned: the name starts near the picture's top.
+          // Top-aligned: the name row starts near the picture's top.
           expect(
-            (name.top - avatar.top - LiveChatAuthoredLine.nameTop).abs(),
+            (badges.top - avatar.top - LiveChatAuthoredLine.nameTop).abs(),
             lessThanOrEqualTo(1),
           );
-          // Stacked: name, badges, bubble.
-          expect(badges.top, greaterThanOrEqualTo(name.bottom));
+          // D234b: the badges beside the name (one line), then the bubble.
+          expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
+          expect(
+            rtl ? badges.right <= name.left : badges.left >= name.right,
+            isTrue,
+          );
           expect(bubble.top, greaterThanOrEqualTo(badges.bottom));
           // The column sits after the picture in reading order.
           for (final r in [name, badges, bubble]) {

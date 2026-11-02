@@ -376,11 +376,16 @@ void main() {
           // No colon after the name (D230).
           expect(find.text('\u2068Oz\u2069'), findsOneWidget);
           expect(find.textContaining('Oz:'), findsNothing);
-          expect(badge.top, greaterThanOrEqualTo(name.bottom - 0.5));
+          // D234b: the badges beside the name, the message under them.
+          expect((badge.center.dy - name.center.dy).abs(), lessThan(1.5));
+          expect(
+            ar ? badge.right <= name.left : badge.left >= name.right,
+            isTrue,
+          );
           expect(message.top, greaterThanOrEqualTo(badge.bottom - 0.5));
-          // All three at the reading start.
+          // The name and the message at the reading start.
           final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
-          for (final r in [name, badge, message]) {
+          for (final r in [name, message]) {
             if (ar) {
               expect(
                 r.right,

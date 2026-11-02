@@ -125,15 +125,20 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('the name, the badges, up to 5 medals in order, then the '
-          'message — all at the reading start', (tester) async {
+      testWidgets('D234b: the name with the badges beside it, up to 5 medals '
+          'in order under them, then the message', (tester) async {
         final handle = tester.ensureSemantics();
         await _pump(tester, _inline(), language: language);
         final name = tester.getRect(find.byKey(LiveChatInlineRow.nameKey));
         final badges = tester.getRect(find.byKey(LiveChatInlineRow.badgesKey));
         final medals = tester.getRect(find.byKey(LiveChatMedalRow.rowKey));
         final text = tester.getRect(find.byKey(LiveChatInlineRow.textKey));
-        expect(badges.top, greaterThanOrEqualTo(name.bottom - 0.5));
+        // One line: the name, then the badges after it in reading order.
+        expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
+        expect(
+          ar ? badges.right <= name.left : badges.left >= name.right,
+          isTrue,
+        );
         expect(medals.top, greaterThanOrEqualTo(badges.bottom - 0.5));
         expect(text.top, greaterThanOrEqualTo(medals.bottom - 0.5));
         expect(medals.height, closeTo(LiveChatInlineRow.medalSize, 0.5));
@@ -149,7 +154,7 @@ void main() {
         }
         final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
         final pad = LiveChatInlineRow.padding.start;
-        for (final r in [name, badges, medals, text]) {
+        for (final r in [name, medals, text]) {
           if (ar) {
             expect(r.right, closeTo(row.right - pad, 0.5));
           } else {
@@ -165,6 +170,28 @@ void main() {
           findsOneWidget,
         );
         handle.dispose();
+      });
+
+      testWidgets('D234b: a long name shortens with an ellipsis; the badges '
+          'keep their size', (tester) async {
+        await _pump(tester, _inline(maxWidth: 260), language: language);
+        expect(tester.takeException(), isNull);
+        final name = tester.widget<Text>(find.byKey(LiveChatInlineRow.nameKey));
+        expect(name.maxLines, 1);
+        expect(name.overflow, TextOverflow.ellipsis);
+        const h = LiveChatInlineRow.badgeHeight;
+        expect(
+          _imageIn(tester, LiveChatBadgeRow.charmKey).height,
+          closeTo(h, 0.5),
+        );
+        expect(
+          _imageIn(tester, LiveChatBadgeRow.supportKey).height,
+          closeTo(h, 0.5),
+        );
+        final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
+        final badges = tester.getRect(find.byKey(LiveChatInlineRow.badgesKey));
+        expect(badges.left, greaterThanOrEqualTo(row.left - 0.5));
+        expect(badges.right, lessThanOrEqualTo(row.right + 0.5));
       });
 
       testWidgets('no medals: no row and no placeholder', (tester) async {

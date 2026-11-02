@@ -5534,8 +5534,9 @@ Owner (2026-11-02, on a live chat screenshot): «لماذا الأيقونة ا�
 - **Read:** in the same statement as the other badges (`user_medals.showcase_position IS NOT NULL` joined to `medals`,
   ordered, `LIMIT 5`), with the same 30 s per-author cache: a showcase change shows within 30 s. Send, the `chat`
   broadcast and `listLiveChatMessages` carry the same value.
-- **App:** a chat line with the badge header is name / role pills and level emblems (one height) / up to 5 medals (one
-  row, hidden when empty) / the message (§10.24's bubble, else a translucent black box). Older servers: no medals row.
+- **App:** a chat line with the badge header is the name with the role pills and level emblems beside it (one row, one
+  height; only the name shortens) / up to 5 medals (one row, hidden when empty) / the message (§10.24's bubble, else a
+  translucent black box). Older servers: no medals row.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

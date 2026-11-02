@@ -837,25 +837,30 @@ class LiveChatAuthoredLine extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              tapProfile(
-                Padding(
-                  padding: const EdgeInsets.only(top: nameTop),
-                  child: Text(
-                    KFormat.bidiIsolate(name),
-                    key: nameKey,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textScaler: scaler,
-                    style: context.textStyles.caption.copyWith(
-                      fontSize: nameSize,
-                      height: 1.25,
-                      color: cp ? LiveCpChatBubble.name : nameColor,
-                      fontWeight: FontWeight.w800,
-                      shadows: const [
-                        Shadow(color: Color(0x66000000), blurRadius: 2),
-                      ],
+              // D234b: the name, then the pills and level emblems beside
+              // it at one height; only the name shortens.
+              Padding(
+                padding: const EdgeInsets.only(top: nameTop),
+                child: LiveChatNameRow(
+                  name: tapProfile(
+                    Text(
+                      KFormat.bidiIsolate(name),
+                      key: nameKey,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: scaler,
+                      style: context.textStyles.caption.copyWith(
+                        fontSize: nameSize,
+                        height: 1.25,
+                        color: cp ? LiveCpChatBubble.name : nameColor,
+                        fontWeight: FontWeight.w800,
+                        shadows: const [
+                          Shadow(color: Color(0x66000000), blurRadius: 2),
+                        ],
+                      ),
                     ),
                   ),
+                  badges: row.isNotEmpty ? row : null,
                 ),
               ),
               if ((premiumTier, username) case (final tier?, final handle?))
@@ -873,8 +878,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (row.isNotEmpty) ...[const SizedBox(height: 4), row],
-              // D234: the showcased medals (≤ 5) under the badges.
+              // D234: the showcased medals (≤ 5) under the name row.
               if (badges?.medals case final medals? when medals.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 LiveChatMedalRow(medals: medals),
@@ -1133,6 +1137,57 @@ class LiveChatBadgeRow extends StatelessWidget {
       // A row (not a wrap): each badge takes its own width.
       child: MediaQuery.withNoTextScaling(
         child: big ? LiveChatFadeOverflow(child: row) : row,
+      ),
+    );
+  }
+}
+
+/// D234b (owner: the level emblems BESIDE the name): one line — CP-021's
+/// heart ([heart]), the [name] and, after it at the reading end, the
+/// [badges] (role pills and level emblems, one height). Only the name
+/// shortens (an ellipsis); the badges keep their size and leave the name at
+/// least [nameMin] (beyond that their own row fades out at the end).
+class LiveChatNameRow extends StatelessWidget {
+  const new({super.key, this.name, this.badges, this.heart = false});
+
+  final Widget? name;
+  final Widget? badges;
+  final bool heart;
+
+  static const double gap = 6;
+
+  /// The least room the name keeps beside many badges.
+  static const double nameMin = 64;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = this.name;
+    final badges = this.badges;
+    return LayoutBuilder(
+      builder: (context, box) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (heart)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 4),
+              child: Image.asset(
+                LiveCpChatBubble.heart,
+                key: LiveRoomChatLines.cpHeartKey,
+                width: 15,
+                height: 15,
+                excludeFromSemantics: true,
+              ),
+            ),
+          if (name != null) Flexible(child: name),
+          if (name != null && badges != null) const SizedBox(width: gap),
+          if (badges != null)
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: math.max(0, box.maxWidth - nameMin - gap),
+              ),
+              child: badges,
+            ),
+        ],
       ),
     );
   }
@@ -1861,55 +1916,46 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. The name (bold, no colon); CP-021's heart before it.
-          if (name != null)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (w.cp)
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 4),
-                    child: Image.asset(
-                      LiveCpChatBubble.heart,
-                      key: LiveRoomChatLines.cpHeartKey,
-                      width: 15,
-                      height: 15,
-                      excludeFromSemantics: true,
-                    ),
-                  ),
-                Flexible(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: w.onProfile,
-                    child: Text(
-                      KFormat.bidiIsolate(name),
-                      key: LiveChatInlineRow.nameKey,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textScaler: scaler,
-                      style: base.copyWith(
-                        fontSize: LiveChatInlineRow.nameSize,
-                        color: w.cp
-                            ? LiveCpChatBubble.name
-                            : LiveChatInlineRow.nameColor,
-                        fontWeight: FontWeight.w800,
+          // 1. D234b (owner: «الليفيلات بجانب الاسم»): the name (bold, no
+          // colon; CP-021's heart before it), then the role pills and level
+          // emblems in the same row at one height — the name alone shortens
+          // with an ellipsis.
+          if (name != null || badges.isNotEmpty)
+            LiveChatNameRow(
+              name: name == null
+                  ? null
+                  : GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: w.onProfile,
+                      child: Text(
+                        KFormat.bidiIsolate(name),
+                        key: LiveChatInlineRow.nameKey,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textScaler: scaler,
+                        style: base.copyWith(
+                          fontSize: LiveChatInlineRow.nameSize,
+                          color: w.cp
+                              ? LiveCpChatBubble.name
+                              : LiveChatInlineRow.nameColor,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
+              heart: w.cp,
+              badges: badges.isNotEmpty
+                  ? KeyedSubtree(
+                      key: LiveChatInlineRow.badgesKey,
+                      child: badges,
+                    )
+                  : null,
             ),
-          // 2. The badges under the name, all one height (D234).
-          if (badges.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            KeyedSubtree(key: LiveChatInlineRow.badgesKey, child: badges),
-          ],
-          // 3. D234: the showcased medals (≤ 5) under the badges.
+          // 2. D234: the showcased medals (≤ 5) under the name row.
           if (w.badges?.medals case final medals? when medals.isNotEmpty) ...[
             const SizedBox(height: 3),
             LiveChatMedalRow(medals: medals),
           ],
-          // 4. The message (D141: Kabi emoji inline, in reading order).
+          // 3. The message (D141: Kabi emoji inline, in reading order).
           if (text != null) ...[
             const SizedBox(height: 2),
             KBidiRichText(
