@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
+import 'package:kabso_live/features/live/domain/live_boost_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
@@ -351,7 +352,7 @@ class LiveRoomsPage extends ConsumerWidget {
   /// D154b: the lives in a paid «مميز» slot (traffic cards) go first in the
   /// main lists (Popular and Explore, every category, not Following, Nearby
   /// or Featured), those of this list's kind only.
-  List<LiveRoomSummary> _pinned(WidgetRef ref) {
+  List<LiveBoostedRoom> _pinned(WidgetRef ref) {
     if (query.nearby ||
         query.featured ||
         query.category != null ||
@@ -361,7 +362,7 @@ class LiveRoomsPage extends ConsumerWidget {
     final boosted = ref.watch(liveBoostedRoomsProvider).value ?? const [];
     return [
       for (final b in boosted)
-        if (query.kind?.includes(b.room.mode) ?? true) b.room,
+        if (query.kind?.includes(b.room.mode) ?? true) b,
     ];
   }
 
@@ -434,7 +435,7 @@ class LiveRoomsPage extends ConsumerWidget {
 /// shown while the new request runs.
 AsyncValue<FeedLoad<LiveRoomCardData>> liveHubContent(
   AsyncValue<LiveHubState> async, {
-  List<LiveRoomSummary> pinned = const [],
+  List<LiveBoostedRoom> pinned = const [],
 }) => switch (async) {
   AsyncValue(:final error?, :final stackTrace, isLoading: false) => AsyncError(
     error,
@@ -453,10 +454,11 @@ AsyncValue<FeedLoad<LiveRoomCardData>> liveHubContent(
     FeedItems(
       [
         // D154b: the «مميز» lives first, then the list without them.
-        for (final room in pinned)
-          LiveRoomCardData.fromSummary(room, featured: true),
+        // D233: each with its rocket stage (badge and animated frame).
+        for (final b in pinned)
+          LiveRoomCardData.fromSummary(b.room, boostStage: b.stage),
         for (final room in hub.rooms)
-          if (!pinned.any((p) => p.id == room.id))
+          if (!pinned.any((p) => p.room.id == room.id))
             LiveRoomCardData.fromSummary(room),
       ],
       hasMore: hub.hasMore,

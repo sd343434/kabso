@@ -723,6 +723,21 @@ export interface ReferralDetail {
   voidClawback: ReferralClawback;
 }
 
+/** `AdminLiveBoostStage` (v1.51-live, D233): one rocket stage. */
+export interface AdminLiveBoostStage {
+  stage: number;
+  minutes: number;
+  priceCoins: number;
+  configCoins: number;
+  custom: boolean;
+  updatedAt: string | null;
+}
+
+/** `AdminLiveBoostPrices` (v1.51-live, D233). */
+export interface AdminLiveBoostPrices {
+  stages: AdminLiveBoostStage[];
+}
+
 /** `AdminReferralSettings` */
 export interface ReferralSettings {
   enabled: boolean;

@@ -101,6 +101,8 @@ export enum AuditAction {
   LIVE_FEATURE_REMOVE = 'live.feature.remove',
   /** v1.33-live (D154b): traffic cards granted by the boost-admin CLI. */
   LIVE_BOOST_CARD_GRANT = 'live.boost_card.grant',
+  /** v1.51-live (D233): the rocket stages' prices changed in the admin panel. */
+  LIVE_BOOST_PRICES_UPDATE = 'live.boost_prices.update',
   // v1.43-live (D195, §10.58): PK 1 v 1 — a match starts, its battle ends (with the reason), a
   // moderator ends one (`pk-admin end`, with the reason), a host switches invitations.
   LIVE_PK_START = 'live.pk.start',

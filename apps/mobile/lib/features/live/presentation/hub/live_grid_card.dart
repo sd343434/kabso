@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -68,6 +69,11 @@ class KLiveGridCard extends StatelessWidget {
   /// D154b: the «مميز» label of a live with a running traffic card.
   static const featuredKey = Key('liveGrid.featured');
 
+  /// D233: the rocket badge and the animated «مميز» frame of a live with a
+  /// rocket stage running.
+  static const rocketKey = Key('liveGrid.rocket');
+  static const frameKey = Key('liveGrid.frame');
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -101,8 +107,12 @@ class KLiveGridCard extends StatelessWidget {
     final described = hasCategory
         ? l10n.liveCardSemanticsCategory(withType, category)
         : withType;
+    final stage = room.boostStage;
     final semantics = room.featured
-        ? '${l10n.liveBoostFeatured}, $described'
+        ? stage > 0
+              ? '${l10n.liveBoostFeatured}, ${l10n.liveRocketStage(stage)}, '
+                    '$described'
+              : '${l10n.liveBoostFeatured}, $described'
         : described;
 
     return Semantics(
@@ -183,6 +193,13 @@ class KLiveGridCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // D233: the running rocket's badge, under the live mark.
+                  if (stage > 0)
+                    PositionedDirectional(
+                      top: 26,
+                      start: 6,
+                      child: KRocketBadge(key: rocketKey, stage: stage),
+                    ),
                   // D154b: «مميز» over the title (a running traffic card).
                   if (room.featured)
                     PositionedDirectional(
@@ -231,6 +248,8 @@ class KLiveGridCard extends StatelessWidget {
                 ],
               ),
             ),
+            // D233: the animated «مميز» frame, its intensity by stage.
+            if (stage > 0) KBoostFrame(key: frameKey, stage: stage),
           ],
         ),
       ),

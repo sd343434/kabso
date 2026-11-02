@@ -10955,7 +10955,7 @@ abstract class AppLocalizations {
   /// Room tools: a paid boost (not available yet).
   ///
   /// In ar, this message translates to:
-  /// **'بطاقة الزيارات'**
+  /// **'صواريخ الزيارات'**
   String get liveToolTrafficCard;
 
   /// Beautification tools: Magic — the colour filters (D143).
@@ -13342,25 +13342,25 @@ abstract class AppLocalizations {
   /// D154b: the traffic card sheet title.
   ///
   /// In ar, this message translates to:
-  /// **'بطاقة الزيارات'**
+  /// **'صواريخ الزيارات'**
   String get liveBoostTitle;
 
   /// D154b: the host's explanation.
   ///
   /// In ar, this message translates to:
-  /// **'يظهر بثك في أعلى قائمة البث مع علامة «مميز». {slots} أماكن فقط؛ إن امتلأت ينتظر دوره.'**
+  /// **'اختر صاروخاً: يظهر بثك في أعلى قائمة البث مع علامة «مميز» وإطار متحرك. {slots} أماكن فقط؛ إن امتلأت ينتظر دوره.'**
   String liveBoostHint(int slots);
 
   /// D154b: a viewer gifting the host.
   ///
   /// In ar, this message translates to:
-  /// **'هدية لـ {name}: يظهر بثه في أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.'**
+  /// **'هدية لـ {name}: صاروخ يرفع بثه إلى أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.'**
   String liveBoostGiftHint(String name);
 
   /// D154b: a card length.
   ///
   /// In ar, this message translates to:
-  /// **'{minutes} د'**
+  /// **'{minutes, plural, =1{دقيقة واحدة} =2{دقيقتان} few{{minutes} دقائق} other{{minutes} دقيقة}}'**
   String liveBoostMinutes(int minutes);
 
   /// D154b: a card price (screen readers).
@@ -13390,7 +13390,7 @@ abstract class AppLocalizations {
   /// D154b: the honest wait.
   ///
   /// In ar, this message translates to:
-  /// **'الأماكن ممتلئة: يبدأ خلال {minutes} د على الأكثر.'**
+  /// **'الأماكن ممتلئة: يبدأ خلال {minutes, plural, =1{دقيقة واحدة} =2{دقيقتين} few{{minutes} دقائق} other{{minutes} دقيقة}} على الأكثر.'**
   String liveBoostStartsIn(int minutes);
 
   /// D154b: pay with a reward card.
@@ -13414,19 +13414,19 @@ abstract class AppLocalizations {
   /// D154b: confirm dialog title.
   ///
   /// In ar, this message translates to:
-  /// **'بطاقة الزيارات'**
+  /// **'صواريخ الزيارات'**
   String get liveBoostConfirmTitle;
 
   /// D154b: confirm with coins.
   ///
   /// In ar, this message translates to:
-  /// **'{minutes} دقيقة في الأماكن المميزة مقابل {coins} عملة؟'**
+  /// **'{minutes, plural, =1{دقيقة واحدة} =2{دقيقتان} few{{minutes} دقائق} other{{minutes} دقيقة}} في الأماكن المميزة مقابل {coins} عملة؟'**
   String liveBoostConfirmCoins(int minutes, String coins);
 
   /// D154b: confirm with a card.
   ///
   /// In ar, this message translates to:
-  /// **'استخدام بطاقة {minutes} دقيقة؟'**
+  /// **'استخدام بطاقة {minutes, plural, =1{دقيقة واحدة} =2{دقيقتان} few{{minutes} دقائق} other{{minutes} دقيقة}}؟'**
   String liveBoostConfirmCard(int minutes);
 
   /// D154b: confirm button.
@@ -13438,31 +13438,31 @@ abstract class AppLocalizations {
   /// D154b: bought, running.
   ///
   /// In ar, this message translates to:
-  /// **'البث مميز الآن في أعلى القائمة.'**
+  /// **'انطلق الصاروخ: البث مميز الآن في أعلى القائمة.'**
   String get liveBoostDoneNow;
 
   /// D154b: bought, waiting.
   ///
   /// In ar, this message translates to:
-  /// **'في الدور: يبدأ خلال {minutes} د على الأكثر.'**
+  /// **'في الدور: يبدأ خلال {minutes, plural, =1{دقيقة واحدة} =2{دقيقتين} few{{minutes} دقائق} other{{minutes} دقيقة}} على الأكثر.'**
   String liveBoostDoneWaiting(int minutes);
 
   /// D154b: the live's card is running.
   ///
   /// In ar, this message translates to:
-  /// **'مميز الآن — ينتهي خلال {minutes} د.'**
+  /// **'مميز الآن — ينتهي خلال {minutes, plural, =1{دقيقة واحدة} =2{دقيقتين} few{{minutes} دقائق} other{{minutes} دقيقة}}.'**
   String liveBoostRunning(int minutes);
 
   /// D154b: the live's card is waiting.
   ///
   /// In ar, this message translates to:
-  /// **'بطاقة في الدور — تبدأ خلال {minutes} د على الأكثر.'**
+  /// **'صاروخ في الدور — يبدأ خلال {minutes, plural, =1{دقيقة واحدة} =2{دقيقتين} few{{minutes} دقائق} other{{minutes} دقيقة}} على الأكثر.'**
   String liveBoostWaiting(int minutes);
 
   /// D154b: offers failed.
   ///
   /// In ar, this message translates to:
-  /// **'تعذّر تحميل بطاقة الزيارات'**
+  /// **'تعذّر تحميل صواريخ الزيارات'**
   String get liveBoostLoadError;
 
   /// D154b: the label of a boosted live on the hub.
@@ -13474,8 +13474,14 @@ abstract class AppLocalizations {
   /// D154b: the host card's button for viewers.
   ///
   /// In ar, this message translates to:
-  /// **'بطاقة زيارات'**
+  /// **'صاروخ زيارات'**
   String get liveBoostGiftAction;
+
+  /// D233: a rocket stage «صاروخ 1 · 2 · 3 · 4» (sheet card, hub badge label).
+  ///
+  /// In ar, this message translates to:
+  /// **'صاروخ {stage}'**
+  String liveRocketStage(int stage);
 
   /// Error BOOST_QUEUE_FULL.
   ///
@@ -13492,7 +13498,7 @@ abstract class AppLocalizations {
   /// Error BOOST_ROOM_BUSY.
   ///
   /// In ar, this message translates to:
-  /// **'لهذا البث بطاقة زيارات تعمل أو في الدور.'**
+  /// **'لهذا البث صاروخ زيارات يعمل أو في الدور.'**
   String get errorBoostRoomBusy;
 
   /// D154c: the newcomer badge in chat and the newcomers list.
@@ -14685,13 +14691,13 @@ abstract class AppLocalizations {
   /// D164: ledger reason LIVE_BOOST.
   ///
   /// In ar, this message translates to:
-  /// **'بطاقة زيارات'**
+  /// **'صاروخ زيارات'**
   String get walletReasonLiveBoost;
 
   /// D164: ledger reason LIVE_BOOST_REFUND.
   ///
   /// In ar, this message translates to:
-  /// **'استرداد بطاقة زيارات'**
+  /// **'استرداد صاروخ زيارات'**
   String get walletReasonLiveBoostRefund;
 
   /// D164: a ledger reason this app does not know.
@@ -15021,7 +15027,7 @@ abstract class AppLocalizations {
   /// D172: where the traffic card is bought.
   ///
   /// In ar, this message translates to:
-  /// **'تشتري بطاقة الزيارات من «أدوات الغرفة» أثناء بثك.'**
+  /// **'تشتري صاروخ الزيارات من «أدوات الغرفة» أثناء بثك.'**
   String get creatorTrafficHint;
 
   /// D172: the floating button.

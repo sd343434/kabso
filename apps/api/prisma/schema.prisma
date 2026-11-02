@@ -3132,6 +3132,8 @@ model LiveBoost {
   buyerId      String          @map("buyer_id") @db.Uuid
   clientId     String          @map("client_id") @db.Uuid
   minutes      Int
+  /// v1.51-live (D233): the rocket stage 1–4 bought (fixed at purchase; older rows backfilled by length).
+  stage        Int             @db.SmallInt
   source       LiveBoostSource
   coinsCharged BigInt          @map("coins_charged")
   slot         Int             @db.SmallInt
@@ -3149,6 +3151,17 @@ model LiveBoost {
   @@index([roomId, endsAt], map: "live_boosts_room_idx")
   @@index([hostUserId], map: "live_boosts_host_idx")
   @@map("live_boosts")
+}
+
+/// v1.51-live (D233, CONVENTIONS §10.81): the price of a rocket stage set in the admin panel; a stage with no row
+/// costs what `LIVE_BOOST_PRICES` says. The length of a stage is always the server config.
+model LiveBoostPrice {
+  stage       Int      @id @db.SmallInt
+  coins       BigInt
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  @@map("live_boost_prices")
 }
 
 /// v1.33-live (D154b): traffic cards a user holds (granted by an admin as rewards), by length.

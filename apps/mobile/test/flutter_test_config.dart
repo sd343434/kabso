@@ -20,6 +20,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart
 import 'package:kabso_live/features/live/presentation/widgets/live_interruption.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
@@ -57,6 +58,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   AudioplayersNotificationSounds.enabled = false;
   DevicePushPermissions.enabled = false;
   KLiveEqualizer.animate = false;
+  // D233: the hub cards' rocket frame turns forever.
+  KBoostFrame.animate = false;
   // D216: the interruption arc turns and the quip art loops forever.
   KLiveInterruption.animate = false;
   LiveQuipBadge.animate = false;

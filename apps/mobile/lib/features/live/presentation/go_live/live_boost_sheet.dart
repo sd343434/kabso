@@ -11,6 +11,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/domain/live_boost_models.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -21,6 +22,12 @@ import 'package:material_ui/material_ui.dart';
 /// the lengths with their prices and savings, when a new card would start
 /// (honest: the server's «at the latest»), the live's own card running or
 /// waiting, and the caller's reward cards; buying asks once to confirm.
+///
+/// D233 (owner 2026-11-01): the lengths are four rockets «صاروخ 1 · 2 · 3 ·
+/// 4», each a card with its own rocket art ([KRocketArt]), the length in
+/// words («10 دقائق», never «د») and the price in coins only with the coin
+/// icon; a saving shows only while it is true (the owner's rocket prices
+/// save nothing). The sheet keeps the large live-sheet style.
 Future<void> showLiveBoostSheet(
   BuildContext context, {
   required String roomId,
@@ -224,23 +231,37 @@ class _LiveBoostSheetState extends ConsumerState<LiveBoostSheet> {
                 style: t.body.copyWith(color: gold),
               ),
             ),
-          Wrap(
-            spacing: KSpacing.sm,
-            runSpacing: KSpacing.sm,
-            children: [
-              for (final o in offers.options)
-                _Option(
-                  key: LiveBoostSheet.optionKey(o.minutes),
-                  option: o,
-                  held: _held(offers, o.minutes),
-                  selected: o.minutes == option?.minutes,
-                  onTap: () => setState(() {
-                    _minutes = o.minutes;
-                    _message = null;
-                  }),
-                ),
-            ],
-          ),
+          // D233: the rockets two by two (stage 1 at the reading start).
+          for (var row = 0; row < offers.options.length; row += 2) ...[
+            if (row > 0) const SizedBox(height: KSpacing.sm),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = row; i < row + 2; i++) ...[
+                    if (i > row) const SizedBox(width: KSpacing.sm),
+                    Expanded(
+                      child: i >= offers.options.length
+                          ? const SizedBox.shrink()
+                          : _Option(
+                              key: LiveBoostSheet.optionKey(
+                                offers.options[i].minutes,
+                              ),
+                              option: offers.options[i],
+                              held: _held(offers, offers.options[i].minutes),
+                              selected:
+                                  offers.options[i].minutes == option?.minutes,
+                              onTap: () => setState(() {
+                                _minutes = offers.options[i].minutes;
+                                _message = null;
+                              }),
+                            ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: KSpacing.sm),
           Text(
             eta <= 0 ? l10n.liveBoostStartsNow : l10n.liveBoostStartsIn(eta),
@@ -338,6 +359,8 @@ class _LiveBoostSheetState extends ConsumerState<LiveBoostSheet> {
   }
 }
 
+/// D233: one rocket stage — its art, «صاروخ N», the length in words and
+/// the price in coins (the coin icon; never a currency).
 class _Option extends StatelessWidget {
   const new({
     required this.option,
@@ -352,14 +375,19 @@ class _Option extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  static const _gold = Color(0xFFFFD36E);
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
+    final stage = KRocketStages.clamp(option.stage);
+    final top = stage == KRocketStages.count;
     return Semantics(
       button: true,
       selected: selected,
       label: [
+        l10n.liveRocketStage(stage),
         l10n.liveBoostMinutes(option.minutes),
         l10n.liveBoostPrice(KFormat.grouped(option.priceCoins)),
         if (option.savePercent > 0) l10n.liveBoostSave(option.savePercent),
@@ -371,65 +399,91 @@ class _Option extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: KMotion.of(context, KMotion.fast),
-          width: 74,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          padding: const EdgeInsetsDirectional.fromSTEB(6, 8, 10, 8),
           decoration: BoxDecoration(
-            color: selected ? const Color(0x33FFD36E) : const Color(0x14FFFFFF),
-            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: selected
+                  ? const [Color(0x40FFD36E), Color(0x1AF2A93B)]
+                  : top
+                  ? const [Color(0x26FFD36E), Color(0x0FFFFFFF)]
+                  : const [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+            ),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
-                  ? const Color(0xFFFFD36E)
-                  : const Color(0x00000000),
+                  ? _gold
+                  : top
+                  ? const Color(0x66FFD36E)
+                  : const Color(0x1FFFFFFF),
+              width: selected ? 1.5 : 1,
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
-              Text(
-                l10n.liveBoostMinutes(option.minutes),
-                maxLines: 1,
-                style: t.bodyStrong.copyWith(color: const Color(0xFFFFFFFF)),
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
+              KRocketArt(stage: stage, size: 52),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const KabsoArtIcon(KabsoArt.coin, size: 12),
-                    const SizedBox(width: 3),
                     Text(
-                      KFormat.grouped(option.priceCoins),
-                      style: t.caption.copyWith(
-                        color: const Color(0xFFD8C79A),
-                        fontWeight: FontWeight.w700,
+                      l10n.liveRocketStage(stage),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        color: selected || top
+                            ? _gold
+                            : const Color(0xFFFFFFFF),
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
+                    Text(
+                      l10n.liveBoostMinutes(option.minutes),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.caption.copyWith(color: const Color(0xFFE6E3EE)),
+                    ),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const KabsoArtIcon(KabsoArt.coin, size: 14),
+                          const SizedBox(width: 3),
+                          Text(
+                            KFormat.grouped(option.priceCoins),
+                            style: t.caption.copyWith(
+                              color: const Color(0xFFFFE4A3),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (option.savePercent > 0)
+                      Text(
+                        l10n.liveBoostSave(option.savePercent),
+                        maxLines: 1,
+                        style: t.caption.copyWith(
+                          color: const Color(0xFF7FE3C8),
+                          fontSize: 10,
+                        ),
+                      ),
+                    if (held > 0)
+                      Text(
+                        l10n.liveBoostHeld(held),
+                        maxLines: 1,
+                        style: t.caption.copyWith(color: _gold, fontSize: 10),
+                      ),
                   ],
                 ),
               ),
-              if (option.savePercent > 0) ...[
-                const SizedBox(height: 2),
-                Text(
-                  l10n.liveBoostSave(option.savePercent),
-                  maxLines: 1,
-                  style: t.caption.copyWith(
-                    color: const Color(0xFF7FE3C8),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-              if (held > 0) ...[
-                const SizedBox(height: 2),
-                Text(
-                  l10n.liveBoostHeld(held),
-                  maxLines: 1,
-                  style: t.caption.copyWith(
-                    color: const Color(0xFFFFD36E),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
             ],
           ),
         ),

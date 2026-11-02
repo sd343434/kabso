@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LiveBoost {
 
- String get id; String get roomId; UserSummary get host; UserSummary get buyer; int get minutes;@JsonKey(unknownEnumValue: LiveBoostSource.coins) LiveBoostSource get source; int get coinsCharged;@JsonKey(unknownEnumValue: LiveBoostState.done) LiveBoostState get state; DateTime get startsAt; DateTime get endsAt; DateTime get createdAt;
+ String get id; String get roomId; UserSummary get host; UserSummary get buyer; int get minutes;@JsonKey(unknownEnumValue: LiveBoostSource.coins) LiveBoostSource get source; int get coinsCharged;@JsonKey(unknownEnumValue: LiveBoostState.done) LiveBoostState get state; DateTime get startsAt; DateTime get endsAt; DateTime get createdAt; int get stage;
 /// Create a copy of LiveBoost
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $LiveBoostCopyWith<LiveBoost> get copyWith => _$LiveBoostCopyWithImpl<LiveBoost>
 @override
 bool operator ==(Object other) {
   final _this = this as LiveBoost;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveBoost&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.buyer, _this.buyer) || other.buyer == _this.buyer)&&(identical(other.minutes, _this.minutes) || other.minutes == _this.minutes)&&(identical(other.source, _this.source) || other.source == _this.source)&&(identical(other.coinsCharged, _this.coinsCharged) || other.coinsCharged == _this.coinsCharged)&&(identical(other.state, _this.state) || other.state == _this.state)&&(identical(other.startsAt, _this.startsAt) || other.startsAt == _this.startsAt)&&(identical(other.endsAt, _this.endsAt) || other.endsAt == _this.endsAt)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveBoost&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.buyer, _this.buyer) || other.buyer == _this.buyer)&&(identical(other.minutes, _this.minutes) || other.minutes == _this.minutes)&&(identical(other.source, _this.source) || other.source == _this.source)&&(identical(other.coinsCharged, _this.coinsCharged) || other.coinsCharged == _this.coinsCharged)&&(identical(other.state, _this.state) || other.state == _this.state)&&(identical(other.startsAt, _this.startsAt) || other.startsAt == _this.startsAt)&&(identical(other.endsAt, _this.endsAt) || other.endsAt == _this.endsAt)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.stage, _this.stage) || other.stage == _this.stage));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveBoost;
-  return Object.hash(runtimeType,_this.id,_this.roomId,_this.host,_this.buyer,_this.minutes,_this.source,_this.coinsCharged,_this.state,_this.startsAt,_this.endsAt,_this.createdAt);
+  return Object.hash(runtimeType,_this.id,_this.roomId,_this.host,_this.buyer,_this.minutes,_this.source,_this.coinsCharged,_this.state,_this.startsAt,_this.endsAt,_this.createdAt,_this.stage);
 }
 
 @override
 String toString() {
   final _this = this as LiveBoost;
-  return 'LiveBoost(id: ${_this.id}, roomId: ${_this.roomId}, host: ${_this.host}, buyer: ${_this.buyer}, minutes: ${_this.minutes}, source: ${_this.source}, coinsCharged: ${_this.coinsCharged}, state: ${_this.state}, startsAt: ${_this.startsAt}, endsAt: ${_this.endsAt}, createdAt: ${_this.createdAt})';
+  return 'LiveBoost(id: ${_this.id}, roomId: ${_this.roomId}, host: ${_this.host}, buyer: ${_this.buyer}, minutes: ${_this.minutes}, source: ${_this.source}, coinsCharged: ${_this.coinsCharged}, state: ${_this.state}, startsAt: ${_this.startsAt}, endsAt: ${_this.endsAt}, createdAt: ${_this.createdAt}, stage: ${_this.stage})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $LiveBoostCopyWith<$Res>  {
   factory $LiveBoostCopyWith(LiveBoost value, $Res Function(LiveBoost) _then) = _$LiveBoostCopyWithImpl;
 @useResult
 $Res call({
- String id, String roomId, UserSummary host, UserSummary buyer, int minutes,@JsonKey(unknownEnumValue: LiveBoostSource.coins) LiveBoostSource source, int coinsCharged,@JsonKey(unknownEnumValue: LiveBoostState.done) LiveBoostState state, DateTime startsAt, DateTime endsAt, DateTime createdAt
+ String id, String roomId, UserSummary host, UserSummary buyer, int minutes,@JsonKey(unknownEnumValue: LiveBoostSource.coins) LiveBoostSource source, int coinsCharged,@JsonKey(unknownEnumValue: LiveBoostState.done) LiveBoostState state, DateTime startsAt, DateTime endsAt, DateTime createdAt, int stage
 });
 
 
@@ -71,7 +71,7 @@ class _$LiveBoostCopyWithImpl<$Res>
 
 /// Create a copy of LiveBoost
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? host = null,Object? buyer = null,Object? minutes = null,Object? source = null,Object? coinsCharged = null,Object? state = null,Object? startsAt = null,Object? endsAt = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? host = null,Object? buyer = null,Object? minutes = null,Object? source = null,Object? coinsCharged = null,Object? state = null,Object? startsAt = null,Object? endsAt = null,Object? createdAt = null,Object? stage = null,}) {
   return _then(LiveBoost(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -84,7 +84,8 @@ as int,state: null == state ? _self.state : state // ignore: cast_nullable_to_no
 as LiveBoostState,startsAt: null == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
 as DateTime,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
 as DateTime,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,stage: null == stage ? _self.stage : stage // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of LiveBoost
@@ -187,10 +188,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary host,  UserSummary buyer,  int minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins)  LiveBoostSource source,  int coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done)  LiveBoostState state,  DateTime startsAt,  DateTime endsAt,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary host,  UserSummary buyer,  int minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins)  LiveBoostSource source,  int coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done)  LiveBoostState state,  DateTime startsAt,  DateTime endsAt,  DateTime createdAt,  int stage)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveBoost() when $default != null:
-return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that.source,_that.coinsCharged,_that.state,_that.startsAt,_that.endsAt,_that.createdAt);case _:
+return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that.source,_that.coinsCharged,_that.state,_that.startsAt,_that.endsAt,_that.createdAt,_that.stage);case _:
   return orElse();
 
 }
@@ -208,10 +209,10 @@ return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary host,  UserSummary buyer,  int minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins)  LiveBoostSource source,  int coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done)  LiveBoostState state,  DateTime startsAt,  DateTime endsAt,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary host,  UserSummary buyer,  int minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins)  LiveBoostSource source,  int coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done)  LiveBoostState state,  DateTime startsAt,  DateTime endsAt,  DateTime createdAt,  int stage)  $default,) {final _that = this;
 switch (_that) {
 case _LiveBoost():
-return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that.source,_that.coinsCharged,_that.state,_that.startsAt,_that.endsAt,_that.createdAt);case _:
+return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that.source,_that.coinsCharged,_that.state,_that.startsAt,_that.endsAt,_that.createdAt,_that.stage);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -228,10 +229,10 @@ return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary host,  UserSummary buyer,  int minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins)  LiveBoostSource source,  int coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done)  LiveBoostState state,  DateTime startsAt,  DateTime endsAt,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary host,  UserSummary buyer,  int minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins)  LiveBoostSource source,  int coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done)  LiveBoostState state,  DateTime startsAt,  DateTime endsAt,  DateTime createdAt,  int stage)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveBoost() when $default != null:
-return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that.source,_that.coinsCharged,_that.state,_that.startsAt,_that.endsAt,_that.createdAt);case _:
+return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that.source,_that.coinsCharged,_that.state,_that.startsAt,_that.endsAt,_that.createdAt,_that.stage);case _:
   return null;
 
 }
@@ -243,7 +244,7 @@ return $default(_that.id,_that.roomId,_that.host,_that.buyer,_that.minutes,_that
 @JsonSerializable()
 
 class _LiveBoost implements LiveBoost {
-  const _LiveBoost({required this.id, required this.roomId, required this.host, required this.buyer, required this.minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins) required this.source, required this.coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done) required this.state, required this.startsAt, required this.endsAt, required this.createdAt});
+  const _LiveBoost({required this.id, required this.roomId, required this.host, required this.buyer, required this.minutes, @JsonKey(unknownEnumValue: LiveBoostSource.coins) required this.source, required this.coinsCharged, @JsonKey(unknownEnumValue: LiveBoostState.done) required this.state, required this.startsAt, required this.endsAt, required this.createdAt, this.stage = 1});
   factory _LiveBoost.fromJson(Map<String, dynamic> json) => _$LiveBoostFromJson(json);
 
 @override final  String id;
@@ -257,6 +258,7 @@ class _LiveBoost implements LiveBoost {
 @override final  DateTime startsAt;
 @override final  DateTime endsAt;
 @override final  DateTime createdAt;
+@override@JsonKey() final  int stage;
 
 /// Create a copy of LiveBoost
 /// with the given fields replaced by the non-null parameter values.
@@ -271,18 +273,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveBoost&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.host, host) || other.host == host)&&(identical(other.buyer, buyer) || other.buyer == buyer)&&(identical(other.minutes, minutes) || other.minutes == minutes)&&(identical(other.source, source) || other.source == source)&&(identical(other.coinsCharged, coinsCharged) || other.coinsCharged == coinsCharged)&&(identical(other.state, state) || other.state == state)&&(identical(other.startsAt, startsAt) || other.startsAt == startsAt)&&(identical(other.endsAt, endsAt) || other.endsAt == endsAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveBoost&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.host, host) || other.host == host)&&(identical(other.buyer, buyer) || other.buyer == buyer)&&(identical(other.minutes, minutes) || other.minutes == minutes)&&(identical(other.source, source) || other.source == source)&&(identical(other.coinsCharged, coinsCharged) || other.coinsCharged == coinsCharged)&&(identical(other.state, state) || other.state == state)&&(identical(other.startsAt, startsAt) || other.startsAt == startsAt)&&(identical(other.endsAt, endsAt) || other.endsAt == endsAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.stage, stage) || other.stage == stage));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,roomId,host,buyer,minutes,source,coinsCharged,state,startsAt,endsAt,createdAt);
+    return Object.hash(runtimeType,id,roomId,host,buyer,minutes,source,coinsCharged,state,startsAt,endsAt,createdAt,stage);
 }
 
 @override
 String toString() {
-    return 'LiveBoost(id: $id, roomId: $roomId, host: $host, buyer: $buyer, minutes: $minutes, source: $source, coinsCharged: $coinsCharged, state: $state, startsAt: $startsAt, endsAt: $endsAt, createdAt: $createdAt)';
+    return 'LiveBoost(id: $id, roomId: $roomId, host: $host, buyer: $buyer, minutes: $minutes, source: $source, coinsCharged: $coinsCharged, state: $state, startsAt: $startsAt, endsAt: $endsAt, createdAt: $createdAt, stage: $stage)';
 }
 
 
@@ -293,7 +295,7 @@ abstract mixin class _$LiveBoostCopyWith<$Res> implements $LiveBoostCopyWith<$Re
   factory _$LiveBoostCopyWith(_LiveBoost value, $Res Function(_LiveBoost) _then) = __$LiveBoostCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String roomId, UserSummary host, UserSummary buyer, int minutes,@JsonKey(unknownEnumValue: LiveBoostSource.coins) LiveBoostSource source, int coinsCharged,@JsonKey(unknownEnumValue: LiveBoostState.done) LiveBoostState state, DateTime startsAt, DateTime endsAt, DateTime createdAt
+ String id, String roomId, UserSummary host, UserSummary buyer, int minutes,@JsonKey(unknownEnumValue: LiveBoostSource.coins) LiveBoostSource source, int coinsCharged,@JsonKey(unknownEnumValue: LiveBoostState.done) LiveBoostState state, DateTime startsAt, DateTime endsAt, DateTime createdAt, int stage
 });
 
 
@@ -310,7 +312,7 @@ class __$LiveBoostCopyWithImpl<$Res>
 
 /// Create a copy of LiveBoost
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? host = null,Object? buyer = null,Object? minutes = null,Object? source = null,Object? coinsCharged = null,Object? state = null,Object? startsAt = null,Object? endsAt = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? host = null,Object? buyer = null,Object? minutes = null,Object? source = null,Object? coinsCharged = null,Object? state = null,Object? startsAt = null,Object? endsAt = null,Object? createdAt = null,Object? stage = null,}) {
   return _then(_LiveBoost(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -323,7 +325,8 @@ as int,state: null == state ? _self.state : state // ignore: cast_nullable_to_no
 as LiveBoostState,startsAt: null == startsAt ? _self.startsAt : startsAt // ignore: cast_nullable_to_non_nullable
 as DateTime,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
 as DateTime,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,stage: null == stage ? _self.stage : stage // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -352,7 +355,7 @@ $UserSummaryCopyWith<$Res> get buyer {
 /// @nodoc
 mixin _$LiveBoostOption {
 
- int get minutes; int get priceCoins; int get savePercent;
+ int get minutes; int get priceCoins; int get savePercent; int get stage;
 /// Create a copy of LiveBoostOption
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -366,20 +369,20 @@ $LiveBoostOptionCopyWith<LiveBoostOption> get copyWith => _$LiveBoostOptionCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LiveBoostOption;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveBoostOption&&(identical(other.minutes, _this.minutes) || other.minutes == _this.minutes)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.savePercent, _this.savePercent) || other.savePercent == _this.savePercent));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveBoostOption&&(identical(other.minutes, _this.minutes) || other.minutes == _this.minutes)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.savePercent, _this.savePercent) || other.savePercent == _this.savePercent)&&(identical(other.stage, _this.stage) || other.stage == _this.stage));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveBoostOption;
-  return Object.hash(runtimeType,_this.minutes,_this.priceCoins,_this.savePercent);
+  return Object.hash(runtimeType,_this.minutes,_this.priceCoins,_this.savePercent,_this.stage);
 }
 
 @override
 String toString() {
   final _this = this as LiveBoostOption;
-  return 'LiveBoostOption(minutes: ${_this.minutes}, priceCoins: ${_this.priceCoins}, savePercent: ${_this.savePercent})';
+  return 'LiveBoostOption(minutes: ${_this.minutes}, priceCoins: ${_this.priceCoins}, savePercent: ${_this.savePercent}, stage: ${_this.stage})';
 }
 
 
@@ -390,7 +393,7 @@ abstract mixin class $LiveBoostOptionCopyWith<$Res>  {
   factory $LiveBoostOptionCopyWith(LiveBoostOption value, $Res Function(LiveBoostOption) _then) = _$LiveBoostOptionCopyWithImpl;
 @useResult
 $Res call({
- int minutes, int priceCoins, int savePercent
+ int minutes, int priceCoins, int savePercent, int stage
 });
 
 
@@ -407,11 +410,12 @@ class _$LiveBoostOptionCopyWithImpl<$Res>
 
 /// Create a copy of LiveBoostOption
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? minutes = null,Object? priceCoins = null,Object? savePercent = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? minutes = null,Object? priceCoins = null,Object? savePercent = null,Object? stage = null,}) {
   return _then(LiveBoostOption(
 minutes: null == minutes ? _self.minutes : minutes // ignore: cast_nullable_to_non_nullable
 as int,priceCoins: null == priceCoins ? _self.priceCoins : priceCoins // ignore: cast_nullable_to_non_nullable
 as int,savePercent: null == savePercent ? _self.savePercent : savePercent // ignore: cast_nullable_to_non_nullable
+as int,stage: null == stage ? _self.stage : stage // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -497,10 +501,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int minutes,  int priceCoins,  int savePercent)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int minutes,  int priceCoins,  int savePercent,  int stage)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveBoostOption() when $default != null:
-return $default(_that.minutes,_that.priceCoins,_that.savePercent);case _:
+return $default(_that.minutes,_that.priceCoins,_that.savePercent,_that.stage);case _:
   return orElse();
 
 }
@@ -518,10 +522,10 @@ return $default(_that.minutes,_that.priceCoins,_that.savePercent);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int minutes,  int priceCoins,  int savePercent)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int minutes,  int priceCoins,  int savePercent,  int stage)  $default,) {final _that = this;
 switch (_that) {
 case _LiveBoostOption():
-return $default(_that.minutes,_that.priceCoins,_that.savePercent);case _:
+return $default(_that.minutes,_that.priceCoins,_that.savePercent,_that.stage);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -538,10 +542,10 @@ return $default(_that.minutes,_that.priceCoins,_that.savePercent);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int minutes,  int priceCoins,  int savePercent)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int minutes,  int priceCoins,  int savePercent,  int stage)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveBoostOption() when $default != null:
-return $default(_that.minutes,_that.priceCoins,_that.savePercent);case _:
+return $default(_that.minutes,_that.priceCoins,_that.savePercent,_that.stage);case _:
   return null;
 
 }
@@ -553,12 +557,13 @@ return $default(_that.minutes,_that.priceCoins,_that.savePercent);case _:
 @JsonSerializable()
 
 class _LiveBoostOption implements LiveBoostOption {
-  const _LiveBoostOption({required this.minutes, required this.priceCoins, required this.savePercent});
+  const _LiveBoostOption({required this.minutes, required this.priceCoins, required this.savePercent, this.stage = 1});
   factory _LiveBoostOption.fromJson(Map<String, dynamic> json) => _$LiveBoostOptionFromJson(json);
 
 @override final  int minutes;
 @override final  int priceCoins;
 @override final  int savePercent;
+@override@JsonKey() final  int stage;
 
 /// Create a copy of LiveBoostOption
 /// with the given fields replaced by the non-null parameter values.
@@ -573,18 +578,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveBoostOption&&(identical(other.minutes, minutes) || other.minutes == minutes)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.savePercent, savePercent) || other.savePercent == savePercent));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveBoostOption&&(identical(other.minutes, minutes) || other.minutes == minutes)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.savePercent, savePercent) || other.savePercent == savePercent)&&(identical(other.stage, stage) || other.stage == stage));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,minutes,priceCoins,savePercent);
+    return Object.hash(runtimeType,minutes,priceCoins,savePercent,stage);
 }
 
 @override
 String toString() {
-    return 'LiveBoostOption(minutes: $minutes, priceCoins: $priceCoins, savePercent: $savePercent)';
+    return 'LiveBoostOption(minutes: $minutes, priceCoins: $priceCoins, savePercent: $savePercent, stage: $stage)';
 }
 
 
@@ -595,7 +600,7 @@ abstract mixin class _$LiveBoostOptionCopyWith<$Res> implements $LiveBoostOption
   factory _$LiveBoostOptionCopyWith(_LiveBoostOption value, $Res Function(_LiveBoostOption) _then) = __$LiveBoostOptionCopyWithImpl;
 @override @useResult
 $Res call({
- int minutes, int priceCoins, int savePercent
+ int minutes, int priceCoins, int savePercent, int stage
 });
 
 
@@ -612,11 +617,12 @@ class __$LiveBoostOptionCopyWithImpl<$Res>
 
 /// Create a copy of LiveBoostOption
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? minutes = null,Object? priceCoins = null,Object? savePercent = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? minutes = null,Object? priceCoins = null,Object? savePercent = null,Object? stage = null,}) {
   return _then(_LiveBoostOption(
 minutes: null == minutes ? _self.minutes : minutes // ignore: cast_nullable_to_non_nullable
 as int,priceCoins: null == priceCoins ? _self.priceCoins : priceCoins // ignore: cast_nullable_to_non_nullable
 as int,savePercent: null == savePercent ? _self.savePercent : savePercent // ignore: cast_nullable_to_non_nullable
+as int,stage: null == stage ? _self.stage : stage // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -1522,7 +1528,7 @@ $LiveBoostCopyWith<$Res> get boost {
 /// @nodoc
 mixin _$LiveBoostedRoom {
 
- LiveRoomSummary get room; DateTime get endsAt;
+ LiveRoomSummary get room; DateTime get endsAt; int get stage;
 /// Create a copy of LiveBoostedRoom
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1536,20 +1542,20 @@ $LiveBoostedRoomCopyWith<LiveBoostedRoom> get copyWith => _$LiveBoostedRoomCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LiveBoostedRoom;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveBoostedRoom&&(identical(other.room, _this.room) || other.room == _this.room)&&(identical(other.endsAt, _this.endsAt) || other.endsAt == _this.endsAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveBoostedRoom&&(identical(other.room, _this.room) || other.room == _this.room)&&(identical(other.endsAt, _this.endsAt) || other.endsAt == _this.endsAt)&&(identical(other.stage, _this.stage) || other.stage == _this.stage));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveBoostedRoom;
-  return Object.hash(runtimeType,_this.room,_this.endsAt);
+  return Object.hash(runtimeType,_this.room,_this.endsAt,_this.stage);
 }
 
 @override
 String toString() {
   final _this = this as LiveBoostedRoom;
-  return 'LiveBoostedRoom(room: ${_this.room}, endsAt: ${_this.endsAt})';
+  return 'LiveBoostedRoom(room: ${_this.room}, endsAt: ${_this.endsAt}, stage: ${_this.stage})';
 }
 
 
@@ -1560,7 +1566,7 @@ abstract mixin class $LiveBoostedRoomCopyWith<$Res>  {
   factory $LiveBoostedRoomCopyWith(LiveBoostedRoom value, $Res Function(LiveBoostedRoom) _then) = _$LiveBoostedRoomCopyWithImpl;
 @useResult
 $Res call({
- LiveRoomSummary room, DateTime endsAt
+ LiveRoomSummary room, DateTime endsAt, int stage
 });
 
 
@@ -1577,11 +1583,12 @@ class _$LiveBoostedRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveBoostedRoom
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? room = null,Object? endsAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? room = null,Object? endsAt = null,Object? stage = null,}) {
   return _then(LiveBoostedRoom(
 room: null == room ? _self.room : room // ignore: cast_nullable_to_non_nullable
 as LiveRoomSummary,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,stage: null == stage ? _self.stage : stage // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of LiveBoostedRoom
@@ -1675,10 +1682,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LiveRoomSummary room,  DateTime endsAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LiveRoomSummary room,  DateTime endsAt,  int stage)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveBoostedRoom() when $default != null:
-return $default(_that.room,_that.endsAt);case _:
+return $default(_that.room,_that.endsAt,_that.stage);case _:
   return orElse();
 
 }
@@ -1696,10 +1703,10 @@ return $default(_that.room,_that.endsAt);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LiveRoomSummary room,  DateTime endsAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LiveRoomSummary room,  DateTime endsAt,  int stage)  $default,) {final _that = this;
 switch (_that) {
 case _LiveBoostedRoom():
-return $default(_that.room,_that.endsAt);case _:
+return $default(_that.room,_that.endsAt,_that.stage);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1716,10 +1723,10 @@ return $default(_that.room,_that.endsAt);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LiveRoomSummary room,  DateTime endsAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LiveRoomSummary room,  DateTime endsAt,  int stage)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveBoostedRoom() when $default != null:
-return $default(_that.room,_that.endsAt);case _:
+return $default(_that.room,_that.endsAt,_that.stage);case _:
   return null;
 
 }
@@ -1731,11 +1738,12 @@ return $default(_that.room,_that.endsAt);case _:
 @JsonSerializable()
 
 class _LiveBoostedRoom implements LiveBoostedRoom {
-  const _LiveBoostedRoom({required this.room, required this.endsAt});
+  const _LiveBoostedRoom({required this.room, required this.endsAt, this.stage = 1});
   factory _LiveBoostedRoom.fromJson(Map<String, dynamic> json) => _$LiveBoostedRoomFromJson(json);
 
 @override final  LiveRoomSummary room;
 @override final  DateTime endsAt;
+@override@JsonKey() final  int stage;
 
 /// Create a copy of LiveBoostedRoom
 /// with the given fields replaced by the non-null parameter values.
@@ -1750,18 +1758,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveBoostedRoom&&(identical(other.room, room) || other.room == room)&&(identical(other.endsAt, endsAt) || other.endsAt == endsAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveBoostedRoom&&(identical(other.room, room) || other.room == room)&&(identical(other.endsAt, endsAt) || other.endsAt == endsAt)&&(identical(other.stage, stage) || other.stage == stage));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,room,endsAt);
+    return Object.hash(runtimeType,room,endsAt,stage);
 }
 
 @override
 String toString() {
-    return 'LiveBoostedRoom(room: $room, endsAt: $endsAt)';
+    return 'LiveBoostedRoom(room: $room, endsAt: $endsAt, stage: $stage)';
 }
 
 
@@ -1772,7 +1780,7 @@ abstract mixin class _$LiveBoostedRoomCopyWith<$Res> implements $LiveBoostedRoom
   factory _$LiveBoostedRoomCopyWith(_LiveBoostedRoom value, $Res Function(_LiveBoostedRoom) _then) = __$LiveBoostedRoomCopyWithImpl;
 @override @useResult
 $Res call({
- LiveRoomSummary room, DateTime endsAt
+ LiveRoomSummary room, DateTime endsAt, int stage
 });
 
 
@@ -1789,11 +1797,12 @@ class __$LiveBoostedRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveBoostedRoom
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? room = null,Object? endsAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? room = null,Object? endsAt = null,Object? stage = null,}) {
   return _then(_LiveBoostedRoom(
 room: null == room ? _self.room : room // ignore: cast_nullable_to_non_nullable
 as LiveRoomSummary,endsAt: null == endsAt ? _self.endsAt : endsAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,stage: null == stage ? _self.stage : stage // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

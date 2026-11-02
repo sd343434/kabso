@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
+import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
+import { AuditAction } from '../../common/audit/audit.service.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -18,6 +20,8 @@ import {
   addBoostCardsIn,
   BOOST_TOPIC,
   boostOptions,
+  boostStages,
+  type BoostStage,
   placeBoost,
   replanWaiting,
   slotsFreeAt,
@@ -42,6 +46,8 @@ export interface LiveBoostDto {
   host: UserSummaryDto;
   buyer: UserSummaryDto;
   minutes: number;
+  /** v1.51-live (D233): the rocket stage bought, 1–4. */
+  stage: number;
   source: LiveBoostSource;
   coinsCharged: number;
   state: LiveBoostState;
@@ -73,7 +79,41 @@ export interface LiveBoostOffersDto {
 export interface LiveBoostedRoomDto {
   room: LiveRoomSummaryDto;
   endsAt: string;
+  /** v1.51-live (D233): its rocket stage, 1–4 (the hub's rocket badge and frame). */
+  stage: number;
 }
+
+/** `AdminLiveBoostStage` (v1.51-live, D233): one rocket stage as the admin panel shows and edits it. */
+export interface AdminLiveBoostStageDto {
+  stage: number;
+  minutes: number;
+  /** What it costs now. */
+  priceCoins: number;
+  /** The server config's price (`LIVE_BOOST_PRICES`), used while the panel has set none. */
+  configCoins: number;
+  /** Set in the panel (else the config's). */
+  custom: boolean;
+  updatedAt: string | null;
+}
+
+/** `AdminLiveBoostPrices`. */
+export interface AdminLiveBoostPricesDto {
+  stages: AdminLiveBoostStageDto[];
+}
+
+/** `updateAdminLiveBoostPrices` body: the four prices, stage 1 first, strictly rising (a rocket grows). */
+export const adminBoostPricesBody = z.strictObject({
+  prices: z
+    .array(z.number().int().min(1).max(1_000_000_000))
+    .length(4)
+    .refine((p) => p.every((c, i) => i === 0 || c > p[i - 1]!), {
+      message: 'each stage costs more than the one before',
+      params: { issue: 'invalid_value' },
+    }),
+  reason: z.string().trim().min(1).max(500),
+  totpCode: z.string().regex(/^[0-9]{6}$/),
+});
+export type AdminBoostPricesBody = z.output<typeof adminBoostPricesBody>;
 
 /** `LiveBoostResult`. */
 export interface LiveBoostResultDto {
@@ -160,6 +200,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
       host: userSummary(row.host),
       buyer: userSummary(row.buyer),
       minutes: row.minutes,
+      stage: row.stage,
       source: row.source,
       coinsCharged: Number(row.coinsCharged),
       state: this.stateOf(row, now),
@@ -167,6 +208,76 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
       endsAt: row.endsAt.toISOString(),
       createdAt: row.createdAt.toISOString(),
     };
+  }
+
+  /**
+   * v1.51-live (D233, §10.81): the rocket stages now — the config's lengths, each at the panel's price when
+   * set (`live_boost_prices`), else the config's.
+   */
+  async stages(db: Pick<Prisma.TransactionClient, 'liveBoostPrice'> = this.prisma): Promise<BoostStage[]> {
+    const rows = await db.liveBoostPrice.findMany({ select: { stage: true, coins: true } });
+    return boostStages(this.config.boosts.prices, new Map(rows.map((r) => [r.stage, Number(r.coins)])));
+  }
+
+  /** `getAdminLiveBoostPrices`: the stages with the config's price beside the one in force. */
+  async adminPrices(
+    db: Pick<Prisma.TransactionClient, 'liveBoostPrice'> = this.prisma,
+  ): Promise<AdminLiveBoostPricesDto> {
+    const rows = await db.liveBoostPrice.findMany();
+    const byStage = new Map(rows.map((r) => [r.stage, r]));
+    return {
+      stages: this.config.boosts.prices.map((p, i) => {
+        const row = byStage.get(i + 1);
+        return {
+          stage: i + 1,
+          minutes: p.minutes,
+          priceCoins: row ? Number(row.coins) : p.coins,
+          configCoins: p.coins,
+          custom: row !== undefined,
+          updatedAt: row ? row.updatedAt.toISOString() : null,
+        };
+      }),
+    };
+  }
+
+  /**
+   * `updateAdminLiveBoostPrices` (after the session guard, `catalog.manage` and the authenticator code): the four
+   * prices in one transaction with an audit row (before / after, the reason). Cards already bought keep what
+   * they cost (a refund gives back `coinsCharged`); only new purchases pay the new prices.
+   */
+  async updatePrices(
+    prices: readonly number[],
+    reason: string,
+    by: AdminVia,
+  ): Promise<AdminLiveBoostPricesDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('live_boost_prices', 0))`;
+      const before = await this.adminPrices(tx);
+      const now = this.clock.now();
+      for (const [i, coins] of prices.entries()) {
+        const stage = i + 1;
+        await tx.liveBoostPrice.upsert({
+          where: { stage },
+          create: { stage, coins: BigInt(coins), updatedAt: now, updatedById: by.actorUserId },
+          update: { coins: BigInt(coins), updatedAt: now, updatedById: by.actorUserId },
+        });
+      }
+      const after = await this.adminPrices(tx);
+      await tx.auditLog.create({
+        data: {
+          ...auditBy(by),
+          action: AuditAction.LIVE_BOOST_PRICES_UPDATE,
+          targetType: 'live_boost_prices',
+          metadata: {
+            via: by.via,
+            reason,
+            before: before.stages.map((s) => s.priceCoins),
+            after: after.stages.map((s) => s.priceCoins),
+          },
+        },
+      });
+      return after;
+    });
   }
 
   private async cardsOf(
@@ -191,7 +302,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
     const at = now.toISOString();
     const open = await tx.$queryRaw<(LiveBoost & { live: boolean })[]>`
       SELECT b.id, b.room_id AS "roomId", b.host_user_id AS "hostUserId", b.buyer_id AS "buyerId",
-             b.client_id AS "clientId", b.minutes, b.source, b.coins_charged AS "coinsCharged", b.slot,
+             b.client_id AS "clientId", b.minutes, b.stage, b.source, b.coins_charged AS "coinsCharged", b.slot,
              b.starts_at AS "startsAt", b.ends_at AS "endsAt", b.cancelled_at AS "cancelledAt",
              b.created_at AS "createdAt", (r.status = 'LIVE') AS live
         FROM live_boosts b JOIN live_rooms r ON r.id = b.room_id
@@ -268,7 +379,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
     return {
       slots: this.slots,
       maxWaitMinutes: Math.round(this.config.boosts.maxWaitMs / 60_000),
-      options: boostOptions(this.config.boosts.prices),
+      options: boostOptions(await this.stages()),
       cards: await this.cardsOf(this.prisma, callerId),
       nextStartAt: next.toISOString(),
       roomBoost: own ? this.toDto(own, now) : null,
@@ -282,7 +393,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
       where: { cancelledAt: null, startsAt: { lte: now }, endsAt: { gt: now } },
       orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
       take: this.slots,
-      select: { roomId: true, endsAt: true },
+      select: { roomId: true, endsAt: true, stage: true },
     });
     const summaries = await this.rooms.liveSummaries(
       running.map((b) => b.roomId),
@@ -292,7 +403,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
     return {
       data: running.flatMap((b) => {
         const room = summaries.get(b.roomId);
-        return room ? [{ room, endsAt: b.endsAt.toISOString() }] : [];
+        return room ? [{ room, endsAt: b.endsAt.toISOString(), stage: b.stage }] : [];
       }),
     };
   }
@@ -312,7 +423,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ created: boolean; result: LiveBoostResultDto }> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const prices = this.config.boosts.prices;
+    const prices = await this.stages();
     const parsed = buySchema(prices.map((p) => p.minutes)).safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
@@ -363,6 +474,7 @@ export class LiveBoostsService implements OnModuleInit, OnModuleDestroy {
             buyerId: callerId,
             clientId,
             minutes: input.minutes,
+            stage: price.stage,
             source: input.source,
             coinsCharged: isCoins ? BigInt(price.coins) : 0n,
             slot: place.slot,
