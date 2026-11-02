@@ -10,6 +10,8 @@ import { isUuid } from '../live/live.schemas.js';
 import { USERNAME_PATTERN } from '../users/username.js';
 import {
   BANNER_WIDTH,
+  HUB_CARD_BANNER_HEIGHT,
+  HUB_CARD_BANNER_WIDTH,
   processImage,
   ROOM_BANNER_HEIGHT,
   ROOM_BANNER_WIDTH,
@@ -28,9 +30,10 @@ export type BannerTitleSide = (typeof BANNER_TITLE_SIDES)[number];
 /**
  * v1.27.4-live (D137): the live hub (3:1) or the promo box inside a live (3:4); v1.50-social (D176):
  * `TASKS` is the Task Center's slot (3:1, like `HOME`); v1.51-social (D177): `WALLET`, the wallet
- * page (3:1, the same picture as HOME).
+ * page (3:1, the same picture as HOME); v1.59-live (D248): `HUB_CARD`, the live hub's card-size banner in one grid
+ * cell (the live card's aspect, 720 × 805).
  */
-export const BANNER_PLACEMENTS = ['HOME', 'ROOM', 'TASKS', 'WALLET'] as const;
+export const BANNER_PLACEMENTS = ['HOME', 'ROOM', 'TASKS', 'WALLET', 'HUB_CARD'] as const;
 export type BannerPlacement = (typeof BANNER_PLACEMENTS)[number];
 /** `GET /home/banners` may be cached by the client for a minute (it is per language). */
 export const HOME_BANNERS_CACHE_CONTROL = 'private, max-age=60';
@@ -85,7 +88,7 @@ export interface BannerFields {
   readonly endsAt: Date | null;
   readonly sortOrder: number;
   readonly enabled: boolean;
-  /** v1.27.4-live (D137): `HOME` (default) or `ROOM`. */
+  /** v1.27.4-live (D137): `HOME` (default) or `ROOM`; D176 `TASKS`, D177 `WALLET`, D248 `HUB_CARD`. */
   readonly placement?: BannerPlacement;
 }
 
@@ -106,7 +109,7 @@ export function bannerFieldProblems(fields: BannerFields): string[] {
   }
   if (!BANNER_TITLE_SIDES.includes(fields.titleSide)) problems.push('--text-side is left or right');
   if (fields.placement !== undefined && !BANNER_PLACEMENTS.includes(fields.placement)) {
-    problems.push('--placement is home, room, tasks or wallet');
+    problems.push('--placement is home, room, tasks, wallet or hub_card');
   }
   if (Number.isNaN(fields.startsAt.getTime())) problems.push('--starts is not a date');
   if (fields.endsAt !== null) {
@@ -138,13 +141,25 @@ export async function storeBannerImage(
   if (type === null) throw new BannerError('The file is not a JPEG, PNG or WebP image');
   let image;
   try {
-    // D137: a ROOM banner is cover-cropped to 3:4 (600 × 800 and 240 × 320).
-    image = await processImage(bytes, type, BANNER_WIDTH, placement === 'ROOM' ? 'roomBanner' : 'banner');
+    // D137: a ROOM banner is cover-cropped to 3:4 (600 × 800 and 240 × 320); D248: a HUB_CARD banner to the live
+    // card's aspect (720 × 805 and 288 × 322).
+    image = await processImage(
+      bytes,
+      type,
+      BANNER_WIDTH,
+      placement === 'ROOM' ? 'roomBanner' : placement === 'HUB_CARD' ? 'hubCardBanner' : 'banner',
+    );
   } catch {
     throw new BannerError('The image could not be read (or is larger than 8 000 px / 50 MP)');
   }
   const id = uuidv7();
-  const largeKey = `media/${id}/${String(placement === 'ROOM' ? ROOM_BANNER_WIDTH : BANNER_WIDTH)}.webp`;
+  const largeWidth =
+    placement === 'ROOM'
+      ? ROOM_BANNER_WIDTH
+      : placement === 'HUB_CARD'
+        ? HUB_CARD_BANNER_WIDTH
+        : BANNER_WIDTH;
+  const largeKey = `media/${id}/${String(largeWidth)}.webp`;
   const thumbKey = `media/${id}/${String(THUMB_SIDE)}.webp`;
   const cache = 'public, max-age=31536000, immutable';
   await storage.put(largeKey, image.large, 'image/webp', cache);
@@ -167,13 +182,16 @@ export async function storeBannerImage(
 /**
  * Adds a banner on the `HOME_BANNER` asset `mediaId` inside the caller's transaction: the asset
  * must be READY, unattached and less than 24 hours old (the media sweeper deletes it afterwards);
- * it is attached here (locked, so it cannot serve two banners). Writes the `banner.add` audit row.
+ * it is attached here (locked, so it cannot serve two banners). Writes the `banner.add` audit row
+ * (v1.59-live, D248: by the CLI or, [by], the panel with its [reason]).
  * Throws [BannerError] when the fields or the asset are not acceptable.
  */
 export async function addBannerIn(
   tx: Prisma.TransactionClient,
   mediaId: string,
   fields: BannerFields,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
 ): Promise<HomeBanner> {
   const problems = bannerFieldProblems(fields);
   if (problems.length > 0) throw new BannerError(problems.join('\n'));
@@ -203,6 +221,16 @@ export async function addBannerIn(
         : `Media ${id} is a room banner picture (600 × 800); add it with --placement room.`,
     );
   }
+  // D248: a HUB_CARD banner's picture has the live card's shape (stored by `--image` with `--placement hub_card` or
+  // the panel's upload); no other placement takes that picture.
+  const cardShaped = asset.width === HUB_CARD_BANNER_WIDTH && asset.height === HUB_CARD_BANNER_HEIGHT;
+  if ((placement === 'HUB_CARD') !== cardShaped) {
+    throw new BannerError(
+      placement === 'HUB_CARD'
+        ? `Media ${id} is not a 720 × 805 hub card banner picture; add it with --image and --placement hub_card.`
+        : `Media ${id} is a hub card banner picture (720 × 805); add it with --placement hub_card.`,
+    );
+  }
   await tx.mediaAsset.update({ where: { id }, data: { attachedAt: new Date() } });
   const banner = await tx.homeBanner.create({
     data: {
@@ -220,6 +248,7 @@ export async function addBannerIn(
   });
   await tx.auditLog.create({
     data: {
+      ...auditBy(by),
       action: AuditAction.BANNER_ADD,
       targetType: 'home_banner',
       targetId: banner.id,
@@ -234,7 +263,8 @@ export async function addBannerIn(
         sortOrder: banner.sortOrder,
         enabled: banner.enabled,
         placement: banner.placement,
-        via: 'cli',
+        ...(reason ? { reason } : {}),
+        via: by.via,
       },
     },
   });

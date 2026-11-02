@@ -36,6 +36,9 @@ import {
   agenciesQuery,
   agencyProbationExtendBody,
   auditQuery,
+  bannerUploadQuery,
+  type BannerPlacementParam,
+  createBannerBody,
   bagGrantBody,
   bagRevokeBody,
   cardOrdersQuery,
@@ -89,6 +92,9 @@ function categoryCode(raw: string): string {
 
 /** v1.71-social (D207): the raw upload route (its body is kept as bytes, app.setup). */
 export const GIFT_UPLOAD_PATH = '/api/v1/admin/gift-uploads';
+
+/** v1.59-live (D248): the panel's banner picture upload (its body is kept as bytes too, app.setup). */
+export const BANNER_UPLOAD_PATH = '/api/v1/admin/banner-uploads';
 
 type Page = { page: number; pageSize: number };
 type GiftBody = {
@@ -592,6 +598,34 @@ export class AdminV2Controller {
   @RequireCapability('catalog.view')
   banners() {
     return this.catalog.banners();
+  }
+
+  /**
+   * v1.59-live (D248, §10.90): a banner's picture, the raw bytes as the body (`application/octet-stream`, JPEG / PNG /
+   * WebP, at most 15 MiB), cover-cropped around the centre to the placement's shape (home, tasks, wallet 1 500 × 500;
+   * room 600 × 800; hub_card 720 × 805). Not shown anywhere until `POST /admin/banners` names it (within 24 hours).
+   */
+  @Post('banner-uploads')
+  @HttpCode(201)
+  @RequireCapability('catalog.manage')
+  uploadBannerPicture(
+    @Query(new ZodValidationPipe(bannerUploadQuery)) q: { placement: BannerPlacementParam },
+    @Req() req: Request,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.uploadBannerPicture(q.placement, req.body, admin);
+  }
+
+  /** v1.59-live (D248, §10.90): adds a banner on an uploaded picture (`banner.add`, via panel, with the reason). */
+  @Post('banners')
+  @HttpCode(201)
+  @RequireCapability('catalog.manage')
+  createBanner(
+    @Body(new ZodValidationPipe(createBannerBody))
+    body: Parameters<AdminCatalogService['createBanner']>[0],
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.createBanner(body, admin);
   }
 
   @Post('banners/:bannerId/enable')

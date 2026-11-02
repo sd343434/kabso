@@ -16,7 +16,9 @@ import 'package:material_ui/material_ui.dart';
 ///   always forwards (the pager wraps around), not with reduce motion, not
 ///   while a finger is on it and not while the hub is hidden (a route above
 ///   it, another shell tab: [TickerMode] off).
-/// - Page dots under the picture's bottom edge when there is more than one.
+/// - Page dots under the picture's bottom edge when there is more than one;
+///   D248 [overlayIndicator] (the live hub, owner's reference): a thin
+///   segmented bar inside the picture's bottom edge instead.
 /// - A tap calls [onOpen] for a banner whose link the app can open
 ///   ([canOpen]); others are not buttons.
 /// - Optional overlay text on the banner's empty side.
@@ -29,6 +31,7 @@ class KHomeBannerCarousel extends StatefulWidget {
     this.onOpen,
     this.canOpen,
     this.interval = defaultInterval,
+    this.overlayIndicator = false,
   });
 
   final List<HomeBanner> banners;
@@ -38,10 +41,20 @@ class KHomeBannerCarousel extends StatefulWidget {
   final bool Function(HomeBanner banner)? canOpen;
   final Duration interval;
 
+  /// D248: the page indicator as a bar inside the picture (the live hub).
+  final bool overlayIndicator;
+
   static const defaultInterval = Duration(seconds: 4);
 
   /// Width : height of every banner (1 500 × 500).
   static const double aspect = 3;
+
+  /// D248 (ref 375, 738 px wide ≈ 1.88 px/pt): the indicator bar's segment
+  /// per page (16 px), its height (4 px) and its distance from the
+  /// picture's bottom edge (12 px).
+  static const double indicatorSegment = 8.5;
+  static const double indicatorHeight = 2;
+  static const double indicatorBottom = 6.4;
 
   static const carouselKey = Key('homeBanner.carousel');
   static const dotsKey = Key('homeBanner.dots');
@@ -115,6 +128,58 @@ class _KHomeBannerCarouselState extends State<KHomeBannerCarousel> {
     super.dispose();
   }
 
+  /// D248: the pager with the hub's indicator bar over its bottom edge
+  /// (ref 375: a translucent track, the current page's segment white).
+  Widget _withOverlay({
+    required int count,
+    required int current,
+    required Widget pager,
+  }) {
+    if (!widget.overlayIndicator || count <= 1) return pager;
+    const segment = KHomeBannerCarousel.indicatorSegment;
+    return Stack(
+      children: [
+        Positioned.fill(child: pager),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: KHomeBannerCarousel.indicatorBottom,
+          child: IgnorePointer(
+            child: ExcludeSemantics(
+              child: Center(
+                child: Container(
+                  key: KHomeBannerCarousel.dotsKey,
+                  width: segment * count,
+                  height: KHomeBannerCarousel.indicatorHeight,
+                  decoration: BoxDecoration(
+                    color: const Color(0x4DFFFFFF),
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                  ),
+                  // The segment moves with the pager, from the reading
+                  // start (the pager runs right to left in Arabic).
+                  child: AnimatedAlign(
+                    duration: KMotion.of(context, KMotion.fast),
+                    alignment: AlignmentDirectional(
+                      -1 + 2 * current / (count - 1),
+                      0,
+                    ),
+                    child: Container(
+                      width: segment,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final banners = widget.banners;
@@ -135,38 +200,46 @@ class _KHomeBannerCarouselState extends State<KHomeBannerCarousel> {
             onPointerCancel: (_) => _pointers = (_pointers - 1).clamp(0, 99),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(KLiveGrid.radius),
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: count <= 1 ? count : count * _loops,
-                onPageChanged: (page) => setState(() => _page = page),
-                itemBuilder: (context, page) {
-                  final index = page % count;
-                  final banner = banners[index];
-                  final title = banner.title;
-                  final open = widget.onOpen;
-                  final can =
-                      open != null && (widget.canOpen?.call(banner) ?? true);
-                  final label = title == null || title.trim().isEmpty
-                      ? l10n.homeBannerSemantics(index + 1, count)
-                      : l10n.homeBannerTitledSemantics(title, index + 1, count);
-                  return Semantics(
-                    key: KHomeBannerCarousel.pageKey(banner.id),
-                    button: can,
-                    label: label,
-                    container: true,
-                    child: ExcludeSemantics(
-                      child: _BannerPage(
-                        banner: banner,
-                        onTap: can ? () => open(banner) : null,
+              child: _withOverlay(
+                count: count,
+                current: current,
+                pager: PageView.builder(
+                  controller: _controller,
+                  itemCount: count <= 1 ? count : count * _loops,
+                  onPageChanged: (page) => setState(() => _page = page),
+                  itemBuilder: (context, page) {
+                    final index = page % count;
+                    final banner = banners[index];
+                    final title = banner.title;
+                    final open = widget.onOpen;
+                    final can =
+                        open != null && (widget.canOpen?.call(banner) ?? true);
+                    final label = title == null || title.trim().isEmpty
+                        ? l10n.homeBannerSemantics(index + 1, count)
+                        : l10n.homeBannerTitledSemantics(
+                            title,
+                            index + 1,
+                            count,
+                          );
+                    return Semantics(
+                      key: KHomeBannerCarousel.pageKey(banner.id),
+                      button: can,
+                      label: label,
+                      container: true,
+                      child: ExcludeSemantics(
+                        child: _BannerPage(
+                          banner: banner,
+                          onTap: can ? () => open(banner) : null,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),
         ),
-        if (count > 1)
+        if (count > 1 && !widget.overlayIndicator)
           Padding(
             padding: const EdgeInsets.only(top: KSpacing.xs),
             child: ExcludeSemantics(

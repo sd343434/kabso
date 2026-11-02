@@ -686,6 +686,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.59-live (draft) | 2026-11-02 | **D248 (owner: «اجعل التصميم مشابه للبيجو لايف بحيث بعد أول بثين هناك بنر متحرك، وفي الأسفل قليلاً بنر بحجم اللايف»):** the live hub's banners (§10.90). `listHomeBanners` takes `placement=hub_card` (the card-size banner, 720 × 805, signed-in only) and answers `cell` for it (`HomeBannerList.cell`, server config `HOME_HUB_CARD_CELL`, default 4); banner placement `HUB_CARD` (CHECK `home_banners_placement_values`, migration `20270303090000_banner_hub_card`); new `uploadAdminBannerPicture` (`POST /admin/banner-uploads?placement=`, raw bytes) and `createAdminBanner` (`POST /admin/banners`, reason; audit `banner.add` via panel), capability `catalog.manage`; `AdminBannerList` items named `AdminBanner`. No new error code. The app moves the 3:1 carousel to after the first row and puts the card-size banner in one grid cell. | Additive. |
 | v1.55-live (draft) | 2026-11-02 | **D242 (owner: «لا يحتوي pk زر إعادة pk أو لعب جولة أخرى»):** `offerLivePkRematch` (POST `/live/rooms/{roomId}/pk/rematch`), `cancelLivePkRematch` (DELETE), `acceptLivePkRematch`, `declineLivePkRematch`; `PkMatch.rematch` (`PkRematchOffer`), `rematchOf`, `rematchCount`, `rematchesLeft`; data-message events `rematch-offer`, `rematch-cancelled`, `rematch-declined`, `rematch-expired`, `rematch`; codes `PK_REMATCH_UNAVAILABLE`, `PK_REMATCH_CLOSED` (409); config `PK_REMATCH_ACCEPT_SECONDS` (15), `PK_REMATCH_MAX` (5); migration `20270220090000_pk_rematch`. §4, §10.58, §10.85. | **Additive**: older apps ignore the new fields and events; a rematch reaches them as a new match (`started`-like state on `getLivePk`). |
 | v1.54-live (draft) | 2026-11-02 | **D241 (owner, the panel's «البث الآن»: two lives in a PK battle showed 0 under «PK» and no PK in the app):** `LiveRoomSummary.inPk` (an open D195 match — CONNECTED, BATTLE or RESULT — or the legacy mode `PK`; real battles keep the rooms `SOLO`); `listAdminLives` documents `mode` (`PK` = in a PK, `SOLO` = SOLO not in a PK); `AdminLiveRow.pk` / `AdminLiveDetail.pk` (`AdminLivePk`: the opponent's room, @username, name). §10.84. | **Additive**: older apps read a missing `inPk` as false; the panel's SOLO chip no longer counts lives in a PK. |
 | v1.53-live (draft) | 2026-11-02 | **D240 (owner: «القريبة» = my country, changeable; the party page's kinds on top):** `listLiveRooms` `country` (ISO 3166-1 alpha-2, any case; the hosts of that profile country; no token; wins over `scope=nearby`; binds the cursor). §10.83. | **Additive**: older apps keep `scope=nearby`. |
@@ -2061,6 +2062,9 @@ rest are CTO defaults the owner may change (named constants in `families.constan
   typing, push notifications for chat, realtime delivery; a family-level blocked-words list.
 
 ### 10.26 Promo banners on the live hub *(v1.26-live, DRAFT — D124)*
+
+*v1.59-live (D248):* the carousel follows the grid's first row, a card-size banner (`placement=hub_card`) takes one
+grid cell, and the panel can add banners — §10.90.
 
 Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaults.
 
@@ -5695,6 +5699,35 @@ repository; tests use a local stub provider.
 The API container needs **outbound HTTPS** to `open.er-api.com` (and, with a paid provider, `api.currencyapi.com` or
 `v6.exchangerate-api.com`). Without it every fetch fails (`unreachable`), the panel shows the error, manual rates keep
 working and the other countries are USD only. Migration `20270225090000_fx_rates`. DEPLOYMENT §5.46.
+
+### 10.90 The live hub's banners as in the owner's reference *(v1.59-live, DRAFT — D248)*
+
+Owner (2026-11-02): «اجعل التصميم مشابه للبيجو لايف بحيث بعد أول بثين هناك بنر متحرك، وفي الأسفل قليلاً بنر بحجم
+اللايف». Extends §10.26; the rest of §10.26 is unchanged.
+
+- **Carousel** (`placement=home`, unchanged pictures 1 500 × 500): in the hub's 2-column grid it now follows the
+  **first row** (2 cells; after the last cell when there are fewer), full width, 3:1, the cards' corner radius; it
+  auto-advances every 4 s and swipes as before; the page indicator is a thin bar inside the picture's bottom edge. The
+  Voice rooms list keeps it after its 4th row. Hidden when no banner is active (never a placeholder).
+- **Card-size banner** (`placement=hub_card`, new placement `HUB_CARD`): one **grid cell**, exactly a live card (width
+  : height 0.894, the app's `KLiveGrid.cardAspect`), its picture **720 × 805** WebP (thumb 288 × 322), cover-cropped
+  around the centre by the server. `GET /home/banners?placement=hub_card` (signed-in only; 401 without a token) →
+  `{data, cell}`: `cell` is the 0-based index of that cell in reading order over every cell of the grid (RTL: the first
+  cell is the right one), from `HOME_HUB_CARD_CELL` (0–40, default **4** = the first cell of the third row; after the
+  last room when there are fewer). Several active ones **take turns in that one cell** (a cross-fade every 5 s; not
+  with reduce motion) rather than repeating every N rows. Its optional title shows as a live card's title. Tap = the
+  banner's link (§10.26 allowlist; an unknown link is not a button).
+- **Not lives:** neither banner is a room: the rooms' order, indices, the in-room swipe list, the cursor and the
+  infinite scroll never see them. Pull to refresh reloads both lists. No impression or click tracking exists for
+  banners, so none is added.
+- **Adding from the panel** «البانرات والفعاليات» (`catalog.manage`, OWNER): `POST /admin/banner-uploads?placement=`
+  (raw `application/octet-stream`, the CLI's `--image` checks and crop: home / tasks / wallet 1 500 × 500, room 600 ×
+  800, hub_card 720 × 805; 409 `ADMIN_ACTION_REFUSED` for a file that is not an image) answers `mediaId`; then
+  `POST /admin/banners` with the `banner-admin add` fields and a reason (the same rules: the picture must have the
+  placement's shape, unused, < 24 h old; audit `banner.add` with `via: panel`, the actor and the reason). The panel
+  previews the picture cropped to the placement's shape. `banner-admin add --placement hub_card` does the same from the
+  CLI (`--media` with a 3:1 upload is refused).
+- Migration `20270303090000_banner_hub_card` (the CHECK only). DEPLOYMENT §5.49.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

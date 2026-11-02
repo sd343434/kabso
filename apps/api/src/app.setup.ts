@@ -7,7 +7,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { expressErrorHandler } from './common/errors/all-exceptions.filter.js';
 import { requestIdMiddleware } from './common/request-id/request-id.js';
-import { GIFT_UPLOAD_PATH } from './modules/admin-panel/admin-v2.controller.js';
+import { BANNER_UPLOAD_PATH, GIFT_UPLOAD_PATH } from './modules/admin-panel/admin-v2.controller.js';
 import { STRIPE_WEBHOOK_PATH } from './modules/topup/topup.controller.js';
 import { KYC_WEBHOOK_PATH } from './modules/kyc/kyc.rules.js';
 import type { AppConfig } from './config/app-config.js';
@@ -67,10 +67,11 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
     limit: '1mb',
   });
   // v1.71-social (D207): the admin panel's gift file uploads are the raw bytes (an SVGA is at most 25 MiB); only that
-  // path, and only `application/octet-stream`.
+  // path (v1.59-live, D248: and the banner picture upload, at most 15 MiB, checked by the service), and only
+  // `application/octet-stream`.
   app.useBodyParser('raw', {
     type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
-      (req.url ?? '').split('?')[0] === GIFT_UPLOAD_PATH &&
+      [GIFT_UPLOAD_PATH, BANNER_UPLOAD_PATH].includes((req.url ?? '').split('?')[0] ?? '') &&
       String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
     limit: '26mb',
   });

@@ -44,6 +44,10 @@ abstract final class VoiceRoomList {
   static const skeletonKey = Key('voiceRooms.skeleton');
   static Key rowKey(int index) => Key('voiceRooms.row.$index');
 
+  /// The promo banner sits after this many rows (D124; the hub grid's moved
+  /// to its first row in D248).
+  static const int bannerAfter = 4;
+
   static Widget _list(
     Key key,
     List<LiveRoomCardData> rooms,
@@ -77,9 +81,7 @@ abstract final class VoiceRoomList {
     Widget? banner,
     ValueChanged<LiveRoomCardData>? onOpenRoom,
   }) {
-    final split = rooms.length < KLiveGrid.bannerAfter
-        ? rooms.length
-        : KLiveGrid.bannerAfter;
+    final split = rooms.length < bannerAfter ? rooms.length : bannerAfter;
     return SliverMainAxisGroup(
       slivers: [
         _list(listKey, rooms.sublist(0, split), 0, onOpenRoom),

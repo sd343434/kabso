@@ -4,6 +4,7 @@ import { Dialog, ErrorAlert, FormDialog, reasonField, useAsync } from '../compon
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
 import { Icon } from '../ui/icons';
+import { BannerForm, placementLabelKey } from './BannerForm';
 import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
 export interface GiftDto {
@@ -588,6 +589,7 @@ export function Promo() {
   const events = useAsync(() => api.get<{ data: EventDto[] }>('/admin/events'), []);
   const [act, setAct] = useState<{ path: string; label: string; danger?: boolean; reload: () => void } | null>(null);
   const [creating, setCreating] = useState(false);
+  const [addingBanner, setAddingBanner] = useState(false);
   const manage = can('catalog.manage');
   return (
     <>
@@ -601,16 +603,24 @@ export function Promo() {
         <div className="card-head">
           <h2>{t('bannersTitle')}</h2>
           <span className="muted small">{t('bannersNote')}</span>
+          {manage && (
+            <button className="btn primary small" onClick={() => setAddingBanner(true)}>
+              <Icon name="plus" size={16} />
+              {t('bannerCreate')}
+            </button>
+          )}
         </div>
         <ErrorAlert error={banners.error} />
         {banners.data && banners.data.data.length === 0 && <p className="muted">{t('bannersNone')}</p>}
         <div className="banner-grid">
           {banners.data?.data.map((b) => (
             <div key={b.id} className={`banner-card${b.enabled ? '' : ' off'}`}>
-              <div className="banner-art">{b.imageUrl ? <img src={b.imageUrl} alt="" loading="lazy" /> : <Icon name="frame" size={28} />}</div>
+              <div className="banner-art" data-placement={b.placement.toLowerCase()}>
+                {b.imageUrl ? <img src={b.imageUrl} alt="" loading="lazy" /> : <Icon name="frame" size={28} />}
+              </div>
               <div className="pad">
                 <div className="row small">
-                  <span className="badge">{b.placement}</span>
+                  <span className="badge">{placementLabelKey(b.placement) ? t(placementLabelKey(b.placement)!) : b.placement}</span>
                   {b.showing ? <span className="badge ok">{t('bannerShowing')}</span> : <span className="badge">{b.enabled ? t('bannerScheduled') : t('bannerOff')}</span>}
                 </div>
                 <div className="clip">{(lang === 'ar' ? b.titleAr : b.titleEn) ?? b.link}</div>
@@ -717,6 +727,16 @@ export function Promo() {
             act.reload();
             setAct(null);
             toast(t('done'));
+          }}
+        />
+      )}
+      {addingBanner && (
+        <BannerForm
+          onClose={() => setAddingBanner(false)}
+          onDone={() => {
+            setAddingBanner(false);
+            toast(t('bannerCreated'));
+            banners.reload();
           }}
         />
       )}

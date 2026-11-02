@@ -12,6 +12,18 @@ final homeBannersProvider = FutureProvider<List<HomeBanner>>((ref) {
   return ref.watch(homeBannersRepositoryProvider).listBanners();
 });
 
+/// D248: the live hub's card-size banners (`placement=hub_card`) and their
+/// grid cell, reloaded like [homeBannersProvider] (and by the hub's pull to
+/// refresh). A failure shows none (never an error on the hub).
+final hubCardBannersProvider = FutureProvider<HubCardBanners>((ref) async {
+  ref.watch(liveScopeProvider);
+  try {
+    return await ref.watch(homeBannersRepositoryProvider).listHubCardBanners();
+  } on Object {
+    return HubCardBanners.empty;
+  }
+});
+
 /// D137: the in-room promo box's banners (`placement=room`). A failure
 /// shows no box.
 final FutureProvider<List<HomeBanner>> roomBannersProvider =
