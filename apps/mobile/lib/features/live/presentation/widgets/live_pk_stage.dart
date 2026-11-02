@@ -370,7 +370,8 @@ class _LivePkStageState extends State<LivePkStage> {
                   match: match,
                   dare: dare,
                   roomId: widget.roomId,
-                  now: widget.now,
+                  // D231's test clock pins the dare's phases too.
+                  now: LivePkStage.debugNow ?? widget.now,
                   isHost: widget.isHost,
                   actions: widget.dareActions,
                   ticks: LivePkStage.ticks,

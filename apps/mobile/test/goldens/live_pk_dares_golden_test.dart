@@ -23,6 +23,7 @@ import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 
 import '../fixtures/live/live_api_fixtures.dart';
@@ -55,7 +56,7 @@ Future<void> _pumpViewer(
   final other = FakePkOpponentMedia()..present.add('host-b');
   final prefs = await testPrefs(language: language.name);
   final repo = FakeLivePkRepository()
-    ..snapshotOf = () => PkState(match: match(DateTime.now()));
+    ..snapshotOf = () => PkState(match: match(_now));
   await pumpGolden(
     tester,
     ProviderScope(
@@ -87,12 +88,20 @@ Future<void> _pumpViewer(
   await tester.pump();
 }
 
+/// The fixtures' server time, pinned for the stage and the dare's phases
+/// (D231's [LivePkStage.debugNow]): nothing reads the wall clock while a
+/// golden renders under load.
+late DateTime _now;
+
 void main() {
   setUp(() {
+    _now = DateTime.now();
+    LivePkStage.debugNow = () => _now;
     PkDareLayer.debugRemaining = const Duration(minutes: 2, seconds: 14);
     PkDareLayer.debugDecideSeconds = 21;
   });
   tearDown(() {
+    LivePkStage.debugNow = null;
     PkDareLayer.debugRemaining = null;
     PkDareLayer.debugDecideSeconds = null;
   });
@@ -158,7 +167,7 @@ void main() {
           language: language,
           pkRepo: FakeLivePkRepository()
             ..snapshotOf = () {
-              final now = DateTime.now();
+              final now = _now;
               return PkState(
                 match: pkDareMatchFixture(
                   now: now,
@@ -178,7 +187,7 @@ void main() {
           language: language,
           pkRepo: FakeLivePkRepository()
             ..snapshotOf = () {
-              final now = DateTime.now();
+              final now = _now;
               return PkState(
                 match: pkDareMatchFixture(
                   now: now,
