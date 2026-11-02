@@ -33,6 +33,8 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/games/ludo/application/ludo_controller.dart';
+import 'package:kabso_live/features/live/games/ludo/presentation/ludo_panel.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
@@ -354,6 +356,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // D154i: watch-together (late joiners start in the right place).
       ref
           .read(liveWatchProvider(room.id).notifier)
+          .attach(_session.engine, host: false);
+      // D168: the room's Ludo (late joiners and spectators load it).
+      ref
+          .read(liveLudoProvider(room.id).notifier)
           .attach(_session.engine, host: false);
       // CP-013: the room chat, on the same media session.
       unawaited(
@@ -774,6 +780,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 // D160: a floating window in a video live.
                 pip: room.mode != LiveRoomMode.audio,
               ),
+            // D168: the room's Ludo, over the lower part of the room.
+            if (room.status == LiveRoomStatus.live)
+              LiveLudoLayer(roomId: room.id, host: false),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
               LuckyComboLayer(

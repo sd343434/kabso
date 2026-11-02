@@ -33,6 +33,8 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/games/ludo/application/ludo_controller.dart';
+import 'package:kabso_live/features/live/games/ludo/presentation/ludo_panel.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
     show showHostSheet;
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
@@ -412,6 +414,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           }
         }
         ..attach(engine, host: true);
+      // D168: Ludo in the room (the host opens and runs it).
+      ref.read(liveLudoProvider(room.id).notifier).attach(engine, host: true);
       // D154f: the host's assistant (hints on this phone only).
       ref
           .read(liveAssistantProvider(room.id).notifier)
@@ -1055,6 +1059,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   : () =>
                         unawaited(showLiveWatchSheet(context, roomId: room.id)),
             ),
+            // D168: Ludo inside the room (free; the server runs it).
+            GoLiveTool(
+              id: 'ludo',
+              icon: Icons.casino_outlined,
+              label: l10n.liveToolLudo,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      openLiveLudo(context, ref, roomId: room.id),
+                    ),
+            ),
             GoLiveTool.soon(
               id: 'singing',
               icon: Icons.mic_external_on_outlined,
@@ -1609,6 +1624,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     // D160: a floating window in a video live.
                     pip: state.mode != LiveRoomMode.audio,
                   ),
+                // D168: the room's Ludo, over the lower part of the room.
+                if (room != null && state.phase == GoLivePhase.live)
+                  LiveLudoLayer(roomId: room.id, host: true),
                 // D154f: the assistant's hint, for the host only.
                 if (room != null && state.phase == GoLivePhase.live)
                   LiveAssistantHintLayer(roomId: room.id),
@@ -1870,6 +1888,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             onTap: !live
                 ? null
                 : () => unawaited(showLiveWatchSheet(context, roomId: room.id)),
+          ),
+          // D168: Ludo inside the room (free; the server runs it).
+          GoLiveTool(
+            id: 'ludo',
+            icon: Icons.casino_outlined,
+            label: l10n.liveToolLudo,
+            onTap: !live
+                ? null
+                : () => unawaited(openLiveLudo(context, ref, roomId: room.id)),
           ),
           ?byId['beauty'],
           ?byId['voice'],

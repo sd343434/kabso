@@ -7,6 +7,7 @@ import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_sticker.dart';
 import 'package:kabso_live/features/live/domain/live_watch.dart';
+import 'package:kabso_live/features/live/games/ludo/domain/ludo_game.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -199,6 +200,10 @@ sealed class LiveChatEvent {
         'program-segment' => LiveProgramSegmentStarted(
           LiveProgramItem.fromJson(json['item']! as Map<String, dynamic>),
         ),
+        // v1.45-live (D168): the room's Ludo game changed (topic `ludo`).
+        'ludo' => LiveLudoChanged(
+          LudoGame.fromJson(json['game']! as Map<String, dynamic>),
+        ),
         _ => null,
       };
     } on Object {
@@ -336,6 +341,13 @@ final class LiveWatchSuggested extends LiveChatEvent {
   const new(this.suggestion);
 
   final LiveWatchSuggestion suggestion;
+}
+
+/// v1.45-live (D168, §10.42): the room's Ludo game, whole (topic `ludo`).
+final class LiveLudoChanged extends LiveChatEvent {
+  const new(this.game);
+
+  final LudoGame game;
 }
 
 final class LuckyTickerReceived extends LiveChatEvent {

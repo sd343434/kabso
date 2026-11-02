@@ -23,6 +23,7 @@ import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/data/live_sticker_repository.dart';
 import 'package:kabso_live/features/live/data/live_watch_repository.dart';
 import 'package:kabso_live/features/live/data/youtube_player.dart';
+import 'package:kabso_live/features/live/games/ludo/data/ludo_repository.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -47,6 +48,7 @@ import 'fake_live_repository.dart';
 import 'fake_live_schedule_repository.dart';
 import 'fake_live_sticker_repository.dart';
 import 'fake_live_watch_repository.dart';
+import 'fake_ludo_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
 import 'fake_splash_video.dart';
@@ -177,6 +179,8 @@ Future<void> pumpKabsoApp(
         youtubePlayerFactoryProvider.overrideWithValue(
           (youtubePlayers ?? FakeYoutubePlayers()).call,
         ),
+        // D168: never the network (no Ludo game).
+        ludoRepositoryProvider.overrideWithValue(FakeLudoRepository()),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -292,6 +296,8 @@ Future<void> pumpScreen(
         youtubePlayerFactoryProvider.overrideWithValue(
           (youtubePlayers ?? FakeYoutubePlayers()).call,
         ),
+        // D168: never the network (no Ludo game).
+        ludoRepositoryProvider.overrideWithValue(FakeLudoRepository()),
         ...overrides,
       ],
       child: MaterialApp(
