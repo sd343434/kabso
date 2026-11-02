@@ -450,7 +450,7 @@ class KLiveVideoPlaceholder extends StatelessWidget {
 /// Second line: [lines] take turns every [lineTime] with a fade (the first
 /// stays with reduce motion); else [subtitle]; else one line.
 ///
-/// Follow: a 31.5 × 23.8 pt cyan capsule with a white "+" (announced
+/// Follow: a 31.5 × 23.8 pt brand-red capsule with a white "+" (announced
 /// "Follow") while [following] is false and [onFollow] is set. When
 /// [following] turns true it shows a check for
 /// `KMetrics.followConfirmDuration`, then fades out (instant with reduce
@@ -522,8 +522,14 @@ class KHostPill extends StatefulWidget {
   /// How long each of [lines] shows.
   static const lineTime = Duration(seconds: 3);
 
-  /// Ref 158: the follow capsule's gradient (`#23E1DA` → `#0BD6E1`).
-  static const followGradient = [Color(0xFF23E1DA), Color(0xFF0BD6E1)];
+  /// Owner (2026-11-02): the follow capsule is the brand red (was ref 158's
+  /// cyan `#23E1DA` → `#0BD6E1`): `color.brand.red500` → `red600`, so the
+  /// white "+" is ≥ 4.79:1 on every point (a lighter `#FF2A35` stop would
+  /// be 3.73:1).
+  static const List<Color> followGradient = [
+    KBrandColors.red500,
+    KBrandColors.red600,
+  ];
 
   /// Ref 158: the points line's yellow.
   static const points = Color(0xFFF5C542);
@@ -825,7 +831,7 @@ class _KHostPillState extends State<KHostPill> {
   }
 }
 
-/// The follow capsule (ref 158: 31.5 × 23.8 pt, cyan, a white "+", 5.3 pt
+/// The follow capsule (ref 158: 31.5 × 23.8 pt, brand red, a white "+", 5.3 pt
 /// from the pill's end) inside a 48 dp hit area that overflows the pill.
 class _FollowChip extends StatelessWidget {
   const new({

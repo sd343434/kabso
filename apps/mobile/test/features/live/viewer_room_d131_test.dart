@@ -4,6 +4,7 @@
 // the gift button and the leave prompt — on a 393 × 852 phone with its safe
 // areas, in English and Arabic.
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -84,7 +85,7 @@ void main() {
 
   testWidgets(
     "host pill: 35 pt (D141, was 31), the cherry and this live's points, then "
-    'its taps every 3 s; the cyan "+" capsule',
+    'its taps every 3 s; the brand-red "+" capsule (owner, was cyan)',
     (tester) async {
       await _pump(tester);
       final pill = find.descendant(
@@ -115,6 +116,30 @@ void main() {
       final follow = find.bySemanticsLabel(en.liveFollow);
       expect(follow, findsOneWidget);
       expect(tester.getSize(follow).width, greaterThanOrEqualTo(48));
+      // Owner (2026-11-02): brand red, the white "+" ≥ 4.5:1 on each stop.
+      expect(KHostPill.followGradient, [
+        KBrandColors.red500,
+        KBrandColors.red600,
+      ]);
+      final capsule = find.descendant(
+        of: find.byType(KHostPill),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).gradient is LinearGradient &&
+              listEquals(
+                ((w.decoration! as BoxDecoration).gradient! as LinearGradient)
+                    .colors,
+                KHostPill.followGradient,
+              ),
+        ),
+      );
+      expect(capsule, findsOneWidget);
+      for (final c in KHostPill.followGradient) {
+        final ratio = 1.05 / (c.computeLuminance() + 0.05);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: '$c');
+      }
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
