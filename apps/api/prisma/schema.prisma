@@ -515,6 +515,9 @@ enum LiveRoomMode {
   /// v1.47-live (D212, CONVENTIONS §10.69): an audio-only podcast episode — the host and up to 3
   /// speakers (seat count 4), listeners raise a hand to ask a question.
   PODCAST
+  /// v1.56-live (D213, CONVENTIONS §10.86): the host's phone screen (a game or an app) with a small
+  /// round front-camera bubble; Android hosts only (any viewer). No guest seats, no PK.
+  STREAMER
 
   @@map("live_room_mode")
 }
@@ -679,6 +682,16 @@ model LiveRoom {
   /// v1.47-live (D212): how long an accepted hand speaks before going back to the listeners
   /// (60, 120, 180 or 300 s); null = no limit. PODCAST only.
   questionSeconds Int?               @map("question_seconds") @db.SmallInt
+  /// v1.56-live (D213, §10.86): a STREAMER's screen orientation (`PORTRAIT` / `LANDSCAPE`); null for
+  /// other modes (CHECK `live_rooms_streamer_fields`).
+  streamerOrientation   String?   @map("streamer_orientation") @db.VarChar(16)
+  /// v1.56-live (D213): whether the host's camera bubble shows (STREAMER only; null otherwise).
+  streamerCameraVisible Boolean?  @map("streamer_camera_visible")
+  /// v1.56-live (D213): the camera bubble's corner of the screen picture (`TOP_LEFT`, `TOP_RIGHT`,
+  /// `BOTTOM_LEFT`, `BOTTOM_RIGHT`; physical, not mirrored for RTL); STREAMER only.
+  streamerCameraCorner  String?   @map("streamer_camera_corner") @db.VarChar(16)
+  /// v1.56-live (D213): increases on every change of the three (media metadata `streamerVersion`).
+  streamerVersion       Int       @default(0) @map("streamer_version")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 

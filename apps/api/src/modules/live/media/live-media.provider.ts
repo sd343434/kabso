@@ -7,8 +7,13 @@ export type LiveMediaEvent =
   | { readonly kind: 'room_finished'; readonly room: string }
   | { readonly kind: 'ignored' };
 
-/** A track source a participant may publish (CP-010 host, CP-011 seated guest). */
-export type LiveMediaSource = 'camera' | 'microphone';
+/**
+ * A track source a participant may publish (CP-010 host, CP-011 seated guest). v1.56-live (D213,
+ * §10.86): a STREAMER host also publishes the phone screen (`screen_share`) and may publish the
+ * screen's audio as a track of its own (`screen_share_audio`; the Android app mixes the game audio
+ * into the microphone instead, so it does not use it today).
+ */
+export type LiveMediaSource = 'camera' | 'microphone' | 'screen_share' | 'screen_share_audio';
 
 export interface LiveMediaTokenInput {
   /** The media room: the live room's id. */

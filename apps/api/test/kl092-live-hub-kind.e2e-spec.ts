@@ -37,7 +37,7 @@ describe('D129 contract coverage', () => {
         in: 'query',
         required: false,
         // v1.27.1-live (D133) adds solo, multi and party (kl094 covers them); v1.47-live (D212) podcast.
-        schema: { type: 'string', enum: ['audio', 'video', 'solo', 'multi', 'party', 'podcast'] },
+        schema: { type: 'string', enum: ['audio', 'video', 'solo', 'multi', 'party', 'podcast', 'streamer'] },
       }),
     );
   });

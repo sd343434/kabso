@@ -57,6 +57,8 @@ describe('ErrorCode', () => {
         'DEVICE_ACCOUNT_LIMIT',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
+        // v1.56-live (D213).
+        'LIVE_NOT_STREAMER',
         // v1.54-social (D185).
         'RECHARGE_APPLICATION_NOT_ALLOWED',
         'RECHARGE_AGENT_NOT_ACTIVE',
@@ -300,6 +302,7 @@ describe('ErrorCode', () => {
       REFERRAL_NOT_ALLOWED: 409,
       DEVICE_ACCOUNT_LIMIT: 409,
       LIVE_QUESTIONS_CLOSED: 409,
+      LIVE_NOT_STREAMER: 409,
     });
   });
 

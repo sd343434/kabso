@@ -15,6 +15,8 @@ import { UsersService } from '../users/users.service.js';
 import {
   LiveRoomsService,
   LIVE_TX_OPTIONS,
+  streamerOf,
+  type LiveStreamerDto,
   type RequestMeta,
   type RoomInfoEdit,
   type UserSummaryDto,
@@ -33,6 +35,7 @@ import {
   liveMediaTokenSchema,
   seatCountFits,
   updateLiveRoomSchema,
+  updateLiveStreamerSchema,
 } from './live.schemas.js';
 import {
   LIVE_MEDIA_PROVIDER,
@@ -63,6 +66,8 @@ export interface LiveViewerDto {
 export const MEDIA_TOKEN_TTL_SECONDS = 600;
 const GUEST_PREFIX = 'guest:';
 const VIEWER_PAGE_MAX = 50;
+/** v1.56-live (D213, §10.86): the data message topic of a STREAMER's layout changes. */
+export const LIVE_STREAMER_TOPIC = 'streamer';
 
 /** The guest id of a `guest:<uuid>` identity, else null. */
 export function guestIdOf(identity: string): string | null {
@@ -339,6 +344,87 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     }
     if (!allowGuests) await this.removeGuests(room.id);
     return room.id;
+  }
+
+  /**
+   * v1.56-live (D213, CONVENTIONS §10.86): `PUT /live/rooms/{roomId}/streamer` — a STREAMER host's
+   * screen orientation and camera bubble (shown or hidden, its corner). Host only (others 404, like
+   * every host control); not a STREAMER → 409 LIVE_NOT_STREAMER; ended → 409 LIVE_ROOM_ENDED. A real
+   * change moves `streamerVersion` (under the row's lock), is written into the media room's metadata
+   * and is sent to everyone in the room as a `streamer` data message (topic `streamer`) so viewers
+   * re-lay the picture at once. Not audited: a layout, changed often while playing (a rotation).
+   */
+  async updateStreamer(hostId: string, roomId: string, body: unknown): Promise<LiveStreamerDto> {
+    const parsed = updateLiveStreamerSchema.safeParse(body ?? {}, { reportInput: true });
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const room = await this.hostLiveRoom(hostId, roomId);
+    const { orientation, cameraOverlay } = parsed.data;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<
+        {
+          mode: string;
+          status: string;
+          streamer_orientation: string | null;
+          streamer_camera_visible: boolean | null;
+          streamer_camera_corner: string | null;
+          streamer_version: number;
+        }[]
+      >`SELECT mode::text AS mode, status::text AS status, streamer_orientation, streamer_camera_visible,
+               streamer_camera_corner, streamer_version
+          FROM live_rooms WHERE id = ${room.id}::uuid FOR UPDATE`;
+      if (!row) throw new AppException(ErrorCode.NOT_FOUND);
+      if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+      if (row.mode !== 'STREAMER') throw new AppException(ErrorCode.LIVE_NOT_STREAMER);
+      const data = {
+        ...(orientation !== undefined && orientation !== row.streamer_orientation
+          ? { streamerOrientation: orientation }
+          : {}),
+        ...(cameraOverlay?.visible !== undefined && cameraOverlay.visible !== row.streamer_camera_visible
+          ? { streamerCameraVisible: cameraOverlay.visible }
+          : {}),
+        ...(cameraOverlay?.corner !== undefined && cameraOverlay.corner !== row.streamer_camera_corner
+          ? { streamerCameraCorner: cameraOverlay.corner }
+          : {}),
+      };
+      if (Object.keys(data).length === 0) return { changed: false, row };
+      const updated = await tx.liveRoom.update({
+        where: { id: room.id },
+        data: { ...data, streamerVersion: { increment: 1 } },
+        select: {
+          streamerOrientation: true,
+          streamerCameraVisible: true,
+          streamerCameraCorner: true,
+          streamerVersion: true,
+        },
+      });
+      return {
+        changed: true,
+        row: {
+          mode: row.mode,
+          status: row.status,
+          streamer_orientation: updated.streamerOrientation,
+          streamer_camera_visible: updated.streamerCameraVisible,
+          streamer_camera_corner: updated.streamerCameraCorner,
+          streamer_version: updated.streamerVersion,
+        },
+      };
+    }, LIVE_TX_OPTIONS);
+    const streamer = streamerOf(result.row);
+    if (!streamer) throw new Error(`live room ${room.id} is a STREAMER without its fields`);
+    if (result.changed) {
+      await this.metadata.infoChanged(room.id);
+      try {
+        await this.media.broadcastData(
+          room.id,
+          LIVE_STREAMER_TOPIC,
+          JSON.stringify({ type: 'streamer', roomId: room.id, streamer }),
+        );
+      } catch (err) {
+        // Best effort: the metadata's `streamerVersion` makes every app re-read the room.
+        this.logger.warn({ error: safeErrorLog(err) }, 'Could not send the streamer data message');
+      }
+    }
+    return streamer;
   }
 
   /** Disconnects every guest of a room (connected per the server or per our rows). */
