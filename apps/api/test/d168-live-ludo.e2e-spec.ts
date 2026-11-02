@@ -136,7 +136,7 @@ describe('D168 Ludo in a live room', { timeout: 180_000 }, () => {
       ...state,
       seats: state.seats.map((s) => (pieces[s.seat] ? { ...s, pieces: pieces[s.seat] } : s)),
     };
-    await ctx.prisma.liveLudoGame.update({ where: { id: row.id }, data: { state: next as object } });
+    await ctx.prisma.liveLudoGame.update({ where: { id: row.id }, data: { state: next } });
     return row.version;
   };
 

@@ -10828,7 +10828,7 @@ components:
           type: array
           maxItems: 24
           items: { $ref: '#/components/schemas/LiveLudoEvent' }
-        serverTime: { type: string, format: date-time, description: The server's clock, to place `turnEndsAt` on a phone whose clock differs. }
+        serverTime: { type: string, format: date-time, description: "The server's clock, to place `turnEndsAt` on a phone whose clock differs." }
         createdAt: { type: string, format: date-time }
         startedAt: { type: [string, 'null'], format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
