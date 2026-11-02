@@ -95,6 +95,38 @@ admin.{$KABSO_DOMAIN} {
 	}
 }
 
+# v1.57-live (D247, CONVENTIONS §10.88): «استوديو البث», the streamer's browser studio. The static build
+# (infra/deploy/build-studio.sh, run by update.sh) from /srv/studio/current with an SPA fallback; /api/* goes to the API
+# on the same origin (no CORS; the user's bearer token, as the app). The page may use the camera, the microphone and
+# the screen capture (Permissions-Policy self) and connects to the media server: live.<domain> by default, plus
+# KABSO_STUDIO_MEDIA_ORIGINS in kabso.env when LIVEKIT_URL is elsewhere (e.g. "wss://x.livekit.cloud https://x.livekit.cloud").
+studio.{$KABSO_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; font-src 'self'; media-src 'self' blob:; connect-src 'self' wss://live.{$KABSO_DOMAIN} https://live.{$KABSO_DOMAIN} {$KABSO_STUDIO_MEDIA_ORIGINS}; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	@page not path /assets/* /api/*
+	header @page Cache-Control "no-store"
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# `route` keeps this order: the internal paths, the API, then the static studio.
+	route {
+		respond /internal/* 404
+		# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
+		reverse_proxy /api/* api:3000
+		root * /srv/studio/current
+		try_files {path} /index.html
+		file_server
+	}
+}
+
 live.{$KABSO_DOMAIN} {
 	reverse_proxy livekit:7880
 }

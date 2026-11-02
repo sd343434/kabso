@@ -44,3 +44,7 @@ Thumbs.db
 infra/deploy/admin/
 apps/admin/test-results/
 apps/admin/playwright-report/
+# v1.57-live (D247): «استوديو البث»'s static build on the server (infra/deploy/build-studio.sh) and Playwright output.
+infra/deploy/studio/
+apps/studio/test-results/
+apps/studio/playwright-report/

@@ -68,6 +68,8 @@
       terms: 'الشروط',
       contact: 'تواصل معنا',
       deleteAccount: 'حذف الحساب',
+      // D247: the streamers' studio page (/studio) and the studio itself (studio.kabsolive.com).
+      studio: 'استوديو البث',
       home: 'الرئيسية',
       soon: 'سيُضاف قريباً',
       draft: 'مسودة — تحتاج مراجعة قانونية',
@@ -83,6 +85,7 @@
       terms: 'Terms',
       contact: 'Contact',
       deleteAccount: 'Delete account',
+      studio: 'Streaming studio',
       home: 'Home',
       soon: 'To be added soon',
       draft: 'Draft — pending legal review',
