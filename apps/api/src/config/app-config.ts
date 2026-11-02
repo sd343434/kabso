@@ -53,6 +53,11 @@ export interface PkConfig {
   readonly tickMs: number;
   readonly scoreBroadcastMs: number;
   readonly boosters: readonly PkBoosterRule[];
+  /** v1.50-live (D229): «PK أحكام» on, the draw's reveal, the dare's timer and the outcome's time (seconds). */
+  readonly daresEnabled: boolean;
+  readonly dareDrawSeconds: number;
+  readonly dareSeconds: number;
+  readonly dareOutcomeSeconds: number;
 }
 
 export interface AppConfig {
@@ -137,6 +142,8 @@ export interface AppConfig {
     /** v1.43-live (D195): PK invitations; every other PK action (per user). */
     readonly livePkInviteUser: RateLimitRule;
     readonly livePkActionUser: RateLimitRule;
+    /** v1.50-live (D229): «PK أحكام» dare reports (per user). */
+    readonly livePkDareReportUser: RateLimitRule;
     /** v1.45-live (D201): second-camera codes created; codes redeemed; the other live tools calls. */
     readonly liveSecondCameraCodeUser: RateLimitRule;
     readonly liveSecondCameraRedeemUser: RateLimitRule;
@@ -614,6 +621,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
       livePkInviteUser: e.RATE_LIMIT_LIVE_PK_INVITE_USER,
       livePkActionUser: e.RATE_LIMIT_LIVE_PK_ACTION_USER,
+      livePkDareReportUser: e.RATE_LIMIT_LIVE_PK_DARE_REPORT_USER,
       liveSecondCameraCodeUser: e.RATE_LIMIT_LIVE_SECOND_CAMERA_CODE_USER,
       liveSecondCameraRedeemUser: e.RATE_LIMIT_LIVE_SECOND_CAMERA_REDEEM_USER,
       liveToolsUser: e.RATE_LIMIT_LIVE_TOOLS_USER,
@@ -888,6 +896,10 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         lastSeconds: e.PK_BOOSTER_WINDOWS[i]!,
         limitPerMatch: e.PK_BOOSTER_LIMITS[i]!,
       })),
+      daresEnabled: e.PK_DARES_ENABLED,
+      dareDrawSeconds: e.PK_DARE_DRAW_SECONDS,
+      dareSeconds: e.PK_DARE_SECONDS,
+      dareOutcomeSeconds: e.PK_DARE_OUTCOME_SECONDS,
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,

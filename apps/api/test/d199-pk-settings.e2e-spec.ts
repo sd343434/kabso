@@ -266,7 +266,7 @@ describe('D199 PK settings, best of three, auto-start, auto match', { timeout: 3
       autoMatch: false,
       recommendable: true,
       effectiveMinPoints: 3000,
-      record: { wins: 0, losses: 0, draws: 0 },
+      record: { wins: 0, losses: 0, draws: 0, points: 0, daresDone: 0, daresRefused: 0 },
     });
     expect(await settings(u, { mode: 'BEST_OF_THREE', roundMinutes: 3 })).toMatchObject({
       mode: 'BEST_OF_THREE',
@@ -383,7 +383,7 @@ describe('D199 PK settings, best of three, auto-start, auto match', { timeout: 3
 
     const history = await call('get', `live/pk/hosts/${a.username}`, null);
     expect(history.body.recent).toEqual([]);
-    expect(history.body.record).toEqual({ wins: 0, losses: 0, draws: 0 });
+    expect(history.body.record).toMatchObject({ wins: 0, losses: 0, draws: 0 });
   });
 
   it("the hosts' settings differ: one host's are used and named", async () => {
@@ -482,7 +482,7 @@ describe('D199 PK settings, best of three, auto-start, auto match', { timeout: 3
 
     const history = await call('get', `live/pk/hosts/${a.username}`, null);
     expectContract(history, 'getLivePkHost');
-    expect(history.body.record).toEqual({ wins: 1, losses: 0, draws: 0 });
+    expect(history.body.record).toMatchObject({ wins: 1, losses: 0, draws: 0 });
     expect(history.body.recent[0]).toMatchObject({
       result: 'WIN',
       mode: 'BEST_OF_THREE',
@@ -503,7 +503,7 @@ describe('D199 PK settings, best of three, auto-start, auto match', { timeout: 3
     await pk.tick();
     expect(await matchOf(match.id)).toMatchObject({ status: 'RESULT', winner: 'B', effective: false });
     const profile = await call('get', `live/pk/hosts/${b.username}`, null);
-    expect(profile.body.record).toEqual({ wins: 0, losses: 0, draws: 0 });
+    expect(profile.body.record).toMatchObject({ wins: 0, losses: 0, draws: 0 });
     expect(profile.body.recent[0]).toMatchObject({ result: 'WIN', effective: false, score: 2999 });
   });
 

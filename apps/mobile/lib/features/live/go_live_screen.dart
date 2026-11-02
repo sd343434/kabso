@@ -88,6 +88,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.d
 import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -2575,6 +2576,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               }),
             )
           : null,
+      // v1.50-live (D229): the host's dare buttons (loser: accept / refuse;
+      // winner: done / not done) and the report.
+      isHost: true,
+      dareActions: PkDareActions(
+        onAccept: ref.read(livePkProvider(room.id).notifier).acceptDare,
+        onRefuse: ref.read(livePkProvider(room.id).notifier).refuseDare,
+        onVerdict: ref.read(livePkProvider(room.id).notifier).judgeDare,
+        onReport: ref.read(livePkProvider(room.id).notifier).reportDare,
+      ),
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when

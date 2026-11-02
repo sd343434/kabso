@@ -141,6 +141,9 @@ class LivePkSheet extends ConsumerStatefulWidget {
   static const startKey = Key('pk.sheet.start');
   static const endKey = Key('pk.sheet.end');
   static const muteKey = Key('pk.sheet.mute');
+
+  /// v1.50-live (D229): «PK عادي» / «PK أحكام».
+  static Key typeKey(PkType type) => Key('pk.sheet.type.${type.wire}');
   static Key modeKey(PkSheetMode m) => Key('pk.sheet.mode.${m.name}');
   static Key candidateKey(String roomId) => Key('pk.sheet.candidate.$roomId');
 
@@ -150,6 +153,9 @@ class LivePkSheet extends ConsumerStatefulWidget {
 
 class _LivePkSheetState extends ConsumerState<LivePkSheet> {
   String _query = '';
+
+  /// v1.50-live (D229): the type the invitations and the random match use.
+  PkType _type = PkType.normal;
   Timer? _debounce;
   Timer? _tick;
   Timer? _refresh;
@@ -295,7 +301,9 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
                   else ...[
                     const SizedBox(height: 8.4),
                     _modeCards(context),
-                    const SizedBox(height: 23.7),
+                    const SizedBox(height: 10),
+                    _typeChoice(context),
+                    const SizedBox(height: 12),
                     _friendsHeader(context),
                     Expanded(child: _body(context, pk, controller)),
                     _bottomBar(context, pk, controller),
@@ -453,6 +461,90 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
             Expanded(child: card(PkSheetMode.multi)),
           ],
         ),
+      ),
+    );
+  }
+
+  /// v1.50-live (D229): «PK عادي» / «PK أحكام» — the host never picks a
+  /// dare's category or level, only the type.
+  Widget _typeChoice(BuildContext context) {
+    final l10n = context.l10n;
+    Widget chip(PkType type, String label, IconData icon) {
+      final selected = _type == type;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          child: InkWell(
+            key: LivePkSheet.typeKey(type),
+            borderRadius: BorderRadius.circular(KRadius.pill),
+            onTap: () => setState(() => _type = type),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              constraints: const BoxConstraints(minHeight: 40),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: selected ? PkSheetMetrics.red : const Color(0xFFF3F3F6),
+                borderRadius: BorderRadius.circular(KRadius.pill),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: selected
+                        ? const Color(0xFFFFFFFF)
+                        : PkSheetMetrics.ink,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textStyles.label.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: selected
+                            ? const Color(0xFFFFFFFF)
+                            : PkSheetMetrics.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: PkSheetMetrics.cardSide),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              chip(PkType.normal, l10n.pkTypeNormal, Icons.sports_mma_rounded),
+              const SizedBox(width: KSpacing.sm),
+              chip(PkType.dares, l10n.pkTypeDares, Icons.gavel_rounded),
+            ],
+          ),
+          if (_type == PkType.dares)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                l10n.pkTypeDaresHint,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.caption.copyWith(
+                  color: PkSheetMetrics.grey,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -650,9 +742,14 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
             ? null
             : () => unawaited(
                 _run(() async {
-                  await controller.invite(c.roomId);
+                  await controller.invite(c.roomId, type: _type);
                   if (!context.mounted) return;
-                  KSnack.info(context, l10n.pkInviteSent(c.host.displayName));
+                  KSnack.info(
+                    context,
+                    _type == PkType.dares
+                        ? l10n.pkInviteSentDares(c.host.displayName)
+                        : l10n.pkInviteSent(c.host.displayName),
+                  );
                 }),
               ),
         child: Text(l10n.pkInvite),
@@ -724,9 +821,13 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
                 ),
                 onPressed: _busy || pk.outgoing != null
                     ? null
-                    : () => unawaited(_run(controller.joinRandom)),
+                    : () => unawaited(
+                        _run(() => controller.joinRandom(type: _type)),
+                      ),
                 icon: const Icon(Icons.shuffle_rounded, size: 18),
-                label: Text(l10n.pkTabRandom),
+                label: Text(
+                  _type == PkType.dares ? l10n.pkRandomDares : l10n.pkTabRandom,
+                ),
               ),
             ),
         ],
@@ -1032,6 +1133,7 @@ class LivePkIncomingInvite extends ConsumerStatefulWidget {
 
   static const acceptKey = Key('pk.incoming.accept');
   static const declineKey = Key('pk.incoming.decline');
+  static const daresKey = Key('pk.incoming.dares');
 
   @override
   ConsumerState<LivePkIncomingInvite> createState() =>
@@ -1106,6 +1208,27 @@ class _LivePkIncomingInviteState extends ConsumerState<LivePkIncomingInvite> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
+              // v1.50-live (D229): the type offered.
+              if (widget.invite.type == PkType.dares)
+                Container(
+                  key: LivePkIncomingInvite.daresKey,
+                  margin: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE50914),
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                  ),
+                  child: Text(
+                    l10n.pkTypeDares,
+                    style: context.textStyles.caption.copyWith(
+                      color: const Color(0xFFFFFFFF),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
               const SizedBox(height: KSpacing.sm),
               KAvatar(
                 name: from.displayName,

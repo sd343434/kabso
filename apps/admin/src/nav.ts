@@ -43,6 +43,8 @@ export const NAV: NavGroup[] = [
     items: [
       { to: '/lives', key: 'navLives', icon: 'live', cap: 'lives.view', match: ['lives'] },
       { to: '/live-hosts', key: 'navHosts', icon: 'key', cap: 'lives.view', match: ['hosts'] },
+      // v1.50-live (D229): «أحكام PK».
+      { to: '/pk-dares', key: 'navPkDares', icon: 'list', cap: 'pk_dares.view', match: ['pkDares'] },
       // v1.73-social (D209): the applications «كن مضيفاً مع الإدارة».
       { to: '/host-applications', key: 'navHostApplications', icon: 'inbox', cap: 'hosts.applications', match: ['hostApplications', 'hostApplication'] },
     ],

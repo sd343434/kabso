@@ -221,6 +221,10 @@ export enum ErrorCode {
   PK_NOT_ACTIVE = 'PK_NOT_ACTIVE',
   /** v1.43-live (DRAFT, D195): a booster gift outside a battle, outside its window, over its per-match limit or not higher than the active one (detail issue). */
   PK_BOOSTER_UNAVAILABLE = 'PK_BOOSTER_UNAVAILABLE',
+  /** v1.50-live (DRAFT, D229): «PK أحكام» — the dare is no longer at that step (already answered, judged or over). */
+  PK_DARE_CLOSED = 'PK_DARE_CLOSED',
+  /** v1.50-live (DRAFT, D229): only the losing host may accept or refuse, only the winning host may judge. */
+  PK_DARE_FORBIDDEN = 'PK_DARE_FORBIDDEN',
   /** v1.45-live (DRAFT, D201): the pairing code is unknown, expired, used, revoked or of another account (one answer for all). */
   SECOND_CAMERA_CODE_INVALID = 'SECOND_CAMERA_CODE_INVALID',
   /** v1.45-live (DRAFT, D201): the live cannot take a second camera now (not the caller's LIVE SOLO video live, or in a PK). */
@@ -386,6 +390,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.PK_INVITE_CLOSED]: 409,
   [ErrorCode.PK_NOT_ACTIVE]: 409,
   [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 409,
+  [ErrorCode.PK_DARE_CLOSED]: 409,
+  [ErrorCode.PK_DARE_FORBIDDEN]: 403,
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 422,
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 409,
   [ErrorCode.SECOND_CAMERA_BUSY]: 409,
@@ -521,6 +527,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.PK_INVITE_CLOSED]: 'This PK invitation is no longer open.',
   [ErrorCode.PK_NOT_ACTIVE]: 'There is no PK in this live now.',
   [ErrorCode.PK_BOOSTER_UNAVAILABLE]: 'That booster cannot be used now.',
+  [ErrorCode.PK_DARE_CLOSED]: 'This dare can no longer be answered.',
+  [ErrorCode.PK_DARE_FORBIDDEN]: 'Only the other host can do that.',
   [ErrorCode.SECOND_CAMERA_CODE_INVALID]: 'That pairing code is not valid.',
   [ErrorCode.SECOND_CAMERA_UNAVAILABLE]: 'This live cannot take a second camera now.',
   [ErrorCode.SECOND_CAMERA_BUSY]: 'This live already has a second camera.',

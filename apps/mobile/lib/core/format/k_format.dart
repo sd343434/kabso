@@ -55,6 +55,18 @@ abstract final class KFormat {
     return out.toString();
   }
 
+  /// v1.50-live (D229): a signed count for PK points, "+3", "0", "−3" (a
+  /// real minus sign, left to right in Arabic too).
+  static String signed(int value) {
+    final body = grouped(value.abs());
+    final text = value > 0
+        ? '+$body'
+        : value < 0
+        ? '\u2212$body'
+        : body;
+    return '\u2066$text\u2069';
+  }
+
   /// Compact counter (DESIGN_SYSTEM §3.3): exact with grouping below 10,000;
   /// above that one decimal, **floored** (never overstated), trailing ".0"
   /// dropped, suffix from the ARB (`K`/`M`/`B`, `ألف`/`مليون`/`مليار` after a

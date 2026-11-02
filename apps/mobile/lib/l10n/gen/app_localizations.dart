@@ -22161,6 +22161,180 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الرقم المخفي لا يظهر لغيرك في بطاقتك داخل البث ولا في ملفك. أنت وفريق Kabso تستطيعون رؤيته.'**
   String get privacyCardStatsHint;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'PK عادي'**
+  String get pkTypeNormal;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'PK أحكام'**
+  String get pkTypeDares;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'الخاسر ينفذ حكماً تسحبه القرعة'**
+  String get pkTypeDaresHint;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع PK'**
+  String get pkTypeLabel;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'عشوائي أحكام'**
+  String get pkRandomDares;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت دعوة PK أحكام إلى {name}'**
+  String pkInviteSentDares(String name);
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'قرعة الحكم'**
+  String get pkDareDrawTitle;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'سهل'**
+  String get pkDareLevelEasy;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط'**
+  String get pkDareLevelMedium;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'صعب'**
+  String get pkDareLevelHard;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار قرار {name}'**
+  String pkDareLoserDeciding(String name);
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'حكمك'**
+  String get pkDareYourDare;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get pkDareAccept;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get pkDareRefuse;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض الحكم؟'**
+  String get pkDareRefuseTitle;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'يُحتسب الرفض في نقاط PK: {points}'**
+  String pkDareRefuseBody(String points);
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'نُفّذ ✅'**
+  String get pkDareDone;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُنفّذ ❌'**
+  String get pkDareNotDone;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'هل نُفّذ الحكم؟'**
+  String get pkDareJudge;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'نُفّذ الحكم 🎉'**
+  String get pkDareOutcomeDone;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض الحكم'**
+  String get pkDareOutcomeRefused;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُنفّذ الحكم'**
+  String get pkDareOutcomeNotDone;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'إبلاغ عن الحكم'**
+  String get pkDareReport;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً، وصل البلاغ'**
+  String get pkDareReported;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'الحكم: {text}. الوقت المتبقي {time}'**
+  String pkDareSemantics(String text, String time);
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'قرعة الحكم بين ثلاثة: سهل ومتوسط وصعب'**
+  String get pkDareDrawSemantics;
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط PK: {points}'**
+  String pkRecordPoints(String points);
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'أحكام نُفّذت: {done} · رُفضت: {refused}'**
+  String pkRecordDares(String done, String refused);
+
+  /// v1.50-live (D229): «PK أحكام».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يعد بالإمكان الرد على هذا الحكم'**
+  String get pkFailureDareClosed;
 }
 
 class _AppLocalizationsDelegate

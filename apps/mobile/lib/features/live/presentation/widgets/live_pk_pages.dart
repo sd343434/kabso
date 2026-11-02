@@ -612,6 +612,8 @@ class PkHistoryPage extends ConsumerStatefulWidget {
   static const backKey = Key('pkHistory.back');
   static const emptyKey = Key('pkHistory.empty');
   static const recordKey = Key('pkHistory.record');
+  static const pointsKey = Key('pkHistory.points');
+  static const daresKey = Key('pkHistory.dares');
   static Key itemKey(String id) => Key('pkHistory.item.$id');
 
   @override
@@ -671,6 +673,25 @@ class _PkHistoryPageState extends ConsumerState<PkHistoryPage> {
                   style: context.textStyles.bodyStrong.copyWith(color: _ink),
                 ),
               ),
+              // v1.50-live (D229): the PK points and the dares.
+              Text(
+                l10n.pkRecordPoints(KFormat.signed(r.points)),
+                key: PkHistoryPage.pointsKey,
+                textAlign: TextAlign.center,
+                style: context.textStyles.title.copyWith(
+                  color: _red,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 8),
+                child: Text(
+                  l10n.pkRecordDares('${r.daresDone}', '${r.daresRefused}'),
+                  key: PkHistoryPage.daresKey,
+                  textAlign: TextAlign.center,
+                  style: context.textStyles.caption.copyWith(color: _soft),
+                ),
+              ),
               if (h.recent.isEmpty)
                 Padding(
                   key: PkHistoryPage.emptyKey,
@@ -702,6 +723,9 @@ class _PkHistoryPageState extends ConsumerState<PkHistoryPage> {
       if (m.bestOfThree)
         l10n.pkHistoryRounds('${m.roundsWon}', '${m.opponentRoundsWon}'),
       if (!m.effective && m.result != 'VOID') l10n.pkHistoryNotCounted,
+      if (m.dares) l10n.pkTypeDares,
+      if (m.dareStatus == 'DONE') l10n.pkDareOutcomeDone,
+      if (m.dareStatus == 'REFUSED') l10n.pkDareOutcomeRefused,
     ].join(' · ');
     return ListTile(
       key: PkHistoryPage.itemKey(m.id),

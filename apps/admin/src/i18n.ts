@@ -6,6 +6,7 @@ import { AR_V2, EN_V2 } from './i18n-v2';
 import { AR_D208, EN_D208 } from './i18n-d208';
 import { AR_D222, EN_D222 } from './i18n-d222';
 import { AR_D217, EN_D217 } from './i18n-d217';
+import { AR_D229, EN_D229 } from './i18n-d229';
 import { AR_D223, EN_D223 } from './i18n-d223';
 
 export type Lang = 'ar' | 'en';
@@ -385,6 +386,7 @@ const ar = {
   ...AR_D208,
   ...AR_D222,
   ...AR_D217,
+  ...AR_D229,
   ...AR_D223,
 };
 
@@ -752,6 +754,7 @@ const en: Record<Key, string> = {
   ...EN_D208,
   ...EN_D222,
   ...EN_D217,
+  ...EN_D229,
   ...EN_D223,
 };
 

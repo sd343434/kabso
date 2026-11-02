@@ -188,6 +188,8 @@ All non-2xx responses use one envelope:
 | 409 | `PK_INVITE_CLOSED` | *(v1.43-live, DRAFT, D195)* The invitation was answered, cancelled or expired. §10.58. |
 | 409 | `PK_NOT_ACTIVE` | *(v1.43-live, DRAFT, D195)* No BATTLE or RESULT match in the room. §10.58. |
 | 409 | `PK_BOOSTER_UNAVAILABLE` | *(v1.43-live, DRAFT, D195)* A booster gift outside a battle, outside its window, over its per-match limit or not higher than the active one (detail issue). §10.58. |
+| 409 | `PK_DARE_CLOSED` | *(v1.50-live, DRAFT, D229)* «PK أحكام»: the dare is not at that step — still shuffling, already answered or judged, the decision time or the timer ran out. §10.80. |
+| 403 | `PK_DARE_FORBIDDEN` | *(v1.50-live, DRAFT, D229)* «PK أحكام»: only the losing host accepts or refuses, only the winning host judges. §10.80. |
 | 422 | `SECOND_CAMERA_CODE_INVALID` | *(v1.45-live, DRAFT, D201)* The second-camera pairing code is unknown, expired, used, replaced or another account's — one answer for all. §10.63. |
 | 409 | `SECOND_CAMERA_UNAVAILABLE` | *(v1.45-live, DRAFT, D201)* The live cannot take a second camera now: not the caller's LIVE SOLO video live, or in a PK. §10.63. |
 | 409 | `SECOND_CAMERA_BUSY` | *(v1.45-live, DRAFT, D201)* The live already has a second camera (one at a time). §10.63. |
@@ -444,6 +446,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
 | `POST /live/rooms/{roomId}/pk/invites` *(v1.43-live, D195)* | 30 / 10 min per user (bucket `live:pk:invite`, `RATE_LIMIT_LIVE_PK_INVITE_USER`). **Replaces** the per-user default; the 10-second cooldown between two invitations is a separate rule (409 `PK_INVITE_COOLDOWN`, §10.58) |
 | The other PK host routes *(v1.43-live, D195)*: `…/pk/candidates`, `…/pk/invites/{inviteId}` (DELETE, accept, decline), `…/pk/random`, `…/pk/end`, `…/pk/mute-opponent`, `PUT /me/live-pk` | 300 / 10 min per user (one bucket `live:pk:action`, `RATE_LIMIT_LIVE_PK_ACTION_USER`). **Replaces** the per-user default; `GET …/pk` and `GET /live/pk/hosts/{username}` use `live:list` (guests per IP), `…/pk/media-token` the media-token limits |
+| `POST /live/rooms/{roomId}/pk/dare/report` *(v1.50-live, D229)* | 10 / 10 min per user (bucket `live:pk:dare-report`, `RATE_LIMIT_LIVE_PK_DARE_REPORT_USER`). **Replaces** the per-user default. `…/pk/dare/accept`, `…/refuse`, `…/verdict` use `live:pk:action`; the panel «أحكام PK» uses `admin:ip` |
 | `POST /live/rooms/{roomId}/second-camera/codes` *(v1.45-live, D201)* | 10 / 10 min per user (bucket `live:cam2:code`, `RATE_LIMIT_LIVE_SECOND_CAMERA_CODE_USER`). **Replaces** the per-user default |
 | `POST /live/second-camera/redeem` *(v1.45-live, D201)* | 10 / 10 min per user, right or wrong codes alike (bucket `live:cam2:redeem`, `RATE_LIMIT_LIVE_SECOND_CAMERA_REDEEM_USER`). **Replaces** the per-user default; with 6-digit codes bound to the account and valid 120 s this keeps guessing pointless |
 | The other live tools *(v1.45-live, D201)*: `GET` / `DELETE …/second-camera`, `PUT …/second-camera/main`, `PUT …/recording`, `PUT /me/live-music-rights` | 120 / 10 min per user (one bucket `live:tools`, `RATE_LIMIT_LIVE_TOOLS_USER`). **Replaces** the per-user default; `GET /me/live-music-rights` uses the default |
@@ -576,6 +579,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
 | *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
 | *(v1.43-live)* Tables `pk_matches`, `pk_invites`, `pk_queue`, `pk_boosts`, `pk_gift_points`, `pk_supporters`, `pk_host_records`, `pk_host_settings`; column `gifts.pk_booster`; server config `PK_*` | Backend — `live` module (`LivePkService`; PK points written in the gift send's transaction by `LiveGiftsService`; `pk-admin` CLI for moderation) | CTO; Security (the gift path; PK points never touch money) |
+| *(v1.50-live, D229)* Tables `pk_dares`, `pk_match_dares`, `pk_dare_reports`, `pk_dare_seen`, `pk_point_events`, `pk_dare_settings`; the seed `apps/api/prisma/seed/pk-dares/` | Backend — `live` module (`live-pk.service.ts`, `pk-dares/`) | CTO; the library's content: the owner / moderation team (panel «أحكام PK»); any change to the safety rules in `pk-dare-rules.ts` needs Trust & Safety review |
 | *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
 | *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
 | *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
@@ -638,6 +642,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.50-live (draft) | 2026-11-01 | **D229 (owner «PK أحكام»: «الذي يخسر ينفذ احد ٣ احكام… اكثر من ٢٠ الف حكم», with the owner's later decisions the same day: three levels, a server draw, the loser accepts or refuses, the winner judges):** `PkType` (`NORMAL`, `DARES`) on `PkInviteRequest` / `PkInvite`, `PkQueueWait` and `PkMatch`; `joinLivePkRandom` takes an optional `PkRandomRequest` `{type}`; `PkMatch.dare` (`PkDare`, `PkDareOption`, `PkDareLevel`, `PkDareCategory`) and the data-message event `dare`; `acceptLivePkDare`, `refuseLivePkDare`, `judgeLivePkDare` (`PkDareVerdictRequest`), `reportLivePkDare` (`PkDareReportRequest`); `PkHostRecord.points` / `daresDone` / `daresRefused`; `PkHistoryItem.type` / `dare`; codes `PK_DARE_CLOSED` (409), `PK_DARE_FORBIDDEN` (403); the panel «أحكام PK»: `listAdminPkDares`, `createAdminPkDare`, `updateAdminPkDare`, `importAdminPkDares`, `clearAdminPkDareReports`, `getAdminPkDareStats`, `getAdminPkDareSettings` / `updateAdminPkDareSettings`, capabilities `pk_dares.view` (OWNER, MODERATION, SUPPORT) and `pk_dares.edit` (OWNER, MODERATION); config `PK_DARES_ENABLED`, `PK_DARE_DRAW_SECONDS` (4), `PK_DARE_SECONDS` (180), `PK_DARE_OUTCOME_SECONDS` (8), `RATE_LIMIT_LIVE_PK_DARE_REPORT_USER` (10/600); migration `20270216090000_pk_dares`; CLI `pk-dares-admin import|export|stats|disable|enable`; the 20 000-dare seed `apps/api/prisma/seed/pk-dares/pk-dares.v1.jsonl` (imported on deploy, not by the migration). Lucky gifts give 0 PK points in DARES matches only. §4, §7, §8, §10.80. | **Additive**: older apps omit `type` (NORMAL), ignore `dare`, the event `dare` and the new record fields; a DARES invitation reaches an older app as a normal one (the battle is the same; it shows no dare). |
 | v1.79-social (draft) | 2026-11-01 | **D226 (owner approved «تسجيل الخروج من كل الأجهزة الأخرى»):** `revokeOtherSessions` (`POST /auth/sessions/revoke-others`, `RevokeOtherSessionsRequest` with the current password, 200 `RevokeOtherSessionsResult` `{revoked}`): every session of the caller but the calling one is revoked with its push token; 403 `REAUTH_FAILED` on a wrong password; rate limit 5 / 15 min per user (bucket `sessions_revoke_others:user`, the existing rule `RATE_LIMIT_ACCOUNT_DELETION_USER`); audit actions `auth.sessions.revoke_others`, `auth.sessions.revoke_others.reauth_failed`. No migration, no new configuration. §7, §10.76. | **Additive** (a new operation). |
 | v1.78-social (draft) | 2026-11-01 | **D223 (owner: «الجهاز الواحد لا يمكنه عمل غير حسابين لكنه يمكن فتح حسابات مختلفة»):** `DeviceInfo.deviceKey` (the app's salted SHA-256 of Android `ANDROID_ID` / an iOS Keychain id; read only by `register` and `registerVerify`, kept only as an HMAC); `register` / `registerVerify` 409 `DEVICE_ACCOUNT_LIMIT` (`details[0] = {field: device, issue: '<limit>'}`); tag `admin-panel`: `getAdminDeviceSignups`, `grantAdminDeviceException`, `removeAdminDeviceException` (`AdminDeviceSignups`, `AdminDeviceExceptionRequest`; capabilities `users.device_view` OWNER / SUPPORT, `users.device_exception` OWNER with the code again); config `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` (2, 1–100), `SIGNUP_DEVICE_KEY` (optional HMAC key source, else RATE_LIMIT_KEY_SECRET); audit `auth.registration.device_limit`, `admin.device_signups.view`, `admin.device_exception.grant\|remove`; migration `20270211090000_device_signups` (`device_signups`, `device_signup_exceptions`, `pending_registrations.device_hash`). §4, §10.75. | **Additive** (an optional request field, a new code on the sign-up operations only when a device key is sent, new operations; an older app or the website sends no key and is not counted). |
 | v1.77-social (draft) | 2026-11-01 | **D220 (owner: the in-live person card «بطاقة التعريف» matched to a reference; four numbers, two of them hideable):** `PublicProfile.cherriesReceived` and `PublicProfile.coinsSent` (optional: absent when hidden from the caller); `PrivacySettings.hideCherriesReceived` / `hideCoinsSent` (required in the response) and the same two optional fields in `UpdatePrivacyRequest`; `AdminUserDetail.balances.cherriesReceived` / `coinsSent` (required); migration `20270212090000_profile_stats_privacy` (two `privacy_settings` columns, default false); the data export lists the switches. §10.74. (v1.74–v1.76-social are D217, D222 and D218.) | **Additive** (new optional response fields; new request fields; new required fields on the caller's own privacy settings and the panel's user detail — strict clients update their models in the same change set). |
@@ -5273,6 +5278,94 @@ every other session at once. PHASE1_SCREENS §9.3 had left it out («No revoke a
 - **The app.** The full sessions list and the Settings preview show a red «تسجيل الخروج من كل الأجهزة الأخرى» /
   "Log out of all other devices" while another session exists; it asks for the password in a confirm dialog,
   then refreshes the list and says how many devices were signed out.
+
+
+### 10.80 «PK أحكام» — the loser of a PK does a dare *(v1.50-live, DRAFT — D229)*
+
+Owner (2026-11-01): «ان يكون هناك في pk تصنيف بيكيه احكام بحيث الذي يخسر ينفذ احد ٣ احكام يقترحها تطبيق للخاسر ويراها
+الفائز ايضاً… اكثر من ٢٠ الف حكم», with the owner's decisions of the same day (the first brief, then two changes: three
+levels and a server draw; then the final flow: the loser accepts or refuses, the winner judges). Extends §10.58 and
+§10.62; nothing there changes unless said here.
+
+- **The type.** `PkType`: `NORMAL` («PK عادي», as before) or `DARES` («PK أحكام»). Video PK only: the SOLO video lives
+  of §10.58 (never audio rooms, podcasts or multi-guest rooms). `inviteLivePk` takes `type` (default NORMAL); the
+  invitation carries it (`PkInvite.type`, also in the `pk-invite` message) and the match keeps it (`PkMatch.type`).
+  `joinLivePkRandom` takes an optional body `{type}`: a host waiting for DARES is paired only with another DARES
+  waiter, a NORMAL waiter only with NORMAL; calling with the other type replaces the wait. Auto Match (§10.62)
+  always waits for NORMAL. Best of three, round time and auto-start (§10.62) apply as usual; the dare follows the
+  match's **final** result. `PK_DARES_ENABLED=false` refuses new DARES invitations and waits (409
+  `PK_UNAVAILABLE`); running dares finish. The host never chooses a category or a level.
+- **Lucky gifts give no PK points in DARES** (owner decision 8). In a DARES battle a lucky gift (`category` LUCKY:
+  its coin value, its wins and their multipliers) adds 0 PK points and no supporter points; it is still a gift for
+  money, the host's cherries, levels, charm, boards and tasks (all written with its real value in the send's
+  transaction, as in §10.58). Normal PK is unchanged. Booster gifts are never lucky.
+- **The draw.** When a DARES battle ends **with a winner** (TIME with a higher score, FORFEIT, DISCONNECT, AWAY — any
+  reason but a draw, ADMIN or CANCELLED; the «effective PK» threshold of §10.62 is not required), the server, in the
+  battle's end transaction, picks three active dares from the library — **one EASY, one MEDIUM, one HARD** — and
+  draws one of the three (crypto random, uniform; logged in `live.pk.dare.draw` with the three ids and the drawn
+  one). A draw (equal scores, both hosts absent) gives **no dare**. `PkMatch.dare` carries the three cards in that
+  order, `drawn` (0–2) and `revealAt` (now + `PK_DARE_DRAW_SECONDS`, 4): both rooms animate the same shuffle and land on
+  `drawn` at `revealAt` (status `DRAWING`; the animation only reveals the server's result). Every change is a
+  `pk-match` message with event `dare` to both rooms.
+- **No repeats per host.** `pk_dare_seen` keeps one bit per dare (`pk_dares.seq_no`; 2.5 KB for 20 000) for each host.
+  Each card is one neither host has been shown yet; when none is left for the loser at a level, one the winner saw
+  is allowed; when the loser has seen every active dare of a level, the loser's bits start again (`cycles` + 1). The
+  three are then marked seen for both hosts (the winner and the viewers see them too).
+- **The loser decides** (status `DECIDING`, owner's final flow). From `revealAt` until `decideBy` (`revealAt` + the
+  panel's `decideSeconds`, 30) the losing host has «قبول» (`acceptLivePkDare`) and «رفض» (`refuseLivePkDare`); both
+  rooms see that the loser is deciding. Before the reveal or after `decideBy`: 409 `PK_DARE_CLOSED`; the winning host:
+  403 `PK_DARE_FORBIDDEN`. **No answer by `decideBy` counts as «رفض»** (cause `DECIDE_TIMEOUT`) — an assumption the
+  owner may change (KNOWN_LIMITATIONS).
+- **Refused** (`REFUSED`): the refusal's PK points (`refusePoints`, **−3**) and «dares refused» + 1 at once, in the same
+  transaction; «رفض الحكم» in both rooms; the winner gets no buttons; the flow ends.
+- **Accepted** (`ACTIVE`): the timer `PK_DARE_SECONDS` (**180**) starts (`startedAt`, `endsAt`) in both rooms; the loser
+  no longer has «رفض». **During the timer the winning host judges** (`judgeLivePkDare` `{done}`): «نُفّذ ✅» → `DONE`
+  («dares done» + 1); «لم يُنفّذ ❌» → `REFUSED` (cause `WINNER_NOT_DONE`: the refusal's points). Only the winner (the
+  loser 403, viewers 404); idempotent (the same verdict again: 200), final (the other one: 409); audited. **No
+  verdict by `endsAt` counts as done** (cause `TIMER`). There is no peer verification of the dare itself.
+- **Leaving.** The loser's live ended, no heartbeat or away (the §10.58 absence rules, `PK_ABSENCE_GRACE_SECONDS`)
+  while deciding or during the timer → refused (cause `LOSER_LEFT`, −3) unless the winner had already judged. The
+  loser's End during the dare: the same. The winner leaving changes nothing (their room's absence does not end the
+  dare; the timer's end counts as done); the winner's End: an accepted dare counts as done, one not yet answered is
+  `CANCELLED` (no points either way, cause `WINNER_LEFT`). A moderator's end (`pk-admin end`): `CANCELLED` (`ADMIN`).
+- **The PK stays open** in RESULT while its dare is open (`result_ends_at` is pushed to the dare's end); after the
+  outcome it closes `PK_DARE_OUTCOME_SECONDS` (8) later (or at the result's own end, whichever is later). The rooms
+  keep watching each other (`pk:` tokens stay valid until CLOSED).
+- **PK points and the record** (owner decision 7). `PkHostRecord` gains `points`, `daresDone`, `daresRefused` (wins,
+  losses, draws as before). Points, for every PK type: a counted («effective», §10.62) win **+3**, draw **+1**,
+  loss **0**, a refused / not-done dare **−3** — the four values in the panel (`pk_dare_settings`, −100 … 100). The
+  total may go below 0. Each value is written once per match, host and kind (`pk_point_events`, primary key match +
+  host + kind: a retry or a second tick never counts twice) in the same transaction as the result (or the dare's
+  end), audited `live.pk.points`. `PkHistoryItem` gains `type` and `dare` (the drawn dare, its status, `mine`: this
+  host was the loser).
+- **Reports.** `reportLivePkDare` `{dareId}` ⚠️: anyone signed in who may watch the room (viewers and both hosts), one
+  of the room's three cards; one report per person per dare; at `reportsToDisable` (5) reports the dare is disabled
+  (`disabledReason` REPORTS, audited `pk_dare.auto_disable`) and is first in the panel's «مُبلَّغ عنها» queue. 10 / 10
+  min per user (§7).
+- **The library** (`pk_dares`): `code` (unique, stable), `text_ar` (≤ 90 characters in practice), `text_en`, `category`
+  (FUNNY, SINGING, ACTING, TALK, TRUTH, DANCE_LIGHT, IMITATION, QUIZ, DRAWING), `level` (EASY, MEDIUM, HARD — owner:
+  about a third each), `requires_camera` (always true), `active`, `disabled_reason`, `report_count`, `created_by` (SEED |
+  ADMIN), timestamps. The app shows the text of its own language. **Kabso's own content**: generated for Kabso,
+  2026-11, from hand-written building blocks (`apps/api/prisma/seed/pk-dares/content.ts`, `generate.ts`,
+  `PROVENANCE.md`); nothing copied from other apps or sites.
+- **The safety rules** (`pk-dares/pk-dare-rules.ts`; every seed line, every panel add / edit / import): both languages,
+  Arabic without Latin letters and English without Arabic ones, Arabic ≤ 90 and English ≤ 140 characters, no stated
+  duration over 3 minutes, no `@` / `#` / links / long numbers, no gendered Arabic pronouns («أنتَ / أنتِ»), and a
+  blocklist (Arabic and English) for: danger (fire, heights, sharp objects, electricity…), eating or drinking anything,
+  nudity / sexual / romantic / flirting, insults (people, groups, bodies), alcohol / drugs / smoking / gambling,
+  personal information, calling or messaging anyone and third parties or children, money and buying, breaking laws,
+  mocking disabilities, religion, politics. Duplicates: the normalized text (no diacritics, one alef, ة → ه, no
+  punctuation) of either language, and near-duplicates — a word-set Jaccard ≥ 0.8 in either language (MinHash LSH,
+  confirmed exactly). The repo had no profanity list before D229; this blocklist is it.
+- **Seeding** (DEPLOYMENT): the migration creates the tables and the settings row only. `pk-dares-admin import`
+  (default the seed file; idempotent by `code`, never overwriting an admin's edit) loads the 20 000 dares on deploy;
+  `export` (JSON lines or `--csv`), `stats`, `disable` / `enable <code> --reason`. The panel imports up to 2000 lines per
+  upload (JSON or CSV with `code,category,level,textAr,textEn`), with a dry run.
+- **The panel «أحكام PK».** `pk_dares.view` (OWNER, MODERATION, SUPPORT): the table (filters category / level / active /
+  reported, search in both texts or a code prefix, CSV), the counts, the settings. `pk_dares.edit` (OWNER, MODERATION):
+  add, edit, disable / enable, import, the queue's «إبقاء» (clear the reports, optionally enable again), the PK points
+  and `decideSeconds` / `reportsToDisable`. Every write takes a reason and is audited (`pk_dare.create`, `.update`,
+  `.import`, `.reports_clear`, `.settings.update`, with before and after).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

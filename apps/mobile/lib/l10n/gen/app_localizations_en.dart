@@ -13018,4 +13018,104 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyCardStatsHint =>
       'A hidden number is not shown to anyone else on your card in lives or on your profile. You and the Kabso team still see it.';
+
+  @override
+  String get pkTypeNormal => 'Normal PK';
+
+  @override
+  String get pkTypeDares => 'PK dares';
+
+  @override
+  String get pkTypeDaresHint => 'The loser does a dare picked by the draw';
+
+  @override
+  String get pkTypeLabel => 'PK type';
+
+  @override
+  String get pkRandomDares => 'Random dares';
+
+  @override
+  String pkInviteSentDares(String name) {
+    return 'PK dares invitation sent to $name';
+  }
+
+  @override
+  String get pkDareDrawTitle => 'Drawing the dare';
+
+  @override
+  String get pkDareLevelEasy => 'Easy';
+
+  @override
+  String get pkDareLevelMedium => 'Medium';
+
+  @override
+  String get pkDareLevelHard => 'Hard';
+
+  @override
+  String pkDareLoserDeciding(String name) {
+    return 'Waiting for $name to decide';
+  }
+
+  @override
+  String get pkDareYourDare => 'Your dare';
+
+  @override
+  String get pkDareAccept => 'Accept';
+
+  @override
+  String get pkDareRefuse => 'Refuse';
+
+  @override
+  String get pkDareRefuseTitle => 'Refuse the dare?';
+
+  @override
+  String pkDareRefuseBody(String points) {
+    return 'Refusing counts in your PK points: $points';
+  }
+
+  @override
+  String get pkDareDone => 'Done ✅';
+
+  @override
+  String get pkDareNotDone => 'Not done ❌';
+
+  @override
+  String get pkDareJudge => 'Was the dare done?';
+
+  @override
+  String get pkDareOutcomeDone => 'Dare done 🎉';
+
+  @override
+  String get pkDareOutcomeRefused => 'Dare refused';
+
+  @override
+  String get pkDareOutcomeNotDone => 'Dare not done';
+
+  @override
+  String get pkDareReport => 'Report this dare';
+
+  @override
+  String get pkDareReported => 'Thanks, the report was sent';
+
+  @override
+  String pkDareSemantics(String text, String time) {
+    return 'Dare: $text. $time left';
+  }
+
+  @override
+  String get pkDareDrawSemantics =>
+      'Drawing the dare from three: easy, medium and hard';
+
+  @override
+  String pkRecordPoints(String points) {
+    return 'PK points: $points';
+  }
+
+  @override
+  String pkRecordDares(String done, String refused) {
+    return 'Dares done: $done · refused: $refused';
+  }
+
+  @override
+  String get pkFailureDareClosed => 'This dare can no longer be answered';
 }

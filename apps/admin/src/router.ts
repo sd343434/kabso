@@ -36,6 +36,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'referrals', pattern: '/referrals' },
   { name: 'referral', pattern: '/referrals/:id' },
   { name: 'referralSettings', pattern: '/referral-settings' },
+  // v1.50-live (D229): «أحكام PK».
+  { name: 'pkDares', pattern: '/pk-dares' },
   { name: 'gifts', pattern: '/gifts' },
   { name: 'giftCategories', pattern: '/gift-categories' },
   { name: 'items', pattern: '/items' },

@@ -539,6 +539,8 @@ export const envSchema = z
     // (answers, the random queue, ending, muting, the opponent's media token), per user.
     RATE_LIMIT_LIVE_PK_INVITE_USER: rateLimit('30/600'),
     RATE_LIMIT_LIVE_PK_ACTION_USER: rateLimit('300/600'),
+    // v1.50-live (D229, §10.80): «PK أحكام» reports of a dare (viewers and hosts), per user.
+    RATE_LIMIT_LIVE_PK_DARE_REPORT_USER: rateLimit('10/600'),
     // v1.45-live (D201, CONVENTIONS §7, §10.63): second-camera pairing codes (create) and their redemption,
     // per user; the other second-camera and recording calls share the tools bucket.
     RATE_LIMIT_LIVE_SECOND_CAMERA_CODE_USER: rateLimit('10/600'),
@@ -696,6 +698,19 @@ export const envSchema = z
         return Object.freeze(parts.map(Number));
       }),
     PK_BOOSTER_LIMITS: wholeNumberList('2,2,2,2'),
+    /**
+     * v1.50-live (D229, CONVENTIONS §10.80): «PK أحكام». Off refuses new DARES invitations and random waits (running
+     * dares finish). The draw's reveal time (the cards' shuffle), the dare's timer (owner: 3 minutes) and how long the
+     * outcome («نُفّذ الحكم» / «رفض الحكم») stays before the PK closes. The points and the loser's decision time are
+     * in the admin panel (`pk_dare_settings`).
+     */
+    PK_DARES_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    PK_DARE_DRAW_SECONDS: intSetting(4, 1, 30),
+    PK_DARE_SECONDS: intSetting(180, 10, 600),
+    PK_DARE_OUTCOME_SECONDS: intSetting(8, 0, 120),
     /**
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.

@@ -58,8 +58,16 @@ class FakeLivePkRepository implements LivePkRepository {
   }
 
   @override
-  Future<PkInvite> invite(String roomId, {required String toRoomId}) async {
-    _call('invite:$toRoomId');
+  Future<PkInvite> invite(
+    String roomId, {
+    required String toRoomId,
+    PkType type = PkType.normal,
+  }) async {
+    _call(
+      type == PkType.normal
+          ? 'invite:$toRoomId'
+          : 'invite:$toRoomId:${type.wire}',
+    );
     final to = [
       ...list,
       ...?friendList,
@@ -72,6 +80,7 @@ class FakeLivePkRepository implements LivePkRepository {
       from: pkUser('host-a', 'سارة'),
       to: to,
       expiresAt: DateTime.now().add(const Duration(seconds: 15)),
+      type: type,
     );
   }
 
@@ -91,9 +100,10 @@ class FakeLivePkRepository implements LivePkRepository {
 
   @override
   Future<({DateTime? waitingUntil, PkMatch? match})> joinRandom(
-    String roomId,
-  ) async {
-    _call('random');
+    String roomId, {
+    PkType type = PkType.normal,
+  }) async {
+    _call(type == PkType.normal ? 'random' : 'random:${type.wire}');
     return (
       waitingUntil: matchOnRandom == null
           ? DateTime.now().add(const Duration(seconds: 60))
@@ -183,6 +193,31 @@ class FakeLivePkRepository implements LivePkRepository {
     _call('history:$username');
     return pkHistory;
   }
+
+  /// D229: the match answered by the dare calls (null: the snapshot's).
+  PkMatch? matchOnDare;
+
+  @override
+  Future<PkMatch> acceptDare(String roomId) async {
+    _call('dare:accept');
+    return matchOnDare ?? snapshot.match!;
+  }
+
+  @override
+  Future<PkMatch> refuseDare(String roomId) async {
+    _call('dare:refuse');
+    return matchOnDare ?? snapshot.match!;
+  }
+
+  @override
+  Future<PkMatch> judgeDare(String roomId, {required bool done}) async {
+    _call('dare:verdict:$done');
+    return matchOnDare ?? snapshot.match!;
+  }
+
+  @override
+  Future<void> reportDare(String roomId, String dareId) async =>
+      _call('dare:report:$dareId');
 }
 
 class _Ping extends ChangeNotifier {
@@ -400,3 +435,101 @@ List<Override> pkOverrides(
 /// v1.43-live (D195): what every live-screen test needs so the PK never
 /// reaches the network (no PK in the room unless a test sets one).
 List<Override> pkTestOverrides() => pkOverrides(FakeLivePkRepository());
+
+/// D229: a «PK أحكام» dare — [status] at [now]; side A (room-0) lost unless
+/// [loserRoom] says otherwise.
+PkDare pkDareFixture({
+  required DateTime now,
+  PkDareStatus status = PkDareStatus.deciding,
+  String loserRoom = 'room-0',
+  String winnerRoom = 'room-b',
+  int drawn = 1,
+  String? cause,
+  int points = 0,
+  Duration decideLeft = const Duration(seconds: 21, milliseconds: 500),
+  Duration dareLeft = const Duration(
+    minutes: 2,
+    seconds: 14,
+    milliseconds: 500,
+  ),
+}) {
+  const options = [
+    PkDareOption(
+      id: 'dare-easy',
+      level: PkDareLevel.easy,
+      category: 'IMITATION',
+      textAr: 'تقليد بطريق أثناء غسل الصحون بالحركة البطيئة',
+      textEn: 'Imitate a penguin washing the dishes, in slow motion',
+    ),
+    PkDareOption(
+      id: 'dare-medium',
+      level: PkDareLevel.medium,
+      category: 'SINGING',
+      textAr: 'غناء راب قصير عن الجوارب الضائعة بصوت أوبرالي',
+      textEn: 'Sing a short rap about lost socks, in an opera voice',
+    ),
+    PkDareOption(
+      id: 'dare-hard',
+      level: PkDareLevel.hard,
+      category: 'DRAWING',
+      textAr: 'رسم وجه الفائز على شكل بطل خارق خلال دقيقتين ثم عرضه بفخر',
+      textEn:
+          "Draw the winner's face as a superhero within two minutes, "
+          'then show it proudly',
+    ),
+  ];
+  final revealAt = status == PkDareStatus.drawing
+      ? now.add(const Duration(seconds: 3))
+      : now.subtract(const Duration(seconds: 8));
+  final decideBy = status == PkDareStatus.drawing
+      ? revealAt.add(const Duration(seconds: 30))
+      : now.add(decideLeft);
+  final active = status == PkDareStatus.active;
+  return PkDare(
+    status: status,
+    cause: cause,
+    loserRoomId: loserRoom,
+    winnerRoomId: winnerRoom,
+    options: options,
+    drawn: drawn,
+    revealAt: revealAt,
+    decideBy: decideBy,
+    startedAt: active ? now.subtract(const Duration(seconds: 45)) : null,
+    endsAt: active ? now.add(dareLeft) : null,
+    finishedAt: status.open ? null : now,
+    points: points,
+  );
+}
+
+/// D229: a finished DARES match (B won) with [dare].
+PkMatch pkDareMatchFixture({
+  required DateTime now,
+  required PkDare dare,
+  bool ar = true,
+  String ownRoom = 'room-0',
+}) {
+  final base = pkMatchFixture(
+    now: now,
+    ar: ar,
+    ownRoom: ownRoom,
+    status: PkMatchStatus.result,
+    winner: dare.winnerRoomId,
+    ownScore: 9800,
+    otherScore: 12500,
+  );
+  return PkMatch(
+    id: base.id,
+    status: base.status,
+    startedAt: base.startedAt,
+    battleEndsAt: base.battleEndsAt,
+    resultEndsAt: base.resultEndsAt,
+    endReason: base.endReason,
+    winnerRoomId: base.winnerRoomId,
+    seq: base.seq,
+    serverTime: now,
+    sides: base.sides,
+    boosters: base.boosters,
+    type: PkType.dares,
+    dare: dare,
+  );
+}

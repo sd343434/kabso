@@ -2214,3 +2214,39 @@ app. The panel's user page gains the tab «الجهاز» (`users.device_view`: 
 `users.device_exception`, OWNER, the authenticator code again).
 - Not verified on a device or a server (ANDROID_ID across reinstalls, the iOS Keychain across reinstalls, the panel
   on a server).
+
+
+### 5.44 «PK أحكام»: dares after a PK, the dare library and PK points (migration `20270216090000_pk_dares`; D229) — [IMPLEMENTED, draft contract v1.50-live; not deployed, not device-tested]
+
+CONVENTIONS §10.80. The migration adds the type `pk_type` (and the columns `type` on `pk_matches`, `pk_invites`,
+`pk_queue`, default NORMAL — existing rows are normal PKs), `points` / `dares_done` / `dares_refused` on
+`pk_host_records` (0), the tables `pk_dares` (the library), `pk_match_dares`, `pk_dare_reports`, `pk_dare_seen`,
+`pk_point_events` and the one-row `pk_dare_settings` (inserted with the owner's defaults: win +3, draw +1, loss 0,
+refused −3, 30 s to decide, 5 reports). CHECKs on the shapes. No GRANT (default privileges). Checked on a fresh
+database (`prisma migrate deploy`, then `prisma migrate diff` shows no drift on the touched tables). **The library is
+not in the migration** (20 000 rows): after the migration run once
+
+```
+docker compose --profile jobs run --rm migrate node dist/cli/pk-dares-admin.js import
+docker compose --profile jobs run --rm migrate node dist/cli/pk-dares-admin.js stats
+```
+
+(the migration role; the default file `prisma/seed/pk-dares/pk-dares.v1.jsonl` is in the image under
+`apps/api/prisma`). It is idempotent by `code`: a second run inserts nothing, a later seed version adds only its new
+codes and never overwrites the team's edits. Expect `received 20000, inserted 20000, rejected 0` the first time (it took
+15 s on the test machine). Without the import there is no active dare: a DARES match then ends with no dare (logged).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `PK_DARES_ENABLED` | true | «PK أحكام» invitations and random waits (off: 409 `PK_UNAVAILABLE`; running dares finish) |
+| `PK_DARE_DRAW_SECONDS` | 4 | the cards' shuffle before the drawn dare is revealed (1–30) |
+| `PK_DARE_SECONDS` | 180 | the dare's timer after the loser accepts (owner: 3 minutes; 10–600) |
+| `PK_DARE_OUTCOME_SECONDS` | 8 | how long «نُفّذ الحكم» / «رفض الحكم» stays before the PK closes (0–120) |
+| `RATE_LIMIT_LIVE_PK_DARE_REPORT_USER` | 10/600 | dare reports per user |
+
+The points, the loser's decision time and the auto-disable threshold are in the panel «أحكام PK» (`pk_dares.edit`:
+OWNER, MODERATION; audited). Order: API (migration + import) first, then the admin panel, then the app; an older app
+sends no `type` (NORMAL), shows a DARES invitation as a normal one and ignores `PkMatch.dare` (its host is never
+offered a dare's buttons, so a dare drawn against it times out as refused after 30 s — ship the app before announcing
+«PK أحكام»).
+- Not verified on a device or a server (the draw animation on a phone, the second-room dare banner on real LiveKit).

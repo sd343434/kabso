@@ -625,6 +625,7 @@ export class LiveGiftsService {
                 coins: amounts.totalCoins,
                 booster: gift.pkBooster,
                 now,
+                lucky: isLucky,
               });
 
           // v1.27-live (D132, §10.27): the lucky settlement last, so the day row (locked by every lucky

@@ -1,3 +1,5 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:kabso_live/core/models/shared_models.dart';
 
@@ -247,6 +249,8 @@ class PkMatch {
     this.roundSeconds = 300,
     this.settingsFromRoomId,
     this.effective,
+    this.type = PkType.normal,
+    this.dare,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -277,6 +281,10 @@ class PkMatch {
       roundSeconds: j['roundSeconds'] == null ? 300 : _int(j['roundSeconds']),
       settingsFromRoomId: j['settingsFromRoomId'] as String?,
       effective: j['effective'] as bool?,
+      type: PkType.fromWire(j['type']),
+      dare: j['dare'] is Map<String, dynamic>
+          ? PkDare.fromJson(j['dare']! as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -309,6 +317,12 @@ class PkMatch {
   /// Whether the finished match counts in the records (null while open).
   final bool? effective;
 
+  /// v1.50-live (D229): «PK عادي» or «PK أحكام».
+  final PkType type;
+
+  /// v1.50-live (D229): the dare of a DARES match with a winner (else null).
+  final PkDare? dare;
+
   /// CONNECTED: no timer, no points until a host starts it.
   bool get connected => status == PkMatchStatus.connected;
 
@@ -333,6 +347,7 @@ class PkInvite {
     required this.from,
     required this.to,
     required this.expiresAt,
+    this.type = PkType.normal,
   });
 
   factory fromJson(Map<String, dynamic> j) => PkInvite(
@@ -343,6 +358,7 @@ class PkInvite {
     from: _user(j['from']),
     to: _user(j['to']),
     expiresAt: _date(j['expiresAt']) ?? DateTime.now(),
+    type: PkType.fromWire(j['type']),
   );
 
   final String id;
@@ -352,6 +368,9 @@ class PkInvite {
   final UserSummary from;
   final UserSummary to;
   final DateTime expiresAt;
+
+  /// v1.50-live (D229): the type offered («PK أحكام» is shown on the card).
+  final PkType type;
 
   bool get pending => status == 'PENDING';
 }
@@ -432,17 +451,33 @@ class PkMediaAccess {
 /// `PkHostRecord`.
 @immutable
 class PkRecord {
-  const new({this.wins = 0, this.losses = 0, this.draws = 0});
+  const new({
+    this.wins = 0,
+    this.losses = 0,
+    this.draws = 0,
+    this.points = 0,
+    this.daresDone = 0,
+    this.daresRefused = 0,
+  });
 
   factory fromJson(Map<String, dynamic> j) => PkRecord(
     wins: _int(j['wins']),
     losses: _int(j['losses']),
     draws: _int(j['draws']),
+    points: _signed(j['points']),
+    daresDone: _int(j['daresDone']),
+    daresRefused: _int(j['daresRefused']),
   );
 
   final int wins;
   final int losses;
   final int draws;
+
+  /// v1.50-live (D229): PK points (win +3, draw +1, loss 0, refused −3; may
+  /// be below 0) and the dares done / refused.
+  final int points;
+  final int daresDone;
+  final int daresRefused;
 
   int get total => wins + losses + draws;
 }
@@ -556,6 +591,9 @@ class PkHistoryItem {
     this.bestOfThree = false,
     this.roundsWon = 0,
     this.opponentRoundsWon = 0,
+    this.dares = false,
+    this.dareStatus,
+    this.dareMine = false,
   });
 
   factory fromJson(Map<String, dynamic> j) => PkHistoryItem(
@@ -569,6 +607,13 @@ class PkHistoryItem {
     bestOfThree: j['mode'] == 'BEST_OF_THREE',
     roundsWon: _int(j['roundsWon']),
     opponentRoundsWon: _int(j['opponentRoundsWon']),
+    dares: j['type'] == 'DARES',
+    dareStatus: j['dare'] is Map
+        ? (j['dare']! as Map<String, dynamic>)['status'] as String?
+        : null,
+    dareMine:
+        j['dare'] is Map &&
+        (j['dare']! as Map<String, dynamic>)['mine'] == true,
   );
 
   final String id;
@@ -583,6 +628,12 @@ class PkHistoryItem {
   final bool bestOfThree;
   final int roundsWon;
   final int opponentRoundsWon;
+
+  /// v1.50-live (D229): a «PK أحكام» match, its dare's end (DONE, REFUSED …)
+  /// and whether this host was the one doing it.
+  final bool dares;
+  final String? dareStatus;
+  final bool dareMine;
 }
 
 /// v1.44-live (D199): a host's record and last matches.
@@ -660,3 +711,163 @@ final class PkInviteEvent extends PkEvent {
 final class PkQueueExpired extends PkEvent {
   const new();
 }
+
+// ---- v1.50-live (D229, CONVENTIONS §10.80): «PK أحكام» -------------------
+
+/// `PkType`: «PK عادي» / «PK أحكام» (an unknown value is a normal PK).
+enum PkType {
+  normal('NORMAL'),
+  dares('DARES');
+
+  new(this.wire);
+
+  final String wire;
+
+  static PkType fromWire(Object? v) => v == 'DARES' ? dares : normal;
+}
+
+/// `PkDareLevel`: «سهل» / «متوسط» / «صعب».
+enum PkDareLevel {
+  easy('EASY'),
+  medium('MEDIUM'),
+  hard('HARD');
+
+  new(this.wire);
+
+  final String wire;
+
+  static PkDareLevel fromWire(Object? v) =>
+      values.where((l) => l.wire == v).firstOrNull ?? easy;
+}
+
+/// `PkDareOption`: one of the three cards.
+@immutable
+class PkDareOption {
+  const new({
+    required this.id,
+    required this.level,
+    required this.category,
+    required this.textAr,
+    required this.textEn,
+  });
+
+  factory fromJson(Map<String, dynamic> j) => PkDareOption(
+    id: j['id']! as String,
+    level: PkDareLevel.fromWire(j['level']),
+    category: j['category'] as String? ?? '',
+    textAr: j['textAr'] as String? ?? '',
+    textEn: j['textEn'] as String? ?? '',
+  );
+
+  final String id;
+  final PkDareLevel level;
+  final String category;
+  final String textAr;
+  final String textEn;
+
+  /// The text of the app's language (Arabic, else English).
+  String text(Locale locale) => locale.languageCode == 'ar' ? textAr : textEn;
+}
+
+/// `PkDare.status`.
+enum PkDareStatus {
+  drawing,
+  deciding,
+  active,
+  done,
+  refused,
+  cancelled;
+
+  static PkDareStatus fromWire(Object? v) => switch (v) {
+    'DRAWING' => drawing,
+    'DECIDING' => deciding,
+    'ACTIVE' => active,
+    'DONE' => done,
+    'REFUSED' => refused,
+    _ => cancelled,
+  };
+
+  bool get open => this == drawing || this == deciding || this == active;
+}
+
+/// `PkDare`: the server's draw and how it goes (both rooms see the same).
+@immutable
+class PkDare {
+  const new({
+    required this.status,
+    required this.loserRoomId,
+    required this.winnerRoomId,
+    required this.options,
+    required this.drawn,
+    required this.revealAt,
+    required this.decideBy,
+    this.cause,
+    this.startedAt,
+    this.endsAt,
+    this.finishedAt,
+    this.points = 0,
+    this.refusePoints = -3,
+  });
+
+  factory fromJson(Map<String, dynamic> j) => PkDare(
+    status: PkDareStatus.fromWire(j['status']),
+    cause: j['cause'] as String?,
+    loserRoomId: j['loserRoomId']! as String,
+    winnerRoomId: j['winnerRoomId']! as String,
+    options: [
+      for (final o in (j['options'] as List<dynamic>? ?? const []))
+        PkDareOption.fromJson(o as Map<String, dynamic>),
+    ],
+    drawn: _int(j['drawn']),
+    revealAt: _date(j['revealAt']) ?? DateTime.now(),
+    decideBy: _date(j['decideBy']) ?? DateTime.now(),
+    startedAt: _date(j['startedAt']),
+    endsAt: _date(j['endsAt']),
+    finishedAt: _date(j['finishedAt']),
+    points: _signed(j['points']),
+    refusePoints: j['refusePoints'] == null ? -3 : _signed(j['refusePoints']),
+  );
+
+  final PkDareStatus status;
+
+  /// LOSER_REFUSED, DECIDE_TIMEOUT, LOSER_LEFT, WINNER_DONE, WINNER_NOT_DONE,
+  /// TIMER, WINNER_LEFT, ADMIN (unknown values: a generic end).
+  final String? cause;
+  final String loserRoomId;
+  final String winnerRoomId;
+
+  /// EASY, MEDIUM, HARD in that order.
+  final List<PkDareOption> options;
+
+  /// The server's draw (0–2): the shuffle lands on it at [revealAt].
+  final int drawn;
+  final DateTime revealAt;
+  final DateTime decideBy;
+  final DateTime? startedAt;
+  final DateTime? endsAt;
+  final DateTime? finishedAt;
+
+  /// The loser's PK points from the dare (the refusal's, else 0).
+  final int points;
+
+  /// What a refusal counts now (the panel's value, −3 by default).
+  final int refusePoints;
+
+  PkDareOption? get chosen =>
+      drawn >= 0 && drawn < options.length ? options[drawn] : null;
+
+  /// The status at the server time [now] (the reveal happens on its own).
+  PkDareStatus statusAt(DateTime now) =>
+      status == PkDareStatus.drawing && !now.isBefore(revealAt)
+      ? PkDareStatus.deciding
+      : status;
+
+  /// «لم يُنفّذ الحكم»: the winner judged it not done.
+  bool get notDone => cause == 'WINNER_NOT_DONE';
+}
+
+int _signed(Object? v) => switch (v) {
+  final int n => n,
+  final num n => n.toInt(),
+  _ => 0,
+};

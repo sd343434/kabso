@@ -65,6 +65,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_interruption.
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_stage.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
@@ -2190,6 +2191,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
       onPerson: (u) => _person(u.username),
+      // v1.50-live (D229): a signed-in viewer may report the dare (⚠️).
+      dareActions: PkDareActions(
+        onReport: ref.read(currentUserProvider) == null
+            ? null
+            : ref.read(livePkProvider(room.id).notifier).reportDare,
+      ),
     );
     // D215: the same subtree with or without the other room's connection
     // (the stage and its video renderers are not rebuilt from scratch when

@@ -128,8 +128,12 @@ export class LivePkController {
   @Post('rooms/:roomId/pk/random')
   @HttpCode(200)
   @RateLimit(PK_ACTION)
-  joinRandom(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkRandomResultDto> {
-    return this.pk.joinRandom(requireCaller(req), roomId);
+  joinRandom(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<PkRandomResultDto> {
+    return this.pk.joinRandom(requireCaller(req), roomId, body);
   }
 
   @Delete('rooms/:roomId/pk/random')
@@ -164,6 +168,51 @@ export class LivePkController {
     @Body() body: unknown,
   ): Promise<PkMatchDto> {
     return this.pk.muteOpponent(requireCaller(req), roomId, body);
+  }
+
+  /** v1.50-live (D229) «PK أحكام»: the losing host accepts the drawn dare («قبول»). */
+  @Post('rooms/:roomId/pk/dare/accept')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  acceptDare(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkMatchDto> {
+    return this.pk.acceptDare(requireCaller(req), roomId);
+  }
+
+  /** v1.50-live (D229): the losing host refuses it («رفض»: the refusal's PK points). */
+  @Post('rooms/:roomId/pk/dare/refuse')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  refuseDare(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<PkMatchDto> {
+    return this.pk.refuseDare(requireCaller(req), roomId);
+  }
+
+  /** v1.50-live (D229): the winning host's verdict during the timer («نُفّذ» / «لم يُنفّذ»). */
+  @Post('rooms/:roomId/pk/dare/verdict')
+  @HttpCode(200)
+  @RateLimit(PK_ACTION)
+  judgeDare(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<PkMatchDto> {
+    return this.pk.judgeDare(requireCaller(req), roomId, body);
+  }
+
+  /** v1.50-live (D229): a viewer or host reports one of the room's dares (⚠️). */
+  @Post('rooms/:roomId/pk/dare/report')
+  @HttpCode(204)
+  @RateLimit({
+    bucket: 'live:pk:dare-report',
+    rule: 'livePkDareReportUser',
+    key: byUserId,
+    replacesDefault: true,
+  })
+  async reportDare(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<void> {
+    await this.pk.reportDare(requireCaller(req), roomId, body);
   }
 
   /** A watch-only token for the other room of this room's PK (viewers, guests and the host). */

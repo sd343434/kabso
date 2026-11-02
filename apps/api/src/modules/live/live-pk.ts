@@ -231,6 +231,10 @@ export async function adminEndPkIn(
   if (!row || row.status === 'CLOSED') return null;
   const at = now.toISOString();
   // v1.44-live (D199): a CONNECTED match (not started) is voided like a running battle.
+  // v1.50-live (D229): an open «PK أحكام» dare is cancelled (no points either way).
+  await tx.$executeRaw`
+    UPDATE pk_match_dares SET status = 'CANCELLED', cause = 'ADMIN', finished_at = ${at}::timestamptz
+     WHERE match_id = ${matchId}::uuid AND finished_at IS NULL`;
   if (row.status === 'BATTLE' || row.status === 'CONNECTED') {
     const top = await topSupportersIn(tx, matchId);
     await tx.$executeRaw`

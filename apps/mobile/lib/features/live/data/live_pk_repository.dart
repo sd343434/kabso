@@ -20,7 +20,12 @@ abstract interface class LivePkRepository {
   });
 
   /// `POST /live/rooms/{roomId}/pk/invites`.
-  Future<PkInvite> invite(String roomId, {required String toRoomId});
+  /// v1.50-live (D229): [type] «PK أحكام» or the normal PK.
+  Future<PkInvite> invite(
+    String roomId, {
+    required String toRoomId,
+    PkType type = PkType.normal,
+  });
 
   /// `DELETE /live/rooms/{roomId}/pk/invites/{inviteId}`.
   Future<void> cancelInvite(String roomId, String inviteId);
@@ -32,7 +37,10 @@ abstract interface class LivePkRepository {
   Future<void> decline(String roomId, String inviteId);
 
   /// `POST /live/rooms/{roomId}/pk/random`: waiting until, or the match.
-  Future<({DateTime? waitingUntil, PkMatch? match})> joinRandom(String roomId);
+  Future<({DateTime? waitingUntil, PkMatch? match})> joinRandom(
+    String roomId, {
+    PkType type = PkType.normal,
+  });
 
   /// `DELETE /live/rooms/{roomId}/pk/random`.
   Future<void> leaveRandom(String roomId);
@@ -63,6 +71,17 @@ abstract interface class LivePkRepository {
 
   /// v1.44-live (D199) `GET /live/pk/hosts/{username}`: record and history.
   Future<PkHistory> history(String username);
+
+  /// v1.50-live (D229): the losing host accepts / refuses the drawn dare.
+  Future<PkMatch> acceptDare(String roomId);
+
+  Future<PkMatch> refuseDare(String roomId);
+
+  /// The winning host's verdict during the timer.
+  Future<PkMatch> judgeDare(String roomId, {required bool done});
+
+  /// A viewer's (or host's) report of one of the room's dares.
+  Future<void> reportDare(String roomId, String dareId);
 }
 
 class LivePkRepositoryImpl implements LivePkRepository {
@@ -99,14 +118,20 @@ class LivePkRepositoryImpl implements LivePkRepository {
   });
 
   @override
-  Future<PkInvite> invite(String roomId, {required String toRoomId}) =>
-      guardApiCall(() async {
-        final res = await _dio.post<Map<String, dynamic>>(
-          '${_room(roomId)}/invites',
-          data: {'toRoomId': toRoomId},
-        );
-        return PkInvite.fromJson(res.data!);
-      });
+  Future<PkInvite> invite(
+    String roomId, {
+    required String toRoomId,
+    PkType type = PkType.normal,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/invites',
+      data: {
+        'toRoomId': toRoomId,
+        if (type != PkType.normal) 'type': type.wire,
+      },
+    );
+    return PkInvite.fromJson(res.data!);
+  });
 
   @override
   Future<void> cancelInvite(String roomId, String inviteId) =>
@@ -135,10 +160,12 @@ class LivePkRepositoryImpl implements LivePkRepository {
 
   @override
   Future<({DateTime? waitingUntil, PkMatch? match})> joinRandom(
-    String roomId,
-  ) => guardApiCall(() async {
+    String roomId, {
+    PkType type = PkType.normal,
+  }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '${_room(roomId)}/random',
+      data: {if (type != PkType.normal) 'type': type.wire},
     );
     final body = res.data!;
     final queue = body['queue'];
@@ -230,6 +257,41 @@ class LivePkRepositoryImpl implements LivePkRepository {
     );
     return PkHistory.fromJson(res.data!);
   });
+
+  @override
+  Future<PkMatch> acceptDare(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/dare/accept',
+    );
+    return PkMatch.fromJson(res.data!);
+  });
+
+  @override
+  Future<PkMatch> refuseDare(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/dare/refuse',
+    );
+    return PkMatch.fromJson(res.data!);
+  });
+
+  @override
+  Future<PkMatch> judgeDare(String roomId, {required bool done}) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/dare/verdict',
+          data: {'done': done},
+        );
+        return PkMatch.fromJson(res.data!);
+      });
+
+  @override
+  Future<void> reportDare(String roomId, String dareId) =>
+      guardApiCall(() async {
+        await _dio.post<void>(
+          '${_room(roomId)}/dare/report',
+          data: {'dareId': dareId},
+        );
+      });
 }
 
 final livePkRepositoryProvider = Provider<LivePkRepository>(
