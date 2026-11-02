@@ -1468,6 +1468,10 @@ ins {
 .live-mode-tag + .live-badge.pk-badge {
   top: 40px;
 }
+/* D250: …and the card's ⋯ menu moves under both. */
+.live-card:has(.live-mode-tag + .live-badge.pk-badge) .card-menu {
+  top: 74px;
+}
 .viewers {
   position: absolute;
   bottom: 10px;

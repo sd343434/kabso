@@ -353,6 +353,19 @@ export enum AuditAction {
   ADMIN_LIVE_END = 'admin.live.end',
   /** A user's app sessions signed out by the team {sessions, reason}. */
   ADMIN_USER_SESSIONS_REVOKE = 'admin.user.sessions_revoke',
+  /**
+   * v1.60-live (D250, §10.91): live moderation from the panel — a staff member got a hidden observer's media token for
+   * a live {purpose PREVIEW | WATCH, identity, pk opponent room}; an action on a live {kind, reason, endsAt, endedLive,
+   * reportsClosed, devicesBanned, restrictionId}; the live's open reports closed with no action (DISMISS) {reason,
+   * reportsClosed}; a device ban created {reason, endsAt, sourceUserId, sessionsEnded} or lifted {reason}; a sign-up,
+   * sign-in or go-live refused on a banned device {stage}.
+   */
+  ADMIN_LIVE_WATCH = 'admin.live.watch',
+  ADMIN_LIVE_MODERATE = 'admin.live.moderate',
+  ADMIN_LIVE_REPORTS_DISMISS = 'admin.live.reports_dismiss',
+  DEVICE_BAN_CREATE = 'admin.device_ban.create',
+  DEVICE_BAN_LIFT = 'admin.device_ban.lift',
+  DEVICE_BAN_REFUSED = 'auth.device_banned',
   // v1.69-social (DRAFT, D204): recharge orders with escrow — each state change (before/after, the coins moved), an
   // admin's view of a disputed order and of its pictures, an admin's message «الإدارة», a dispute's decision, and an
   // exchange rate set or cleared (OWNER / FINANCE, panel or CLI).

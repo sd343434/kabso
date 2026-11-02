@@ -103,6 +103,12 @@ enum NotificationType {
   kycApproved('KYC_APPROVED'),
   kycDeclined('KYC_DECLINED'),
   kycInReview('KYC_IN_REVIEW'),
+
+  /// v1.60-live (D250, system; target LIVE_MODERATION): the team acted on
+  /// your live from the panel — ended it, possibly with a ban from going
+  /// live, a suspension or a device ban until a time (or for good) — with
+  /// the team's reason. No tap target.
+  liveModerated('LIVE_MODERATED'),
   unknown('');
 
   new(this.wire);
@@ -128,6 +134,7 @@ enum NotificationType {
       isAgency ||
       isHostApplication ||
       isKyc ||
+      this == liveModerated ||
       this == referralRewardReversed;
 
   /// v1.80-kyc (D227): the identity check's result.
@@ -174,7 +181,11 @@ enum NotificationTargetType {
 
   /// v1.70-social (D206): an agency (its id; `text` its name;
   /// `activatedHosts` / `requiredHosts`).
-  agency('AGENCY');
+  agency('AGENCY'),
+
+  /// v1.60-live (D250): the team's action on a live (its id; `moderation`,
+  /// `reason`, `endsAt` or `permanent`; `text` the reason's excerpt).
+  liveModeration('LIVE_MODERATION');
 
   new(this.wire);
 
@@ -203,6 +214,9 @@ class NotificationTarget {
     this.orderEvent,
     this.activatedHosts,
     this.requiredHosts,
+    this.moderation,
+    this.reason,
+    this.permanent = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -224,6 +238,9 @@ class NotificationTarget {
     orderEvent: json['orderEvent'] as String?,
     activatedHosts: (json['activatedHosts'] as num?)?.toInt(),
     requiredHosts: (json['requiredHosts'] as num?)?.toInt(),
+    moderation: json['moderation'] as String?,
+    reason: json['reason'] as String?,
+    permanent: json['permanent'] as bool? ?? false,
   );
 
   final NotificationTargetType type;
@@ -263,6 +280,13 @@ class NotificationTarget {
   /// hosts needed (the trial's reminder, pass and failure).
   final int? activatedHosts;
   final int? requiredHosts;
+
+  /// LIVE_MODERATION only (v1.60-live, D250): `END`, `NO_LIVE`, `SUSPEND` or
+  /// `DEVICE_BAN` (wire), the team's full [reason], and whether a device ban
+  /// is [permanent] (then no [endsAt]).
+  final String? moderation;
+  final String? reason;
+  final bool permanent;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread

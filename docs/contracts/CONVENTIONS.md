@@ -203,7 +203,7 @@ All non-2xx responses use one envelope:
 | 409 | `RECHARGE_ORDER_NOTICE_REQUIRED` | *(v1.69-social, DRAFT, D204)* «قمت بالإرسال» before the buyer acknowledged the protection notice. |
 | 409 | `RECHARGE_ORDER_DISPUTE_TOO_EARLY` | *(v1.69-social, DRAFT, D204)* The buyer opened a dispute before the wait after «قمت بالإرسال» (`RECHARGE_ORDER_DISPUTE_AFTER_MINUTES`, owner 15) ended. |
 | 403 | `ACCOUNT_LOCKED` | *(v1.72-social, DRAFT, D208)* `login` with the right password to an account the team locked for a while; `details: [{field: "lockedUntil", issue: <ISO 8601 time>}, {field: "reason", issue: <the team's reason>}]` (values, like `purgeAfter`). The wrong password still answers 401. §10.67. |
-| 403 | `ACCOUNT_RESTRICTED` | *(v1.72-social, DRAFT, D208)* The team switched the action off for the caller for a while (live chat, bullets, comments and direct messages: `CHAT_MUTE`; going live: `NO_LIVE`; live, direct and bag gifts: `NO_GIFTS`; posts, reels and stories: `NO_POSTING`); `details: [{field: "restriction", issue: <kind>}, {field: "until", issue: <ISO 8601 time>}]`. Nothing was stored or charged. §10.67. |
+| 403 | `ACCOUNT_RESTRICTED` | *(v1.72-social, DRAFT, D208)* The team switched the action off for the caller for a while (live chat, bullets, comments and direct messages: `CHAT_MUTE`; going live: `NO_LIVE`; live, direct and bag gifts: `NO_GIFTS`; posts, reels and stories: `NO_POSTING`); `details: [{field: "restriction", issue: <kind>}, {field: "until", issue: <ISO 8601 time>}]` — v1.60-live (D250) adds `{field: "reason", issue: <the team's reason>}`. Nothing was stored or charged. §10.67. |
 | 403 | `PASSWORD_CHANGE_REQUIRED` | *(v1.72-social, DRAFT, D208)* `login` with the right password while the team requires a new one (a temporary password, or «فرض تغيير كلمة المرور»); the same request with `newPassword` sets it and signs in. §10.67. |
 | 409 | `LIVE_QUESTIONS_CLOSED` | *(v1.47-live, DRAFT, D212)* A raised hand in a PODCAST whose host closed the hands (`questionsOpen` false). §10.69. |
 | 409 | `LIVE_NOT_STREAMER` | *(v1.56-live, DRAFT, D213)* `updateLiveStreamer` on a live that is not a STREAMER (the host's own room of another mode). §10.86. |
@@ -211,6 +211,7 @@ All non-2xx responses use one envelope:
 | 422 | `REFERRAL_CODE_INVALID` | *(v1.74-social, DRAFT, D217)* `applyReferralCode` with no such invite code, the caller's own, or a code whose owner cannot invite now (not ACTIVE). §10.71. |
 | 409 | `REFERRAL_NOT_ALLOWED` | *(v1.74-social, DRAFT, D217)* The caller may not enter a code now; `details: [{field: "referral", issue: "ALREADY_REFERRED" \| "WINDOW_CLOSED"}]` (one inviter per person, ever; within `applyWindowDays` of sign-up). §10.71. |
 | 409 | `DEVICE_ACCOUNT_LIMIT` | *(v1.78-social, DRAFT, D223)* `register` / `registerVerify`: this device (`DeviceInfo.deviceKey`) already created `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` accounts (deleted ones included; an OWNER exception may raise it); `details: [{field: "device", issue: "<the limit, decimal>"}]`. Signing in is never limited. §10.75. |
+| 403 | `DEVICE_BANNED` | *(v1.60-live, DRAFT, D250)* `register`, `registerVerify`, `login` (after the right password) and `startLiveRoom`: the team banned this device «حظر جهاز» (`DeviceInfo.deviceKey`, or the device the session signed in with) for every account; `details: [{field: "until", issue: <ISO 8601 time> \| "permanent"}, {field: "reason", issue: <the team's reason>}]`. §10.91.6. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -687,6 +688,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.60-live (draft) | 2026-11-02 | **D250 (owner, on the panel's «البث الآن»: «هنا يجب أن يعرض البث لايف … لايفات مبلّغ عنها وبجانبها نقطة حمراء … يغلق البث أو عمل حظر مؤقت أو حظر جهاز، ويضع في صندوق سبب ليصل إشعار للمضيف بالسبب»):** live moderation from the panel — tag `admin-panel`: `createAdminLiveWatchToken` (a hidden, subscribe-only observer `staff:<adminId>:<nonce>`, both rooms of a PK, never a viewer; audited), `listAdminLiveChat`, `getAdminLiveReportsSummary`, `listAdminLiveReports` (reporter, chat before), `listAdminLiveModerations`, `moderateAdminLive` (END / NO_LIVE / SUSPEND / DEVICE_BAN with a reason; DEVICE_BAN the code again), `dismissAdminLiveReports`, `listAdminDeviceBans`, `liftAdminDeviceBan`; `listAdminLives?reported=true` and `AdminLiveRow.openReports`; capabilities `lives.watch`, `lives.reports` (OWNER, MODERATION, SUPPORT — D250b), `lives.moderate`, `devices.ban` (OWNER, MODERATION); `DeviceInfo.deviceKey` also read by `login` (`sessions.device_hash`); 403 `DEVICE_BANNED` on `register`, `registerVerify`, `login`, `startLiveRoom`; `ACCOUNT_RESTRICTED` gains `{field: reason}`; notification type `LIVE_MODERATED` with target `LIVE_MODERATION` (`moderation`, `reason`, `endsAt` / `permanent`, `roomId`), pushed with the reason; audit `admin.live.watch`, `admin.live.moderate`, `admin.live.reports_dismiss`, `admin.device_ban.create\|lift`, `auth.device_banned`; migration `20270304090000_live_moderation` (`live_moderation_actions`, `device_bans`, `sessions.device_hash`, `notifications.live_moderation_id`). The app: «الإبلاغ عن البث» (a `LIVE_ROOM` report with a reason and an optional note) in the live's ≡ menu; `login` sends the device key; the messages of `DEVICE_BANNED` and the restriction's reason; the `LIVE_MODERATED` row. Admin CSP: the media server's `wss:` / `https:` origins (`KABSO_ADMIN_MEDIA_ORIGINS`). §4, §10.91. | **Additive** (new operations, an optional query, a new response field, a new code only for banned devices, a new detail, a new notification type older clients ignore; `login` storing the device is invisible to clients). |
 | v1.59-live (draft) | 2026-11-02 | **D248 (owner: «اجعل التصميم مشابه للبيجو لايف بحيث بعد أول بثين هناك بنر متحرك، وفي الأسفل قليلاً بنر بحجم اللايف»):** the live hub's banners (§10.90). `listHomeBanners` takes `placement=hub_card` (the card-size banner, 720 × 805, signed-in only) and answers `cell` for it (`HomeBannerList.cell`, server config `HOME_HUB_CARD_CELL`, default 4); banner placement `HUB_CARD` (CHECK `home_banners_placement_values`, migration `20270303090000_banner_hub_card`); new `uploadAdminBannerPicture` (`POST /admin/banner-uploads?placement=`, raw bytes) and `createAdminBanner` (`POST /admin/banners`, reason; audit `banner.add` via panel), capability `catalog.manage`; `AdminBannerList` items named `AdminBanner`. No new error code. The app moves the 3:1 carousel to after the first row and puts the card-size banner in one grid cell. | Additive. |
 | v1.58-live (draft) | 2026-11-02 | **D246 (owner, the party page's cards):** `LiveRoomSummary.roomLevel` (the host's charm level, CP-016 D; before only on `LiveRoom`), `LiveRoomSummary.popular` («رائج»: among the first `LIVE_POPULAR_TOP_N` (10) lives of its kind in the `popular` order), `LiveRoomSummary.hostCountry` (the host's profile country; absent when none). Config `LIVE_POPULAR_TOP_N`. §10.18, §10.89. | **Additive**: older apps ignore the fields; `LiveRoom.roomLevel` is unchanged (now inherited from the summary). |
 | v1.57-live (draft) | 2026-11-02 | **D247 («استوديو البث»: a streamer goes live from a laptop browser at studio.<domain>, with OBS Virtual Camera from day one; owner: phase 1 is a browser studio, no new server service — no LiveKit Ingress, RTMP or WHIP):** `StreamerMain` (`SCREEN` \| `CAMERA`) as `LiveStreamer.main` (required in responses), `StreamerSetup.main` (default `SCREEN`) and `UpdateLiveStreamerRequest.main` (a change moves `version`, the `streamer` message and `streamerVersion` as the other keys). Migration `20270302090000_streamer_main` (column `live_rooms.streamer_main`, existing STREAMER rows → `SCREEN`; CHECK `live_rooms_streamer_fields` re-created with IS NOT NULL on every STREAMER field). The studio is a client of the existing operations (user login and refresh, `getMe`, `getLiveConfig`, `getPublicProfile`, `startLiveRoom`, `createLiveMediaToken`, `heartbeatLiveRoom`, `updateLiveStreamer`, chat, the gift catalogue, `endLiveRoom`). §10.88. | Additive. An app without D247 shows a `CAMERA` streamer as «بانتظار شاشة المضيف…» (it waits for a screen track; the studio sends no bubble then); an app before D213 shows the camera as a solo live. Nothing released reads `main` yet: ship the app viewer with this API. |
@@ -4268,6 +4270,10 @@ New capabilities (added to the §10.54.1 table; the session's `capabilities` lis
 | `referrals.settings` *(D217; the code again)* | ✓ | | | ✓ |
 | `users.device_view` *(v1.78-social, D223: the accounts made on a user's sign-up device; audited)* | ✓ | | ✓ | |
 | `users.device_exception` *(D223: a device's exception to the accounts-per-device limit; the code again)* | ✓ | | | |
+| `lives.watch` *(v1.60-live, D250: watch a live as a hidden observer — previews and the watch view; audited; SUPPORT: owner answer D250b)* | ✓ | ✓ | ✓ | |
+| `lives.reports` *(D250: the reported lives, their counts, a live's reports with the reporter, its moderation history; SUPPORT: D250b)* | ✓ | ✓ | ✓ | |
+| `lives.moderate` *(D250: end a live, ban from going live / suspend for a while, dismiss its reports — a reason)* | ✓ | ✓ | | |
+| `devices.ban` *(D250: ban the host's devices — the code again —, the device-ban list, lift a ban)* | ✓ | ✓ | | |
 
 - **Statistics** (`dashboard.view`, read-only): `getAdminStatsOverview` — five KPI cards (new users; coins sold =
   recharge agents' sales + card orders credited; gift coin value; lives on air now with the lives started per day;
@@ -5851,6 +5857,116 @@ Owner (2026-11-02): «اجعل التصميم مشابه للبيجو لايف �
   previews the picture cropped to the placement's shape. `banner-admin add --placement hub_card` does the same from the
   CLI (`--media` with a 3:1 upload is refused).
 - Migration `20270303090000_banner_hub_card` (the CHECK only). DEPLOYMENT §5.49.
+
+### 10.91 «مراقبة البث» — live moderation from the panel *(v1.60-live, DRAFT — D250)*
+
+Owner (2026-11-02, a screenshot of the panel's «البث الآن» showing only cover images): «هنا يجب أن يعرض البث لايف، بحيث
+يمكن أن يكون موظف يراقب اللايفات من خلال اللوحة، وفي حال شخص قام بالإبلاغ عن لايف يظهر في خانة لايفات مبلّغ عنها وبجانبها
+نقطة حمراء، ويراقب البث، وفي حال وجود أي مخالفة يمكن أن يغلق البث أو عمل حظر مؤقت أو حظر جهاز، ويضع في صندوق سبب ليصل
+إشعار للمضيف بالسبب». Built on D197 (END LIVE with a reason), D208 (locks and restrictions), D223 (the device key), the
+CP-010 `LIVE_ROOM` reports, the notifications and push (§11.10, §11.12) and the panel's session, capabilities, TOTP and
+audit (§10.54, §10.60).
+
+#### 10.91.1 Watching: the hidden observer
+
+- `createAdminLiveWatchToken` (`lives.watch`: OWNER, MODERATION, SUPPORT — owner answer D250b) issues a LiveKit token for the live's media room with
+  identity **`staff:<adminId>:<nonce>`** (a 12-hex nonce, so a card preview and the watch view of the same admin never
+  replace each other), `canSubscribe` only — no publishing, no data — and **`hidden`**, so neither the host nor the viewers
+  see it in their participant list. TTL **120 s** to join (a joined session is renewed by the media server). `purpose`
+  `PREVIEW` (a card's muted preview: this room) or `WATCH` (the watch view: also the other room of an open PK as
+  `opponent`, the same identity). Only for a LIVE room (409 `LIVE_ROOM_ENDED`). Every token is audited
+  `admin.live.watch` {purpose, identity, hostUserId, opponentRoomId} — who watched which live and when.
+- **Never a viewer:** the media webhook and the reconciliation return early for a `staff:` identity — no
+  `live_room_viewers` row, no `viewer_count`, no audience visit, no «joined» chat line; it is removed only when the room is
+  no longer LIVE. Its `participant_left` changes nothing.
+- The watch view's chat is `listAdminLiveChat` (`lives.watch`): the last 50 lines, oldest first, deleted ones marked;
+  `after` for polling. Read-only: staff never write to a live.
+- The panel (`apps/admin`, `livekit-client` 2.22.4 — the version of `apps/studio`): «البث الآن» cards play a **muted
+  live preview** (the lowest video layer, adaptive stream, no audio subscribed) only while the card is on screen, **at
+  most 6 at once** (the rest show the cover with a play button; leaving the screen disconnects); clicking opens the
+  watch view: the large video with audio and every published track (a PK's two sides, an audio / podcast / multi live's
+  seat videos and voices, a streamer's screen and camera), the chat, the room's facts (host, viewers, started, mode, PK
+  opponent), its reports and the actions.
+
+#### 10.91.2 Reported lives «لايفات مبلّغ عنها»
+
+- A live's reports are its room's (`LIVE_ROOM`) and its host's as a user made **since the live started** (older apps
+  report the host from the ≡ menu). A report is **open** until a moderator resolves it — an action on the live (§10.91.4,
+  ACTIONED) or «تمت المراجعة — لا مخالفة» (DISMISSED). Reports themselves are §11.7's: one open report per reporter and
+  target (a repeat returns it, 200), the reasons SPAM, NUDITY, VIOLENCE, HATE, HARASSMENT, ILLEGAL, OTHER, an optional
+  note (≤ 500), the per-user limit `reportUser`.
+- `getAdminLiveReportsSummary` (`lives.reports`) {rooms, reports}: the reported lives on air and their open reports — the
+  red dot and count on the «لايفات مبلّغ عنها» chip and the red dot on the sidebar's «البث الآن» (polled every 15 s).
+  `listAdminLives?reported=true` lists only them; every `AdminLiveRow` has `openReports`.
+- `listAdminLiveReports` (`lives.reports`): newest first, at most 50, with the **reporter** (staff only), reason, note,
+  status and time, and `chatBefore` — the last 5 chat lines at the report's time (no snapshot table: the chat is kept).
+  `listAdminLiveModerations`: what the team did on the live.
+
+- **Owner answers (D250b, 2026-11-02):** SUPPORT may watch and read the reported lives (`lives.watch`, `lives.reports`)
+  but takes no action — no `lives.moderate`, no `devices.ban`; the panel shows SUPPORT no action buttons. Kept as built:
+  the push shows the reason; a permanent device ban is OWNER + MODERATION; «تعليق الحساب» needs no code.
+
+#### 10.91.3 The app's «الإبلاغ عن البث»
+
+The live's ≡ menu (viewers, not the host) gains «الإبلاغ عن البث»: the report reasons, then an optional note, then
+`createReport` `{targetType: LIVE_ROOM, targetId: <roomId>, reason, note?}`. «الإبلاغ عن المضيف» (a USER report) stays.
+
+#### 10.91.4 Actions (`moderateAdminLive`, `dismissAdminLiveReports`)
+
+Every action needs a **reason** (1–500, «يظهر للمضيف») and is refused on the admin's own live (409) and, for a host who
+is a panel team member, unless the admin is an OWNER (403) — D208's rule.
+
+| `action` | What it does | Duration | Code again |
+|---|---|---|---|
+| `END` «إغلاق البث» | ends the live (end reason ADMIN, D197's rule); 409 when not on air | — | no |
+| `NO_LIVE` «منع من البث» | ends the live; D208's NO_LIVE restriction: `startLiveRoom` → 403 `ACCOUNT_RESTRICTED` with the end and the reason | `hours` (panel: 1 h, 24 h, 3 d, 7 d, 30 d) or `until` («مخصّص»), ≤ 365 d | no (as D208's restrictions) |
+| `SUSPEND` «تعليق الحساب» | ends the live; D208's LOCK: every session ends, `login` → 403 `ACCOUNT_LOCKED` with the end and the reason | as NO_LIVE | no (as D208's lock) |
+| `DEVICE_BAN` «حظر جهاز» | ends the live; bans every device seen for the host (§10.91.6) | `hours` / `until`, or `permanent` | **yes** (`devices.ban` too) |
+
+- The bans **end by themselves**: "active" is read with the clock on every check (D208's rule), so nothing has to run
+  at the end; the panel shows them expired. They can be lifted early: a restriction from the user page (D208), a device
+  ban from the device-ban list.
+- Each action ends the host's live when on air (a ban also frees the host's seats elsewhere), closes the live's open reports as
+  **ACTIONED** with the reason as their note, writes `live_moderation_actions` and **one** `LIVE_MODERATED` notification
+  to the host (the D208 restriction is created without its own `ACCOUNT_RESTRICTED` notification), and is audited
+  `admin.live.moderate` {kind, reason, endsAt, endedLive, reportsClosed, devicesBanned, sessionsEnded, restrictionId,
+  before, after, via: panel}. The media session closes after the commit.
+- `dismissAdminLiveReports` (`lives.moderate`): the open reports become **DISMISSED** with the reason; the host is not
+  told; 409 when none is open; audited `admin.live.reports_dismiss`.
+
+#### 10.91.5 The host is told
+
+`LIVE_MODERATED` (system) with target **`LIVE_MODERATION`**: `moderation` (END, NO_LIVE, SUSPEND, DEVICE_BAN), `reason`
+(full; `text` its 80-character excerpt), `endsAt` (absent for END; absent with `permanent: true` for a permanent device
+ban) and `roomId`. The push (the general channel, the account's language) carries the reason: «أنهى فريق Kabso بثك.
+السبب: …» / «The Kabso team ended your live. Reason: …» (the reason clipped to 80). A suspension or a device ban ends the
+host's sessions and drops their push tokens, so that push may not arrive — the sign-in screen then shows the end and the
+reason (`ACCOUNT_LOCKED`, `DEVICE_BANNED`), and the inbox row is there after signing in.
+
+#### 10.91.6 Device bans
+
+- The device is D223's `DeviceInfo.deviceKey` (the app's salted SHA-256 of Android `ANDROID_ID` / the iOS Keychain id),
+  kept only as its HMAC (D223's key). **`login` now reads it too** and the session keeps it (`sessions.device_hash`); the
+  devices "seen for an account" are its sign-up device (`device_signups`) and its sessions' devices (at most 20, newest
+  first). The install id (D217) is not used: a reinstall changes it while `ANDROID_ID` survives, so it adds nothing.
+- A ban (`device_bans`: hash, reason, the account it came from, the action, the creator, `ends_at` NULL = permanent,
+  lifted by / why) replaces an open ban of the same device; it **ends every session of the device for every account**
+  (revoked `ADMIN_DEVICE_BANNED`, push tokens deleted), and while active refuses, for every account: `register` (before
+  anything else; no code mailed), `registerVerify` (the pending sign-up is deleted), `login` (after the right password)
+  and `startLiveRoom` (the session's device) — 403 **`DEVICE_BANNED`** `[{until: ISO | permanent}, {reason}]`; audited
+  `admin.device_ban.create` and, refused, `auth.device_banned` {stage: register | verify | live} / `auth.login.failure`
+  {reason: device_banned}.
+- `listAdminDeviceBans` / `liftAdminDeviceBan` (`devices.ban`: OWNER, MODERATION; a reason; audited
+  `admin.device_ban.lift`): the list names the device by its account — the hash is never shown.
+- **Honest limits** (KNOWN_LIMITATIONS): a factory reset (Android) or deleting the app with its Keychain item (iOS) gives a
+  new id; a rooted / jailbroken phone can send any key; the website and apps older than this version send no key, so
+  nothing is checked for them (their sign-in and going live are not refused); a ban is per device, not per person.
+
+#### 10.91.7 Deployment
+
+The admin's CSP (Caddy) gains `connect-src` for the media server — `wss://live.<domain> https://live.<domain>` and
+`KABSO_ADMIN_MEDIA_ORIGINS` when `LIVEKIT_URL` is elsewhere (as D247's studio) — and `media-src 'self' blob:` for the
+video elements; nothing else changes (DEPLOYMENT §5.50).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

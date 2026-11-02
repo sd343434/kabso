@@ -47,6 +47,11 @@ export type Capability =
   | 'referrals.settings'
   | 'pk_dares.view'
   | 'pk_dares.edit'
+  // v1.60-live (D250): live moderation «مراقبة البث».
+  | 'lives.watch'
+  | 'lives.reports'
+  | 'lives.moderate'
+  | 'devices.ban'
   | 'lives.view'
   | 'lives.manage'
   | 'catalog.view'

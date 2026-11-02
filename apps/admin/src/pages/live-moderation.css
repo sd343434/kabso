@@ -1,0 +1,405 @@
+/* v1.60-live (D250, CONVENTIONS §10.91): «مراقبة البث» — live previews on the cards, the reported lives, the watch view,
+   the action dialogs. Logical properties only (RTL / LTR), the D197 tokens (light / dark). */
+
+/* ---- the card: a button for opening, a ⋯ menu beside it ------------------------------------------------------ */
+article.live-card {
+  position: relative;
+  display: block;
+  cursor: default;
+}
+.live-card .card-open {
+  display: grid;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  font: inherit;
+}
+.live-card[data-reported='true'] {
+  outline: 2px solid color-mix(in srgb, var(--red-500) 70%, transparent);
+  outline-offset: -2px;
+}
+.thumb-wrap {
+  position: relative;
+  display: block;
+}
+.thumb video.live-preview-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.thumb video.live-preview-video.on {
+  opacity: 1;
+}
+.preview-note {
+  position: absolute;
+  inset-inline: 10px;
+  bottom: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+.play-btn {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+.play-btn:hover,
+.play-btn:focus-visible {
+  background: var(--red-500);
+  outline: none;
+}
+.play-btn .icon {
+  fill: currentColor;
+  margin-inline-start: 3px;
+}
+:root[dir='rtl'] .play-btn .icon {
+  margin-inline-start: 0;
+  margin-inline-end: 3px;
+}
+.report-badge {
+  position: absolute;
+  bottom: 10px;
+  inset-inline-start: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: var(--red-600);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.red-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red-500) 25%, transparent);
+  flex: none;
+}
+.card-menu {
+  position: absolute;
+  top: 44px;
+  inset-inline-end: 8px;
+  z-index: 3;
+}
+.card-menu > .icon-btn {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 50%;
+}
+.card-menu .menu {
+  top: calc(100% + 6px);
+  min-width: 200px;
+}
+
+/* ---- the reported tab and the sidebar dot --------------------------------------------------------------------- */
+.tab.reported-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab.reported-tab[aria-pressed='true'] .red-dot {
+  background: #fff;
+  box-shadow: none;
+}
+.count-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--red-500);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.tab.reported-tab[aria-pressed='true'] .count-pill {
+  background: #fff;
+  color: var(--red-600);
+}
+.nav-dot {
+  margin-inline-start: auto;
+  display: inline-flex;
+}
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: 8px;
+  color: var(--red-600);
+  font-size: 13px;
+  font-weight: 700;
+}
+:root[data-theme='dark'] .count-badge {
+  color: var(--red-400);
+}
+.count-badge.big {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--red-500) 12%, transparent);
+}
+
+/* ---- the watch view ----------------------------------------------------------------------------------------- */
+.watch .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+:root[dir='rtl'] .watch .back .icon {
+  transform: none;
+}
+:root[dir='ltr'] .watch .back .icon {
+  transform: scaleX(-1);
+}
+.watch-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+.watch-stage {
+  display: grid;
+  gap: 12px;
+}
+.watch-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #0b0b0d;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr;
+  box-shadow: var(--shadow);
+}
+.watch-video.pk {
+  grid-template-columns: 1fr 1fr;
+}
+.watch-side {
+  position: relative;
+  display: grid;
+  grid-auto-rows: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 2px;
+  min-height: 0;
+}
+.watch-video.pk .watch-side + .watch-side {
+  border-inline-start: 2px solid var(--red-500);
+}
+.side-label {
+  position: absolute;
+  top: 44px;
+  inset-inline-start: 10px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.watch-tile {
+  position: relative;
+  margin: 0;
+  min-height: 0;
+  background: #000;
+}
+.watch-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.watch-tile figcaption {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-start: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.watch-empty {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.82);
+  padding: 24px;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+.watch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.watch-aside {
+  display: grid;
+  gap: 14px;
+}
+.watch-aside .card h3,
+.watch-stage .card h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+}
+.watch-chat .chat-lines {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.chat-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.chat-lines li {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.chat-lines li time {
+  display: block;
+}
+.chat-lines li.deleted > span[dir] {
+  text-decoration: line-through;
+  color: var(--text-3);
+}
+.chat-lines .who {
+  font-weight: 600;
+  color: var(--red-600);
+}
+:root[data-theme='dark'] .chat-lines .who {
+  color: var(--red-400);
+}
+.report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.report-list > li {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+.report-list > li[data-status='OPEN'] {
+  border-color: color-mix(in srgb, var(--red-500) 55%, var(--border));
+}
+.report-list p {
+  margin: 0;
+}
+.report-list .note {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- the action dialogs --------------------------------------------------------------------------------------- */
+.mod-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.mod-form legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding: 0;
+}
+.choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.choice.on {
+  border-color: var(--red-500);
+  background: color-mix(in srgb, var(--red-500) 7%, transparent);
+}
+.choice > span {
+  display: grid;
+  gap: 2px;
+}
+.chip {
+  border: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.chip[aria-pressed='true'] {
+  background: var(--red-500);
+  border-color: var(--red-500);
+  color: #fff;
+  font-weight: 600;
+}
+.inline-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+.inline-field input {
+  flex: 1;
+}
+
+@media (max-width: 1100px) {
+  .watch-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .watch-video.pk {
+    grid-template-columns: 1fr;
+    aspect-ratio: 9 / 16;
+  }
+  .watch-video.pk .watch-side + .watch-side {
+    border-inline-start: 0;
+    border-top: 2px solid var(--red-500);
+  }
+}

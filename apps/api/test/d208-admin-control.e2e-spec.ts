@@ -378,9 +378,11 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
     const muted = await comment();
     expect(muted.status).toBe(403);
     expect(muted.body.error.code).toBe('ACCOUNT_RESTRICTED');
+    // v1.60-live (D250): the team's reason is the third detail (additive).
     expect(muted.body.error.details).toEqual([
       { field: 'restriction', issue: 'CHAT_MUTE' },
       { field: 'until', issue: mute.body.restriction.endsAt },
+      { field: 'reason', issue: 'Insults in comments' },
     ]);
     const dm = await ctx.http
       .post('/api/v1/dm/messages')

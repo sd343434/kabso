@@ -126,6 +126,8 @@ export async function assertNotRestricted(
   throw new AppException(ErrorCode.ACCOUNT_RESTRICTED, undefined, [
     { field: 'restriction', issue: kind },
     { field: 'until', issue: row.endsAt.toISOString() },
+    // v1.60-live (D250): the team's reason, so the person sees why (additive).
+    { field: 'reason', issue: row.reason },
   ]);
 }
 
@@ -167,6 +169,8 @@ export async function restrictIn(
   reason: string,
   by: AdminVia,
   now: Date = new Date(),
+  /** v1.60-live (D250): false when the caller tells the person itself (one LIVE_MODERATED notification). */
+  options: { notify?: boolean } = {},
 ): Promise<{ restriction: RestrictionView; replaced: RestrictionView | null; sessions: number }> {
   const user = await lockUserRow(tx, userId);
   if (!user || user.status === 'DELETED') throw new AccountControlError('not_found', 'No such account.');
@@ -193,15 +197,17 @@ export async function restrictIn(
     },
   });
   const sessions = kind === 'LOCK' ? await endSessionsIn(tx, userId, LOCK_REVOKED_REASON, now) : 0;
-  await tx.notification.create({
-    data: {
-      recipientId: userId,
-      type: 'ACCOUNT_RESTRICTED',
-      accountRestrictionId: restriction.id,
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
+  if (options.notify !== false) {
+    await tx.notification.create({
+      data: {
+        recipientId: userId,
+        type: 'ACCOUNT_RESTRICTED',
+        accountRestrictionId: restriction.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
   await tx.auditLog.create({
     data: {
       ...auditBy(by),

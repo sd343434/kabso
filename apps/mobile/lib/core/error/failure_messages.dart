@@ -95,6 +95,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.referralCodeInvalid => l10n.errorReferralCodeInvalid,
     ErrorCode.referralNotAllowed => l10n.errorReferralNotAllowed,
     ErrorCode.deviceAccountLimit => l10n.errorDeviceAccountLimit,
+    ErrorCode.deviceBanned => l10n.errorDeviceBanned,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>
@@ -190,7 +191,8 @@ String _when(DateTime at, String locale) =>
 String? _detail(ServerFailure f, String field) =>
     f.details.where((d) => d.field == field).map((d) => d.issue).firstOrNull;
 
-/// «حسابك مقفل حتى …. السبب: …» / «… موقوف لحسابك حتى …» (D208), or null.
+/// «حسابك مقفل حتى …. السبب: …» / «… موقوف لحسابك حتى …» (D208), «تم حظر
+/// هذا الجهاز …» (D250), or null.
 String? _accountControlMessage(AppLocalizations l10n, ServerFailure f) {
   if (f.code == ErrorCode.accountLocked) {
     final until = DateTime.tryParse(_detail(f, 'lockedUntil') ?? '');
@@ -211,10 +213,32 @@ String? _accountControlMessage(AppLocalizations l10n, ServerFailure f) {
       _ => null,
     };
     if (until == null || what == null) return null;
+    // v1.60-live (D250): the team's reason, when the server sends it.
+    final reason = _detail(f, 'reason')?.trim();
+    if (reason != null && reason.isNotEmpty) {
+      return l10n.errorAccountRestrictedUntilReason(
+        what,
+        _when(until, l10n.localeName),
+        KFormat.bidiIsolate(reason),
+      );
+    }
     return l10n.errorAccountRestrictedUntil(
       what,
       _when(until, l10n.localeName),
     );
+  }
+  // v1.60-live (D250, §10.91.6): a device the team banned, with the end (or
+  // for good) and the reason.
+  if (f.code == ErrorCode.deviceBanned) {
+    final reasonText = _detail(f, 'reason')?.trim();
+    final reason = reasonText == null || reasonText.isEmpty
+        ? '—'
+        : KFormat.bidiIsolate(reasonText);
+    final until = _detail(f, 'until');
+    if (until == 'permanent') return l10n.errorDeviceBannedPermanent(reason);
+    final at = DateTime.tryParse(until ?? '');
+    if (at == null) return null;
+    return l10n.errorDeviceBannedUntil(_when(at, l10n.localeName), reason);
   }
   return null;
 }

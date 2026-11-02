@@ -22983,6 +22983,106 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{seconds} ث'**
   String pkRematchSeconds(String seconds);
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن البث'**
+  String get liveToolReportLive;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذا البث؟'**
+  String get liveReportTitle;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة (اختياري)'**
+  String get liveReportNoteLabel;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'صف ما حدث في البث'**
+  String get liveReportNoteHint;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال البلاغ'**
+  String get liveReportSend;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصل بلاغك، سيراجع فريق Kabso البث.'**
+  String get liveReportSent;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حظر هذا الجهاز من فريق Kabso.'**
+  String get errorDeviceBanned;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حظر هذا الجهاز من فريق Kabso حتى {date}. السبب: {reason}'**
+  String errorDeviceBannedUntil(String date, String reason);
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حظر هذا الجهاز من فريق Kabso نهائياً. السبب: {reason}'**
+  String errorDeviceBannedPermanent(String reason);
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'{what} موقوف لحسابك حتى {date}. السبب: {reason}'**
+  String errorAccountRestrictedUntilReason(
+    String what,
+    String date,
+    String reason,
+  );
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى فريق Kabso بثك.'**
+  String get notifLiveModeratedEnd;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى فريق Kabso بثك ومنعك من البث حتى {date}.'**
+  String notifLiveModeratedNoLive(String date);
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى فريق Kabso بثك وعلّق حسابك حتى {date}.'**
+  String notifLiveModeratedSuspend(String date);
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى فريق Kabso بثك وحظر جهازك حتى {date}.'**
+  String notifLiveModeratedDevice(String date);
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى فريق Kabso بثك وحظر جهازك نهائياً.'**
+  String get notifLiveModeratedDevicePermanent;
+
+  /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب: {reason}'**
+  String notifLiveModeratedReason(String reason);
 }
 
 class _AppLocalizationsDelegate

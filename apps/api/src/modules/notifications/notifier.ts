@@ -62,6 +62,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'KYC_APPROVED',
   'KYC_DECLINED',
   'KYC_IN_REVIEW',
+  // v1.60-live (D250): the team acted on the person's live from the panel (target the action, with the reason).
+  'LIVE_MODERATED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */

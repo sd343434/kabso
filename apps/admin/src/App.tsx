@@ -8,6 +8,8 @@ import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
 import { LiveBoostPrices } from './pages/LiveBoostPrices';
 import { Hosts, Lives } from './pages/Lives';
+import { DeviceBans } from './pages/LiveModeration';
+import { LiveWatch } from './pages/LiveWatch';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { PkDares } from './pages/PkDares';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
@@ -187,6 +189,13 @@ export function App() {
           break;
         case 'lives':
           page = <Lives />;
+          break;
+        // v1.60-live (D250): the watch view and the device bans.
+        case 'liveWatch':
+          page = <LiveWatch id={match.params.id!} />;
+          break;
+        case 'deviceBans':
+          page = <DeviceBans />;
           break;
         case 'hosts':
           page = <Hosts />;

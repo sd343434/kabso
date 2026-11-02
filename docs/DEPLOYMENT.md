@@ -2529,6 +2529,32 @@ CLI's `--image`, §5.10 / §5.40); without it 503.
 3. اختر الصورة وتأكد من «معاينة القص»، ثم اكتب الرابط (مثل ‎/families‎) والسبب واضغط «إضافة بانر».
 4. لتغيير الخانة التي يظهر فيها بانر البطاقة: `HOME_HUB_CARD_CELL` في إعدادات الخادم (4 = أول خانة في الصف الثالث).
 
+### 5.50 Live moderation from the panel «مراقبة البث» (migration `20270304090000_live_moderation`; D250) — [IMPLEMENTED, draft contract v1.60-live; not deployed, not device-tested]
+
+CONVENTIONS §10.91. Additive: the enum `live_moderation_kind`, the tables `live_moderation_actions` (what the team did on
+a live: the host's notification target) and `device_bans` (HMACs of D223's device keys; the panel never shows them),
+the nullable `sessions.device_hash` (+ a partial index) and `notifications.live_moderation_id`, the notification type
+`LIVE_MODERATED`. DML for the runtime role from the default privileges (no GRANT); no backfill (sessions created before
+this have no device and are never matched by a device ban). Checked on a fresh database (`prisma migrate deploy`, then
+`prisma migrate diff` shows no drift on the touched tables).
+
+- **Admin CSP (Caddy, `admin.<domain>`).** Watching a live loads `livekit-client` (its own lazy chunk) and talks to the
+  media server: `connect-src` now allows `wss://live.<domain>` and `https://live.<domain>`, and `media-src 'self'
+  blob:` the video elements. When `LIVEKIT_URL` is elsewhere (LiveKit Cloud), add its origins to `/etc/kabso/kabso.env`:
+  `KABSO_ADMIN_MEDIA_ORIGINS='wss://<project>.livekit.cloud https://<project>.livekit.cloud'` (unset = nothing extra;
+  as `KABSO_STUDIO_MEDIA_ORIGINS` for D247). Then `docker compose up -d caddy` (Caddy reads the env at start).
+- **LiveKit.** No server setting: the staff observer is an ordinary token with `hidden: true`, subscribe only. The
+  API's webhook and reconciliation never count a `staff:` identity. Watching costs one subscriber's bandwidth per
+  staff member per live (the cards' previews ask for the lowest layer, at most 6 at once).
+- **The app.** Sign-in now sends `device.deviceKey` (D223's key) — **ship the API before the app** (an older API reads
+  it only at sign-up, so it is harmless, but the device ban only works with this API). Without the new app, sessions
+  have no device: a device ban then blocks sign-up only (D223's sign-up path already sends the key) and ends the
+  sessions it can see.
+- **Who can.** `lives.watch`, `lives.reports`: OWNER, MODERATION and SUPPORT (owner answer D250b: SUPPORT watches and reads, no action); `lives.moderate`, `devices.ban`: OWNER and MODERATION. A device ban asks
+  for the authenticator code again; bans and suspensions end by themselves (nothing to schedule).
+- Not verified on a server or a phone (the CSP in a real browser against the production LiveKit, the push with the
+  reason on a device, a device ban against a real ANDROID_ID).
+
 ### 5.51 The party page's room cards: «رائج» per kind (no migration; D246) — [IMPLEMENTED, draft contract v1.58-live; not deployed, not device-tested]
 
 CONVENTIONS §10.89. (Numbered §5.48 on its branch; renumbered §5.51 at integration `claude/kl-int12` because D247's studio is §5.48, D248 §5.49 and D250 §5.50.) No migration and no new table: `LiveRoomSummary.roomLevel`,
@@ -2539,4 +2565,3 @@ CONVENTIONS §10.89. (Numbered §5.48 on its branch; renumbered §5.51 at integr
 | `LIVE_POPULAR_TOP_N` | 10 | D246 «رائج»: a live is popular while among this many first lives of its kind (audio, podcast, multi, video) in the `popular` order (1–100) |
 
 Order: API first, then the app (an older server sends none of the fields: the cards show no level, no «رائج», no flag).
-

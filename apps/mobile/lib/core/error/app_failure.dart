@@ -257,6 +257,11 @@ enum ErrorCode {
   /// in is still possible.
   deviceAccountLimit('DEVICE_ACCOUNT_LIMIT'),
 
+  /// v1.60-live (D250, §10.91.6, 403): the team banned this device «حظر جهاز»
+  /// — sign-up, sign-in and going live from it are refused for every account
+  /// (`details` `until` — an ISO time or `permanent` — and `reason`).
+  deviceBanned('DEVICE_BANNED'),
+
   /// v1.52-social (D179, §10.46, 409): the cherry balance does not cover
   /// the withdrawal.
   insufficientCherries('INSUFFICIENT_CHERRIES'),

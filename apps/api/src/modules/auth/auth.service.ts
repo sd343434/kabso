@@ -8,6 +8,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-sender.js';
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
+import { activeDeviceBanOf, deviceBannedError } from './device-bans.js';
 import { activeRestrictionOf } from '../users/account-control.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
 import { AccessTokenService } from './access-token.service.js';
@@ -149,6 +150,21 @@ export class AuthService {
         { field: 'lockedUntil', issue: lock.endsAt.toISOString() },
         { field: 'reason', issue: lock.reason },
       ]);
+    }
+    // v1.60-live (D250, §10.91): a device the team banned «حظر جهاز» — refused for every account, told only after the
+    // right password (like a lock), with the end and the team's reason.
+    const deviceBan = await activeDeviceBanOf(this.prisma, [
+      this.sessions.deviceHashOf(input.device?.deviceKey),
+    ]);
+    if (deviceBan) {
+      await this.audit.record({
+        action: AuditAction.LOGIN_FAILURE,
+        actorUserId: candidate.id,
+        metadata: { identifierType, reason: 'device_banned', deviceBanId: deviceBan.id },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      throw deviceBannedError(deviceBan);
     }
     // v1.72-social (D208): the team requires a new password (a temporary one, or «فرض تغيير كلمة المرور»).
     let changedPassword = false;

@@ -80,6 +80,13 @@ class FakeSafetyRepository implements SafetyRepository {
       _step('reportUser:$userId:${reason.wire}');
 
   @override
+  Future<void> reportLive(
+    String roomId,
+    ReportReason reason, {
+    String? note,
+  }) async => _step('reportLive:$roomId:${reason.wire}:${note ?? ''}');
+
+  @override
   Future<void> reportProfileLink(String linkId, ReportReason reason) async =>
       _step('reportLink:$linkId:${reason.wire}');
 

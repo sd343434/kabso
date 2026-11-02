@@ -13547,4 +13547,72 @@ class AppLocalizationsEn extends AppLocalizations {
   String pkRematchSeconds(String seconds) {
     return '$seconds s';
   }
+
+  @override
+  String get liveToolReportLive => 'Report live';
+
+  @override
+  String get liveReportTitle => 'Why are you reporting this live?';
+
+  @override
+  String get liveReportNoteLabel => 'Note (optional)';
+
+  @override
+  String get liveReportNoteHint => 'Describe what happened in the live';
+
+  @override
+  String get liveReportSend => 'Send report';
+
+  @override
+  String get liveReportSent =>
+      'Report sent. The Kabso team will review the live.';
+
+  @override
+  String get errorDeviceBanned => 'This device is banned by the Kabso team.';
+
+  @override
+  String errorDeviceBannedUntil(String date, String reason) {
+    return 'This device is banned by the Kabso team until $date. Reason: $reason';
+  }
+
+  @override
+  String errorDeviceBannedPermanent(String reason) {
+    return 'This device is banned by the Kabso team permanently. Reason: $reason';
+  }
+
+  @override
+  String errorAccountRestrictedUntilReason(
+    String what,
+    String date,
+    String reason,
+  ) {
+    return '$what is switched off for your account until $date. Reason: $reason';
+  }
+
+  @override
+  String get notifLiveModeratedEnd => 'The Kabso team ended your live.';
+
+  @override
+  String notifLiveModeratedNoLive(String date) {
+    return 'The Kabso team ended your live and banned you from going live until $date.';
+  }
+
+  @override
+  String notifLiveModeratedSuspend(String date) {
+    return 'The Kabso team ended your live and suspended your account until $date.';
+  }
+
+  @override
+  String notifLiveModeratedDevice(String date) {
+    return 'The Kabso team ended your live and banned your device until $date.';
+  }
+
+  @override
+  String get notifLiveModeratedDevicePermanent =>
+      'The Kabso team ended your live and banned your device permanently.';
+
+  @override
+  String notifLiveModeratedReason(String reason) {
+    return 'Reason: $reason';
+  }
 }

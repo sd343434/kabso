@@ -27,6 +27,7 @@ import {
   lockDeviceIn,
   recordDeviceSignupIn,
 } from './device-signups.js';
+import { activeDeviceBanOf, deviceBannedError } from './device-bans.js';
 
 /** Constant 202 body (contract v1.2 §6). */
 export const VERIFICATION_PENDING = { status: 'verification_pending' } as const;
@@ -166,6 +167,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
     // v1.78-social (D223, §10.75): a device that already created its accounts is told so before anything else (the
     // answer depends on the device only, never on the email). Checked again when the account is created.
     const deviceHash = deviceHashOf(this.deviceKey, input.device?.deviceKey);
+    // v1.60-live (D250, §10.91): a device the team banned cannot sign up (any email).
+    await this.refuseBannedDevice(deviceHash, 'register', null, meta);
     if (deviceHash) {
       const allowance = await deviceAllowanceIn(
         this.prisma,
@@ -398,6 +401,14 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
     };
     // v1.78-social (D223): the device creating the account — the one verifying, else the one that registered.
     const deviceHash = deviceHashOf(this.deviceKey, input.device?.deviceKey) ?? pending.device_hash;
+    // v1.60-live (D250): banned between register and verify (or verifying on a banned device) — the pending sign-up
+    // can never succeed here: released at once.
+    try {
+      await this.refuseBannedDevice(deviceHash, 'verify', pending.id, meta);
+    } catch (err) {
+      await this.prisma.pendingRegistration.deleteMany({ where: { id: pending.id } });
+      throw err;
+    }
     try {
       const { user, session } = await this.prisma.$transaction(async (tx) => {
         // Claim the row first: a concurrent verify of the same pending blocks here and then
@@ -514,6 +525,26 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       ip: meta.ip,
       requestId: meta.requestId,
     });
+  }
+
+  /** v1.60-live (D250): 403 DEVICE_BANNED (audited `auth.device_banned` {stage}) when the device is banned now. */
+  private async refuseBannedDevice(
+    deviceHash: string | null,
+    stage: 'register' | 'verify',
+    pendingId: string | null,
+    meta: RequestMeta,
+  ): Promise<void> {
+    const ban = await activeDeviceBanOf(this.prisma, [deviceHash]);
+    if (!ban) return;
+    await this.audit.record({
+      action: AuditAction.DEVICE_BAN_REFUSED,
+      targetType: 'device_ban',
+      targetId: ban.id,
+      metadata: { stage, ...(pendingId ? { pendingId } : {}) },
+      ip: meta.ip,
+      requestId: meta.requestId,
+    });
+    throw deviceBannedError(ban);
   }
 
   /** "Account already exists" notice, in the account's locale, at most once per interval. */

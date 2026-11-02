@@ -108,7 +108,7 @@ void main() {
     );
   });
 
-  group('the repository sends it with a sign-up only', () {
+  group('the repository sends it with a sign-up and (D250) a sign-in', () {
     final key = 'ab' * 32;
     late FakeHttpAdapter http;
     late _FixedDeviceKey source;
@@ -133,63 +133,58 @@ void main() {
       );
     });
 
-    test(
-      'register and registerVerify carry device.deviceKey; login does not',
-      () async {
-        http
-          ..on(
-            'POST',
-            '/api/v1/auth/register',
-            (_) => const FakeResponse(
-              202,
-              body: {'status': 'verification_pending'},
-            ),
-          )
-          ..on(
-            'POST',
-            '/api/v1/auth/register/verify',
-            (_) => FakeResponse(
-              201,
-              body: authResponseJson(user: meJson(emailVerified: true)),
-            ),
-          )
-          ..on(
-            'POST',
-            '/api/v1/auth/login',
-            (_) => FakeResponse(
-              200,
-              body: authResponseJson(user: meJson(emailVerified: true)),
-            ),
-          );
-        final repo = container.read(authRepositoryProvider);
-        await repo.register(
-          email: 'a@b.co',
-          password: 'pa55word!',
-          username: 'layla_22',
-          displayName: 'Layla',
-          gender: Gender.female,
-          locale: 'ar',
+    test('register, registerVerify and (v1.60-live, D250) login carry '
+        'device.deviceKey', () async {
+      http
+        ..on(
+          'POST',
+          '/api/v1/auth/register',
+          (_) =>
+              const FakeResponse(202, body: {'status': 'verification_pending'}),
+        )
+        ..on(
+          'POST',
+          '/api/v1/auth/register/verify',
+          (_) => FakeResponse(
+            201,
+            body: authResponseJson(user: meJson(emailVerified: true)),
+          ),
+        )
+        ..on(
+          'POST',
+          '/api/v1/auth/login',
+          (_) => FakeResponse(
+            200,
+            body: authResponseJson(user: meJson(emailVerified: true)),
+          ),
         );
-        await repo.verifyRegistration(email: 'a@b.co', code: '12345678');
-        await repo.login(identifier: 'layla_22', password: 'pa55word!');
+      final repo = container.read(authRepositoryProvider);
+      await repo.register(
+        email: 'a@b.co',
+        password: 'pa55word!',
+        username: 'layla_22',
+        displayName: 'Layla',
+        gender: Gender.female,
+        locale: 'ar',
+      );
+      await repo.verifyRegistration(email: 'a@b.co', code: '12345678');
+      await repo.login(identifier: 'layla_22', password: 'pa55word!');
 
-        Map<String, dynamic> deviceOf(String path) =>
-            (http.requestsTo('POST', path).single.data
-                    as Map<String, dynamic>)['device']
-                as Map<String, dynamic>;
-        expect(deviceOf('/api/v1/auth/register'), {
-          'platform': 'android',
-          'appVersion': '1.2.3',
-          'installId': 'install-0001-test',
-          'deviceKey': key,
-        });
-        expect(deviceOf('/api/v1/auth/register/verify')['deviceKey'], key);
-        expect(
-          deviceOf('/api/v1/auth/login').containsKey('deviceKey'),
-          isFalse,
-        );
-      },
-    );
+      Map<String, dynamic> deviceOf(String path) =>
+          (http.requestsTo('POST', path).single.data
+                  as Map<String, dynamic>)['device']
+              as Map<String, dynamic>;
+      expect(deviceOf('/api/v1/auth/register'), {
+        'platform': 'android',
+        'appVersion': '1.2.3',
+        'installId': 'install-0001-test',
+        'deviceKey': key,
+      });
+      expect(deviceOf('/api/v1/auth/register/verify')['deviceKey'], key);
+      // D250: a sign-in sends it too (the session keeps it; a device the
+      // team banned is refused).
+      expect(deviceOf('/api/v1/auth/login')['deviceKey'], key);
+    });
 
     test('without a device id the sign-up is sent without one', () async {
       container.dispose();

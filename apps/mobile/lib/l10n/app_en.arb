@@ -4227,5 +4227,21 @@
   "pkRematchDeclined": "The other host said no to another round",
   "pkRematchExpired": "The other host did not answer",
   "pkRematchSeconds": "{seconds} s",
-  "@pkRematchSeconds": {"placeholders": {"seconds": {"type": "String"}}}
+  "@pkRematchSeconds": {"placeholders": {"seconds": {"type": "String"}}},
+  "liveToolReportLive": "Report live",
+  "liveReportTitle": "Why are you reporting this live?",
+  "liveReportNoteLabel": "Note (optional)",
+  "liveReportNoteHint": "Describe what happened in the live",
+  "liveReportSend": "Send report",
+  "liveReportSent": "Report sent. The Kabso team will review the live.",
+  "errorDeviceBanned": "This device is banned by the Kabso team.",
+  "errorDeviceBannedUntil": "This device is banned by the Kabso team until {date}. Reason: {reason}",
+  "errorDeviceBannedPermanent": "This device is banned by the Kabso team permanently. Reason: {reason}",
+  "errorAccountRestrictedUntilReason": "{what} is switched off for your account until {date}. Reason: {reason}",
+  "notifLiveModeratedEnd": "The Kabso team ended your live.",
+  "notifLiveModeratedNoLive": "The Kabso team ended your live and banned you from going live until {date}.",
+  "notifLiveModeratedSuspend": "The Kabso team ended your live and suspended your account until {date}.",
+  "notifLiveModeratedDevice": "The Kabso team ended your live and banned your device until {date}.",
+  "notifLiveModeratedDevicePermanent": "The Kabso team ended your live and banned your device permanently.",
+  "notifLiveModeratedReason": "Reason: {reason}"
 }

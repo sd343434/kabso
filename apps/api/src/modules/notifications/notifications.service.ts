@@ -30,7 +30,8 @@ export interface NotificationTargetDto {
     | 'RECHARGE_ORDER'
     | 'AGENCY'
     | 'ACCOUNT_RESTRICTION'
-    | 'BALANCE_ADJUSTMENT';
+    | 'BALANCE_ADJUSTMENT'
+    | 'LIVE_MODERATION';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -54,6 +55,14 @@ export interface NotificationTargetDto {
   /** v1.72-social (D208) BALANCE_ADJUSTMENT only: COINS or CHERRIES and the signed amount. */
   currency?: 'COINS' | 'CHERRIES';
   amount?: number;
+  /**
+   * v1.60-live (D250) LIVE_MODERATION only: what the team did (END, NO_LIVE, SUSPEND, DEVICE_BAN), the full reason
+   * (`text` is its excerpt), `endsAt` the ban's end (absent when it is permanent: `permanent` true) and the live.
+   */
+  moderation?: 'END' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN';
+  reason?: string;
+  permanent?: boolean;
+  roomId?: string;
 }
 
 /** `Notification`. */
@@ -183,6 +192,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: { in: ['HOST_APPLICATION_APPROVED', 'HOST_APPLICATION_REJECTED'] } },
       // v1.74-social (D217): the team voided a referral and took its credited cherries back (system, no target).
       { type: 'REFERRAL_REWARD_REVERSED' },
+      // v1.60-live (D250): the team acted on the caller's live from the panel (system; the action is the target).
+      { type: 'LIVE_MODERATED', liveModerationId: { not: null } },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -226,6 +237,7 @@ function include(me: string) {
     agency: { select: { name: true } },
     accountRestriction: { select: { kind: true, endsAt: true, reason: true } },
     balanceAdjustment: { select: { currency: true, delta: true } },
+    liveModeration: { select: { kind: true, reason: true, endsAt: true, roomId: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -409,6 +421,23 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         text: excerpt(row.accountRestriction.reason),
         restriction: row.accountRestriction.kind,
         endsAt: row.accountRestriction.endsAt.toISOString(),
+      };
+    }
+    // v1.60-live (D250): the team's action on the live, with the reason and the ban's end.
+    if (row.liveModerationId !== null && row.liveModeration && row.liveModeration.kind !== 'DISMISS') {
+      const m = row.liveModeration;
+      const timed = m.kind !== 'END';
+      return {
+        type: 'LIVE_MODERATION',
+        id: row.liveModerationId,
+        postId: null,
+        thumbUrl: null,
+        text: excerpt(m.reason),
+        moderation: m.kind as 'END' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN',
+        reason: m.reason,
+        roomId: m.roomId,
+        ...(m.endsAt ? { endsAt: m.endsAt.toISOString() } : {}),
+        ...(timed && m.endsAt === null ? { permanent: true } : {}),
       };
     }
     if (row.balanceAdjustmentId !== null && row.balanceAdjustment) {

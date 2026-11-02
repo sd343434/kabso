@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
+import 'package:kabso_live/core/ids/device_key.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/core/network/token_manager.dart';
@@ -98,12 +99,16 @@ class AccountDeletionRepositoryImpl implements AccountDeletionRepository {
     required this._remote,
     required this._tokens,
     required this._device,
+    this._deviceKey,
   });
 
   final Dio _dio;
   final AuthRemoteDataSource _remote;
   final TokenManager _tokens;
   final DeviceInfoDto _device;
+
+  /// v1.60-live (D250): the device key sent with a sign-in (null: none).
+  final DeviceKeySource? _deviceKey;
 
   @override
   Future<User> cancelAndSignIn({
@@ -114,7 +119,7 @@ class AccountDeletionRepositoryImpl implements AccountDeletionRepository {
       LoginRequestDto(
         identifier: identifier.trim(),
         password: password,
-        device: _device,
+        device: _device.withDeviceKey(await _deviceKey?.read()),
       ),
       cancelDeletion: true,
     );
@@ -153,6 +158,7 @@ final accountDeletionRepositoryProvider = Provider<AccountDeletionRepository>((
       platform: clientPlatform(),
       appVersion: config.appVersion,
     ),
+    deviceKey: ref.watch(deviceKeySourceProvider),
   );
 });
 

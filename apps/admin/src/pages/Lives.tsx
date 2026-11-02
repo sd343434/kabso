@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { Avatar, Dialog, ErrorAlert, FormDialog, reasonField, StatusBadge, useAsync, UserCell } from '../components';
 import { useApp } from '../context';
@@ -7,6 +7,9 @@ import { navigate } from '../router';
 import type { PersonRef } from '../types';
 import { DataTable, type TablePage } from '../ui/DataTable';
 import { Icon } from '../ui/icons';
+import { previewPool, startPreview, useOnScreenSlot, usePreviewSlot, type PreviewPool } from '../live-media';
+import { ACTION_ICON, ACTION_LABEL, liveActions, ModerateDialog, useLiveReportsSummary, type ModAction } from './LiveModeration';
+import './live-moderation.css';
 
 /** D241: the other side of the live's open PK (the opponent is null for a legacy mode PK room). */
 export interface LivePk {
@@ -28,9 +31,11 @@ export interface LiveRow {
   host: PersonRef;
   /** D241: null when not in a PK. */
   pk: LivePk | null;
+  /** D250: the live's open reports (the red badge; absent from an older API). */
+  openReports?: number;
 }
 
-interface LiveDetailDto extends Omit<LiveRow, 'score'> {
+interface LiveDetailDto extends Omit<LiveRow, 'score' | 'openReports'> {
   topic: string | null;
   status: string;
   endReason: string | null;
@@ -145,37 +150,153 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
 }
 
 /**
- * One card of «البث الآن». D241: a live in a PK (an open D195 match: the rooms stay SOLO) shows a «PK» badge and
- * «ضد @handle». D213: a streamer's card has the «ستريمر» tag.
+ * D250: the card's picture — a muted live preview while the card holds a slot of the page's pool (on screen, at most
+ * {@link PreviewPool.max} at once), else the cover with a play button that takes a slot.
  */
-export function LiveCard({ live: l, onOpen }: { live: LiveRow; onOpen: () => void }) {
-  const { t, lang } = useApp();
+function CardThumb({ live: l, pool, enabled }: { live: LiveRow; pool: PreviewPool; enabled: boolean }) {
+  const { t } = useApp();
+  const box = useRef<HTMLSpanElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
+  const [el, setEl] = useState<HTMLSpanElement | null>(null);
+  const playing = usePreviewSlot(pool, l.id) && enabled;
+  const [state, setState] = useState<'loading' | 'video' | 'audio-only' | 'failed'>('loading');
+  useEffect(() => setEl(box.current), []);
+  useOnScreenSlot(pool, l.id, el, enabled);
+  useEffect(() => {
+    if (!playing || !video.current) return;
+    setState('loading');
+    let stop: (() => void) | null = null;
+    let gone = false;
+    void startPreview(l.id, video.current, (s) => !gone && setState(s)).then((f) => {
+      if (gone) f();
+      else stop = f;
+    });
+    return () => {
+      gone = true;
+      stop?.();
+    };
+  }, [playing, l.id]);
+  const cover = l.coverUrl ? <img src={l.coverUrl} alt="" loading="lazy" /> : <span className="cover-fallback">{(l.host.displayName || '?')[0]}</span>;
   return (
-    <button type="button" className="live-card" onClick={onOpen} data-live-pk={l.pk ? 'true' : undefined}>
-      <span className="thumb">
-        {l.coverUrl ? <img src={l.coverUrl} alt="" loading="lazy" /> : <span className="cover-fallback">{(l.host.displayName || '?')[0]}</span>}
-        <span className="live-badge">{t('liveNow')}</span>
-        <LiveModeTag mode={l.mode} />
-        {l.pk && <span className="live-badge pk-badge">{t('livePkBadge')}</span>}
-        <span className="viewers">
-          <Icon name="eye" size={14} /> {formatNumber(l.viewers, lang)}
+    <span className="thumb" ref={box} data-preview={playing ? state : 'off'}>
+      {cover}
+      {playing && <video ref={video} className={`live-preview-video${state === 'video' ? ' on' : ''}`} muted playsInline autoPlay aria-hidden="true" />}
+      {playing && state === 'loading' && <span className="preview-note">{t('livePreviewLoading')}</span>}
+      {playing && state === 'audio-only' && (
+        <span className="preview-note">
+          <Icon name="mic" size={14} /> {t('livePreviewAudio')}
         </span>
-      </span>
-      <span className="live-info">
-        <span className="live-title">{l.title}</span>
-        {l.pk?.opponentUsername && (
-          <span className="small pk-vs" dir="auto">
-            {t('livePkVs', { handle: l.pk.opponentUsername })}
+      )}
+      {playing && state === 'failed' && <span className="preview-note">{t('livePreviewFailed')}</span>}
+      {enabled && !playing && (
+        <span
+          role="button"
+          tabIndex={0}
+          className="play-btn"
+          aria-label={t('livePreviewPlay')}
+          title={t('livePreviewPlay')}
+          onClick={(e) => {
+            e.stopPropagation();
+            pool.request(l.id, true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              pool.request(l.id, true);
+            }
+          }}
+        >
+          <Icon name="play" size={22} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * One card of «البث الآن». D241: a live in a PK (an open D195 match: the rooms stay SOLO) shows a «PK» badge and
+ * «ضد @handle». D250: a muted live preview (when the session may watch), a red badge with the live's open reports, and
+ * a ⋯ menu with «مشاهدة» and the actions.
+ */
+export function LiveCard({
+  live: l,
+  onOpen,
+  pool = previewPool,
+  onAction,
+}: {
+  live: LiveRow;
+  onOpen: () => void;
+  pool?: PreviewPool;
+  onAction?: (a: ModAction) => void;
+}) {
+  const { t, lang, can } = useApp();
+  const [menu, setMenu] = useState(false);
+  const actions = onAction ? liveActions(can as never, true, l.openReports ?? 0) : [];
+  return (
+    <article className="live-card" data-live-pk={l.pk ? 'true' : undefined} data-reported={(l.openReports ?? 0) > 0 ? 'true' : undefined}>
+      <button type="button" className="card-open" onClick={onOpen}>
+        <span className="thumb-wrap">
+          <CardThumb live={l} pool={pool} enabled={can('lives.watch')} />
+          <span className="live-badge">{t('liveNow')}</span>
+          <LiveModeTag mode={l.mode} />
+          {l.pk && <span className="live-badge pk-badge">{t('livePkBadge')}</span>}
+          {(l.openReports ?? 0) > 0 && (
+            <span className="report-badge" data-open-reports={l.openReports}>
+              <span className="red-dot" aria-hidden="true" />
+              {t('liveReportsBadge', { n: formatNumber(l.openReports ?? 0, lang) })}
+            </span>
+          )}
+          <span className="viewers">
+            <Icon name="eye" size={14} /> {formatNumber(l.viewers, lang)}
           </span>
-        )}
-        <span className="row small muted">
-          <Avatar url={l.host.avatarUrl ?? null} name={l.host.displayName || l.host.username} />
-          <span className="ltr">@{l.host.username}</span>
-          <span className="spacer" />
-          <span className="num">{onAir(l.startedAt)}</span>
         </span>
-      </span>
-    </button>
+        <span className="live-info">
+          <span className="live-title">{l.title}</span>
+          {l.pk?.opponentUsername && (
+            <span className="small pk-vs" dir="auto">
+              {t('livePkVs', { handle: l.pk.opponentUsername })}
+            </span>
+          )}
+          <span className="row small muted">
+            <Avatar url={l.host.avatarUrl ?? null} name={l.host.displayName || l.host.username} />
+            <span className="ltr">@{l.host.username}</span>
+            <span className="spacer" />
+            <span className="num">{onAir(l.startedAt)}</span>
+          </span>
+        </span>
+      </button>
+      {(actions.length > 0 || can('lives.watch')) && onAction && (
+        <div className="card-menu">
+          <button type="button" className="icon-btn" aria-label={t('liveCardMenu')} aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+            <Icon name="more" />
+          </button>
+          {menu && (
+            <div className="menu" role="menu">
+              {can('lives.watch') && (
+                <button role="menuitem" className="menu-row" onClick={onOpen}>
+                  <Icon name="eye" size={16} /> {t('liveWatch')}
+                </button>
+              )}
+              {actions.map((a) => (
+                <button
+                  key={a}
+                  role="menuitem"
+                  className={`menu-row${a === 'DISMISS' ? '' : ' danger'}`}
+                  data-action={a}
+                  onClick={() => {
+                    setMenu(false);
+                    onAction(a);
+                  }}
+                >
+                  <Icon name={ACTION_ICON[a]} size={16} /> {t(ACTION_LABEL[a])}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -183,8 +304,16 @@ export function LiveCard({ live: l, onOpen }: { live: LiveRow; onOpen: () => voi
 export const LIVE_MODES = ['', 'SOLO', 'AUDIO', 'PODCAST', 'MULTI', 'STREAMER', 'PK'] as const;
 export type LiveModeChip = (typeof LIVE_MODES)[number];
 
-/** D212 / D213: the mode chips ('' = all). */
-export function LiveModeTabs({ mode, onMode }: { mode: LiveModeChip; onMode: (m: LiveModeChip) => void }) {
+/** D212 / D213: the mode chips ('' = all); D250 appends the «لايفات مبلّغ عنها» chip as `children`. */
+export function LiveModeTabs({
+  mode,
+  onMode,
+  children,
+}: {
+  mode: LiveModeChip | 'REPORTED';
+  onMode: (m: LiveModeChip) => void;
+  children?: ReactNode;
+}) {
   const { t } = useApp();
   return (
     <div className="tabs" role="group" aria-label={t('liveModeFilter')}>
@@ -193,6 +322,7 @@ export function LiveModeTabs({ mode, onMode }: { mode: LiveModeChip; onMode: (m:
           {t(m ? (`liveMode${m}` as never) : 'statusAll')}
         </button>
       ))}
+      {children}
     </div>
   );
 }
@@ -204,15 +334,33 @@ export function LiveModeTag({ mode }: { mode: string }) {
   return <span className="live-mode-tag">{t('liveModeSTREAMER')}</span>;
 }
 
-/** «البث الآن» (D197): every live on air as a card grid (most viewers first); details and END LIVE with a reason. */
-export function Lives() {
+/** D250: the «لايفات مبلّغ عنها» chip — a red dot and the count while reported lives are on air. */
+export function ReportedTab({ rooms, pressed, onClick }: { rooms: number; pressed: boolean; onClick: () => void }) {
   const { t, lang } = useApp();
+  return (
+    <button className="tab reported-tab" aria-pressed={pressed} data-reported-rooms={rooms} onClick={onClick}>
+      {rooms > 0 && <span className="red-dot" aria-hidden="true" />}
+      {t('liveReported')}
+      {rooms > 0 && <span className="count-pill">{formatNumber(rooms, lang)}</span>}
+    </button>
+  );
+}
+
+/**
+ * «البث الآن» (D197): every live on air as a card grid (most viewers first); details and END LIVE with a reason. D250: the
+ * cards play muted live previews; the «لايفات مبلّغ عنها» chip (a red dot and the count) lists the reported lives; the list
+ * refreshes every 15 s; a card opens the watch view and its ⋯ menu holds the actions.
+ */
+export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
+  const { t, lang, can } = useApp();
   const [page, setPage] = useState(1);
   const [bump, setBump] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
+  const [act, setAct] = useState<{ live: LiveRow; action: ModAction } | null>(null);
   // D212: the app's live categories as a mode filter ('' = all). D241: «PK» = the lives in an open PK; «بث مباشر» =
-  // SOLO lives not in one (the chips partition the lives). D213 adds «ستريمر».
-  const [mode, setMode] = useState<LiveModeChip>('');
+  // SOLO lives not in one (the chips partition the lives). D213 adds «ستريمر». D250: `reported` = «لايفات مبلّغ عنها».
+  const [mode, setMode] = useState<LiveModeChip | 'REPORTED'>('');
+  const summary = useLiveReportsSummary(can('lives.reports'));
   const { data, error, loading } = useAsync(
     () =>
       api.get<TablePage<LiveRow>>('/admin/lives', {
@@ -220,11 +368,17 @@ export function Lives() {
         pageSize: 24,
         sort: 'viewers',
         order: 'desc',
-        ...(mode ? { mode } : {}),
+        ...(mode === 'REPORTED' ? { reported: 'true' } : mode ? { mode } : {}),
       }),
     [page, bump, mode],
   );
+  useEffect(() => {
+    const h = window.setInterval(() => setBump((b) => b + 1), 15_000);
+    return () => window.clearInterval(h);
+  }, []);
+  useEffect(() => () => pool.clear(), [pool]);
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const openLive = (id: string) => (can('lives.watch') ? navigate(`/lives/${id}`) : setOpen(id));
   return (
     <>
       <div className="page-head">
@@ -243,7 +397,21 @@ export function Lives() {
           setMode(m);
           setPage(1);
         }}
-      />
+      >
+        {can('lives.reports') && (
+          <ReportedTab
+            rooms={summary?.rooms ?? 0}
+            pressed={mode === 'REPORTED'}
+            onClick={() => {
+              setMode('REPORTED');
+              setPage(1);
+            }}
+          />
+        )}
+      </LiveModeTabs>
+      {mode === 'REPORTED' && summary && summary.reports > 0 && (
+        <p className="muted small">{t('liveReportedCount', { n: formatNumber(summary.reports, lang) })}</p>
+      )}
       <ErrorAlert error={error} />
       {loading && !data && (
         <div className="live-grid">
@@ -254,13 +422,13 @@ export function Lives() {
       )}
       {data && data.data.length === 0 && (
         <div className="card state empty-state">
-          <Icon name="live" size={32} />
-          <p>{t('livesNone')}</p>
+          <Icon name={mode === 'REPORTED' ? 'flag' : 'live'} size={32} />
+          <p>{mode === 'REPORTED' ? t('liveReportedNone') : t('livesNone')}</p>
         </div>
       )}
       <div className="live-grid">
         {data?.data.map((l) => (
-          <LiveCard key={l.id} live={l} onOpen={() => setOpen(l.id)} />
+          <LiveCard key={l.id} live={l} pool={pool} onOpen={() => openLive(l.id)} onAction={(action) => setAct({ live: l, action })} />
         ))}
       </div>
       {pages > 1 && (
@@ -279,6 +447,18 @@ export function Lives() {
           onClose={() => setOpen(null)}
           onEnded={() => {
             setOpen(null);
+            setBump((b) => b + 1);
+          }}
+        />
+      )}
+      {act && (
+        <ModerateDialog
+          roomId={act.live.id}
+          host={`@${act.live.host.username}`}
+          action={act.action}
+          onClose={() => setAct(null)}
+          onDone={() => {
+            setAct(null);
             setBump((b) => b + 1);
           }}
         />

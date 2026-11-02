@@ -5,6 +5,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { DeviceInfo } from './auth.schemas.js';
+import { deviceHashOf, deviceHmacKey } from './device-signups.js';
 import { formatRefreshToken, generateSecret, hashesEqual, parseRefreshToken, sha256Hex } from './tokens.js';
 
 export enum RevokedReason {
@@ -73,6 +74,18 @@ export class SessionsService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
+  /** v1.60-live (D250): D223's HMAC key of the device keys (the session keeps the device it signed in with). */
+  private deviceKeyCache: Buffer | null = null;
+
+  /** v1.60-live (D250): the stored HMAC of a device key (null: none sent). */
+  deviceHashOf(deviceKey: string | null | undefined): string | null {
+    if (!deviceKey) return null;
+    this.deviceKeyCache ??= deviceHmacKey(
+      this.config.registration.deviceKey ?? this.config.rateLimitKeySecret,
+    );
+    return deviceHashOf(this.deviceKeyCache, deviceKey);
+  }
+
   async create(
     tx: Prisma.TransactionClient | PrismaService,
     userId: string,
@@ -94,6 +107,8 @@ export class SessionsService {
         appVersion: client.device?.appVersion || null,
         // v1.74-social (D217): the app's install id, for the referral device checks.
         installId: client.device?.installId ?? null,
+        // v1.60-live (D250, §10.91): the device it signed in with, as D223's HMAC (a device ban ends it).
+        deviceHash: this.deviceHashOf(client.device?.deviceKey),
         ip: client.ip?.slice(0, 64) ?? null,
         userAgent: client.userAgent,
         createdAt: now,

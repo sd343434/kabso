@@ -7,8 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// v1.78-social (D223, CONVENTIONS §10.75): the phone's stable device id
 /// for the «at most 2 accounts created per device» rule
-/// (`DeviceInfo.deviceKey`), sent only with a sign-up (`register` and
-/// `registerVerify`), never at sign-in.
+/// (`DeviceInfo.deviceKey`), sent with a sign-up (`register` and
+/// `registerVerify`) and, v1.60-live (D250, §10.91.6), with a sign-in
+/// (`login`), so a device the team banned «حظر جهاز» is refused.
 ///
 /// The platform gives the raw id over the `com.kabso/device_id` channel:
 /// Android `Settings.Secure.ANDROID_ID` (per app-signing key and device; it

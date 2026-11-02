@@ -22,6 +22,8 @@ import { AdminSessionGuard } from './admin-session.guard.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AdminAgenciesService } from './admin-agencies.service.js';
 import { AdminCatalogService } from './admin-catalog.service.js';
+import { AdminLiveModerationController } from './admin-live-moderation.controller.js';
+import { AdminLiveModerationService } from './admin-live-moderation.service.js';
 import { AdminLivesService } from './admin-lives.service.js';
 import { AdminMoneyService } from './admin-money.service.js';
 import { AdminPeopleService } from './admin-people.service.js';
@@ -74,6 +76,8 @@ import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
     AdminHostApplicationsController,
     // v1.78-social (D223, §10.75): the accounts made on a device, and its exception.
     AdminDeviceSignupsController,
+    // v1.60-live (D250, §10.91): live moderation «مراقبة البث».
+    AdminLiveModerationController,
   ],
   providers: [
     AdminAuthService,
@@ -93,6 +97,7 @@ import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
     AdminControlService,
     AdminHostApplicationsService,
     AdminDeviceSignupsService,
+    AdminLiveModerationService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

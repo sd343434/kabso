@@ -218,6 +218,17 @@ info:
     level, CP-016 D — now in every summary, not only `LiveRoom`), `LiveRoomSummary.popular` («رائج»: among the
     first `LIVE_POPULAR_TOP_N` (10) lives of its kind in the `popular` order) and `LiveRoomSummary.hostCountry`
     (the host's profile country; absent when none) (CONVENTIONS §10.89).
+    **D250 (DRAFT v1.60-live)** live moderation from the panel «مراقبة البث»: staff watch a live as a hidden,
+    subscribe-only observer (`createAdminLiveWatchToken`: identity `staff:<adminId>:<nonce>`, never a viewer; both rooms
+    of a PK; audited `admin.live.watch`), the reported lives «لايفات مبلّغ عنها» (`getAdminLiveReportsSummary`,
+    `listAdminLives?reported=true`, `AdminLiveRow.openReports`), a live's reports and chat (`listAdminLiveReports`,
+    `listAdminLiveChat`, `listAdminLiveModerations`), and the team's actions with a reason the host is told
+    (`moderateAdminLive`: END / NO_LIVE «منع من البث» / SUSPEND «تعليق الحساب» / DEVICE_BAN «حظر جهاز» — the code
+    again; `dismissAdminLiveReports`); the device bans (`listAdminDeviceBans`, `liftAdminDeviceBan`). Capabilities
+    `lives.watch`, `lives.reports` (OWNER, MODERATION, SUPPORT — D250b), `lives.moderate`, `devices.ban` (OWNER, MODERATION). `DeviceInfo.deviceKey` is now
+    also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
+    and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
+    `LIVE_MODERATION`) (CONVENTIONS §10.91).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -783,6 +794,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403':
+          description: |
+            v1.60-live (D250, §10.91.6) DEVICE_BANNED — the team banned `device.deviceKey` «حظر جهاز» (any email),
+            `details: [{field: until, issue: <ISO time> | permanent}, {field: reason, issue: <the team's reason>}]`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 
@@ -809,6 +827,13 @@ paths:
             USERNAME_TAKEN (backstop race only); v1.78-social (D223) DEVICE_ACCOUNT_LIMIT — the device (this request's
             `device.deviceKey`, else the one sent to `register`) reached its limit meanwhile (checked again, one sign-up
             per device at a time); the pending registration is deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403':
+          description: |
+            v1.60-live (D250, §10.91.6) DEVICE_BANNED — the device (this request's `device.deviceKey`, else the one sent
+            to `register`) is banned by the team; the pending registration is deleted. Details as for `register`.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -863,6 +888,9 @@ paths:
         an account whose password the team reset (a temporary password, or «فرض تغيير كلمة المرور») answers 403
         `PASSWORD_CHANGE_REQUIRED` — the same request with `newPassword` sets it (every other session ends, reset
         links stop working) and signs in (200); `newPassword` equal to `password` → 400 `same_as_current`.
+        v1.60-live (D250, §10.91.6), again only after the right password: the request's `device.deviceKey` is a device
+        the team banned → 403 `DEVICE_BANNED` with `details: [{field: until, issue: <ISO time> | permanent}, {field:
+        reason, issue: <text>}]`, for every account. The session keeps the device (as D223's HMAC).
       security: []
       requestBody:
         required: true
@@ -2363,7 +2391,15 @@ paths:
               schema: { $ref: '#/components/schemas/LiveRoom' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
-        '403': { $ref: '#/components/responses/Error' }
+        '403':
+          description: |
+            AUTH_FORBIDDEN (email not verified), LIVE_HOSTING_NOT_ALLOWED; v1.72-social (D208) ACCOUNT_RESTRICTED (NO_LIVE:
+            `details: [{field: restriction, issue: NO_LIVE}, {field: until, issue: <ISO>}]`, v1.60-live (D250) also
+            `{field: reason, issue: <the team's reason>}`); v1.60-live (D250, §10.91.6) DEVICE_BANNED — the device the
+            caller's session signed in with is banned (`until`, `reason`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '409':
           description: LIVE_ROOM_ALREADY_ACTIVE — the caller already has a LIVE room with a fresh heartbeat.
           content:
@@ -12827,6 +12863,266 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/live-reports/summary:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLiveReportsSummary
+      summary: "«لايفات مبلّغ عنها»: the reported lives on air and their open reports — the red dots (lives.reports)"
+      description: |
+        (v1.60-live, D250, §10.91.2) A report is open until a moderator resolves it (an action on the live, or
+        «تمت المراجعة — لا مخالفة»). A live's reports are the room's (`LIVE_ROOM`) and its host's as a user made since the
+        live started (older apps report the host). The panel polls it every 15 s.
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveReportsSummary' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/lives/{roomId}/watch-token:
+    post:
+      tags: [admin-panel]
+      operationId: createAdminLiveWatchToken
+      summary: "A hidden observer's media token for a live (lives.watch: OWNER, MODERATION, SUPPORT; audited)"
+      description: |
+        (v1.60-live, D250, §10.91.1) Subscribe only — no publishing, no data — with `hidden` set, so neither the host
+        nor the viewers see the observer; identity `staff:<adminId>:<nonce>`, never recorded or counted as a viewer.
+        A token joins within 2 minutes (the media server renews a joined session). `purpose` PREVIEW (a card's muted
+        preview: this room only) or WATCH (the watch view: also the other room of an open PK as `opponent`). Every token
+        is audited `admin.live.watch` {purpose, identity}. A live not on air → 409 `LIVE_ROOM_ENDED`; no media server
+        configured → 503 `LIVE_HOSTING_UNAVAILABLE`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminRoomIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLiveWatchRequest' }
+      responses:
+        '200':
+          description: The access to the live's media (and the PK opponent's).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveWatchAccess' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/lives/{roomId}/chat:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminLiveChat
+      summary: "The live's chat, read-only: the last 50 lines (lives.watch)"
+      description: |
+        (v1.60-live, D250, §10.91.1) Oldest first; deleted lines are marked, not hidden; `after` returns only newer
+        lines (the watch view polls). Ended lives too.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminRoomIdPath'
+        - name: after
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveChatPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/lives/{roomId}/reports:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminLiveReports
+      summary: "A live's reports with the reporter and the chat just before each (lives.reports)"
+      description: |
+        (v1.60-live, D250, §10.91.2) Newest first, at most 50, open and resolved: the room's and its host's as a user
+        since the live started. The reporter is shown to staff only. `chatBefore` is the last 5 chat lines at the
+        report's time (deleted ones marked).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminRoomIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveReportList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/lives/{roomId}/moderations:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminLiveModerations
+      summary: "What the team did on this live, newest first (lives.reports)"
+      description: (v1.60-live, D250, §10.91.4) At most 50.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminRoomIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveModerationList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/lives/{roomId}/moderate:
+    post:
+      tags: [admin-panel]
+      operationId: moderateAdminLive
+      summary: "Ends the live, with a ban from going live, a suspension or a device ban; a reason the host is told (lives.moderate; DEVICE_BAN also devices.ban and the code again)"
+      description: |
+        (v1.60-live, D250, §10.91.4) `END` ends the live (409 `ADMIN_ACTION_REFUSED` when it is not on air);
+        `NO_LIVE` «منع من البث» and `SUSPEND` «تعليق الحساب» also set D208's NO_LIVE / LOCK restriction until `hours`
+        from now or `until` (≤ 365 days; it ends by itself: the clock is read on every check) — a suspension ends every
+        session and refuses sign-in with the end and the reason (403 `ACCOUNT_LOCKED`), a ban from going live refuses
+        `startLiveRoom` (403 `ACCOUNT_RESTRICTED` with the end and the reason); `DEVICE_BAN` «حظر جهاز» bans every device
+        seen for the host (its sign-up device and the devices its sessions signed in with; 409 `ADMIN_ACTION_REFUSED`
+        `details[0] = {field: device, issue: no_device}` when none is known) until then or for good (`permanent`), ends
+        every session of those devices (any account), and refuses sign-up, sign-in and going live from them (403
+        `DEVICE_BANNED`); it needs `devices.ban` and `totpCode`. Every action ends the host's live when it is on air,
+        closes the live's open reports as ACTIONED (the reason as their note), sends the host one `LIVE_MODERATED`
+        notification (in-app and push, with the reason) and is audited `admin.live.moderate`. Never the admin's own
+        live; a team member's only by an OWNER (403).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminRoomIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLiveModerateRequest' }
+      responses:
+        '200':
+          description: What was done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveModerationResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/lives/{roomId}/reports/dismiss:
+    post:
+      tags: [admin-panel]
+      operationId: dismissAdminLiveReports
+      summary: "«تمت المراجعة — لا مخالفة»: closes the live's open reports (lives.moderate; audited)"
+      description: |
+        (v1.60-live, D250, §10.91.4) The open reports become DISMISSED with the reason as their note; nothing else
+        changes and the host is not told. No open report → 409 `ADMIN_ACTION_REFUSED`. Audited
+        `admin.live.reports_dismiss`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminRoomIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The reports closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveDismissResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/device-bans:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminDeviceBans
+      summary: "The device bans «الأجهزة المحظورة» (devices.ban)"
+      description: |
+        (v1.60-live, D250, §10.91.6) Newest first; `status` ACTIVE, LIFTED or EXPIRED; `q` the account's username. The
+        device is named by the account it was taken from — the hash is never shown. `format=csv` audited
+        `admin.export.csv`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt], default: createdAt }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ACTIVE, LIFTED, EXPIRED] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeviceBanPage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/device-bans/{banId}/lift:
+    post:
+      tags: [admin-panel]
+      operationId: liftAdminDeviceBan
+      summary: "Lifts a device ban early (devices.ban; a reason; audited)"
+      description: |
+        (v1.60-live, D250, §10.91.6) The device may sign up, sign in and go live again. A ban already lifted or ended →
+        409 `ADMIN_ACTION_REFUSED`. Audited `admin.device_ban.lift`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: banId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: Lifted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminDeviceBanLifted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/lives:
     get:
       tags:
@@ -12858,6 +13154,13 @@ paths:
         schema:
           type: string
           enum: [SOLO, PK, MULTI, AUDIO, PODCAST, STREAMER]
+      - name: reported
+        in: query
+        required: false
+        description: (v1.60-live, D250, §10.91.2) «لايفات مبلّغ عنها» — `true` lists only the lives with open reports (on the room, or on its host as a user since the live started); combinable with `mode`.
+        schema:
+          type: string
+          enum: ['true', 'false']
       responses:
         '200':
           description: OK.
@@ -18745,6 +19048,10 @@ components:
           - 'null'
         host:
           $ref: '#/components/schemas/AdminPersonRef'
+        openReports:
+          type: integer
+          minimum: 0
+          description: (v1.60-live, D250) the live's open reports (on the room, or on its host as a user since it started) — the card's red badge.
         pk:
           description: (v1.54-live, D241) the room's PK, null when not in one. The opponent is null for a legacy mode `PK` room without a match.
           oneOf:
@@ -18762,6 +19069,188 @@ components:
           type: [string, 'null']
         opponentDisplayName:
           type: [string, 'null']
+    AdminLiveReportsSummary:
+      type: object
+      description: (v1.60-live, D250) the reported lives on air.
+      required: [rooms, reports]
+      properties:
+        rooms: { type: integer, minimum: 0, description: Lives on air with at least one open report. }
+        reports: { type: integer, minimum: 0, description: Their open reports. }
+    AdminLiveWatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        purpose: { type: string, enum: [PREVIEW, WATCH], default: WATCH }
+    AdminLiveMediaAccess:
+      type: object
+      description: (v1.60-live, D250) a hidden, subscribe-only observer's access to one media room.
+      required: [roomId, url, token, identity, expiresAt]
+      properties:
+        roomId: { type: string, format: uuid }
+        url: { type: string, description: The media server's WebSocket URL. }
+        token: { type: string }
+        identity: { type: string, pattern: '^staff:', description: "`staff:<adminId>:<nonce>`." }
+        expiresAt: { type: string, format: date-time, description: Join before this time. }
+    AdminLiveWatchAccess:
+      type: object
+      required: [purpose, main, opponent]
+      properties:
+        purpose: { type: string, enum: [PREVIEW, WATCH] }
+        main: { $ref: '#/components/schemas/AdminLiveMediaAccess' }
+        opponent:
+          description: WATCH only — the other room of the live's open PK, else null.
+          oneOf:
+            - $ref: '#/components/schemas/AdminLiveMediaAccess'
+            - type: 'null'
+    AdminLiveChatLine:
+      type: object
+      required: [id, kind, text, createdAt, deleted, authorRole, author]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, description: "TEXT, IMAGE, VOICE, … (the app's chat kinds)." }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+        deleted: { type: boolean }
+        authorRole: { type: string }
+        author:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+    AdminLiveChatPage:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AdminLiveChatLine' }
+    AdminLiveReport:
+      type: object
+      required: [id, targetType, reason, note, status, createdAt, resolvedAt, resolutionNote, reporter, chatBefore]
+      properties:
+        id: { type: string, format: uuid }
+        targetType: { type: string, enum: [LIVE_ROOM, USER], description: USER is a report of the host made during the live. }
+        reason: { type: string, enum: [SPAM, NUDITY, VIOLENCE, HATE, HARASSMENT, ILLEGAL, OTHER] }
+        note: { type: [string, 'null'] }
+        status: { type: string, enum: [OPEN, ACTIONED, DISMISSED] }
+        createdAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        resolutionNote: { type: [string, 'null'] }
+        reporter:
+          description: Staff only.
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        chatBefore:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/AdminLiveChatLine' }
+    AdminLiveReportList:
+      type: object
+      required: [open, data]
+      properties:
+        open: { type: integer, minimum: 0 }
+        data:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AdminLiveReport' }
+    AdminLiveModerateRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason]
+      properties:
+        action: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN] }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; the host is told it. }
+        hours: { type: integer, minimum: 1, maximum: 8760, description: "NO_LIVE / SUSPEND / DEVICE_BAN: the duration (the panel's 1 h, 24 h, 3 d, 7 d, 30 d)." }
+        until: { type: string, format: date-time, description: "«مخصّص»: the end instead of `hours` (future, ≤ 365 days)." }
+        permanent: { type: boolean, description: "DEVICE_BAN only: no end." }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', description: "DEVICE_BAN only (required): the authenticator code again." }
+    AdminLiveModerationResult:
+      type: object
+      required: [id, kind, reason, endsAt, endedLive, reportsClosed, devicesBanned, sessionsEnded]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN] }
+        reason: { type: string }
+        endsAt: { type: [string, 'null'], format: date-time, description: Null for END and a permanent device ban. }
+        endedLive: { type: boolean }
+        reportsClosed: { type: integer, minimum: 0 }
+        devicesBanned: { type: integer, minimum: 0 }
+        sessionsEnded: { type: integer, minimum: 0, description: DEVICE_BAN — sessions of those devices ended (any account). }
+    AdminLiveDismissResult:
+      type: object
+      required: [id, kind, reason, reportsClosed]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, const: DISMISS }
+        reason: { type: string }
+        reportsClosed: { type: integer, minimum: 1 }
+    AdminLiveModeration:
+      type: object
+      required: [id, kind, reason, endsAt, endedLive, reportsClosed, devicesBanned, createdAt, actor]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN, DISMISS] }
+        reason: { type: string }
+        endsAt: { type: [string, 'null'], format: date-time }
+        endedLive: { type: boolean }
+        reportsClosed: { type: integer, minimum: 0 }
+        devicesBanned: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        actor:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+    AdminLiveModerationList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AdminLiveModeration' }
+    AdminDeviceBanRow:
+      type: object
+      required: [id, status, reason, createdAt, endsAt, liftedAt, liftReason, account, createdBy, liftedBy, liveRoomId]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [ACTIVE, LIFTED, EXPIRED] }
+        reason: { type: string }
+        createdAt: { type: string, format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time, description: Null = permanent. }
+        liftedAt: { type: [string, 'null'], format: date-time }
+        liftReason: { type: [string, 'null'] }
+        account:
+          description: The account the device was found on.
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        createdBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        liftedBy:
+          oneOf:
+            - $ref: '#/components/schemas/AdminPersonRef'
+            - type: 'null'
+        liveRoomId: { type: [string, 'null'], format: uuid }
+    AdminDeviceBanPage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminDeviceBanRow' }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    AdminDeviceBanLifted:
+      type: object
+      required: [id, status, liftedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, const: LIFTED }
+        liftedAt: { type: string, format: date-time }
     AdminLivePage:
       type: object
       required:
@@ -21441,7 +21930,9 @@ components:
             Keychain id (seeded from `identifierForVendor`) — as the app's salted SHA-256, 64 lower-case hex; the raw id
             never leaves the phone. Read only by `register` and `registerVerify` (at most
             SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts created per device) and kept only as an HMAC under the server's
-            key. Optional: without it (the website, an older app) the sign-up is not counted.
+            key. Optional: without it (the website, an older app) the sign-up is not counted. v1.60-live (D250,
+            §10.91.6): `login` reads it too — the session keeps its HMAC, and a device the team banned «حظر جهاز» cannot
+            sign up, sign in or go live (403 `DEVICE_BANNED`).
     RegisterRequest:
       type: object
       required: [email, password, username, displayName, gender]
@@ -24541,13 +25032,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -24563,6 +25054,10 @@ components:
         restriction: { $ref: '#/components/schemas/AccountRestrictionKind', description: "ACCOUNT_RESTRICTION only (v1.72-social, D208); `endsAt` is its end." }
         currency: { type: string, enum: [COINS, CHERRIES], description: "BALANCE_ADJUSTMENT only (v1.72-social, D208)." }
         amount: { type: integer, format: int64, description: "BALANCE_ADJUSTMENT only (v1.72-social, D208): > 0 credited, < 0 debited." }
+        moderation: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN], description: "LIVE_MODERATION only (v1.60-live, D250): the live was ended; NO_LIVE also bans going live until `endsAt`; SUSPEND also locks the account until `endsAt`; DEVICE_BAN also bans the account's devices until `endsAt` (or `permanent`)." }
+        reason: { type: string, maxLength: 500, description: "LIVE_MODERATION only (v1.60-live, D250): the team's reason, in full." }
+        permanent: { type: boolean, const: true, description: "LIVE_MODERATION only (v1.60-live, D250): a DEVICE_BAN with no end (then no `endsAt`)." }
+        roomId: { type: string, format: uuid, description: "LIVE_MODERATION only (v1.60-live, D250): the live." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]

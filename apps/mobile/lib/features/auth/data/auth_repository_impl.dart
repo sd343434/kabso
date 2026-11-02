@@ -25,8 +25,10 @@ class AuthRepositoryImpl implements AuthRepository {
   final TokenManager _tokens;
   final DeviceInfoDto _device;
 
-  /// v1.78-social (D223): the stable device key, sent with a sign-up only
-  /// (`register`, `registerVerify`); null sends none.
+  /// v1.78-social (D223): the stable device key, sent with a sign-up
+  /// (`register`, `registerVerify`) and, v1.60-live (D250), with a sign-in
+  /// (`login`: the session keeps it, so a device the team banned is refused);
+  /// null sends none.
   final DeviceKeySource? _deviceKey;
 
   Future<DeviceInfoDto> _signupDevice() async =>
@@ -48,7 +50,7 @@ class AuthRepositoryImpl implements AuthRepository {
       LoginRequestDto(
         identifier: identifier.trim(),
         password: password,
-        device: _device,
+        device: await _signupDevice(),
       ),
     );
     await _tokens.saveTokens(res.tokens);

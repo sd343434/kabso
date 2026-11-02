@@ -96,7 +96,14 @@ export const resolveComplaintBody = z
 /** v1.47-live (D212): `mode` filters the lives on air by mode (the app's five categories). v1.54-live (D241): `PK` = in an open
  * D195 match (or the legacy mode PK); `SOLO` = SOLO not in a PK. */
 export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
-  .extend({ mode: z.enum(['SOLO', 'PK', 'MULTI', 'AUDIO', 'PODCAST', 'STREAMER']).optional() })
+  .extend({
+    mode: z.enum(['SOLO', 'PK', 'MULTI', 'AUDIO', 'PODCAST', 'STREAMER']).optional(),
+    // v1.60-live (D250, §10.91.2): «لايفات مبلّغ عنها» — only the lives with open reports.
+    reported: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => v === 'true'),
+  })
   .strict();
 
 export const hostsQuery = tableQuery(['grantedAt'], 'grantedAt')

@@ -1,0 +1,181 @@
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
+import { z } from 'zod';
+import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
+import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
+import { Public } from '../auth/public.decorator.js';
+import type { AdminContext } from './admin-auth.service.js';
+import { AdminLiveModerationService, type ModerateBody } from './admin-live-moderation.service.js';
+import { pathUuid } from './admin-panel.schemas.js';
+import { AdminSessionGuard, CurrentAdmin, RequireCapability } from './admin-session.guard.js';
+import { sendTable, tableQuery, type TableQuery } from './admin-tables.js';
+
+/** Every cookie-authenticated panel route: per-IP limit instead of the public default (§10.54.2). */
+const PANEL_LIMIT = RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true });
+
+const reason = z.string().trim().min(1).max(500);
+
+const watchBody = z.strictObject({ purpose: z.enum(['PREVIEW', 'WATCH']).default('WATCH') });
+
+/**
+ * The quick durations are 1 h, 24 h, 3 d, 7 d, 30 d («مخصّص» sends `until`); any whole number of hours up to a year is
+ * accepted. A device ban may be `permanent` and needs the authenticator code again.
+ */
+const moderateBody = z
+  .strictObject({
+    action: z.enum(['END', 'NO_LIVE', 'SUSPEND', 'DEVICE_BAN']),
+    reason,
+    hours: z
+      .number()
+      .int()
+      .min(1)
+      .max(365 * 24)
+      .optional(),
+    until: z.iso.datetime({ offset: true }).optional(),
+    permanent: z.boolean().optional(),
+    totpCode: z
+      .string()
+      .regex(/^[0-9]{6}$/)
+      .optional(),
+  })
+  .superRefine((b, ctx) => {
+    const timed = b.hours !== undefined || b.until !== undefined;
+    if (b.hours !== undefined && b.until !== undefined)
+      ctx.addIssue({ code: 'custom', path: ['until'], message: 'until', params: { issue: 'invalid_value' } });
+    if (b.action === 'END' && (timed || b.permanent !== undefined))
+      ctx.addIssue({ code: 'custom', path: ['hours'], message: 'hours', params: { issue: 'invalid_value' } });
+    if ((b.action === 'NO_LIVE' || b.action === 'SUSPEND') && !timed)
+      ctx.addIssue({ code: 'custom', path: ['hours'], message: 'hours', params: { issue: 'required' } });
+    if ((b.action === 'NO_LIVE' || b.action === 'SUSPEND') && b.permanent !== undefined)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['permanent'],
+        message: 'permanent',
+        params: { issue: 'invalid_value' },
+      });
+    if (b.action === 'DEVICE_BAN') {
+      if (b.permanent === true && timed)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['permanent'],
+          message: 'permanent',
+          params: { issue: 'invalid_value' },
+        });
+      if (b.permanent !== true && !timed)
+        ctx.addIssue({ code: 'custom', path: ['hours'], message: 'hours', params: { issue: 'required' } });
+      if (b.totpCode === undefined)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['totpCode'],
+          message: 'totpCode',
+          params: { issue: 'required' },
+        });
+    } else if (b.totpCode !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['totpCode'],
+        message: 'totpCode',
+        params: { issue: 'invalid_value' },
+      });
+    }
+  });
+
+const reasonBody = z.strictObject({ reason });
+
+const chatQuery = z.strictObject({ after: z.iso.datetime({ offset: true }).optional() });
+
+const deviceBansQuery = tableQuery(['createdAt'], 'createdAt')
+  .extend({ status: z.enum(['ACTIVE', 'LIFTED', 'EXPIRED']).optional() })
+  .strict();
+
+/**
+ * v1.60-live (D250, CONVENTIONS §10.91): «مراقبة البث» — watch a live as a hidden observer, the reported lives and a
+ * live's reports and chat, the team's actions on a live with a reason (end, a ban from going live, a suspension, a
+ * device ban; dismiss the reports), and the device-ban list. Cookie session + CSRF on every write; one capability each.
+ */
+@Public()
+@Controller('admin')
+@PANEL_LIMIT
+@UseGuards(AdminSessionGuard)
+export class AdminLiveModerationController {
+  constructor(private readonly moderation: AdminLiveModerationService) {}
+
+  @Get('live-reports/summary')
+  @RequireCapability('lives.reports')
+  summary() {
+    return this.moderation.summary();
+  }
+
+  @Post('lives/:roomId/watch-token')
+  @HttpCode(200)
+  @RequireCapability('lives.watch')
+  watchToken(
+    @Param('roomId') id: string,
+    @Body(new ZodValidationPipe(watchBody)) body: z.infer<typeof watchBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.moderation.watchToken(pathUuid(id), body.purpose, admin);
+  }
+
+  @Get('lives/:roomId/chat')
+  @RequireCapability('lives.watch')
+  chat(@Param('roomId') id: string, @Query(new ZodValidationPipe(chatQuery)) q: z.infer<typeof chatQuery>) {
+    return this.moderation.chat(pathUuid(id), q.after);
+  }
+
+  @Get('lives/:roomId/reports')
+  @RequireCapability('lives.reports')
+  reports(@Param('roomId') id: string) {
+    return this.moderation.reports(pathUuid(id));
+  }
+
+  @Get('lives/:roomId/moderations')
+  @RequireCapability('lives.reports')
+  history(@Param('roomId') id: string) {
+    return this.moderation.history(pathUuid(id));
+  }
+
+  @Post('lives/:roomId/moderate')
+  @HttpCode(200)
+  @RequireCapability('lives.moderate')
+  moderate(
+    @Param('roomId') id: string,
+    @Body(new ZodValidationPipe(moderateBody)) body: ModerateBody,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.moderation.moderate(pathUuid(id), body, admin);
+  }
+
+  @Post('lives/:roomId/reports/dismiss')
+  @HttpCode(200)
+  @RequireCapability('lives.moderate')
+  dismiss(
+    @Param('roomId') id: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.moderation.dismiss(pathUuid(id), body.reason, admin);
+  }
+
+  @Get('device-bans')
+  @RequireCapability('devices.ban')
+  async deviceBans(
+    @Query(new ZodValidationPipe(deviceBansQuery))
+    q: TableQuery & { status?: 'ACTIVE' | 'LIFTED' | 'EXPIRED' },
+    @CurrentAdmin() admin: AdminContext,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return sendTable(res, await this.moderation.deviceBans(q, admin));
+  }
+
+  @Post('device-bans/:banId/lift')
+  @HttpCode(200)
+  @RequireCapability('devices.ban')
+  lift(
+    @Param('banId') id: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.moderation.liftDeviceBan(pathUuid(id), body.reason, admin);
+  }
+}

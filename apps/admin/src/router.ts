@@ -30,6 +30,9 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'agency', pattern: '/agencies/:id' },
   { name: 'complaints', pattern: '/agency-complaints' },
   { name: 'lives', pattern: '/lives' },
+  // v1.60-live (D250): the watch view and the device bans.
+  { name: 'liveWatch', pattern: '/lives/:id' },
+  { name: 'deviceBans', pattern: '/device-bans' },
   { name: 'hosts', pattern: '/live-hosts' },
   // v1.73-social (D209): «طلبات المضيفين».
   { name: 'hostApplications', pattern: '/host-applications' },

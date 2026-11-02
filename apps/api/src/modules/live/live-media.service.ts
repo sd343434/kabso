@@ -64,6 +64,22 @@ export interface LiveViewerDto {
 
 /** A media token works for 10 minutes to join (§10.8). */
 export const MEDIA_TOKEN_TTL_SECONDS = 600;
+/**
+ * v1.60-live (D250, §10.91): a staff observer's identity `staff:<adminId>:<nonce>` (a nonce, so the cards' previews and
+ * the watch view of the same admin never replace each other). Hidden, subscribe-only, never a viewer.
+ */
+export const STAFF_IDENTITY_PREFIX = 'staff:';
+/** v1.60-live (D250): a staff observer's token joins within 2 minutes (the media server renews a joined session). */
+export const STAFF_TOKEN_TTL_SECONDS = 120;
+
+/** `AdminLiveMediaAccess` (D250): a hidden observer's access to one media room. */
+export interface StaffMediaAccessDto {
+  roomId: string;
+  url: string;
+  token: string;
+  identity: string;
+  expiresAt: string;
+}
 const GUEST_PREFIX = 'guest:';
 const VIEWER_PAGE_MAX = 50;
 /** v1.56-live (D213, §10.86): the data message topic of a STREAMER's layout changes. */
@@ -200,6 +216,33 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       role,
       identity,
       guestNumber,
+    };
+  }
+
+  /**
+   * v1.60-live (D250, §10.91): a hidden observer's token for staff in the panel — subscribe only (no publishing, no
+   * data), `hidden` so neither the host nor the viewers see it in the participant list, never counted as a viewer
+   * (see {@link onJoined}). The panel checks the capability and audits each token; this only issues it for a LIVE room.
+   */
+  async staffAccess(adminId: string, roomId: string, nonce: string): Promise<StaffMediaAccessDto> {
+    if (!this.config.live.hostingEnabled) throw new AppException(ErrorCode.LIVE_HOSTING_UNAVAILABLE);
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { status: true } });
+    if (!room) throw new AppException(ErrorCode.NOT_FOUND);
+    if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    const identity = `${STAFF_IDENTITY_PREFIX}${adminId}:${nonce}`;
+    const token = await this.media.issueToken({
+      room: roomId,
+      identity,
+      name: 'Kabso staff',
+      publish: false,
+      ttlSeconds: STAFF_TOKEN_TTL_SECONDS,
+    });
+    return {
+      roomId,
+      url: this.media.url,
+      token,
+      identity,
+      expiresAt: new Date(this.clock.now().getTime() + STAFF_TOKEN_TTL_SECONDS * 1000).toISOString(),
     };
   }
 
@@ -596,6 +639,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       // v1.43-live (D195): a PK watcher of the other room is never a viewer here; a host leaving
       // their own media session during a PK battle starts the absence time.
       if (event.identity.startsWith(PK_IDENTITY_PREFIX)) return;
+      // v1.60-live (D250): a staff observer was never recorded.
+      if (event.identity.startsWith(STAFF_IDENTITY_PREFIX)) return;
       // v1.45-live (D201): a host's second camera is never a viewer; it leaving ends the camera.
       if (event.identity.startsWith(SECOND_CAMERA_PREFIX)) {
         await this.tools.onLeft(roomId, event.identity);
@@ -628,6 +673,12 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (!room || room.status !== 'LIVE' || !(await this.pk.allowsWatcher(roomId, identity))) {
         await this.kick(roomId, identity);
       }
+      return;
+    }
+    // v1.60-live (D250, §10.91): a staff observer from the panel — hidden, kept while the room is LIVE, never recorded
+    // or counted as a viewer, never announced in the chat.
+    if (identity.startsWith(STAFF_IDENTITY_PREFIX)) {
+      if (!room || room.status !== 'LIVE') await this.kick(roomId, identity);
       return;
     }
     // v1.45-live (D201): the host's second camera — kept or removed, never counted.

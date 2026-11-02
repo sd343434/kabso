@@ -232,7 +232,11 @@ export class LiveController {
     { bucket: 'live:start:d', rule: 'liveStartDayUser', key: byUserId, replacesDefault: true },
   )
   async startRoom(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveRoomDto> {
-    return this.rooms.startRoom(requireCaller(req), body, await this.language(req), meta(req));
+    // v1.60-live (D250): the session's device (a banned device cannot go live).
+    return this.rooms.startRoom(requireCaller(req), body, await this.language(req), {
+      ...meta(req),
+      sessionId: req.auth?.sessionId ?? null,
+    });
   }
 
   /**

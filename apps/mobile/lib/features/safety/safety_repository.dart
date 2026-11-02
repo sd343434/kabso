@@ -102,6 +102,11 @@ abstract interface class SafetyRepository {
   /// (`targetType: PROFILE_LINK`, the link's id).
   Future<void> reportProfileLink(String linkId, ReportReason reason);
 
+  /// v1.60-live (D250, §10.91.3): «الإبلاغ عن البث» — `POST /reports` for a
+  /// live (`targetType: LIVE_ROOM`, the room's id) with an optional [note]
+  /// (≤ 500). A repeat while the first is open is accepted (200).
+  Future<void> reportLive(String roomId, ReportReason reason, {String? note});
+
   /// `GET /me/privacy`.
   Future<PrivacySettings> privacy();
 
@@ -182,6 +187,21 @@ class SafetyRepositoryImpl implements SafetyRepository {
             'targetType': 'PROFILE_LINK',
             'targetId': linkId,
             'reason': reason.wire,
+          },
+        );
+      });
+
+  @override
+  Future<void> reportLive(String roomId, ReportReason reason, {String? note}) =>
+      guardApiCall(() async {
+        final text = note?.trim();
+        await _dio.post<Map<String, dynamic>>(
+          '/reports',
+          data: {
+            'targetType': 'LIVE_ROOM',
+            'targetId': roomId,
+            'reason': reason.wire,
+            if (text != null && text.isNotEmpty) 'note': text,
           },
         );
       });
