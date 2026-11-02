@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart'
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -452,17 +453,34 @@ void main() {
     }
   });
 
-  group('Voice rooms (ref 166) — D240 party page', () {
-    testWidgets('the kinds are the top tabs (audio first), the hub filters '
-        'under them (Popular), list rows with seats and a count; no search '
-        'or bell, only the Live switch', (tester) async {
+  group('Voice rooms — D246 party page (owner reference)', () {
+    Future<void> tapFilter(WidgetTester tester, LiveHubFilter f) async {
+      await tester.tap(find.byKey(VoiceRoomsScreen.filterKey(f)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the filters are the big top tabs (Popular selected), the '
+        'kinds the smaller row under them (audio); no pill row, no country '
+        'row, no category menu; cards with seats and a mic count; only the '
+        'Live switch', (tester) async {
       final live = await _pump(tester, screen: const VoiceRoomsScreen());
       final r = live.requests.last;
       expect(r.kind, LiveRoomsKind.audio);
       expect(r.tab, LiveRoomsTab.popular);
       expect(r.nearby, isFalse);
-      expect(find.byType(LiveHubFilterBar), findsOneWidget);
+      expect(r.category, isNull);
+      expect(find.byType(LiveHubFilterBar), findsNothing);
       expect(find.byType(LiveHubCategoryBar), findsNothing);
+      expect(find.byType(LiveNearbyCountryRow), findsNothing);
+      expect(find.byKey(VoiceRoomsScreen.countryKey), findsNothing);
+      for (final f in VoiceRoomsScreen.filters) {
+        expect(find.byKey(VoiceRoomsScreen.filterKey(f)), findsOneWidget);
+      }
+      // «المميزة» is not a tab: the paid «مميز» lives pin first instead.
+      expect(
+        find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.featured)),
+        findsNothing,
+      );
       expect(find.byKey(VoiceRoomsLiveButton.buttonKey), findsOneWidget);
       expect(find.byType(NotificationsBell), findsNothing);
       expect(find.byTooltip(en.feedSearch), findsNothing);
@@ -470,28 +488,59 @@ void main() {
       expect(find.byKey(VoiceRoomsScreen.backKey), findsNothing);
       expect(find.byType(VoiceRoomRow), findsNWidgets(4));
       expect(find.byKey(VoiceRoomRow.seatsKey), findsNWidgets(4));
+      expect(find.byKey(VoiceRoomRow.kindKey), findsNWidgets(4));
       expect(find.text('1/8'), findsOneWidget);
-      // Measured geometry: rows 68.6 tall, 12.8 from the sides.
+      // No level or "Popular" pill: the summary has no such data.
+      expect(find.text('Lv.'), findsNothing);
+      // Measured geometry: cards 68.6 tall, 12.8 from the sides.
       final row = tester.getRect(find.byKey(VoiceRoomList.rowKey(0)));
       expect(row.height, closeTo(68.6, 0.5));
       expect(row.left, closeTo(12.8, 0.1));
-      expect(
-        tester.getSemantics(
-          find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
-        ),
-        matchesSemantics(
-          label: en.liveCategoryAudio,
-          isButton: true,
-          hasSelectedState: true,
-          isSelected: true,
-          isInMutuallyExclusiveGroup: true,
-          hasTapAction: true,
+      // The kinds' row is smaller than the filters' row.
+      final popular = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.popular)),
+          matching: find.byType(Text),
         ),
       );
+      final audio = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(popular.style!.fontSize, KVoiceRoomsHeader.tabSelected);
+      expect(audio.style!.fontSize, KVoiceRoomsHeader.subTab);
+      expect(
+        tester.getCenter(find.byKey(VoiceRoomsScreen.kindsKey)).dy,
+        greaterThan(
+          tester.getCenter(find.byKey(VoiceRoomsScreen.filtersKey)).dy,
+        ),
+      );
+      for (final (key, label) in [
+        (VoiceRoomsScreen.kindKey(LiveHubCategory.audio), en.liveCategoryAudio),
+        (
+          VoiceRoomsScreen.filterKey(LiveHubFilter.popular),
+          en.liveHubFilterPopular,
+        ),
+      ]) {
+        expect(
+          tester.getSemantics(find.byKey(key)),
+          matchesSemantics(
+            label: label,
+            isButton: true,
+            hasSelectedState: true,
+            isSelected: true,
+            isInMutuallyExclusiveGroup: true,
+            hasTapAction: true,
+          ),
+        );
+      }
     });
 
-    testWidgets('each kind × each hub filter is one server list; Nearby sends '
-        'the country; the switch shows the grid', (tester) async {
+    testWidgets('each kind × each filter is one server list; Nearby sends '
+        'the country and shows it first in the kinds row; the switch shows '
+        'the grid', (tester) async {
       final live = await _pump(
         tester,
         screen: const VoiceRoomsScreen(),
@@ -509,41 +558,119 @@ void main() {
         find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
       );
       await tester.pumpAndSettle();
-      await _tapPill(tester, LiveHubFilter.following);
+      await tapFilter(tester, LiveHubFilter.following);
       expect(live.requests.last.tab, LiveRoomsTab.following);
       expect(live.requests.last.kind, LiveRoomsKind.audio);
-      await _tapPill(tester, LiveHubFilter.explore);
+      await tapFilter(tester, LiveHubFilter.explore);
       expect(live.requests.last.tab, LiveRoomsTab.latest);
-      await _tapPill(tester, LiveHubFilter.featured);
-      expect(live.requests.last.featured, isTrue);
-      await _tapPill(tester, LiveHubFilter.nearby);
+      expect(live.requests.last.featured, isFalse);
+      await tapFilter(tester, LiveHubFilter.nearby);
       expect(live.requests.last.nearby, isTrue);
       expect(live.requests.last.country, 'JO');
       expect(live.requests.last.kind, LiveRoomsKind.audio);
-      // The country row under the filters.
+      // The country at the start of the kinds row (the ref's «Jordan»).
       expect(
         find.descendant(
-          of: find.byKey(LiveNearbyCountryRow.rowKey),
+          of: find.byKey(VoiceRoomsScreen.countryKey),
           matching: find.text('Jordan'),
         ),
         findsOneWidget,
       );
-      await _tapPill(tester, LiveHubFilter.following);
-      expect(find.byKey(LiveNearbyCountryRow.rowKey), findsNothing);
+      expect(
+        tester.getCenter(find.byKey(VoiceRoomsScreen.countryKey)).dx,
+        lessThan(
+          tester
+              .getCenter(
+                find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
+              )
+              .dx,
+        ),
+      );
+      // A tap opens the local picker; a choice reloads Nearby with it.
+      await tester.tap(find.byKey(VoiceRoomsScreen.countryKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(CountryPickerSheet), findsOneWidget);
+      expect(find.byKey(CountryPickerSheet.clearKey), findsNothing);
+      await tester.enterText(find.byKey(CountryPickerSheet.searchKey), 'Egy');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CountryPickerSheet.rowKey('EG')));
+      await tester.pumpAndSettle();
+      expect(live.requests.last.country, 'EG');
+      expect(live.requests.last.kind, LiveRoomsKind.audio);
+      await tapFilter(tester, LiveHubFilter.following);
+      expect(find.byKey(VoiceRoomsScreen.countryKey), findsNothing);
       await tester.tap(find.byKey(VoiceRoomsScreen.layoutKey));
       await tester.pumpAndSettle();
       expect(find.byType(VoiceRoomRow), findsNothing);
       expect(find.byType(KLiveGridCard), findsWidgets);
     });
 
-    testWidgets('Arabic: audio at the reading start, the Live switch at the '
-        'end', (tester) async {
+    testWidgets('cards show only the API facts: «PK» (inPk), «مميز» (a paid '
+        'slot), the topic under the title, a mic for audio and a camera for '
+        'multi', (tester) async {
+      setViewport(tester, GoldenViewport.phone);
+      await pumpScreen(
+        tester,
+        Scaffold(
+          body: ListView(
+            children: const [
+              VoiceRoomRow(
+                key: Key('a'),
+                room: LiveRoomCardData(
+                  hostName: 'Sara',
+                  title: 'Tarab night',
+                  viewerCount: 102,
+                  isAudio: true,
+                  inPk: true,
+                  featured: true,
+                  topic: 'welcome',
+                ),
+              ),
+              VoiceRoomRow(
+                key: Key('m'),
+                room: LiveRoomCardData(
+                  hostName: 'Omar',
+                  title: 'Game night',
+                  viewerCount: 84,
+                  isMulti: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      Finder inCard(String k, Finder f) =>
+          find.descendant(of: find.byKey(Key(k)), matching: f);
+      expect(inCard('a', find.byKey(VoiceRoomRow.pkKey)), findsOneWidget);
+      expect(inCard('a', find.byKey(VoiceRoomRow.featuredKey)), findsOneWidget);
+      expect(inCard('a', find.text('welcome')), findsOneWidget);
+      expect(inCard('a', find.text(en.liveCategoryAudio)), findsOneWidget);
+      expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsOneWidget);
+      expect(inCard('m', find.byKey(VoiceRoomRow.pkKey)), findsNothing);
+      expect(inCard('m', find.byKey(VoiceRoomRow.featuredKey)), findsNothing);
+      expect(inCard('m', find.byKey(VoiceRoomRow.topicKey)), findsNothing);
+      expect(inCard('m', find.byKey(VoiceRoomRow.seatsKey)), findsNothing);
+      expect(inCard('m', find.text(en.liveCategoryMulti)), findsOneWidget);
+      expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsOneWidget);
+      expect(tester.getSize(find.byKey(const Key('a'))).height, 68.6);
+    });
+
+    testWidgets('Arabic: «المتابَعة» and audio at the reading start, the '
+        'Live switch at the end', (tester) async {
       await _pump(
         tester,
         screen: const VoiceRoomsScreen(),
         language: AppLanguage.ar,
       );
       expect(find.text(ar.liveVoiceSection), findsOneWidget);
+      expect(find.text(ar.livePartyTabFollowing), findsOneWidget);
+      final following = tester.getCenter(
+        find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.following)),
+      );
+      final nearby = tester.getCenter(
+        find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.nearby)),
+      );
+      expect(following.dx, greaterThan(nearby.dx));
       final audio = tester.getCenter(
         find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
       );
@@ -553,7 +680,7 @@ void main() {
       expect(audio.dx, greaterThan(multi.dx));
       expect(
         tester.getCenter(find.byKey(VoiceRoomsLiveButton.buttonKey)).dx,
-        lessThan(multi.dx),
+        lessThan(nearby.dx),
       );
     });
   });

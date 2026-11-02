@@ -32,6 +32,7 @@ class LiveRoomCardData {
     this.boostStage = 0,
     this.podcast,
     this.hostUsername,
+    this.topic,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -69,6 +70,7 @@ class LiveRoomCardData {
       boostStage: boostStage,
       podcast: room.mode == LiveRoomMode.podcast ? room.podcast : null,
       hostUsername: room.host.username,
+      topic: room.topic,
     );
   }
 
@@ -138,6 +140,10 @@ class LiveRoomCardData {
 
   /// D212: the host's @username (API rooms).
   final String? hostUsername;
+
+  /// CP-014: the host's one-line topic, or null (D246: the party page's
+  /// card subtitle).
+  final String? topic;
 }
 
 /// A line in the live chat overlay.

@@ -1911,6 +1911,7 @@
   "liveVoiceRoomsToLive": "Live",
   "liveHubFilterLabel": "Filters",
   "liveHubFilterFollowing": "Following",
+  "livePartyTabFollowing": "Following",
   "liveHubFilterNearby": "Nearby",
   "liveHubFilterPopular": "Popular",
   "liveHubFilterFeatured": "Featured",

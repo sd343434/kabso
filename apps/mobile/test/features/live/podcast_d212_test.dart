@@ -223,7 +223,7 @@ void main() {
       await _openParty(tester);
       expect(find.byType(VoiceRoomsScreen), findsOneWidget);
       expect(live.requests.last.kind, LiveRoomsKind.audio);
-      // D240: the kinds are the party page's top tabs.
+      // D246: the kinds are the party page's second row.
       for (final c in LiveHubCategory.partyPage) {
         expect(find.byKey(VoiceRoomsScreen.kindKey(c)), findsOneWidget);
       }
@@ -236,11 +236,11 @@ void main() {
         await tester.pumpAndSettle();
         expect(live.requests.last.kind, kind, reason: c.name);
       }
-      // D240: the hub's filters apply: Following + podcast.
+      // D246: the filters (the top tabs) apply: Following + podcast.
       await _tapKind(tester, LiveHubCategory.podcast);
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(LiveHubFilterBar.pillKey(LiveHubFilter.following)),
+        find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.following)),
       );
       await tester.pumpAndSettle();
       expect(live.requests.last.tab, LiveRoomsTab.following);

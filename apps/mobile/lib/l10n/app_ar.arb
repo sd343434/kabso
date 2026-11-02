@@ -7617,6 +7617,8 @@
   "@liveHubFilterFollowing": {
     "description": "D237: the Live hub's first filter tab — lives of the people you follow."
   },
+  "livePartyTabFollowing": "المتابَعة",
+  "@livePartyTabFollowing": {"description": "D246: the party page's first big tab (owner: «متابعة»), lives of the people you follow (tab=following)."},
   "liveHubFilterNearby": "القريبة",
   "@liveHubFilterNearby": {"description": "D131: hub filter, lives from hosts in the person's own country (D133 scope=nearby)."},
   "liveHubFilterPopular": "الرائج",
