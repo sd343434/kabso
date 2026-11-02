@@ -382,9 +382,15 @@ void main() {
           final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
           for (final r in [name, badge, message]) {
             if (ar) {
-              expect(r.right, closeTo(row.right - 8, 0.5));
+              expect(
+                r.right,
+                closeTo(row.right - LiveChatInlineRow.padding.start, 0.5),
+              );
             } else {
-              expect(r.left, closeTo(row.left + 8, 0.5));
+              expect(
+                r.left,
+                closeTo(row.left + LiveChatInlineRow.padding.start, 0.5),
+              );
             }
           }
           final emojis = [

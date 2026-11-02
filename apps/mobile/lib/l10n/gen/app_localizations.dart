@@ -6962,6 +6962,12 @@ abstract class AppLocalizations {
   /// **'العائلة {name}، المستوى {level}'**
   String liveChatFamilyLabel(String name, int level);
 
+  /// D234: screen reader label of the medals row (up to 5 showcased medals) under a live chat author's badges.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{ميدالية واحدة} =2{ميداليتان} few{{count} ميداليات} other{{count} ميدالية}}'**
+  String liveChatMedalsLabel(int count);
+
   /// Host tool: the room chat on/off switch (CP-013); its state is shown by the button.
   ///
   /// In ar, this message translates to:

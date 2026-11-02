@@ -37,6 +37,16 @@ Map<String, dynamic> _$LiveChatAuthorFamilyToJson(
   _LiveChatAuthorFamily instance,
 ) => <String, dynamic>{'name': instance.name, 'level': instance.level};
 
+_LiveChatAuthorMedal _$LiveChatAuthorMedalFromJson(Map<String, dynamic> json) =>
+    _LiveChatAuthorMedal(
+      code: json['code'] as String,
+      iconKey: json['iconKey'] as String,
+    );
+
+Map<String, dynamic> _$LiveChatAuthorMedalToJson(
+  _LiveChatAuthorMedal instance,
+) => <String, dynamic>{'code': instance.code, 'iconKey': instance.iconKey};
+
 _LiveChatAuthorBadges _$LiveChatAuthorBadgesFromJson(
   Map<String, dynamic> json,
 ) => _LiveChatAuthorBadges(
@@ -46,6 +56,11 @@ _LiveChatAuthorBadges _$LiveChatAuthorBadgesFromJson(
       ? null
       : LiveChatAuthorFamily.fromJson(json['family'] as Map<String, dynamic>),
   newcomer: json['newcomer'] as bool? ?? false,
+  medals:
+      (json['medals'] as List<dynamic>?)
+          ?.map((e) => LiveChatAuthorMedal.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <LiveChatAuthorMedal>[],
 );
 
 Map<String, dynamic> _$LiveChatAuthorBadgesToJson(
@@ -55,6 +70,7 @@ Map<String, dynamic> _$LiveChatAuthorBadgesToJson(
   'supportLevel': instance.supportLevel,
   'family': instance.family,
   'newcomer': instance.newcomer,
+  'medals': instance.medals,
 };
 
 _LiveChatEntry _$LiveChatEntryFromJson(Map<String, dynamic> json) =>

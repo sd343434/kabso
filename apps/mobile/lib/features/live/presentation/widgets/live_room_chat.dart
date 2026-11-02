@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
+import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
@@ -78,6 +79,13 @@ class LiveRoomChatLines extends ConsumerWidget {
   /// بدون اي شيء خلفية بشفافية كما كان قبل»): a message line's background
   /// in every live category (video, audio, podcast, multi) — none.
   static const plain = Color(0x00000000);
+
+  /// D234 (owner: «أسود شفاف»; supersedes D224's [plain] for messages): a
+  /// message of someone who wears no chat bubble sits on translucent black
+  /// (44 %) in 12–14 pt rounded corners, no border, in every category; a
+  /// worn bubble (CP) draws instead. The white text keeps the live glass's
+  /// shadow on it, so it still reads over a white frame.
+  static const messageBox = Color(0x70000000);
 
   /// The video live's chat (solo and multi, host and viewer): D199's
   /// rule that the rules line steps aside while typing, and D230's taller
@@ -345,7 +353,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           hostAgentCode: entry.author.hostAgentCode,
           rechargeBadge: entry.author.rechargeBadge,
           maxWidth: max,
-          color: plain,
+          color: messageBox,
           cp: entry.cpBubble,
           mediaInside: true,
           label: voice
@@ -371,7 +379,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           hostAgentCode: entry.author.hostAgentCode,
           rechargeBadge: entry.author.rechargeBadge,
           maxWidth: max,
-          color: plain,
+          color: messageBox,
           cp: entry.cpBubble,
           label: l10n.liveChatLineLabel(
             entry.author.displayName,
@@ -392,7 +400,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           child: LiveChatInlineRow(
             name: authorName,
             maxWidth: max,
-            color: plain,
+            color: messageBox,
             label: [
               l10n.liveChatLineLabel(authorName, kabiSpokenText(text, l10n)),
               if (failed && tooFast)
@@ -468,9 +476,9 @@ class LiveRoomChatLines extends ConsumerWidget {
     );
   }
 
-  /// D224 (owner): a message has no default box in any room (D119's grey
-  /// glass and the video scrim are gone); a worn bubble (CP) still draws.
-  static const Color _messageBubble = plain;
+  /// D234 (owner: «أسود شفاف»): a message's default box in every room is
+  /// translucent black ([messageBox]); a worn bubble (CP) draws instead.
+  static const Color _messageBubble = messageBox;
 
   Widget _mediaLine(
     BuildContext context,
@@ -746,7 +754,11 @@ class LiveChatAuthoredLine extends StatelessWidget {
   static const double nameSize = 15;
   static const double textSize = 15.5;
   static const double radius = 14;
-  static const double badgeRowHeight = 20;
+
+  /// D234: one height for every emblem of the badges line (as
+  /// [LiveChatInlineRow.badgeHeight]) and the medals under it.
+  static const double badgeRowHeight = LiveChatInlineRow.badgeHeight;
+  static const double medalSize = LiveChatInlineRow.medalSize;
   static const EdgeInsetsDirectional boxPadding =
       EdgeInsetsDirectional.fromSTEB(8, 8, 12, 8);
 
@@ -789,6 +801,8 @@ class LiveChatAuthoredLine extends StatelessWidget {
           family.level,
         ),
       if (badges?.newcomer ?? false) l10n.liveNewcomerBadge,
+      if (badges?.medals case final medals? when medals.isNotEmpty)
+        l10n.liveChatMedalsLabel(math.min(medals.length, LiveChatMedalRow.max)),
     ].join('. ');
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
@@ -798,7 +812,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
       rechargeBadge: rechargeBadge,
-      agentBadgeHeight: badgeRowHeight - 2,
+      agentBadgeHeight: badgeRowHeight,
       fadeOverflow: true,
     );
     final profile = onProfile;
@@ -867,6 +881,11 @@ class LiveChatAuthoredLine extends StatelessWidget {
                   ),
                 ),
               if (row.isNotEmpty) ...[const SizedBox(height: 4), row],
+              // D234: the showcased medals (≤ 5) under the badges.
+              if (badges?.medals case final medals? when medals.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                LiveChatMedalRow(medals: medals),
+              ],
               const SizedBox(height: 5),
               KeyedSubtree(key: bubbleKey, child: message),
             ],
@@ -972,6 +991,9 @@ class LiveChatBadgeRow extends StatelessWidget {
 
   static const double _space = 5;
 
+  /// D234: the pills' height in a row of [height] (role, «جديد», family).
+  static double pillHeight(double height) => height - 2;
+
   bool get isNotEmpty =>
       agentCode != null ||
       hostAgentCode != null ||
@@ -998,10 +1020,15 @@ class LiveChatBadgeRow extends StatelessWidget {
       agentBadgeHeight ?? inlineAgentBadgeHeight(LiveChatAuthoredLine.nameSize),
     );
     final big = fadeOverflow;
-    // D230: the pills' text and the emblems grow with the row.
-    final pillText = big ? h * 0.6 : 10.5;
-    final charmH = big ? h * 0.85 : CharmLevelBadge.lineHeight;
-    final supportH = big ? h * 0.8 : h / 1.5;
+    // D230: the pills' text and the emblems grow with the row. D234 (owner:
+    // «أريدهم بنفس الحجم»): in the line under a name every emblem is [h]
+    // tall on screen — the charm creature (1.55 × its pill) and the support
+    // art (1.5 × its height) both fill [h] (both arts fill their image) —
+    // and the pills are [pillHeight].
+    final pillH = big ? pillHeight(h) : h - 2;
+    final pillText = big ? pillH * 0.6 : 10.5;
+    final charmH = big ? h / 1.55 : CharmLevelBadge.lineHeight;
+    final supportH = h / 1.5;
     final family = badges?.family;
     final familyChip = family == null
         ? null
@@ -1009,7 +1036,7 @@ class LiveChatBadgeRow extends StatelessWidget {
             key: familyKey,
             name: family.name,
             level: family.level,
-            height: big ? h : LiveChatAuthoredLine.badgeRowHeight,
+            height: big ? pillH : LiveChatAuthoredLine.badgeRowHeight,
           );
     final row = Row(
       mainAxisSize: MainAxisSize.min,
@@ -1032,7 +1059,7 @@ class LiveChatBadgeRow extends StatelessWidget {
         if (tag != null)
           Container(
             key: roleKey,
-            height: h - 2,
+            height: pillH,
             padding: const EdgeInsets.symmetric(horizontal: 6),
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -1056,7 +1083,7 @@ class LiveChatBadgeRow extends StatelessWidget {
         if (badges?.newcomer ?? false) ...[
           Container(
             key: newcomerKey,
-            height: h - 2,
+            height: pillH,
             padding: const EdgeInsets.symmetric(horizontal: 6),
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -1113,6 +1140,51 @@ class LiveChatBadgeRow extends StatelessWidget {
       // A row (not a wrap): each badge takes its own width.
       child: MediaQuery.withNoTextScaling(
         child: big ? LiveChatFadeOverflow(child: row) : row,
+      ),
+    );
+  }
+}
+
+/// D234 (owner: «وتحت سطر أيقونات الليفيل تكون الميداليات حتى ٥ ميداليات،
+/// وتحتهم النص»): the medals the author chose to show on their profile
+/// (`LiveChatAuthorBadges.medals`, §10.82), at most [max], in their order,
+/// one row at the reading start — the profile's medal art ([MedalIcon]).
+/// Nothing when there are none (no placeholders). Fixed-size art; the line's
+/// label says how many.
+class LiveChatMedalRow extends StatelessWidget {
+  const new({
+    required this.medals,
+    super.key,
+    this.size = LiveChatInlineRow.medalSize,
+  });
+
+  final List<LiveChatAuthorMedal> medals;
+  final double size;
+
+  /// The most medals a chat line shows.
+  static const int max = 5;
+  static const double gap = 4;
+
+  static const rowKey = Key('liveChat.medals');
+  static Key medalKey(String code) => Key('liveChat.medal.$code');
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = medals.take(max).toList();
+    if (shown.isEmpty) return const SizedBox.shrink();
+    return ExcludeSemantics(
+      child: SizedBox(
+        key: rowKey,
+        height: size,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (i, m) in shown.indexed) ...[
+              if (i > 0) const SizedBox(width: gap),
+              MedalIcon(key: medalKey(m.code), iconKey: m.iconKey, size: size),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1678,15 +1750,25 @@ class LiveChatInlineRow extends StatefulWidget {
   static const double lineHeight = 1.35;
   static const double gap = 4;
   static const double radius = 12;
-  static const double badgeHeight = 20;
+
+  /// D234 (owner: «لماذا الأيقونة التي ليفيلها ٢٧ بحجم مختلف؟ أريدهم بنفس
+  /// الحجم»): every emblem of the badges line — the charm creature, the
+  /// support art, the agent and recharge badges — is this tall on screen;
+  /// the pills (role, «جديد», family) are [LiveChatBadgeRow.pillHeight].
+  static const double badgeHeight = 24;
+
+  /// D234: the medals line under the badges (≤ 5), a little smaller.
+  static const double medalSize = 22;
 
   /// The public message card's small badges (its own design, CP-017).
   static const double cardBadgeHeight = 14;
+
+  /// D234: room inside the translucent black box.
   static const EdgeInsetsDirectional padding = EdgeInsetsDirectional.fromSTEB(
-    8,
-    4,
     10,
-    4,
+    6,
+    12,
+    7,
   );
 
   /// D230: the badges row under the name.
@@ -1760,9 +1842,9 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       height: LiveChatInlineRow.lineHeight,
       color: KAudioRoom.text,
       fontWeight: FontWeight.w500,
-      // D224: a plain line (no box) reads on bright video with the live
-      // glass's text shadow.
-      shadows: w.color.a == 0 && !w.cp
+      // D224/D234: a message reads on bright video with the live glass's
+      // text shadow (on no box or on the translucent black one).
+      shadows: w.color.a < 0.5 && !w.cp
           ? KLiveColors.glassShadow
           : const [Shadow(color: Color(0x4D000000), blurRadius: 2)],
     );
@@ -1774,7 +1856,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       final badges = LiveChatBadgeRow(
         role: w.role,
         badges: w.badges,
-        agentBadgeHeight: LiveChatInlineRow.badgeHeight - 2,
+        agentBadgeHeight: LiveChatInlineRow.badgeHeight,
         agentCode: w.agentCode,
         hostAgentCode: w.hostAgentCode,
         rechargeBadge: w.rechargeBadge,
@@ -1824,12 +1906,17 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
                 ),
               ],
             ),
-          // 2. The badges under the name.
+          // 2. The badges under the name, all one height (D234).
           if (badges.isNotEmpty) ...[
             const SizedBox(height: 3),
             KeyedSubtree(key: LiveChatInlineRow.badgesKey, child: badges),
           ],
-          // 3. The message (D141: Kabi emoji inline, in reading order).
+          // 3. D234: the showcased medals (≤ 5) under the badges.
+          if (w.badges?.medals case final medals? when medals.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            LiveChatMedalRow(medals: medals),
+          ],
+          // 4. The message (D141: Kabi emoji inline, in reading order).
           if (text != null) ...[
             const SizedBox(height: 2),
             KBidiRichText(
@@ -1901,6 +1988,8 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
           KFormat.bidiIsolate(family.name),
           family.level,
         ),
+      if (w.badges?.medals case final medals? when medals.isNotEmpty)
+        l10n.liveChatMedalsLabel(math.min(medals.length, LiveChatMedalRow.max)),
     ].join('. ');
     return Semantics(
       container: true,

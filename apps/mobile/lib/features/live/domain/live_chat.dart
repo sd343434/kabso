@@ -59,6 +59,17 @@ abstract class LiveChatAuthorFamily with _$LiveChatAuthorFamily {
       _$LiveChatAuthorFamilyFromJson(json);
 }
 
+/// `LiveChatAuthorMedal` (v1.52-live, D234, §10.82): one showcased medal of
+/// a chat line's author — drawn from [iconKey] as the profile's medals.
+@freezed
+abstract class LiveChatAuthorMedal with _$LiveChatAuthorMedal {
+  const factory({required String code, required String iconKey}) =
+      _LiveChatAuthorMedal;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveChatAuthorMedalFromJson(json);
+}
+
 /// `LiveChatAuthorBadges` (v1.24.4-live, D119, §10.11): the badges under
 /// the author's name — the charm (`ATTRACTIVENESS`) and `SUPPORT` level
 /// numbers (null while a category is unavailable) and the family (null when
@@ -73,6 +84,11 @@ abstract class LiveChatAuthorBadges with _$LiveChatAuthorBadges {
     /// v1.34-live (D154c): the author's account is younger than the
     /// server's newcomer window (owner: 30 days) — «جديد 🌱».
     @Default(false) bool newcomer,
+
+    /// v1.52-live (D234, §10.82): the first five medals the author chose
+    /// to show on their profile, in their order; empty when none (older
+    /// servers send nothing).
+    @Default(<LiveChatAuthorMedal>[]) List<LiveChatAuthorMedal> medals,
   }) = _LiveChatAuthorBadges;
 
   factory fromJson(Map<String, dynamic> json) =>

@@ -3948,6 +3948,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveChatMedalsLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count medals',
+      one: '$count medal',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get liveChatTool => 'Chat';
 
   @override

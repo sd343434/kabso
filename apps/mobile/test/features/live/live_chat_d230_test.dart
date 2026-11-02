@@ -342,8 +342,8 @@ void main() {
         final text = inLine(LiveChatInlineRow.textKey);
         expect(badges.top, greaterThanOrEqualTo(name.bottom - 0.5));
         expect(text.top, greaterThanOrEqualTo(badges.bottom - 0.5));
-        // Bigger than before: badges 20 pt tall (were 14), the role pill
-        // too.
+        // Bigger than before: badges 24 pt tall (D234; were 20, 14), the
+        // role pill too.
         expect(badges.height, closeTo(LiveChatInlineRow.badgeHeight, 0.5));
         expect(
           inLine(LiveChatBadgeRow.roleKey).height,
@@ -359,9 +359,18 @@ void main() {
         );
         // Arabic: the three lines start at the right.
         final row = inLine(LiveChatInlineRow.rowKey);
-        expect(name.right, closeTo(row.right - 8, 0.5));
-        expect(badges.right, closeTo(row.right - 8, 0.5));
-        expect(text.right, closeTo(row.right - 8, 0.5));
+        expect(
+          name.right,
+          closeTo(row.right - LiveChatInlineRow.padding.start, 0.5),
+        );
+        expect(
+          badges.right,
+          closeTo(row.right - LiveChatInlineRow.padding.start, 0.5),
+        );
+        expect(
+          text.right,
+          closeTo(row.right - LiveChatInlineRow.padding.start, 0.5),
+        );
         await _leave(tester);
       });
     }

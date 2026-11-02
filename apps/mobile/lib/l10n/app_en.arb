@@ -1288,6 +1288,7 @@
   "liveChatCharmLabel": "Charm level {level}",
   "liveChatSupportLabel": "Support level {level}",
   "liveChatFamilyLabel": "Family {name}, level {level}",
+  "liveChatMedalsLabel": "{count, plural, =1{{count} medal} other{{count} medals}}",
   "liveChatTool": "Chat",
   "liveToolsRoom": "Room tools",
   "liveToolsOther": "Other tools",

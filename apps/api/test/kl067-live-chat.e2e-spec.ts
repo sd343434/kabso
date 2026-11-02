@@ -940,6 +940,7 @@ describe('CP-013 live room chat', () => {
       supportLevel: number | null;
       family: { name: string; level: number } | null;
       newcomer: boolean;
+      medals: { code: string; iconKey: string }[];
     };
     const badgesOf = (m: unknown) => (m as { authorBadges: Badges }).authorBadges;
     /** Past the badges cache (30 s) and the counting rule. */
@@ -983,6 +984,7 @@ describe('CP-013 live room chat', () => {
         supportLevel: null,
         family: null,
         newcomer: true,
+        medals: [],
       });
       expect(chats(roomId)).toEqual([{ type: 'chat', message }]);
       expect(badgesOf(((await list(roomId)).body.data as ChatMessage[])[0])).toEqual(badgesOf(message));
@@ -1014,10 +1016,17 @@ describe('CP-013 live room chat', () => {
         supportLevel: 1,
         family: { name: 'Kabso Stars', level: 4 },
         newcomer: true,
+        medals: [],
       });
       expect(chats(roomId).at(-1)).toEqual({ type: 'chat', message: byFan });
       const byOther = await say(roomId, other, 'no family');
-      expect(badgesOf(byOther)).toEqual({ charmLevel: 1, supportLevel: 1, family: null, newcomer: true });
+      expect(badgesOf(byOther)).toEqual({
+        charmLevel: 1,
+        supportLevel: 1,
+        family: null,
+        newcomer: true,
+        medals: [],
+      });
       const listed = (await list(roomId)).body.data as ChatMessage[];
       expect(listed.map(badgesOf)).toEqual([badgesOf(byFan), badgesOf(byOther)]);
 
@@ -1027,6 +1036,64 @@ describe('CP-013 live room chat', () => {
       expect(badgesOf(await say(roomId, fan, 'cached'))?.family).toEqual({ name: 'Kabso Stars', level: 4 });
       later();
       expect(badgesOf(await say(roomId, fan, 'fresh'))?.family).toBeNull();
+      await end(roomId, owner);
+    });
+
+    // v1.52-live (D234, §10.82): the author's showcased medals, at most 5, in their order.
+    it('the showcased medals (≤ 5, in order; none → empty) on send, broadcast and list, cached 30 s', async () => {
+      const codes = ['d234_a', 'd234_b', 'd234_c', 'd234_d', 'd234_e', 'd234_f'];
+      for (const [i, code] of codes.entries()) {
+        await ctx.prisma.medal.upsert({
+          where: { code },
+          create: {
+            code,
+            nameAr: `وسام ${i}`,
+            nameEn: `Medal ${i}`,
+            descriptionAr: 'وصف',
+            descriptionEn: 'About',
+            iconKey: `icon_${code}`,
+            sortOrder: 900 + i,
+          },
+          update: {},
+        });
+      }
+      const owner = await host();
+      const [fan, plain] = [await signup(), await signup()];
+      const roomId = await goLive(owner);
+      await join(roomId, fan);
+      await join(roomId, plain);
+      later();
+      // Six owned, all six in the showcase in reverse order; one more owned but not shown.
+      await ctx.prisma.userMedal.createMany({
+        data: codes.map((code, i) => ({ userId: fan.id, medalCode: code, showcasePosition: 6 - i })),
+      });
+      await ctx.prisma.userMedal.create({ data: { userId: plain.id, medalCode: 'd234_a' } });
+      const expected = [...codes]
+        .reverse()
+        .slice(0, 5)
+        .map((code) => ({ code, iconKey: `icon_${code}` }));
+
+      const byFan = await say(roomId, fan, 'medals');
+      expect(badgesOf(byFan).medals).toEqual(expected);
+      expect(chats(roomId).at(-1)).toEqual({ type: 'chat', message: byFan });
+      // Owned but not chosen: nothing (no auto-fill).
+      const byPlain = await say(roomId, plain, 'none');
+      expect(badgesOf(byPlain).medals).toEqual([]);
+      const listed = (await list(roomId)).body.data as ChatMessage[];
+      expect(listed.map((m) => badgesOf(m).medals)).toEqual([expected, []]);
+
+      // A showcase change shows after the 30 s cache.
+      await ctx.prisma.userMedal.updateMany({ where: { userId: fan.id }, data: { showcasePosition: null } });
+      await ctx.prisma.userMedal.update({
+        where: { userId_medalCode: { userId: fan.id, medalCode: 'd234_c' } },
+        data: { showcasePosition: 1 },
+      });
+      tick();
+      expect(badgesOf(await say(roomId, fan, 'cached')).medals).toEqual(expected);
+      later();
+      expect(badgesOf(await say(roomId, fan, 'fresh')).medals).toEqual([
+        { code: 'd234_c', iconKey: 'icon_d234_c' },
+      ]);
       await end(roomId, owner);
     });
   });

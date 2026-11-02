@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { Clock } from '../../common/time/clock.js';
 import type { AppConfig } from '../../config/app-config.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
-import { LIVE_CHAT_BADGES_TTL_MS, LiveChatBadgesService, NO_BADGES } from './live-chat-badges.service.js';
+import {
+  LIVE_CHAT_BADGES_TTL_MS,
+  LIVE_CHAT_MEDALS_MAX,
+  LiveChatBadgesService,
+  NO_BADGES,
+} from './live-chat-badges.service.js';
 
 class FakeClock extends Clock {
   ms = Date.parse('2026-10-26T12:00:00.000Z');
@@ -17,7 +22,15 @@ const config = { newcomerDays: 30 } as AppConfig;
 
 /** A Prisma stand-in whose `$queryRaw` answers rows for the ids it is asked about. */
 function fakePrisma(
-  rows: Record<string, { charm: number | null; family: string | null; newcomer?: boolean }>,
+  rows: Record<
+    string,
+    {
+      charm: number | null;
+      family: string | null;
+      newcomer?: boolean;
+      medals?: { code: string; iconKey: string }[] | null;
+    }
+  >,
 ) {
   const asked: string[][] = [];
   const prisma = {
@@ -34,6 +47,7 @@ function fakePrisma(
             family_name: rows[id]!.family,
             family_level: rows[id]!.family === null ? null : 2,
             newcomer: rows[id]!.newcomer ?? false,
+            medals: rows[id]!.medals === undefined ? [] : rows[id]!.medals,
           })),
       );
     },
@@ -51,8 +65,23 @@ describe('D119 live chat author badges', () => {
       supportLevel: null,
       family: { name: 'Stars', level: 2 },
       newcomer: true,
+      medals: [],
     });
     expect(badges.get(B)).toEqual(NO_BADGES);
+  });
+
+  it('v1.52-live: the showcased medals in order, at most 5; none (or null) is an empty list', async () => {
+    const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((c) => ({ code: `m_${c}`, iconKey: `icon_${c}` }));
+    const { prisma } = fakePrisma({
+      [A]: { charm: 1, family: null, medals: six },
+      [B]: { charm: 1, family: null, medals: null },
+    });
+    const service = new LiveChatBadgesService(prisma, new FakeClock(), config);
+    const badges = await service.of([A, B]);
+    expect(badges.get(A)?.medals).toEqual(six.slice(0, LIVE_CHAT_MEDALS_MAX));
+    expect(LIVE_CHAT_MEDALS_MAX).toBe(5);
+    expect(badges.get(B)?.medals).toEqual([]);
+    expect(NO_BADGES.medals).toEqual([]);
   });
 
   it('reads each author once per page and caches them for 30 s', async () => {

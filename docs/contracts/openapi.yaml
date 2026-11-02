@@ -189,6 +189,8 @@ info:
     (`LIVE_BOOST_PRICES` default 10 min 200 000 · 20 min 550 000 · 30 min 1 500 000 · 60 min 3 500 000;
     exactly 4 lengths) and the panel's `getAdminLiveBoostPrices` / `updateAdminLiveBoostPrices`
     (CONVENTIONS §10.81).
+    **D234 (DRAFT v1.52-live)** adds the author's showcased medals to a live chat line:
+    `LiveChatAuthorBadges.medals` (≤ 5 `LiveChatAuthorMedal` {code, iconKey}; CONVENTIONS §10.82).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -22748,6 +22750,22 @@ components:
           oneOf:
             - $ref: '#/components/schemas/LiveChatAuthorFamily'
             - type: 'null'
+        medals:
+          type: array
+          maxItems: 5
+          description: |
+            v1.52-live (D234, CONVENTIONS §10.82; owner: «تحت سطر أيقونات الليفيل تكون الميداليات حتى ٥
+            ميداليات»): the first five medals the author chose to show on their profile
+            (`ProfileMedals.showcase`), in their order; empty when none were chosen (no auto-fill). Always
+            sent by v1.52-live servers; apps read a missing field as empty.
+          items: { $ref: '#/components/schemas/LiveChatAuthorMedal' }
+    LiveChatAuthorMedal:
+      type: object
+      description: (v1.52-live, D234, §10.82) One showcased medal on a live chat line — the app draws it from `iconKey` (as `ProfileMedal`) and names it in the line's label from its catalogue.
+      required: [code, iconKey]
+      properties:
+        code: { type: string, maxLength: 40 }
+        iconKey: { type: string, maxLength: 60 }
     LiveChatAuthorFamily:
       type: object
       description: (v1.24.4-live, D119) The family of a live chat message's author.

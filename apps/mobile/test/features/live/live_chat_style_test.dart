@@ -148,6 +148,9 @@ double _fadeAlpha(WidgetTester tester) =>
 Finder _in(String key, Finder finder) =>
     find.descendant(of: _line(key), matching: finder);
 
+/// D234: the row's padding at the reading start.
+final double _pad = LiveChatInlineRow.padding.start;
+
 void main() {
   final en = l10nFor(AppLanguage.en);
 
@@ -222,8 +225,8 @@ void main() {
         // The badges at the row's reading start, inside its padding.
         expect(
           rtl
-              ? (row.right - badges.right - 8).abs() < 1.5
-              : (badges.left - row.left - 8).abs() < 1.5,
+              ? (row.right - badges.right - _pad).abs() < 1.5
+              : (badges.left - row.left - _pad).abs() < 1.5,
           isTrue,
         );
         expect(

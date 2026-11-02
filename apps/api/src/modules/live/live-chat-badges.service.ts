@@ -24,7 +24,21 @@ export interface LiveChatAuthorBadgesDto {
    * date itself is never sent.
    */
   newcomer: boolean;
+  /**
+   * v1.52-live (§10.82): the medals the author chose to show on their profile (`ProfileMedals.showcase`),
+   * the first {@link LIVE_CHAT_MEDALS_MAX} in their order; empty when none were chosen (no auto-fill).
+   */
+  medals: LiveChatAuthorMedalDto[];
 }
+
+/** `LiveChatAuthorMedal` (v1.52-live): one showcased medal on a chat line — its code and art key. */
+export interface LiveChatAuthorMedalDto {
+  code: string;
+  iconKey: string;
+}
+
+/** v1.52-live (owner: «تحت سطر أيقونات الليفيل تكون الميداليات حتى ٥ ميداليات»). */
+export const LIVE_CHAT_MEDALS_MAX = 5;
 
 /** Badges are read again after this long (a level-up or a new family shows within it). */
 export const LIVE_CHAT_BADGES_TTL_MS = 30_000;
@@ -36,6 +50,7 @@ export const NO_BADGES: LiveChatAuthorBadgesDto = Object.freeze({
   supportLevel: null,
   family: null,
   newcomer: false,
+  medals: Object.freeze([]) as unknown as LiveChatAuthorMedalDto[],
 });
 
 /**
@@ -67,14 +82,15 @@ interface BadgeRow {
   family_name: string | null;
   family_level: number | null;
   newcomer: boolean | null;
+  medals: LiveChatAuthorMedalDto[] | null;
 }
 
 /**
  * D119 (owner: "make the chat text like this"): the small badges a live chat line shows under the
- * author's name — the charm and support levels (CP-005) and the family (CP-018). Read in one
- * statement for every author of a page; reading `level_*`, `user_level_states`, `family_members`
- * and `families` here is a read-only exception to module table ownership like the room level
- * (§10.18). Cached per author for {@link LIVE_CHAT_BADGES_TTL_MS} so a busy chat costs at most one
+ * author's name — the charm and support levels (CP-005) and the family (CP-018); v1.52-live: the
+ * author's showcased medals (≤ 5). Read in one statement for every author of a page; reading
+ * `level_*`, `user_level_states`, `family_members`, `families`, `user_medals` and `medals` here
+ * is a read-only exception to module table ownership like the room level (§10.18). Cached per author for {@link LIVE_CHAT_BADGES_TTL_MS} so a busy chat costs at most one
  * read per author and 30 s.
  */
 @Injectable()
@@ -104,7 +120,14 @@ export class LiveChatBadgesService {
              ${levelSql('ATTRACTIVENESS')} AS charm_level,
              ${levelSql('SUPPORT')} AS support_level,
              f.name AS family_name, f.level AS family_level,
-             (SELECT u.created_at > ${since}::timestamptz FROM users u WHERE u.id = a.id) AS newcomer
+             (SELECT u.created_at > ${since}::timestamptz FROM users u WHERE u.id = a.id) AS newcomer,
+             (SELECT COALESCE(json_agg(json_build_object('code', s.code, 'iconKey', s.icon_key) ORDER BY s.pos), '[]'::json)
+                FROM (SELECT um.medal_code AS code, md.icon_key, um.showcase_position AS pos
+                        FROM user_medals um
+                        JOIN medals md ON md.code = um.medal_code
+                       WHERE um.user_id = a.id AND um.showcase_position IS NOT NULL
+                       ORDER BY um.showcase_position
+                       LIMIT ${LIVE_CHAT_MEDALS_MAX}) s) AS medals
         FROM unnest(${missing}::uuid[]) AS a(id)
         LEFT JOIN family_members fm ON fm.user_id = a.id
         LEFT JOIN families f ON f.id = fm.family_id AND f.disbanded_at IS NULL`;
@@ -117,6 +140,9 @@ export class LiveChatBadgesService {
             ? { name: row.family_name, level: row.family_level }
             : null,
         newcomer: row.newcomer === true,
+        medals: (row.medals ?? [])
+          .slice(0, LIVE_CHAT_MEDALS_MAX)
+          .map((m) => ({ code: m.code, iconKey: m.iconKey })),
       };
       out.set(row.user_id, badges);
       this.remember(row.user_id, badges, now);

@@ -128,6 +128,9 @@ Future<(FakeLiveMediaEngine, _Audio)> _room(
       LiveRoomMode.audio => apiRoom(
         id: id,
       ).copyWith(mode: LiveRoomMode.audio, seatCount: 10),
+      LiveRoomMode.multi => apiRoom(
+        id: id,
+      ).copyWith(mode: LiveRoomMode.multi, seatCount: 4),
       LiveRoomMode.podcast => apiRoom(id: id).copyWith(
         mode: LiveRoomMode.podcast,
         seatCount: 4,
@@ -251,14 +254,17 @@ void main() {
         });
       });
 
-      group('chat lines without a default bubble ($tag)', () {
+      // D234 (owner: «أسود شفاف»; supersedes D224's «بدون اي شيء»): a
+      // message without a worn bubble sits on translucent black.
+      group('chat lines on translucent black ($tag)', () {
         for (final mode in [
           LiveRoomMode.solo,
+          LiveRoomMode.multi,
           LiveRoomMode.audio,
           LiveRoomMode.podcast,
         ]) {
-          testWidgets('${mode.name}: a message is plain text on no '
-              'background; a worn CP bubble still shows', (tester) async {
+          testWidgets('${mode.name}: a message sits on translucent black '
+              '(no border); a worn CP bubble shows instead', (tester) async {
             final (engine, _) = await _room(
               tester,
               language: language,
@@ -279,7 +285,20 @@ void main() {
               ),
             );
             expect(row, findsOneWidget);
-            expect(_fill(tester, row), LiveRoomChatLines.plain);
+            expect(_fill(tester, row), LiveRoomChatLines.messageBox);
+            expect(
+              LiveRoomChatLines.messageBox.a,
+              inInclusiveRange(0.35, 0.45),
+            );
+            final box = tester.widget<Container>(
+              find.descendant(of: row, matching: find.byType(Container)).first,
+            );
+            final deco = box.decoration! as BoxDecoration;
+            expect(deco.border, isNull);
+            expect(
+              (deco.borderRadius! as BorderRadius).topLeft.x,
+              inInclusiveRange(12, 14),
+            );
             expect(
               find.descendant(
                 of: _line('m:m2'),
