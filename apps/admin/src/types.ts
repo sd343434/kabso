@@ -43,6 +43,8 @@ export type Capability =
   | 'referrals.view'
   | 'referrals.decide'
   | 'referrals.settings'
+  | 'pk_dares.view'
+  | 'pk_dares.edit'
   | 'lives.view'
   | 'lives.manage'
   | 'catalog.view'
@@ -833,4 +835,49 @@ export interface KycSettings {
   callbackUrl: string;
   consoleUrl: string;
   connectionTestSkippable: boolean;
+}
+
+// ---- v1.50-live (D229, CONVENTIONS §10.80): «أحكام PK» --------------------------------------------------------------
+export type PkDareLevel = 'EASY' | 'MEDIUM' | 'HARD';
+export type PkDareCategory = 'FUNNY' | 'SINGING' | 'ACTING' | 'TALK' | 'TRUTH' | 'DANCE_LIGHT' | 'IMITATION' | 'QUIZ' | 'DRAWING';
+export interface AdminPkDare {
+  id: string;
+  seqNo: number;
+  code: string;
+  textAr: string;
+  textEn: string;
+  category: PkDareCategory;
+  level: PkDareLevel;
+  requiresCamera: boolean;
+  active: boolean;
+  disabledReason: 'ADMIN' | 'REPORTS' | null;
+  reportCount: number;
+  reportsClearedAt: string | null;
+  createdBy: 'SEED' | 'ADMIN';
+  createdAt: string;
+  updatedAt: string;
+}
+export interface AdminPkDareStats {
+  total: number;
+  active: number;
+  disabled: number;
+  reported: number;
+  byLevel: Record<string, number>;
+  byCategory: Record<string, number>;
+}
+export interface AdminPkDareSettings {
+  winPoints: number;
+  drawPoints: number;
+  lossPoints: number;
+  refusePoints: number;
+  decideSeconds: number;
+  reportsToDisable: number;
+  updatedAt: string;
+  updatedById: string | null;
+}
+export interface AdminPkDareImportResult {
+  received: number;
+  inserted: number;
+  existing: number;
+  rejected: { line: number; code: string | null; issues: string[] }[];
 }

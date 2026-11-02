@@ -13192,4 +13192,103 @@ class AppLocalizationsAr extends AppLocalizations {
   String pkFollowHost(String name) {
     return 'متابعة $name';
   }
+
+  @override
+  String get pkTypeNormal => 'PK عادي';
+
+  @override
+  String get pkTypeDares => 'PK أحكام';
+
+  @override
+  String get pkTypeDaresHint => 'الخاسر ينفذ حكماً تسحبه القرعة';
+
+  @override
+  String get pkTypeLabel => 'نوع PK';
+
+  @override
+  String get pkRandomDares => 'عشوائي أحكام';
+
+  @override
+  String pkInviteSentDares(String name) {
+    return 'أُرسلت دعوة PK أحكام إلى $name';
+  }
+
+  @override
+  String get pkDareDrawTitle => 'قرعة الحكم';
+
+  @override
+  String get pkDareLevelEasy => 'سهل';
+
+  @override
+  String get pkDareLevelMedium => 'متوسط';
+
+  @override
+  String get pkDareLevelHard => 'صعب';
+
+  @override
+  String pkDareLoserDeciding(String name) {
+    return 'بانتظار قرار $name';
+  }
+
+  @override
+  String get pkDareYourDare => 'حكمك';
+
+  @override
+  String get pkDareAccept => 'قبول';
+
+  @override
+  String get pkDareRefuse => 'رفض';
+
+  @override
+  String get pkDareRefuseTitle => 'رفض الحكم؟';
+
+  @override
+  String pkDareRefuseBody(String points) {
+    return 'يُحتسب الرفض في نقاط PK: $points';
+  }
+
+  @override
+  String get pkDareDone => 'نُفّذ ✅';
+
+  @override
+  String get pkDareNotDone => 'لم يُنفّذ ❌';
+
+  @override
+  String get pkDareJudge => 'هل نُفّذ الحكم؟';
+
+  @override
+  String get pkDareOutcomeDone => 'نُفّذ الحكم 🎉';
+
+  @override
+  String get pkDareOutcomeRefused => 'رفض الحكم';
+
+  @override
+  String get pkDareOutcomeNotDone => 'لم يُنفّذ الحكم';
+
+  @override
+  String get pkDareReport => 'إبلاغ عن الحكم';
+
+  @override
+  String get pkDareReported => 'شكراً، وصل البلاغ';
+
+  @override
+  String pkDareSemantics(String text, String time) {
+    return 'الحكم: $text. الوقت المتبقي $time';
+  }
+
+  @override
+  String get pkDareDrawSemantics => 'قرعة الحكم بين ثلاثة: سهل ومتوسط وصعب';
+
+  @override
+  String pkRecordPoints(String points) {
+    return 'نقاط PK: $points';
+  }
+
+  @override
+  String pkRecordDares(String done, String refused) {
+    return 'أحكام نُفّذت: $done · رُفضت: $refused';
+  }
+
+  @override
+  String get pkFailureDareClosed => 'لم يعد بالإمكان الرد على هذا الحكم';
 }

@@ -441,7 +441,8 @@ info:
     gifts (`Gift.pkBooster`), never multiplying money; each room's viewers watch the other host with a
     watch-only token for the other room (`createLivePkMediaToken`); the snapshot `getLivePk`; the host's
     mute (`muteLivePkOpponent`); records and history (`getLivePkHost`); codes `PK_UNAVAILABLE`, `PK_HOST_BUSY`,
-    `PK_INVITES_OFF`, `PK_INVITE_COOLDOWN`, `PK_INVITE_CLOSED`, `PK_NOT_ACTIVE`, `PK_BOOSTER_UNAVAILABLE` (409)
+    `PK_INVITES_OFF`, `PK_INVITE_COOLDOWN`, `PK_INVITE_CLOSED`, `PK_NOT_ACTIVE`, `PK_BOOSTER_UNAVAILABLE` (409); v1.50-live
+    (D229): `PK_DARE_CLOSED` (409), `PK_DARE_FORBIDDEN` (403)
     (CONVENTIONS §10.58).
     **D196 (DRAFT v1.64-social)**: the OWNER enters the Stripe keys in the admin panel «الدفع (Stripe)» instead of
     the server environment. `getAdminPaymentSettings`, `updateAdminPaymentSettings` (PATCH; the code again and a
@@ -549,6 +550,15 @@ info:
     `friends=true`) and may be invited (`inviteLivePk`): the invited host's wait no longer makes them
     `PK_HOST_BUSY`; while the invitation is open they are not paired at random; accepted, both waits end. The
     caller's own wait still makes the caller busy. No shape change (CONVENTIONS §10.70).
+    **D229 (DRAFT v1.50-live)**: «PK أحكام» — a PK type `DARES` next to the normal PK (`PkType`: `inviteLivePk`
+    `type`, `joinLivePkRandom` body `{type}`; a DARES waiter is paired only with a DARES waiter). After a result with a
+    winner the server draws one of three dares (one EASY, one MEDIUM, one HARD) shown to both rooms (`PkMatch.dare`,
+    event `dare`); the loser accepts (`acceptLivePkDare`) or refuses (`refuseLivePkDare`: −3 PK points) within 30 s;
+    accepted, a 3-minute timer runs and the winner judges «نُفّذ» / «لم يُنفّذ» (`judgeLivePkDare`); no verdict by the
+    end counts as done. Lucky gifts give 0 PK points in DARES only. New PK points in the record (`PkHostRecord.points`,
+    `daresDone`, `daresRefused`: win +3, draw +1, loss 0, refused −3, from the panel). Viewers report a dare
+    (`reportLivePkDare`). Panel «أحكام PK» (`pk_dares.view` / `pk_dares.edit`): the 20 000-dare library, import, the
+    reported queue and the settings. Codes `PK_DARE_CLOSED` (409), `PK_DARE_FORBIDDEN` (403). CONVENTIONS §10.80.
     **D222 (DRAFT v1.75-social)**: the OWNER enters and turns on the media storage (Cloudflare R2, or any
     S3-compatible service) in the admin panel «التخزين (R2 / S3)» instead of the server environment.
     `getAdminStorageSettings`, `updateAdminStorageSettings` (PATCH; the code again and a reason),
@@ -3775,7 +3785,9 @@ paths:
         open invitation either way, the caller in the random queue (409 `PK_HOST_BUSY`). v1.48-live (D215,
         §10.70): the invited host may be waiting in the random queue; while the invitation is open they are
         not paired at random, and accepting ends both waits. The invitation is open for
-        `PK_INVITE_TTL_SECONDS` (default 15); the invited host gets a `pk-invite` data message.
+        `PK_INVITE_TTL_SECONDS` (default 15); the invited host gets a `pk-invite` data message. v1.50-live (D229,
+        §10.80): `type` DARES offers «PK أحكام» (the invitation shows it; the match keeps it); off
+        (`PK_DARES_ENABLED`) → 409 `PK_UNAVAILABLE`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -3870,9 +3882,17 @@ paths:
         an eligible room, not busy, no block either way — is paired at once (`MATCHED`, they are side A;
         both rooms get `pk-match` `started`); otherwise the caller waits up to `PK_RANDOM_WAIT_SECONDS`
         (default 60; `WAITING`; calling again keeps the same wait). When the wait runs out the host gets a
-        `pk-queue` data message (EXPIRED). Busy with a PK or an open invitation → 409 `PK_HOST_BUSY`.
+        `pk-queue` data message (EXPIRED). Busy with a PK or an open invitation → 409 `PK_HOST_BUSY`. v1.50-live
+        (D229, §10.80): the optional body `{type}` (default NORMAL); a host waiting for DARES is paired only with
+        another DARES waiter (and a NORMAL one only with NORMAL); calling with another type replaces the wait.
+        Auto Match always waits for NORMAL.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PkRandomRequest' }
       responses:
         '200':
           description: Waiting or matched.
@@ -4007,6 +4027,112 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/dare/accept:
+    post:
+      tags: [live]
+      operationId: acceptLivePkDare
+      summary: "«PK أحكام»: the losing host accepts the drawn dare «قبول» (D229)"
+      description: |
+        v1.50-live, §10.80. The losing host (their room in the path; the winning host 403 `PK_DARE_FORBIDDEN`; no
+        open DARES match with a dare in the room 409 `PK_NOT_ACTIVE`). After the draw's reveal (`PkDare.revealAt`)
+        and before `decideBy` (409 `PK_DARE_CLOSED` otherwise): the dare becomes ACTIVE, the timer
+        (`PK_DARE_SECONDS`, 180) starts for both rooms (event `dare`); the winner may judge during it. Already
+        accepted: the match as it is. Audited `live.pk.dare.answer`. Bucket `live:pk:action`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match with its dare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/dare/refuse:
+    post:
+      tags: [live]
+      operationId: refuseLivePkDare
+      summary: "«PK أحكام»: the losing host refuses the drawn dare «رفض» (−3 PK points) (D229)"
+      description: |
+        v1.50-live, §10.80. The losing host, while deciding (after the reveal, before `decideBy`; after accepting
+        409 `PK_DARE_CLOSED`). REFUSED (`cause` LOSER_REFUSED): the refusal's PK points (`refusePoints`, −3) and
+        «dares refused» + 1 in the same transaction, «رفض الحكم» in both rooms; the winner gets no buttons. Already
+        refused by them: the match as it is. Audited `live.pk.dare.answer` and `live.pk.points`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The match with its dare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/dare/verdict:
+    post:
+      tags: [live]
+      operationId: judgeLivePkDare
+      summary: "«PK أحكام»: the winning host's verdict «نُفّذ ✅» / «لم يُنفّذ ❌» during the timer (D229)"
+      description: |
+        v1.50-live, §10.80. The winning host only (the losing host 403 `PK_DARE_FORBIDDEN`), while the dare is
+        ACTIVE and before `endsAt` (409 `PK_DARE_CLOSED`: not accepted yet, or the timer ran out — it then counts as
+        done). `done` true → DONE (`cause` WINNER_DONE, «dares done» + 1); false → REFUSED (WINNER_NOT_DONE: the
+        refusal's PK points). Final: the same verdict again answers the match as it is, the other one 409
+        `PK_DARE_CLOSED`. Audited `live.pk.dare.verdict`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PkDareVerdictRequest' }
+      responses:
+        '200':
+          description: The match with its dare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PkMatch' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/pk/dare/report:
+    post:
+      tags: [live]
+      operationId: reportLivePkDare
+      summary: "«PK أحكام»: report one of the room's dares ⚠️ (D229)"
+      description: |
+        v1.50-live, §10.80. Anyone signed in who may watch the room (viewers and both hosts; kicked out 403), for one
+        of the three dares of the room's open «PK أحكام» (404 otherwise). One report per person per dare (again: 204,
+        not counted twice). At `AdminPkDareSettings.reportsToDisable` reports (5) the dare is disabled automatically
+        (audited `pk_dare.auto_disable`) and is listed in the panel's «مُبلَّغ عنها» queue. 10 / 10 min per user
+        (bucket `live:pk:dare-report`, `RATE_LIMIT_LIVE_PK_DARE_REPORT_USER`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PkDareReportRequest' }
+      responses:
+        '204': { description: Reported. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/pk/hosts/{username}:
     get:
@@ -12740,6 +12866,211 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/pk-dares:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminPkDares
+      summary: "«أحكام PK»: the dare library (pk_dares.view)"
+      description: "(v1.50-live, D229, §10.80) `q`: part of the Arabic or English text, or a code prefix. `reported=true`: the «مُبلَّغ عنها» queue (sort `reportCount`). `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [seqNo, reportCount, updatedAt], default: seqNo }
+        - name: category
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PkDareCategory' }
+        - name: level
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PkDareLevel' }
+        - name: active
+          in: query
+          required: false
+          schema: { type: string, enum: ['true', 'false'] }
+        - name: reported
+          in: query
+          required: false
+          schema: { type: string, enum: ['true'] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDarePage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminPkDare
+      summary: "Adds a dare (pk_dares.edit: OWNER, MODERATION; audited)"
+      description: "(v1.50-live, D229, §10.80) The texts must pass the safety rules (blocklist and rule checks, Arabic ≤ 90 characters, nothing over 3 minutes) and not duplicate the library (normalized text, or a word-set Jaccard ≥ 0.8): 400 with the rule as `issue`. Audited `pk_dare.create` with the reason."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdminPkDareRequest' }
+      responses:
+        '201':
+          description: The dare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDare' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/pk-dares/stats:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminPkDareStats
+      summary: "«أحكام PK»: counts per level and category (pk_dares.view)"
+      description: "(v1.50-live, D229, §10.80) The same counts as `pk-dares-admin stats`."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDareStats' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/pk-dares/import:
+    post:
+      tags: [admin-panel]
+      operationId: importAdminPkDares
+      summary: "Imports dares from JSON or CSV (pk_dares.edit; audited)"
+      description: "(v1.50-live, D229, §10.80) `json`: an array, or one object per line (the seed's format); `csv`: a header row `code,category,level,textAr,textEn`. At most 2000 lines and the request body limit per upload (the 20 000-dare seed goes through `pk-dares-admin import`). Idempotent by `code`: a code already present is left as it is. Every new line must pass the safety rules and the duplicate check; refused lines are listed, never written. `dryRun`: nothing written. Audited `pk_dare.import` (counts)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportAdminPkDaresRequest' }
+      responses:
+        '200':
+          description: What was done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDareImportResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/pk-dares/{dareId}:
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminPkDare
+      summary: "Edits, disables or enables a dare (pk_dares.edit; audited)"
+      description: "(v1.50-live, D229, §10.80) Any of the texts, the category, the level and `active` (at least one) with a reason. New texts are checked like `createAdminPkDare`. Audited `pk_dare.update` with before and after. A disabled dare is never drawn again (a running dare keeps its text)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - name: dareId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminPkDareRequest' }
+      responses:
+        '200':
+          description: The dare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDare' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/pk-dares/{dareId}/reports/clear:
+    post:
+      tags: [admin-panel]
+      operationId: clearAdminPkDareReports
+      summary: "The reported queue's «إبقاء»: clears a dare's reports, optionally enabling it again (pk_dares.edit; audited)"
+      description: "(v1.50-live, D229, §10.80) Audited `pk_dare.reports_clear` with the count and the reason."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - name: dareId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClearAdminPkDareReportsRequest' }
+      responses:
+        '200':
+          description: The dare.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDare' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/pk-dare-settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminPkDareSettings
+      summary: "«أحكام PK»: the PK points and the loser's decision time (pk_dares.view)"
+      description: "(v1.50-live, D229, §10.80)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDareSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminPkDareSettings
+      summary: "Changes the PK points and the dare settings (pk_dares.edit; audited)"
+      description: "(v1.50-live, D229, §10.80) Any subset (at least one) with a reason. Audited `pk_dare.settings.update` with before and after. Points apply to results from now on (a written point event keeps its value)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminPkDareSettingsRequest' }
+      responses:
+        '200':
+          description: The settings now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPkDareSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/live-hosts:
     get:
       tags:
@@ -15297,6 +15628,130 @@ components:
         pendingCherries: { type: integer, format: int64, minimum: 0 }
         creditedCherries: { type: integer, format: int64, minimum: 0 }
         createdAt: { type: string, format: date-time }
+    AdminPkDare:
+      type: object
+      additionalProperties: false
+      required: [id, seqNo, code, textAr, textEn, category, level, requiresCamera, active, disabledReason, reportCount, reportsClearedAt, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        seqNo: { type: integer, minimum: 1 }
+        code: { type: string }
+        textAr: { type: string }
+        textEn: { type: string }
+        category: { $ref: '#/components/schemas/PkDareCategory' }
+        level: { $ref: '#/components/schemas/PkDareLevel' }
+        requiresCamera: { type: boolean, description: Always true (video PK only). }
+        active: { type: boolean }
+        disabledReason: { type: [string, 'null'], enum: [ADMIN, REPORTS, null] }
+        reportCount: { type: integer, minimum: 0 }
+        reportsClearedAt: { type: [string, 'null'], format: date-time }
+        createdBy: { type: string, enum: [SEED, ADMIN] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminPkDarePage:
+      type: object
+      additionalProperties: false
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminPkDare' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+    AdminPkDareStats:
+      type: object
+      additionalProperties: false
+      required: [total, active, disabled, reported, byLevel, byCategory]
+      properties:
+        total: { type: integer, minimum: 0 }
+        active: { type: integer, minimum: 0 }
+        disabled: { type: integer, minimum: 0 }
+        reported: { type: integer, minimum: 0 }
+        byLevel: { type: object, additionalProperties: { type: integer, minimum: 0 }, description: Active dares per level. }
+        byCategory: { type: object, additionalProperties: { type: integer, minimum: 0 }, description: Active dares per category. }
+    CreateAdminPkDareRequest:
+      type: object
+      additionalProperties: false
+      required: [textAr, textEn, category, level, reason]
+      properties:
+        textAr: { type: string, minLength: 1, maxLength: 200 }
+        textEn: { type: string, minLength: 1, maxLength: 300 }
+        category: { $ref: '#/components/schemas/PkDareCategory' }
+        level: { $ref: '#/components/schemas/PkDareLevel' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    UpdateAdminPkDareRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      minProperties: 2
+      properties:
+        textAr: { type: string, minLength: 1, maxLength: 200 }
+        textEn: { type: string, minLength: 1, maxLength: 300 }
+        category: { $ref: '#/components/schemas/PkDareCategory' }
+        level: { $ref: '#/components/schemas/PkDareLevel' }
+        active: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    ImportAdminPkDaresRequest:
+      type: object
+      additionalProperties: false
+      required: [format, content, reason]
+      properties:
+        format: { type: string, enum: [json, csv] }
+        content: { type: string, minLength: 1 }
+        dryRun: { type: boolean, default: false }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminPkDareImportResult:
+      type: object
+      additionalProperties: false
+      required: [received, inserted, existing, rejected]
+      properties:
+        received: { type: integer, minimum: 0 }
+        inserted: { type: integer, minimum: 0 }
+        existing: { type: integer, minimum: 0, description: Codes already in the library (left as they are). }
+        rejected:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [line, code, issues]
+            properties:
+              line: { type: integer, minimum: 1 }
+              code: { type: [string, 'null'] }
+              issues: { type: array, items: { type: string } }
+    ClearAdminPkDareReportsRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        enable: { type: boolean, default: false }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminPkDareSettings:
+      type: object
+      additionalProperties: false
+      required: [winPoints, drawPoints, lossPoints, refusePoints, decideSeconds, reportsToDisable, updatedAt, updatedById]
+      properties:
+        winPoints: { type: integer, minimum: -100, maximum: 100, description: Default 3. }
+        drawPoints: { type: integer, minimum: -100, maximum: 100, description: Default 1. }
+        lossPoints: { type: integer, minimum: -100, maximum: 100, description: Default 0. }
+        refusePoints: { type: integer, minimum: -100, maximum: 100, description: "A refused or not-done dare. Default −3." }
+        decideSeconds: { type: integer, minimum: 5, maximum: 300, description: "The loser's «قبول» / «رفض» window after the reveal. Default 30; no answer = refused." }
+        reportsToDisable: { type: integer, minimum: 1, maximum: 1000, description: Reports that disable a dare automatically. Default 5. }
+        updatedAt: { type: string, format: date-time }
+        updatedById: { type: [string, 'null'], format: uuid }
+    UpdateAdminPkDareSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      minProperties: 2
+      properties:
+        winPoints: { type: integer, minimum: -100, maximum: 100 }
+        drawPoints: { type: integer, minimum: -100, maximum: 100 }
+        lossPoints: { type: integer, minimum: -100, maximum: 100 }
+        refusePoints: { type: integer, minimum: -100, maximum: 100 }
+        decideSeconds: { type: integer, minimum: 5, maximum: 300 }
+        reportsToDisable: { type: integer, minimum: 1, maximum: 1000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     AdminReferralPage:
       type: object
       additionalProperties: false
@@ -21342,7 +21797,7 @@ components:
         mutesOpponent: { type: boolean, description: "This side's host turned the opponent's sound off in their room." }
     PkMatch:
       type: object
-      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective]
+      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective, type, dare]
       properties:
         id: { type: string, format: uuid }
         source: { type: string, enum: [INVITE, RANDOM] }
@@ -21378,14 +21833,86 @@ components:
         connectedAt: { type: [string, 'null'], format: date-time, description: "v1.44-live: when the hosts were connected with auto-start off; null when the battle started at once." }
         settingsFromRoomId: { type: [string, 'null'], format: uuid, description: "v1.44-live: the room whose host's settings were used, when the two hosts' differed (picked at random); null when they were the same." }
         effective: { type: [boolean, 'null'], description: "v1.44-live: whether the finished match counts in the records (both sides' total PK points ≥ `MyLivePk.effectiveMinPoints`; never ADMIN or CANCELLED); null until it ends." }
+        type: { $ref: '#/components/schemas/PkType' }
+        dare:
+          description: "v1.50-live (D229): the dare of a DARES match whose battle ended with a winner; null otherwise (a draw, a void match, a normal PK, during the battle)."
+          oneOf:
+            - $ref: '#/components/schemas/PkDare'
+            - type: 'null'
+    PkType:
+      type: string
+      enum: [NORMAL, DARES]
+      description: "v1.50-live (D229): «PK عادي» / «PK أحكام». Unknown future values: treat as NORMAL."
+    PkDareCategory:
+      type: string
+      enum: [FUNNY, SINGING, ACTING, TALK, TRUTH, DANCE_LIGHT, IMITATION, QUIZ, DRAWING]
+    PkDareLevel:
+      type: string
+      enum: [EASY, MEDIUM, HARD]
+      description: "«سهل» / «متوسط» / «صعب» (owner: about a third of the library each)."
+    PkDareOption:
+      type: object
+      required: [id, level, category, textAr, textEn]
+      properties:
+        id: { type: string, format: uuid }
+        level: { $ref: '#/components/schemas/PkDareLevel' }
+        category: { $ref: '#/components/schemas/PkDareCategory' }
+        textAr: { type: string, maxLength: 200 }
+        textEn: { type: string, maxLength: 300, description: The app shows the text of its own language. }
+    PkDare:
+      type: object
+      required: [status, cause, loserRoomId, winnerRoomId, options, drawn, revealAt, decideBy, startedAt, endsAt, finishedAt, points, refusePoints]
+      properties:
+        status:
+          type: string
+          enum: [DRAWING, DECIDING, ACTIVE, DONE, REFUSED, CANCELLED]
+          description: "DRAWING: the three cards shuffle (both rooms) until `revealAt`, then land on `drawn`. DECIDING: the loser accepts or refuses until `decideBy`. ACTIVE: the timer until `endsAt`; the winner judges. DONE / REFUSED: the outcome, shown PK_DARE_OUTCOME_SECONDS before the PK closes. CANCELLED: no points (a moderator, or the winner's End before an answer)."
+        cause:
+          type: [string, 'null']
+          enum: [LOSER_REFUSED, DECIDE_TIMEOUT, LOSER_LEFT, WINNER_DONE, WINNER_NOT_DONE, TIMER, WINNER_LEFT, ADMIN, null]
+          description: "Why it ended: the loser refused, did not answer in time, left (their live ended, no heartbeat or away) or ended the PK; the winner judged done / not done; the timer ran out with no verdict (done); the winner ended the PK; a moderator."
+        loserRoomId: { type: string, format: uuid }
+        winnerRoomId: { type: string, format: uuid }
+        options:
+          type: array
+          minItems: 3
+          maxItems: 3
+          description: EASY, MEDIUM, HARD in that order.
+          items: { $ref: '#/components/schemas/PkDareOption' }
+        drawn: { type: integer, minimum: 0, maximum: 2, description: "The server's draw (crypto random, uniform); the animation only reveals it." }
+        revealAt: { type: string, format: date-time }
+        decideBy: { type: string, format: date-time, description: "`revealAt` + the panel's `decideSeconds` (30)." }
+        startedAt: { type: [string, 'null'], format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time, description: "ACTIVE: `startedAt` + PK_DARE_SECONDS (180)." }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        points: { type: integer, description: "The loser's PK points from the dare (the refusal's, else 0)." }
+        refusePoints: { type: integer, description: "What a refusal or «لم يُنفّذ» counts now (`AdminPkDareSettings.refusePoints`, −3): the loser's confirm shows it." }
+    PkDareVerdictRequest:
+      type: object
+      additionalProperties: false
+      required: [done]
+      properties:
+        done: { type: boolean, description: "true «نُفّذ ✅», false «لم يُنفّذ ❌»." }
+    PkDareReportRequest:
+      type: object
+      additionalProperties: false
+      required: [dareId]
+      properties:
+        dareId: { type: string, format: uuid }
+    PkRandomRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        type: { $ref: '#/components/schemas/PkType' }
     PkMode:
       type: string
       enum: [SINGLE, BEST_OF_THREE]
       description: v1.44-live (D199) «Single Round PK» / «Best of three PK».
     PkInvite:
       type: object
-      required: [id, status, fromRoomId, toRoomId, from, to, createdAt, expiresAt, matchId]
+      required: [id, status, fromRoomId, toRoomId, from, to, createdAt, expiresAt, matchId, type]
       properties:
+        type: { $ref: '#/components/schemas/PkType' }
         id: { type: string, format: uuid }
         status: { type: string, enum: [PENDING, ACCEPTED, DECLINED, CANCELLED, EXPIRED] }
         fromRoomId: { type: string, format: uuid }
@@ -21401,6 +21928,7 @@ components:
       required: [toRoomId]
       properties:
         toRoomId: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/PkType' }
     PkMuteRequest:
       type: object
       additionalProperties: false
@@ -21409,8 +21937,9 @@ components:
         muted: { type: boolean }
     PkQueueWait:
       type: object
-      required: [joinedAt, expiresAt]
+      required: [joinedAt, expiresAt, type]
       properties:
+        type: { $ref: '#/components/schemas/PkType' }
         joinedAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
     PkState:
@@ -21465,15 +21994,31 @@ components:
         hostIdentity: { type: string, description: "The other host's identity in that session (their user id)." }
     PkHostRecord:
       type: object
-      required: [wins, losses, draws]
+      required: [wins, losses, draws, points, daresDone, daresRefused]
       properties:
         wins: { type: integer, minimum: 0 }
         losses: { type: integer, minimum: 0 }
         draws: { type: integer, minimum: 0 }
+        points: { type: integer, description: "v1.50-live (D229): PK points — win +3, draw +1, loss 0 (counted matches), refused dare −3 (the panel's values); may be below 0." }
+        daresDone: { type: integer, minimum: 0 }
+        daresRefused: { type: integer, minimum: 0 }
     PkHistoryItem:
       type: object
-      required: [id, result, endReason, score, opponentScore, opponent, startedAt, durationSeconds, supporters, effective, mode, roundsWon, opponentRoundsWon]
+      required: [id, result, endReason, score, opponentScore, opponent, startedAt, durationSeconds, supporters, effective, mode, roundsWon, opponentRoundsWon, type, dare]
       properties:
+        type: { $ref: '#/components/schemas/PkType' }
+        dare:
+          description: "v1.50-live (D229): the drawn dare of that match and how it ended (`mine`: this host was the loser); null when there was none."
+          oneOf:
+            - type: object
+              required: [status, level, textAr, textEn, mine]
+              properties:
+                status: { type: string, enum: [DECIDING, ACTIVE, DONE, REFUSED, CANCELLED] }
+                level: { $ref: '#/components/schemas/PkDareLevel' }
+                textAr: { type: string }
+                textEn: { type: string }
+                mine: { type: boolean }
+            - type: 'null'
         id: { type: string, format: uuid }
         result: { type: string, enum: [WIN, LOSS, DRAW, VOID] }
         endReason: { type: string, enum: [TIME, FORFEIT, DISCONNECT, AWAY, ADMIN], description: "A CANCELLED match (v1.44-live) is never listed." }

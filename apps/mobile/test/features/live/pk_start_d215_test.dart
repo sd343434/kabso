@@ -152,9 +152,12 @@ class _HttpPkRepository extends FakeLivePkRepository {
   }
 
   @override
-  Future<({DateTime? waitingUntil, PkMatch? match})> joinRandom(String roomId) {
+  Future<({DateTime? waitingUntil, PkMatch? match})> joinRandom(
+    String roomId, {
+    PkType type = PkType.normal,
+  }) {
     calls.add('random');
-    return _real.joinRandom(roomId);
+    return _real.joinRandom(roomId, type: type);
   }
 
   @override

@@ -441,3 +441,32 @@
 6. On phones: the downloaded model (`files/kabso_camera_fx/face_landmarker.task`, 3.6 MB) is deleted with the app's
    data; an update that removes the engine leaves it until then (harmless).
 
+
+## «PK أحكام»: dares after a PK (v1.50-live draft, D229)
+
+- **No verification of the dare itself.** The winner's «نُفّذ ✅» / «لم يُنفّذ ❌» is the only check (owner's flow);
+  nothing looks at the video. A winner can mark a done dare «لم يُنفّذ» (−3 for the loser): the verdict is final and
+  audited, and the team can only see it in the audit log (there is no appeal or undo in v1).
+- **Owner-confirmable assumptions:** no answer from the loser within 30 s counts as «رفض» (−3); no verdict from the
+  winner by the timer's end counts as «نُفّذ»; the winner's End before the loser answered cancels the dare (no points),
+  after accepting counts as done; a dare follows any result with a winner (forfeit and disconnect too), with or without
+  the «effective PK» threshold; points (+3 / +1 / 0) follow the record and need an «effective PK»; PK points may go
+  below 0; Auto Match always waits for a normal PK.
+- **The library is generated, not hand-written line by line.** 20 000 dares (6 600 easy, 6 600 medium, 6 800 hard; nine
+  categories) are composed by `prisma/seed/pk-dares/generate.ts` from about 1 000 hand-written Arabic / English
+  phrases in 20 templates; no two dares of a template share two of their three parts, and the checker found no
+  exact or near duplicate (Jaccard ≥ 0.8). Many still read alike (the same template with different parts), and some
+  combinations are odd (a «whisper» style on a dance). Read the 60-dare sample sheet; the panel can disable or edit
+  any dare, and the reports disable them automatically.
+- **The safety checker is a blocklist plus rules**, not a model: it cannot judge meaning. It blocks words, not
+  ideas (a dare can be unsafe without a blocked word), and it is strict enough to refuse some harmless texts (e.g.
+  «عنوان» = a title, «دفع» = pushing). Gender-neutral Arabic is checked only for the pronouns «أنتَ / أنتِ»; the rest
+  comes from writing the blocks as verbal nouns. A manual sample (60) was read for this delivery, not all 20 000.
+- **The Arabic is Modern Standard, written without diacritics**; a few dares mix registers. The English is a
+  translation of the same dare, not an independent text.
+- **«Hard» dares involving the winner** (imitate how the winner talks, draw the winner's face, questions from the
+  winner) were accepted by the owner; they stay within the rules but depend on the winner being kind.
+- **No per-viewer translation beyond Arabic / English**: other app languages fall back to English.
+- **An older app** shows a DARES invitation as a normal PK and cannot answer a dare (it then counts as refused after
+  30 s); ship the app before announcing the type.
+- Not verified on a device or with real LiveKit (the draw animation and the banner in the second room).

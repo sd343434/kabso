@@ -8,6 +8,7 @@ import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
 import { Hosts, Lives } from './pages/Lives';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
+import { PkDares } from './pages/PkDares';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
@@ -203,6 +204,9 @@ export function App() {
           break;
         case 'referralSettings':
           page = <ReferralSettingsPage />;
+          break;
+        case 'pkDares':
+          page = <PkDares />;
           break;
         case 'gifts':
           page = <Gifts />;

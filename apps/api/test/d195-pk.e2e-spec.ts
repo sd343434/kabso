@@ -667,7 +667,7 @@ describe('D195 PK 1 v 1', { timeout: 300_000 }, () => {
     const profile = await call('get', `live/pk/hosts/${b.username}`, null);
     expect(profile.status).toBe(200);
     expectContract(profile, 'getLivePkHost');
-    expect(profile.body.record).toEqual({ wins: 1, losses: 0, draws: 0 });
+    expect(profile.body.record).toMatchObject({ wins: 1, losses: 0, draws: 0 });
     expect(profile.body.recent[0]).toMatchObject({
       id: match.id,
       result: 'WIN',
@@ -680,7 +680,7 @@ describe('D195 PK 1 v 1', { timeout: 300_000 }, () => {
     });
     const mine = await call('get', 'me/live-pk', a);
     expectContract(mine, 'getMyLivePk');
-    expect(mine.body.record).toEqual({ wins: 0, losses: 1, draws: 0 });
+    expect(mine.body.record).toMatchObject({ wins: 0, losses: 1, draws: 0 });
     // They may PK again.
     expect((await invite(roomA, a, roomB)).status).toBe(201);
   });

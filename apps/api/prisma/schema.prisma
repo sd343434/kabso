@@ -168,6 +168,10 @@ model User {
   pkInvitesReceived      PkInvite[]                 @relation("PkInviteTo")
   pkQueueEntry           PkQueueEntry?
   pkRecord               PkHostRecord?
+  /// v1.50-live (D229): «PK أحكام».
+  pkDareReports          PkDareReport[]
+  pkDareSeen             PkDareSeen?
+  pkPointEvents          PkPointEvent[]
   pkSettings             PkHostSettings?
   pkSupports             PkSupporter[]
   // v1.45-live (D201): the host's second camera and the one-time music-rights notice.
@@ -4761,31 +4765,31 @@ model PaymentSettings {
 /// D222: the OWNER's object-storage settings (one row, id 1). The access key id and the secret are AES-256-GCM sealed
 /// (HKDF `storage-settings/v1` from ADMIN_TOTP_KEY), only their last 4 in clear. `enabled` on → used over the env.
 model StorageSettings {
-  id                      Int       @id @default(1) @db.SmallInt
-  enabled                 Boolean   @default(false)
+  id                     Int       @id @default(1) @db.SmallInt
+  enabled                Boolean   @default(false)
   /// `R2` | `S3`.
-  provider                String    @default("R2") @db.VarChar(8)
-  accountId               String?   @map("account_id") @db.VarChar(32)
-  endpoint                String?   @db.VarChar(300)
-  region                  String?   @db.VarChar(64)
-  forcePathStyle          Boolean   @default(false) @map("force_path_style")
-  accessKeyIdEnc          String?   @map("access_key_id_enc")
-  accessKeyIdLast4        String?   @map("access_key_id_last4") @db.VarChar(4)
-  accessKeyIdSetById      String?   @map("access_key_id_set_by_id") @db.Uuid
-  accessKeyIdSetAt        DateTime? @map("access_key_id_set_at") @db.Timestamptz(3)
-  secretAccessKeyEnc      String?   @map("secret_access_key_enc")
-  secretAccessKeyLast4    String?   @map("secret_access_key_last4") @db.VarChar(4)
-  secretAccessKeySetById  String?   @map("secret_access_key_set_by_id") @db.Uuid
-  secretAccessKeySetAt    DateTime? @map("secret_access_key_set_at") @db.Timestamptz(3)
-  publicBucket            String?   @map("public_bucket") @db.VarChar(63)
-  publicBaseUrl           String?   @map("public_base_url") @db.VarChar(300)
-  privateBucket           String?   @map("private_bucket") @db.VarChar(63)
-  lastTestAt              DateTime? @map("last_test_at") @db.Timestamptz(3)
-  lastTestOk              Boolean?  @map("last_test_ok")
-  lastTestById            String?   @map("last_test_by_id") @db.Uuid
-  lastTest                Json?     @map("last_test")
-  updatedAt               DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
-  updatedById             String?   @map("updated_by_id") @db.Uuid
+  provider               String    @default("R2") @db.VarChar(8)
+  accountId              String?   @map("account_id") @db.VarChar(32)
+  endpoint               String?   @db.VarChar(300)
+  region                 String?   @db.VarChar(64)
+  forcePathStyle         Boolean   @default(false) @map("force_path_style")
+  accessKeyIdEnc         String?   @map("access_key_id_enc")
+  accessKeyIdLast4       String?   @map("access_key_id_last4") @db.VarChar(4)
+  accessKeyIdSetById     String?   @map("access_key_id_set_by_id") @db.Uuid
+  accessKeyIdSetAt       DateTime? @map("access_key_id_set_at") @db.Timestamptz(3)
+  secretAccessKeyEnc     String?   @map("secret_access_key_enc")
+  secretAccessKeyLast4   String?   @map("secret_access_key_last4") @db.VarChar(4)
+  secretAccessKeySetById String?   @map("secret_access_key_set_by_id") @db.Uuid
+  secretAccessKeySetAt   DateTime? @map("secret_access_key_set_at") @db.Timestamptz(3)
+  publicBucket           String?   @map("public_bucket") @db.VarChar(63)
+  publicBaseUrl          String?   @map("public_base_url") @db.VarChar(300)
+  privateBucket          String?   @map("private_bucket") @db.VarChar(63)
+  lastTestAt             DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk             Boolean?  @map("last_test_ok")
+  lastTestById           String?   @map("last_test_by_id") @db.Uuid
+  lastTest               Json?     @map("last_test")
+  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById            String?   @map("updated_by_id") @db.Uuid
 
   @@map("storage_settings")
 }
@@ -5132,15 +5136,19 @@ model PkMatch {
   connectedAt   DateTime?     @map("connected_at") @db.Timestamptz(3)
   /// Whether the finished match counts in the records (combined PK points ≥ PK_EFFECTIVE_MIN_POINTS).
   effective     Boolean?
+  /// v1.50-live (D229): «PK أحكام» (DARES) or the normal PK.
+  type          PkType        @default(NORMAL)
 
-  roomA      LiveRoom      @relation("PkMatchRoomA", fields: [roomAId], references: [id], onDelete: Cascade)
-  roomB      LiveRoom      @relation("PkMatchRoomB", fields: [roomBId], references: [id], onDelete: Cascade)
-  hostA      User          @relation("PkMatchHostA", fields: [hostAId], references: [id], onDelete: Cascade)
-  hostB      User          @relation("PkMatchHostB", fields: [hostBId], references: [id], onDelete: Cascade)
-  boosts     PkBoost[]
-  points     PkGiftPoint[]
-  supporters PkSupporter[]
-  invite     PkInvite?
+  roomA       LiveRoom       @relation("PkMatchRoomA", fields: [roomAId], references: [id], onDelete: Cascade)
+  roomB       LiveRoom       @relation("PkMatchRoomB", fields: [roomBId], references: [id], onDelete: Cascade)
+  hostA       User           @relation("PkMatchHostA", fields: [hostAId], references: [id], onDelete: Cascade)
+  hostB       User           @relation("PkMatchHostB", fields: [hostBId], references: [id], onDelete: Cascade)
+  boosts      PkBoost[]
+  points      PkGiftPoint[]
+  supporters  PkSupporter[]
+  invite      PkInvite?
+  dare        PkMatchDare?
+  pointEvents PkPointEvent[]
 
   @@unique([roomAId], map: "pk_matches_room_a_active", where: raw("status <> 'CLOSED'::pk_match_status"))
   @@unique([roomBId], map: "pk_matches_room_b_active", where: raw("status <> 'CLOSED'::pk_match_status"))
@@ -5163,6 +5171,8 @@ model PkInvite {
   expiresAt  DateTime       @map("expires_at") @db.Timestamptz(3)
   handledAt  DateTime?      @map("handled_at") @db.Timestamptz(3)
   matchId    String?        @unique @map("match_id") @db.Uuid
+  /// v1.50-live (D229): the PK type the invitation offers.
+  type       PkType         @default(NORMAL)
 
   fromRoom LiveRoom @relation("PkInviteFromRoom", fields: [fromRoomId], references: [id], onDelete: Cascade)
   toRoom   LiveRoom @relation("PkInviteToRoom", fields: [toRoomId], references: [id], onDelete: Cascade)
@@ -5185,6 +5195,8 @@ model PkQueueEntry {
   roomId    String   @map("room_id") @db.Uuid
   joinedAt  DateTime @map("joined_at") @db.Timestamptz(3)
   expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  /// v1.50-live (D229): only waiters of the same type are paired.
+  type      PkType   @default(NORMAL)
 
   host User     @relation(fields: [hostId], references: [id], onDelete: Cascade)
   room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
@@ -5257,15 +5269,190 @@ model PkSupporter {
 
 /// v1.43-live (D195): a host's PK record (finished, non-void matches).
 model PkHostRecord {
-  hostId    String   @id @map("host_id") @db.Uuid
-  wins      Int      @default(0)
-  losses    Int      @default(0)
-  draws     Int      @default(0)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  hostId       String   @id @map("host_id") @db.Uuid
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  draws        Int      @default(0)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  /// v1.50-live (D229): PK points (win / draw / loss / refused dare, `pk_dare_settings`; may be below 0).
+  points       Int      @default(0)
+  daresDone    Int      @default(0) @map("dares_done")
+  daresRefused Int      @default(0) @map("dares_refused")
 
   host User @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
   @@map("pk_host_records")
+}
+
+/// v1.50-live (D229): the PK type — the normal PK, or «PK أحكام» (the loser of a decisive result gets a dare).
+enum PkType {
+  NORMAL
+  DARES
+
+  @@map("pk_type")
+}
+
+enum PkDareCategory {
+  FUNNY
+  SINGING
+  ACTING
+  TALK
+  TRUTH
+  DANCE_LIGHT
+  IMITATION
+  QUIZ
+  DRAWING
+
+  @@map("pk_dare_category")
+}
+
+/// Owner (D229): three levels, about a third of the library each; a draw offers one of each.
+enum PkDareLevel {
+  EASY
+  MEDIUM
+  HARD
+
+  @@map("pk_dare_level")
+}
+
+/// DECIDING (the draw, then the loser accepts or refuses) → ACTIVE (the timer; the winner judges) → DONE / REFUSED;
+/// CANCELLED: a moderator's end (no points).
+enum PkDareStatus {
+  DECIDING
+  ACTIVE
+  DONE
+  REFUSED
+  CANCELLED
+
+  @@map("pk_dare_status")
+}
+
+enum PkDareCause {
+  LOSER_REFUSED
+  DECIDE_TIMEOUT
+  LOSER_LEFT
+  WINNER_DONE
+  WINNER_NOT_DONE
+  TIMER
+  WINNER_LEFT
+  ADMIN
+
+  @@map("pk_dare_cause")
+}
+
+/// v1.50-live (D229): one dare of the library (Kabso's own; seeded by `pk-dares-admin import`). `seqNo` numbers the
+/// bit of `pk_dare_seen.bits`. `disabledReason` ADMIN | REPORTS when not active.
+model PkDare {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  seqNo            Int            @unique(map: "pk_dares_seq_no_key") @default(autoincrement()) @map("seq_no")
+  code             String         @unique(map: "pk_dares_code_key") @db.VarChar(40)
+  textAr           String         @map("text_ar") @db.VarChar(200)
+  textEn           String         @map("text_en") @db.VarChar(300)
+  category         PkDareCategory
+  level            PkDareLevel
+  requiresCamera   Boolean        @default(true) @map("requires_camera")
+  active           Boolean        @default(true)
+  disabledReason   String?        @map("disabled_reason") @db.VarChar(16)
+  reportCount      Int            @default(0) @map("report_count")
+  reportsClearedAt DateTime?      @map("reports_cleared_at") @db.Timestamptz(3)
+  createdBy        String         @default("SEED") @map("created_by") @db.VarChar(8)
+  createdById      String?        @map("created_by_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  matches PkMatchDare[]
+  reports PkDareReport[]
+
+  @@index([level], map: "pk_dares_draw_idx", where: raw("active"))
+  @@index([reportCount(sort: Desc)], map: "pk_dares_reported_idx", where: raw("report_count > 0"))
+  @@map("pk_dares")
+}
+
+/// v1.50-live (D229): the dare of one DARES match. `optionIds` EASY, MEDIUM, HARD; `drawn` the server's draw (0–2).
+model PkMatchDare {
+  matchId      String       @id @map("match_id") @db.Uuid
+  loserSide    PkSide       @map("loser_side")
+  loserHostId  String       @map("loser_host_id") @db.Uuid
+  winnerHostId String       @map("winner_host_id") @db.Uuid
+  optionIds    String[]     @map("option_ids") @db.Uuid
+  drawn        Int          @db.SmallInt
+  dareId       String       @map("dare_id") @db.Uuid
+  status       PkDareStatus @default(DECIDING)
+  cause        PkDareCause?
+  revealAt     DateTime     @map("reveal_at") @db.Timestamptz(3)
+  decideBy     DateTime     @map("decide_by") @db.Timestamptz(3)
+  startedAt    DateTime?    @map("started_at") @db.Timestamptz(3)
+  endsAt       DateTime?    @map("ends_at") @db.Timestamptz(3)
+  finishedAt   DateTime?    @map("finished_at") @db.Timestamptz(3)
+  /// The loser's PK points from the dare (the refusal's, else 0).
+  points       Int          @default(0)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  match PkMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  dare  PkDare  @relation(fields: [dareId], references: [id], onDelete: Restrict)
+
+  @@index([status], map: "pk_match_dares_open_idx", where: raw("finished_at IS NULL"))
+  @@index([loserHostId, createdAt(sort: Desc)], map: "pk_match_dares_loser_idx")
+  @@map("pk_match_dares")
+}
+
+/// v1.50-live (D229): a viewer's (or host's) report of a dare; one per person per dare.
+model PkDareReport {
+  dareId    String   @map("dare_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  matchId   String?  @map("match_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  dare PkDare @relation(fields: [dareId], references: [id], onDelete: Cascade)
+  user User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([dareId, userId], map: "pk_dare_reports_pkey")
+  @@index([userId], map: "pk_dare_reports_user_idx")
+  @@map("pk_dare_reports")
+}
+
+/// v1.50-live (D229): the dares a host has been shown — bit n is `pk_dares.seq_no` n (2.5 KB for 20 000).
+model PkDareSeen {
+  hostId    String   @id @map("host_id") @db.Uuid
+  bits      Bytes
+  seen      Int      @default(0)
+  cycles    Int      @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  host User @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@map("pk_dare_seen")
+}
+
+/// v1.50-live (D229): the PK points written for one match and host (kind WIN / DRAW / LOSS / DARE_REFUSED).
+model PkPointEvent {
+  matchId   String   @map("match_id") @db.Uuid
+  hostId    String   @map("host_id") @db.Uuid
+  kind      String   @db.VarChar(16)
+  points    Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  match PkMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  host  User    @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@id([matchId, hostId, kind], map: "pk_point_events_pkey")
+  @@index([hostId, createdAt(sort: Desc)], map: "pk_point_events_host_idx")
+  @@map("pk_point_events")
+}
+
+/// v1.50-live (D229): one row (id 1) — the PK points and the loser's decision time («أحكام PK», audited).
+model PkDareSettings {
+  id               Int      @id @default(1) @db.SmallInt
+  winPoints        Int      @default(3) @map("win_points")
+  drawPoints       Int      @default(1) @map("draw_points")
+  lossPoints       Int      @default(0) @map("loss_points")
+  refusePoints     Int      @default(-3) @map("refuse_points")
+  decideSeconds    Int      @default(30) @map("decide_seconds")
+  reportsToDisable Int      @default(5) @map("reports_to_disable")
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById      String?  @map("updated_by_id") @db.Uuid
+
+  @@map("pk_dare_settings")
 }
 
 /// v1.43-live (D195): a host's PK settings (no row: invitations on).

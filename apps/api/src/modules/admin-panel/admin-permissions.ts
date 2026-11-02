@@ -132,6 +132,11 @@ export const CAPABILITIES = {
   'users.device_view': ['OWNER', 'SUPPORT'],
   /** Grant or remove a device's exception to the accounts-per-device limit (the authenticator code again). */
   'users.device_exception': ['OWNER'],
+  // ---- v1.50-live (D229, CONVENTIONS §10.80): «أحكام PK» ---------------------------------------------------------------
+  /** The dare library, the reported queue and the PK points settings (read). */
+  'pk_dares.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** Add, edit, disable / enable, import, clear reports; the PK points and dare settings. */
+  'pk_dares.edit': ['OWNER', 'MODERATION'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

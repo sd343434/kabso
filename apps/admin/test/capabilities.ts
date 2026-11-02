@@ -63,6 +63,8 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'referrals.view': ['OWNER', 'SUPPORT', 'FINANCE'],
   'referrals.decide': ['OWNER', 'FINANCE'],
   'referrals.settings': ['OWNER', 'FINANCE'],
+  'pk_dares.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'pk_dares.edit': ['OWNER', 'MODERATION'],
   // v1.78-social (D223).
   'users.device_view': ['OWNER', 'SUPPORT'],
   'users.device_exception': ['OWNER'],

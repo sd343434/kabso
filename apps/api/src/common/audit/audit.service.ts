@@ -107,6 +107,25 @@ export enum AuditAction {
   LIVE_PK_END = 'live.pk.end',
   LIVE_PK_ADMIN_END = 'live.pk.admin_end',
   LIVE_PK_SETTINGS = 'live.pk.settings',
+  /**
+   * v1.50-live (D229, §10.80): «PK أحكام» — the server's draw {options, drawn, level}, the loser's answer (accepted /
+   * refused, or the decision time ran out), the winner's verdict, an end without a verdict (timer, a host gone, a
+   * moderator), the PK points written for a match {host, kind, points}, a dare reported by a viewer, and a dare
+   * disabled automatically after enough reports.
+   */
+  LIVE_PK_DARE_DRAW = 'live.pk.dare.draw',
+  LIVE_PK_DARE_ANSWER = 'live.pk.dare.answer',
+  LIVE_PK_DARE_VERDICT = 'live.pk.dare.verdict',
+  LIVE_PK_DARE_END = 'live.pk.dare.end',
+  LIVE_PK_POINTS = 'live.pk.points',
+  LIVE_PK_DARE_REPORT = 'live.pk.dare.report',
+  PK_DARE_AUTO_DISABLE = 'pk_dare.auto_disable',
+  /** v1.50-live (D229): the dare library from the panel or `pk-dares-admin` {before, after, reason, via}. */
+  PK_DARE_CREATE = 'pk_dare.create',
+  PK_DARE_UPDATE = 'pk_dare.update',
+  PK_DARE_IMPORT = 'pk_dare.import',
+  PK_DARE_REPORTS_CLEAR = 'pk_dare.reports_clear',
+  PK_DARE_SETTINGS_UPDATE = 'pk_dare.settings.update',
   // v1.45-live (D201, §10.63): the host's live tools — a second-camera pairing code created, redeemed
   // (or refused, with the reason, never the code), the second camera ended, the main feed chosen; the
   // one-time music-rights notice accepted; a clip recording started or stopped (viewers are told).

@@ -46,6 +46,9 @@ import {
   type UserSummaryDto,
 } from './live-rooms.service.js';
 import { isUuid, liveMediaTokenSchema } from './live.schemas.js';
+import { addPkDareDoneIn, addPkPointsIn, drawPkDareIn } from './pk-dares/pk-dare-match.js';
+import { pkDareSettingsIn } from './pk-dares/pk-dare-library.js';
+import type { PkDareCategory, PkDareLevel } from './pk-dares/pk-dare-rules.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
 // ---- Response shapes (openapi v1.43-live, CONVENTIONS §10.58) -----------------------------------
@@ -101,6 +104,51 @@ export interface PkSideDto {
   mutesOpponent: boolean;
 }
 
+/** v1.50-live (D229) `PkType`: the normal PK, or «PK أحكام». */
+export type PkTypeName = 'NORMAL' | 'DARES';
+
+/** v1.50-live (D229) `PkDareOption`: one of the three cards (EASY, MEDIUM, HARD in that order). */
+export interface PkDareOptionDto {
+  id: string;
+  level: PkDareLevel;
+  category: PkDareCategory;
+  textAr: string;
+  textEn: string;
+}
+
+/**
+ * v1.50-live (D229) `PkDare`: the dare of a DARES match. DRAWING (the cards shuffle until `revealAt`) → DECIDING (the
+ * loser accepts or refuses until `decideBy`) → ACTIVE (the timer until `endsAt`; the winner judges) → DONE / REFUSED;
+ * CANCELLED (a moderator's end).
+ */
+export interface PkDareDto {
+  status: 'DRAWING' | 'DECIDING' | 'ACTIVE' | 'DONE' | 'REFUSED' | 'CANCELLED';
+  cause:
+    | 'LOSER_REFUSED'
+    | 'DECIDE_TIMEOUT'
+    | 'LOSER_LEFT'
+    | 'WINNER_DONE'
+    | 'WINNER_NOT_DONE'
+    | 'TIMER'
+    | 'WINNER_LEFT'
+    | 'ADMIN'
+    | null;
+  loserRoomId: string;
+  winnerRoomId: string;
+  options: PkDareOptionDto[];
+  /** The drawn card (0–2); the animation lands on it at `revealAt`. */
+  drawn: number;
+  revealAt: string;
+  decideBy: string;
+  startedAt: string | null;
+  endsAt: string | null;
+  finishedAt: string | null;
+  /** The loser's PK points from the dare (the refusal's value, else 0). */
+  points: number;
+  /** What a refusal (or «لم يُنفّذ») counts now (the panel's `refusePoints`, −3): the confirm shows it. */
+  refusePoints: number;
+}
+
 /** `PkMatch`. */
 export interface PkMatchDto {
   id: string;
@@ -133,6 +181,10 @@ export interface PkMatchDto {
   settingsFromRoomId: string | null;
   /** Whether the finished match counts in the records; null until it ends. */
   effective: boolean | null;
+  /** v1.50-live (D229): the PK type. */
+  type: PkTypeName;
+  /** v1.50-live (D229): the dare of a DARES match with a winner; null otherwise (and until the battle ends). */
+  dare: PkDareDto | null;
 }
 
 /** `PkInvite`. */
@@ -146,13 +198,15 @@ export interface PkInviteDto {
   createdAt: string;
   expiresAt: string;
   matchId: string | null;
+  /** v1.50-live (D229): the PK type offered. */
+  type: PkTypeName;
 }
 
 /** `PkState`: what a room's screen needs (the host also gets its invitation, queue and switch). */
 export interface PkStateDto {
   match: PkMatchDto | null;
   invite: PkInviteDto | null;
-  queue: { joinedAt: string; expiresAt: string } | null;
+  queue: { joinedAt: string; expiresAt: string; type: PkTypeName } | null;
   invitesEnabled: boolean | null;
 }
 
@@ -167,7 +221,7 @@ export interface PkCandidateDto {
 /** `PkRandomResult`. */
 export interface PkRandomResultDto {
   status: 'WAITING' | 'MATCHED';
-  queue: { joinedAt: string; expiresAt: string } | null;
+  queue: { joinedAt: string; expiresAt: string; type: PkTypeName } | null;
   match: PkMatchDto | null;
 }
 
@@ -187,6 +241,10 @@ export interface PkHostRecordDto {
   wins: number;
   losses: number;
   draws: number;
+  /** v1.50-live (D229): PK points (win / draw / loss / refused dare; may be below 0). */
+  points: number;
+  daresDone: number;
+  daresRefused: number;
 }
 
 /** `PkHistoryItem`: one finished match from the host's side. */
@@ -205,6 +263,16 @@ export interface PkHistoryItemDto {
   mode: PkModeName;
   roundsWon: number;
   opponentRoundsWon: number;
+  /** v1.50-live (D229). */
+  type: PkTypeName;
+  /** v1.50-live (D229): the dare of that match (the drawn one), null when there was none. */
+  dare: {
+    status: PkDareDto['status'];
+    level: PkDareLevel;
+    textAr: string;
+    textEn: string;
+    mine: boolean;
+  } | null;
 }
 
 /** v1.44-live (D199) `PkSettings`: the caller's PK Setting page (1 v 1) and record. */
@@ -233,7 +301,17 @@ export interface PkHostProfileDto {
 /** The data message of topic `pk` (both rooms). */
 export interface PkMatchData {
   readonly type: 'pk-match';
-  readonly event: 'connected' | 'started' | 'round' | 'score' | 'boost' | 'ended' | 'closed' | 'mute';
+  readonly event:
+    | 'connected'
+    | 'started'
+    | 'round'
+    | 'score'
+    | 'boost'
+    | 'ended'
+    | 'closed'
+    | 'mute'
+    /** v1.50-live (D229): the dare changed (drawn, accepted, refused, judged, over). */
+    | 'dare';
   readonly match: PkMatchDto;
   /** `boost`: the side (room id) and booster that just started (the «فعّل فريق X تربل ×5!» line). */
   readonly boost?: { roomId: string; kind: PkBoosterKindName; multiplier: number; endsAt: string };
@@ -253,7 +331,12 @@ export interface PkQueueData {
 
 // ---- Request bodies ----------------------------------------------------------------------------
 
-const inviteSchema = z.strictObject({ toRoomId: z.uuid() });
+const pkTypeSchema = z.enum(['NORMAL', 'DARES']);
+const inviteSchema = z.strictObject({ toRoomId: z.uuid(), type: pkTypeSchema.optional() });
+/** v1.50-live (D229): `joinLivePkRandom`'s optional body. */
+const randomSchema = z.strictObject({ type: pkTypeSchema.optional() });
+const verdictSchema = z.strictObject({ done: z.boolean() });
+const reportSchema = z.strictObject({ dareId: z.uuid() });
 const muteSchema = z.strictObject({ muted: z.boolean() });
 const settingsSchema = z
   .strictObject({
@@ -313,14 +396,38 @@ interface MatchRow {
   settings_from: PkSideName | null;
   connected_at: Date | null;
   effective: boolean | null;
+  type: PkTypeName;
 }
+
+/** v1.50-live (D229): a match's dare row. */
+interface DareRow {
+  match_id: string;
+  loser_side: PkSideName;
+  loser_host_id: string;
+  winner_host_id: string;
+  option_ids: string[];
+  drawn: number;
+  dare_id: string;
+  status: 'DECIDING' | 'ACTIVE' | 'DONE' | 'REFUSED' | 'CANCELLED';
+  cause: PkDareDto['cause'];
+  reveal_at: Date;
+  decide_by: Date;
+  started_at: Date | null;
+  ends_at: Date | null;
+  finished_at: Date | null;
+  points: number;
+}
+
+const DARE_COLUMNS = `match_id::text AS match_id, loser_side::text AS loser_side, loser_host_id::text AS loser_host_id,
+  winner_host_id::text AS winner_host_id, option_ids::text[] AS option_ids, drawn, dare_id::text AS dare_id,
+  status::text AS status, cause::text AS cause, reveal_at, decide_by, started_at, ends_at, finished_at, points`;
 
 const MATCH_COLUMNS = `id::text AS id, source::text AS source, status::text AS status,
   room_a_id::text AS room_a_id, host_a_id::text AS host_a_id, room_b_id::text AS room_b_id,
   host_b_id::text AS host_b_id, score_a, score_b, started_at, battle_ends_at, ended_at, result_ends_at,
   end_reason::text AS end_reason, winner::text AS winner, loser_cause::text AS loser_cause,
   a_mutes_b, b_mutes_a, seq, top_a, top_b, mode::text AS mode, round_seconds, round, rounds_a, rounds_b,
-  total_a, total_b, settings_from::text AS settings_from, connected_at, effective`;
+  total_a, total_b, settings_from::text AS settings_from, connected_at, effective, type::text AS type`;
 
 interface RoomState {
   id: string;
@@ -359,6 +466,27 @@ function otherSide(side: PkSideName): PkSideName {
   return side === 'A' ? 'B' : 'A';
 }
 
+/** `PkHostRecord` (no row: zeros). */
+function recordDto(
+  r: {
+    wins: number;
+    losses: number;
+    draws: number;
+    points: number;
+    daresDone: number;
+    daresRefused: number;
+  } | null,
+): PkHostRecordDto {
+  return {
+    wins: r?.wins ?? 0,
+    losses: r?.losses ?? 0,
+    draws: r?.draws ?? 0,
+    points: r?.points ?? 0,
+    daresDone: r?.daresDone ?? 0,
+    daresRefused: r?.daresRefused ?? 0,
+  };
+}
+
 /**
  * PK 1 v 1 (v1.43-live, D195, CONVENTIONS §10.58, CP-038): two hosts of SOLO video lives battle for
  * PK_BATTLE_SECONDS. A host invites another live host (PK_INVITE_TTL_SECONDS to answer, a cooldown,
@@ -377,6 +505,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
   private tickTimer: NodeJS.Timeout | undefined;
   private tickInFlight: Promise<unknown> | null = null;
   private stopped = false;
+  /** Tests only: the drawn card of the next draws (else crypto random). */
+  darePick: (() => number) | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -605,6 +735,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          ORDER BY seat_index`,
       this.boosterRules(),
     ]);
+    const dare = row.type === 'DARES' ? await this.dareDto(row) : null;
     const people = await this.summaries([
       row.host_a_id,
       row.host_b_id,
@@ -675,6 +806,52 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       connectedAt: row.connected_at ? iso(row.connected_at) : null,
       settingsFromRoomId: roomOf(row.settings_from),
       effective: row.effective,
+      type: row.type,
+      dare,
+    };
+  }
+
+  /** v1.50-live (D229): a match's dare row (locked with `lock`), or null. */
+  private async dareRow(
+    db: Prisma.TransactionClient | PrismaService,
+    matchId: string,
+    lock = false,
+  ): Promise<DareRow | null> {
+    const [row] = await db.$queryRaw<DareRow[]>(
+      Prisma.sql`SELECT ${Prisma.raw(DARE_COLUMNS)} FROM pk_match_dares WHERE match_id = ${matchId}::uuid ${lock ? Prisma.raw('FOR UPDATE') : Prisma.empty}`,
+    );
+    return row ?? null;
+  }
+
+  /** v1.50-live (D229) `PkDare` of a DARES match (null before the battle ends, or with no winner). */
+  private async dareDto(match: MatchRow): Promise<PkDareDto | null> {
+    const d = await this.dareRow(this.prisma, match.id);
+    if (!d) return null;
+    const dares = await this.prisma.pkDare.findMany({
+      where: { id: { in: d.option_ids } },
+      select: { id: true, level: true, category: true, textAr: true, textEn: true },
+    });
+    const options = d.option_ids
+      .map((id) => dares.find((x) => x.id === id))
+      .filter((x): x is NonNullable<typeof x> => x !== undefined);
+    const now = this.clock.now();
+    const status: PkDareDto['status'] =
+      d.status === 'DECIDING' && now.getTime() < d.reveal_at.getTime() ? 'DRAWING' : d.status;
+    const roomOf = (side: PkSideName) => (side === 'A' ? match.room_a_id : match.room_b_id);
+    return {
+      status,
+      cause: d.cause,
+      loserRoomId: roomOf(d.loser_side),
+      winnerRoomId: roomOf(otherSide(d.loser_side)),
+      options,
+      drawn: d.drawn,
+      revealAt: iso(d.reveal_at),
+      decideBy: iso(d.decide_by),
+      startedAt: d.started_at ? iso(d.started_at) : null,
+      endsAt: d.ends_at ? iso(d.ends_at) : null,
+      finishedAt: d.finished_at ? iso(d.finished_at) : null,
+      points: d.points,
+      refusePoints: (await pkDareSettingsIn(this.prisma)).refusePoints,
     };
   }
 
@@ -703,6 +880,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       createdAt: iso(invite.createdAt),
       expiresAt: iso(invite.expiresAt),
       matchId: invite.matchId,
+      type: invite.type,
     };
   }
 
@@ -743,7 +921,9 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     return {
       match: match ? await this.matchDto(match) : null,
       invite: invite ? await this.inviteDto(invite.id) : null,
-      queue: queue ? { joinedAt: iso(queue.joinedAt), expiresAt: iso(queue.expiresAt) } : null,
+      queue: queue
+        ? { joinedAt: iso(queue.joinedAt), expiresAt: iso(queue.expiresAt), type: queue.type }
+        : null,
       invitesEnabled: settings?.invitesEnabled ?? true,
     };
   }
@@ -819,6 +999,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     this.assertPkOn();
     const parsed = inviteSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const type: PkTypeName = parsed.data.type ?? 'NORMAL';
+    if (type === 'DARES' && !this.config.pk.daresEnabled) throw new AppException(ErrorCode.PK_UNAVAILABLE);
     const now = this.clock.now();
     const own = await this.ownEligibleRoom(callerId, roomId, now);
     const targetRow = await this.rooms.visibleRow(parsed.data.toRoomId, callerId);
@@ -866,6 +1048,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
           toHostId: targetRow.host_user_id,
           createdAt: now,
           expiresAt: new Date(now.getTime() + this.config.pk.inviteTtlSeconds * 1000),
+          type,
         },
       });
     }, LIVE_TX_OPTIONS);
@@ -901,6 +1084,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     from_host_id: string;
     to_room_id: string;
     to_host_id: string;
+    type: PkTypeName;
   }> {
     if (!isUuid(inviteId)) throw new AppException(ErrorCode.NOT_FOUND);
     const [invite] = await tx.$queryRaw<
@@ -912,10 +1096,12 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         from_host_id: string;
         to_room_id: string;
         to_host_id: string;
+        type: PkTypeName;
       }[]
     >`
       SELECT id::text AS id, status::text AS status, expires_at, from_room_id::text AS from_room_id,
-             from_host_id::text AS from_host_id, to_room_id::text AS to_room_id, to_host_id::text AS to_host_id
+             from_host_id::text AS from_host_id, to_room_id::text AS to_room_id, to_host_id::text AS to_host_id,
+             type::text AS type
         FROM pk_invites WHERE id = ${inviteId}::uuid FOR UPDATE`;
     if (!invite || (side === 'to' ? invite.to_room_id : invite.from_room_id) !== roomId) {
       throw new AppException(ErrorCode.NOT_FOUND);
@@ -966,6 +1152,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         hostB: invite.to_host_id,
         now,
         inviteId: invite.id,
+        type: invite.type,
       });
       if (matchId === null) {
         await tx.$executeRaw`UPDATE pk_invites SET status = 'CANCELLED', handled_at = ${iso(now)}::timestamptz WHERE id = ${invite.id}::uuid`;
@@ -1025,18 +1212,28 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
    * they are side A); otherwise the caller waits up to PK_RANDOM_WAIT_SECONDS (`WAITING`; again: the
    * same wait). Busy otherwise (a match or an open invitation) → 409 PK_HOST_BUSY.
    */
-  async joinRandom(callerId: string, roomId: string): Promise<PkRandomResultDto> {
+  async joinRandom(callerId: string, roomId: string, body?: unknown): Promise<PkRandomResultDto> {
     this.assertPkOn();
+    const parsedBody = randomSchema.safeParse(body ?? {});
+    if (!parsedBody.success) throw AppException.validation(zodErrorToDetails(parsedBody.error));
+    // v1.50-live (D229): a «PK أحكام» waiter is only paired with another «PK أحكام» waiter.
+    const type: PkTypeName = parsedBody.data.type ?? 'NORMAL';
+    if (type === 'DARES' && !this.config.pk.daresEnabled) throw new AppException(ErrorCode.PK_UNAVAILABLE);
     const now = this.clock.now();
     const own = await this.ownEligibleRoom(callerId, roomId, now);
     let matched: string | null = null;
-    let waiting: { joinedAt: Date; expiresAt: Date } | null = null;
+    let waiting: { joinedAt: Date; expiresAt: Date; type: PkTypeName } | null = null;
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('pk-queue', 0))`;
       await this.lockRooms(tx, [own.id]);
       const existing = await tx.pkQueueEntry.findUnique({ where: { hostId: callerId } });
-      if (existing && existing.roomId === own.id && existing.expiresAt.getTime() > now.getTime()) {
-        waiting = { joinedAt: existing.joinedAt, expiresAt: existing.expiresAt };
+      if (
+        existing &&
+        existing.roomId === own.id &&
+        existing.type === type &&
+        existing.expiresAt.getTime() > now.getTime()
+      ) {
+        waiting = { joinedAt: existing.joinedAt, expiresAt: existing.expiresAt, type };
         return;
       }
       if (existing) await tx.pkQueueEntry.delete({ where: { hostId: callerId } });
@@ -1060,6 +1257,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
           JOIN user_profiles pp ON pp.user_id = q.host_id
           LEFT JOIN pk_host_settings ps ON ps.host_id = q.host_id
          WHERE q.host_id <> ${callerId}::uuid AND q.expires_at > ${iso(now)}::timestamptz
+           AND q.type = ${type}::pk_type
            AND r.status = 'LIVE' AND r.mode = 'SOLO'::live_room_mode AND r.host_user_id = q.host_id
            AND r.last_heartbeat_at > ${iso(this.staleCutoff(now))}::timestamptz AND r.host_away_since IS NULL
            AND NOT EXISTS (SELECT 1 FROM user_blocks b
@@ -1085,18 +1283,21 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
           hostB: callerId,
           now,
           inviteId: null,
+          type,
         });
         if (matched) return;
       }
       const expiresAt = new Date(now.getTime() + this.config.pk.randomWaitSeconds * 1000);
-      await tx.pkQueueEntry.create({ data: { hostId: callerId, roomId: own.id, joinedAt: now, expiresAt } });
-      waiting = { joinedAt: now, expiresAt };
+      await tx.pkQueueEntry.create({
+        data: { hostId: callerId, roomId: own.id, joinedAt: now, expiresAt, type },
+      });
+      waiting = { joinedAt: now, expiresAt, type };
     }, LIVE_TX_OPTIONS);
     if (matched) return { status: 'MATCHED', queue: null, match: await this.started(matched) };
-    const w = waiting as { joinedAt: Date; expiresAt: Date } | null;
+    const w = waiting as { joinedAt: Date; expiresAt: Date; type: PkTypeName } | null;
     return {
       status: 'WAITING',
-      queue: w ? { joinedAt: iso(w.joinedAt), expiresAt: iso(w.expiresAt) } : null,
+      queue: w ? { joinedAt: iso(w.joinedAt), expiresAt: iso(w.expiresAt), type: w.type } : null,
       match: null,
     };
   }
@@ -1138,6 +1339,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       hostB: string;
       now: Date;
       inviteId: string | null;
+      /** v1.50-live (D229). */
+      type: PkTypeName;
     },
   ): Promise<string | null> {
     const [busy] = await tx.$queryRaw<{ busy: boolean }[]>`
@@ -1171,6 +1374,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         roundSeconds: settings.roundSeconds,
         settingsFrom: from,
         seq: 1,
+        type: input.type,
       },
     });
     if (input.inviteId) {
@@ -1193,6 +1397,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         roundSeconds: settings.roundSeconds,
         autoStart: settings.autoStart,
         settingsFrom: from,
+        type: input.type,
       },
     });
     return id;
@@ -1271,7 +1476,11 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     } else if (match.status === 'BATTLE') {
       await this.finishBattle(match.id, { reason: 'FORFEIT', loser: side }, callerId);
     } else {
-      await this.closeResult(match.id);
+      // v1.50-live (D229): ending the PK during an open dare settles it as that host leaving — the loser: refused
+      // (LOSER_LEFT, the refusal's points); the winner: an accepted dare counts as done (no verdict), one not yet
+      // answered is cancelled (no points).
+      if (match.type === 'DARES') await this.settleDareOnLeave(match.id, room.id, callerId);
+      await this.closeResult(match.id, true);
     }
     const row = await this.selectMatch(this.prisma, Prisma.sql`id = ${match.id}::uuid`);
     return this.matchDto(row!);
@@ -1398,14 +1607,45 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
               [winner === 'A' ? m.host_a_id : m.host_b_id, 'wins'],
               [winner === 'A' ? m.host_b_id : m.host_a_id, 'losses'],
             ];
+      // v1.50-live (D229): the record and the PK points (win / draw / loss, `pk_dare_settings`) in one step,
+      // idempotent by (match, host, kind).
+      const pointValues = await pkDareSettingsIn(tx);
       for (const [hostId, column] of results) {
-        await tx.$executeRaw`
-          INSERT INTO pk_host_records (host_id, wins, losses, draws, updated_at)
-          VALUES (${hostId}::uuid, ${column === 'wins' ? 1 : 0}, ${column === 'losses' ? 1 : 0},
-                  ${column === 'draws' ? 1 : 0}, ${iso(now)}::timestamptz)
-          ON CONFLICT (host_id) DO UPDATE
-             SET wins = pk_host_records.wins + EXCLUDED.wins, losses = pk_host_records.losses + EXCLUDED.losses,
-                 draws = pk_host_records.draws + EXCLUDED.draws, updated_at = EXCLUDED.updated_at`;
+        const kind = column === 'wins' ? 'WIN' : column === 'losses' ? 'LOSS' : 'DRAW';
+        await addPkPointsIn(tx, {
+          matchId,
+          hostId,
+          kind,
+          points:
+            kind === 'WIN'
+              ? pointValues.winPoints
+              : kind === 'LOSS'
+                ? pointValues.lossPoints
+                : pointValues.drawPoints,
+          counter: column,
+          now,
+        });
+      }
+      // v1.50-live (D229) «PK أحكام»: a result with a winner (never a draw or a void match) → the server's draw.
+      if (m.type === 'DARES' && winner !== null) {
+        const loserSide = otherSide(winner);
+        const drawnDare = await drawPkDareIn(tx, {
+          matchId,
+          loserSide,
+          loserHostId: loserSide === 'A' ? m.host_a_id : m.host_b_id,
+          winnerHostId: winner === 'A' ? m.host_a_id : m.host_b_id,
+          now,
+          drawSeconds: this.config.pk.dareDrawSeconds,
+          decideSeconds: pointValues.decideSeconds,
+          ...(this.darePick ? { pick: this.darePick } : {}),
+        });
+        if (drawnDare) {
+          await tx.$executeRaw`
+            UPDATE pk_matches SET result_ends_at = GREATEST(result_ends_at, ${iso(drawnDare.decideBy)}::timestamptz)
+             WHERE id = ${matchId}::uuid`;
+        } else {
+          this.logger.warn({ matchId }, 'PK dares: no active dare at some level, no dare drawn');
+        }
       }
       await this.audit.recordIn(tx, {
         action: AuditAction.LIVE_PK_END,
@@ -1431,12 +1671,17 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
     return done !== false;
   }
 
-  /** RESULT → CLOSED (nothing when it is no longer RESULT); both rooms told, cross-watchers removed. */
-  private async closeResult(matchId: string): Promise<boolean> {
+  /**
+   * RESULT → CLOSED (nothing when it is no longer RESULT); both rooms told, cross-watchers removed. v1.50-live (D229):
+   * not while its dare is open, unless `force` (a host's End).
+   */
+  private async closeResult(matchId: string, force = false): Promise<boolean> {
     const now = this.clock.now();
     const closed = await this.prisma.$executeRaw`
       UPDATE pk_matches SET status = 'CLOSED', closed_at = ${iso(now)}::timestamptz, seq = seq + 1
-       WHERE id = ${matchId}::uuid AND status = 'RESULT'`;
+       WHERE id = ${matchId}::uuid AND status = 'RESULT'
+         AND (${force} OR NOT EXISTS (SELECT 1 FROM pk_match_dares d
+                                       WHERE d.match_id = ${matchId}::uuid AND d.finished_at IS NULL))`;
     if (closed === 0) return false;
     await this.afterClose(matchId);
     return true;
@@ -1520,6 +1765,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       coins: number;
       booster: PkBoosterKindName | null;
       now: Date;
+      /** v1.50-live (D229): a lucky gift — worth 0 PK points in a «PK أحكام» match (normal PK unchanged). */
+      lucky?: boolean;
     },
   ): Promise<PkGiftCredit | null> {
     const m = await this.selectMatch(
@@ -1534,6 +1781,9 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       ]);
     }
     if (!m || remainingMs <= 0) return null;
+    // v1.50-live (D229, owner): in «PK أحكام» lucky gifts (their wins and multipliers too) give no PK points; they
+    // still count as gifts for money, cherries, levels and boards (all written before this, with the real value).
+    if (m.type === 'DARES' && input.lucky === true && input.booster === null) return null;
     const side: PkSideName = m.room_a_id === input.roomId ? 'A' : 'B';
     const at = iso(input.now);
     const [active] = await tx.$queryRaw<{ id: string; multiplier: number }[]>`
@@ -1606,6 +1856,294 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     await this.scoreThrottle.touch(credit.matchId);
+  }
+
+  // ---- «PK أحكام» (v1.50-live, D229, CONVENTIONS §10.80) -----------------------------------------------------
+
+  /** The caller's room's open RESULT match of type DARES with its dare (404 / 409 PK_NOT_ACTIVE otherwise). */
+  private async ownDare(
+    callerId: string,
+    roomId: string,
+  ): Promise<{ room: RoomState; match: MatchRow; dare: DareRow; isLoser: boolean }> {
+    const room = await this.ownRoom(callerId, roomId);
+    const match = await this.openMatchOfRoom(this.prisma, room.id);
+    if (!match || match.type !== 'DARES') throw new AppException(ErrorCode.PK_NOT_ACTIVE);
+    const dare = await this.dareRow(this.prisma, match.id);
+    if (!dare) throw new AppException(ErrorCode.PK_NOT_ACTIVE);
+    const loserRoom = dare.loser_side === 'A' ? match.room_a_id : match.room_b_id;
+    return { room, match, dare, isLoser: loserRoom === room.id };
+  }
+
+  /**
+   * Ends an open dare (under its row lock; nothing when it is no longer in one of `from`): DONE — the loser's «dares
+   * done» + 1; REFUSED — the refusal's PK points (`refusePoints`, −3 by default) and «dares refused» + 1; CANCELLED —
+   * nothing. The PK's result phase then lasts PK_DARE_OUTCOME_SECONDS more (at least its own time). Audited.
+   */
+  private async finishDare(
+    matchId: string,
+    outcome: { status: 'DONE' | 'REFUSED' | 'CANCELLED'; cause: NonNullable<PkDareDto['cause']> },
+    from: readonly DareRow['status'][],
+    actorId: string | null,
+  ): Promise<boolean> {
+    const now = this.clock.now();
+    const done = await this.prisma.$transaction(async (tx) => {
+      const d = await this.dareRow(tx, matchId, true);
+      if (!d || d.finished_at !== null || !from.includes(d.status)) return false;
+      const settings = await pkDareSettingsIn(tx);
+      const points = outcome.status === 'REFUSED' ? settings.refusePoints : 0;
+      await tx.$executeRaw`
+        UPDATE pk_match_dares
+           SET status = ${outcome.status}::pk_dare_status, cause = ${outcome.cause}::pk_dare_cause,
+               finished_at = ${iso(now)}::timestamptz, points = ${points}
+         WHERE match_id = ${matchId}::uuid`;
+      if (outcome.status === 'REFUSED') {
+        await addPkPointsIn(tx, {
+          matchId,
+          hostId: d.loser_host_id,
+          kind: 'DARE_REFUSED',
+          points,
+          counter: 'dares_refused',
+          now,
+        });
+      } else if (outcome.status === 'DONE') {
+        await addPkDareDoneIn(tx, d.loser_host_id, now);
+      }
+      await tx.$executeRaw`
+        UPDATE pk_matches
+           SET result_ends_at = GREATEST(ended_at + make_interval(secs => ${this.config.pk.resultSeconds}),
+                                         ${iso(now)}::timestamptz + make_interval(secs => ${this.config.pk.dareOutcomeSeconds})),
+               seq = seq + 1
+         WHERE id = ${matchId}::uuid AND status = 'RESULT'`;
+      const action =
+        outcome.cause === 'LOSER_REFUSED'
+          ? AuditAction.LIVE_PK_DARE_ANSWER
+          : outcome.cause === 'WINNER_DONE' || outcome.cause === 'WINNER_NOT_DONE'
+            ? AuditAction.LIVE_PK_DARE_VERDICT
+            : AuditAction.LIVE_PK_DARE_END;
+      await this.audit.recordIn(tx, {
+        action,
+        actorUserId: actorId,
+        targetType: 'pk_match',
+        targetId: matchId,
+        metadata: { dareId: d.dare_id, status: outcome.status, cause: outcome.cause, points, from: d.status },
+      });
+      return true;
+    }, LIVE_TX_OPTIONS);
+    if (done) await this.broadcastMatch(matchId, 'dare');
+    return done;
+  }
+
+  /** The loser's decision window is open: the draw was revealed and the decision time has not run out. */
+  private assertDeciding(dare: DareRow, now: Date): void {
+    if (dare.status !== 'DECIDING') throw new AppException(ErrorCode.PK_DARE_CLOSED);
+    if (now.getTime() < dare.reveal_at.getTime() || now.getTime() >= dare.decide_by.getTime()) {
+      throw new AppException(ErrorCode.PK_DARE_CLOSED);
+    }
+  }
+
+  /**
+   * `POST /live/rooms/{roomId}/pk/dare/accept` «قبول»: the losing host (their room in the path; the winner 403
+   * PK_DARE_FORBIDDEN), after the draw's reveal and before `decideBy` → ACTIVE: the timer (PK_DARE_SECONDS, 180)
+   * starts for both rooms; the winner may judge during it. Already accepted: the match as it is (idempotent).
+   */
+  async acceptDare(callerId: string, roomId: string): Promise<PkMatchDto> {
+    const { match, dare, isLoser } = await this.ownDare(callerId, roomId);
+    if (!isLoser) throw new AppException(ErrorCode.PK_DARE_FORBIDDEN);
+    if (dare.status === 'ACTIVE') return this.matchDto(match);
+    const now = this.clock.now();
+    this.assertDeciding(dare, now);
+    const endsAt = new Date(now.getTime() + this.config.pk.dareSeconds * 1000);
+    const changed = await this.prisma.$transaction(async (tx) => {
+      const n = await tx.$executeRaw`
+        UPDATE pk_match_dares SET status = 'ACTIVE', started_at = ${iso(now)}::timestamptz,
+               ends_at = ${iso(endsAt)}::timestamptz
+         WHERE match_id = ${match.id}::uuid AND status = 'DECIDING' AND decide_by > ${iso(now)}::timestamptz`;
+      if (n === 0) return false;
+      await tx.$executeRaw`
+        UPDATE pk_matches
+           SET result_ends_at = GREATEST(result_ends_at, ${iso(endsAt)}::timestamptz
+                                         + make_interval(secs => ${this.config.pk.dareOutcomeSeconds})),
+               seq = seq + 1
+         WHERE id = ${match.id}::uuid`;
+      await this.audit.recordIn(tx, {
+        action: AuditAction.LIVE_PK_DARE_ANSWER,
+        actorUserId: callerId,
+        targetType: 'pk_match',
+        targetId: match.id,
+        metadata: { dareId: dare.dare_id, answer: 'ACCEPTED', endsAt: iso(endsAt) },
+      });
+      return true;
+    }, LIVE_TX_OPTIONS);
+    if (!changed) {
+      const again = await this.dareRow(this.prisma, match.id);
+      if (again?.status !== 'ACTIVE') throw new AppException(ErrorCode.PK_DARE_CLOSED);
+    } else {
+      return (await this.broadcastMatch(match.id, 'dare'))!;
+    }
+    return this.matchDto((await this.selectMatch(this.prisma, Prisma.sql`id = ${match.id}::uuid`))!);
+  }
+
+  /**
+   * `POST /live/rooms/{roomId}/pk/dare/refuse` «رفض»: the losing host, while deciding (after the reveal) → REFUSED:
+   * the refusal's PK points (−3 by default) at once, «رفض الحكم» in both rooms. Not after accepting (409
+   * PK_DARE_CLOSED). Already refused by them: the match as it is.
+   */
+  async refuseDare(callerId: string, roomId: string): Promise<PkMatchDto> {
+    const { match, dare, isLoser } = await this.ownDare(callerId, roomId);
+    if (!isLoser) throw new AppException(ErrorCode.PK_DARE_FORBIDDEN);
+    if (dare.status === 'REFUSED' && dare.cause === 'LOSER_REFUSED') return this.matchDto(match);
+    this.assertDeciding(dare, this.clock.now());
+    const ok = await this.finishDare(
+      match.id,
+      { status: 'REFUSED', cause: 'LOSER_REFUSED' },
+      ['DECIDING'],
+      callerId,
+    );
+    const row = (await this.selectMatch(this.prisma, Prisma.sql`id = ${match.id}::uuid`))!;
+    if (!ok) {
+      const again = await this.dareRow(this.prisma, match.id);
+      if (!(again?.status === 'REFUSED' && again.cause === 'LOSER_REFUSED'))
+        throw new AppException(ErrorCode.PK_DARE_CLOSED);
+    }
+    return this.matchDto(row);
+  }
+
+  /**
+   * `POST /live/rooms/{roomId}/pk/dare/verdict` `{done}` «نُفّذ ✅» / «لم يُنفّذ ❌»: the winning host only (the loser
+   * 403 PK_DARE_FORBIDDEN), during the timer (409 PK_DARE_CLOSED before the loser accepted or once the timer ran
+   * out — then it already counts as done). done → DONE; not done → REFUSED with the refusal's points. Final: the same
+   * verdict again answers the match as it is, another one 409 PK_DARE_CLOSED.
+   */
+  async judgeDare(callerId: string, roomId: string, body: unknown): Promise<PkMatchDto> {
+    const parsed = verdictSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const { match, dare, isLoser } = await this.ownDare(callerId, roomId);
+    if (isLoser) throw new AppException(ErrorCode.PK_DARE_FORBIDDEN);
+    const want = parsed.data.done ? 'WINNER_DONE' : 'WINNER_NOT_DONE';
+    if (dare.cause === want) return this.matchDto(match);
+    const now = this.clock.now();
+    if (dare.status !== 'ACTIVE' || dare.ends_at === null || now.getTime() >= dare.ends_at.getTime()) {
+      throw new AppException(ErrorCode.PK_DARE_CLOSED);
+    }
+    const ok = await this.finishDare(
+      match.id,
+      parsed.data.done
+        ? { status: 'DONE', cause: 'WINNER_DONE' }
+        : { status: 'REFUSED', cause: 'WINNER_NOT_DONE' },
+      ['ACTIVE'],
+      callerId,
+    );
+    if (!ok) {
+      const again = await this.dareRow(this.prisma, match.id);
+      if (again?.cause !== want) throw new AppException(ErrorCode.PK_DARE_CLOSED);
+    }
+    return this.matchDto((await this.selectMatch(this.prisma, Prisma.sql`id = ${match.id}::uuid`))!);
+  }
+
+  /**
+   * `POST /live/rooms/{roomId}/pk/dare/report` `{dareId}` ⚠️: anyone signed in who may watch the room (viewers and
+   * both hosts), for one of the three dares of the room's open «PK أحكام» (404 otherwise). One report per person per
+   * dare (again: 204, not counted twice). At `reportsToDisable` reports (5) the dare is disabled automatically
+   * (audited) and goes to the panel's «مُبلَّغ عنها» queue. Rate limit: bucket `live:pk:dare-report` (10 / 10 min).
+   */
+  async reportDare(callerId: string, roomId: string, body: unknown): Promise<void> {
+    const parsed = reportSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
+    const match = await this.openMatchOfRoom(this.prisma, row.id);
+    const dare = match ? await this.dareRow(this.prisma, match.id) : null;
+    const dareId = parsed.data.dareId.toLowerCase();
+    if (!match || !dare || !dare.option_ids.includes(dareId)) throw new AppException(ErrorCode.NOT_FOUND);
+    const now = this.clock.now();
+    await this.prisma.$transaction(async (tx) => {
+      const inserted = await tx.$executeRaw`
+        INSERT INTO pk_dare_reports (dare_id, user_id, match_id, created_at)
+        VALUES (${dareId}::uuid, ${callerId}::uuid, ${match.id}::uuid, ${iso(now)}::timestamptz)
+        ON CONFLICT DO NOTHING`;
+      if (inserted === 0) return;
+      const [d] = await tx.$queryRaw<{ report_count: number; active: boolean }[]>`
+        UPDATE pk_dares SET report_count = report_count + 1, updated_at = ${iso(now)}::timestamptz
+         WHERE id = ${dareId}::uuid RETURNING report_count, active`;
+      await this.audit.recordIn(tx, {
+        action: AuditAction.LIVE_PK_DARE_REPORT,
+        actorUserId: callerId,
+        targetType: 'pk_dare',
+        targetId: dareId,
+        metadata: { matchId: match.id, reports: d?.report_count ?? 0 },
+      });
+      const settings = await pkDareSettingsIn(tx);
+      if (d && d.active && d.report_count >= settings.reportsToDisable) {
+        await tx.$executeRaw`
+          UPDATE pk_dares SET active = false, disabled_reason = 'REPORTS' WHERE id = ${dareId}::uuid`;
+        await this.audit.recordIn(tx, {
+          action: AuditAction.PK_DARE_AUTO_DISABLE,
+          actorUserId: null,
+          targetType: 'pk_dare',
+          targetId: dareId,
+          metadata: { reports: d.report_count, threshold: settings.reportsToDisable },
+        });
+      }
+    }, LIVE_TX_OPTIONS);
+  }
+
+  /** A host ends the PK (End) during an open dare: see {@link end}. */
+  private async settleDareOnLeave(matchId: string, roomId: string, actorId: string | null): Promise<void> {
+    const dare = await this.dareRow(this.prisma, matchId);
+    if (!dare || dare.finished_at !== null) return;
+    const match = (await this.selectMatch(this.prisma, Prisma.sql`id = ${matchId}::uuid`))!;
+    const loserRoom = dare.loser_side === 'A' ? match.room_a_id : match.room_b_id;
+    if (loserRoom === roomId) {
+      await this.finishDare(
+        matchId,
+        { status: 'REFUSED', cause: 'LOSER_LEFT' },
+        ['DECIDING', 'ACTIVE'],
+        actorId,
+      );
+    } else if (dare.status === 'ACTIVE') {
+      await this.finishDare(matchId, { status: 'DONE', cause: 'WINNER_LEFT' }, ['ACTIVE'], actorId);
+    } else {
+      await this.finishDare(matchId, { status: 'CANCELLED', cause: 'WINNER_LEFT' }, ['DECIDING'], actorId);
+    }
+  }
+
+  /**
+   * The PK tick for a RESULT match of type DARES (true while its dare is open or just ended — the PK then stays open
+   * this tick, so the outcome is shown PK_DARE_OUTCOME_SECONDS before the close): the loser
+   * gone (live ended, no heartbeat or away for PK_ABSENCE_GRACE_SECONDS) → refused (LOSER_LEFT), also after
+   * accepting; no answer by `decideBy` → refused (DECIDE_TIMEOUT, owner-confirmable); the timer over with no verdict
+   * → done (TIMER). The winner gone changes nothing: the timer's end counts as done.
+   */
+  private async dareTick(m: MatchRow, now: Date, grace: number): Promise<boolean> {
+    const d = await this.dareRow(this.prisma, m.id);
+    if (!d || d.finished_at !== null) return false;
+    const loserRoom = await this.roomState(this.prisma, d.loser_side === 'A' ? m.room_a_id : m.room_b_id);
+    const gone =
+      loserRoom === null ||
+      absenceOf(
+        {
+          roomStatus: loserRoom.status,
+          roomEndReason: loserRoom.end_reason,
+          lastHeartbeatAt: loserRoom.last_heartbeat_at,
+          hostAwaySince: loserRoom.host_away_since,
+          leftAt: null,
+        },
+        now,
+        grace,
+      ) !== null;
+    if (gone) {
+      await this.finishDare(m.id, { status: 'REFUSED', cause: 'LOSER_LEFT' }, ['DECIDING', 'ACTIVE'], null);
+      return true;
+    }
+    if (d.status === 'DECIDING' && d.decide_by.getTime() <= now.getTime()) {
+      await this.finishDare(m.id, { status: 'REFUSED', cause: 'DECIDE_TIMEOUT' }, ['DECIDING'], null);
+      return true;
+    }
+    if (d.status === 'ACTIVE' && d.ends_at !== null && d.ends_at.getTime() <= now.getTime()) {
+      await this.finishDare(m.id, { status: 'DONE', cause: 'TIMER' }, ['ACTIVE'], null);
+      return true;
+    }
+    return true;
   }
 
   // ---- Media -----------------------------------------------------------------------------------
@@ -1719,7 +2257,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       autoMatch: settings?.autoMatch ?? false,
       recommendable: settings?.recommendable ?? true,
       effectiveMinPoints: this.config.pk.effectiveMinPoints,
-      record: { wins: record?.wins ?? 0, losses: record?.losses ?? 0, draws: record?.draws ?? 0 },
+      record: recordDto(record),
     };
   }
 
@@ -1795,8 +2333,18 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         ...(r.host_a_id === user.id ? (r.top_a ?? []) : (r.top_b ?? [])).map((s) => s.userId),
       ]),
     );
+    // v1.50-live (D229): the dare of each listed DARES match (the drawn one).
+    const dareRows = await this.prisma.pkMatchDare.findMany({
+      where: { matchId: { in: rows.filter((r) => r.type === 'DARES').map((r) => r.id) } },
+      select: {
+        matchId: true,
+        status: true,
+        loserHostId: true,
+        dare: { select: { level: true, textAr: true, textEn: true } },
+      },
+    });
     return {
-      record: { wins: record?.wins ?? 0, losses: record?.losses ?? 0, draws: record?.draws ?? 0 },
+      record: recordDto(record),
       recent: rows
         .filter((r) => r.end_reason !== null && r.ended_at !== null)
         .map((r): PkHistoryItemDto => {
@@ -1827,6 +2375,17 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
             mode: r.mode,
             roundsWon: mine === 'A' ? r.rounds_a : r.rounds_b,
             opponentRoundsWon: mine === 'A' ? r.rounds_b : r.rounds_a,
+            type: r.type,
+            dare: ((d) =>
+              d
+                ? {
+                    status: d.status,
+                    level: d.dare.level,
+                    textAr: d.dare.textAr,
+                    textEn: d.dare.textEn,
+                    mine: d.loserHostId === user.id,
+                  }
+                : null)(dareRows.find((d) => d.matchId === r.id)),
           };
         })
         .filter((r) => r.opponent !== undefined),
@@ -1936,6 +2495,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
         else if (m.battle_ends_at.getTime() <= now.getTime()) finish = { reason: 'TIME', loser: null };
         if (finish && (await this.finishBattle(m.id, finish))) ended += 1;
       } else if (m.status === 'RESULT') {
+        // v1.50-live (D229): an open dare runs first (its timeouts, the loser gone); the PK stays open meanwhile.
+        if (m.type === 'DARES' && (await this.dareTick(m, now, grace))) continue;
         const rooms = await this.prisma.liveRoom.count({
           where: { id: { in: [m.room_a_id, m.room_b_id] }, status: 'LIVE' },
         });

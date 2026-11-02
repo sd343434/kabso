@@ -9,6 +9,7 @@ import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_boost_fx.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_models.dart';
@@ -105,6 +106,8 @@ class LivePkStage extends StatefulWidget {
     this.onStart,
     this.onHost,
     this.onFollowOpponent,
+    this.isHost = false,
+    this.dareActions = const PkDareActions(),
   });
 
   final PkMatch match;
@@ -117,6 +120,12 @@ class LivePkStage extends StatefulWidget {
   /// this person may follow them and does not yet (never for yourself);
   /// null hides it.
   final VoidCallback? onFollowOpponent;
+
+  /// v1.50-live (D229): this device is the room's host (the dare's buttons).
+  final bool isHost;
+
+  /// v1.50-live (D229): what this device may do with a «PK أحكام» dare.
+  final PkDareActions dareActions;
 
   /// v1.44-live (D199): the host starts a CONNECTED PK (null: a viewer, who
   /// only reads that it will start).
@@ -313,7 +322,7 @@ class _LivePkStageState extends State<LivePkStage> {
                   onStart: widget.onStart,
                 ),
               ),
-            if (!battle && !connected) ...[
+            if (!battle && !connected && match.dare == null) ...[
               Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: IgnorePointer(
@@ -351,6 +360,22 @@ class _LivePkStageState extends State<LivePkStage> {
                 ),
               ),
             ],
+            // v1.50-live (D229): «PK أحكام» — the draw, the loser's
+            // answer, the dare's banner and the outcome, both rooms
+            // (under the result chip at the videos' top edge).
+            if (match.dare case final dare? when !battle && !connected)
+              Positioned.fill(
+                top: 28,
+                child: PkDareLayer(
+                  match: match,
+                  dare: dare,
+                  roomId: widget.roomId,
+                  now: widget.now,
+                  isHost: widget.isHost,
+                  actions: widget.dareActions,
+                  ticks: LivePkStage.ticks,
+                ),
+              ),
             // D199 (owner «استخدمها بنفس المكان … وبنفس الحجم واجعلها
             // تظهر للفرقين»): the owner's banners where the
             // announcement pill was — centred over both boxes, 52 % of

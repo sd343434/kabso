@@ -359,8 +359,11 @@ class LivePkController extends Notifier<LivePkState> {
 
   // ---- Host actions (each throws an AppFailure for the screen) ----------
 
-  Future<PkInvite> invite(String toRoomId) async {
-    final invite = await _repo.invite(roomId, toRoomId: toRoomId);
+  Future<PkInvite> invite(
+    String toRoomId, {
+    PkType type = PkType.normal,
+  }) async {
+    final invite = await _repo.invite(roomId, toRoomId: toRoomId, type: type);
     state = state.copyWith(outgoing: invite);
     return invite;
   }
@@ -386,8 +389,8 @@ class LivePkController extends Notifier<LivePkState> {
     await _repo.decline(roomId, invite.id);
   }
 
-  Future<void> joinRandom() async {
-    final result = await _repo.joinRandom(roomId);
+  Future<void> joinRandom({PkType type = PkType.normal}) async {
+    final result = await _repo.joinRandom(roomId, type: type);
     if (result.match case final match?) {
       _applyMatch(match);
     } else {
@@ -417,6 +420,26 @@ class LivePkController extends Notifier<LivePkState> {
 
   Future<bool> setInvitesEnabled({required bool enabled}) =>
       _repo.setInvitesEnabled(enabled: enabled);
+
+  // ---- v1.50-live (D229): «PK أحكام» ---------------------------------------
+
+  /// The losing host accepts the drawn dare («قبول»): the 3-minute timer.
+  Future<void> acceptDare() async {
+    _applyMatch(await _repo.acceptDare(roomId), replace: true);
+  }
+
+  /// The losing host refuses it («رفض»: −3 PK points).
+  Future<void> refuseDare() async {
+    _applyMatch(await _repo.refuseDare(roomId), replace: true);
+  }
+
+  /// The winning host's verdict during the timer («نُفّذ» / «لم يُنفّذ»).
+  Future<void> judgeDare({required bool done}) async {
+    _applyMatch(await _repo.judgeDare(roomId, done: done), replace: true);
+  }
+
+  /// ⚠️ a dare on the banner (viewers and hosts).
+  Future<void> reportDare(String dareId) => _repo.reportDare(roomId, dareId);
 
   /// Tests: puts a match in place as if the snapshot had it.
   void debugSetMatch(PkMatch? match) => _applyMatch(match, replace: true);
