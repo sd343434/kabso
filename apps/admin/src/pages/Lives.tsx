@@ -129,8 +129,30 @@ function LiveDialog({ id, onClose, onEnded }: { id: string; onClose: () => void;
   );
 }
 
-/** D212: the mode filter's chips, in the app's category order. */
-const LIVE_MODES = ['', 'SOLO', 'AUDIO', 'PODCAST', 'MULTI', 'PK'] as const;
+/** D212: the mode filter's chips, in the app's category order; D213 adds the streamer. */
+export const LIVE_MODES = ['', 'SOLO', 'AUDIO', 'PODCAST', 'MULTI', 'STREAMER', 'PK'] as const;
+export type LiveModeChip = (typeof LIVE_MODES)[number];
+
+/** D212 / D213: the mode chips ('' = all). */
+export function LiveModeTabs({ mode, onMode }: { mode: LiveModeChip; onMode: (m: LiveModeChip) => void }) {
+  const { t } = useApp();
+  return (
+    <div className="tabs" role="group" aria-label={t('liveModeFilter')}>
+      {LIVE_MODES.map((m) => (
+        <button key={m || 'all'} className="tab" aria-pressed={mode === m} onClick={() => onMode(m)}>
+          {t(m ? (`liveMode${m}` as never) : 'statusAll')}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** D213: a streamer's card says so («ستريمر») next to the live badge. */
+export function LiveModeTag({ mode }: { mode: string }) {
+  const { t } = useApp();
+  if (mode !== 'STREAMER') return null;
+  return <span className="live-mode-tag">{t('liveModeSTREAMER')}</span>;
+}
 
 /** «البث الآن» (D197): every live on air as a card grid (most viewers first); details and END LIVE with a reason. */
 export function Lives() {
@@ -139,7 +161,7 @@ export function Lives() {
   const [bump, setBump] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   // D212: the app's live categories as a mode filter ('' = all; PK lives count as SOLO's in the app).
-  const [mode, setMode] = useState<(typeof LIVE_MODES)[number]>('');
+  const [mode, setMode] = useState<LiveModeChip>('');
   const { data, error, loading } = useAsync(
     () =>
       api.get<TablePage<LiveRow>>('/admin/lives', {
@@ -164,21 +186,13 @@ export function Lives() {
           {t('refresh')}
         </button>
       </div>
-      <div className="tabs" role="group" aria-label={t('liveModeFilter')}>
-        {LIVE_MODES.map((m) => (
-          <button
-            key={m || 'all'}
-            className="tab"
-            aria-pressed={mode === m}
-            onClick={() => {
-              setMode(m);
-              setPage(1);
-            }}
-          >
-            {t(m ? (`liveMode${m}` as never) : 'statusAll')}
-          </button>
-        ))}
-      </div>
+      <LiveModeTabs
+        mode={mode}
+        onMode={(m) => {
+          setMode(m);
+          setPage(1);
+        }}
+      />
       <ErrorAlert error={error} />
       {loading && !data && (
         <div className="live-grid">
@@ -199,6 +213,7 @@ export function Lives() {
             <span className="thumb">
               {l.coverUrl ? <img src={l.coverUrl} alt="" loading="lazy" /> : <span className="cover-fallback">{(l.host.displayName || '?')[0]}</span>}
               <span className="live-badge">{t('liveNow')}</span>
+              <LiveModeTag mode={l.mode} />
               <span className="viewers">
                 <Icon name="eye" size={14} /> {formatNumber(l.viewers, lang)}
               </span>
