@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, uploadBannerPicture } from '../api';
+import { api, ApiError, uploadBannerPicture } from '../api';
 import { Dialog, ErrorAlert } from '../components';
 import { useApp } from '../context';
 
@@ -22,6 +22,64 @@ export const BANNER_PLACEMENT_KEYS = Object.keys(BANNER_SHAPES) as BannerPlaceme
 export function placementLabelKey(placement: string): `bannerPlacement_${BannerPlacementKey}` | null {
   const key = placement.toLowerCase();
   return key in BANNER_SHAPES ? (`bannerPlacement_${key as BannerPlacementKey}` as const) : null;
+}
+
+/**
+ * D248c: whether a picked file is an animation (an animated WebP has an `ANIM` chunk; a GIF more than one graphic
+ * control block). Only for the «متحرك» mark: the server decides (and keeps the animation).
+ */
+export function looksAnimated(bytes: Uint8Array): boolean {
+  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.subarray(from, to));
+  if (bytes.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') {
+    const head = ascii(12, Math.min(bytes.length, 64));
+    return head.includes('ANIM');
+  }
+  if (bytes.length >= 6 && /^GIF8[79]a$/.test(ascii(0, 6))) {
+    let blocks = 0;
+    for (let i = 0; i + 2 < bytes.length && blocks < 2; i++) {
+      if (bytes[i] === 0x21 && bytes[i + 1] === 0xf9 && bytes[i + 2] === 0x04) blocks++;
+    }
+    return blocks > 1;
+  }
+  return false;
+}
+
+/** D248c: the server's refusal of an animation, in the panel's language (else null: the usual error box). */
+export function animationIssueKey(error: unknown) {
+  if (!(error instanceof ApiError)) return null;
+  const issue = error.details[0]?.issue;
+  switch (issue) {
+    case 'banner_animation_too_many_frames':
+      return 'bannerAnimTooManyFrames' as const;
+    case 'banner_animation_too_long':
+      return 'bannerAnimTooLong' as const;
+    case 'banner_animation_too_large':
+      return 'bannerAnimTooLarge' as const;
+    case 'banner_animation_unreadable':
+      return 'bannerAnimUnreadable' as const;
+    default:
+      return null;
+  }
+}
+
+/** The crop preview in the placement's own shape (the browser plays an animated file, cropped like the server). */
+export function BannerPreview({ placement, url, animated }: { placement: BannerPlacementKey; url: string | null; animated: boolean }) {
+  const { t } = useApp();
+  const shape = BANNER_SHAPES[placement];
+  return (
+    <div
+      className="banner-preview"
+      data-placement={placement}
+      style={{
+        aspectRatio: `${shape.width} / ${shape.height}`,
+        width: `min(100%, ${Math.round((240 * shape.width) / shape.height)}px)`,
+      }}
+      aria-label={t('bannerPreview')}
+    >
+      {url ? <img src={url} alt="" /> : <span className="muted small">{t('bannerPreview')}</span>}
+      {url && animated && <span className="badge ok banner-anim">{t('bannerAnimated')}</span>}
+    </div>
+  );
 }
 
 /** Local `datetime-local` text → an ISO time with the browser's offset. */
@@ -77,21 +135,32 @@ export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () =
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [animated, setAnimated] = useState(false);
   useEffect(() => {
     if (!file) {
       setPreview(null);
+      setAnimated(false);
       return;
     }
     const url = URL.createObjectURL(file);
     setPreview(url);
-    return () => URL.revokeObjectURL(url);
+    let live = true;
+    void file
+      .slice(0, 1024 * 1024)
+      .arrayBuffer()
+      .then((b) => live && setAnimated(looksAnimated(new Uint8Array(b))));
+    return () => {
+      live = false;
+      URL.revokeObjectURL(url);
+    };
   }, [file]);
+  const issueKey = animationIssueKey(error);
   const set = (k: keyof BannerFormFields) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const shape = BANNER_SHAPES[f.placement];
   const ok = file !== null && !!f.link.trim() && !!f.reason.trim();
   return (
     <Dialog title={t('bannerCreate')} onClose={onClose}>
-      <ErrorAlert error={error} />
+      {issueKey ? <p className="alert bad">{t(issueKey)}</p> : <ErrorAlert error={error} />}
       <form
         className="form-grid"
         onSubmit={(e) => {
@@ -121,21 +190,11 @@ export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () =
         </div>
         <div className="field">
           <label htmlFor="bn-file">{t('bannerPicture')}</label>
-          <input id="bn-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input id="bn-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <span className="hint">{t('bannerPictureHint')}</span>
         </div>
         <div className="field span-2">
-          <div
-            className="banner-preview"
-            data-placement={f.placement}
-            style={{
-              aspectRatio: `${shape.width} / ${shape.height}`,
-              width: `min(100%, ${Math.round((240 * shape.width) / shape.height)}px)`,
-            }}
-            aria-label={t('bannerPreview')}
-          >
-            {preview ? <img src={preview} alt="" /> : <span className="muted small">{t('bannerPreview')}</span>}
-          </div>
+          <BannerPreview placement={f.placement} url={preview} animated={animated} />
         </div>
         <div className="field span-2">
           <label htmlFor="bn-link">{t('bannerLink')}</label>

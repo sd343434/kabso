@@ -47,6 +47,7 @@ import {
   removeBannerIn,
   setBannerEnabledIn,
   storeBannerImage,
+  type StoredBannerImage,
 } from '../home/home-banners.js';
 import { MAX_IMAGE_BYTES } from '../media/media-image.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
@@ -638,11 +639,18 @@ export class AdminCatalogService {
   async uploadBannerPicture(placement: string, body: unknown, ctx: AdminContext) {
     if (!Buffer.isBuffer(body) || body.length === 0) throw refused('The file is empty.');
     if (body.length > MAX_IMAGE_BYTES) throw refused('The picture is larger than 15 MiB.');
-    let asset: MediaAsset;
+    let asset: StoredBannerImage;
     try {
       asset = await storeBannerImage(this.prisma, this.storage, ctx.userId, body, panelPlacement(placement));
     } catch (err) {
-      if (err instanceof BannerError) throw refused(err.message);
+      // D248c: the animation limits carry an issue the panel translates.
+      if (err instanceof BannerError) {
+        throw new AppException(
+          ErrorCode.ADMIN_ACTION_REFUSED,
+          err.message,
+          err.issue ? [{ field: 'file', issue: err.issue }] : undefined,
+        );
+      }
       throw err;
     }
     const base = this.storageSettings.current().publicBaseUrl;
@@ -653,6 +661,10 @@ export class AdminCatalogService {
       height: asset.height,
       imageUrl: giftArtUrl(base, asset.largeKey),
       thumbUrl: giftArtUrl(base, asset.thumbKey ?? asset.largeKey),
+      // D248c: an animated WebP / GIF stays animated (the thumbnail is its first frame).
+      animated: asset.animated,
+      frames: asset.frames,
+      durationMs: asset.durationMs,
     };
   }
 

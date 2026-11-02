@@ -124,6 +124,13 @@ class _KHubCardBannerState extends State<KHubCardBanner> {
   }
 }
 
+/// The decode width of a card banner: the live card's physical width.
+int _cacheWidth(BuildContext context) =>
+    (MediaQuery.sizeOf(context).width /
+            2 *
+            MediaQuery.devicePixelRatioOf(context))
+        .round();
+
 class _CardPage extends StatelessWidget {
   const new({required this.banner, this.title, this.onTap});
 
@@ -141,10 +148,16 @@ class _CardPage extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // D248c: an animated WebP plays; Flutter's `Image` pauses it off
+          // screen, in the background and with reduce motion (first
+          // frame). Decoded at the cell's width, not 720 px.
           Image(
-            image:
-                KHubCardBanner.imageForTesting?.call(banner.imageUrl) ??
-                NetworkImage(banner.imageUrl),
+            image: ResizeImage.resizeIfNeeded(
+              _cacheWidth(context),
+              null,
+              KHubCardBanner.imageForTesting?.call(banner.imageUrl) ??
+                  NetworkImage(banner.imageUrl),
+            ),
             fit: BoxFit.cover,
             gaplessPlayback: true,
             frameBuilder: (_, child, frame, sync) =>

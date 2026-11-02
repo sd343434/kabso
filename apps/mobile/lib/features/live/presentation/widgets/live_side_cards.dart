@@ -761,9 +761,17 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: can ? () => _open(b) : null,
+                          // D248c: an animated WebP plays (paused off
+                          // screen, in the background and with reduce
+                          // motion: Flutter's `Image`); decoded at the
+                          // box's size, not 600 × 800.
                           child: Image.network(
                             b.imageUrl,
                             fit: BoxFit.cover,
+                            cacheWidth:
+                                (widget.boxWidth *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
                             excludeFromSemantics: true,
                             errorBuilder: (_, _, _) =>
                                 const ColoredBox(color: Color(0x33000000)),

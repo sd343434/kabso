@@ -631,6 +631,10 @@ info:
     (`POST /admin/banner-uploads?placement=`, raw bytes, cover-cropped to the placement's shape) and
     `createAdminBanner` (`POST /admin/banners`, reason; audited `banner.add` via panel), capability `catalog.manage`.
     `AdminBannerList` items are the named schema `AdminBanner`. Additive (CONVENTIONS §10.90).
+    **D248c (DRAFT v1.61-live)**: every banner category (the main `home` banner, `hub_card` between the lives,
+    `room` inside a live, `tasks`, `wallet`) may be animated: `uploadAdminBannerPicture` takes animated WebP / GIF
+    (≤ 150 frames, ≤ 10 s, ≤ 3 MB stored) and keeps the animation (animated WebP); `AdminBannerUpload` gains
+    `animated`, `frames`, `durationMs`. Additive (CONVENTIONS §10.90.1).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -14084,7 +14088,13 @@ paths:
       summary: Checks and stores a banner picture, the raw bytes as the body (catalog.manage)
       description: |
         (v1.59-live, D248, CONVENTIONS §10.90) The body is the picture (`application/octet-stream`, JPEG / PNG / WebP,
-        at most 15 MiB, at most 8 000 px a side and 50 MP). As the CLI's `--image`: EXIF orientation applied, metadata
+        at most 15 MiB, at most 8 000 px a side and 50 MP). *(v1.61-live, D248c, §10.90.1)* Also GIF, and an
+        **animated** WebP or GIF stays animated: every frame cover-cropped to the placement's size and stored as an
+        animated WebP (looping), at most 150 frames, 10 s a loop and 3 MB stored; the thumbnail is the first frame.
+        Beyond a limit 409 `ADMIN_ACTION_REFUSED` with `details[0] = {field: file, issue:
+        banner_animation_too_many_frames | banner_animation_too_long | banner_animation_too_large |
+        banner_animation_unreadable}` (nothing stored). Every placement (home, hub_card, room, tasks, wallet) accepts
+        both stills and animations; video, Lottie and SVGA are not accepted. As the CLI's `--image`: EXIF orientation applied, metadata
         dropped, cover-cropped around the centre to the placement's shape — `home` 1 500 × 300 (thumb 320 × 64; D248b,
         5:1), `tasks`, `wallet` 1 500 × 500 (thumb 320 × 107), `room` 600 × 800 (240 × 320), `hub_card` 720 × 805 (288 × 322) — and stored as WebP. Owned
         by the admin's account and shown nowhere until `createAdminBanner` names it (the media sweeper deletes an unused
@@ -19549,15 +19559,18 @@ components:
           - 'null'
     AdminBannerUpload:
       type: object
-      description: (v1.59-live, D248) A stored banner picture, not shown until `createAdminBanner` names it.
-      required: [mediaId, placement, width, height, imageUrl, thumbUrl]
+      description: (v1.59-live, D248) A stored banner picture, not shown until `createAdminBanner` names it. (v1.61-live, D248c) `animated`, `frames`, `durationMs`.
+      required: [mediaId, placement, width, height, imageUrl, thumbUrl, animated, frames, durationMs]
       properties:
         mediaId: { type: string, format: uuid }
         placement: { type: string, enum: [HOME, ROOM, TASKS, WALLET, HUB_CARD] }
         width: { type: integer, description: "1500 (home, tasks, wallet), 600 (room) or 720 (hub_card)." }
         height: { type: integer, description: "500, 800 or 805." }
         imageUrl: { type: [string, 'null'], description: Null without MEDIA_PUBLIC_BASE_URL. }
-        thumbUrl: { type: [string, 'null'] }
+        thumbUrl: { type: [string, 'null'], description: "A still WebP (D248c: an animation's first frame)." }
+        animated: { type: boolean, description: "v1.61-live (D248c): the stored picture is an animated WebP (from an animated WebP or GIF)." }
+        frames: { type: integer, minimum: 1, maximum: 150, description: "1 for a still." }
+        durationMs: { type: integer, minimum: 0, maximum: 10000, description: "One loop of the animation (0 for a still)." }
     AdminBannerCreateRequest:
       type: object
       additionalProperties: false
