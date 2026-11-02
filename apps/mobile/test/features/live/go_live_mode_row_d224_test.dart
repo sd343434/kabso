@@ -6,6 +6,7 @@
 // setups (video: GoLiveModePager; audio / podcast: the audio setup's tabs),
 // Arabic RTL and English LTR at 393×852 and 360×800 with text ×1.3.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -83,87 +84,96 @@ void main() {
     for (final viewport in GoldenViewport.values) {
       final tag = '${language.name}, ${viewport.name}, text ×1.3';
 
+      // D213: Android offers «بث ستريمر» as a real mode (streamer_d213_test);
+      // the greyed «قريباً» tab stays on iOS, where this row is checked.
       testWidgets('the type row scrolls sideways, the chosen type comes to '
-          'the middle, a tap chooses, «ستريمر» does not ($tag)', (
+          'the middle, a tap chooses, «ستريمر» does not on iOS ($tag)', (
         tester,
       ) async {
-        await _pump(tester, language: language, viewport: viewport);
-        // Video setup: «بث مباشر» (solo) chosen and in the middle on open.
-        expect(find.byKey(GoLiveKeys.modeRow), findsOneWidget);
-        _expectCentred(tester, LiveRoomMode.solo);
-
-        // A finger moves the row both ways; it is a real scroll view.
-        final position = _position(tester);
-        final start = position.pixels;
-        final rtl = language == AppLanguage.ar;
-        await tester.drag(
-          find.byKey(GoLiveKeys.modeRow),
-          Offset(rtl ? 120 : -120, 0),
-        );
-        await tester.pumpAndSettle();
-        expect(position.pixels, greaterThan(start));
-        // The streamer tab at the far end is reachable by dragging.
-        await tester.drag(
-          find.byKey(GoLiveKeys.modeRow),
-          Offset(rtl ? 400 : -400, 0),
-        );
-        await tester.pumpAndSettle();
-        final row = tester.getRect(find.byKey(GoLiveKeys.modeRow));
-        final streamer = tester.getRect(find.byKey(GoLiveKeys.streamer));
-        expect(streamer.left, greaterThanOrEqualTo(row.left));
-        expect(streamer.right, lessThanOrEqualTo(row.right));
-
-        // A tap on a type chooses it: the podcast's setup, its row with the
-        // podcast in the middle.
-        await tester.ensureVisible(
-          find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)));
-        await tester.pumpAndSettle();
-        expect(find.byType(GoLiveAudioSetup), findsOneWidget);
-        _expectCentred(tester, LiveRoomMode.podcast);
-        // …and the audio one (a drag or the next tab away), scrolled to the
-        // middle again.
-        await tester.ensureVisible(
-          find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
-        await tester.pumpAndSettle();
-        _expectCentred(tester, LiveRoomMode.audio);
-        // The audio setup's row scrolls too.
-        final audio = _position(tester);
-        final before = audio.pixels;
-        await tester.drag(
-          find.byKey(GoLiveKeys.modeRow),
-          Offset(rtl ? -150 : 150, 0),
-        );
-        await tester.pumpAndSettle();
-        expect(audio.pixels, lessThan(before));
-        // Back to the live: its row centres «بث مباشر» again.
-        await tester.ensureVisible(
-          find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)));
-        await tester.pumpAndSettle();
-        expect(find.byType(GoLiveAudioSetup), findsNothing);
-        _expectCentred(tester, LiveRoomMode.solo);
-        // «ستريمر · قريباً» is not selectable: the setup stays the video one
-        // and the row keeps «بث مباشر» chosen.
-        await tester.ensureVisible(find.byKey(GoLiveKeys.streamer));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(GoLiveKeys.streamer));
-        await tester.pump();
-        expect(find.byType(GoLiveAudioSetup), findsNothing);
-        expect(
-          tester.getSemantics(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo))),
-          isSemantics(isSelected: true),
-        );
-        expect(tester.takeException(), isNull);
-        await _leave(tester);
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        try {
+          await _body(tester, language: language, viewport: viewport);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
       });
     }
   }
+}
+
+Future<void> _body(
+  WidgetTester tester, {
+  required AppLanguage language,
+  required GoldenViewport viewport,
+}) async {
+  await _pump(tester, language: language, viewport: viewport);
+  // Video setup: «بث مباشر» (solo) chosen and in the middle on open.
+  expect(find.byKey(GoLiveKeys.modeRow), findsOneWidget);
+  _expectCentred(tester, LiveRoomMode.solo);
+
+  // A finger moves the row both ways; it is a real scroll view.
+  final position = _position(tester);
+  final start = position.pixels;
+  final rtl = language == AppLanguage.ar;
+  await tester.drag(
+    find.byKey(GoLiveKeys.modeRow),
+    Offset(rtl ? 120 : -120, 0),
+  );
+  await tester.pumpAndSettle();
+  expect(position.pixels, greaterThan(start));
+  // The streamer tab at the far end is reachable by dragging.
+  await tester.drag(
+    find.byKey(GoLiveKeys.modeRow),
+    Offset(rtl ? 400 : -400, 0),
+  );
+  await tester.pumpAndSettle();
+  final row = tester.getRect(find.byKey(GoLiveKeys.modeRow));
+  final streamer = tester.getRect(find.byKey(GoLiveKeys.streamer));
+  expect(streamer.left, greaterThanOrEqualTo(row.left));
+  expect(streamer.right, lessThanOrEqualTo(row.right));
+
+  // A tap on a type chooses it: the podcast's setup, its row with the
+  // podcast in the middle.
+  await tester.ensureVisible(find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.podcast)));
+  await tester.pumpAndSettle();
+  expect(find.byType(GoLiveAudioSetup), findsOneWidget);
+  _expectCentred(tester, LiveRoomMode.podcast);
+  // …and the audio one (a drag or the next tab away), scrolled to the
+  // middle again.
+  await tester.ensureVisible(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+  await tester.pumpAndSettle();
+  _expectCentred(tester, LiveRoomMode.audio);
+  // The audio setup's row scrolls too.
+  final audio = _position(tester);
+  final before = audio.pixels;
+  await tester.drag(
+    find.byKey(GoLiveKeys.modeRow),
+    Offset(rtl ? -150 : 150, 0),
+  );
+  await tester.pumpAndSettle();
+  expect(audio.pixels, lessThan(before));
+  // Back to the live: its row centres «بث مباشر» again.
+  await tester.ensureVisible(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)));
+  await tester.pumpAndSettle();
+  expect(find.byType(GoLiveAudioSetup), findsNothing);
+  _expectCentred(tester, LiveRoomMode.solo);
+  // «ستريمر · قريباً» is not selectable: the setup stays the video one
+  // and the row keeps «بث مباشر» chosen.
+  await tester.ensureVisible(find.byKey(GoLiveKeys.streamer));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(GoLiveKeys.streamer));
+  await tester.pump();
+  expect(find.byType(GoLiveAudioSetup), findsNothing);
+  expect(
+    tester.getSemantics(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo))),
+    isSemantics(isSelected: true),
+  );
+  expect(tester.takeException(), isNull);
+  await _leave(tester);
 }

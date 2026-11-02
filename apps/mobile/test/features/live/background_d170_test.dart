@@ -123,12 +123,27 @@ void main() {
         r'<service[^>]*flutter_foreground_task\.service\.ForegroundService[^>]*>',
       ).firstMatch(manifest)?.group(0);
       expect(service, isNotNull);
+      // D213: plus mediaProjection|camera, which only a streamer live starts
+      // the service with (the Dart side asks for them with `spec.screen`;
+      // streamer_d213_test); every other live keeps microphone|mediaPlayback
+      // and pauses the camera in the background.
       expect(
         service,
-        contains('android:foregroundServiceType="microphone|mediaPlayback"'),
+        contains(
+          'android:foregroundServiceType='
+          '"microphone|mediaPlayback|mediaProjection|camera"',
+        ),
       );
-      // The camera cannot run in the background: no camera type.
-      expect(service, isNot(contains('camera')));
+      for (final permission in [
+        'android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION',
+        'android.permission.FOREGROUND_SERVICE_CAMERA',
+      ]) {
+        expect(
+          manifest,
+          contains('<uses-permission android:name="$permission"/>'),
+          reason: permission,
+        );
+      }
     });
 
     test('iOS: background audio (not voip)', () {

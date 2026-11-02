@@ -92,6 +92,8 @@ class _BrokenKeeper extends LiveBackgroundKeeper {
     VoidCallback? onOpen,
     VoidCallback? onBackground,
     VoidCallback? onForeground,
+    VoidCallback? onToggleMic,
+    VoidCallback? onToggleCamera,
   }) => throw StateError('background service broken');
 }
 

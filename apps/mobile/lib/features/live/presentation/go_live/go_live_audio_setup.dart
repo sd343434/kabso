@@ -6,6 +6,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -799,8 +800,11 @@ class _ModeTabs extends StatelessWidget {
       (LiveRoomMode.multi, l10n.goLiveModeMulti),
       (LiveRoomMode.solo, l10n.goLiveModeSolo),
       (LiveRoomMode.audio, l10n.goLiveModeAudio),
-      // D212: the podcast (the streamer tab follows, «قريباً»).
+      // D212: the podcast (the streamer tab follows, «قريباً»; D213: a
+      // mode on Android).
       (LiveRoomMode.podcast, l10n.goLiveModePodcast),
+      if (streamerSupportHere() == StreamerSupport.supported)
+        (LiveRoomMode.streamer, l10n.goLiveModeStreamer),
     ];
     final at = modes.indexWhere((m) => m.$1 == selected);
     Widget tab((LiveRoomMode, String) m) {
@@ -862,7 +866,8 @@ class _ModeTabs extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final m in modes) tab(m),
-        const GoLiveStreamerTab(fontSize: 15),
+        if (streamerSupportHere() != StreamerSupport.supported)
+          const GoLiveStreamerTab(fontSize: 15),
       ],
     );
   }

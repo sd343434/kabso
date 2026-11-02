@@ -278,6 +278,15 @@ class DemoLiveRepository implements LiveRepository {
     int? seatCount,
     String? theme,
     PodcastSetup? podcast,
+    LiveStreamer? streamer,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LiveStreamer> updateStreamer(
+    String roomId, {
+    StreamerOrientation? orientation,
+    bool? cameraVisible,
+    StreamerCorner? corner,
   }) async => throw _serverOnly;
 
   @override

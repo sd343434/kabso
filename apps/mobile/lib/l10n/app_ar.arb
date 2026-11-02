@@ -12154,6 +12154,163 @@
   "@goLiveModeStreamer": {
     "description": "D212 (live categories and the podcast live)."
   },
+  "liveCardTagStreamer": "ستريمر",
+  "@liveCardTagStreamer": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "goLiveStreamerSoonIos": "قريباً على آيفون",
+  "@goLiveStreamerSoonIos": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "goLiveStreamerIosSnack": "بث ستريمر قريباً على آيفون",
+  "@goLiveStreamerIosSnack": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerSetupBody": "يرى المشاهدون شاشة هاتفك، لعبة أو تطبيق، مع فقاعة صغيرة من كاميرتك الأمامية.",
+  "@streamerSetupBody": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerCameraBubble": "فقاعة الكاميرا",
+  "@streamerCameraBubble": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerCameraCorner": "مكان الفقاعة",
+  "@streamerCameraCorner": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerCornerTopLeft": "أعلى اليسار",
+  "@streamerCornerTopLeft": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerCornerTopRight": "أعلى اليمين",
+  "@streamerCornerTopRight": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerCornerBottomLeft": "أسفل اليسار",
+  "@streamerCornerBottomLeft": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerCornerBottomRight": "أسفل اليمين",
+  "@streamerCornerBottomRight": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerMic": "الميكروفون",
+  "@streamerMic": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGameAudio": "صوت اللعبة",
+  "@streamerGameAudio": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGameAudioNote": "بعض الألعاب تمنع التقاط صوتها",
+  "@streamerGameAudioNote": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGameAudioOld": "صوت اللعبة يحتاج أندرويد 10 أو أحدث، سيُبث صوت الميكروفون فقط",
+  "@streamerGameAudioOld": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerPrivacyNote": "لا يرى المشاهدون شاشتك وأنت داخل Kabso Live",
+  "@streamerPrivacyNote": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerConsentRefused": "لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث",
+  "@streamerConsentRefused": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerOnAir": "شاشتك على الهواء",
+  "@streamerOnAir": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerPausedInApp": "الشاشة متوقفة مؤقتاً وأنت داخل Kabso Live",
+  "@streamerPausedInApp": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerPausedCall": "الشاشة متوقفة أثناء المكالمة",
+  "@streamerPausedCall": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerPausedScreenOff": "الشاشة متوقفة والهاتف مقفل",
+  "@streamerPausedScreenOff": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGoToGame": "اذهب إلى اللعبة",
+  "@streamerGoToGame": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerStoppedTitle": "توقفت مشاركة الشاشة",
+  "@streamerStoppedTitle": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerShareAgain": "شارك الشاشة من جديد",
+  "@streamerShareAgain": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGameLive": "صوت اللعبة يُبث",
+  "@streamerGameLive": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGameMuted": "صوت اللعبة مكتوم",
+  "@streamerGameMuted": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerGameUnavailable": "صوت اللعبة غير متاح على هذا الهاتف، يُبث الميكروفون فقط",
+  "@streamerGameUnavailable": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerShowCamera": "إظهار الكاميرا",
+  "@streamerShowCamera": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerHideCamera": "إخفاء الكاميرا",
+  "@streamerHideCamera": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerMuteGame": "كتم صوت اللعبة",
+  "@streamerMuteGame": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerUnmuteGame": "تشغيل صوت اللعبة",
+  "@streamerUnmuteGame": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerNotifMicOff": "كتم المايك",
+  "@streamerNotifMicOff": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerNotifMicOn": "تشغيل المايك",
+  "@streamerNotifMicOn": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerDragHint": "اسحب الفقاعة إلى أي زاوية",
+  "@streamerDragHint": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerPausedViewer": "الشاشة متوقفة مؤقتاً، سيعود البث بعد قليل",
+  "@streamerPausedViewer": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerWaiting": "بانتظار شاشة المضيف…",
+  "@streamerWaiting": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerFullscreen": "ملء الشاشة",
+  "@streamerFullscreen": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerExitFullscreen": "الخروج من ملء الشاشة",
+  "@streamerExitFullscreen": {
+    "description": "D213 (the streamer live «بث ستريمر»)."
+  },
+  "streamerScreenSemantics": "شاشة {name}",
+  "@streamerScreenSemantics": {
+    "description": "D213 (the streamer live «بث ستريمر»).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "chatJoinedMale": "{name} دخل البث",
   "@chatJoinedMale": {
     "description": "D212 (live categories and the podcast live).",

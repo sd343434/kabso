@@ -9,6 +9,7 @@ import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
+import 'package:kabso_live/features/live/application/live_streamer_host.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
@@ -118,7 +119,10 @@ class GoLiveState {
     LiveRoomMode.multi => multiSeats,
     LiveRoomMode.audio => audioSeats,
     // D212: a podcast's count is the server's (4).
-    LiveRoomMode.solo || LiveRoomMode.pk || LiveRoomMode.podcast => null,
+    LiveRoomMode.solo ||
+    LiveRoomMode.pk ||
+    LiveRoomMode.podcast ||
+    LiveRoomMode.streamer => null,
   };
 
   final String theme;
@@ -249,6 +253,9 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// The room on air (created and not yet ended by this screen).
   String? _onAir;
 
+  /// D213: the streamer session of this go-live (set while it is on).
+  LiveStreamerHost? _streamer;
+
   /// D210: why the last go-live failed (null once one succeeds).
   LiveStartFailure? get lastStartFailure => _startFailure;
   LiveStartFailure? _startFailure;
@@ -271,6 +278,8 @@ class LiveHostController extends Notifier<GoLiveState> {
       _heartbeat?.cancel();
       final onAir = _onAir;
       if (onAir != null) _endQuietly(onAir);
+      // D213: FLAG_SECURE and the game sound never outlive the session.
+      unawaited(_streamer?.finish().then((_) {}, onError: (_) {}));
       unawaited(_engine.stop().then((_) {}, onError: (_) {}));
     });
     return const GoLiveState();
@@ -680,6 +689,15 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// background pause, D123): nothing new on the server.
   Future<void> setCameraOff({required bool off}) async {
     if (state.mode.isVoice) return;
+    // D213: a streamer's camera is the bubble (shown / hidden for everyone).
+    if (state.mode == LiveRoomMode.streamer) {
+      await ref
+          .read(liveStreamerHostProvider.notifier)
+          .setCameraVisible(visible: !off);
+      if (ref.mounted) state = state.copyWith(cameraOff: off);
+      _refreshStreamerNotice();
+      return;
+    }
     await _engine.setVideoPaused(paused: off);
     if (!ref.mounted) return;
     state = state.copyWith(cameraOff: off);
@@ -687,9 +705,19 @@ class LiveHostController extends Notifier<GoLiveState> {
 
   Future<void> toggleMic() async {
     final enabled = !state.micEnabled;
-    await _engine.setMicEnabled(enabled: enabled);
+    // D213: on air a streamer's voice is muted in the mixer (the game sound
+    // goes on in the same track).
+    if (state.mode == LiveRoomMode.streamer &&
+        state.phase == GoLivePhase.live) {
+      await ref
+          .read(liveStreamerHostProvider.notifier)
+          .setMicMuted(muted: !enabled);
+    } else {
+      await _engine.setMicEnabled(enabled: enabled);
+    }
     if (!ref.mounted) return;
     state = state.copyWith(micEnabled: enabled);
+    _refreshStreamerNotice();
   }
 
   /// Before going live: local. While live: `PATCH /live/rooms/{id}`
@@ -724,7 +752,19 @@ class LiveHostController extends Notifier<GoLiveState> {
     LiveRoom? room;
     var stage = 'config';
     final LiveConfig config;
+    // D213: a streamer (the screen asked consent for its capture first).
+    final streamer = state.mode == LiveRoomMode.streamer
+        ? ref.read(liveStreamerHostProvider.notifier)
+        : null;
+    _streamer = streamer;
     try {
+      // D213 (Android 14): the foreground service gains the
+      // `mediaProjection` type after the consent and before the capture.
+      if (streamer != null && background != null) {
+        stage = 'service';
+        _holdBackground(background);
+        await _keeper.settled;
+      }
       config = await _repo.getConfig();
       // The count sent is the one previewed: a count the server no longer
       // allows moves to the next allowed one first (as D103 moved rooms).
@@ -733,7 +773,8 @@ class LiveHostController extends Notifier<GoLiveState> {
         LiveRoomMode.multi => config.seatCounts.multi,
         LiveRoomMode.solo ||
         LiveRoomMode.pk ||
-        LiveRoomMode.podcast => const <int>[],
+        LiveRoomMode.podcast ||
+        LiveRoomMode.streamer => const <int>[],
       };
       if (state.seatCount case final count?
           when fitSeatCount(count, allowed) != count) {
@@ -751,6 +792,8 @@ class LiveHostController extends Notifier<GoLiveState> {
         seatCount: state.seatCount,
         theme: state.mode.hasSeats ? state.theme : null,
         podcast: state.mode == LiveRoomMode.podcast ? state.podcast : null,
+        // D213: the bubble as set up (the capture consent was given).
+        streamer: streamer?.state.startLayout,
       );
       _onAir = room.id;
       // D136: the wish list picked in the setup.
@@ -775,6 +818,15 @@ class LiveHostController extends Notifier<GoLiveState> {
       // camera and the microphone. Only these may fail it (D210).
       stage = 'publish';
       await _engine.publish(access);
+      // D213: then the phone screen (and the game sound).
+      if (streamer != null) {
+        stage = 'screen';
+        await streamer.begin(
+          engine: _engine,
+          room: room,
+          micOn: state.micEnabled,
+        );
+      }
       if (!ref.mounted) return;
       state = state.copyWith(phase: GoLivePhase.live, liveSince: clock.now());
     } on Object catch (e, stack) {
@@ -785,6 +837,10 @@ class LiveHostController extends Notifier<GoLiveState> {
       if (room != null && _onAir == room.id) {
         _onAir = null;
         _endQuietly(room.id);
+      }
+      if (streamer != null) {
+        _keeper.release(this);
+        await streamer.finish();
       }
       if (ref.mounted) {
         state = GoLiveState(
@@ -818,7 +874,7 @@ class LiveHostController extends Notifier<GoLiveState> {
     } on Object catch (e) {
       AppLogger.warning('live: heartbeat timer not started (${e.runtimeType})');
     }
-    if (background != null) {
+    if (background != null && streamer == null) {
       try {
         _holdBackground(background);
       } on Object catch (e) {
@@ -833,6 +889,13 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// return, when a heartbeat is also sent at once in case the timer was
   /// late. The notification's End ends the live as the ✕ does.
   void _holdBackground(LiveBackgroundTexts texts) {
+    _texts = texts;
+    // D213: a streamer is never paused in the background — the game is the
+    // point; it is paused while Kabso is in front instead.
+    if (state.mode == LiveRoomMode.streamer) {
+      _holdStreamer(texts);
+      return;
+    }
     final video = !state.mode.isVoice;
     _keeper.hold(
       this,
@@ -858,6 +921,47 @@ class LiveHostController extends Notifier<GoLiveState> {
         unawaited(beatNow());
       },
     );
+  }
+
+  LiveBackgroundTexts? _texts;
+
+  /// D213: the streamer host's notification: «إنهاء», the microphone and
+  /// the camera bubble (their labels follow the state).
+  void _holdStreamer(LiveBackgroundTexts texts) {
+    final host = ref.read(liveStreamerHostProvider.notifier);
+    final mic = state.micEnabled ? texts.micOff : texts.micOn;
+    final camera = state.cameraOff ? texts.cameraShow : texts.cameraHide;
+    _keeper.hold(
+      this,
+      LiveBackgroundSpec.of(
+        LiveBackgroundRole.host,
+        texts,
+      ).streamer(mic: mic, camera: camera),
+      onEnd: () => unawaited(end()),
+      onOpen: () {
+        if (ref.mounted && ref.read(liveMinimizedProvider)) {
+          ref.read(liveBackgroundOpenRequestsProvider.notifier).request();
+        }
+      },
+      onBackground: () => host.appInFront(front: false),
+      onForeground: () {
+        host.appInFront(front: true);
+        unawaited(beatNow());
+      },
+      onToggleMic: () => unawaited(toggleMic()),
+      onToggleCamera: () => unawaited(setCameraOff(off: !state.cameraOff)),
+    );
+  }
+
+  /// D213: the notification's toggle labels follow the state.
+  void _refreshStreamerNotice() {
+    final texts = _texts;
+    if (texts == null ||
+        state.mode != LiveRoomMode.streamer ||
+        !_keeper.holds(this)) {
+      return;
+    }
+    _holdStreamer(texts);
   }
 
   /// D170: what the server should know (the video host is away, camera
@@ -952,6 +1056,10 @@ class LiveHostController extends Notifier<GoLiveState> {
   Future<void> _finish([LiveRoom? ended]) async {
     _heartbeat?.cancel();
     _keeper.release(this);
+    // D213: the screen capture and its native helpers end with the live.
+    if (state.mode == LiveRoomMode.streamer) {
+      await ref.read(liveStreamerHostProvider.notifier).finish();
+    }
     await _engine.stop();
     if (!ref.mounted) return;
     state = state.copyWith(

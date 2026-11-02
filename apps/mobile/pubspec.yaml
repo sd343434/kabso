@@ -45,6 +45,9 @@ dependencies:
   # D201: background music mixed into the host's microphone (Android).
   kabso_live_music:
     path: packages/kabso_live_music
+  # D213: the streamer live's game audio and screen-capture lifecycle (Android).
+  kabso_streamer:
+    path: packages/kabso_streamer
   livekit_client: 2.13.1
   lottie: ^3.3.1
   material_ui: ^1.7.0

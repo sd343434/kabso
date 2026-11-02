@@ -183,6 +183,9 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
       podcast: json['podcast'] == null
           ? null
           : LivePodcast.fromJson(json['podcast'] as Map<String, dynamic>),
+      streamer: json['streamer'] == null
+          ? null
+          : LiveStreamer.fromJson(json['streamer'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
@@ -201,6 +204,7 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'score': instance.score,
       'topic': instance.topic,
       'podcast': instance.podcast,
+      'streamer': instance.streamer,
     };
 
 const _$LiveRoomModeEnumMap = {
@@ -209,6 +213,7 @@ const _$LiveRoomModeEnumMap = {
   LiveRoomMode.multi: 'MULTI',
   LiveRoomMode.audio: 'AUDIO',
   LiveRoomMode.podcast: 'PODCAST',
+  LiveRoomMode.streamer: 'STREAMER',
 };
 
 _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
@@ -257,6 +262,9 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   podcast: json['podcast'] == null
       ? null
       : LivePodcast.fromJson(json['podcast'] as Map<String, dynamic>),
+  streamer: json['streamer'] == null
+      ? null
+      : LiveStreamer.fromJson(json['streamer'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -285,6 +293,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'kicked': instance.kicked,
   'wishGifts': instance.wishGifts,
   'podcast': instance.podcast,
+  'streamer': instance.streamer,
 };
 
 const _$LiveRoomStatusEnumMap = {

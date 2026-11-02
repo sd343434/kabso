@@ -15,6 +15,7 @@ import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_camera_gate.dart';
 import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
+import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
@@ -382,7 +383,8 @@ class LiveKitMediaEngine
         LiveMediaEngine,
         LiveParticipantAttributes,
         LiveClipCapture,
-        LivePlaybackControls {
+        LivePlaybackControls,
+        LiveScreenShare {
   lk.LocalVideoTrack? _video;
   lk.LocalAudioTrack? _audio;
   lk.Room? _room;
@@ -405,6 +407,12 @@ class LiveKitMediaEngine
   int? _score;
   int? _roomInfoVersion;
   bool _removed = false;
+
+  /// D213: the streamer's screen track (the host) and the room's `streamer`
+  /// messages and metadata version (everyone).
+  lk.LocalVideoTrack? _screen;
+  final _streamer = StreamController<LiveStreamerEvent>.broadcast();
+  int? _streamerVersion;
 
   /// CP-017: the published microphone is paused for a voice clip.
   bool _clipHold = false;
@@ -1016,6 +1024,15 @@ class LiveKitMediaEngine
       ..on<lk.DataReceivedEvent>((e) {
         try {
           final message = jsonDecode(utf8.decode(e.data));
+          // v1.56-live (D213): a streamer's layout changed.
+          if (e.topic == 'streamer') {
+            final streamer = LiveStreamerEvent.parse(message);
+            if (streamer != null) {
+              _streamer.add(streamer);
+              _changes.ping();
+            }
+            return;
+          }
           if (message is Map && message['type'] == 'seat-invite') {
             final roomId = message['roomId'];
             if (roomId is String) _invites.add(roomId);
@@ -1068,6 +1085,9 @@ class LiveKitMediaEngine
       }
       if (value is Map && value['roomInfoVersion'] is int) {
         _roomInfoVersion = value['roomInfoVersion'] as int;
+      }
+      if (value is Map && value['streamerVersion'] is int) {
+        _streamerVersion = value['streamerVersion'] as int;
       }
     } on FormatException {
       // Not ours.
@@ -1175,6 +1195,8 @@ class LiveKitMediaEngine
     // D225: the data saver shows no video (the picture stands in).
     if (!_receiveVideo) return null;
     for (final publication in participant.videoTrackPublications) {
+      // D213: a streamer's screen is not the camera picture.
+      if (publication.source == lk.TrackSource.screenShareVideo) continue;
       final track = publication.track;
       if (track != null && !publication.muted) {
         return lk.VideoTrackRenderer(track, fit: lk.VideoViewFit.cover);
@@ -1182,6 +1204,123 @@ class LiveKitMediaEngine
     }
     return null;
   }
+
+  // ---- D213: the streamer's screen -----------------------------------------
+
+  /// 720p at 30 fps (games move): ~2.5 Mbps, no simulcast layers below it.
+  static const _screenParams = lk.VideoParameters(
+    dimensions: lk.VideoDimensionsPresets.h720_169,
+    encoding: lk.VideoEncoding(maxBitrate: 2500 * 1000, maxFramerate: 30),
+  );
+
+  @override
+  Future<void> publishScreen() async {
+    final local = _room?.localParticipant;
+    if (local == null) throw StateError('publish() first');
+    if (_screen != null) return;
+    final track = await lk.LocalVideoTrack.createScreenShareTrack(
+      const lk.ScreenShareCaptureOptions(
+        maxFrameRate: 30,
+        params: _screenParams,
+      ),
+    );
+    try {
+      await local.publishVideoTrack(
+        track,
+        publishOptions: const lk.VideoPublishOptions(
+          name: 'screen',
+          videoEncoding: lk.VideoEncoding(
+            maxBitrate: 2500 * 1000,
+            maxFramerate: 30,
+          ),
+          simulcast: false,
+        ),
+      );
+    } on Object {
+      await track.stop();
+      await track.dispose();
+      rethrow;
+    }
+    _screen = track;
+    _changes.ping();
+  }
+
+  @override
+  Future<void> unpublishScreen() async {
+    final track = _screen;
+    _screen = null;
+    if (track == null) return;
+    final sid = track.sid;
+    if (sid != null) {
+      try {
+        await _room?.localParticipant?.removePublishedTrack(sid);
+      } on Object {
+        // The session is going away anyway.
+      }
+    }
+    await track.stop();
+    await track.dispose();
+    _changes.ping();
+  }
+
+  @override
+  bool get screenPublished => _screen != null;
+
+  @override
+  bool get screenPaused => _screen?.muted ?? false;
+
+  @override
+  Future<void> setScreenPaused({required bool paused}) async {
+    final track = _screen;
+    if (track == null || track.muted == paused) return;
+    // stopOnMute false: Android 14 gives one capture per consent, so the
+    // capture keeps running and only the sending stops.
+    if (paused) {
+      await track.mute(stopOnMute: false);
+    } else {
+      await track.unmute(stopOnMute: false);
+    }
+    _changes.ping();
+  }
+
+  lk.TrackPublication? _remoteScreenOf(String identity) {
+    final participant = _room?.remoteParticipants[identity];
+    if (participant == null) return null;
+    for (final publication in participant.videoTrackPublications) {
+      if (publication.source == lk.TrackSource.screenShareVideo) {
+        return publication;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget? remoteScreen(String identity) {
+    if (!_receiveVideo) return null;
+    final publication = _remoteScreenOf(identity);
+    final track = publication?.track;
+    if (publication == null || track is! lk.VideoTrack || publication.muted) {
+      return null;
+    }
+    // Fitted inside the box (the room letterboxes a landscape game).
+    return lk.VideoTrackRenderer(track);
+  }
+
+  @override
+  bool hasRemoteScreen(String identity) => _remoteScreenOf(identity) != null;
+
+  @override
+  bool remoteScreenPaused(String identity) =>
+      _remoteScreenOf(identity)?.muted ?? false;
+
+  @override
+  Widget? remoteCamera(String identity) => remoteVideo(identity);
+
+  @override
+  Stream<LiveStreamerEvent> get streamerEvents => _streamer.stream;
+
+  @override
+  int? get streamerVersion => _streamerVersion;
 
   @override
   Map<String, String> attributesOf(String identity) =>
@@ -1237,8 +1376,13 @@ class LiveKitMediaEngine
 
   @override
   bool videoMuted(String identity) {
-    final videos =
-        _room?.remoteParticipants[identity]?.videoTrackPublications ?? const [];
+    final videos = [
+      // D213: the camera only (a streamer's screen pauses on its own).
+      for (final p
+          in _room?.remoteParticipants[identity]?.videoTrackPublications ??
+              const <lk.RemoteTrackPublication>[])
+        if (p.source != lk.TrackSource.screenShareVideo) p,
+    ];
     return videos.isNotEmpty && videos.every((p) => p.muted);
   }
 
@@ -1302,6 +1446,15 @@ class LiveKitMediaEngine
     final audio = _audio;
     _audio = null;
     _clipHold = false;
+    // D213: the screen capture ends with the session.
+    final screen = _screen;
+    _screen = null;
+    try {
+      await screen?.stop();
+      await screen?.dispose();
+    } on Object {
+      // Nothing to keep.
+    }
     try {
       await listener?.dispose();
       await room?.disconnect();

@@ -7,6 +7,7 @@ import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_fx_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_media_extras.dart';
+import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
@@ -14,7 +15,8 @@ import 'package:material_ui/material_ui.dart';
 
 /// In-memory [LiveMediaEngine]: no camera, no media server. Records every
 /// call; [previewProblem] / [publishFailure] make them fail.
-class FakeLiveMediaEngine implements LiveMediaEngine, LivePlaybackControls {
+class FakeLiveMediaEngine
+    implements LiveMediaEngine, LivePlaybackControls, LiveScreenShare {
   static const previewKey = Key('fakeCamera');
 
   LiveCaptureProblem? previewProblem;
@@ -374,4 +376,90 @@ class FakeLiveMediaEngine implements LiveMediaEngine, LivePlaybackControls {
 
   @override
   bool get removed => kickedOut;
+
+  // ---- D213: the streamer's screen ----------------------------------------
+
+  static const screenKey = Key('fakeScreen');
+
+  /// Thrown by [publishScreen] while set.
+  Exception? screenFailure;
+  bool _screen = false;
+  bool _screenPaused = false;
+
+  /// Every [setScreenPaused] value, in order.
+  final List<bool> screenPauses = [];
+  int screenPublishes = 0;
+  int screenUnpublishes = 0;
+
+  @override
+  Future<void> publishScreen() async {
+    screenPublishes++;
+    if (screenFailure case final f?) throw f;
+    _screen = true;
+    _changes.notifyListeners();
+  }
+
+  @override
+  Future<void> unpublishScreen() async {
+    screenUnpublishes++;
+    _screen = false;
+    _screenPaused = false;
+    _changes.notifyListeners();
+  }
+
+  @override
+  bool get screenPublished => _screen;
+
+  @override
+  bool get screenPaused => _screenPaused;
+
+  @override
+  Future<void> setScreenPaused({required bool paused}) async {
+    screenPauses.add(paused);
+    _screenPaused = paused;
+    _changes.notifyListeners();
+  }
+
+  /// Viewers: identities sharing a screen, and the paused ones.
+  final Set<String> screenIds = {};
+  final Set<String> screenPausedIds = {};
+
+  /// The picture a viewer's screen box shows: a portrait or landscape box
+  /// (the fake has no real frames), keyed for tests.
+  Size screenFrame = const Size(9, 19.5);
+
+  @override
+  Widget? remoteScreen(String identity) =>
+      !receiveVideo ||
+          !screenIds.contains(identity) ||
+          screenPausedIds.contains(identity)
+      ? null
+      : Center(
+          child: AspectRatio(
+            aspectRatio: screenFrame.width / screenFrame.height,
+            child: const ColoredBox(key: screenKey, color: Color(0xFF1E6B3A)),
+          ),
+        );
+
+  @override
+  bool hasRemoteScreen(String identity) => screenIds.contains(identity);
+
+  @override
+  bool remoteScreenPaused(String identity) =>
+      screenIds.contains(identity) && screenPausedIds.contains(identity);
+
+  @override
+  Widget? remoteCamera(String identity) => remoteVideo(identity);
+
+  /// What the media room delivers to [streamerEvents]; tests add to it.
+  final streamer = StreamController<LiveStreamerEvent>.broadcast();
+
+  @override
+  Stream<LiveStreamerEvent> get streamerEvents => streamer.stream;
+
+  /// `streamerVersion` of the media room's metadata.
+  int? streamerVersionNow;
+
+  @override
+  int? get streamerVersion => streamerVersionNow;
 }

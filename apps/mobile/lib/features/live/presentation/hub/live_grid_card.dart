@@ -84,10 +84,12 @@ class KLiveGridCard extends StatelessWidget {
     final isNew = room.viewerCount < 1;
     // D237 (owner): every card names its live's category, from the room's
     // own mode (the hub has no category row any more): «بث مباشر»,
-    // «بث صوتي», «بث بودكاست», «بث متعدد»; a PK keeps «PK». (No streamer
-    // rooms exist yet, D213.)
+    // «بث صوتي», «بث بودكاست», «بث متعدد»; a PK keeps «PK». D213: a
+    // streamer's card «ستريمر».
     final type = room.inPk
         ? l10n.pkBadge
+        : room.isStreamer
+        ? l10n.liveCardTagStreamer
         : room.isPodcast
         ? l10n.liveCategoryPodcast
         : room.isAudio
