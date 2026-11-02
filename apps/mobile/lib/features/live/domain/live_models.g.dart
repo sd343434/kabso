@@ -184,6 +184,9 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
           ? null
           : LivePodcast.fromJson(json['podcast'] as Map<String, dynamic>),
       inPk: json['inPk'] as bool? ?? false,
+      streamer: json['streamer'] == null
+          ? null
+          : LiveStreamer.fromJson(json['streamer'] as Map<String, dynamic>),
       roomLevel: (json['roomLevel'] as num?)?.toInt(),
       popular: json['popular'] as bool? ?? false,
       hostCountry: json['hostCountry'] as String?,
@@ -206,6 +209,7 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'topic': instance.topic,
       'podcast': instance.podcast,
       'inPk': instance.inPk,
+      'streamer': instance.streamer,
       'roomLevel': instance.roomLevel,
       'popular': instance.popular,
       'hostCountry': instance.hostCountry,
@@ -217,6 +221,7 @@ const _$LiveRoomModeEnumMap = {
   LiveRoomMode.multi: 'MULTI',
   LiveRoomMode.audio: 'AUDIO',
   LiveRoomMode.podcast: 'PODCAST',
+  LiveRoomMode.streamer: 'STREAMER',
 };
 
 _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
@@ -265,6 +270,9 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   podcast: json['podcast'] == null
       ? null
       : LivePodcast.fromJson(json['podcast'] as Map<String, dynamic>),
+  streamer: json['streamer'] == null
+      ? null
+      : LiveStreamer.fromJson(json['streamer'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -293,6 +301,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'kicked': instance.kicked,
   'wishGifts': instance.wishGifts,
   'podcast': instance.podcast,
+  'streamer': instance.streamer,
 };
 
 const _$LiveRoomStatusEnumMap = {

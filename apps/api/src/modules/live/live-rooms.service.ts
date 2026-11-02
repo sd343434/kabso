@@ -123,18 +123,6 @@ export interface LiveRoomSummaryDto {
    * its dare included) or the legacy `mode = 'PK'`. A real battle keeps the rooms SOLO.
    */
   inPk: boolean;
-  /** v1.56-live (D213, §10.86): a STREAMER's screen orientation and camera bubble; null otherwise. */
-  streamer: LiveStreamerDto | null;
-}
-
-/** v1.56-live (D213, §10.86): `LiveStreamer`. */
-export interface LiveStreamerDto {
-  orientation: StreamerOrientation;
-  cameraOverlay: { visible: boolean; corner: StreamerCorner };
-  /** v1.57-live (D247, §10.88): the main picture — the screen (with the bubble) or the camera alone. */
-  main: StreamerMain;
-  /** Increases on every change (the media metadata's `streamerVersion`, the `streamer` message). */
-  version: number;
   /**
    * v1.58-live (D246, §10.89): the host's charm level (CP-016 D, the room level; null while the charm
    * category is unavailable) — the cards' «Lv.N».
@@ -147,6 +135,18 @@ export interface LiveStreamerDto {
   popular: boolean;
   /** v1.58-live (D246, §10.89): the host's profile country (ISO 3166-1 alpha-2); absent when none. */
   hostCountry?: string;
+  /** v1.56-live (D213, §10.86): a STREAMER's screen orientation and camera bubble; null otherwise. */
+  streamer: LiveStreamerDto | null;
+}
+
+/** v1.56-live (D213, §10.86): `LiveStreamer`. */
+export interface LiveStreamerDto {
+  orientation: StreamerOrientation;
+  cameraOverlay: { visible: boolean; corner: StreamerCorner };
+  /** v1.57-live (D247, §10.88): the main picture — the screen (with the bubble) or the camera alone. */
+  main: StreamerMain;
+  /** Increases on every change (the media metadata's `streamerVersion`, the `streamer` message). */
+  version: number;
 }
 
 /** A speaker of a podcast as the hub card shows it (avatar stack and names). */
