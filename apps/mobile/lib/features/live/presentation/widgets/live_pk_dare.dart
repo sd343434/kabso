@@ -183,6 +183,7 @@ class _PkDareLayerState extends State<PkDareLayer>
 /// ring / timer on one header row, the dare in 15 lp (3 lines at most), the
 /// two 40 lp buttons side by side (the red primary at the reading start).
 /// Same content, timings and states as D236's card; nothing while drawing.
+/// D238c: always the white (light) card, as the leave prompt.
 class PkDareDock extends StatefulWidget {
   const new({
     required this.match,
@@ -280,8 +281,7 @@ class _PkDareDockState extends State<PkDareDock> {
     return loser.host.displayName;
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _build(BuildContext context) {
     final now = widget.now();
     final child = switch (widget.dare.statusAt(now)) {
       PkDareStatus.drawing || PkDareStatus.cancelled => null,
@@ -297,6 +297,19 @@ class _PkDareDockState extends State<PkDareDock> {
       child: Center(child: child),
     );
   }
+
+  /// D238c (owner: exactly the «تابع واخرج» card): the white card — the
+  /// light theme's surface, red wash, dark ink, red primary and white
+  /// outlined secondary — even inside the room, whose `KLiveSurface` forces
+  /// the dark theme on everything else.
+  @override
+  Widget build(BuildContext context) => Theme(
+    data: buildAppTheme(
+      brightness: Brightness.light,
+      locale: Localizations.localeOf(context),
+    ),
+    child: Builder(builder: _build),
+  );
 
   /// D236 (owner: «نفس ستايل تابع واخرج»): the shared live card — the
   /// white card with the red wash (dark: the card's own dark surface), dark

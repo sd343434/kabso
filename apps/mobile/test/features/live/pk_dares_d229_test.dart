@@ -508,6 +508,10 @@ void main() {
           expect(chip.center.dy, closeTo(ring.center.dy, 1));
           expect(ring.height, PkDareDock.ring);
           final context = tester.element(card);
+          // D238c: the leave prompt's white card, even in the dark room.
+          expect(Theme.of(context).brightness, Brightness.light);
+          expect(KLiveDialogCard.surfaceOf(context), const Color(0xFFFFFFFF));
+          expect(KLiveDialogCard.inkOf(context), KLiveDialogCard.inkLight);
           final fill = tester.widget<Container>(
             find
                 .descendant(
