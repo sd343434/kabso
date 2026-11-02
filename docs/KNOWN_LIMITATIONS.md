@@ -352,6 +352,16 @@
   statement. Note: the D144 comment in `KabsoCameraFxPlugin.kt` says DeepAR validates its licence "through a WebView";
   no WebView use appears in the SDK's Java classes (the comment is left as it is; not re-tested).
 
+- **Effects after the live's foreground service starts (the D232 finding).** The service's second FlutterEngine
+  overwrites flutter_webrtc's static `sharedSingleton` with an instance that has no tracks, so `kabso_camera_fx`
+  could not find the host's camera track after a live started (effects, DeepAR, the free engine and the colour
+  filters silently not applied, or a re-attach after unmute / a quality change failing). Fixed the same way as
+  D232's music plugin: `attach` asks the flutter_webrtc of the plugin's own engine first, then the singleton
+  (`OwnEngineFirst`, JVM-tested). The stages' EGL context comes from flutter_webrtc's process-wide `EglUtils`, which
+  the second engine does not replace. **Device must confirm:** go live, wait for the foreground notification, then
+  pick a colour filter, DeepAR blur and the free engine's blur/beauty — and mute/unmute the camera (re-attach) —
+  and check the effect appears on a viewer's phone; the FX overlay's `camera` count must keep rising.
+
 ### Removing the free engine (if the owner does not like it)
 
 1. `apps/mobile/packages/kabso_camera_fx/android/`: delete `src/main/kotlin/com/kabso/kabso_camera_fx/FreeFxStage.kt`,
