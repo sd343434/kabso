@@ -2514,19 +2514,26 @@ CLI's `--image`, §5.10 / §5.40); without it 503.
 
 **What to upload (the owner):**
 
-- **Carousel** «الرئيسية — الشريط المتحرك بعد أول بثين»: **1 500 × 500 px** (3:1), text inside the picture, keep it
-  away from the edges; one or more, they rotate every 4 s.
-- **Card-size banner** «الرئيسية — بانر بحجم بطاقة البث»: **720 × 805 px** (the live card's shape), text inside the
+- **Carousel** «البنر الأساسي — الرئيسية بعد أول بثين»: **1 500 × 300 px** (5:1, D248b: the reference's shape),
+  text inside the picture, keep it away from the edges; one or more, they rotate every 4 s. Banners already uploaded at
+  1 500 × 500 still show, centre-cropped to 5:1 (their top and bottom are cut: re-upload them at 1 500 × 300). The
+  same banners show 5:1 in the Voice rooms list and the Creator Center. «ارفع صور بنر 1500×300».
+- **Card-size banner** «بنر بين اللايفات — بحجم بطاقة البث»: **720 × 805 px** (the live card's shape), text inside the
   picture. Several take turns in the same cell every 5 s.
 - Both: JPEG, PNG or WebP, at most 15 MB; anything else is cropped around the centre to that shape (the panel shows the
   crop before adding).
 
+**Animated banners (D248c, contract v1.61-live):** every category may move — an animated **WebP or GIF**, at most
+15 MB in, **≤ 150 frames, ≤ 10 s a loop, ≤ 3 MB after cropping**; stored as an animated WebP. Sizes: main home banner
+**1 500 × 300**, between the lives **720 × 805**, inside a live **600 × 800**. No video, Lottie or SVGA.
+«يمكن رفع صور متحركة WebP/GIF بالمقاسات: 1500×300، 720×805، 600×800» (حتى 150 إطاراً و10 ثوانٍ و3 ميغابايت بعد القص).
+
 #### The owner's steps — بالعربية
 
 1. لوحة الإدارة ← «البانرات والفعاليات» ← «إضافة بانر».
-2. اختر «مكان العرض»: «الرئيسية — الشريط المتحرك بعد أول بثين» (صورة 1500 × 500) أو «الرئيسية — بانر بحجم بطاقة البث»
-   (صورة 720 × 805).
-3. اختر الصورة وتأكد من «معاينة القص»، ثم اكتب الرابط (مثل ‎/families‎) والسبب واضغط «إضافة بانر».
+2. اختر «مكان العرض»: «البنر الأساسي — الرئيسية بعد أول بثين» (ارفع صور بنر 1500×300) أو «بنر بين اللايفات — بحجم بطاقة البث»
+   (صورة 720 × 805) أو «داخل البث — بانر صغير» (صورة 600 × 800).
+3. اختر الصورة (ثابتة JPEG/PNG/WebP/GIF أو متحركة WebP/GIF) وتأكد من «معاينة القص»، ثم اكتب الرابط (مثل ‎/families‎) والسبب واضغط «إضافة بانر».
 4. لتغيير الخانة التي يظهر فيها بانر البطاقة: `HOME_HUB_CARD_CELL` في إعدادات الخادم (4 = أول خانة في الصف الثالث).
 
 ### 5.50 Live moderation from the panel «مراقبة البث» (migration `20270304090000_live_moderation`; D250) — [IMPLEMENTED, draft contract v1.60-live; not deployed, not device-tested]

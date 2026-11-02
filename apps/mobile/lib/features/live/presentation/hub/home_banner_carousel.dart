@@ -32,6 +32,7 @@ class KHomeBannerCarousel extends StatefulWidget {
     this.canOpen,
     this.interval = defaultInterval,
     this.overlayIndicator = false,
+    this.aspect = defaultAspect,
   });
 
   final List<HomeBanner> banners;
@@ -46,8 +47,17 @@ class KHomeBannerCarousel extends StatefulWidget {
 
   static const defaultInterval = Duration(seconds: 4);
 
-  /// Width : height of every banner (1 500 × 500).
-  static const double aspect = 3;
+  /// Width : height of a TASKS / WALLET banner (1 500 × 500).
+  static const double defaultAspect = 3;
+
+  /// D248b (owner: «البنر كبير، خذ نفس حجم بنر البيجو»; ref 375 measured
+  /// 690 × 138 px = 5.0): the `HOME` banners (the live hub, the Voice rooms
+  /// list, the Creator Center) are 5:1, uploaded at 1 500 × 300. Older
+  /// 1 500 × 500 pictures are centre-cropped (cover) to it.
+  static const double homeAspect = 5;
+
+  /// Width : height of this carousel.
+  final double aspect;
 
   /// D248 (ref 375, 738 px wide ≈ 1.88 px/pt): the indicator bar's segment
   /// per page (16 px), its height (4 px) and its distance from the
@@ -192,7 +202,7 @@ class _KHomeBannerCarouselState extends State<KHomeBannerCarousel> {
       mainAxisSize: MainAxisSize.min,
       children: [
         AspectRatio(
-          aspectRatio: KHomeBannerCarousel.aspect,
+          aspectRatio: widget.aspect,
           child: Listener(
             // Pause while touched: the timer skips its ticks.
             onPointerDown: (_) => _pointers++,

@@ -199,7 +199,8 @@ void main() {
       );
       expect(pager.left, moreOrLessEquals(13));
       expect(pager.width, moreOrLessEquals(393 - 26));
-      expect(pager.height, moreOrLessEquals((393 - 26) / 3));
+      // D248b: 5:1 (ref 375).
+      expect(pager.height, moreOrLessEquals((393 - 26) / 5));
       final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
       final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
       // Ref 375: 12 px (6.4 pt) under the first row, 21 px (11.2 pt) above

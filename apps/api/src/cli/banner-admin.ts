@@ -23,7 +23,7 @@
  * D248) makes it the live hub's card-size banner in one grid cell: `--image` is then cover-cropped to the live
  * card's aspect (720 × 805 and 288 × 322) and `--media` is refused.
  * `--image` reads a JPEG, PNG or WebP file, cover-crops it to 3:1 around the centre and stores
- * 1 500 × 500 and 320 × 107 WebP variants in object storage (it needs the `S3_*` settings and
+ * 1 500 × 500 and 320 × 107 WebP variants (D248b: `--placement home` 5:1, 1 500 × 300 and 320 × 64) in object storage (it needs the `S3_*` settings and
  * `MEDIA_PUBLIC_BASE_URL` of the API); the picture is owned by the `--owner` account. `--media`
  * takes a `HOME_BANNER` upload made through the API (`POST /media/uploads`) within the last 24 hours.
  * `--link` is `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/<roomId>`,

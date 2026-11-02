@@ -667,6 +667,8 @@ class LiveHubBody extends StatelessWidget {
             canOpen: canOpenBanner,
             // D248 (ref 375): the hub's indicator bar inside the picture.
             overlayIndicator: !list,
+            // D248b: HOME banners are 5:1 (the grid and the Voice rooms).
+            aspect: KHomeBannerCarousel.homeAspect,
           );
     final cardBanner = cardBanners.isEmpty || list
         ? null

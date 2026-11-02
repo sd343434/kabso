@@ -9,16 +9,30 @@ import { uuidv7 } from '../levels/uuidv7.js';
 import { isUuid } from '../live/live.schemas.js';
 import { USERNAME_PATTERN } from '../users/username.js';
 import {
+  BANNER_HEIGHT,
   BANNER_WIDTH,
+  HOME_BANNER_HEIGHT,
+  HOME_BANNER_THUMB_HEIGHT,
   HUB_CARD_BANNER_HEIGHT,
+  HUB_CARD_BANNER_THUMB_WIDTH,
   HUB_CARD_BANNER_WIDTH,
+  type ImageContentType,
   processImage,
   ROOM_BANNER_HEIGHT,
+  ROOM_BANNER_THUMB_WIDTH,
   ROOM_BANNER_WIDTH,
   sniffImageType,
   THUMB_SIDE,
 } from '../media/media-image.js';
 import type { ObjectStorage } from '../media/object-storage.js';
+import sharp from 'sharp';
+import {
+  BannerAnimationError,
+  bannerFrameCount,
+  isGif,
+  processAnimatedBanner,
+  type ProcessedBanner,
+} from './banner-animation.js';
 
 /** At most this many banners are returned (the active ones with the lowest `sortOrder`). */
 export const HOME_BANNER_LIMIT = 10;
@@ -123,12 +137,32 @@ export function bannerFieldProblems(fields: BannerFields): string[] {
   return problems;
 }
 
-export class BannerError extends Error {}
+export class BannerError extends Error {
+  /** D248c: a machine-readable reason for the panel (animation limits). */
+  constructor(
+    message: string,
+    readonly issue?: string,
+  ) {
+    super(message);
+  }
+}
+
+/** D248c: the stored size of each placement's picture and its thumbnail (width × height). */
+const BANNER_SIZES: Record<BannerPlacement, { w: number; h: number; tw: number; th: number }> = {
+  HOME: { w: BANNER_WIDTH, h: HOME_BANNER_HEIGHT, tw: THUMB_SIDE, th: HOME_BANNER_THUMB_HEIGHT },
+  TASKS: { w: BANNER_WIDTH, h: BANNER_HEIGHT, tw: THUMB_SIDE, th: 107 },
+  WALLET: { w: BANNER_WIDTH, h: BANNER_HEIGHT, tw: THUMB_SIDE, th: 107 },
+  ROOM: { w: ROOM_BANNER_WIDTH, h: ROOM_BANNER_HEIGHT, tw: ROOM_BANNER_THUMB_WIDTH, th: 320 },
+  HUB_CARD: { w: HUB_CARD_BANNER_WIDTH, h: HUB_CARD_BANNER_HEIGHT, tw: HUB_CARD_BANNER_THUMB_WIDTH, th: 322 },
+};
+
+/** A stored banner picture and, D248c, whether it moves. */
+export type StoredBannerImage = MediaAsset & { animated: boolean; frames: number; durationMs: number };
 
 /**
  * Stores an image file as a `HOME_BANNER` media asset owned by `ownerId` (the CLI's `--image`):
  * the same checks as an upload (signature, decoder, size limits, metadata stripped), cover-cropped
- * to 1 500 × 500 and 320 × 107 WebP. The asset is unattached until [addBannerIn] claims it.
+ * to 1 500 × 500 and 320 × 107 WebP (D248b: HOME 1 500 × 300 and 320 × 64). The asset is unattached until [addBannerIn] claims it.
  */
 export async function storeBannerImage(
   prisma: Pick<PrismaClient, 'mediaAsset'>,
@@ -136,22 +170,67 @@ export async function storeBannerImage(
   ownerId: string,
   bytes: Buffer,
   placement: BannerPlacement = 'HOME',
-): Promise<MediaAsset> {
-  const type = sniffImageType(bytes);
-  if (type === null) throw new BannerError('The file is not a JPEG, PNG or WebP image');
-  let image;
+): Promise<StoredBannerImage> {
+  let type = sniffImageType(bytes);
+  const gif = isGif(bytes);
+  if (type === null && !gif) throw new BannerError('The file is not a JPEG, PNG, WebP or GIF image');
+  // D248c: an animated WebP / GIF keeps its animation (§10.90.1); a one-frame GIF is a still.
+  const frames = type === 'image/webp' || gif ? await bannerFrameCount(bytes) : 1;
+  if (frames === null) throw new BannerError('The image could not be read');
+  let image: Pick<ProcessedBanner, 'large' | 'thumb' | 'width' | 'height' | 'blurhash'> &
+    Partial<Pick<ProcessedBanner, 'frames' | 'durationMs'>>;
+  if (frames > 1) {
+    const size = BANNER_SIZES[placement];
+    try {
+      image = await processAnimatedBanner(bytes, size.w, size.h, size.tw, size.th);
+    } catch (err) {
+      if (err instanceof BannerAnimationError) throw new BannerError(err.message, err.issue);
+      throw err;
+    }
+  } else {
+    if (gif) {
+      try {
+        bytes = await sharp(bytes, { pages: 1, failOn: 'error' }).png().toBuffer();
+      } catch {
+        throw new BannerError('The image could not be read');
+      }
+      type = 'image/png';
+    }
+    image = await storeStill(bytes, type!, placement);
+  }
+  return finishBannerImage(prisma, storage, ownerId, placement, image);
+}
+
+async function storeStill(bytes: Buffer, type: ImageContentType, placement: BannerPlacement) {
   try {
     // D137: a ROOM banner is cover-cropped to 3:4 (600 × 800 and 240 × 320); D248: a HUB_CARD banner to the live
-    // card's aspect (720 × 805 and 288 × 322).
-    image = await processImage(
+    // card's aspect (720 × 805 and 288 × 322); D248b: a HOME banner to 5:1 (1 500 × 300 and 320 × 64); TASKS and
+    // WALLET stay 3:1.
+    return await processImage(
       bytes,
       type,
       BANNER_WIDTH,
-      placement === 'ROOM' ? 'roomBanner' : placement === 'HUB_CARD' ? 'hubCardBanner' : 'banner',
+      placement === 'ROOM'
+        ? 'roomBanner'
+        : placement === 'HUB_CARD'
+          ? 'hubCardBanner'
+          : placement === 'HOME'
+            ? 'homeBanner'
+            : 'banner',
     );
   } catch {
     throw new BannerError('The image could not be read (or is larger than 8 000 px / 50 MP)');
   }
+}
+
+async function finishBannerImage(
+  prisma: Pick<PrismaClient, 'mediaAsset'>,
+  storage: ObjectStorage,
+  ownerId: string,
+  placement: BannerPlacement,
+  image: Pick<ProcessedBanner, 'large' | 'thumb' | 'width' | 'height' | 'blurhash'> &
+    Partial<Pick<ProcessedBanner, 'frames' | 'durationMs'>>,
+): Promise<StoredBannerImage> {
   const id = uuidv7();
   const largeWidth =
     placement === 'ROOM'
@@ -164,7 +243,7 @@ export async function storeBannerImage(
   const cache = 'public, max-age=31536000, immutable';
   await storage.put(largeKey, image.large, 'image/webp', cache);
   await storage.put(thumbKey, image.thumb, 'image/webp', cache);
-  return prisma.mediaAsset.create({
+  const asset = await prisma.mediaAsset.create({
     data: {
       id,
       ownerId,
@@ -177,6 +256,8 @@ export async function storeBannerImage(
       byteSize: image.large.length,
     },
   });
+  const frames = image.frames ?? 1;
+  return { ...asset, animated: frames > 1, frames, durationMs: image.durationMs ?? 0 };
 }
 
 /**

@@ -53,6 +53,33 @@ const png = (w: number, h: number) =>
     .png()
     .toBuffer();
 
+/** D248c: an animated WebP (or GIF) of [frames] Kabso-red frames, [delay] ms each. */
+async function animated(w: number, h: number, frames: number, delay = 100, format: 'webp' | 'gif' = 'webp') {
+  const parts = await Promise.all(
+    Array.from({ length: frames }, (_, i) =>
+      sharp({
+        create: {
+          width: w,
+          height: h,
+          channels: 4,
+          background: { r: 229, g: (i * 37) % 200, b: 20, alpha: 1 },
+        },
+      })
+        .png()
+        .toBuffer(),
+    ),
+  );
+  const joined = sharp(parts, { join: { animated: true } });
+  return format === 'gif'
+    ? joined.gif({ loop: 0, delay: Array(frames).fill(delay) }).toBuffer()
+    : joined.webp({ loop: 0, delay: Array(frames).fill(delay), quality: 60 }).toBuffer();
+}
+
+const framesOf = async (body: Buffer) => {
+  const m = await sharp(body, { animated: true }).metadata();
+  return { format: m.format, width: m.width, pageHeight: m.pageHeight ?? m.height, pages: m.pages ?? 1 };
+};
+
 describe('D248 contract coverage', () => {
   it('openapi declares the hub card placement and the panel banner add', () => {
     const ops = operations().map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
@@ -167,7 +194,14 @@ describe('D248 hub card banners', { timeout: 240_000 }, () => {
   it('a picture serves only its own placement; the CLI rules refuse bad fields (409); one use only', async () => {
     const home = await uploadPicture(owner, 'home', await png(1800, 600));
     expect(home.status).toBe(201);
-    expect([home.body.width, home.body.height]).toEqual([1500, 500]);
+    // D248b: the hub carousel is 5:1 (1 500 × 300, thumb 320 × 64); TASKS / WALLET stay 3:1.
+    expect([home.body.width, home.body.height]).toEqual([1500, 300]);
+    const homeThumb = await sharp(
+      storage.objects.get(String(home.body.thumbUrl).replace('https://media.example.test/', ''))!.body,
+    ).metadata();
+    expect([homeThumb.width, homeThumb.height]).toEqual([320, 64]);
+    const wallet = await uploadPicture(owner, 'wallet', await png(1800, 600));
+    expect([wallet.body.width, wallet.body.height]).toEqual([1500, 500]);
     const card = await uploadPicture(owner, 'hub_card', await png(500, 500));
     expect(card.status).toBe(201);
 
@@ -265,6 +299,104 @@ describe('D248 hub card banners', { timeout: 240_000 }, () => {
     // sort 0 (the CLI's default) before sort 1 (the panel's).
     expect(hub.data).toHaveLength(2);
     expect(hub.data[0]!.id).toBe(id);
+  });
+});
+
+describe('D248c animated banners', { timeout: 240_000 }, () => {
+  let storage: MemoryObjectStorage;
+  let ctx: TestContext;
+  const p = panel(() => ctx);
+  let owner: Admin;
+  let viewer: Person;
+  const up = (placement: string, bytes: Buffer) =>
+    ctx.http
+      .post('/api/v1/admin/banner-uploads')
+      .query({ placement })
+      .set('Cookie', owner.cookie)
+      .set('X-CSRF-Token', owner.csrf)
+      .set('Content-Type', 'application/octet-stream')
+      .send(bytes);
+  const stored = (url: string) => storage.objects.get(url.replace('https://media.example.test/', ''))!.body;
+
+  beforeAll(async () => {
+    storage = new MemoryObjectStorage();
+    vi.useFakeTimers({ toFake: ['Date'], now: p.start() });
+    ctx = await createTestApp(MEDIA_ON, [{ token: OBJECT_STORAGE, value: storage }]);
+    owner = await p.makeAdmin(['OWNER']);
+    viewer = await p.signup();
+  });
+  afterAll(async () => {
+    vi.useRealTimers();
+    await withMigrationClient((c) => c.homeBanner.deleteMany());
+    await ctx?.close();
+  });
+
+  it('an animated WebP for each category stays animated, every frame cropped to the placement; a still thumbnail', async () => {
+    for (const [placement, w, h] of [
+      ['home', 1500, 300],
+      ['hub_card', 720, 805],
+      ['room', 600, 800],
+    ] as const) {
+      const res = await up(placement, await animated(400, 300, 6, 120));
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      expectContract(res, 'uploadAdminBannerPicture');
+      expect(res.body).toMatchObject({ width: w, height: h, animated: true, frames: 6, durationMs: 720 });
+      expect(await framesOf(stored(res.body.imageUrl))).toEqual({
+        format: 'webp',
+        width: w,
+        pageHeight: h,
+        pages: 6,
+      });
+      expect((await framesOf(stored(res.body.thumbUrl))).pages).toBe(1);
+    }
+  });
+
+  it('an animated GIF becomes an animated WebP; the ROOM banner is added and listed (guests too)', async () => {
+    const res = await up('room', await animated(300, 400, 4, 100, 'gif'));
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body).toMatchObject({ width: 600, height: 800, animated: true, frames: 4 });
+    expect(await framesOf(stored(res.body.imageUrl))).toMatchObject({ format: 'webp', pages: 4 });
+    const add = await p.send(owner, 'post', '/admin/banners', {
+      mediaId: res.body.mediaId,
+      placement: 'room',
+      link: '/families',
+      reason: 'animated room promo',
+    });
+    expect(add.status, JSON.stringify(add.body)).toBe(201);
+    const list = await ctx.http.get('/api/v1/home/banners?placement=room');
+    expect(list.status).toBe(200);
+    expect((list.body.data as { id: string; width: number }[]).map((b) => [b.id, b.width])).toEqual([
+      [add.body.id, 600],
+    ]);
+    expect(viewer.id).toBeTruthy();
+  });
+
+  it('a still GIF, JPEG and PNG stay stills', async () => {
+    for (const bytes of [
+      await sharp({ create: { width: 900, height: 300, channels: 3, background: '#e50914' } })
+        .gif()
+        .toBuffer(),
+      await sharp({ create: { width: 900, height: 300, channels: 3, background: '#e50914' } })
+        .jpeg()
+        .toBuffer(),
+      await png(900, 300),
+    ]) {
+      const res = await up('home', bytes);
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      expect(res.body).toMatchObject({ width: 1500, height: 300, animated: false, frames: 1 });
+      expect((await framesOf(stored(res.body.imageUrl))).pages).toBe(1);
+    }
+  });
+
+  it('limits: more than 150 frames, longer than 10 s → 409 with the issue, nothing stored', async () => {
+    const before = storage.objects.size;
+    const many = await up('home', await animated(16, 16, 151, 20));
+    expect(many.status).toBe(409);
+    expect(many.body.error.details[0]).toEqual({ field: 'file', issue: 'banner_animation_too_many_frames' });
+    const long = await up('home', await animated(16, 16, 11, 1000));
+    expect(long.status).toBe(409);
+    expect(long.body.error.details[0]).toEqual({ field: 'file', issue: 'banner_animation_too_long' });
+    expect(storage.objects.size).toBe(before);
   });
 });
 

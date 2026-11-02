@@ -326,7 +326,7 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
     ).not.toBeNull();
   });
 
-  it('the CLI image path stores a 3:1 HOME_BANNER asset owned by the operator account', async () => {
+  it('the CLI image path stores a HOME_BANNER asset owned by the operator account (D248b: HOME 5:1)', async () => {
     const bytes = await sharp({ create: { width: 1290, height: 800, channels: 3, background: '#335' } })
       .jpeg()
       .toBuffer();
@@ -335,7 +335,8 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
       kind: 'HOME_BANNER',
       ownerId: admin.id,
       width: 1500,
-      height: 500,
+      // D248b: the live hub carousel is 5:1 (1 500 × 300).
+      height: 300,
       attachedAt: null,
     });
     expect(storage.objects.has(asset.largeKey)).toBe(true);

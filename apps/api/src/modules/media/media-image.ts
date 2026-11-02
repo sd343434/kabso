@@ -23,6 +23,12 @@ export const ROOM_BANNER_WIDTH = 600;
 export const ROOM_BANNER_HEIGHT = 800;
 export const ROOM_BANNER_THUMB_WIDTH = 240;
 /**
+ * D248b (owner: «البنر كبير، خذ نفس حجم بنر البيجو»): a live hub carousel banner (`HOME`) stored by `--image` or the
+ * panel is 5:1 — 1 500 × 300, thumb 320 × 64 (the reference measured 690 × 138 px = 5.0). TASKS and WALLET stay 3:1.
+ */
+export const HOME_BANNER_HEIGHT = 300;
+export const HOME_BANNER_THUMB_HEIGHT = 64;
+/**
  * v1.59-live (D248): the live hub's card-size banner takes one grid cell, so its picture has the live
  * card's aspect (width : height 0.894, `KLiveGrid.cardAspect` in the app): 720 × 805, thumb 288 × 322.
  */
@@ -36,7 +42,7 @@ export const HUB_CARD_BANNER_THUMB_WIDTH = 288;
  * home banner, cover-cropped to exactly 3:1 around the centre — 1 500 × 500 and 320 × 107 —
  * enlarged when smaller, so every banner has the same size).
  */
-export type ImageShape = 'inside' | 'square' | 'banner' | 'roomBanner' | 'hubCardBanner';
+export type ImageShape = 'inside' | 'square' | 'banner' | 'homeBanner' | 'roomBanner' | 'hubCardBanner';
 
 /** Why an upload is not an acceptable image (never shown to clients; they get MEDIA_INVALID). */
 export class InvalidImageError extends Error {}
@@ -119,6 +125,11 @@ export async function processImage(
         { fit: 'cover', position: 'centre' },
       ] as const;
     }
+    if (shape === 'homeBanner') {
+      return side === THUMB_SIDE
+        ? ([THUMB_SIDE, HOME_BANNER_THUMB_HEIGHT, { fit: 'cover', position: 'centre' }] as const)
+        : ([BANNER_WIDTH, HOME_BANNER_HEIGHT, { fit: 'cover', position: 'centre' }] as const);
+    }
     if (shape === 'hubCardBanner') {
       const width = side === THUMB_SIDE ? HUB_CARD_BANNER_THUMB_WIDTH : HUB_CARD_BANNER_WIDTH;
       return [
@@ -143,7 +154,7 @@ export async function processImage(
     const large = await base()
       .resize(
         ...resize(
-          shape === 'banner' || shape === 'roomBanner' || shape === 'hubCardBanner'
+          shape === 'banner' || shape === 'homeBanner' || shape === 'roomBanner' || shape === 'hubCardBanner'
             ? BANNER_WIDTH
             : largeSide,
         ),

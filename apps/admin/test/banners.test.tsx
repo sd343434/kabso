@@ -6,7 +6,17 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AppContext, type AppState } from '../src/context';
 import { translate, type Lang } from '../src/i18n';
-import { BANNER_PLACEMENT_KEYS, BANNER_SHAPES, bannerBody, BannerForm, placementLabelKey } from '../src/pages/BannerForm';
+import { ApiError } from '../src/api';
+import {
+  animationIssueKey,
+  BANNER_PLACEMENT_KEYS,
+  BANNER_SHAPES,
+  bannerBody,
+  BannerForm,
+  BannerPreview,
+  looksAnimated,
+  placementLabelKey,
+} from '../src/pages/BannerForm';
 
 const state = (lang: Lang): AppState => ({
   lang,
@@ -42,8 +52,11 @@ describe('D248 add a banner', () => {
     const html = render('ar');
     expect(html).toContain('إضافة بانر');
     for (const p of BANNER_PLACEMENT_KEYS) expect(html).toContain(`value="${p}"`);
-    expect(html).toContain('بانر بحجم بطاقة البث');
-    expect(html).toContain('1500 × 500');
+    expect(html).toContain('بنر بين اللايفات');
+    expect(html).toContain('البنر الأساسي');
+    expect(html).toContain('داخل البث — بانر صغير');
+    expect(html).toContain('image/gif');
+    expect(html).toContain('1500 × 300');
     expect(html).toMatch(/<button class="btn primary" disabled="">/);
   });
 
@@ -84,5 +97,32 @@ describe('D248 add a banner', () => {
     for (const key of ['bannerCreate', 'bannerPlacement_hub_card', 'bannerSizeHint', 'bannerPreview'] as const) {
       expect(translate('ar', key)).not.toBe(translate('en', key));
     }
+  });
+
+  it('D248c: the three categories preview in their own shapes; an animated file is marked «متحرك»', () => {
+    const preview = (placement: keyof typeof BANNER_SHAPES, animated: boolean) =>
+      renderToStaticMarkup(
+        <AppContext.Provider value={state('ar')}>
+          <BannerPreview placement={placement} url="blob:x" animated={animated} />
+        </AppContext.Provider>,
+      );
+    expect(preview('home', true)).toContain('aspect-ratio:1500 / 300');
+    expect(preview('home', true)).toContain('متحرك');
+    expect(preview('hub_card', true)).toContain('aspect-ratio:720 / 805');
+    expect(preview('room', false)).toContain('aspect-ratio:600 / 800');
+    expect(preview('room', false)).not.toContain('متحرك');
+  });
+
+  it('D248c: detects animated WebP / GIF headers; translates the animation refusals', () => {
+    const enc = (s: string) => new Uint8Array([...s].map((c) => c.charCodeAt(0)));
+    expect(looksAnimated(enc('RIFF\0\0\0\0WEBPVP8X\0\0\0\0\0\0\0\0\0\0\0\0ANIM'))).toBe(true);
+    expect(looksAnimated(enc('RIFF\0\0\0\0WEBPVP8 \0\0\0\0'))).toBe(false);
+    const gce = '\x21\xf9\x04\0\0\0\0';
+    expect(looksAnimated(enc('GIF89a' + gce + 'x' + gce))).toBe(true);
+    expect(looksAnimated(enc('GIF89a' + gce))).toBe(false);
+    const err = new ApiError(409, 'ADMIN_ACTION_REFUSED', 'x', null, [{ field: 'file', issue: 'banner_animation_too_long' }]);
+    expect(animationIssueKey(err)).toBe('bannerAnimTooLong');
+    expect(translate('ar', 'bannerAnimTooLong')).toContain('10 ثوانٍ');
+    expect(animationIssueKey(new Error('x'))).toBeNull();
   });
 });
