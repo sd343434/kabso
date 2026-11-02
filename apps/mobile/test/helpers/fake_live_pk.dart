@@ -218,6 +218,30 @@ class FakeLivePkRepository implements LivePkRepository {
   @override
   Future<void> reportDare(String roomId, String dareId) async =>
       _call('dare:report:$dareId');
+
+  /// D242: the match answered by the rematch calls (null: the snapshot's).
+  PkMatch? matchOnRematch;
+
+  @override
+  Future<PkMatch> offerRematch(String roomId) async {
+    _call('rematch:offer');
+    return matchOnRematch ?? snapshot.match!;
+  }
+
+  @override
+  Future<PkMatch> acceptRematch(String roomId) async {
+    _call('rematch:accept');
+    return matchOnRematch ?? snapshot.match!;
+  }
+
+  @override
+  Future<void> declineRematch(String roomId) async => _call('rematch:decline');
+
+  @override
+  Future<PkMatch> cancelRematch(String roomId) async {
+    _call('rematch:cancel');
+    return matchOnRematch ?? snapshot.match!;
+  }
 }
 
 class _Ping extends ChangeNotifier {
@@ -531,5 +555,45 @@ PkMatch pkDareMatchFixture({
     boosters: base.boosters,
     type: PkType.dares,
     dare: dare,
+  );
+}
+
+/// D242: a RESULT (normal) match — this room won — with «جولة أخرى»
+/// offered by [offerBy] (null: no offer yet) until [now] + [left].
+PkMatch pkRematchFixture({
+  required DateTime now,
+  bool ar = true,
+  String ownRoom = 'room-0',
+  String? offerBy,
+  Duration left = const Duration(seconds: 12),
+  int? rematchesLeft = 5,
+  PkMatchStatus status = PkMatchStatus.result,
+  String? rematchOf,
+}) {
+  final base = pkMatchFixture(
+    now: now,
+    ar: ar,
+    ownRoom: ownRoom,
+    status: status,
+    winner: status == PkMatchStatus.result ? ownRoom : null,
+  );
+  return PkMatch(
+    id: rematchOf == null ? base.id : '${base.id}-2',
+    status: base.status,
+    startedAt: base.startedAt,
+    battleEndsAt: base.battleEndsAt,
+    resultEndsAt: base.resultEndsAt,
+    endReason: base.endReason,
+    winnerRoomId: base.winnerRoomId,
+    seq: base.seq,
+    serverTime: now,
+    sides: base.sides,
+    boosters: base.boosters,
+    rematch: offerBy == null
+        ? null
+        : PkRematchOffer(byRoomId: offerBy, expiresAt: now.add(left)),
+    rematchOf: rematchOf,
+    rematchCount: rematchOf == null ? 0 : 1,
+    rematchesLeft: rematchesLeft,
   );
 }

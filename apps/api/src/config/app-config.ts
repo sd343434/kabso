@@ -58,6 +58,9 @@ export interface PkConfig {
   readonly dareDrawSeconds: number;
   readonly dareSeconds: number;
   readonly dareOutcomeSeconds: number;
+  /** v1.55-live (D242) «جولة أخرى»: the offer's answer time and the rematches in a row (0 = unlimited). */
+  readonly rematchAcceptSeconds: number;
+  readonly rematchMax: number;
 }
 
 export interface AppConfig {
@@ -911,6 +914,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dareDrawSeconds: e.PK_DARE_DRAW_SECONDS,
       dareSeconds: e.PK_DARE_SECONDS,
       dareOutcomeSeconds: e.PK_DARE_OUTCOME_SECONDS,
+      rematchAcceptSeconds: e.PK_REMATCH_ACCEPT_SECONDS,
+      rematchMax: e.PK_REMATCH_MAX,
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,

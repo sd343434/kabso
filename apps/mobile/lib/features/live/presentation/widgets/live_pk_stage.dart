@@ -10,6 +10,7 @@ import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart'
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_boost_fx.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_dare.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_pk_rematch.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_models.dart';
@@ -123,9 +124,13 @@ class LivePkStage extends StatefulWidget {
     this.onStart,
     this.onHost,
     this.onFollowOpponent,
+    this.rematchBanner = false,
   });
 
   final PkMatch match;
+
+  /// D242: «جولة أخرى!» over the videos (the new battle just started).
+  final bool rematchBanner;
 
   /// D231: a tap on a half or its host's picture: that host's person card
   /// (`opponent` true for the other room's host).
@@ -189,31 +194,52 @@ class LivePkStage extends StatefulWidget {
   static Key guestKey(String userId) => Key('pk.guest.$userId');
 
   /// D238: the «PK أحكام» card for the room's bottom dock
-  /// (`KLiveRoomScaffold.dock`) while [match] has a dare after its battle
-  /// (null otherwise); the draw stays over the stage. [isHost]: this device
-  /// is [roomId]'s host (the dare's buttons); [actions]: what it may do.
+  /// (`KLiveRoomScaffold.dock`) while [match] has a dare after its battle;
+  /// the draw stays over the stage. [isHost]: this device is [roomId]'s host
+  /// (the dare's buttons); [actions]: what it may do. D242: and the hosts'
+  /// «جولة أخرى» card ([rematch]; null for viewers) under it in the result.
+  /// Null when there is nothing to dock.
   static Widget? dareDock({
     required PkMatch match,
     required String roomId,
     required DateTime Function() now,
     bool isHost = false,
     PkDareActions actions = const PkDareActions(),
+    PkRematchActions? rematch,
   }) {
+    if (match.status == PkMatchStatus.battle || match.connected) return null;
+    final clock = debugNow ?? now;
     final dare = match.dare;
-    if (dare == null ||
-        match.status == PkMatchStatus.battle ||
-        match.connected) {
-      return null;
-    }
-    return PkDareDock(
-      match: match,
-      dare: dare,
-      roomId: roomId,
-      // D231's test clock pins the dare's phases too.
-      now: debugNow ?? now,
-      isHost: isHost,
-      actions: actions,
-      ticks: ticks,
+    final dareCard = dare == null
+        ? null
+        : PkDareDock(
+            match: match,
+            dare: dare,
+            roomId: roomId,
+            // D231's test clock pins the dare's phases too.
+            now: clock,
+            isHost: isHost,
+            actions: actions,
+            ticks: ticks,
+          );
+    final rematchCard = rematch == null || !PkRematchDock.shows(match, roomId)
+        ? null
+        : PkRematchDock(
+            match: match,
+            roomId: roomId,
+            now: clock,
+            actions: rematch,
+            ticks: ticks,
+          );
+    if (dareCard == null) return rematchCard;
+    if (rematchCard == null) return dareCard;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        dareCard,
+        const SizedBox(height: KSpacing.xs),
+        rematchCard,
+      ],
     );
   }
 
@@ -434,6 +460,14 @@ class _LivePkStageState extends State<LivePkStage> {
                 ),
               ),
             ),
+            // D242: «جولة أخرى!» for everyone as the new battle starts.
+            if (widget.rematchBanner)
+              const Positioned(
+                left: 0,
+                right: 0,
+                top: KLivePk.timerHeight + KSpacing.md,
+                child: IgnorePointer(child: Center(child: PkRematchBanner())),
+              ),
             // «فعّل فريق {host} {booster}» under the banners (3 s).
             if (announcement != null)
               Positioned(

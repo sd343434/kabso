@@ -2196,6 +2196,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           : engine.remoteVideo(id) ?? opponent?.video(id),
       speaking: {...engine.speaking, ...?opponent?.speaking},
       announcement: pk.announcement,
+      // D242: «جولة أخرى!» as the rematch starts.
+      rematchBanner: pk.rematchBanner != null,
       onPerson: (u) => _person(u.username),
       // D231: a tap on a half — that host's card (the other room's host:
       // their room's card); the «+» to follow the other host.

@@ -13384,4 +13384,36 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveNearbyChooseCountry => 'اختر بلداً';
+
+  @override
+  String get pkRematch => 'جولة أخرى';
+
+  @override
+  String pkRematchAsk(String name) {
+    return 'العب جولة أخرى مع $name؟';
+  }
+
+  @override
+  String pkRematchWaiting(String name) {
+    return 'بانتظار $name…';
+  }
+
+  @override
+  String pkRematchOffered(String name) {
+    return '$name يريد جولة أخرى';
+  }
+
+  @override
+  String get pkRematchBanner => 'جولة أخرى تبدأ';
+
+  @override
+  String get pkRematchDeclined => 'رفض المضيف الآخر الجولة الأخرى';
+
+  @override
+  String get pkRematchExpired => 'لم يردّ المضيف الآخر على الجولة الأخرى';
+
+  @override
+  String pkRematchSeconds(String seconds) {
+    return '$seconds ث';
+  }
 }

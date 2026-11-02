@@ -389,8 +389,8 @@ void main() {
         expect(rect.size, bell.size);
         expect((rect.center.dx - bell.center.dx).abs(), 48);
         expect(find.bySemanticsLabel(l10n.liveVoiceRoomsTitle), findsWidgets);
-        // D212: the hub opens on «الكل» (every live, no kind).
-        expect(live.requests.map((r) => r.kind).toSet(), {null});
+        // D212: the hub opens on «الكل»; D239: video lives only (kind=solo).
+        expect(live.requests.map((r) => r.kind).toSet(), {LiveRoomsKind.solo});
 
         live.requests.clear();
         await tester.tap(party);
