@@ -39,6 +39,17 @@ const RULES = {
 };
 const DAY = 86_400_000;
 
+/**
+ * A unique name that is always a valid regular username: the id's last 6 hex characters become
+ * letters, each followed by its position digit (letter, digit, letter, …). It always has a letter
+ * and a digit and can never be a premium pattern (no triple run, palindrome, doubled half or
+ * sequence). Taking the raw hex failed in CI twice: an all-letter tail (no digit) and «777».
+ */
+function safeName(prefix: string, id: string): string {
+  const tail = id.replace(/-/g, '').slice(-6);
+  return prefix + [...tail].map((c, i) => `${String.fromCharCode(103 + parseInt(c, 16))}${i}`).join('');
+}
+
 describe('D185 special usernames', { timeout: 300_000 }, () => {
   let ctx: TestContext;
   const auth = (u: TestUser) => ({ Authorization: `Bearer ${u.token}` });
@@ -271,9 +282,7 @@ describe('D185 special usernames', { timeout: 300_000 }, () => {
   it('a gift with an end gives the base back, holds the name for the grace period, then releases it', async () => {
     const u = await signup();
     const other = await signup();
-    // A digit is always present: a regular username needs a letter and a digit, and the id's
-    // last 6 hex characters can all be letters (CI 2026-11-02 failed on such an id).
-    const name = `star7${u.id.slice(-6).replace(/-/g, '')}`;
+    const name = safeName('star', u.id);
     const t0 = new Date();
     await gift(u, name, new Date(t0.getTime() + DAY), t0);
     expect(await shown(u.id)).toBe(name);
@@ -302,7 +311,7 @@ describe('D185 special usernames', { timeout: 300_000 }, () => {
   it('names are unique both ways and coin + digits is reserved', async () => {
     const a = await signup();
     const c = await signup();
-    const special = `gem7${a.id.slice(-6).replace(/-/g, '')}`; // always has a digit (see above)
+    const special = safeName('gem', a.id);
     await gift(a, special, null);
 
     // A's base username and special username are both taken for everyone else.
