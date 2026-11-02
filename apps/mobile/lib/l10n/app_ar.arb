@@ -7619,6 +7619,10 @@
   "@liveHubFilterFollowing": {
     "description": "D237: the Live hub's first filter tab — lives of the people you follow."
   },
+  "livePartyTabFollowing": "المتابَعة",
+  "@livePartyTabFollowing": {"description": "D246: the party page's first big tab (owner: «متابعة»), lives of the people you follow (tab=following)."},
+  "liveCardPopular": "رائج",
+  "@liveCardPopular": {"description": "D246: the party card's grey pill for a live in the top of its kind in the popular order (LiveRoomSummary.popular)."},
   "liveHubFilterNearby": "القريبة",
   "@liveHubFilterNearby": {"description": "D131: hub filter, lives from hosts in the person's own country (D133 scope=nearby)."},
   "liveHubFilterPopular": "الرائج",

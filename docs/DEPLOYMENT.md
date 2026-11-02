@@ -2498,3 +2498,14 @@ seeds a host, a viewer and a gift; with `LIVEKIT_TEST_URL` it uses a real LiveKi
 `KABSO_API_URL=http://127.0.0.1:3000 pnpm --filter @kabso/studio dev` (Vite on :5190 proxies `/api`). The Playwright
 run (`apps/studio/e2e`) needs `KABSO_STUDIO_SMOKE`, `KABSO_STUDIO_URL`, `KABSO_API_DIR` (and `KABSO_SITE_DIR`,
 `KABSO_LIVEKIT_RESTART`, `KABSO_STUDIO_CAPTURES` optionally).
+
+### 5.51 The party page's room cards: «رائج» per kind (no migration; D246) — [IMPLEMENTED, draft contract v1.58-live; not deployed, not device-tested]
+
+CONVENTIONS §10.89. (Numbered §5.48 on its branch; renumbered §5.51 at integration `claude/kl-int12` because D247's studio is §5.48, D248 §5.49 and D250 §5.50.) No migration and no new table: `LiveRoomSummary.roomLevel`,
+`popular` and `hostCountry` are read in the room statements.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `LIVE_POPULAR_TOP_N` | 10 | D246 «رائج»: a live is popular while among this many first lives of its kind (audio, podcast, multi, video) in the `popular` order (1–100) |
+
+Order: API first, then the app (an older server sends none of the fields: the cards show no level, no «رائج», no flag).

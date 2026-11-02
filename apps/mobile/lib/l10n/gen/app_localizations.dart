@@ -10706,6 +10706,18 @@ abstract class AppLocalizations {
   /// **'المتابَعين'**
   String get liveHubFilterFollowing;
 
+  /// D246: the party page's first big tab (owner: «متابعة»), lives of the people you follow (tab=following).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابَعة'**
+  String get livePartyTabFollowing;
+
+  /// D246: the party card's grey pill for a live in the top of its kind in the popular order (LiveRoomSummary.popular).
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get liveCardPopular;
+
   /// D131: hub filter, lives from hosts in the person's own country (D133 scope=nearby).
   ///
   /// In ar, this message translates to:

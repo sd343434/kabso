@@ -512,6 +512,8 @@ export interface AppConfig {
     readonly giftTickerMinCoins: number;
     readonly heartbeatIntervalSeconds: number;
     readonly heartbeatStaleSeconds: number;
+    /** v1.58-live (D246): `LIVE_POPULAR_TOP_N`, the «رائج» lives per kind. */
+    readonly popularTopN: number;
     /** 0 = sweeper disabled (tests; refused in production). */
     readonly sweepIntervalSeconds: number;
     /** v1.42-live (D170, §10.44): a video live's host away this long → HOST_AWAY_TIMEOUT. */
@@ -946,6 +948,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       giftTickerMinCoins: e.GIFT_GLOBAL_TICKER_MIN_COINS,
       heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,
       heartbeatStaleSeconds: e.LIVE_HEARTBEAT_STALE_SECONDS,
+      popularTopN: e.LIVE_POPULAR_TOP_N,
       sweepIntervalSeconds: e.LIVE_SWEEP_INTERVAL_SECONDS,
       hostAwayTimeoutSeconds: e.LIVE_HOST_AWAY_TIMEOUT_SECONDS,
       sweepBatchSize: e.LIVE_SWEEP_BATCH_SIZE,

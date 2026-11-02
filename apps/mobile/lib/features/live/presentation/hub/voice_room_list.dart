@@ -1,38 +1,60 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Geometry of the Voice rooms' list rows, measured on ref 166 (393 pt):
-/// rows 863 × 161 px, 30 px from the sides, 22 px apart; the cover a
-/// 161 px square at the reading start.
+/// Geometry of the party page's list cards. Measured on ref 166 (D131)
+/// and again on the D246 reference (393 lp, the same values): cards
+/// 863 × 161 px, 30 px from the sides, 21 px apart; the cover a 161 px
+/// square at the reading start.
 abstract final class KVoiceRoomRow {
-  /// Side inset (30 px = 12.8 pt).
+  /// Side inset (30 px = 12.8 lp).
   static const double inset = 12.8;
 
-  /// Row height and cover side (161 px = 68.6 pt).
+  /// Card height and cover side (161 px = 68.6 lp).
   static const double height = 68.6;
 
-  /// Gap between rows (21–22 px = 9.2 pt).
-  static const double gap = 9.2;
+  /// Gap between cards (21 px = 8.9 lp).
+  static const double gap = 8.9;
 
-  /// Corner radius (≈ 20 px; E).
-  static const double radius = 8.5;
+  /// Corner radius of the card and of its cover (D246: 13 px ≈ 5.5 lp, E
+  /// from the corner's run-in).
+  static const double radius = 5.5;
 
-  /// The title's start after the cover (25 px = 10.6 pt) and its top
-  /// (16 px = 6.8 pt).
+  /// The title's start after the cover (25 px = 10.6 lp) and its top.
   static const double textStart = 10.6;
   static const double textTop = 6.8;
 
-  /// The chips line's height (33 px = 14 pt) and bottom (≈ 10 pt).
-  static const double chipHeight = 14;
+  /// The text's end inset (the count ends 22 px = 9.4 lp in) and the pills'
+  /// bottom (23 px = 9.8 lp).
+  static const double textEnd = 9.4;
+  static const double textBottom = 9.8;
 
-  /// Light theme: the row text (sampled `#282828`) and the count's mic
-  /// (`#48E4E6`).
+  /// D246: title (cap 22 px = 9.4 lp → 13 sp bold), subtitle (12 sp,
+  /// sampled `#8C8F97`) and count (digits 18 px → 11 sp).
+  static const double title = 13;
+  static const double subtitle = 12;
+  static const double count = 11;
+
+  /// The pills line's height (32–33 px = 14 lp), their gap (≈ 7 lp) and
+  /// label (≈ 10 sp bold).
+  static const double chipHeight = 14;
+  static const double chipGap = 6;
+  static const double chipFont = 10;
+
+  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M).
+  static const double markStart = 6.4;
+  static const double markBottom = 4.5;
+
+  /// Light theme: the card text (sampled `#282828`), the subtitle grey,
+  /// and the count's icon (sampled `#43E7E4`).
   static const Color lightInk = Color(0xFF282828);
-  static const Color mic = Color(0xFF48E4E6);
+  static const Color lightSubtitle = Color(0xFF8C8F97);
+  static const Color mic = Color(0xFF43E7E4);
 }
 
 /// The Voice rooms' list (ref 166) as slivers: one row per room, the promo
@@ -144,21 +166,29 @@ abstract final class VoiceRoomList {
   );
 }
 
-/// One voice room as a list row (ref 166): the cover square at the reading
-/// start with the live mark and the category at its bottom; the title (up
-/// to 2 lines); a chips line with the seats taken when the room has seats;
-/// the viewer count with a mic at the end.
-///
-/// The ref's host level chip and "Popular" chip need data a room summary
-/// does not carry (the host's level, the board rank), and "Room PK" has no
-/// backend, so they are not drawn (no invented values).
+/// One room as a party-page card (D246, the owner's reference): the cover
+/// square at the reading start, rounded, with the live mark and the room's
+/// kind at its bottom («ılı بث صوتي»); the host's country flag and the title
+/// in bold (two lines when there is no topic), the host's topic in grey
+/// under it; one line of pills with only what the API says — «رائج»
+/// (`popular`, v1.58-live), «PK» while the room is in a PK (D241), the
+/// host's level (`roomLevel`, the charm badge), «مميز» in a paid slot
+/// (D154b) and the seats; the viewer count at the end with a mic (audio,
+/// podcast) or a camera (multi).
 class VoiceRoomRow extends StatelessWidget {
   const new({required this.room, super.key, this.onTap});
 
   final LiveRoomCardData room;
   final VoidCallback? onTap;
 
+  static const kindKey = Key('voiceRoom.kind');
+  static const topicKey = Key('voiceRoom.topic');
+  static const pkKey = Key('voiceRoom.pk');
+  static const featuredKey = Key('voiceRoom.featured');
   static const seatsKey = Key('voiceRoom.seats');
+  static const levelKey = Key('voiceRoom.level');
+  static const popularKey = Key('voiceRoom.popular');
+  static const flagKey = Key('voiceRoom.flag');
   static const viewersKey = Key('voiceRoom.viewers');
 
   @override
@@ -168,17 +198,39 @@ class VoiceRoomRow extends StatelessWidget {
     final t = context.textStyles;
     final light = Theme.of(context).brightness == Brightness.light;
     final ink = light ? KVoiceRoomRow.lightInk : p.textPrimary;
+    final grey = light ? KVoiceRoomRow.lightSubtitle : p.textSecondary;
     final white = KPalette.dark.textPrimary;
     final isNew = room.viewerCount < 1;
     final viewers = isNew
         ? l10n.liveCardNew
         : l10n.liveViewers(room.viewerCount, KFormat.grouped(room.viewerCount));
-    final base = l10n.liveCardSemantics(room.hostName, viewers, room.title);
+    final kind = room.isPodcast
+        ? l10n.liveCategoryPodcast
+        : room.isMulti
+        ? l10n.liveCategoryMulti
+        : room.isAudio
+        ? l10n.liveCategoryAudio
+        : l10n.liveCategoryLive;
+    final base = l10n.liveCardSemanticsMode(
+      l10n.liveCardSemantics(room.hostName, viewers, room.title),
+      room.inPk ? '$kind, ${l10n.pkBadge}' : kind,
+    );
     final category = room.categoryName;
-    final semantics = category == null || category.isEmpty
+    final withCategory = category == null || category.isEmpty
         ? base
         : l10n.liveCardSemanticsCategory(base, category);
+    final semantics = [
+      if (room.featured) l10n.liveBoostFeatured,
+      if (room.popular) l10n.liveCardPopular,
+      withCategory,
+      if (room.roomLevel case final level?) l10n.liveRoomLevelBadge(level),
+    ].join(', ');
+    final topic = room.topic?.trim();
+    final hasTopic = topic != null && topic.isNotEmpty;
     final seats = room.seatCount;
+    final level = room.roomLevel;
+    final country = room.hostCountry;
+    final radius = BorderRadius.circular(KVoiceRoomRow.radius);
     return Semantics(
       button: onTap != null,
       container: true,
@@ -190,7 +242,7 @@ class VoiceRoomRow extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: KVoiceRoomRow.height),
             child: Material(
               color: p.surfaceRaised,
-              borderRadius: BorderRadius.circular(KVoiceRoomRow.radius),
+              borderRadius: radius,
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: onTap,
@@ -201,105 +253,214 @@ class VoiceRoomRow extends StatelessWidget {
                       top: 0,
                       bottom: 0,
                       width: KVoiceRoomRow.height,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          KLiveRoomPicture(room: room),
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                stops: [0.55, 1],
-                                colors: [Color(0x00000000), Color(0x99000000)],
+                      child: ClipRRect(
+                        borderRadius: radius,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            KLiveRoomPicture(room: room),
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  stops: [0.55, 1],
+                                  colors: [
+                                    Color(0x00000000),
+                                    Color(0x99000000),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          PositionedDirectional(
-                            start: 5,
-                            end: 4,
-                            bottom: 4,
-                            child: Row(
-                              children: [
-                                const KLiveEqualizer(
-                                  color: KLiveGrid.liveMark,
-                                  size: 9,
-                                ),
-                                if (category != null &&
-                                    category.isNotEmpty) ...[
-                                  const SizedBox(width: 3),
-                                  Flexible(
-                                    child: Text(
-                                      category,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: t.caption.copyWith(
-                                        color: white,
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.1,
+                            // The mark sits on a fixed 68.6 lp picture: it
+                            // does not grow with the text size (it would
+                            // be cut), the rest of the card does.
+                            PositionedDirectional(
+                              start: KVoiceRoomRow.markStart,
+                              end: 3,
+                              bottom: KVoiceRoomRow.markBottom,
+                              child: MediaQuery.withNoTextScaling(
+                                child: Row(
+                                  key: kindKey,
+                                  children: [
+                                    const KLiveEqualizer(
+                                      color: KLiveGrid.liveMark,
+                                      size: 9,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Flexible(
+                                      child: Text(
+                                        kind,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: t.caption.copyWith(
+                                          color: white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.1,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Color(0x66000000),
+                                              blurRadius: 3,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ],
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsetsDirectional.only(
                         start: KVoiceRoomRow.height + KVoiceRoomRow.textStart,
                         top: KVoiceRoomRow.textTop,
-                        end: 10,
-                        bottom: 8,
+                        end: KVoiceRoomRow.textEnd,
+                        bottom: KVoiceRoomRow.textBottom,
                       ),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(
                           minHeight:
-                              KVoiceRoomRow.height - KVoiceRoomRow.textTop - 8,
+                              KVoiceRoomRow.height -
+                              KVoiceRoomRow.textTop -
+                              KVoiceRoomRow.textBottom,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              room.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.bodyStrong.copyWith(
-                                color: ink,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                height: 1.25,
-                              ),
-                            ),
-                            const SizedBox(height: KSpacing.xs),
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (seats != null)
-                                  _Chip(
-                                    key: seatsKey,
-                                    icon: Icons.event_seat_outlined,
-                                    label: l10n.liveVoiceSeats(
-                                      room.occupiedSeats,
-                                      seats,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // D246: the host's country at the
+                                    // title's start (owner).
+                                    if (country != null) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 2.5,
+                                        ),
+                                        child: _Flag(
+                                          key: flagKey,
+                                          code: country,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        room.title,
+                                        maxLines: hasTopic ? 1 : 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: t.bodyStrong.copyWith(
+                                          color: ink,
+                                          fontSize: KVoiceRoomRow.title,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (hasTopic)
+                                  Text(
+                                    topic,
+                                    key: topicKey,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: t.caption.copyWith(
+                                      color: grey,
+                                      fontSize: KVoiceRoomRow.subtitle,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.25,
                                     ),
                                   ),
-                                const Spacer(),
+                              ],
+                            ),
+                            const SizedBox(height: KSpacing.xxs),
+                            Row(
+                              children: [
+                                Expanded(
+                                  // One line of pills: those that do not
+                                  // fit are left out (a second run is
+                                  // clipped), the level's creature may
+                                  // stand above and below the line.
+                                  child: ClipRect(
+                                    clipper: const _PillsClip(),
+                                    child: SizedBox(
+                                      height: KVoiceRoomRow.chipHeight,
+                                      child: Wrap(
+                                        spacing: KVoiceRoomRow.chipGap,
+                                        runSpacing: KVoiceRoomRow.chipHeight,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          if (room.popular)
+                                            _Chip(
+                                              key: popularKey,
+                                              label: l10n.liveCardPopular,
+                                              tone: _ChipTone.popular,
+                                            ),
+                                          if (room.inPk)
+                                            _Chip(
+                                              key: pkKey,
+                                              label: l10n.pkBadge,
+                                              tone: _ChipTone.pk,
+                                            ),
+                                          if (level != null)
+                                            // Sized to its number (the
+                                            // badge fills a loose width).
+                                            IntrinsicWidth(
+                                              child: CharmLevelBadge(
+                                                key: levelKey,
+                                                level: level,
+                                              ),
+                                            ),
+                                          if (room.featured)
+                                            DefaultTextStyle.merge(
+                                              key: featuredKey,
+                                              style: t.caption.copyWith(
+                                                height: 1.2,
+                                              ),
+                                              child: KFeaturedPill(
+                                                label: l10n.liveBoostFeatured,
+                                              ),
+                                            ),
+                                          if (seats != null)
+                                            _Chip(
+                                              key: seatsKey,
+                                              icon: Icons.event_seat_outlined,
+                                              label: l10n.liveVoiceSeats(
+                                                room.occupiedSeats,
+                                                seats,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: KSpacing.xs),
                                 Row(
                                   key: viewersKey,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (!isNew) ...[
-                                      const Icon(
-                                        Icons.mic_rounded,
+                                      Icon(
+                                        room.isMulti
+                                            ? Icons.videocam_rounded
+                                            : Icons.mic_rounded,
                                         size: 13,
                                         color: KVoiceRoomRow.mic,
                                       ),
-                                      const SizedBox(width: 2),
+                                      const SizedBox(width: 3),
                                     ],
                                     Text(
                                       isNew
@@ -310,8 +471,8 @@ class VoiceRoomRow extends StatelessWidget {
                                             ),
                                       style: t.caption.copyWith(
                                         color: ink,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: KVoiceRoomRow.count,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
@@ -333,19 +494,44 @@ class VoiceRoomRow extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const new({required this.icon, required this.label, super.key});
+/// The look of a card pill.
+enum _ChipTone { seats, pk, popular }
 
-  final IconData icon;
+/// A card pill (the ref's tinted pills, in Kabso's colours): the seats
+/// (cyan), «PK» (brand red, italic bold) or «رائج» (grey, as the ref's
+/// "Popular").
+class _Chip extends StatelessWidget {
+  const new({
+    required this.label,
+    super.key,
+    this.icon,
+    this.tone = _ChipTone.seats,
+  });
+
+  final IconData? icon;
   final String label;
+  final _ChipTone tone;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final light = Theme.of(context).brightness == Brightness.light;
-    // A Kabso-neutral chip (the ref's tinted chips carry other data).
-    final fill = light ? const Color(0xFFE6F7FB) : p.surfaceOverlay;
-    final ink = light ? const Color(0xFF1D9BB8) : p.textSecondary;
+    final pk = tone == _ChipTone.pk;
+    final (fill, ink) = switch (tone) {
+      _ChipTone.pk => (
+        light ? const Color(0xFFFFE9EC) : const Color(0x33E8173A),
+        KBrandColors.red500,
+      ),
+      _ChipTone.popular => (
+        light ? const Color(0xFFECEEF3) : p.surfaceOverlay,
+        light ? const Color(0xFF9A9EAB) : p.textSecondary,
+      ),
+      _ChipTone.seats => (
+        light ? const Color(0xFFE6F7FB) : p.surfaceOverlay,
+        light ? const Color(0xFF1D9BB8) : p.textSecondary,
+      ),
+    };
+    final icon = this.icon;
     return Container(
       constraints: const BoxConstraints(minHeight: KVoiceRoomRow.chipHeight),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -356,14 +542,17 @@ class _Chip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: ink),
-          const SizedBox(width: 3),
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: ink),
+            const SizedBox(width: 3),
+          ],
           Text(
             label,
             style: context.textStyles.caption.copyWith(
               color: ink,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+              fontSize: KVoiceRoomRow.chipFont,
+              fontWeight: pk ? FontWeight.w800 : FontWeight.w700,
+              fontStyle: pk ? FontStyle.italic : null,
               height: 1.2,
             ),
           ),
@@ -371,4 +560,37 @@ class _Chip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Clips the pills line to its width and one line, with room above and
+/// below for the level's creature (1.55 × the pill).
+class _PillsClip extends CustomClipper<Rect> {
+  const new();
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, -size.height * 0.4, size.width, size.height * 1.4);
+
+  @override
+  bool shouldReclip(_PillsClip oldClipper) => false;
+}
+
+/// D246: the host's country flag (Noto Color Emoji art, `assets/flags/`,
+/// OFL); nothing when the art is missing.
+class _Flag extends StatelessWidget {
+  const new({required this.code, super.key});
+
+  final String code;
+
+  static const Size size = Size(16, 12);
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+    'assets/flags/${code.toLowerCase()}.webp',
+    width: size.width,
+    height: size.height,
+    fit: BoxFit.contain,
+    excludeFromSemantics: true,
+    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+  );
 }

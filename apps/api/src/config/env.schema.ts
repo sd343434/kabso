@@ -646,6 +646,11 @@ export const envSchema = z
     LIVE_HEARTBEAT_INTERVAL_SECONDS: intSetting(15, 5, 60),
     /** A LIVE room without a heartbeat for this long is stale (never listed, ended). */
     LIVE_HEARTBEAT_STALE_SECONDS: intSetting(45, 1, 3600),
+    /**
+     * v1.58-live (D246): a live is «رائج» (`LiveRoomSummary.popular`) while it is among this many
+     * first lives of its kind (audio, podcast, multi, video) in the `popular` order.
+     */
+    LIVE_POPULAR_TOP_N: intSetting(10, 1, 100),
     /** Period of the in-process stale-room sweeper; 0 disables it (refused in production). */
     LIVE_SWEEP_INTERVAL_SECONDS: intSetting(15, 0, 3600),
     /**

@@ -275,6 +275,19 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
 
     /// v1.56-live (D213): a streamer's layout; null otherwise.
     LiveStreamer? streamer,
+
+    /// v1.58-live (D246): the host's charm level (CP-016 D, the room
+    /// level) — the party cards' level pill. Null while unavailable or from
+    /// older servers.
+    int? roomLevel,
+
+    /// v1.58-live (D246): «رائج» — among the first `LIVE_POPULAR_TOP_N`
+    /// lives of its kind in the popular order. Older servers: false.
+    @Default(false) bool popular,
+
+    /// v1.58-live (D246): the host's profile country (ISO alpha-2), or null
+    /// when the host set none.
+    String? hostCountry,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>

@@ -90,10 +90,11 @@ void main() {
         expect(find.byKey(_bell), findsNothing);
         final width =
             tester.view.physicalSize.width / tester.view.devicePixelRatio;
+        // D246: at the edge, in the reference's bell slot.
         if (language == AppLanguage.ar) {
-          expect(rect.left, closeTo(KSpacing.xs, 0.5));
+          expect(rect.left, closeTo(0, 0.5));
         } else {
-          expect(rect.right, closeTo(width - KSpacing.xs, 0.5));
+          expect(rect.right, closeTo(width, 0.5));
         }
         // D240: no search on the party page; the back arrow stays.
         expect(
@@ -192,7 +193,8 @@ void main() {
       });
 
       testWidgets('360×800 at text ×1.3 (real fonts): no overflow, the '
-          'button on screen, the three tabs whole beside it', (tester) async {
+          'button on screen, the four filters whole beside it, the kinds '
+          'under them', (tester) async {
         tester.view
           ..physicalSize = const Size(360, 800)
           ..devicePixelRatio = 1;
@@ -205,8 +207,9 @@ void main() {
         expect(tester.takeException(), isNull);
         final back = tester.getRect(find.byKey(VoiceRoomsScreen.backKey));
         final live = tester.getRect(find.byKey(VoiceRoomsLiveButton.buttonKey));
-        // D240: the kinds sit whole between the back arrow and the Live
-        // switch (no search, no bell; they shrink to fit).
+        // D246: the filters sit whole between the back arrow and the Live
+        // switch (no search, no bell; they shrink to fit); the kinds are
+        // the row under them, on screen.
         expect(
           find.descendant(
             of: find.byType(VoiceRoomsScreen),
@@ -216,6 +219,12 @@ void main() {
         );
         for (final k in LiveHubCategory.partyPage) {
           final tab = tester.getRect(find.byKey(VoiceRoomsScreen.kindKey(k)));
+          expect(tab.left, greaterThanOrEqualTo(0));
+          expect(tab.right, lessThanOrEqualTo(360));
+          expect(tab.top, greaterThanOrEqualTo(live.bottom));
+        }
+        for (final f in VoiceRoomsScreen.filters) {
+          final tab = tester.getRect(find.byKey(VoiceRoomsScreen.filterKey(f)));
           if (language == AppLanguage.ar) {
             expect(tab.right, lessThanOrEqualTo(back.left));
             expect(tab.left, greaterThanOrEqualTo(live.right));
