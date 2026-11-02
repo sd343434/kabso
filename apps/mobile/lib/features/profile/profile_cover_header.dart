@@ -1,8 +1,8 @@
 // D218: the profile header shared by the public profile and (owner:
-// «وحدهما») the own profile — the cover with the overlapping photo, then the
-// name, the level badges, the counts, the bio, the country and the month
-// joined, the links, the buttons and the family / relationship / medals
-// tiles.
+// «وحدهما») the own profile — the cover with the photo (D244: inside it),
+// then the name, the level badges, the counts, the bio, the country and the
+// month joined, the links, the buttons and the family / relationship /
+// medals tiles.
 
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart' show DateFormat;
@@ -10,6 +10,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -22,18 +23,38 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// D218 geometry of the public profile (the owner's reference, right
-/// phone; E at ≈0.81 px/dp, 393 dp wide assumed): the cover 140 dp (under
-/// the restored top bar, owner after D218), the photo overlapping the cover
-/// by half, 44 dp pill buttons.
+/// phone; E at ≈0.81 px/dp, 393 dp wide assumed): the cover under the
+/// restored top bar (owner after D218), 44 dp pill buttons.
+///
+/// D244 (owner: «الاسم لا يظهر تحت الصورة، اجعل الصورة داخل الغلاف … يمكن
+/// أن تجعل الغلاف أكبر قليلاً»): the photo no longer straddles the cover's
+/// edge — a worn frame (up to the frames' common box, 1.6 × the photo wide)
+/// hung over the name. The photo and any frame sit wholly inside the cover,
+/// in [avatarSlot] at the reading start, and the cover is that slot's height
+/// plus [coverMargin] above and below (≈153 dp, was 140).
 abstract final class KPublicProfile {
-  static const double coverHeight = 140;
+  /// The box every profile photo is drawn in, frame or not: the frames'
+  /// common box (`AvatarFrameBox.aroundAvatar`), the real extent of the
+  /// largest frame.
+  static final AvatarFrameBox avatarSlot = AvatarFrameBox.aroundAvatar(
+    KProfile.avatar,
+  );
+
+  /// The cover's space above and below [avatarSlot].
+  static const double coverMargin = KSpacing.md;
+
+  /// From the screen's reading-start edge to [avatarSlot].
+  static const double avatarStart = KSpacing.sm;
+
+  static double get coverHeight => avatarSlot.height + 2 * coverMargin;
   static const double buttonHeight = 44;
   static const double nameFont = 18;
   static const double factIcon = 16;
 }
 
 /// D218: the cover (or the Kabso gradient) under the top bar, and the photo
-/// overlapping its lower edge at the reading start. (The reference's back
+/// at the reading start — D244: wholly inside the cover, frame included,
+/// centred in [KPublicProfile.avatarSlot]. (The reference's back
 /// and ⋮ squares over the cover were removed: owner, «ارجعهم مثل ما كانو».)
 class ProfileCoverHeader extends StatelessWidget {
   const new({required this.profile, super.key, this.onCoverTap, this.cpFrame});
@@ -58,8 +79,8 @@ class ProfileCoverHeader extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     // Under the restored bar (owner, after D218): no status-bar inset here.
-    const coverHeight = KPublicProfile.coverHeight;
-    const avatarBox = KProfile.avatar + 2 * KMetrics.strokeLarge;
+    final coverHeight = KPublicProfile.coverHeight;
+    final slot = KPublicProfile.avatarSlot;
     final room = profile.liveRoomId;
     final live = room != null;
     final fallback = DecoratedBox(
@@ -77,9 +98,9 @@ class ProfileCoverHeader extends StatelessWidget {
       ),
     );
     return SizedBox(
-      // While live, the ring's badge hangs under the photo.
-      height:
-          coverHeight + avatarBox / 2 + (live ? KMetrics.badgeHeight / 2 : 0),
+      // D244: nothing hangs below the cover (the live badge fits in the
+      // slot), so the name under it is never covered.
+      height: coverHeight,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -117,28 +138,32 @@ class ProfileCoverHeader extends StatelessWidget {
               ),
             ),
           PositionedDirectional(
-            top: coverHeight - avatarBox / 2,
-            start: KProfile.inset,
-            child: Semantics(
-              key: ProfileHeaderView.avatarKey,
-              button: live,
-              label: live ? l10n.profileWatchLive : null,
-              // While live the photo is the way into the room (one label).
-              excludeSemantics: live,
-              child: GestureDetector(
-                key: live ? ProfileCoverHeader.watchLiveKey : null,
-                onTap: live
-                    ? () => context.push(AppRoutes.liveRoom(room))
-                    : null,
-                child: ProfileAvatar(
-                  displayName: profile.displayName,
-                  avatarUrl: profile.avatarUrl,
-                  live: live,
-                  cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
-                  agentCode: profile.rechargeAgentCode,
-                  hostAgentCode: profile.hostAgentCode,
-                  avatarFrame: profile.avatarFrame,
-                  outline: p.background,
+            top: KPublicProfile.coverMargin,
+            start: KPublicProfile.avatarStart,
+            width: slot.width,
+            height: slot.height,
+            child: Center(
+              child: Semantics(
+                key: ProfileHeaderView.avatarKey,
+                button: live,
+                label: live ? l10n.profileWatchLive : null,
+                // While live the photo is the way into the room (one label).
+                excludeSemantics: live,
+                child: GestureDetector(
+                  key: live ? ProfileCoverHeader.watchLiveKey : null,
+                  onTap: live
+                      ? () => context.push(AppRoutes.liveRoom(room))
+                      : null,
+                  child: ProfileAvatar(
+                    displayName: profile.displayName,
+                    avatarUrl: profile.avatarUrl,
+                    live: live,
+                    cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
+                    agentCode: profile.rechargeAgentCode,
+                    hostAgentCode: profile.hostAgentCode,
+                    avatarFrame: profile.avatarFrame,
+                    outline: p.background,
+                  ),
                 ),
               ),
             ),

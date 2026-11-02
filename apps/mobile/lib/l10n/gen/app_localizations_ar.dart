@@ -4437,6 +4437,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveCam2Leave => 'مغادرة';
 
   @override
+  String get liveCam2KeepOpen =>
+      'أبقِ هذه الشاشة مفتوحة، فهي تبقى مضاءة أثناء البث. إذا خرجت من التطبيق تتوقف هذه الكاميرا مؤقتاً حتى تعود.';
+
+  @override
   String get liveCam2Ended =>
       'انتهت الكاميرا الثانية: انتهى البث أو فُصلت من الجهاز الرئيسي.';
 

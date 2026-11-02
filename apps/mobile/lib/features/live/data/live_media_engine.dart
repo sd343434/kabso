@@ -382,7 +382,8 @@ class LiveKitMediaEngine
         LiveMediaEngine,
         LiveParticipantAttributes,
         LiveClipCapture,
-        LivePlaybackControls {
+        LivePlaybackControls,
+        LiveSessionLink {
   lk.LocalVideoTrack? _video;
   lk.LocalAudioTrack? _audio;
   lk.Room? _room;
@@ -405,6 +406,13 @@ class LiveKitMediaEngine
   int? _score;
   int? _roomInfoVersion;
   bool _removed = false;
+
+  /// D243: the session closed for good (LiveKit's final disconnect; never
+  /// set while it reconnects).
+  bool _closed = false;
+
+  @override
+  bool get sessionClosed => _closed;
 
   /// CP-017: the published microphone is paused for a voice clip.
   bool _clipHold = false;
@@ -984,6 +992,7 @@ class LiveKitMediaEngine
     final room = createRoom();
     _room = room;
     _removed = false;
+    _closed = false;
     _listen(room);
     await room.connect(access.url, access.token);
     _readMetadata(room.metadata);
@@ -1048,10 +1057,16 @@ class LiveKitMediaEngine
       ..on<lk.ParticipantPermissionsUpdatedEvent>((_) => _changes.ping())
       // D201: the second camera's main feed, the host's recording.
       ..on<lk.ParticipantAttributesChanged>((_) => _changes.ping())
+      // D243: reconnecting (a network blip) is told, never an end.
+      ..on<lk.RoomReconnectingEvent>((_) => _changes.ping())
+      ..on<lk.RoomResumingEvent>((_) => _changes.ping())
+      ..on<lk.RoomReconnectedEvent>((_) => _changes.ping())
       ..on<lk.RoomDisconnectedEvent>((e) {
         if (e.reason == lk.DisconnectReason.participantRemoved) {
           _removed = true;
         }
+        // LiveKit holds this event back while it reconnects: this is final.
+        _closed = true;
         _changes.ping();
       });
   }

@@ -13,6 +13,19 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // D243: a live's second camera keeps the screen on (it sits untouched).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KabsoScreen") {
+      let channel = FlutterMethodChannel(
+        name: "com.kabso/screen", binaryMessenger: registrar.messenger())
+      channel.setMethodCallHandler { call, result in
+        if call.method == "keepOn" {
+          UIApplication.shared.isIdleTimerDisabled = (call.arguments as? Bool) ?? false
+          result(nil)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
     // D223 (CONVENTIONS §10.75): the stable device id for «at most 2 accounts
     // created per device».
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KabsoDeviceId") {

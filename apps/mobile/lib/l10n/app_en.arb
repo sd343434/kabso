@@ -1423,6 +1423,7 @@
   "liveCam2MicOn": "Unmute",
   "liveCam2MicOff": "Mute",
   "liveCam2Leave": "Leave",
+  "liveCam2KeepOpen": "Keep this screen open: it stays on while you stream. If you leave the app, this camera pauses until you come back.",
   "liveCam2Ended": "The second camera ended: the live ended or the main device disconnected it.",
   "liveMusicRightsTitle": "Music rights",
   "liveMusicRightsBody": "Make sure you hold the rights to play this music. Playing copyrighted music without a licence is not allowed.",

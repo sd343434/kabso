@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -32,6 +33,27 @@ class MainActivity : FlutterActivity() {
                     "ringerMode" -> {
                         val audio = getSystemService(AudioManager::class.java)
                         result.success(audio?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        // D243: a live's second camera keeps the screen on (it sits untouched
+        // on a stand; a timed-out screen stops the activity and Android takes
+        // the camera from an app that is not in the foreground). Only while
+        // this window is shown; no permission.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kabso/screen")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "keepOn" -> {
+                        val on = call.arguments as? Boolean ?: false
+                        runOnUiThread {
+                            if (on) {
+                                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            } else {
+                                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            }
+                            result.success(null)
+                        }
                     }
                     else -> result.notImplemented()
                 }

@@ -9,6 +9,7 @@
  */
 import { RoomServiceClient } from 'livekit-server-sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { LiveToolsService } from '../src/modules/live/live-tools.service.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { LiveKitMediaProvider } from '../src/modules/live/media/livekit-media.provider.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -222,6 +223,114 @@ describe.skipIf(!url)('D201 second camera and music on a real LiveKit server', {
       expect(cam2Gone).toBe(true);
       expect(cam2Seen()).toBeUndefined();
       expect(await provider.listIdentities(roomId)).not.toContain(`cam2:${h.id}`);
+    } finally {
+      for (const timer of timers) clearInterval(timer);
+      for (const room of connected) await room.disconnect().catch(() => undefined);
+      await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h));
+    }
+  });
+
+  it('D243: the second camera keeps reaching the viewer for 30 s while the viewer drops and takes it back (the small picture swapped) and while the second device reconnects as a new session', async () => {
+    const rtc = await import('@livekit/rtc-node');
+    const tools = ctx.app.get(LiveToolsService);
+    const h = await signup();
+    await ctx.prisma.liveHost.create({ data: { userId: h.id, source: 'ADMIN' } });
+    const viewer = await signup();
+    const roomId = (await ctx.http.post('/api/v1/live/rooms').set(auth(h)).send({ title: 'Cam2 frames' }))
+      .body.id as string;
+    const identity = `cam2:${h.id}`;
+    const connected: InstanceType<typeof rtc.Room>[] = [];
+    const timers: NodeJS.Timeout[] = [];
+    const connect = async (access: { url: string; token: string }) => {
+      const room = new rtc.Room();
+      connected.push(room);
+      await room.connect(access.url, access.token, { autoSubscribe: true, dynacast: false });
+      return room;
+    };
+    const camera = async (room: InstanceType<typeof rtc.Room>, fill: number) => {
+      const source = new rtc.VideoSource(32, 32);
+      await room.localParticipant!.publishTrack(
+        rtc.LocalVideoTrack.createVideoTrack('cam', source),
+        new rtc.TrackPublishOptions({ source: rtc.TrackSource.SOURCE_CAMERA }),
+      );
+      const timer = setInterval(() => {
+        source.captureFrame(
+          new rtc.VideoFrame(new Uint8Array(32 * 32 * 4).fill(fill), 32, 32, rtc.VideoBufferType.RGBA),
+        );
+      }, 33);
+      timers.push(timer);
+      return timer;
+    };
+    try {
+      const hostAccess = (
+        await ctx.http.post(`/api/v1/live/rooms/${roomId}/media-token`).set(auth(h)).send({})
+      ).body as { url: string; token: string };
+      await camera(await connect(hostAccess), 40);
+      const code = (
+        await ctx.http.post(`/api/v1/live/rooms/${roomId}/second-camera/codes`).set(auth(h)).send({})
+      ).body.code as string;
+      const redeemed = await ctx.http.post('/api/v1/live/second-camera/redeem').set(auth(h)).send({ code });
+      expect(redeemed.status, JSON.stringify(redeemed.body)).toBe(200);
+      const cam2Access = redeemed.body as { url: string; token: string };
+      const first = await connect(cam2Access);
+      const firstTimer = await camera(first, 200);
+      await tools.onJoined(roomId, identity); // the participant_joined webhook
+
+      // The viewer counts the second camera's frames as they arrive.
+      const frames: number[] = [];
+      const watcher = new rtc.Room();
+      connected.push(watcher);
+      watcher.on(rtc.RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+        if (participant.identity !== identity || track.kind !== rtc.TrackKind.KIND_VIDEO) return;
+        void (async () => {
+          for await (const _ of new rtc.VideoStream(track)) {
+            frames.push(Date.now());
+            if (frames.length > 100_000) break;
+          }
+        })();
+      });
+      const viewerAccess = (
+        await ctx.http.post(`/api/v1/live/rooms/${roomId}/media-token`).set(auth(viewer)).send({})
+      ).body as { url: string; token: string };
+      await watcher.connect(viewerAccess.url, viewerAccess.token, { autoSubscribe: true, dynacast: false });
+      const framesSince = (ms: number) => frames.filter((t) => t >= Date.now() - ms).length;
+      for (let i = 0; i < 100 && framesSince(1000) < 10; i += 1) await sleep(100);
+      expect(framesSince(1000)).toBeGreaterThanOrEqual(10);
+
+      const publication = () =>
+        [...(watcher.remoteParticipants.get(identity)?.trackPublications.values() ?? [])].find(
+          (p) => p.kind === rtc.TrackKind.KIND_VIDEO,
+        );
+      // The viewer drops the second camera and takes it back (as a renderer that went and came).
+      for (let round = 0; round < 3; round += 1) {
+        publication()?.setSubscribed(false);
+        await sleep(1000);
+        publication()?.setSubscribed(true);
+        for (let i = 0; i < 50 && framesSince(1000) < 10; i += 1) await sleep(100);
+        expect(framesSince(1000), `round ${round}`).toBeGreaterThanOrEqual(10);
+      }
+
+      // The second device reconnects as a new session (the same identity: LiveKit closes the old one).
+      const second = await connect(cam2Access);
+      clearInterval(firstTimer);
+      await camera(second, 120);
+      // The webhooks of a full reconnect, in either order: the old session left, the new one joined.
+      await tools.onLeft(roomId, identity);
+      await tools.onJoined(roomId, identity);
+      await tools.onLeft(roomId, identity);
+      expect(await provider.listIdentities(roomId)).toContain(identity);
+      const state = await ctx.http.get(`/api/v1/live/rooms/${roomId}/second-camera`).set(auth(h));
+      expect(state.body).toMatchObject({ status: 'CONNECTED' });
+
+      // Frames keep coming for the rest of the 30 s.
+      const until = Date.now() + 20_000;
+      let worst = Infinity;
+      await sleep(3000);
+      while (Date.now() < until) {
+        await sleep(1000);
+        worst = Math.min(worst, framesSince(1000));
+      }
+      expect(worst).toBeGreaterThanOrEqual(10);
     } finally {
       for (const timer of timers) clearInterval(timer);
       for (const room of connected) await room.disconnect().catch(() => undefined);

@@ -23,6 +23,7 @@ import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
@@ -114,9 +115,13 @@ void main() {
     );
     expect(cover.top, tester.getRect(bar).bottom);
     expect(cover.width, 393);
+    // D244 (owner: «اجعل الصورة داخل الغلاف»): the photo (here with the
+    // live ring and badge) wholly inside the cover — it straddled the edge
+    // (D218) and a frame then covered the name.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    expect(photo.top, lessThan(cover.bottom));
-    expect(photo.bottom, greaterThan(cover.bottom));
+    expect(photo.top, greaterThanOrEqualTo(cover.top));
+    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(cover.height, moreOrLessEquals(KPublicProfile.coverHeight));
     expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileWatchLive), findsWidgets);

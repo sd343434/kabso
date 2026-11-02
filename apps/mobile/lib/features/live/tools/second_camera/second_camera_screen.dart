@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_media_extras.dart';
+import 'package:kabso_live/features/live/data/live_screen_awake.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/tools/live_tool_parts.dart';
 import 'package:kabso_live/features/live/tools/live_tools_repository.dart';
@@ -17,6 +20,15 @@ import 'package:material_ui/material_ui.dart';
 /// main device's «كاميرتان» → a minimal camera screen: the picture, flip, the
 /// microphone (off at first) and leave. No chat, no viewers' things: this
 /// device only publishes its camera into the host's live.
+///
+/// D243 (owner: «الكاميرا الثانية تقف»): this device usually sits untouched,
+/// so while it joins and is on air the screen stays on ([LiveScreenAwake]);
+/// it holds the live's foreground service like a seated guest (the session
+/// and the microphone survive a locked screen); leaving the app pauses the
+/// camera the LiveKit way (the others see it off, not a frozen frame —
+/// Android takes the camera from a background app) and coming back restarts
+/// it. A reconnect (network blip) is never an end: only the session closing
+/// for good ([LiveSessionLink]) or a removal ends this screen.
 class SecondCameraScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -29,6 +41,7 @@ class SecondCameraScreen extends ConsumerStatefulWidget {
   static const leaveKey = Key('cam2b.leave');
   static const endedKey = Key('cam2b.ended');
   static const onAirKey = Key('cam2b.onAir');
+  static const keepOpenKey = Key('cam2b.keepOpen');
 
   @override
   ConsumerState<SecondCameraScreen> createState() => _SecondCameraScreenState();
@@ -44,17 +57,24 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
   SecondCameraAccess? _access;
   bool _wasConnected = false;
 
+  late final LiveBackgroundKeeper _keeper;
+  late final LiveScreenAwake _awake;
+  bool _awakeOn = false;
+
   LiveToolsRepository get _repo => ref.read(liveToolsRepositoryProvider);
 
   @override
   void initState() {
     super.initState();
+    _keeper = ref.read(liveBackgroundKeeperProvider);
+    _awake = ref.read(liveScreenAwakeProvider);
     _code.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _code.dispose();
+    _offAir();
     final engine = _engine;
     _engine = null;
     engine?.changes.removeListener(_changed);
@@ -62,17 +82,67 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
     super.dispose();
   }
 
+  void _keepAwake({required bool on}) {
+    if (_awakeOn == on) return;
+    _awakeOn = on;
+    unawaited(_awake.keepOn(on: on));
+  }
+
+  /// The screen may time out again and the foreground service stops.
+  void _offAir() {
+    _keepAwake(on: false);
+    _keeper.release(this);
+  }
+
+  /// D243: whether the session is over (not a reconnect).
+  bool _ended(LiveMediaEngine engine) {
+    if (engine.removed) return true;
+    if (engine is LiveSessionLink) {
+      return (engine as LiveSessionLink).sessionClosed;
+    }
+    return _wasConnected && !engine.connected;
+  }
+
   void _changed() {
     final engine = _engine;
     if (!mounted || engine == null) return;
     if (engine.connected) _wasConnected = true;
-    if (_phase == _Phase.live &&
-        (engine.removed || (_wasConnected && !engine.connected))) {
+    if (_phase == _Phase.live && _ended(engine)) {
+      _offAir();
       setState(() => _phase = _Phase.ended);
       unawaited(engine.stop());
       return;
     }
     setState(() {});
+  }
+
+  /// D243: the live's foreground service while on air (type microphone, as
+  /// a seated guest), the notification's button leaves; the camera pauses
+  /// while the app is away and restarts on return.
+  void _holdBackground(AppLocalizations l10n) {
+    _keeper.hold(
+      this,
+      LiveBackgroundSpec(
+        role: LiveBackgroundRole.guest,
+        title: l10n.liveCam2OnAir,
+        body: l10n.liveBgBody,
+        actionLabel: l10n.liveCam2Leave,
+        channelName: l10n.liveBgChannel,
+      ),
+      onEnd: () => unawaited(_leave()),
+      onBackground: () => unawaited(_pauseCamera(paused: true)),
+      onForeground: () => unawaited(_pauseCamera(paused: false)),
+    );
+  }
+
+  Future<void> _pauseCamera({required bool paused}) async {
+    final engine = _engine;
+    if (engine == null || _phase != _Phase.live) return;
+    try {
+      await engine.setVideoPaused(paused: paused);
+    } on Object {
+      // Best effort: the next return tries again.
+    }
   }
 
   Future<void> _join() async {
@@ -83,11 +153,13 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
       _phase = _Phase.joining;
       _error = null;
     });
+    _keepAwake(on: true);
     SecondCameraAccess access;
     try {
       access = await _repo.redeem(code);
     } on Object catch (e) {
       if (!mounted) return;
+      _keepAwake(on: false);
       setState(() {
         _phase = _Phase.code;
         _error = switch (e) {
@@ -123,6 +195,10 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
       );
       if (!mounted) return;
       setState(() => _phase = _Phase.live);
+      _holdBackground(l10n);
+      // Away while joining (the camera opened in the background): pause it
+      // now; the return restarts it.
+      if (_keeper.away) unawaited(_pauseCamera(paused: true));
     } on LiveCaptureException catch (e) {
       await _abandon();
       if (!mounted) return;
@@ -144,6 +220,7 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
 
   /// Leaves the media room and tells the server (the main device's state).
   Future<void> _abandon() async {
+    _offAir();
     final engine = _engine;
     _engine = null;
     engine?.changes.removeListener(_changed);
@@ -309,6 +386,7 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
                 const SizedBox(height: KSpacing.sm),
                 Container(
                   key: SecondCameraScreen.onAirKey,
+                  margin: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
@@ -331,16 +409,46 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        engine?.connected ?? false
-                            ? l10n.liveCam2OnAir
-                            : l10n.liveCam2Connecting,
-                        style: t.label.copyWith(color: const Color(0xFFFFFFFF)),
+                      // D243: large text never overflows the pill.
+                      Flexible(
+                        child: Text(
+                          engine?.connected ?? false
+                              ? l10n.liveCam2OnAir
+                              : l10n.liveCam2Connecting,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.label.copyWith(
+                            color: const Color(0xFFFFFFFF),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const Spacer(),
+                Padding(
+                  key: SecondCameraScreen.keepOpenKey,
+                  padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x99000000),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      l10n.liveCam2KeepOpen,
+                      textAlign: TextAlign.center,
+                      style: t.caption.copyWith(
+                        color: const Color(0xFFFFFFFF),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: KSpacing.md),
                 Padding(
                   padding: const EdgeInsets.only(bottom: KSpacing.lg),
                   child: Row(
