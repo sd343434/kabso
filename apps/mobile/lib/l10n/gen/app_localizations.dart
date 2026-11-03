@@ -23020,6 +23020,12 @@ abstract class AppLocalizations {
   /// **'{seconds} ث'**
   String pkRematchSeconds(String seconds);
 
+  /// Owner 2026-11-03: the rematch request in the PK sheet beside «كتم الخصم» and «إنهاء التحدي».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب إعادة التحدي'**
+  String get pkRematchRequest;
+
   /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
   ///
   /// In ar, this message translates to:

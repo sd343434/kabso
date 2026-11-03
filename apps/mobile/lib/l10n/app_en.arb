@@ -4234,6 +4234,7 @@
   "pkRematchExpired": "The other host did not answer",
   "pkRematchSeconds": "{seconds} s",
   "@pkRematchSeconds": {"placeholders": {"seconds": {"type": "String"}}},
+  "pkRematchRequest": "Request a rematch",
   "liveToolReportLive": "Report live",
   "liveReportTitle": "Why are you reporting this live?",
   "liveReportNoteLabel": "Note (optional)",

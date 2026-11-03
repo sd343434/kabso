@@ -141,6 +141,14 @@ class LivePkSheet extends ConsumerStatefulWidget {
   static const endKey = Key('pk.sheet.end');
   static const muteKey = Key('pk.sheet.mute');
 
+  /// Owner (2026-11-03): «طلب إعادة التحدي» beside mute and end, once the
+  /// result shows (D242's rematch); the other host answers in its box.
+  static const rematchKey = Key('pk.sheet.rematch');
+  static const rematchWaitingKey = Key('pk.sheet.rematch.waiting');
+  static const rematchCancelKey = Key('pk.sheet.rematch.cancel');
+  static const rematchAcceptKey = Key('pk.sheet.rematch.accept');
+  static const rematchDeclineKey = Key('pk.sheet.rematch.decline');
+
   /// v1.50-live (D229): «PK عادي» / «PK أحكام».
   static Key typeKey(PkType type) => Key('pk.sheet.type.${type.wire}');
   static Key modeKey(PkSheetMode m) => Key('pk.sheet.mode.${m.name}');
@@ -881,6 +889,7 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
             _run(() => controller.setMuteOpponent(muted: !own.mutesOpponent)),
           ),
         ),
+        ..._rematch(context, match, controller),
         const SizedBox(height: KSpacing.sm),
         KButton(
           key: LivePkSheet.endKey,
@@ -892,6 +901,95 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
         ),
       ],
     );
+  }
+
+  /// «طلب إعادة التحدي» (owner, 2026-11-03) on D242's rematch: shown once
+  /// the result is up. Asking closes the sheet so the room shows the wait;
+  /// the other host gets the box with «قبول» and «رفض» (PkRematchDock) and,
+  /// if it opens this sheet, the same two buttons here.
+  List<Widget> _rematch(
+    BuildContext context,
+    PkMatch match,
+    LivePkController controller,
+  ) {
+    if (match.status != PkMatchStatus.result) return const [];
+    final l10n = context.l10n;
+    final offer = match.rematch;
+    final (_, other) = match.of(widget.roomId);
+    final name = KFormat.bidiIsolate('@${other.host.username}');
+    if (offer == null) {
+      if (!match.canOfferRematch) return const [];
+      return [
+        const SizedBox(height: KSpacing.sm),
+        KButton(
+          key: LivePkSheet.rematchKey,
+          icon: Icons.replay_rounded,
+          label: l10n.pkRematchRequest,
+          loading: _busy,
+          onPressed: () => unawaited(_requestRematch(controller)),
+        ),
+      ];
+    }
+    final mine = offer.byRoomId == widget.roomId;
+    void answer({required bool accept}) =>
+        unawaited(_answerRematch(controller, accept: accept));
+    return [
+      const SizedBox(height: KSpacing.sm),
+      Text(
+        mine ? l10n.pkRematchWaiting(name) : l10n.pkRematchOffered(name),
+        key: LivePkSheet.rematchWaitingKey,
+        textAlign: TextAlign.center,
+        style: context.textStyles.bodyStrong,
+      ),
+      const SizedBox(height: KSpacing.sm),
+      if (mine)
+        KButton(
+          key: LivePkSheet.rematchCancelKey,
+          variant: KButtonVariant.secondary,
+          label: MaterialLocalizations.of(context).cancelButtonLabel,
+          loading: _busy,
+          onPressed: () => unawaited(_run(controller.cancelRematch)),
+        )
+      else
+        Row(
+          children: [
+            Expanded(
+              child: KButton(
+                key: LivePkSheet.rematchAcceptKey,
+                label: l10n.pkDareAccept,
+                loading: _busy,
+                onPressed: () => answer(accept: true),
+              ),
+            ),
+            const SizedBox(width: KSpacing.sm),
+            Expanded(
+              child: KButton(
+                key: LivePkSheet.rematchDeclineKey,
+                variant: KButtonVariant.secondary,
+                label: l10n.pkDareRefuse,
+                onPressed: _busy ? null : () => answer(accept: false),
+              ),
+            ),
+          ],
+        ),
+    ];
+  }
+
+  Future<void> _requestRematch(LivePkController controller) async {
+    await _run(controller.offerRematch);
+    if (!mounted) return;
+    final asked = ref.read(livePkProvider(widget.roomId)).match?.rematch;
+    if (asked?.byRoomId == widget.roomId) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  Future<void> _answerRematch(
+    LivePkController controller, {
+    required bool accept,
+  }) async {
+    await _run(accept ? controller.acceptRematch : controller.declineRematch);
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _confirmEnd(PkMatch match, LivePkController controller) async {
