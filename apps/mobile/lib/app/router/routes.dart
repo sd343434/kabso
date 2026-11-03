@@ -244,6 +244,9 @@ abstract final class AppRoutes {
   static const eventPattern = '/events/:eventId';
   static const svip = '/svip';
 
+  /// D252: «شراء VIP» — the tiers the owner manages in the admin panel.
+  static const vip = '/vip';
+
   /// The page of event [eventId].
   static String event(String eventId) =>
       '/events/${Uri.encodeComponent(eventId)}';

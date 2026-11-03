@@ -13709,4 +13709,189 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveLevelTickerCharm => 'Charm level';
+
+  @override
+  String get vipLoadError => 'Couldn\'t load VIP';
+
+  @override
+  String get vipEmpty => 'No VIP tiers are on sale right now.';
+
+  @override
+  String get vipNotYet => 'You\'re not VIP yet';
+
+  @override
+  String vipUntil(String tier, String date) {
+    return '$tier until $date';
+  }
+
+  @override
+  String vipDaysLeft(String days) {
+    return '$days days left';
+  }
+
+  @override
+  String vipOffSale(String tier) {
+    return '$tier is no longer on sale; you keep it until it ends, and it can\'t be renewed.';
+  }
+
+  @override
+  String get vipCurrent => 'Your current tier';
+
+  @override
+  String vipForDays(String days) {
+    return 'for $days days';
+  }
+
+  @override
+  String vipPriceSemantics(String coins, String days) {
+    return '$coins coins for $days days';
+  }
+
+  @override
+  String vipPerksTitle(String tier) {
+    return '$tier privileges';
+  }
+
+  @override
+  String get vipPerksSoon => 'Perks marked «Soon» turn on when they launch.';
+
+  @override
+  String get vipPerksEmpty => 'No perks for this tier yet.';
+
+  @override
+  String get vipPerkActive => 'Active';
+
+  @override
+  String vipPerkWith(String tier) {
+    return 'With $tier';
+  }
+
+  @override
+  String get vipBuy => 'Buy now';
+
+  @override
+  String get vipRenew => 'Renew';
+
+  @override
+  String get vipUpgrade => 'Upgrade';
+
+  @override
+  String get vipLowerTier => 'Below your tier';
+
+  @override
+  String get vipRenewLimit => 'Renewal limit reached';
+
+  @override
+  String vipConfirmBuy(String tier) {
+    return 'Buy $tier';
+  }
+
+  @override
+  String vipConfirmRenew(String tier) {
+    return 'Renew $tier';
+  }
+
+  @override
+  String vipConfirmUpgrade(String tier) {
+    return 'Upgrade to $tier';
+  }
+
+  @override
+  String get vipConfirmPrice => 'Price';
+
+  @override
+  String get vipConfirmBalance => 'Your balance';
+
+  @override
+  String get vipConfirmUntil => 'Ends on';
+
+  @override
+  String vipUpgradeNote(String tier) {
+    return 'The new tier starts now; the days left of $tier are not carried over or refunded.';
+  }
+
+  @override
+  String get vipManualRenew =>
+      'Renewal is manual: nothing is charged on its own.';
+
+  @override
+  String get vipShort => 'You don\'t have enough coins.';
+
+  @override
+  String get vipRecharge => 'Recharge coins';
+
+  @override
+  String vipPay(String coins) {
+    return 'Pay $coins';
+  }
+
+  @override
+  String vipDone(String tier, String date) {
+    return 'You\'re $tier until $date';
+  }
+
+  @override
+  String get vipRules => 'VIP rules';
+
+  @override
+  String vipRulesBody(String days) {
+    return 'VIP is bought with coins from your balance for the tier\'s length. Renewing is manual and adds the length to your end date (up to $days days ahead). Upgrading to a higher tier starts at once at its full price; the days left of your previous tier are not carried over. A lower tier can\'t be bought until yours ends. Nothing is charged on its own.';
+  }
+
+  @override
+  String get vipErrorDowngrade =>
+      'You can\'t buy a lower tier until yours ends.';
+
+  @override
+  String get vipErrorRenewLimit =>
+      'You\'ve reached the longest you can renew ahead.';
+
+  @override
+  String get vipErrorTierOff => 'This tier is no longer on sale.';
+
+  @override
+  String get errorVipUnavailable => 'This VIP tier can\'t be bought now.';
+
+  @override
+  String get errorVipPriceChanged =>
+      'The price of this tier changed. Check the new price.';
+
+  @override
+  String get walletReasonVipPurchase => 'Purchase VIP';
+
+  @override
+  String vipCurrently(String status) {
+    return 'Currently: $status';
+  }
+
+  @override
+  String get vipStatusNone => 'non-VIP';
+
+  @override
+  String vipUpgradeTo(String tier) {
+    return 'Upgrade: $tier';
+  }
+
+  @override
+  String get vipMaxTier => 'Top tier';
+
+  @override
+  String get vipBalanceLabel => 'Your balance';
+
+  @override
+  String get vipStore => 'VIP store';
+
+  @override
+  String get vipStoreSoon => 'VIP gifts store — coming soon.';
+
+  @override
+  String vipPerksSection(String tier) {
+    return '$tier privileges';
+  }
+
+  @override
+  String get vipSectionIdentity => 'Identification';
+
+  @override
+  String get vipSectionPrivilege => 'Exclusive privilege';
 }

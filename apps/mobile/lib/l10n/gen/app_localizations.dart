@@ -23214,6 +23214,300 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مستوى الجاذبية'**
   String get liveLevelTickerCharm;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل VIP'**
+  String get vipLoadError;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مستويات VIP معروضة الآن.'**
+  String get vipEmpty;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لست VIP بعد'**
+  String get vipNotYet;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'{tier} حتى {date}'**
+  String vipUntil(String tier, String date);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'متبقٍ {days} يوماً'**
+  String vipDaysLeft(String days);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يعد {tier} معروضاً للبيع؛ يبقى معك حتى نهايته ولا يُجدَّد.'**
+  String vipOffSale(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'مستواك الحالي'**
+  String get vipCurrent;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لمدة {days} يوماً'**
+  String vipForDays(String days);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة لمدة {days} يوماً'**
+  String vipPriceSemantics(String coins, String days);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات {tier}'**
+  String vipPerksTitle(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'الميزات المعلّمة «قريباً» تُفعَّل عند إطلاقها.'**
+  String get vipPerksSoon;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ميزات لهذا المستوى بعد.'**
+  String get vipPerksEmpty;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'مفعّلة'**
+  String get vipPerkActive;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'مع {tier}'**
+  String vipPerkWith(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'اشترِ الآن'**
+  String get vipBuy;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'جدّد'**
+  String get vipRenew;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'ترقية'**
+  String get vipUpgrade;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل من مستواك'**
+  String get vipLowerTier;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى حد التجديد'**
+  String get vipRenewLimit;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء {tier}'**
+  String vipConfirmBuy(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد {tier}'**
+  String vipConfirmRenew(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'الترقية إلى {tier}'**
+  String vipConfirmUpgrade(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر'**
+  String get vipConfirmPrice;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك'**
+  String get vipConfirmBalance;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي في'**
+  String get vipConfirmUntil;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'يبدأ المستوى الجديد الآن؛ الأيام المتبقية من {tier} لا تُحتسب ولا تُسترد.'**
+  String vipUpgradeNote(String tier);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'التجديد يدوي: لا يُخصم شيء تلقائياً.'**
+  String get vipManualRenew;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك من العملات لا يكفي.'**
+  String get vipShort;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'اشحن العملات'**
+  String get vipRecharge;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'ادفع {coins}'**
+  String vipPay(String coins);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبحت {tier} حتى {date}'**
+  String vipDone(String tier, String date);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'قواعد VIP'**
+  String get vipRules;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'تشتري VIP بالعملات من رصيدك لمدة المستوى. التجديد يدوي ويضيف المدة إلى نهاية اشتراكك (حتى {days} يوماً مقدماً). الترقية إلى مستوى أعلى تبدأ فوراً بسعره الكامل، ولا تُحتسب الأيام المتبقية من مستواك السابق. لا يمكن شراء مستوى أقل قبل انتهاء مستواك. لا يُخصم شيء تلقائياً.'**
+  String vipRulesBody(String days);
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن شراء مستوى أقل من مستواك قبل انتهائه.'**
+  String get vipErrorDowngrade;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى أقصى مدة يمكن تجديدها مقدماً.'**
+  String get vipErrorRenewLimit;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المستوى لم يعد معروضاً للبيع.'**
+  String get vipErrorTierOff;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن شراء هذا المستوى الآن.'**
+  String get errorVipUnavailable;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيّر سعر هذا المستوى. راجع السعر الجديد.'**
+  String get errorVipPriceChanged;
+
+  /// D252: «شراء VIP».
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء VIP'**
+  String get walletReasonVipPurchase;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'حالياً: {status}'**
+  String vipCurrently(String status);
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون VIP'**
+  String get vipStatusNone;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'الترقية: {tier}'**
+  String vipUpgradeTo(String tier);
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى مستوى'**
+  String get vipMaxTier;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك'**
+  String get vipBalanceLabel;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'متجر VIP'**
+  String get vipStore;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'متجر هدايا VIP — قريباً.'**
+  String get vipStoreSoon;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات {tier}'**
+  String vipPerksSection(String tier);
+
+  /// D252b v2: «شراء VIP» — the appearance perks category header.
+  ///
+  /// In ar, this message translates to:
+  /// **'التعريف'**
+  String get vipSectionIdentity;
+
+  /// D252b v2: «شراء VIP» — the privileges perks category header.
+  ///
+  /// In ar, this message translates to:
+  /// **'امتياز حصري'**
+  String get vipSectionPrivilege;
 }
 
 class _AppLocalizationsDelegate

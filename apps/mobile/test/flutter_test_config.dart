@@ -28,6 +28,7 @@ import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
+import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
@@ -40,6 +41,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // D154: the quips' sounds (no audio plugin in tests).
   AudioplayersQuipAudio.enabled = false;
   KabsoProfileHeaderArt.animate = false;
+  // D252: the VIP badge / perk SVGA — tests show the still.
+  VipAnimatedArt.animationsEnabled = false;
   CpRisingHearts.animate = false;
   CpPairFx.animate = false;
   CpMicEffect.animate = false;

@@ -96,6 +96,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.referralNotAllowed => l10n.errorReferralNotAllowed,
     ErrorCode.deviceAccountLimit => l10n.errorDeviceAccountLimit,
     ErrorCode.deviceBanned => l10n.errorDeviceBanned,
+    ErrorCode.vipUnavailable => l10n.errorVipUnavailable,
+    ErrorCode.vipPriceChanged => l10n.errorVipPriceChanged,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

@@ -5,6 +5,7 @@ import { LiveModule } from '../live/live.module.js';
 import { TopupModule } from '../topup/topup.module.js';
 import { MediaModule } from '../media/media.module.js';
 import { RechargeModule } from '../recharge/recharge.module.js';
+import { VipModule } from '../vip/vip.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
 import { PublicProfileModule } from '../users/profiles/public-profile.module.js';
 import { AdminAuthService } from './admin-auth.service.js';
@@ -38,6 +39,7 @@ import { AdminHostApplicationsController } from './admin-host-applications.contr
 import { AdminHostApplicationsService } from './admin-host-applications.service.js';
 import { AdminDeviceSignupsController } from './admin-device-signups.controller.js';
 import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
+import { AdminVipController } from './admin-vip.controller.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -60,6 +62,8 @@ import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
     LiveModule,
     TopupModule,
     RechargeModule,
+    // v1.82-social (D252): «VIP».
+    VipModule,
   ],
   controllers: [
     AdminAuthController,
@@ -78,6 +82,8 @@ import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
     AdminDeviceSignupsController,
     // v1.60-live (D250, §10.91): live moderation «مراقبة البث».
     AdminLiveModerationController,
+    // v1.82-social (D252, §10.93.4): «VIP».
+    AdminVipController,
   ],
   providers: [
     AdminAuthService,

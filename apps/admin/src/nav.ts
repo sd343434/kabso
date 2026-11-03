@@ -85,6 +85,8 @@ export const NAV: NavGroup[] = [
     items: [
       { to: '/programs/tasks', key: 'navTasks', icon: 'tasks', cap: 'programs.view', match: ['tasks'] },
       { to: '/programs/levels', key: 'navLevels', icon: 'arrowUp', cap: 'programs.view', match: ['levels'] },
+      // v1.82-social (D252): «شراء VIP» — the tiers, their order and perks.
+      { to: '/vip', key: 'navVip', icon: 'shield', cap: 'catalog.view', match: ['vip'] },
     ],
   },
   {

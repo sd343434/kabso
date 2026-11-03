@@ -41,6 +41,7 @@ import { PremiumUsernamesModule } from './modules/premium-usernames/premium-user
 import { WalletModule } from './modules/wallet/wallet.module.js';
 import { CreatorModule } from './modules/creator/creator.module.js';
 import { ProgramsModule } from './modules/programs/programs.module.js';
+import { VipModule } from './modules/vip/vip.module.js';
 import { EconomyModule } from './modules/economy/economy.module.js';
 import { RechargeModule } from './modules/recharge/recharge.module.js';
 import { TopupModule } from './modules/topup/topup.module.js';
@@ -120,6 +121,8 @@ export class AppModule {
         CreatorModule,
         // v1.44-social (DRAFT, D166): the Me hub's Task Center, Event Center and SVIP.
         ProgramsModule,
+        // v1.82-social (DRAFT, D252): «شراء VIP».
+        VipModule,
         // v1.52-social (DRAFT, D179): cherries, host agencies, commissions and withdrawals.
         EconomyModule,
         // v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة».

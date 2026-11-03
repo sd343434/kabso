@@ -13719,4 +13719,187 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveLevelTickerCharm => 'مستوى الجاذبية';
+
+  @override
+  String get vipLoadError => 'تعذّر تحميل VIP';
+
+  @override
+  String get vipEmpty => 'لا توجد مستويات VIP معروضة الآن.';
+
+  @override
+  String get vipNotYet => 'لست VIP بعد';
+
+  @override
+  String vipUntil(String tier, String date) {
+    return '$tier حتى $date';
+  }
+
+  @override
+  String vipDaysLeft(String days) {
+    return 'متبقٍ $days يوماً';
+  }
+
+  @override
+  String vipOffSale(String tier) {
+    return 'لم يعد $tier معروضاً للبيع؛ يبقى معك حتى نهايته ولا يُجدَّد.';
+  }
+
+  @override
+  String get vipCurrent => 'مستواك الحالي';
+
+  @override
+  String vipForDays(String days) {
+    return 'لمدة $days يوماً';
+  }
+
+  @override
+  String vipPriceSemantics(String coins, String days) {
+    return '$coins عملة لمدة $days يوماً';
+  }
+
+  @override
+  String vipPerksTitle(String tier) {
+    return 'امتيازات $tier';
+  }
+
+  @override
+  String get vipPerksSoon => 'الميزات المعلّمة «قريباً» تُفعَّل عند إطلاقها.';
+
+  @override
+  String get vipPerksEmpty => 'لا توجد ميزات لهذا المستوى بعد.';
+
+  @override
+  String get vipPerkActive => 'مفعّلة';
+
+  @override
+  String vipPerkWith(String tier) {
+    return 'مع $tier';
+  }
+
+  @override
+  String get vipBuy => 'اشترِ الآن';
+
+  @override
+  String get vipRenew => 'جدّد';
+
+  @override
+  String get vipUpgrade => 'ترقية';
+
+  @override
+  String get vipLowerTier => 'أقل من مستواك';
+
+  @override
+  String get vipRenewLimit => 'وصلت إلى حد التجديد';
+
+  @override
+  String vipConfirmBuy(String tier) {
+    return 'شراء $tier';
+  }
+
+  @override
+  String vipConfirmRenew(String tier) {
+    return 'تجديد $tier';
+  }
+
+  @override
+  String vipConfirmUpgrade(String tier) {
+    return 'الترقية إلى $tier';
+  }
+
+  @override
+  String get vipConfirmPrice => 'السعر';
+
+  @override
+  String get vipConfirmBalance => 'رصيدك';
+
+  @override
+  String get vipConfirmUntil => 'ينتهي في';
+
+  @override
+  String vipUpgradeNote(String tier) {
+    return 'يبدأ المستوى الجديد الآن؛ الأيام المتبقية من $tier لا تُحتسب ولا تُسترد.';
+  }
+
+  @override
+  String get vipManualRenew => 'التجديد يدوي: لا يُخصم شيء تلقائياً.';
+
+  @override
+  String get vipShort => 'رصيدك من العملات لا يكفي.';
+
+  @override
+  String get vipRecharge => 'اشحن العملات';
+
+  @override
+  String vipPay(String coins) {
+    return 'ادفع $coins';
+  }
+
+  @override
+  String vipDone(String tier, String date) {
+    return 'أصبحت $tier حتى $date';
+  }
+
+  @override
+  String get vipRules => 'قواعد VIP';
+
+  @override
+  String vipRulesBody(String days) {
+    return 'تشتري VIP بالعملات من رصيدك لمدة المستوى. التجديد يدوي ويضيف المدة إلى نهاية اشتراكك (حتى $days يوماً مقدماً). الترقية إلى مستوى أعلى تبدأ فوراً بسعره الكامل، ولا تُحتسب الأيام المتبقية من مستواك السابق. لا يمكن شراء مستوى أقل قبل انتهاء مستواك. لا يُخصم شيء تلقائياً.';
+  }
+
+  @override
+  String get vipErrorDowngrade =>
+      'لا يمكن شراء مستوى أقل من مستواك قبل انتهائه.';
+
+  @override
+  String get vipErrorRenewLimit => 'وصلت إلى أقصى مدة يمكن تجديدها مقدماً.';
+
+  @override
+  String get vipErrorTierOff => 'هذا المستوى لم يعد معروضاً للبيع.';
+
+  @override
+  String get errorVipUnavailable => 'لا يمكن شراء هذا المستوى الآن.';
+
+  @override
+  String get errorVipPriceChanged =>
+      'تغيّر سعر هذا المستوى. راجع السعر الجديد.';
+
+  @override
+  String get walletReasonVipPurchase => 'شراء VIP';
+
+  @override
+  String vipCurrently(String status) {
+    return 'حالياً: $status';
+  }
+
+  @override
+  String get vipStatusNone => 'بدون VIP';
+
+  @override
+  String vipUpgradeTo(String tier) {
+    return 'الترقية: $tier';
+  }
+
+  @override
+  String get vipMaxTier => 'أعلى مستوى';
+
+  @override
+  String get vipBalanceLabel => 'رصيدك';
+
+  @override
+  String get vipStore => 'متجر VIP';
+
+  @override
+  String get vipStoreSoon => 'متجر هدايا VIP — قريباً.';
+
+  @override
+  String vipPerksSection(String tier) {
+    return 'امتيازات $tier';
+  }
+
+  @override
+  String get vipSectionIdentity => 'التعريف';
+
+  @override
+  String get vipSectionPrivilege => 'امتياز حصري';
 }

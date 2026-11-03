@@ -286,6 +286,13 @@ export enum ErrorCode {
    * refused for every account — `details: [{field: 'until', issue: <ISO> | 'permanent'}, {field: 'reason', issue}]`.
    */
   DEVICE_BANNED = 'DEVICE_BANNED',
+  /**
+   * v1.82-social (DRAFT, D252, §10.93): this VIP tier cannot be bought by the caller now — `details: [{field: 'tier',
+   * issue: 'tier_off' | 'downgrade' | 'renewal_limit'}]`. Nothing was charged.
+   */
+  VIP_UNAVAILABLE = 'VIP_UNAVAILABLE',
+  /** v1.82-social (DRAFT, D252, §10.93): the tier's price changed since the app showed it. Nothing was charged. */
+  VIP_PRICE_CHANGED = 'VIP_PRICE_CHANGED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -429,6 +436,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.REFERRAL_NOT_ALLOWED]: 409,
   [ErrorCode.DEVICE_ACCOUNT_LIMIT]: 409,
   [ErrorCode.DEVICE_BANNED]: 403,
+  [ErrorCode.VIP_UNAVAILABLE]: 409,
+  [ErrorCode.VIP_PRICE_CHANGED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -573,6 +582,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DEVICE_ACCOUNT_LIMIT]:
     'This device cannot create more accounts. You can sign in to your existing accounts.',
   [ErrorCode.DEVICE_BANNED]: 'This device is banned by the Kabso team.',
+  [ErrorCode.VIP_UNAVAILABLE]: 'This VIP tier cannot be bought now.',
+  [ErrorCode.VIP_PRICE_CHANGED]: 'The price of this VIP tier changed.',
 };
 
 export interface ErrorDetail {

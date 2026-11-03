@@ -175,3 +175,18 @@ reference screenshots (kept out of git, D40) with Kabso's colours and icons; «�
 | P10 | «مهام الماس» (Diamond Mission) tab | No reference yet: shown as «قريباً» | — |
 
 Status: **implemented as owner-changeable defaults** (D176, REVIEW). Additive for clients.
+
+## Amendment D252 (2026-11-03) — VIP «شراء VIP», contract v1.82-social
+
+**Owner (Arabic, verbatim):** «اصنع صفحة شراء vip واجعلها بنفس التصميم مطابق ١٠٠٪ واضافة الفي اي بي وترتيبه يكون من لوحة كل في
+اي بي له ميزات وامتيازات مختلفة» — questions 7–10 are answered by moving them to the admin panel: the OWNER adds the tiers,
+their order, prices, lengths and each tier's own perks there (CONVENTIONS §10.93).
+
+| # | Question | Decision (value) | Where it lives |
+|---|----------|------------------|----------------|
+| 7 | Tiers and prices | Set by the OWNER in the panel «VIP» (any number up to 20, price in coins, 1–365 days). **None seeded** — the proposal's 3 000 / 8 000 / 20 000 predate D194's coin price. | `vip_tiers` |
+| 8 | Perks per tier | Each tier has its own list (code, titles and descriptions ar/en, shown flag). Every perk is listed «قريباً» until it is built (`VIP_BUILT_PERKS`, empty today); none of the proposal's perks is built yet. | `vip_tier_perks` |
+| 9 | Renewal | Manual only; RENEW moves the end by the tier's length, at most 400 days ahead. Reminder notification: follow-up. | `VipService` |
+| 10 | Upgrade mid-period | Default: the higher tier from now at its full price; the days left are not carried over (no pro-rata). A lower tier waits until the active one ends. The owner may choose pro-rata later. | `vip-rules.ts` |
+| — | Design | No VIP reference screenshot in the repo (D40): the page follows the SVIP screen (D166) in Kabso's identity. | — |
+

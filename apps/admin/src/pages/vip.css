@@ -1,0 +1,60 @@
+/* D252 «VIP»: the tiers table and the tier form's perks editor. Kabso tokens from styles.css only; logical properties. */
+.vip-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.vip-order .btn.small {
+  padding-inline: 6px;
+}
+.vip-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.vip-swatch {
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex: none;
+}
+.vip-perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-inline-size: 320px;
+}
+.vip-perks .badge.muted {
+  opacity: 0.55;
+}
+.vip-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vip-color input[type='color'] {
+  inline-size: 40px;
+  block-size: 36px;
+  padding: 2px;
+  flex: none;
+}
+.vip-perk-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vip-perk-editor > .row {
+  justify-content: space-between;
+}
+.vip-perk {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vip-perk .hint.ok {
+  color: var(--ok, inherit);
+}
