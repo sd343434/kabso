@@ -160,6 +160,7 @@ Future<void> _pump(
           vipRepositoryProvider.overrideWithValue(vip),
         ],
         child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
           routerConfig: router,
           locale: language.locale,
           supportedLocales: KabsoApp.supportedLocales,
@@ -219,6 +220,7 @@ void main() {
         tester,
         vip: _FakeVip(membership: _membership(_tier(1))),
         language: language,
+        coins: 20000000,
       );
       await _tapTab(tester, 'VIP_3');
       await _shot(tester, 'vip_holder_vip3_$l');
