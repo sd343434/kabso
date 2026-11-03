@@ -160,7 +160,7 @@ Future<void> _pump(
           vipRepositoryProvider.overrideWithValue(vip),
         ],
         child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
+          debugShowCheckedModeBanner: false,
           routerConfig: router,
           locale: language.locale,
           supportedLocales: KabsoApp.supportedLocales,
