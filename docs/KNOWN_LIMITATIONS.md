@@ -84,7 +84,7 @@
 - **Event Center:** events are created only with the `event-admin` CLI (no admin web page);
   `TAPS_RECEIVED` counts the taps of lives *started* in the event's window; an event with no
   configured events shows empty lists.
-- **Purchase VIP** (CP-024 §3) is not part of the approval: its hub card stays «قريباً».
+- **Purchase VIP** (CP-024 §3) is built by D252 (below).
 - Not verified on a device.
 
 ## Recharge orders with escrow (v1.69-social draft, D204)
@@ -549,3 +549,17 @@
   LiveKit 1.9.1, not a real live.
 - **Not verified:** a real phone (the report sheet, the messages, the notification), the panel on the server against
   the production LiveKit (CSP, autoplay of sound), push delivery.
+
+## Purchase VIP «شراء VIP» (v1.82-social draft, D252)
+
+- **No tier is on sale** until the OWNER adds one in the panel «VIP» and switches it on (nothing is seeded).
+- **No perk works yet:** every perk is listed «قريباً» (`VIP_BUILT_PERKS` is empty) — badge, avatar frame, coloured chat
+  name, entry banner, entry effect, daily bullet, viewer-list priority and the monthly gift each need building (and owner
+  art). A VIP membership today is a paid status shown on the VIP page only.
+- **Upgrade** charges the full price of the higher tier and does not carry over the days left of the lower one (no
+  pro-rata); a lower tier cannot be bought while a higher one is active.
+- **No reminder** before a membership ends (renewal is manual).
+- **Design:** no Purchase VIP reference screenshot is in the repo; the page follows the SVIP screen. The owner's «100 %»
+  match is not verified.
+- An emblem URL is loaded from any https host the OWNER enters (no upload in the panel yet).
+- Not verified on a device.
