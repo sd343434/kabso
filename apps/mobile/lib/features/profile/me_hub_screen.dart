@@ -55,15 +55,18 @@ abstract final class KMeHub {
   static const double cardGap = KSpacing.sm;
   static const double cardRadius = KRadius.sm;
   static const double cardIcon = 40;
-  static const double cardLabelSize = 12;
+  static const double cardLabelSize = 11.5;
 
-  /// The list: 50-lp rows, a 28-lp icon disc at the start inset, the title
-  /// 54 lp from the edge, 8-lp grey bands with 8 lp above and below.
+  /// The list: 50-lp rows, a 30-lp rounded icon tile at the start inset,
+  /// 8-lp grey bands with 8 lp above and below. D250 (owner): titles a
+  /// little smaller (15, medium) and each row's tile in its own colour.
   static const double rowsTop = 16;
   static const double rowHeight = 50;
-  static const double rowIcon = 28;
-  static const double rowTitleGap = 10;
-  static const double rowTitleSize = 16;
+  static const double rowIcon = 30;
+  static const double rowIconGlyph = 18;
+  static const double rowIconRadius = 9;
+  static const double rowTitleGap = 12;
+  static const double rowTitleSize = 15;
   static const double band = KSpacing.sm;
 
   /// The faded look of a feature that is not built yet (as Room Tools).
@@ -203,7 +206,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.creatorCenter,
           icon: Icons.insights_rounded,
-          hue: _Hues.teal,
+          hue: _Hues.indigo,
           title: l10n.meHubCreatorCenter,
           onTap: () => push(AppRoutes.creatorCenter),
         ),
@@ -211,7 +214,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.agency,
           icon: Icons.groups_rounded,
-          hue: _Hues.pink,
+          hue: _Hues.coral,
           title: l10n.meHubAgency,
           onTap: () => push(AppRoutes.agency),
         ),
@@ -220,14 +223,14 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.recharge,
           icon: Icons.storefront_rounded,
-          hue: _Hues.pink,
+          hue: _Hues.emerald,
           title: l10n.rechargeTitle,
           onTap: () => push(AppRoutes.recharge),
         ),
         _HubRow(
           item: MeHubItem.eventCenter,
           icon: Icons.campaign_rounded,
-          hue: _Hues.teal,
+          hue: _Hues.eventOrange,
           title: l10n.meHubEventCenter,
           onTap: () => push(AppRoutes.eventCenter),
         ),
@@ -238,7 +241,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.wallet,
           icon: Icons.account_balance_wallet_rounded,
-          hue: _Hues.pink,
+          hue: _Hues.violet,
           title: l10n.meHubWallet,
           value: coins == null ? null : KFormat.grouped(coins),
           valueLabel: coins == null
@@ -250,7 +253,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.bag,
           icon: Icons.backpack_rounded,
-          hue: _Hues.gold,
+          hue: _Hues.teal,
           title: l10n.meHubItemBag,
           onTap: () => push(AppRoutes.bag),
         ),
@@ -259,14 +262,14 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.taskCenter,
           icon: Icons.task_alt_rounded,
-          hue: _Hues.gold,
+          hue: _Hues.sky,
           title: l10n.meHubTaskCenter,
           onTap: () => push(AppRoutes.taskCenter),
         ),
         _HubRow(
           item: MeHubItem.medals,
           icon: Icons.emoji_events_rounded,
-          hue: _Hues.orange,
+          hue: _Hues.medalGold,
           title: l10n.medalsTitle,
           // Nothing until the catalogue is known (no "0 of 0").
           value: medals == null || medals.total == 0
@@ -277,7 +280,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.ranking,
           icon: Icons.leaderboard_rounded,
-          hue: _Hues.teal,
+          hue: _Hues.fuchsia,
           title: l10n.meHubRanking,
           onTap: () => unawaited(showLiveRankings(context)),
         ),
@@ -286,7 +289,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.relationship,
           icon: Icons.favorite_rounded,
-          hue: p.primary,
+          hue: _Hues.rose,
           title: l10n.cpTitle,
           value: cp == null
               ? null
@@ -298,7 +301,7 @@ class MeHubScreen extends ConsumerWidget {
         _HubRow(
           item: MeHubItem.premium,
           icon: Icons.alternate_email_rounded,
-          hue: _Hues.blue,
+          hue: _Hues.bronze,
           title: l10n.premiumTitle,
           onTap: () => push(AppRoutes.premium),
         ),
@@ -515,8 +518,19 @@ abstract final class _Hues {
   static const gold = Color(0xFFE0A21B);
   static const orange = Color(0xFFF5A623);
   static const blue = Color(0xFF4DA3FF);
+
+  // D250 (owner): one colour per list row, none repeated.
+  static const indigo = Color(0xFF6366F1);
+  static const coral = Color(0xFFFF6B6B);
+  static const emerald = Color(0xFF10B981);
+  static const eventOrange = Color(0xFFF97316);
+  static const violet = Color(0xFF8B5CF6);
   static const teal = Color(0xFF14B8A6);
-  static const pink = Color(0xFFFF3B6B);
+  static const sky = Color(0xFF0EA5E9);
+  static const medalGold = Color(0xFFEAB308);
+  static const fuchsia = Color(0xFFD946EF);
+  static const rose = Color(0xFFE11D48);
+  static const bronze = Color(0xFFB7791F);
 }
 
 class _ActionIcon extends StatelessWidget {
@@ -785,24 +799,7 @@ class _HubRow extends StatelessWidget {
     final lead = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: hue.withValues(alpha: 0.18),
-          ),
-          child: SizedBox.square(
-            dimension: KMeHub.rowIcon,
-            child: Center(
-              child: DecoratedBox(
-                decoration: BoxDecoration(shape: BoxShape.circle, color: hue),
-                child: SizedBox.square(
-                  dimension: KMeHub.rowIcon - 6,
-                  child: Icon(icon, size: 14, color: const Color(0xFFFFFFFF)),
-                ),
-              ),
-            ),
-          ),
-        ),
+        _IconTile(icon: icon, hue: hue),
         const SizedBox(width: KMeHub.rowTitleGap),
       ],
     );
@@ -835,9 +832,10 @@ class _HubRow extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: t.bodyStrong.copyWith(
+                      style: t.body.copyWith(
                         color: p.textPrimary,
                         fontSize: KMeHub.rowTitleSize,
+                        fontWeight: FontWeight.w500,
                         height: 1.25,
                       ),
                     ),
@@ -872,6 +870,46 @@ class _HubRow extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// D250: a list row's icon — a rounded tile in the row's own colour, light
+/// at the top and deeper at the bottom, with a soft shadow of that colour
+/// and a white glyph.
+class _IconTile extends StatelessWidget {
+  const new({required this.icon, required this.hue});
+
+  final IconData icon;
+  final Color hue;
+
+  @override
+  Widget build(BuildContext context) {
+    const white = Color(0xFFFFFFFF);
+    const black = Color(0xFF000000);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(KMeHub.rowIconRadius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(hue, white, 0.28)!,
+            Color.lerp(hue, black, 0.08)!,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: hue.withValues(alpha: 0.35),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SizedBox.square(
+        dimension: KMeHub.rowIcon,
+        child: Icon(icon, size: KMeHub.rowIconGlyph, color: white),
       ),
     );
   }
