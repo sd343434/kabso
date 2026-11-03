@@ -130,6 +130,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.accountLocked: 403,
   ErrorCode.accountRestricted: 403,
   ErrorCode.passwordChangeRequired: 403,
+  // v1.82-social (D252).
+  ErrorCode.vipUnavailable: 409,
+  ErrorCode.vipPriceChanged: 409,
 };
 
 DioException _badResponse(
@@ -289,6 +292,9 @@ void main() {
           'ACCOUNT_LOCKED',
           'ACCOUNT_RESTRICTED',
           'PASSWORD_CHANGE_REQUIRED',
+          // v1.82-social (D252).
+          'VIP_UNAVAILABLE',
+          'VIP_PRICE_CHANGED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

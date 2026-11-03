@@ -285,6 +285,10 @@ model User {
   balanceAdjustments        AdminBalanceAdjustment[] @relation("AdjustedUser")
   balanceAdjustmentsBy      AdminBalanceAdjustment[] @relation("AdjustedBy")
 
+  // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
+  vipMembership VipMembership?
+  vipPurchases  VipPurchase[]
+
   @@index([createdAt], map: "users_created_at_idx")
   @@map("users")
 }
@@ -1033,6 +1037,8 @@ enum WalletLedgerReason {
   /// v1.72-social (D208): a credit or debit by the team from the admin panel or `control-admin` (reference: the
   /// `admin_balance_adjustments` row; its reason text is there).
   ADMIN_ADJUSTMENT
+  /// v1.82-social (D252): a VIP tier bought, renewed or upgraded with coins (reference: the `vip_purchases` row).
+  VIP_PURCHASE
 
   @@map("wallet_ledger_reason")
 }
@@ -6114,4 +6120,101 @@ model DeviceBan {
   @@index([deviceHash], map: "device_bans_open_idx", where: raw("lifted_at IS NULL"))
   @@index([createdAt(sort: Desc)], map: "device_bans_created_idx")
   @@map("device_bans")
+}
+
+// ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.92): «شراء VIP» -------------------------------------------------------
+
+/// D252: what a VIP purchase did — a new membership, the same tier extended, or a higher tier from now.
+enum VipPurchaseKind {
+  NEW
+  RENEW
+  UPGRADE
+
+  @@map("vip_purchase_kind")
+}
+
+/// D252: a VIP tier, managed in the admin panel (catalog.manage). `sortOrder` 1 … n is both the order the app shows and
+/// the rank (higher = higher tier). CHECK `vip_tiers_shape` (code, names, colour `#RRGGBB`, https emblem, price 1 …
+/// 10^12 coins, 1 … 365 days). Never deleted: switched off (`enabled`), so memberships and purchases keep their tier.
+model VipTier {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  code         String   @unique(map: "vip_tiers_code_key") @db.VarChar(40)
+  nameAr       String   @map("name_ar") @db.VarChar(30)
+  nameEn       String   @map("name_en") @db.VarChar(30)
+  sortOrder    Int      @map("sort_order")
+  /// The tier's colour, `#RRGGBB` upper case.
+  color        String   @db.Char(7)
+  /// Optional emblem art (https), else the app draws a Kabso emblem in the tier's colour.
+  emblemUrl    String?  @map("emblem_url") @db.VarChar(2048)
+  priceCoins   BigInt   @map("price_coins")
+  durationDays Int      @map("duration_days")
+  enabled      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  updatedById  String?  @map("updated_by_id") @db.Uuid
+
+  perks       VipTierPerk[]
+  memberships VipMembership[]
+  purchases   VipPurchase[]
+
+  @@index([sortOrder, id], map: "vip_tiers_sort_idx")
+  @@map("vip_tiers")
+}
+
+/// D252: one perk of a tier, in order. Whether the app really does it (`available`) is the server's list, never stored.
+model VipTierPerk {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  tierId        String  @map("tier_id") @db.Uuid
+  code          String  @db.VarChar(40)
+  titleAr       String  @map("title_ar") @db.VarChar(40)
+  titleEn       String  @map("title_en") @db.VarChar(40)
+  descriptionAr String? @map("description_ar") @db.VarChar(200)
+  descriptionEn String? @map("description_en") @db.VarChar(200)
+  sortOrder     Int     @map("sort_order")
+  enabled       Boolean @default(true)
+
+  tier VipTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@unique([tierId, code], map: "vip_tier_perks_tier_code_key")
+  @@map("vip_tier_perks")
+}
+
+/// D252: a person's VIP membership (at most one; active while `expiresAt` is in the future).
+model VipMembership {
+  userId    String   @id @map("user_id") @db.Uuid
+  tierId    String   @map("tier_id") @db.Uuid
+  startedAt DateTime @map("started_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier VipTier @relation(fields: [tierId], references: [id], onDelete: Restrict)
+
+  @@index([tierId, expiresAt], map: "vip_memberships_tier_idx")
+  @@map("vip_memberships")
+}
+
+/// D252: one purchase (wallet ledger `VIP_PURCHASE`, reference = this row); the answer of an Idempotency-Key replay.
+model VipPurchase {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  tierId            String          @map("tier_id") @db.Uuid
+  kind              VipPurchaseKind
+  priceCoins        BigInt          @map("price_coins")
+  durationDays      Int             @map("duration_days")
+  previousTierId    String?         @map("previous_tier_id") @db.Uuid
+  previousExpiresAt DateTime?       @map("previous_expires_at") @db.Timestamptz(3)
+  expiresAt         DateTime        @map("expires_at") @db.Timestamptz(3)
+  /// The balance right after this purchase.
+  coinsAfter        BigInt          @map("coins_after")
+  idempotencyKey    String?         @map("idempotency_key") @db.Uuid
+  requestHash       String?         @map("request_hash") @db.Char(64)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier VipTier @relation(fields: [tierId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, idempotencyKey], map: "vip_purchases_idempotency")
+  @@index([userId, createdAt(sort: Desc)], map: "vip_purchases_user_idx")
+  @@map("vip_purchases")
 }

@@ -1,0 +1,226 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show immutable;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/network/api_call.dart';
+import 'package:kabso_live/core/network/network_providers.dart';
+
+// «شراء VIP» (openapi v1.82-social, D252, CONVENTIONS §10.92): the tiers the
+// owner manages in the admin panel (order, price, length, perks), the
+// caller's membership and a purchase with coins. Every rule is the
+// server's; the app only shows what it answers.
+
+int _int(Object? v) => (v as num?)?.toInt() ?? 0;
+
+List<Map<String, dynamic>> _list(Object? v) => [
+  for (final e in v! as List<dynamic>) e as Map<String, dynamic>,
+];
+
+/// `#RRGGBB` → a colour; [fallback] when malformed.
+int vipColorValue(Object? hex, {int fallback = 0xFFF5C451}) {
+  final s = hex is String ? hex : '';
+  if (!RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(s)) return fallback;
+  return 0xFF000000 | int.parse(s.substring(1), radix: 16);
+}
+
+/// `VipPerk`: a perk in the reader's language. [available]: the app
+/// really does it today (false: shown as «قريباً», never as active).
+@immutable
+final class VipPerk {
+  const new({
+    required this.code,
+    required this.title,
+    required this.available,
+    this.description,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => VipPerk(
+    code: json['code']! as String,
+    title: json['title']! as String,
+    description: json['description'] as String?,
+    available: json['available'] == true,
+  );
+
+  final String code;
+  final String title;
+  final String? description;
+  final bool available;
+}
+
+/// `VipTier`: a tier on sale, in the panel's order ([level] 1 … n).
+@immutable
+final class VipTier {
+  const new({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.level,
+    required this.color,
+    required this.priceCoins,
+    required this.durationDays,
+    required this.perks,
+    this.emblemUrl,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => VipTier(
+    id: json['id']! as String,
+    code: json['code']! as String,
+    name: json['name']! as String,
+    level: _int(json['level']),
+    color: vipColorValue(json['color']),
+    emblemUrl: json['emblemUrl'] as String?,
+    priceCoins: _int(json['priceCoins']),
+    durationDays: _int(json['durationDays']),
+    perks: [for (final p in _list(json['perks'])) VipPerk.fromJson(p)],
+  );
+
+  final String id;
+  final String code;
+  final String name;
+  final int level;
+
+  /// ARGB.
+  final int color;
+  final String? emblemUrl;
+  final int priceCoins;
+  final int durationDays;
+  final List<VipPerk> perks;
+}
+
+/// `VipTierList`.
+@immutable
+final class VipTierList {
+  const new({required this.tiers, required this.maxAheadDays});
+
+  factory fromJson(Map<String, dynamic> json) => VipTierList(
+    tiers: [for (final t in _list(json['data'])) VipTier.fromJson(t)],
+    maxAheadDays: _int(json['maxAheadDays']),
+  );
+
+  final List<VipTier> tiers;
+
+  /// A renewal may not take the end further than this many days from now.
+  final int maxAheadDays;
+}
+
+/// `VipMembership`: the caller's active membership.
+@immutable
+final class VipMembership {
+  const new({
+    required this.tierId,
+    required this.tierCode,
+    required this.tierName,
+    required this.tierColor,
+    required this.onSale,
+    required this.startedAt,
+    required this.expiresAt,
+    required this.daysLeft,
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    final tier = json['tier']! as Map<String, dynamic>;
+    return VipMembership(
+      tierId: tier['id']! as String,
+      tierCode: tier['code']! as String,
+      tierName: tier['name']! as String,
+      tierColor: vipColorValue(tier['color']),
+      onSale: tier['onSale'] == true,
+      startedAt: DateTime.parse(json['startedAt']! as String),
+      expiresAt: DateTime.parse(json['expiresAt']! as String),
+      daysLeft: _int(json['daysLeft']),
+    );
+  }
+
+  final String tierId;
+  final String tierCode;
+  final String tierName;
+  final int tierColor;
+
+  /// False when the owner took the tier off sale (kept to its end).
+  final bool onSale;
+  final DateTime startedAt;
+  final DateTime expiresAt;
+  final int daysLeft;
+}
+
+/// `VipPurchaseResult.kind`.
+enum VipPurchaseKind {
+  bought('NEW'),
+  renewed('RENEW'),
+  upgraded('UPGRADE');
+
+  new(this.wire);
+
+  final String wire;
+
+  static VipPurchaseKind fromWire(Object? wire) =>
+      values.where((k) => k.wire == wire).firstOrNull ?? bought;
+}
+
+/// `VipPurchaseResult`.
+typedef VipPurchase = ({
+  VipPurchaseKind kind,
+  VipMembership membership,
+  int coins,
+});
+
+/// The VIP API. Every method throws an `AppFailure`.
+abstract interface class VipRepository {
+  /// `GET /vip/tiers`.
+  Future<VipTierList> tiers();
+
+  /// `GET /me/vip`: the active membership, or null.
+  Future<VipMembership?> mine();
+
+  /// `POST /me/vip/purchases`: buy, renew or upgrade [tierId] at
+  /// [priceCoins], the price the person agreed to. [idempotencyKey] is one
+  /// UUID per confirmed tap (a retry sends the same one).
+  Future<VipPurchase> buy({
+    required String tierId,
+    required int priceCoins,
+    required String idempotencyKey,
+  });
+}
+
+class VipRepositoryImpl implements VipRepository {
+  new(this._dio);
+
+  final Dio _dio;
+
+  @override
+  Future<VipTierList> tiers() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/vip/tiers');
+    return VipTierList.fromJson(res.data!);
+  });
+
+  @override
+  Future<VipMembership?> mine() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/me/vip');
+    final m = res.data!['membership'];
+    return m == null ? null : VipMembership.fromJson(m as Map<String, dynamic>);
+  });
+
+  @override
+  Future<VipPurchase> buy({
+    required String tierId,
+    required int priceCoins,
+    required String idempotencyKey,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/me/vip/purchases',
+      data: {'tierId': tierId, 'priceCoins': priceCoins},
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
+    final body = res.data!;
+    return (
+      kind: VipPurchaseKind.fromWire(body['kind']),
+      membership: VipMembership.fromJson(
+        body['membership']! as Map<String, dynamic>,
+      ),
+      coins: _int(body['coins']),
+    );
+  });
+}
+
+final vipRepositoryProvider = Provider<VipRepository>(
+  (ref) => VipRepositoryImpl(ref.watch(apiDioProvider)),
+);

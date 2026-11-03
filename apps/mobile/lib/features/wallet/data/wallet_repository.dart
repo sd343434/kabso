@@ -28,6 +28,8 @@ enum WalletLedgerReason {
   taskReward('TASK_REWARD'),
   checkInReward('CHECK_IN_REWARD'),
   eventPrize('EVENT_PRIZE'),
+  // D252: «شراء VIP».
+  vipPurchase('VIP_PURCHASE'),
   other('');
 
   new(this.wire);

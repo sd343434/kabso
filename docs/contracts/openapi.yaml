@@ -661,6 +661,13 @@ info:
     `room` inside a live, `tasks`, `wallet`) may be animated: `uploadAdminBannerPicture` takes animated WebP / GIF
     (≤ 150 frames, ≤ 10 s, ≤ 3 MB stored) and keeps the animation (animated WebP); `AdminBannerUpload` gains
     `animated`, `frames`, `durationMs`. Additive (CONVENTIONS §10.90.1).
+    **D252 (DRAFT v1.82-social)**: «شراء VIP» — VIP tiers the OWNER manages in the admin panel (names ar/en, order =
+    rank, colour, optional emblem, price in coins, length in days, on / off, and each tier's own perks) and the person
+    buys with coins: `listVipTiers`, `getMyVip`, `buyVip` (tag `vip`; `Idempotency-Key`; NEW / RENEW / UPGRADE, a
+    downgrade refused, manual renewal only); the panel's `listAdminVipTiers`, `createAdminVipTier`, `updateAdminVipTier`,
+    `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`catalog.view` / `catalog.manage`, reason,
+    audited `vip.tier.*`). Ledger reason `VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). A perk the
+    app does not do yet is `available: false`. Additive (CONVENTIONS §10.92).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -687,6 +694,8 @@ tags:
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
   - name: programs
     description: "The Me hub's programs: the Task Center, the Event Center and SVIP (v1.44-social DRAFT, D166)."
+  - name: vip
+    description: "(v1.82-social DRAFT, D252) «شراء VIP»: VIP tiers managed in the admin panel, each with its own perks, bought with coins (CONVENTIONS §10.92)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
   - name: topup
@@ -9740,6 +9749,82 @@ paths:
               schema: { $ref: '#/components/schemas/SvipStatus' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.92): «شراء VIP» ------------------------------------------------------
+  /api/v1/vip/tiers:
+    get:
+      tags: [vip]
+      operationId: listVipTiers
+      summary: "The VIP tiers on sale, in the panel's order, each with its own perks (D252)"
+      description: |
+        v1.82-social, CONVENTIONS §10.92. The tiers the OWNER switched on in the admin panel, lowest first (`level`
+        1 … n), each with its price in coins, its length in days and its perks that are switched on, in the language of
+        `Accept-Language` (else the caller's locale). `available: false` marks a perk the app does not do yet — clients
+        show it as listed («قريباً»), never as active. Empty `data` when nothing is on sale. Checks: 401.
+      responses:
+        '200':
+          description: The tiers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipTierList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip:
+    get:
+      tags: [vip]
+      operationId: getMyVip
+      summary: "The caller's VIP membership (D252)"
+      description: |
+        v1.82-social, CONVENTIONS §10.92. The active membership (its tier — also when the tier was switched off since,
+        `onSale: false` —, start, end and whole days left); `membership: null` when the caller has none or it ended.
+        Checks: 401.
+      responses:
+        '200':
+          description: The membership.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyVip' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip/purchases:
+    post:
+      tags: [vip]
+      operationId: buyVip
+      summary: "Buy, renew or upgrade a VIP tier with coins (D252)"
+      description: |
+        v1.82-social, CONVENTIONS §10.92.2. Paid with coins (wallet ledger `VIP_PURCHASE`, reference = the purchase),
+        in one transaction serialized per person. `priceCoins` is the price the person was shown. **NEW** (no active
+        membership): the tier for `durationDays` from now. **RENEW** (the same tier, active): the end moves by
+        `durationDays`, at most `VIP_MAX_AHEAD_DAYS` (400) days ahead. **UPGRADE** (a higher tier, active): the new tier
+        at once for `durationDays` from now, at its full price; the days left of the lower tier are not carried over or
+        refunded. Renewal is manual: nothing is ever charged on its own. Order after auth: 400 body or `Idempotency-Key`
+        (`required` / `invalid_format`) → a retry (the same key within 24 h and the same body → **200** with the first
+        result, nothing charged again; another body → 409 `IDEMPOTENCY_CONFLICT`) → 404 unknown tier → 409
+        `VIP_UNAVAILABLE` (`tier`: `tier_off` — switched off, even to renew; `downgrade` — lower than (or as high as) the
+        active tier; `renewal_limit`) → 409 `VIP_PRICE_CHANGED` → 409 `INSUFFICIENT_COINS`. A refused request charges and
+        changes nothing. Audited `vip.purchase`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuyVipRequest' }
+      responses:
+        '201':
+          description: Bought.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipPurchaseResult' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipPurchaseResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/events:
     get:
       tags: [programs]
@@ -13537,6 +13622,149 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.92.4): «VIP» in the panel ------------------------------------------------
+  /api/v1/admin/vip/tiers:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminVipTiers
+      summary: "«VIP»: every tier (on and off) in order, with its perks and active members (catalog.view)"
+      description: "(v1.82-social, D252, §10.92.4) `builtPerks` lists the perk codes the app really does (none yet); `suggestedPerks` the codes the panel offers."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The tiers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipTierList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminVipTier
+      summary: "Adds a tier at the end of the order (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.82-social, D252, §10.92.4) Off unless `enabled: true`. A code that exists → 409 `ADMIN_ACTION_REFUSED`; more than 20 tiers → 409 `ADMIN_ACTION_REFUSED`. Audited `vip.tier.add` (after, reason, via panel)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdminVipTierRequest' }
+      responses:
+        '201':
+          description: Added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipTier' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/tiers/{tierId}:
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminVipTier
+      summary: "Changes a tier's names, colour, emblem, price, length or perks (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.82-social, D252, §10.92.4) At least one field besides the reason. `perks` replaces the whole list, in that order. A new price or length applies to purchases from now on; memberships keep their end. Audited `vip.tier.update` (before, after, reason)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminVipTierIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminVipTierRequest' }
+      responses:
+        '200':
+          description: The tier now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipTier' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/tiers/{tierId}/enable:
+    post:
+      tags: [admin-panel]
+      operationId: enableAdminVipTier
+      summary: "Puts a tier on sale (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.82-social, D252, §10.92.4) Already on: 200, nothing written. Audited `vip.tier.enable`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminVipTierIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The tier now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipTier' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/tiers/{tierId}/disable:
+    post:
+      tags: [admin-panel]
+      operationId: disableAdminVipTier
+      summary: "Takes a tier off sale; holders keep it to its end (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.82-social, D252, §10.92.4) No longer listed, bought or renewed; active memberships of it run to their end. Already off: 200, nothing written. Audited `vip.tier.disable`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminVipTierIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The tier now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipTier' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/tier-order:
+    put:
+      tags: [admin-panel]
+      operationId: reorderAdminVipTiers
+      summary: "Sets the order (and rank) of the tiers (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.82-social, D252, §10.92.4) Every tier's id exactly once, lowest first (else 400 `tierIds` `invalid_value`); the order is what the app shows and the rank an upgrade compares. Audited `vip.tier.reorder` (before / after as codes)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderAdminVipTiersRequest' }
+      responses:
+        '200':
+          description: The tiers in the new order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVipTierList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/referral-settings:
     get:
       tags: [admin-panel]
@@ -16065,6 +16293,12 @@ components:
       required: true
       schema:
         type: string
+    AdminVipTierIdPath:
+      name: tierId
+      in: path
+      required: true
+      description: (v1.82-social, D252) a VIP tier's id; malformed or unknown → 404.
+      schema: { type: string, format: uuid }
     AdminGiftCategoryCodePath:
       name: code
       in: path
@@ -17154,6 +17388,109 @@ components:
               createdAt: { type: string, format: date-time }
               decidedAt: { type: [string, 'null'], format: date-time }
               rejectReason: { type: [string, 'null'] }
+    # ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.92.4): «VIP» in the panel --------------------------------------------
+    AdminVipPerk:
+      type: object
+      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        titleAr: { type: string, maxLength: 40 }
+        titleEn: { type: string, maxLength: 40 }
+        descriptionAr: { type: [string, 'null'], maxLength: 200 }
+        descriptionEn: { type: [string, 'null'], maxLength: 200 }
+        enabled: { type: boolean, description: Shown in the app. }
+        available: { type: boolean, description: The app really does it today (server list; not editable). }
+    AdminVipPerkInput:
+      type: object
+      additionalProperties: false
+      required: [code, titleAr, titleEn]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: Unique within the tier. }
+        titleAr: { type: string, minLength: 1, maxLength: 40 }
+        titleEn: { type: string, minLength: 1, maxLength: 40 }
+        descriptionAr: { type: [string, 'null'], maxLength: 200 }
+        descriptionEn: { type: [string, 'null'], maxLength: 200 }
+        enabled: { type: boolean, default: true }
+    AdminVipTier:
+      type: object
+      required: [id, code, nameAr, nameEn, sortOrder, color, emblemUrl, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        nameAr: { type: string, maxLength: 30 }
+        nameEn: { type: string, maxLength: 30 }
+        sortOrder: { type: integer, minimum: 1, description: The order and the rank (higher = higher tier). }
+        color: { type: string, pattern: '^#[0-9A-F]{6}$' }
+        emblemUrl: { type: [string, 'null'], format: uri }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        durationDays: { type: integer, minimum: 1, maximum: 365 }
+        enabled: { type: boolean }
+        activeMembers: { type: integer, minimum: 0 }
+        perks:
+          type: array
+          items: { $ref: '#/components/schemas/AdminVipPerk' }
+        updatedAt: { type: string, format: date-time }
+    AdminVipTierList:
+      type: object
+      required: [data, builtPerks, suggestedPerks]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminVipTier' }
+        builtPerks:
+          type: array
+          items: { type: string }
+        suggestedPerks:
+          type: array
+          items: { type: string }
+    CreateAdminVipTierRequest:
+      type: object
+      additionalProperties: false
+      required: [code, nameAr, nameEn, color, priceCoins, durationDays, reason]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        nameAr: { type: string, minLength: 1, maxLength: 30 }
+        nameEn: { type: string, minLength: 1, maxLength: 30 }
+        color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', description: Stored upper case. }
+        emblemUrl: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        durationDays: { type: integer, minimum: 1, maximum: 365 }
+        enabled: { type: boolean, default: false }
+        perks:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/AdminVipPerkInput' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    UpdateAdminVipTierRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      minProperties: 2
+      properties:
+        nameAr: { type: string, minLength: 1, maxLength: 30 }
+        nameEn: { type: string, minLength: 1, maxLength: 30 }
+        color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+        emblemUrl: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        durationDays: { type: integer, minimum: 1, maximum: 365 }
+        perks:
+          type: array
+          maxItems: 20
+          description: Replaces the whole list, in this order.
+          items: { $ref: '#/components/schemas/AdminVipPerkInput' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    ReorderAdminVipTiersRequest:
+      type: object
+      additionalProperties: false
+      required: [tierIds, reason]
+      properties:
+        tierIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          description: Every tier's id exactly once, lowest first.
+          items: { type: string, format: uuid }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     AdminReasonRequest:
       type: object
       additionalProperties: false
@@ -26938,6 +27275,7 @@ components:
         - CARD_TOPUP_REVERSAL
         - CARD_TOPUP_RESTORE
         - RECHARGE_ORDER
+        - VIP_PURCHASE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -27223,6 +27561,79 @@ components:
         perks:
           type: array
           items: { $ref: '#/components/schemas/SvipPerk' }
+    # ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.92): «شراء VIP» --------------------------------------------------
+    VipPerk:
+      type: object
+      required: [code, title, description, available]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        title: { type: string, maxLength: 40 }
+        description: { type: [string, 'null'], maxLength: 200 }
+        available: { type: boolean, description: "The app really does this perk today. False: shown as listed («قريباً»), never as active." }
+    VipTier:
+      type: object
+      required: [id, code, name, level, color, emblemUrl, priceCoins, durationDays, perks]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
+        name: { type: string, maxLength: 30 }
+        level: { type: integer, minimum: 1, description: "1 … n among the tiers on sale, in the panel's order (higher = higher tier)." }
+        color: { type: string, pattern: '^#[0-9A-F]{6}$' }
+        emblemUrl: { type: [string, 'null'], format: uri, description: Null = the app draws a Kabso emblem in `color`. }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        durationDays: { type: integer, minimum: 1, maximum: 365 }
+        perks:
+          type: array
+          items: { $ref: '#/components/schemas/VipPerk' }
+    VipTierList:
+      type: object
+      required: [data, maxAheadDays]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/VipTier' }
+        maxAheadDays: { type: integer, minimum: 1, description: A renewal may not take the end further than this from now. }
+    VipMembership:
+      type: object
+      required: [tier, startedAt, expiresAt, daysLeft]
+      properties:
+        tier:
+          type: object
+          required: [id, code, name, color, emblemUrl, onSale]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string }
+            name: { type: string }
+            color: { type: string, pattern: '^#[0-9A-F]{6}$' }
+            emblemUrl: { type: [string, 'null'], format: uri }
+            onSale: { type: boolean, description: False when the tier was switched off since (kept to the end, not renewable). }
+        startedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        daysLeft: { type: integer, minimum: 0, description: Whole days left, rounded up. }
+    MyVip:
+      type: object
+      required: [membership]
+      properties:
+        membership:
+          oneOf:
+            - $ref: '#/components/schemas/VipMembership'
+            - type: 'null'
+    BuyVipRequest:
+      type: object
+      additionalProperties: false
+      required: [tierId, priceCoins]
+      properties:
+        tierId: { type: string, format: uuid }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: The price the person was shown. }
+    VipPurchaseResult:
+      type: object
+      required: [kind, priceCoins, durationDays, membership, coins]
+      properties:
+        kind: { type: string, enum: [NEW, RENEW, UPGRADE] }
+        priceCoins: { type: integer, format: int64, minimum: 1 }
+        durationDays: { type: integer, minimum: 1 }
+        membership: { $ref: '#/components/schemas/VipMembership' }
+        coins: { type: integer, format: int64, minimum: 0, description: The caller's balance right after the purchase. }
     EventSummary:
       type: object
       required: [id, title, bannerUrl, startsAt, endsAt, status, metric, audience, permanent, featured, regions, summary, tone]

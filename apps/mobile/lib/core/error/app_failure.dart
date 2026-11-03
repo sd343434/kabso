@@ -333,6 +333,15 @@ enum ErrorCode {
   /// one (403): the app opens the «كلمة مرور جديدة» screen.
   passwordChangeRequired('PASSWORD_CHANGE_REQUIRED'),
 
+  /// v1.82-social (D252, §10.92, 409): this VIP tier cannot be bought by the
+  /// caller now (`details` `tier`: `tier_off`, `downgrade` or
+  /// `renewal_limit`); nothing was charged.
+  vipUnavailable('VIP_UNAVAILABLE'),
+
+  /// v1.82-social (D252, §10.92, 409): the owner changed the tier's price;
+  /// nothing was charged; the app reloads the tiers.
+  vipPriceChanged('VIP_PRICE_CHANGED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

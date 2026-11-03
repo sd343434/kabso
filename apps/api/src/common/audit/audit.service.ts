@@ -103,6 +103,14 @@ export enum AuditAction {
   LIVE_BOOST_CARD_GRANT = 'live.boost_card.grant',
   /** v1.51-live (D233): the rocket stages' prices changed in the admin panel. */
   LIVE_BOOST_PRICES_UPDATE = 'live.boost_prices.update',
+  /** v1.82-social (D252): «شراء VIP» — a tier added, changed, switched on / off or the order changed in the panel. */
+  VIP_TIER_ADD = 'vip.tier.add',
+  VIP_TIER_UPDATE = 'vip.tier.update',
+  VIP_TIER_ENABLE = 'vip.tier.enable',
+  VIP_TIER_DISABLE = 'vip.tier.disable',
+  VIP_TIER_REORDER = 'vip.tier.reorder',
+  /** v1.82-social (D252): a person bought, renewed or upgraded a VIP tier with coins. */
+  VIP_PURCHASE = 'vip.purchase',
   // v1.43-live (D195, §10.58): PK 1 v 1 — a match starts, its battle ends (with the reason), a
   // moderator ends one (`pk-admin end`, with the reason), a host switches invitations.
   LIVE_PK_START = 'live.pk.start',

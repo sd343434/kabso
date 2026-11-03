@@ -59,6 +59,9 @@ describe('ErrorCode', () => {
         // v1.78-social (D223)
         'DEVICE_ACCOUNT_LIMIT',
         'DEVICE_BANNED',
+        // v1.82-social (D252).
+        'VIP_UNAVAILABLE',
+        'VIP_PRICE_CHANGED',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
         // v1.56-live (D213).
@@ -308,6 +311,8 @@ describe('ErrorCode', () => {
       REFERRAL_NOT_ALLOWED: 409,
       DEVICE_ACCOUNT_LIMIT: 409,
       DEVICE_BANNED: 403,
+      VIP_UNAVAILABLE: 409,
+      VIP_PRICE_CHANGED: 409,
       LIVE_QUESTIONS_CLOSED: 409,
       LIVE_NOT_STREAMER: 409,
     });

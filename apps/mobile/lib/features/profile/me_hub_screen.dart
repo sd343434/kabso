@@ -100,7 +100,7 @@ enum MeHubItem {
 /// shown faded with a "Soon" tag and do nothing (no stand-in screens).
 /// D164: Wallet, Earn money and Creator Center open their real screens.
 /// D166: Event Center, SVIP and Task Center too (CP-024 approved with
-/// defaults); Purchase VIP waits for the owner's prices.
+/// defaults). D252: Purchase VIP opens its screen (tiers from the panel).
 ///
 /// Data: `GET /me`, `GET /users/{username}` (counts, family, relationship,
 /// medals), `GET /me/levels` and `GET /wallet/me`. The API has no friends
@@ -172,6 +172,8 @@ class MeHubScreen extends ConsumerWidget {
         icon: Icons.workspace_premium_rounded,
         hue: _Hues.gold,
         label: l10n.meHubVip,
+        // D252: «شراء VIP» (tiers from the admin panel).
+        onTap: () => push(AppRoutes.vip),
       ),
       _HubCard(
         item: MeHubItem.family,
