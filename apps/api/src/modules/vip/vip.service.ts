@@ -202,12 +202,13 @@ export class VipService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         // Bound every lock wait in this purchase (the user row below, the
-        // per-user advisory lock and the tier's FOR SHARE) so a contended lock
-        // errors fast instead of blocking the connection indefinitely — a
-        // server-side lock wait outlives the client transaction timeout and
-        // would pin the connection (D252b). Legitimate contention resolves in
-        // well under this.
-        await tx.$executeRawUnsafe(`SET LOCAL lock_timeout = '8s'`);
+        // per-user advisory lock and the tier's FOR SHARE) under Prisma's
+        // transaction timeout, so a contended lock errors and rolls back fast
+        // instead of pinning the connection: a server-side lock wait outlives
+        // the client-side transaction timeout, which would leave the test fork
+        // (and the connection) stuck (D252b). Legitimate contention — one
+        // person's serialized purchases — resolves far under this.
+        await tx.$executeRawUnsafe(`SET LOCAL lock_timeout = '4s'`);
         if (!(await this.users.lockActiveById(tx, userId)))
           throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
         await lockVipUser(tx, userId);
@@ -293,7 +294,7 @@ export class VipService {
           membership: membershipDto(lang, membership, tier, now),
           coins: Number(change.coins),
         };
-      }, { timeout: 15_000, maxWait: 10_000 });
+      });
       return { replay: false, result };
     } catch (err) {
       if (violatedUniqueIndex(err) !== null) {
