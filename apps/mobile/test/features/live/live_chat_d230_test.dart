@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -311,7 +312,9 @@ void main() {
       (GoldenViewport.android, 1.3),
     ]) {
       testWidgets('${viewport.name} ×$scale, many badges, a long name and a '
-          'long message: no overflow, three stacked lines', (tester) async {
+          'long message: no overflow, one flowing boxed line (D257)', (
+        tester,
+      ) async {
         tester.platformDispatcher.textScaleFactorTestValue = scale;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         final (engine, _) = await _room(tester, viewport: viewport);
@@ -339,41 +342,28 @@ void main() {
         );
         await _frames(tester);
         expect(tester.takeException(), isNull);
+        // D257 (the viewer's reference; supersedes D230/D234's three
+        // stacked lines on the video live): one boxed line — the host's
+        // orange tag, the name, the badges, «:» and the text, wrapping under
+        // the start; nothing overflows.
         Rect inLine(Key key) => tester.getRect(
           find.descendant(of: _line('m:m1'), matching: find.byKey(key)),
         );
-        final name = inLine(LiveChatInlineRow.nameKey);
-        final badges = inLine(LiveChatInlineRow.badgesKey);
-        final text = inLine(LiveChatInlineRow.textKey);
-        // D234b: the badges beside the name (one line), the text under.
-        expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
-        expect(badges.right, lessThanOrEqualTo(name.left + 0.5));
-        expect(text.top, greaterThanOrEqualTo(badges.bottom - 0.5));
-        // Bigger than before: badges 24 pt tall (D234; were 20, 14), the
-        // role pill too.
-        expect(badges.height, closeTo(LiveChatInlineRow.badgeHeight, 0.5));
-        expect(
-          inLine(LiveChatBadgeRow.roleKey).height,
-          greaterThanOrEqualTo(17.5),
-        );
-        // No colon after the name.
+        final row = inLine(LiveChatInlineRow.rowKey);
+        final tag = inLine(LiveChatFlatLine.tagKey);
+        final name = inLine(LiveChatFlatLine.nameKey);
+        expect(row.contains(tag.center), isTrue);
+        expect(row.contains(name.center), isTrue);
         expect(
           find.descendant(
             of: _line('m:m1'),
-            matching: find.textContaining(':'),
+            matching: find.byKey(LiveChatBadgeRow.charmKey),
           ),
-          findsNothing,
+          findsOneWidget,
         );
-        // Arabic: the name row and the text start at the right.
-        final row = inLine(LiveChatInlineRow.rowKey);
-        expect(
-          name.right,
-          closeTo(row.right - LiveChatInlineRow.padding.start, 0.5),
-        );
-        expect(
-          text.right,
-          closeTo(row.right - LiveChatInlineRow.padding.start, 0.5),
-        );
+        // Arabic: the tag starts the line at the right.
+        expect(tag.right, closeTo(row.right - 10, 1));
+        expect(tag.overlaps(name), isFalse);
         await _leave(tester);
       });
     }

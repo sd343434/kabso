@@ -13913,4 +13913,23 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get vipPayCoins => 'ادفع بالعملات الذهبية';
+
+  @override
+  String get liveDailyRankTitle => 'الترتيب اليومي';
+
+  @override
+  String get liveDailyRankHide => 'إخفاء الترتيب اليومي';
+
+  @override
+  String liveDailyRankGap(String gap) {
+    return '$gap عن السابق';
+  }
+
+  @override
+  String liveDailyRankLabel(String name, String rank, String points) {
+    return '$name: الترتيب اليوم $rank، $points نقطة';
+  }
+
+  @override
+  String get liveToolRecharge => 'الشحن';
 }

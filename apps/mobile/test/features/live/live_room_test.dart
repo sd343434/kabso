@@ -1028,13 +1028,14 @@ void main() {
       final buttons = tester.widgetList<KRoomIconButton>(
         find.byType(KRoomIconButton),
       );
-      // Close; D181 (owner): minimize for viewers too, and it acts.
-      expect(buttons, hasLength(2));
+      // Close (D257: minimize moved into ≡, the reference's top bar).
+      expect(buttons, hasLength(1));
       for (final button in buttons) {
         expect(button.onPressed, isNotNull, reason: button.label);
       }
       // D131: the bar's round buttons (the gift box); D173: ≡ and games
-      // too.
+      // too; D257: recharge (the reference's «SALE» slot) only for someone
+      // signed in — this room's visitor is not.
       final bar = tester.widgetList<KViewerBarButton>(
         find.byType(KViewerBarButton),
       );
@@ -1066,8 +1067,13 @@ void main() {
         ];
         for (final target in targets) {
           final size = tester.getSize(target);
-          expect(size.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
-          expect(size.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
+          // D257: the bar's buttons are 42 pt apart (the reference); the
+          // rest keep 48.
+          final min = target == targets[1]
+              ? KViewerRoom.viewerTarget
+              : KSizes.minTouchTarget;
+          expect(size.height, greaterThanOrEqualTo(min));
+          expect(size.width, greaterThanOrEqualTo(min));
         }
       }
     });

@@ -342,7 +342,12 @@ class LiveRoomChatLines extends ConsumerWidget {
           name: entry.author.displayName,
           text: entry.text,
           role: entry.authorRole,
-          charmLevel: entry.authorBadges?.charmLevel,
+          badges: entry.authorBadges,
+          agentCode: entry.author.rechargeAgentCode,
+          hostAgentCode: entry.author.hostAgentCode,
+          rechargeBadge: entry.author.rechargeBadge,
+          // D257: a worn CP bubble draws in its colours (CP-021).
+          cp: entry.cpBubble,
           label: l10n.liveChatLineLabel(
             entry.author.displayName,
             kabiSpokenText(entry.text, l10n),

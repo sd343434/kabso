@@ -1,6 +1,9 @@
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
-import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -28,16 +31,38 @@ abstract final class KFlatChat {
   static const double radius = 12;
 
   /// The box around a line.
-  static Widget boxed(Widget child) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: box,
-      borderRadius: BorderRadius.circular(radius),
-    ),
-    child: Padding(padding: padding, child: child),
+  static Widget boxed(Widget child, {Key? key, bool cp = false}) =>
+      KeyedSubtree(
+        key: key,
+        child: _box(child, cp: cp),
+      );
+
+  static Widget _box(Widget child, {required bool cp}) => Container(
+    // The CP edge (1 pt) sits inside the padding: both lines keep one
+    // height.
+    padding: cp ? const EdgeInsetsDirectional.fromSTEB(9, 3, 11, 3) : padding,
+    decoration: cp
+        // D257: a worn CP bubble (CP-021) keeps its colours and edge.
+        ? BoxDecoration(
+            gradient: const LinearGradient(colors: LiveCpChatBubble.colors),
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: LiveCpChatBubble.edge),
+          )
+        : BoxDecoration(
+            color: box,
+            borderRadius: BorderRadius.circular(radius),
+          ),
+    child: child,
   );
 
   /// Ref: the name `#A4E8E0`.
   static const Color name = Color(0xFFA4E8E0);
+
+  /// The separator after the name and badges (not a word: no translation).
+  static const String colon = ':';
+
+  /// D257: a name's widest (one line).
+  static const double nameMaxWidth = 150;
 
   /// Ref: the host tag `#FC7800`, 15 pt tall, white bold text.
   static const Color hostTag = Color(0xFFFC7800);
@@ -70,7 +95,11 @@ class LiveChatFlatLine extends StatelessWidget {
     required this.label,
     super.key,
     this.role,
-    this.charmLevel,
+    this.badges,
+    this.agentCode,
+    this.hostAgentCode,
+    this.rechargeBadge,
+    this.cp = false,
     this.failed,
     this.onProfile,
     this.onActions,
@@ -80,7 +109,17 @@ class LiveChatFlatLine extends StatelessWidget {
   final String text;
   final String label;
   final LiveChatRole? role;
-  final int? charmLevel;
+
+  /// D257: the author's badges, as the other chat rows draw them (charm,
+  /// support, family, «جديد»; the agent and recharge badges), after the
+  /// name — the role tag is this line's own orange pill.
+  final LiveChatAuthorBadges? badges;
+  final String? agentCode;
+  final String? hostAgentCode;
+  final RechargeBadge? rechargeBadge;
+
+  /// D257: the author's couple wears the Exclusive Chat Bubble.
+  final bool cp;
 
   /// Why a pending line failed (under it).
   final String? failed;
@@ -101,6 +140,15 @@ class LiveChatFlatLine extends StatelessWidget {
     };
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    final badgeRow = LiveChatBadgeRow(
+      role: null,
+      badges: badges,
+      agentCode: agentCode,
+      hostAgentCode: hostAgentCode,
+      rechargeBadge: rechargeBadge,
+      height: KFlatChat.tagHeight,
+      fadeOverflow: true,
+    );
     return Semantics(
       label: label,
       excludeSemantics: true,
@@ -117,62 +165,94 @@ class LiveChatFlatLine extends StatelessWidget {
                 TextSpan(
                   style: base,
                   children: [
-                    if (tag != null) ...[
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Container(
-                          key: tagKey,
-                          height: KFlatChat.tagHeight,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(
-                            color: role == LiveChatRole.host
-                                ? KFlatChat.hostTag
-                                : KFlatChat.moderatorTag,
-                            borderRadius: BorderRadius.circular(KRadius.pill),
-                          ),
-                          child: Center(
-                            widthFactor: 1,
-                            child: Text(
-                              tag,
-                              textScaler: TextScaler.noScaling,
-                              style: base.copyWith(
-                                fontSize: 9.5,
-                                height: 1.1,
-                                fontWeight: FontWeight.w800,
-                                shadows: const [],
+                    // D257: the heart (CP), the role tag, the name and the
+                    // badges in one row in the reading direction (inline
+                    // placeholders alone would be ordered as neutrals).
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (cp) ...[
+                            Image.asset(
+                              LiveCpChatBubble.heart,
+                              key: LiveRoomChatLines.cpHeartKey,
+                              width: 12,
+                              height: 12,
+                              excludeFromSemantics: true,
+                            ),
+                            const SizedBox(width: 3),
+                          ],
+                          if (tag != null) ...[
+                            Container(
+                              key: tagKey,
+                              height: KFlatChat.tagHeight,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: role == LiveChatRole.host
+                                    ? KFlatChat.hostTag
+                                    : KFlatChat.moderatorTag,
+                                borderRadius: BorderRadius.circular(
+                                  KRadius.pill,
+                                ),
+                              ),
+                              child: Center(
+                                widthFactor: 1,
+                                child: Text(
+                                  tag,
+                                  textScaler: TextScaler.noScaling,
+                                  style: base.copyWith(
+                                    fontSize: 9.5,
+                                    height: 1.1,
+                                    fontWeight: FontWeight.w800,
+                                    shadows: const [],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Flexible(
+                            child: GestureDetector(
+                              key: nameKey,
+                              onTap: onProfile,
+                              // D257: one line at most (ends with «…»).
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: KFlatChat.nameMaxWidth,
+                                ),
+                                child: Text(
+                                  // A mixed-direction name keeps its order.
+                                  KFormat.bidiIsolate(name),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textScaler: scaler,
+                                  style: base.copyWith(color: KFlatChat.name),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      const TextSpan(text: ' '),
-                    ],
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.baseline,
-                      baseline: TextBaseline.alphabetic,
-                      child: GestureDetector(
-                        key: nameKey,
-                        onTap: onProfile,
-                        child: Text(
-                          name,
-                          textScaler: scaler,
-                          style: base.copyWith(color: KFlatChat.name),
-                        ),
+                          if (badgeRow.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            // Many badges fade out at the end (D230).
+                            Flexible(child: badgeRow),
+                          ],
+                          Text(
+                            KFlatChat.colon,
+                            textScaler: scaler,
+                            style: base,
+                          ),
+                        ],
                       ),
                     ),
-                    if (charmLevel case final level?) ...[
-                      const TextSpan(text: ' '),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: IntrinsicWidth(
-                          child: CharmLevelBadge(
-                            level: level,
-                            height: CharmLevelBadge.lineHeight,
-                          ),
-                        ),
-                      ),
-                    ],
-                    TextSpan(text: ': $text'),
+                    const TextSpan(text: ' '),
+                    // Kabi emoji tokens (D66) show as the emoji, inline.
+                    ...kabiIsolatedSpans(
+                      text,
+                      size: KFlatChat.textSize * KKabiEmoji.inlineScale,
+                    ),
                   ],
                 ),
                 textScaler: scaler,
@@ -188,6 +268,8 @@ class LiveChatFlatLine extends StatelessWidget {
                 ),
             ],
           ),
+          key: cp ? LiveCpChatBubble.bubbleKey : LiveChatInlineRow.rowKey,
+          cp: cp,
         ),
       ),
     );

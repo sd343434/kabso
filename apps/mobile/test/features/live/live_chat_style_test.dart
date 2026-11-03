@@ -10,12 +10,12 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -148,9 +148,6 @@ double _fadeAlpha(WidgetTester tester) =>
 Finder _in(String key, Finder finder) =>
     find.descendant(of: _line(key), matching: finder);
 
-/// D234: the row's padding at the reading start.
-final double _pad = LiveChatInlineRow.padding.start;
-
 void main() {
   final en = l10nFor(AppLanguage.en);
 
@@ -222,19 +219,23 @@ void main() {
         );
         final list = tester.getRect(find.byKey(LiveRoomChatLines.listKey));
         expect(row.contains(badges.center), isTrue);
+        // D257 (the viewer's reference; supersedes D234b's name row then
+        // text): one flowing line — the name at the row's reading start,
+        // inside its padding, the badges after it on the same line, then
+        // «:» and the text.
         final name = tester.getRect(
-          _in('m:m1', find.byKey(LiveChatInlineRow.nameKey)),
+          _in('m:m1', find.byKey(LiveChatFlatLine.nameKey)),
         );
-        // D234b: the name at the row's reading start, inside its padding;
-        // the badges beside it (after it in reading order), same line.
         expect(
           rtl
-              ? (row.right - name.right - _pad).abs() < 1.5
-              : (name.left - row.left - _pad).abs() < 1.5,
+              ? (row.right - name.right - KFlatChat.padding.start).abs() < 1.5
+              : (name.left - row.left - KFlatChat.padding.start).abs() < 1.5,
           isTrue,
         );
         expect(
-          rtl ? badges.right <= name.left : badges.left >= name.right,
+          rtl
+              ? badges.right <= name.left + 0.5
+              : badges.left >= name.right - 0.5,
           isTrue,
         );
         expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
@@ -244,20 +245,13 @@ void main() {
               : (row.left - list.left).abs() < 1,
           isTrue,
         );
-        // D234b: the name row (name + badges), then the text.
-        final message = tester.getRect(
-          _in('m:m1', find.byKey(LiveChatInlineRow.textKey)),
-        );
-        expect(message.top, greaterThanOrEqualTo(badges.bottom - 0.5));
         expect(find.text('\u2068Huda\u2069'), findsOneWidget);
         expect(
-          tester
-              .widget<RichText>(
-                _in('m:m1', find.byType(KBidiRichTextRaw)).first,
-              )
-              .text
-              .toPlainText(),
-          contains('hello'),
+          find.descendant(
+            of: _line('m:m1'),
+            matching: find.textContaining('hello', findRichText: true),
+          ),
+          findsWidgets,
         );
         expect(tester.takeException(), isNull);
         await _leave(tester);

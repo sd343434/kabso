@@ -248,6 +248,7 @@ Future<void> pumpScreen(
   LiveProgramRepository? liveProgramRepository,
   LiveStickerRepository? liveStickerRepository,
   LiveWatchRepository? liveWatchRepository,
+  LiveRankingsRepository? liveRankingsRepository,
   FakeYoutubePlayers? youtubePlayers,
   HomeBannersRepository? homeBannersRepository,
   DmRepository? dmRepository,
@@ -321,6 +322,11 @@ Future<void> pumpScreen(
         // D199: never the network (nobody is a host: no «تارجت» chip).
         liveHostTargetsRepositoryProvider.overrideWithValue(
           liveHostTargetsRepository ?? FakeLiveHostTargetsRepository(),
+        ),
+        // D257: never the network (the viewer's daily rank card reads the
+        // popularity board; an empty board unless a test gives one).
+        liveRankingsRepositoryProvider.overrideWithValue(
+          liveRankingsRepository ?? FakeLiveRankingsRepository(),
         ),
         // D154e: never the network (no program).
         liveProgramRepositoryProvider.overrideWithValue(

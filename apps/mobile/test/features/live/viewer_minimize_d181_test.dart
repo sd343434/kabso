@@ -104,6 +104,19 @@ Future<void> _done(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 6));
 }
 
+/// D257: the video live's minimize is in ≡ (the audio room keeps its top
+/// button).
+Future<void> _minimize(WidgetTester tester, LiveRoomMode mode) async {
+  if (mode.isVoice) {
+    await tester.tap(find.byKey(LiveRoomScreen.minimizeKey));
+  } else {
+    await tester.tap(find.byKey(LiveRoomScreen.menuKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(GoLiveKeys.tool('minimize')));
+  }
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final language in AppLanguage.values) {
     for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
@@ -115,8 +128,7 @@ void main() {
           mode: mode,
           language: language,
         );
-        await tester.tap(find.byKey(LiveRoomScreen.minimizeKey));
-        await tester.pumpAndSettle();
+        await _minimize(tester, mode);
         expect(tester.takeException(), isNull);
         expect(find.byType(LiveRoomScreen), findsNothing);
         expect(find.byKey(const Key('nav.home')), findsOneWidget);
@@ -149,8 +161,7 @@ void main() {
         expect(engine.stops, 0);
 
         // Minimized again, ✕ on the window leaves the live.
-        await tester.tap(find.byKey(LiveRoomScreen.minimizeKey));
-        await tester.pumpAndSettle();
+        await _minimize(tester, mode);
         await tester.tap(find.byKey(LiveMiniWindow.closeKey));
         await tester.pumpAndSettle();
         expect(_window, findsNothing);
@@ -196,8 +207,7 @@ void main() {
 
   testWidgets('opening another live leaves the minimized one', (tester) async {
     final (_, engine) = await _open(tester, mode: LiveRoomMode.solo);
-    await tester.tap(find.byKey(LiveRoomScreen.minimizeKey));
-    await tester.pumpAndSettle();
+    await _minimize(tester, LiveRoomMode.solo);
     await tester.tap(find.byKey(LiveHubGrid.cardKey(1)));
     await tester.pumpAndSettle();
     expect(find.byType(LiveRoomScreen), findsOneWidget);

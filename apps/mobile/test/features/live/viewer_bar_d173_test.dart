@@ -150,7 +150,10 @@ void main() {
   group('D173 video live viewer bar', () {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
-        testWidgets('∞, games and gift in one row with the pill, nothing '
+        // D257: ∞ moved into ≡; the reference's recharge sits before the
+        // games box.
+        testWidgets('recharge, games and gift in one row with the pill, '
+            'nothing '
             'overlaps (${language.name}, ${viewport.name}, text 1.3)', (
           tester,
         ) async {
@@ -161,7 +164,7 @@ void main() {
             textScale: 1.3,
           );
           expect(tester.takeException(), isNull);
-          final guest = tester.getRect(find.byKey(LiveRoomScreen.guestKey));
+          final guest = tester.getRect(find.byKey(LiveRoomScreen.rechargeKey));
           final games = tester.getRect(find.byKey(LiveRoomScreen.gamesKey));
           final gift = tester.getRect(find.byKey(LiveRoomScreen.giftKey));
           final pill = tester.getRect(find.byKey(AudioRoomViewKeys.chat));
@@ -172,7 +175,7 @@ void main() {
           expect(guest.overlaps(games) || games.overlaps(gift), isFalse);
           final width = viewport.logicalSize.width;
           final ar = language == AppLanguage.ar;
-          // Reading order: pill, ∞, games, gift (mirrored in Arabic).
+          // Reading order: pill, recharge, games, gift (mirrored in Arabic).
           if (ar) {
             expect(pill.left, greaterThan(guest.right - 0.5));
             expect(guest.left, greaterThanOrEqualTo(games.right - 0.5));
@@ -340,11 +343,18 @@ void main() {
               : LiveRoomScreen.gamesKey;
           final button = find.byKey(key);
           expect(button, findsOneWidget);
-          // The owner's controller art, as on the host's bar.
+          // The owner's controller art (audio); D257: the video live's
+          // orange box, as on the host's bar.
           expect(
             find.descendant(
               of: button,
-              matching: find.image(const AssetImage(LiveGamesSheet.art)),
+              matching: find.image(
+                AssetImage(
+                  mode == LiveRoomMode.audio
+                      ? LiveGamesSheet.art
+                      : 'assets/live_bar/bar_box.png',
+                ),
+              ),
             ),
             findsOneWidget,
           );

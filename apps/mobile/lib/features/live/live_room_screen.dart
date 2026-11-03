@@ -56,6 +56,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_settings_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/go_live/viewer_live_ref_parts.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
@@ -116,6 +117,7 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// CP-012: the live's points next to the viewer count.
   static const scoreKey = Key('room.score');
+  static const rechargeKey = Key('room.recharge');
 
   /// D131: the host pill's taps line and the bar's gift button.
   static const tapsKey = Key('room.taps');
@@ -576,10 +578,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       final count = math.max(room.viewerCount, 1);
       return LiveViewersStack(
         key: LiveRoomScreen.viewersKey,
-        avatarSize: video ? 28.5 : LiveViewersStack.size,
-        pitch: video ? 33.5 : LiveViewersStack.size - 7,
-        countHeight: video ? 28 : LiveViewersStack.size,
-        countMinWidth: video ? 34 : null,
+        // D257 (the viewer's reference): 27 pt faces 31 pt apart, the count
+        // in a 32 × 25 pt pill.
+        avatarSize: video ? 27 : LiveViewersStack.size,
+        pitch: video ? 31 : LiveViewersStack.size - 7,
+        countHeight: video ? 25 : LiveViewersStack.size,
+        countMinWidth: video ? 32 : null,
         avatars: const [],
         count: KFormat.compact(count, l10n),
         label: l10n.liveViewers(count, KFormat.grouped(count)),
@@ -608,17 +612,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       key: LiveRoomScreen.viewersKey,
       // D131 (ref 158: 25.6 pt pictures 30.6 pt apart, a 25 pt count);
       // D141: about 12 % larger.
-      avatarSize: video ? 28.5 : LiveViewersStack.size,
-      pitch: video ? 33.5 : LiveViewersStack.size - 7,
-      countHeight: video ? 28 : LiveViewersStack.size,
-      countMinWidth: video ? 34 : null,
+      // D257 (the viewer's reference): 27 pt faces 31 pt apart, the count
+      // in a 32 × 25 pt pill.
+      avatarSize: video ? 27 : LiveViewersStack.size,
+      pitch: video ? 31 : LiveViewersStack.size - 7,
+      countHeight: video ? 25 : LiveViewersStack.size,
+      countMinWidth: video ? 32 : null,
       // D256: the top supporters first, the first three ringed.
       avatars: [
         for (final v in ranked)
           KAvatar(
             name: v.user.displayName,
             imageUrl: v.user.avatarUrl,
-            size: video ? 28.5 : LiveViewersStack.size,
+            size: video ? 27 : LiveViewersStack.size,
           ),
       ],
       ranks: [for (final v in ranked) v.rank],
@@ -1233,8 +1239,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               ),
             ),
       header: KHostPill(
-        // D141 (owner): the host's @username beside the name (copy on tap).
-        username: host.username,
+        // D257 (the viewer's reference): the name alone (no @username;
+        // the room ID is on the second row).
         premiumTier: host.premiumTier,
         agentCode: host.rechargeAgentCode,
         hostAgentCode: host.hostAgentCode,
@@ -1279,17 +1285,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ),
       // Presence does not exist yet: a count only when the API has one.
       viewers: ended ? null : _viewers(session, video: true),
-      // D181: minimize, between the viewers and ✕ (as the host's).
-      trailing: _canMinimize(room)
-          ? KRoomIconButton(
-              key: LiveRoomScreen.minimizeKey,
-              icon: Icons.picture_in_picture_alt_rounded,
-              label: l10n.goLiveMinimize,
-              onPressed: _minimize,
-              iconSize: 19,
-              bare: true,
-            )
-          : null,
+      // D257 (the viewer's reference): no minimize at the top (it is in
+      // ≡, D181).
       onClose: () => unawaited(_leave()),
       roomInfo: ended
           ? null
@@ -1297,6 +1294,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           // cherries — the points stay on the host pill and in ≡'s
           // «نقاط البث».
           : KRoomChipsRow(
+              // D257 (the viewer's reference «ID:…»): the host's ID, faint,
+              // at the end.
+              idText: 'ID:${host.username}',
               // D199: the host's «تارجت» chip (the ranking sheet on tap).
               targetChip:
                   LiveHostTargetChip.shows(
@@ -1330,6 +1330,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       sidePromo: ended || _clean || pkState?.match != null
           ? null
           : LiveRoomPromoColumn(roomId: room.id),
+      // D257 (the viewer's reference «Regional Daily Host»): the host's
+      // place on today's popularity board.
+      sideEnd: ended || _clean || pkState?.match != null
+          ? null
+          : HostDailyRankCard(
+              hostId: host.id,
+              hostName: host.displayName,
+              avatar: avatar,
+            ),
       // D145a: the lucky combo beside the chat, over the quick replies.
       // D174: a solo live's guests stacked at the end over the chat; D145a:
       // the lucky combo under them.
@@ -1350,6 +1359,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   // D230: the video live's chat (bottom-anchored like every
                   // room; the rules line steps aside while typing).
                   video: true,
+                  // D257: the reference's boxed one-line rows (as the
+                  // host's, D253).
+                  flat: true,
                 ),
               ),
             ),
@@ -1376,24 +1388,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ),
                   const SizedBox(height: KSpacing.sm),
                 ],
-                // D131 (ref 158): quick replies over the bar, for someone
-                // who may write.
-                if (composer.canWrite && !_writing && !_clean) ...[
-                  KQuickReplies(
-                    onSend: (text) => unawaited(
-                      sendLiveChatText(
-                        context,
-                        ref,
-                        roomId: widget.room.id,
-                        text: text,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                ],
+                // D257: the quick replies are in ≡ (the reference's bar).
                 _chatComposer(composer) ??
                     KViewerBar(
                       pillKey: AudioRoomViewKeys.chat,
+                      // D257 (the viewer's reference): 210 × 35 pt.
+                      pillWidth: 210,
+                      pillHeight: 35,
                       hint: composer.canWrite
                           ? l10n.liveChatSayHi
                           : composer.hint,
@@ -1405,6 +1406,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         // Newcomers (D154c) moved into it.
                         KViewerBarButton(
                           key: LiveRoomScreen.menuKey,
+                          // D257: 42 pt apart (the reference).
+                          target: KViewerRoom.viewerTarget,
                           asset: 'assets/live_bar/menu.png',
                           label: l10n.liveViewerMenu,
                           onTap: () => _openMenu(session),
@@ -1416,8 +1419,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                         // D174 (owner «نعم بالطبع»): in a solo live ∞
                         // asks to join as a guest (3 at most), then shows
                         // the request (tap: cancel) or the seat (tap: leave).
-                        if (me != null && room.mode == LiveRoomMode.solo)
-                          _soloGuestButton(session),
+                        // D257: the solo live's ∞ (join as a guest) is in
+                        // ≡ (the reference's bar has none).
                         // D174a (owner: «الضيوف في البث الفردي يمكن إقفال
                         // الكاميرا»): a seated guest on camera turns their
                         // own camera and mic off or on.
@@ -1445,16 +1448,33 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                             onTap: () => unawaited(_toggleMic(engine)),
                           ),
                         ],
-                        // D173: games (none yet: the sheet says so).
+                        // D257 (the reference's «SALE»): recharge coins.
+                        if (me != null)
+                          KViewerBarButton(
+                            key: LiveRoomScreen.rechargeKey,
+                            // D257: 42 pt apart (the reference).
+                            target: KViewerRoom.viewerTarget,
+                            asset: 'assets/live_bar/bar_sale.png',
+                            art: true,
+                            label: l10n.liveToolRecharge,
+                            onTap: () =>
+                                unawaited(context.push(AppRoutes.wallet)),
+                          ),
+                        // D173: games (none yet: the sheet says so); D257:
+                        // the orange box in the reference's event slot.
                         KViewerBarButton(
                           key: LiveRoomScreen.gamesKey,
-                          asset: LiveGamesSheet.art,
+                          // D257: 42 pt apart (the reference).
+                          target: KViewerRoom.viewerTarget,
+                          asset: 'assets/live_bar/bar_box.png',
                           art: true,
                           label: l10n.liveGames,
                           onTap: () => unawaited(showLiveGamesSheet(context)),
                         ),
                         KViewerBarButton(
                           key: LiveRoomScreen.giftKey,
+                          // D257: 42 pt apart (the reference).
+                          target: KViewerRoom.viewerTarget,
                           // D135: the owner's colourful gift box.
                           asset: 'assets/live_bar/bar_gift.png',
                           art: true,
@@ -2050,6 +2070,30 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         label: l10n.liveGames,
         onTap: () => unawaited(showLiveGamesSheet(context)),
       ),
+      // D257: the quick replies and the solo live's ∞ (off the bar).
+      if (liveChatComposerHint(
+        l10n,
+        chat: ref.read(liveChatProvider(room.id)),
+        role: _chatRole(session),
+      ).canWrite)
+        GoLiveTool(
+          id: 'quickReplies',
+          icon: Icons.quickreply_outlined,
+          label: l10n.liveToolQuickReplies,
+          onTap: () => unawaited(
+            showHostQuickReplies(
+              context,
+              host: false,
+              onSend: (text) => unawaited(
+                sendLiveChatText(context, ref, roomId: room.id, text: text),
+              ),
+            ),
+          ),
+        ),
+      if (me != null &&
+          room.mode == LiveRoomMode.solo &&
+          room.status == LiveRoomStatus.live)
+        _guestTool(session),
       if (audio && me != null && room.status == LiveRoomStatus.live)
         GoLiveTool(
           id: 'suggestVideo',
@@ -2178,23 +2222,21 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     setState(() {});
   }
 
-  /// D174: ∞ in a solo live — ask to join as a guest, the pending request
-  /// (tap: cancel) or the seat (tap: leave). The 3 guest seats full: it
-  /// says so instead of asking.
-  Widget _soloGuestButton(LiveRoomSessionState session) {
+  /// D257: the solo live's ∞ as a ≡ item — join as a guest, the request
+  /// (tap: cancel) or the seat (tap: leave).
+  GoLiveTool _guestTool(LiveRoomSessionState session) {
     final l10n = context.l10n;
-    final mine = session.mine;
     if (session.seated) {
-      return KViewerBarButton(
-        key: LiveRoomScreen.guestLeaveKey,
+      return GoLiveTool(
+        id: 'guest',
         icon: Icons.logout_rounded,
         label: l10n.liveSeatLeave,
         onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
       );
     }
-    if (mine?.request != null) {
-      return KViewerBarButton(
-        key: LiveRoomScreen.guestCancelKey,
+    if (session.mine?.request != null) {
+      return GoLiveTool(
+        id: 'guest',
         icon: Icons.hourglass_top_rounded,
         label: l10n.liveSeatRequested,
         onTap: () => unawaited(runSeatAction(context, _session.cancelRequest)),
@@ -2205,8 +2247,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         seats != null &&
         seats.isNotEmpty &&
         seats.every((s) => s.state != LiveSeatState.empty);
-    return KViewerBarButton(
-      key: LiveRoomScreen.guestKey,
+    return GoLiveTool(
+      id: 'guest',
       icon: Icons.all_inclusive_rounded,
       label: l10n.liveGuestJoin,
       onTap: full

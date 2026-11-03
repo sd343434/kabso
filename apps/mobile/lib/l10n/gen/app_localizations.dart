@@ -23526,6 +23526,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ادفع بالعملات الذهبية'**
   String get vipPayCoins;
+
+  /// D257: the viewer's screen as the owner's reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب اليومي'**
+  String get liveDailyRankTitle;
+
+  /// D257: the viewer's screen as the owner's reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الترتيب اليومي'**
+  String get liveDailyRankHide;
+
+  /// D257: the viewer's screen as the owner's reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'{gap} عن السابق'**
+  String liveDailyRankGap(String gap);
+
+  /// D257: the viewer's screen as the owner's reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: الترتيب اليوم {rank}، {points} نقطة'**
+  String liveDailyRankLabel(String name, String rank, String points);
+
+  /// D257: the viewer's screen as the owner's reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن'**
+  String get liveToolRecharge;
 }
 
 class _AppLocalizationsDelegate

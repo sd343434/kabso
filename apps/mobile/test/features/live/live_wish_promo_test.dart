@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -357,22 +358,19 @@ void main() {
         findsNWidgets(3),
       );
       expect(find.descendant(of: group, matching: find.text('4')), findsOne);
-      // Ref 158: the count pill is at least 31 × 25 pt, at the top end —
-      // right before D181's minimize button (viewers minimize too) and ✕.
+      // D257 (the viewer's reference): the count pill at the top end, right
+      // before ✕ (minimize is in ≡).
       final rect = tester.getRect(group);
-      final minimize = tester.getRect(
-        find.byKey(LiveRoomScreen.minimizeKey).first,
-      );
-      expect(rect.right, lessThanOrEqualTo(minimize.left + 0.5));
-      expect(rect.right, greaterThan(minimize.left - 16));
-      expect(rect.right, greaterThan(393 - 80 - minimize.width));
+      final close = tester.getRect(find.byKey(KLiveRoomScaffold.closeKey));
+      expect(rect.right, lessThanOrEqualTo(close.left + 0.5));
+      expect(rect.right, greaterThan(close.left - 16));
       await tester.tap(group);
       await tester.pumpAndSettle();
       expect(find.byKey(LiveRoomScreen.viewersKey), findsWidgets);
       await _leave(tester);
     });
 
-    testWidgets("D141: the host's @username beside the name (not the room "
+    testWidgets("D141/D257: the host's ID on the second row (not the room "
         'number) copies it and says «Copied»', (tester) async {
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -391,25 +389,21 @@ void main() {
         ),
       );
       await _pump(tester);
-      final tag = find.byKey(KLiveUsernameTag.tagKey);
+      // D257 (the viewer's reference): the pill shows the name alone; the
+      // host's ID («ID:username») is on the second row, faint, at the end.
       expect(
-        find.descendant(of: find.byType(KHostPill), matching: tag),
-        findsOneWidget,
+        find.descendant(
+          of: find.byType(KHostPill),
+          matching: find.byKey(KLiveUsernameTag.tagKey),
+        ),
+        findsNothing,
       );
-      final username = tester
-          .widget<KLiveUsernameTag>(find.byType(KLiveUsernameTag))
-          .username;
-      expect(username, isNotEmpty);
-      expect(
-        find.descendant(of: tag, matching: find.textContaining('@$username')),
-        findsOneWidget,
-      );
+      final id = tester.widget<Text>(find.byKey(KRoomChipsRow.idKey)).data!;
+      expect(id, startsWith('ID:'));
+      expect(id.length, greaterThan(3));
       // The room number is not shown any more.
       expect(find.textContaining('120345678'), findsNothing);
-      await tester.tap(tag);
-      await tester.pump();
-      expect(copied, '@$username');
-      expect(find.text(l10nFor(AppLanguage.en).liveUsernameCopied), findsOne);
+      expect(copied, isNull);
       await tester.pump(const Duration(seconds: 5));
       await _leave(tester);
     });

@@ -8,6 +8,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_guest_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -93,12 +94,19 @@ Future<void> _leave(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// D257: the solo live's ∞ is a ≡ item (join, cancel the request, leave).
+Future<void> _guest(WidgetTester tester) async {
+  await tester.tap(find.byKey(LiveRoomScreen.menuKey));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(GoLiveKeys.tool('guest')));
+}
+
 void main() {
   testWidgets('∞ asks to join as a guest (a real seat request)', (
     tester,
   ) async {
     final (repo, _) = await _pump(tester, seats: _solo());
-    await tester.tap(find.byKey(LiveRoomScreen.guestKey));
+    await _guest(tester);
     await tester.pumpAndSettle();
     expect(repo.seatCalls, contains('requestSeat:'));
     await _leave(tester);
@@ -117,8 +125,7 @@ void main() {
         ),
       ),
     );
-    expect(find.byKey(LiveRoomScreen.guestKey), findsNothing);
-    await tester.tap(find.byKey(LiveRoomScreen.guestCancelKey));
+    await _guest(tester);
     await tester.pumpAndSettle();
     expect(repo.seatCalls, contains('cancelSeatRequest'));
     await _leave(tester);
@@ -126,7 +133,7 @@ void main() {
       tester,
       seats: _solo(people: [me.id, null, null], mine: 1),
     );
-    await tester.tap(find.byKey(LiveRoomScreen.guestLeaveKey));
+    await _guest(tester);
     await tester.pumpAndSettle();
     expect(seated.seatCalls.any((c) => c.startsWith('leaveSeat')), isTrue);
     await _leave(tester);
@@ -139,7 +146,7 @@ void main() {
       tester,
       seats: _solo(people: ['a', 'b', 'c']),
     );
-    await tester.tap(find.byKey(LiveRoomScreen.guestKey));
+    await _guest(tester);
     await tester.pump();
     expect(find.text(l10nFor(AppLanguage.en).liveGuestsFull), findsOneWidget);
     expect(repo.seatCalls.where((c) => c.startsWith('requestSeat')), isEmpty);

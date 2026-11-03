@@ -22,6 +22,10 @@ abstract final class KViewerRoom {
   static const double buttonGap = 7.2;
   static const Color fill = Color(0x40000000);
 
+  /// D257 (the viewer's reference): the bar's buttons 42 pt apart, so the
+  /// 210 pt pill and four buttons fit a 393 pt screen.
+  static const double viewerTarget = 42;
+
   /// The hint (cap 8.5 pt → 12.5 sp, white 85 %), 15.8 pt in.
   static const double hintSize = 14;
   static const double hintStart = 16;
@@ -39,7 +43,17 @@ abstract final class KViewerRoom {
 /// chip are gone from every live (the points stay on the host pill and in
 /// ≡ «نقاط البث»).
 class KRoomChipsRow extends StatelessWidget {
-  const new({super.key, this.roomNumber, this.elapsed, this.targetChip});
+  const new({
+    super.key,
+    this.roomNumber,
+    this.elapsed,
+    this.targetChip,
+    this.idText,
+  });
+
+  /// D257 (the viewer's reference «ID:…»): a faint id at the end.
+  final String? idText;
+  static const idKey = Key('room.id');
 
   /// D199: the «تارجت» chip (`LiveHostTargetChip`), right after the board
   /// chip «ترتيب الغرف».
@@ -99,6 +113,22 @@ class KRoomChipsRow extends StatelessWidget {
             elapsed,
             const SizedBox(width: 6),
           ],
+          if (idText case final id?)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 130),
+              child: Text(
+                id,
+                key: idKey,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textDirection: TextDirection.ltr,
+                style: context.textStyles.caption.copyWith(
+                  fontSize: 11,
+                  color: const Color(0x66FFFFFF),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           if (number != null)
             Text(
               l10n.liveRoomNumber(KFormat.bidiIsolate('$number')),
@@ -215,9 +245,15 @@ class KViewerBar extends StatelessWidget {
     this.onEmoji,
     this.actions = const [],
     this.pillKey = defaultPillKey,
+    this.pillWidth = KViewerRoom.pillWidth,
+    this.pillHeight = KViewerRoom.barHeight,
   });
 
   final String hint;
+
+  /// D257 (the viewer's reference): the pill's widest and its height.
+  final double pillWidth;
+  final double pillHeight;
 
   /// The pill's key (the room passes its chat key).
   final Key pillKey;
@@ -235,6 +271,7 @@ class KViewerBar extends StatelessWidget {
       hint: hint,
       onChat: onChat,
       onEmoji: onEmoji,
+      height: pillHeight,
     );
     return SizedBox(
       // The pill and the buttons keep 48 pt touch targets around them.
@@ -248,9 +285,7 @@ class KViewerBar extends StatelessWidget {
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: KViewerRoom.pillWidth,
-                ),
+                constraints: BoxConstraints(maxWidth: pillWidth),
                 child: pill,
               ),
             ),
@@ -277,12 +312,14 @@ class KViewerChatPill extends StatelessWidget {
     super.key,
     this.onEmoji,
     this.pillKey = KViewerBar.defaultPillKey,
+    this.height = KViewerRoom.barHeight,
   });
 
   final String hint;
   final VoidCallback onChat;
   final VoidCallback? onEmoji;
   final Key pillKey;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +336,7 @@ class KViewerChatPill extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onChat,
         child: Container(
-          height: KViewerRoom.barHeight,
+          height: height,
           padding: const EdgeInsetsDirectional.only(
             start: KViewerRoom.hintStart,
           ),
@@ -334,7 +371,7 @@ class KViewerChatPill extends StatelessWidget {
                     onTap: onEmoji,
                     child: SizedBox(
                       width: 38,
-                      height: KViewerRoom.barHeight,
+                      height: height,
                       child: Center(
                         child: Image.asset(
                           'assets/live_bar/emoji.png',
@@ -801,6 +838,7 @@ class _KLiveElapsedPillState extends State<KLiveElapsedPill> {
 Future<void> showHostQuickReplies(
   BuildContext context, {
   required ValueChanged<String> onSend,
+  bool host = true,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: const Color(0xFFFFFFFF),
@@ -809,12 +847,20 @@ Future<void> showHostQuickReplies(
   ),
   builder: (sheet) {
     final l10n = sheet.l10n;
-    final phrases = [
-      l10n.liveQuickHostWelcome,
-      l10n.liveQuickHostThanks,
-      l10n.liveQuickHostFollow,
-      l10n.liveQuickHostShare,
-    ];
+    // D257: a viewer's ≡ has the viewers' phrases.
+    final phrases = host
+        ? [
+            l10n.liveQuickHostWelcome,
+            l10n.liveQuickHostThanks,
+            l10n.liveQuickHostFollow,
+            l10n.liveQuickHostShare,
+          ]
+        : [
+            l10n.liveQuickHello,
+            l10n.liveQuickFire,
+            l10n.liveQuickNiceMood,
+            l10n.liveQuickGotMe,
+          ];
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,

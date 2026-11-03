@@ -16,8 +16,9 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -168,8 +169,14 @@ void main() {
 
   testWidgets('quick replies send ordinary text messages', (tester) async {
     final (repo, _, _) = await _pump(tester);
+    // D257: the quick replies are in ≡ (the reference's bar has none).
+    expect(find.byType(KQuickReplies), findsNothing);
+    await tester.tap(find.byKey(LiveRoomScreen.menuKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(GoLiveKeys.tool('quickReplies')));
+    await tester.pumpAndSettle();
     expect(find.text(en.liveQuickHello), findsOneWidget);
-    await tester.tap(find.byKey(KQuickReplies.chipKey(2)));
+    await tester.tap(find.byKey(const Key('quickReplies.sheet.2')));
     await tester.pumpAndSettle();
     expect(repo.chatCalls, contains('send:${en.liveQuickNiceMood}'));
     await tester.pumpWidget(const SizedBox.shrink());
@@ -420,7 +427,8 @@ void main() {
       // Close the box: what is left is the room.
       await tester.tap(find.byKey(LiveChatComposer.modeKey));
       await frames(tester);
-      final row = find.byType(LiveChatInlineRow);
+      // D257: the video live's flat row.
+      final row = find.byType(LiveChatFlatLine);
       final inline = find.descendant(
         of: row,
         matching: find.byWidgetPredicate(

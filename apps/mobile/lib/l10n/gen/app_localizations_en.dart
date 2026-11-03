@@ -13905,4 +13905,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vipPayCoins => 'Pay with gold coins';
+
+  @override
+  String get liveDailyRankTitle => 'Daily rank';
+
+  @override
+  String get liveDailyRankHide => 'Hide the daily rank';
+
+  @override
+  String liveDailyRankGap(String gap) {
+    return '$gap to the one above';
+  }
+
+  @override
+  String liveDailyRankLabel(String name, String rank, String points) {
+    return '$name: today\'s rank $rank, $points points';
+  }
+
+  @override
+  String get liveToolRecharge => 'Recharge';
 }

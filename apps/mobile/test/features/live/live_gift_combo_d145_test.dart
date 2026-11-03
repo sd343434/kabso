@@ -577,7 +577,9 @@ void main() {
             // Never over the chat.
             final chat = tester.getRect(find.byType(LiveRoomChatLines).first);
             expect(chat.overlaps(cluster), isFalse);
-            if (!audio) {
+            // D253/D257: the video lives' quick replies moved into ≡; where
+            // a bar still shows them, the combo keeps off them.
+            if (!audio && find.byType(KQuickReplies).evaluate().isNotEmpty) {
               expect(
                 tester.getRect(find.byType(KQuickReplies)).overlaps(cluster),
                 isFalse,

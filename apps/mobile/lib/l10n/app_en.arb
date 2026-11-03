@@ -4334,5 +4334,15 @@
   "vipMine": "My VIP",
   "@vipMine": {"description": "D252c: «شراء VIP» in the owner's new reference."},
   "vipPayCoins": "Pay with gold coins",
-  "@vipPayCoins": {"description": "D252c: «شراء VIP» in the owner's new reference."}
+  "@vipPayCoins": {"description": "D252c: «شراء VIP» in the owner's new reference."},
+  "liveDailyRankTitle": "Daily rank",
+  "@liveDailyRankTitle": {"description": "D257: the viewer's screen as the owner's reference."},
+  "liveDailyRankHide": "Hide the daily rank",
+  "@liveDailyRankHide": {"description": "D257: the viewer's screen as the owner's reference."},
+  "liveDailyRankGap": "{gap} to the one above",
+  "@liveDailyRankGap": {"description": "D257: the viewer's screen as the owner's reference.", "placeholders": {"gap": {"type": "String"}}},
+  "liveDailyRankLabel": "{name}: today's rank {rank}, {points} points",
+  "@liveDailyRankLabel": {"description": "D257: the viewer's screen as the owner's reference.", "placeholders": {"name": {"type": "String"}, "rank": {"type": "String"}, "points": {"type": "String"}}},
+  "liveToolRecharge": "Recharge",
+  "@liveToolRecharge": {"description": "D257: the viewer's screen as the owner's reference."}
 }

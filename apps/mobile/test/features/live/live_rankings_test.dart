@@ -62,8 +62,8 @@ Future<FakeLiveRankingsRepository> _open(
         ),
       ),
     ),
+    liveRankingsRepository: repo,
     overrides: [
-      liveRankingsRepositoryProvider.overrideWithValue(repo),
       currentUserProvider.overrideWithValue(testUser().copyWith(canHost: true)),
     ],
   );
