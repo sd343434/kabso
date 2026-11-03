@@ -13572,6 +13572,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pkRematchRequest => 'Request a rematch';
+
+  @override
   String get liveToolReportLive => 'Report live';
 
   @override

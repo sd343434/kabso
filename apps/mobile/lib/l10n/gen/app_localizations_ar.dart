@@ -13579,6 +13579,9 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get pkRematchRequest => 'طلب إعادة التحدي';
+
+  @override
   String get liveToolReportLive => 'الإبلاغ عن البث';
 
   @override

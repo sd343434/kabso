@@ -21,15 +21,10 @@ jobs:
           flutter-version: "3.47.7"
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - name: After (D250 restyle)
-        run: SHOT_TAG=after flutter test test/features/profile/zz_me_hub_shot_test.dart
-      - name: Before (D249 only)
-        run: |
-          git checkout 97f02f9 -- lib/features/profile/me_hub_screen.dart
-          SHOT_TAG=before flutter test test/features/profile/zz_me_hub_shot_test.dart
+      - name: PK rematch shots
+        run: flutter test test/features/live/zz_pk_rematch_shot_test.dart
       - name: Commit shots back to this branch
         run: |
-          git checkout -- lib/features/profile/me_hub_screen.dart
           mkdir -p ../../shots && cp build/shots/*.png ../../shots/
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
