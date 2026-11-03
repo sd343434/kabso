@@ -21,11 +21,11 @@ jobs:
           flutter-version: "3.47.7"
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - name: After (SVIP removed)
+      - name: After (D250 restyle)
         run: SHOT_TAG=after flutter test test/features/profile/zz_me_hub_shot_test.dart
-      - name: Before (staging)
+      - name: Before (D249 only)
         run: |
-          git checkout origin/staging -- lib/features/profile/me_hub_screen.dart
+          git checkout 97f02f9 -- lib/features/profile/me_hub_screen.dart
           SHOT_TAG=before flutter test test/features/profile/zz_me_hub_shot_test.dart
       - name: Commit shots back to this branch
         run: |
