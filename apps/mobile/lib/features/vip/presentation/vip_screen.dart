@@ -229,8 +229,7 @@ class _VipScreenState extends ConsumerState<VipScreen> {
       // The caller holds this tier or a higher one now (so its perks are the
       // caller's): the buy button would renew it, not buy or upgrade.
       final action = vipActionFor(tier, membership, list, now);
-      final held =
-          action == VipAction.renew || action == VipAction.lower;
+      final held = action == VipAction.renew || action == VipAction.lower;
       body = [
         const VipRail(),
         const SizedBox(height: KSpacing.xs),
@@ -318,7 +317,9 @@ class _VipScreenState extends ConsumerState<VipScreen> {
           IconButton(
             key: VipScreen.storeKey,
             tooltip: l10n.vipStore,
-            onPressed: list == null ? null : () => unawaited(_showStore(context, list)),
+            onPressed: list == null
+                ? null
+                : () => unawaited(_showStore(context, list)),
             icon: const Icon(Icons.storefront_rounded),
             color: vipGoldBright,
           ),
@@ -362,7 +363,8 @@ class _VipScreenState extends ConsumerState<VipScreen> {
               tier: tier,
               action: vipActionFor(tier, membership, list, now),
               busy: _busy,
-              onPressed: (action) => unawaited(_start(tier, action, membership)),
+              onPressed: (action) =>
+                  unawaited(_start(tier, action, membership)),
             ),
     );
   }
@@ -381,18 +383,18 @@ class _VipScreenState extends ConsumerState<VipScreen> {
   VipTier? _nextTier(VipTierList list, VipMembership? membership) {
     if (list.tiers.isEmpty) return null;
     if (membership == null) return list.tiers.first;
-    final held = list.tiers
-        .where((t) => t.id == membership.tierId)
-        .firstOrNull;
+    final held = list.tiers.where((t) => t.id == membership.tierId).firstOrNull;
     final level = held?.level ?? 0;
     return list.tiers.where((t) => t.level > level).firstOrNull;
   }
 
-  double _upgradeFill(VipTierList list, VipMembership? membership, DateTime now) {
+  double _upgradeFill(
+    VipTierList list,
+    VipMembership? membership,
+    DateTime now,
+  ) {
     if (membership == null || !membership.expiresAt.isAfter(now)) return 0;
-    final held = list.tiers
-        .where((t) => t.id == membership.tierId)
-        .firstOrNull;
+    final held = list.tiers.where((t) => t.id == membership.tierId).firstOrNull;
     final level = held?.level ?? list.tiers.length;
     return list.tiers.isEmpty ? 0 : level / list.tiers.length;
   }
@@ -463,7 +465,9 @@ class _Crest extends StatelessWidget {
   Widget build(BuildContext context) {
     final index = tiers.indexWhere((t) => t.id == selected.id);
     final prev = index > 0 ? tiers[index - 1] : null;
-    final next = index >= 0 && index < tiers.length - 1 ? tiers[index + 1] : null;
+    final next = index >= 0 && index < tiers.length - 1
+        ? tiers[index + 1]
+        : null;
     return LayoutBuilder(
       builder: (context, c) {
         final width = c.maxWidth;
@@ -506,7 +510,8 @@ class _Crest extends StatelessWidget {
                 label: selected.name,
                 child: Builder(
                   builder: (context) {
-                    final hasArt = selected.badgeStill != null ||
+                    final hasArt =
+                        selected.badgeStill != null ||
                         selected.badgeAnimation != null;
                     return VipHangingBanner(
                       color: Color(selected.color),
@@ -810,7 +815,9 @@ class _ConfirmCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: KSpacing.xxs),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: t.body.copyWith(color: soft))),
+          Expanded(
+            child: Text(label, style: t.body.copyWith(color: soft)),
+          ),
           value,
         ],
       ),

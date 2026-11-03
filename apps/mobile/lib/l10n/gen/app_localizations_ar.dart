@@ -13791,4 +13791,34 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonVipPurchase => 'شراء VIP';
+
+  @override
+  String vipCurrently(String status) {
+    return 'حالياً: $status';
+  }
+
+  @override
+  String get vipStatusNone => 'بدون VIP';
+
+  @override
+  String vipUpgradeTo(String tier) {
+    return 'الترقية: $tier';
+  }
+
+  @override
+  String get vipMaxTier => 'أعلى مستوى';
+
+  @override
+  String get vipBalanceLabel => 'رصيدك';
+
+  @override
+  String get vipStore => 'متجر VIP';
+
+  @override
+  String get vipStoreSoon => 'متجر هدايا VIP — قريباً.';
+
+  @override
+  String vipPerksSection(String tier) {
+    return 'امتيازات $tier';
+  }
 }

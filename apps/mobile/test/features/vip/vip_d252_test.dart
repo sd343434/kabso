@@ -64,14 +64,26 @@ VipTier _tier(int level, {bool art = false}) => VipTier(
       artHeight: art ? 500 : null,
     ),
     if (level >= 2)
-      const VipPerk(code: 'ENTRY_BANNER', title: 'Entry banner', available: false),
+      const VipPerk(
+        code: 'ENTRY_BANNER',
+        title: 'Entry banner',
+        available: false,
+      ),
     if (level >= 3)
-      const VipPerk(code: 'DAILY_BULLET', title: 'Daily bullet', available: false),
+      const VipPerk(
+        code: 'DAILY_BULLET',
+        title: 'Daily bullet',
+        available: false,
+      ),
   ],
 );
 
 VipTierList _list({bool art = false}) => VipTierList(
-  tiers: [_tier(1, art: art), _tier(2), _tier(3)],
+  tiers: [
+    _tier(1, art: art),
+    _tier(2),
+    _tier(3),
+  ],
   maxAheadDays: 400,
 );
 
@@ -170,9 +182,8 @@ Future<void> _pump(
           locale: language.locale,
         ),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
       ),
@@ -232,10 +243,7 @@ void main() {
       final vip = _FakeVip();
       await _pump(tester, vip: vip);
       // Status line: non-VIP.
-      expect(
-        find.text(_en.vipCurrently(_en.vipStatusNone)),
-        findsOneWidget,
-      );
+      expect(find.text(_en.vipCurrently(_en.vipStatusNone)), findsOneWidget);
       // The crest badge and the tier track in the panel order.
       expect(find.byKey(VipScreen.emblemKey), findsOneWidget);
       expect(find.byKey(VipScreen.bannerKey), findsOneWidget);
@@ -324,14 +332,8 @@ void main() {
         'VIP 3 (days not carried), VIP 1 is below', (tester) async {
       final held = _membership(_tier(2));
       await _pump(tester, vip: _FakeVip(membership: held));
-      expect(
-        find.text(_en.vipCurrently('VIP 2')),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining(_en.vipDaysLeft('20')),
-        findsOneWidget,
-      );
+      expect(find.text(_en.vipCurrently('VIP 2')), findsOneWidget);
+      expect(find.textContaining(_en.vipDaysLeft('20')), findsOneWidget);
       expect(_cta(_en.vipRenew), findsOneWidget);
 
       await _tapTab(tester, 'VIP_3');
@@ -418,7 +420,9 @@ void main() {
           expect(find.text(_ar.vipRenew), findsOneWidget);
           // RTL: the first tier is at the reading start (the right).
           final first = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_1')));
-          final second = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_2')));
+          final second = tester.getCenter(
+            find.byKey(VipScreen.tabKey('VIP_2')),
+          );
           expect(first.dx, greaterThan(second.dx));
         }
         await tester.scrollUntilVisible(

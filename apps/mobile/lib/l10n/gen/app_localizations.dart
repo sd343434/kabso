@@ -23353,6 +23353,54 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شراء VIP'**
   String get walletReasonVipPurchase;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'حالياً: {status}'**
+  String vipCurrently(String status);
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون VIP'**
+  String get vipStatusNone;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'الترقية: {tier}'**
+  String vipUpgradeTo(String tier);
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى مستوى'**
+  String get vipMaxTier;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك'**
+  String get vipBalanceLabel;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'متجر VIP'**
+  String get vipStore;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'متجر هدايا VIP — قريباً.'**
+  String get vipStoreSoon;
+
+  /// D252: «شراء VIP» — reference layout (D252b).
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات {tier}'**
+  String vipPerksSection(String tier);
 }
 
 class _AppLocalizationsDelegate

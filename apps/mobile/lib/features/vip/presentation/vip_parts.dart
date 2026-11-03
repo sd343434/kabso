@@ -372,7 +372,13 @@ class VipRail extends StatelessWidget {
           height: 3,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [vipGoldDeep, vipGold, vipGoldBright, vipGold, vipGoldDeep],
+              colors: [
+                vipGoldDeep,
+                vipGold,
+                vipGoldBright,
+                vipGold,
+                vipGoldDeep,
+              ],
             ),
           ),
         ),
@@ -406,7 +412,11 @@ class VipRail extends StatelessWidget {
 /// Paints the gold arc line the nodes sit on (symmetric, so it needs no
 /// mirroring in RTL).
 class _ArcPainter extends CustomPainter {
-  const _ArcPainter({required this.margin, required this.dip, required this.top});
+  const _ArcPainter({
+    required this.margin,
+    required this.dip,
+    required this.top,
+  });
 
   final double margin;
   final double dip;
@@ -559,15 +569,26 @@ class _ArcNode extends StatelessWidget {
                     : null,
                 color: selected ? null : vipBackground,
                 border: Border.all(
-                  color: selected ? vipGoldBright : vipGold.withValues(alpha: 0.8),
+                  color: selected
+                      ? vipGoldBright
+                      : vipGold.withValues(alpha: 0.8),
                   width: selected ? 2 : 1.5,
                 ),
                 boxShadow: selected
-                    ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 12)]
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.6),
+                          blurRadius: 12,
+                        ),
+                      ]
                     : null,
               ),
               child: held
-                  ? Icon(Icons.check_rounded, size: radius, color: vipOnColor(color))
+                  ? Icon(
+                      Icons.check_rounded,
+                      size: radius,
+                      color: vipOnColor(color),
+                    )
                   : null,
             ),
             const SizedBox(height: 4),
@@ -576,7 +597,9 @@ class _ArcNode extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: context.textStyles.caption.copyWith(
-                color: selected ? vipGoldBright : vipGold.withValues(alpha: 0.75),
+                color: selected
+                    ? vipGoldBright
+                    : vipGold.withValues(alpha: 0.75),
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                 fontSize: selected ? 12 : 10.5,
               ),
@@ -620,7 +643,10 @@ class VipUpgradeBar extends StatelessWidget {
           alignment: AlignmentDirectional.centerEnd,
           child: Text(
             upgradeLabel,
-            style: t.caption.copyWith(color: vipGoldBright, fontWeight: FontWeight.w700),
+            style: t.caption.copyWith(
+              color: vipGoldBright,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         const SizedBox(height: KSpacing.xs),
@@ -640,7 +666,9 @@ class VipUpgradeBar extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF2A2233),
                           borderRadius: BorderRadius.circular(KRadius.pill),
-                          border: Border.all(color: vipGoldDeep.withValues(alpha: 0.6)),
+                          border: Border.all(
+                            color: vipGoldDeep.withValues(alpha: 0.6),
+                          ),
                         ),
                       ),
                     ),
@@ -671,7 +699,9 @@ class VipUpgradeBar extends StatelessWidget {
                       height: 16,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(colors: [vipGoldBright, vipGold]),
+                        gradient: LinearGradient(
+                          colors: [vipGoldBright, vipGold],
+                        ),
                         boxShadow: [
                           BoxShadow(color: Color(0x66F5C451), blurRadius: 6),
                         ],
@@ -733,7 +763,11 @@ class VipCrownHeader extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.workspace_premium_rounded, color: vipGold, size: 26),
+            const Icon(
+              Icons.workspace_premium_rounded,
+              color: vipGold,
+              size: 26,
+            ),
             const SizedBox(height: 2),
             Text(
               title,
@@ -860,7 +894,11 @@ class VipPerkCard extends StatelessWidget {
                       const PositionedDirectional(
                         end: 6,
                         top: 6,
-                        child: Icon(Icons.lock_rounded, size: 14, color: Color(0xFFB9A9C9)),
+                        child: Icon(
+                          Icons.lock_rounded,
+                          size: 14,
+                          color: Color(0xFFB9A9C9),
+                        ),
                       ),
                     PositionedDirectional(
                       start: 0,
@@ -881,7 +919,9 @@ class VipPerkCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.caption.copyWith(
-                            color: on ? vipOnColor(color) : const Color(0xFFB9A9C9),
+                            color: on
+                                ? vipOnColor(color)
+                                : const Color(0xFFB9A9C9),
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
                           ),

@@ -53,8 +53,12 @@ const _perkFile = {
   'ENTRY_EFFECT': 'vip1_entry_effect.png',
 };
 
-VipPerk _perk(String code, String title) =>
-    VipPerk(code: code, title: title, available: false, still: '$_base/${_perkFile[code]}');
+VipPerk _perk(String code, String title) => VipPerk(
+  code: code,
+  title: title,
+  available: false,
+  still: '$_base/${_perkFile[code]}',
+);
 
 VipTier _tier(int level) => VipTier(
   id: 't$level',
@@ -77,7 +81,11 @@ VipTier _tier(int level) => VipTier(
         ]
       : const [
           VipPerk(code: 'BADGE', title: 'Badge', available: false),
-          VipPerk(code: 'ENTRY_BANNER', title: 'Entry banner', available: false),
+          VipPerk(
+            code: 'ENTRY_BANNER',
+            title: 'Entry banner',
+            available: false,
+          ),
         ],
 );
 
@@ -268,7 +276,10 @@ Future<void> _pump(
             AppLocalizations.delegate,
             ...GlobalMaterialLocalizations.delegates,
           ],
-          theme: buildAppTheme(brightness: Brightness.light, locale: language.locale),
+          theme: buildAppTheme(
+            brightness: Brightness.light,
+            locale: language.locale,
+          ),
         ),
       ),
     ),
