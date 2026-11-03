@@ -828,11 +828,7 @@ class _PerkCard extends StatelessWidget {
     final description = perk.description;
     return Semantics(
       key: VipScreen.perkKey(perk.code),
-      label: [
-        perk.title,
-        ?description,
-        state,
-      ].join('، '),
+      label: [perk.title, ?description, state].join('، '),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.all(KSpacing.md),
@@ -1111,10 +1107,7 @@ class _ConfirmCard extends StatelessWidget {
               l10n.vipUpgradeNote(m.tierName),
               style: t.caption.copyWith(color: soft),
             ),
-          Text(
-            l10n.vipManualRenew,
-            style: t.caption.copyWith(color: soft),
-          ),
+          Text(l10n.vipManualRenew, style: t.caption.copyWith(color: soft)),
           if (short)
             Padding(
               padding: const EdgeInsets.only(top: KSpacing.xs),

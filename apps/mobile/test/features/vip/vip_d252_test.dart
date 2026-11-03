@@ -58,16 +58,22 @@ VipTier _tier(int level) => VipTier(
       available: false,
     ),
     if (level >= 2)
-      const VipPerk(code: 'ENTRY_BANNER', title: 'Entry banner', available: false),
+      const VipPerk(
+        code: 'ENTRY_BANNER',
+        title: 'Entry banner',
+        available: false,
+      ),
     if (level >= 3)
-      const VipPerk(code: 'DAILY_BULLET', title: 'Daily bullet', available: false),
+      const VipPerk(
+        code: 'DAILY_BULLET',
+        title: 'Daily bullet',
+        available: false,
+      ),
   ],
 );
 
-VipTierList _list() => VipTierList(
-  tiers: [_tier(1), _tier(2), _tier(3)],
-  maxAheadDays: 400,
-);
+VipTierList _list() =>
+    VipTierList(tiers: [_tier(1), _tier(2), _tier(3)], maxAheadDays: 400);
 
 VipMembership _membership(VipTier tier, {int days = 20}) => VipMembership(
   tierId: tier.id,
@@ -163,9 +169,8 @@ Future<void> _pump(
           locale: language.locale,
         ),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
       ),
@@ -338,9 +343,7 @@ void main() {
     testWidgets('nothing on sale: an empty state, no button', (tester) async {
       await _pump(
         tester,
-        vip: _FakeVip(
-          list: const VipTierList(tiers: [], maxAheadDays: 400),
-        ),
+        vip: _FakeVip(list: const VipTierList(tiers: [], maxAheadDays: 400)),
       );
       expect(find.byKey(VipScreen.emptyKey), findsOneWidget);
       expect(find.text(_en.vipEmpty), findsOneWidget);
@@ -369,9 +372,7 @@ void main() {
           expect(find.text(_ar.meHubVip), findsOneWidget);
           expect(find.text(_ar.vipRenew), findsOneWidget);
           // RTL: the first tier is at the reading start (the right).
-          final first = tester.getCenter(
-            find.byKey(VipScreen.tabKey('VIP_1')),
-          );
+          final first = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_1')));
           final second = tester.getCenter(
             find.byKey(VipScreen.tabKey('VIP_2')),
           );
