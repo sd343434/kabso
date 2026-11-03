@@ -206,11 +206,13 @@ class LiveChatFlatNotice extends StatelessWidget {
     container: true,
     label: '$label. $text',
     excludeSemantics: true,
-    child: Text(
-      text,
-      textScaler: MediaQuery.textScalerOf(context)
-          .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
-      style: KFlatChat.style(context),
+    child: KFlatChat.boxed(
+      Text(
+        text,
+        textScaler: MediaQuery.textScalerOf(context)
+            .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
+        style: KFlatChat.style(context),
+      ),
     ),
   );
 }
