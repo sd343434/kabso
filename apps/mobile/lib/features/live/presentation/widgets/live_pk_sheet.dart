@@ -980,7 +980,7 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     if (!mounted) return;
     final asked = ref.read(livePkProvider(widget.roomId)).match?.rematch;
     if (asked?.byRoomId == widget.roomId) {
-      unawaited(Navigator.of(context).maybePop());
+      Navigator.of(context).maybePop();
     }
   }
 
@@ -989,7 +989,7 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     required bool accept,
   }) async {
     await _run(accept ? controller.acceptRematch : controller.declineRematch);
-    if (mounted) unawaited(Navigator.of(context).maybePop());
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _confirmEnd(PkMatch match, LivePkController controller) async {
