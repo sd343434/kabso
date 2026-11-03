@@ -682,7 +682,7 @@ class _ConfirmCard extends StatelessWidget {
           line(
             l10n.vipConfirmBalance,
             balance == null
-                ? Text('…', style: t.bodyStrong.copyWith(color: ink))
+                ? Icon(Icons.more_horiz_rounded, size: 18, color: ink)
                 : CoinAmount(
                     balance,
                     style: t.bodyStrong.copyWith(
