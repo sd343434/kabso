@@ -3,6 +3,8 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/data/live_pk_media.dart';
 import 'package:kabso_live/features/live/data/live_pk_repository.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
+import 'package:kabso_live/features/programs/application/programs_providers.dart';
+import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// v1.43-live (D195): a [LivePkRepository] for tests — a settable snapshot,
@@ -453,6 +455,11 @@ List<Override> pkOverrides(
   return [
     livePkRepositoryProvider.overrideWithValue(repo),
     livePkOpponentMediaFactoryProvider.overrideWithValue(() => media),
+    // D253: the host's «Host Tasks» card never reaches the network (no
+    // weekly tasks: no card).
+    myTasksProvider.overrideWith(
+      (ref) => Future<MyTasks>.error(StateError('no tasks in live tests')),
+    ),
   ];
 }
 

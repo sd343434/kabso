@@ -22,10 +22,14 @@ abstract final class LiveRankingsKeys {
 
 /// The room's "Room rank" chip (owner ref 76): opens the popularity board.
 class LiveRankChip extends StatelessWidget {
-  const new({super.key, this.icon = Icons.home_rounded});
+  const new({super.key, this.icon = Icons.home_rounded, this.plain = false});
 
   /// D131: the video live shows a board (bar chart) icon (ref 158).
   final IconData icon;
+
+  /// D253 (owner: «بجانب طربوش الساحر ضع ترتيب الغرفة»): on the host's
+  /// second row, plain icon + text like the targets beside it (no chip).
+  final bool plain;
 
   static const chipKey = Key('rankings.chip');
 
@@ -36,14 +40,44 @@ class LiveRankChip extends StatelessWidget {
       key: chipKey,
       behavior: HitTestBehavior.opaque,
       onTap: () => unawaited(showLiveRankings(context)),
-      child: LiveChip(
-        icon: icon,
-        child: Text(
-          context.l10n.liveRankChip,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
+      child: plain
+          ? SizedBox(
+              height: 23,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 13,
+                    color: const Color(0xFFFFC64A),
+                    shadows: KLiveColors.glassShadow,
+                  ),
+                  const SizedBox(width: 3),
+                  Flexible(
+                    child: Text(
+                      context.l10n.liveRankChip,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textStyles.caption.copyWith(
+                        fontSize: 13,
+                        height: 1,
+                        color: const Color(0xFFFFFFFF),
+                        fontWeight: FontWeight.w600,
+                        shadows: KLiveColors.glassShadow,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : LiveChip(
+              icon: icon,
+              child: Text(
+                context.l10n.liveRankChip,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
     ),
   );
 }

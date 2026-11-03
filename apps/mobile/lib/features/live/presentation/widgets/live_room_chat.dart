@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
@@ -45,7 +46,13 @@ class LiveRoomChatLines extends ConsumerWidget {
     this.video = false,
     this.brightNotice = false,
     this.compact = false,
+    this.flat = false,
   });
+
+  /// D253 (owner, the host's screen «مثل التصميم ١٠٠٪»): the messages and the
+  /// rules line as plain flowing text ([LiveChatFlatLine]) — no box, the
+  /// host's tag orange, the names teal. Joins and gifts keep their rows.
+  final bool flat;
 
   /// D212: the podcast's lower chat box (the mockup's four lines under the
   /// listeners): at most [compactShare] of the screen, so the stage above
@@ -168,7 +175,9 @@ class LiveRoomChatLines extends ConsumerWidget {
                       // D119: messages 8 pt apart (the reference's ~7 pt
                       // at this scale); system lines stay compact.
                       padding: EdgeInsets.only(
-                        top: inline
+                        top: flat
+                            ? KFlatChat.gap
+                            : inline
                             ? LiveChatInlineRow.gap
                             : item is LiveChatPosted || item is LiveChatPending
                             ? 8
@@ -197,6 +206,9 @@ class LiveRoomChatLines extends ConsumerWidget {
   }
 
   Widget _line(BuildContext context, WidgetRef ref, LiveChatItem item) {
+    if (flat) {
+      if (_flatLine(context, ref, item) case final row?) return row;
+    }
     if (inline) {
       if (_inlineLine(context, ref, item) case final row?) return row;
     }
@@ -317,6 +329,70 @@ class LiveRoomChatLines extends ConsumerWidget {
         bright: brightNotice,
       ),
     };
+  }
+
+  /// D253: the flat line for [item] (null: the item keeps its row — media,
+  /// joins, gifts, bullets).
+  Widget? _flatLine(BuildContext context, WidgetRef ref, LiveChatItem item) {
+    final l10n = context.l10n;
+    switch (item) {
+      case LiveChatPosted(:final entry)
+          when entry.kind == LiveChatKind.text || entry.media == null:
+        return LiveChatFlatLine(
+          name: entry.author.displayName,
+          text: entry.text,
+          role: entry.authorRole,
+          charmLevel: entry.authorBadges?.charmLevel,
+          label: l10n.liveChatLineLabel(
+            entry.author.displayName,
+            kabiSpokenText(entry.text, l10n),
+          ),
+          onProfile: () => onProfile(entry.author.username),
+          onActions: () => unawaited(
+            showLiveChatActions(
+              context,
+              ref,
+              roomId: roomId,
+              entry: entry,
+              role: role,
+              onProfile: onProfile,
+            ),
+          ),
+        );
+      case LiveChatPending(
+        :final failed,
+        :final text,
+        :final authorName,
+        :final tooFast,
+      ):
+        return Opacity(
+          opacity: failed ? 1 : 0.6,
+          child: LiveChatFlatLine(
+            name: authorName,
+            text: text,
+            label: l10n.liveChatLineLabel(
+              authorName,
+              kabiSpokenText(text, l10n),
+            ),
+            failed: !failed
+                ? null
+                : tooFast
+                ? l10n.liveChatTooFast
+                : l10n.liveChatFailed,
+            onActions: failed
+                ? () => unawaited(_failedActions(context, ref, item))
+                : null,
+          ),
+        );
+      case LiveChatNoticeLine():
+        return LiveChatFlatNotice(
+          key: LiveRoomChatLines.noticeKey,
+          text: l10n.liveRoomRulesNotice,
+          label: l10n.liveRoomRulesLabel,
+        );
+      default:
+        return null;
+    }
   }
 
   /// D131: the video live's row for [item] (null: the item keeps its own

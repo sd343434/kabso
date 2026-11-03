@@ -23119,6 +23119,83 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'السبب: {reason}'**
   String notifLiveModeratedReason(String reason);
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام المضيف'**
+  String get liveHostTasksTitle;
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء مهام المضيف'**
+  String get liveHostTasksHide;
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv{level}'**
+  String liveHostTasksLevel(int level);
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{يوم واحد} =2{يومان} few{{count} أيام} other{{count} يوم}}'**
+  String liveHostTasksDays(int count);
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام المضيف: {task}، {progress} من {target}، {days, plural, =1{بقي يوم واحد} =2{بقي يومان} few{بقيت {days} أيام} other{بقي {days} يوم}}'**
+  String liveHostTasksLabel(
+    String task,
+    String progress,
+    String target,
+    int days,
+  );
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'الردود السريعة'**
+  String get liveToolQuickReplies;
+
+  /// D253: the host's screen as the owner's reference (2026-11-03).
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب الغرف'**
+  String get liveToolRoomRank;
+
+  /// D253b: the host performance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة الأداء'**
+  String get livePerformanceTitle;
+
+  /// D253b: the host performance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات لحظية'**
+  String get livePerformanceRealtime;
+
+  /// D253b: the host performance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'ذروة المشاهدين'**
+  String get livePerformancePeak;
+
+  /// D253b: the host performance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'عن هذه الأرقام'**
+  String get livePerformanceHelpLabel;
+
+  /// D253b: the host performance card.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرقام هذا البث، تتحدّث كل 15 ثانية: وقت البث، والمشاهدون الفريدون وأكبر عدد في وقت واحد، والمتابعون الجدد، والكرز المستلم، ومن أرسلوا الهدايا. يعرض الرسم القراءات المأخوذة أثناء فتح هذه البطاقة.'**
+  String get livePerformanceHelp;
 }
 
 class _AppLocalizationsDelegate

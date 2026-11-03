@@ -35,7 +35,12 @@ class LiveHostTargetChip extends ConsumerStatefulWidget {
     required this.isHost,
     super.key,
     this.onSupport,
+    this.plain = false,
   });
+
+  /// D253 (the host's reference «⭐0 ⏱0/50»): both faces side by side as
+  /// plain icon + text, no chip and no turning.
+  final bool plain;
 
   final String username;
 
@@ -129,7 +134,7 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
     // D214: both faces always (0 received shows «0»).
     const kinds = _Kind.values;
     final l10n = context.l10n;
-    final still = _still(context);
+    final still = widget.plain || _still(context);
     HostTarget of(_Kind k) =>
         k == _Kind.cherries ? targets.cherries : targets.lucky;
     String label(_Kind k) {
@@ -153,7 +158,7 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
           for (final (i, k) in kinds.indexed) ...[
             if (i > 0) const SizedBox(width: 6),
             Flexible(
-              child: _Face(kind: k, target: of(k)),
+              child: _Face(kind: k, target: of(k), plain: widget.plain),
             ),
           ],
         ],
@@ -184,27 +189,38 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
         key: LiveHostTargetChip.chipKey,
         behavior: HitTestBehavior.opaque,
         onTap: _open,
-        child: AnimatedContainer(
-          duration: still ? Duration.zero : const Duration(milliseconds: 320),
-          height: KViewerRoom.chipHeight,
-          constraints: BoxConstraints(
-            maxWidth: still
-                ? LiveHostTargetChip.maxWidthBoth
-                : LiveHostTargetChip.maxWidth,
-          ),
-          padding: const EdgeInsetsDirectional.only(start: 4, end: 8),
-          decoration: BoxDecoration(
-            color: KLiveColors.glass,
-            borderRadius: BorderRadius.circular(KViewerRoom.chipHeight / 2),
-            border: glow
-                ? Border.all(color: const Color(0xCCFFD36E), width: 0.8)
-                : null,
-            boxShadow: glow
-                ? const [BoxShadow(color: Color(0x99FFC547), blurRadius: 8)]
-                : null,
-          ),
-          child: ClipRect(child: Center(widthFactor: 1, child: content)),
-        ),
+        child: widget.plain
+            ? SizedBox(
+                height: KViewerRoom.chipHeight,
+                child: Center(widthFactor: 1, child: content),
+              )
+            : AnimatedContainer(
+                duration: still
+                    ? Duration.zero
+                    : const Duration(milliseconds: 320),
+                height: KViewerRoom.chipHeight,
+                constraints: BoxConstraints(
+                  maxWidth: still
+                      ? LiveHostTargetChip.maxWidthBoth
+                      : LiveHostTargetChip.maxWidth,
+                ),
+                padding: const EdgeInsetsDirectional.only(start: 4, end: 8),
+                decoration: BoxDecoration(
+                  color: KLiveColors.glass,
+                  borderRadius: BorderRadius.circular(
+                    KViewerRoom.chipHeight / 2,
+                  ),
+                  border: glow
+                      ? Border.all(color: const Color(0xCCFFD36E), width: 0.8)
+                      : null,
+                  boxShadow: glow
+                      ? const [
+                          BoxShadow(color: Color(0x99FFC547), blurRadius: 8),
+                        ]
+                      : null,
+                ),
+                child: ClipRect(child: Center(widthFactor: 1, child: content)),
+              ),
       ),
     );
   }
@@ -215,10 +231,16 @@ enum _Kind { cherries, lucky }
 /// One face of the chip: the icon, the amount received (D199b: never the
 /// target) and, once reached, a check.
 class _Face extends StatelessWidget {
-  const new({required this.kind, required this.target, super.key});
+  const new({
+    required this.kind,
+    required this.target,
+    super.key,
+    this.plain = false,
+  });
 
   final _Kind kind;
   final HostTarget target;
+  final bool plain;
 
   @override
   Widget build(BuildContext context) {
@@ -229,10 +251,10 @@ class _Face extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (kind == _Kind.cherries)
-          const KCherryIcon(size: 16)
+          KCherryIcon(size: plain ? 12 : 16)
         else
-          const KWizardHatIcon(size: 16),
-        const SizedBox(width: 3),
+          KWizardHatIcon(size: plain ? 12 : 16),
+        SizedBox(width: plain ? 4 : 3),
         Flexible(
           child: Text(
             _short(target.received),
@@ -240,7 +262,8 @@ class _Face extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.textStyles.caption.copyWith(
-              fontSize: 11.5,
+              // D253: the reference's «0/50» (≈ 14 pt).
+              fontSize: plain ? 14 : 11.5,
               height: 1,
               color: const Color(0xFFFFFFFF),
               fontWeight: FontWeight.w700,

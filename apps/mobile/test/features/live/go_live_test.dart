@@ -7,7 +7,6 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
-import 'package:clock/clock.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +45,7 @@ import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/host_live_ref_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_data_now_page.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
@@ -436,7 +436,6 @@ void main() {
 
     testWidgets('start: room, token, publish, then heartbeats', (tester) async {
       final (repo, camera) = await _pump(tester);
-      final l10n = _l10n(tester);
       await tester.tap(find.byKey(GoLiveScreen.categoryKey('music')));
       // D131 (ref 164): who may watch is in Settings.
       await tester.tap(find.byKey(GoLiveKeys.tool('settings')));
@@ -461,7 +460,8 @@ void main() {
       ]);
       expect(repo.tokenRequests, [(roomId: 'room-host', guestId: null)]);
       expect(camera.published?.token, 'token-room-host');
-      expect(find.byKey(GoLiveScreen.elapsedKey), findsOneWidget);
+      // D253: no LIVE timer on the host's screen (it is in the live's data).
+      expect(find.byKey(GoLiveScreen.elapsedKey), findsNothing);
       expect(find.byKey(KHostBar.toolsKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.startKey), findsNothing);
       expect(find.byType(GoLiveModePager), findsNothing);
@@ -473,19 +473,7 @@ void main() {
       expect(repo.heartbeats, ['room-host']);
       await tester.pump(const Duration(seconds: 15));
       expect(repo.heartbeats, hasLength(2));
-      // The label is the (fake) time since going live, read when the last
-      // frame was drawn. Not a fixed "0:30": how many frames pumpAndSettle
-      // drew after going live depends on asynchronous work outside the fake
-      // clock (image decoding), so the label could read 0:30 or 0:31.
-      final since = ProviderScope.containerOf(
-        tester.element(find.byType(GoLiveScreen)),
-      ).read(liveHostControllerProvider).liveSince!;
-      final onAir = clock.now().difference(since);
-      expect(onAir, greaterThanOrEqualTo(const Duration(seconds: 30)));
-      expect(
-        find.bySemanticsLabel(l10n.goLiveElapsed(formatLiveDuration(onAir))),
-        findsOneWidget,
-      );
+      // D253: no LIVE timer on the screen (the live's data has the time).
       await _leave(tester);
     });
 
@@ -1956,21 +1944,24 @@ void main() {
           // the timer at the end.
           expect(find.byType(LiveLevelTargetChip), findsNothing);
           expect(find.byType(CharmLevelBadge), findsNothing);
+          // D253: the board at the start (beside the targets), the
+          // connection and the live's data («⌂▶») at the end; no timer.
+          expect(find.byKey(GoLiveScreen.elapsedKey), findsNothing);
           final rank = tester.getRect(find.byType(LiveRankChip));
-          final timer = tester.getRect(find.byKey(GoLiveScreen.elapsedKey));
+          final data = tester.getRect(find.byKey(HostLiveStatus.dataKey));
           if (ar) {
-            expect(rank.left, greaterThan(timer.right));
+            expect(rank.left, greaterThan(data.right));
           } else {
-            expect(timer.left, greaterThan(rank.right));
+            expect(data.left, greaterThan(rank.right));
           }
-          // D141: the host's @username beside the name, in the host pill
-          // (not the room number); a tap copies it.
+          // D253: the name alone on the host's own pill (D141's @username
+          // stays the viewers').
           expect(
             find.descendant(
               of: find.byType(KHostPill),
               matching: find.byKey(KLiveUsernameTag.tagKey),
             ),
-            findsOneWidget,
+            findsNothing,
           );
           expect(find.byKey(KRoomChipsRow.numberKey), findsNothing);
           // No minimize at the top (D135: it is in ≡).
@@ -1994,10 +1985,13 @@ void main() {
               greaterThanOrEqualTo(48),
             );
           }
-          // Host quick replies: one tap sends it as a chat message.
-          final replies = find.byKey(GoLiveScreen.hostQuickRepliesKey);
-          expect(replies, findsOneWidget);
-          await tester.tap(find.byKey(KQuickReplies.chipKey(0)));
+          // D253: the host's quick replies are in ≡; one tap sends it as a
+          // chat message.
+          expect(find.byKey(GoLiveScreen.hostQuickRepliesKey), findsNothing);
+          await _openTools(tester);
+          await tester.tap(find.byKey(GoLiveKeys.tool('quickReplies')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('quickReplies.sheet.0')));
           await tester.pumpAndSettle();
           expect(repo.chatCalls, contains('send:${l10n.liveQuickHostWelcome}'));
           await _leave(tester);
@@ -2062,9 +2056,11 @@ void main() {
         final (_, camera) = await _pump(tester);
         await _goLive(tester);
         await _openTools(tester);
-        for (final id in ['mic', 'beauty', 'voice', 'chat', 'guests']) {
+        for (final id in ['beauty', 'voice', 'chat', 'guests']) {
           expect(find.byKey(GoLiveKeys.tool(id)), findsNothing, reason: id);
         }
+        // D253: the microphone is in ≡ (off the bar).
+        expect(find.byKey(GoLiveKeys.tool('mic')), findsOneWidget);
         for (final id in [
           'liveSettings',
           'share',
@@ -2114,10 +2110,14 @@ void main() {
         await tester.tap(find.byKey(GoLiveScreen.flipKey));
         await tester.pumpAndSettle();
         expect(camera.flips, 1);
-        // D225: the host's mic on the bar.
-        await tester.tap(find.byKey(KHostBar.micKey));
+        // D253: the host's mic in ≡ (the bar has none).
+        expect(find.byKey(KHostBar.micKey), findsNothing);
+        await _openTools(tester);
+        await tester.tap(find.byKey(GoLiveKeys.tool('mic')));
         await tester.pumpAndSettle();
         expect(camera.micEnabled, isFalse);
+        await tester.tapAt(const Offset(200, 100));
+        await tester.pumpAndSettle();
         // Muted: the host pill says so.
         expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
         await _leave(tester);
@@ -3087,44 +3087,25 @@ void main() {
       expect(box.color, const Color(0xFF000000));
     });
 
-    testWidgets('promo cards sit under «ترتيب الغرف» (1–2 cards, real '
-        'banners only)', (tester) async {
-      for (final count in [0, 1, 3]) {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await _pump(
-          tester,
-          language: AppLanguage.ar,
-          overrides: [
-            roomBannersProvider.overrideWith(
-              (_) async => [
-                for (var i = 0; i < count; i++)
-                  HomeBanner(
-                    id: 'b$i',
-                    imageUrl: 'https://cdn.test/b$i.png',
-                    link: '/events',
-                  ),
-              ],
-            ),
-          ],
-        );
-        await _goLive(tester);
-        final column = find.byKey(LiveRoomPromoColumn.columnKey);
-        if (count == 0) {
-          expect(column, findsNothing);
-          continue;
-        }
-        expect(
-          find.descendant(of: column, matching: find.byType(LiveRoomPromoBox)),
-          findsNWidgets(count >= 2 ? 2 : 1),
-        );
-        final card = tester.getRect(column);
-        // Under the room-info row, at the reading start (the right).
-        final info = tester.getRect(find.byType(KRoomChipsRow));
-        expect(card.top, greaterThanOrEqualTo(info.bottom - 1));
-        expect(card.top - info.bottom, lessThan(12));
-        expect(card.right, closeTo(393 - KSpacing.sm, 1));
-        expect(card.width, lessThanOrEqualTo(393 * 0.4));
-      }
+    testWidgets("D253: the room promos are the viewers' — never on the "
+        "host's own screen", (tester) async {
+      await _pump(
+        tester,
+        language: AppLanguage.ar,
+        overrides: [
+          roomBannersProvider.overrideWith(
+            (_) async => [
+              const HomeBanner(
+                id: 'b0',
+                imageUrl: 'https://cdn.test/b0.png',
+                link: '/events',
+              ),
+            ],
+          ),
+        ],
+      );
+      await _goLive(tester);
+      expect(find.byKey(LiveRoomPromoColumn.columnKey), findsNothing);
       await _leave(tester);
     });
 

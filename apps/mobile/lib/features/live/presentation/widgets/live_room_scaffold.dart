@@ -49,6 +49,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.trailing,
     this.sideStart,
     this.sidePromo,
+    this.sideEnd,
     this.chatEnd,
     this.dock,
     this.stageEdgeToEdge = false,
@@ -80,6 +81,15 @@ class KLiveRoomScaffold extends StatelessWidget {
   /// D137/D141: the promo box, in the same column right above the wish
   /// list.
   final Widget? sidePromo;
+
+  /// D253 (the host's reference): a card at the top end under the second
+  /// row (the «Host Tasks» card), [sideEndInset] from the end and
+  /// [sideEndTop] under the header row's top (ref: 8.9 pt from the edge,
+  /// 74.3 pt under the header row at 393 pt).
+  final Widget? sideEnd;
+  static const double sideEndInset = 8.9;
+  static const double sideEndTop = 74.3;
+  static const sideEndKey = Key('room.sideEnd');
 
   /// D145a: beside the chat at the end, bottom-aligned over the bar's quick
   /// replies (the lucky combo): the chat narrows for it, so it covers
@@ -298,6 +308,13 @@ class KLiveRoomScaffold extends StatelessWidget {
               PositionedDirectional(
                 start: KSpacing.sm,
                 top: KLiveSideCards.promoUnderInfoTop(headerTop(inset)),
+                child: side,
+              ),
+            if (sideEnd case final side? when keyboard == 0)
+              PositionedDirectional(
+                key: sideEndKey,
+                end: sideEndInset,
+                top: headerTop(inset) + sideEndTop,
                 child: side,
               ),
             ?cover,

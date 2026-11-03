@@ -602,11 +602,32 @@ class LiveChatController extends Notifier<LiveChatState> {
   /// D131: join lines kept at most (older joins leave first).
   static const maxJoinLines = 4;
 
+  /// D253c (owner: «رسالة النظام تبقى بالاسفل … اي حد يدخل او اي رسالة
+  /// تجعل الرسالة تتحرك للاعلى الى ان تصل الحد وتختفي»): while the rules
+  /// line is still in the chat, the joins under it keep rising it — up to
+  /// this many join lines, about a full chat area — and when one more
+  /// arrives the line has passed the top and leaves. (With [maxJoinLines]
+  /// only, the oldest join left at each new one and the rules line slid back
+  /// down: it seemed stuck at the bottom.)
+  static const maxJoinLinesUnderNotice = 12;
+
   List<LiveChatItem> _trim(List<LiveChatItem> all) {
     var items = all;
     // D131: join lines have their own small budget; they never push out a
     // message.
-    var joins = items.whereType<LiveChatJoinItem>().length - maxJoinLines;
+    final notice = items.indexWhere((it) => it is LiveChatNoticeLine);
+    final under = notice < 0
+        ? 0
+        : items.skip(notice + 1).whereType<LiveChatJoinItem>().length;
+    if (notice >= 0 && under > maxJoinLinesUnderNotice) {
+      // D253c: the rules line has risen past the top: it goes, and the
+      // usual budget applies again.
+      items = [...items]..removeAt(notice);
+    }
+    final budget = items.any((it) => it is LiveChatNoticeLine)
+        ? maxJoinLinesUnderNotice
+        : maxJoinLines;
+    var joins = items.whereType<LiveChatJoinItem>().length - budget;
     if (joins > 0) {
       final out = <LiveChatItem>[];
       for (final it in items) {

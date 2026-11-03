@@ -49,6 +49,8 @@ import 'package:kabso_live/features/live/live_room_screen.dart'
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/host_live_ref_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/host_performance_panel.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_assistant_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_blocked_words_sheet.dart';
@@ -151,6 +153,7 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
   /// D135: the host's quick replies over the host bar.
   static const hostQuickRepliesKey = Key('goLive.quickReplies');
+  static const hostBarKey = Key('goLive.hostBar');
 
   static const minimizeKey = Key('goLive.minimize');
   static const viewersKey = Key('goLive.viewers');
@@ -1739,6 +1742,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // D230: the video live's chat (bottom-anchored like every room;
           // the rules line steps aside while typing).
           video: true,
+          // D253: the reference's plain lines on the host's video live.
+          flat: true,
         ),
         composer: chatComposer,
         openChat: openChat,
@@ -2229,6 +2234,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
       null => null,
     };
+    // D253: this live's data — ≡'s «data» tool and the second row's «⌂▶».
+    void openData() => unawaited(
+      showLiveDataNow(
+        context,
+        roomId: live ? room.id : null,
+        level: ref
+            .read(myLevelsProvider)
+            .value
+            ?.where(
+              (l) => l.category == LevelCategory.attractiveness && l.available,
+            )
+            .firstOrNull
+            ?.level
+            ?.levelNumber,
+      ),
+    );
     void openTools() => unawaited(
       showLiveRoomTools(
         context,
@@ -2328,6 +2349,39 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // only); beauty and the filters are on ✨; the microphone, the
           // voice, the theme and the seats moved to «إعدادات البث».
           ?byId['requests'],
+          // D253 (owner: the host's screen as the reference; what it does
+          // not show moves into ≡): the microphone and the quick replies.
+          GoLiveTool(
+            id: 'mic',
+            icon: state.micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+            label: l10n.goLiveMicrophone,
+            toggled: state.micEnabled,
+            onTap: live
+                ? () => unawaited(
+                    _guard(() => _setMic(enabled: !state.micEnabled)),
+                  )
+                : null,
+          ),
+          GoLiveTool(
+            id: 'quickReplies',
+            icon: Icons.quickreply_outlined,
+            label: l10n.liveToolQuickReplies,
+            onTap: chat == null || !chat.enabled || !live
+                ? null
+                : () => unawaited(
+                    showHostQuickReplies(
+                      context,
+                      onSend: (text) => unawaited(
+                        sendLiveChatText(
+                          context,
+                          ref,
+                          roomId: room.id,
+                          text: text,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
         ],
         other: [
           GoLiveTool(
@@ -2466,8 +2520,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ],
       ),
       header: KHostPill(
-        // D141 (owner): the host's @username beside the name (copy on tap).
-        username: user?.username,
+        // D253 (the host's reference): the name alone on the host's own
+        // screen (no `username`; D141's @username stays on the viewers').
         premiumTier: user?.premiumTier,
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
@@ -2514,17 +2568,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ? null
           : LiveViewersStack(
               key: GoLiveScreen.viewersKey,
-              avatarSize: 28.5,
-              pitch: 33.5,
-              countHeight: 28,
-              countMinWidth: 34,
+              // D253 (the host's reference): 25.6 pt faces 31.1 pt apart,
+              // the count as plain text.
+              avatarSize: 25.6,
+              pitch: 31.1,
+              plainCount: true,
               avatars: [
                 for (final v in viewers.items)
                   if (v.user case final u?)
                     KAvatar(
                       name: u.displayName,
                       imageUrl: u.avatarUrl,
-                      size: 28.5,
+                      size: 25.6,
                     ),
               ],
               count: viewers.next == null
@@ -2541,9 +2596,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         wishes: room.wishGifts,
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
-      // D199: under «ترتيب الغرف»; hidden during a PK (the bar's place).
-      sidePromo: live && pk.match == null
-          ? LiveRoomPromoColumn(roomId: room.id)
+      // D253 (the host's reference): the «Host Tasks» card at the top end
+      // (Kabso's weekly host tasks); the room promos stay the viewers'.
+      // Hidden during a PK (the battle bar's place).
+      sideEnd: live && pk.match == null
+          ? HostTasksCard(
+              avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
+            )
           : null,
       // D145a: the lucky combo beside the chat, over the quick replies.
       chatEnd: _soloChatEnd(room, liveSeats),
@@ -2554,15 +2613,44 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // the end. D232 (owner: «يتم وضع الليفيل بجانب الكرز ازله»): D135's
       // charm level chip is gone (the level stays in the profile and the
       // data center's «الآن» page).
-      roomInfo: KRoomChipsRow(
-        elapsed: _HostElapsed(since: state.liveSince),
-        // D199: the host's «تارجت» chip (the full gift stats on tap).
-        targetChip:
-            LiveHostTargetChip.shows(
+      // D253 (the host's reference «⭐0 ⏱0/50 … ● ⌂▶ ›»): the targets
+      // without a chip at the start, the connection and the live's data at
+      // the end. «ترتيب الغرف» and the quick replies are in ≡; the LIVE
+      // timer is in the live's data.
+      roomInfo: HostLiveInfoRow(
+        // D253 (owner: «بجانب طربوش الساحر ضع ترتيب الغرفة»): the room
+        // rank right after the targets' wizard hat.
+        start: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (LiveHostTargetChip.shows(
               ref.watch(liveHostTargetsProvider(room.host.username)).value,
-            )
-            ? LiveHostTargetChip(username: room.host.username, isHost: true)
-            : null,
+            )) ...[
+              LiveHostTargetChip(
+                username: room.host.username,
+                isHost: true,
+                plain: true,
+              ),
+              const SizedBox(width: 10),
+            ],
+            const Flexible(
+              child: LiveRankChip(icon: Icons.bar_chart_rounded, plain: true),
+            ),
+          ],
+        ),
+        // D253b (owner): «⌂▶» opens the «Performance Status» card.
+        end: HostLiveStatus(
+          engine: _host.engine,
+          onData: live
+              ? () => unawaited(
+                  showHostPerformancePanel(
+                    context,
+                    roomId: room.id,
+                    engine: _host.engine,
+                  ),
+                )
+              : openData,
+        ),
       ),
       // D238b: the PK videos edge to edge.
       stageEdgeToEdge: pkStage != null,
@@ -2606,29 +2694,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // D135 (ref 158 §4.7): the host's quick replies over the bar
-              // while the chat is on (each one an ordinary chat message).
-              if (chat != null && chat.enabled) ...[
-                KQuickReplies(
-                  key: GoLiveScreen.hostQuickRepliesKey,
-                  host: true,
-                  onSend: (text) => unawaited(
-                    sendLiveChatText(context, ref, roomId: room.id, text: text),
-                  ),
-                ),
-                const SizedBox(height: 4),
-              ],
+              // D253: the quick replies moved into ≡.
               KHostBar(
+                // D253 (the host's reference): the bar 9 pt higher.
+                key: GoLiveScreen.hostBarKey,
                 chatKey: GoLiveScreen.videoChatKey,
                 onChat: openChat,
                 onBeauty: openBeauty,
                 onTools: openTools,
-                // D225 (owner): the host's microphone on the bar too.
-                onMic: () {
-                  if (!live) return;
-                  unawaited(_guard(() => _setMic(enabled: !state.micEnabled)));
-                },
-                micOn: state.micEnabled,
+                // D253: the microphone moved into ≡ (the reference's bar).
                 beautyOn: state.beauty.enabled,
                 requests: liveSeats?.pendingRequests ?? 0,
                 // In a multi-guest live: requests and seats; a solo live has no
@@ -2647,6 +2721,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 onBox: () => unawaited(showLiveGamesSheet(context)),
                 onGift: () => unawaited(_openGifts(room)),
               ),
+              // D253 (the host's reference): the bar's centre 43 pt above
+              // the bottom inset.
+              const SizedBox(height: 9),
             ],
           ),
     );
@@ -3822,15 +3899,4 @@ class _Ended extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// D131: LIVE · elapsed time, as a chip in the host's second row.
-class _HostElapsed extends StatelessWidget {
-  const new({required this.since});
-
-  final DateTime? since;
-
-  @override
-  Widget build(BuildContext context) =>
-      KLiveElapsedPill(key: GoLiveScreen.elapsedKey, since: since);
 }

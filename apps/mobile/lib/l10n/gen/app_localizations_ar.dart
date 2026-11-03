@@ -13644,4 +13644,68 @@ class AppLocalizationsAr extends AppLocalizations {
   String notifLiveModeratedReason(String reason) {
     return 'السبب: $reason';
   }
+
+  @override
+  String get liveHostTasksTitle => 'مهام المضيف';
+
+  @override
+  String get liveHostTasksHide => 'إخفاء مهام المضيف';
+
+  @override
+  String liveHostTasksLevel(int level) {
+    return 'Lv$level';
+  }
+
+  @override
+  String liveHostTasksDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يوم',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveHostTasksLabel(
+    String task,
+    String progress,
+    String target,
+    int days,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'بقي $days يوم',
+      few: 'بقيت $days أيام',
+      two: 'بقي يومان',
+      one: 'بقي يوم واحد',
+    );
+    return 'مهام المضيف: $task، $progress من $target، $_temp0';
+  }
+
+  @override
+  String get liveToolQuickReplies => 'الردود السريعة';
+
+  @override
+  String get liveToolRoomRank => 'ترتيب الغرف';
+
+  @override
+  String get livePerformanceTitle => 'حالة الأداء';
+
+  @override
+  String get livePerformanceRealtime => 'بيانات لحظية';
+
+  @override
+  String get livePerformancePeak => 'ذروة المشاهدين';
+
+  @override
+  String get livePerformanceHelpLabel => 'عن هذه الأرقام';
+
+  @override
+  String get livePerformanceHelp =>
+      'أرقام هذا البث، تتحدّث كل 15 ثانية: وقت البث، والمشاهدون الفريدون وأكبر عدد في وقت واحد، والمتابعون الجدد، والكرز المستلم، ومن أرسلوا الهدايا. يعرض الرسم القراءات المأخوذة أثناء فتح هذه البطاقة.';
 }

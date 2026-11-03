@@ -133,17 +133,31 @@ void main() {
     ]);
   });
 
-  test('D131: join lines keep their own budget of four and never push out '
-      'a message', () async {
-    await attach();
-    engine.chat.add(LiveChatReceived(_entry('m1', 'first')));
-    for (var i = 0; i < 6; i++) {
-      engine.chat.add(LiveChatJoined(i.isEven ? _huda : _omar));
-    }
-    await pumpEventQueue();
-    expect(state().items.whereType<LiveChatJoinItem>(), hasLength(4));
-    expect(_texts(state()), ['first']);
-  });
+  test(
+    'D131/D253c: join lines never push out a message; under the rules '
+    'line they rise it until it leaves, then keep a budget of four',
+    () async {
+      await attach();
+      engine.chat.add(LiveChatReceived(_entry('m1', 'first')));
+      for (var i = 0; i < 6; i++) {
+        engine.chat.add(LiveChatJoined(i.isEven ? _huda : _omar));
+      }
+      await pumpEventQueue();
+      // The rules line is still there: the joins keep rising it.
+      expect(state().items.whereType<LiveChatNoticeLine>(), hasLength(1));
+      expect(state().items.whereType<LiveChatJoinItem>(), hasLength(6));
+      expect(_texts(state()), ['first']);
+      for (var i = 0; i < 7; i++) {
+        engine.chat.add(LiveChatJoined(i.isEven ? _huda : _omar));
+      }
+      await pumpEventQueue();
+      // The 13th join under it: the rules line has passed the top and left;
+      // four join lines stay.
+      expect(state().items.whereType<LiveChatNoticeLine>(), isEmpty);
+      expect(state().items.whereType<LiveChatJoinItem>(), hasLength(4));
+      expect(_texts(state()), ['first']);
+    },
+  );
 
   test('D119: each join replaces the latest; quick ones add up (+N); '
       'joins do not count toward the 50 lines', () async {

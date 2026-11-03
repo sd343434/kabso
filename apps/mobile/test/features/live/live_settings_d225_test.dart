@@ -183,22 +183,21 @@ void main() {
   group('host: Room Tools and the bar per mode', () {
     testWidgets('SOLO: «إعدادات البث» first; the mic, the voice, YouTube, '
         'beauty, the filters, the chat, the visitors and the schedule are not '
-        'repeated; the bar has the mic', (tester) async {
+        'repeated; D253: the mic is in ≡, not on the bar', (tester) async {
       final (_, engine) = await _hostOnAir(tester, mode: LiveRoomMode.solo);
-      expect(find.byKey(KHostBar.micKey), findsOneWidget);
-      await tester.tap(find.byKey(KHostBar.micKey));
+      expect(find.byKey(KHostBar.micKey), findsNothing);
+      await _openTools(tester, LiveRoomMode.solo);
+      await tester.tap(find.byKey(GoLiveKeys.tool('mic')));
       await tester.pumpAndSettle();
       expect(engine.micEnabled, isFalse);
       expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
-      await tester.tap(find.byKey(KHostBar.micKey));
+      await tester.tapAt(const Offset(200, 100));
       await tester.pumpAndSettle();
-      expect(engine.micEnabled, isTrue);
       await _capture(tester, 'solo.bar.ar');
       await _openTools(tester, LiveRoomMode.solo);
       final ids = _toolIds(tester);
       expect(ids.first, 'liveSettings');
       for (final gone in [
-        'mic',
         'voice',
         'youtube',
         'beauty',
@@ -227,6 +226,8 @@ void main() {
         'management',
         'recorder',
         'traffic',
+        'mic',
+        'quickReplies',
       ]) {
         expect(ids, contains(kept), reason: kept);
       }
@@ -247,7 +248,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(GoLiveScreen.pkStageKey), findsOneWidget);
-      expect(find.byKey(KHostBar.micKey), findsOneWidget);
+      expect(find.byKey(KHostBar.micKey), findsNothing);
       await _openTools(tester, LiveRoomMode.solo);
       final ids = _toolIds(tester);
       expect(ids.first, 'liveSettings');
@@ -258,13 +259,14 @@ void main() {
     testWidgets('MULTI: «إعدادات البث» first, requests kept; the seats and '
         'the theme moved into the settings', (tester) async {
       await _hostOnAir(tester, mode: LiveRoomMode.multi);
-      expect(find.byKey(KHostBar.micKey), findsOneWidget);
+      expect(find.byKey(KHostBar.micKey), findsNothing);
       await _capture(tester, 'multi.bar.ar');
       await _openTools(tester, LiveRoomMode.multi);
       final ids = _toolIds(tester);
       expect(ids.first, 'liveSettings');
       expect(ids, contains('requests'));
-      for (final gone in ['seats', 'theme', 'youtube', 'mic', 'voice']) {
+      // D253: the microphone is in ≡ on the video live.
+      for (final gone in ['seats', 'theme', 'youtube', 'voice']) {
         expect(ids, isNot(contains(gone)), reason: gone);
       }
       await _leave(tester);

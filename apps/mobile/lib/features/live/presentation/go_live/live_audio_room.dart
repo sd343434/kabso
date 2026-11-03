@@ -1356,7 +1356,13 @@ class LiveViewersStack extends StatelessWidget {
     this.pitch = size - 7,
     this.countHeight = size,
     this.countMinWidth,
+    this.plainCount = false,
   });
+
+  /// D253 (the host's reference, 2026-11-03): the count is plain white text
+  /// 11.4 pt after the faces (no chip), the faces without a ring.
+  final bool plainCount;
+  static const countKey = Key('viewers.count');
 
   /// D135 (ref 158 §4.2): the count pill's width at least (31 pt on the
   /// video live); else as wide as tall.
@@ -1407,7 +1413,9 @@ class LiveViewersStack extends StatelessWidget {
                           height: size,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: const Color(0x99FFFFFF)),
+                            border: plainCount
+                                ? null
+                                : Border.all(color: const Color(0x99FFFFFF)),
                           ),
                           child: ClipOval(child: shown[i]),
                         ),
@@ -1415,32 +1423,48 @@ class LiveViewersStack extends StatelessWidget {
                   ],
                 ),
               ),
-            const SizedBox(width: 4),
-            // Ref 147: the count is a chip like the room rank's.
-            Container(
-              constraints: BoxConstraints(
-                minWidth: countMinWidth ?? countHeight,
-              ),
-              height: countHeight,
-              padding: EdgeInsets.symmetric(
-                horizontal: countMinWidth == null ? 8 : 6,
-              ),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: KAudioRoom.chip,
-                borderRadius: BorderRadius.circular(countHeight / 2),
-              ),
-              child: Text(
+            if (plainCount) ...[
+              SizedBox(width: shown.isEmpty ? 0 : 11.4),
+              Text(
                 count,
+                key: countKey,
                 style: context.textStyles.caption.copyWith(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   height: 1,
-                  color: KAudioRoom.text,
-                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFFFFFFF),
+                  fontWeight: FontWeight.w600,
                   shadows: KLiveColors.glassShadow,
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+            ] else ...[
+              const SizedBox(width: 4),
+              // Ref 147: the count is a chip like the room rank's.
+              Container(
+                constraints: BoxConstraints(
+                  minWidth: countMinWidth ?? countHeight,
+                ),
+                height: countHeight,
+                padding: EdgeInsets.symmetric(
+                  horizontal: countMinWidth == null ? 8 : 6,
+                ),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: KAudioRoom.chip,
+                  borderRadius: BorderRadius.circular(countHeight / 2),
+                ),
+                child: Text(
+                  count,
+                  style: context.textStyles.caption.copyWith(
+                    fontSize: 11.5,
+                    height: 1,
+                    color: KAudioRoom.text,
+                    fontWeight: FontWeight.w700,
+                    shadows: KLiveColors.glassShadow,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

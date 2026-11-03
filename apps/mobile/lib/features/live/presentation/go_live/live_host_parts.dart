@@ -68,6 +68,13 @@ class KHostBar extends StatelessWidget {
   static const double diameter = 34.6;
   static const boxKey = Key('hostBar.box');
 
+  /// D253 (the host's reference): the link's teal (`#2FE0C6` → `#3D9BFF`).
+  static const linkGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2FE0C6), Color(0xFF3D9BFF)],
+  );
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -93,6 +100,7 @@ class KHostBar extends StatelessWidget {
       IconData? icon,
       bool art = false,
       bool badge = false,
+      Gradient? iconGradient,
     }) => KViewerBarButton(
       key: key,
       diameter: diameter,
@@ -104,6 +112,7 @@ class KHostBar extends StatelessWidget {
       badge: badge,
       label: label,
       onTap: onTap,
+      iconGradient: iconGradient,
     );
     return Row(
       children: [
@@ -137,6 +146,8 @@ class KHostBar extends StatelessWidget {
         button(
           key: guestsKey,
           icon: Icons.all_inclusive_rounded,
+          // D253 (the host's reference): the link in teal.
+          iconGradient: linkGradient,
           label: l10n.liveHostGuests,
           badge: requests > 0,
           onTap: onGuests,
@@ -152,8 +163,8 @@ class KHostBar extends StatelessWidget {
         if (onBox != null)
           button(
             key: boxKey,
-            // The owner's colourful controller art (D141), Kabso's own.
-            asset: 'assets/live_bar/bar_games.png',
+            // D253 (the host's reference): an orange box (Kabso's own art).
+            asset: 'assets/live_bar/bar_box.png',
             art: true,
             label: l10n.liveHostBox,
             onTap: onBox,

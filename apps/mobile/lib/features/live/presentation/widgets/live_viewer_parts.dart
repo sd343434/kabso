@@ -367,6 +367,7 @@ class KViewerBarButton extends StatelessWidget {
     this.art = false,
     this.diameter = KViewerRoom.button,
     this.artInCircle = false,
+    this.iconGradient,
     this.target = KSizes.minTouchTarget,
   }) : assert(asset != null || icon != null, 'an asset or an icon');
 
@@ -384,6 +385,10 @@ class KViewerBarButton extends StatelessWidget {
 
   /// D199 (ref 275): the colourful art sits in the same dark circle.
   final bool artInCircle;
+
+  /// D253 (the host's reference): [icon] painted with this gradient (the
+  /// link's teal) instead of white.
+  final Gradient? iconGradient;
 
   /// The colourful art's size (D141: 37 pt, was 33).
   static const double artSize = 37;
@@ -438,6 +443,16 @@ class KViewerBarButton extends StatelessWidget {
                         ? (artInCircle ? diameter * 0.74 : artSize)
                         : iconSize,
                     excludeFromSemantics: true,
+                  )
+                else if (iconGradient case final g?)
+                  ShaderMask(
+                    shaderCallback: g.createShader,
+                    blendMode: BlendMode.srcIn,
+                    child: Icon(
+                      icon,
+                      size: iconSize,
+                      color: const Color(0xFFFFFFFF),
+                    ),
                   )
                 else
                   Icon(icon, size: iconSize, color: const Color(0xFFFFFFFF)),
@@ -779,3 +794,57 @@ class _KLiveElapsedPillState extends State<KLiveElapsedPill> {
     );
   }
 }
+
+/// D253 (the host's reference has no quick replies over the bar): the
+/// host's phrases from ≡ — a tap sends one as an ordinary chat message and
+/// closes the sheet.
+Future<void> showHostQuickReplies(
+  BuildContext context, {
+  required ValueChanged<String> onSend,
+}) => showModalBottomSheet<void>(
+  context: context,
+  backgroundColor: const Color(0xFFFFFFFF),
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  ),
+  builder: (sheet) {
+    final l10n = sheet.l10n;
+    final phrases = [
+      l10n.liveQuickHostWelcome,
+      l10n.liveQuickHostThanks,
+      l10n.liveQuickHostFollow,
+      l10n.liveQuickHostShare,
+    ];
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              l10n.liveToolQuickReplies,
+              style: sheet.textStyles.title.copyWith(
+                color: const Color(0xFF14123A),
+              ),
+            ),
+          ),
+          for (final (i, p) in phrases.indexed)
+            ListTile(
+              key: Key('quickReplies.sheet.$i'),
+              title: Text(p, style: const TextStyle(color: Color(0xFF14123A))),
+              trailing: const Icon(
+                Icons.send_rounded,
+                color: Color(0xFFE50914),
+              ),
+              onTap: () {
+                Navigator.of(sheet).pop();
+                onSend(p);
+              },
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  },
+);

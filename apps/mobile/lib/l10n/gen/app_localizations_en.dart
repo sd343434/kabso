@@ -13638,4 +13638,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifLiveModeratedReason(String reason) {
     return 'Reason: $reason';
   }
+
+  @override
+  String get liveHostTasksTitle => 'Host tasks';
+
+  @override
+  String get liveHostTasksHide => 'Hide host tasks';
+
+  @override
+  String liveHostTasksLevel(int level) {
+    return 'Lv$level';
+  }
+
+  @override
+  String liveHostTasksDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveHostTasksLabel(
+    String task,
+    String progress,
+    String target,
+    int days,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days left',
+      one: '1 day left',
+    );
+    return 'Host tasks: $task, $progress of $target, $_temp0';
+  }
+
+  @override
+  String get liveToolQuickReplies => 'Quick replies';
+
+  @override
+  String get liveToolRoomRank => 'Room rank';
+
+  @override
+  String get livePerformanceTitle => 'Performance status';
+
+  @override
+  String get livePerformanceRealtime => 'Real-time data';
+
+  @override
+  String get livePerformancePeak => 'Peak viewers';
+
+  @override
+  String get livePerformanceHelpLabel => 'About these numbers';
+
+  @override
+  String get livePerformanceHelp =>
+      'The numbers of this live, updated every 15 seconds: the live time, the unique viewers and the most at once, new followers, the cherries received and the people who sent gifts. The chart shows the readings taken while this card was open.';
 }
