@@ -17398,14 +17398,14 @@ components:
         titleEn: { type: string, maxLength: 40 }
         descriptionAr: { type: [string, 'null'], maxLength: 200 }
         descriptionEn: { type: [string, 'null'], maxLength: 200 }
-        enabled: { type: boolean, description: Shown in the app. }
-        available: { type: boolean, description: The app really does it today (server list; not editable). }
+        enabled: { type: boolean, description: "Shown in the app." }
+        available: { type: boolean, description: "The app really does it today (server list; not editable)." }
     AdminVipPerkInput:
       type: object
       additionalProperties: false
       required: [code, titleAr, titleEn]
       properties:
-        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: Unique within the tier. }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "Unique within the tier." }
         titleAr: { type: string, minLength: 1, maxLength: 40 }
         titleEn: { type: string, minLength: 1, maxLength: 40 }
         descriptionAr: { type: [string, 'null'], maxLength: 200 }
@@ -17419,7 +17419,7 @@ components:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         nameAr: { type: string, maxLength: 30 }
         nameEn: { type: string, maxLength: 30 }
-        sortOrder: { type: integer, minimum: 1, description: The order and the rank (higher = higher tier). }
+        sortOrder: { type: integer, minimum: 1, description: "The order and the rank (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$' }
         emblemUrl: { type: [string, 'null'], format: uri }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -17451,7 +17451,7 @@ components:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         nameAr: { type: string, minLength: 1, maxLength: 30 }
         nameEn: { type: string, minLength: 1, maxLength: 30 }
-        color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', description: Stored upper case. }
+        color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', description: "Stored upper case." }
         emblemUrl: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
         durationDays: { type: integer, minimum: 1, maximum: 365 }
@@ -27579,7 +27579,7 @@ components:
         name: { type: string, maxLength: 30 }
         level: { type: integer, minimum: 1, description: "1 … n among the tiers on sale, in the panel's order (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$' }
-        emblemUrl: { type: [string, 'null'], format: uri, description: Null = the app draws a Kabso emblem in `color`. }
+        emblemUrl: { type: [string, 'null'], format: uri, description: "Null = the app draws a Kabso emblem in `color`." }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
         durationDays: { type: integer, minimum: 1, maximum: 365 }
         perks:
@@ -27592,7 +27592,7 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/VipTier' }
-        maxAheadDays: { type: integer, minimum: 1, description: A renewal may not take the end further than this from now. }
+        maxAheadDays: { type: integer, minimum: 1, description: "A renewal may not take the end further than this from now." }
     VipMembership:
       type: object
       required: [tier, startedAt, expiresAt, daysLeft]
@@ -27606,10 +27606,10 @@ components:
             name: { type: string }
             color: { type: string, pattern: '^#[0-9A-F]{6}$' }
             emblemUrl: { type: [string, 'null'], format: uri }
-            onSale: { type: boolean, description: False when the tier was switched off since (kept to the end, not renewable). }
+            onSale: { type: boolean, description: "False when the tier was switched off since (kept to the end, not renewable)." }
         startedAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
-        daysLeft: { type: integer, minimum: 0, description: Whole days left, rounded up. }
+        daysLeft: { type: integer, minimum: 0, description: "Whole days left, rounded up." }
     MyVip:
       type: object
       required: [membership]
@@ -27624,7 +27624,7 @@ components:
       required: [tierId, priceCoins]
       properties:
         tierId: { type: string, format: uuid }
-        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: The price the person was shown. }
+        priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "The price the person was shown." }
     VipPurchaseResult:
       type: object
       required: [kind, priceCoins, durationDays, membership, coins]
@@ -27633,7 +27633,7 @@ components:
         priceCoins: { type: integer, format: int64, minimum: 1 }
         durationDays: { type: integer, minimum: 1 }
         membership: { $ref: '#/components/schemas/VipMembership' }
-        coins: { type: integer, format: int64, minimum: 0, description: The caller's balance right after the purchase. }
+        coins: { type: integer, format: int64, minimum: 0, description: "The caller's balance right after the purchase." }
     EventSummary:
       type: object
       required: [id, title, bannerUrl, startsAt, endsAt, status, metric, audience, permanent, featured, regions, summary, tone]
