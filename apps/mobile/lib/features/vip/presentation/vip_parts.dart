@@ -44,13 +44,17 @@ Color _darken(Color c, double t) => Color.lerp(c, Colors.black, t)!;
 
 // ---- Owner art: SVGA (looping) with a still fallback ------------------------
 
+/// The image of a hosted VIP art URL (tests serve their own stand-ins).
+@visibleForTesting
+ImageProvider Function(String src) vipImageFor = NetworkImage.new;
+
 /// Builds the still image for [src] (a hosted https URL), or null. Nothing is
 /// bundled: every VIP art is uploaded from the admin panel.
 Widget? _stillOf(String? src, BoxFit fit) {
   if (src == null) return null;
   Widget onError(BuildContext _, Object _, StackTrace? _) =>
       const SizedBox.shrink();
-  return Image.network(src, fit: fit, errorBuilder: onError);
+  return Image(image: vipImageFor(src), fit: fit, errorBuilder: onError);
 }
 
 /// The owner's VIP art: a looping SVGA ([animation]) over its [still], both

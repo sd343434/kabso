@@ -4,6 +4,7 @@ import {
   planVipPurchase,
   VIP_BUILT_PERKS,
   VIP_MAX_AHEAD_DAYS,
+  VIP_MAX_TIERS,
   vipActive,
   vipDaysLeft,
   vipOrderOf,
@@ -198,5 +199,15 @@ describe('VIP panel bodies', () => {
     expect(updateVipTierBody.safeParse({ reason: 'x' }).success).toBe(false);
     expect(updateVipTierBody.safeParse({ priceCoins: 5, reason: 'x' }).success).toBe(true);
     expect(reorderVipTiersBody.safeParse({ tierIds: [], reason: 'x' }).success).toBe(false);
+  });
+});
+
+describe('D252c twelve tiers (owner: «لدينا ١٢ في اي بي وكل في اي بي له امتيازات»)', () => {
+  it('the panel takes at least 12 tiers and reorders all 12', () => {
+    expect(VIP_MAX_TIERS).toBeGreaterThanOrEqual(12);
+    const ids = Array.from({ length: 12 }, (_, i) => `0192f1d0-0000-7000-8000-0000000000${String(i + 10)}`);
+    expect(reorderVipTiersBody.safeParse({ tierIds: ids, reason: 'order the twelve tiers' }).success).toBe(
+      true,
+    );
   });
 });

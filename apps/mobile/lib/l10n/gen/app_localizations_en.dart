@@ -13894,4 +13894,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vipSectionPrivilege => 'Exclusive privilege';
+
+  @override
+  String vipPrivilegeTitle(String tier, String count, String total) {
+    return 'Exclusive privileges $tier $count/$total';
+  }
+
+  @override
+  String get vipMine => 'My VIP';
+
+  @override
+  String get vipPayCoins => 'Pay with gold coins';
 }

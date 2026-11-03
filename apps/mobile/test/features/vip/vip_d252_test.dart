@@ -21,6 +21,8 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
+import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -41,8 +43,23 @@ class _Coins extends LiveCoinsController {
   Future<int> build() async => _coins;
 }
 
-const _colors = [0xFF2E8B3D, 0xFF9B59D0, 0xFFE50914];
-const _prices = [1000000, 3000000, 9000000];
+// D252c (owner: «لدينا ١٢ في اي بي وكل في اي بي له امتيازات»): twelve
+// tiers, each its own colour, price and perks.
+const _colors = [
+  0xFF2E8B3D,
+  0xFF2AA7B8,
+  0xFFE50914,
+  0xFF9B59D0,
+  0xFF3D6AE0,
+  0xFFE08A1E,
+  0xFFC2185B,
+  0xFF00897B,
+  0xFF6D4C41,
+  0xFF5E35B1,
+  0xFFD4AF37,
+  0xFF111111,
+];
+final List<int> _prices = [for (var i = 1; i <= 12; i++) i * i * 1000000];
 
 VipTier _tier(int level, {bool art = false}) => VipTier(
   id: 't$level',
@@ -75,15 +92,27 @@ VipTier _tier(int level, {bool art = false}) => VipTier(
         title: 'Daily bullet',
         available: false,
       ),
+    if (level >= 4)
+      const VipPerk(
+        code: 'CHAT_BUBBLE',
+        title: 'Chat bubble',
+        available: false,
+      ),
+    if (level >= 6)
+      const VipPerk(code: 'MIC_WAVE', title: 'Mic wave', available: false),
+    if (level >= 8)
+      const VipPerk(code: 'ROOM_CARD', title: 'Room card', available: false),
+    if (level >= 10)
+      const VipPerk(
+        code: 'MONTHLY_GIFT',
+        title: 'Monthly gift',
+        available: false,
+      ),
   ],
 );
 
 VipTierList _list({bool art = false}) => VipTierList(
-  tiers: [
-    _tier(1, art: art),
-    _tier(2),
-    _tier(3),
-  ],
+  tiers: [for (var l = 1; l <= 12; l++) _tier(l, art: art && l == 1)],
   maxAheadDays: 400,
 );
 
@@ -143,6 +172,7 @@ Future<void> _pump(
   AppLanguage language = AppLanguage.en,
   Size size = const Size(393, 852),
   double textScale = 1,
+  Brightness brightness = Brightness.light,
 }) async {
   final router = GoRouter(
     routes: [
@@ -177,10 +207,7 @@ Future<void> _pump(
           AppLocalizations.delegate,
           ...GlobalMaterialLocalizations.delegates,
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.light,
-          locale: language.locale,
-        ),
+        theme: buildAppTheme(brightness: brightness, locale: language.locale),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(textScale)),
@@ -250,13 +277,11 @@ void main() {
       // Price and length in the sticky bar; the buy button.
       expect(find.text('1,000,000'), findsWidgets);
       expect(find.textContaining(_en.vipForDays('30')), findsWidgets);
-      expect(_cta(_en.vipBuy), findsOneWidget);
-      // The perks grid: the category section headers and the BADGE perk.
-      expect(find.text(_en.vipSectionIdentity), findsOneWidget);
-      expect(find.text(_en.vipSectionPrivilege), findsOneWidget);
+      expect(_cta(_en.vipPayCoins), findsOneWidget);
+      // D252c: «الامتياز الحصري VIPn x/y» (this tier's perks / the most a
+      // tier has) and the tier's perks (one not yet built is dimmed).
+      expect(find.text('Exclusive privileges VIP1 1/7'), findsOneWidget);
       expect(find.byKey(VipScreen.perkKey('BADGE')), findsOneWidget);
-      // «Soon» shows (the perk subtitle and the empty privilege section).
-      expect(find.text(_en.liveSoon), findsWidgets);
 
       await tester.tap(find.byKey(VipScreen.ctaKey));
       await tester.pumpAndSettle();
@@ -307,10 +332,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      // The perk thumbnail shows the still too.
+      // D252c: the perk's art shows in its showcase tile.
       expect(
         find.descendant(
-          of: find.byKey(VipScreen.perkKey('BADGE')),
+          of: find.byKey(VipShowcaseCard.tileKey('BADGE')),
           matching: find.byType(Image),
         ),
         findsOneWidget,
@@ -336,8 +361,13 @@ void main() {
         'VIP 3 (days not carried), VIP 1 is below', (tester) async {
       final held = _membership(_tier(2));
       await _pump(tester, vip: _FakeVip(membership: held));
+      // D252c: «My VIP» at the end edge opens the member's status.
       expect(find.byKey(VipScreen.statusKey), findsOneWidget);
+      await tester.tap(find.byKey(VipScreen.statusKey));
+      await tester.pumpAndSettle();
       expect(find.textContaining(_en.vipDaysLeft('20')), findsOneWidget);
+      await tester.tapAt(const Offset(200, 100));
+      await tester.pumpAndSettle();
       expect(_cta(_en.vipRenew), findsOneWidget);
 
       await _tapTab(tester, 'VIP_3');
@@ -359,6 +389,8 @@ void main() {
     testWidgets('an off-sale tier shows a note', (tester) async {
       final held = _membership(_tier(2), onSale: false);
       await _pump(tester, vip: _FakeVip(membership: held));
+      await tester.tap(find.byKey(VipScreen.statusKey));
+      await tester.pumpAndSettle();
       expect(find.byKey(VipScreen.offSaleKey), findsOneWidget);
     });
 
@@ -378,7 +410,7 @@ void main() {
       await tester.tap(find.byKey(VipScreen.payKey));
       await tester.pumpAndSettle();
       expect(find.text(_en.vipErrorTierOff), findsOneWidget);
-      expect(_cta(_en.vipBuy), findsOneWidget);
+      expect(_cta(_en.vipPayCoins), findsOneWidget);
     });
 
     testWidgets('nothing on sale: an empty state, no button', (tester) async {
@@ -410,7 +442,8 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.byKey(VipScreen.ctaKey), findsOneWidget);
         if (language == AppLanguage.ar) {
-          expect(find.text(_ar.meHubVip), findsOneWidget);
+          // D252c: no page title (the reference has none); «الخاص بي VIP».
+          expect(find.text(_ar.vipMine), findsOneWidget);
           expect(find.text(_ar.vipRenew), findsOneWidget);
           // RTL: the first tier is at the reading start (the right).
           final first = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_1')));
@@ -426,6 +459,120 @@ void main() {
         );
         expect(tester.takeException(), isNull);
       });
+    }
+  });
+
+  group('D252c the new reference (white / black, 12 tiers)', () {
+    testWidgets('twelve tabs scroll; the selected one comes into view; each '
+        'tier its own perks and count', (tester) async {
+      await _pump(tester, vip: _FakeVip());
+      for (var l = 1; l <= 12; l++) {
+        expect(find.byKey(VipScreen.tabKey('VIP_$l')), findsOneWidget);
+      }
+      await _tapTab(tester, 'VIP_12');
+      final tab = tester.getRect(find.byKey(VipScreen.tabKey('VIP_12')));
+      expect(tab.left, greaterThanOrEqualTo(0));
+      expect(tab.right, lessThanOrEqualTo(393));
+      expect(find.byKey(VipScreen.perkKey('MONTHLY_GIFT')), findsOneWidget);
+      expect(find.text('Exclusive privileges VIP12 7/7'), findsOneWidget);
+      await _tapTab(tester, 'VIP_4');
+      expect(find.byKey(VipScreen.perkKey('MONTHLY_GIFT')), findsNothing);
+      expect(find.text('Exclusive privileges VIP4 4/7'), findsOneWidget);
+    });
+
+    testWidgets('the page is white in light mode and black in dark mode', (
+      tester,
+    ) async {
+      await _pump(tester, vip: _FakeVip());
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+        const Color(0xFFFFFFFF),
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pump(tester, vip: _FakeVip(), brightness: Brightness.dark);
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+        const Color(0xFF000000),
+      );
+    });
+
+    // The reference's VIP2: six art perks in the showcase, ten perks.
+    VipTierList showcase() {
+      const art = [
+        ('FRAME', 'Frame', 'top_1'),
+        ('ENTRY_BANNER', 'Entry banner', 'win_frame_amethyst'),
+        ('NAME_PLATE', 'Name plate', 'win_frame_onyx'),
+        ('CHAT_BUBBLE', 'Chat bubble', 'host_frame_blue'),
+        ('BADGE', 'VIP badge', 'top_2'),
+        ('ROOM_CARD', 'Room card', 'host_frame_pink'),
+      ];
+      const plain = [
+        ('DAILY_BULLET', 'Daily bullet'),
+        ('VIEWER_LIST_PRIORITY', 'Top of the viewers'),
+        ('MONTHLY_GIFT', 'Monthly gift'),
+        ('VISITORS', 'Visitors checking'),
+      ];
+      final base = _list();
+      final vip2 = VipTier(
+        id: 't2',
+        code: 'VIP_2',
+        name: 'VIP 2',
+        level: 2,
+        color: _colors[1],
+        priceCoins: 42000,
+        durationDays: 30,
+        badgeStill: 'https://cdn.k.test/top_2.png',
+        perks: [
+          for (final (code, title, img) in art)
+            VipPerk(
+              code: code,
+              title: title,
+              available: true,
+              still: 'https://cdn.k.test/$img.png',
+            ),
+          for (final (code, title) in plain)
+            VipPerk(code: code, title: title, available: true),
+        ],
+      );
+      return VipTierList(
+        tiers: [
+          for (final t in base.tiers)
+            if (t.level == 2) vip2 else t,
+        ],
+        maxAheadDays: base.maxAheadDays,
+      );
+    }
+
+    String assetFor(String url) {
+      final name = url.split('/').last.replaceAll('.png', '');
+      if (name.startsWith('top_')) return 'assets/live_top_frames/$name.webp';
+      if (name.startsWith('win_')) return 'assets/win_frames/$name.png';
+      return 'assets/host_frames/$name.webp';
+    }
+
+    for (final language in AppLanguage.values) {
+      for (final brightness in Brightness.values) {
+        testWidgets('golden ${language.name} ${brightness.name}', (
+          tester,
+        ) async {
+          vipImageFor = (url) => AssetImage(assetFor(url));
+          addTearDown(() => vipImageFor = NetworkImage.new);
+          await _pump(
+            tester,
+            vip: _FakeVip(list: showcase()),
+            language: language,
+            brightness: brightness,
+          );
+          await _tapTab(tester, 'VIP_2');
+          await precacheImages(tester);
+          await expectLater(
+            find.byType(VipScreen),
+            matchesGoldenFile(
+              'png/vip.ref.${language.name}.${brightness.name}.phone.png',
+            ),
+          );
+        });
+      }
     }
   });
 }

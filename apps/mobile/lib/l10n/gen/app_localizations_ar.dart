@@ -13902,4 +13902,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get vipSectionPrivilege => 'امتياز حصري';
+
+  @override
+  String vipPrivilegeTitle(String tier, String count, String total) {
+    return 'الامتياز الحصري $tier $count/$total';
+  }
+
+  @override
+  String get vipMine => 'الخاص بي VIP';
+
+  @override
+  String get vipPayCoins => 'ادفع بالعملات الذهبية';
 }

@@ -4328,5 +4328,11 @@
   "vipStoreSoon": "VIP gifts store — coming soon.",
   "vipPerksSection": "{tier} privileges",
   "vipSectionIdentity": "Identification",
-  "vipSectionPrivilege": "Exclusive privilege"
+  "vipSectionPrivilege": "Exclusive privilege",
+  "vipPrivilegeTitle": "Exclusive privileges {tier} {count}/{total}",
+  "@vipPrivilegeTitle": {"description": "D252c: «شراء VIP» in the owner's new reference.", "placeholders": {"tier": {"type": "String"}, "count": {"type": "String"}, "total": {"type": "String"}}},
+  "vipMine": "My VIP",
+  "@vipMine": {"description": "D252c: «شراء VIP» in the owner's new reference."},
+  "vipPayCoins": "Pay with gold coins",
+  "@vipPayCoins": {"description": "D252c: «شراء VIP» in the owner's new reference."}
 }

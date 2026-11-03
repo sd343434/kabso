@@ -12965,5 +12965,11 @@
   "vipSectionIdentity": "التعريف",
   "@vipSectionIdentity": {"description": "D252b v2: «شراء VIP» — the appearance perks category header."},
   "vipSectionPrivilege": "امتياز حصري",
-  "@vipSectionPrivilege": {"description": "D252b v2: «شراء VIP» — the privileges perks category header."}
+  "@vipSectionPrivilege": {"description": "D252b v2: «شراء VIP» — the privileges perks category header."},
+  "vipPrivilegeTitle": "الامتياز الحصري {tier} {count}/{total}",
+  "@vipPrivilegeTitle": {"description": "D252c: «شراء VIP» in the owner's new reference.", "placeholders": {"tier": {"type": "String"}, "count": {"type": "String"}, "total": {"type": "String"}}},
+  "vipMine": "الخاص بي VIP",
+  "@vipMine": {"description": "D252c: «شراء VIP» in the owner's new reference."},
+  "vipPayCoins": "ادفع بالعملات الذهبية",
+  "@vipPayCoins": {"description": "D252c: «شراء VIP» in the owner's new reference."}
 }

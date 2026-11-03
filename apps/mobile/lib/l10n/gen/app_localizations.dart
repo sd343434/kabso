@@ -23508,6 +23508,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'امتياز حصري'**
   String get vipSectionPrivilege;
+
+  /// D252c: «شراء VIP» in the owner's new reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الامتياز الحصري {tier} {count}/{total}'**
+  String vipPrivilegeTitle(String tier, String count, String total);
+
+  /// D252c: «شراء VIP» in the owner's new reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخاص بي VIP'**
+  String get vipMine;
+
+  /// D252c: «شراء VIP» in the owner's new reference.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادفع بالعملات الذهبية'**
+  String get vipPayCoins;
 }
 
 class _AppLocalizationsDelegate
