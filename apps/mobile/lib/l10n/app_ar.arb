@@ -12806,6 +12806,8 @@
   "@pkRematchExpired": {"description": "D242: the offer lapsed."},
   "pkRematchSeconds": "{seconds} ث",
   "@pkRematchSeconds": {"description": "D242: the answer countdown for screen readers.", "placeholders": {"seconds": {"type": "String"}}},
+  "pkRematchRequest": "طلب إعادة التحدي",
+  "@pkRematchRequest": {"description": "Owner 2026-11-03: the rematch request in the PK sheet beside «كتم الخصم» and «إنهاء التحدي»."},
   "liveToolReportLive": "الإبلاغ عن البث",
   "@liveToolReportLive": {"description": "v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification."},
   "liveReportTitle": "لماذا تبلّغ عن هذا البث؟",
