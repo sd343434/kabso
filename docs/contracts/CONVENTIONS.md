@@ -657,7 +657,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
-| v1.82-social (draft) | 2026-11-03 | **D252 (owner: «اصنع صفحة شراء vip واجعلها بنفس التصميم مطابق ١٠٠٪ واضافة الفي اي بي وترتيبه يكون من لوحة كل في اي بي له ميزات وامتيازات مختلفة»):** «شراء VIP» — tag `vip`: `listVipTiers` (`GET /vip/tiers`, `VipTierList`, `VipTier`, `VipPerk`), `getMyVip` (`GET /me/vip`, `MyVip`, `VipMembership`), `buyVip` (`POST /me/vip/purchases`, `Idempotency-Key`, `BuyVipRequest`, `VipPurchaseResult`); the panel's `listAdminVipTiers`, `createAdminVipTier`, `updateAdminVipTier`, `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`/admin/vip/tiers…`, `/admin/vip/tier-order`; `AdminVipTier`, `AdminVipPerk`, `AdminVipPerkInput`, `AdminVipTierList`, `CreateAdminVipTierRequest`, `UpdateAdminVipTierRequest`, `ReorderAdminVipTiersRequest`, parameter `AdminVipTierIdPath`; `catalog.view` / `catalog.manage`, reason; audit `vip.tier.add \| update \| enable \| disable \| reorder`, `vip.purchase`); `WalletLedgerReason.VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). Migrations `20270305090000_vip_enums`, `20270305090100_vip`. §4, §8, §10.92. | **Additive.** No tier is seeded: nothing is on sale until the OWNER adds and switches one on. Clients show an unknown ledger reason as a generic change. |
+| v1.82-social (draft) | 2026-11-03 | **D252 (owner: «اصنع صفحة شراء vip واجعلها بنفس التصميم مطابق ١٠٠٪ واضافة الفي اي بي وترتيبه يكون من لوحة كل في اي بي له ميزات وامتيازات مختلفة»):** «شراء VIP» — tag `vip`: `listVipTiers` (`GET /vip/tiers`, `VipTierList`, `VipTier`, `VipPerk`), `getMyVip` (`GET /me/vip`, `MyVip`, `VipMembership`), `buyVip` (`POST /me/vip/purchases`, `Idempotency-Key`, `BuyVipRequest`, `VipPurchaseResult`); the panel's `listAdminVipTiers`, `createAdminVipTier`, `updateAdminVipTier`, `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`/admin/vip/tiers…`, `/admin/vip/tier-order`; `AdminVipTier`, `AdminVipPerk`, `AdminVipPerkInput`, `AdminVipTierList`, `CreateAdminVipTierRequest`, `UpdateAdminVipTierRequest`, `ReorderAdminVipTiersRequest`, parameter `AdminVipTierIdPath`; `catalog.view` / `catalog.manage`, reason; audit `vip.tier.add \| update \| enable \| disable \| reorder`, `vip.purchase`); `WalletLedgerReason.VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). Migrations `20270305090000_vip_enums`, `20270305090100_vip`. §4, §8, §10.92. **D252b v2 (owner «طبق هذا التصميم ١٠٠٪», reference `REFERENCE_vip_design_v2`):** the screen reworked to the owner's new reference layout (a horizontal tier tab row + centred badge + gold crown divider + category section headers with a count + a 3-column perks grid + a sticky price/activate bar; the earlier curved arc, crest banners, status/upgrade bars and store entry removed); each tier gains a hosted BADGE (`badgeAnimation` / `badgeStill`) and each perk hosted art (`animation` / `still` / `artWidth` / `artHeight`) — all https, uploaded from the panel, nothing bundled (gifts `animationUrl` pattern, D126); `VipTier.badgeAnimation` / `badgeStill`, `VipPerk.animation` / `still` / `artWidth` / `artHeight`, and the matching `Admin*` fields in `openapi.yaml`. §10.92.5. | **Additive.** VIP 1 is seeded enabled (art URLs null until the owner uploads them); other tiers added from the panel. Clients show an unknown ledger reason as a generic change. |
 | v1.81-social (draft) | 2026-11-02 | **D245 (owner: «اجعل أسعار الصرف متاحة لجميع الدول بشكل أوتوماتيكي بحيث يقوم النظام بتحديث كل دقيقة»):** automatic exchange rates for every country (§10.87). `listAdminRechargeExchangeRates` → every country (`AdminFxRateRow`: `source` MANUAL / AUTO / USD / NONE, `stale`, `manual`, `auto` with `held`) + `status` (`AdminFxStatus`); `clearAdminRechargeExchangeRate` is «إعادة إلى التلقائي»; new `refreshAdminFxRates` (`POST /admin/fx/refresh`), `acceptAdminFxHeldRate` (`POST /admin/fx/held/{currency}/accept`) (capability `recharge.rates`); the OWNER's «مزوّد أسعار الصرف» `getAdminFxSettings` / `updateAdminFxSettings` (PATCH) / `testAdminFxSettings` / `clearAdminFxSettings` (`/admin/fx-settings`, capability `fx.settings`). `RechargePrice.local` uses the effective rate. Tables `fx_rates`, `fx_settings`; audit `fx.settings.update|clear|test`, `fx.rates.refresh`, `fx.rate.accept_held`; server config `FX_*`. No new error code (409 `ADMIN_ACTION_REFUSED` issues `fx_refresh_too_soon`, `fx_nothing_held`, `fx_key_missing`, `fx_test_required`, `fx_test_failed`, `fx_nothing_to_clear`). | Additive. |
 | v1.80-kyc (draft) | 2026-11-01 | **D227 (owner: identity verification with Didit for «كن مضيفاً مع الإدارة», «افتح وكالة» and recharge agents; the keys in the admin panel, never in env files):** tag `kyc` — `getMyKyc` (`GET /me/kyc`, `MyKyc`, `KycPurposeState`), `startKycSession` (`POST /me/kyc/sessions`, `StartKycSessionRequest`, `KycSessionStart`), `syncKycCheck` (`POST /me/kyc/checks/{checkId}/sync`, `KycCheck`), `receiveDiditWebhook` (`POST /kyc/didit/webhook`); schemas `KycPurpose`, `KycStatus`, `KycRefusal`; tag `admin-panel` — `getAdminKycSettings`, `updateAdminKycSettings` (PATCH), `testAdminKycSettings`, `clearAdminKycSettings` (capability `kyc.settings`, OWNER), `getAdminKycCheck`, `getAdminKycCheckMedia` (capability `kyc.view`, OWNER + SUPPORT); schemas `AdminKycSettings`, `KycKeyInfo`, `KycTestReport`, `KycTestWorkflow`, `KycLastTest`, `UpdateAdminKycSettingsRequest`, `TestAdminKycSettingsRequest`, `ClearAdminKycSettingsRequest`, `AdminKycCheck`, `AdminKycPerson`, `AdminKycSummary`, `AdminKycMedia`; `AdminHostApplication.kyc`, `AdminAgencyApplication.kyc`, `AdminRechargeApplication.kyc` (and `paymentMethods[].details`, returned since D191, now declared); codes `KYC_NOT_ALLOWED` (409), `KYC_UNAVAILABLE` (503); `AGENCY_OPEN_NOT_ALLOWED` issue `KYC_REQUIRED`; `ADMIN_ACTION_REFUSED` issue `kyc_required` (host approval, the recharge agent's first top-up); notification types `KYC_APPROVED`, `KYC_DECLINED`, `KYC_IN_REVIEW` (system, no target); `HostingApplicationRequest` / `OpenAgencyRequest` / `RechargeAgentApplicationRequest`: `photoUploadId` and `selfieUploadId` no longer required by the schema (required by the server while Didit is off; ignored while on); config `API_PUBLIC_URL` (optional, shown as the webhook's origin), `RATE_LIMIT_KYC_START_USER` (20/86400), `RATE_LIMIT_KYC_SYNC_USER` (60/3600); migrations `20270214090000_kyc_enums`, `20270214090100_kyc_checks` (also relaxes `recharge_agent_applications_shape`: the two picture keys both or neither); audit `kyc.settings.update\|clear\|test`, `kyc.session.start`, `kyc.check.decision`, `kyc.check.duplicate_document`, `kyc.check.view`, `kyc.check.media.view`; the data export gains `kyc_checks`; the account purge deletes the checks. §4, §7, §8, §10.54.1, §10.77. | **Additive** for clients (new operations, schemas, codes and enum values; clients ignore unknown notification types; older clients that still send the upload ids keep working). Behaviour while Didit is ON: approval / activation / opening need an approved check. While OFF nothing changes. |
 | v1.79-social (draft) | 2026-11-01 | **D226 (owner approved «تسجيل الخروج من كل الأجهزة الأخرى»):** `revokeOtherSessions` (`POST /auth/sessions/revoke-others`, `RevokeOtherSessionsRequest` with the current password, 200 `RevokeOtherSessionsResult` `{revoked}`): every session of the caller but the calling one is revoked with its push token; 403 `REAUTH_FAILED` on a wrong password; rate limit 5 / 15 min per user (bucket `sessions_revoke_others:user`, the existing rule `RATE_LIMIT_ACCOUNT_DELETION_USER`); audit actions `auth.sessions.revoke_others`, `auth.sessions.revoke_others.reauth_failed`. No migration, no new configuration. §7, §10.76. | **Additive** (a new operation). |
@@ -6018,14 +6018,16 @@ programme and is unchanged.
 
 - A tier is a row of `vip_tiers`: `code` (`^[A-Z][A-Z0-9_]{0,39}$`, never changes), `nameAr` / `nameEn` (1–30), the
   **order** `sortOrder` (1 … n, set by the panel — it is both the order the app shows and the **rank**: the higher, the
-  higher the tier), `color` (`#RRGGBB`), an optional https `emblemUrl` (else the app draws a Kabso emblem in the colour),
-  `priceCoins` (1 … 10^12), `durationDays` (1 … 365) and `enabled`. At most 20 tiers. **No tier is seeded** — nothing
-  is on sale until the OWNER adds one and switches it on (CP-024's 3 000 / 8 000 / 20 000 placeholders predate D194's
-  coin price and are not used).
+  higher the tier), `color` (`#RRGGBB`), an optional hosted **BADGE** (`badgeAnimation` = SVGA, `badgeStill` = still; both
+  https, else the app draws a token placeholder in the colour), `priceCoins` (1 … 10^12), `durationDays` (1 … 365) and
+  `enabled`. At most 20 tiers. **VIP 1 is seeded** enabled (1 000 000 coins / 30 days) with six perks, its art URLs null
+  until the owner uploads them (D252b); other tiers are added from the panel (CP-024's 3 000 / 8 000 / 20 000 placeholders
+  predate D194's coin price and are not used).
 - Each tier has **its own perks** (`vip_tier_perks`, at most 20, in order): `code` (unique in the tier), `titleAr` /
-  `titleEn` (1–40), optional descriptions (≤ 200) and `enabled` (shown or hidden). The panel suggests SVIP's vocabulary
-  (`BADGE`, `AVATAR_FRAME`, `CHAT_NAME_COLOR`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `DAILY_BULLET`, `VIEWER_LIST_PRIORITY`,
-  `MONTHLY_GIFT`); any other code is allowed.
+  `titleEn` (1–40), optional descriptions (≤ 200), `enabled` (shown or hidden) and its own hosted art (`animation` = SVGA,
+  `still`, `artWidth` / `artHeight` — all https, from the panel; D252b). The panel suggests SVIP's vocabulary (`BADGE`,
+  `AVATAR_FRAME`, `PROFILE_CARD`, `CHAT_BUBBLE`, `CHAT_NAME_COLOR`, `ENTRY_BANNER`, `ENTRY_EFFECT`, `MIC_SOUND_WAVE`,
+  `DAILY_BULLET`, `VIEWER_LIST_PRIORITY`, `MONTHLY_GIFT`); any other code is allowed.
 - **Honest perks:** `available` is **not** an admin field: it is true only for a code in the server's list of perks the
   app really does (`VIP_BUILT_PERKS`, empty today). Every perk is therefore `available: false` and the app shows it as
   listed «قريباً», never as active — as SVIP's perks (§10.41). Building a perk (art by the owner, a change in the live
@@ -6059,8 +6061,8 @@ first result; another body 409 `IDEMPOTENCY_CONFLICT`. `priceCoins` must be the 
 #### 10.92.3 The app
 
 `getMyVip` and `listVipTiers` (names and perks in the language of `Accept-Language`, else the caller's locale) feed the
-«شراء VIP» page: a tier switcher in the panel's order, the emblem, price, length and the perks grid with each perk's
-state, the caller's status and end, and a sticky buy / renew / upgrade button with a confirm card (price, balance,
+«شراء VIP» page: the tier tab row in the panel's order, the selected tier's badge, price, length and the perks grid with
+each perk's state, the member's status and end, and a sticky buy / renew / upgrade button with a confirm card (price, balance,
 the new end; an upgrade warns that the days left are not carried) and, when the balance is short, the way to the wallet's
 recharge. The wallet history names `VIP_PURCHASE` «شراء VIP».
 
@@ -6068,10 +6070,36 @@ recharge. The wallet history names `VIP_PURCHASE` «شراء VIP».
 
 `listAdminVipTiers` (`catalog.view`: OWNER, SUPPORT, FINANCE) lists every tier with its perks and active members;
 `createAdminVipTier` (added last in the order, off unless `enabled: true`), `updateAdminVipTier` (any of names, colour,
-emblem, price, length, the whole perks list), `enableAdminVipTier` / `disableAdminVipTier` and `reorderAdminVipTiers`
-(every id exactly once, lowest first) need `catalog.manage` (OWNER), the CSRF header and a reason, and write
-`vip.tier.add | update | enable | disable | reorder` with before / after, the actor, the IP and `via: panel`. A code that
-exists or a 21st tier → 409 `ADMIN_ACTION_REFUSED`. Prices are coins only (no currency).
+the badge art, price, length, the whole perks list with each perk's art), `enableAdminVipTier` / `disableAdminVipTier`
+and `reorderAdminVipTiers` (every id exactly once, lowest first) need `catalog.manage` (OWNER), the CSRF header and a
+reason, and write `vip.tier.add | update | enable | disable | reorder` with before / after, the actor, the IP and
+`via: panel`. A code that exists or a 21st tier → 409 `ADMIN_ACTION_REFUSED`. Prices are coins only (no currency). All art
+is a hosted https URL for now (SVGA + still per badge / perk); an in-panel binary upload is a follow-up (D252b).
+
+#### 10.92.5 The reference layout and the tier / perk art *(D252b v2, owner «طبق هذا التصميم ١٠٠٪», reference `REFERENCE_vip_design_v2`)*
+
+The owner replaced the earlier reference. The «شراء VIP» page matches the new reference composition: a centred «VIP» app
+bar (back chevron at the start, **no store icon**), a **horizontal tier tab row** (VIP1…VIPn, the selected one gold with
+a short gold underline, the others muted; tap to select, the held tier marked), the selected tier's **large centred
+BADGE**, a **gold crown divider** drawn in code, **category section headers with a count** («التعريف» / «امتياز حصري»,
+matching the reference's «Identification (6/6)»), a **3-column perks grid** (each cell a thumbnail, a bold title and a
+one-line grey subtitle, a lock for «قريباً»), and a **sticky bar** with the coins price / length at the reading start and
+the gold **activate** button at the end — in Kabso's dark purple + gold identity, RTL-correct. (The earlier v1 curved tier
+arc, hanging crest banners, status/upgrade bars and store entry were removed.) The reference's third-party ornate art
+(crest, gold frames, winged crown) is **not** copied: the badge and perk art are the owner's own uploaded SVGA, and the
+crown divider is drawn in code. The grid's two sections are grouped by perk code (privilege perks `DAILY_BULLET` /
+`VIEWER_LIST_PRIORITY` / `MONTHLY_GIFT` vs appearance), so adding perks stays row-only.
+
+- **Each tier has a BADGE** (the central crest «بدج / ميدالية»): `badgeAnimation` (a hosted SVGA) and `badgeStill` (a
+  hosted still). **Each perk** carries its own `animation` (SVGA), `still` and the art's intrinsic `artWidth` / `artHeight`
+  (not all square: the profile-card frame is 720×1280, the entrance bar 660×150). All are **hosted https URLs** uploaded
+  from the admin panel — **nothing is bundled** in the app (the entry-effect SVGA alone is 13 MB), so the binary stays
+  light. The app fetches and loops the SVGA (buffer-decode, the gifts `animationUrl` pattern, D126) and shows the still
+  until it decodes; widget tests and screenshots show the still.
+- **VIP 1 is seeded** enabled (1 000 000 coins / 30 days) with six perks (BADGE, AVATAR_FRAME, PROFILE_CARD, ENTRY_BANNER,
+  CHAT_BUBBLE, ENTRY_EFFECT); its art URLs are null until the owner uploads them (a token placeholder shows meanwhile).
+- `available` stays the server's list (`VIP_BUILT_PERKS`, empty): a perk shows its art as a preview with «قريباً» and is
+  not yet rendered in the profile / live / DMs (separate features).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

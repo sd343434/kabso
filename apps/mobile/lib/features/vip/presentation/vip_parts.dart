@@ -20,8 +20,8 @@ import 'package:material_ui/material_ui.dart';
 /// gold frames and a winged crown) that Kabso must not copy. The badge and the
 /// perk thumbnails are **slots** for the owner's own art (hosted SVGA + still,
 /// uploaded from the admin panel); until a tier has art a tier-coloured
-/// placeholder shows. The crown divider is drawn in code (a gold crown + wings),
-/// not the reference's artwork.
+/// placeholder shows. The crown divider is drawn in code (a gold crown with
+/// wings), not the reference's artwork.
 
 /// The page's dark background (a deep purple-black, so the gold reads).
 const Color vipBackground = Color(0xFF0E0A16);
@@ -392,10 +392,10 @@ class VipCrownDivider extends StatelessWidget {
     height: height,
     child: Row(
       children: [
-        Expanded(
+        const Expanded(
           child: CustomPaint(
             size: Size.infinite,
-            painter: const _WingPainter(toEnd: false),
+            painter: _WingPainter(toEnd: false),
           ),
         ),
         Padding(
@@ -405,10 +405,10 @@ class VipCrownDivider extends StatelessWidget {
             painter: const _CrownPainter(),
           ),
         ),
-        Expanded(
+        const Expanded(
           child: CustomPaint(
             size: Size.infinite,
-            painter: const _WingPainter(toEnd: true),
+            painter: _WingPainter(toEnd: true),
           ),
         ),
       ],
@@ -501,7 +501,7 @@ class _CrownPainter extends CustomPainter {
       );
     // The spike tips.
     final tip = Paint()..color = vipGoldBright;
-    for (final x in [0.08, 0.5, 0.92]) {
+    for (final x in const [0.08, 0.5, 0.92]) {
       canvas.drawCircle(Offset(w * x, h * (x == 0.5 ? 0.22 : 0.4)), 2, tip);
     }
   }

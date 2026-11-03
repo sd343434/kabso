@@ -550,16 +550,38 @@
 - **Not verified:** a real phone (the report sheet, the messages, the notification), the panel on the server against
   the production LiveKit (CSP, autoplay of sound), push delivery.
 
-## Purchase VIP «شراء VIP» (v1.82-social draft, D252)
+## Purchase VIP «شراء VIP» (v1.82-social draft, D252 / D252b v2)
 
-- **No tier is on sale** until the OWNER adds one in the panel «VIP» and switches it on (nothing is seeded).
-- **No perk works yet:** every perk is listed «قريباً» (`VIP_BUILT_PERKS` is empty) — badge, avatar frame, coloured chat
-  name, entry banner, entry effect, daily bullet, viewer-list priority and the monthly gift each need building (and owner
-  art). A VIP membership today is a paid status shown on the VIP page only.
+- **Design (D252b v2, reference `REFERENCE_vip_design_v2`):** the screen matches the owner's new reference layout in
+  composition — a centred «VIP» app bar (no store icon), a horizontal tier tab row (VIP1…VIPn, the selected one gold with
+  a short gold underline, the others muted), the selected tier's large centred BADGE, a gold crown divider, category
+  section headers with a count («التعريف» / «امتياز حصري», the reference's «Identification (6/6)»), a 3-column perks grid
+  (each cell a thumbnail, a bold title and a one-line grey subtitle, a lock for «قريباً»), and a sticky bar with the
+  coins price / length at the start and the gold activate button at the end — in Kabso's dark purple + gold identity,
+  RTL-correct. (An earlier v1 layout — a curved tier arc, hanging crest banners, status/upgrade bars and a store entry —
+  was replaced.) The reference's third-party ornate art (crest, gold frames, winged crown) is **not** copied: the badge
+  and perk art are the owner's own uploaded SVGA, and the crown divider is drawn in code.
+- **Perk categories without a schema change:** the grid's two sections are grouped by perk code — the privilege perks
+  (`DAILY_BULLET`, `VIEWER_LIST_PRIORITY`, `MONTHLY_GIFT`) go under «امتياز حصري», everything else under «التعريف»; the
+  per-section count shows the tier's included perks (`n/n`). An admin-set category field is a possible follow-up. Adding
+  perks stays row-only.
+- **VIP 1 is seeded** enabled (1 000 000 coins / 30 days) with its six perks (badge, avatar frame, profile card, entry
+  banner, message bubble, entry effect); the art URLs are **null** until the owner uploads them (a placeholder shows
+  meanwhile). Other tiers are added from the panel. The owner changes the price and uploads the art from the panel.
+- **Art is hosted, not bundled.** Each tier's badge and each perk carry a hosted https SVGA URL + still URL + intrinsic
+  size. Nothing is committed to the app (the entry-effect SVGA alone is 13 MB), so the binary stays light. The live app
+  fetches and loops the SVGA (buffer-decode, the gifts `animationUrl` pattern, D126) and shows the still until it decodes;
+  widget tests and screenshots show the still.
+- **Admin art is set by URL for now.** The VIP panel page takes a hosted https URL (and size) per badge / perk; an
+  **in-panel binary upload** of the SVGA + still (reusing the gift-upload object storage, D207/D222) is the remaining
+  follow-up and needs the media storage (R2 / S3) configured.
+- **No perk works yet:** every perk is listed «قريباً» (`VIP_BUILT_PERKS` is empty) — the art shows as a preview; the
+  frame / card / entrance / bubble / entry-effect are not yet rendered in the profile, live room or DMs (separate
+  features). A VIP membership today is a paid status + art preview on the VIP page only.
 - **Upgrade** charges the full price of the higher tier and does not carry over the days left of the lower one (no
   pro-rata); a lower tier cannot be bought while a higher one is active.
 - **No reminder** before a membership ends (renewal is manual).
-- **Design:** no Purchase VIP reference screenshot is in the repo; the page follows the SVIP screen. The owner's «100 %»
-  match is not verified.
-- An emblem URL is loaded from any https host the OWNER enters (no upload in the panel yet).
+- The tier tabs are evenly spaced across the width; fine for the handful of tiers expected (the reference shows five).
+  With many more tiers a scrolling tab strip is a later refinement.
+- The app bar keeps the page's own name «شراء VIP» (the reference's bare «VIP»); the composition otherwise matches.
 - Not verified on a device.

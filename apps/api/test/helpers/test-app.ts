@@ -331,18 +331,25 @@ export async function resetDatabase(): Promise<void> {
     await client.$executeRawUnsafe(`INSERT INTO referral_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
     // v1.82-social (D252): VIP 1 and its six perks, as its migration seeds them (art URLs NULL — all
     // VIP art is hosted and uploaded from the admin panel; nothing is bundled). Put back after the
-    // TRUNCATE so the e2e database matches a freshly migrated one.
-    await client.$executeRawUnsafe(SEED_VIP_SQL);
+    // TRUNCATE so the e2e database matches a freshly migrated one. Two calls: $executeRawUnsafe runs
+    // one statement per call (the query protocol rejects several commands in one prepared statement).
+    await client.$executeRawUnsafe(SEED_VIP_TIER_SQL);
+    await client.$executeRawUnsafe(SEED_VIP_PERKS_SQL);
   });
 }
 
 /**
- * The VIP 1 tier and its perks, mirroring migration `20270305090100_vip` (art NULL). D252.
+ * The VIP 1 tier, mirroring migration `20270305090100_vip` (art NULL). D252.
  */
-export const SEED_VIP_SQL = `
+export const SEED_VIP_TIER_SQL = `
   INSERT INTO vip_tiers (id, code, name_ar, name_en, sort_order, color, price_coins, duration_days, enabled)
     VALUES ('01a25200-0000-7000-8000-000000000001', 'VIP_1', 'في آي بي 1', 'VIP 1', 1, '#2E8B3D', 1000000, 30, true)
-    ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO NOTHING`;
+
+/**
+ * VIP 1's six perks, mirroring migration `20270305090100_vip` (art NULL). D252.
+ */
+export const SEED_VIP_PERKS_SQL = `
   INSERT INTO vip_tier_perks (id, tier_id, code, title_ar, title_en, sort_order, enabled) VALUES
     ('01a25200-0000-7000-8000-0000000000a1', '01a25200-0000-7000-8000-000000000001', 'BADGE', 'الشارة', 'Badge', 0, true),
     ('01a25200-0000-7000-8000-0000000000a2', '01a25200-0000-7000-8000-000000000001', 'AVATAR_FRAME', 'إطار الصورة', 'Avatar frame', 1, true),
