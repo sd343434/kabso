@@ -220,6 +220,8 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     final p = context.palette;
     final tiers = ref.watch(vipTiersProvider);
     final mine = ref.watch(myVipProvider);
+    // Keeps the balance loaded for the confirm card.
+    ref.watch(liveCoinsProvider);
     final list = tiers.value;
     final membership = mine.value;
     final ready = list != null && mine.hasValue;

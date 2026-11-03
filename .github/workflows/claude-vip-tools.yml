@@ -61,6 +61,20 @@ jobs:
               -m "Claude-Session: https://claude.ai/code/session_01EeAD3Zu8RxSbNSASC3hKot"
             git push origin HEAD:${{ github.ref_name }}
           fi
+      - name: Mobile — render the VIP screenshots and commit them
+        working-directory: apps/mobile
+        run: |
+          flutter test test/features/vip/vip_shots_test.dart || true
+          mkdir -p ../../docs/design/review/d252-vip-shots
+          cp build/shots/*.png ../../docs/design/review/d252-vip-shots/ || true
+          cd ../..
+          git add docs/design/review/d252-vip-shots
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(vip): screenshots of the VIP screen (temporary) [tools]" \
+              -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" \
+              -m "Claude-Session: https://claude.ai/code/session_01EeAD3Zu8RxSbNSASC3hKot"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
       - name: Mobile — analyze (report only)
         if: always()
         working-directory: apps/mobile
