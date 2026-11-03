@@ -1,0 +1,31 @@
+# TEMPORARY: screenshot of the Me hub before/after D249 (never merged).
+name: Shot
+on:
+  push:
+    branches: ["claude/kl-249-shot"]
+jobs:
+  shot:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          channel: stable
+          flutter-version: "3.47.7"
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: After (SVIP removed)
+        run: SHOT_TAG=after flutter test test/features/profile/zz_me_hub_shot_test.dart
+      - name: Before (staging)
+        run: |
+          git checkout origin/staging -- lib/features/profile/me_hub_screen.dart
+          SHOT_TAG=before flutter test test/features/profile/zz_me_hub_shot_test.dart
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: shots
+          path: apps/mobile/build/shots/
