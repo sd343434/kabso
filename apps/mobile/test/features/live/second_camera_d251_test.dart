@@ -387,6 +387,34 @@ class _Mic implements lk.LocalAudioTrack {
 }
 
 void main() {
+  test(
+    'D251b a platform error logs its code and a known reason, never ids',
+    () {
+      expect(
+        platformErrorTag(
+          PlatformException(
+            code: 'switchCameraFailed',
+            message: 'Switching camera failed: track-123',
+          ),
+        ),
+        'code=switchCameraFailed why=switch-error',
+      );
+      expect(
+        platformErrorTag(
+          PlatformException(
+            code: 'switchCameraFailed',
+            message: 'Video capturer not found for id: track-9',
+          ),
+        ),
+        'code=switchCameraFailed why=no-capturer',
+      );
+      expect(
+        platformErrorTag(PlatformException(code: 'a b', message: 'secret')),
+        isNull,
+      );
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final defaults = (
@@ -885,7 +913,7 @@ void main() {
       expect(text, contains('phase live'));
       expect(text, contains('preview ok'));
       expect(text, contains('publish ok'));
-      expect(text, contains('keep-on failed PlatformException'));
+      expect(text, contains('keep-on failed PlatformException code=boom'));
       expect(text, contains('fgs hold'));
       for (final secret in [
         '123456',

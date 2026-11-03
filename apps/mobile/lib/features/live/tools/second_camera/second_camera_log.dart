@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 /// D251: the second camera's state log, copied from its screen with
 /// «نسخ سجل التشخيص» and pasted to support.
@@ -66,7 +67,10 @@ class Cam2Call<T> {
 /// D251: runs one platform call of the second camera's screen with a time
 /// limit; never throws. The call itself may go on after [limit] (a Dart
 /// future cannot be cancelled), but the screen no longer waits for it.
-/// Logs `<name> ok <ms>`, `<name> failed <ErrorType>` or `<name> timeout`.
+/// Logs `<name> ok <ms>`, `<name> failed <ErrorType> <ms>` or
+/// `<name> timeout`. A [PlatformException] adds its code (letters only) and,
+/// for flutter_webrtc's own fixed messages, a short tag — never the text
+/// (it carries track ids).
 Future<Cam2Call<T>> guardCall<T>(
   SecondCameraLog log,
   String name,
@@ -82,7 +86,37 @@ Future<Cam2Call<T>> guardCall<T>(
     log.add(name, 'timeout ${limit.inMilliseconds}ms');
     return Cam2Call<T>(Cam2CallEnd.timedOut);
   } on Object catch (e) {
-    log.add(name, 'failed ${e.runtimeType}');
+    final ms = watch.elapsedMilliseconds;
+    final why = e is PlatformException ? platformErrorTag(e) : null;
+    log.add(
+      name,
+      why == null
+          ? 'failed ${e.runtimeType} ${ms}ms'
+          : 'failed ${e.runtimeType} $why ${ms}ms',
+    );
     return Cam2Call<T>(Cam2CallEnd.failed);
   }
+}
+
+/// flutter_webrtc's fixed error messages (their ids cut off) and their tags.
+const _webrtcMessages = {
+  'Switching camera failed': 'switch-error',
+  'Video capturer not found': 'no-capturer',
+};
+
+/// `code=<code> why=<tag>` for [e]: the code only when it is a plain name
+/// (letters, digits, `_`, at most 40), the tag only for a known message.
+@visibleForTesting
+String? platformErrorTag(PlatformException e) {
+  final parts = <String>[];
+  if (RegExp(r'^[A-Za-z0-9_]{1,40}$').hasMatch(e.code)) {
+    parts.add('code=${e.code}');
+  }
+  final message = e.message;
+  if (message != null) {
+    for (final m in _webrtcMessages.entries) {
+      if (message.startsWith(m.key)) parts.add('why=${m.value}');
+    }
+  }
+  return parts.isEmpty ? null : parts.join(' ');
 }
