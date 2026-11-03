@@ -197,21 +197,27 @@ flutter:
           weight: 600
         - asset: assets/fonts/BalooBhaijaan2-ExtraBold.ttf
           weight: 800
-    - family: Inter
+    # D255 (owner: «اريد نفس خط bigo live», the whole app): Roboto, as Bigo
+    # on Android (OFL, assets/fonts/OFL-Roboto.txt). Semi-bold (600) is
+    # Roboto Medium, as Android draws it.
+    - family: Roboto
       fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Roboto-Regular.ttf
           weight: 400
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
-          weight: 700
-    - family: Readex Pro
-      fonts:
-        - asset: assets/fonts/ReadexPro-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/ReadexPro-Medium.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
           weight: 500
-        - asset: assets/fonts/ReadexPro-SemiBold.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
           weight: 600
-        - asset: assets/fonts/ReadexPro-Bold.ttf
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+    # D255: the Arabic face with it (OFL, assets/fonts/OFL-NotoSansArabic.txt).
+    - family: Noto Sans Arabic
+      fonts:
+        - asset: assets/fonts/NotoSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansArabic-Bold.ttf
           weight: 700

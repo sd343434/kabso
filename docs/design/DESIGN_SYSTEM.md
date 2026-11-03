@@ -149,8 +149,8 @@ UI component boundaries & meaningful icons ≥ 3:1. **FAIL** = below 4.5:1 for b
 
 | Script | Family | Weights bundled | Notes |
 | ------ | ------ | --------------- | ----- |
-| Arabic | `Readex Pro` (OFL-1.1; tokens v1.2, D47) | 400, 500, 600, 700 | Used whenever the app locale is `ar`, with Inter as `fontFamilyFallback`. The bundled files merge the Arabic, Latin and Latin Extended subsets, so Latin digits and hashtags in Arabic text use the same face |
-| Latin | `Inter` (OFL-1.1) | 400, 600, 700 | Used when locale is `en`, with Readex Pro as fallback for Arabic runs (user names, captions) |
+| Arabic | `Noto Sans Arabic` (OFL-1.1; D255, owner: «اريد نفس خط bigo live», supersedes D47's Readex Pro) | 400, 500, 600, 700 | Used whenever the app locale is `ar`, with Roboto as `fontFamilyFallback` for Latin runs (digits, hashtags, names) |
+| Latin | `Roboto` (OFL-1.1; D255, Bigo's face on Android; supersedes Inter) | 400, 500 (600 draws Roboto Medium, as Android does), 700 | Used when locale is `en`, with Noto Sans Arabic as fallback for Arabic runs |
 
 Both bundled as assets (no runtime download). Mixed-script strings (Arabic caption with an
 English hashtag) render correctly through the fallback chain — do not split into spans manually.

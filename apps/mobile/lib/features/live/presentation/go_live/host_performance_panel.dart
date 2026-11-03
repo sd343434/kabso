@@ -117,6 +117,10 @@ class HostPerformancePanel extends ConsumerStatefulWidget {
   final String roomId;
   final LiveMediaEngine engine;
 
+  /// The clock (tests fix it).
+  @visibleForTesting
+  static DateTime Function() now = DateTime.now;
+
   static const panelKey = Key('performance.panel');
   static const closeKey = Key('performance.close');
   static const helpKey = Key('performance.help');
@@ -130,7 +134,7 @@ class HostPerformancePanel extends ConsumerStatefulWidget {
 
 class _State extends ConsumerState<HostPerformancePanel> {
   LiveRoomStats? _stats;
-  DateTime _readAt = DateTime.now();
+  DateTime _readAt = HostPerformancePanel.now();
   Timer? _refresh;
   Timer? _clock;
   int _tab = 0;
@@ -159,7 +163,7 @@ class _State extends ConsumerState<HostPerformancePanel> {
     try {
       final s = await ref.read(liveRepositoryProvider).roomStats(widget.roomId);
       if (!mounted) return;
-      final now = DateTime.now();
+      final now = HostPerformancePanel.now();
       ref
           .read(hostPerformanceSamplesProvider(widget.roomId).notifier)
           .add(s, now);
@@ -187,7 +191,7 @@ class _State extends ConsumerState<HostPerformancePanel> {
         ? Duration.zero
         : s.ended
         ? s.duration
-        : s.duration + DateTime.now().difference(_readAt);
+        : s.duration + HostPerformancePanel.now().difference(_readAt);
     final samples = ref.watch(hostPerformanceSamplesProvider(widget.roomId));
     final tabs = [
       l10n.liveDataNowCherries,

@@ -163,12 +163,14 @@ abstract final class KRadius {
 
 /// `typography`
 abstract final class KFonts {
-  static const latin = 'Inter';
-  static const arabic = 'Readex Pro';
+  /// D255 (owner: «اريد نفس خط bigo live», the whole app; supersedes D47's
+  /// Inter + Readex Pro): Roboto — Bigo's face on Android — and Noto Sans
+  /// Arabic for Arabic, bundled so every phone draws the same.
+  static const latin = 'Roboto';
+  static const arabic = 'Noto Sans Arabic';
 
-  /// Arabic locales use Readex Pro (D47; the bundled files also cover
-  /// Latin); other locales use Inter with Readex Pro as fallback for Arabic
-  /// text.
+  /// Arabic locales use Noto Sans Arabic with Roboto for Latin runs; other
+  /// locales use Roboto with Noto Sans Arabic for Arabic runs.
   static String familyFor(Locale locale) =>
       locale.languageCode == 'ar' ? arabic : latin;
 

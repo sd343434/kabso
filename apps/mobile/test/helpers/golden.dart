@@ -55,15 +55,15 @@ Future<void> loadAppFonts() async {
   }
 
   await family(KFonts.latin, const [
-    'assets/fonts/Inter-Regular.ttf',
-    'assets/fonts/Inter-SemiBold.ttf',
-    'assets/fonts/Inter-Bold.ttf',
+    'assets/fonts/Roboto-Regular.ttf',
+    'assets/fonts/Roboto-Medium.ttf',
+    'assets/fonts/Roboto-Bold.ttf',
   ]);
   await family(KFonts.arabic, const [
-    'assets/fonts/ReadexPro-Regular.ttf',
-    'assets/fonts/ReadexPro-Medium.ttf',
-    'assets/fonts/ReadexPro-SemiBold.ttf',
-    'assets/fonts/ReadexPro-Bold.ttf',
+    'assets/fonts/NotoSansArabic-Regular.ttf',
+    'assets/fonts/NotoSansArabic-Medium.ttf',
+    'assets/fonts/NotoSansArabic-SemiBold.ttf',
+    'assets/fonts/NotoSansArabic-Bold.ttf',
   ]);
   // D63/D64: splash wordmark and the welcome screen.
   await family('Fredoka', const ['assets/fonts/Fredoka-Bold.ttf']);

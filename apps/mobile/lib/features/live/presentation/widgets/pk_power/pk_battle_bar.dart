@@ -38,6 +38,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_models.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -120,7 +121,7 @@ String pkBarScore(int value) =>
 /// The score figures' style: white, an even dark outline and a soft shadow.
 TextStyle pkBarScoreStyle() => TextStyle(
   fontFamily: PkBarMetrics.family,
-  fontFamilyFallback: const ['Inter'],
+  fontFamilyFallback: const [KFonts.latin],
   fontSize: PkBarMetrics.score,
   height: 1,
   fontWeight: FontWeight.w800,

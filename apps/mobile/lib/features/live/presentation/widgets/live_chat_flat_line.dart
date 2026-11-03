@@ -56,7 +56,8 @@ abstract final class KFlatChat {
         fontSize: textSize,
         height: lineHeight,
         color: const Color(0xFFFFFFFF),
-        fontWeight: FontWeight.w700,
+        // D255 (owner: Bigo's semi-bold).
+        fontWeight: FontWeight.w600,
         shadows: shadow,
       );
 }

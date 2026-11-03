@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
@@ -1357,7 +1359,34 @@ class LiveViewersStack extends StatelessWidget {
     this.countHeight = size,
     this.countMinWidth,
     this.plainCount = false,
+    this.ranks = const [],
+    this.rankPoints = const [],
   });
+
+  /// D256 (owner: the top three supporters in their 1st / 2nd / 3rd
+  /// frames, as Bigo's top viewers): each face's place (1–3) or null, in
+  /// [avatars]' order; a placed face wears a round gold / silver / bronze
+  /// ring with a crown, its points ([rankPoints]) in a pill under it.
+  final List<int?> ranks;
+  final List<String?> rankPoints;
+
+  /// The ring's width around a ranked face.
+  static const double ring = 2.2;
+
+  static const _rings = <int, List<Color>>{
+    1: [Color(0xFFFFE58A), Color(0xFFE0A21C)],
+    2: [Color(0xFFF4F7FC), Color(0xFF9AA7BA)],
+    3: [Color(0xFFFFC89A), Color(0xFFBF6A2E)],
+  };
+
+  /// The pill under a ranked face (ref: gold with dark text for the first).
+  static const _pills = <int, Color>{
+    1: Color(0xFFF6B61E),
+    2: Color(0xFFA9B4C6),
+    3: Color(0xFFC77A3E),
+  };
+
+  static Key frameKey(int rank) => Key('viewers.frame.$rank');
 
   /// D253 (the host's reference, 2026-11-03): the count is plain white text
   /// 11.4 pt after the faces (no chip), the faces without a ring.
@@ -1388,6 +1417,10 @@ class LiveViewersStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final shown = avatars.take(3).toList();
     final size = avatarSize;
+    int? rankOf(int i) => i < ranks.length ? ranks[i] : null;
+    // D256: a ringed face keeps its place; the ring grows outwards.
+    final starts = [for (var i = 0; i < shown.length; i++) i * pitch];
+    final width = shown.isEmpty ? 0.0 : starts.last + size;
     return Semantics(
       button: onTap != null,
       label: label,
@@ -1401,25 +1434,37 @@ class LiveViewersStack extends StatelessWidget {
           children: [
             if (shown.isNotEmpty)
               SizedBox(
-                width: size + (shown.length - 1) * pitch,
+                width: width,
                 height: size,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     for (var i = 0; i < shown.length; i++)
-                      PositionedDirectional(
-                        start: i * pitch,
-                        child: Container(
-                          width: size,
-                          height: size,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: plainCount
-                                ? null
-                                : Border.all(color: const Color(0x99FFFFFF)),
+                      if (rankOf(i) case final rank?
+                          when _rings.containsKey(rank))
+                        _framed(
+                          context,
+                          rank,
+                          starts[i],
+                          size,
+                          shown[i],
+                          i < rankPoints.length ? rankPoints[i] : null,
+                        )
+                      else
+                        PositionedDirectional(
+                          start: starts[i],
+                          child: Container(
+                            width: size,
+                            height: size,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: plainCount
+                                  ? null
+                                  : Border.all(color: const Color(0x99FFFFFF)),
+                            ),
+                            child: ClipOval(child: shown[i]),
                           ),
-                          child: ClipOval(child: shown[i]),
                         ),
-                      ),
                   ],
                 ),
               ),
@@ -1467,6 +1512,94 @@ class LiveViewersStack extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// D256: [face] in the ring for [rank] — a crown over it, [points] in a
+  /// pill under it.
+  Widget _framed(
+    BuildContext context,
+    int rank,
+    double start,
+    double size,
+    Widget face,
+    String? points,
+  ) {
+    final outer = size + ring * 2;
+    return PositionedDirectional(
+      key: frameKey(rank),
+      start: start - ring,
+      top: -ring,
+      width: outer,
+      height: outer,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: outer,
+            height: outer,
+            padding: const EdgeInsets.all(ring),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: _rings[rank]!,
+              ),
+              boxShadow: const [
+                BoxShadow(color: Color(0x66000000), blurRadius: 3),
+              ],
+            ),
+            child: ClipOval(child: face),
+          ),
+          // The crown over the ring's top.
+          Positioned(
+            top: -size * 0.3,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: SvgPicture.asset(
+                AppIcons.crownFilled,
+                width: size * 0.42,
+                height: size * 0.42,
+                colorFilter: ColorFilter.mode(
+                  _rings[rank]!.last,
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+          if (points != null)
+            Positioned(
+              bottom: -size * 0.22,
+              left: -4,
+              right: -4,
+              child: Center(
+                child: Container(
+                  height: size * 0.42,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: _pills[rank],
+                    borderRadius: BorderRadius.circular(size),
+                  ),
+                  child: Center(
+                    widthFactor: 1,
+                    child: Text(
+                      points,
+                      textDirection: TextDirection.ltr,
+                      style: context.textStyles.caption.copyWith(
+                        fontSize: size * 0.3,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFFFFFFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

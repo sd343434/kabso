@@ -57,7 +57,7 @@ abstract final class PkBoostText {
 TextStyle pkBoostLineStyle(BuildContext context) =>
     context.textStyles.bodyStrong.copyWith(
       fontFamily: PkBoostText.family,
-      fontFamilyFallback: const ['Inter'],
+      fontFamilyFallback: const [KFonts.latin],
       fontSize: 16,
       height: 1.3,
       fontWeight: FontWeight.w800,

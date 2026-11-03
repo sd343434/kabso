@@ -11,6 +11,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_top_viewers.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_pk_media.dart';
@@ -21,11 +22,13 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/host_live_ref_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/host_performance_panel.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
@@ -166,6 +169,11 @@ Future<FakeLiveMediaEngine> _pump(
         joinedAt: DateTime.utc(2026, 11, 3),
       ),
   ];
+  // D256: Karim and Mona supported this live (Mona most); Huda did not.
+  repo.contributorList = [
+    LiveContributor(user: repo.viewerList[2].user!, points: 8000),
+    LiveContributor(user: repo.viewerList[1].user!, points: 300),
+  ];
   await host.goLive(title: 'Evening');
   await tester.pump();
   await tester.pump();
@@ -174,6 +182,36 @@ Future<FakeLiveMediaEngine> _pump(
 }
 
 void main() {
+  test('D256 the top supporters first, three places at most', () {
+    LiveViewer v(String id) => LiveViewer(
+      kind: LiveViewerKind.user,
+      user: UserSummary(id: id, username: id, displayName: id, avatarUrl: null),
+      guestNumber: null,
+      joinedAt: DateTime.utc(2026, 11, 3),
+    );
+    LiveContributor c(String id, int points) => LiveContributor(
+      user: UserSummary(id: id, username: id, displayName: id, avatarUrl: null),
+      points: points,
+    );
+    final viewers = [v('a'), v('b'), v('c'), v('d'), v('e')];
+    final ranked = rankViewersBySupport(viewers, [
+      c('gone', 9000), // not here now: left out
+      c('d', 500),
+      c('b', 400),
+      c('e', 300),
+      c('a', 200),
+      c('c', 0), // no points: no place
+    ]);
+    expect([for (final r in ranked) r.user.id], ['d', 'b', 'e', 'a', 'c']);
+    expect([for (final r in ranked) r.rank], [1, 2, 3, null, null]);
+    expect(rankPointsLabel(ranked.first, (p) => '$p'), '500');
+    expect(rankPointsLabel(ranked[3], (p) => '$p'), isNull);
+    // Nobody supported: the join order, no places.
+    expect([
+      for (final r in rankViewersBySupport(viewers, const [])) r.rank,
+    ], everyElement(isNull));
+  });
+
   test('D253 the weekly host task followed and the days left', () {
     final done = _weekly(progress: 500);
     final open = _weekly(progress: 3);
@@ -218,6 +256,18 @@ void main() {
     expect(find.byKey(LiveChatFlatLine.tagKey), findsOneWidget);
     final tag = tester.widget<Container>(find.byKey(LiveChatFlatLine.tagKey));
     expect((tag.decoration! as BoxDecoration).color, KFlatChat.hostTag);
+    // D253d: the host's own live — the rules line is the first line, the
+    // host's message under it.
+    expect(
+      tester.getRect(find.byKey(LiveRoomChatLines.noticeKey)).bottom,
+      lessThanOrEqualTo(
+        tester.getRect(find.byKey(LiveChatFlatLine.tagKey)).top,
+      ),
+    );
+    // D256: Mona (most) then Karim, ringed 1 and 2; Huda after them.
+    expect(find.byKey(LiveViewersStack.frameKey(1)), findsOneWidget);
+    expect(find.byKey(LiveViewersStack.frameKey(2)), findsOneWidget);
+    expect(find.byKey(LiveViewersStack.frameKey(3)), findsNothing);
     // «–» hides the card for this live.
     await tester.tap(find.byKey(HostTasksCard.hideKey));
     await tester.pump();
@@ -247,6 +297,8 @@ void main() {
     testWidgets('D253b «⌂▶» opens the performance card ($language)', (
       tester,
     ) async {
+      HostPerformancePanel.now = () => DateTime(2026, 11, 3, 22, 52);
+      addTearDown(() => HostPerformancePanel.now = DateTime.now);
       await _pump(tester, language: language);
       await tester.tap(find.byKey(HostLiveStatus.dataKey));
       await tester.pump();

@@ -370,7 +370,7 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
                   'PK',
                   textDirection: TextDirection.ltr,
                   style: context.textStyles.title.copyWith(
-                    fontFamily: 'Inter',
+                    fontFamily: KFonts.latin,
                     fontSize: 21,
                     height: 1,
                     fontStyle: FontStyle.italic,
