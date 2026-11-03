@@ -120,6 +120,8 @@ flutter:
     - assets/category_icons/
     # Owner-supplied popularity board frames (assets/live_rank_frames/PROVENANCE.md).
     - assets/live_rank_frames/
+    # D256: the owner's TOP 1–3 frames of a live's top viewers (assets/live_top_frames/PROVENANCE.md).
+    - assets/live_top_frames/
     # D159 the owner's tiered lucky-win frames (assets/win_frames/PROVENANCE.md).
     - assets/win_frames/
     # The owner's currency set (assets/currency/PROVENANCE.md): the Kabi coin (D161),
