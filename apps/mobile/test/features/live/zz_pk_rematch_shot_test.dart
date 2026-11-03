@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_pk_rematch.dart';
@@ -15,6 +16,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_live_pk.dart';
+import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
@@ -53,6 +55,9 @@ void main() {
         ),
       ),
       language: AppLanguage.ar,
+      overrides: [
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+      ],
       livePkRepository: repo,
     );
     ProviderScope.containerOf(tester.element(find.byType(LivePkSheet)))
@@ -109,6 +114,9 @@ void main() {
         ),
       ),
       language: AppLanguage.ar,
+      overrides: [
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+      ],
     );
     await _save(tester, 'pk_opponent_box');
   });
