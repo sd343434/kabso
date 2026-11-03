@@ -492,10 +492,7 @@ class _CrownPainter extends CustomPainter {
     canvas
       ..drawPath(crown, fill)
       // The base band.
-      ..drawRect(
-        Rect.fromLTRB(w * 0.08, baseTop, w * 0.92, h * 0.9),
-        fill,
-      )
+      ..drawRect(Rect.fromLTRB(w * 0.08, baseTop, w * 0.92, h * 0.9), fill)
       // The centre gem.
       ..drawCircle(
         Offset(w * 0.5, h * 0.78),

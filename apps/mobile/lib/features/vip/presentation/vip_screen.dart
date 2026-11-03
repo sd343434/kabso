@@ -432,9 +432,7 @@ class _PerksSection extends StatelessWidget {
       return Text(
         l10n.vipPerksEmpty,
         textAlign: TextAlign.center,
-        style: context.textStyles.body.copyWith(
-          color: const Color(0xFFB9A9C9),
-        ),
+        style: context.textStyles.body.copyWith(color: const Color(0xFFB9A9C9)),
       );
     }
     final identity = [
@@ -485,12 +483,7 @@ class _PerksSection extends StatelessWidget {
         runSpacing: KSpacing.lg,
         children: [
           for (final perk in perks)
-            VipPerkCard(
-              perk: perk,
-              tier: tier,
-              active: active,
-              width: cardW,
-            ),
+            VipPerkCard(perk: perk, tier: tier, active: active, width: cardW),
         ],
       );
     },
