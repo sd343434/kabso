@@ -33,7 +33,7 @@ import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
 class _Coins extends LiveCoinsController {
-  _Coins(this._coins);
+  new(this._coins);
 
   final int _coins;
 
@@ -104,7 +104,7 @@ VipMembership _membership(VipTier tier, {int days = 20}) => VipMembership(
 );
 
 class _FakeVip implements VipRepository {
-  _FakeVip({this.membership});
+  new({this.membership});
 
   VipMembership? membership;
 
@@ -127,18 +127,17 @@ class _FakeVip implements VipRepository {
   }
 }
 
-// ---- Serve the fixture PNGs to Image.network ---------------------------------
+// ---- Serve the fixture PNGs to Image.network ----
 
 final Map<String, Uint8List> _fixtures = {
   for (final name in {..._perkFile.values, 'vip1_badge.png'})
     name: File('test/fixtures/vip/$name').readAsBytesSync(),
 };
-late final Uint8List _blank = () {
-  // A 1×1 transparent PNG for any unexpected request.
-  const b64 =
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-  return base64Decode(b64);
-}();
+// A 1×1 transparent PNG for any unexpected request.
+final Uint8List _blank = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+  '+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+);
 
 class _FixtureHttpOverrides extends HttpOverrides {
   @override
@@ -163,7 +162,7 @@ class _FakeHttpClient implements HttpClient {
 }
 
 class _FakeRequest implements HttpClientRequest {
-  _FakeRequest(this.bytes);
+  new(this.bytes);
 
   final Uint8List bytes;
 
@@ -181,7 +180,7 @@ class _FakeRequest implements HttpClientRequest {
 }
 
 class _FakeResponse implements HttpClientResponse {
-  _FakeResponse(this.bytes);
+  new(this.bytes);
 
   final Uint8List bytes;
 

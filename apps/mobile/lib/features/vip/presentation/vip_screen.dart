@@ -74,7 +74,7 @@ VipAction vipActionFor(
 /// perks come from the admin panel; buying is coins only (`POST
 /// /me/vip/purchases`).
 class VipScreen extends ConsumerStatefulWidget {
-  const VipScreen({super.key});
+  const new({super.key});
 
   static const storeKey = Key('vip.store');
   static const statusKey = Key('vip.status');
@@ -456,7 +456,7 @@ class _VipScreenState extends ConsumerState<VipScreen> {
 /// The hanging crest: the selected tier's banner, flanked by the adjacent
 /// tiers' banners (dim, smaller) for depth.
 class _Crest extends StatelessWidget {
-  const _Crest({required this.tiers, required this.selected});
+  const new({required this.tiers, required this.selected});
 
   final List<VipTier> tiers;
   final VipTier selected;
@@ -544,7 +544,7 @@ class _Crest extends StatelessWidget {
 /// «حالياً: …» and, for a member, the end date, days left and an off-sale
 /// note.
 class _StatusBlock extends StatelessWidget {
-  const _StatusBlock({required this.membership});
+  const new({required this.membership});
 
   final VipMembership? membership;
 
@@ -567,11 +567,18 @@ class _StatusBlock extends StatelessWidget {
         ),
         if (m != null) ...[
           const SizedBox(height: 2),
-          Text(
-            '${l10n.vipUntil(m.tierName, KFormat.date(m.expiresAt, l10n.localeName))}'
-            ' · ${l10n.vipDaysLeft('${m.daysLeft}')}',
-            textAlign: TextAlign.center,
-            style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
+          Builder(
+            builder: (context) {
+              final until = l10n.vipUntil(
+                m.tierName,
+                KFormat.date(m.expiresAt, l10n.localeName),
+              );
+              return Text(
+                '$until · ${l10n.vipDaysLeft('${m.daysLeft}')}',
+                textAlign: TextAlign.center,
+                style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
+              );
+            },
           ),
           if (!m.onSale) ...[
             const SizedBox(height: KSpacing.xs),
@@ -590,7 +597,7 @@ class _StatusBlock extends StatelessWidget {
 
 /// The crown-topped perks grid for the selected tier.
 class _PerksSection extends StatelessWidget {
-  const _PerksSection({required this.tier, required this.active});
+  const new({required this.tier, required this.active});
 
   final VipTier tier;
   final bool active;
@@ -649,7 +656,7 @@ class _PerksSection extends StatelessWidget {
 /// button (buy, renew, upgrade; disabled for a lower tier or past the renewal
 /// limit).
 class _BottomBar extends StatelessWidget {
-  const _BottomBar({
+  const new({
     required this.tier,
     required this.action,
     required this.busy,
@@ -781,7 +788,7 @@ class _BottomBar extends StatelessWidget {
 /// are not carried over. A short balance turns the primary button into the
 /// way to recharge.
 class _ConfirmCard extends StatelessWidget {
-  const _ConfirmCard({
+  const new({
     required this.tier,
     required this.action,
     required this.membership,

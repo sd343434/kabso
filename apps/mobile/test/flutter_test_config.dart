@@ -25,10 +25,10 @@ import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
-import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
+import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {

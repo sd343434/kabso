@@ -6,7 +6,6 @@
 // Server data only (fakes here); SVGA animation is off in tests (the still
 // shows), set by flutter_test_config.
 
-import 'package:flutter/widgets.dart' show Image;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +19,6 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
-import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -33,7 +31,7 @@ final AppLocalizations _en = l10nFor(AppLanguage.en);
 final AppLocalizations _ar = l10nFor(AppLanguage.ar);
 
 class _Coins extends LiveCoinsController {
-  _Coins(this._coins);
+  new(this._coins);
 
   final int _coins;
 
@@ -100,7 +98,7 @@ VipMembership _membership(VipTier tier, {int days = 20, bool onSale = true}) =>
     );
 
 class _FakeVip implements VipRepository {
-  _FakeVip({this.list, this.membership, this.fail = false, this.failBuyWith});
+  new({this.list, this.membership, this.fail = false, this.failBuyWith});
 
   final VipTierList? list;
   VipMembership? membership;
@@ -265,7 +263,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(VipScreen.confirmKey), findsOneWidget);
       expect(find.text(_en.vipConfirmBuy('VIP 1')), findsOneWidget);
-      expect(find.text('5,000,000'), findsOneWidget);
+      // The balance shows in the confirm card (and also in the upgrade bar).
+      expect(
+        find.descendant(
+          of: find.byKey(VipScreen.confirmKey),
+          matching: find.text('5,000,000'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text(_en.vipManualRenew), findsOneWidget);
       expect(find.byKey(VipScreen.shortKey), findsNothing);
       await tester.tap(find.byKey(VipScreen.payKey));

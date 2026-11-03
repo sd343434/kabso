@@ -73,6 +73,7 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         code: string;
         name: string;
         level: number;
+        priceCoins: number;
         badgeAnimation: string | null;
         badgeStill: string | null;
         perks: {

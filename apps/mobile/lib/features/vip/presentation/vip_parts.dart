@@ -57,7 +57,7 @@ Widget? _stillOf(String? src, BoxFit fit) {
 /// asynchronously (the SVGA decode runs outside fake time and an endless loop
 /// never settles).
 class VipAnimatedArt extends StatefulWidget {
-  const VipAnimatedArt({
+  const new({
     required this.animation,
     required this.still,
     super.key,
@@ -171,7 +171,7 @@ class _VipAnimatedArtState extends State<VipAnimatedArt>
 /// has no art yet. This is the slot the owner's crest art fills — it does not
 /// copy the reference's eagle crest.
 class VipBadge extends StatelessWidget {
-  const VipBadge({
+  const new({
     required this.tier,
     required this.size,
     super.key,
@@ -235,7 +235,7 @@ class VipBadge extends StatelessWidget {
 
 /// A banner clipped to a swallowtail bottom (a classic hanging flag).
 class _SwallowtailClipper extends CustomClipper<Path> {
-  const _SwallowtailClipper();
+  const new();
 
   @override
   Path getClip(Size size) {
@@ -256,7 +256,7 @@ class _SwallowtailClipper extends CustomClipper<Path> {
 /// One hanging banner in [color]: a swallowtail flag with a top peg, an
 /// optional emblem and a label. The faded side banners pass [dim].
 class VipHangingBanner extends StatelessWidget {
-  const VipHangingBanner({
+  const new({
     required this.color,
     required this.width,
     required this.height,
@@ -319,10 +319,12 @@ class VipHangingBanner extends StatelessWidget {
                       ? MainAxisAlignment.spaceBetween
                       : MainAxisAlignment.center,
                   children: [
-                    if (emblem != null)
-                      showLabel ? emblem! : Expanded(child: emblem!)
+                    if (emblem == null)
+                      const Spacer()
+                    else if (showLabel)
+                      emblem!
                     else
-                      const Spacer(),
+                      Expanded(child: emblem!),
                     if (showLabel)
                       Padding(
                         padding: EdgeInsets.only(bottom: height * 0.08),
@@ -361,7 +363,7 @@ class VipHangingBanner extends StatelessWidget {
 
 /// The top rail the banners hang from: a thin gold gradient bar with finials.
 class VipRail extends StatelessWidget {
-  const VipRail({super.key});
+  const new({super.key});
 
   @override
   Widget build(BuildContext context) => Row(
@@ -412,7 +414,7 @@ class VipRail extends StatelessWidget {
 /// Paints the gold arc line the nodes sit on (symmetric, so it needs no
 /// mirroring in RTL).
 class _ArcPainter extends CustomPainter {
-  const _ArcPainter({
+  const new({
     required this.margin,
     required this.dip,
     required this.top,
@@ -455,7 +457,7 @@ class _ArcPainter extends CustomPainter {
 /// Mirrored in RTL. (With many tiers the labels sit close; the owner adds a
 /// handful.)
 class VipTierArc extends StatelessWidget {
-  const VipTierArc({
+  const new({
     required this.tiers,
     required this.selectedId,
     required this.heldId,
@@ -510,12 +512,12 @@ class VipTierArc extends StatelessWidget {
           return Stack(
             clipBehavior: Clip.none,
             children: [
-              Positioned.fill(
+              const Positioned.fill(
                 child: CustomPaint(
-                  painter: const _ArcPainter(
-                    margin: _margin,
-                    dip: _dip,
-                    top: _top,
+                  painter: _ArcPainter(
+                    margin: VipTierArc._margin,
+                    dip: VipTierArc._dip,
+                    top: VipTierArc._top,
                   ),
                 ),
               ),
@@ -529,7 +531,7 @@ class VipTierArc extends StatelessWidget {
 }
 
 class _ArcNode extends StatelessWidget {
-  const _ArcNode({
+  const new({
     required this.tier,
     required this.radius,
     required this.selected,
@@ -618,7 +620,7 @@ class _ArcNode extends StatelessWidget {
 /// balance line under it. For bought VIP the fill is the held tier's rank on
 /// the ladder (0 when not a member) — it is a status indicator, not a drag.
 class VipUpgradeBar extends StatelessWidget {
-  const VipUpgradeBar({
+  const new({
     required this.upgradeLabel,
     required this.fill,
     required this.balanceCoins,
@@ -660,7 +662,6 @@ class VipUpgradeBar extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: Align(
-                      alignment: Alignment.center,
                       child: Container(
                         height: 8,
                         decoration: BoxDecoration(
@@ -675,7 +676,6 @@ class VipUpgradeBar extends StatelessWidget {
                   ),
                   Positioned.fill(
                     child: Align(
-                      alignment: Alignment.center,
                       child: FractionallySizedBox(
                         widthFactor: clamped,
                         alignment: AlignmentDirectional.centerStart,
@@ -750,7 +750,7 @@ class VipUpgradeBar extends StatelessWidget {
 /// The crown header strip over the perks (a gold placeholder ornament, not the
 /// reference's third-party crown) with the section title.
 class VipCrownHeader extends StatelessWidget {
-  const VipCrownHeader({required this.title, super.key});
+  const new({required this.title, super.key});
 
   final String title;
 
@@ -800,7 +800,7 @@ class VipCrownHeader extends StatelessWidget {
 /// owner's art) with a lock + «قريباً» while the perk is not built, and the
 /// perk's title under it.
 class VipPerkCard extends StatelessWidget {
-  const VipPerkCard({
+  const new({
     required this.perk,
     required this.tier,
     required this.active,
