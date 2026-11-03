@@ -169,10 +169,11 @@ Future<FakeLiveMediaEngine> _pump(
         joinedAt: DateTime.utc(2026, 11, 3),
       ),
   ];
-  // D256: Karim and Mona supported this live (Mona most); Huda did not.
+  // D256: Mona supported this live most, then Karim, then Huda.
   repo.contributorList = [
     LiveContributor(user: repo.viewerList[2].user!, points: 8000),
     LiveContributor(user: repo.viewerList[1].user!, points: 300),
+    LiveContributor(user: repo.viewerList[0].user!, points: 40),
   ];
   await host.goLive(title: 'Evening');
   await tester.pump();
@@ -264,10 +265,10 @@ void main() {
         tester.getRect(find.byKey(LiveChatFlatLine.tagKey)).top,
       ),
     );
-    // D256: Mona (most) then Karim, ringed 1 and 2; Huda after them.
-    expect(find.byKey(LiveViewersStack.frameKey(1)), findsOneWidget);
-    expect(find.byKey(LiveViewersStack.frameKey(2)), findsOneWidget);
-    expect(find.byKey(LiveViewersStack.frameKey(3)), findsNothing);
+    // D256: Mona, Karim and Huda in the TOP 1, 2 and 3 frames.
+    for (final rank in [1, 2, 3]) {
+      expect(find.byKey(LiveViewersStack.frameKey(rank)), findsOneWidget);
+    }
     // «–» hides the card for this live.
     await tester.tap(find.byKey(HostTasksCard.hideKey));
     await tester.pump();
