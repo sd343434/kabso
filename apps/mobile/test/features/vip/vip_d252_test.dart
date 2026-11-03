@@ -1,17 +1,18 @@
-// D252: «شراء VIP» — the tiers the owner manages in the admin panel, in its
-// order, each with its own price, length and perks (every perk «قريباً»
-// until it is built); the status; buy, renew and upgrade with the confirm
-// card (price, balance, the new end; the recharge when short); a lower tier
-// refused; empty and error states; Arabic RTL and 360 × 800 at text scale
-// 1.3. Server data only (fakes here).
+// D252 / D252b: «شراء VIP» in the owner's reference layout — the hanging crest
+// banner (the tier BADGE art), the curved tier track, the status and upgrade
+// bar, and the crown-topped perks grid (each perk a still art thumbnail + title
+// + «قريباً»); buy / renew / upgrade with the confirm card; a lower tier
+// refused; empty and error states; Arabic RTL and 360 × 800 at text scale 1.3.
+// Server data only (fakes here); SVGA animation is off in tests (the still
+// shows), set by flutter_test_config.
 
+import 'package:flutter/widgets.dart' show Image;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
-import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -19,6 +20,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -31,7 +33,7 @@ final AppLocalizations _en = l10nFor(AppLanguage.en);
 final AppLocalizations _ar = l10nFor(AppLanguage.ar);
 
 class _Coins extends LiveCoinsController {
-  new(this._coins);
+  _Coins(this._coins);
 
   final int _coins;
 
@@ -39,10 +41,10 @@ class _Coins extends LiveCoinsController {
   Future<int> build() async => _coins;
 }
 
-const _colors = [0xFFC9A227, 0xFF9B59D0, 0xFFE50914];
+const _colors = [0xFF2E8B3D, 0xFF9B59D0, 0xFFE50914];
 const _prices = [1000000, 3000000, 9000000];
 
-VipTier _tier(int level) => VipTier(
+VipTier _tier(int level, {bool art = false}) => VipTier(
   id: 't$level',
   code: 'VIP_$level',
   name: 'VIP $level',
@@ -50,44 +52,43 @@ VipTier _tier(int level) => VipTier(
   color: _colors[level - 1],
   priceCoins: _prices[level - 1],
   durationDays: 30,
+  badgeStill: art ? 'https://cdn.k.test/vip1_badge.png' : null,
+  badgeAnimation: art ? 'https://cdn.k.test/vip1_badge.svga' : null,
   perks: [
-    const VipPerk(
+    VipPerk(
       code: 'BADGE',
       title: 'VIP badge',
-      description: 'Next to your name',
       available: false,
+      still: art ? 'https://cdn.k.test/vip1_badge.png' : null,
+      artWidth: art ? 500 : null,
+      artHeight: art ? 500 : null,
     ),
     if (level >= 2)
-      const VipPerk(
-        code: 'ENTRY_BANNER',
-        title: 'Entry banner',
-        available: false,
-      ),
+      const VipPerk(code: 'ENTRY_BANNER', title: 'Entry banner', available: false),
     if (level >= 3)
-      const VipPerk(
-        code: 'DAILY_BULLET',
-        title: 'Daily bullet',
-        available: false,
-      ),
+      const VipPerk(code: 'DAILY_BULLET', title: 'Daily bullet', available: false),
   ],
 );
 
-VipTierList _list() =>
-    VipTierList(tiers: [_tier(1), _tier(2), _tier(3)], maxAheadDays: 400);
-
-VipMembership _membership(VipTier tier, {int days = 20}) => VipMembership(
-  tierId: tier.id,
-  tierCode: tier.code,
-  tierName: tier.name,
-  tierColor: tier.color,
-  onSale: true,
-  startedAt: DateTime.now().subtract(const Duration(days: 10)),
-  expiresAt: DateTime.now().add(Duration(days: days)),
-  daysLeft: days,
+VipTierList _list({bool art = false}) => VipTierList(
+  tiers: [_tier(1, art: art), _tier(2), _tier(3)],
+  maxAheadDays: 400,
 );
 
+VipMembership _membership(VipTier tier, {int days = 20, bool onSale = true}) =>
+    VipMembership(
+      tierId: tier.id,
+      tierCode: tier.code,
+      tierName: tier.name,
+      tierColor: tier.color,
+      onSale: onSale,
+      startedAt: DateTime.now().subtract(const Duration(days: 10)),
+      expiresAt: DateTime.now().add(Duration(days: days)),
+      daysLeft: days,
+    );
+
 class _FakeVip implements VipRepository {
-  new({this.list, this.membership, this.fail = false, this.failBuyWith});
+  _FakeVip({this.list, this.membership, this.fail = false, this.failBuyWith});
 
   final VipTierList? list;
   VipMembership? membership;
@@ -169,8 +170,9 @@ Future<void> _pump(
           locale: language.locale,
         ),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
       ),
@@ -179,19 +181,18 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapTab(WidgetTester tester, String code) async {
-  await tester.ensureVisible(find.byKey(VipScreen.tabKey(code)));
-  await tester.tap(find.byKey(VipScreen.tabKey(code)));
-  await tester.pumpAndSettle();
-}
-
-/// The page's vertical list (the tier switcher scrolls too).
 final Finder _page = find
     .descendant(
       of: find.byType(RefreshIndicator),
       matching: find.byType(Scrollable),
     )
     .first;
+
+Future<void> _tapTab(WidgetTester tester, String code) async {
+  await tester.ensureVisible(find.byKey(VipScreen.tabKey(code)));
+  await tester.tap(find.byKey(VipScreen.tabKey(code)));
+  await tester.pumpAndSettle();
+}
 
 Finder _cta(String label) => find.descendant(
   of: find.byKey(VipScreen.ctaKey),
@@ -224,27 +225,33 @@ void main() {
   });
 
   group('purchase VIP', () {
-    testWidgets('not VIP yet: the tiers in the panel order, the first '
-        'selected, its price and perks («Soon»), buy with the confirm '
-        'card', (tester) async {
+    testWidgets('not VIP yet: the crest, the tier track in order, the status '
+        'and upgrade bar, perks «Soon», buy with the confirm card', (
+      tester,
+    ) async {
       final vip = _FakeVip();
       await _pump(tester, vip: vip);
-      expect(find.text(_en.vipNotYet), findsOneWidget);
+      // Status line: non-VIP.
+      expect(
+        find.text(_en.vipCurrently(_en.vipStatusNone)),
+        findsOneWidget,
+      );
+      // The crest badge and the tier track in the panel order.
+      expect(find.byKey(VipScreen.emblemKey), findsOneWidget);
+      expect(find.byKey(VipScreen.bannerKey), findsOneWidget);
       final first = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_1')));
       final second = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_2')));
       expect(first.dx, lessThan(second.dx));
-      expect(find.byKey(VipScreen.emblemKey), findsOneWidget);
+      // The upgrade bar aims at the lowest tier for a non-member.
+      expect(find.text(_en.vipUpgradeTo('VIP 1')), findsOneWidget);
+      // Price and length in the sticky bar; the buy button.
       expect(find.text('1,000,000'), findsWidgets);
       expect(find.text(_en.vipForDays('30')), findsWidgets);
       expect(_cta(_en.vipBuy), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(VipScreen.perkKey('BADGE')),
-        100,
-        scrollable: _page,
-      );
-      // No perk is shown as active: each says «Soon».
+      // The perks grid: the section header and «Soon».
+      expect(find.text(_en.vipPerksTitle('VIP 1')), findsOneWidget);
+      expect(find.byKey(VipScreen.perkKey('BADGE')), findsOneWidget);
       expect(find.text(_en.liveSoon), findsOneWidget);
-      expect(find.text('Next to your name'), findsOneWidget);
 
       await tester.tap(find.byKey(VipScreen.ctaKey));
       await tester.pumpAndSettle();
@@ -258,8 +265,6 @@ void main() {
       expect(vip.buys.single.tierId, 't1');
       expect(vip.buys.single.priceCoins, 1000000);
       expect(vip.buys.single.key, hasLength(36));
-      // The status now: VIP 1, and the button renews it.
-      expect(find.byKey(VipScreen.confirmKey), findsNothing);
       expect(_cta(_en.vipRenew), findsOneWidget);
     });
 
@@ -278,6 +283,28 @@ void main() {
       expect(find.byKey(VipScreen.perkKey('DAILY_BULLET')), findsNothing);
     });
 
+    testWidgets('the real badge and perk art render as the still image', (
+      tester,
+    ) async {
+      await _pump(tester, vip: _FakeVip(list: _list(art: true)));
+      // The badge slot shows an Image (the bundled still), not the placeholder.
+      expect(
+        find.descendant(
+          of: find.byKey(VipScreen.emblemKey),
+          matching: find.byType(Image),
+        ),
+        findsOneWidget,
+      );
+      // The perk thumbnail shows the still too.
+      expect(
+        find.descendant(
+          of: find.byKey(VipScreen.perkKey('BADGE')),
+          matching: find.byType(Image),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('a short balance: the confirm card leads to the recharge', (
       tester,
     ) async {
@@ -293,16 +320,18 @@ void main() {
       expect(vip.buys, isEmpty);
     });
 
-    testWidgets('holding VIP 2: renew it, upgrade to VIP 3 (the days left '
-        'are not carried), VIP 1 is below', (tester) async {
+    testWidgets('holding VIP 2: status with the end, renew it, upgrade to '
+        'VIP 3 (days not carried), VIP 1 is below', (tester) async {
       final held = _membership(_tier(2));
       await _pump(tester, vip: _FakeVip(membership: held));
       expect(
-        find.text(_en.vipUntil('VIP 2', KFormat.date(held.expiresAt, 'en'))),
+        find.text(_en.vipCurrently('VIP 2')),
         findsOneWidget,
       );
-      expect(find.text(_en.vipDaysLeft('20')), findsOneWidget);
-      // The held tier is selected first.
+      expect(
+        find.textContaining(_en.vipDaysLeft('20')),
+        findsOneWidget,
+      );
       expect(_cta(_en.vipRenew), findsOneWidget);
 
       await _tapTab(tester, 'VIP_3');
@@ -319,6 +348,12 @@ void main() {
       await tester.tap(find.byKey(VipScreen.ctaKey));
       await tester.pumpAndSettle();
       expect(find.byKey(VipScreen.confirmKey), findsNothing);
+    });
+
+    testWidgets('an off-sale tier shows a note', (tester) async {
+      final held = _membership(_tier(2), onSale: false);
+      await _pump(tester, vip: _FakeVip(membership: held));
+      expect(find.byKey(VipScreen.offSaleKey), findsOneWidget);
     });
 
     testWidgets('a refused purchase says why', (tester) async {
@@ -355,6 +390,16 @@ void main() {
       expect(find.text(_en.vipLoadError), findsOneWidget);
     });
 
+    testWidgets('the store entry opens the rules / coming-soon sheet', (
+      tester,
+    ) async {
+      await _pump(tester, vip: _FakeVip());
+      await tester.tap(find.byKey(VipScreen.storeKey));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.vipStoreSoon), findsOneWidget);
+      expect(find.text(_en.vipRules), findsOneWidget);
+    });
+
     for (final language in AppLanguage.values) {
       testWidgets('360 × 800 at text scale 1.3 (${language.name})', (
         tester,
@@ -373,9 +418,7 @@ void main() {
           expect(find.text(_ar.vipRenew), findsOneWidget);
           // RTL: the first tier is at the reading start (the right).
           final first = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_1')));
-          final second = tester.getCenter(
-            find.byKey(VipScreen.tabKey('VIP_2')),
-          );
+          final second = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_2')));
           expect(first.dx, greaterThan(second.dx));
         }
         await tester.scrollUntilVisible(

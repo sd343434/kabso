@@ -6144,8 +6144,10 @@ model VipTier {
   sortOrder    Int      @map("sort_order")
   /// The tier's colour, `#RRGGBB` upper case.
   color        String   @db.Char(7)
-  /// Optional emblem art (https), else the app draws a Kabso emblem in the tier's colour.
-  emblemUrl    String?  @map("emblem_url") @db.VarChar(2048)
+  /// The tier BADGE (central crest): an SVGA animation and a still, each a bundled asset path
+  /// (`assets/vip/...`) or a hosted https URL. Null = the app draws a token placeholder in `color`.
+  badgeAnimation String? @map("badge_animation") @db.VarChar(2048)
+  badgeStill     String? @map("badge_still") @db.VarChar(2048)
   priceCoins   BigInt   @map("price_coins")
   durationDays Int      @map("duration_days")
   enabled      Boolean  @default(false)
@@ -6172,6 +6174,12 @@ model VipTierPerk {
   descriptionEn String? @map("description_en") @db.VarChar(200)
   sortOrder     Int     @map("sort_order")
   enabled       Boolean @default(true)
+  /// The perk's own art (avatar frame, entry bar, …): an SVGA animation and a still (asset path or https URL), plus
+  /// the art's intrinsic size so the client fits it (not all square: the card is 720×1280, the entrance 660×150).
+  animation     String? @db.VarChar(2048)
+  still         String? @db.VarChar(2048)
+  artWidth      Int?    @map("art_width")
+  artHeight     Int?    @map("art_height")
 
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
 

@@ -145,19 +145,45 @@ describe('VIP panel bodies', () => {
     reason: 'owner D252',
   };
 
-  it('a tier: colour upper-cased, price and length bounded, an https emblem', () => {
+  it('a tier: colour upper-cased, price and length bounded; the badge art is a hosted https URL', () => {
     const ok = createVipTierBody.safeParse(base);
     expect(ok.success && ok.data.color).toBe('#C9A227');
     expect(createVipTierBody.safeParse({ ...base, color: 'gold' }).success).toBe(false);
     expect(createVipTierBody.safeParse({ ...base, priceCoins: 0 }).success).toBe(false);
     expect(createVipTierBody.safeParse({ ...base, durationDays: 366 }).success).toBe(false);
     expect(createVipTierBody.safeParse({ ...base, code: 'vip1' }).success).toBe(false);
-    expect(createVipTierBody.safeParse({ ...base, emblemUrl: 'http://x.example/a.png' }).success).toBe(false);
-    expect(createVipTierBody.safeParse({ ...base, emblemUrl: 'https://x.example/a.png' }).success).toBe(true);
+    expect(createVipTierBody.safeParse({ ...base, badgeStill: 'http://x.example/a.png' }).success).toBe(
+      false,
+    );
+    expect(
+      createVipTierBody.safeParse({
+        ...base,
+        badgeAnimation: 'https://cdn.k.test/vip1_badge.svga',
+        badgeStill: 'https://cdn.k.test/vip1_badge.png',
+      }).success,
+    ).toBe(true);
+    // Hosted only: a bundled asset path is rejected (nothing is bundled).
+    expect(createVipTierBody.safeParse({ ...base, badgeStill: 'assets/vip/vip1_badge.png' }).success).toBe(
+      false,
+    );
   });
 
-  it('perks: codes unique within the tier, at most 20', () => {
+  it('perks: codes unique within the tier, at most 20, with optional art', () => {
     const perk = (code: string) => ({ code, titleAr: 'شارة', titleEn: 'Badge' });
+    expect(
+      createVipTierBody.safeParse({
+        ...base,
+        perks: [
+          {
+            ...perk('AVATAR_FRAME'),
+            animation: 'https://cdn.k.test/vip1_frame.svga',
+            still: 'https://cdn.k.test/vip1_frame.png',
+            artWidth: 500,
+            artHeight: 500,
+          },
+        ],
+      }).success,
+    ).toBe(true);
     expect(createVipTierBody.safeParse({ ...base, perks: [perk('BADGE'), perk('FRAME')] }).success).toBe(
       true,
     );

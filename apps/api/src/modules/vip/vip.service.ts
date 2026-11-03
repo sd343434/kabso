@@ -31,6 +31,11 @@ export interface VipPerkDto {
   title: string;
   description: string | null;
   available: boolean;
+  /** The perk's own art (SVGA + still) and its intrinsic size; null when none set. */
+  animation: string | null;
+  still: string | null;
+  artWidth: number | null;
+  artHeight: number | null;
 }
 
 /** `VipTier`: a tier on sale, in the panel's order. */
@@ -41,7 +46,9 @@ export interface VipTierDto {
   /** 1 … n among the tiers on sale, in order. */
   level: number;
   color: string;
-  emblemUrl: string | null;
+  /** The tier BADGE (central crest): an SVGA animation and a still (asset path or https URL). */
+  badgeAnimation: string | null;
+  badgeStill: string | null;
   priceCoins: number;
   durationDays: number;
   perks: VipPerkDto[];
@@ -55,7 +62,15 @@ export interface VipTierListDto {
 
 /** `VipMembership`: the caller's active membership. */
 export interface VipMembershipDto {
-  tier: { id: string; code: string; name: string; color: string; emblemUrl: string | null; onSale: boolean };
+  tier: {
+    id: string;
+    code: string;
+    name: string;
+    color: string;
+    badgeAnimation: string | null;
+    badgeStill: string | null;
+    onSale: boolean;
+  };
   startedAt: string;
   expiresAt: string;
   daysLeft: number;
@@ -86,6 +101,10 @@ export function vipPerkDto(lang: ContentLanguage, p: VipTierPerk): VipPerkDto {
     title: lang === 'ar' ? p.titleAr : p.titleEn,
     description: (lang === 'ar' ? p.descriptionAr : p.descriptionEn) ?? null,
     available: vipPerkAvailable(p.code),
+    animation: p.animation,
+    still: p.still,
+    artWidth: p.artWidth,
+    artHeight: p.artHeight,
   };
 }
 
@@ -101,7 +120,8 @@ function membershipDto(
       code: tier.code,
       name: vipName(lang, tier),
       color: tier.color,
-      emblemUrl: tier.emblemUrl,
+      badgeAnimation: tier.badgeAnimation,
+      badgeStill: tier.badgeStill,
       onSale: tier.enabled,
     },
     startedAt: m.startedAt.toISOString(),
@@ -142,7 +162,8 @@ export class VipService {
         name: vipName(lang, t),
         level: i + 1,
         color: t.color,
-        emblemUrl: t.emblemUrl,
+        badgeAnimation: t.badgeAnimation,
+        badgeStill: t.badgeStill,
         priceCoins: Number(t.priceCoins),
         durationDays: t.durationDays,
         perks: t.perks.map((p) => vipPerkDto(lang, p)),

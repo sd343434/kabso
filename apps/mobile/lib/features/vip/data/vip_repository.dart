@@ -11,6 +11,8 @@ import 'package:kabso_live/core/network/network_providers.dart';
 
 int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 
+int? _intOrNull(Object? v) => (v as num?)?.toInt();
+
 List<Map<String, dynamic>> _list(Object? v) => [
   for (final e in v! as List<dynamic>) e as Map<String, dynamic>,
 ];
@@ -31,6 +33,10 @@ final class VipPerk {
     required this.title,
     required this.available,
     this.description,
+    this.animation,
+    this.still,
+    this.artWidth,
+    this.artHeight,
   });
 
   factory fromJson(Map<String, dynamic> json) => VipPerk(
@@ -38,12 +44,23 @@ final class VipPerk {
     title: json['title']! as String,
     description: json['description'] as String?,
     available: json['available'] == true,
+    animation: json['animation'] as String?,
+    still: json['still'] as String?,
+    artWidth: _intOrNull(json['artWidth']),
+    artHeight: _intOrNull(json['artHeight']),
   );
 
   final String code;
   final String title;
   final String? description;
   final bool available;
+
+  /// The perk's own art (an SVGA animation and a still: a bundled asset path
+  /// `assets/vip/...` or a hosted https URL), and its intrinsic size.
+  final String? animation;
+  final String? still;
+  final int? artWidth;
+  final int? artHeight;
 }
 
 /// `VipTier`: a tier on sale, in the panel's order ([level] 1 … n).
@@ -58,7 +75,8 @@ final class VipTier {
     required this.priceCoins,
     required this.durationDays,
     required this.perks,
-    this.emblemUrl,
+    this.badgeAnimation,
+    this.badgeStill,
   });
 
   factory fromJson(Map<String, dynamic> json) => VipTier(
@@ -67,7 +85,8 @@ final class VipTier {
     name: json['name']! as String,
     level: _int(json['level']),
     color: vipColorValue(json['color']),
-    emblemUrl: json['emblemUrl'] as String?,
+    badgeAnimation: json['badgeAnimation'] as String?,
+    badgeStill: json['badgeStill'] as String?,
     priceCoins: _int(json['priceCoins']),
     durationDays: _int(json['durationDays']),
     perks: [for (final p in _list(json['perks'])) VipPerk.fromJson(p)],
@@ -80,7 +99,11 @@ final class VipTier {
 
   /// ARGB.
   final int color;
-  final String? emblemUrl;
+
+  /// The tier BADGE (central crest): an SVGA animation and a still (asset
+  /// path or https URL); null = a token placeholder in [color].
+  final String? badgeAnimation;
+  final String? badgeStill;
   final int priceCoins;
   final int durationDays;
   final List<VipPerk> perks;
@@ -114,6 +137,8 @@ final class VipMembership {
     required this.startedAt,
     required this.expiresAt,
     required this.daysLeft,
+    this.badgeAnimation,
+    this.badgeStill,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -124,6 +149,8 @@ final class VipMembership {
       tierName: tier['name']! as String,
       tierColor: vipColorValue(tier['color']),
       onSale: tier['onSale'] == true,
+      badgeAnimation: tier['badgeAnimation'] as String?,
+      badgeStill: tier['badgeStill'] as String?,
       startedAt: DateTime.parse(json['startedAt']! as String),
       expiresAt: DateTime.parse(json['expiresAt']! as String),
       daysLeft: _int(json['daysLeft']),
@@ -134,6 +161,8 @@ final class VipMembership {
   final String tierCode;
   final String tierName;
   final int tierColor;
+  final String? badgeAnimation;
+  final String? badgeStill;
 
   /// False when the owner took the tier off sale (kept to its end).
   final bool onSale;

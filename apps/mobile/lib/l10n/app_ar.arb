@@ -12915,5 +12915,21 @@
   "errorVipPriceChanged": "تغيّر سعر هذا المستوى. راجع السعر الجديد.",
   "@errorVipPriceChanged": {"description": "D252: «شراء VIP»."},
   "walletReasonVipPurchase": "شراء VIP",
-  "@walletReasonVipPurchase": {"description": "D252: «شراء VIP»."}
+  "@walletReasonVipPurchase": {"description": "D252: «شراء VIP»."},
+  "vipCurrently": "حالياً: {status}",
+  "@vipCurrently": {"description": "D252: «شراء VIP» — reference layout (D252b).", "placeholders": {"status": {"type": "String"}}},
+  "vipStatusNone": "بدون VIP",
+  "@vipStatusNone": {"description": "D252: «شراء VIP» — reference layout (D252b)."},
+  "vipUpgradeTo": "الترقية: {tier}",
+  "@vipUpgradeTo": {"description": "D252: «شراء VIP» — reference layout (D252b).", "placeholders": {"tier": {"type": "String"}}},
+  "vipMaxTier": "أعلى مستوى",
+  "@vipMaxTier": {"description": "D252: «شراء VIP» — reference layout (D252b)."},
+  "vipBalanceLabel": "رصيدك",
+  "@vipBalanceLabel": {"description": "D252: «شراء VIP» — reference layout (D252b)."},
+  "vipStore": "متجر VIP",
+  "@vipStore": {"description": "D252: «شراء VIP» — reference layout (D252b)."},
+  "vipStoreSoon": "متجر هدايا VIP — قريباً.",
+  "@vipStoreSoon": {"description": "D252: «شراء VIP» — reference layout (D252b)."},
+  "vipPerksSection": "امتيازات {tier}",
+  "@vipPerksSection": {"description": "D252: «شراء VIP» — reference layout (D252b).", "placeholders": {"tier": {"type": "String"}}}
 }

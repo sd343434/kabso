@@ -28,6 +28,11 @@ export interface AdminVipPerkDto {
   enabled: boolean;
   /** The app really does this perk today (server list; not editable). */
   available: boolean;
+  /** The perk's own art (SVGA + still) and its intrinsic size. */
+  animation: string | null;
+  still: string | null;
+  artWidth: number | null;
+  artHeight: number | null;
 }
 
 /** `AdminVipTier`. */
@@ -38,7 +43,8 @@ export interface AdminVipTierDto {
   nameEn: string;
   sortOrder: number;
   color: string;
-  emblemUrl: string | null;
+  badgeAnimation: string | null;
+  badgeStill: string | null;
   priceCoins: number;
   durationDays: number;
   enabled: boolean;
@@ -73,6 +79,10 @@ function perkDto(p: VipTierPerk): AdminVipPerkDto {
     descriptionEn: p.descriptionEn,
     enabled: p.enabled,
     available: vipPerkAvailable(p.code),
+    animation: p.animation,
+    still: p.still,
+    artWidth: p.artWidth,
+    artHeight: p.artHeight,
   };
 }
 
@@ -84,7 +94,8 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
     nameEn: t.nameEn,
     sortOrder: t.sortOrder,
     color: t.color,
-    emblemUrl: t.emblemUrl,
+    badgeAnimation: t.badgeAnimation,
+    badgeStill: t.badgeStill,
     priceCoins: Number(t.priceCoins),
     durationDays: t.durationDays,
     enabled: t.enabled,
@@ -95,6 +106,10 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
       descriptionAr: p.descriptionAr,
       descriptionEn: p.descriptionEn,
       enabled: p.enabled,
+      animation: p.animation,
+      still: p.still,
+      artWidth: p.artWidth,
+      artHeight: p.artHeight,
     })),
   };
 }
@@ -103,7 +118,7 @@ const PERKS_IN_ORDER = { orderBy: [{ sortOrder: 'asc' as const }, { code: 'asc' 
 
 /**
  * «VIP» in the admin panel (v1.82-social, D252, CONVENTIONS §10.92.4): the OWNER adds tiers, changes their names,
- * colour, emblem, price, length and perks, puts them in order, and switches them on or off — each change with a reason,
+ * colour, badge art, price, length and perks, puts them in order, and switches them on or off — each change with a reason,
  * in one transaction with its audit row (`vip.tier.*`, before / after, `via: panel`). Tiers are never deleted (memberships
  * and purchases keep pointing at them): one switched off is no longer sold, and people who hold it keep it to its end.
  * A price or length change applies to purchases from then on.
@@ -143,7 +158,8 @@ export class VipAdminService {
             nameEn: body.nameEn,
             sortOrder: (last._max.sortOrder ?? 0) + 1,
             color: body.color,
-            emblemUrl: body.emblemUrl ?? null,
+            badgeAnimation: body.badgeAnimation ?? null,
+            badgeStill: body.badgeStill ?? null,
             priceCoins: BigInt(body.priceCoins),
             durationDays: body.durationDays,
             enabled: body.enabled ?? false,
@@ -178,7 +194,8 @@ export class VipAdminService {
           ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
           ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
           ...(body.color !== undefined ? { color: body.color } : {}),
-          ...(body.emblemUrl !== undefined ? { emblemUrl: body.emblemUrl } : {}),
+          ...(body.badgeAnimation !== undefined ? { badgeAnimation: body.badgeAnimation } : {}),
+          ...(body.badgeStill !== undefined ? { badgeStill: body.badgeStill } : {}),
           ...(body.priceCoins !== undefined ? { priceCoins: BigInt(body.priceCoins) } : {}),
           ...(body.durationDays !== undefined ? { durationDays: body.durationDays } : {}),
           updatedById: by.actorUserId,
@@ -294,6 +311,10 @@ export class VipAdminService {
         descriptionEn: p.descriptionEn ? p.descriptionEn : null,
         sortOrder: i,
         enabled: p.enabled ?? true,
+        animation: p.animation ?? null,
+        still: p.still ?? null,
+        artWidth: p.artWidth ?? null,
+        artHeight: p.artHeight ?? null,
       })),
     });
   }
@@ -315,7 +336,8 @@ export class VipAdminService {
       nameEn: t.nameEn,
       sortOrder: t.sortOrder,
       color: t.color,
-      emblemUrl: t.emblemUrl,
+      badgeAnimation: t.badgeAnimation,
+      badgeStill: t.badgeStill,
       priceCoins: Number(t.priceCoins),
       durationDays: t.durationDays,
       enabled: t.enabled,

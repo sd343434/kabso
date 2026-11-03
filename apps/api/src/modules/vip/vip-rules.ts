@@ -2,7 +2,7 @@
  * «شراء VIP» (v1.82-social, D252, owner 2026-11-03, CONVENTIONS §10.92): the rules of a purchase and of a tier's fields,
  * with no Nest or database dependency (unit-tested in `vip-rules.spec.ts`).
  *
- * The owner manages the tiers in the admin panel: names, order (rank), colour, emblem, price in coins, length in days,
+ * The owner manages the tiers in the admin panel: names, order (rank), colour, badge art, price in coins, length in days,
  * on / off, and each tier's own perks. A person holds at most one membership; renewal is manual (never charged on its
  * own, CP-024 §3).
  */

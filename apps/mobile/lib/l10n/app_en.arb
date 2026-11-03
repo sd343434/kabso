@@ -4288,5 +4288,13 @@
   "vipErrorTierOff": "This tier is no longer on sale.",
   "errorVipUnavailable": "This VIP tier can't be bought now.",
   "errorVipPriceChanged": "The price of this tier changed. Check the new price.",
-  "walletReasonVipPurchase": "Purchase VIP"
+  "walletReasonVipPurchase": "Purchase VIP",
+  "vipCurrently": "Currently: {status}",
+  "vipStatusNone": "non-VIP",
+  "vipUpgradeTo": "Upgrade: {tier}",
+  "vipMaxTier": "Top tier",
+  "vipBalanceLabel": "Your balance",
+  "vipStore": "VIP store",
+  "vipStoreSoon": "VIP gifts store — coming soon.",
+  "vipPerksSection": "{tier} privileges"
 }

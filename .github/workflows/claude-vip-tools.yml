@@ -41,6 +41,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           flutter pub get --enforce-lockfile
+          flutter gen-l10n
           dart run build_runner build --delete-conflicting-outputs
           dart format lib test
       - name: API and admin — install, prisma generate, prettier

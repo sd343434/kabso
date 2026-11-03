@@ -73,7 +73,17 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         code: string;
         name: string;
         level: number;
-        perks: { code: string; title: string; available: boolean }[];
+        badgeAnimation: string | null;
+        badgeStill: string | null;
+        perks: {
+          code: string;
+          title: string;
+          available: boolean;
+          animation: string | null;
+          still: string | null;
+          artWidth: number | null;
+          artHeight: number | null;
+        }[];
       }[];
       maxAheadDays: number;
     };
@@ -110,6 +120,14 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         data: { startedAt: new Date(Date.now() - 40 * DAY), expiresAt: new Date(Date.now() - 1000) },
       }),
     );
+  // Clears the seeded VIP 1 so the panel / buying tests start from a known, empty set.
+  const truncate = () =>
+    withMigrationClient(async (db) => {
+      await db.vipPurchase.deleteMany({});
+      await db.vipMembership.deleteMany({});
+      await db.vipTierPerk.deleteMany({});
+      await db.vipTier.deleteMany({});
+    });
 
   beforeAll(async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: p.start() });
@@ -120,12 +138,6 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       RATE_LIMIT_ADMIN_LOGIN_IP: '10000/900',
       RATE_LIMIT_ADMIN_IP: '10000/900',
     });
-    await withMigrationClient(async (db) => {
-      await db.vipPurchase.deleteMany({});
-      await db.vipMembership.deleteMany({});
-      await db.vipTierPerk.deleteMany({});
-      await db.vipTier.deleteMany({});
-    });
     owner = await p.makeAdmin(['OWNER']);
   });
   afterAll(async () => {
@@ -133,7 +145,29 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     vi.useRealTimers();
   });
 
+  it('seeds VIP 1 with the owner badge and perk art (real art out of the box)', async () => {
+    const u = await p.signup();
+    const list = await listed(u);
+    const vip1 = list.data.find((t) => t.code === 'VIP_1');
+    expect(vip1, 'VIP 1 should be seeded').toBeDefined();
+    expect(vip1!.priceCoins).toBe(1_000_000);
+    // All art is hosted and uploaded from the admin panel after merge: seeded URLs are null, nothing is bundled.
+    expect(vip1!.badgeStill).toBeNull();
+    expect(vip1!.badgeAnimation).toBeNull();
+    expect(vip1!.perks.map((pk) => pk.code)).toEqual([
+      'BADGE',
+      'AVATAR_FRAME',
+      'PROFILE_CARD',
+      'ENTRY_BANNER',
+      'CHAT_BUBBLE',
+      'ENTRY_EFFECT',
+    ]);
+    expect(vip1!.perks.every((pk) => pk.still === null && pk.animation === null)).toBe(true);
+    await truncate();
+  });
+
   it('the panel: the OWNER adds tiers with their own perks, orders and switches them; SUPPORT only reads', async () => {
+    await truncate();
     const support = await p.makeAdmin(['SUPPORT']);
     const empty = await p.send(support, 'get', '/admin/vip/tiers');
     expect(empty.status).toBe(200);
@@ -154,7 +188,18 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     // A tier starts switched off unless the owner says otherwise.
     const first = await addTier('VIP_1', 1_000, {
       enabled: undefined,
-      perks: [perk('BADGE'), perk('AVATAR_FRAME')],
+      badgeAnimation: 'https://cdn.kabso.test/vip/vip1_badge.svga',
+      badgeStill: 'https://cdn.kabso.test/vip/vip1_badge.png',
+      perks: [
+        perk('BADGE'),
+        {
+          ...perk('AVATAR_FRAME'),
+          animation: 'https://cdn.kabso.test/vip/vip1_frame.svga',
+          still: 'https://cdn.kabso.test/vip/vip1_frame.png',
+          artWidth: 500,
+          artHeight: 500,
+        },
+      ],
     });
     expect(first.body).toMatchObject({
       code: 'VIP_1',
@@ -162,9 +207,19 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       color: '#C9A227',
       enabled: false,
       activeMembers: 0,
+      badgeAnimation: 'https://cdn.kabso.test/vip/vip1_badge.svga',
+      badgeStill: 'https://cdn.kabso.test/vip/vip1_badge.png',
       perks: [
         { code: 'BADGE', enabled: true, available: false },
-        { code: 'AVATAR_FRAME', enabled: true, available: false },
+        {
+          code: 'AVATAR_FRAME',
+          enabled: true,
+          available: false,
+          animation: 'https://cdn.kabso.test/vip/vip1_frame.svga',
+          still: 'https://cdn.kabso.test/vip/vip1_frame.png',
+          artWidth: 500,
+          artHeight: 500,
+        },
       ],
     });
     await addTier('VIP_2', 3_000, { perks: [perk('BADGE'), perk('ENTRY_BANNER'), perk('HIDDEN', false)] });

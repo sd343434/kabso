@@ -20,10 +20,16 @@ const color = z
   .trim()
   .transform((v) => v.toUpperCase())
   .pipe(z.string().regex(VIP_COLOR_PATTERN));
-const emblemUrl = z
+
+/**
+ * A reference to a piece of art (a badge or a perk's SVGA / still): a hosted https URL, uploaded from the admin
+ * panel (the gifts `animationUrl` pattern, D126). Nothing is bundled in the app. D252b.
+ */
+const artRef = z
   .string()
   .trim()
   .regex(/^https:\/\/\S{1,2040}$/);
+const artSize = z.number().int().min(1).max(8192);
 
 export const vipPerkInput = z.strictObject({
   code: z.string().regex(VIP_CODE_PATTERN),
@@ -32,6 +38,11 @@ export const vipPerkInput = z.strictObject({
   descriptionAr: perkText.nullable().optional(),
   descriptionEn: perkText.nullable().optional(),
   enabled: z.boolean().optional(),
+  /** The perk's own art (SVGA + still) and its intrinsic size. */
+  animation: artRef.nullable().optional(),
+  still: artRef.nullable().optional(),
+  artWidth: artSize.nullable().optional(),
+  artHeight: artSize.nullable().optional(),
 });
 export type VipPerkInput = z.output<typeof vipPerkInput>;
 
@@ -49,7 +60,9 @@ export const createVipTierBody = z.strictObject({
   nameAr: tierName,
   nameEn: tierName,
   color,
-  emblemUrl: emblemUrl.nullable().optional(),
+  /** The tier BADGE (central crest): an SVGA animation and a still (asset path or https URL). */
+  badgeAnimation: artRef.nullable().optional(),
+  badgeStill: artRef.nullable().optional(),
   priceCoins: price,
   durationDays: days,
   enabled: z.boolean().optional(),
@@ -63,7 +76,8 @@ export const updateVipTierBody = z
     nameAr: tierName.optional(),
     nameEn: tierName.optional(),
     color: color.optional(),
-    emblemUrl: emblemUrl.nullable().optional(),
+    badgeAnimation: artRef.nullable().optional(),
+    badgeStill: artRef.nullable().optional(),
     priceCoins: price.optional(),
     durationDays: days.optional(),
     perks: perks.optional(),

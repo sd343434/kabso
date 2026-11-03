@@ -10,13 +10,13 @@ import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show newIdempotencyKey;
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -63,36 +63,32 @@ VipAction vipActionFor(
   return tier.level > held.level ? VipAction.upgrade : VipAction.lower;
 }
 
-/// The text on a tier colour: dark on light tiers, white on dark ones.
-Color vipOnColor(Color c) =>
-    c.computeLuminance() > 0.4 ? KStatusColors.onStatus : Colors.white;
-
-/// `/vip` (D252, owner: «اصنع صفحة شراء vip … وترتيبه يكون من لوحة كل في
-/// اي بي له ميزات وامتيازات مختلفة»): «شراء VIP» in the SVIP family's
-/// layout — Kabso's dark theme, the person and their status, a tier
-/// switcher in the panel's order, the tier's emblem (its colour; the owner's
-/// art when the panel gives one), price and length, its own perks (each
-/// «قريباً» until it is built) and a sticky bar with the buy / renew /
-/// upgrade button and a confirm card (price, balance, the new end; the way
-/// to recharge when the balance is short). Coins only (`POST
+/// `/vip` (D252, owner «اصنع صفحة شراء vip»; D252b owner «طبق هذا التصميم
+/// ١٠٠٪»): «شراء VIP» in the layout of the owner's reference — the top bar
+/// with a VIP-store entry, a hanging crest banner for the selected tier
+/// flanked by the adjacent tiers' banners, a curved tier track, the status
+/// and upgrade bar, and a crown-topped perks grid — in Kabso's dark purple +
+/// gold identity, RTL-correct. The crest and perk thumbnails are placeholder
+/// slots (the owner's own art goes there; the reference's eagle crest and
+/// gold ornaments are third-party and are not copied). Tiers, prices and
+/// perks come from the admin panel; buying is coins only (`POST
 /// /me/vip/purchases`).
 class VipScreen extends ConsumerStatefulWidget {
-  const new({super.key});
+  const VipScreen({super.key});
 
+  static const storeKey = Key('vip.store');
   static const statusKey = Key('vip.status');
-  static const tabsKey = Key('vip.tabs');
+  static const bannerKey = Key('vip.banner');
   static const emblemKey = Key('vip.emblem');
-  static const priceKey = Key('vip.price');
   static const ctaKey = Key('vip.cta');
   static const barKey = Key('vip.bar');
-  static const rulesKey = Key('vip.rules');
   static const emptyKey = Key('vip.empty');
+  static const offSaleKey = Key('vip.offSale');
   static const confirmKey = Key('vip.confirm');
   static const payKey = Key('vip.confirm.pay');
   static const rechargeKey = Key('vip.confirm.recharge');
   static const cancelKey = Key('vip.confirm.cancel');
   static const shortKey = Key('vip.confirm.short');
-  static const offSaleKey = Key('vip.offSale');
 
   static Key tabKey(String code) => Key('vip.tab.$code');
   static Key perkKey(String code) => Key('vip.perk.$code');
@@ -217,64 +213,65 @@ class _VipScreenState extends ConsumerState<VipScreen> {
 
   Widget _page(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
     final tiers = ref.watch(vipTiersProvider);
     final mine = ref.watch(myVipProvider);
-    // Keeps the balance loaded for the confirm card.
-    ref.watch(liveCoinsProvider);
+    ref.watch(liveCoinsProvider); // keeps the balance loaded for the bar.
     final list = tiers.value;
     final membership = mine.value;
     final ready = list != null && mine.hasValue;
     final tier = ready ? _selected(list, membership) : null;
-    final accent = tier == null ? KBrandColors.gold : Color(tier.color);
+    final accent = tier == null ? vipGold : Color(tier.color);
     final now = clock.now();
     final failure = tiers.error ?? mine.error;
 
     final List<Widget> body;
     if (ready && tier != null) {
+      // The caller holds this tier or a higher one now (so its perks are the
+      // caller's): the buy button would renew it, not buy or upgrade.
+      final action = vipActionFor(tier, membership, list, now);
+      final held =
+          action == VipAction.renew || action == VipAction.lower;
       body = [
-        _Header(membership: membership),
-        if (membership != null && !membership.onSale) ...[
-          const SizedBox(height: KSpacing.sm),
-          _OffSaleNote(membership: membership),
-        ],
-        const SizedBox(height: KSpacing.lg),
-        _TierTabs(
+        const VipRail(),
+        const SizedBox(height: KSpacing.xs),
+        _Crest(tiers: list.tiers, selected: tier),
+        const SizedBox(height: KSpacing.md),
+        VipTierArc(
           tiers: list.tiers,
           selectedId: tier.id,
           heldId: membership?.tierId,
           onSelect: (t) => setState(() => _selectedId = t.id),
         ),
-        const SizedBox(height: KSpacing.xl),
-        _Emblem(tier: tier),
         const SizedBox(height: KSpacing.md),
-        _PriceLine(tier: tier),
-        const SizedBox(height: KSpacing.xl),
-        _Perks(
-          tier: tier,
-          active:
-              membership != null &&
-              vipActionFor(tier, membership, list, now) != VipAction.upgrade &&
-              vipActionFor(tier, membership, list, now) != VipAction.buy,
+        _StatusBlock(membership: membership),
+        const SizedBox(height: KSpacing.lg),
+        VipUpgradeBar(
+          upgradeLabel: _upgradeLabel(l10n, list, membership),
+          fill: _upgradeFill(list, membership, now),
+          balanceCoins: ref.watch(liveCoinsProvider).value,
         ),
+        const SizedBox(height: KSpacing.xl),
+        _PerksSection(tier: tier, active: held),
       ];
     } else if (ready) {
       body = [
-        _Header(membership: membership),
+        const VipRail(),
         const SizedBox(height: KSpacing.xxl),
         Column(
           key: VipScreen.emptyKey,
           children: [
-            Icon(
+            const Icon(
               Icons.workspace_premium_rounded,
               size: 56,
-              color: p.textTertiary,
+              color: Color(0xFF6E6480),
             ),
             const SizedBox(height: KSpacing.sm),
             Text(
               l10n.vipEmpty,
               textAlign: TextAlign.center,
-              style: context.textStyles.body.copyWith(color: p.textSecondary),
+              style: context.textStyles.body.copyWith(
+                color: const Color(0xFFB9A9C9),
+              ),
             ),
           ],
         ),
@@ -303,47 +300,49 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     }
 
     return Scaffold(
-      backgroundColor: p.background,
+      backgroundColor: vipBackground,
       extendBodyBehindAppBar: true,
       appBar: KAppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: p.textPrimary,
+        foregroundColor: vipGoldBright,
         centerTitle: true,
         title: Text(
           l10n.meHubVip,
           style: context.textStyles.title.copyWith(
-            color: p.textPrimary,
+            color: vipGoldBright,
             fontWeight: FontWeight.w800,
+            letterSpacing: 1,
           ),
         ),
         actions: [
           IconButton(
-            key: VipScreen.rulesKey,
-            tooltip: l10n.vipRules,
-            onPressed: list == null
-                ? null
-                : () => unawaited(_showRules(context, list)),
-            icon: const Icon(Icons.receipt_long_rounded),
+            key: VipScreen.storeKey,
+            tooltip: l10n.vipStore,
+            onPressed: list == null ? null : () => unawaited(_showStore(context, list)),
+            icon: const Icon(Icons.storefront_rounded),
+            color: vipGoldBright,
           ),
         ],
       ),
       body: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.75),
+            radius: 1.1,
             colors: [
-              Color.alphaBlend(accent.withValues(alpha: 0.2), p.surfaceRaised),
-              p.background,
-              p.background,
+              Color.alphaBlend(accent.withValues(alpha: 0.28), vipBackground),
+              vipBackground,
+              const Color(0xFF070510),
             ],
-            stops: const [0, 0.5, 1],
+            stops: const [0, 0.55, 1],
           ),
         ),
         child: SafeArea(
           bottom: false,
           child: RefreshIndicator(
             onRefresh: _refresh,
+            color: vipGold,
+            backgroundColor: const Color(0xFF17121F),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
@@ -363,19 +362,48 @@ class _VipScreenState extends ConsumerState<VipScreen> {
               tier: tier,
               action: vipActionFor(tier, membership, list, now),
               busy: _busy,
-              onPressed: (action) =>
-                  unawaited(_start(tier, action, membership)),
+              onPressed: (action) => unawaited(_start(tier, action, membership)),
             ),
     );
   }
 
-  Future<void> _showRules(BuildContext context, VipTierList list) {
+  String _upgradeLabel(
+    AppLocalizations l10n,
+    VipTierList list,
+    VipMembership? membership,
+  ) {
+    final next = _nextTier(list, membership);
+    return next == null ? l10n.vipMaxTier : l10n.vipUpgradeTo(next.name);
+  }
+
+  /// The next tier up from the caller's current rank (the lowest when not a
+  /// member), or null at the top.
+  VipTier? _nextTier(VipTierList list, VipMembership? membership) {
+    if (list.tiers.isEmpty) return null;
+    if (membership == null) return list.tiers.first;
+    final held = list.tiers
+        .where((t) => t.id == membership.tierId)
+        .firstOrNull;
+    final level = held?.level ?? 0;
+    return list.tiers.where((t) => t.level > level).firstOrNull;
+  }
+
+  double _upgradeFill(VipTierList list, VipMembership? membership, DateTime now) {
+    if (membership == null || !membership.expiresAt.isAfter(now)) return 0;
+    final held = list.tiers
+        .where((t) => t.id == membership.tierId)
+        .firstOrNull;
+    final level = held?.level ?? list.tiers.length;
+    return list.tiers.isEmpty ? 0 : level / list.tiers.length;
+  }
+
+  Future<void> _showStore(BuildContext context, VipTierList list) {
     final l10n = context.l10n;
     return showModalBottomSheet<void>(
       context: context,
+      backgroundColor: const Color(0xFF17121F),
       showDragHandle: true,
       builder: (context) {
-        final p = context.palette;
         final t = context.textStyles;
         return SafeArea(
           child: Padding(
@@ -389,14 +417,30 @@ class _VipScreenState extends ConsumerState<VipScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.vipRules,
-                  style: t.title.copyWith(color: p.textPrimary),
+                Row(
+                  children: [
+                    const Icon(Icons.storefront_rounded, color: vipGold),
+                    const SizedBox(width: KSpacing.sm),
+                    Text(
+                      l10n.vipStore,
+                      style: t.title.copyWith(color: vipGoldBright),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: KSpacing.sm),
                 Text(
+                  l10n.vipStoreSoon,
+                  style: t.body.copyWith(color: const Color(0xFFB9A9C9)),
+                ),
+                const SizedBox(height: KSpacing.lg),
+                Text(
+                  l10n.vipRules,
+                  style: t.bodyStrong.copyWith(color: vipGoldBright),
+                ),
+                const SizedBox(height: KSpacing.xs),
+                Text(
                   l10n.vipRulesBody('${list.maxAheadDays}'),
-                  style: t.body.copyWith(color: p.textSecondary),
+                  style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
                 ),
               ],
             ),
@@ -407,497 +451,200 @@ class _VipScreenState extends ConsumerState<VipScreen> {
   }
 }
 
-class _Header extends ConsumerWidget {
-  const new({required this.membership});
+/// The hanging crest: the selected tier's banner, flanked by the adjacent
+/// tiers' banners (dim, smaller) for depth.
+class _Crest extends StatelessWidget {
+  const _Crest({required this.tiers, required this.selected});
+
+  final List<VipTier> tiers;
+  final VipTier selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final index = tiers.indexWhere((t) => t.id == selected.id);
+    final prev = index > 0 ? tiers[index - 1] : null;
+    final next = index >= 0 && index < tiers.length - 1 ? tiers[index + 1] : null;
+    return LayoutBuilder(
+      builder: (context, c) {
+        final width = c.maxWidth;
+        final centerW = (width * 0.46).clamp(140.0, 168.0);
+        final centerH = centerW * 1.4;
+        final sideW = centerW * 0.52;
+        final sideH = sideW * 1.5;
+        return SizedBox(
+          height: centerH + 14,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
+            children: [
+              if (prev != null)
+                PositionedDirectional(
+                  start: 0,
+                  top: 30,
+                  child: VipHangingBanner(
+                    color: Color(prev.color),
+                    width: sideW,
+                    height: sideH,
+                    label: prev.name,
+                    dim: true,
+                  ),
+                ),
+              if (next != null)
+                PositionedDirectional(
+                  end: 0,
+                  top: 30,
+                  child: VipHangingBanner(
+                    color: Color(next.color),
+                    width: sideW,
+                    height: sideH,
+                    label: next.name,
+                    dim: true,
+                  ),
+                ),
+              Semantics(
+                key: VipScreen.bannerKey,
+                label: selected.name,
+                child: Builder(
+                  builder: (context) {
+                    final hasArt = selected.badgeStill != null ||
+                        selected.badgeAnimation != null;
+                    return VipHangingBanner(
+                      color: Color(selected.color),
+                      width: centerW,
+                      height: centerH,
+                      label: selected.name,
+                      // The badge art carries its own name plate; show the
+                      // banner's name only for a placeholder tier.
+                      showLabel: !hasArt,
+                      emblem: Padding(
+                        padding: const EdgeInsets.only(top: KSpacing.sm),
+                        child: VipBadge(
+                          key: VipScreen.emblemKey,
+                          tier: selected,
+                          size: centerW * (hasArt ? 0.9 : 0.52),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// «حالياً: …» and, for a member, the end date, days left and an off-sale
+/// note.
+class _StatusBlock extends StatelessWidget {
+  const _StatusBlock({required this.membership});
 
   final VipMembership? membership;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
     final t = context.textStyles;
-    final user = ref.watch(currentUserProvider);
-    final name = user == null
-        ? ''
-        : (user.displayName.isEmpty ? user.username : user.displayName);
     final m = membership;
-    final ring = m == null ? p.border : Color(m.tierColor);
-    final line = m == null
-        ? l10n.vipNotYet
-        : l10n.vipUntil(m.tierName, KFormat.date(m.expiresAt, l10n.localeName));
-    return Row(
+    final status = m?.tierName ?? l10n.vipStatusNone;
+    return Column(
+      key: VipScreen.statusKey,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: ring, width: 2),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: KAvatar(name: name, imageUrl: user?.avatarUrl, size: 56),
+        Text(
+          l10n.vipCurrently(status),
+          textAlign: TextAlign.center,
+          style: t.bodyStrong.copyWith(
+            color: vipGoldBright,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(width: KSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: t.title.copyWith(
-                  color: p.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                line,
-                key: VipScreen.statusKey,
-                style: t.caption.copyWith(color: p.textSecondary),
-              ),
-              if (m != null)
-                Text(
-                  l10n.vipDaysLeft('${m.daysLeft}'),
-                  style: t.caption.copyWith(color: programGold(context)),
-                ),
-            ],
+        if (m != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            '${l10n.vipUntil(m.tierName, KFormat.date(m.expiresAt, l10n.localeName))}'
+            ' · ${l10n.vipDaysLeft('${m.daysLeft}')}',
+            textAlign: TextAlign.center,
+            style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
           ),
-        ),
+          if (!m.onSale) ...[
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.vipOffSale(m.tierName),
+              key: VipScreen.offSaleKey,
+              textAlign: TextAlign.center,
+              style: t.caption.copyWith(color: const Color(0xFF9A8CB0)),
+            ),
+          ],
+        ],
       ],
     );
   }
 }
 
-class _OffSaleNote extends StatelessWidget {
-  const new({required this.membership});
-
-  final VipMembership membership;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return Container(
-      key: VipScreen.offSaleKey,
-      padding: const EdgeInsets.all(KSpacing.sm),
-      decoration: BoxDecoration(
-        color: p.surfaceRaised,
-        borderRadius: BorderRadius.circular(KRadius.md),
-        border: Border.all(color: p.border),
-      ),
-      child: Text(
-        context.l10n.vipOffSale(membership.tierName),
-        style: context.textStyles.caption.copyWith(color: p.textSecondary),
-      ),
-    );
-  }
-}
-
-/// The tier switcher: one pill per tier on sale, in the panel's order (the
-/// reading start first), the selected one filled with its colour, the held
-/// one marked with a check.
-class _TierTabs extends StatelessWidget {
-  const new({
-    required this.tiers,
-    required this.selectedId,
-    required this.heldId,
-    required this.onSelect,
-  });
-
-  final List<VipTier> tiers;
-  final String selectedId;
-  final String? heldId;
-  final ValueChanged<VipTier> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    return SingleChildScrollView(
-      key: VipScreen.tabsKey,
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final tier in tiers)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: KSpacing.sm),
-              child: Builder(
-                builder: (context) {
-                  final selected = tier.id == selectedId;
-                  final color = Color(tier.color);
-                  final on = vipOnColor(color);
-                  final held = tier.id == heldId;
-                  return Semantics(
-                    button: true,
-                    selected: selected,
-                    label: [tier.name, if (held) l10n.vipCurrent].join('، '),
-                    excludeSemantics: true,
-                    child: Material(
-                      key: VipScreen.tabKey(tier.code),
-                      shape: StadiumBorder(
-                        side: BorderSide(
-                          color: selected ? color : p.border,
-                          width: selected ? 0 : 1,
-                        ),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      color: selected ? null : p.surfaceRaised,
-                      child: Ink(
-                        decoration: selected
-                            ? BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color.lerp(color, Colors.white, 0.35)!,
-                                    color,
-                                  ],
-                                ),
-                              )
-                            : null,
-                        child: InkWell(
-                          onTap: () => onSelect(tier),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 44),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: KSpacing.lg,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (held) ...[
-                                    Icon(
-                                      Icons.check_circle_rounded,
-                                      size: 16,
-                                      color: selected ? on : color,
-                                    ),
-                                    const SizedBox(width: KSpacing.xs),
-                                  ],
-                                  Text(
-                                    tier.name,
-                                    style: t.bodyStrong.copyWith(
-                                      color: selected ? on : p.textPrimary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The tier's emblem: the owner's art when the panel gives a URL, else a
-/// Kabso composition in the tier's colour (a ring, the brand red, the
-/// crown and the tier's name) — no third-party art.
-class _Emblem extends StatelessWidget {
-  const new({required this.tier, this.size = 148});
+/// The crown-topped perks grid for the selected tier.
+class _PerksSection extends StatelessWidget {
+  const _PerksSection({required this.tier, required this.active});
 
   final VipTier tier;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Color(tier.color);
-    final light = Color.lerp(color, Colors.white, 0.55)!;
-    final deep = Color.lerp(color, Colors.black, 0.35)!;
-    final url = tier.emblemUrl;
-    final drawn = Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.workspace_premium_rounded,
-            size: size * 0.38,
-            color: light,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs),
-            child: Text(
-              tier.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textStyles.title.copyWith(
-                color: const Color(0xFFFFFFFF),
-                fontWeight: FontWeight.w800,
-                fontSize: size * 0.13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    return Semantics(
-      key: size == 148 ? VipScreen.emblemKey : null,
-      label: tier.name,
-      excludeSemantics: true,
-      child: Center(
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: SweepGradient(colors: [color, light, deep, color]),
-            boxShadow: [
-              BoxShadow(color: color.withValues(alpha: 0.45), blurRadius: 36),
-            ],
-          ),
-          padding: EdgeInsets.all(size * 0.055),
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: KBrandColors.gradientLive,
-              ),
-            ),
-            child: ClipOval(
-              child: url == null
-                  ? drawn
-                  : Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => drawn,
-                    ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The price in coins and the length.
-class _PriceLine extends StatelessWidget {
-  const new({required this.tier});
-
-  final VipTier tier;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    return Semantics(
-      key: VipScreen.priceKey,
-      label: l10n.vipPriceSemantics(
-        KFormat.grouped(tier.priceCoins),
-        '${tier.durationDays}',
-      ),
-      excludeSemantics: true,
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: KSpacing.xs,
-        children: [
-          CoinAmount(
-            tier.priceCoins,
-            size: 22,
-            style: t.headline.copyWith(
-              color: programGold(context),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          Text(
-            l10n.vipForDays('${tier.durationDays}'),
-            style: t.body.copyWith(color: p.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Perks extends StatelessWidget {
-  const new({required this.tier, required this.active});
-
-  final VipTier tier;
-
-  /// The caller holds this tier (or a higher one) now.
   final bool active;
 
-  static IconData _icon(String code) => switch (code) {
-    'BADGE' => Icons.verified_rounded,
-    'AVATAR_FRAME' => Icons.account_circle_rounded,
-    'CHAT_NAME_COLOR' => Icons.format_color_text_rounded,
-    'ENTRY_BANNER' => Icons.flag_rounded,
-    'ENTRY_EFFECT' => Icons.auto_awesome_rounded,
-    'DAILY_BULLET' => Icons.campaign_rounded,
-    'VIEWER_LIST_PRIORITY' => Icons.format_list_numbered_rounded,
-    'MONTHLY_GIFT' => Icons.redeem_rounded,
-    _ => Icons.star_rounded,
-  };
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
     final perks = tier.perks;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Semantics(
-          header: true,
-          child: Text(
-            l10n.vipPerksTitle(tier.name),
-            style: t.headline.copyWith(color: programGold(context)),
-          ),
-        ),
-        const SizedBox(height: KSpacing.xs),
+        VipCrownHeader(title: l10n.vipPerksTitle(tier.name)),
+        const SizedBox(height: KSpacing.sm),
         Text(
           l10n.vipPerksSoon,
-          style: t.caption.copyWith(color: p.textTertiary),
+          textAlign: TextAlign.center,
+          style: context.textStyles.caption.copyWith(
+            color: const Color(0xFF9A8CB0),
+          ),
         ),
         const SizedBox(height: KSpacing.md),
         if (perks.isEmpty)
           Text(
             l10n.vipPerksEmpty,
-            style: t.body.copyWith(color: p.textSecondary),
-          ),
-        for (var i = 0; i < perks.length; i += 2)
-          Padding(
-            padding: const EdgeInsets.only(bottom: KSpacing.sm),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            textAlign: TextAlign.center,
+            style: context.textStyles.body.copyWith(
+              color: const Color(0xFFB9A9C9),
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, c) {
+              const gap = KSpacing.sm;
+              final cardW = (c.maxWidth - 2 * gap) / 3;
+              return Wrap(
+                spacing: gap,
+                runSpacing: KSpacing.md,
                 children: [
-                  Expanded(
-                    child: _PerkCard(
-                      perk: perks[i],
+                  for (final perk in perks)
+                    VipPerkCard(
+                      perk: perk,
                       tier: tier,
                       active: active,
-                      icon: _icon,
+                      width: cardW,
                     ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    child: i + 1 < perks.length
-                        ? _PerkCard(
-                            perk: perks[i + 1],
-                            tier: tier,
-                            active: active,
-                            icon: _icon,
-                          )
-                        : const SizedBox.shrink(),
-                  ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
       ],
     );
   }
 }
 
-class _PerkCard extends StatelessWidget {
-  const new({
-    required this.perk,
-    required this.tier,
-    required this.active,
-    required this.icon,
-  });
-
-  final VipPerk perk;
-  final VipTier tier;
-  final bool active;
-  final IconData Function(String code) icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final color = Color(tier.color);
-    final on = perk.available && active;
-    final state = !perk.available
-        ? l10n.liveSoon
-        : on
-        ? l10n.vipPerkActive
-        : l10n.vipPerkWith(tier.name);
-    final description = perk.description;
-    return Semantics(
-      key: VipScreen.perkKey(perk.code),
-      label: [perk.title, ?description, state].join('، '),
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.all(KSpacing.md),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [p.surfaceRaised, p.surface],
-          ),
-          borderRadius: BorderRadius.circular(KRadius.md),
-          border: Border.all(
-            color: on ? color.withValues(alpha: 0.8) : p.border,
-          ),
-        ),
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ProgramIconTile(
-                  icon: icon(perk.code),
-                  hue: perk.available ? color : p.textTertiary,
-                ),
-                if (!perk.available)
-                  PositionedDirectional(
-                    end: -6,
-                    bottom: -4,
-                    child: Icon(
-                      Icons.lock_rounded,
-                      size: 16,
-                      color: p.textSecondary,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: KSpacing.sm),
-            Text(
-              perk.title,
-              textAlign: TextAlign.center,
-              style: t.bodyStrong.copyWith(color: p.textPrimary),
-            ),
-            if (description != null) ...[
-              const SizedBox(height: KSpacing.xxs),
-              Text(
-                description,
-                textAlign: TextAlign.center,
-                style: t.caption.copyWith(color: p.textSecondary),
-              ),
-            ],
-            const SizedBox(height: KSpacing.xs),
-            ProgramTag(
-              state,
-              color: on ? color : p.surfaceOverlay,
-              onColor: on ? vipOnColor(color) : p.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The sticky bar: the price and the length, and the tier-coloured button
-/// (buy, renew, upgrade; disabled for a lower tier or past the renewal
+/// The sticky bar: the selected tier's price and length, and the tier-coloured
+/// button (buy, renew, upgrade; disabled for a lower tier or past the renewal
 /// limit).
 class _BottomBar extends StatelessWidget {
-  const new({
+  const _BottomBar({
     required this.tier,
     required this.action,
     required this.busy,
@@ -907,12 +654,11 @@ class _BottomBar extends StatelessWidget {
   final VipTier tier;
   final VipAction action;
   final bool busy;
-  final ValueChanged<VipAction> onPressed;
+  final void Function(VipAction) onPressed;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final p = context.palette;
     final t = context.textStyles;
     final color = Color(tier.color);
     final enabled =
@@ -924,12 +670,12 @@ class _BottomBar extends StatelessWidget {
       VipAction.lower => l10n.vipLowerTier,
       VipAction.renewLimit => l10n.vipRenewLimit,
     };
-    final fg = enabled ? vipOnColor(color) : p.textTertiary;
+    final fg = enabled ? vipOnColor(color) : const Color(0xFF8A7CA0);
     return DecoratedBox(
       key: VipScreen.barKey,
-      decoration: BoxDecoration(
-        color: p.surface,
-        border: Border(top: BorderSide(color: p.border)),
+      decoration: const BoxDecoration(
+        color: Color(0xFF130E1C),
+        border: Border(top: BorderSide(color: Color(0xFF2A2233))),
       ),
       child: SafeArea(
         top: false,
@@ -946,7 +692,7 @@ class _BottomBar extends StatelessWidget {
                       tier.priceCoins,
                       size: 18,
                       style: t.bodyStrong.copyWith(
-                        color: programGold(context),
+                        color: vipGoldBright,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -954,7 +700,7 @@ class _BottomBar extends StatelessWidget {
                       l10n.vipForDays('${tier.durationDays}'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: t.caption.copyWith(color: p.textSecondary),
+                      style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
                     ),
                   ],
                 ),
@@ -970,13 +716,13 @@ class _BottomBar extends StatelessWidget {
                     key: VipScreen.ctaKey,
                     shape: const StadiumBorder(),
                     clipBehavior: Clip.antiAlias,
-                    color: enabled ? null : p.surfaceOverlay,
+                    color: enabled ? null : const Color(0xFF2A2233),
                     child: Ink(
                       decoration: enabled
                           ? BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Color.lerp(color, Colors.white, 0.45)!,
+                                  Color.lerp(color, Colors.white, 0.4)!,
                                   color,
                                 ],
                               ),
@@ -1030,7 +776,7 @@ class _BottomBar extends StatelessWidget {
 /// are not carried over. A short balance turns the primary button into the
 /// way to recharge.
 class _ConfirmCard extends StatelessWidget {
-  const new({
+  const _ConfirmCard({
     required this.tier,
     required this.action,
     required this.membership,
@@ -1064,16 +810,14 @@ class _ConfirmCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: KSpacing.xxs),
       child: Row(
         children: [
-          Expanded(
-            child: Text(label, style: t.body.copyWith(color: soft)),
-          ),
+          Expanded(child: Text(label, style: t.body.copyWith(color: soft))),
           value,
         ],
       ),
     );
     return KLiveDialogCard(
       key: VipScreen.confirmKey,
-      leading: _Emblem(tier: tier, size: 72),
+      leading: VipBadge(tier: tier, size: 64, animate: false),
       title: title,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
