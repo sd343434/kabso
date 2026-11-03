@@ -59,16 +59,22 @@ VipTier _tier(int level) => VipTier(
       available: false,
     ),
     if (level >= 2)
-      const VipPerk(code: 'ENTRY_BANNER', title: 'Entry banner', available: false),
+      const VipPerk(
+        code: 'ENTRY_BANNER',
+        title: 'Entry banner',
+        available: false,
+      ),
     if (level >= 3)
-      const VipPerk(code: 'DAILY_BULLET', title: 'Daily bullet', available: false),
+      const VipPerk(
+        code: 'DAILY_BULLET',
+        title: 'Daily bullet',
+        available: false,
+      ),
   ],
 );
 
-VipTierList _list() => VipTierList(
-  tiers: [_tier(1), _tier(2), _tier(3)],
-  maxAheadDays: 400,
-);
+VipTierList _list() =>
+    VipTierList(tiers: [_tier(1), _tier(2), _tier(3)], maxAheadDays: 400);
 
 VipMembership _membership(VipTier tier, {int days = 20}) => VipMembership(
   tierId: tier.id,
@@ -145,34 +151,33 @@ Future<void> _pump(
     RepaintBoundary(
       key: _shotKey,
       child: ProviderScope(
-      retry: (_, _) => null,
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
-        currentUserProvider.overrideWithValue(testUser()),
-        liveCoinsProvider.overrideWith(() => _Coins(coins)),
-        vipRepositoryProvider.overrideWithValue(vip),
-      ],
-      child: MaterialApp.router(
-        routerConfig: router,
-        locale: language.locale,
-        supportedLocales: KabsoApp.supportedLocales,
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          ...GlobalMaterialLocalizations.delegates,
+        retry: (_, _) => null,
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+          currentUserProvider.overrideWithValue(testUser()),
+          liveCoinsProvider.overrideWith(() => _Coins(coins)),
+          vipRepositoryProvider.overrideWithValue(vip),
         ],
-        theme: buildAppTheme(
-          brightness: Brightness.light,
+        child: MaterialApp.router(
+          routerConfig: router,
           locale: language.locale,
-        ),
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
+          supportedLocales: KabsoApp.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
+          ],
+          theme: buildAppTheme(
+            brightness: Brightness.light,
+            locale: language.locale,
+          ),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
         ),
       ),
-    ),
     ),
   );
   await tester.pumpAndSettle();
@@ -183,8 +188,6 @@ Future<void> _tapTab(WidgetTester tester, String code) async {
   await tester.tap(find.byKey(VipScreen.tabKey(code)));
   await tester.pumpAndSettle();
 }
-
-
 
 const _shotKey = Key('shot');
 
