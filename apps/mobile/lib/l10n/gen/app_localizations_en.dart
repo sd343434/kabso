@@ -13817,4 +13817,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipPerksSection(String tier) {
     return '$tier privileges';
   }
+
+  @override
+  String get vipSectionIdentity => 'Identification';
+
+  @override
+  String get vipSectionPrivilege => 'Exclusive privilege';
 }

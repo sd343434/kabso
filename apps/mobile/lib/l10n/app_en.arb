@@ -4296,5 +4296,7 @@
   "vipBalanceLabel": "Your balance",
   "vipStore": "VIP store",
   "vipStoreSoon": "VIP gifts store — coming soon.",
-  "vipPerksSection": "{tier} privileges"
+  "vipPerksSection": "{tier} privileges",
+  "vipSectionIdentity": "Identification",
+  "vipSectionPrivilege": "Exclusive privilege"
 }

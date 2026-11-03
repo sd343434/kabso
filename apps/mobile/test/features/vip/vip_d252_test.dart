@@ -1,10 +1,12 @@
-// D252 / D252b: «شراء VIP» in the owner's reference layout — the hanging crest
-// banner (the tier BADGE art), the curved tier track, the status and upgrade
-// bar, and the crown-topped perks grid (each perk a still art thumbnail + title
-// + «قريباً»); buy / renew / upgrade with the confirm card; a lower tier
-// refused; empty and error states; Arabic RTL and 360 × 800 at text scale 1.3.
-// Server data only (fakes here); SVGA animation is off in tests (the still
-// shows), set by flutter_test_config.
+// D252 / D252b v2: «شراء VIP» in the owner's new reference layout — a
+// horizontal tier tab row (the selected one gold with an underline), the
+// selected tier's centred BADGE, a crown divider, category section headers
+// («التعريف» / «امتياز حصري») and a 3-column perks grid (each perk a thumbnail
+// + title + subtitle, a lock for «قريباً»), and a sticky bar with the
+// price/length and the activate button; buy / renew / upgrade with the confirm
+// card; a lower tier refused; empty and error states; Arabic RTL and 360 × 800
+// at text scale 1.3. Server data only (fakes here); SVGA animation is off in
+// tests (the still shows), set by flutter_test_config.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -234,36 +236,33 @@ void main() {
   });
 
   group('purchase VIP', () {
-    testWidgets('not VIP yet: the crest, the tier track in order, the status '
-        'and upgrade bar, perks «Soon», buy with the confirm card', (
-      tester,
-    ) async {
+    testWidgets('not VIP yet: the tier tabs in order, the badge, the section '
+        'headers and perks, buy with the confirm card', (tester) async {
       final vip = _FakeVip();
       await _pump(tester, vip: vip);
-      // Status line: non-VIP.
-      expect(find.text(_en.vipCurrently(_en.vipStatusNone)), findsOneWidget);
-      // The crest badge and the tier track in the panel order.
+      // No membership: no status line.
+      expect(find.byKey(VipScreen.statusKey), findsNothing);
+      // The centred badge and the tier tabs in the panel order.
       expect(find.byKey(VipScreen.emblemKey), findsOneWidget);
-      expect(find.byKey(VipScreen.bannerKey), findsOneWidget);
       final first = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_1')));
       final second = tester.getCenter(find.byKey(VipScreen.tabKey('VIP_2')));
       expect(first.dx, lessThan(second.dx));
-      // The upgrade bar aims at the lowest tier for a non-member.
-      expect(find.text(_en.vipUpgradeTo('VIP 1')), findsOneWidget);
       // Price and length in the sticky bar; the buy button.
       expect(find.text('1,000,000'), findsWidgets);
-      expect(find.text(_en.vipForDays('30')), findsWidgets);
+      expect(find.textContaining(_en.vipForDays('30')), findsWidgets);
       expect(_cta(_en.vipBuy), findsOneWidget);
-      // The perks grid: the section header and «Soon».
-      expect(find.text(_en.vipPerksTitle('VIP 1')), findsOneWidget);
+      // The perks grid: the category section headers and the BADGE perk.
+      expect(find.text(_en.vipSectionIdentity), findsOneWidget);
+      expect(find.text(_en.vipSectionPrivilege), findsOneWidget);
       expect(find.byKey(VipScreen.perkKey('BADGE')), findsOneWidget);
-      expect(find.text(_en.liveSoon), findsOneWidget);
+      // «Soon» shows (the perk subtitle and the empty privilege section).
+      expect(find.text(_en.liveSoon), findsWidgets);
 
       await tester.tap(find.byKey(VipScreen.ctaKey));
       await tester.pumpAndSettle();
       expect(find.byKey(VipScreen.confirmKey), findsOneWidget);
       expect(find.text(_en.vipConfirmBuy('VIP 1')), findsOneWidget);
-      // The balance shows in the confirm card (and also in the upgrade bar).
+      // The balance shows in the confirm card.
       expect(
         find.descendant(
           of: find.byKey(VipScreen.confirmKey),
@@ -285,7 +284,7 @@ void main() {
       await _pump(tester, vip: _FakeVip());
       await _tapTab(tester, 'VIP_3');
       expect(find.text('9,000,000'), findsWidgets);
-      expect(find.text(_en.vipPerksTitle('VIP 3')), findsOneWidget);
+      // VIP 3 has a privilege perk, so the privilege section has a grid.
       await tester.scrollUntilVisible(
         find.byKey(VipScreen.perkKey('DAILY_BULLET')),
         100,
@@ -337,7 +336,7 @@ void main() {
         'VIP 3 (days not carried), VIP 1 is below', (tester) async {
       final held = _membership(_tier(2));
       await _pump(tester, vip: _FakeVip(membership: held));
-      expect(find.text(_en.vipCurrently('VIP 2')), findsOneWidget);
+      expect(find.byKey(VipScreen.statusKey), findsOneWidget);
       expect(find.textContaining(_en.vipDaysLeft('20')), findsOneWidget);
       expect(_cta(_en.vipRenew), findsOneWidget);
 
@@ -395,16 +394,6 @@ void main() {
     testWidgets('a failure shows the error with a retry', (tester) async {
       await _pump(tester, vip: _FakeVip(fail: true));
       expect(find.text(_en.vipLoadError), findsOneWidget);
-    });
-
-    testWidgets('the store entry opens the rules / coming-soon sheet', (
-      tester,
-    ) async {
-      await _pump(tester, vip: _FakeVip());
-      await tester.tap(find.byKey(VipScreen.storeKey));
-      await tester.pumpAndSettle();
-      expect(find.text(_en.vipStoreSoon), findsOneWidget);
-      expect(find.text(_en.vipRules), findsOneWidget);
     });
 
     for (final language in AppLanguage.values) {

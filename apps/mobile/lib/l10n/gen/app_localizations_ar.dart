@@ -13821,4 +13821,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipPerksSection(String tier) {
     return 'امتيازات $tier';
   }
+
+  @override
+  String get vipSectionIdentity => 'التعريف';
+
+  @override
+  String get vipSectionPrivilege => 'امتياز حصري';
 }

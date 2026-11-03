@@ -12931,5 +12931,9 @@
   "vipStoreSoon": "متجر هدايا VIP — قريباً.",
   "@vipStoreSoon": {"description": "D252: «شراء VIP» — reference layout (D252b)."},
   "vipPerksSection": "امتيازات {tier}",
-  "@vipPerksSection": {"description": "D252: «شراء VIP» — reference layout (D252b).", "placeholders": {"tier": {"type": "String"}}}
+  "@vipPerksSection": {"description": "D252: «شراء VIP» — reference layout (D252b).", "placeholders": {"tier": {"type": "String"}}},
+  "vipSectionIdentity": "التعريف",
+  "@vipSectionIdentity": {"description": "D252b v2: «شراء VIP» — the appearance perks category header."},
+  "vipSectionPrivilege": "امتياز حصري",
+  "@vipSectionPrivilege": {"description": "D252b v2: «شراء VIP» — the privileges perks category header."}
 }

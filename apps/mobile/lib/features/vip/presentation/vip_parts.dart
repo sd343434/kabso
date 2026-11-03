@@ -5,27 +5,32 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The parts of the «شراء VIP» page (D252b, owner «طبق هذا التصميم ١٠٠٪»):
-/// the hanging crest banner, the curved tier track, the upgrade bar and the
-/// crown-topped perks grid, in Kabso's dark purple + gold identity.
+/// The parts of the «شراء VIP» page (D252b v2, owner «طبق هذا التصميم ١٠٠٪»,
+/// reference `REFERENCE_vip_design_v2`): a horizontal tier tab row (VIP1…VIPn,
+/// the selected one gold with an underline), the selected tier's large centred
+/// BADGE, a gold crown divider ornament, category section headers with a count,
+/// and a 3-column perks grid (each cell a thumbnail, a title and a one-line
+/// subtitle), in Kabso's dark purple + gold identity, RTL-correct.
 ///
-/// ART: the owner's reference uses a third-party ornate eagle crest and gold
-/// frames that Kabso must not copy. The emblem and the perk thumbnails are
-/// **placeholder slots** sized and placed per the reference — a tier-coloured
-/// banner with a generic medal and the tier name. When the owner uploads the
-/// badge and perk art (hosted SVGA + still, admin panel) they fill the slots;
-/// until then a token placeholder shows.
+/// ART: the owner's reference uses third-party ornate art (an eagle/lion crest,
+/// gold frames and a winged crown) that Kabso must not copy. The badge and the
+/// perk thumbnails are **slots** for the owner's own art (hosted SVGA + still,
+/// uploaded from the admin panel); until a tier has art a tier-coloured
+/// placeholder shows. The crown divider is drawn in code (a gold crown + wings),
+/// not the reference's artwork.
 
 /// The page's dark background (a deep purple-black, so the gold reads).
 const Color vipBackground = Color(0xFF0E0A16);
 const Color vipGold = Color(0xFFF5C451);
 const Color vipGoldBright = Color(0xFFFFE7A3);
 const Color vipGoldDeep = Color(0xFFB7811A);
+
+/// A muted lilac for secondary text.
+const Color vipMuted = Color(0xFF9A8CB0);
 
 /// The text on a tier colour: dark on light tiers, white on dark ones.
 Color vipOnColor(Color c) =>
@@ -169,7 +174,7 @@ class _VipAnimatedArtState extends State<VipAnimatedArt>
 /// The tier BADGE (central crest): the owner's badge art (SVGA + still), or a
 /// token placeholder (a gold-ringed medal in the tier's colour) when the tier
 /// has no art yet. This is the slot the owner's crest art fills — it does not
-/// copy the reference's eagle crest.
+/// copy the reference's third-party crest.
 class VipBadge extends StatelessWidget {
   const new({
     required this.tier,
@@ -231,228 +236,40 @@ class VipBadge extends StatelessWidget {
   }
 }
 
-// ---- The hanging banner -----------------------------------------------------
+/// The small gold name plate under a placeholder badge (the reference's
+/// «VIP 5» plate; the owner's badge art carries its own).
+class VipNamePlate extends StatelessWidget {
+  const new({required this.name, super.key});
 
-/// A banner clipped to a swallowtail bottom (a classic hanging flag).
-class _SwallowtailClipper extends CustomClipper<Path> {
-  const new();
-
-  @override
-  Path getClip(Size size) {
-    final notch = size.height * 0.12;
-    return Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(size.width / 2, size.height - notch)
-      ..lineTo(0, size.height)
-      ..close();
-  }
+  final String name;
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-/// One hanging banner in [color]: a swallowtail flag with a top peg, an
-/// optional emblem and a label. The faded side banners pass [dim].
-class VipHangingBanner extends StatelessWidget {
-  const new({
-    required this.color,
-    required this.width,
-    required this.height,
-    required this.label,
-    super.key,
-    this.emblem,
-    this.dim = false,
-    this.labelKey,
-    this.showLabel = true,
-  });
-
-  final Color color;
-  final double width;
-  final double height;
-  final String label;
-  final Widget? emblem;
-  final bool dim;
-  final Key? labelKey;
-
-  /// When false the banner shows no name (the badge art carries its own plate).
-  final bool showLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final onColor = vipOnColor(color);
-    final banner = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // The peg ring that hangs the banner from the rail.
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: vipGold, width: 2),
-            color: vipBackground,
-          ),
-        ),
-        SizedBox(
-          width: width,
-          height: height,
-          child: ClipPath(
-            clipper: const _SwallowtailClipper(),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [_lighten(color, 0.22), color, _darken(color, 0.28)],
-                ),
-                border: Border.all(color: vipGold.withValues(alpha: 0.7)),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: width * 0.08,
-                  vertical: height * 0.08,
-                ),
-                child: Column(
-                  mainAxisAlignment: showLabel
-                      ? MainAxisAlignment.spaceBetween
-                      : MainAxisAlignment.center,
-                  children: [
-                    if (emblem == null)
-                      const Spacer()
-                    else if (showLabel)
-                      emblem!
-                    else
-                      Expanded(child: emblem!),
-                    if (showLabel)
-                      Padding(
-                        padding: EdgeInsets.only(bottom: height * 0.08),
-                        child: Text(
-                          label,
-                          key: labelKey,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textStyles.title.copyWith(
-                            color: onColor,
-                            fontWeight: FontWeight.w900,
-                            fontSize: width * 0.2,
-                            letterSpacing: 0.5,
-                            shadows: [
-                              Shadow(
-                                color: _darken(color, 0.5),
-                                blurRadius: 2,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-    return dim ? Opacity(opacity: 0.45, child: banner) : banner;
-  }
-}
-
-/// The top rail the banners hang from: a thin gold gradient bar with finials.
-class VipRail extends StatelessWidget {
-  const new({super.key});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      _finial(),
-      Expanded(
-        child: Container(
-          height: 3,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                vipGoldDeep,
-                vipGold,
-                vipGoldBright,
-                vipGold,
-                vipGoldDeep,
-              ],
-            ),
-          ),
-        ),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: KSpacing.md, vertical: 4),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(KRadius.pill),
+      gradient: const LinearGradient(
+        colors: [vipGoldDeep, vipGold, vipGoldBright, vipGold, vipGoldDeep],
       ),
-      _finial(),
-    ],
-  );
-
-  Widget _finial() => Transform.rotate(
-    angle: math.pi / 4,
-    child: Container(
-      width: 9,
-      height: 9,
-      decoration: BoxDecoration(
-        color: vipGold,
-        border: Border.all(color: vipGoldBright),
+      boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 4)],
+    ),
+    child: Text(
+      name,
+      style: context.textStyles.caption.copyWith(
+        color: const Color(0xFF3A2A08),
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
       ),
     ),
   );
 }
 
-// ---- The curved tier track --------------------------------------------------
+// ---- The horizontal tier tab row --------------------------------------------
 
-/// Where node [i] of [n] sits in a unit box: x left→right, y on a smile arc
-/// (the ends high, the middle low), matching the reference.
-({double x, double y}) vipArcPoint(int i, int n) {
-  final t = n <= 1 ? 0.5 : i / (n - 1);
-  return (x: t, y: math.sin(math.pi * t));
-}
-
-/// Paints the gold arc line the nodes sit on (symmetric, so it needs no
-/// mirroring in RTL).
-class _ArcPainter extends CustomPainter {
-  const new({required this.margin, required this.dip, required this.top});
-
-  final double margin;
-  final double dip;
-  final double top;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path();
-    final usable = size.width - 2 * margin;
-    for (var s = 0; s <= 48; s++) {
-      final t = s / 48;
-      final x = margin + t * usable;
-      final y = top + dip * math.sin(math.pi * t);
-      if (s == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..shader = const LinearGradient(
-        colors: [vipGoldDeep, vipGold, vipGoldBright, vipGold, vipGoldDeep],
-      ).createShader(Offset.zero & size);
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArcPainter oldDelegate) => false;
-}
-
-/// The curved tier track: the tiers as nodes along a gold smile arc, the
-/// selected one raised and enlarged, each node tappable to select its tier.
-/// Mirrored in RTL. (With many tiers the labels sit close; the owner adds a
-/// handful.)
-class VipTierArc extends StatelessWidget {
+/// The tier tabs (VIP1 … VIPn across the width): the selected tier in gold with
+/// a short gold underline, the others muted; a tap selects. The caller's held
+/// tier carries a small check. Mirrored in RTL.
+class VipTierTabs extends StatelessWidget {
   const new({
     required this.tiers,
     required this.selectedId,
@@ -466,77 +283,31 @@ class VipTierArc extends StatelessWidget {
   final String? heldId;
   final void Function(VipTier) onSelect;
 
-  static const double _height = 118;
-  static const double _margin = 34;
-  static const double _dip = 54;
-  static const double _top = 26;
-
   @override
-  Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    return SizedBox(
-      height: _height,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final usable = width - 2 * _margin;
-          final nodes = <Widget>[];
-          for (var i = 0; i < tiers.length; i++) {
-            final tier = tiers[i];
-            final p = vipArcPoint(i, tiers.length);
-            final cx = _margin + p.x * usable;
-            final cy = _top + _dip * p.y;
-            final drawX = rtl ? width - cx : cx;
-            final selected = tier.id == selectedId;
-            final r = selected ? 15.0 : 10.0;
-            nodes.add(
-              Positioned(
-                left: drawX - 44,
-                top: cy - 22,
-                width: 88,
-                height: 66,
-                child: _ArcNode(
-                  tier: tier,
-                  radius: r,
-                  selected: selected,
-                  held: tier.id == heldId,
-                  onTap: () => onSelect(tier),
-                ),
-              ),
-            );
-          }
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Positioned.fill(
-                child: CustomPaint(
-                  painter: _ArcPainter(
-                    margin: VipTierArc._margin,
-                    dip: VipTierArc._dip,
-                    top: VipTierArc._top,
-                  ),
-                ),
-              ),
-              ...nodes,
-            ],
-          );
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Row(
+    children: [
+      for (final tier in tiers)
+        Expanded(
+          child: _Tab(
+            tier: tier,
+            selected: tier.id == selectedId,
+            held: tier.id == heldId,
+            onTap: () => onSelect(tier),
+          ),
+        ),
+    ],
+  );
 }
 
-class _ArcNode extends StatelessWidget {
+class _Tab extends StatelessWidget {
   const new({
     required this.tier,
-    required this.radius,
     required this.selected,
     required this.held,
     required this.onTap,
   });
 
   final VipTier tier;
-  final double radius;
   final bool selected;
   final bool held;
   final VoidCallback onTap;
@@ -544,7 +315,7 @@ class _ArcNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final color = Color(tier.color);
+    final t = context.textStyles;
     return Semantics(
       key: Key('vip.tab.${tier.code}'),
       button: true,
@@ -557,244 +328,276 @@ class _ArcNode extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: radius * 2,
-              height: radius * 2,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: selected
-                    ? LinearGradient(colors: [vipGoldBright, color])
-                    : null,
-                color: selected ? null : vipBackground,
-                border: Border.all(
-                  color: selected
-                      ? vipGoldBright
-                      : vipGold.withValues(alpha: 0.8),
-                  width: selected ? 2 : 1.5,
-                ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.6),
-                          blurRadius: 12,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: held
-                  ? Icon(
-                      Icons.check_rounded,
-                      size: radius,
-                      color: vipOnColor(color),
-                    )
-                  : null,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              tier.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textStyles.caption.copyWith(
-                color: selected
-                    ? vipGoldBright
-                    : vipGold.withValues(alpha: 0.75),
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                fontSize: selected ? 12 : 10.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---- The upgrade bar --------------------------------------------------------
-
-/// The upgrade progress bar (the reference's «Upgrade: …» bar): a gold label
-/// at the reading end, a track filled to the caller's rank with a knob, and a
-/// balance line under it. For bought VIP the fill is the held tier's rank on
-/// the ladder (0 when not a member) — it is a status indicator, not a drag.
-class VipUpgradeBar extends StatelessWidget {
-  const new({
-    required this.upgradeLabel,
-    required this.fill,
-    required this.balanceCoins,
-    super.key,
-  });
-
-  final String upgradeLabel;
-  final double fill;
-  final int? balanceCoins;
-
-  static const barKey = Key('vip.progress');
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final t = context.textStyles;
-    return Column(
-      key: barKey,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Text(
-            upgradeLabel,
-            style: t.caption.copyWith(
-              color: vipGoldBright,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: KSpacing.xs),
-        LayoutBuilder(
-          builder: (context, c) {
-            final clamped = fill.clamp(0.0, 1.0);
-            return SizedBox(
-              height: 16,
-              child: Stack(
-                clipBehavior: Clip.none,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Positioned.fill(
-                    child: Align(
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2233),
-                          borderRadius: BorderRadius.circular(KRadius.pill),
-                          border: Border.all(
-                            color: vipGoldDeep.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
+                  if (held) ...[
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 12,
+                      color: vipGold,
                     ),
-                  ),
-                  Positioned.fill(
-                    child: Align(
-                      child: FractionallySizedBox(
-                        widthFactor: clamped,
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Container(
-                          height: 8,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [vipGoldDeep, vipGold, vipGoldBright],
-                            ),
-                            borderRadius: BorderRadius.circular(KRadius.pill),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  PositionedDirectional(
-                    start: (c.maxWidth - 16) * clamped,
-                    top: 0,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [vipGoldBright, vipGold],
-                        ),
-                        boxShadow: [
-                          BoxShadow(color: Color(0x66F5C451), blurRadius: 6),
-                        ],
+                    const SizedBox(width: 3),
+                  ],
+                  Flexible(
+                    child: Text(
+                      tier.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: t.bodyStrong.copyWith(
+                        color: selected ? vipGoldBright : vipMuted,
+                        fontWeight: selected
+                            ? FontWeight.w900
+                            : FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
               ),
-            );
-          },
-        ),
-        const SizedBox(height: KSpacing.xs),
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${l10n.vipBalanceLabel}: ',
-                style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
-              ),
-              if (balanceCoins != null)
-                CoinAmount(
-                  balanceCoins!,
-                  size: 13,
-                  style: t.caption.copyWith(
-                    color: vipGoldBright,
-                    fontWeight: FontWeight.w700,
-                  ),
-                )
-              else
-                Text(
-                  '…',
-                  style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---- The perks section ------------------------------------------------------
-
-/// The crown header strip over the perks (a gold placeholder ornament, not the
-/// reference's third-party crown) with the section title.
-class VipCrownHeader extends StatelessWidget {
-  const new({required this.title, super.key});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(child: _bar(toEnd: false)),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.workspace_premium_rounded,
-              color: vipGold,
-              size: 26,
             ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: context.textStyles.bodyStrong.copyWith(
-                color: vipGoldBright,
-                fontWeight: FontWeight.w800,
+            // The underline indicator under the selected tier.
+            Container(
+              height: 3,
+              width: 22,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(KRadius.pill),
+                gradient: selected
+                    ? const LinearGradient(colors: [vipGold, vipGoldBright])
+                    : null,
+                color: selected ? null : Colors.transparent,
               ),
             ),
           ],
         ),
       ),
-      Expanded(child: _bar(toEnd: true)),
-    ],
-  );
+    );
+  }
+}
 
-  Widget _bar({required bool toEnd}) => Container(
-    height: 2,
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: toEnd ? Alignment.centerLeft : Alignment.centerRight,
-        end: toEnd ? Alignment.centerRight : Alignment.centerLeft,
-        colors: [vipGold, vipGold.withValues(alpha: 0)],
-      ),
+// ---- The crown divider ornament ---------------------------------------------
+
+/// The gold crown + wings divider under the badge (the reference's winged
+/// crown, drawn in code — a gold crown medallion flanked by feathered wings).
+/// Decorative: it carries no state.
+class VipCrownDivider extends StatelessWidget {
+  const new({super.key, this.height = 46});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: height,
+    child: Row(
+      children: [
+        Expanded(
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: const _WingPainter(toEnd: false),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs),
+          child: CustomPaint(
+            size: Size(height * 0.86, height),
+            painter: const _CrownPainter(),
+          ),
+        ),
+        Expanded(
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: const _WingPainter(toEnd: true),
+          ),
+        ),
+      ],
     ),
   );
 }
 
-/// One perk card: a tier-coloured thumbnail slot (a placeholder for the
-/// owner's art) with a lock + «قريباً» while the perk is not built, and the
-/// perk's title under it.
+/// One feathered gold wing sweeping out from the centre.
+class _WingPainter extends CustomPainter {
+  const new({required this.toEnd});
+
+  /// The wing on the trailing side (mirrored horizontally).
+  final bool toEnd;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    // Draw as if sweeping to the right; mirror for the leading-side wing.
+    if (!toEnd) {
+      canvas
+        ..translate(size.width, 0)
+        ..scale(-1, 1);
+    }
+    final mid = size.height / 2;
+    final gold = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..shader = const LinearGradient(
+        colors: [vipGoldBright, vipGold, vipGoldDeep],
+      ).createShader(Offset.zero & size);
+    // The spine.
+    canvas.drawLine(
+      Offset(0, mid),
+      Offset(size.width, mid),
+      gold..strokeWidth = 2.4,
+    );
+    // Feathers fanning up and down, shorter toward the far end.
+    final n = (size.width / 10).clamp(4, 9).toInt();
+    for (var i = 0; i < n; i++) {
+      final t = i / (n - 1);
+      final x = t * size.width;
+      final len = (1 - t) * size.height * 0.42 + 3;
+      final lift = math.sin(math.pi * t) * 3;
+      gold.strokeWidth = 1.6;
+      final inner = x - len * 0.3;
+      canvas
+        ..drawLine(Offset(x, mid - lift), Offset(inner, mid - len), gold)
+        ..drawLine(Offset(x, mid + lift), Offset(inner, mid + len), gold);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _WingPainter oldDelegate) => false;
+}
+
+/// A small gold crown with a red gem (the centre of the divider).
+class _CrownPainter extends CustomPainter {
+  const new();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final baseTop = h * 0.66;
+    final crown = Path()
+      ..moveTo(w * 0.08, baseTop)
+      ..lineTo(w * 0.08, h * 0.42)
+      ..lineTo(w * 0.28, h * 0.6)
+      ..lineTo(w * 0.5, h * 0.24)
+      ..lineTo(w * 0.72, h * 0.6)
+      ..lineTo(w * 0.92, h * 0.42)
+      ..lineTo(w * 0.92, baseTop)
+      ..close();
+    final fill = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [vipGoldBright, vipGold, vipGoldDeep],
+      ).createShader(Offset.zero & size);
+    canvas
+      ..drawPath(crown, fill)
+      // The base band.
+      ..drawRect(
+        Rect.fromLTRB(w * 0.08, baseTop, w * 0.92, h * 0.9),
+        fill,
+      )
+      // The centre gem.
+      ..drawCircle(
+        Offset(w * 0.5, h * 0.78),
+        w * 0.09,
+        Paint()..color = const Color(0xFFD23B3B),
+      );
+    // The spike tips.
+    final tip = Paint()..color = vipGoldBright;
+    for (final x in [0.08, 0.5, 0.92]) {
+      canvas.drawCircle(Offset(w * x, h * (x == 0.5 ? 0.22 : 0.4)), 2, tip);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CrownPainter oldDelegate) => false;
+}
+
+// ---- The perks section ------------------------------------------------------
+
+/// A category section header: small crown flourishes on each side, the category
+/// title and, when the category has perks, a «(granted/total)» count under it
+/// (the reference's «Identification (6/6)»).
+class VipSectionHeader extends StatelessWidget {
+  const new({required this.title, super.key, this.count});
+
+  final String title;
+
+  /// `(granted, total)`; null hides the count line.
+  final (int, int)? count;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.textStyles;
+    final count = this.count;
+    return Row(
+      children: [
+        const Expanded(child: _Flourish(toEnd: false)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: t.bodyStrong.copyWith(
+                  color: const Color(0xFFF2ECF8),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (count != null)
+                Text(
+                  '(${count.$1}/${count.$2})',
+                  style: t.caption.copyWith(color: vipMuted),
+                ),
+            ],
+          ),
+        ),
+        const Expanded(child: _Flourish(toEnd: true)),
+      ],
+    );
+  }
+}
+
+/// A small gold flourish (a thin fading bar with a diamond finial) beside a
+/// section title.
+class _Flourish extends StatelessWidget {
+  const new({required this.toEnd});
+
+  final bool toEnd;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      if (toEnd) _diamond(),
+      Expanded(
+        child: Container(
+          height: 1.5,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: toEnd ? Alignment.centerLeft : Alignment.centerRight,
+              end: toEnd ? Alignment.centerRight : Alignment.centerLeft,
+              colors: [vipGold, vipGold.withValues(alpha: 0)],
+            ),
+          ),
+        ),
+      ),
+      if (!toEnd) _diamond(),
+    ],
+  );
+
+  Widget _diamond() => Transform.rotate(
+    angle: math.pi / 4,
+    child: Container(width: 5, height: 5, color: vipGold),
+  );
+}
+
+/// One perk cell (the reference's grid cell): the perk's art thumbnail on top,
+/// a bold title and a one-line grey subtitle; a small lock marks a perk whose
+/// feature is not built yet («قريباً»). The art fills the slot the owner's
+/// uploaded art (still thumbnail) provides; a tier-coloured icon shows until
+/// then.
 class VipPerkCard extends StatelessWidget {
   const new({
     required this.perk,
@@ -811,12 +614,17 @@ class VipPerkCard extends StatelessWidget {
   final bool active;
   final double width;
 
+  static const Color _title = Color(0xFFE7C77E);
+
   static IconData iconFor(String code) => switch (code) {
     'BADGE' => Icons.verified_rounded,
     'AVATAR_FRAME' => Icons.filter_frames_rounded,
+    'PROFILE_CARD' => Icons.badge_rounded,
+    'CHAT_BUBBLE' => Icons.chat_bubble_rounded,
     'CHAT_NAME_COLOR' => Icons.format_color_text_rounded,
     'ENTRY_BANNER' => Icons.flag_rounded,
     'ENTRY_EFFECT' => Icons.auto_awesome_rounded,
+    'MIC_SOUND_WAVE' => Icons.graphic_eq_rounded,
     'DAILY_BULLET' => Icons.campaign_rounded,
     'VIEWER_LIST_PRIORITY' => Icons.format_list_numbered_rounded,
     'MONTHLY_GIFT' => Icons.redeem_rounded,
@@ -834,6 +642,7 @@ class VipPerkCard extends StatelessWidget {
         : on
         ? l10n.vipPerkActive
         : l10n.vipPerkWith(tier.name);
+    final subtitle = perk.description ?? state;
     return SizedBox(
       width: width,
       child: Semantics(
@@ -844,97 +653,73 @@ class VipPerkCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             AspectRatio(
-              aspectRatio: 1.35,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(KRadius.md),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      _darken(color, 0.35).withValues(alpha: 0.9),
-                      const Color(0xFF17121F),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: on
-                        ? vipGold.withValues(alpha: 0.8)
-                        : vipGold.withValues(alpha: 0.25),
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // The perk's own art (still thumbnail in the grid), or a
-                    // generic icon when the perk has no art yet.
-                    Positioned.fill(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(6, 6, 6, 16),
-                        child: perk.still != null
-                            ? VipAnimatedArt(
-                                animation: null,
-                                still: perk.still,
-                                animate: false,
-                              )
-                            : Center(
-                                child: Icon(
-                                  iconFor(perk.code),
-                                  size: width * 0.34,
-                                  color: perk.available
-                                      ? vipGoldBright
-                                      : const Color(0xFF6E6480),
-                                ),
+              aspectRatio: 1.08,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: perk.still != null
+                        ? VipAnimatedArt(
+                            animation: null,
+                            still: perk.still,
+                            animate: false,
+                          )
+                        : DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(KRadius.md),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  _darken(color, 0.3).withValues(alpha: 0.8),
+                                  const Color(0xFF17121F),
+                                ],
                               ),
+                              border: Border.all(
+                                color: vipGold.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                iconFor(perk.code),
+                                size: width * 0.34,
+                                color: perk.available
+                                    ? vipGoldBright
+                                    : const Color(0xFF6E6480),
+                              ),
+                            ),
+                          ),
+                  ),
+                  if (!perk.available)
+                    const PositionedDirectional(
+                      end: 4,
+                      top: 4,
+                      child: Icon(
+                        Icons.lock_rounded,
+                        size: 13,
+                        color: Color(0xFFCDBFE0),
                       ),
                     ),
-                    if (!perk.available)
-                      const PositionedDirectional(
-                        end: 6,
-                        top: 6,
-                        child: Icon(
-                          Icons.lock_rounded,
-                          size: 14,
-                          color: Color(0xFFB9A9C9),
-                        ),
-                      ),
-                    PositionedDirectional(
-                      start: 0,
-                      end: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        decoration: BoxDecoration(
-                          color: on ? color : const Color(0xCC17121F),
-                          borderRadius: const BorderRadiusDirectional.only(
-                            bottomStart: Radius.circular(KRadius.md),
-                            bottomEnd: Radius.circular(KRadius.md),
-                          ),
-                        ),
-                        child: Text(
-                          state,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.caption.copyWith(
-                            color: on
-                                ? vipOnColor(color)
-                                : const Color(0xFFB9A9C9),
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
             const SizedBox(height: KSpacing.xs),
             Text(
               perk.title,
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: t.caption.copyWith(color: const Color(0xFFE8DDF5)),
+              style: t.bodyStrong.copyWith(
+                color: _title,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.caption.copyWith(color: vipMuted),
             ),
           ],
         ),

@@ -23401,6 +23401,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'امتيازات {tier}'**
   String vipPerksSection(String tier);
+
+  /// D252b v2: «شراء VIP» — the appearance perks category header.
+  ///
+  /// In ar, this message translates to:
+  /// **'التعريف'**
+  String get vipSectionIdentity;
+
+  /// D252b v2: «شراء VIP» — the privileges perks category header.
+  ///
+  /// In ar, this message translates to:
+  /// **'امتياز حصري'**
+  String get vipSectionPrivilege;
 }
 
 class _AppLocalizationsDelegate

@@ -42,22 +42,25 @@ class _Coins extends LiveCoinsController {
 }
 
 const _base = 'https://cdn.kabso.test/vip';
-const _colors = [0xFF2E8B3D, 0xFF9B59D0, 0xFFE50914];
-const _prices = [1000000, 3000000, 9000000];
+const _colors = [0xFF2E8B3D, 0xFF3D7BD0, 0xFF9B59D0, 0xFFE08A1E, 0xFFE50914];
+const _prices = [800000, 1500000, 3000000, 5000000, 9000000];
+
+/// The VIP 1 identity perks for the review, in the reference's order, each with
+/// its own still art fixture (MIC_SOUND_WAVE has no art yet → placeholder).
 const _perkFile = {
   'BADGE': 'vip1_badge.png',
   'AVATAR_FRAME': 'vip1_frame.png',
-  'PROFILE_CARD': 'vip1_card.png',
-  'ENTRY_BANNER': 'vip1_entrance.png',
+  'ENTRY_EFFECT': 'vip1_entrance.png',
   'CHAT_BUBBLE': 'vip1_bubble.png',
-  'ENTRY_EFFECT': 'vip1_entry_effect.png',
+  'PROFILE_CARD': 'vip1_card.png',
 };
 
-VipPerk _perk(String code, String title) => VipPerk(
+VipPerk _perk(String code, String title, String subtitle) => VipPerk(
   code: code,
   title: title,
+  description: subtitle,
   available: false,
-  still: '$_base/${_perkFile[code]}',
+  still: _perkFile[code] == null ? null : '$_base/${_perkFile[code]}',
 );
 
 VipTier _tier(int level) => VipTier(
@@ -72,12 +75,12 @@ VipTier _tier(int level) => VipTier(
   badgeAnimation: level == 1 ? '$_base/vip1_badge.svga' : null,
   perks: level == 1
       ? [
-          _perk('BADGE', 'Badge'),
-          _perk('AVATAR_FRAME', 'Avatar frame'),
-          _perk('PROFILE_CARD', 'Profile card'),
-          _perk('ENTRY_BANNER', 'Entry banner'),
-          _perk('CHAT_BUBBLE', 'Message frame'),
-          _perk('ENTRY_EFFECT', 'Entry effect'),
+          _perk('BADGE', 'الهوية', 'شارة VIP حصرية'),
+          _perk('AVATAR_FRAME', 'غطاء الرأس', 'غطاء رأس حصري'),
+          _perk('ENTRY_EFFECT', 'مؤثر الدخول', 'دخول خاص للأعضاء'),
+          _perk('MIC_SOUND_WAVE', 'موجة المايك', 'صوت مايك حصري'),
+          _perk('CHAT_BUBBLE', 'فقاعة الرسائل', 'فقاعات كلام رائعة'),
+          _perk('PROFILE_CARD', 'بطاقة الغرفة', 'معلومات غرفة فريدة'),
         ]
       : const [
           VipPerk(code: 'BADGE', title: 'Badge', available: false),
@@ -89,8 +92,10 @@ VipTier _tier(int level) => VipTier(
         ],
 );
 
-VipTierList _list() =>
-    VipTierList(tiers: [_tier(1), _tier(2), _tier(3)], maxAheadDays: 400);
+VipTierList _list() => VipTierList(
+  tiers: [_tier(1), _tier(2), _tier(3), _tier(4), _tier(5)],
+  maxAheadDays: 400,
+);
 
 VipMembership _membership(VipTier tier, {int days = 20}) => VipMembership(
   tierId: tier.id,

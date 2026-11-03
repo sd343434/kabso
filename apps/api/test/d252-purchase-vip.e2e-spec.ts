@@ -371,6 +371,9 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     expect(Date.parse(renew.body.membership.expiresAt as string)).toBe(firstEnd + 30 * DAY);
     expect(renew.body.membership.startedAt).toBe(first.body.membership.startedAt);
 
+    // Advance so the upgrade's createdAt is strictly after the renew's (the
+    // purchases are ordered by createdAt below; frozen fake time would tie).
+    p.advance(60_000);
     const up = await buy(u, 'VIP_2', 3_000);
     expect(up.status).toBe(201);
     expect(up.body).toMatchObject({
