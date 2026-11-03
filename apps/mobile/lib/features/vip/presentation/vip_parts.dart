@@ -414,11 +414,7 @@ class VipRail extends StatelessWidget {
 /// Paints the gold arc line the nodes sit on (symmetric, so it needs no
 /// mirroring in RTL).
 class _ArcPainter extends CustomPainter {
-  const new({
-    required this.margin,
-    required this.dip,
-    required this.top,
-  });
+  const new({required this.margin, required this.dip, required this.top});
 
   final double margin;
   final double dip;
