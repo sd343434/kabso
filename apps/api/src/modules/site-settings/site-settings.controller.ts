@@ -11,6 +11,11 @@ import {
   type UpdateCameraFxInput,
 } from './camera-fx.rules.js';
 import {
+  updateLevelTickerSchema,
+  type LevelTickerSettingsDto,
+  type UpdateLevelTickerInput,
+} from './level-ticker.rules.js';
+import {
   SITE_SETTINGS_CACHE_CONTROL,
   updateSiteSettingsSchema,
   type SiteSettingsDto,
@@ -79,6 +84,37 @@ export class AdminCameraFxController {
     @CurrentAdmin() admin: AdminContext,
   ): Promise<CameraFxSettingsDto> {
     return this.settings.updateCameraFx(body, {
+      userId: admin.userId,
+      ip: admin.ip,
+      requestId: admin.requestId,
+    });
+  }
+}
+
+/**
+ * v1.62-live (D254): `GET|PUT /admin/level-ticker` — the OWNER's threshold of the level-up banner shown in every live
+ * (support and charm levels; default 30), audited.
+ */
+@Public()
+@Controller('admin/level-ticker')
+@RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true })
+@UseGuards(AdminSessionGuard)
+export class AdminLevelTickerController {
+  constructor(private readonly settings: SiteSettingsService) {}
+
+  @Get()
+  @RequireCapability('site.settings')
+  get(): Promise<LevelTickerSettingsDto> {
+    return this.settings.getLevelTicker();
+  }
+
+  @Put()
+  @RequireCapability('site.settings')
+  put(
+    @Body(new ZodValidationPipe(updateLevelTickerSchema)) body: UpdateLevelTickerInput,
+    @CurrentAdmin() admin: AdminContext,
+  ): Promise<LevelTickerSettingsDto> {
+    return this.settings.updateLevelTicker(body, {
       userId: admin.userId,
       ip: admin.ip,
       requestId: admin.requestId,

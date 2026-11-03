@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/application/live_fx_engine_providers.da
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_level_ticker.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
@@ -33,6 +34,7 @@ import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_streamer_host.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
+import 'package:kabso_live/features/live/application/live_top_viewers.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
@@ -639,6 +641,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         () =>
             ref.read(liveGiftTickersProvider(room.id).notifier).attach(engine),
       );
+      // D254: the level banner (a high level reached in any live).
+      _optional(
+        'levelTickers',
+        () =>
+            ref.read(liveLevelTickersProvider(room.id).notifier).attach(engine),
+      );
       // D154: the room's quips (one at a time, after their delay).
       _optional(
         'quips',
@@ -836,6 +844,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final seatCount = liveSeats?.seatCount ?? room?.seatCount ?? setupSeats;
     final engine = _host.engine;
     _watchSeatsVersion(room);
+    // D253d: the host's own live — the rules line is the chat's first line
+    // (set before the chat first loads).
+    if (onAir && room != null) {
+      beginHostLiveChatVisit(ref.read(liveChatVisitsProvider), room.id);
+    }
     _attachChat(room, engine, onAir);
     final chat = onAir && room != null
         ? ref.watch(liveChatProvider(room.id))
@@ -2504,6 +2517,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     // the data page (≡ → data) — D232 took its chip off the screen.
     ref.watch(myLevelsProvider);
     final incoming = pk.incoming;
+    // D256: the viewers' faces by this live's support.
+    final ranked = rankViewersBySupport(
+      viewers?.items ?? const [],
+      ref
+              .watch(
+                liveTopContributorsProvider((
+                  roomId: room.id,
+                  version: score - (taps ?? 0),
+                )),
+              )
+              .value ??
+          const [],
+    );
     final scaffold = KLiveRoomScaffold(
       // D145c: the gift strips keep above the chat text.
       onChatTop: (top) =>
@@ -2573,14 +2599,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               avatarSize: 25.6,
               pitch: 31.1,
               plainCount: true,
+              // D256: the top supporters first, the first three ringed.
               avatars: [
-                for (final v in viewers.items)
-                  if (v.user case final u?)
-                    KAvatar(
-                      name: u.displayName,
-                      imageUrl: u.avatarUrl,
-                      size: 25.6,
-                    ),
+                for (final v in ranked)
+                  KAvatar(
+                    name: v.user.displayName,
+                    imageUrl: v.user.avatarUrl,
+                    size: 25.6,
+                  ),
+              ],
+              ranks: [for (final v in ranked) v.rank],
+              rankPoints: [
+                for (final v in ranked)
+                  rankPointsLabel(v, (p) => KFormat.compact(p, l10n)),
               ],
               count: viewers.next == null
                   ? KFormat.compact(viewers.items.length, l10n)

@@ -40,6 +40,7 @@ import {
   type PreviousSend,
 } from './live-gifts.js';
 import { LiveGiftTickerService, type GiftTickerGiftDto } from './live-gift-ticker.service.js';
+import { LiveLevelTickerService, type LevelTickerCategory } from './live-level-ticker.service.js';
 import { LiveLuckyTickerService, type LuckyWinDto } from './live-lucky-ticker.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import {
@@ -195,6 +196,14 @@ interface Recipient {
   readonly username: string;
 }
 
+/** v1.62-live (D254): a support or charm level that went up in a send (for the level-up banner). */
+interface LevelUp {
+  readonly userId: string;
+  readonly category: LevelTickerCategory;
+  readonly previousLevel: number | null;
+  readonly level: number;
+}
+
 /**
  * Live gifts (CP-020, D108, CONVENTIONS §10.23): a signed-in person in a LIVE room sends
  * `quantity` of one catalogue gift to each of 1 … 25 recipients — the host and/or people seated in
@@ -227,6 +236,7 @@ export class LiveGiftsService {
     private readonly giftTicker: LiveGiftTickerService,
     private readonly quips: LiveQuipsService,
     private readonly pk: LivePkService,
+    private readonly levelTicker: LiveLevelTickerService,
   ) {}
 
   /** D148: the tail of each sender's queue of sends in this process. */
@@ -352,6 +362,7 @@ export class LiveGiftsService {
       coins: number | null;
       bagQuantity: number | null;
       hostLevelChanged: boolean;
+      levelUps: readonly LevelUp[];
       luckyResult: LuckyGiftResultDto | null;
       quip: LiveQuipDto | null;
       pk: PkGiftCredit | null;
@@ -593,17 +604,19 @@ export class LiveGiftsService {
 
           // Levels: the recipients' charm and the sender's support (and Wizard for lucky gifts); a free
           // quip is worth nothing.
-          const hostLevelChanged =
-            !freeQuip &&
-            (await this.creditLevels(tx, {
-              giftId,
-              senderId: callerId,
-              hostId: state.host_user_id,
-              recipients: to,
-              perRecipientCoins: amounts.perRecipientCoins,
-              lucky: isLucky,
-              countedPerRecipientCoins: counted.perRecipientCoins,
-            }));
+          const credited = freeQuip
+            ? null
+            : await this.creditLevels(tx, {
+                giftId,
+                senderId: callerId,
+                hostId: state.host_user_id,
+                recipients: to,
+                perRecipientCoins: amounts.perRecipientCoins,
+                lucky: isLucky,
+                countedPerRecipientCoins: counted.perRecipientCoins,
+              });
+          const hostLevelChanged = credited?.hostLevelChanged ?? false;
+          const levelUps = credited?.levelUps ?? [];
           if (hostLevelChanged && !wished) {
             await tx.$executeRaw`
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
@@ -681,7 +694,7 @@ export class LiveGiftsService {
                   delayMs: slot.delayMs,
                   createdAt: at,
                 };
-          return { dto, coins, bagQuantity, hostLevelChanged, luckyResult, quip, pk };
+          return { dto, coins, bagQuantity, hostLevelChanged, levelUps, luckyResult, quip, pk };
         }, LIVE_TX_OPTIONS),
       );
     } catch (err) {
@@ -707,6 +720,20 @@ export class LiveGiftsService {
       // v1.41-live (D178): a big enough send is a strip in every other live (one at a time).
       this.background.run('gift global ticker', async () => {
         await this.giftTicker.offer(dto as unknown as GiftTickerGiftDto);
+      });
+    }
+    // v1.62-live (D254): a support or charm level reaching the panel's threshold is a banner in every live.
+    const levelUps = created.levelUps;
+    if (levelUps.length > 0) {
+      this.background.run('level ticker', async () => {
+        await this.levelTicker.offerAll(
+          levelUps.map((u) => ({
+            ...u,
+            sourceId: `gift:${dto.id}`,
+            roomId: dto.roomId,
+            createdAt: dto.createdAt,
+          })),
+        );
       });
     }
     const pkCredit = created.pk;
@@ -1113,7 +1140,9 @@ export class LiveGiftsService {
    * floor(coins × the category's published multiplier). The source id is
    * `gift:<giftId>:<recipientId>`, so nothing is credited twice. User states are locked in a fixed
    * (user, category) order, after the room row, like the levels inbox. Nothing is credited while a
-   * category is unavailable (or not seeded). Returns whether the host's charm level moved.
+   * category is unavailable (or not seeded). Returns whether the host's charm level moved and, v1.62-live (D254),
+   * every support and charm level that went up (the highest level each person reached in each, with the level
+   * before this send), for the level-up banner.
    */
   private async creditLevels(
     tx: Prisma.TransactionClient,
@@ -1134,7 +1163,7 @@ export class LiveGiftsService {
        */
       supportPerRecipientCoins?: number;
     },
-  ): Promise<boolean> {
+  ): Promise<{ hostLevelChanged: boolean; levelUps: LevelUp[] }> {
     // D148 (fewer round trips): every category a send can credit, share-locked and loaded at once
     // (the categories of a send: charm and support; for a lucky gift also Wizard). A category that is
     // not seeded is not credited.
@@ -1185,6 +1214,7 @@ export class LiveGiftsService {
     );
 
     let hostLevelChanged = false;
+    const levelUps = new Map<string, LevelUp>();
     for (const credit of credits) {
       const cat = category(credit.category);
       if (!cat || !isAvailable(cat)) continue;
@@ -1207,8 +1237,25 @@ export class LiveGiftsService {
       ) {
         hostLevelChanged = true;
       }
+      // D254: a support or charm level that went up (a person credited twice in one send — e.g. a gift to two
+      // people — keeps the level before the first credit and the level after the last).
+      if (
+        result.kind === 'applied' &&
+        (credit.category === 'SUPPORT' || credit.category === 'ATTRACTIVENESS') &&
+        result.state.currentLevel !== null &&
+        result.state.currentLevel > (result.state.previousLevel ?? 0)
+      ) {
+        const key = `${credit.userId}:${credit.category}`;
+        const earlier = levelUps.get(key);
+        levelUps.set(key, {
+          userId: credit.userId,
+          category: credit.category,
+          previousLevel: earlier ? earlier.previousLevel : result.state.previousLevel,
+          level: result.state.currentLevel,
+        });
+      }
     }
-    return hostLevelChanged;
+    return { hostLevelChanged, levelUps: [...levelUps.values()] };
   }
 
   private byClientId(senderId: string, clientId: string): Promise<GiftRow | null> {

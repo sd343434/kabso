@@ -4256,9 +4256,9 @@
   "@liveHostTasksHide": {"description": "D253: the host's screen as the owner's reference (2026-11-03)."},
   "liveHostTasksLevel": "Lv{level}",
   "@liveHostTasksLevel": {"description": "D253: the host's screen as the owner's reference (2026-11-03).", "placeholders": {"level": {"type": "int"}}},
-  "liveHostTasksDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "liveHostTasksDays": "{count, plural, =1{{count} day} other{{count} days}}",
   "@liveHostTasksDays": {"description": "D253: the host's screen as the owner's reference (2026-11-03).", "placeholders": {"count": {"type": "int"}}},
-  "liveHostTasksLabel": "Host tasks: {task}, {progress} of {target}, {days, plural, =1{1 day left} other{{days} days left}}",
+  "liveHostTasksLabel": "Host tasks: {task}, {progress} of {target}, {days, plural, =1{{days} day left} other{{days} days left}}",
   "@liveHostTasksLabel": {"description": "D253: the host's screen as the owner's reference (2026-11-03).", "placeholders": {"task": {"type": "String"}, "progress": {"type": "String"}, "target": {"type": "String"}, "days": {"type": "int"}}},
   "liveToolQuickReplies": "Quick replies",
   "@liveToolQuickReplies": {"description": "D253: the host's screen as the owner's reference (2026-11-03)."},
@@ -4273,5 +4273,11 @@
   "livePerformanceHelpLabel": "About these numbers",
   "@livePerformanceHelpLabel": {"description": "D253b: the host performance card."},
   "livePerformanceHelp": "The numbers of this live, updated every 15 seconds: the live time, the unique viewers and the most at once, new followers, the cherries received and the people who sent gifts. The chart shows the readings taken while this card was open.",
-  "@livePerformanceHelp": {"description": "D253b: the host performance card."}
+  "@livePerformanceHelp": {"description": "D253b: the host performance card."},
+  "liveLevelTicker": "Congratulations to {name} on reaching level {level} in the live room of {host}",
+  "@liveLevelTicker": {"description": "D254: the level-up banner in every live.", "placeholders": {"name": {"type": "String"}, "level": {"type": "int"}, "host": {"type": "String"}}},
+  "liveLevelTickerSupport": "Support level",
+  "@liveLevelTickerSupport": {"description": "D254: the level-up banner in every live."},
+  "liveLevelTickerCharm": "Charm level",
+  "@liveLevelTickerCharm": {"description": "D254: the level-up banner in every live."}
 }

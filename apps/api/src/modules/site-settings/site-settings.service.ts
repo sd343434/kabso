@@ -12,6 +12,12 @@ import {
   type UpdateCameraFxInput,
 } from './camera-fx.rules.js';
 import {
+  LEVEL_TICKER_SETTING_KEY,
+  readLevelTickerMinLevel,
+  type LevelTickerSettingsDto,
+  type UpdateLevelTickerInput,
+} from './level-ticker.rules.js';
+import {
   SETTING_KEYS,
   SITE_SETTINGS_DEFAULTS,
   storedSocial,
@@ -135,6 +141,48 @@ export class SiteSettingsService {
           key: CAMERA_FX_SETTING_KEY,
           before: before.cameraFxEngine,
           after: after.cameraFxEngine,
+          ...(input.reason ? { reason: input.reason } : {}),
+          via: 'panel',
+        },
+        ip: actor.ip,
+        requestId: actor.requestId,
+      });
+      return after;
+    });
+  }
+
+  /** D254: the level from which a level-up is announced in every live (default 30). */
+  async getLevelTicker(
+    db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma,
+  ): Promise<LevelTickerSettingsDto> {
+    return { minLevel: await readLevelTickerMinLevel(db) };
+  }
+
+  /**
+   * D254: the OWNER sets the threshold from the panel; audited in the same transaction as a site-settings change
+   * (`site.settings.update`, `metadata.key` = `levelTickerMinLevel`, before and after).
+   */
+  async updateLevelTicker(
+    input: UpdateLevelTickerInput,
+    actor: SiteSettingsActor,
+  ): Promise<LevelTickerSettingsDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
+      const before = await this.getLevelTicker(tx);
+      const after: LevelTickerSettingsDto = { minLevel: input.minLevel };
+      await tx.siteSetting.upsert({
+        where: { key: LEVEL_TICKER_SETTING_KEY },
+        create: { key: LEVEL_TICKER_SETTING_KEY, value: after.minLevel, updatedById: actor.userId },
+        update: { value: after.minLevel, updatedById: actor.userId },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.SITE_SETTINGS_UPDATE,
+        actorUserId: actor.userId,
+        targetType: 'site_settings',
+        metadata: {
+          key: LEVEL_TICKER_SETTING_KEY,
+          before: before.minLevel,
+          after: after.minLevel,
           ...(input.reason ? { reason: input.reason } : {}),
           via: 'panel',
         },

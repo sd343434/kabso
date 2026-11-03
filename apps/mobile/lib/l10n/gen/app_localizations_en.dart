@@ -13656,7 +13656,7 @@ class AppLocalizationsEn extends AppLocalizations {
       count,
       locale: localeName,
       other: '$count days',
-      one: '1 day',
+      one: '$count day',
     );
     return '$_temp0';
   }
@@ -13672,7 +13672,7 @@ class AppLocalizationsEn extends AppLocalizations {
       days,
       locale: localeName,
       other: '$days days left',
-      one: '1 day left',
+      one: '$days day left',
     );
     return 'Host tasks: $task, $progress of $target, $_temp0';
   }
@@ -13698,4 +13698,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get livePerformanceHelp =>
       'The numbers of this live, updated every 15 seconds: the live time, the unique viewers and the most at once, new followers, the cherries received and the people who sent gifts. The chart shows the readings taken while this card was open.';
+
+  @override
+  String liveLevelTicker(String name, int level, String host) {
+    return 'Congratulations to $name on reaching level $level in the live room of $host';
+  }
+
+  @override
+  String get liveLevelTickerSupport => 'Support level';
+
+  @override
+  String get liveLevelTickerCharm => 'Charm level';
 }

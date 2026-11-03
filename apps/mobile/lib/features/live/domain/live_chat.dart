@@ -3,6 +3,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/domain/live_level_ticker.dart';
 import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_sticker.dart';
@@ -192,6 +193,8 @@ sealed class LiveChatEvent {
         'lucky-ticker' => LuckyTickerReceived(LuckyTicker.fromJson(json)),
         // v1.41-live (D178): a big gift in another live (the global strip).
         'gift-ticker' => GiftTickerReceived(GiftTicker.fromJson(json)),
+        // v1.62-live (D254): a high level reached in a live (every live).
+        'level-ticker' => LevelTickerReceived(LevelTicker.fromJson(json)),
         // v1.27.5-live (D138): an emoji on someone's own seat.
         'seat-emoji' => LiveSeatEmojiReceived(LiveSeatEmoji.fromJson(json)),
         // v1.32-live (D154): a quip (or soundboard sound) for the room.
@@ -379,6 +382,14 @@ final class GiftTickerReceived extends LiveChatEvent {
   const new(this.ticker);
 
   final GiftTicker ticker;
+}
+
+/// v1.62-live (D254): someone reached a high support or charm level in a
+/// live (topic `level`, `level-ticker`), shown as the scrolling level banner.
+final class LevelTickerReceived extends LiveChatEvent {
+  const new(this.ticker);
+
+  final LevelTicker ticker;
 }
 
 final class LuckyTickerReceived extends LiveChatEvent {

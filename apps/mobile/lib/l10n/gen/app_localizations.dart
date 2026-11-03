@@ -23196,6 +23196,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أرقام هذا البث، تتحدّث كل 15 ثانية: وقت البث، والمشاهدون الفريدون وأكبر عدد في وقت واحد، والمتابعون الجدد، والكرز المستلم، ومن أرسلوا الهدايا. يعرض الرسم القراءات المأخوذة أثناء فتح هذه البطاقة.'**
   String get livePerformanceHelp;
+
+  /// D254: the level-up banner in every live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تهانينا لـ {name} على الترقية إلى المستوى {level} في غرفة البث المباشر الخاصة بـ {host}'**
+  String liveLevelTicker(String name, int level, String host);
+
+  /// D254: the level-up banner in every live.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الدعم'**
+  String get liveLevelTickerSupport;
+
+  /// D254: the level-up banner in every live.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية'**
+  String get liveLevelTickerCharm;
 }
 
 class _AppLocalizationsDelegate

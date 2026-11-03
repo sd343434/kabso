@@ -13708,4 +13708,15 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get livePerformanceHelp =>
       'أرقام هذا البث، تتحدّث كل 15 ثانية: وقت البث، والمشاهدون الفريدون وأكبر عدد في وقت واحد، والمتابعون الجدد، والكرز المستلم، ومن أرسلوا الهدايا. يعرض الرسم القراءات المأخوذة أثناء فتح هذه البطاقة.';
+
+  @override
+  String liveLevelTicker(String name, int level, String host) {
+    return 'تهانينا لـ $name على الترقية إلى المستوى $level في غرفة البث المباشر الخاصة بـ $host';
+  }
+
+  @override
+  String get liveLevelTickerSupport => 'مستوى الدعم';
+
+  @override
+  String get liveLevelTickerCharm => 'مستوى الجاذبية';
 }

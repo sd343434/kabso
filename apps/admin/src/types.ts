@@ -281,6 +281,11 @@ export interface CameraFxSettings {
   cameraFxEngine: CameraFxEngine;
 }
 
+/** v1.62-live (D254): `LevelTickerSettings` — the level from which a level-up is a banner in every live. */
+export interface LevelTickerSettings {
+  minLevel: number;
+}
+
 /** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */
 export interface PaymentKeyInfo {
   kind: 'secret' | 'restricted' | 'webhook';

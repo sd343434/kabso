@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { ErrorAlert, Loading, useAsync } from '../components';
 import { useApp } from '../context';
-import type { CameraFxEngine, CameraFxSettings, SiteSettings as Settings } from '../types';
+import type { CameraFxEngine, CameraFxSettings, LevelTickerSettings, SiteSettings as Settings } from '../types';
 
 export function SiteSettings() {
   const { t, toast } = useApp();
@@ -91,6 +91,7 @@ export function SiteSettings() {
         </button>
       </form>
       <CameraFxCard />
+      <LevelTickerCard />
     </>
   );
 }
@@ -169,6 +170,111 @@ function CameraFxCard() {
             (saved) => {
               setBusy(false);
               setEngine(saved.cameraFxEngine);
+              setReason('');
+              toast(t('saved'));
+            },
+            (err: unknown) => {
+              setBusy(false);
+              setSaveError(err);
+            },
+          );
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * D254: the PUT body of «شريط ترقية المستويات» — the typed level as an integer 1–100 (null when it is not one, the
+ * form refuses it before sending) and a reason only when typed.
+ */
+export function levelTickerBody(minLevel: string, reason: string): { minLevel: number; reason?: string } | null {
+  const text = minLevel.trim();
+  if (!/^[0-9]{1,3}$/.test(text)) return null;
+  const level = Number(text);
+  if (level < 1 || level > 100) return null;
+  return { minLevel: level, ...(reason.trim() ? { reason: reason.trim() } : {}) };
+}
+
+/** D254: the form of «شريط ترقية المستويات» (the level-up banner's threshold), pure for the tests. */
+export function LevelTickerView(props: {
+  minLevel: string;
+  reason: string;
+  busy: boolean;
+  onMinLevel: (minLevel: string) => void;
+  onReason: (reason: string) => void;
+  onSave: () => void;
+}) {
+  const { t } = useApp();
+  const invalid = levelTickerBody(props.minLevel, '') === null;
+  return (
+    <form
+      className="card"
+      style={{ maxWidth: 640, marginTop: 16 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!invalid) props.onSave();
+      }}
+    >
+      <h2>{t('lvTitle')}</h2>
+      <p className="muted small">{t('lvIntro')}</p>
+      <div className="field">
+        <label htmlFor="lv-min">{t('lvMinLevel')}</label>
+        <input
+          id="lv-min"
+          type="number"
+          className="ltr"
+          min={1}
+          max={100}
+          step={1}
+          inputMode="numeric"
+          value={props.minLevel}
+          aria-invalid={invalid}
+          onChange={(e) => props.onMinLevel(e.target.value)}
+        />
+        <span className="hint">{invalid ? t('lvInvalid') : t('lvHint')}</span>
+      </div>
+      <div className="field">
+        <label htmlFor="lv-reason">{t('reason')}</label>
+        <textarea id="lv-reason" maxLength={500} value={props.reason} onChange={(e) => props.onReason(e.target.value)} />
+      </div>
+      <button className="btn primary" disabled={props.busy || invalid}>
+        {t('lvSave')}
+      </button>
+    </form>
+  );
+}
+
+function LevelTickerCard() {
+  const { t, toast } = useApp();
+  const { data, error, loading } = useAsync(() => api.get<LevelTickerSettings>('/admin/level-ticker'), []);
+  const [minLevel, setMinLevel] = useState('30');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  useEffect(() => {
+    if (data) setMinLevel(String(data.minLevel));
+  }, [data]);
+  if (loading && !data) return <Loading />;
+  if (!data) return <ErrorAlert error={error} />;
+  return (
+    <>
+      <ErrorAlert error={saveError} />
+      <LevelTickerView
+        minLevel={minLevel}
+        reason={reason}
+        busy={busy}
+        onMinLevel={setMinLevel}
+        onReason={setReason}
+        onSave={() => {
+          const body = levelTickerBody(minLevel, reason);
+          if (!body) return;
+          setBusy(true);
+          setSaveError(null);
+          api.put<LevelTickerSettings>('/admin/level-ticker', body).then(
+            (saved) => {
+              setBusy(false);
+              setMinLevel(String(saved.minLevel));
               setReason('');
               toast(t('saved'));
             },

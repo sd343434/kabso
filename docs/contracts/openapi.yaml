@@ -229,6 +229,14 @@ info:
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
+    **D254 (DRAFT v1.62-live)** the level-up banner «شريط ترقية المستويات»: when someone's support (`SUPPORT`) or
+    charm (`ATTRACTIVENESS`) level rises in a live (a gift send or the host's tap charm) to the OWNER's threshold or
+    above (`levelTickerMinLevel`, default 30, 1–100), every LIVE room — its own included — gets the data message
+    `level-ticker` on topic `level` (`{"type":"level-ticker","levelUp":{"id","user":UserSummary,"category",
+    "level","previousLevel","roomId","createdAt"},"room":{"id","title","host":UserSummary}}`), one every 8 s for the
+    whole service, the others waiting in line; the app scrolls it under the header and a tap opens `room.id`.
+    `getAdminLevelTicker` / `updateAdminLevelTicker` (`/admin/level-ticker`, panel session, capability
+    `site.settings`: OWNER; audited `site.settings.update`). Additive (CONVENTIONS §10.92).
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
@@ -10714,6 +10722,44 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CameraFxSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  # ---- v1.62-live (DRAFT, D254, CONVENTIONS §10.92): the level-up banner's threshold -------------------------------
+  /api/v1/admin/level-ticker:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLevelTicker
+      summary: "The level from which a level-up is announced in every live «شريط ترقية المستويات» (site.settings: OWNER)"
+      description: "`minLevel` is 30 until the OWNER sets it. A support or charm level that rises in a live to `minLevel` or above (each level reached from there: 30, 31, …) is the `level-ticker` data message (topic `level`) in every LIVE room (CONVENTIONS §10.92)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The threshold in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelTickerSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminLevelTicker
+      summary: "Sets the level-up banner's threshold, 1–100 (site.settings: OWNER; audited)"
+      description: "The panel session and its CSRF token (a bearer token is not a session: 401). Takes effect at the next level-up (a level-up already announced is not announced again). Audited `site.settings.update` with `metadata.key` = `levelTickerMinLevel`, before, after and `reason`. Not an integer 1–100, or any other field → 400 `VALIDATION_FAILED`, nothing changed."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLevelTickerRequest' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelTickerSettings' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -21253,6 +21299,20 @@ components:
       required: [cameraFxEngine]
       properties:
         cameraFxEngine: { $ref: '#/components/schemas/CameraFxEngine' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    LevelTickerSettings:
+      type: object
+      additionalProperties: false
+      required: [minLevel]
+      description: "v1.62-live (D254, CONVENTIONS §10.92) — the level-up banner's threshold: a support or charm level that rises in a live to `minLevel` or above is announced in every live."
+      properties:
+        minLevel: { type: integer, minimum: 1, maximum: 100, examples: [30], description: "30 until the OWNER sets it." }
+    UpdateLevelTickerRequest:
+      type: object
+      additionalProperties: false
+      required: [minLevel]
+      properties:
+        minLevel: { type: integer, minimum: 1, maximum: 100 }
         reason: { type: string, minLength: 1, maxLength: 500 }
     UpdateSiteSettingsRequest:
       type: object

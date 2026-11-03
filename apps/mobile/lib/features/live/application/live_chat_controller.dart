@@ -518,6 +518,7 @@ class LiveChatController extends Notifier<LiveChatState> {
           LuckyWinReceived() ||
           LuckyTickerReceived() ||
           GiftTickerReceived() ||
+          LevelTickerReceived() ||
           LiveSeatEmojiReceived() ||
           LiveQuipReceived() ||
           LiveProgramChanged() ||
@@ -944,6 +945,13 @@ class LiveChatVisit {
 final liveChatVisitsProvider = Provider<Map<String, LiveChatVisit>>(
   (ref) => <String, LiveChatVisit>{},
 );
+
+/// D253d (owner: «رسالة النظام اسفل تكست المضيف وهذا خطأ»): the host's own
+/// live — everything in its chat was said during it, so the rules line is
+/// the first line and every message or join under it rises it until it
+/// leaves. Kept when the visit is already known (a minimized live reopened).
+void beginHostLiveChatVisit(Map<String, LiveChatVisit> visits, String roomId) =>
+    visits.putIfAbsent(roomId, () => const LiveChatVisit());
 
 /// D141: the person left [roomId] (or the host ended it).
 void endLiveChatVisit(Map<String, LiveChatVisit> visits, String roomId) =>

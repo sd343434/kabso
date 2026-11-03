@@ -688,6 +688,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.62-live (draft) | 2026-11-03 | **D254 (owner: «شريط متحرك لاعلان عن ترقية الحسابات وصعود ليفيلات لليفيلات المرتفعة»; answers: the support and charm levels, a threshold set in the panel (default 30), every live, a tap opens the room):** the data message `level-ticker` on topic `level` to every LIVE room, its own included (`{"type":"level-ticker","levelUp":{id, user, category: SUPPORT \| ATTRACTIVENESS, level, previousLevel, roomId, createdAt},"room":{id, title, host}}`), when a gift send or the host's tap charm raises a support or charm level to `levelTickerMinLevel` or above (each level from there), one every 8 s for the whole service, the others waiting in line (§10.92); `getAdminLevelTicker` / `updateAdminLevelTicker` (`GET` / `PUT /admin/level-ticker`, `LevelTickerSettings` `{minLevel}` 1–100, `UpdateLevelTickerRequest`; `site.settings`: OWNER; audited); migration `20270305090000_level_ticker` (the `site_settings` key CHECK). | Additive (a new data message older apps ignore; two new panel operations). |
 | v1.61-live (draft) | 2026-11-02 | **D248c (owner: «… جميعها يتم تحميلها من لوحة الأدمن، كل فئة يمكن أن تكون متحركة»):** banner pictures may be animated (§10.90.1): `uploadAdminBannerPicture` (and `banner-admin --image`) also take GIF; an animated WebP / GIF stays animated (every frame cropped, stored as animated WebP; ≤ 150 frames, ≤ 10 s, ≤ 3 MB); `AdminBannerUpload` gains `animated`, `frames`, `durationMs`; 409 `ADMIN_ACTION_REFUSED` issues `banner_animation_*`. D248b (descriptions only): `home` pictures are 1 500 × 300 (5:1). | Additive. |
 | v1.60-live (draft) | 2026-11-02 | **D250 (owner, on the panel's «البث الآن»: «هنا يجب أن يعرض البث لايف … لايفات مبلّغ عنها وبجانبها نقطة حمراء … يغلق البث أو عمل حظر مؤقت أو حظر جهاز، ويضع في صندوق سبب ليصل إشعار للمضيف بالسبب»):** live moderation from the panel — tag `admin-panel`: `createAdminLiveWatchToken` (a hidden, subscribe-only observer `staff:<adminId>:<nonce>`, both rooms of a PK, never a viewer; audited), `listAdminLiveChat`, `getAdminLiveReportsSummary`, `listAdminLiveReports` (reporter, chat before), `listAdminLiveModerations`, `moderateAdminLive` (END / NO_LIVE / SUSPEND / DEVICE_BAN with a reason; DEVICE_BAN the code again), `dismissAdminLiveReports`, `listAdminDeviceBans`, `liftAdminDeviceBan`; `listAdminLives?reported=true` and `AdminLiveRow.openReports`; capabilities `lives.watch`, `lives.reports` (OWNER, MODERATION, SUPPORT — D250b), `lives.moderate`, `devices.ban` (OWNER, MODERATION); `DeviceInfo.deviceKey` also read by `login` (`sessions.device_hash`); 403 `DEVICE_BANNED` on `register`, `registerVerify`, `login`, `startLiveRoom`; `ACCOUNT_RESTRICTED` gains `{field: reason}`; notification type `LIVE_MODERATED` with target `LIVE_MODERATION` (`moderation`, `reason`, `endsAt` / `permanent`, `roomId`), pushed with the reason; audit `admin.live.watch`, `admin.live.moderate`, `admin.live.reports_dismiss`, `admin.device_ban.create\|lift`, `auth.device_banned`; migration `20270304090000_live_moderation` (`live_moderation_actions`, `device_bans`, `sessions.device_hash`, `notifications.live_moderation_id`). The app: «الإبلاغ عن البث» (a `LIVE_ROOM` report with a reason and an optional note) in the live's ≡ menu; `login` sends the device key; the messages of `DEVICE_BANNED` and the restriction's reason; the `LIVE_MODERATED` row. Admin CSP: the media server's `wss:` / `https:` origins (`KABSO_ADMIN_MEDIA_ORIGINS`). §4, §10.91. | **Additive** (new operations, an optional query, a new response field, a new code only for banned devices, a new detail, a new notification type older clients ignore; `login` storing the device is invisible to clients). |
 | v1.59-live (draft) | 2026-11-02 | **D248 (owner: «اجعل التصميم مشابه للبيجو لايف بحيث بعد أول بثين هناك بنر متحرك، وفي الأسفل قليلاً بنر بحجم اللايف»):** the live hub's banners (§10.90). `listHomeBanners` takes `placement=hub_card` (the card-size banner, 720 × 805, signed-in only) and answers `cell` for it (`HomeBannerList.cell`, server config `HOME_HUB_CARD_CELL`, default 4); banner placement `HUB_CARD` (CHECK `home_banners_placement_values`, migration `20270303090000_banner_hub_card`); new `uploadAdminBannerPicture` (`POST /admin/banner-uploads?placement=`, raw bytes) and `createAdminBanner` (`POST /admin/banners`, reason; audit `banner.add` via panel), capability `catalog.manage`; `AdminBannerList` items named `AdminBanner`. No new error code. The app moves the 3:1 carousel to after the first row and puts the card-size banner in one grid cell. | Additive. |
@@ -6001,6 +6002,66 @@ reason (`ACCOUNT_LOCKED`, `DEVICE_BANNED`), and the inbox row is there after sig
 The admin's CSP (Caddy) gains `connect-src` for the media server — `wss://live.<domain> https://live.<domain>` and
 `KABSO_ADMIN_MEDIA_ORIGINS` when `LIVEKIT_URL` is elsewhere (as D247's studio) — and `media-src 'self' blob:` for the
 video elements; nothing else changes (DEPLOYMENT §5.50).
+
+### 10.92 «شريط ترقية المستويات» — the level-up banner in every live *(v1.62-live, DRAFT — D254)*
+
+Owner (2026-11-03, with a reference screenshot of a live: a dark translucent pill with a thin gold border under the top
+row, a level emblem at its start and the text scrolling): «شريط متحرك لاعلان عن ترقية الحسابات وصعود ليفيلات لليفيلات
+المرتفعة» — «🎉 تهانينا لـ {name} على الترقية إلى المستوى {level} في غرفة البث المباشر الخاصة بـ {host}». Answers: (1) the
+**support** level (`SUPPORT`, gift senders) and the **charm** level (`ATTRACTIVENESS`, hosts receiving gifts) — not
+`WIZARD`, not `GAMING`; (2) a threshold set in the panel, one number, default **30**: a level-up is announced when the
+level went up (`previousLevel` < `level`; no level before counts as 0) and the new level is at least the threshold, and
+every level from there is announced (30, 31, 32 …); (3) in every live, a tap opens the room where it happened (as the
+gift strip, §10.27 D178).
+
+#### 10.92.1 What is announced
+
+- **Gift sends in a live** (`sendLiveGift`, every gift kind, PK sends included; §10.23): the sender's support and each
+  recipient's charm (the host or a seated guest — D128 a gift to oneself too), after the send's transaction commits.
+  A lucky gift raises support only when the published SUPPORT version counts lucky gifts (CP-005); a free quip credits
+  nothing. A person credited twice in one send (a gift to several people) is one announcement: the level before the
+  send and the highest level after it. A retried send (`clientId` replay) announces nothing again.
+- **Taps** (`tapLiveRoom`, §10.18): the host's charm from counted taps (1 point per 10 taps).
+- **Not announced:** gifts in a conversation (§11.13 D155 — there is no live room to open), the panel's and the
+  `levels-admin` adjustments, recomputes after a ladder change, Wizard and Gaming levels.
+- **Once per person, level system and level** (Redis `level:ticker:seen:<user>:<category>:<level>`, 7 days): a level
+  lost by a fraud deduction and reached again is not news.
+
+#### 10.92.2 The data message
+
+Topic **`level`**, sent to **every LIVE room — its own first** (at most 5 000, newest first), best effort:
+
+| `type` | Payload |
+| ------ | ------- |
+| `level-ticker` | `{"type":"level-ticker","levelUp":{"id":"<userId>:<category>:<level>","user":UserSummary,"category":"SUPPORT"\|"ATTRACTIVENESS","level":31,"previousLevel":30\|null,"roomId","createdAt"},"room":{"id","title","host":UserSummary}}` |
+
+At most **one banner per 8 s** for the whole service (a Redis gate shared by every API instance, `level:ticker:gate`);
+a level-up offered inside the gap **waits in line**, oldest first (`level:ticker:pending`, at most **20** waiting, none
+older than **120 s**; more are dropped). The instance that queued one flushes it when the gap ends (any instance may).
+The live that ended meanwhile, or an account that is gone, is skipped. Redis, the database or the media server down →
+no banner, never a failed gift or tap. Older apps ignore the type.
+
+#### 10.92.3 The threshold
+
+`getAdminLevelTicker` / `updateAdminLevelTicker` (`GET` / `PUT /admin/level-ticker`, panel session + CSRF, capability
+`site.settings`: **OWNER** only; a bearer token → 401, other roles → 403): `LevelTickerSettings` `{minLevel}`, an integer
+**1–100**, **30** while unset (a stored value out of bounds reads as 30). Stored as one `site_settings` row (key
+`levelTickerMinLevel`; migration `20270305090000_level_ticker` widens the key CHECK). Anything else → 400
+`VALIDATION_FAILED`, nothing changed. Audited `site.settings.update` with `metadata.key` = `levelTickerMinLevel`, before,
+after, `reason`, `via: panel`. Read at every level-up offer (no cache): it takes effect at once.
+
+#### 10.92.4 The app
+
+Every live screen that shows the global gift strip (the host's and the viewer's, audio and video) shows the banner right
+under the header row, over its second row and above the side cards (393 × 852 pt with 59 pt inset: 8 pt to 384 pt,
+21 pt tall, its top 46.5 pt under the header row's top; Arabic mirrors it): a dark pill (`#141018` at 88 %) with a thin gold
+border, the person's support badge (`KLevelBadge`) or charm badge (`CharmLevelBadge`) at the start, a 🎉 icon and the
+text «تهانينا لـ {name} على الترقية إلى المستوى {level} في غرفة البث المباشر الخاصة بـ {host}» / "Congratulations to
+{name} on reaching level {level} in the live room of {host}". Text wider than the pill scrolls in the reading direction
+(a 1 s pause, 40 pt/s, looping); reduced motion: still, with an ellipsis. One at a time for 8 s; up to 3 wait (oldest
+first); a person or host the viewer blocked is not shown; it steps aside while this live's own lucky-win banner shows.
+A tap opens the room (`pushReplacement`, as D178) — on the viewer's screen, for another live; the host on air and the
+banner of this very live take no taps.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

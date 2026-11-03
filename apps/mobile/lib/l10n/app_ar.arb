@@ -12861,5 +12861,11 @@
   "livePerformanceHelpLabel": "عن هذه الأرقام",
   "@livePerformanceHelpLabel": {"description": "D253b: the host performance card."},
   "livePerformanceHelp": "أرقام هذا البث، تتحدّث كل 15 ثانية: وقت البث، والمشاهدون الفريدون وأكبر عدد في وقت واحد، والمتابعون الجدد، والكرز المستلم، ومن أرسلوا الهدايا. يعرض الرسم القراءات المأخوذة أثناء فتح هذه البطاقة.",
-  "@livePerformanceHelp": {"description": "D253b: the host performance card."}
+  "@livePerformanceHelp": {"description": "D253b: the host performance card."},
+  "liveLevelTicker": "تهانينا لـ {name} على الترقية إلى المستوى {level} في غرفة البث المباشر الخاصة بـ {host}",
+  "@liveLevelTicker": {"description": "D254: the level-up banner in every live.", "placeholders": {"name": {"type": "String"}, "level": {"type": "int"}, "host": {"type": "String"}}},
+  "liveLevelTickerSupport": "مستوى الدعم",
+  "@liveLevelTickerSupport": {"description": "D254: the level-up banner in every live."},
+  "liveLevelTickerCharm": "مستوى الجاذبية",
+  "@liveLevelTickerCharm": {"description": "D254: the level-up banner in every live."}
 }

@@ -2572,3 +2572,15 @@ CONVENTIONS §10.89. (Numbered §5.48 on its branch; renumbered §5.51 at integr
 | `LIVE_POPULAR_TOP_N` | 10 | D246 «رائج»: a live is popular while among this many first lives of its kind (audio, podcast, multi, video) in the `popular` order (1–100) |
 
 Order: API first, then the app (an older server sends none of the fields: the cards show no level, no «رائج», no flag).
+
+### 5.52 The level-up banner in every live «شريط ترقية المستويات» (migration `20270305090000_level_ticker`; D254) — [IMPLEMENTED, draft contract v1.62-live; not deployed, not device-tested]
+
+CONVENTIONS §10.92. The migration only widens the `site_settings` key CHECK with `levelTickerMinLevel` (no new table, no
+row inserted: absent = 30). No env setting: the OWNER sets the threshold in the panel («إعدادات الموقع» → «شريط ترقية
+المستويات», `PUT /admin/level-ticker`, 1–100, audited `site.settings.update`); it takes effect at the next level-up, with
+no restart and no app update. Redis keys `level:ticker:gate` (8 s), `level:ticker:pending` (the line, ≤ 20, expires after
+120 s) and `level:ticker:seen:<user>:<category>:<level>` (7 days) under the API's key prefix; Redis or the media server
+down → no banner, never a failed gift or tap.
+
+Order: API (with its migration) first, then the panel and the app. An older app ignores the `level-ticker` message; an
+older panel does not show the setting (the default 30 applies).

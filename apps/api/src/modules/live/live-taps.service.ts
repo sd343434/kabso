@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
@@ -8,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { isAvailable, loadCategory } from '../levels/level-catalog.js';
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import { LiveLevelTickerService } from './live-level-ticker.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import {
   LiveRoomsService,
@@ -71,6 +73,8 @@ export class LiveTapsService {
     private readonly metadata: LiveRoomMetadataService,
     private readonly levels: LevelProgressService,
     private readonly users: UsersService,
+    private readonly levelTicker: LiveLevelTickerService,
+    private readonly background: BackgroundTasks,
   ) {}
 
   /**
@@ -114,6 +118,7 @@ export class LiveTapsService {
       });
 
       let levelChanged = false;
+      let charmUp: { previousLevel: number | null; level: number } | null = null;
       if (accepted > 0) {
         await tx.$executeRaw`
           INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at, points, points_at)
@@ -138,13 +143,14 @@ export class LiveTapsService {
           VALUES (${room.host_user_id}::uuid, date_trunc('hour', ${at}::timestamptz), ${accepted * POINTS_PER_TAP})
           ON CONFLICT (host_user_id, hour_start) DO UPDATE
              SET points = live_host_points_hourly.points + EXCLUDED.points`;
-        levelChanged = await this.creditCharm(tx, {
+        charmUp = await this.creditCharm(tx, {
           roomId: id,
           hostId: room.host_user_id,
           viewerId: callerId,
           countedBefore: tapper?.counted ?? 0,
           accepted,
         });
+        levelChanged = charmUp !== null;
         if (levelChanged) {
           await tx.$executeRaw`
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
@@ -159,6 +165,7 @@ export class LiveTapsService {
          WHERE r.id = ${id}::uuid`;
       return {
         levelChanged,
+        charmUp: charmUp && { ...charmUp, hostId: room.host_user_id },
         accepted,
         score: {
           total: Number(score?.total ?? 0),
@@ -168,6 +175,23 @@ export class LiveTapsService {
       };
     }, LIVE_TX_OPTIONS);
 
+    // v1.62-live (D254): the host's charm level reaching the panel's threshold is a banner in every live.
+    const charmUp = result.charmUp;
+    if (charmUp) {
+      this.background.run('level ticker', async () => {
+        await this.levelTicker.offerAll([
+          {
+            sourceId: `taps:${id}:${callerId}`,
+            userId: charmUp.hostId,
+            category: 'ATTRACTIVENESS',
+            previousLevel: charmUp.previousLevel,
+            level: charmUp.level,
+            roomId: id,
+            createdAt: at,
+          },
+        ]);
+      });
+    }
     if (result.levelChanged) await this.metadata.infoChanged(id);
     if (result.accepted > 0) await this.metadata.scoreChanged(id);
     return { accepted: result.accepted, score: result.score };
@@ -177,24 +201,24 @@ export class LiveTapsService {
    * CP-016 D (§10.18): the host's charm points for this batch ({@link charmPointsFor}; the 10 000
    * counted taps a live already bound them). Runs after the room row is locked; the levels engine
    * then locks the host's level state (the same order as every other credit: category, then
-   * state). Nothing is credited while the charm category is unavailable. Returns whether the
-   * host's level changed.
+   * state). Nothing is credited while the charm category is unavailable. Returns the host's level
+   * change (null when it did not change; v1.62-live, D254: with the level before, for the banner).
    */
   private async creditCharm(
     tx: Prisma.TransactionClient,
     batch: { roomId: string; hostId: string; viewerId: string; countedBefore: number; accepted: number },
-  ): Promise<boolean> {
+  ): Promise<{ previousLevel: number | null; level: number } | null> {
     const points = charmPointsFor(batch.countedBefore, batch.accepted);
-    if (points === 0) return false;
+    if (points === 0) return null;
 
     // A database without the category (never seeded) is the same as an unavailable one.
     const seeded = await tx.levelCategory.findUnique({
       where: { code: 'ATTRACTIVENESS' },
       select: { id: true },
     });
-    if (!seeded) return false;
+    if (!seeded) return null;
     const category = await loadCategory(tx, 'ATTRACTIVENESS', 'share');
-    if (!isAvailable(category)) return false;
+    if (!isAvailable(category)) return null;
     // One ledger row per batch that earns: the source id is the viewer's point count in this live
     // after the batch, which only grows, so a row is never credited twice.
     const reached = Math.floor((batch.countedBefore + batch.accepted) / TAPS_PER_CHARM_POINT);
@@ -206,7 +230,14 @@ export class LiveTapsService {
       sourceTransactionId: `taps:${batch.roomId}:${batch.viewerId}:${String(reached)}`,
       sourceValue: BigInt(points * TAPS_PER_CHARM_POINT),
     });
-    return result.kind === 'applied' && result.state.currentLevel !== result.state.previousLevel;
+    if (
+      result.kind !== 'applied' ||
+      result.state.currentLevel === null ||
+      result.state.currentLevel === result.state.previousLevel
+    ) {
+      return null;
+    }
+    return { previousLevel: result.state.previousLevel, level: result.state.currentLevel };
   }
 
   /**

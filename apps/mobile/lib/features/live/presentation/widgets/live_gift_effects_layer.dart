@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_ticker_bar.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_level_ticker_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_program_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
@@ -181,6 +182,31 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                       LiveGiftTickerBar(roomId: roomId, onOpenRoom: onOpenRoom),
                     ],
                   ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        // D254: the level banner — a high support or charm level reached in
+        // any live (this one too) — right under the header row, over the
+        // second row; it steps aside like the tickers for this live's own
+        // win banner.
+        PositionedDirectional(
+          top: LiveLevelTickerBar.topFor(safeTop),
+          start: LiveLevelTickerBar.start,
+          end: LiveLevelTickerBar.end,
+          child: IgnorePointer(
+            ignoring: effects.lucky != null,
+            child: ExcludeSemantics(
+              excluding: effects.lucky != null,
+              child: AnimatedOpacity(
+                opacity: effects.lucky == null ? 1 : 0,
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                child: LiveLevelTickerBar(
+                  roomId: roomId,
+                  onOpenRoom: onOpenRoom,
                 ),
               ),
             ),

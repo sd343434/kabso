@@ -23,6 +23,7 @@ import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveCoverService } from './live-cover.service.js';
 import { LiveGiftsService } from './live-gifts.service.js';
 import { LiveGiftTickerService } from './live-gift-ticker.service.js';
+import { LiveLevelTickerService } from './live-level-ticker.service.js';
 import { LiveLuckyTickerService } from './live-lucky-ticker.service.js';
 import { LiveKicksService } from './live-kicks.service.js';
 import { LiveMediaService } from './live-media.service.js';
@@ -113,6 +114,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveToolsService,
     LiveLuckyTickerService,
     LiveGiftTickerService,
+    // v1.62-live (D254): the level-up banner in every live (§10.92).
+    LiveLevelTickerService,
     // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).
     LevelProgressService,
     AdminGuard,

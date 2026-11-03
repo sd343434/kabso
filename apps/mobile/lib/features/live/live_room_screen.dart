@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
+import 'package:kabso_live/features/live/application/live_level_ticker.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_pk_controller.dart';
 import 'package:kabso_live/features/live/application/live_program.dart';
@@ -27,6 +28,7 @@ import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
+import 'package:kabso_live/features/live/application/live_top_viewers.dart';
 import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
@@ -443,6 +445,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref
           .read(liveGiftTickersProvider(room.id).notifier)
           .attach(_session.engine);
+      // D254: the level banner (a high level reached in any live).
+      ref
+          .read(liveLevelTickersProvider(room.id).notifier)
+          .attach(_session.engine);
       // D154: the room's quips (one at a time, after their delay).
       ref.read(liveQuipsProvider(room.id).notifier).attach(_session.engine);
       // D154e: the live's program (late joiners load it).
@@ -580,6 +586,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onTap: open,
       );
     }
+    final ranked = rankViewersBySupport(
+      preview.items,
+      ref
+              .watch(
+                liveTopContributorsProvider((
+                  roomId: room.id,
+                  version:
+                      (session.score ?? room.score) -
+                      (session.scoreParts?.tapPoints ??
+                          room.scoreParts?.tapPoints ??
+                          0),
+                )),
+              )
+              .value ??
+          const [],
+    );
     final n = math.max(preview.items.length, room.viewerCount);
     final more = preview.next == null || n > preview.items.length ? '' : '+';
     return LiveViewersStack(
@@ -590,14 +612,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       pitch: video ? 33.5 : LiveViewersStack.size - 7,
       countHeight: video ? 28 : LiveViewersStack.size,
       countMinWidth: video ? 34 : null,
+      // D256: the top supporters first, the first three ringed.
       avatars: [
-        for (final v in preview.items)
-          if (v.user case final u?)
-            KAvatar(
-              name: u.displayName,
-              imageUrl: u.avatarUrl,
-              size: video ? 28.5 : LiveViewersStack.size,
-            ),
+        for (final v in ranked)
+          KAvatar(
+            name: v.user.displayName,
+            imageUrl: v.user.avatarUrl,
+            size: video ? 28.5 : LiveViewersStack.size,
+          ),
+      ],
+      ranks: [for (final v in ranked) v.rank],
+      rankPoints: [
+        for (final v in ranked)
+          rankPointsLabel(v, (p) => KFormat.compact(p, l10n)),
       ],
       count: '${KFormat.compact(n, l10n)}$more',
       label: l10n.liveViewers(n, '${KFormat.grouped(n)}$more'),
