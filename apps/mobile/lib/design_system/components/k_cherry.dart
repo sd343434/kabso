@@ -4,10 +4,13 @@ import 'package:kabso_live/design_system/tokens/tokens.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D134 (owner): the host's currency, the Kab Cherry «الكرز» — everything a
-/// host earns (a live's points, ranking and popularity points, the room
-/// score, contributions to a host, the end-of-live points). What people
+/// D134 (owner): the host's currency, the Kab Cherry «الكرز». What people
 /// spend (the wallet, gift prices) keeps the coin.
+///
+/// D259 (owner: «عرض الكرز الحقيقي في حبّة المضيف، وتبقى النقاط للترتيب وPK
+/// فقط بدون أيقونة الكرز»): the cherry marks real cherries only (what the
+/// cherry ledger credits). A live's score, ranking points and contribution
+/// points (100 per gift coin) are points and use [KPointsIcon].
 ///
 /// D182 (owner: «use the new cherry and coin icons I sent»): one art file at
 /// every size, the owner's new cherry ([KabsoArt.cherry], 256 px,
@@ -29,7 +32,7 @@ class KCherryIcon extends StatelessWidget {
   );
 }
 
-/// The cherry and an amount (host-earned points), the number formatted by
+/// The cherry and an amount of real cherries (D259), the number formatted by
 /// [KFormat] ([compact] or grouped) and isolated for mixed-direction text.
 class KCherryAmount extends StatelessWidget {
   const new(
@@ -76,4 +79,53 @@ class KCherryAmount extends StatelessWidget {
       ],
     );
   }
+}
+
+/// D259: the points mark — a live's score, ranking and contribution points
+/// (never the cherry, which is for real cherries only): a round star badge
+/// in the points gold (not the flame the owner replaced on 2026-10-25).
+class KPointsIcon extends StatelessWidget {
+  const new({super.key, this.size = 20});
+
+  /// The points gold (legible on dark scrims and light sheets).
+  static const gold = Color(0xFFFFB82E);
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      Icon(Icons.stars_rounded, size: size, color: gold);
+}
+
+/// D259: [KPointsIcon] and an amount of points, laid out as [KCherryAmount].
+class KPointsAmount extends StatelessWidget {
+  const new(
+    this.amount, {
+    super.key,
+    this.size = 16,
+    this.style,
+    this.gap = KSpacing.xs,
+  });
+
+  final int amount;
+  final double size;
+  final double gap;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      KPointsIcon(size: size),
+      SizedBox(width: gap),
+      Flexible(
+        child: Text(
+          KFormat.bidiIsolate(KFormat.grouped(amount)),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+      ),
+    ],
+  );
 }

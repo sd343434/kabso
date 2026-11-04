@@ -6342,6 +6342,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveHostPillCherries(String cherries) {
+    return 'This live\'s cherries $cherries';
+  }
+
+  @override
   String liveHostPillTaps(String taps) {
     return 'This live\'s taps $taps';
   }

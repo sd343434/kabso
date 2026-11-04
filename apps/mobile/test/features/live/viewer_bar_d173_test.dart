@@ -109,10 +109,17 @@ Future<FakeLiveRepository> _pump(
   await tester.pumpWidget(const SizedBox.shrink());
   final repo = FakeLiveRepository(
     room: (id) {
-      final room = apiRoom(
-        id: id,
-        ar: language == AppLanguage.ar,
-      ).copyWith(wishGifts: wishes, score: score);
+      final room = apiRoom(id: id, ar: language == AppLanguage.ar).copyWith(
+        wishGifts: wishes,
+        score: score,
+        // D259: the host's real cherries of this live (the pill's number).
+        scoreParts: LiveScore(
+          total: score,
+          tapPoints: 0,
+          supportPoints: score,
+          hostCherries: 2938,
+        ),
+      );
       return switch (mode) {
         LiveRoomMode.audio => room.copyWith(mode: mode, seatCount: seatCount),
         LiveRoomMode.multi => room.copyWith(mode: mode, seatCount: 6),
@@ -488,9 +495,14 @@ void main() {
           expect(
             find.descendant(
               of: line,
-              matching: find.text(KFormat.bidiIsolate(KFormat.grouped(45210))),
+              matching: find.text(KFormat.bidiIsolate(KFormat.grouped(2938))),
             ),
             findsOneWidget,
+          );
+          // D259: the score (points) is not the pill's number.
+          expect(
+            find.text(KFormat.bidiIsolate(KFormat.grouped(45210))),
+            findsNothing,
           );
           // The pill is the video live's in every category: the same
           // height and start inset.

@@ -17,7 +17,7 @@ Future<void> showLiveScoreSheet(BuildContext context, String roomId) =>
       context,
       builder: (dialog) => KLiveDialogCard(
         key: liveScoreCardKey,
-        leading: const KCherryIcon(size: 44),
+        leading: const KPointsIcon(size: 44),
         title: dialog.l10n.liveScoreTitle,
         body: _ScoreParts(roomId: roomId),
         actions: [

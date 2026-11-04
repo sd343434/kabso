@@ -521,6 +521,7 @@ class FakeLiveRepository implements LiveRepository {
       total: parts?.total ?? room.score,
       tapPoints: parts?.tapPoints ?? 0,
       supportPoints: parts?.supportPoints ?? 0,
+      hostCherries: parts?.hostCherries ?? 0,
       hostOwnPoints: 0,
       supporters: contributorList.length,
       topSupporters: [

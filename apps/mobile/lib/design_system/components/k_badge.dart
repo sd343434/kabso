@@ -156,7 +156,8 @@ class KViewerCountChip extends StatelessWidget {
   }
 }
 
-/// A live's points (CP-012): the points coin and the short count on
+/// A live's points (CP-012): the points mark (D259: [KPointsIcon], never the
+/// cherry) and the short count on
 /// `scrim`, the same size as [KViewerCountChip].
 class KScoreChip extends StatelessWidget {
   const new({required this.score, super.key});
@@ -186,7 +187,7 @@ class KScoreChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const KCherryIcon(size: KMetrics.iconXs),
+              const KPointsIcon(size: KMetrics.iconXs),
               const SizedBox(width: KSpacing.xxs),
               Text(
                 formatted,

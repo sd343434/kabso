@@ -26,6 +26,7 @@ final class LiveRoomStats {
     this.giftCoins = 0,
     this.giftGivers = 0,
     this.earningsCoins = 0,
+    this.hostCherries = 0,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -43,6 +44,10 @@ final class LiveRoomStats {
       total: _int(score['total']),
       tapPoints: _int(score['tapPoints']),
       supportPoints: _int(score['supportPoints']),
+      // v1.63-live (D259): absent from an older server → 0.
+      hostCherries: score['hostCherries'] == null
+          ? 0
+          : _int(score['hostCherries']),
       hostOwnPoints: _int(json['hostOwnPoints']),
       supporters: _int(json['supporters']),
       topSupporters: [
@@ -77,10 +82,16 @@ final class LiveRoomStats {
   /// From the start to the end (or now while live).
   final Duration duration;
 
-  /// The live's cherries (`score.total`): taps + 100 a counted gift coin.
+  /// The live's points (`score.total`): taps + 100 a counted gift coin.
+  /// D259: points, never shown with the cherry.
   final int total;
   final int tapPoints;
   final int supportPoints;
+
+  /// v1.63-live (D259, §10.95): the real cherries the host was credited for
+  /// gifts received in this live (`score.hostCherries`; 0 from an older
+  /// server).
+  final int hostCherries;
 
   /// The host's own taps and gifts in [total] (the host is not their own
   /// supporter, so [supporters] leaves them out).

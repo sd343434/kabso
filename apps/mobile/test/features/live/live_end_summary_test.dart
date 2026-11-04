@@ -42,6 +42,8 @@ LiveRoomStats _stats({
   total: 2411,
   tapPoints: 11,
   supportPoints: 2400,
+  // D259: the host's real cherries (the headline), not the points.
+  hostCherries: 156,
   hostOwnPoints: hostOwnPoints,
   supporters: 4,
   topSupporters:
@@ -163,7 +165,8 @@ void main() {
     tester,
   ) async {
     await _pump(tester, stats: _stats(hostOwnPoints: 801));
-    expect(find.text('2,411'), findsOneWidget);
+    expect(find.text('156'), findsOneWidget);
+    expect(find.text('2,411'), findsNothing);
     expect(_within(GoLiveSummary.giftsKey, find.text('2,400')), findsOneWidget);
     expect(_within(GoLiveSummary.tapsKey, find.text('11')), findsOneWidget);
     expect(find.textContaining('801'), findsOneWidget);
@@ -367,7 +370,8 @@ void main() {
     tester,
   ) async {
     await _pump(tester, stats: _stats(), language: AppLanguage.ar);
-    expect(find.text('2,411'), findsOneWidget);
+    expect(find.text('156'), findsOneWidget);
+    expect(find.text('2,411'), findsNothing);
     await tester.scrollUntilVisible(
       find.byKey(GoLiveSummary.countryKey('SA')),
       200,

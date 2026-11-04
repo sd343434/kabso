@@ -3272,7 +3272,10 @@ as int,
 /// @nodoc
 mixin _$LiveScore {
 
- int get total; int get tapPoints; int get supportPoints;
+ int get total; int get tapPoints; int get supportPoints;/// D259 (v1.63-live, §10.95): what the cherry ledger credited the host
+/// for gifts received in this live — the host pill's cherries (the
+/// score is points). 0 from an older server.
+ int get hostCherries;
 /// Create a copy of LiveScore
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -3286,20 +3289,20 @@ $LiveScoreCopyWith<LiveScore> get copyWith => _$LiveScoreCopyWithImpl<LiveScore>
 @override
 bool operator ==(Object other) {
   final _this = this as LiveScore;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveScore&&(identical(other.total, _this.total) || other.total == _this.total)&&(identical(other.tapPoints, _this.tapPoints) || other.tapPoints == _this.tapPoints)&&(identical(other.supportPoints, _this.supportPoints) || other.supportPoints == _this.supportPoints));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveScore&&(identical(other.total, _this.total) || other.total == _this.total)&&(identical(other.tapPoints, _this.tapPoints) || other.tapPoints == _this.tapPoints)&&(identical(other.supportPoints, _this.supportPoints) || other.supportPoints == _this.supportPoints)&&(identical(other.hostCherries, _this.hostCherries) || other.hostCherries == _this.hostCherries));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveScore;
-  return Object.hash(runtimeType,_this.total,_this.tapPoints,_this.supportPoints);
+  return Object.hash(runtimeType,_this.total,_this.tapPoints,_this.supportPoints,_this.hostCherries);
 }
 
 @override
 String toString() {
   final _this = this as LiveScore;
-  return 'LiveScore(total: ${_this.total}, tapPoints: ${_this.tapPoints}, supportPoints: ${_this.supportPoints})';
+  return 'LiveScore(total: ${_this.total}, tapPoints: ${_this.tapPoints}, supportPoints: ${_this.supportPoints}, hostCherries: ${_this.hostCherries})';
 }
 
 
@@ -3310,7 +3313,7 @@ abstract mixin class $LiveScoreCopyWith<$Res>  {
   factory $LiveScoreCopyWith(LiveScore value, $Res Function(LiveScore) _then) = _$LiveScoreCopyWithImpl;
 @useResult
 $Res call({
- int total, int tapPoints, int supportPoints
+ int total, int tapPoints, int supportPoints, int hostCherries
 });
 
 
@@ -3327,11 +3330,12 @@ class _$LiveScoreCopyWithImpl<$Res>
 
 /// Create a copy of LiveScore
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? total = null,Object? tapPoints = null,Object? supportPoints = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? total = null,Object? tapPoints = null,Object? supportPoints = null,Object? hostCherries = null,}) {
   return _then(LiveScore(
 total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
 as int,tapPoints: null == tapPoints ? _self.tapPoints : tapPoints // ignore: cast_nullable_to_non_nullable
 as int,supportPoints: null == supportPoints ? _self.supportPoints : supportPoints // ignore: cast_nullable_to_non_nullable
+as int,hostCherries: null == hostCherries ? _self.hostCherries : hostCherries // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }
@@ -3417,10 +3421,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int total,  int tapPoints,  int supportPoints)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int total,  int tapPoints,  int supportPoints,  int hostCherries)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveScore() when $default != null:
-return $default(_that.total,_that.tapPoints,_that.supportPoints);case _:
+return $default(_that.total,_that.tapPoints,_that.supportPoints,_that.hostCherries);case _:
   return orElse();
 
 }
@@ -3438,10 +3442,10 @@ return $default(_that.total,_that.tapPoints,_that.supportPoints);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int total,  int tapPoints,  int supportPoints)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int total,  int tapPoints,  int supportPoints,  int hostCherries)  $default,) {final _that = this;
 switch (_that) {
 case _LiveScore():
-return $default(_that.total,_that.tapPoints,_that.supportPoints);case _:
+return $default(_that.total,_that.tapPoints,_that.supportPoints,_that.hostCherries);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3458,10 +3462,10 @@ return $default(_that.total,_that.tapPoints,_that.supportPoints);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int total,  int tapPoints,  int supportPoints)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int total,  int tapPoints,  int supportPoints,  int hostCherries)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveScore() when $default != null:
-return $default(_that.total,_that.tapPoints,_that.supportPoints);case _:
+return $default(_that.total,_that.tapPoints,_that.supportPoints,_that.hostCherries);case _:
   return null;
 
 }
@@ -3473,12 +3477,16 @@ return $default(_that.total,_that.tapPoints,_that.supportPoints);case _:
 @JsonSerializable()
 
 class _LiveScore implements LiveScore {
-  const _LiveScore({required this.total, required this.tapPoints, required this.supportPoints});
+  const _LiveScore({required this.total, required this.tapPoints, required this.supportPoints, this.hostCherries = 0});
   factory _LiveScore.fromJson(Map<String, dynamic> json) => _$LiveScoreFromJson(json);
 
 @override final  int total;
 @override final  int tapPoints;
 @override final  int supportPoints;
+/// D259 (v1.63-live, §10.95): what the cherry ledger credited the host
+/// for gifts received in this live — the host pill's cherries (the
+/// score is points). 0 from an older server.
+@override@JsonKey() final  int hostCherries;
 
 /// Create a copy of LiveScore
 /// with the given fields replaced by the non-null parameter values.
@@ -3493,18 +3501,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveScore&&(identical(other.total, total) || other.total == total)&&(identical(other.tapPoints, tapPoints) || other.tapPoints == tapPoints)&&(identical(other.supportPoints, supportPoints) || other.supportPoints == supportPoints));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveScore&&(identical(other.total, total) || other.total == total)&&(identical(other.tapPoints, tapPoints) || other.tapPoints == tapPoints)&&(identical(other.supportPoints, supportPoints) || other.supportPoints == supportPoints)&&(identical(other.hostCherries, hostCherries) || other.hostCherries == hostCherries));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,total,tapPoints,supportPoints);
+    return Object.hash(runtimeType,total,tapPoints,supportPoints,hostCherries);
 }
 
 @override
 String toString() {
-    return 'LiveScore(total: $total, tapPoints: $tapPoints, supportPoints: $supportPoints)';
+    return 'LiveScore(total: $total, tapPoints: $tapPoints, supportPoints: $supportPoints, hostCherries: $hostCherries)';
 }
 
 
@@ -3515,7 +3523,7 @@ abstract mixin class _$LiveScoreCopyWith<$Res> implements $LiveScoreCopyWith<$Re
   factory _$LiveScoreCopyWith(_LiveScore value, $Res Function(_LiveScore) _then) = __$LiveScoreCopyWithImpl;
 @override @useResult
 $Res call({
- int total, int tapPoints, int supportPoints
+ int total, int tapPoints, int supportPoints, int hostCherries
 });
 
 
@@ -3532,11 +3540,12 @@ class __$LiveScoreCopyWithImpl<$Res>
 
 /// Create a copy of LiveScore
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? total = null,Object? tapPoints = null,Object? supportPoints = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? total = null,Object? tapPoints = null,Object? supportPoints = null,Object? hostCherries = null,}) {
   return _then(_LiveScore(
 total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
 as int,tapPoints: null == tapPoints ? _self.tapPoints : tapPoints // ignore: cast_nullable_to_non_nullable
 as int,supportPoints: null == supportPoints ? _self.supportPoints : supportPoints // ignore: cast_nullable_to_non_nullable
+as int,hostCherries: null == hostCherries ? _self.hostCherries : hostCherries // ignore: cast_nullable_to_non_nullable
 as int,
   ));
 }

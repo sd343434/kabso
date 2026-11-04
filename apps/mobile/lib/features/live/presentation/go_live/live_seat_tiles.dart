@@ -435,7 +435,7 @@ class AudioSeatRing extends StatelessWidget {
             const SizedBox(height: 2),
             if (points != null) ...[
               const SizedBox(height: 2),
-              _PointsPill(points),
+              _PointsPill(points, cherries: true),
             ],
           ],
         ),
@@ -445,7 +445,7 @@ class AudioSeatRing extends StatelessWidget {
 
   /// D135 (owner: "the support the others received does not show under
   /// their mic"): under a taken seat, the points its person received in
-  /// this live ([LiveSeat.points], the cherry, as under the host) in the
+  /// this live ([LiveSeat.points], D259: the points mark) in the
   /// space the host's points take; an empty or locked seat keeps that space
   /// empty so every row has the same height.
   Widget _guestExtra(BuildContext context, int i) {
@@ -1155,7 +1155,7 @@ class _HostSeat extends StatelessWidget {
             ),
             if (points != null) ...[
               const SizedBox(height: 2),
-              _PointsPill(points),
+              _PointsPill(points, cherries: true),
             ],
           ],
         ),
@@ -1164,12 +1164,16 @@ class _HostSeat extends StatelessWidget {
   }
 }
 
-/// The live's points under the host's name, and (D135) the points a
-/// seated person received under theirs.
+/// D259: the host's real cherries under the host's name (the cherry), and
+/// (D135) the points a seated person received under theirs (the points
+/// mark).
 class _PointsPill extends StatelessWidget {
-  const new(this.points, {super.key});
+  const new(this.points, {super.key, this.cherries = false});
 
   final String points;
+
+  /// [points] are the host's real cherries (D259).
+  final bool cherries;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1181,7 +1185,10 @@ class _PointsPill extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const KCherryIcon(size: 11),
+        if (cherries)
+          const KCherryIcon(size: 11)
+        else
+          const KPointsIcon(size: 11),
         const SizedBox(width: 3),
         // A long score shrinks to the tile's width (D118: the host is
         // always a 72 pt tile now).

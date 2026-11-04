@@ -1224,12 +1224,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             : () => unawaited(_shareLive(_title.text.trim(), user.username)),
       );
     } else if (audioOnAir) {
-      // CP-012: the score from the media room's metadata, else the host's
-      // last tap batch (D120), else the room's.
-      final score =
-          engine.score ??
-          (_tapsRoom == room?.id ? _tapScore : null) ??
-          room?.score ??
+      // D259: the host pill and the host's seat show the real cherries
+      // (CP-012's order: the media room's metadata, else the host's last
+      // tap batch (D120), else the room's).
+      final cherries =
+          engine.hostCherries ??
+          (_tapsRoom == room?.id ? _tapParts?.hostCherries : null) ??
+          room?.scoreParts?.hostCherries ??
           0;
       final viewers = room == null
           ? null
@@ -1445,7 +1446,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               podcastInfo,
               liveSeats,
               viewers?.items ?? const [],
-              score,
+              cherries,
               onSeat,
             )
           : null;
@@ -1487,7 +1488,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             : state.micEnabled
             ? l10n.goLiveMuteMic
             : l10n.goLiveUnmuteMic,
-        hostPoints: KFormat.compact(score, l10n),
+        hostPoints: KFormat.compact(cherries, l10n),
         speaking: speaking,
         onSeat: onSeat,
         // D138: the emojis played on the seats.
@@ -1551,7 +1552,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             premiumTier: user?.premiumTier,
             lines: KHostPill.pointLines(
               context,
-              score: score,
+              cherries: cherries,
               taps:
                   (_tapsRoom == room?.id ? _tapParts?.tapPoints : null) ??
                   room?.scoreParts?.tapPoints,
@@ -2199,6 +2200,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final taps =
         (_tapsRoom == room.id ? _tapParts?.tapPoints : null) ??
         room.scoreParts?.tapPoints;
+    // D259: the host pill shows the real cherries (the score is points).
+    final cherries =
+        engine.hostCherries ??
+        (_tapsRoom == room.id ? _tapParts?.hostCherries : null) ??
+        room.scoreParts?.hostCherries ??
+        0;
     final hostName = user?.displayName ?? room.host.displayName;
     // v1.43-live (D195): a PK puts both hosts side by side in the stage.
     final pk = ref.watch(livePkProvider(room.id));
@@ -2568,12 +2575,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               color: const Color(0xFFFFFFFF),
             ),
           Semantics(
-            label: l10n.liveHostPillPoints(KFormat.grouped(score)),
+            label: l10n.liveHostPillCherries(KFormat.grouped(cherries)),
             excludeSemantics: true,
             child: KHostPillLine(
               key: GoLiveScreen.scoreKey,
               icon: const KCherryIcon(size: 11),
-              text: KFormat.grouped(score),
+              text: KFormat.grouped(cherries),
             ),
           ),
           if (taps != null)
@@ -3471,7 +3478,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     LivePodcast podcast,
     LiveSeats? liveSeats,
     List<LiveViewer> viewers,
-    int score,
+    int cherries,
     ValueChanged<int>? onSeat,
   ) {
     final engine = _host.engine;
@@ -3489,7 +3496,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         userId: host.id,
         name: host.displayName,
         avatarUrl: host.avatarUrl,
-        points: score,
+        // D259: the host's real cherries (a speaker's own points stay below).
+        points: cherries,
         host: true,
         muted: !state.micEnabled,
         speaking: engine.speaking.contains(host.id),

@@ -383,6 +383,11 @@ abstract class LiveScore with _$LiveScore {
     required int total,
     required int tapPoints,
     required int supportPoints,
+
+    /// D259 (v1.63-live, §10.95): what the cherry ledger credited the host
+    /// for gifts received in this live — the host pill's cherries (the
+    /// score is points). 0 from an older server.
+    @Default(0) int hostCherries,
   }) = _LiveScore;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveScoreFromJson(json);

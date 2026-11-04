@@ -348,6 +348,10 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// The room score from the media room's metadata (CP-012 §10.10).
   int? get score;
 
+  /// D259 (§10.95): the live's real host cherries from the media room's
+  /// metadata (`hostCherries`, left out at 0); null before any metadata.
+  int? get hostCherries;
+
   /// `roomInfoVersion` from the media room's metadata (CP-014 §10.12): the
   /// title, category or topic changed.
   int? get roomInfoVersion;
@@ -408,6 +412,7 @@ class LiveKitMediaEngine
   Set<String> _speaking = const {};
   int? _seatsVersion;
   int? _score;
+  int? _hostCherries;
   int? _roomInfoVersion;
   bool _removed = false;
 
@@ -1150,6 +1155,10 @@ class LiveKitMediaEngine
       }
       if (value is Map && value['score'] is int) {
         _score = value['score'] as int;
+        // D259: the key is left out at 0 (and by an older server).
+        _hostCherries = value['hostCherries'] is int
+            ? value['hostCherries'] as int
+            : 0;
       }
       if (value is Map && value['roomInfoVersion'] is int) {
         _roomInfoVersion = value['roomInfoVersion'] as int;
@@ -1489,6 +1498,9 @@ class LiveKitMediaEngine
 
   @override
   int? get score => _score;
+
+  @override
+  int? get hostCherries => _hostCherries;
 
   @override
   int? get roomInfoVersion => _roomInfoVersion;

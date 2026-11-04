@@ -1954,6 +1954,7 @@
   "liveLeaveFollow": "Follow and exit",
   "liveLeaveExit": "Exit live room",
   "liveHostPillPoints": "This live's points {points}",
+  "liveHostPillCherries": "This live's cherries {cherries}",
   "liveHostPillTaps": "This live's taps {taps}",
   "liveChatSayHi": "Say Hi…",
   "liveQuickHello": "Hello 😊",

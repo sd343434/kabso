@@ -10958,6 +10958,12 @@ abstract class AppLocalizations {
   /// **'نقاط هذا البث {points}'**
   String liveHostPillPoints(String points);
 
+  /// D259: screen-reader text of the host pill's cherries line — the real cherries the host earned in this live.
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز هذا البث {cherries}'**
+  String liveHostPillCherries(String cherries);
+
   /// D131: screen-reader text of the host pill's taps line (heart).
   ///
   /// In ar, this message translates to:

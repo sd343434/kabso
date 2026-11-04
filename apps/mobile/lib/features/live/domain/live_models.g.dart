@@ -342,6 +342,7 @@ _LiveScore _$LiveScoreFromJson(Map<String, dynamic> json) => _LiveScore(
   total: (json['total'] as num).toInt(),
   tapPoints: (json['tapPoints'] as num).toInt(),
   supportPoints: (json['supportPoints'] as num).toInt(),
+  hostCherries: (json['hostCherries'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$LiveScoreToJson(_LiveScore instance) =>
@@ -349,6 +350,7 @@ Map<String, dynamic> _$LiveScoreToJson(_LiveScore instance) =>
       'total': instance.total,
       'tapPoints': instance.tapPoints,
       'supportPoints': instance.supportPoints,
+      'hostCherries': instance.hostCherries,
     };
 
 _LiveTapsResult _$LiveTapsResultFromJson(Map<String, dynamic> json) =>

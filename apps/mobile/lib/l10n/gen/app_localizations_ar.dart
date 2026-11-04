@@ -6367,6 +6367,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveHostPillCherries(String cherries) {
+    return 'كرز هذا البث $cherries';
+  }
+
+  @override
   String liveHostPillTaps(String taps) {
     return 'نقرات هذا البث $taps';
   }

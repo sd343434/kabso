@@ -481,7 +481,7 @@ class _Speaker extends StatelessWidget {
                 ),
               )
             else
-              _CherryPill(points: d.points),
+              _CherryPill(points: d.points, cherries: d.host),
           ],
         ),
       ),
@@ -489,11 +489,16 @@ class _Speaker extends StatelessWidget {
   }
 }
 
-/// A speaker's received cherries (the audio seats' points pill style).
+/// A speaker's received points (the audio seats' points pill style); D259:
+/// the host's tile shows their real cherries with the cherry, a speaker's
+/// points the points mark.
 class _CherryPill extends StatelessWidget {
-  const new({required this.points});
+  const new({required this.points, this.cherries = false});
 
   final int points;
+
+  /// [points] are the host's real cherries (D259).
+  final bool cherries;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -516,7 +521,10 @@ class _CherryPill extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 3),
-        const KCherryIcon(size: 11),
+        if (cherries)
+          const KCherryIcon(size: 11)
+        else
+          const KPointsIcon(size: 11),
       ],
     ),
   );

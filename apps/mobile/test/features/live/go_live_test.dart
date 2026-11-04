@@ -921,18 +921,21 @@ void main() {
       // CP-012 / D232: the live's points on the host pill (the video
       // live's), no points chip beside «ترتيب الغرف»; the breakdown
       // («نقاط البث») is in ≡.
+      // D259: the pill shows the host's real cherries, not the score.
       camera
         ..scoreNow = 12400
+        ..hostCherriesNow = 806
         ..ping();
       await tester.pump();
       expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);
       expect(
         find.descendant(
           of: find.byKey(GoLiveScreen.audioPillKey),
-          matching: find.text(KFormat.bidiIsolate('12,400')),
+          matching: find.text(KFormat.bidiIsolate('806')),
         ),
         findsOneWidget,
       );
+      expect(find.text(KFormat.bidiIsolate('12,400')), findsNothing);
       await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byKey(GoLiveKeys.tool('contributions')));
@@ -2343,6 +2346,7 @@ void main() {
           total: 1520,
           tapPoints: 20,
           supportPoints: 1500,
+          hostCherries: 97,
         ),
       );
       await tester.tap(find.byKey(GoLiveScreen.closeKey));
@@ -2356,7 +2360,8 @@ void main() {
       expect(tester.getSize(find.byType(GoLiveSummary)), view);
       expect(tester.getTopLeft(find.byType(GoLiveSummary)), Offset.zero);
       expect(repo.statsCalls, 1);
-      expect(find.text('1,520'), findsOneWidget);
+      // D259: the headline is the host's real cherries.
+      expect(find.text('97'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byKey(GoLiveSummary.tapsKey),
@@ -2964,6 +2969,7 @@ void main() {
           total: 1250,
           tapPoints: 50,
           supportPoints: 1200,
+          hostCherries: 78,
           hostOwnPoints: 0,
           supporters: 3,
           topSupporters: const [],
@@ -2997,7 +3003,8 @@ void main() {
         label('viewers'),
         '${l10n.liveDataNowViewers}: 21، ${l10n.liveDataNowViewersHint('9')}',
       );
-      expect(label('cherries'), '${l10n.liveDataNowCherries}: 1,250');
+      // D259: the host's real cherries, not the score.
+      expect(label('cherries'), '${l10n.liveDataNowCherries}: 78');
       expect(label('givers'), '${l10n.liveDataNowGivers}: 4');
       expect(label('fans'), '${l10n.liveDataNowFans}: 5');
       // The host's real charm level (12, `GET /levels/me`).

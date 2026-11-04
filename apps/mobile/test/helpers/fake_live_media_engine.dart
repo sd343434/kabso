@@ -303,6 +303,12 @@ class FakeLiveMediaEngine
   @override
   int? get score => scoreNow;
 
+  /// D259: the host cherries the media room's metadata carries.
+  int? hostCherriesNow;
+
+  @override
+  int? get hostCherries => hostCherriesNow;
+
   /// `roomInfoVersion` the media room's metadata carries (CP-014).
   int? infoVersion;
 

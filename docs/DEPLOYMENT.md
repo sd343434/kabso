@@ -2623,3 +2623,15 @@ speed-up (+1 %) applies to the points a live gift earns on the sender's own leve
 
 Order: API (with its migration) first, then the panel and the app. An older app ignores `UserSummary.vip`; an older panel
 does not show the amount or the upload buttons (the URL fields still work).
+
+### 5.54 The live's real host cherries «كرز المضيف الحقيقي» (migration `20270306090600_live_host_cherries`; D259) — [IMPLEMENTED, draft contract v1.63-live; not deployed, not device-tested]
+
+CONVENTIONS §10.95. The migration adds `live_room_scores.host_cherries` (≥ 0) and backfills it from the stored sends:
+the host's own recipient rows of every live's gifts, each floored as the cherry ledger credits it, **at 10 cherries a
+coin** (the default `CHERRIES_PER_COIN`). If production ever ran with another `CHERRIES_PER_COIN`, past lives read
+slightly off (display only; no balance changes). It is one `UPDATE` over `live_gifts` × `live_gift_recipients`: run it
+in a quiet hour on a large database. No env setting.
+
+Order: API (with its migration) first, then the app. An older app ignores `hostCherries` and keeps showing the score in
+the pill; the new app on an older server shows 0 cherries.
+

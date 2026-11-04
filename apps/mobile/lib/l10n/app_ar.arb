@@ -7703,6 +7703,8 @@
   "@liveLeaveExit": {"description": "D131: leave prompt secondary: leave without following."},
   "liveHostPillPoints": "نقاط هذا البث {points}",
   "@liveHostPillPoints": {"description": "D131: screen-reader text of the host pill's points line (cherry).", "placeholders": {"points": {"type": "String"}}},
+  "liveHostPillCherries": "كرز هذا البث {cherries}",
+  "@liveHostPillCherries": {"description": "D259: screen-reader text of the host pill's cherries line — the real cherries the host earned in this live.", "placeholders": {"cherries": {"type": "String"}}},
   "liveHostPillTaps": "نقرات هذا البث {taps}",
   "@liveHostPillTaps": {"description": "D131: screen-reader text of the host pill's taps line (heart).", "placeholders": {"taps": {"type": "String"}}},
   "liveChatSayHi": "قل مرحبًا…",

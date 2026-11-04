@@ -1273,7 +1273,7 @@ void main() {
         engine: engine,
         user: testUser(),
       );
-      // D131: this live's points sit in the host pill from the start.
+      // D131 / D259: this live's cherries sit in the host pill from the start.
       expect(
         find.descendant(
           of: find.byKey(LiveRoomScreen.scoreKey),
@@ -1291,27 +1291,30 @@ void main() {
       expect(repo.tapBatches.single, (roomId: 'room-0', count: 3));
       await tester.pumpAndSettle();
       expect(find.byType(LiveTapCharacter), findsNothing);
+      // D259: taps move the score (points), never the host's cherries.
       expect(
         find.descendant(
           of: find.byKey(LiveRoomScreen.scoreKey),
-          matching: find.textContaining('3'),
+          matching: find.textContaining('0'),
         ),
         findsOneWidget,
       );
     });
 
-    testWidgets('the media room metadata moves the score for everyone', (
-      tester,
-    ) async {
-      final engine = FakeLiveMediaEngine()..scoreNow = 12400;
+    testWidgets('the media room metadata moves the host cherries for '
+        'everyone (D259: the cherries, not the score)', (tester) async {
+      final engine = FakeLiveMediaEngine()
+        ..scoreNow = 12400
+        ..hostCherriesNow = 806;
       await _pumpRoom(tester, engine: engine);
       expect(
         find.descendant(
           of: find.byKey(LiveRoomScreen.scoreKey),
-          matching: find.textContaining('12,400'),
+          matching: find.textContaining('806'),
         ),
         findsOneWidget,
       );
+      expect(find.textContaining('12,400'), findsNothing);
     });
 
     testWidgets('the host ends the live: the media session drops and the '

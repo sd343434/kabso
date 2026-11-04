@@ -60,6 +60,7 @@ Future<(FakeLiveRepository, FakeProfileRepository, FakeLiveMediaEngine)> _pump(
         total: 1956007,
         tapPoints: 532,
         supportPoints: 1955475,
+        hostCherries: 127138,
       ),
     ),
   );
@@ -104,7 +105,9 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.textContaining('1,956,007'), findsOneWidget);
+      // D259: the host's real cherries, not the score's points.
+      expect(find.textContaining('127,138'), findsOneWidget);
+      expect(find.textContaining('1,956,007'), findsNothing);
       expect(find.byKey(LiveRoomScreen.tapsKey), findsNothing);
       await tester.pump(KHostPill.lineTime);
       await tester.pumpAndSettle();

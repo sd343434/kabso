@@ -126,11 +126,12 @@ void main() {
       ),
       findsNothing,
     );
-    // The points coin replaces the flame (owner, 2026-10-25).
+    // The points mark (D259: points never wear the cherry; the flame stays
+    // replaced, owner 2026-10-25).
     expect(
       find.descendant(
         of: find.byKey(LiveRankingsKeys.entry('u4')),
-        matching: find.byType(KCherryIcon),
+        matching: find.byType(KPointsIcon),
       ),
       findsOneWidget,
     );

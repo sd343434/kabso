@@ -51,7 +51,8 @@ class HostPerformanceSamples extends Notifier<List<HostPerformanceSample>> {
   void add(LiveRoomStats s, DateTime at) {
     final point = (
       at: at,
-      cherries: s.total,
+      // D259: the real cherries (the score is points).
+      cherries: s.hostCherries,
       givers: s.giftGivers,
       followers: s.newFollowers,
     );
@@ -412,7 +413,7 @@ class _State extends ConsumerState<HostPerformancePanel> {
                             ),
                             cell(
                               'cherries',
-                              KFormat.grouped(s?.total ?? 0),
+                              KFormat.grouped(s?.hostCherries ?? 0),
                               l10n.liveDataNowCherries,
                               onTap: () =>
                                   unawaited(showHostGiftStats(context)),

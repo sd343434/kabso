@@ -19,7 +19,8 @@ import 'package:material_ui/material_ui.dart';
 /// live running now, on a black page — «مركز المبدعين» (D172) and ✕ at the
 /// top, the title, the «هذا البث» card with five real numbers from
 /// `GET /live/rooms/{roomId}/stats` (live time, **unique** viewers with the
-/// peak under them, new cherries — the live's `score.total` —, gift-givers,
+/// peak under them, new cherries — D259: the host's real cherries,
+/// `score.hostCherries` (the score is points) —, gift-givers,
 /// new followers), the row to D154d's data center of earlier periods, and
 /// the host's charm level. The reference's «Live Quality» score and «Skill
 /// Improvement» tutorials have no Kabso content: they are left out.
@@ -318,7 +319,7 @@ class _LiveDataNowPageState extends ConsumerState<LiveDataNowPage> {
               Expanded(
                 child: cell(
                   'cherries',
-                  KFormat.grouped(s.total),
+                  KFormat.grouped(s.hostCherries),
                   l10n.liveDataNowCherries,
                 ),
               ),

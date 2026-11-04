@@ -366,7 +366,9 @@ class _Hero extends StatelessWidget {
         ] else if (stats != null) ...[
           Semantics(
             key: GoLiveSummary.pointsKey,
-            label: l10n.liveHostPillPoints(KFormat.grouped(stats.total)),
+            label: l10n.liveHostPillCherries(
+              KFormat.grouped(stats.hostCherries),
+            ),
             excludeSemantics: true,
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -377,7 +379,7 @@ class _Hero extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: _CountUp(
-                      value: stats.total,
+                      value: stats.hostCherries,
                       style: t.display.copyWith(
                         color: p.textPrimary,
                         fontSize: 52,
@@ -1456,7 +1458,7 @@ class _Step extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: KSpacing.xxs),
-              KCherryAmount(
+              KPointsAmount(
                 supporter.points,
                 size: 14,
                 style: t.caption.copyWith(

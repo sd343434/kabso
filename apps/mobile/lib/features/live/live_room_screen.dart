@@ -942,7 +942,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     LiveRoomSessionState session,
     LiveMediaEngine engine,
     LivePodcast podcast,
-    int score,
+    int cherries,
     void Function(int index) onSeat,
   ) {
     final room = _room;
@@ -960,7 +960,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         userId: host.id,
         name: host.displayName,
         avatarUrl: host.avatarUrl,
-        points: score,
+        points: cherries,
         host: true,
         speaking: engine.speaking.contains(host.id),
         onTap: () => _person(host.username),
@@ -1173,7 +1173,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // own taps count too.
     final me = ref.watch(currentUserProvider);
     final canTap = !ended && me != null;
-    final score = engine.score ?? session.score ?? room.score;
+    // D259: the host pill shows the real cherries (the score is points).
+    final cherries = _hostCherries(session, engine);
     final composer = liveChatComposerHint(
       l10n,
       chat: ref.watch(liveChatProvider(room.id)),
@@ -1183,7 +1184,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return _audioRoom(
         session: session,
         engine: engine,
-        score: score,
+        cherries: cherries,
         canTap: canTap,
         signedIn: me != null,
         canFollow: canFollow && !following,
@@ -1254,12 +1255,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             ? const []
             : [
                 Semantics(
-                  label: l10n.liveHostPillPoints(KFormat.grouped(score)),
+                  label: l10n.liveHostPillCherries(KFormat.grouped(cherries)),
                   excludeSemantics: true,
                   child: KHostPillLine(
                     key: LiveRoomScreen.scoreKey,
                     icon: const KCherryIcon(size: 11),
-                    text: KFormat.grouped(score),
+                    text: KFormat.grouped(cherries),
                   ),
                 ),
                 if (taps != null)
@@ -1519,7 +1520,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   Widget _audioRoom({
     required LiveRoomSessionState session,
     required LiveMediaEngine engine,
-    required int score,
+    required int cherries,
     required bool canTap,
     required bool signedIn,
     required bool canFollow,
@@ -1662,7 +1663,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     avatar: _networkImage(host.avatarUrl),
                     lines: KHostPill.pointLines(
                       context,
-                      score: score,
+                      cherries: cherries,
                       taps:
                           session.scoreParts?.tapPoints ??
                           room.scoreParts?.tapPoints,
@@ -2402,6 +2403,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return const KLiveVideoPlaceholder(child: SizedBox.shrink());
   }
 
+  /// D259 (§10.95): the live's real host cherries — the media room's
+  /// metadata, else this viewer's last tap batch, else the room's.
+  int _hostCherries(LiveRoomSessionState session, LiveMediaEngine engine) =>
+      engine.hostCherries ??
+      session.scoreParts?.hostCherries ??
+      _room.scoreParts?.hostCherries ??
+      0;
+
   /// MULTI: the host's tile and the seats; AUDIO: the crowned circle and
   /// rows of seats. A seated viewer sees their own camera in their tile.
   Widget _stage(LiveRoomSessionState session, LiveMediaEngine engine) {
@@ -2409,8 +2418,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final seats = session.seats;
     final art = LiveThemeArt.of(room.theme);
     final count = seats?.seatCount ?? room.seatCount ?? 0;
-    // CP-012: the live's points under the host (ref 83).
-    final score = engine.score ?? session.score ?? room.score;
+    // D259: the host's real cherries under the host (ref 83).
+    final cherries = _hostCherries(session, engine);
     final me = ref.watch(currentUserProvider)?.id;
     final host = room.host;
     final hostPicture = KAvatar(
@@ -2441,7 +2450,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
     if (room.podcast case final podcast?
         when room.mode == LiveRoomMode.podcast) {
-      return _podcastStage(session, engine, podcast, score, onSeat);
+      return _podcastStage(session, engine, podcast, cherries, onSeat);
     }
     final height = MediaQuery.sizeOf(context).height;
     if (room.mode == LiveRoomMode.multi) {
@@ -2484,7 +2493,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // D186: the avatar frame the host wears.
       hostFrame: host.avatarFrame,
       hostName: host.displayName,
-      hostPoints: KFormat.compact(score, context.l10n),
+      hostPoints: KFormat.compact(cherries, context.l10n),
       speaking: speaking,
       micOff: {
         if (session.mine?.seatIndex case final mine? when !engine.micEnabled)
