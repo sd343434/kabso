@@ -1386,6 +1386,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileEditTitle => 'تعديل الملف الشخصي';
 
   @override
+  String get profileEditShort => 'تعديل الملف';
+
+  @override
   String get profileEditSave => 'حفظ';
 
   @override

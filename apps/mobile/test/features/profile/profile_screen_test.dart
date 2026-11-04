@@ -92,46 +92,52 @@ void main() {
     );
   });
 
-  testWidgets('D218 («وحدهما»): the bar unchanged (@username, drafts, '
-      'settings); the cover under it with the photo over its edge; the name, '
-      'the level badges under it, the counts, the bio; a wide «Edit profile» '
-      'pill; no @username beside the name, no PK record', (tester) async {
+  testWidgets('D278: our bar (drafts, settings; the @username once '
+      'scrolled) over the tall full-bleed cover; over its lower part the '
+      'photo, the name, the @username, the level badges, the counts and '
+      '«Edit profile»; the bio under it; no PK record', (tester) async {
     await _pump(tester);
     expect(
       tester.widget<Text>(find.byKey(const Key('profile.title'))).data,
       '@layla.k',
     );
-    expect(find.text('@layla.k'), findsOneWidget);
     expect(find.byKey(ProfileScreen.draftsButtonKey), findsOneWidget);
     expect(find.byKey(ProfileScreen.settingsButtonKey), findsOneWidget);
-    final bar = tester.getRect(find.byType(AppBar));
+    expect(
+      tester.widget<AppBar>(find.byType(AppBar)).backgroundColor,
+      Colors.transparent,
+    );
     final cover = tester.getRect(
       find.byKey(ProfileCoverHeader.coverFallbackKey),
     );
-    expect(cover.top, bar.bottom);
+    expect(cover.top, 0);
     expect(cover.width, 393);
-    // D244 (owner: «اجعل الصورة داخل الغلاف»): the photo wholly inside the
-    // cover (it straddled the edge in D218; a frame then covered the name),
-    // the name under the cover.
+    expect(cover.height, KPublicProfile.coverHeightFor(852));
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, greaterThanOrEqualTo(cover.top));
     expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
-    expect(name.top, greaterThanOrEqualTo(cover.bottom));
+    expect(name.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(name.overlaps(photo), isFalse);
     final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(name.bottom));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
     expect(stats.top, greaterThanOrEqualTo(levels.bottom));
+    expect(stats.bottom, lessThanOrEqualTo(cover.bottom));
     expect(find.textContaining('5,600'), findsOneWidget);
     expect(find.textContaining(_en.profileFollowerWord), findsOneWidget);
     expect(find.text('Music every evening'), findsOneWidget);
+    expect(
+      tester.getRect(find.text('Music every evening')).top,
+      greaterThanOrEqualTo(cover.bottom),
+    );
     final edit = find.byKey(ProfileScreen.editButtonKey);
     expect(
-      find.descendant(of: edit, matching: find.text(_en.profileEditTitle)),
+      find.descendant(of: edit, matching: find.text(_en.profileEditShort)),
       findsOneWidget,
     );
-    expect(tester.getSize(edit).width, 393 - 2 * KProfile.inset);
     expect(tester.getSize(edit).height, KPublicProfile.buttonHeight);
+    expect(tester.getRect(edit).bottom, lessThanOrEqualTo(cover.bottom));
     expect(find.byType(LivePkRecordLine), findsNothing);
   });
 
@@ -168,8 +174,8 @@ void main() {
   });
 
   for (final brightness in Brightness.values) {
-    testWidgets('${brightness.name}: the edit pill is neutral (surface, '
-        'text colour), never the brand colour', (tester) async {
+    testWidgets('${brightness.name}: the edit pill is neutral (D278: '
+        'translucent over the cover), never the brand colour', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
@@ -185,14 +191,13 @@ void main() {
         overrides: _overrides(),
       );
       await tester.pumpAndSettle();
-      final palette = brightness == Brightness.dark
-          ? KPalette.dark
-          : KPalette.light;
+      // D278: over the cover in both themes — the translucent fill and
+      // white text, never the brand colour.
       final style = tester
           .widget<OutlinedButton>(find.byKey(ProfileScreen.editButtonKey))
           .style!;
-      expect(style.backgroundColor!.resolve({}), palette.surface);
-      expect(style.foregroundColor!.resolve({}), palette.textPrimary);
+      expect(style.backgroundColor!.resolve({}), KLiveColors.glass);
+      expect(style.foregroundColor!.resolve({}), KPalette.dark.textPrimary);
       expect(tester.takeException(), isNull);
     });
   }

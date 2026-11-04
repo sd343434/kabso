@@ -1109,6 +1109,10 @@
     "description": "D57: own profile."
   },
   "profileEditTitle": "تعديل الملف الشخصي",
+  "profileEditShort": "تعديل الملف",
+  "@profileEditShort": {
+    "description": "D278: the own profile's button over the cover (owner: «تعديل الملف»)."
+  },
   "profileEditSave": "حفظ",
   "profileEditName": "الاسم",
   "profileEditUsername": "اسم المستخدم",

@@ -519,6 +519,21 @@ Anatomy: height 56 + top inset · leading slot (back IconButton — flips — or
 
 States: action buttons follow IconButton states; title never interactive.
 
+**Profile cover (D278).** The own and the public profile open on a full-bleed cover,
+`0.57 ×` the screen height (≈ 486 dp on 393 × 852; it grows only when large text needs
+it), drawn from the very top under the status bar and the `transparent` TopBar — the
+page's own buttons (back, ⋯ / drafts, settings) on 40 dp `live.glass` circles, white;
+the bar turns `background` with the @username once the cover has scrolled away, and the
+tabs pin under it. Over the cover's lower 62 %: a black 0 → 45 % → 85 % gradient, then
+the photo in the frames' common box (frames unchanged) at the reading start with the
+name (20 / 700, VIP badge right after it), the @username and the level badges beside it;
+then Following / Followers and the 44 dp action row — **Follow** in `brand.red500`
+(radius `sm`), square chat (`inbox` icon) and ⋯ (chevron) buttons on `live.glass` with a
+55 % white outline; the own profile shows «تعديل الملف» in the same quiet style. Counts
+and buttons share a line on phones ≥ 340 dp at text scale ≤ 1.15, else stack. Text on the
+cover is the dark palette with `live.glassShadow`, in both modes. No cover: the brand red
+gradient, with the photo blurred (σ 24) over it when there is one.
+
 ### 9.8 Tabs — `KTabs`
 
 Anatomy: row of tab labels (`label`) · 2 dp `primary` indicator under selected · bottom 1 dp

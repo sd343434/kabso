@@ -52,7 +52,6 @@ class VipNameBadge extends ConsumerWidget {
       key: badgeKey,
       height: height,
       padding: EdgeInsets.symmetric(horizontal: height * 0.3),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(height / 2),
         // Deep shades of the tier's colour: the white «VIPn» stays ≥ 7:1.
@@ -61,17 +60,21 @@ class VipNameBadge extends ConsumerWidget {
         ),
         border: Border.all(color: const Color(0xCCFFE08A), width: 0.8),
       ),
-      child: Text(
-        'VIP${look.level}',
-        textDirection: TextDirection.ltr,
-        textScaler: TextScaler.noScaling,
-        style: TextStyle(
-          fontSize: height * 0.6,
-          height: 1,
-          fontWeight: FontWeight.w800,
-          fontStyle: FontStyle.italic,
-          color: const Color(0xFFFFFFFF),
-          shadows: const [Shadow(color: Color(0x66000000), blurRadius: 2)],
+      // D278: as wide as the text (an alignment would fill a Wrap's line).
+      child: Center(
+        widthFactor: 1,
+        child: Text(
+          'VIP${look.level}',
+          textDirection: TextDirection.ltr,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            fontSize: height * 0.6,
+            height: 1,
+            fontWeight: FontWeight.w800,
+            fontStyle: FontStyle.italic,
+            color: const Color(0xFFFFFFFF),
+            shadows: const [Shadow(color: Color(0x66000000), blurRadius: 2)],
+          ),
         ),
       ),
     );

@@ -1352,6 +1352,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileEditTitle => 'Edit profile';
 
   @override
+  String get profileEditShort => 'Edit profile';
+
+  @override
   String get profileEditSave => 'Save';
 
   @override

@@ -2318,6 +2318,12 @@ abstract class AppLocalizations {
   /// **'تعديل الملف الشخصي'**
   String get profileEditTitle;
 
+  /// D278: the own profile's button over the cover (owner: «تعديل الملف»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الملف'**
+  String get profileEditShort;
+
   /// D58: edit profile (read-only until CP-001).
   ///
   /// In ar, this message translates to:

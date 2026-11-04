@@ -14,6 +14,9 @@
 // profile has no animated frame art; the live ring is the moving case), a
 // long name; ar / en, light / dark, 393×852 and 360×800 at 1.3.
 //
+// D278: the cover is now tall and full-bleed with the name over its lower
+// part, beside the photo — still never under the photo or its frame.
+//
 // With D244_CAPTURE_DIR set, the capture test writes PNGs there (not
 // committed).
 
@@ -168,7 +171,9 @@ void _expectInside(
   }
   final name = find.byKey(const Key('profile.displayName'));
   final nameRect = tester.getRect(name);
-  expect(nameRect.top, greaterThanOrEqualTo(cover.bottom));
+  // D278: the name over the cover's lower part, beside the photo (never
+  // under it or its frame).
+  expect(nameRect.bottom, lessThanOrEqualTo(cover.bottom));
   expect(nameRect.overlaps(photo), isFalse);
   final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
   expect(levels.top, greaterThanOrEqualTo(nameRect.bottom - 1));
@@ -177,20 +182,16 @@ void _expectInside(
 void main() {
   setUpAll(loadAppFonts);
 
-  test("the cover is the photo slot (the frames' common box) plus a margin: "
-      "a bit taller than D218's 140 dp", () {
+  test("the photo slot is the frames' common box; D278: the cover is 57 % "
+      'of the screen, far taller than the slot', () {
     final slot = KPublicProfile.avatarSlot;
     expect(slot.width, closeTo(1.6 * KProfile.avatar, 0.01));
     expect(slot.height, greaterThanOrEqualTo(1.4 * KProfile.avatar));
-    expect(
-      KPublicProfile.coverHeight,
-      closeTo(slot.height + 2 * KPublicProfile.coverMargin, 0.01),
-    );
-    expect(KPublicProfile.coverHeight, inInclusiveRange(140, 170));
+    expect(KPublicProfile.coverHeightFor(852), greaterThan(3 * slot.height));
   });
 
   group(
-    'D244 public profile: the photo inside the cover, the name under it',
+    'D244 public profile: the photo inside the cover, the name clear of it',
     () {
       for (final look in _Look.values) {
         for (final language in AppLanguage.values) {
@@ -240,49 +241,52 @@ void main() {
     },
   );
 
-  group('D244 own profile: the photo inside the cover, the name under it', () {
-    for (final language in AppLanguage.values) {
-      for (final brightness in Brightness.values) {
-        for (final look in [_Look.none, _Look.hostAgent, _Look.bagFrame]) {
-          testWidgets(
-            '${look.name} (${language.name}, ${brightness.name}, 393×852)',
-            (tester) async {
-              await _pumpOwn(
-                tester,
-                _profile(look, self: true),
-                language: language,
-                brightness: brightness,
-              );
-              _expectInside(
-                tester,
-                rtl: language == AppLanguage.ar,
-                width: 393,
-              );
-              // The cover is still the button that changes it.
-              expect(
-                find.byKey(ProfileCoverHeader.coverButtonKey),
-                findsOneWidget,
-              );
-            },
-          );
+  group(
+    'D244 own profile: the photo inside the cover, the name clear of it',
+    () {
+      for (final language in AppLanguage.values) {
+        for (final brightness in Brightness.values) {
+          for (final look in [_Look.none, _Look.hostAgent, _Look.bagFrame]) {
+            testWidgets(
+              '${look.name} (${language.name}, ${brightness.name}, 393×852)',
+              (tester) async {
+                await _pumpOwn(
+                  tester,
+                  _profile(look, self: true),
+                  language: language,
+                  brightness: brightness,
+                );
+                _expectInside(
+                  tester,
+                  rtl: language == AppLanguage.ar,
+                  width: 393,
+                );
+                // The cover is still the button that changes it.
+                expect(
+                  find.byKey(ProfileCoverHeader.coverButtonKey),
+                  findsOneWidget,
+                );
+              },
+            );
+          }
         }
-      }
-      testWidgets('long name + host frame (${language.name}, 360×800 ×1.3)', (
-        tester,
-      ) async {
-        tester.platformDispatcher.textScaleFactorTestValue = 1.3;
-        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-        await _pumpOwn(
+        testWidgets('long name + host frame (${language.name}, 360×800 ×1.3)', (
           tester,
-          _profile(_Look.longName, self: true),
-          language: language,
-          brightness: Brightness.light,
-          viewport: GoldenViewport.android,
-        );
-        _expectInside(tester, rtl: language == AppLanguage.ar, width: 360);
-      });
-    }
-  });
+        ) async {
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await _pumpOwn(
+            tester,
+            _profile(_Look.longName, self: true),
+            language: language,
+            brightness: Brightness.light,
+            viewport: GoldenViewport.android,
+          );
+          _expectInside(tester, rtl: language == AppLanguage.ar, width: 360);
+        });
+      }
+    },
+  );
 
   final captureDir = Platform.environment['D244_CAPTURE_DIR'];
   group('D244 captures', skip: captureDir == null, () {

@@ -71,16 +71,25 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   ProfileTab _tab = ProfileTab.posts;
 
+  /// D278: the cover has scrolled out from under the top bar.
+  bool _solid = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    final solid = profileCoverScrolledAway(context, n.metrics);
+    if (solid != _solid) setState(() => _solid = solid);
+    return false;
+  }
+
   /// Owner (D218, «وحدهما»): the own profile in the public profile's design
-  /// — the cover (a tap changes it) with the overlapping photo, the name and
-  /// the level badges, the counts (the follow lists), the bio, the country
-  /// and «انضم في», the links, a wide «تعديل الملف الشخصي» pill and the
+  /// — the cover (a tap changes it) with, over it (D278), the photo, the
+  /// name and the level badges, the counts (the follow lists) and «تعديل
+  /// الملف»; under it the bio, the country and «انضم في», the links and the
   /// family / relationship / medals tiles. `GET /me` is the source of what
   /// the person edits (it changes at once); `GET /users/{me}` adds the
   /// counts, live, frames, family, couple and medals.
   List<Widget> _ownHeader(User user) {
     final l10n = context.l10n;
-    final p = context.palette;
     final statsLoad = ref.watch(profileStatsProvider(user.username));
     final stats = statsLoad.value;
     // D185: the caller's own agent frame and badge while ACTIVE.
@@ -128,11 +137,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           cpFrame: false,
           onCoverTap: () =>
               changeProfileCover(context, ref, hasCover: user.coverUrl != null),
-        ),
-      ),
-      SliverToBoxAdapter(
-        child: ProfileInfoBlock(
-          profile: profile,
           countsKnown: stats != null,
           countsFailed: stats == null && statsLoad.hasError,
           onOpenFollowers: () =>
@@ -140,28 +144,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onOpenFollowing: () => context.push(
             AppRoutes.userFollows(user.username, following: true),
           ),
+          // D278: «تعديل الملف» in place of follow and chat.
           actions: SizedBox(
-            height: KPublicProfile.buttonHeight,
             width: double.infinity,
             child: OutlinedButton(
               key: ProfileScreen.editButtonKey,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: p.textPrimary,
-                backgroundColor: p.surface,
-                side: BorderSide(color: p.borderStrong),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                ),
-                textStyle: context.textStyles.bodyStrong,
-              ),
+              style: ProfileCoverButtons.quiet(context),
               onPressed: () => context.push(AppRoutes.editProfile),
-              child: Text(l10n.profileEditTitle),
+              child: ProfileCoverButtons.label(l10n.profileEditShort),
             ),
           ),
         ),
       ),
+      SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
     ];
   }
+
+  Widget _underBar(Widget child) => Padding(
+    padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+    child: MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: child,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -175,11 +181,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? me.value!.premiumTier
         : ref.watch(currentUserProvider)?.premiumTier;
 
+    // D278: the bar of before (owner: «استخدم ازراري» — back, @username,
+    // drafts and settings) over the full-bleed cover: no background and the
+    // buttons on translucent circles until the cover has scrolled away.
+    final solid = _solid || me.value == null;
+    final fg = solid ? p.textPrimary : KPalette.dark.textPrimary;
     return Scaffold(
       backgroundColor: p.background,
-      appBar: KAppBar(
-        backgroundColor: p.background,
-        centerTitle: true,
+      extendBodyBehindAppBar: true,
+      appBar: ProfileCoverBar(
+        solid: solid,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
         // the tab label).
         title: tier == null
@@ -199,67 +210,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           IconButton(
             key: ProfileScreen.draftsButtonKey,
             tooltip: l10n.draftsTitle,
-            icon: Icon(
-              Icons.drafts_outlined,
-              size: KMetrics.iconMd,
-              color: p.textPrimary,
-            ),
+            icon: Icon(Icons.drafts_outlined, size: KMetrics.iconMd, color: fg),
             onPressed: () => context.push(AppRoutes.drafts),
           ),
           IconButton(
             key: ProfileScreen.settingsButtonKey,
             tooltip: l10n.settingsTitle,
-            icon: AppIcon(
-              AppIcons.settings,
-              size: KMetrics.iconMd,
-              color: p.textPrimary,
-            ),
+            icon: AppIcon(AppIcons.settings, size: KMetrics.iconMd, color: fg),
             onPressed: () => context.push(AppRoutes.settings),
           ),
         ],
       ),
       body: switch (me) {
         // Keep showing the user while a pull-to-refresh is running.
-        AsyncValue(:final value?) => RefreshIndicator(
-          onRefresh: () async {
-            try {
-              ref
-                ..invalidate(meProvider)
-                ..invalidate(profileStatsProvider(value.username))
-                ..invalidate(profileGridProvider);
-              await ref.read(meProvider.future);
-            } on Object catch (e) {
-              if (context.mounted) {
-                KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+        AsyncValue(:final value?) => NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: RefreshIndicator(
+            edgeOffset: MediaQuery.paddingOf(context).top,
+            onRefresh: () async {
+              try {
+                ref
+                  ..invalidate(meProvider)
+                  ..invalidate(profileStatsProvider(value.username))
+                  ..invalidate(profileGridProvider);
+                await ref.read(meProvider.future);
+              } on Object catch (e) {
+                if (context.mounted) {
+                  KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+                }
               }
-            }
-          },
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              ..._ownHeader(value),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: ProfileTabsDelegate(
-                  tabs: ProfileTab.values,
-                  tab: _tab,
-                  background: p.background,
-                  // Owner (D218, «وحدهما»): the public profile's words, plus
-                  // «محفوظات» (only you see what you saved).
-                  text: true,
-                  onSelect: (t) => setState(() => _tab = t),
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // D278: the cover runs under the bar; the tabs pin under it.
+                const ProfileCoverBarSpace(),
+                ..._ownHeader(value),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: ProfileTabsDelegate(
+                    tabs: ProfileTab.values,
+                    tab: _tab,
+                    background: p.background,
+                    // Owner (D218, «وحدهما»): the public profile's words, plus
+                    // «محفوظات» (only you see what you saved).
+                    text: true,
+                    onSelect: (t) => setState(() => _tab = t),
+                  ),
                 ),
-              ),
-              ProfileGrid(username: value.username, tab: _tab, own: true),
-            ],
+                ProfileGrid(username: value.username, tab: _tab, own: true),
+              ],
+            ),
           ),
         ),
-        AsyncValue(:final error?, isLoading: false) => FailureErrorState(
-          title: l10n.errorTitle,
-          failure: toAppFailure(error),
-          onRetry: () => ref.invalidate(meProvider),
+        // Until `GET /me` is read, the states sit under the bar.
+        AsyncValue(:final error?, isLoading: false) => _underBar(
+          FailureErrorState(
+            title: l10n.errorTitle,
+            failure: toAppFailure(error),
+            onRetry: () => ref.invalidate(meProvider),
+          ),
         ),
-        _ => const ProfileSkeleton(),
+        _ => _underBar(const ProfileSkeleton()),
       },
     );
   }

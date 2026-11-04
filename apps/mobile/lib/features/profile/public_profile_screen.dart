@@ -65,6 +65,9 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const Key watchLiveKey = ProfileCoverHeader.watchLiveKey;
   static const messageKey = Key('profile.public.message');
   static const moreKey = Key('profile.public.more');
+
+  /// D278: the more button in the action row over the cover.
+  static const dropdownKey = Key('profile.public.dropdown');
   static const copyUsernameKey = Key('profile.public.copyUsername');
   static const copyLinkKey = Key('profile.public.copyLink');
   static const reportKey = Key('profile.public.report');
@@ -193,6 +196,16 @@ Future<bool> confirmCancelFollowRequest(
 
 class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   ProfileTab _tab = ProfileTab.posts;
+
+  /// D278: the cover has scrolled out from under the top bar.
+  bool _solid = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    final solid = profileCoverScrolledAway(context, n.metrics);
+    if (solid != _solid) setState(() => _solid = solid);
+    return false;
+  }
 
   Future<void> _setFollowing({required bool follow}) async {
     try {
@@ -356,36 +369,22 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     }
   }
 
-  /// D218: the wide Follow pill (black in light, inverted in dark) and the
-  /// round Message button; your own profile gets Edit profile.
+  /// D278: the action row over the cover — «متابعة» in Kabso red (or
+  /// متابَع / تم الطلب / إلغاء الحظر), the chat button (the conversation)
+  /// and the more button (the same sheet as the bar's dots); your own
+  /// profile gets Edit profile.
   Widget _actions(PublicProfile profile) {
     final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final pill = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(KRadius.pill),
-    );
-    final quiet = OutlinedButton.styleFrom(
-      foregroundColor: p.textPrimary,
-      backgroundColor: p.background,
-      side: BorderSide(color: p.borderStrong),
-      shape: pill,
-      textStyle: t.bodyStrong,
-    );
-    final strong = FilledButton.styleFrom(
-      backgroundColor: p.textPrimary,
-      foregroundColor: p.background,
-      shape: pill,
-      textStyle: t.bodyStrong,
-    );
+    const p = KPalette.dark;
+    final quiet = ProfileCoverButtons.quiet(context);
+    final strong = ProfileCoverButtons.primary(context);
     if (profile.isSelf) {
       return SizedBox(
-        height: KPublicProfile.buttonHeight,
         width: double.infinity,
         child: OutlinedButton(
           style: quiet,
           onPressed: () => context.push(AppRoutes.editProfile),
-          child: Text(l10n.profileEditTitle),
+          child: ProfileCoverButtons.label(l10n.profileEditShort),
         ),
       );
     }
@@ -394,14 +393,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             key: PublicProfileScreen.unblockKey,
             style: strong,
             onPressed: () => _unblock(profile),
-            child: Text(l10n.safetyUnblock),
+            child: ProfileCoverButtons.label(l10n.safetyUnblock),
           )
         : profile.isFollowing
         ? OutlinedButton(
             key: PublicProfileScreen.followKey,
             style: quiet,
             onPressed: () => _confirmUnfollow(profile),
-            child: Text(l10n.liveFollowing),
+            child: ProfileCoverButtons.label(l10n.liveFollowing),
           )
         : profile.followRequested
         // D175: a request to a private account waits for its answer.
@@ -409,7 +408,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             key: PublicProfileScreen.followKey,
             style: quiet,
             onPressed: () => _confirmCancelRequest(profile),
-            child: Text(l10n.followRequested),
+            child: ProfileCoverButtons.label(l10n.followRequested),
           )
         : FilledButton(
             key: PublicProfileScreen.followKey,
@@ -418,47 +417,56 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             onPressed: profile.canFollowOrRequest
                 ? () => _setFollowing(follow: true)
                 : null,
-            child: Text(l10n.liveFollow),
-          );
-    return SizedBox(
-      height: KPublicProfile.buttonHeight,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: main),
-          if (!profile.blockedByMe) ...[
-            const SizedBox(width: KSpacing.md),
-            SizedBox(
-              width: KPublicProfile.buttonHeight,
-              child: Tooltip(
-                message: l10n.profileMessage,
-                child: OutlinedButton(
-                  key: PublicProfileScreen.messageKey,
-                  style: quiet.copyWith(
-                    padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-                    shape: const WidgetStatePropertyAll(CircleBorder()),
-                  ),
-                  onPressed: () => context.push(
-                    AppRoutes.chat(profile.username),
-                    extra: (
-                      displayName: profile.displayName,
-                      premiumTier: profile.premiumTier,
-                    ),
-                  ),
-                  child: Semantics(
-                    label: l10n.profileMessage,
-                    child: AppIcon(
-                      AppIcons.send,
-                      size: KMetrics.iconMd - 2,
-                      color: p.textPrimary,
-                    ),
-                  ),
-                ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add_rounded, size: KMetrics.iconMd - 2),
+                  const SizedBox(width: KSpacing.xxs),
+                  Text(l10n.liveFollow, maxLines: 1),
+                ],
               ),
             ),
-          ],
+          );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: main),
+        if (!profile.blockedByMe) ...[
+          const SizedBox(width: KSpacing.sm),
+          // D278 (owner: «وايقونات دردشة والشات»): the chat on the cover.
+          ProfileCoverButtons.square(
+            context: context,
+            key: PublicProfileScreen.messageKey,
+            tooltip: l10n.profileMessage,
+            icon: AppIcon(
+              AppIcons.inbox,
+              size: KMetrics.iconMd - 2,
+              color: p.textPrimary,
+            ),
+            onPressed: () => context.push(
+              AppRoutes.chat(profile.username),
+              extra: (
+                displayName: profile.displayName,
+                premiumTier: profile.premiumTier,
+              ),
+            ),
+          ),
         ],
-      ),
+        const SizedBox(width: KSpacing.sm),
+        ProfileCoverButtons.square(
+          context: context,
+          key: PublicProfileScreen.dropdownKey,
+          tooltip: l10n.feedPostMore,
+          icon: AppIcon(
+            AppIcons.chevronDown,
+            size: KMetrics.iconMd - 2,
+            color: p.textPrimary,
+          ),
+          onPressed: () => _openMore(profile),
+        ),
+      ],
     );
   }
 
@@ -485,14 +493,15 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       ),
       _ => const ProfileSkeleton(),
     };
-    // Owner (after D218): «ارجعهم مثل ما كانو» — the bar of before D218:
-    // back, the centred @username (a premium one with its badge) and the
-    // three dots, on the page colour; the cover starts under it.
+    // D278: the bar of before (owner: «استخدم ازراري» — back, the @username
+    // and the three dots) over the full-bleed cover: no background and the
+    // buttons on translucent circles until the cover has scrolled away.
+    final solid = _solid || load.value == null;
     return Scaffold(
       backgroundColor: p.background,
-      appBar: KAppBar(
-        backgroundColor: p.background,
-        centerTitle: true,
+      extendBodyBehindAppBar: true,
+      appBar: ProfileCoverBar(
+        solid: solid,
         // D146: a premium username wears its special-ID badge.
         title: switch (load.value?.premiumTier) {
           final tier? => KSpecialUsername(
@@ -518,12 +527,22 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             icon: AppIcon(
               AppIcons.moreHoriz,
               size: KMetrics.iconMd,
-              color: p.textPrimary,
+              color: solid ? p.textPrimary : KPalette.dark.textPrimary,
             ),
           ),
         ],
       ),
-      body: body,
+      // Until the profile is read, the states sit under the bar.
+      body: load.value == null
+          ? Padding(
+              padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: body,
+              ),
+            )
+          : body,
     );
   }
 
@@ -537,71 +556,81 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final p = context.palette;
     final locked = profile.locked;
     final hidden = locked || profile.blockedByMe;
-    return RefreshIndicator(
-      onRefresh: () {
-        ref.invalidate(profileGridProvider);
-        return ref.refresh(publicProfileProvider(widget.username).future);
-      },
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(child: ProfileCoverHeader(profile: profile)),
-          SliverToBoxAdapter(
-            child: ProfileInfoBlock(
-              profile: profile,
-              actions: _actions(profile),
-              // D121: the lists; a private account's are its followers'
-              // only, so a locked profile keeps the counts plain.
-              onOpenFollowers: hidden
-                  ? null
-                  : () => context.push(AppRoutes.userFollows(profile.username)),
-              onOpenFollowing: hidden
-                  ? null
-                  : () => context.push(
-                      AppRoutes.userFollows(profile.username, following: true),
-                    ),
-            ),
-          ),
-          if (profile.blockedByMe)
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: RefreshIndicator(
+        edgeOffset: MediaQuery.paddingOf(context).top,
+        onRefresh: () {
+          ref.invalidate(profileGridProvider);
+          return ref.refresh(publicProfileProvider(widget.username).future);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // D278: the cover runs under the bar; the tabs pin under it.
+            const ProfileCoverBarSpace(),
             SliverToBoxAdapter(
-              child: Padding(
-                key: PublicProfileScreen.blockedKey,
-                padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
-                child: KEmptyState(
-                  icon: Icons.block_rounded,
-                  title: l10n.profileBlockedTitle,
-                  message: l10n.profileBlockedBody,
-                  compact: true,
-                ),
-              ),
-            )
-          else if (locked)
-            SliverToBoxAdapter(
-              child: Padding(
-                key: PublicProfileScreen.privateKey,
-                padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
-                child: KEmptyState(
-                  icon: Icons.lock_outline_rounded,
-                  title: l10n.profilePrivateTitle,
-                  message: l10n.profilePrivateBody,
-                  compact: true,
-                ),
-              ),
-            )
-          else ...[
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: ProfileTabsDelegate(
-                tabs: PublicProfileScreen.tabs,
-                tab: _tab,
-                background: p.background,
-                text: true,
-                onSelect: (t) => setState(() => _tab = t),
+              child: ProfileCoverHeader(
+                profile: profile,
+                actions: _actions(profile),
+                // D121: the lists; a private account's are its followers'
+                // only, so a locked profile keeps the counts plain.
+                onOpenFollowers: hidden
+                    ? null
+                    : () =>
+                          context.push(AppRoutes.userFollows(profile.username)),
+                onOpenFollowing: hidden
+                    ? null
+                    : () => context.push(
+                        AppRoutes.userFollows(
+                          profile.username,
+                          following: true,
+                        ),
+                      ),
               ),
             ),
-            ProfileGrid(username: profile.username, tab: _tab),
+            SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
+            if (profile.blockedByMe)
+              SliverToBoxAdapter(
+                child: Padding(
+                  key: PublicProfileScreen.blockedKey,
+                  padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+                  child: KEmptyState(
+                    icon: Icons.block_rounded,
+                    title: l10n.profileBlockedTitle,
+                    message: l10n.profileBlockedBody,
+                    compact: true,
+                  ),
+                ),
+              )
+            else if (locked)
+              SliverToBoxAdapter(
+                child: Padding(
+                  key: PublicProfileScreen.privateKey,
+                  padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+                  child: KEmptyState(
+                    icon: Icons.lock_outline_rounded,
+                    title: l10n.profilePrivateTitle,
+                    message: l10n.profilePrivateBody,
+                    compact: true,
+                  ),
+                ),
+              )
+            else ...[
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: ProfileTabsDelegate(
+                  tabs: PublicProfileScreen.tabs,
+                  tab: _tab,
+                  background: p.background,
+                  text: true,
+                  onSelect: (t) => setState(() => _tab = t),
+                ),
+              ),
+              ProfileGrid(username: profile.username, tab: _tab),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
