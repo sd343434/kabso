@@ -386,7 +386,10 @@ void main() {
         find.descendant(of: header, matching: find.byType(Text)).first,
       );
       final badge = tester.getRect(
-        find.descendant(of: header, matching: find.byKey(VipNameBadge.badgeKey)),
+        find.descendant(
+          of: header,
+          matching: find.byKey(VipNameBadge.badgeKey),
+        ),
       );
       final charm = tester.getRect(
         find.descendant(of: header, matching: find.byType(CharmLevelBadge)),
@@ -403,7 +406,7 @@ void main() {
 
   testWidgets("D268: the BADGE perk's art is a wide pill at its own ratio, "
       "never the tier's medal", (tester) async {
-    final wide = VipTierList(
+    const wide = VipTierList(
       tiers: [
         VipTier(
           id: 'id-VIP_1',
@@ -414,7 +417,7 @@ void main() {
           badgeStill: 'https://cdn.test/vip/medal.png',
           priceCoins: 1,
           durationDays: 30,
-          perks: const [
+          perks: [
             VipPerk(
               code: VipPerks.badge,
               title: 'b',
@@ -446,7 +449,7 @@ void main() {
     expect(size.height, 22);
     expect(size.width, closeTo(22 * 1943 / 634, 0.01));
     // Only the tier's medal: no name-badge art (the «VIPn» pill).
-    final medalOnly = VipTierList(
+    const medalOnly = VipTierList(
       tiers: [
         VipTier(
           id: 'id-VIP_1',
@@ -457,9 +460,7 @@ void main() {
           badgeStill: 'https://cdn.test/vip/medal.png',
           priceCoins: 1,
           durationDays: 30,
-          perks: const [
-            VipPerk(code: VipPerks.badge, title: 'b', available: true),
-          ],
+          perks: [VipPerk(code: VipPerks.badge, title: 'b', available: true)],
         ),
       ],
       maxAheadDays: 400,
