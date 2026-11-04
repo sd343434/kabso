@@ -85,9 +85,15 @@ final class VipTier {
     this.badgeAnimation,
     this.badgeStill,
     this.nameColor,
-  });
+    this.renewalDiscountPercent = 0,
+    int? renewPriceCoins,
+  }) : renewPriceCoins = renewPriceCoins ?? priceCoins;
 
   factory fromJson(Map<String, dynamic> json) => VipTier(
+    renewalDiscountPercent: _int(json['renewalDiscountPercent']),
+    renewPriceCoins: json['renewPriceCoins'] == null
+        ? null
+        : _int(json['renewPriceCoins']),
     nameColor: json['nameColor'] is String
         ? vipColorValue(json['nameColor'])
         : null,
@@ -110,6 +116,11 @@ final class VipTier {
 
   /// ARGB.
   final int color;
+
+  /// D258 (§10.94.12): percent off a renewal of this tier (0 = none), and
+  /// the renewal's price.
+  final int renewalDiscountPercent;
+  final int renewPriceCoins;
 
   /// D258 (§10.94.10): the special text colour of the tier's members (ARGB;
   /// the name, messages and entry line in a gradient of its hue), or null.
@@ -162,6 +173,15 @@ final class VipDailyCoins {
   /// When the next claim opens (the next day's start).
   final DateTime nextAt;
 }
+
+/// `MyVip.renewal` (D258 §10.94.12): buying `tierId` again now costs
+/// `priceCoins` (`discountPercent` off) until `until`.
+typedef VipRenewal = ({
+  String tierId,
+  int priceCoins,
+  int discountPercent,
+  DateTime until,
+});
 
 /// `VipDailyCoinsClaim`: what a claim credited (0 when already claimed
 /// today), the balance after it and the new state.
@@ -282,6 +302,10 @@ abstract interface class VipRepository {
     required String idempotencyKey,
   });
 
+  /// `GET /me/vip`'s `renewal` (D258): the renewal discount the caller has
+  /// now, or null.
+  Future<VipRenewal?> renewal();
+
   /// `POST /me/vip/daily-coins` (D258): today's daily coins (once a day).
   Future<VipDailyCoinsClaim> claimDailyCoins();
 
@@ -313,6 +337,19 @@ class VipRepositoryImpl implements VipRepository {
                 ? VipDailyCoins.fromJson(daily)
                 : null,
           );
+  });
+
+  @override
+  Future<VipRenewal?> renewal() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/me/vip');
+    final r = res.data!['renewal'];
+    if (r is! Map<String, dynamic>) return null;
+    return (
+      tierId: r['tierId']! as String,
+      priceCoins: _int(r['priceCoins']),
+      discountPercent: _int(r['discountPercent']),
+      until: DateTime.parse(r['until']! as String),
+    );
   });
 
   @override

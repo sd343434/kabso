@@ -51,6 +51,8 @@ final _list = VipTierList(
       nameColor: 0xFFFFD12E,
       priceCoins: 1000000,
       durationDays: 30,
+      renewalDiscountPercent: 15,
+      renewPriceCoins: 850000,
       badgeAnimation: _url('badge'),
       perks: [
         _perk('BADGE', 'شارة VIP', 'badge'),
@@ -62,8 +64,18 @@ final _list = VipTierList(
         _perk('CHAT_BUBBLE', 'فقاعة الدردشة', 'chat_bubble'),
         _perk('DAILY_BULLET', '٣ رسائل عامة مجانية'),
         _perk('PROFILE_VISITORS', 'من زار ملفي'),
-        _perk('DAILY_COINS', 'كوينز يومية'),
-        _perk('LEVEL_SPEEDUP', 'تسريع المستوى ١٪'),
+        const VipPerk(
+          code: 'DAILY_COINS',
+          title: 'كوينز يومية',
+          available: true,
+          amount: 500,
+        ),
+        const VipPerk(
+          code: 'LEVEL_SPEEDUP',
+          title: 'تسريع المستوى',
+          available: true,
+          amount: 1,
+        ),
         _perk('PROFILE_CARD', 'بطاقة الملف', 'profile_card'),
       ],
     ),
@@ -77,6 +89,9 @@ class _Repo implements VipRepository {
 
   @override
   Future<VipMembership?> mine() async => null;
+
+  @override
+  Future<VipRenewal?> renewal() async => null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -157,7 +172,7 @@ void main() {
         final layer = boundary.debugLayer! as OffsetLayer;
         final image = await layer.toImage(boundary.paintBounds, pixelRatio: 3);
         final png = await image.toByteData(format: ui.ImageByteFormat.png);
-        File('$_shots/vip_page2_ar_${brightness.name}.png')
+        File('$_shots/vip_page3_ar_${brightness.name}.png')
             .writeAsBytesSync(png!.buffer.asUint8List());
       });
     });

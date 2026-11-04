@@ -4364,5 +4364,9 @@
   "vipIdentity": "Identification",
   "vipPreviewName": "Your name",
   "vipPerkPerDay": "{value} a day",
-  "vipDailyCoinsTotal": "Daily coins: {total} coins in total"
+  "vipDailyCoinsTotal": "Daily coins: {total} coins in total",
+  "vipPricePer": "coins / {days} days",
+  "vipCashback": "{total} coins back in total ({daily} a day)",
+  "vipSpeedupLine": "+{percent}% level speed-up",
+  "vipRenewalDiscountLine": "{percent}% off when you renew"
 }

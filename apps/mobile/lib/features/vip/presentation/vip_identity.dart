@@ -249,7 +249,7 @@ class _PerkTile extends StatelessWidget {
     final p = VipPalette.of(context);
     final t = context.textStyles;
     final accent = Color(tier.color);
-    final tile = Color.lerp(accent, const Color(0xFF000000), 0.82)!;
+
     return Opacity(
       opacity: dimmed ? 0.45 : 1,
       child: Column(
@@ -259,8 +259,8 @@ class _PerkTile extends StatelessWidget {
             width: size,
             height: size,
             padding: const EdgeInsets.all(8),
+            // Owner (reference 40): no fill — only the thin border.
             decoration: BoxDecoration(
-              color: tile,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: accent.withValues(alpha: 0.7),

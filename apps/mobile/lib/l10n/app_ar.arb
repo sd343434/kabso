@@ -13021,5 +13021,13 @@
   "vipPerkPerDay": "{value} يومياً",
   "@vipPerkPerDay": {"description": "D258: the VIP page (owner reference 38).", "placeholders": {"value": {"type": "String"}}},
   "vipDailyCoinsTotal": "إجمالي الكوينز اليومية {total} كوينز",
-  "@vipDailyCoinsTotal": {"description": "D258: the VIP page (owner reference 38).", "placeholders": {"total": {"type": "String"}}}
+  "@vipDailyCoinsTotal": {"description": "D258: the VIP page (owner reference 38).", "placeholders": {"total": {"type": "String"}}},
+  "vipPricePer": "كوينز / {days} يوماً",
+  "@vipPricePer": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"days": {"type": "String"}}},
+  "vipCashback": "إجمالي استرجاع {total} كوينز ({daily} يومياً)",
+  "@vipCashback": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"total": {"type": "String"}, "daily": {"type": "String"}}},
+  "vipSpeedupLine": "+{percent}٪ تسريع المستوى",
+  "@vipSpeedupLine": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"percent": {"type": "String"}}},
+  "vipRenewalDiscountLine": "خصم {percent}٪ عند التجديد",
+  "@vipRenewalDiscountLine": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"percent": {"type": "String"}}}
 }

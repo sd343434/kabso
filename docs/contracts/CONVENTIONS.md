@@ -6273,8 +6273,10 @@ most 3 (`LiveChatAuthorBadges.medals`).
 Text tier tabs (the chosen one brighter over a small ornament line); the tier's big badge on a stage with a glow in the
 tier's colour; a panel with a curved top holding «التعريف» and a 3-column grid of square tiles — each a live preview of
 the perk (the frame around a sample picture, the banner, the special-coloured sample name, the card, the car, the mic
-wave, the bubble) or, without art, its icon and value («٣ يومياً», «+1%») — the perk's title under it. The bottom bar
-adds «إجمالي الكوينز اليومية …» (DAILY_COINS × the tier's days) when the amount is set. The page's background is a deep
+wave, the bubble) or, without art, its icon and value («٣ يومياً», «+1%») — the perk's title under it. The purchase panel
+(full width, curved top, gold edge) shows the price in gold «… كوينز / 30 يوماً» (a renewal's list price struck
+through), the package's value from real tier data («إجمالي استرجاع … كوينز (… يومياً)»، «+1٪ تسريع المستوى»), «خصم 15٪
+عند التجديد» when a discount is set, and one gold button (no VIP gifting exists). Tiles have no fill, only the border. The page's background is a deep
 gradient of the tier's colour in both modes (supersedes D252c's white / black), cross-fading as the tabs change.
 
 #### 10.94.12 The renewal discount (owner: «نعم أضفه وفعّله»)

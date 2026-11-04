@@ -14008,4 +14008,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipDailyCoinsTotal(String total) {
     return 'إجمالي الكوينز اليومية $total كوينز';
   }
+
+  @override
+  String vipPricePer(String days) {
+    return 'كوينز / $days يوماً';
+  }
+
+  @override
+  String vipCashback(String total, String daily) {
+    return 'إجمالي استرجاع $total كوينز ($daily يومياً)';
+  }
+
+  @override
+  String vipSpeedupLine(String percent) {
+    return '+$percent٪ تسريع المستوى';
+  }
+
+  @override
+  String vipRenewalDiscountLine(String percent) {
+    return 'خصم $percent٪ عند التجديد';
+  }
 }

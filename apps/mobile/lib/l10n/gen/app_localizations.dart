@@ -23676,6 +23676,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إجمالي الكوينز اليومية {total} كوينز'**
   String vipDailyCoinsTotal(String total);
+
+  /// D258: the VIP page's purchase panel (owner reference 40).
+  ///
+  /// In ar, this message translates to:
+  /// **'كوينز / {days} يوماً'**
+  String vipPricePer(String days);
+
+  /// D258: the VIP page's purchase panel (owner reference 40).
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي استرجاع {total} كوينز ({daily} يومياً)'**
+  String vipCashback(String total, String daily);
+
+  /// D258: the VIP page's purchase panel (owner reference 40).
+  ///
+  /// In ar, this message translates to:
+  /// **'+{percent}٪ تسريع المستوى'**
+  String vipSpeedupLine(String percent);
+
+  /// D258: the VIP page's purchase panel (owner reference 40).
+  ///
+  /// In ar, this message translates to:
+  /// **'خصم {percent}٪ عند التجديد'**
+  String vipRenewalDiscountLine(String percent);
 }
 
 class _AppLocalizationsDelegate

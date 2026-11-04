@@ -32,3 +32,16 @@ final FutureProvider<ProfileVisitorList> profileVisitorsProvider =
       ref.watch(currentUserProvider.select((u) => u?.id));
       return ref.watch(vipRepositoryProvider).profileVisitors();
     });
+
+/// D258 (§10.94.12): the caller's renewal discount now, or null (a failed
+/// read is none: the list price, which the server would refuse with 409
+/// and the page reloads).
+final FutureProvider<VipRenewal?> myVipRenewalProvider =
+    FutureProvider.autoDispose((ref) async {
+      ref.watch(currentUserProvider.select((u) => u?.id));
+      try {
+        return await ref.watch(vipRepositoryProvider).renewal();
+      } on Object {
+        return null;
+      }
+    });

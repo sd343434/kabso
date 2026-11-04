@@ -14002,4 +14002,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipDailyCoinsTotal(String total) {
     return 'Daily coins: $total coins in total';
   }
+
+  @override
+  String vipPricePer(String days) {
+    return 'coins / $days days';
+  }
+
+  @override
+  String vipCashback(String total, String daily) {
+    return '$total coins back in total ($daily a day)';
+  }
+
+  @override
+  String vipSpeedupLine(String percent) {
+    return '+$percent% level speed-up';
+  }
+
+  @override
+  String vipRenewalDiscountLine(String percent) {
+    return '$percent% off when you renew';
+  }
 }

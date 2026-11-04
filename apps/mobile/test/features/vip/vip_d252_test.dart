@@ -169,6 +169,12 @@ class _FakeVip implements VipRepository {
     return (kind: VipPurchaseKind.bought, membership: m, coins: 100);
   }
 
+  /// D258: the caller's renewal quote (null: none).
+  VipRenewal? renewalQuote;
+
+  @override
+  Future<VipRenewal?> renewal() async => renewalQuote;
+
   /// D258: «من زار ملفي».
   ProfileVisitorList visitors = (data: const <ProfileVisitor>[], total: 0);
 
@@ -305,7 +311,7 @@ void main() {
       expect(first.dx, lessThan(second.dx));
       // Price and length in the sticky bar; the buy button.
       expect(find.text('1,000,000'), findsWidgets);
-      expect(find.textContaining(_en.vipForDays('30')), findsWidgets);
+      expect(find.text(_en.vipPricePer('30')), findsWidgets);
       expect(_cta(_en.vipPayCoins), findsOneWidget);
       // D252c: «الامتياز الحصري VIPn x/y» (this tier's perks / the most a
       // tier has) and the tier's perks (one not yet built is dimmed).
@@ -490,9 +496,56 @@ void main() {
           list: const VipTierList(tiers: [tier], maxAheadDays: 400),
         ),
       );
-      expect(find.text(_en.vipDailyCoinsTotal('15,000')), findsOneWidget);
+      expect(find.text(_en.vipCashback('15,000', '500')), findsOneWidget);
       // The tile shows its value.
       expect(find.text(_en.vipPerkPerDay('500')), findsOneWidget);
+    });
+
+    testWidgets('D258: a renewal is charged its discounted price, the list '
+        'price struck through; the discount line shows the real value', (
+      tester,
+    ) async {
+      const tier = VipTier(
+        id: 'id-R',
+        code: 'VIP_1',
+        name: 'VIP 1',
+        level: 1,
+        color: 0xFF2E8B3D,
+        priceCoins: 1000000,
+        durationDays: 30,
+        renewalDiscountPercent: 15,
+        renewPriceCoins: 850000,
+        perks: [],
+      );
+      final vip =
+          _FakeVip(
+              list: const VipTierList(tiers: [tier], maxAheadDays: 400),
+              membership: _membership(tier),
+            )
+            ..renewalQuote = (
+              tierId: 'id-R',
+              priceCoins: 850000,
+              discountPercent: 15,
+              until: DateTime.now().add(const Duration(days: 27)),
+            );
+      await _pump(tester, vip: vip);
+      expect(find.text(_en.vipRenewalDiscountLine('15')), findsOneWidget);
+      expect(find.byKey(VipScreen.listPriceKey), findsOneWidget);
+      expect(find.text('850,000'), findsOneWidget);
+      await tester.tap(find.byKey(VipScreen.ctaKey));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.vipPay('850,000')), findsOneWidget);
+      await tester.tap(find.byKey(VipScreen.payKey));
+      await tester.pumpAndSettle();
+      expect(vip.buys.single.priceCoins, 850000);
+    });
+
+    testWidgets('D258: no discount set — no discount line, the list price', (
+      tester,
+    ) async {
+      await _pump(tester, vip: _FakeVip());
+      expect(find.byKey(VipScreen.renewalLineKey), findsNothing);
+      expect(find.byKey(VipScreen.listPriceKey), findsNothing);
     });
 
     testWidgets('D258: no daily coins amount, no total line', (tester) async {

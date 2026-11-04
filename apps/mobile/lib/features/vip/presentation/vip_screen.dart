@@ -99,8 +99,12 @@ class VipScreen extends ConsumerStatefulWidget {
   static Key tabKey(String code) => Key('vip.tab.$code');
   static Key perkKey(String code) => Key('vip.perk.$code');
 
-  /// D258: the daily coins total in the bottom bar.
+  /// D258: the package's value line in the bottom bar.
   static const dailyTotalKey = Key('vip.dailyTotal');
+
+  /// D258: the renewal discount line, and the list price struck through.
+  static const renewalLineKey = Key('vip.renewalLine');
+  static const listPriceKey = Key('vip.listPrice');
 
   /// D258: the page's tier-coloured background.
   static const backdropKey = Key('vip.backdrop');
@@ -146,12 +150,23 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     }
   }
 
+  /// D258 (§10.94.12): what buying [tier] costs the caller now — the
+  /// renewal price when the server quotes the caller's renewal discount for
+  /// it, else the list price.
+  int _priceOf(VipTier tier) {
+    final renewal = ref.read(myVipRenewalProvider).value;
+    return renewal != null && renewal.tierId == tier.id
+        ? renewal.priceCoins
+        : tier.priceCoins;
+  }
+
   Future<void> _start(
     VipTier tier,
     VipAction action,
     VipMembership? membership,
   ) async {
     final balance = ref.read(liveCoinsProvider).value;
+    final price = _priceOf(tier);
     final decision = await showKLiveDialog<_Decision>(
       context,
       builder: (dialog) => _ConfirmCard(
@@ -159,6 +174,7 @@ class _VipScreenState extends ConsumerState<VipScreen> {
         action: action,
         membership: membership,
         balance: balance,
+        chargeCoins: price,
       ),
     );
     if (!mounted) return;
@@ -167,10 +183,10 @@ class _VipScreenState extends ConsumerState<VipScreen> {
       return;
     }
     if (decision != _Decision.pay) return;
-    await _buy(tier);
+    await _buy(tier, price);
   }
 
-  Future<void> _buy(VipTier tier) async {
+  Future<void> _buy(VipTier tier, int price) async {
     final l10n = context.l10n;
     setState(() => _busy = true);
     try {
@@ -178,11 +194,13 @@ class _VipScreenState extends ConsumerState<VipScreen> {
           .read(vipRepositoryProvider)
           .buy(
             tierId: tier.id,
-            priceCoins: tier.priceCoins,
+            priceCoins: price,
             idempotencyKey: newIdempotencyKey(),
           );
       ref.read(liveCoinsProvider.notifier).set(result.coins);
-      ref.invalidate(myVipProvider);
+      ref
+        ..invalidate(myVipProvider)
+        ..invalidate(myVipRenewalProvider);
       if (!mounted) return;
       KSnack.info(
         context,
@@ -239,7 +257,9 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     final l10n = context.l10n;
     final tiers = ref.watch(vipTiersProvider);
     final mine = ref.watch(myVipProvider);
-    ref.watch(liveCoinsProvider); // keeps the balance loaded for the bar.
+    ref
+      ..watch(liveCoinsProvider) // keeps the balance loaded for the bar.
+      ..watch(myVipRenewalProvider); // D258: the renewal price.
     final list = tiers.value;
     final membership = mine.value;
     final ready = list != null && mine.hasValue;
@@ -392,6 +412,7 @@ class _VipScreenState extends ConsumerState<VipScreen> {
           ? null
           : _BottomBar(
               tier: tier,
+              chargeCoins: _priceOf(tier),
               action: vipActionFor(tier, membership, list, now),
               busy: _busy,
               onPressed: (action) =>
@@ -498,25 +519,28 @@ class _MemberStatus extends StatelessWidget {
 class _BottomBar extends StatelessWidget {
   const new({
     required this.tier,
+    required this.chargeCoins,
     required this.action,
     required this.busy,
     required this.onPressed,
   });
 
   final VipTier tier;
+
+  /// What the caller pays now (the renewal price when it applies).
+  final int chargeCoins;
   final VipAction action;
   final bool busy;
   final void Function(VipAction) onPressed;
+
+  static const gold = Color(0xFFF5C451);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
-    final p = VipPalette.of(context);
     final enabled =
         !busy && action != VipAction.lower && action != VipAction.renewLimit;
-    // D252c (ref «ادفع بالعملات الذهبية»): the pay card says how it pays;
-    // a renewal or an upgrade says so instead.
     final label = switch (action) {
       VipAction.buy => l10n.vipPayCoins,
       VipAction.renew => l10n.vipRenew,
@@ -524,105 +548,136 @@ class _BottomBar extends StatelessWidget {
       VipAction.lower => l10n.vipLowerTier,
       VipAction.renewLimit => l10n.vipRenewLimit,
     };
-    return DecoratedBox(
-      key: VipScreen.barKey,
-      decoration: BoxDecoration(
-        color: p.sheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(KVip.cardRadius),
+    final accent = Color(tier.color);
+    const white = Color(0xFFFFFFFF);
+    final soft = white.withValues(alpha: 0.78);
+    // D258 (owner, reference 40): the package's real value — the daily
+    // coins over the length, the level speed-up — and the renewal discount.
+    final daily = tier.perks
+        .where((p) => p.code == VipPerks.dailyCoins)
+        .firstOrNull
+        ?.amount;
+    final speedup = tier.perks
+        .where((p) => p.code == VipPerks.levelSpeedup)
+        .firstOrNull
+        ?.amount;
+    final value = [
+      if (daily != null)
+        l10n.vipCashback(
+          KFormat.grouped(daily * tier.durationDays),
+          KFormat.grouped(daily),
         ),
+      if (speedup != null) l10n.vipSpeedupLine('$speedup'),
+    ].join('، ');
+    final discounted = chargeCoins < tier.priceCoins;
+    return CustomPaint(
+      key: VipScreen.barKey,
+      painter: _BarPainter(
+        top: Color.lerp(accent, const Color(0xFF000000), 0.5)!,
+        bottom: Color.lerp(accent, const Color(0xFF000000), 0.78)!,
+        edge: gold,
       ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(11, 11, 11, 8),
-          child: Semantics(
-            button: true,
-            enabled: enabled,
-            label: label,
-            excludeSemantics: true,
-            child: Material(
-              key: VipScreen.ctaKey,
-              // D258: the tier's colour, deeper.
-              color: Color.lerp(
-                Color(tier.color),
-                const Color(0xFF000000),
-                0.55,
+          padding: const EdgeInsets.fromLTRB(18, _BarPainter.arc + 12, 18, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // «1,000,000 كوينز / 30 يوماً», the number in gold (the list
+              // price struck through before a renewal price).
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                children: [
+                  if (discounted)
+                    Text(
+                      KFormat.grouped(tier.priceCoins),
+                      key: VipScreen.listPriceKey,
+                      style: t.body.copyWith(
+                        color: soft,
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: soft,
+                      ),
+                    ),
+                  Text(
+                    KFormat.grouped(chargeCoins),
+                    style: t.title.copyWith(
+                      color: gold,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    l10n.vipPricePer('${tier.durationDays}'),
+                    style: t.body.copyWith(color: white),
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(12),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: enabled ? () => onPressed(action) : null,
-                child: SizedBox(
-                  height: KVip.payHeight,
-                  child: Opacity(
-                    opacity: enabled ? 1 : 0.5,
-                    child: busy
-                        ? Center(
-                            child: SizedBox.square(
-                              dimension: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: p.text,
-                              ),
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: t.label.copyWith(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: p.text,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CoinAmount(
-                                    tier.priceCoins,
-                                    size: 18,
-                                    style: t.title.copyWith(
-                                      fontSize: 22,
-                                      height: 1,
-                                      color: VipPalette.gold,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+              if (value.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  key: VipScreen.dailyTotalKey,
+                  style: t.caption.copyWith(color: soft),
+                ),
+              ],
+              if (tier.renewalDiscountPercent > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  l10n.vipRenewalDiscountLine('${tier.renewalDiscountPercent}'),
+                  key: VipScreen.renewalLineKey,
+                  style: t.caption.copyWith(
+                    color: gold,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              // One full-width gold pill (no VIP gifting yet).
+              Semantics(
+                button: true,
+                enabled: enabled,
+                label: label,
+                excludeSemantics: true,
+                child: Material(
+                  key: VipScreen.ctaKey,
+                  color: gold,
+                  shape: const StadiumBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: enabled ? () => onPressed(action) : null,
+                    child: SizedBox(
+                      height: 46,
+                      width: double.infinity,
+                      child: Opacity(
+                        opacity: enabled ? 1 : 0.5,
+                        child: Center(
+                          child: busy
+                              ? const SizedBox.square(
+                                  dimension: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF3A2600),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '/ ${l10n.vipForDays('${tier.durationDays}')}',
-                                    style: t.caption.copyWith(
-                                      fontSize: 9,
-                                      color: p.muted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              // D258: the tier's daily coins over its length
-                              // (only when the owner set an amount).
-                              if (_dailyTotal(tier) case final total?)
-                                Text(
-                                  l10n.vipDailyCoinsTotal(
-                                    KFormat.grouped(total),
-                                  ),
-                                  key: VipScreen.dailyTotalKey,
-                                  style: t.caption.copyWith(
-                                    fontSize: 10,
-                                    color: p.muted,
+                                )
+                              : Text(
+                                  label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.label.copyWith(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF3A2600),
                                   ),
                                 ),
-                            ],
-                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -630,13 +685,49 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-/// D258: the tier's DAILY_COINS amount × its days, or null.
-int? _dailyTotal(VipTier tier) {
-  final amount = tier.perks
-      .where((p) => p.code == VipPerks.dailyCoins)
-      .firstOrNull
-      ?.amount;
-  return amount == null ? null : amount * tier.durationDays;
+/// The purchase panel: full width at the screen's bottom, a curved top with
+/// a thin gold line along it, a gradient of the tier's colour (reference 40).
+class _BarPainter extends CustomPainter {
+  new({required this.top, required this.bottom, required this.edge});
+
+  final Color top;
+  final Color bottom;
+  final Color edge;
+
+  static const double arc = 14;
+
+  Path _curve(Size size) => Path()
+    ..moveTo(0, arc)
+    ..quadraticBezierTo(size.width / 2, -arc, size.width, arc);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final body = _curve(size)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas
+      ..drawPath(
+        body,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [top, bottom],
+          ).createShader(Offset.zero & size),
+      )
+      ..drawPath(
+        _curve(size),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = edge.withValues(alpha: 0.8),
+      );
+  }
+
+  @override
+  bool shouldRepaint(_BarPainter old) =>
+      old.top != top || old.bottom != bottom || old.edge != edge;
 }
 
 /// The confirm card (the live family's [KLiveDialogCard]): the tier, the
@@ -649,12 +740,16 @@ class _ConfirmCard extends StatelessWidget {
     required this.action,
     required this.membership,
     required this.balance,
+    required this.chargeCoins,
   });
 
   final VipTier tier;
   final VipAction action;
   final VipMembership? membership;
   final int? balance;
+
+  /// D258: what is charged (the renewal price when it applies).
+  final int chargeCoins;
 
   @override
   Widget build(BuildContext context) {
@@ -663,7 +758,7 @@ class _ConfirmCard extends StatelessWidget {
     final soft = KLiveDialogCard.softInkOf(context);
     final t = context.textStyles;
     final balance = this.balance;
-    final short = balance != null && balance < tier.priceCoins;
+    final short = balance != null && balance < chargeCoins;
     final now = clock.now();
     final m = membership;
     final base = action == VipAction.renew && m != null ? m.expiresAt : now;
@@ -694,9 +789,25 @@ class _ConfirmCard extends StatelessWidget {
         children: [
           line(
             l10n.vipConfirmPrice,
-            CoinAmount(
-              tier.priceCoins,
-              style: t.bodyStrong.copyWith(color: ink),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // D258: a renewal's list price struck through.
+                if (chargeCoins < tier.priceCoins) ...[
+                  Text(
+                    KFormat.grouped(tier.priceCoins),
+                    style: t.caption.copyWith(
+                      color: soft,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                CoinAmount(
+                  chargeCoins,
+                  style: t.bodyStrong.copyWith(color: ink),
+                ),
+              ],
             ),
           ),
           line(
@@ -746,7 +857,7 @@ class _ConfirmCard extends StatelessWidget {
         else
           KLiveDialogAction(
             key: VipScreen.payKey,
-            label: l10n.vipPay(KFormat.grouped(tier.priceCoins)),
+            label: l10n.vipPay(KFormat.grouped(chargeCoins)),
             primary: true,
             onPressed: () => Navigator.of(context).pop(_Decision.pay),
           ),
