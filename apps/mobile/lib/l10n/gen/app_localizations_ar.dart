@@ -13932,4 +13932,33 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolRecharge => 'الشحن';
+
+  @override
+  String get walletReasonVipDailyCoins => 'كوينز VIP اليومية';
+
+  @override
+  String vipDailyCoins(String amount) {
+    return 'الكوينز اليومية: $amount';
+  }
+
+  @override
+  String get vipDailyCoinsClaim => 'استلام';
+
+  @override
+  String get vipDailyCoinsClaimed => 'تم الاستلام اليوم';
+
+  @override
+  String vipDailyCoinsAdded(String amount) {
+    return 'تمت إضافة $amount كوينز';
+  }
+
+  @override
+  String liveBulletSentFree(String count) {
+    return 'أُرسلت رسالة عامة مجانية · متبقي $count اليوم';
+  }
+
+  @override
+  String vipEntranceJoined(String name) {
+    return '$name دخل الغرفة';
+  }
 }

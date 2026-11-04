@@ -13924,4 +13924,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveToolRecharge => 'Recharge';
+
+  @override
+  String get walletReasonVipDailyCoins => 'VIP daily coins';
+
+  @override
+  String vipDailyCoins(String amount) {
+    return 'Daily coins: $amount';
+  }
+
+  @override
+  String get vipDailyCoinsClaim => 'Claim';
+
+  @override
+  String get vipDailyCoinsClaimed => 'Claimed today';
+
+  @override
+  String vipDailyCoinsAdded(String amount) {
+    return '$amount coins added';
+  }
+
+  @override
+  String liveBulletSentFree(String count) {
+    return 'Free public message sent · $count left today';
+  }
+
+  @override
+  String vipEntranceJoined(String name) {
+    return '$name enters the room';
+  }
 }

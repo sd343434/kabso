@@ -4344,5 +4344,12 @@
   "liveDailyRankLabel": "{name}: today's rank {rank}, {points} points",
   "@liveDailyRankLabel": {"description": "D257: the viewer's screen as the owner's reference.", "placeholders": {"name": {"type": "String"}, "rank": {"type": "String"}, "points": {"type": "String"}}},
   "liveToolRecharge": "Recharge",
-  "@liveToolRecharge": {"description": "D257: the viewer's screen as the owner's reference."}
+  "@liveToolRecharge": {"description": "D257: the viewer's screen as the owner's reference."},
+  "walletReasonVipDailyCoins": "VIP daily coins",
+  "vipDailyCoins": "Daily coins: {amount}",
+  "vipDailyCoinsClaim": "Claim",
+  "vipDailyCoinsClaimed": "Claimed today",
+  "vipDailyCoinsAdded": "{amount} coins added",
+  "liveBulletSentFree": "Free public message sent \u00b7 {count} left today",
+  "vipEntranceJoined": "{name} enters the room"
 }

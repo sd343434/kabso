@@ -401,7 +401,17 @@ class _VipScreenState extends ConsumerState<VipScreen> {
         builder: (sheet) => SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(KSpacing.lg),
-            child: _MemberStatus(membership: membership),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _MemberStatus(membership: membership),
+                // D258: the daily coins (DAILY_COINS), claimed here.
+                if (membership.dailyCoins case final daily?) ...[
+                  const SizedBox(height: KSpacing.md),
+                  VipDailyCoinsRow(initial: daily),
+                ],
+              ],
+            ),
           ),
         ),
       );
@@ -430,7 +440,12 @@ class _MemberStatus extends StatelessWidget {
         Text(
           '$until · ${l10n.vipDaysLeft('${m.daysLeft}')}',
           textAlign: TextAlign.center,
-          style: t.caption.copyWith(color: const Color(0xFFB9A9C9)),
+          // ≥ 4.5:1 on the sheet in both themes (D258 readability pass).
+          style: t.caption.copyWith(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFFB9A9C9)
+                : const Color(0xFF5F566B),
+          ),
         ),
         if (!m.onSale) ...[
           const SizedBox(height: KSpacing.xxs),
@@ -681,6 +696,81 @@ class _ConfirmCard extends StatelessWidget {
           key: VipScreen.cancelKey,
           label: MaterialLocalizations.of(context).cancelButtonLabel,
           onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+}
+
+/// D258 (DAILY_COINS, §10.94.5): «الكوينز اليومية: 500» and «استلام» (once a
+/// day; «تم الاستلام اليوم» after). A claim credits the wallet and refreshes
+/// the balance and the membership.
+class VipDailyCoinsRow extends ConsumerStatefulWidget {
+  const new({required this.initial, super.key});
+
+  final VipDailyCoins initial;
+
+  static const rowKey = Key('vip.dailyCoins');
+  static const claimKey = Key('vip.dailyCoins.claim');
+
+  @override
+  ConsumerState<VipDailyCoinsRow> createState() => _VipDailyCoinsRowState();
+}
+
+class _VipDailyCoinsRowState extends ConsumerState<VipDailyCoinsRow> {
+  late VipDailyCoins _daily = widget.initial;
+  bool _busy = false;
+
+  Future<void> _claim() async {
+    if (_busy) return;
+    final l10n = context.l10n;
+    setState(() => _busy = true);
+    try {
+      final result = await ref.read(vipRepositoryProvider).claimDailyCoins();
+      if (!mounted) return;
+      setState(() => _daily = result.daily);
+      ref
+        ..invalidate(myVipProvider)
+        ..invalidate(liveCoinsProvider);
+      if (result.coins > 0) {
+        KSnack.success(context, l10n.vipDailyCoinsAdded('${result.coins}'));
+      }
+    } on Object catch (e) {
+      if (mounted) KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    final claimed = _daily.claimedToday;
+    return Row(
+      key: VipDailyCoinsRow.rowKey,
+      children: [
+        Expanded(
+          child: Text(
+            l10n.vipDailyCoins(KFormat.compact(_daily.amount, l10n)),
+            // The sheet's own text colour (dark on light, white on dark).
+            style: t.body.copyWith(
+              color: VipPalette.of(context).text,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: KSpacing.sm),
+        FilledButton(
+          key: VipDailyCoinsRow.claimKey,
+          onPressed: claimed || _busy ? null : () => unawaited(_claim()),
+          style: FilledButton.styleFrom(
+            backgroundColor: vipGold,
+            foregroundColor: const Color(0xFF2A1A00),
+          ),
+          child: Text(
+            claimed ? l10n.vipDailyCoinsClaimed : l10n.vipDailyCoinsClaim,
+          ),
         ),
       ],
     );

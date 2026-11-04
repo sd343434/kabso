@@ -9,6 +9,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -30,6 +31,7 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
 
   static const bannerKey = Key('live.vipEntrance.banner');
   static const nameKey = Key('live.vipEntrance.name');
+  static const avatarKey = Key('live.vipEntrance.avatar');
   static const carKey = Key('live.vipEntrance.car');
 
   /// The agents' bar timing (D185).
@@ -191,6 +193,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                   VipEntranceBanner(
                     key: ValueKey('vipBanner.${current.line.serial}'),
                     name: name,
+                    avatarUrl: current.line.user.avatarUrl,
                     look: current.look,
                     perk: banner,
                   ),
@@ -246,9 +249,13 @@ class VipEntranceBanner extends StatelessWidget {
     required this.look,
     required this.perk,
     super.key,
+    this.avatarUrl,
   });
 
   final String name;
+
+  /// The member's picture, in the art's circle (the owner's reference).
+  final String? avatarUrl;
   final VipLook look;
   final VipPerk perk;
 
@@ -259,6 +266,30 @@ class VipEntranceBanner extends StatelessWidget {
   /// any art.
   static const plate = Color(0xB3000000);
 
+  /// The owner's banner template (`svip_name`, 660 × 150): the picture in
+  /// its circle (x 30 – 114, y 22 – 106), the line in its bar (x 132 – 554,
+  /// y 40 – 111).
+  static const double slotTemplate = 660 / 150;
+  static const avatarSlot = Rect.fromLTRB(
+    30 / 660,
+    22 / 150,
+    114 / 660,
+    106 / 150,
+  );
+  static const slot = Rect.fromLTRB(0.2, 0.27, 0.84, 0.74);
+
+  /// White text cannot reach 3:1 on the owner's light green bar by itself:
+  /// a thin dark outline (solid shadows around each glyph, ≈ 14:1 against
+  /// the white) plus a soft shadow keep it readable without a plate.
+  static const outline = Color(0xFF0B2A10);
+  static const textShadows = [
+    Shadow(color: outline, offset: Offset(1, 0)),
+    Shadow(color: outline, offset: Offset(-1, 0)),
+    Shadow(color: outline, offset: Offset(0, 1)),
+    Shadow(color: outline, offset: Offset(0, -1)),
+    Shadow(color: Color(0x990B2A10), blurRadius: 4, offset: Offset(0, 1)),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -268,7 +299,75 @@ class VipEntranceBanner extends StatelessWidget {
       builder: (context, box) {
         final room = box.maxWidth.isFinite ? box.maxWidth : screen;
         final width = math.min(screen * widthFactor, room);
-        final height = width / _aspect(perk, 4);
+        final plays = vipPlays(perk);
+        final height = width / _aspect(perk, plays ? slotTemplate : 4);
+        if (plays) {
+          // The owner's banner: the name in its bar (the template's slot),
+          // dark or white by the bar's own brightness.
+          return Semantics(
+            liveRegion: true,
+            label: l10n.agentEntranceJoined(name),
+            excludeSemantics: true,
+            child: SizedBox(
+              key: LiveVipEntranceLayer.bannerKey,
+              width: width,
+              height: height,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: VipSvga(
+                      url: perk.animation!,
+                      fit: BoxFit.fill,
+                      still: perk.still == null
+                          ? null
+                          : Image(
+                              image: vipArtImage(perk.still!),
+                              fit: BoxFit.fill,
+                            ),
+                    ),
+                  ),
+                  // The member's picture in the art's circle (white ring).
+                  Positioned(
+                    left: width * avatarSlot.left,
+                    top: height * avatarSlot.top,
+                    width: width * avatarSlot.width,
+                    height: height * avatarSlot.height,
+                    child: Container(
+                      key: LiveVipEntranceLayer.avatarKey,
+                      padding: const EdgeInsets.all(1.5),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFFFFFFF),
+                      ),
+                      child: ClipOval(
+                        child: KAvatar(
+                          name: name,
+                          imageUrl: avatarUrl,
+                          size: height * avatarSlot.height - 3,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // «سارة دخل الغرفة»: white bold on the art itself, with a
+                  // soft dark shadow (owner: no black plate behind it).
+                  Positioned.directional(
+                    textDirection: TextDirection.ltr,
+                    start: width * slot.left,
+                    top: height * slot.top,
+                    width: width * slot.width,
+                    height: height * slot.height,
+                    child: Center(
+                      child: _NameLine(
+                        name: name,
+                        size: math.max(10, height * 0.27),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         final text = Container(
           padding: EdgeInsets.symmetric(
             horizontal: height * 0.16,
@@ -330,9 +429,7 @@ class VipEntranceBanner extends StatelessWidget {
                                 look.bubbleShades.$2,
                               ],
                             ),
-                            border: Border.all(
-                              color: const Color(0xCCFFE08A),
-                            ),
+                            border: Border.all(color: const Color(0xCCFFE08A)),
                           ),
                         ),
                 ),
@@ -345,6 +442,52 @@ class VipEntranceBanner extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// «{name} دخل الغرفة» on the owner's banner: white bold, a soft shadow,
+/// one line; only the name ellipsizes (the phrase stays whole).
+class _NameLine extends StatelessWidget {
+  const new({required this.name, required this.size});
+
+  final String name;
+  final double size;
+
+  /// The name's slot in the localized phrase (split around it).
+  static const _slot = '\u0000';
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final parts = l10n.vipEntranceJoined(_slot).split(_slot);
+    final style = context.textStyles.title.copyWith(
+      fontSize: size,
+      height: 1.1,
+      fontWeight: FontWeight.w800,
+      color: const Color(0xFFFFFFFF),
+      shadows: VipEntranceBanner.textShadows,
+    );
+    Text piece(String t) =>
+        Text(t, maxLines: 1, textScaler: TextScaler.noScaling, style: style);
+    final before = parts.first;
+    final after = parts.length > 1 ? parts.last : '';
+    return Row(
+      key: LiveVipEntranceLayer.nameKey,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (before.isNotEmpty) piece(before),
+        Flexible(
+          child: Text(
+            KFormat.bidiIsolate(name),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textScaler: TextScaler.noScaling,
+            style: style,
+          ),
+        ),
+        if (after.isNotEmpty) piece(after),
+      ],
     );
   }
 }

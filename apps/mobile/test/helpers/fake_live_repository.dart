@@ -991,8 +991,11 @@ class FakeLiveRepository implements LiveRepository {
     );
   }
 
+  /// D258: answer bullets as free VIP ones with this many left (null: paid).
+  int? bulletFreeLeft;
+
   @override
-  Future<({LiveBullet bullet, int coins})> sendBullet(
+  Future<LiveBulletSent> sendBullet(
     String roomId, {
     required String text,
     required String clientId,
@@ -1003,7 +1006,9 @@ class FakeLiveRepository implements LiveRepository {
       bulletFailure = null;
       throw failure;
     }
-    coins -= 15;
+    // D258: a free VIP bullet costs nothing.
+    final freeLeft = bulletFreeLeft;
+    if (freeLeft == null) coins -= 15;
     return (
       bullet: LiveBullet(
         id: 'bullet-${bulletCalls.length}',
@@ -1013,6 +1018,8 @@ class FakeLiveRepository implements LiveRepository {
         createdAt: DateTime.utc(2026, 10, 24, 20),
       ),
       coins: coins,
+      free: freeLeft != null,
+      freeLeft: freeLeft,
     );
   }
 

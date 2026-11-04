@@ -407,6 +407,24 @@ void main() {
   });
 
   group('bullet messages', () {
+    testWidgets("D258: a VIP's free public message says how many are left "
+        'and charges nothing', (tester) async {
+      final room = await _pumpRoom(tester);
+      room.repo.bulletFreeLeft = 2;
+      await _openComposer(tester);
+      await tester.tap(find.byKey(LiveRoomComposer.bulletKey));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi all');
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pumpAndSettle();
+      expect(room.repo.bulletCalls, hasLength(1));
+      expect(find.text(l10n.liveBulletSentFree('2')), findsOneWidget);
+      expect(find.text(l10n.liveBulletSent), findsNothing);
+      expect(find.text(l10n.liveBulletHint('100')), findsOneWidget);
+      _clearSnack(tester);
+      await _leave(tester);
+    });
+
     testWidgets('bullet mode shows the price and the balance; send posts '
         'the bullet and the balance follows the answer', (tester) async {
       final room = await _pumpRoom(tester);

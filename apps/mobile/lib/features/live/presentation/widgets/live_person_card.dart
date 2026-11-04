@@ -32,7 +32,9 @@ import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -75,6 +77,8 @@ class _Look {
   });
 
   factory of(BuildContext context) {
+    final scoped = _LookScope.maybeOf(context);
+    if (scoped != null) return scoped;
     final p = context.palette;
     return Theme.of(context).brightness == Brightness.dark
         ? _Look(
@@ -99,6 +103,30 @@ class _Look {
             ring: const Color(0xFFFFFFFF),
           );
   }
+
+  /// D258: the colours on a VIP card art whose inside is light (over the
+  /// white backdrop): dark green ink, ≥ 4.5:1 down to luminance 0.35.
+  static const vipLight = _Look(
+    sheet: Color(0xFFFFFFFF),
+    ink: Color(0xFF0E2410),
+    soft: Color(0xFF243B27),
+    line: Color(0x400E2410),
+    divider: Color(0x400E2410),
+    fill: Color(0x1F0E2410),
+    ring: Color(0xFFFFFFFF),
+  );
+
+  /// D258: on a dark art (over the black backdrop): white ink, ≥ 4.5:1 up
+  /// to luminance 0.18.
+  static const vipDark = _Look(
+    sheet: Color(0xFF000000),
+    ink: Color(0xFFFFFFFF),
+    soft: Color(0xFFE4ECE4),
+    line: Color(0x4DFFFFFF),
+    divider: Color(0x4DFFFFFF),
+    fill: Color(0x26FFFFFF),
+    ring: Color(0xFFFFFFFF),
+  );
 
   final Color sheet;
   final Color ink;
@@ -235,6 +263,26 @@ class LivePersonSheet extends ConsumerWidget {
         this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
     final picture = _Picture.of(profile, username);
     final scope = this.scope;
+    // D258: the VIP frame's plaque hangs below the picture: the name moves
+    // down by as much (only for the plain ring, where the VIP frame shows).
+    final vipFrame = picture.vipFrame
+        ? ref.watch(vipLookProvider(profile?.vip))?.perk(VipPerks.avatarFrame)
+        : null;
+    const avatar = LivePersonCardMetrics.avatar;
+    final vipDrop =
+        vipFrame != null &&
+            (vipFrame.still != null || vipFrame.animation != null)
+        ? math.max(
+            0,
+            VipAvatarFrame.artRect(
+                  avatar,
+                  VipAvatarFrame.templateCentre,
+                  VipAvatarFrame.templateWindow,
+                ).bottom -
+                avatar -
+                LivePersonCardMetrics.ring,
+          )
+        : 0.0;
 
     return LayoutBuilder(
       builder: (context, box) {
@@ -252,7 +300,7 @@ class LivePersonSheet extends ConsumerWidget {
                 onInvite: onInvite,
                 look: look,
                 // Room under the edge for the picture's lower part.
-                top: picture.height - picture.centreY + 6,
+                top: picture.height - picture.centreY + 6 + vipDrop,
               );
         return Stack(
           key: sheetKey,
@@ -372,6 +420,7 @@ class _Picture {
     required this.height,
     required this.centreY,
     required this.build,
+    this.vipFrame = false,
   });
 
   factory of(PublicProfile? profile, String username) {
@@ -450,6 +499,7 @@ class _Picture {
       width: side,
       height: side,
       centreY: side / 2,
+      vipFrame: true,
       build: (look) => Container(
         key: LivePersonSheet.ringKey,
         padding: const EdgeInsets.all(LivePersonCardMetrics.ring),
@@ -477,6 +527,9 @@ class _Picture {
 
   /// The photo's centre below the widget's top.
   final double centreY;
+
+  /// D258: the plain ring, where a VIP's frame is drawn.
+  final bool vipFrame;
   final Widget Function(_Look look) build;
 }
 
@@ -508,6 +561,8 @@ class _Body extends ConsumerWidget {
     final text = context.textStyles;
     final profile = this.profile;
     final scope = this.scope;
+    // D258: on the VIP card art, the colours measured for it.
+    final look = _LookScope.maybeOf(context) ?? this.look;
     final levels = ref.watch(profileLevelsProvider(username)).value ?? const [];
     final shown = [
       for (final l in levels)
@@ -1542,12 +1597,22 @@ class _VipCard extends ConsumerWidget {
   /// How much of the art shows around the panel (the card's border).
   static const frame = 12.0;
 
+  /// The animated card's frame width at a phone's width (its border is about
+  /// 25 of its 720 units).
+  static const animatedFrame = 14.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final perk = vipCardPerk(ref.watch(vipLookProvider(vip)));
     if (perk == null) return child;
     // D258: the owner's art frames the card; the names, numbers and buttons
     // stay on the card's own opaque surface (≥ 4.5:1 as without VIP).
+    // D258: the owner's animated card (its SVGA 9-sliced to the sheet: the
+    // crest rises above the sheet, the frame follows its edges). The text
+    // stays on the card's own opaque panel inside the frame.
+    if (vipPlays(perk)) {
+      return _VipCardArt(perk: perk, sheet: sheet, child: child);
+    }
     // Clipped to the sheet's rounded top (only with the art: no change
     // to the plain card).
     return ClipRRect(
@@ -1585,4 +1650,140 @@ class _VipCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// D258: the colours the person card's text uses on a VIP card art.
+class _LookScope extends InheritedWidget {
+  const new({required this.look, required super.child});
+
+  final _Look look;
+
+  static _Look? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_LookScope>()?.look;
+
+  @override
+  bool updateShouldNotify(_LookScope old) => old.look != look;
+}
+
+/// D258 (owner: «عند وضع vip يتم ازالة الصندوق الابيض»): the owner's
+/// animated card IS the card's background — its SVGA 9-sliced to the sheet
+/// (the crest rises above it), the content directly on it. The art's inside
+/// is measured over a white backdrop: light → dark green text
+/// ([_Look.vipLight]); dark → a black backdrop and white text
+/// ([_Look.vipDark]). Until it is measured (or when it cannot be), the
+/// card's own opaque panel holds the text inside the art's frame.
+class _VipCardArt extends StatefulWidget {
+  const new({required this.perk, required this.sheet, required this.child});
+
+  final VipPerk perk;
+  final Color sheet;
+  final Widget child;
+
+  /// The card's inside (fractions of the template's canvas), measured.
+  static const inside = Rect.fromLTRB(0.06, 0.36, 0.94, 0.92);
+
+  @override
+  State<_VipCardArt> createState() => _VipCardArtState();
+}
+
+class _VipCardArtState extends State<_VipCardArt> {
+  _Look? _look;
+  String? _measured;
+
+  /// The look for an inside whose luminance spans [min] – [max] over white.
+  static _Look? lookFor(double min, double max) {
+    if (vipContrast(_Look.vipLight.soft, _grey(min)) >= 4.5) {
+      return _Look.vipLight;
+    }
+    return null;
+  }
+
+  static Color _grey(double l) {
+    final c = l <= 0.0031308 ? 12.92 * l : 1.055 * math.pow(l, 1 / 2.4) - 0.055;
+    final v = (c * 255).round().clamp(0, 255);
+    return Color.fromARGB(255, v, v, v);
+  }
+
+  Future<void> _measure(String url, double side) async {
+    if (_measured == url) return;
+    _measured = url;
+    final clip = await VipSvgaCache.load(url, maxSide: side);
+    if (clip == null || !mounted) return;
+    final light = await clip.luminanceOf(
+      _VipCardArt.inside,
+      backdrop: const Color(0xFFFFFFFF),
+    );
+    var look = light == null ? null : lookFor(light.min, light.max);
+    if (look == null) {
+      final dark = await clip.luminanceOf(_VipCardArt.inside);
+      if (dark != null &&
+          vipContrast(_Look.vipDark.soft, _grey(dark.max)) >= 4.5) {
+        look = _Look.vipDark;
+      }
+    }
+    if (mounted && look != null) setState(() => _look = look);
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      // The same size the art itself loads at (one shared clip).
+      unawaited(
+        _measure(widget.perk.animation!, 2.2 * box.maxWidth * dpr * 0.5),
+      );
+      final look = _look;
+      const frame = _VipCard.animatedFrame;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (look != null)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(LivePersonCardMetrics.radius),
+                ),
+                child: ColoredBox(color: look.sheet),
+              ),
+            ),
+          Positioned.fill(
+            key: LivePersonSheet.vipCardKey,
+            child: IgnorePointer(
+              child: VipSvga(
+                url: widget.perk.animation!,
+                nine: VipSvgaNine.card,
+                // A big art: frames at about half the device's pixels.
+                resolution: 0.5,
+                still: widget.perk.still == null
+                    ? null
+                    : Image(
+                        image: vipArtImage(widget.perk.still!),
+                        fit: BoxFit.cover,
+                      ),
+              ),
+            ),
+          ),
+          if (look == null)
+            Positioned.fill(
+              left: frame,
+              right: frame,
+              top: frame,
+              bottom: frame + 2,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: widget.sheet,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(frame, 0, frame, frame + 2),
+            child: look == null
+                ? widget.child
+                : _LookScope(look: look, child: widget.child),
+          ),
+        ],
+      );
+    },
+  );
 }

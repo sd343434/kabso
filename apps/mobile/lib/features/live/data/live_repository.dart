@@ -17,6 +17,17 @@ import 'package:kabso_live/features/posts/domain/post_models.dart'
 /// Every method throws an `AppFailure`. Requests go through the
 /// authenticated Dio (bearer token, single-flight refresh, `Accept-Language`
 /// from the app language, `X-Request-Id`).
+/// `LiveBulletResult` (CP-017): the bullet, the balance after it and
+/// (v1.83-social, D258 §10.94.4) whether it was one of the sender's free VIP
+/// public messages of the day and how many free ones are left (null without
+/// the perk).
+typedef LiveBulletSent = ({
+  LiveBullet bullet,
+  int coins,
+  bool free,
+  int? freeLeft,
+});
+
 abstract interface class LiveRepository {
   /// `GET /live/config`.
   Future<LiveConfig> getConfig();
@@ -269,7 +280,7 @@ abstract interface class LiveRepository {
   /// `POST /live/rooms/{roomId}/bullets` (15 coins): the bullet and the
   /// balance after it. A retry with the same [clientId] is never charged
   /// again.
-  Future<({LiveBullet bullet, int coins})> sendBullet(
+  Future<LiveBulletSent> sendBullet(
     String roomId, {
     required String text,
     required String clientId,
@@ -819,7 +830,7 @@ class LiveRepositoryImpl implements LiveRepository {
   });
 
   @override
-  Future<({LiveBullet bullet, int coins})> sendBullet(
+  Future<LiveBulletSent> sendBullet(
     String roomId, {
     required String text,
     required String clientId,
@@ -832,6 +843,8 @@ class LiveRepositoryImpl implements LiveRepository {
     return (
       bullet: LiveBullet.fromJson(data['bullet']! as Map<String, dynamic>),
       coins: (data['coins']! as num).toInt(),
+      free: data['free'] == true,
+      freeLeft: (data['freeLeft'] as num?)?.toInt(),
     );
   });
 

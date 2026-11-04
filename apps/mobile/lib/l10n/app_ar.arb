@@ -12981,5 +12981,19 @@
   "liveDailyRankLabel": "{name}: الترتيب اليوم {rank}، {points} نقطة",
   "@liveDailyRankLabel": {"description": "D257: the viewer's screen as the owner's reference.", "placeholders": {"name": {"type": "String"}, "rank": {"type": "String"}, "points": {"type": "String"}}},
   "liveToolRecharge": "الشحن",
-  "@liveToolRecharge": {"description": "D257: the viewer's screen as the owner's reference."}
+  "@liveToolRecharge": {"description": "D257: the viewer's screen as the owner's reference."},
+  "walletReasonVipDailyCoins": "كوينز VIP اليومية",
+  "@walletReasonVipDailyCoins": {"description": "D258: the VIP daily coins credit."},
+  "vipDailyCoins": "الكوينز اليومية: {amount}",
+  "@vipDailyCoins": {"description": "D258: a member's daily coins (DAILY_COINS).", "placeholders": {"amount": {"type": "String"}}},
+  "vipDailyCoinsClaim": "استلام",
+  "@vipDailyCoinsClaim": {"description": "D258: claim today's daily coins."},
+  "vipDailyCoinsClaimed": "تم الاستلام اليوم",
+  "@vipDailyCoinsClaimed": {"description": "D258: today's daily coins already claimed."},
+  "vipDailyCoinsAdded": "تمت إضافة {amount} كوينز",
+  "@vipDailyCoinsAdded": {"description": "D258: the daily coins claim credited.", "placeholders": {"amount": {"type": "String"}}},
+  "liveBulletSentFree": "أُرسلت رسالة عامة مجانية · متبقي {count} اليوم",
+  "@liveBulletSentFree": {"description": "D258: a VIP's free public message (DAILY_BULLET).", "placeholders": {"count": {"type": "String"}}},
+  "vipEntranceJoined": "{name} دخل الغرفة",
+  "@vipEntranceJoined": {"description": "D258: the VIP entry banner (owner reference): the name, then «دخل الغرفة».", "placeholders": {"name": {"type": "String"}}}
 }

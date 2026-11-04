@@ -1,11 +1,8 @@
-import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data' show Uint8List;
 
-import 'package:flutter_svga/flutter_svga.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -105,25 +102,8 @@ class VipAnimatedArt extends StatefulWidget {
   State<VipAnimatedArt> createState() => _VipAnimatedArtState();
 }
 
-class _VipAnimatedArtState extends State<VipAnimatedArt>
-    with SingleTickerProviderStateMixin {
-  static final Map<String, MovieEntity> _cache = {};
-
-  SVGAAnimationController? _controller;
-  bool _ready = false;
-  bool _started = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started || !widget._canPlay) return;
-    _started = true;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _finish(); // reduced motion.
-      return;
-    }
-    unawaited(_load(widget.animation!));
-  }
+class _VipAnimatedArtState extends State<VipAnimatedArt> {
+  bool _done = false;
 
   @override
   void initState() {
@@ -134,68 +114,24 @@ class _VipAnimatedArtState extends State<VipAnimatedArt>
     }
   }
 
-  bool _done = false;
-
   void _finish() {
-    if (_done || !widget.once) return;
+    if (_done || !widget.once || !mounted) return;
     _done = true;
     widget.onDone?.call();
   }
 
-  /// D258: through the gift art cache (D126) — downloaded once and kept on
-  /// the device, so a big file (the 13 MB entry car) is not fetched again.
-  static Future<Uint8List?> _fetch(String url) async {
-    if (!GiftArtCache.allowed(url)) return null;
-    return await GiftArtCache.instance.load(url);
-  }
-
-  Future<void> _load(String url) async {
-    try {
-      var movie = _cache[url];
-      if (movie == null) {
-        final bytes = await _fetch(url);
-        if (bytes == null || !mounted) {
-          _finish();
-          return;
-        }
-        movie = await SVGAParser.shared.decodeFromBuffer(bytes);
-        _cache[url] = movie..autorelease = false;
-      }
-      if (!mounted) return;
-      final controller = SVGAAnimationController(vsync: this)
-        ..muted = true
-        ..videoItem = movie;
-      if (widget.once) {
-        unawaited(controller.forward().whenComplete(_finish));
-      } else {
-        controller.repeat();
-      }
-      setState(() {
-        _controller = controller;
-        _ready = true;
-      });
-    } on Object catch (e) {
-      // A broken file keeps the still.
-      debugPrint('VipAnimatedArt($url): $e');
-      _finish();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
-    if (_ready && controller != null) {
-      return SVGAImage(
-        controller,
+    final still = _stillOf(widget.still, widget.fit) ?? widget.placeholder;
+    if (widget._canPlay) {
+      // D258: the shared SVGA engine (one decoded, downsized clip per file
+      // and size; one clock; the gift art cache on the device).
+      return VipSvga(
+        url: widget.animation!,
         fit: widget.fit,
-        clearsAfterStop: false,
-        filterQuality: FilterQuality.medium,
+        still: still,
+        once: widget.once,
+        onDone: _finish,
       );
     }
     return _stillOf(widget.still, widget.fit) ??

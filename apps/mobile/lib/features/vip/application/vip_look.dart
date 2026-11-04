@@ -91,9 +91,15 @@ double vipContrast(Color a, Color b) {
 }
 
 /// The lightest a VIP bubble or pill may be (relative luminance): white on it
-/// is ≥ 7:1 and a name of luminance ≥ [_nameMinLuminance] ≥ 4.5:1.
-const _bubbleMaxLuminance = 0.07;
-const _nameMinLuminance = 0.56;
+/// is ≥ 7:1 and a name of luminance ≥ [_nameMinLuminance] ≥ 4.5:1 — also
+/// under the owner's animated bubble, whose inside adds a light green veil
+/// (20 %, [vipBubbleArtVeil]).
+const _bubbleMaxLuminance = 0.05;
+const _nameMinLuminance = 0.66;
+
+/// The inside of the owner's VIP 1 bubble art (`svip_text_bubble_1`): its
+/// light green at 20 % over the plain bubble (measured from the file).
+const vipBubbleArtVeil = Color(0x3364B855);
 
 /// [color] mixed toward white (at least 55 %) until it is light enough to read
 /// on any VIP bubble and on the dark chat box.

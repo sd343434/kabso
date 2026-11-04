@@ -24,6 +24,7 @@ import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
+import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -116,17 +117,22 @@ VipTierList _list({bool art = false}) => VipTierList(
   maxAheadDays: 400,
 );
 
-VipMembership _membership(VipTier tier, {int days = 20, bool onSale = true}) =>
-    VipMembership(
-      tierId: tier.id,
-      tierCode: tier.code,
-      tierName: tier.name,
-      tierColor: tier.color,
-      onSale: onSale,
-      startedAt: DateTime.now().subtract(const Duration(days: 10)),
-      expiresAt: DateTime.now().add(Duration(days: days)),
-      daysLeft: days,
-    );
+VipMembership _membership(
+  VipTier tier, {
+  int days = 20,
+  bool onSale = true,
+  VipDailyCoins? dailyCoins,
+}) => VipMembership(
+  dailyCoins: dailyCoins,
+  tierId: tier.id,
+  tierCode: tier.code,
+  tierName: tier.name,
+  tierColor: tier.color,
+  onSale: onSale,
+  startedAt: DateTime.now().subtract(const Duration(days: 10)),
+  expiresAt: DateTime.now().add(Duration(days: days)),
+  daysLeft: days,
+);
 
 class _FakeVip implements VipRepository {
   new({this.list, this.membership, this.fail = false, this.failBuyWith});
@@ -162,6 +168,24 @@ class _FakeVip implements VipRepository {
     final m = _membership(tier, days: tier.durationDays);
     membership = m;
     return (kind: VipPurchaseKind.bought, membership: m, coins: 100);
+  }
+
+  /// D258: daily coins claims (each answers [dailyAmount] once a day).
+  int claims = 0;
+  int dailyAmount = 500;
+
+  @override
+  Future<VipDailyCoinsClaim> claimDailyCoins() async {
+    claims++;
+    return (
+      coins: claims == 1 ? dailyAmount : 0,
+      balance: 1000,
+      daily: VipDailyCoins(
+        amount: dailyAmount,
+        claimedToday: true,
+        nextAt: DateTime.now().add(const Duration(hours: 5)),
+      ),
+    );
   }
 }
 
@@ -386,6 +410,55 @@ void main() {
       expect(find.byKey(VipScreen.confirmKey), findsNothing);
     });
 
+    testWidgets('D258: «My VIP» claims the daily coins once a day', (
+      tester,
+    ) async {
+      final held = _membership(
+        _tier(1),
+        dailyCoins: VipDailyCoins(
+          amount: 500,
+          claimedToday: false,
+          nextAt: DateTime.now().add(const Duration(hours: 5)),
+        ),
+      );
+      final vip = _FakeVip(membership: held);
+      await _pump(tester, vip: vip);
+      await tester.tap(find.byKey(VipScreen.statusKey));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.vipDailyCoins('500')), findsOneWidget);
+      expect(find.text(_en.vipDailyCoinsClaim), findsOneWidget);
+      await tester.tap(find.byKey(VipDailyCoinsRow.claimKey));
+      await tester.pumpAndSettle();
+      expect(vip.claims, 1);
+      expect(find.text(_en.vipDailyCoinsAdded('500')), findsOneWidget);
+      expect(find.text(_en.vipDailyCoinsClaimed), findsOneWidget);
+      // Claimed: the button is off.
+      await tester.tap(find.byKey(VipDailyCoinsRow.claimKey));
+      await tester.pumpAndSettle();
+      expect(vip.claims, 1);
+    });
+
+    testWidgets('D258: without the perk, no daily coins row', (tester) async {
+      await _pump(tester, vip: _FakeVip(membership: _membership(_tier(2))));
+      await tester.tap(find.byKey(VipScreen.statusKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(VipDailyCoinsRow.rowKey), findsNothing);
+    });
+
+    test('D258: MyVip.dailyCoins and the wallet reason are read', () {
+      final daily = VipDailyCoins.fromJson(const {
+        'amount': 500,
+        'claimedToday': true,
+        'nextAt': '2026-11-05T21:00:00.000Z',
+      });
+      expect(daily.amount, 500);
+      expect(daily.claimedToday, isTrue);
+      expect(
+        WalletLedgerReason.fromWire('VIP_DAILY_COINS'),
+        WalletLedgerReason.vipDailyCoins,
+      );
+    });
+
     testWidgets('an off-sale tier shows a note', (tester) async {
       final held = _membership(_tier(2), onSale: false);
       await _pump(tester, vip: _FakeVip(membership: held));
@@ -574,5 +647,28 @@ void main() {
         });
       }
     }
+    testWidgets('D258 golden: «My VIP» with the daily coins (ar)', (
+      tester,
+    ) async {
+      final held = _membership(
+        _tier(1),
+        dailyCoins: VipDailyCoins(
+          amount: 500,
+          claimedToday: false,
+          nextAt: DateTime.now().add(const Duration(hours: 5)),
+        ),
+      );
+      await _pump(
+        tester,
+        vip: _FakeVip(membership: held),
+        language: AppLanguage.ar,
+      );
+      await tester.tap(find.byKey(VipScreen.statusKey));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('png/vip.daily_coins.ar.phone.png'),
+      );
+    });
   });
 }

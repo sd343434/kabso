@@ -2598,10 +2598,15 @@ live downloads it when the member joins. Ask the designer for a 2–3 MB export 
 uploading it; the app shows the banner alone until the car has downloaded, plays it once, and keeps the file on the
 device (the gift art cache), so each viewer downloads it once.
 
+**The owner's VIP 1 art sizes.** badge 3.7 MB, chat bubble 2.7 MB, frame 2.6 MB, card 2.5 MB, banner 0.8 MB, mic wave
+0.2 MB, car 13 MB — every one is 36 full-frame bitmaps (the car 75). The app downloads each once per device and keeps
+only small frames in memory, but the first load on a slow network is long: ask the designer for lighter exports
+(fewer frames or smaller images; the badge is shown ~20 px tall, 128 px frames are plenty).
+
 **Daily perks.** The second and third migrations add the wallet reason `VIP_DAILY_COINS`, the daily-claims table, and
 let a bullet message cost 0 (the CHECK becomes `cost >= 0`): a VIP's first 3 public messages a day are free. The level
 speed-up (+1 %) applies to the points a live gift earns on the sender's own level. The daily coins claim answers
-`no_perk` until the app's claim screen ships (phase 3).
+`no_perk` until the OWNER sets VIP 1's daily coins amount in the panel.
 
 Order: API (with its migration) first, then the panel and the app. An older app ignores `UserSummary.vip`; an older panel
 does not show the amount or the upload buttons (the URL fields still work).

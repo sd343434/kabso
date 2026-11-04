@@ -23556,6 +23556,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الشحن'**
   String get liveToolRecharge;
+
+  /// D258: the VIP daily coins credit.
+  ///
+  /// In ar, this message translates to:
+  /// **'كوينز VIP اليومية'**
+  String get walletReasonVipDailyCoins;
+
+  /// D258: a member's daily coins (DAILY_COINS).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكوينز اليومية: {amount}'**
+  String vipDailyCoins(String amount);
+
+  /// D258: claim today's daily coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'استلام'**
+  String get vipDailyCoinsClaim;
+
+  /// D258: today's daily coins already claimed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاستلام اليوم'**
+  String get vipDailyCoinsClaimed;
+
+  /// D258: the daily coins claim credited.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إضافة {amount} كوينز'**
+  String vipDailyCoinsAdded(String amount);
+
+  /// D258: a VIP's free public message (DAILY_BULLET).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت رسالة عامة مجانية · متبقي {count} اليوم'**
+  String liveBulletSentFree(String count);
+
+  /// D258: the VIP entry banner (owner reference): the name, then «دخل الغرفة».
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} دخل الغرفة'**
+  String vipEntranceJoined(String name);
 }
 
 class _AppLocalizationsDelegate

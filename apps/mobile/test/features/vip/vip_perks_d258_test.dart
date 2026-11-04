@@ -259,7 +259,14 @@ void main() {
     for (final c in colours) {
       final name = vipNameTint(Color(c));
       final (top, bottom) = vipBubbleShades(Color(c));
-      for (final bubble in [top, bottom, const Color(0xFF000000)]) {
+      for (final bubble in [
+        top,
+        bottom,
+        const Color(0xFF000000),
+        // Under the owner's animated bubble (its inside's veil).
+        Color.alphaBlend(vipBubbleArtVeil, top),
+        Color.alphaBlend(vipBubbleArtVeil, bottom),
+      ]) {
         expect(
           vipContrast(name, bubble),
           greaterThanOrEqualTo(4.5),

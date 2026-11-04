@@ -177,7 +177,14 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
     setState(() => _sendingBullet = false);
     if (failure == null) {
       widget.controller.clear();
-      KSnack.success(context, l10n.liveBulletSent);
+      // D258: a VIP's free public message says how many are left today.
+      final freeLeft = _chat.lastBulletFreeLeft;
+      KSnack.success(
+        context,
+        freeLeft == null
+            ? l10n.liveBulletSent
+            : l10n.liveBulletSentFree('$freeLeft'),
+      );
     } else {
       KSnack.error(context, failureMessage(l10n, failure));
     }

@@ -30,6 +30,8 @@ enum WalletLedgerReason {
   eventPrize('EVENT_PRIZE'),
   // D252: «شراء VIP».
   vipPurchase('VIP_PURCHASE'),
+  // D258: a VIP's daily coins.
+  vipDailyCoins('VIP_DAILY_COINS'),
   other('');
 
   new(this.wire);

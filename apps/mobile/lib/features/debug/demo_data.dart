@@ -496,7 +496,7 @@ class DemoLiveRepository implements LiveRepository {
   }) async => throw _serverOnly;
 
   @override
-  Future<({LiveBullet bullet, int coins})> sendBullet(
+  Future<LiveBulletSent> sendBullet(
     String roomId, {
     required String text,
     required String clientId,

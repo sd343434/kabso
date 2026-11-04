@@ -820,6 +820,10 @@ class LiveChatController extends Notifier<LiveChatState> {
     }
   }
 
+  /// D258 (§10.94.4): after a free VIP bullet, how many free ones are left
+  /// today; null after a paid one.
+  int? lastBulletFreeLeft;
+
   /// CP-017: sends [text] (trimmed) as a bullet over every live for 15
   /// coins; the balance follows the answer. Returns why it was refused, or
   /// `null`.
@@ -836,6 +840,7 @@ class LiveChatController extends Notifier<LiveChatState> {
         ref.read(liveCoinsProvider.notifier).set(result.coins);
         // In the chat at once; the room's copy of it is not added again.
         _addBullet(result.bullet);
+        lastBulletFreeLeft = result.free ? result.freeLeft : null;
       }
       return null;
     } on Object catch (e) {

@@ -131,6 +131,33 @@ final class VipTierList {
   final int maxAheadDays;
 }
 
+/// `VipDailyCoins` (v1.83-social, D258 §10.94.5): a member's daily coins.
+@immutable
+final class VipDailyCoins {
+  const new({
+    required this.amount,
+    required this.claimedToday,
+    required this.nextAt,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => VipDailyCoins(
+    amount: _int(json['amount']),
+    claimedToday: json['claimedToday'] == true,
+    nextAt: DateTime.parse(json['nextAt']! as String),
+  );
+
+  /// Coins a day.
+  final int amount;
+  final bool claimedToday;
+
+  /// When the next claim opens (the next day's start).
+  final DateTime nextAt;
+}
+
+/// `VipDailyCoinsClaim`: what a claim credited (0 when already claimed
+/// today), the balance after it and the new state.
+typedef VipDailyCoinsClaim = ({int coins, int balance, VipDailyCoins daily});
+
 /// `VipMembership`: the caller's active membership.
 @immutable
 final class VipMembership {
@@ -145,9 +172,10 @@ final class VipMembership {
     required this.daysLeft,
     this.badgeAnimation,
     this.badgeStill,
+    this.dailyCoins,
   });
 
-  factory fromJson(Map<String, dynamic> json) {
+  factory fromJson(Map<String, dynamic> json, {VipDailyCoins? dailyCoins}) {
     final tier = json['tier']! as Map<String, dynamic>;
     return VipMembership(
       tierId: tier['id']! as String,
@@ -160,8 +188,12 @@ final class VipMembership {
       startedAt: DateTime.parse(json['startedAt']! as String),
       expiresAt: DateTime.parse(json['expiresAt']! as String),
       daysLeft: _int(json['daysLeft']),
+      dailyCoins: dailyCoins,
     );
   }
+
+  /// D258: `MyVip.dailyCoins` (members holding DAILY_COINS), else null.
+  final VipDailyCoins? dailyCoins;
 
   final String tierId;
   final String tierCode;
@@ -214,6 +246,9 @@ abstract interface class VipRepository {
     required int priceCoins,
     required String idempotencyKey,
   });
+
+  /// `POST /me/vip/daily-coins` (D258): today's daily coins (once a day).
+  Future<VipDailyCoinsClaim> claimDailyCoins();
 }
 
 class VipRepositoryImpl implements VipRepository {
@@ -231,7 +266,28 @@ class VipRepositoryImpl implements VipRepository {
   Future<VipMembership?> mine() => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>('/me/vip');
     final m = res.data!['membership'];
-    return m == null ? null : VipMembership.fromJson(m as Map<String, dynamic>);
+    final daily = res.data!['dailyCoins'];
+    return m == null
+        ? null
+        : VipMembership.fromJson(
+            m as Map<String, dynamic>,
+            dailyCoins: daily is Map<String, dynamic>
+                ? VipDailyCoins.fromJson(daily)
+                : null,
+          );
+  });
+
+  @override
+  Future<VipDailyCoinsClaim> claimDailyCoins() => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>('/me/vip/daily-coins');
+    final body = res.data!;
+    return (
+      coins: _int(body['coins']),
+      balance: _int(body['balance']),
+      daily: VipDailyCoins.fromJson(
+        body['dailyCoins']! as Map<String, dynamic>,
+      ),
+    );
   });
 
   @override

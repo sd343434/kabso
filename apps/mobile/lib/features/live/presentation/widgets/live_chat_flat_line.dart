@@ -39,21 +39,32 @@ abstract final class KFlatChat {
     Key? key,
     bool cp = false,
     BoxDecoration? vip,
+    Widget? vipArt,
   }) => KeyedSubtree(
     key: key,
-    child: _box(child, cp: cp, vip: vip),
+    child: _box(child, cp: cp, vip: vip, vipArt: vipArt),
   );
 
   /// D258: a member's VIP bubble (CHAT_BUBBLE), unless a CP bubble is worn.
   static const vipBubbleKey = Key('liveChat.flat.vipBubble');
 
-  static Widget _box(Widget child, {required bool cp, BoxDecoration? vip}) =>
-      !cp && vip != null
-      ? Container(
+  static Widget _box(
+    Widget child, {
+    required bool cp,
+    BoxDecoration? vip,
+    Widget? vipArt,
+  }) => !cp && vip != null
+      ? Stack(
           key: vipBubbleKey,
-          padding: padding,
-          decoration: vip,
-          child: child,
+          clipBehavior: Clip.none,
+          children: [
+            // The opaque bubble under the text (and under the owner's
+            // animated bubble, whose ornaments overflow the line).
+            Positioned.fill(child: DecoratedBox(decoration: vip)),
+            if (vipArt != null)
+              Positioned.fill(child: IgnorePointer(child: vipArt)),
+            Padding(padding: padding, child: child),
+          ],
         )
       : Container(
           // The CP edge (1 pt) sits inside the padding: both lines keep one
@@ -156,6 +167,9 @@ class LiveChatFlatLine extends ConsumerWidget {
   static const tagKey = Key('liveChat.flat.tag');
   static const nameKey = Key('liveChat.flat.name');
 
+  /// D258: the name and badges above a VIP bubble.
+  static const vipHeaderKey = Key('liveChat.flat.vipHeader');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -177,6 +191,129 @@ class LiveChatFlatLine extends ConsumerWidget {
       height: KFlatChat.tagHeight,
       fadeOverflow: true,
     );
+    final bubble = cp
+        ? null
+        : vipBubbleDecoration(look, radius: KFlatChat.radius);
+    final vipBubble = bubble != null;
+    final Widget header = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (cp) ...[
+          Image.asset(
+            LiveCpChatBubble.heart,
+            key: LiveRoomChatLines.cpHeartKey,
+            width: 12,
+            height: 12,
+            excludeFromSemantics: true,
+          ),
+          const SizedBox(width: 3),
+        ],
+        if (tag != null) ...[
+          Container(
+            key: tagKey,
+            height: KFlatChat.tagHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(
+              color: role == LiveChatRole.host
+                  ? KFlatChat.hostTag
+                  : KFlatChat.moderatorTag,
+              borderRadius: BorderRadius.circular(KRadius.pill),
+            ),
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                tag,
+                textScaler: TextScaler.noScaling,
+                style: base.copyWith(
+                  fontSize: 9.5,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  shadows: const [],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+        if (look != null) ...[
+          VipNameBadge(vip: vip, height: KFlatChat.tagHeight),
+          const SizedBox(width: 4),
+        ],
+        Flexible(
+          child: GestureDetector(
+            key: nameKey,
+            onTap: onProfile,
+            // D257: one line at most (ends with «…»).
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: KFlatChat.nameMaxWidth,
+              ),
+              child: Text(
+                // A mixed-direction name keeps its order.
+                KFormat.bidiIsolate(name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: scaler,
+                // D258: the VIP name colour.
+                style: base.copyWith(color: look?.nameColor ?? KFlatChat.name),
+              ),
+            ),
+          ),
+        ),
+        if (badgeRow.isNotEmpty) ...[
+          const SizedBox(width: 4),
+          // Many badges fade out at the end (D230).
+          Flexible(child: badgeRow),
+        ],
+        if (!vipBubble) Text(KFlatChat.colon, textScaler: scaler, style: base),
+      ],
+    );
+    final line = KFlatChat.boxed(
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              style: base,
+              children: [
+                // D257: the heart (CP), the role tag, the name and the
+                // badges in one row in the reading direction (inline
+                // placeholders alone would be ordered as neutrals).
+                // D258: with the VIP bubble the name and badges sit
+                // above it; the bubble holds only the message.
+                if (!vipBubble) ...[
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: header,
+                  ),
+                  const TextSpan(text: ' '),
+                ],
+                // Kabi emoji tokens (D66) show as the emoji, inline.
+                ...kabiIsolatedSpans(
+                  text,
+                  size: KFlatChat.textSize * KKabiEmoji.inlineScale,
+                ),
+              ],
+            ),
+            textScaler: scaler,
+          ),
+          if (failed case final why?)
+            Text(
+              why,
+              textScaler: scaler,
+              style: base.copyWith(
+                fontSize: 11,
+                color: const Color(0xFFFF8A9A),
+              ),
+            ),
+        ],
+      ),
+      key: cp ? LiveCpChatBubble.bubbleKey : LiveChatInlineRow.rowKey,
+      cp: cp,
+      vip: bubble,
+      vipArt: vipBubble ? vipBubbleArt(look) : null,
+    );
     return Semantics(
       label: label,
       excludeSemantics: true,
@@ -184,129 +321,23 @@ class LiveChatFlatLine extends ConsumerWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onActions,
         onLongPress: onActions,
-        child: KFlatChat.boxed(
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text.rich(
-                TextSpan(
-                  style: base,
-                  children: [
-                    // D257: the heart (CP), the role tag, the name and the
-                    // badges in one row in the reading direction (inline
-                    // placeholders alone would be ordered as neutrals).
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (cp) ...[
-                            Image.asset(
-                              LiveCpChatBubble.heart,
-                              key: LiveRoomChatLines.cpHeartKey,
-                              width: 12,
-                              height: 12,
-                              excludeFromSemantics: true,
-                            ),
-                            const SizedBox(width: 3),
-                          ],
-                          if (tag != null) ...[
-                            Container(
-                              key: tagKey,
-                              height: KFlatChat.tagHeight,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: role == LiveChatRole.host
-                                    ? KFlatChat.hostTag
-                                    : KFlatChat.moderatorTag,
-                                borderRadius: BorderRadius.circular(
-                                  KRadius.pill,
-                                ),
-                              ),
-                              child: Center(
-                                widthFactor: 1,
-                                child: Text(
-                                  tag,
-                                  textScaler: TextScaler.noScaling,
-                                  style: base.copyWith(
-                                    fontSize: 9.5,
-                                    height: 1.1,
-                                    fontWeight: FontWeight.w800,
-                                    shadows: const [],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                          ],
-                          if (look != null) ...[
-                            VipNameBadge(vip: vip, height: KFlatChat.tagHeight),
-                            const SizedBox(width: 4),
-                          ],
-                          Flexible(
-                            child: GestureDetector(
-                              key: nameKey,
-                              onTap: onProfile,
-                              // D257: one line at most (ends with «…»).
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: KFlatChat.nameMaxWidth,
-                                ),
-                                child: Text(
-                                  // A mixed-direction name keeps its order.
-                                  KFormat.bidiIsolate(name),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textScaler: scaler,
-                                  // D258: the VIP name colour.
-                                  style: base.copyWith(
-                                    color: look?.nameColor ?? KFlatChat.name,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (badgeRow.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            // Many badges fade out at the end (D230).
-                            Flexible(child: badgeRow),
-                          ],
-                          Text(
-                            KFlatChat.colon,
-                            textScaler: scaler,
-                            style: base,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const TextSpan(text: ' '),
-                    // Kabi emoji tokens (D66) show as the emoji, inline.
-                    ...kabiIsolatedSpans(
-                      text,
-                      size: KFlatChat.textSize * KKabiEmoji.inlineScale,
-                    ),
-                  ],
-                ),
-                textScaler: scaler,
-              ),
-              if (failed case final why?)
-                Text(
-                  why,
-                  textScaler: scaler,
-                  style: base.copyWith(
-                    fontSize: 11,
-                    color: const Color(0xFFFF8A9A),
+        child: vipBubble
+            // D258 (owner): the name and badges on their own line at the
+            // reading start, the bubble under them with only the message.
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    key: vipHeaderKey,
+                    padding: const EdgeInsetsDirectional.only(start: 4),
+                    child: header,
                   ),
-                ),
-            ],
-          ),
-          key: cp ? LiveCpChatBubble.bubbleKey : LiveChatInlineRow.rowKey,
-          cp: cp,
-          vip: vipBubbleDecoration(look, radius: KFlatChat.radius),
-        ),
+                  const SizedBox(height: 3),
+                  line,
+                ],
+              )
+            : line,
       ),
     );
   }
