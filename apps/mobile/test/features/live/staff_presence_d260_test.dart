@@ -165,10 +165,7 @@ void main() {
     expect(find.byKey(LiveViewersStack.frameKey(1)), findsOneWidget);
     expect(find.byKey(LiveViewersStack.frameKey(2)), findsNothing);
     expect(find.text('2'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel(RegExp(l.liveKabsoTeamHere)),
-      findsOneWidget,
-    );
+    expect(find.bySemanticsLabel(RegExp(l.liveKabsoTeamHere)), findsOneWidget);
   });
 
   group('goldens', () {
