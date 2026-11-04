@@ -38,6 +38,9 @@ void main() {
 
   test('T2: the brand is "Kabso Live" in Latin script in Arabic copy', () {
     for (final MapEntry(:key, :value) in ar.entries) {
+      // D260 (owner, 2026-11-04): the staff badge is «فريق كابسو» in
+      // Arabic, by the owner's own wording; only those strings.
+      if (key.startsWith('liveKabsoTeam')) continue;
       expect(value, isNot(contains('كابسو')), reason: key);
     }
     expect(ar['appTitle'], 'Kabso Live');
