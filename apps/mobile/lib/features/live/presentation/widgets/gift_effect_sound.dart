@@ -15,12 +15,16 @@ class GiftSoundClip {
     required this.startFrame,
     required this.endFrame,
     required this.bytes,
+    this.startAt = Duration.zero,
   });
 
   final String key;
   final int startFrame;
   final int endFrame;
   final Uint8List bytes;
+
+  /// D272: where in the sound it starts (the SVGA's `startTime`).
+  final Duration startAt;
 }
 
 /// The gift's own sound, embedded in its SVGA (owner D126: the sound plays
@@ -44,6 +48,7 @@ class GiftEffectSound {
             startFrame: a.startFrame,
             endFrame: a.endFrame,
             bytes: bytes,
+            startAt: Duration(milliseconds: a.startTime),
           ),
     ];
     movie.audios.clear();
@@ -99,7 +104,10 @@ class GiftEffectSound {
         );
       }
       if (_stopped) return;
-      await player.play(BytesSource(clip.bytes, mimeType: 'audio/mpeg'));
+      await player.play(
+        BytesSource(clip.bytes, mimeType: 'audio/mpeg'),
+        position: clip.startAt > Duration.zero ? clip.startAt : null,
+      );
     } on Object catch (e) {
       // No sound on this device: the animation plays silently.
       debugPrint('GiftEffectSound(${clip.key}): $e');

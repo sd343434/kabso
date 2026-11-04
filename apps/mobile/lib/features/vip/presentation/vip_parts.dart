@@ -78,6 +78,8 @@ class VipAnimatedArt extends StatefulWidget {
     this.once = false,
     this.onDone,
     this.video,
+    this.onStarted,
+    this.sound = false,
   });
 
   final String? animation;
@@ -94,6 +96,11 @@ class VipAnimatedArt extends StatefulWidget {
   /// when it cannot play (no file, reduced motion, a broken file).
   final bool once;
   final VoidCallback? onDone;
+
+  /// D272: see [VipSvga.onStarted] and [VipSvga.sound] (the entrance's car
+  /// and banner play their SVGA's own sound).
+  final ValueChanged<Duration>? onStarted;
+  final bool sound;
 
   /// Widget tests and the screenshot harness set this false so only the still
   /// paints (set by `test/flutter_test_config.dart`).
@@ -150,6 +157,8 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
         still: still,
         once: widget.once,
         onDone: _finish,
+        onStarted: widget.onStarted,
+        sound: widget.sound,
       );
     }
     return _stillOf(widget.still, widget.fit) ??

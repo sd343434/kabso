@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
@@ -22,6 +23,14 @@ import 'package:material_ui/material_ui.dart';
 /// downloaded once and kept on the device). An agent's own bar wins over the
 /// banner (the car still plays). Several arrive one after another (at most
 /// [maxQueued] waiting). Never takes taps.
+///
+/// D272 (owner: the car stutters, freezes, has no sound): each entrance's
+/// art is read ahead as it is queued ([VipSvgaCache.warm], off the UI
+/// isolate); the car starts only when it can play ([carWait] to get
+/// there, else it is skipped — its file stays read for the next time) and
+/// then has its own length (at most [carLimit]); its SVGA's own sound
+/// plays with it while «المؤثرات الصوتية» is on (the banner's, when there
+/// is no car); one entrance's sound at a time, none with reduced motion.
 class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   const new({required this.roomId, super.key, this.self});
 
@@ -45,8 +54,12 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   static const duration = Duration(milliseconds: 3200);
   static const stillDuration = Duration(milliseconds: 2200);
 
-  /// The car never holds the queue longer than this.
+  /// The car never plays longer than this.
   static const carLimit = Duration(seconds: 10);
+
+  /// D272: how long the car may take to be ready (download, read, the
+  /// first second decoded) before it is skipped.
+  static const carWait = Duration(seconds: 8);
   static const maxQueued = 5;
 
   @override
@@ -130,6 +143,15 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     final car = _hasArt(carPerk) ? carPerk : null;
     if (banner == null && car == null) return;
     final entry = _Entry(line, look, banner: banner, car: car);
+    // D272: read the art now (while the banner, or an earlier entrance,
+    // plays), so the car starts at once.
+    if (VipSvga.enabled && VipAnimatedArt.animationsEnabled) {
+      for (final url in [car?.animation, banner?.animation]) {
+        if (url != null && url.startsWith('http')) {
+          unawaited(VipSvgaCache.warm(url));
+        }
+      }
+    }
     if (_current == null) {
       _show(entry);
     } else if (_queue.length < LiveVipEntranceLayer.maxQueued) {
@@ -145,7 +167,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     _carDone = entry.car == null;
     _carLimit?.cancel();
     if (!_carDone) {
-      _carLimit = Timer(LiveVipEntranceLayer.carLimit, _onCarDone);
+      _carLimit = Timer(LiveVipEntranceLayer.carWait, _onCarDone);
     }
     setState(() => _current = entry);
     if (!_bannerDone) {
@@ -154,6 +176,19 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
           : LiveVipEntranceLayer.duration;
       _clock.forward(from: 0);
     }
+  }
+
+  /// D272: the car plays now: it has its own length from here.
+  void _onCarStarted(Duration length) {
+    if (_carDone) return;
+    _carLimit?.cancel();
+    final limit = length + const Duration(seconds: 1);
+    _carLimit = Timer(
+      limit < LiveVipEntranceLayer.carLimit
+          ? limit
+          : LiveVipEntranceLayer.carLimit,
+      _onCarDone,
+    );
   }
 
   void _onCarDone() {
@@ -187,6 +222,8 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     final name = displayName.isEmpty ? current.line.user.username : displayName;
     final banner = current.banner;
     final car = current.car;
+    // D272: the SVGA's own sound, while the app's sound effects are on.
+    final soundOn = ref.watch(soundEffectsProvider);
     return IgnorePointer(
       child: Stack(
         children: [
@@ -205,6 +242,8 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                       video: car.video,
                       once: true,
                       onDone: _onCarDone,
+                      onStarted: _onCarStarted,
+                      sound: soundOn,
                     ),
                   ),
                 ),
@@ -224,6 +263,8 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                     name: name,
                     look: current.look,
                     perk: banner,
+                    // The car's sound wins over the banner's.
+                    sound: soundOn && car == null,
                   ),
                 ),
               ),
@@ -277,9 +318,13 @@ class VipEntranceBanner extends StatelessWidget {
     required this.look,
     required this.perk,
     super.key,
+    this.sound = false,
   });
 
   final String name;
+
+  /// D272: the banner's SVGA plays its own sound.
+  final bool sound;
 
   final VipLook look;
   final VipPerk perk;
@@ -330,6 +375,7 @@ class VipEntranceBanner extends StatelessWidget {
                     child: VipSvga(
                       url: perk.animation!,
                       fit: BoxFit.fill,
+                      sound: sound,
                       still: perk.still == null
                           ? null
                           : Image(
@@ -413,6 +459,7 @@ class VipEntranceBanner extends StatelessWidget {
                           still: perk.still,
                           video: perk.video,
                           fit: BoxFit.fill,
+                          sound: sound,
                         )
                       : DecoratedBox(
                           decoration: BoxDecoration(

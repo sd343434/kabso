@@ -6248,7 +6248,8 @@ free ones are left today.
 
 Every perk's hosted SVGA plays through one engine: downloaded once (the gift art cache), decoded once, each frame
 drawn once at the size it is shown (bucketed 64…1024 px) and shared by every widget on one clock; reduced motion
-shows the still (or the first frame). The stretchable arts follow the owner's templates (fractions of the canvas):
+shows the still (or the first frame). D272: read on another isolate, pictures decoded at their drawn size, and a clip over 12 M
+pixels drawn live from a one-second window instead of kept as frames (§10.94.7). The stretchable arts follow the owner's templates (fractions of the canvas):
 **CHAT_BUBBLE** (`svip_text_bubble`, 990 × 720) 9-sliced to the message (it scales with the line's height up to one
 text line, 32 pt, and stretches sideways between x 620 – 760 and, for more lines, downwards between y 340 – 380 —
 D265: the ornaments and the edge keep their one-line size; never narrower than its fixed parts, 529 / 457 × 32 pt; the
@@ -6340,6 +6341,25 @@ content-addressed under `media/vip/<tier>/`; the answer's `url` goes into the ti
   colour with the VIP badge. An agent's own bar (§10.48, §10.52) wins over it.
 - **ENTRY_EFFECT**: the perk's SVGA plays **once**, centred across the room, then leaves (at most 10 s; reduced
   motion or a broken file: nothing). Downloaded once through the gift art cache (D126) and kept on the device.
+- D272 (owner: «مؤثر الدخول يتوقف يعلق ولا يحتوي على صوت»): the owner's car (`peacock`, 13.8 MB: 75 full-canvas
+  563 × 1000 PNG frames at 12 fps, 6.25 s, and a 6.75 s MP3) froze the room — the file was inflated, parsed and every
+  picture decoded **full size** (169 MB) on the UI isolate, then all 75 frames drawn at once (177 MB, over the whole
+  24 M-pixel cache, evicting every badge and bubble), and the 10 s limit counted from the `join`, so a slow download
+  cut the car mid-way; its MP3 was dropped. Now: the file is read on **another isolate** into plain data
+  (`VipSvgaDoc`); each picture is decoded by the engine at the size it is drawn (never bigger); a clip whose frames
+  would take more than 12 M pixels is drawn **live** from about a second of decoded pictures (the ones behind
+  released; ≈ 32 MB for the car); the frames of the others are drawn one at a time without holding the UI. The art
+  is read ahead as the `join` is queued (and the host's own at start); the car **starts only when ready** (the first
+  second decoded; at most 8 s to get there, else it is skipped and stays read for the next time) and then has its
+  own length + 1 s (at most 10 s). A late picture keeps the last frame a moment; the clock (and the sound) go on.
+- D272 **sound**: the SVGA's own sound (`MovieEntity.audios`: from `startFrame`, `startTime` ms into it) plays with
+  the **car** — or the **banner** when there is no car — through the gifts' player (§10.66: media volume, no audio
+  focus on Android so the live keeps playing, the live's iOS audio session untouched), only while «المؤثرات
+  الصوتية» is on and the app is in the foreground. One entrance's sound at a time (a new one stops the one before);
+  it stops when the car ends (the art's last 0.5 s of sound is cut with it), is removed, or the app leaves the
+  foreground. Reduced motion: the still and **no sound** (a sound without its motion; reduced-motion viewers asked
+  for less). The device's silent switch is not read, as for the gifts' sounds. Badges, frames, bubbles, cards and
+  mic waves never play sound.
 - D265: a VIP member's `join` is never dropped by the one-a-second join window (like an agent's, §10.48); the host
   is never a viewer (no `join`), so a VIP host's own banner and car play once on their own screen when the live goes
   on air.
