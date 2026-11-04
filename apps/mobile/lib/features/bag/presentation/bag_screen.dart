@@ -21,6 +21,7 @@ import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -52,8 +53,9 @@ abstract final class KBagMetrics {
   static const double tileBadge = 12;
   static const double tileHeight = 98;
 
-  /// The bottom bar and its pills.
+  /// The bottom bar and its pills; (D264) the selected item's picture.
   static const double bar = 47.5;
+  static const double barPreview = 40;
   static const double pillWidth = 81.5;
   static const double pillHeight = 28;
 
@@ -93,6 +95,9 @@ class BagScreen extends ConsumerStatefulWidget {
   static const selectedNameKey = Key('bag.selected.name');
   static const selectedSourceKey = Key('bag.selected.source');
   static const noSendKey = Key('bag.selected.noSend');
+
+  /// D264: the selected item's picture in the bottom bar.
+  static const selectedPreviewKey = Key('bag.selected.preview');
 
   /// D186: the banner asking an active host without a stated gender to
   /// pick the host frame's colour, and «تغيير اللون» on the selected host
@@ -895,7 +900,9 @@ class _SelectionBar extends StatelessWidget {
     final t = context.textStyles;
     final item = this.item;
     final source = item == null ? null : bagSourceLine(l10n, item);
-    final noSend = item == null ? null : bagNoSendReason(l10n, item);
+    // D264: a VIP item is never sent: no «إرسال» and no reason line.
+    final vip = item?.source == BagSource.vip;
+    final noSend = item == null || vip ? null : bagNoSendReason(l10n, item);
     final pillShape = WidgetStatePropertyAll(
       RoundedRectangleBorder(borderRadius: BorderRadius.circular(KRadius.pill)),
     );
@@ -926,6 +933,20 @@ class _SelectionBar extends StatelessWidget {
             ),
             child: Row(
               children: [
+                // D264: the selected item itself.
+                if (item != null) ...[
+                  SizedBox.square(
+                    key: BagScreen.selectedPreviewKey,
+                    dimension: KBagMetrics.barPreview,
+                    child: FittedBox(
+                      child: BagItemPreview(
+                        item: item,
+                        width: KBagMetrics.barPreview,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: KSpacing.sm),
+                ],
                 Expanded(
                   child: item == null
                       ? const SizedBox.shrink()
@@ -980,31 +1001,33 @@ class _SelectionBar extends StatelessWidget {
                           ],
                         ),
                 ),
-                const SizedBox(width: KSpacing.sm),
-                Flexible(
-                  child: OutlinedButton(
-                    key: BagScreen.sendKey,
-                    style: ButtonStyle(
-                      shape: pillShape,
-                      minimumSize: pillSize,
-                      padding: pillPadding,
-                      foregroundColor: WidgetStateProperty.resolveWith(
-                        (s) => s.contains(WidgetState.disabled)
-                            ? p.textTertiary
-                            : p.primary,
-                      ),
-                      side: WidgetStateProperty.resolveWith(
-                        (s) => BorderSide(
-                          color: s.contains(WidgetState.disabled)
-                              ? p.border
+                if (!vip) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  Flexible(
+                    child: OutlinedButton(
+                      key: BagScreen.sendKey,
+                      style: ButtonStyle(
+                        shape: pillShape,
+                        minimumSize: pillSize,
+                        padding: pillPadding,
+                        foregroundColor: WidgetStateProperty.resolveWith(
+                          (s) => s.contains(WidgetState.disabled)
+                              ? p.textTertiary
                               : p.primary,
                         ),
+                        side: WidgetStateProperty.resolveWith(
+                          (s) => BorderSide(
+                            color: s.contains(WidgetState.disabled)
+                                ? p.border
+                                : p.primary,
+                          ),
+                        ),
                       ),
+                      onPressed: busy ? null : onSend,
+                      child: label(l10n.bagSend),
                     ),
-                    onPressed: busy ? null : onSend,
-                    child: label(l10n.bagSend),
                   ),
-                ),
+                ],
                 const SizedBox(width: KSpacing.sm),
                 Flexible(
                   child: FilledButton(
@@ -1187,19 +1210,40 @@ class VipBagItemPreview extends StatelessWidget {
         ],
       ),
     );
-    final hasArt = vip.still != null || vip.animation != null;
-    return SizedBox.square(
-      key: keyOf(item.code),
-      dimension: width,
-      child: hasArt
-          ? VipAnimatedArt(
-              animation: vip.animation,
-              still: vip.still,
-              placeholder: token,
-            )
-          : token,
+    final still = vip.still;
+    final animation = vip.animation;
+    Widget image(String src) => Image(
+      image: vipArtImage(src),
+      fit: BoxFit.contain,
+      excludeFromSemantics: true,
+      errorBuilder: (_, _, _) => token,
     );
+    // The item itself (owner: «يجب ان تعرض العنصر»): the SVGA plays on the
+    // shared engine; with reduced motion its still — or, when only the
+    // animation was uploaded, its first frame (never the token then). The
+    // token only for an item with no art at all.
+    final Widget art;
+    if (animation != null && playsSvga(animation)) {
+      art = VipSvga(
+        key: svgaKey(item.code),
+        url: animation,
+        still: still == null ? null : image(still),
+      );
+    } else if (still != null) {
+      art = image(still);
+    } else {
+      art = token;
+    }
+    return SizedBox.square(key: keyOf(item.code), dimension: width, child: art);
   }
+
+  static Key svgaKey(String code) => Key('bag.vipPreview.svga.$code');
+
+  /// Whether [animation] is played here (hosted, and playing is on).
+  static bool playsSvga(String animation) =>
+      VipSvga.enabled &&
+      VipAnimatedArt.animationsEnabled &&
+      animation.startsWith('http');
 }
 
 /// A small mock-up of the person card's top edge (the live card): a white
