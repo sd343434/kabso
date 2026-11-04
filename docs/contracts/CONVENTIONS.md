@@ -6291,7 +6291,9 @@ free ones are left today.
 Every perk's hosted SVGA plays through one engine: downloaded once (the gift art cache), decoded once, each frame
 drawn once at the size it is shown (bucketed 64…1024 px) and shared by every widget on one clock; reduced motion
 shows the still (or the first frame). D272: read on another isolate, pictures decoded at their drawn size, and a clip over 12 M
-pixels drawn live from a one-second window instead of kept as frames (§10.94.7). The stretchable arts follow the owner's templates (fractions of the canvas):
+pixels drawn live from a one-second window instead of kept as frames (§10.94.7). D272b: this is the app's one SVGA engine
+(`lib/core/svga/svga_engine.dart`) — the gifts, the PK battle emoji and the profile headers read through it too
+(§10.66). The stretchable arts follow the owner's templates (fractions of the canvas):
 **CHAT_BUBBLE** (`svip_text_bubble`, 990 × 720) 9-sliced to the message (it scales with the line's height up to one
 text line, 32 pt, and stretches sideways between x 620 – 760 and, for more lines, downwards between y 340 – 380 —
 D265: the ornaments and the edge keep their one-line size; never narrower than its fixed parts, 529 / 457 × 32 pt; the
@@ -7242,3 +7244,16 @@ played full screen as is) and side-by-side alpha — chosen per gift. Replaces t
   the live's local sound switch is not muted and the app is in the foreground. What the device cannot play (an
   unknown format, side-by-side without shader support, a file that fails) is skipped: the strip's picture is all that
   shows, never an error.
+- D272b (owner: «حاول اصلاح المشكلة بالكامل», after D272's entry car): the gift's SVGA goes through the app's **one
+  SVGA engine** (`lib/core/svga/svga_engine.dart`, shared with the VIP perks, the PK battle emoji and the profile
+  headers). As a gift with an animation **arrives** (it plays now or waits in the queue) its art is read ahead: an
+  SVGA downloaded and read on **another isolate** (`SvgaDocs.warm`, the 4 latest files kept), an MP4 and an MP3
+  downloaded to the device. The effect then decodes the pictures at the size they are drawn (the drawn area across the
+  screen's width, never bigger than the picture), keeps them for a small clip (≤ 12 M pixels, all clips ≤ 24 M: a
+  combo replays at once) or reads a big one through a window of about a second (released behind), and **starts only
+  when its first second is ready** — within `animationWait` (8 s) from the effect's start, else skipped (the strip
+  has shown the gift; the file goes on being read for the next send). The clock picks the frame and the sound
+  (`GiftEffectSound`: from its `startFrame`, `startTime` ms in); a late picture keeps the last frame a moment.
+  Drawing past the canvas still shows in the drawn area (D145c). A file with **vector shapes or clip paths** plays on
+  the package's player as before, but read and decoded by the engine (`SvgaDoc.toMovie`). The MP4 path was already off
+  the UI thread (the platform's decoder); it gains the download ahead. Queue, combo and hold timing are unchanged.

@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svga/flutter_svga.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The owner's profile-card header decorations (2026-10-26,
@@ -93,10 +94,12 @@ class _KabsoProfileHeaderArtState extends State<KabsoProfileHeaderArt>
     try {
       var movie = _cache[asset];
       if (movie == null) {
-        final bytes = await rootBundle.load(asset);
-        movie = await SVGAParser.shared.decodeFromBuffer(
-          bytes.buffer.asUint8List(),
-        );
+        // D272b: read by the app's SVGA engine (on another isolate), its
+        // pictures decoded at the size shown (at most their own).
+        final scale = widget.width * MediaQuery.devicePixelRatioOf(context);
+        final doc = await SvgaDocs.doc(SvgaDocs.asset(asset));
+        if (doc == null) throw StateError('unreadable');
+        movie = await doc.toMovie(scale / math.max(1, doc.viewBox.width));
         _cache[asset] = movie..autorelease = false;
       }
       if (!mounted) return;

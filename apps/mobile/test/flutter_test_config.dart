@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
@@ -36,6 +37,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
   KabsoBattleEmoji.enabled = false;
   KGiftEffect.animate = false;
+  // D272b: no art read ahead as gifts arrive (no downloads in tests).
+  LiveGiftEffects.prefetchArt = false;
   // D145d: the MAX X orb's endless motion, and its sounds (no audio plugin).
   MaxXOrb.animate = false;
   AudioplayersMaxXSounds.enabled = false;

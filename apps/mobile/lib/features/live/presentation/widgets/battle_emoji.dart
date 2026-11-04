@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_svga/flutter_svga.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -80,11 +81,18 @@ class _KabsoBattleEmojiState extends State<KabsoBattleEmoji>
     if (!KabsoBattleEmoji.enabled) return;
     final still = MediaQuery.disableAnimationsOf(context);
     try {
-      final bytes = await rootBundle.load(widget.battle.asset);
-      final movie = await SVGAParser.shared.decodeFromBuffer(
-        bytes.buffer.asUint8List(),
+      // D272b: read by the app's SVGA engine (on another isolate, kept for
+      // the next battle), its pictures decoded at the size shown.
+      final scale = widget.size * MediaQuery.devicePixelRatioOf(context);
+      final doc = await SvgaDocs.doc(SvgaDocs.asset(widget.battle.asset));
+      if (doc == null) throw StateError('unreadable');
+      final movie = await doc.toMovie(
+        scale / math.max(1, doc.viewBox.longestSide),
       );
-      if (!mounted) return;
+      if (!mounted) {
+        movie.dispose();
+        return;
+      }
       _controller.videoItem = movie;
       if (still) {
         // The peak of the animation, held for its length.

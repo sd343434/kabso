@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svga/flutter_svga.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:material_ui/material_ui.dart'
     show AppLifecycleState, WidgetsBinding;
 
@@ -54,6 +55,19 @@ class GiftEffectSound {
     movie.audios.clear();
     return GiftEffectSound(clips);
   }
+
+  /// D272b: the sounds the shared SVGA engine read from a file
+  /// ([SvgaDoc.sounds]), each from its start frame and its `startTime`.
+  factory fromSvga(List<SvgaSound> sounds) => GiftEffectSound([
+    for (final s in sounds)
+      GiftSoundClip(
+        key: s.key,
+        startFrame: s.startFrame,
+        endFrame: s.endFrame,
+        bytes: s.bytes,
+        startAt: Duration(milliseconds: s.startTime),
+      ),
+  ]);
 
   final List<GiftSoundClip> clips;
 

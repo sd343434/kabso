@@ -3,9 +3,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_effect_sound.dart';
@@ -351,7 +352,14 @@ class KGiftEffect extends StatefulWidget {
 class _KGiftEffectState extends State<KGiftEffect>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   SVGAAnimationController? _svga;
-  Rect? _bounds;
+
+  /// D272b: the effect's file read by the shared engine, and (no vector
+  /// shapes) its playback: the pictures' reader, the frame shown, the clock.
+  SvgaDoc? _doc;
+  SvgaReader? _reader;
+  Ticker? _ticker;
+  Duration? _playStart;
+  int _frame = 0;
   GiftEffectSound? _sound;
   GiftEffectSound? _mp3;
   VideoPlayerController? _video;
@@ -526,63 +534,116 @@ class _KGiftEffectState extends State<KGiftEffect>
     }
   }
 
-  Future<Uint8List?> _movieBytes() async {
+  /// The effect's SVGA source for the shared engine: the hosted file, else
+  /// the bundled one.
+  String? get _source {
     final url = widget.animationUrl;
-    if (url != null) {
-      try {
-        return await GiftArtCache.instance
-            .load(url)
-            .timeout(KGiftEffect.animationWait);
-      } on Object catch (e) {
-        debugPrint('KGiftEffect($url): $e');
-      }
-    }
+    if (url != null) return url;
     final path = KGiftAssets.animation(widget.animationKey);
-    if (path == null) return null;
-    try {
-      return (await rootBundle.load(path)).buffer.asUint8List();
-    } on Object {
-      return null;
-    }
+    return path == null ? null : SvgaDocs.asset(path);
   }
 
+  /// D272b (owner: «حاول اصلاح المشكلة بالكامل»): the SVGA through the
+  /// app's one engine — read on another isolate (usually already, as the
+  /// gift arrived: `LiveGiftEffects` reads it ahead), its pictures decoded
+  /// at the size they are drawn; a big clip drawn from a window of about a
+  /// second of decoded pictures (released behind), a small one from its
+  /// kept pictures (a combo replays at once). It starts only once its first
+  /// second is ready, within [KGiftEffect.animationWait] (else skipped; the
+  /// file stays read for the next send). A file with vector shapes or clip
+  /// paths plays on the package's player (same reading and decoding).
   Future<void> _loadMovie() async {
+    final source = _source;
+    if (source == null) return _finish();
+    final view = View.of(context);
+    final screen = view.physicalSize.width;
+    final deadline = Stopwatch()..start();
+    Duration left() {
+      final rest = KGiftEffect.animationWait - deadline.elapsed;
+      return rest > Duration.zero ? rest : Duration.zero;
+    }
+
     try {
-      final bytes = await _movieBytes();
+      final doc = await SvgaDocs.doc(source).timeout(left());
       if (!mounted) return;
-      if (bytes == null) return _finish();
-      final movie = await SVGAParser.shared.decodeFromBuffer(bytes);
-      if (!mounted) {
-        movie.dispose();
-        return;
-      }
-      final embedded = GiftEffectSound.fromMovie(movie);
+      if (doc == null) return _finish();
+      final bounds = doc.bounds ?? Offset.zero & doc.viewBox;
+      // Device pixels per canvas unit: the drawn area takes the screen's
+      // width (D145d).
+      final scale = screen / math.max(1, bounds.width);
       // v1.46-live (D207): the SVGA's own sound only while sound may play
       // and the gift has no MP3 of its own.
       final sound = widget.soundOn && widget.audioUrl == null
-          ? embedded
+          ? GiftEffectSound.fromSvga(doc.sounds)
           : GiftEffectSound(const []);
-      unawaited(_startMp3());
-      final svga = SVGAAnimationController(vsync: this)
-        ..muted = true
-        ..videoItem = movie;
-      if (!sound.isEmpty) {
-        svga.addListener(() => sound.onFrame(svga.currentFrame));
+      if (doc.vector) {
+        final movie = await doc.toMovie(scale).timeout(left());
+        if (!mounted || _done) {
+          movie.dispose();
+          return;
+        }
+        unawaited(_startMp3());
+        final svga = SVGAAnimationController(vsync: this)
+          ..muted = true
+          ..videoItem = movie;
+        if (!sound.isEmpty) {
+          svga.addListener(() => sound.onFrame(svga.currentFrame));
+        }
+        setState(() {
+          _svga = svga;
+          _doc = doc;
+          _sound = sound;
+        });
+        sound.onFrame(0);
+        await svga.forward();
+        _finish();
+        return;
       }
+      final live = await SvgaDocs.live(source, scale: scale).timeout(left());
+      if (!mounted || _done) return;
+      if (live == null) return _finish();
+      final reader = SvgaReader(live);
+      _reader = reader;
+      await reader.want(0).timeout(left());
+      if (!mounted || _done) return;
+      unawaited(_startMp3());
       setState(() {
-        _svga = svga;
-        _bounds = KGiftMovieFrame.movieBounds(movie);
+        _doc = doc;
+        _frame = 0;
         _sound = sound;
       });
       sound.onFrame(0);
-      await svga.forward();
-      _finish();
+      _playStart = null;
+      (_ticker ??= createTicker(_tick)).start();
     } on Object catch (e) {
-      // A broken file: no effect (the strip has shown the gift).
-      debugPrint(
-        'KGiftEffect(${widget.animationUrl ?? widget.animationKey}): $e',
-      );
+      // Not ready in time, or a broken file: no effect (the strip has shown
+      // the gift; a slow file goes on being read for the next send).
+      debugPrint('KGiftEffect($source): $e');
       _finish();
+    }
+  }
+
+  /// One frame of the engine's clip: the clock decides the frame (and the
+  /// sound); a picture not decoded yet keeps the last frame a moment.
+  void _tick(Duration elapsed) {
+    final doc = _doc;
+    final reader = _reader;
+    if (doc == null || reader == null || _done) return;
+    final start = _playStart ??= elapsed;
+    final t = elapsed - start;
+    if (t >= doc.duration) {
+      _ticker?.stop();
+      _finish();
+      return;
+    }
+    final frame = math.min(
+      doc.frameCount - 1,
+      (t.inMicroseconds * doc.fps / 1e6).floor(),
+    );
+    _sound?.onFrame(frame);
+    unawaited(reader.want(frame));
+    if (frame != _frame && reader.ready(frame)) {
+      setState(() => _frame = frame);
     }
   }
 
@@ -594,6 +655,8 @@ class _KGiftEffectState extends State<KGiftEffect>
     unawaited(_video?.dispose());
     _shader?.dispose();
     unawaited(_sound?.stop());
+    _ticker?.dispose();
+    _reader?.dispose();
     // Releases the decoded frames (the movie is auto-released).
     _svga?.dispose();
     super.dispose();
@@ -612,16 +675,25 @@ class _KGiftEffectState extends State<KGiftEffect>
         ),
       );
     }
+    final doc = _doc;
+    if (doc == null) return const SizedBox.shrink();
     final svga = _svga;
-    final params = svga?.videoItem?.params;
-    if (svga == null || params == null) return const SizedBox.shrink();
+    final reader = _reader;
     return IgnorePointer(
       child: KGiftMovieFrame(
-        viewBox: Size(params.viewBoxWidth, params.viewBoxHeight),
-        bounds: _bounds,
-        // The frame clips at the drawn area; the player may draw past the
+        viewBox: doc.viewBox,
+        bounds: doc.bounds,
+        // The frame clips at the drawn area; the clip may draw past the
         // view box into it.
-        child: SVGAImage(svga),
+        child: svga != null
+            ? SVGAImage(svga)
+            : CustomPaint(
+                painter: SvgaFramePainter(
+                  doc: doc,
+                  frame: _frame,
+                  pictures: reader?.pictures ?? const {},
+                ),
+              ),
       ),
     );
   }

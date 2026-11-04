@@ -11,6 +11,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -154,12 +155,12 @@ void main() {
   testWidgets('D272 bench: after', skip: _skip, (tester) async {
     await tester.runAsync(() async {
       final bytes = await File(_file!).readAsBytes();
-      final read = await _timed(() => VipSvgaDoc.read(bytes));
+      final read = await _timed(() => SvgaDoc.read(bytes));
       final doc = read.result;
       final made = await _timed(() => VipSvgaCache.render(doc, side));
       final clip = made.result;
       expect(clip.live, isNotNull);
-      final reader = VipSvgaReader(clip.live!);
+      final reader = SvgaReader(clip.live!);
       final primed = await _timed(() => reader.want(0));
       expect(reader.ready(0), isTrue);
       // Play it through at its own pace: how many frames were late.
@@ -202,6 +203,75 @@ void main() {
       );
       expect(maxHeld, lessThanOrEqualTo(doc.fps + 3));
       expect(read.stallMs, lessThan(400));
+    });
+  });
+
+  // D272b: the same file as a gift's full-screen effect (1080 px wide).
+  testWidgets('D272b bench: gift before', skip: _skip, (tester) async {
+    await tester.runAsync(() async {
+      final bytes = await File(_file!).readAsBytes();
+      // The old gift path: the package's parser on the UI isolate, every
+      // picture full size, held for the whole effect.
+      final parsed = await _timed(
+        () => SVGAParser.shared.decodeFromBuffer(bytes),
+      );
+      final movie = parsed.result;
+      final px = movie.bitmapCache.values.fold(
+        0,
+        (s, b) => s + b.width * b.height,
+      );
+      // ignore: avoid_print, the bench's output.
+      print(
+        'GIFT BEFORE: ready after ${parsed.ms} ms (UI stall '
+        '${parsed.stallMs} ms), every picture full size: '
+        '${movie.bitmapCache.length} pictures = ${px ~/ 1000}k px '
+        '(${(px * 4 / 1e6).round()} MB) held while it plays',
+      );
+      movie.dispose();
+    });
+  });
+
+  testWidgets('D272b bench: gift after', skip: _skip, (tester) async {
+    await tester.runAsync(() async {
+      final bytes = await File(_file!).readAsBytes();
+      final fetch = SvgaDocs.fetch;
+      SvgaDocs.fetch = (_) async => bytes;
+      const url = 'https://cdn.test/peacock.svga';
+      // Read ahead as the gift arrives (the strip shows meanwhile).
+      final warm = await _timed(() => SvgaDocs.warm(url));
+      final doc = (await SvgaDocs.doc(url))!;
+      final scale = 1080 / doc.bounds!.width;
+      final live = await _timed(() => SvgaDocs.live(url, scale: scale));
+      final reader = SvgaReader(live.result!);
+      final primed = await _timed(() => reader.want(0));
+      var late = 0;
+      var maxHeld = 0;
+      final sw = Stopwatch()..start();
+      for (var f = 0; f < doc.frameCount; f++) {
+        final due = Duration(microseconds: (f * 1e6 / doc.fps).round());
+        final wait = due - sw.elapsed;
+        if (wait > Duration.zero) await Future<void>.delayed(wait);
+        unawaited(reader.want(f));
+        if (!reader.ready(f)) late++;
+        maxHeld = math.max(maxHeld, reader.held);
+      }
+      final first = reader.pictures.values.first;
+      final held = maxHeld * first.width * first.height;
+      reader.dispose();
+      // ignore: avoid_print, the bench's output.
+      print(
+        'GIFT AFTER: read ahead in ${warm.ms} ms on another isolate (UI '
+        'stall ${warm.stallMs} ms); clip ${live.ms} ms (window: '
+        '${live.result!.resident == null}); first second decoded in '
+        '${primed.ms} ms (UI stall ${primed.stallMs} ms), then it starts; '
+        'played at ${doc.fps} fps: $late of ${doc.frameCount} frames late, '
+        'at most $maxHeld pictures ${first.width}×${first.height} held '
+        '(${held ~/ 1000}k px, ${(held * 4 / 1e6).round()} MB); '
+        'sounds ${doc.sounds.length}',
+      );
+      SvgaDocs.clear();
+      SvgaDocs.fetch = fetch;
+      expect(maxHeld, lessThanOrEqualTo(doc.fps + 3));
     });
   });
 }

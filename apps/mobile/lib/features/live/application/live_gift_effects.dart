@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
+import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -345,7 +347,40 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     );
   }
 
+  /// D272b: whether a queued gift's art is read ahead (off in tests: no
+  /// downloads there; set by `test/flutter_test_config.dart`).
+  static bool prefetchArt = true;
+
+  /// D272b: as an animated gift arrives (it plays now or waits), its art is
+  /// read ahead: an SVGA downloaded and read on another isolate by the
+  /// shared engine, an MP4 and an MP3 downloaded to the device — so it
+  /// starts at once when its turn comes. Never throws.
+  void _prefetch(LiveGift g) {
+    if (!prefetchArt) return;
+    final art = ref.read(giftCatalogueProvider).value?.byCode(g.giftCode);
+    final url = g.animationUrl ?? art?.animationUrl;
+    // The format goes with the URL it describes (D207).
+    final format = g.animationUrl != null
+        ? g.animationFormat
+        : art?.animationFormat;
+    if (url != null && GiftArtCache.allowed(url)) {
+      switch (format ?? GiftAnimationFormat.svga) {
+        case GiftAnimationFormat.svga:
+          unawaited(SvgaDocs.warm(url));
+        case GiftAnimationFormat.mp4:
+          GiftArtCache.instance.prefetch(url);
+        case GiftAnimationFormat.unknown:
+          break;
+      }
+    }
+    final audio = g.audioUrl ?? art?.audioUrl;
+    if (audio != null && GiftArtCache.allowed(audio)) {
+      GiftArtCache.instance.prefetch(audio);
+    }
+  }
+
   void _big(LiveGift gift) {
+    _prefetch(gift);
     if (state.big != null) {
       if (_waitingBig.length < maxWaiting) _waitingBig.add(gift);
       return;

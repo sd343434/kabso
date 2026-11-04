@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:io' show ZLibCodec;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_svga/flutter_svga.dart';
-import 'package:kabso_live/features/live/data/gift_art_cache.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_effect_sound.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,7 +17,7 @@ import 'package:material_ui/material_ui.dart';
 /// line shows the same frame of one shared clock (no controller per line).
 ///
 /// D272 (owner: the entry car stutters, freezes and is silent): the file is
-/// read (inflated, parsed) on another isolate ([VipSvgaDoc.read]); its
+/// read (inflated, parsed) on another isolate ([SvgaDoc.read]); its
 /// pictures are decoded at the size they are drawn, never bigger; the
 /// frames are drawn without blocking the UI; a clip too big to keep as
 /// frames ([VipSvgaCache.clipPixels] — the owner's 75-frame 563 × 1000
@@ -47,10 +44,10 @@ class VipSvgaClip {
   final double scale;
 
   /// D272: the SVGA's own sounds (its `audios`), with their timing.
-  final List<VipSvgaSound> sounds;
+  final List<SvgaSound> sounds;
 
   /// D272: a big clip drawn as it plays (no frames kept).
-  final VipSvgaLive? live;
+  final SvgaLive? live;
 
   /// The frame count when [frames] does not hold them ([live]).
   final int? frameTotal;
@@ -277,388 +274,6 @@ class VipSvgaClip {
   }
 }
 
-/// D272: one sound of an SVGA (`MovieEntity.audios`): [bytes] (MP3) start
-/// at [startFrame] (from [startTime] ms into the sound) until [endFrame];
-/// [totalTime] is the sound's length (ms; 0 when the file does not say).
-@immutable
-class VipSvgaSound {
-  const new({
-    required this.key,
-    required this.startFrame,
-    required this.endFrame,
-    required this.bytes,
-    this.startTime = 0,
-    this.totalTime = 0,
-  });
-
-  final String key;
-  final int startFrame;
-  final int endFrame;
-  final int startTime;
-  final int totalTime;
-  final Uint8List bytes;
-
-  GiftSoundClip get clip => GiftSoundClip(
-    key: key,
-    startFrame: startFrame,
-    endFrame: endFrame,
-    bytes: bytes,
-    startAt: Duration(milliseconds: startTime),
-  );
-}
-
-/// D272: an SVGA read into plain data (on another isolate: [read]) — its
-/// canvas, its pictures still encoded, each sprite's frames and its
-/// sounds. Nothing here is decoded or drawn yet.
-@immutable
-class VipSvgaDoc {
-  const new({
-    required this.viewBox,
-    required this.fps,
-    required this.frameCount,
-    required this.images,
-    required this.sprites,
-    required this.frameKeys,
-    required this.drawn,
-    required this.sounds,
-  });
-
-  /// Reads [bytes] here (the isolate's work; tests).
-  factory parse(Uint8List bytes) {
-    final movie = MovieEntity.fromBuffer(ZLibCodec().decode(bytes));
-    final frameCount = math.max(1, movie.params.frames);
-    final audioKeys = {for (final a in movie.audios) a.audioKey};
-    final images = <String, Uint8List>{};
-    final mp3 = <String, Uint8List>{};
-    movie.images.forEach((key, value) {
-      final data = value is Uint8List ? value : Uint8List.fromList(value);
-      final id3 =
-          data.length > 3 &&
-          data[0] == 0x49 &&
-          data[1] == 0x44 &&
-          data[2] == 0x33;
-      (audioKeys.contains(key) || id3 ? mp3 : images)[key] = data;
-    });
-    final sprites = <VipSvgaSprite>[];
-    final frameKeys = [for (var i = 0; i < frameCount; i++) <String>[]];
-    final drawn = <String, Size>{};
-    for (final sprite in movie.sprites) {
-      final key = sprite.imageKey;
-      if (!images.containsKey(key)) continue;
-      final n = math.min(sprite.frames.length, frameCount);
-      final data = Float32List(n * VipSvgaSprite.stride);
-      var w = 0.0;
-      var h = 0.0;
-      for (var i = 0; i < n; i++) {
-        final f = sprite.frames[i];
-        final alpha = f.hasAlpha() ? f.alpha : 1.0;
-        if (alpha <= 0 || !f.hasLayout()) continue;
-        final t = f.hasTransform() ? f.transform : null;
-        final a = t?.a ?? 1.0;
-        final b = t?.b ?? 0.0;
-        final c = t?.c ?? 0.0;
-        final d = t?.d ?? 1.0;
-        data.setAll(i * VipSvgaSprite.stride, [
-          alpha.clamp(0, 1).toDouble(),
-          f.layout.width,
-          f.layout.height,
-          a,
-          b,
-          c,
-          d,
-          t?.tx ?? 0.0,
-          t?.ty ?? 0.0,
-        ]);
-        frameKeys[i].add(key);
-        w = math.max(w, f.layout.width * math.sqrt(a * a + b * b));
-        h = math.max(h, f.layout.height * math.sqrt(c * c + d * d));
-      }
-      sprites.add(VipSvgaSprite(imageKey: key, frames: data));
-      final was = drawn[key];
-      drawn[key] = Size(
-        math.max(w, was?.width ?? 0),
-        math.max(h, was?.height ?? 0),
-      );
-    }
-    final sounds = [
-      for (final a in movie.audios)
-        if (mp3[a.audioKey] case final bytes?)
-          VipSvgaSound(
-            key: a.audioKey,
-            startFrame: a.startFrame,
-            // A sound without its end lasts the whole clip.
-            endFrame: a.endFrame > a.startFrame ? a.endFrame : frameCount,
-            startTime: a.startTime,
-            totalTime: a.totalTime,
-            bytes: bytes,
-          ),
-    ];
-    return VipSvgaDoc(
-      viewBox: Size(movie.params.viewBoxWidth, movie.params.viewBoxHeight),
-      fps: movie.params.fps <= 0 ? 20 : movie.params.fps,
-      frameCount: frameCount,
-      images: images,
-      sprites: sprites,
-      frameKeys: frameKeys,
-      drawn: drawn,
-      sounds: sounds,
-    );
-  }
-
-  final Size viewBox;
-  final int fps;
-  final int frameCount;
-
-  /// The pictures, still encoded (PNG / JPEG / WebP), by key.
-  final Map<String, Uint8List> images;
-  final List<VipSvgaSprite> sprites;
-
-  /// The pictures each frame draws.
-  final List<List<String>> frameKeys;
-
-  /// The biggest each picture is drawn (canvas units): it is never decoded
-  /// bigger than that.
-  final Map<String, Size> drawn;
-  final List<VipSvgaSound> sounds;
-
-  int get encodedBytes =>
-      images.values.fold(0, (sum, b) => sum + b.length) +
-      sounds.fold(0, (sum, s) => sum + s.bytes.length);
-
-  /// Reads [bytes] (zlib SVGA 2.x) on another isolate.
-  static Future<VipSvgaDoc> read(Uint8List bytes) =>
-      compute(VipSvgaDoc.parse, bytes);
-
-  /// The size [key] is decoded at for a canvas drawn at [scale]: the
-  /// biggest it is drawn, at most its own size ([natural]).
-  ({int width, int height}) decodeSize(String key, Size natural, double scale) {
-    final d = drawn[key] ?? natural;
-    final k = math.min(
-      1,
-      math.max(
-        d.width * scale / math.max(1, natural.width),
-        d.height * scale / math.max(1, natural.height),
-      ),
-    );
-    return (
-      width: math.max(1, (natural.width * k).ceil()),
-      height: math.max(1, (natural.height * k).ceil()),
-    );
-  }
-
-  /// Decodes picture [key] for a canvas drawn at [scale] (by the engine,
-  /// off the UI thread); null when it cannot be read.
-  Future<ui.Image?> decode(String key, double scale) async {
-    final bytes = images[key];
-    if (bytes == null) return null;
-    ui.ImmutableBuffer? buffer;
-    ui.ImageDescriptor? descriptor;
-    ui.Codec? codec;
-    try {
-      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-      descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final size = decodeSize(
-        key,
-        Size(descriptor.width.toDouble(), descriptor.height.toDouble()),
-        scale,
-      );
-      codec = await descriptor.instantiateCodec(
-        targetWidth: size.width,
-        targetHeight: size.height,
-      );
-      return (await codec.getNextFrame()).image;
-    } on Object catch (e) {
-      debugPrint('VipSvgaDoc($key): $e');
-      return null;
-    } finally {
-      codec?.dispose();
-      descriptor?.dispose();
-      buffer?.dispose();
-    }
-  }
-
-  /// Frame [index] on [canvas] (in the SVGA's own units) from the decoded
-  /// [pictures] (a missing one is left out).
-  void drawFrame(Canvas canvas, int index, Map<String, ui.Image> pictures) {
-    final paint = Paint()
-      ..filterQuality = FilterQuality.medium
-      ..isAntiAlias = true;
-    for (final sprite in sprites) {
-      final o = index * VipSvgaSprite.stride;
-      if (o >= sprite.frames.length) continue;
-      final f = sprite.frames;
-      final alpha = f[o];
-      if (alpha <= 0) continue;
-      final bitmap = pictures[sprite.imageKey];
-      if (bitmap == null) continue;
-      canvas
-        ..save()
-        ..transform(
-          Float64List.fromList([
-            f[o + 3], f[o + 4], 0, 0, //
-            f[o + 5], f[o + 6], 0, 0,
-            0, 0, 1, 0,
-            f[o + 7], f[o + 8], 0, 1,
-          ]),
-        );
-      paint.color = Color.fromRGBO(0, 0, 0, alpha);
-      canvas
-        ..drawImageRect(
-          bitmap,
-          Rect.fromLTWH(
-            0,
-            0,
-            bitmap.width.toDouble(),
-            bitmap.height.toDouble(),
-          ),
-          Rect.fromLTWH(0, 0, f[o + 1], f[o + 2]),
-          paint,
-        )
-        ..restore();
-    }
-  }
-}
-
-/// One sprite of a [VipSvgaDoc]: per frame [stride] numbers — alpha (0:
-/// not drawn), layout width and height, transform a b c d tx ty.
-@immutable
-class VipSvgaSprite {
-  const new({required this.imageKey, required this.frames});
-
-  static const int stride = 9;
-
-  final String imageKey;
-  final Float32List frames;
-}
-
-/// D272: a clip too big to keep as frames, drawn as it plays: each
-/// playback reads it through its own [VipSvgaReader].
-@immutable
-class VipSvgaLive {
-  const new(this.doc, this.scale);
-
-  final VipSvgaDoc doc;
-
-  /// Device pixels per canvas unit the pictures are decoded for.
-  final double scale;
-}
-
-/// D272: one playback of a [VipSvgaLive] clip: the pictures of the next
-/// [ahead] frames decoded (one at a time, off the UI thread), the ones
-/// behind released. The first [want] completes when its frames are ready
-/// (so the clip starts only when it can play smoothly).
-class VipSvgaReader {
-  new(this.live);
-
-  final VipSvgaLive live;
-
-  /// How far ahead the pictures are decoded: about a second.
-  int get ahead => math.max(6, live.doc.fps);
-
-  final _pictures = <String, ui.Image>{};
-  final _failed = <String>{};
-  int _cursor = 0;
-  bool _loop = false;
-  bool _running = false;
-  bool _disposed = false;
-  Completer<void>? _primed;
-
-  /// The decoded pictures (for painting).
-  Map<String, ui.Image> get pictures => _pictures;
-
-  /// How many pictures are held now (tests: the window stays small).
-  @visibleForTesting
-  int get held => _pictures.length;
-
-  Iterable<int> _window() sync* {
-    final n = live.doc.frameCount;
-    for (var i = 0; i <= ahead; i++) {
-      final f = _cursor + i;
-      if (f < n) {
-        yield f;
-      } else if (_loop) {
-        yield f % n;
-      }
-    }
-  }
-
-  /// Every picture of [frame] is decoded.
-  bool ready(int frame) {
-    if (frame < 0 || frame >= live.doc.frameCount) return false;
-    for (final key in live.doc.frameKeys[frame]) {
-      if (!_pictures.containsKey(key) && !_failed.contains(key)) return false;
-    }
-    return true;
-  }
-
-  /// The clip is at [frame]: decodes ahead of it and releases what is
-  /// behind. Returns when the window is decoded.
-  Future<void> want(int frame, {bool loop = false}) {
-    if (_disposed) return Future.value();
-    _cursor = frame.clamp(0, live.doc.frameCount - 1);
-    _loop = loop;
-    final keep = <String>{
-      for (final f in [if (_cursor > 0) _cursor - 1, ..._window()])
-        ...live.doc.frameKeys[f],
-    };
-    _pictures.removeWhere((key, image) {
-      if (keep.contains(key)) return false;
-      image.dispose();
-      return true;
-    });
-    final primed = _primed ??= Completer<void>();
-    if (!_running) unawaited(_run());
-    return primed.future;
-  }
-
-  String? _next() {
-    for (final f in _window()) {
-      for (final key in live.doc.frameKeys[f]) {
-        if (!_pictures.containsKey(key) && !_failed.contains(key)) return key;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _run() async {
-    _running = true;
-    try {
-      while (!_disposed) {
-        final key = _next();
-        if (key == null) break;
-        final image = await live.doc.decode(key, live.scale);
-        if (_disposed) {
-          image?.dispose();
-          break;
-        }
-        if (image == null) {
-          _failed.add(key);
-        } else {
-          _pictures[key]?.dispose();
-          _pictures[key] = image;
-        }
-      }
-    } finally {
-      _running = false;
-      final primed = _primed;
-      _primed = null;
-      if (primed != null && !primed.isCompleted) primed.complete();
-    }
-  }
-
-  /// Releases every decoded picture.
-  void dispose() {
-    _disposed = true;
-    for (final image in _pictures.values) {
-      image.dispose();
-    }
-    _pictures.clear();
-    final primed = _primed;
-    _primed = null;
-    if (primed != null && !primed.isCompleted) primed.complete();
-  }
-}
-
 /// D272: the one VIP SVGA sound playing (an entrance's car or banner): a
 /// new one stops the one before, so two entrances never sound together.
 abstract final class VipSvgaAudio {
@@ -669,10 +284,10 @@ abstract final class VipSvgaAudio {
   static GiftEffectSound? get current => _current;
 
   /// Starts [sounds] (stopping the one playing); returns its handle.
-  static GiftEffectSound start(List<VipSvgaSound> sounds) {
+  static GiftEffectSound start(List<SvgaSound> sounds) {
     final previous = _current;
     if (previous != null) unawaited(previous.stop());
-    final sound = GiftEffectSound([for (final s in sounds) s.clip]);
+    final sound = GiftEffectSound.fromSvga(sounds);
     _current = sound;
     return sound;
   }
@@ -688,14 +303,10 @@ abstract final class VipSvgaAudio {
 /// The shared, bounded cache of [VipSvgaClip]s (url × size bucket).
 abstract final class VipSvgaCache {
   /// Fetches the file's bytes (the gift art cache); tests replace it.
-  static Future<Uint8List> Function(String url) fetch = _fetch;
-
-  static Future<Uint8List> _fetch(String url) {
-    if (!GiftArtCache.allowed(url)) {
-      return Future.error(ArgumentError.value(url, 'url', 'not allowed'));
-    }
-    return GiftArtCache.instance.load(url);
-  }
+  /// D272b: the shared engine's ([SvgaDocs.fetch]).
+  static Future<Uint8List> Function(String url) get fetch => SvgaDocs.fetch;
+  static set fetch(Future<Uint8List> Function(String url) f) =>
+      SvgaDocs.fetch = f;
 
   /// Total pixels of the frames kept (≈ 4 bytes each): 24 M ≈ 96 MB.
   static int maxPixels = 24 * 1000 * 1000;
@@ -705,13 +316,8 @@ abstract final class VipSvgaCache {
   /// [VipSvgaClip.live] instead of evicting everything else.
   static int clipPixels = 12 * 1000 * 1000;
 
-  /// D272: the read files kept (url → doc), the latest last: a few, so the
-  /// next entrance of the same tier starts at once.
-  static int maxDocs = 3;
-
   static final _clips = <String, Future<VipSvgaClip?>>{};
   static final _pixels = <String, int>{};
-  static final _docs = <String, Future<VipSvgaDoc?>>{};
 
   /// The longest side a frame is drawn at, for a box [maxSide] device
   /// pixels across: the next power of two from 64 to 1024.
@@ -726,29 +332,7 @@ abstract final class VipSvgaCache {
   /// D272: reads [url] ahead (downloads it and parses it on another
   /// isolate) so it plays at once when it is shown (a VIP's entrance as
   /// their join arrives). Never throws.
-  static Future<void> warm(String url) => _doc(url).then((_) {});
-
-  static Future<VipSvgaDoc?> _doc(String url) {
-    final hit = _docs.remove(url);
-    if (hit != null) {
-      _docs[url] = hit; // most recently used last.
-      return hit;
-    }
-    final future = () async {
-      try {
-        return await VipSvgaDoc.read(await fetch(url));
-      } on Object catch (e) {
-        debugPrint('VipSvgaCache($url): $e');
-        unawaited(_docs.remove(url));
-        return null;
-      }
-    }();
-    _docs[url] = future;
-    while (_docs.length > math.max(1, maxDocs)) {
-      unawaited(_docs.remove(_docs.keys.first));
-    }
-    return future;
-  }
+  static Future<void> warm(String url) => SvgaDocs.warm(url);
 
   /// [url]'s clip for frames [maxSide] device pixels at most (null when it
   /// cannot be read; tried again on the next call). [live]: a clip too big
@@ -799,7 +383,7 @@ abstract final class VipSvgaCache {
   static void clear() {
     _clips.clear();
     _pixels.clear();
-    _docs.clear();
+    SvgaDocs.clear();
   }
 
   static Future<VipSvgaClip?> _decode(
@@ -807,7 +391,7 @@ abstract final class VipSvgaCache {
     int side, {
     required bool live,
   }) async {
-    final doc = await _doc(url);
+    final doc = await SvgaDocs.doc(url);
     if (doc == null) return null;
     try {
       return await render(doc, side, live: live);
@@ -823,7 +407,7 @@ abstract final class VipSvgaCache {
   /// [clipPixels] — drawn [live] as it plays (or, not [live], at a smaller
   /// side that fits).
   static Future<VipSvgaClip> render(
-    VipSvgaDoc doc,
+    SvgaDoc doc,
     int side, {
     bool live = true,
   }) async {
@@ -845,7 +429,7 @@ abstract final class VipSvgaCache {
           frames: const [],
           scale: scaleOf(s),
           sounds: doc.sounds,
-          live: VipSvgaLive(doc, scaleOf(s)),
+          live: SvgaLive(doc, scaleOf(s)),
           frameTotal: doc.frameCount,
         );
       }
@@ -1080,7 +664,7 @@ class VipSvga extends StatefulWidget {
 
 class _VipSvgaState extends State<VipSvga> with SingleTickerProviderStateMixin {
   VipSvgaClip? _clip;
-  VipSvgaReader? _reader;
+  SvgaReader? _reader;
   GiftEffectSound? _sound;
   AppLifecycleListener? _lifecycle;
   Ticker? _ticker;
@@ -1137,10 +721,10 @@ class _VipSvgaState extends State<VipSvga> with SingleTickerProviderStateMixin {
         }
         if (identical(clip, _clip)) return;
         final live = clip.live;
-        VipSvgaReader? reader;
+        SvgaReader? reader;
         if (live != null && !_still) {
           // A big clip starts once its first second is decoded.
-          reader = VipSvgaReader(live);
+          reader = SvgaReader(live);
           final from = widget.once ? 0 : clip.frameAt(VipSvga.clock());
           await reader.want(from, loop: !widget.once);
           if (!mounted || widget.url != url || _done) {
@@ -1274,7 +858,7 @@ class _ClipPainter extends CustomPainter {
   final int frame;
   final BoxFit fit;
   final VipSvgaNine? nine;
-  final VipSvgaReader? reader;
+  final SvgaReader? reader;
 
   @override
   void paint(Canvas canvas, Size size) {
