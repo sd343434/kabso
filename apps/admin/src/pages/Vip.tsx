@@ -473,6 +473,13 @@ export function PerksEditor({
       </datalist>
       {perks.map((p, i) => (
         <div className="vip-perk" key={i} data-vip-perk={i}>
+          {p.code.trim() === "BADGE" && (
+            // D268: the BADGE perk's art is the badge right after the name.
+            <div className="field" data-vip-name-badge>
+              <strong>{t("vipNameBadgeTitle")}</strong>
+              <p className="muted small">{t("vipNameBadgeHint")}</p>
+            </div>
+          )}
           <div className="form-grid">
             <div className="field">
               <label htmlFor={`vp-code-${i}`}>{t("vipPerkCode")}</label>
@@ -608,7 +615,9 @@ export function PerksEditor({
               <label className="btn small">
                 {uploading === `${i}:still`
                   ? t("vipUploading")
-                  : t("vipUploadStill")}
+                  : p.code.trim() === "BADGE"
+                    ? t("vipNameBadgeUpload")
+                    : t("vipUploadStill")}
                 <input
                   type="file"
                   hidden
@@ -798,7 +807,7 @@ function TierForm({
             <input
               type="color"
               aria-label={t("vipNameColor")}
-              value={COLOR.test(draft.nameColor) ? draft.nameColor : "#FFD12E"}
+              value={COLOR.test(draft.nameColor) ? draft.nameColor : "#FFC928"}
               onChange={(e) =>
                 setDraft((d) => ({
                   ...d,
@@ -811,7 +820,7 @@ function TierForm({
               data-vip-name-color
               className="ltr mono"
               maxLength={7}
-              placeholder="#FFD12E"
+              placeholder="#FFC928"
               value={draft.nameColor}
               onChange={set("nameColor")}
             />

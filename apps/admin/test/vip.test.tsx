@@ -285,5 +285,9 @@ describe("D252 VIP in the panel", () => {
     expect(html).toContain('data-vip-amount="BADGE"');
     expect(html).toContain('data-vip-upload="0:still"');
     expect(html).toContain('data-vip-upload="0:animation"');
+    // D268: the BADGE perk is labelled as the badge beside the name.
+    expect(html).toContain("data-vip-name-badge");
+    expect(html).toContain("Badge beside the name");
+    expect(html).toContain("Upload the name badge (PNG)");
   });
 });

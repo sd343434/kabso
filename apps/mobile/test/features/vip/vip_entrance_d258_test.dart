@@ -59,7 +59,7 @@ VipTierList _catalog({bool car = true}) => VipTierList(
       name: 'VIP 1',
       level: 1,
       color: 0xFF2E8B3D,
-      nameColor: 0xFFFFD12E,
+      nameColor: 0xFFFFC928,
       priceCoins: 1000000,
       durationDays: 30,
       perks: [

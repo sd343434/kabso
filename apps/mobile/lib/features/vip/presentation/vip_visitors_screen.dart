@@ -115,10 +115,6 @@ class _List extends StatelessWidget {
           ),
           title: Row(
             children: [
-              if (v.user.vip != null) ...[
-                VipNameBadge(vip: v.user.vip, height: 18),
-                const SizedBox(width: KSpacing.xs),
-              ],
               Flexible(
                 child: Text(
                   KFormat.bidiIsolate(name),
@@ -127,6 +123,11 @@ class _List extends StatelessWidget {
                   style: t.body.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
+              // D268 (owner): the VIP badge right after the name.
+              if (v.user.vip != null) ...[
+                const SizedBox(width: KSpacing.xs),
+                VipNameBadge(vip: v.user.vip, height: 18),
+              ],
             ],
           ),
           subtitle: Text(

@@ -371,10 +371,6 @@ class VipEntranceBanner extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!hasArt) ...[
-                VipNameBadge(vip: look.vip, height: height * 0.34),
-                SizedBox(width: height * 0.08),
-              ],
               Flexible(
                 child: Text(
                   l10n.agentEntranceJoined(KFormat.bidiIsolate(name)),
@@ -390,6 +386,11 @@ class VipEntranceBanner extends StatelessWidget {
                   ),
                 ),
               ),
+              // D268 (owner): the VIP badge after the name, never before.
+              if (!hasArt) ...[
+                SizedBox(width: height * 0.08),
+                VipNameBadge(vip: look.vip, height: height * 0.34),
+              ],
             ],
           ),
         );

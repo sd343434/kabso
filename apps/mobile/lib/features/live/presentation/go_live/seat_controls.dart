@@ -1084,14 +1084,6 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               children: [
                 Row(
                   children: [
-                    // D258 (owner): the VIP badge before the name.
-                    if (vip != null) ...[
-                      VipNameBadge(
-                        vip: vip,
-                        height: inlineAgentBadgeHeight(_nameSize),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
                     Flexible(
                       child: Text(
                         KFormat.bidiIsolate(name),
@@ -1104,6 +1096,15 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                         ),
                       ),
                     ),
+                    // D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the
+                    // VIP badge right after the name.
+                    if (vip != null) ...[
+                      const SizedBox(width: 4),
+                      VipNameBadge(
+                        vip: vip,
+                        height: inlineAgentBadgeHeight(_nameSize),
+                      ),
+                    ],
                     // D185 (owner): a recharge agent's badge after the name.
                     RechargeAgentInlineBadge(
                       code: agentCode,

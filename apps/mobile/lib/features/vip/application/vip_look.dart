@@ -68,14 +68,26 @@ class VipLook {
 
   VipPerk? perk(String code) => perks[code];
 
-  /// The badge art: the BADGE perk's own, else the tier's crest.
-  ({String? animation, String? still}) get badgeArt {
+  /// D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the badge after a
+  /// member's name — the BADGE perk's own art («شارة بجانب الاسم» in the
+  /// panel: a wide pill, the owner's VIP 1 one 1943 × 634), and its width
+  /// over its height (the perk's art size, else the owner's template). Null
+  /// without the perk's art: the app draws a «VIPn» pill instead. The
+  /// tier's central medal (`badgeStill` / `badgeAnimation`) is never used
+  /// beside a name any more (it stays on the VIP page).
+  ({String? animation, String? still, double aspect})? get nameBadgeArt {
     final p = perks[VipPerks.badge];
-    if (p != null && (p.still != null || p.animation != null)) {
-      return (animation: p.animation, still: p.still);
-    }
-    return (animation: tier?.badgeAnimation, still: tier?.badgeStill);
+    if (p == null || (p.still == null && p.animation == null)) return null;
+    final w = p.artWidth;
+    final h = p.artHeight;
+    final aspect = w != null && h != null && w > 0 && h > 0
+        ? (w / h).clamp(0.5, 8.0)
+        : nameBadgeTemplateAspect;
+    return (animation: p.animation, still: p.still, aspect: aspect);
   }
+
+  /// The owner's VIP 1 name badge (1943 × 634).
+  static const double nameBadgeTemplateAspect = 1943 / 634;
 
   /// The name colour (CHAT_NAME_COLOR): a bright tint of the tier's colour,
   /// so it reads on the dark chat box and on the tier's own bubble; or null.

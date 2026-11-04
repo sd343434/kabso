@@ -443,6 +443,9 @@ class MeHubScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  // D258: my VIP badge while my membership is active —
+                  // D268 (owner): right after the name.
+                  if (myVip != null) VipNameBadge(vip: myVip, height: 22),
                   // D163: the level badge beside the name.
                   ProfileLevels(
                     onOpen: () => push(AppRoutes.levels),
@@ -455,8 +458,6 @@ class MeHubScreen extends ConsumerWidget {
                       badge: stats?.rechargeBadge,
                       height: 26,
                     ),
-                  // D258: my VIP badge while my membership is active.
-                  if (myVip != null) VipNameBadge(vip: myVip, height: 22),
                 ],
               ),
             ),

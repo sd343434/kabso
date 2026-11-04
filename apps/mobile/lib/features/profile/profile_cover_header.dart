@@ -338,6 +338,9 @@ class ProfileInfoBlock extends StatelessWidget {
                   ),
                 ),
               ),
+              // D258 / D268 (owner): the VIP badge right after the name.
+              if (profile.vip != null)
+                VipNameBadge(vip: profile.vip, height: 20),
               if (agentCode case final code?)
                 RechargeAgentBadge(
                   key: ProfileHeaderView.agentBadgeKey,
@@ -353,9 +356,6 @@ class ProfileInfoBlock extends StatelessWidget {
                   key: ProfileHeaderView.rechargeBadgeKey,
                   badge: profile.rechargeBadge,
                 ),
-              // D258: the VIP badge.
-              if (profile.vip != null)
-                VipNameBadge(vip: profile.vip, height: 20),
               // Owner (after D218): «اليوزر فقط بالاعلى وليس بجانب الاسم» —
               // the @username is only in the top bar; this place is kept
               // for a verification mark (none yet).

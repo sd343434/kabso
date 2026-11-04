@@ -6244,10 +6244,10 @@ D265: the ornaments and the edge keep their one-line size; never narrower than i
 ornaments overflow it) over an opaque deep shade of the tier colour (D265: under the art only its fill, inside the
 art's edge, no edge of ours); the name and badges sit **above**
 the bubble, which holds only the message (owner). D265: in **every** chat (the host's flat chat, the audio, podcast and
-video rooms of host and viewers), a text line by a member holding CHAT_BUBBLE takes this layout — line 1 the VIP badge
-(outside the name row), the name in the special colour, the levels and up to 3 medals; line 2 the message alone in
-the bubble — with the author's picture at the start where that chat shows pictures; a VIP without the bubble perk
-gets the badge before the name and the name colour in that chat's own row. **PROFILE_CARD** (`svip_box`, 720 × 1280) 9-sliced to the sheet
+video rooms of host and viewers), a text line by a member holding CHAT_BUBBLE takes this layout — line 1 the name in
+the special colour, the VIP name badge right after it (D268), the levels and up to 3 medals; line 2 the message alone
+in the bubble — with the author's picture at the start where that chat shows pictures; a VIP without the bubble perk
+gets the badge right after the name and the name colour in that chat's own row. **PROFILE_CARD** (`svip_box`, 720 × 1280) 9-sliced to the sheet
 (scales with its width, stretches downwards; the crest rises above it); no white panel: the art's inside is measured
 over a white backdrop and the text turns dark green on a light inside (≥ 4.5:1) or white on a dark one (black
 backdrop); the white panel shows only while it loads. **AVATAR_FRAME** (`svip_frame`): the window is measured on the
@@ -6270,13 +6270,24 @@ either way, `total` counting them all. The app opens it from «الخاص بي V
 
 #### 10.94.10 The special text colour (CHAT_NAME_COLOR, `VipTier.nameColor`)
 
-A tier's `nameColor` (`#RRGGBB`, set in the panel next to its theme `color`; VIP 1: `#FFD12E`, the owner's gold) is
+A tier's `nameColor` (`#RRGGBB`, set in the panel next to its theme `color`; VIP 1: `#FFC928` since D268 — owner «لون
+خط vip1=#FFC928», migration `20270309090000_vip1_name_color_ffc928` moves a VIP 1 still on D258's `#FFD12E`) is
 the colour of its members' text: the app draws their name (chat line, person card, profile, Me hub), their chat
 message (in the VIP bubble) and their entry banner line in that one solid colour — no gradient, outline, shadow or
 animation (owner). Null: no special colour. The theme `color` stays for tabs, borders and the bubble's shades.
 
-**The VIP chat row (owner).** Line 1: the VIP badge, the name, the two levels and up to 3 of the chosen medals, every
-emblem one visible height (the VIP badge sized by what its art shows); line 2: the message alone in the VIP bubble.
+**The VIP chat row (owner).** Line 1: the name, the VIP name badge, the two levels and up to 3 of the chosen medals,
+every emblem one height; line 2: the message alone in the VIP bubble.
+
+**The VIP name badge (D268, owner: «ايقونة vip دائماً تأتي بعد الاسم وازل الميدالية التي قبل الاسم»).** Wherever a
+VIP member's name shows with their badge (every chat mode, the person card, the profile header, the Me hub, the
+viewer and visitor lists, the plain entry banner) the badge comes **right after** the name; nothing VIP comes before
+it. Its art is the **BADGE perk's own** still / SVGA (the panel labels that perk «شارة بجانب الاسم»; the owner's VIP 1
+art is a wide pill, peacock + «VIP1», 1943 × 634), drawn at the row's emblem height and at its natural width (the
+perk's `artWidth` / `artHeight`, else 1943 : 634; never squeezed into a square), its transparent sides trimmed
+(measured once per still on the device). Without that art: a small «VIPn» pill in the tier's colour. The tier's
+central medal (`VipTier.badgeStill` / `badgeAnimation`) is **not** used beside a name any more; it stays on the VIP
+page.
 **Medals cap.** The profile showcase holds at most 3 medals (`SetMedalShowcaseRequest` `maxItems` 3, 400 `too_big`
 beyond; was 6); a showcase saved before is read as its first 3 (trimmed on read, no migration); chat lines carry at
 most 3 (`LiveChatAuthorBadges.medals`).

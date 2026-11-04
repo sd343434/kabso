@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -14,8 +15,13 @@ import 'package:material_ui/material_ui.dart';
 /// `UserSummary.vip` and the session's VIP catalogue; nothing is shown
 /// without a VIP.
 
-/// The VIP badge beside a name ([height] tall): the owner's badge art, else a
-/// small «VIPn» pill in the tier's colour.
+/// The VIP badge after a name ([height] tall, the row's emblem height).
+/// D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم وازل الميدالية التي قبل
+/// الاسم»): always right AFTER the name, nothing VIP before it — the BADGE
+/// perk's own art («شارة بجانب الاسم», a wide pill) at its natural width
+/// (never squeezed into a square; its transparent sides trimmed so the gaps
+/// beside it are the row's own), else a small «VIPn» pill in the tier's
+/// colour. The tier's central medal is not shown beside a name.
 class VipNameBadge extends ConsumerWidget {
   const new({required this.vip, required this.height, super.key});
 
@@ -30,18 +36,13 @@ class VipNameBadge extends ConsumerWidget {
     if (look == null || (look.tier != null && !look.has(VipPerks.badge))) {
       return const SizedBox.shrink();
     }
-    final art = look.badgeArt;
-    if (art.still != null || art.animation != null) {
-      // The owner's medal (`svip_medals`) at the level emblems' height —
-      // by what shows (D234: every emblem the same height on screen).
-      return SizedBox.square(
+    if (look.nameBadgeArt case final art?) {
+      return _NameBadgeArt(
         key: badgeKey,
-        dimension: height,
-        child: _VisibleFit(
-          animation: art.animation,
-          still: art.still,
-          size: height,
-        ),
+        animation: art.animation,
+        still: art.still,
+        aspect: art.aspect,
+        height: height,
       );
     }
     return Container(
@@ -69,6 +70,129 @@ class VipNameBadge extends ConsumerWidget {
           color: const Color(0xFFFFFFFF),
           shadows: const [Shadow(color: Color(0x66000000), blurRadius: 2)],
         ),
+      ),
+    );
+  }
+}
+
+/// D268: the name badge's art [height] tall at its natural width
+/// ([aspect] × [height]), its transparent sides trimmed: measured once per
+/// still (the columns with any visible pixel), the whole box until then.
+class _NameBadgeArt extends StatefulWidget {
+  const new({
+    required this.animation,
+    required this.still,
+    required this.aspect,
+    required this.height,
+    super.key,
+  });
+
+  final String? animation;
+  final String? still;
+  final double aspect;
+  final double height;
+
+  /// The visible columns of each still measured (fractions of its width).
+  static final Map<String, (double, double)> _visible = {};
+
+  @override
+  State<_NameBadgeArt> createState() => _NameBadgeArtState();
+}
+
+class _NameBadgeArtState extends State<_NameBadgeArt> {
+  ImageStream? _stream;
+  ImageStreamListener? _listener;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _measure();
+  }
+
+  @override
+  void didUpdateWidget(_NameBadgeArt old) {
+    super.didUpdateWidget(old);
+    if (old.still != widget.still) _measure();
+  }
+
+  void _measure() {
+    _stop();
+    final still = widget.still;
+    if (still == null || _NameBadgeArt._visible.containsKey(still)) return;
+    final stream = vipArtImage(still)
+        .resolve(createLocalImageConfiguration(context));
+    final listener = ImageStreamListener((info, _) {
+      _stop();
+      unawaited(() async {
+        final cols = await _visibleColumns(info.image);
+        info.dispose();
+        if (cols == null) return;
+        _NameBadgeArt._visible[still] = cols;
+        if (mounted && widget.still == still) setState(() {});
+      }());
+    }, onError: (_, _) => _stop());
+    _stream = stream..addListener(listener);
+    _listener = listener;
+  }
+
+  void _stop() {
+    if (_listener case final l?) _stream?.removeListener(l);
+    _stream = null;
+    _listener = null;
+  }
+
+  /// The first and last columns (fractions) with a pixel over 3 % opaque.
+  static Future<(double, double)?> _visibleColumns(ui.Image image) async {
+    final data = await image.toByteData();
+    if (data == null) return null;
+    final w = image.width;
+    final h = image.height;
+    bool seen(int x) {
+      for (var y = 0; y < h; y += 2) {
+        if (data.getUint8((y * w + x) * 4 + 3) > 8) return true;
+      }
+      return false;
+    }
+
+    var l = 0;
+    while (l < w && !seen(l)) {
+      l++;
+    }
+    if (l >= w) return null;
+    var r = w - 1;
+    while (r > l && !seen(r)) {
+      r--;
+    }
+    return (l / w, (r + 1) / w);
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final full = widget.height * widget.aspect;
+    final (l, r) = _NameBadgeArt._visible[widget.still] ?? (0.0, 1.0);
+    return SizedBox(
+      width: full * (r - l),
+      height: widget.height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: -full * l,
+            top: 0,
+            width: full,
+            height: widget.height,
+            child: VipAnimatedArt(
+              animation: widget.animation,
+              still: widget.still,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -306,70 +430,9 @@ class VipMicWave extends ConsumerWidget {
   }
 }
 
-/// D258: an art scaled so its visible part (not its canvas) fills [size]
-/// tall: the owner's medal shows 88 % of its canvas (template), measured on
-/// the device from the decoded SVGA when it plays.
-class _VisibleFit extends StatefulWidget {
-  const new({required this.animation, required this.still, required this.size});
-
-  final String? animation;
-  final String? still;
-  final double size;
-
-  /// The owner's medal template (`svip_1_medals`, 500 × 500): y 36 – 475.
-  static const template = Rect.fromLTRB(0.008, 0.072, 0.992, 0.95);
-
-  @override
-  State<_VisibleFit> createState() => _VisibleFitState();
-}
-
-class _VisibleFitState extends State<_VisibleFit> {
-  Rect _bounds = _VisibleFit.template;
-  String? _measured;
-
-  void _measure(double side) {
-    final url = widget.animation;
-    if (url == null || !VipSvga.enabled || !VipAnimatedArt.animationsEnabled) {
-      return;
-    }
-    if (_measured == url) return;
-    _measured = url;
-    unawaited(() async {
-      final clip = await VipSvgaCache.load(url, maxSide: side);
-      final bounds = await clip?.visibleBounds();
-      if (bounds == null || !mounted) return;
-      setState(() => _bounds = bounds);
-    }());
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scale = 1 / _bounds.height.clamp(0.3, 1.0);
-    final art = widget.size * scale;
-    _measure(art * MediaQuery.devicePixelRatioOf(context));
-    // The visible part's centre on the box's centre.
-    final dy = (0.5 - _bounds.center.dy) * art;
-    final dx = (0.5 - _bounds.center.dx) * art;
-    return OverflowBox(
-      maxWidth: art,
-      maxHeight: art,
-      child: Transform.translate(
-        offset: Offset(dx, dy),
-        child: SizedBox.square(
-          dimension: art,
-          child: VipAnimatedArt(
-            animation: widget.animation,
-            still: widget.still,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// D258 (CHAT_NAME_COLOR, owner): a member's name (or line) in their
 /// tier's special colour — one solid colour set in the panel, apart from the
-/// tier's theme colour (VIP 1 #FFD12E, the «Syria» gold): no gradient, no
+/// tier's theme colour (VIP 1 #FFC928 since D268, was #FFD12E): no gradient, no
 /// outline, no shadow (owner). Exactly the text's own colour replaced, as a
 /// `TextStyle(color:)` would; without the perk or a colour: [child].
 class VipNameShimmer extends ConsumerWidget {

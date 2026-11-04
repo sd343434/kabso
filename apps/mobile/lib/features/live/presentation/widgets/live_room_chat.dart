@@ -844,25 +844,11 @@ class LiveCpChatBubble extends StatelessWidget {
   );
 }
 
-/// D265: a chat row's name [row] (a [LiveChatNameRow]) with the author's
-/// VIP badge before it, as tall as the row's emblems ([height]): outside the
-/// row, so the name keeps its least room ([LiveChatNameRow.nameMin]) beside
-/// the levels. [row] alone without a VIP.
-Widget liveChatVipLead({
-  required UserVip? vip,
-  required double height,
-  required Widget row,
-}) {
-  if (vip == null) return row;
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      VipNameBadge(vip: vip, height: height * 0.92),
-      const SizedBox(width: 4),
-      Flexible(child: row),
-    ],
-  );
-}
+/// D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the author's VIP badge
+/// for a chat row's [LiveChatNameRow.nameBadge] — right after the name, as
+/// tall as the row's emblems ([height]); null without a VIP.
+Widget? liveChatVipBadge({required UserVip? vip, required double height}) =>
+    vip == null ? null : VipNameBadge(vip: vip, height: height * 0.92);
 
 /// D265: a chat row's [name] in the author's VIP colour; [name] alone
 /// without a VIP.
@@ -1047,33 +1033,33 @@ class LiveChatAuthoredLine extends StatelessWidget {
               // it at one height; only the name shortens.
               Padding(
                 padding: const EdgeInsets.only(top: nameTop),
-                child: liveChatVipLead(
-                  vip: cp ? null : vip,
-                  height: badgeRowHeight,
-                  row: LiveChatNameRow(
-                    name: liveChatVipName(
-                      vip: cp ? null : vip,
-                      name: tapProfile(
-                        Text(
-                          KFormat.bidiIsolate(name),
-                          key: nameKey,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textScaler: scaler,
-                          style: context.textStyles.caption.copyWith(
-                            fontSize: nameSize,
-                            height: 1.25,
-                            color: cp ? LiveCpChatBubble.name : nameColor,
-                            fontWeight: FontWeight.w800,
-                            shadows: const [
-                              Shadow(color: Color(0x66000000), blurRadius: 2),
-                            ],
-                          ),
+                child: LiveChatNameRow(
+                  nameBadge: liveChatVipBadge(
+                    vip: cp ? null : vip,
+                    height: badgeRowHeight,
+                  ),
+                  name: liveChatVipName(
+                    vip: cp ? null : vip,
+                    name: tapProfile(
+                      Text(
+                        KFormat.bidiIsolate(name),
+                        key: nameKey,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textScaler: scaler,
+                        style: context.textStyles.caption.copyWith(
+                          fontSize: nameSize,
+                          height: 1.25,
+                          color: cp ? LiveCpChatBubble.name : nameColor,
+                          fontWeight: FontWeight.w800,
+                          shadows: const [
+                            Shadow(color: Color(0x66000000), blurRadius: 2),
+                          ],
                         ),
                       ),
                     ),
-                    badges: row.isNotEmpty ? row : null,
                   ),
+                  badges: row.isNotEmpty ? row : null,
                 ),
               ),
               if ((premiumTier, username) case (final tier?, final handle?))
@@ -1365,12 +1351,21 @@ class LiveChatBadgeRow extends StatelessWidget {
 /// [badges] (role pills and level emblems, one height). Only the name
 /// shortens (an ellipsis); the badges keep their size and leave the name at
 /// least [nameMin] (beyond that their own row fades out at the end).
+/// D268: a VIP author's [nameBadge] right after the name, before the
+/// badges; it keeps its width (the badges give way first).
 class LiveChatNameRow extends StatelessWidget {
-  const new({super.key, this.name, this.badges, this.heart = false});
+  const new({
+    super.key,
+    this.name,
+    this.badges,
+    this.heart = false,
+    this.nameBadge,
+  });
 
   final Widget? name;
   final Widget? badges;
   final bool heart;
+  final Widget? nameBadge;
 
   static const double gap = 6;
 
@@ -1380,7 +1375,18 @@ class LiveChatNameRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = this.name;
-    final badges = this.badges;
+    final badges = switch ((nameBadge, this.badges)) {
+      (null, final b) => b,
+      (final v?, null) => v,
+      (final v?, final b?) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          v,
+          const SizedBox(width: 4),
+          Flexible(child: b),
+        ],
+      ),
+    };
     return LayoutBuilder(
       builder: (context, box) => Row(
         mainAxisSize: MainAxisSize.min,
@@ -2144,41 +2150,41 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
           // emblems in the same row at one height — the name alone shortens
           // with an ellipsis.
           if (name != null || badges.isNotEmpty)
-            liveChatVipLead(
-              vip: w.cp || name == null ? null : w.vip,
-              height: LiveChatInlineRow.badgeHeight,
-              row: LiveChatNameRow(
-                name: name == null
-                    ? null
-                    : liveChatVipName(
-                        vip: w.cp ? null : w.vip,
-                        name: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: w.onProfile,
-                          child: Text(
-                            KFormat.bidiIsolate(name),
-                            key: LiveChatInlineRow.nameKey,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textScaler: scaler,
-                            style: base.copyWith(
-                              fontSize: LiveChatInlineRow.nameSize,
-                              color: w.cp
-                                  ? LiveCpChatBubble.name
-                                  : LiveChatInlineRow.nameColor,
-                              fontWeight: FontWeight.w800,
-                            ),
+            LiveChatNameRow(
+              nameBadge: liveChatVipBadge(
+                vip: w.cp || name == null ? null : w.vip,
+                height: LiveChatInlineRow.badgeHeight,
+              ),
+              name: name == null
+                  ? null
+                  : liveChatVipName(
+                      vip: w.cp ? null : w.vip,
+                      name: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: w.onProfile,
+                        child: Text(
+                          KFormat.bidiIsolate(name),
+                          key: LiveChatInlineRow.nameKey,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: scaler,
+                          style: base.copyWith(
+                            fontSize: LiveChatInlineRow.nameSize,
+                            color: w.cp
+                                ? LiveCpChatBubble.name
+                                : LiveChatInlineRow.nameColor,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                heart: w.cp,
-                badges: badges.isNotEmpty
-                    ? KeyedSubtree(
-                        key: LiveChatInlineRow.badgesKey,
-                        child: badges,
-                      )
-                    : null,
-              ),
+                    ),
+              heart: w.cp,
+              badges: badges.isNotEmpty
+                  ? KeyedSubtree(
+                      key: LiveChatInlineRow.badgesKey,
+                      child: badges,
+                    )
+                  : null,
             ),
           // 2. D234: the showcased medals (≤ 5) under the name row.
           if (w.badges?.medals case final medals? when medals.isNotEmpty) ...[

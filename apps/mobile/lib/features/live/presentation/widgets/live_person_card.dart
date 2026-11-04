@@ -608,15 +608,6 @@ class _Body extends ConsumerWidget {
               iconKey: l.level!.iconKey,
             ),
           ),
-      // D258: the VIP badge first.
-      // (As tall as the level badges beside it.)
-      if (profile.vip != null)
-        VipNameBadge(
-          vip: profile.vip,
-          // The level badges here show ≈ 28 pt (their art is 1.4 × the
-          // badge height): the medal matches them (measured).
-          height: KMetrics.badgeHeight * 1.45,
-        ),
       if (rechargeBadgeShows(profile.rechargeBadge))
         RechargeTierBadge(
           key: LivePersonSheet.rechargeBadgeKey,
@@ -703,32 +694,45 @@ class _Body extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(height: top),
-        // The name (opens the profile, like the picture).
-        Semantics(
-          header: true,
-          button: true,
-          child: GestureDetector(
-            key: LivePersonSheet.nameKey,
-            onTap: () => _openProfile(context, username),
-            // D258: the VIP name's gold (CHAT_NAME_COLOR).
-            child: VipNameShimmer(
-              vip: profile.vip,
-              child: Text(
-                profile.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: text.title.copyWith(
-                  color: look.ink,
-                  fontSize: 20,
-                  // D258: the special colour at semi-bold (owner).
-                  fontWeight: profile.vip != null
-                      ? FontWeight.w600
-                      : FontWeight.w700,
+        // The name (opens the profile, like the picture). D268 (owner:
+        // «ايقونة vip دائماً تأتي بعد الاسم»): the VIP badge right after it.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Semantics(
+                header: true,
+                button: true,
+                child: GestureDetector(
+                  key: LivePersonSheet.nameKey,
+                  onTap: () => _openProfile(context, username),
+                  // D258: the VIP name's gold (CHAT_NAME_COLOR).
+                  child: VipNameShimmer(
+                    vip: profile.vip,
+                    child: Text(
+                      profile.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: text.title.copyWith(
+                        color: look.ink,
+                        fontSize: 20,
+                        // D258: the special colour at semi-bold (owner).
+                        fontWeight: profile.vip != null
+                            ? FontWeight.w600
+                            : FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            if (profile.vip != null) ...[
+              const SizedBox(width: 6),
+              // As tall as the name's line.
+              VipNameBadge(vip: profile.vip, height: 24),
+            ],
+          ],
         ),
         const SizedBox(height: 2),
         // «ID: username», copied with one tap.

@@ -48,7 +48,7 @@ VipPerk _perk(
 VipTier _tier(String code, int level, int color, List<VipPerk> perks) =>
     VipTier(
       // VIP 1's special text colour: the owner's gold (§10.94.10).
-      nameColor: code == 'VIP_1' ? 0xFFFFD12E : null,
+      nameColor: code == 'VIP_1' ? 0xFFFFC928 : null,
       id: 'id-$code',
       code: code,
       name: code,
@@ -139,11 +139,13 @@ void main() {
       VipPerks.profileCard,
     });
     expect(one.nameColor, vipNameTint(const Color(0xFF2E8B3D)));
-    expect(one.badgeArt.still, isNull);
+    // D268: no BADGE art → no name-badge art (the «VIPn» pill).
+    expect(one.nameBadgeArt, isNull);
     final two = vipLookOf(_vip2, catalog)!;
     // VIP 2 holds VIP 1's frame, colour, bubble and card, and its own badge.
     expect(two.has(VipPerks.avatarFrame), isTrue);
-    expect(two.badgeArt.still, 'https://cdn.test/vip/top_2.png');
+    expect(two.nameBadgeArt?.still, 'https://cdn.test/vip/top_2.png');
+    expect(two.nameBadgeArt?.aspect, VipLook.nameBadgeTemplateAspect);
     expect(two.level, 2);
     expect(two.has('MONTHLY_GIFT'), isFalse);
     // An unknown tier (off sale) or no catalogue: the colour only.
@@ -373,6 +375,96 @@ void main() {
     expect((vipH - charmH).abs(), lessThanOrEqualTo(1), reason: 'charm');
     expect((vipH - supportH).abs(), lessThanOrEqualTo(1), reason: 'support');
     expect((vipH - medalH).abs(), lessThanOrEqualTo(1), reason: 'medal');
+  });
+
+  for (final language in [AppLanguage.en, AppLanguage.ar]) {
+    testWidgets('D268: the VIP badge comes right after the name, before '
+        'the levels (${language.name})', (tester) async {
+      await pumpLine(tester, language: language, vip: _vip1);
+      final header = find.byKey(LiveChatFlatLine.vipHeaderKey).first;
+      final name = tester.getRect(
+        find.descendant(of: header, matching: find.byType(Text)).first,
+      );
+      final badge = tester.getRect(
+        find.descendant(of: header, matching: find.byKey(VipNameBadge.badgeKey)),
+      );
+      final charm = tester.getRect(
+        find.descendant(of: header, matching: find.byType(CharmLevelBadge)),
+      );
+      if (language == AppLanguage.ar) {
+        expect(badge.right, lessThanOrEqualTo(name.left));
+        expect(charm.right, lessThanOrEqualTo(badge.left));
+      } else {
+        expect(badge.left, greaterThanOrEqualTo(name.right));
+        expect(charm.left, greaterThanOrEqualTo(badge.right));
+      }
+    });
+  }
+
+  testWidgets("D268: the BADGE perk's art is a wide pill at its own ratio, "
+      "never the tier's medal", (tester) async {
+    final wide = VipTierList(
+      tiers: [
+        VipTier(
+          id: 'id-VIP_1',
+          code: 'VIP_1',
+          name: 'VIP 1',
+          level: 1,
+          color: 0xFF2E8B3D,
+          badgeStill: 'https://cdn.test/vip/medal.png',
+          priceCoins: 1,
+          durationDays: 30,
+          perks: const [
+            VipPerk(
+              code: VipPerks.badge,
+              title: 'b',
+              available: true,
+              still: 'https://cdn.test/vip/name_badge.png',
+              artWidth: 1943,
+              artHeight: 634,
+            ),
+          ],
+        ),
+      ],
+      maxAheadDays: 400,
+    );
+    expect(
+      vipLookOf(_vip1, wide)!.nameBadgeArt?.still,
+      'https://cdn.test/vip/name_badge.png',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [vipCatalogProvider.overrideWith((ref) async => wide)],
+        child: const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(child: VipNameBadge(vip: _vip1, height: 22)),
+        ),
+      ),
+    );
+    await tester.pump();
+    final size = tester.getSize(find.byKey(VipNameBadge.badgeKey));
+    expect(size.height, 22);
+    expect(size.width, closeTo(22 * 1943 / 634, 0.01));
+    // Only the tier's medal: no name-badge art (the «VIPn» pill).
+    final medalOnly = VipTierList(
+      tiers: [
+        VipTier(
+          id: 'id-VIP_1',
+          code: 'VIP_1',
+          name: 'VIP 1',
+          level: 1,
+          color: 0xFF2E8B3D,
+          badgeStill: 'https://cdn.test/vip/medal.png',
+          priceCoins: 1,
+          durationDays: 30,
+          perks: const [
+            VipPerk(code: VipPerks.badge, title: 'b', available: true),
+          ],
+        ),
+      ],
+      maxAheadDays: 400,
+    );
+    expect(vipLookOf(_vip1, medalOnly)!.nameBadgeArt, isNull);
   });
 
   test('a VIP name stays ≥ 4.5:1 on its bubble and the chat box', () {

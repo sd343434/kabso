@@ -78,7 +78,7 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     const byCode = new Map(vip1.perks.map((pk) => [pk.code, pk]));
     expect(byCode.size).toBe(12);
     // VIP 1's special text colour: the owner's gold (§10.94.10).
-    expect((vip1 as unknown as { nameColor: string | null }).nameColor).toBe('#FFD12E');
+    expect((vip1 as unknown as { nameColor: string | null }).nameColor).toBe('#FFC928');
     for (const code of [
       'BADGE',
       'AVATAR_FRAME',
