@@ -1100,7 +1100,25 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       expectContract(tasks, 'listAdminTasks');
       const t = tasks.body.data.find((x: { code: string }) => x.code === 'D197_GIFT');
       expect(t.targetUsd).toBe('$12.50');
+      expect(t.targetUnit).toBe('COINS');
       expect(t.rewardUsd).toMatch(/^\$/);
+      // D277: a host target in cherries — «كرز» in the panel, its value at the payout rate.
+      await ctx.prisma.taskDefinition.create({
+        data: {
+          code: 'D277_LUCKY',
+          period: 'DAILY',
+          metric: 'HOST_LUCKY_CHERRIES',
+          audience: 'HOSTS',
+          target: 1_000_000,
+          rewardCherries: 1_000,
+          nameAr: 'هدف هدايا الحظ (بالكرز)',
+          nameEn: 'Lucky gifts target (cherries)',
+        },
+      });
+      const lucky = (await get(support, '/admin/programs/tasks')).body.data.find(
+        (x: { code: string }) => x.code === 'D277_LUCKY',
+      );
+      expect(lucky).toMatchObject({ targetUnit: 'CHERRIES', targetUsd: '$1.10' });
       const levels = await get(finance, '/admin/programs/levels');
       expectContract(levels, 'listAdminPanelLevels');
       const su = await get(support, '/admin/special-usernames?q=coin');

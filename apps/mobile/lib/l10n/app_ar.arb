@@ -10876,18 +10876,18 @@
   "@liveTargetChip": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetCherriesSemantics": "الكرز اليوم: {received}",
+  "liveTargetCherriesSemantics": "هدف الهدايا اليوم: {received} كرز",
   "@liveTargetCherriesSemantics": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.",
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).",
     "placeholders": {
       "received": {
         "type": "String"
       }
     }
   },
-  "liveTargetLuckySemantics": "هدايا الحظ اليوم: {received} عملة",
+  "liveTargetLuckySemantics": "هدف هدايا الحظ اليوم: {received} كرز",
   "@liveTargetLuckySemantics": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.",
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).",
     "placeholders": {
       "received": {
         "type": "String"
@@ -10914,9 +10914,9 @@
   "@liveTargetPeriodAll": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetCherriesSection": "الكرز",
+  "liveTargetCherriesSection": "الهدايا",
   "@liveTargetCherriesSection": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name)."
   },
   "liveTargetLuckySection": "هدايا الحظ",
   "@liveTargetLuckySection": {
@@ -10934,21 +10934,21 @@
   "@liveTargetToday": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetCherriesGoal": "هدف الكرز",
+  "liveTargetCherriesGoal": "هدف الهدايا",
   "@liveTargetCherriesGoal": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name)."
   },
-  "liveTargetLuckyGoal": "هدف هدايا الحظ (عملات)",
+  "liveTargetLuckyGoal": "هدف هدايا الحظ",
   "@liveTargetLuckyGoal": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name)."
   },
   "liveTargetNoTarget": "لا هدف اليوم",
   "@liveTargetNoTarget": {
     "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet."
   },
-  "liveTargetConversion": "هدف الكرز هو هدف مهمة «استقبل هدايا في بثك» لفئتك ({band}) محوّلًا إلى كرز بحصّتك من الهدايا.",
+  "liveTargetConversion": "هدف الهدايا هو هدف مهمة «هدف الهدايا» لفئتك ({band})، بالكرز.",
   "@liveTargetConversion": {
-    "description": "v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.",
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).",
     "placeholders": {
       "band": {
         "type": "int"
@@ -11047,9 +11047,9 @@
   "@liveTargetHelpTitle": {
     "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
   },
-  "liveTargetHelp": "للمضيف هدفان كل يوم: هدف الكرز (الكرز الذي يصله من الهدايا) وهدف هدايا الحظ (قيمة هدايا الحظ بالعملات). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الكرز» وبالعملات في «هدايا الحظ».",
+  "liveTargetHelp": "للمضيف هدفان كل يوم، كلاهما بالكرز الذي يصله فعلاً: هدف الهدايا (من كل الهدايا غير هدايا الحظ التي يرسلها الآخرون) وهدف هدايا الحظ (من هدايا الحظ، ومنها ما يرسله المضيف لنفسه). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الهدايا» وبالعملات في «هدايا الحظ».",
   "@liveTargetHelp": {
-    "description": "v1.44-live (D199b): the «تارجت» ranking sheet."
+    "description": "v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name)."
   },
   "liveTargetSupport": "ادعم",
   "@liveTargetSupport": {

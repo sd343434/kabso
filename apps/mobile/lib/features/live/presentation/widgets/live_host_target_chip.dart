@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
+import 'package:kabso_live/features/live/presentation/widgets/host_target_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/host_target_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart'
     show KViewerRoom;
@@ -12,11 +13,10 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// D199 (owner: «تارجت» next to «ترتيب الغرف»): the host's two daily
-/// targets in one chip, turning every [rotateEvery] between 🍒 today's
-/// cherries (the «استقبل هدايا في بثك» band target, in cherries) and the
-/// Kabso wizard hat — today's lucky-gift value (the «استقبل هدايا الحظ»
-/// target, coins). A reached target shows a check and a gold glow. With
-/// reduced motion nothing turns: both show side by side.
+/// targets in one chip, turning every [rotateEvery] between «هدف الهدايا»
+/// and «هدف هدايا الحظ» (D277: both in cherries). A reached target shows
+/// a check and a gold glow. With reduced motion nothing turns: both show
+/// side by side.
 ///
 /// D199b (owner): the chip shows the amount RECEIVED only («12.4K»); the
 /// target itself is in the sheet the tap opens (the host's
@@ -29,6 +29,12 @@ import 'package:material_ui/material_ui.dart';
 /// today, «0» when nothing was, also with no target set today. The check and
 /// the glow only for a target that exists and is reached. While loading, or
 /// for a 404 (not a host / hidden): nothing.
+///
+/// D277 (owner): the cherries face is now «هدف الهدايا» (the cherries of
+/// gifts outside the lucky category from other people) and the lucky face
+/// counts the cherries of lucky gifts (the host's own sends too); each face
+/// shows its target's badge from a fixed asset slot ([KHostTargetBadge]), so
+/// the owner's new art replaces the file only.
 class LiveHostTargetChip extends ConsumerStatefulWidget {
   const new({
     required this.username,
@@ -51,7 +57,9 @@ class LiveHostTargetChip extends ConsumerStatefulWidget {
   final VoidCallback? onSupport;
 
   static const chipKey = Key('target.chip');
-  static const cherriesKey = Key('target.cherries');
+
+  /// D277: the «هدف الهدايا» face (was the cherries face).
+  static const giftsKey = Key('target.gifts');
   static const luckyKey = Key('target.lucky');
   static const reachedKey = Key('target.reached');
 
@@ -135,12 +143,11 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
     const kinds = _Kind.values;
     final l10n = context.l10n;
     final still = widget.plain || _still(context);
-    HostTarget of(_Kind k) =>
-        k == _Kind.cherries ? targets.cherries : targets.lucky;
+    HostTarget of(_Kind k) => k == _Kind.gifts ? targets.gifts : targets.lucky;
     String label(_Kind k) {
       final t = of(k);
       final r = KFormat.grouped(t.received);
-      final text = k == _Kind.cherries
+      final text = k == _Kind.gifts
           ? l10n.liveTargetCherriesSemantics(r)
           : l10n.liveTargetLuckySemantics(r);
       return LiveHostTargetChip.reachedOf(t)
@@ -226,7 +233,7 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
   }
 }
 
-enum _Kind { cherries, lucky }
+enum _Kind { gifts, lucky }
 
 /// One face of the chip: the icon, the amount received (D199b: never the
 /// target) and, once reached, a check.
@@ -245,15 +252,15 @@ class _Face extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      key: kind == _Kind.cherries
-          ? LiveHostTargetChip.cherriesKey
+      key: kind == _Kind.gifts
+          ? LiveHostTargetChip.giftsKey
           : LiveHostTargetChip.luckyKey,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (kind == _Kind.cherries)
-          KCherryIcon(size: plain ? 12 : 16)
-        else
-          KWizardHatIcon(size: plain ? 12 : 16),
+        KHostTargetBadge(
+          kind == _Kind.gifts ? HostTargetKind.gifts : HostTargetKind.lucky,
+          size: plain ? 12 : 16,
+        ),
         SizedBox(width: plain ? 4 : 3),
         Flexible(
           child: Text(
@@ -307,7 +314,9 @@ String _short(int value) {
 
 /// D199: the Kabso wizard hat (drawn here, no third-party art) — the
 /// «هدايا الحظ» mark: a violet cone leaning back with a gold band, a brim
-/// and two gold stars.
+/// and two gold stars. D277: the lucky badge's slot
+/// (`assets/host_targets/lucky_target.png`) holds this drawing as its
+/// stand-in; this widget is the fallback when the file is missing.
 class KWizardHatIcon extends StatelessWidget {
   const new({super.key, this.size = 20});
 

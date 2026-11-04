@@ -520,12 +520,23 @@ describe(
             recipients: { create: { userId: host.id, position: 0, coins: 2_000_000n } },
           },
         });
+        // D277: «هدف الهدايا» counts the cherries the ledger credited for the send (× 65 % × 10).
+        await ctx.prisma.cherryLedgerEntry.create({
+          data: {
+            userId: host.id,
+            delta: 13_000_000n,
+            balanceAfter: 0n,
+            reason: 'GIFT_RECEIVED',
+            referenceId: id,
+          },
+        });
         const mine = await tasks(host);
         if (day === 0) {
           expect(mine.monthlyCapCherries).toBe(4_545_454);
           const by = (code: string) => mine.tasks.find((t) => t.code === code)!;
           // Band 4: the daily host tasks ×2 and the weekly tasks per band (owner follow-up).
-          expect([by('P_HOST_GIFTS').target, by('P_HOST_GIFTS').rewardCherries]).toEqual([1_000_000, 60_000]);
+          // D277: «هدف الهدايا» in cherries (D188's 1 000 000 coins × 10 × 65 %).
+          expect([by('P_HOST_GIFTS').target, by('P_HOST_GIFTS').rewardCherries]).toEqual([6_500_000, 60_000]);
           expect([by('HOST_LIVE_MINUTES').target, by('HOST_LIVE_MINUTES').rewardCherries]).toEqual([
             600, 250_000,
           ]);

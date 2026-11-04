@@ -46,6 +46,10 @@ enum TaskMetric {
   hostGiftsReceived('HOST_GIFTS_RECEIVED'),
   hostGuests('HOST_GUESTS'),
   giftCoinsSent('GIFT_COINS_SENT'),
+  // v1.69-live (D277): the host's «هدف الهدايا» and «هدف هدايا الحظ», in
+  // cherries (target in cherries).
+  hostGiftCherries('HOST_GIFT_CHERRIES'),
+  hostLuckyCherries('HOST_LUCKY_CHERRIES'),
   other('');
 
   new(this.wire);

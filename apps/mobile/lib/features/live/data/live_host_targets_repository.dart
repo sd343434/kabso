@@ -96,37 +96,46 @@ List<HostSupporter> _supporters(Object? list) => [
 ];
 
 /// `LiveHostTargets` (`GET /live/hosts/{username}/targets`, public): the
-/// «تارجت» chip — today's cherries (the «استقبل هدايا في بثك» band target
-/// in cherries) and lucky-gift value (the «استقبل هدايا الحظ» target, in
-/// coins), and today's supporters (D199b: up to 20 by cherries, the lucky
-/// list by coins, the end of the day and a signed-in caller's own place).
+/// «تارجت» chip — today's two targets and supporters (D199b: up to 20 by
+/// cherries, the lucky list by coins, the end of the day and a signed-in
+/// caller's own place).
+///
+/// D277 (owner): both targets in cherries — [gifts] «هدف الهدايا» (gifts
+/// outside the lucky category from other people; `gifts`, or the older
+/// server's `cherries`) and [lucky] «هدف هدايا الحظ» (lucky gifts, the host's
+/// own sends to themself included).
 @immutable
 final class LiveHostTargets {
   const new({
     required this.day,
     required this.band,
-    required this.cherries,
+    required this.gifts,
     required this.lucky,
     required this.topSupporters,
     this.endsAt,
     this.luckySupporters = const [],
-    this.meCherries,
+    this.meGifts,
     this.meLucky,
   });
 
   factory fromJson(Map<String, dynamic> json) {
     final me = json['me'];
     final endsAt = json['endsAt'];
+    // D277: `gifts`; a server before it sends `cherries` only.
+    final gifts = json['gifts'] ?? json['cherries'];
+    final meGifts = me is Map<String, dynamic>
+        ? me['gifts'] ?? me['cherries']
+        : null;
     return LiveHostTargets(
       day: json['day']! as String,
       band: _int(json['band']),
-      cherries: HostTarget.fromJson(json['cherries']! as Map<String, dynamic>),
+      gifts: HostTarget.fromJson(gifts! as Map<String, dynamic>),
       lucky: HostTarget.fromJson(json['lucky']! as Map<String, dynamic>),
       topSupporters: _supporters(json['topSupporters']),
       endsAt: endsAt is String ? DateTime.parse(endsAt) : null,
       luckySupporters: _supporters(json['luckySupporters']),
-      meCherries: me is Map<String, dynamic>
-          ? HostSupporterRank.fromJson(me['cherries']! as Map<String, dynamic>)
+      meGifts: meGifts is Map<String, dynamic>
+          ? HostSupporterRank.fromJson(meGifts)
           : null,
       meLucky: me is Map<String, dynamic>
           ? HostSupporterRank.fromJson(me['lucky']! as Map<String, dynamic>)
@@ -137,10 +146,14 @@ final class LiveHostTargets {
   /// The Riyadh day (`YYYY-MM-DD`).
   final String day;
   final int band;
-  final HostTarget cherries;
+
+  /// D277 «هدف الهدايا» (cherries; was the cherries target).
+  final HostTarget gifts;
+
+  /// «هدف هدايا الحظ» (D277: cherries).
   final HostTarget lucky;
 
-  /// Today's cherries list.
+  /// Today's gifts list (by cherries; D277: gifts outside the lucky category).
   final List<HostSupporter> topSupporters;
 
   /// The end of the Riyadh day (the countdown; null from an older server).
@@ -150,7 +163,7 @@ final class LiveHostTargets {
   final List<HostSupporter> luckySupporters;
 
   /// The signed-in caller's own place today (null for guests and the host).
-  final HostSupporterRank? meCherries;
+  final HostSupporterRank? meGifts;
   final HostSupporterRank? meLucky;
 }
 
@@ -164,7 +177,8 @@ final class HostCherriesBucket {
 }
 
 /// `HostGiftStats` (`GET /me/host-gift-stats?period=`): the host's own
-/// cherries and lucky-gift numbers for a period.
+/// cherries and lucky-gift numbers for a period (D277: [cherries] and the
+/// list are «هدف الهدايا»'s — gifts outside the lucky category).
 @immutable
 final class HostGiftStats {
   const new({
@@ -178,6 +192,7 @@ final class HostGiftStats {
     required this.luckyGifts,
     required this.luckyGivers,
     required this.luckySupporters,
+    this.luckyCherries = 0,
     this.targets,
     this.to,
   });
@@ -207,6 +222,7 @@ final class HostGiftStats {
           ),
       ],
       luckyCoins: _int(l['coins']),
+      luckyCherries: _int(l['cherries']),
       luckyGifts: _int(l['gifts']),
       luckyGivers: _int(l['givers']),
       luckySupporters: _supporters(l['topSupporters']),
@@ -223,6 +239,10 @@ final class HostGiftStats {
   final List<HostSupporter> topSupporters;
   final List<HostCherriesBucket> series;
   final int luckyCoins;
+
+  /// D277: the cherries lucky gifts gave the host (self-sends included; 0
+  /// from an older server).
+  final int luckyCherries;
   final int luckyGifts;
   final int luckyGivers;
   final List<HostSupporter> luckySupporters;

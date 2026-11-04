@@ -74,7 +74,7 @@ MyTasks _tasks(List<ProgramTask> tasks) => MyTasks(
 const _target = LiveHostTargets(
   day: '2026-11-03',
   band: 1,
-  cherries: HostTarget(received: 0, target: 50, reached: false),
+  gifts: HostTarget(received: 0, target: 50, reached: false),
   lucky: HostTarget(received: 0, target: 0, reached: false),
   topSupporters: [],
 );

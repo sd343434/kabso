@@ -3,8 +3,13 @@
  * `getMyHostGiftStats` (the caller's own, by period) on seeded gifts and lucky gifts, the new daily host task
  * «استقبل هدايا الحظ» (band values, progress, the reached state) and the unchanged caps. Time is a FakeClock
  * (the rankings' days; UTC in tests); lucky draws come from a scripted RNG.
+ *
+ * D277 (v1.69-live, owner): both targets in CHERRIES — «هدف الهدايا» (`gifts`, the deprecated `cherries` the
+ * same) counts the cherries of gifts outside the lucky category from other people; «هدف هدايا الحظ» the
+ * cherries of lucky gifts, the host's own sends to themself included. The supporters lists never hold the host.
  */
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
@@ -16,7 +21,12 @@ import { seedDefaultTaskPoolIn, seedDefaultTasksIn } from '../src/modules/progra
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import {
+  createTestApp,
+  registerVerified,
+  withMigrationClient,
+  type TestContext,
+} from './helpers/test-app.js';
 
 class FakeClock extends Clock {
   // 10:00 in Riyadh on a Wednesday, mid-month: the day, week and month windows hold every send.
@@ -171,28 +181,33 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
     const res = await targets(null);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expectContract(res, 'getLiveHostTargets');
+    // D277: «هدف الهدايا» — the four roses (4 × 100 coins × 65 % × 10 = 2 600 cherries), never the lucky
+    // gifts; P_HOST_GIFTS band 1 is stored in cherries (D188's 100 000 coins × 10 × 65 %). «هدف هدايا الحظ» —
+    // the seven lucky gifts' cherries (7 × 10 coins × 10 % × 10 = 70); HOST_LUCKY_COINS band 1: 20 000 cherries.
+    expect(res.body).toMatchObject({
+      day: '2027-01-13',
+      band: 1,
+      gifts: { received: 2_600, target: 650_000, reached: false },
+      lucky: { received: 70, target: 20_000, reached: false },
+    });
+    // The deprecated `cherries` is `gifts`, for older apps.
+    expect(res.body.cherries).toEqual(res.body.gifts);
     const ledger = await ctx.prisma.cherryLedgerEntry.aggregate({
       where: { userId: host.id, reason: 'GIFT_RECEIVED' },
       _sum: { delta: true },
     });
-    expect(res.body).toMatchObject({
-      day: '2027-01-13',
-      band: 1,
-      // P_HOST_GIFTS band 1: 100 000 coins × 10 cherries × 65 %.
-      cherries: { received: Number(ledger._sum.delta), target: 650_000, reached: false },
-      lucky: { received: 70, target: 20_000, reached: false },
-    });
-    expect(res.body.cherries.received).toBeGreaterThan(0);
+    expect(Number(ledger._sum.delta)).toBe(2_600 + 70);
     expect(res.body.topSupporters.map((s: { user: { id: string } }) => s.user.id)).toEqual([
       fan1.id,
       fan2.id,
     ]);
-    expect(res.body.topSupporters.map((s: { coins: number }) => s.coins)).toEqual([320, 150]);
+    // D277: the gifts list counts gifts outside the lucky category only.
+    expect(res.body.topSupporters.map((s: { coins: number }) => s.coins)).toEqual([300, 100]);
     // D199b: each row's cherries (the ledger of their sends) add up to the day's; the support level; the
     // lucky list by coins; the end of the day; no own place for a guest.
     const rows = res.body.topSupporters as { cherries: number; supportLevel: number | null }[];
     expect(rows[0]!.cherries).toBeGreaterThan(rows[1]!.cherries);
-    expect(rows.reduce((a, r) => a + r.cherries, 0)).toBe(res.body.cherries.received);
+    expect(rows.reduce((a, r) => a + r.cherries, 0)).toBe(res.body.gifts.received);
     for (const r of rows) expect(r.supportLevel === null || r.supportLevel >= 1).toBe(true);
     expect(res.body.luckySupporters.map((s: { user: { id: string } }) => s.user.id)).toEqual([
       fan2.id,
@@ -208,12 +223,14 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
     const { me, ...rest } = fan.body as { me: unknown };
     expect({ ...rest, me: null }).toEqual(res.body);
     expect(me).toEqual({
+      gifts: { rank: 1, amount: rows[0]!.cherries },
       cherries: { rank: 1, amount: rows[0]!.cherries },
       lucky: { rank: 2, amount: 20 },
     });
     // Someone who sent nothing: no rank; the host: no own place.
     const stranger = await signup();
     expect((await targets(stranger)).body.me).toEqual({
+      gifts: { rank: null, amount: 0 },
       cherries: { rank: null, amount: 0 },
       lucky: { rank: null, amount: 0 },
     });
@@ -229,9 +246,10 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
   });
 
   it("the host's own statistics by period (DAY / WEEK / MONTH / ALL) with the bar series", async () => {
+    // D277: the cherries side is «هدف الهدايا»'s (the four roses); lucky adds its cherries.
     const expected = {
-      cherries: { gifts: 11, givers: 2 },
-      lucky: { coins: 70, gifts: 7, givers: 2 },
+      cherries: { received: 2_600, gifts: 4, givers: 2 },
+      lucky: { coins: 70, cherries: 70, gifts: 7, givers: 2 },
     };
     const lengths: Record<string, number | null> = { DAY: 24, WEEK: 7, MONTH: 31, ALL: 12 };
     for (const period of ['DAY', 'WEEK', 'MONTH', 'ALL']) {
@@ -257,7 +275,7 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
   it('a new day: DAY starts again, the month keeps it', async () => {
     clock.advance(24 * 3600);
     expect((await stats(host, 'DAY')).body.cherries).toMatchObject({ received: 0, gifts: 0 });
-    expect((await stats(host, 'MONTH')).body.cherries.gifts).toBe(11);
+    expect((await stats(host, 'MONTH')).body.cherries.gifts).toBe(4);
     expect((await targets(null)).body.lucky.received).toBe(0);
     clock.advance(-24 * 3600);
   });
@@ -266,8 +284,10 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
     const res = await ctx.http.get('/api/v1/me/tasks').set(auth(host));
     expect(res.status).toBe(200);
     const task = (res.body.tasks as { code: string }[]).find((t) => t.code === 'HOST_LUCKY_COINS');
+    // D277: «هدف هدايا الحظ», in cherries.
     expect(task).toMatchObject({
       code: 'HOST_LUCKY_COINS',
+      metric: 'HOST_LUCKY_CHERRIES',
       target: 20_000,
       rewardCherries: 1_000,
       progress: 70,
@@ -284,5 +304,174 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
     // Switched off: no lucky target.
     await ctx.prisma.taskDefinition.update({ where: { code: 'HOST_LUCKY_COINS' }, data: { enabled: false } });
     expect((await targets(null)).body.lucky).toEqual({ received: 70, target: 0, reached: false });
+  });
+
+  it('D277: a self-sent lucky gift counts toward the lucky target; self-sends and lucky gifts stay out of «هدف الهدايا»', async () => {
+    await ctx.prisma.taskDefinition.update({
+      where: { code: 'HOST_LUCKY_COINS' },
+      data: { enabled: true, bandTargets: [20_000, 50_000, 100_000, 200_000] },
+    });
+    const before = (await targets(null)).body as { gifts: { received: number }; lucky: { received: number } };
+    expect([before.gifts.received, before.lucky.received]).toEqual([2_600, 70]);
+    // The host may gift themself (D128), a lucky gift too (same gates: coins, 18+, region).
+    await ctx.prisma.$transaction((tx) => creditIn(tx, host.id, 1_000_000n, 'ADMIN_GRANT', randomUUID()));
+    const age = await ctx.http
+      .put('/api/v1/me/lucky-gifts/age-confirmation')
+      .set(auth(host))
+      .send({ adult: true });
+    expect(age.status).toBe(200);
+    for (let i = 0; i < 3; i++) await send(host, lucky);
+    // A rose to themself: not «هدف الهدايا» (from other people only), not lucky.
+    await send(host, rose);
+    // fan1: a FUN gift of 7 coins — 7 × 65 % × 10 = 45.5 → the ledger credits 45 (floored per send).
+    const fun = await gift({ category: 'FUN', priceCoins: 7 });
+    await send(fan1, fun);
+    const res = await targets(fan1);
+    expect(res.status).toBe(200);
+    expectContract(res, 'getLiveHostTargets');
+    expect(res.body.gifts).toEqual({ received: 2_645, target: 650_000, reached: false });
+    expect(res.body.lucky).toEqual({ received: 100, target: 20_000, reached: false });
+    // Exact: the host's ledger holds every send's credit (the self-sends too: 3 × 10 + 650).
+    const ledger = await ctx.prisma.cherryLedgerEntry.aggregate({
+      where: { userId: host.id, reason: { in: ['GIFT_RECEIVED', 'GIFT_REVERSAL'] } },
+      _sum: { delta: true },
+    });
+    expect(Number(ledger._sum.delta)).toBe(2_645 + 100 + 650);
+    // The supporters lists rank other people only (never the host), the gifts list by non-lucky cherries.
+    const ids = (list: { user: { id: string } }[]) => list.map((x) => x.user.id);
+    expect(ids(res.body.topSupporters)).toEqual([fan1.id, fan2.id]);
+    expect(
+      res.body.topSupporters.map((x: { coins: number; cherries: number }) => [x.coins, x.cherries]),
+    ).toEqual([
+      [307, 1_995],
+      [100, 650],
+    ]);
+    expect(ids(res.body.luckySupporters)).toEqual([fan2.id, fan1.id]);
+    expect(res.body.me.gifts).toEqual({ rank: 1, amount: 1_995 });
+    // The host's own stats agree (lucky cherries with the self-sends; the lucky list without the host).
+    const day = (await stats(host, 'DAY')).body;
+    expect(day.cherries).toMatchObject({ received: 2_645, gifts: 5, givers: 2 });
+    expect(day.lucky).toMatchObject({ coins: 70, cherries: 100, gifts: 7, givers: 2 });
+    expect(ids(day.lucky.topSupporters)).toEqual([fan2.id, fan1.id]);
+
+    // The Task Center counts the same cherries: the lucky task, and «هدف الهدايا» (today's offer added
+    // when the host's band did not draw it).
+    const today = new Date('2027-01-13T00:00:00.000Z');
+    await ctx.prisma.taskAssignment.upsert({
+      where: { userId_day_taskCode: { userId: host.id, day: today, taskCode: 'P_HOST_GIFTS' } },
+      create: {
+        userId: host.id,
+        day: today,
+        taskCode: 'P_HOST_GIFTS',
+        band: 1,
+        target: 650_000,
+        rewardCherries: 10_000,
+        position: 9,
+      },
+      update: {},
+    });
+    const taskOf = async (code: string) =>
+      ((await ctx.http.get('/api/v1/me/tasks').set(auth(host))).body.tasks as { code: string }[]).find(
+        (t) => t.code === code,
+      ) as { progress: number; target: number; completed: boolean; metric: string } | undefined;
+    expect(await taskOf('HOST_LUCKY_COINS')).toMatchObject({ progress: 100, completed: false });
+    expect(await taskOf('P_HOST_GIFTS')).toMatchObject({
+      metric: 'HOST_GIFT_CHERRIES',
+      progress: 2_645,
+      target: 650_000,
+      completed: false,
+    });
+
+    // Reached exactly at the cherry amounts.
+    const setBand1 = async (code: string, target: number) => {
+      const def = await ctx.prisma.taskDefinition.findUniqueOrThrow({ where: { code } });
+      await ctx.prisma.taskDefinition.update({
+        where: { code },
+        data: { bandTargets: [target, ...def.bandTargets.slice(1)] },
+      });
+    };
+    await setBand1('HOST_LUCKY_COINS', 101);
+    await setBand1('P_HOST_GIFTS', 2_646);
+    let now = (await targets(null)).body;
+    expect([now.gifts.reached, now.lucky.reached]).toEqual([false, false]);
+    await setBand1('HOST_LUCKY_COINS', 100);
+    await setBand1('P_HOST_GIFTS', 2_645);
+    now = (await targets(null)).body;
+    expect(now.gifts).toEqual({ received: 2_645, target: 2_645, reached: true });
+    expect(now.lucky).toEqual({ received: 100, target: 100, reached: true });
+    expect(now.cherries).toEqual(now.gifts);
+    expect(await taskOf('HOST_LUCKY_COINS')).toMatchObject({ progress: 100, target: 100, completed: true });
+    await ctx.prisma.taskAssignment.update({
+      where: { userId_day_taskCode: { userId: host.id, day: today, taskCode: 'P_HOST_GIFTS' } },
+      data: { target: 2_645 },
+    });
+    expect(await taskOf('P_HOST_GIFTS')).toMatchObject({ progress: 2_645, completed: true });
+  });
+
+  it('D277: migration 20270311090000 stores both targets in cherries (coins × 10 × 65 %, lucky × 10 × 10 %)', async () => {
+    const day = new Date('2027-01-13T00:00:00.000Z');
+    // Back to the D188 / D199 rows (coins) and an offer of the day in coins.
+    await ctx.prisma.taskDefinition.update({
+      where: { code: 'P_HOST_GIFTS' },
+      data: {
+        metric: 'HOST_GIFT_COINS',
+        bandTargets: [100_000, 250_000, 500_000, 1_000_000],
+        target: 1_000_000,
+        nameAr: 'استقبل هدايا في بثك (بالعملات)',
+        nameEn: 'Receive gifts in your live (coins)',
+      },
+    });
+    await ctx.prisma.taskDefinition.update({
+      where: { code: 'HOST_LUCKY_COINS' },
+      data: { metric: 'HOST_LUCKY_COINS', bandTargets: [20_000, 50_000, 100_000, 200_000], target: 200_000 },
+    });
+    await ctx.prisma.taskAssignment.update({
+      where: { userId_day_taskCode: { userId: host.id, day, taskCode: 'P_HOST_GIFTS' } },
+      data: { target: 100_000 },
+    });
+    const sql = readFileSync(
+      new URL('../prisma/migrations/20270313090000_host_targets_cherries/migration.sql', import.meta.url),
+      'utf8',
+    );
+    const statements = sql
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith('--'))
+      .join('\n')
+      .split(';')
+      .map((x) => x.trim())
+      .filter((x) => x.length > 0);
+    await withMigrationClient(async (db) => {
+      for (const st of statements) await db.$executeRawUnsafe(st);
+      // Once only: a second run changes nothing.
+      for (const st of statements) await db.$executeRawUnsafe(st);
+    });
+    const defs = await ctx.prisma.taskDefinition.findMany({
+      where: { code: { in: ['P_HOST_GIFTS', 'HOST_LUCKY_COINS'] } },
+      orderBy: { code: 'asc' },
+      select: { code: true, metric: true, bandTargets: true, target: true, nameAr: true, nameEn: true },
+    });
+    expect(defs).toEqual([
+      {
+        code: 'HOST_LUCKY_COINS',
+        metric: 'HOST_LUCKY_CHERRIES',
+        bandTargets: [20_000, 50_000, 100_000, 200_000],
+        target: 200_000,
+        nameAr: 'هدف هدايا الحظ (بالكرز)',
+        nameEn: 'Lucky gifts target (cherries)',
+      },
+      {
+        code: 'P_HOST_GIFTS',
+        metric: 'HOST_GIFT_CHERRIES',
+        bandTargets: [650_000, 1_625_000, 3_250_000, 6_500_000],
+        target: 6_500_000,
+        nameAr: 'هدف الهدايا (بالكرز)',
+        nameEn: 'Gifts target (cherries)',
+      },
+    ]);
+    const offer = await ctx.prisma.taskAssignment.findUniqueOrThrow({
+      where: { userId_day_taskCode: { userId: host.id, day, taskCode: 'P_HOST_GIFTS' } },
+    });
+    expect(offer.target).toBe(650_000);
+    expect((await targets(null)).body.gifts).toMatchObject({ received: 2_645, target: 650_000 });
   });
 });

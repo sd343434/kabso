@@ -19564,16 +19564,16 @@ abstract class AppLocalizations {
   /// **'تارجت'**
   String get liveTargetChip;
 
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'الكرز اليوم: {received}'**
+  /// **'هدف الهدايا اليوم: {received} كرز'**
   String liveTargetCherriesSemantics(String received);
 
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'هدايا الحظ اليوم: {received} عملة'**
+  /// **'هدف هدايا الحظ اليوم: {received} كرز'**
   String liveTargetLuckySemantics(String received);
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
@@ -19606,10 +19606,10 @@ abstract class AppLocalizations {
   /// **'الكل'**
   String get liveTargetPeriodAll;
 
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'الكرز'**
+  /// **'الهدايا'**
   String get liveTargetCherriesSection;
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
@@ -19636,16 +19636,16 @@ abstract class AppLocalizations {
   /// **'أهداف اليوم'**
   String get liveTargetToday;
 
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'هدف الكرز'**
+  /// **'هدف الهدايا'**
   String get liveTargetCherriesGoal;
 
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'هدف هدايا الحظ (عملات)'**
+  /// **'هدف هدايا الحظ'**
   String get liveTargetLuckyGoal;
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
@@ -19654,10 +19654,10 @@ abstract class AppLocalizations {
   /// **'لا هدف اليوم'**
   String get liveTargetNoTarget;
 
-  /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'هدف الكرز هو هدف مهمة «استقبل هدايا في بثك» لفئتك ({band}) محوّلًا إلى كرز بحصّتك من الهدايا.'**
+  /// **'هدف الهدايا هو هدف مهمة «هدف الهدايا» لفئتك ({band})، بالكرز.'**
   String liveTargetConversion(int band);
 
   /// v1.44-live (D199): the «تارجت» chip and the host gift stats sheet.
@@ -19828,10 +19828,10 @@ abstract class AppLocalizations {
   /// **'ما هو التارجت؟'**
   String get liveTargetHelpTitle;
 
-  /// v1.44-live (D199b): the «تارجت» ranking sheet.
+  /// v1.69-live (D277): «هدف الهدايا» / «هدف هدايا الحظ», both in cherries (the key keeps its D199 name).
   ///
   /// In ar, this message translates to:
-  /// **'للمضيف هدفان كل يوم: هدف الكرز (الكرز الذي يصله من الهدايا) وهدف هدايا الحظ (قيمة هدايا الحظ بالعملات). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الكرز» وبالعملات في «هدايا الحظ».'**
+  /// **'للمضيف هدفان كل يوم، كلاهما بالكرز الذي يصله فعلاً: هدف الهدايا (من كل الهدايا غير هدايا الحظ التي يرسلها الآخرون) وهدف هدايا الحظ (من هدايا الحظ، ومنها ما يرسله المضيف لنفسه). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الهدايا» وبالعملات في «هدايا الحظ».'**
   String get liveTargetHelp;
 
   /// v1.44-live (D199b): the «تارجت» ranking sheet.

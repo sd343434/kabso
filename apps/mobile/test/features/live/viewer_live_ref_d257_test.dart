@@ -50,7 +50,7 @@ LiveRankingEntry _entry(int rank, String id, int points) => LiveRankingEntry(
 const _target = LiveHostTargets(
   day: '2026-11-03',
   band: 1,
-  cherries: HostTarget(received: 162, target: 200, reached: false),
+  gifts: HostTarget(received: 162, target: 200, reached: false),
   lucky: HostTarget(received: 0, target: 0, reached: false),
   topSupporters: [],
 );

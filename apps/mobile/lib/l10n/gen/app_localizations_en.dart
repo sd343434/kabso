@@ -11495,12 +11495,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String liveTargetCherriesSemantics(String received) {
-    return 'Cherries today: $received';
+    return 'Gifts target today: $received cherries';
   }
 
   @override
   String liveTargetLuckySemantics(String received) {
-    return 'Lucky gifts today: $received coins';
+    return 'Lucky gifts target today: $received cherries';
   }
 
   @override
@@ -11519,7 +11519,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveTargetPeriodAll => 'All';
 
   @override
-  String get liveTargetCherriesSection => 'Cherries';
+  String get liveTargetCherriesSection => 'Gifts';
 
   @override
   String get liveTargetLuckySection => 'Lucky gifts';
@@ -11534,17 +11534,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveTargetToday => 'Today’s targets';
 
   @override
-  String get liveTargetCherriesGoal => 'Cherries target';
+  String get liveTargetCherriesGoal => 'Gifts target';
 
   @override
-  String get liveTargetLuckyGoal => 'Lucky gifts target (coins)';
+  String get liveTargetLuckyGoal => 'Lucky gifts target';
 
   @override
   String get liveTargetNoTarget => 'No target today';
 
   @override
   String liveTargetConversion(int band) {
-    return 'The cherries target is your band’s ($band) «Receive gifts in your live» task target, converted to cherries at your gift share.';
+    return 'The gifts target is your band’s ($band) «Gifts target» task target, in cherries.';
   }
 
   @override
@@ -11653,7 +11653,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTargetHelp =>
-      'A host has two targets each day: cherries (the cherries their gifts bring) and lucky gifts (the coin value of lucky gifts). They start again at midnight Riyadh time. The list ranks the supporters of the chosen period: by cherries under «Cherries», by coins under «Lucky gifts».';
+      'A host has two targets each day, both in the cherries they really receive: the gifts target (every gift from others except lucky gifts) and the lucky gifts target (lucky gifts, the ones the host sends themself included). They start again at midnight Riyadh time. The list ranks the supporters of the chosen period: by cherries under «Gifts», by coins under «Lucky gifts».';
 
   @override
   String get liveTargetSupport => 'Support';

@@ -44,6 +44,7 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
 import {
   COIN_VALUE_METRICS,
+  CHERRY_VALUE_METRICS,
   TASK_POOL_BANDS,
   TASK_POOL_GROUPS,
   cherriesUsd,
@@ -91,8 +92,12 @@ function cherriesWithUsd(cherries: number): string {
   return `${String(cherries)} (≈ ${cherriesUsd(cherries, PAYOUT_RATE)})`;
 }
 
-/** A target, with its retail value when the metric counts coins. */
+/**
+ * A target, with its retail value when the metric counts coins; v1.69-live (D277): its payout value when it
+ * counts cherries (the host's gifts and lucky targets).
+ */
 function targetWithUsd(target: number, metric: string): string {
+  if (CHERRY_VALUE_METRICS.includes(metric as TaskMetric)) return `${cherriesWithUsd(target)} cherries`;
   return COIN_VALUE_METRICS.includes(metric as TaskMetric)
     ? `${String(target)} coins (≈ ${coinsUsd(target, COIN_USD_PER_MILLION)})`
     : String(target);

@@ -143,6 +143,8 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       TaskMetric.hostLiveMinutes ||
       TaskMetric.hostGiftCoins ||
       TaskMetric.hostGiftsReceived ||
+      TaskMetric.hostGiftCherries ||
+      TaskMetric.hostLuckyCherries ||
       TaskMetric.hostGuests => AppRoutes.goLive,
       TaskMetric.watchLives ||
       TaskMetric.watchMinutes ||
@@ -834,7 +836,9 @@ class _TaskRow extends StatelessWidget {
     TaskMetric.dmVoiceMessages => (Icons.keyboard_voice_rounded, _teal),
     TaskMetric.hostLiveMinutes => (Icons.live_tv_rounded, KBrandColors.red500),
     TaskMetric.hostGiftCoins ||
-    TaskMetric.hostGiftsReceived => (Icons.card_giftcard_rounded, _amber),
+    TaskMetric.hostGiftsReceived ||
+    TaskMetric.hostGiftCherries => (Icons.card_giftcard_rounded, _amber),
+    TaskMetric.hostLuckyCherries => (Icons.auto_awesome_rounded, _amber),
     TaskMetric.hostGuests => (Icons.event_seat_rounded, _blue),
     TaskMetric.other => (Icons.task_alt_rounded, _teal),
   };

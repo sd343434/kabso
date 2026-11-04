@@ -24,7 +24,6 @@ import {
   cappedTaskReward,
   checkInCycleDay,
   checkInReward,
-  cherriesForCoins,
   HOST_GIFTS_TARGET_TASK,
   HOST_LUCKY_TARGET_TASK,
   isTaskMetric,
@@ -61,7 +60,7 @@ export interface HostSupporterDto {
 /** D199b `HostSupporterRank`: the caller's own place in a list (rank null: they sent nothing). */
 export interface HostSupporterRankDto {
   rank: number | null;
-  /** Cherries in the cherries list, coins in the lucky list. */
+  /** Cherries in the gifts (cherries) list, coins in the lucky list. */
   amount: number;
 }
 
@@ -75,16 +74,24 @@ export interface LiveHostTargetsDto {
   /** D199b: the end of the Riyadh day (the countdown). */
   endsAt: string;
   band: number;
-  /** Cherries received today from gifts / the band's «استقبل هدايا في بثك» target in cherries. */
+  /**
+   * v1.69-live (D277) «هدف الهدايا»: cherries received today from gifts outside the lucky category sent by
+   * other ACTIVE people / the band's P_HOST_GIFTS target (cherries).
+   */
+  gifts: HostTargetDto;
+  /** Deprecated (D277): the same as `gifts`, for apps before v1.69-live. */
   cherries: HostTargetDto;
-  /** Coin value of the lucky gifts received today / the band's «استقبل هدايا الحظ» target. */
+  /**
+   * D277 «هدف هدايا الحظ»: cherries the host got today from lucky gifts (their own sends to themself too)
+   * / the band's HOST_LUCKY_COINS target (cherries since D277).
+   */
   lucky: HostTargetDto;
-  /** Today's top supporters by cherries (D199b: up to 20). */
+  /** Today's top supporters by cherries from non-lucky gifts (D199b: up to 20). */
   topSupporters: HostSupporterDto[];
   /** D199b: today's lucky list by coins (up to 20). */
   luckySupporters: HostSupporterDto[];
   /** D199b: a signed-in caller's own place today (null for guests and the host). */
-  me: { cherries: HostSupporterRankDto; lucky: HostSupporterRankDto } | null;
+  me: { gifts: HostSupporterRankDto; cherries: HostSupporterRankDto; lucky: HostSupporterRankDto } | null;
 }
 
 /** v1.44-live (D199) `HostGiftStats`: the host's own statistics of a period. */
@@ -100,7 +107,14 @@ export interface HostGiftStatsDto {
     topSupporters: HostSupporterDto[];
     series: { start: string; cherries: number }[];
   };
-  lucky: { coins: number; gifts: number; givers: number; topSupporters: HostSupporterDto[] };
+  /** D277: `cherries` — what the host got from lucky gifts in the period, self-sends included. */
+  lucky: {
+    coins: number;
+    cherries: number;
+    gifts: number;
+    givers: number;
+    topSupporters: HostSupporterDto[];
+  };
   /** DAY only: today's two targets. */
   targets: LiveHostTargetsDto | null;
 }
@@ -204,6 +218,28 @@ export interface CheckInResultDto {
   paidCoins: number;
   balanceCoins: number;
   tasks: MyTasksDto;
+}
+
+/**
+ * v1.69-live (D277, CONVENTIONS §10.62.1): the cherries `me` received for gifts sent in [from, to) — the
+ * cherry ledger's rows of those sends (`GIFT_RECEIVED` net of `GIFT_REVERSAL`, column `n`), from ACTIVE
+ * senders. `lucky` false: «هدف الهدايا» — every gift OUTSIDE the lucky category (a send without a stored
+ * lucky draw), from other people only; `lucky` true: «هدف هدايا الحظ» — lucky gifts only, the host's own
+ * sends to themself included (D128 lets a host gift themself; the ledger credits them like any recipient).
+ */
+function hostCherriesSql(me: string, from: Date | null, to: Date, lucky: boolean): Prisma.Sql {
+  return Prisma.sql`
+    SELECT COALESCE(sum(l.delta), 0)::bigint AS n
+      FROM live_gift_recipients gr
+      JOIN live_gifts g ON g.id = gr.gift_id
+      JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
+      JOIN cherry_ledger l ON l.user_id = gr.user_id AND l.reference_id = g.id::text
+                          AND l.reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')
+     WHERE gr.user_id = ${me}::uuid
+       AND (${lucky} OR g.sender_id <> ${me}::uuid)
+       AND ${lucky} = EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id)
+       AND (${from}::timestamptz IS NULL OR g.created_at >= ${from}::timestamptz)
+       AND g.created_at < ${to}::timestamptz`;
 }
 
 /**
@@ -392,6 +428,10 @@ function progressSql(me: string, metric: TaskMetric, w: ProgramWindow, now: Date
           JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
          WHERE gr.user_id = ${me}::uuid AND g.sender_id <> ${me}::uuid
            AND g.created_at >= ${from}::timestamptz AND g.created_at < ${to}::timestamptz`;
+    case 'HOST_GIFT_CHERRIES':
+      return hostCherriesSql(me, from, to, false);
+    case 'HOST_LUCKY_CHERRIES':
+      return hostCherriesSql(me, from, to, true);
     case 'HOST_GIFT_COINS':
       // The coin value of the gifts the caller received in the period from ACTIVE senders.
       return Prisma.sql`
@@ -882,7 +922,8 @@ export class TasksService {
   // ---- v1.44-live (D199): the host's «تارجت» and statistics ------------------------------------
 
   /**
-   * The ACTIVE people who sent `host` gifts in [from, to) (lucky sends only with `lucky`): the coin value
+   * The ACTIVE people who sent `host` gifts in [from, to) (lucky sends only with `lucky`; D277: otherwise
+   * every send outside the lucky category — the «هدف الهدايا» list); never the host: the coin value
    * and the cherries the host got from them (the ledger rows of those sends, net of reversals), ranked by
    * cherries (a cherries list) or coins (`lucky`); the first `limit` with their support level, and — for
    * `viewer` — the viewer's own place (D199b).
@@ -908,7 +949,8 @@ export class TasksService {
          WHERE gr.user_id = ${host}::uuid AND g.sender_id <> ${host}::uuid
            AND (${from}::timestamptz IS NULL OR g.created_at >= ${from}::timestamptz)
            AND g.created_at < ${to}::timestamptz
-           AND (NOT ${lucky} OR EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id))
+           -- D277: the gifts list counts gifts outside the lucky category only; the lucky list lucky ones.
+           AND ${lucky} = EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id)
          GROUP BY g.sender_id
         HAVING sum(gr.coins) > 0),
       ranked AS (
@@ -947,17 +989,16 @@ export class TasksService {
     return { list, me };
   }
 
-  /** Cherries `host` received from gifts in [from, to) (net of reversals; the stored ledger). */
-  private async giftCherries(host: string, from: Date | null, to: Date): Promise<number> {
-    const [row] = await this.prisma.$queryRaw<{ n: bigint }[]>`
-      SELECT COALESCE(sum(delta), 0)::bigint AS n FROM cherry_ledger
-       WHERE user_id = ${host}::uuid AND reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')
-         AND (${from}::timestamptz IS NULL OR created_at >= ${from}::timestamptz)
-         AND created_at < ${to}::timestamptz`;
+  /** D277: the cherries of one of the host's targets for gifts sent in [from, to) ({@link hostCherriesSql}). */
+  private async hostCherries(host: string, from: Date | null, to: Date, lucky: boolean): Promise<number> {
+    const [row] = await this.prisma.$queryRaw<{ n: bigint }[]>(hostCherriesSql(host, from, to, lucky));
     return Number(row?.n ?? 0n);
   }
 
-  /** Gift sends `host` received from other ACTIVE people in [from, to), and their different senders. */
+  /**
+   * Gift sends `host` received from other ACTIVE people in [from, to), and their different senders: lucky
+   * sends with `lucky`, D277: else the sends outside the lucky category (the «هدف الهدايا» tab).
+   */
   private async received(
     host: string,
     from: Date | null,
@@ -973,16 +1014,17 @@ export class TasksService {
        WHERE gr.user_id = ${host}::uuid AND g.sender_id <> ${host}::uuid
          AND (${from}::timestamptz IS NULL OR g.created_at >= ${from}::timestamptz)
          AND g.created_at < ${to}::timestamptz
-         AND (NOT ${lucky} OR EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id))`;
+         AND ${lucky} = EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id)`;
     return { coins: Number(row?.coins ?? 0n), gifts: row?.gifts ?? 0, givers: row?.givers ?? 0 };
   }
 
   /**
-   * v1.44-live (D199) `GET /live/hosts/{username}/targets` (and the DAY tab): today's cherries and lucky
-   * progress against the host's band targets — the cherries target is «استقبل هدايا في بثك»'s band
-   * target in coins converted with `cherriesForCoins` (× CHERRIES_PER_COIN × the POPULAR host share),
-   * the lucky target «استقبل هدايا الحظ»'s; 0 when that task is switched off. The band: today's
-   * assignment's, else the level's now (as the Task Center).
+   * v1.44-live (D199) `GET /live/hosts/{username}/targets` (and the DAY tab): today's progress against the
+   * host's band targets. v1.69-live (D277, owner): both in CHERRIES, as stored — «هدف الهدايا» is
+   * P_HOST_GIFTS's band target against the cherries of today's gifts outside the lucky category from other
+   * people, «هدف هدايا الحظ» HOST_LUCKY_COINS's against the cherries of today's lucky gifts (self-sends
+   * too); 0 when that task is switched off. The band: today's assignment's, else the level's now (as the
+   * Task Center).
    */
   async hostTargets(host: string, viewer: string | null = null): Promise<LiveHostTargetsDto> {
     const now = this.clock.now();
@@ -996,17 +1038,11 @@ export class TasksService {
       select: { code: true, bandTargets: true },
     });
     const targetOf = (code: string) => defs.find((d) => d.code === code)?.bandTargets[band.band - 1] ?? 0;
-    const cherriesTarget = cherriesForCoins(
-      targetOf(HOST_GIFTS_TARGET_TASK),
-      this.config.economy.cherriesPerCoin,
-      this.config.gifts.hostShareBps.POPULAR,
-    );
-    const luckyTarget = targetOf(HOST_LUCKY_TARGET_TASK);
     // D199b: the caller's own place (never the host's own).
     const me = viewer !== null && viewer !== host ? viewer : null;
-    const [cherries, lucky, top, luckyTop] = await Promise.all([
-      this.giftCherries(host, day.start, day.end),
-      this.received(host, day.start, day.end, true),
+    const [giftsCherries, luckyCherries, top, luckyTop] = await Promise.all([
+      this.hostCherries(host, day.start, day.end, false),
+      this.hostCherries(host, day.start, day.end, true),
       this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me),
       this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me),
     ]);
@@ -1015,24 +1051,29 @@ export class TasksService {
       target: t,
       reached: t > 0 && received >= t,
     });
+    const gifts = target(giftsCherries, targetOf(HOST_GIFTS_TARGET_TASK));
     return {
       day: day.date,
       timeZone: this.zone,
       endsAt: day.end.toISOString(),
       band: band.band,
-      cherries: target(cherries, cherriesTarget),
-      lucky: target(lucky.coins, luckyTarget),
+      gifts,
+      cherries: gifts,
+      lucky: target(luckyCherries, targetOf(HOST_LUCKY_TARGET_TASK)),
       topSupporters: top.list,
       luckySupporters: luckyTop.list,
-      me: me !== null && top.me && luckyTop.me ? { cherries: top.me, lucky: luckyTop.me } : null,
+      me:
+        me !== null && top.me && luckyTop.me ? { gifts: top.me, cherries: top.me, lucky: luckyTop.me } : null,
     };
   }
 
   /**
    * v1.44-live (D199) `GET /me/host-gift-stats?period=`: the caller's own gifts of the period (Riyadh
    * calendar day, ISO week, month, or ALL) — cherries received (the ledger), gift sends, different givers,
-   * the top three supporters and a bar series (hours of the day, days of the week or month, months of
-   * the last year for ALL); lucky gifts' coin value, sends, givers and top three; the day's targets.
+   * the top supporters and a bar series (hours of the day, days of the week or month, months of the last
+   * year for ALL); lucky gifts' coin value, sends, givers and top supporters; the day's targets. D277: the
+   * cherries side is «هدف الهدايا»'s — gifts outside the lucky category from other people (the series
+   * too); lucky adds the cherries of lucky gifts (self-sends included).
    */
   async hostGiftStats(me: string, period: HostStatsPeriod): Promise<HostGiftStatsDto> {
     const now = this.clock.now();
@@ -1056,15 +1097,23 @@ export class TasksService {
                  date_trunc(${unit}, ${seriesFrom}::timestamptz AT TIME ZONE ${this.zone}),
                  date_trunc(${unit}, (${to}::timestamptz - interval '1 millisecond') AT TIME ZONE ${this.zone}),
                  ('1 ' || ${unit})::interval) AS b)
-      SELECT to_char(b.b, 'YYYY-MM-DD"T"HH24:MI:SS') AS start, COALESCE(sum(l.delta), 0)::bigint AS n
+      SELECT to_char(b.b, 'YYYY-MM-DD"T"HH24:MI:SS') AS start, COALESCE(sum(x.delta), 0)::bigint AS n
         FROM buckets b
-        LEFT JOIN cherry_ledger l
-          ON l.user_id = ${me}::uuid AND l.reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')
-         AND date_trunc(${unit}, l.created_at AT TIME ZONE ${this.zone}) = b.b
-         AND l.created_at < ${to}::timestamptz
+        LEFT JOIN (
+          SELECT l.delta, g.created_at
+            FROM live_gift_recipients gr
+            JOIN live_gifts g ON g.id = gr.gift_id
+            JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
+            JOIN cherry_ledger l ON l.user_id = gr.user_id AND l.reference_id = g.id::text
+                                AND l.reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')
+           WHERE gr.user_id = ${me}::uuid AND g.sender_id <> ${me}::uuid
+             AND NOT EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id)
+             AND g.created_at < ${to}::timestamptz) x
+          ON date_trunc(${unit}, x.created_at AT TIME ZONE ${this.zone}) = b.b
        GROUP BY b.b ORDER BY b.b`;
-    const [cherries, gifts, lucky, top, luckyTop] = await Promise.all([
-      this.giftCherries(me, from, to),
+    const [cherries, luckyCherries, gifts, lucky, top, luckyTop] = await Promise.all([
+      this.hostCherries(me, from, to, false),
+      this.hostCherries(me, from, to, true),
       this.received(me, from, to, false),
       this.received(me, from, to, true),
       this.supporters(me, from, to, false, HOST_SUPPORTERS_LIMIT),
@@ -1082,7 +1131,13 @@ export class TasksService {
         topSupporters: top.list,
         series: series.map((r) => ({ start: r.start, cherries: Number(r.n) })),
       },
-      lucky: { coins: lucky.coins, gifts: lucky.gifts, givers: lucky.givers, topSupporters: luckyTop.list },
+      lucky: {
+        coins: lucky.coins,
+        cherries: luckyCherries,
+        gifts: lucky.gifts,
+        givers: lucky.givers,
+        topSupporters: luckyTop.list,
+      },
       targets: period === 'DAY' ? await this.hostTargets(me) : null,
     };
   }

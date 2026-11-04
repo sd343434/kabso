@@ -4488,6 +4488,13 @@ paths:
         longer periods (`getMyHostGiftStats` is the host's own). A target is 0 when its task is switched
         off. Unknown or inactive user, not a host, or a block either way → 404. D199b: up to 20 per list,
         today's lucky list, the end of the day, and a signed-in caller's own place (`me`).
+
+        v1.69-live (D277, §10.62.1): both targets in CHERRIES, as stored. `gifts` «هدف الهدايا» (was the
+        cherries target): the cherries of today's gifts OUTSIDE the lucky category from other ACTIVE people
+        against P_HOST_GIFTS's band target; `cherries` is the same, deprecated. `lucky` «هدف هدايا الحظ»: the
+        cherries of today's lucky gifts — the host's own sends to themself too — against HOST_LUCKY_COINS's
+        band target (a lucky coin gives the host 1 cherry at the default 10 % share, so the numbers did not
+        move). `topSupporters` ranks other people by their non-lucky gifts' cherries.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -4510,6 +4517,9 @@ paths:
         different givers (other ACTIVE people), the top supporters (D199b: up to 20, by cherries), and a bar series of
         the cherries (hours of the day, days of the week or month, months of the last 12 for ALL); lucky
         gifts: coin value, sends, givers and the top supporters (up to 20, by coins). DAY also has today's `targets`.
+        v1.69-live (D277, §10.62.1): the cherries side is «هدف الهدايا»'s — gifts outside the lucky category from
+        other people (received, sends, givers, list and series); `lucky.cherries` adds what lucky gifts gave
+        (self-sends included).
       parameters:
         - name: period
           in: query
@@ -22390,6 +22400,15 @@ components:
                 - 'null'
               target:
                 type: integer
+              targetUnit:
+                type:
+                - string
+                - 'null'
+                enum:
+                - COINS
+                - CHERRIES
+                - null
+                description: (v1.69-live, D277) The unit of the targets — COINS (a coin value, `targetUsd` at the retail price), CHERRIES (the host's gifts and lucky targets, `targetUsd` at the payout rate); null for counts and minutes. Sent by a v1.69-live server.
               targetUsd:
                 type:
                 - string
@@ -24803,7 +24822,7 @@ components:
       required: [rank, amount]
       properties:
         rank: { type: [integer, 'null'], minimum: 1, description: "1-based, in the list's order; null: they sent nothing." }
-        amount: { type: integer, format: int64, minimum: 0, description: "Cherries in the cherries list, coins in the lucky list." }
+        amount: { type: integer, format: int64, minimum: 0, description: "Cherries in the gifts (cherries) list, coins in the lucky list." }
     LiveHostTargets:
       type: object
       required: [day, timeZone, endsAt, band, cherries, lucky, topSupporters, luckySupporters, me]
@@ -24812,20 +24831,28 @@ components:
         endsAt: { type: string, format: date-time, description: "D199b: the end of the Riyadh day (the countdown)." }
         timeZone: { type: string, example: Asia/Riyadh }
         band: { type: integer, minimum: 1, maximum: 4, description: The host's task band today. }
-        cherries: { $ref: '#/components/schemas/HostTarget' }
+        gifts:
+          allOf:
+            - $ref: '#/components/schemas/HostTarget'
+          description: "v1.69-live (D277) «هدف الهدايا», in cherries: today's gifts outside the lucky category from other ACTIVE people (the cherry ledger, net of reversals) against P_HOST_GIFTS's band target. Always sent by a v1.69-live server; older servers send `cherries` only."
+        cherries:
+          allOf:
+            - $ref: '#/components/schemas/HostTarget'
+          deprecated: true
+          description: "Deprecated (D277): the same as `gifts`, for older apps (before D277: every gift's cherries)."
         lucky:
           allOf:
             - $ref: '#/components/schemas/HostTarget'
-          description: In coins (the lucky gifts' value).
+          description: "«هدف هدايا الحظ». v1.69-live (D277): in cherries — what today's lucky gifts gave the host, their own sends to themself included — against HOST_LUCKY_COINS's band target (stored in cherries). Before D277: the coin value of lucky gifts from other people (1 coin = 1 cherry at the default lucky share)."
         topSupporters:
           type: array
           maxItems: 20
-          description: "Today's cherries list (D199b: up to 20, by cherries)."
+          description: "Today's gifts (cherries) list (D199b: up to 20, by cherries; D277: gifts outside the lucky category only). Never the host."
           items: { $ref: '#/components/schemas/HostSupporter' }
         luckySupporters:
           type: array
           maxItems: 20
-          description: "D199b: today's lucky list (by coins)."
+          description: "D199b: today's lucky list (by coins). Never the host."
           items: { $ref: '#/components/schemas/HostSupporter' }
         me:
           description: "D199b: the signed-in caller's own place today; null for guests and for the host."
@@ -24833,7 +24860,15 @@ components:
             - type: object
               required: [cherries, lucky]
               properties:
-                cherries: { $ref: '#/components/schemas/HostSupporterRank' }
+                gifts:
+                  allOf:
+                    - $ref: '#/components/schemas/HostSupporterRank'
+                  description: "v1.69-live (D277): their place in the gifts list (sent by a v1.69-live server)."
+                cherries:
+                  allOf:
+                    - $ref: '#/components/schemas/HostSupporterRank'
+                  deprecated: true
+                  description: "Deprecated (D277): the same as `gifts`."
                 lucky: { $ref: '#/components/schemas/HostSupporterRank' }
             - type: 'null'
     HostGiftStats:
@@ -24868,6 +24903,10 @@ components:
           required: [coins, gifts, givers, topSupporters]
           properties:
             coins: { type: integer, format: int64, minimum: 0 }
+            cherries:
+              type: integer
+              format: int64
+              description: "v1.69-live (D277): the cherries lucky gifts gave the host in the period, their own sends to themself included (sent by a v1.69-live server)."
             gifts: { type: integer, minimum: 0 }
             givers: { type: integer, minimum: 0 }
             topSupporters:
@@ -28938,12 +28977,15 @@ components:
         period: { type: string, enum: [DAILY, WEEKLY] }
         metric:
           type: string
-          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT, HOST_LUCKY_COINS]
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT, HOST_LUCKY_COINS, HOST_GIFT_CHERRIES, HOST_LUCKY_CHERRIES]
           description: |
             What is counted (the app picks where «اذهب» leads from it). v1.50-social (D176) adds the
             daily pool's metrics (CONVENTIONS §10.41.1); a client shows an unknown metric with a
             generic icon and «اذهب» to the live hub. v1.57-social (D188, §10.51) adds `GIFT_COINS_SENT`: the
-            coin value of paid gifts sent (the target is coins, like `HOST_GIFT_COINS`).
+            coin value of paid gifts sent (the target is coins, like `HOST_GIFT_COINS`). v1.69-live (D277,
+            §10.62.1) adds `HOST_GIFT_CHERRIES` («هدف الهدايا»: the cherries of gifts outside the lucky category
+            from other people) and `HOST_LUCKY_CHERRIES` («هدف هدايا الحظ»: the cherries of lucky gifts, self-sends
+            included); their targets are cherries.
         audience: { type: string, enum: [EVERYONE, HOSTS] }
         name: { type: string }
         target: { type: integer, minimum: 1 }

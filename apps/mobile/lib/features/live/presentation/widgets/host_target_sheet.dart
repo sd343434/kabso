@@ -13,8 +13,7 @@ import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart'
-    show KWizardHatIcon;
+import 'package:kabso_live/features/live/presentation/widgets/host_target_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -24,7 +23,8 @@ import 'package:material_ui/material_ui.dart';
 /// measured at 393 × 852 pt (spec in the D199b fidelity report):
 ///
 /// - a white sheet (the dark surface in the dark theme), 75 % of the screen,
-///   16 pt corners; the tab row «الكرز» | «هدايا الحظ» (D224: the selected
+///   16 pt corners; the tab row «الهدايا» (D277; was «الكرز») | «هدايا
+///   الحظ» (D224: the selected
 ///   bold on the theme's pill, [_Ink.chosen]) and ✕ at the end;
 /// - the period pills يومي / أسبوعي / شهري / الكل (D224: the selected on
 ///   the same pill — white in the light theme, black in the dark one —
@@ -34,7 +34,7 @@ import 'package:material_ui/material_ui.dart';
 ///   period on the far side; on the daily tab today's two targets, compact;
 /// - the ranked list: 1–3 on Kabso's shields, 4+ grey numbers, the avatar
 ///   in its frame, the name, the support level and the amount (cherries
-///   under «الكرز», coins under «هدايا الحظ») on the far side;
+///   under «الهدايا», coins under «هدايا الحظ») on the far side;
 /// - the bar pinned at the bottom with the caller's own place and the
 ///   turquoise button: «مركز المهام» for the host, «ادعم» (the gift panel)
 ///   for a viewer.
@@ -60,7 +60,7 @@ class HostTargetSheet extends ConsumerStatefulWidget {
   static const helpKey = Key('targetSheet.help');
   static const countdownKey = Key('targetSheet.countdown');
 
-  /// D224: the selected «الكرز» / «هدايا الحظ» tab's pill.
+  /// D224: the selected «الهدايا» / «هدايا الحظ» tab's pill.
   static const chosenTabKey = Key('targetSheet.chosenTab');
   static const rangeKey = Key('targetSheet.range');
   static const targetsKey = Key('targetSheet.targets');
@@ -84,8 +84,8 @@ class HostTargetSheet extends ConsumerStatefulWidget {
   ConsumerState<HostTargetSheet> createState() => _HostTargetSheetState();
 }
 
-/// The sheet's two tabs.
-enum TargetTab { cherries, lucky }
+/// The sheet's two tabs (D277: «الهدايا» was «الكرز»).
+enum TargetTab { gifts, lucky }
 
 /// The reference's measured values (logical pt at 393 × 852; M = measured,
 /// E = estimated from cap heights for Kabso's fonts).
@@ -199,7 +199,7 @@ class _Ink {
 }
 
 class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
-  TargetTab _tab = TargetTab.cherries;
+  TargetTab _tab = TargetTab.gifts;
   HostStatsPeriod _period = HostStatsPeriod.day;
   HostGiftStats? _stats;
   Object? _error;
@@ -272,9 +272,9 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
     final loading = widget.isHost ? stats == null : public == null;
     final targets = widget.isHost ? stats?.targets : public;
     final list = switch ((widget.isHost, _tab)) {
-      (true, TargetTab.cherries) => stats?.topSupporters,
+      (true, TargetTab.gifts) => stats?.topSupporters,
       (true, TargetTab.lucky) => stats?.luckySupporters,
-      (false, TargetTab.cherries) => public?.topSupporters,
+      (false, TargetTab.gifts) => public?.topSupporters,
       (false, TargetTab.lucky) => public?.luckySupporters,
     };
     final daily = !widget.isHost || _period == HostStatsPeriod.day;
@@ -307,7 +307,7 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
         children: [
           if (daily &&
               targets != null &&
-              (targets.cherries.hasTarget || targets.lucky.hasTarget))
+              (targets.gifts.hasTarget || targets.lucky.hasTarget))
             _TargetsBlock(
               key: HostTargetSheet.targetsKey,
               targets: targets,
@@ -433,7 +433,7 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  tab(TargetTab.cherries, l10n.liveTargetCherriesSection),
+                  tab(TargetTab.gifts, l10n.liveTargetCherriesSection),
                   // D224: the pills' padding takes part of the gap.
                   const SizedBox(width: _G.tabGap - 2 * _G.pillPad),
                   tab(TargetTab.lucky, l10n.liveTargetLuckySection),
@@ -680,13 +680,11 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
     if (widget.isHost) {
       rank = '—';
       amount = switch (_tab) {
-        TargetTab.cherries => stats?.cherries ?? 0,
+        TargetTab.gifts => stats?.cherries ?? 0,
         TargetTab.lucky => stats?.luckyCoins ?? 0,
       };
     } else {
-      final mine = _tab == TargetTab.cherries
-          ? public?.meCherries
-          : public?.meLucky;
+      final mine = _tab == TargetTab.gifts ? public?.meGifts : public?.meLucky;
       final place = mine?.rank;
       rank = place == null || place > HostTargetSheet.listLimit
           ? '${HostTargetSheet.listLimit}+'
@@ -884,16 +882,16 @@ class _TargetsBlock extends StatelessWidget {
         explicitChildNodes: true,
         child: Column(
           children: [
-            if (targets.cherries.hasTarget)
+            if (targets.gifts.hasTarget)
               line(
-                const KCherryIcon(size: 13),
+                const KHostTargetBadge(HostTargetKind.gifts, size: 13),
                 l10n.liveTargetCherriesGoal,
-                targets.cherries,
+                targets.gifts,
                 _Ink.cherry,
               ),
             if (targets.lucky.hasTarget)
               line(
-                const KWizardHatIcon(size: 13),
+                const KHostTargetBadge(HostTargetKind.lucky, size: 13),
                 l10n.liveTargetLuckyGoal,
                 targets.lucky,
                 _Ink.magic,
@@ -924,7 +922,7 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = supporter.user;
-    final amount = tab == TargetTab.cherries
+    final amount = tab == TargetTab.gifts
         ? supporter.cherries
         : supporter.coins;
     final art = AvatarFrameArt.of(user.avatarFrame);
@@ -1027,7 +1025,7 @@ class _Amount extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      if (tab == TargetTab.cherries)
+      if (tab == TargetTab.gifts)
         KCherryIcon(size: iconSize)
       else
         KabsoArtIcon(KabsoArt.coin, size: iconSize),

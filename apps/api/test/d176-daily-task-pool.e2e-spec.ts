@@ -623,9 +623,10 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         data: { startedAt: started, lastHeartbeatAt: new Date() },
       });
       await join(room, fan);
-      // D188: gifts received count by coin value (100 000 coins in band 1): three small gifts are not enough.
+      // D188: gifts received count by value; D277: «هدف الهدايا» in cherries (650 000 in band 1 — D188's
+      // 100 000 coins × 10 × 65 %): three small gifts (3 × 10 coins → 3 × 65 cherries) are not enough.
       for (let i = 0; i < 3; i++) await sendGift(room, fan, host);
-      expect(await task(host, 'P_HOST_GIFTS')).toMatchObject({ progress: 30, completed: false });
+      expect(await task(host, 'P_HOST_GIFTS')).toMatchObject({ progress: 195, completed: false });
       for (let i = 0; i < 10; i++) await sendGift(room, fan, host, 'pool_crown');
       await ctx.prisma.liveSeatRequest.create({
         data: { roomId: room, userId: guest.id, status: 'ACCEPTED', handledAt: new Date() },
@@ -636,7 +637,7 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
       const by = (code: string) => after.tasks.find((t) => t.code === code)!;
       expect(by('P_HOST_LIVE_30').progress).toBe(60);
       expect(by('P_HOST_LIVE_30').completed).toBe(true);
-      expect(by('P_HOST_GIFTS')).toMatchObject({ progress: 100_000, target: 100_000, completed: true });
+      expect(by('P_HOST_GIFTS')).toMatchObject({ progress: 650_000, target: 650_000, completed: true });
       expect(by('P_HOST_GUEST')).toMatchObject({ progress: 1, completed: true });
       for (const code of ['P_HOST_LIVE_30', 'P_HOST_GIFTS', 'P_HOST_GUEST']) {
         expect((await claim(host, code)).status).toBe(201);

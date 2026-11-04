@@ -11521,12 +11521,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveTargetCherriesSemantics(String received) {
-    return 'الكرز اليوم: $received';
+    return 'هدف الهدايا اليوم: $received كرز';
   }
 
   @override
   String liveTargetLuckySemantics(String received) {
-    return 'هدايا الحظ اليوم: $received عملة';
+    return 'هدف هدايا الحظ اليوم: $received كرز';
   }
 
   @override
@@ -11545,7 +11545,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveTargetPeriodAll => 'الكل';
 
   @override
-  String get liveTargetCherriesSection => 'الكرز';
+  String get liveTargetCherriesSection => 'الهدايا';
 
   @override
   String get liveTargetLuckySection => 'هدايا الحظ';
@@ -11560,17 +11560,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveTargetToday => 'أهداف اليوم';
 
   @override
-  String get liveTargetCherriesGoal => 'هدف الكرز';
+  String get liveTargetCherriesGoal => 'هدف الهدايا';
 
   @override
-  String get liveTargetLuckyGoal => 'هدف هدايا الحظ (عملات)';
+  String get liveTargetLuckyGoal => 'هدف هدايا الحظ';
 
   @override
   String get liveTargetNoTarget => 'لا هدف اليوم';
 
   @override
   String liveTargetConversion(int band) {
-    return 'هدف الكرز هو هدف مهمة «استقبل هدايا في بثك» لفئتك ($band) محوّلًا إلى كرز بحصّتك من الهدايا.';
+    return 'هدف الهدايا هو هدف مهمة «هدف الهدايا» لفئتك ($band)، بالكرز.';
   }
 
   @override
@@ -11679,7 +11679,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTargetHelp =>
-      'للمضيف هدفان كل يوم: هدف الكرز (الكرز الذي يصله من الهدايا) وهدف هدايا الحظ (قيمة هدايا الحظ بالعملات). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الكرز» وبالعملات في «هدايا الحظ».';
+      'للمضيف هدفان كل يوم، كلاهما بالكرز الذي يصله فعلاً: هدف الهدايا (من كل الهدايا غير هدايا الحظ التي يرسلها الآخرون) وهدف هدايا الحظ (من هدايا الحظ، ومنها ما يرسله المضيف لنفسه). يبدأ العد من جديد عند منتصف الليل بتوقيت الرياض. القائمة ترتّب الداعمين في الفترة المختارة: بالكرز في «الهدايا» وبالعملات في «هدايا الحظ».';
 
   @override
   String get liveTargetSupport => 'ادعم';

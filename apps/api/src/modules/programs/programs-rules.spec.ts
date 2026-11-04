@@ -8,6 +8,7 @@ import {
   DEFAULT_POOL_TASKS,
   DEFAULT_TASKS,
   cherriesForCoins,
+  CHERRY_VALUE_METRICS,
   COIN_VALUE_METRICS,
   TASK_METRICS,
   cappedReward,
@@ -23,6 +24,7 @@ import {
   parsePrizeText,
   prizeForRank,
   svipTierFor,
+  targetUnitOf,
 } from './programs-rules.js';
 import { addDays } from './programs-time.js';
 
@@ -82,6 +84,12 @@ describe('D166 check-in rules', () => {
     expect(coinsUsd(10_000, 12.5)).toBe('$0.125');
     expect(coinsUsd(5_000_000, 12.5)).toBe('$62.50');
     expect(COIN_VALUE_METRICS).toEqual(['GIFT_COINS_SENT', 'HOST_GIFT_COINS', 'HOST_LUCKY_COINS']);
+    // D277: the host's targets count cherries.
+    expect(CHERRY_VALUE_METRICS).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
+    expect(targetUnitOf('HOST_LUCKY_CHERRIES')).toBe('CHERRIES');
+    expect(targetUnitOf('HOST_GIFT_CHERRIES')).toBe('CHERRIES');
+    expect(targetUnitOf('GIFT_COINS_SENT')).toBe('COINS');
+    expect(targetUnitOf('FOLLOWS')).toBeNull();
   });
 
   it('D188: the defaults pay at most about 1 % of the money behind a coin target', () => {
@@ -113,23 +121,40 @@ describe('D166 check-in rules', () => {
     expect(addDays('2027-01-01', -1)).toBe('2026-12-31');
   });
 
-  it('D199: migration 20270115090200 seeds «استقبل هدايا الحظ» with the default values', () => {
-    const sql = readFileSync(
-      fileURLToPath(
-        new URL('../../../prisma/migrations/20270115090200_host_lucky_task/migration.sql', import.meta.url),
-      ),
-      'utf8',
-    ).replace(/\s+/g, ' ');
+  it('D199: migration 20270115090200 seeds «استقبل هدايا الحظ» (coins); D277 turns it into cherries', () => {
+    const migration = (name: string) =>
+      readFileSync(
+        fileURLToPath(new URL(`../../../prisma/migrations/${name}/migration.sql`, import.meta.url)),
+        'utf8',
+      ).replace(/\s+/g, ' ');
+    const sql = migration('20270115090200_host_lucky_task');
     const t = DEFAULT_TASKS.find((x) => x.code === 'HOST_LUCKY_COINS')!;
-    expect(t).toMatchObject({ period: 'DAILY', metric: 'HOST_LUCKY_COINS', audience: 'HOSTS' });
+    expect(t).toMatchObject({ period: 'DAILY', metric: 'HOST_LUCKY_CHERRIES', audience: 'HOSTS' });
     expect([t.target, t.rewardCherries]).toEqual([t.bandTargets![3], t.bandRewards![3]]);
+    // D199 seeded the coin values; at the lucky host share (10 %) × 10 cherries per coin they are the
+    // same numbers in cherries.
     expect(sql).toContain(
-      `('${t.code}', '${t.period}', '${t.metric}', ${String(t.target)}, ${String(t.rewardCherries)}, ` +
-        `'${t.audience}', '${t.nameAr}', '${t.nameEn}', ${String(t.sortOrder)}, ` +
-        `ARRAY[${t.bandTargets!.join(', ')}], ARRAY[${t.bandRewards!.join(', ')}])`,
+      `('${t.code}', '${t.period}', 'HOST_LUCKY_COINS', ${String(t.target)}, ${String(t.rewardCherries)}, ` +
+        `'${t.audience}', 'استقبل هدايا الحظ (بالعملات)', 'Receive lucky gifts (coins)', ${String(t.sortOrder)}, ` +
+        `ARRAY[${t.bandTargets!.map((c) => cherriesForCoins(c, 10, 1_000)).join(', ')}], ARRAY[${t.bandRewards!.join(', ')}])`,
     );
     expect(t.bandTargets).toEqual([20_000, 50_000, 100_000, 200_000]);
     expect(t.bandRewards).toEqual([1_000, 2_000, 4_000, 6_000]);
+    // D277: the migration that converts both host targets, and the texts it writes.
+    const d277 = migration('20270313090000_host_targets_cherries');
+    expect(d277).toContain(`"metric" = '${t.metric}'`);
+    expect(d277).toContain(`"name_ar" = '${t.nameAr}', "name_en" = '${t.nameEn}'`);
+    expect(d277).toContain('t::bigint * 10 * 1000 / 10000');
+    const gifts = DEFAULT_POOL_TASKS.find((x) => x.code === 'P_HOST_GIFTS')!;
+    expect(gifts).toMatchObject({ metric: 'HOST_GIFT_CHERRIES', nameAr: 'هدف الهدايا (بالكرز)' });
+    expect(d277).toContain(`"metric" = '${gifts.metric}'`);
+    expect(d277).toContain(`"name_ar" = '${gifts.nameAr}', "name_en" = '${gifts.nameEn}'`);
+    expect(d277).toContain('t::bigint * 10 * 6500 / 10000');
+    // D188's coin targets × 10 × 65 %.
+    expect([100_000, 250_000, 500_000, 1_000_000].map((c) => cherriesForCoins(c, 10, 6_500))).toEqual(
+      gifts.bandTargets,
+    );
+    expect(d277).toContain("'HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES')");
   });
 
   it('D199: a coin target in cherries — × CHERRIES_PER_COIN × the host share, floored', () => {
@@ -209,9 +234,11 @@ describe('D166 check-in rules', () => {
       'HOST_GIFT_COINS',
     ]);
     // D199 (v1.44-live): the lucky gifts received.
-    expect(TASK_METRICS).toHaveLength(20);
-    expect(TASK_METRICS.at(-2)).toBe('GIFT_COINS_SENT');
-    expect(TASK_METRICS.at(-1)).toBe('HOST_LUCKY_COINS');
+    expect(TASK_METRICS).toHaveLength(22);
+    expect(TASK_METRICS.at(-4)).toBe('GIFT_COINS_SENT');
+    expect(TASK_METRICS.at(-3)).toBe('HOST_LUCKY_COINS');
+    // D277 (v1.69-live): the host's targets in cherries.
+    expect(TASK_METRICS.slice(-2)).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
     expect(isTaskMetric('FOLLOWS')).toBe(true);
     expect(isTaskMetric('SHARES')).toBe(false);
   });

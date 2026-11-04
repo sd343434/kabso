@@ -18,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_host_targets_repository.dart';
+import 'package:kabso_live/features/live/presentation/widgets/host_target_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/host_target_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -224,7 +225,7 @@ void main() {
   testWidgets('turns every 4 s between cherries and the lucky gifts, '
       'the amount received only (D199b)', (tester) async {
     await _pump(tester);
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsNothing);
     expect(find.text('12.4K'), findsOneWidget);
     // Never the target on the chip.
@@ -233,17 +234,21 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsNothing);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsNothing);
     expect(find.text('3K'), findsOneWidget);
     expect(find.textContaining('20K'), findsNothing);
-    expect(find.byType(KWizardHatIcon), findsOneWidget);
+    expect(
+      find.byKey(KHostTargetBadge.keyOf(HostTargetKind.lucky)),
+      findsOneWidget,
+    );
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     // Both read out at once, whatever the face.
     expect(
       find.bySemanticsLabel(
-        'Target: Cherries today: 12,400 · Lucky gifts today: 3,000 coins',
+        'Target: Gifts target today: 12,400 cherries · '
+        'Lucky gifts target today: 3,000 cherries',
       ),
       findsOneWidget,
     );
@@ -256,12 +261,12 @@ void main() {
         const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await _pump(tester);
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
     expect(find.text('12.4K'), findsOneWidget);
     expect(find.text('3K'), findsOneWidget);
     await tester.pump(const Duration(seconds: 9));
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
   });
 
@@ -287,7 +292,7 @@ void main() {
   testWidgets('D214: a target switched off still turns, showing what was '
       'received (no check)', (tester) async {
     await _pump(tester, targets: targetsFixture(luckyTarget: 0, lucky: 25_000));
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
@@ -307,7 +312,7 @@ void main() {
       'shows, both faces «0», no check or glow', (tester) async {
     await _pump(tester, targets: zeroTargets());
     expect(find.byKey(LiveHostTargetChip.chipKey), findsOneWidget);
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
     expect(find.byKey(LiveHostTargetChip.reachedKey), findsNothing);
     final box = tester.widget<AnimatedContainer>(
@@ -320,11 +325,15 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
-    expect(find.byType(KWizardHatIcon), findsOneWidget);
+    expect(
+      find.byKey(KHostTargetBadge.keyOf(HostTargetKind.lucky)),
+      findsOneWidget,
+    );
     expect(find.text('0'), findsOneWidget);
     expect(
       find.bySemanticsLabel(
-        'Target: Cherries today: 0 · Lucky gifts today: 0 coins',
+        'Target: Gifts target today: 0 cherries · '
+        'Lucky gifts target today: 0 cherries',
       ),
       findsOneWidget,
     );
@@ -337,7 +346,7 @@ void main() {
         const FakeAccessibilityFeatures(disableAnimations: true);
     addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await _pump(tester, targets: zeroTargets());
-    expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+    expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
     expect(find.byKey(LiveHostTargetChip.luckyKey), findsOneWidget);
     expect(find.text('0'), findsNWidgets(2));
   });
@@ -412,7 +421,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('1. Omar: 2,000'), findsOneWidget);
     expect(find.bySemanticsLabel('Your place —: 3,000'), findsOneWidget);
-    await tester.tap(find.byKey(HostTargetSheet.tabKey(TargetTab.cherries)));
+    await tester.tap(find.byKey(HostTargetSheet.tabKey(TargetTab.gifts)));
     // Monthly: no targets; the countdown in days.
     await _period(tester, HostStatsPeriod.month);
     await tester.pumpAndSettle();
@@ -515,7 +524,7 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await _pump(tester, language: language, targets: zeroTargets());
       expect(tester.takeException(), isNull);
-      expect(find.byKey(LiveHostTargetChip.cherriesKey), findsOneWidget);
+      expect(find.byKey(LiveHostTargetChip.giftsKey), findsOneWidget);
       expect(find.text('0'), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
       await tester.pump(const Duration(milliseconds: 400));
@@ -541,7 +550,7 @@ void main() {
       if (language == AppLanguage.ar) {
         expect(find.text('يومي'), findsOneWidget);
         expect(find.text('الكل'), findsOneWidget);
-        expect(find.text('الكرز'), findsOneWidget);
+        expect(find.text('الهدايا'), findsOneWidget);
         expect(find.text('هدايا الحظ'), findsOneWidget);
         expect(find.text('مركز المهام'), findsOneWidget);
         expect(find.text('العد التنازلي 5س 17د'), findsOneWidget);

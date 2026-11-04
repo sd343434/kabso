@@ -4,7 +4,7 @@ import { csvDocument } from '../../common/csv/csv.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { cherriesUsd, COIN_VALUE_METRICS, coinsUsd, type TaskMetric } from '../programs/programs-rules.js';
+import { cherriesUsd, coinsUsd, targetUnitOf } from '../programs/programs-rules.js';
 import { auditWaitlistViewIn, waitlistCounts } from '../waitlist/waitlist-admin.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { tableResult, window, type TableQuery } from './admin-tables.js';
@@ -29,10 +29,12 @@ export class AdminProgramsService {
     return { cherries: this.config.economy.rateCherries, minor: this.config.economy.rateMinor };
   }
 
+  /** A coin target at the retail price; v1.69-live (D277): a cherry target at the payout rate. */
   private targetUsd(target: number, metric: string): string | null {
-    return COIN_VALUE_METRICS.includes(metric as TaskMetric)
-      ? coinsUsd(target, this.config.economy.coinRetailUsdPerMillion)
-      : null;
+    const unit = targetUnitOf(metric);
+    if (unit === 'COINS') return coinsUsd(target, this.config.economy.coinRetailUsdPerMillion);
+    if (unit === 'CHERRIES') return cherriesUsd(target, this.rate);
+    return null;
   }
 
   async tasks() {
@@ -53,6 +55,8 @@ export class AdminProgramsService {
         pool: t.pool,
         poolGroup: t.poolGroup,
         target: t.target,
+        // D277: «كرز» / «عملة» next to the targets (null: a count, minutes…).
+        targetUnit: targetUnitOf(t.metric),
         targetUsd: this.targetUsd(t.target, t.metric),
         rewardCherries: t.rewardCherries,
         rewardUsd: cherriesUsd(t.rewardCherries, this.rate),

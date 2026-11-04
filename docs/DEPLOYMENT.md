@@ -2733,3 +2733,33 @@ answers 503 without it, like the panel).
   server decides) but see no tools; gifts / taps are refused with a generic message.
 - **Rollback.** The new columns and table are only read by D273 code; an older API ignores them (WARN rows and
   LIVE_STAFF_REPORT notifications would be unknown values to it — delete them before rolling back the code).
+### 5.60 The host's targets in cherries «هدف الهدايا» / «هدف هدايا الحظ» (migration `20270313090000_host_targets_cherries`; D277) — [IMPLEMENTED, draft contract v1.69-live; not deployed, not device-tested]
+
+CONVENTIONS §10.62.1. **The unit of two stored task targets changes** from coins to cherries; nothing else is stored
+differently. The migration:
+
+- adds the metrics `HOST_GIFT_CHERRIES` and `HOST_LUCKY_CHERRIES` to `task_definitions_shape` (same constraint name);
+- «هدف الهدايا» `P_HOST_GIFTS` (was «استقبل هدايا في بثك (بالعملات)», `HOST_GIFT_COINS`): `band_targets` and `target`
+  × 10 cherries per coin × 65 % (the POPULAR host share), floored. The defaults are 100 000 / 250 000 / 500 000 /
+  1 000 000 coins, which become **650 000 / 1 625 000 / 3 250 000 / 6 500 000 cherries**. The days' offers
+  (`task_assignments.target`) of that task are converted the same way, so today's progress compares cherries with
+  cherries;
+- «هدف هدايا الحظ» `HOST_LUCKY_COINS` (the code is kept, because claims are keyed by it): × 10 × 10 % (the lucky host share)
+  = **the same numbers**, 20 000 / 50 000 / 100 000 / 200 000, now in cherries;
+- renames both tasks (ar / en). Rewards and the daily and monthly caps are unchanged. Only rows still on the old
+  metric are converted, so values changed with `task-admin` are converted too, and a second run changes nothing.
+
+**Check before deploying:** the conversion assumes the defaults `CHERRIES_PER_COIN=10`, `GIFT_HOST_SHARE_PERCENTS`
+POPULAR 65 and `LUCKY_GIFT_HOST_SHARE_PERCENT=10`. If production runs with other values, correct the two tasks afterwards
+with `task-admin` (it now prints cherry targets as «… cherries (≈ $…)»). No env setting; nothing to backfill.
+
+What is counted: «هدف الهدايا» counts the cherries the ledger credited for gifts outside the lucky category from other
+ACTIVE people. «هدف هدايا الحظ» counts the cherries of lucky gifts, the host's own sends to themself included (D128
+allows them). Both are net of admin reversals.
+
+Order: API (with its migration) first, then the app. An older app reads `cherries` (now the same as `gifts`) and shows
+the lucky number as before; at the default 10 % share, a lucky coin is 1 cherry. Its sheet still says «(عملات)» for
+the lucky target. The new app on an older server falls back to `cherries`. The badges sit in fixed slots
+(`apps/mobile/assets/host_targets/`, PROVENANCE): to swap in the owner's art, replace the file. No code change is needed.
+Rollback: an older API does not know the two new metrics, so it hides both tasks (`isTaskMetric`); re-run the
+inverse (÷ 6.5 / ÷ 1, metric back) with `task-admin` if needed.

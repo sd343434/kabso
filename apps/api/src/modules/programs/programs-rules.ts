@@ -38,6 +38,11 @@ export const TASK_METRICS = [
   'GIFT_COINS_SENT',
   // v1.44-live (D199): the coin value of the lucky gifts the caller received (stored lucky sends).
   'HOST_LUCKY_COINS',
+  // v1.69-live (D277, owner): the host's two daily targets in CHERRIES — what the cherry ledger credited
+  // the caller for gifts received (net of reversals). «هدف الهدايا»: every gift OUTSIDE the lucky category
+  // from other ACTIVE people; «هدف هدايا الحظ»: lucky gifts only, the caller's own sends to themself too.
+  'HOST_GIFT_CHERRIES',
+  'HOST_LUCKY_CHERRIES',
 ] as const;
 
 /**
@@ -49,6 +54,19 @@ export const COIN_VALUE_METRICS: readonly TaskMetric[] = [
   'HOST_GIFT_COINS',
   'HOST_LUCKY_COINS',
 ];
+
+/**
+ * v1.69-live (D277): the metrics whose target is cherries (the host's targets), so the panel and
+ * `task-admin` say «كرز» and show the payout value (`CHERRY_PAYOUT_RATE`) next to it.
+ */
+export const CHERRY_VALUE_METRICS: readonly TaskMetric[] = ['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES'];
+
+/** v1.69-live (D277): the unit of a metric's target, for the panel (null: a count, minutes…). */
+export function targetUnitOf(metric: string): 'COINS' | 'CHERRIES' | null {
+  if ((COIN_VALUE_METRICS as readonly string[]).includes(metric)) return 'COINS';
+  if ((CHERRY_VALUE_METRICS as readonly string[]).includes(metric)) return 'CHERRIES';
+  return null;
+}
 
 /** A host counts as new for «ادعم مضيفاً جديداً» this many days after the hosting permission. */
 export const NEW_HOST_DAYS = 30;
@@ -294,32 +312,40 @@ export const DEFAULT_TASKS: readonly DefaultTask[] = [
     bandRewards: [220_000, 270_000, 290_000, 430_000],
   },
   {
-    // v1.44-live (D199, owner «تارجت»): the host's daily lucky target — the coin value of the lucky gifts
-    // received, per level band (owner-confirmable). Rewards follow D188 (cherries ≈ 0.03–0.05 per coin of
-    // target, like «استقبل هدايا في بثك»), inside the unchanged daily and monthly caps.
+    // v1.44-live (D199, owner «تارجت»): the host's daily lucky target, per level band (owner-confirmable).
+    // Rewards follow D188 (cherries ≈ 0.03–0.05 per coin of lucky value), inside the unchanged daily and
+    // monthly caps. v1.69-live (D277, owner): «هدف هدايا الحظ» counts the CHERRIES the host got from lucky
+    // gifts (self-sends too); migration 20270313090000_host_targets_cherries turned the coin targets into
+    // cherries at the lucky host share (10 % × 10 cherries per coin = 1 cherry per coin: the same numbers).
+    // The code stays (claims and history are keyed by it).
     code: 'HOST_LUCKY_COINS',
     period: 'DAILY',
-    metric: 'HOST_LUCKY_COINS',
+    metric: 'HOST_LUCKY_CHERRIES',
     target: 200_000,
     rewardCherries: 6_000,
     audience: 'HOSTS',
-    nameAr: 'استقبل هدايا الحظ (بالعملات)',
-    nameEn: 'Receive lucky gifts (coins)',
+    nameAr: 'هدف هدايا الحظ (بالكرز)',
+    nameEn: 'Lucky gifts target (cherries)',
     sortOrder: 70,
     bandTargets: [20_000, 50_000, 100_000, 200_000],
     bandRewards: [1_000, 2_000, 4_000, 6_000],
   },
 ];
 
-/** v1.44-live (D199): the daily pool template whose band target is the host's cherries target. */
+/**
+ * v1.44-live (D199): the daily pool template whose band target is the host's cherries target; v1.69-live
+ * (D277): «هدف الهدايا», in cherries (metric HOST_GIFT_CHERRIES).
+ */
 export const HOST_GIFTS_TARGET_TASK = 'P_HOST_GIFTS';
 
-/** v1.44-live (D199): the daily task whose band target is the host's lucky target. */
+/** v1.44-live (D199): the daily task whose band target is the host's lucky target (D277: in cherries). */
 export const HOST_LUCKY_TARGET_TASK = 'HOST_LUCKY_COINS';
 
 /**
- * v1.44-live (D199): a coin-value target in cherries — what the host would receive for that value of
- * ordinary gifts: coins × CHERRIES_PER_COIN × the POPULAR host share (65 % by default), floored.
+ * v1.44-live (D199): a coin value in cherries — what the host receives for that value of gifts at
+ * `shareBps`: coins × CHERRIES_PER_COIN × the share, floored (the cherry ledger's credit of one send).
+ * v1.69-live (D277): the targets are stored in cherries; migration 20270313090000_host_targets_cherries
+ * used this to convert the old coin targets (the gifts target at the POPULAR 65 %, lucky at 10 %).
  */
 export function cherriesForCoins(coins: number, cherriesPerCoin: number, shareBps: number): number {
   return Math.floor((coins * cherriesPerCoin * shareBps) / 10_000);
@@ -662,14 +688,17 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     sortOrder: 700,
   },
   {
+    // v1.69-live (D277, owner): «هدف الهدايا» — the cherries from gifts outside the lucky category. The
+    // D188 coin targets (100k / 250k / 500k / 1M) × 10 cherries × the POPULAR host share 65 %, by migration
+    // 20270313090000_host_targets_cherries.
     code: 'P_HOST_GIFTS',
-    metric: 'HOST_GIFT_COINS',
+    metric: 'HOST_GIFT_CHERRIES',
     group: 'HOST',
     audience: 'HOSTS',
-    bandTargets: [100_000, 250_000, 500_000, 1_000_000],
+    bandTargets: [650_000, 1_625_000, 3_250_000, 6_500_000],
     bandRewards: [10_000, 20_000, 40_000, 60_000],
-    nameAr: 'استقبل هدايا في بثك (بالعملات)',
-    nameEn: 'Receive gifts in your live (coins)',
+    nameAr: 'هدف الهدايا (بالكرز)',
+    nameEn: 'Gifts target (cherries)',
     sortOrder: 710,
   },
   {

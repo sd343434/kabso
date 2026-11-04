@@ -6,7 +6,7 @@ import { formatDate, formatNumber } from '../format';
 import { navigate } from '../router';
 import { DataTable } from '../ui/DataTable';
 
-interface TaskDto {
+export interface TaskDto {
   code: string;
   period: string;
   metric: string;
@@ -17,6 +17,8 @@ interface TaskDto {
   pool: boolean;
   poolGroup: string | null;
   target: number;
+  /** D277: the unit of the targets (absent from an older API: no unit shown). */
+  targetUnit?: 'COINS' | 'CHERRIES' | null;
   targetUsd: string | null;
   rewardCherries: number;
   rewardUsd: string;
@@ -55,71 +57,91 @@ export function Tasks() {
       </div>
       <ErrorAlert error={error} />
       <div className="card">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{t('colTitle')}</th>
-                <th>{t('tasksPeriod')}</th>
-                <th>{t('tasksMetric')}</th>
-                <th className="num">{t('tasksTarget')}</th>
-                <th className="num">{t('tasksReward')}</th>
-                <th>{t('colStatus')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((x) => (
-                <tr key={x.code}>
-                  <td>
-                    <span className="names">
-                      <span>{lang === 'ar' ? x.nameAr : x.nameEn}</span>
-                      <span className="mono small muted">{x.code}</span>
-                    </span>
-                  </td>
-                  <td className="small">{x.period}</td>
-                  <td className="mono small">{x.metric}</td>
-                  <td className="num">
-                    {x.bands.length > 0 ? (
-                      <span className="bands">
-                        {x.bands.map((b, i) => (
-                          <span key={i}>
-                            {n(b.target)}
-                            {b.targetUsd && <span className="muted small"> ({b.targetUsd})</span>}
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <>
-                        {n(x.target)}
-                        {x.targetUsd && <span className="muted small"> ({x.targetUsd})</span>}
-                      </>
-                    )}
-                  </td>
-                  <td className="num">
-                    {x.bands.length > 0 ? (
-                      <span className="bands">
-                        {x.bands.map((b, i) => (
-                          <span key={i}>
-                            {n(b.rewardCherries)} <span className="money">{b.rewardUsd}</span>
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <>
-                        {n(x.rewardCherries)} <span className="money">{x.rewardUsd}</span>
-                      </>
-                    )}
-                  </td>
-                  <td>{x.enabled ? <span className="badge ok">{t('enabled')}</span> : <span className="badge">{t('disabled')}</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {data && rows.length === 0 && <p className="muted state">{t('empty')}</p>}
-        </div>
+        <TasksTable rows={rows} />
+        {data && rows.length === 0 && <p className="muted state">{t('empty')}</p>}
+        <p className="muted small">{t('tasksUnitNote')}</p>
         <p className="muted small">{t('tasksCliNote')}</p>
       </div>
     </>
+  );
+}
+
+/**
+ * The tasks table (D197), apart for tests. D277: each target names its unit — «كرز» for the host's gifts and lucky targets,
+ * «عملة» for a coin value; counts and minutes have none.
+ */
+export function TasksTable({ rows }: { rows: readonly TaskDto[] }) {
+  const { t, lang } = useApp();
+  const n = (v: number) => formatNumber(v, lang);
+  const unitLabel = (u: TaskDto['targetUnit']) =>
+    u === 'CHERRIES' ? t('tasksUnitCherries') : u === 'COINS' ? t('tasksUnitCoins') : null;
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>{t('colTitle')}</th>
+            <th>{t('tasksPeriod')}</th>
+            <th>{t('tasksMetric')}</th>
+            <th className="num">{t('tasksTarget')}</th>
+            <th className="num">{t('tasksReward')}</th>
+            <th>{t('colStatus')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((x) => {
+            const unit = unitLabel(x.targetUnit);
+            return (
+              <tr key={x.code}>
+                <td>
+                  <span className="names">
+                    <span>{lang === 'ar' ? x.nameAr : x.nameEn}</span>
+                    <span className="mono small muted">{x.code}</span>
+                  </span>
+                </td>
+                <td className="small">{x.period}</td>
+                <td className="mono small">{x.metric}</td>
+                <td className="num">
+                  {x.bands.length > 0 ? (
+                    <span className="bands">
+                      {x.bands.map((b, i) => (
+                        <span key={i}>
+                          {n(b.target)}
+                          {unit && <span className="small"> {unit}</span>}
+                          {b.targetUsd && <span className="muted small"> ({b.targetUsd})</span>}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <>
+                      {n(x.target)}
+                      {unit && <span className="small"> {unit}</span>}
+                      {x.targetUsd && <span className="muted small"> ({x.targetUsd})</span>}
+                    </>
+                  )}
+                </td>
+                <td className="num">
+                  {x.bands.length > 0 ? (
+                    <span className="bands">
+                      {x.bands.map((b, i) => (
+                        <span key={i}>
+                          {n(b.rewardCherries)} <span className="money">{b.rewardUsd}</span>
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <>
+                      {n(x.rewardCherries)} <span className="money">{x.rewardUsd}</span>
+                    </>
+                  )}
+                </td>
+                <td>{x.enabled ? <span className="badge ok">{t('enabled')}</span> : <span className="badge">{t('disabled')}</span>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

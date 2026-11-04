@@ -89,7 +89,10 @@ describe('the default pool and bands (D176)', () => {
         expect(hostBands).toContain(`('${t.code}', ARRAY[${t.bandRewards.join(', ')}])`);
         const at = rebalance.indexOf(`('${t.code}',`);
         const old = rebalance.slice(at, rebalance.indexOf('])', at) + 2).replace(/\s+/g, ' ');
-        expect(old, t.code).toContain(`ARRAY[${t.bandTargets.join(', ')}], ARRAY[`);
+        // D277: «هدف الهدايا» is stored in cherries since 20270313090000_host_targets_cherries (× 10 × 65 %).
+        const targets =
+          t.code === 'P_HOST_GIFTS' ? t.bandTargets.map((c) => (c * 10_000) / (10 * 6_500)) : t.bandTargets;
+        expect(old, t.code).toContain(`ARRAY[${targets.join(', ')}], ARRAY[`);
         continue;
       }
       const start = rebalance.indexOf(`('${t.code}',`);
@@ -98,7 +101,7 @@ describe('the default pool and bands (D176)', () => {
       expect(row, t.code).toContain(
         `ARRAY[${t.bandTargets.join(', ')}], ARRAY[${t.bandRewards.join(', ')}])`,
       );
-      if (t.metric === 'GIFT_COINS_SENT' || t.code === 'P_HOST_GIFTS') {
+      if (t.metric === 'GIFT_COINS_SENT') {
         expect(row).toContain(
           `'${t.metric}', '${t.nameAr}', '${t.nameEn}', ${t.enabled === false ? 'false' : 'NULL'},`,
         );

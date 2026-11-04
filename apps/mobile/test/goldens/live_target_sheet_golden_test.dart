@@ -1,6 +1,8 @@
 // D199b «تارجت» ranking sheet goldens (the owner's contribution-ranking
 // layout, Kabso art; test fixtures only): a viewer (light, ar and en) and
-// the host (dark, ar) at 393×852 @3x with the phone's insets.
+// the host (dark, ar) at 393×852 @3x with the phone's insets. D277: the
+// v1.69-live shape (`gifts`, `me.gifts`) — «الهدايا» | «هدايا الحظ», «هدف
+// الهدايا» / «هدف هدايا الحظ» in cherries with the badges' asset slots.
 //
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/live_target_sheet_golden_test.dart
@@ -47,13 +49,13 @@ Map<String, Object?> _targetsJson({bool withMe = true}) => {
   'timeZone': 'Asia/Riyadh',
   'endsAt': '2026-10-31T21:00:00.000Z',
   'band': 1,
-  'cherries': {'received': 12400, 'target': 50000, 'reached': false},
+  'gifts': {'received': 12400, 'target': 650000, 'reached': false},
   'lucky': {'received': 20000, 'target': 20000, 'reached': true},
   'topSupporters': _supporters(),
   'luckySupporters': _supporters(),
   'me': withMe
       ? {
-          'cherries': {'rank': null, 'amount': 0},
+          'gifts': {'rank': null, 'amount': 0},
           'lucky': {'rank': null, 'amount': 0},
         }
       : null,

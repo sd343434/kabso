@@ -369,7 +369,7 @@ void main() {
             final tab = find.byKey(HostTargetSheet.chosenTabKey);
             expect(
               find.descendant(
-                of: find.byKey(HostTargetSheet.tabKey(TargetTab.cherries)),
+                of: find.byKey(HostTargetSheet.tabKey(TargetTab.gifts)),
                 matching: tab,
               ),
               findsOneWidget,
