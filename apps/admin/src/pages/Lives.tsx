@@ -9,6 +9,7 @@ import { DataTable, type TablePage } from '../ui/DataTable';
 import { Icon } from '../ui/icons';
 import { previewPool, startPreview, useOnScreenSlot, usePreviewSlot, type PreviewPool } from '../live-media';
 import { ACTION_ICON, ACTION_LABEL, liveActions, ModerateDialog, useLiveReportsSummary, type ModAction } from './LiveModeration';
+import { MineTab, ShiftsPanel, ShiftSwitch, useShifts, type ShiftDto } from './StaffShifts';
 import './live-moderation.css';
 
 /** D241: the other side of the live's open PK (the opponent is null for a legacy mode PK room). */
@@ -33,6 +34,10 @@ export interface LiveRow {
   pk: LivePk | null;
   /** D250: the live's open reports (the red badge; absent from an older API). */
   openReports?: number;
+  /** D260: the staff member on shift it is assigned to (null: nobody on shift; absent from an older API). */
+  assignedTo?: { id: string; displayName: string } | null;
+  /** D260: staff watching it visibly now («فريق كابسو» in the live). */
+  staffWatching?: number;
 }
 
 interface LiveDetailDto extends Omit<LiveRow, 'score' | 'openReports'> {
@@ -264,6 +269,17 @@ export function LiveCard({
             <span className="spacer" />
             <span className="num">{onAir(l.startedAt)}</span>
           </span>
+          {l.assignedTo !== undefined && (
+            <span className="row small assignee" data-assigned={l.assignedTo ? l.assignedTo.id : 'none'}>
+              <Icon name="eye" size={12} />
+              <span className={l.assignedTo ? '' : 'muted'}>
+                {l.assignedTo ? t('liveAssignedTo', { name: l.assignedTo.displayName }) : t('liveUnassigned')}
+              </span>
+              {(l.staffWatching ?? 0) > 0 && (
+                <span className="team-badge">{t('liveStaffWatching', { n: formatNumber(l.staffWatching ?? 0, lang) })}</span>
+              )}
+            </span>
+          )}
         </span>
       </button>
       {(actions.length > 0 || can('lives.watch')) && onAction && (
@@ -310,7 +326,7 @@ export function LiveModeTabs({
   onMode,
   children,
 }: {
-  mode: LiveModeChip | 'REPORTED';
+  mode: LiveModeChip | 'REPORTED' | 'MINE';
   onMode: (m: LiveModeChip) => void;
   children?: ReactNode;
 }) {
@@ -359,7 +375,8 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
   const [act, setAct] = useState<{ live: LiveRow; action: ModAction } | null>(null);
   // D212: the app's live categories as a mode filter ('' = all). D241: «PK» = the lives in an open PK; «بث مباشر» =
   // SOLO lives not in one (the chips partition the lives). D213 adds «ستريمر». D250: `reported` = «لايفات مبلّغ عنها».
-  const [mode, setMode] = useState<LiveModeChip | 'REPORTED'>('');
+  // D260: `MINE` = «بثوثي» (the lives assigned to me).
+  const [mode, setMode] = useState<LiveModeChip | 'REPORTED' | 'MINE'>('');
   const summary = useLiveReportsSummary(can('lives.reports'));
   const { data, error, loading } = useAsync(
     () =>
@@ -368,7 +385,7 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
         pageSize: 24,
         sort: 'viewers',
         order: 'desc',
-        ...(mode === 'REPORTED' ? { reported: 'true' } : mode ? { mode } : {}),
+        ...(mode === 'REPORTED' ? { reported: 'true' } : mode === 'MINE' ? { assigned: 'me' } : mode ? { mode } : {}),
       }),
     [page, bump, mode],
   );
@@ -377,6 +394,9 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
     return () => window.clearInterval(h);
   }, []);
   useEffect(() => () => pool.clear(), [pool]);
+  const shifts = useShifts(bump);
+  const [myShift, setMyShift] = useState<ShiftDto | null>(null);
+  const shift = myShift ?? shifts.mine.data;
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const openLive = (id: string) => (can('lives.watch') ? navigate(`/lives/${id}`) : setOpen(id));
   return (
@@ -391,6 +411,16 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
           {t('refresh')}
         </button>
       </div>
+      {can('lives.watch') && (
+        <ShiftSwitch
+          shift={shift}
+          onChange={(next) => {
+            setMyShift(next);
+            setBump((b) => b + 1);
+          }}
+        />
+      )}
+      {shifts.all.data && <ShiftsPanel list={shifts.all.data} />}
       <LiveModeTabs
         mode={mode}
         onMode={(m) => {
@@ -398,6 +428,16 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
           setPage(1);
         }}
       >
+        {can('lives.watch') && (
+          <MineTab
+            pressed={mode === 'MINE'}
+            count={shift ? shift.assignedLives : null}
+            onClick={() => {
+              setMode('MINE');
+              setPage(1);
+            }}
+          />
+        )}
         {can('lives.reports') && (
           <ReportedTab
             rooms={summary?.rooms ?? 0}
@@ -423,7 +463,13 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
       {data && data.data.length === 0 && (
         <div className="card state empty-state">
           <Icon name={mode === 'REPORTED' ? 'flag' : 'live'} size={32} />
-          <p>{mode === 'REPORTED' ? t('liveReportedNone') : t('livesNone')}</p>
+          <p>
+            {mode === 'REPORTED'
+              ? t('liveReportedNone')
+              : mode === 'MINE'
+                ? t(shift?.onShift ? 'liveMineNone' : 'liveMineOffShift')
+                : t('livesNone')}
+          </p>
         </div>
       )}
       <div className="live-grid">

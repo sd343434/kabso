@@ -403,3 +403,69 @@ article.live-card {
     border-top: 2px solid var(--red-500);
   }
 }
+
+/* D260: the shift «في المناوبة», «بثوثي», who is on shift, the «فريق كابسو» badge. */
+.shift-switch {
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+.shift-switch p {
+  margin: 0;
+}
+.shift-switch[data-on-shift='true'] {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+.shifts-panel {
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 8px;
+}
+.shifts-panel h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.shifts-panel .unassigned {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--red-600);
+  font-weight: 600;
+}
+.shift-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border);
+  font-size: 0.8rem;
+}
+.shift-pill.on {
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+  color: var(--success);
+  font-weight: 600;
+}
+.count-pill.neutral {
+  background: var(--accent, #6d28d9);
+}
+.live-card .assignee {
+  gap: 6px;
+  align-items: center;
+}
+.team-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #2563eb);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.watch-mode {
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}

@@ -70,6 +70,8 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'lives.reports': ['OWNER', 'MODERATION', 'SUPPORT'],
   'lives.moderate': ['OWNER', 'MODERATION'],
   'devices.ban': ['OWNER', 'MODERATION'],
+  'lives.watch.hidden': ['OWNER', 'MODERATION'],
+  'staff.shifts': ['OWNER'],
   // v1.78-social (D223).
   'users.device_view': ['OWNER', 'SUPPORT'],
   'users.device_exception': ['OWNER'],

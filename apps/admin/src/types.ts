@@ -52,6 +52,9 @@ export type Capability =
   | 'lives.reports'
   | 'lives.moderate'
   | 'devices.ban'
+  // v1.63-live (D260): the hidden watch, and who is on shift (OWNER).
+  | 'lives.watch.hidden'
+  | 'staff.shifts'
   | 'lives.view'
   | 'lives.manage'
   | 'catalog.view'

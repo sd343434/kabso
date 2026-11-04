@@ -214,11 +214,42 @@ export function ReportsPanel({ reports, open }: { reports: LiveReport[]; open: n
  * The watch view «مشاهدة البث» (D250): the live's every published track with sound (a PK's two sides), the chat
  * read-only, the room's facts, its reports and the actions. The staff member is a hidden observer.
  */
+/**
+ * D260: how the staff member watches — visible in the live with the «فريق كابسو» badge (the default), or hidden (the
+ * D250 observer) when `lives.watch.hidden` allows it; switching reconnects.
+ */
+export function WatchMode({ hidden, onHidden }: { hidden: boolean; onHidden: (h: boolean) => void }) {
+  const { t, can } = useApp();
+  const mayHide = can('lives.watch.hidden');
+  const isHidden = hidden && mayHide;
+  return (
+    <span className="watch-mode row small" data-watch-mode={isHidden ? 'HIDDEN' : 'VISIBLE'}>
+      {isHidden ? (
+        <span className="muted">
+          <Icon name="eye" size={14} /> {t('liveWatchHidden')}
+        </span>
+      ) : (
+        <span className="muted">
+          <span className="team-badge">{t('kabsoTeam')}</span> {t('liveWatchVisible')}
+        </span>
+      )}
+      {mayHide && (
+        <label className="switch-row small">
+          <input type="checkbox" role="switch" checked={isHidden} onChange={(e) => onHidden(e.target.checked)} />
+          {t('liveWatchHiddenToggle')}
+        </label>
+      )}
+    </span>
+  );
+}
+
 export function LiveWatch({ id }: { id: string }) {
   const { t, lang, can } = useApp();
   const [bump, setBump] = useState(0);
   const [dialog, setDialog] = useState<ModAction | null>(null);
   const [muted, setMuted] = useState(false);
+  // D260: visible «فريق كابسو» by default; «مراقبة خفية» for OWNER / MODERATION.
+  const [hidden, setHidden] = useState(false);
   const detail = useAsync(() => api.get<LiveDetail>(`/admin/lives/${id}`), [id, bump]);
   const reports = useAsync(
     () =>
@@ -240,7 +271,7 @@ export function LiveWatch({ id }: { id: string }) {
   }, []);
   const d = detail.data;
   const onAirNow = d?.status === 'LIVE';
-  const watch = useWatch(id, can('lives.watch') && onAirNow === true);
+  const watch = useWatch(id, can('lives.watch') && onAirNow === true, hidden && can('lives.watch.hidden') ? 'HIDDEN' : 'VISIBLE');
   const n = (v: number) => formatNumber(v, lang);
   if (!d) return detail.error ? <ErrorAlert error={detail.error} /> : <Loading />;
   const tiles = orderTiles(watch.tracks, d.host.id);
@@ -318,9 +349,7 @@ export function LiveWatch({ id }: { id: string }) {
             {d.pk && <span className="live-badge pk-badge">{t('livePkBadge')}</span>}
           </div>
           <div className="watch-bar">
-            <span className="muted small">
-              <Icon name="eye" size={14} /> {t('liveWatchHidden')}
-            </span>
+            <WatchMode hidden={hidden} onHidden={setHidden} />
             <span className="spacer" />
             {watch.audioBlocked && (
               <button className="btn small primary" onClick={() => void watch.startAudio()}>

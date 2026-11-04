@@ -110,8 +110,11 @@ export function useOnScreenSlot(pool: PreviewPool, id: string, el: HTMLElement |
   }, [pool, id, el, enabled]);
 }
 
-export function watchToken(roomId: string, purpose: 'PREVIEW' | 'WATCH'): Promise<WatchAccess> {
-  return api.post<WatchAccess>(`/admin/lives/${roomId}/watch-token`, { purpose });
+/** D260: a WATCH is VISIBLE («فريق كابسو» in the live) unless HIDDEN is asked (lives.watch.hidden); a PREVIEW is hidden. */
+export type WatchVisibility = 'VISIBLE' | 'HIDDEN';
+
+export function watchToken(roomId: string, purpose: 'PREVIEW' | 'WATCH', visibility?: WatchVisibility): Promise<WatchAccess> {
+  return api.post<WatchAccess>(`/admin/lives/${roomId}/watch-token`, { purpose, ...(visibility ? { visibility } : {}) });
 }
 
 type LiveKit = typeof import('livekit-client');
@@ -182,7 +185,7 @@ export async function startPreview(
 }
 
 /** The watch view's connection(s): every published track of the live (and of its PK opponent), with audio. */
-export function useWatch(roomId: string, enabled: boolean) {
+export function useWatch(roomId: string, enabled: boolean, visibility: WatchVisibility = 'VISIBLE') {
   const [tracks, setTracks] = useState<WatchTrack[]>([]);
   const [state, setState] = useState<'idle' | 'connecting' | 'live' | 'ended' | 'failed'>('idle');
   const [error, setError] = useState<unknown>(null);
@@ -195,7 +198,7 @@ export function useWatch(roomId: string, enabled: boolean) {
     setState('connecting');
     void (async () => {
       try {
-        const [{ Room, RoomEvent, Track }, access] = await Promise.all([liveKit(), watchToken(roomId, 'WATCH')]);
+        const [{ Room, RoomEvent, Track }, access] = await Promise.all([liveKit(), watchToken(roomId, 'WATCH', visibility)]);
         if (stopped) return;
         const refresh = () => {
           const list: WatchTrack[] = [];
@@ -250,7 +253,7 @@ export function useWatch(roomId: string, enabled: boolean) {
       setTracks([]);
       setRooms([]);
     };
-  }, [roomId, enabled]);
+  }, [roomId, enabled, visibility]);
   const startAudio = async () => {
     for (const r of rooms) await r.startAudio().catch(() => undefined);
     setAudioBlocked(rooms.some((r) => !r.canPlaybackAudio));
