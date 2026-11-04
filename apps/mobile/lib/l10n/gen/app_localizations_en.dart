@@ -14036,4 +14036,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipRenewalDiscountLine(String percent) {
     return '$percent% off when you renew';
   }
+
+  @override
+  String get liveKabsoTeam => 'Kabso Team';
+
+  @override
+  String get liveKabsoTeamInfoTitle => 'Kabso Team';
+
+  @override
+  String get liveKabsoTeamInfo =>
+      'A member of the Kabso Team is following this live to keep the community safe. They are not counted as a viewer or a supporter.';
+
+  @override
+  String liveKabsoTeamWatching(String name) {
+    return '$name, Kabso Team';
+  }
+
+  @override
+  String get liveKabsoTeamHere => 'The Kabso Team is following this live';
 }

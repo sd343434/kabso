@@ -59,6 +59,7 @@ import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart
 import 'package:kabso_live/features/live/presentation/go_live/viewer_live_ref_parts.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
@@ -585,6 +586,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         pitch: video ? 31 : LiveViewersStack.size - 7,
         countHeight: video ? 25 : LiveViewersStack.size,
         countMinWidth: video ? 32 : null,
+        // D260: the Kabso Team's shield while staff watch.
+        team: (preview?.staff.isNotEmpty ?? false)
+            ? KabsoTeamShield(size: video ? 27 : LiveViewersStack.size)
+            : null,
         avatars: const [],
         count: KFormat.compact(count, l10n),
         label: l10n.liveViewers(count, KFormat.grouped(count)),
@@ -619,6 +624,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       pitch: video ? 31 : LiveViewersStack.size - 7,
       countHeight: video ? 25 : LiveViewersStack.size,
       countMinWidth: video ? 32 : null,
+      // D260: the Kabso Team's shield while staff watch (never ranked).
+      team: preview.staff.isEmpty
+          ? null
+          : KabsoTeamShield(size: video ? 27 : LiveViewersStack.size),
       // D256: the top supporters first, the first three ringed.
       avatars: [
         for (final v in ranked)

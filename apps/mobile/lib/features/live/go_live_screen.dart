@@ -86,6 +86,7 @@ import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
@@ -1605,6 +1606,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             if (viewers != null && room != null)
               LiveViewersStack(
                 key: GoLiveScreen.viewersKey,
+                // D260: the Kabso Team's shield while staff watch.
+                team: viewers.staff.isEmpty
+                    ? null
+                    : const KabsoTeamShield(size: LiveViewersStack.size),
                 avatars: [
                   for (final v in viewers.items)
                     if (v.user case final u?)
@@ -2601,10 +2606,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ],
         onTap: live ? openSelf : null,
       ),
-      viewers: viewers == null || viewers.items.isEmpty
+      // D260: shown too while only the Kabso Team watches.
+      viewers:
+          viewers == null || (viewers.items.isEmpty && viewers.staff.isEmpty)
           ? null
           : LiveViewersStack(
               key: GoLiveScreen.viewersKey,
+              team: viewers.staff.isEmpty
+                  ? null
+                  : const KabsoTeamShield(size: 25.6),
               // D253 (the host's reference): 25.6 pt faces 31.1 pt apart,
               // the count as plain text.
               avatarSize: 25.6,

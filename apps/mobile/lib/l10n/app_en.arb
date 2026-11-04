@@ -4371,5 +4371,10 @@
   "vipPricePer": "coins / {days} days",
   "vipCashback": "{total} coins back in total ({daily} a day)",
   "vipSpeedupLine": "+{percent}% level speed-up",
-  "vipRenewalDiscountLine": "{percent}% off when you renew"
+  "vipRenewalDiscountLine": "{percent}% off when you renew",
+  "liveKabsoTeam": "Kabso Team",
+  "liveKabsoTeamInfoTitle": "Kabso Team",
+  "liveKabsoTeamInfo": "A member of the Kabso Team is following this live to keep the community safe. They are not counted as a viewer or a supporter.",
+  "liveKabsoTeamWatching": "{name}, Kabso Team",
+  "liveKabsoTeamHere": "The Kabso Team is following this live"
 }

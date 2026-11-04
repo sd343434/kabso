@@ -408,10 +408,11 @@ class DemoLiveRepository implements LiveRepository {
       throw _serverOnly;
 
   @override
-  Future<({List<LiveViewer> items, String? next})> viewers(
-    String roomId, {
-    String? cursor,
-  }) async => (items: const <LiveViewer>[], next: null);
+  Future<LiveViewersPage> viewers(String roomId, {String? cursor}) async => (
+    items: const <LiveViewer>[],
+    next: null,
+    staff: const <LiveStaffWatcher>[],
+  );
 
   @override
   Future<LiveTapsResult> tap(String roomId, int count) async =>

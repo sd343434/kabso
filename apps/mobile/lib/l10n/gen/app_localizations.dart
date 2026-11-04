@@ -23718,6 +23718,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'خصم {percent}٪ عند التجديد'**
   String vipRenewalDiscountLine(String percent);
+
+  /// D260: the badge of a Kabso staff member watching a live (viewer list and top viewers).
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو'**
+  String get liveKabsoTeam;
+
+  /// D260: the dialog a staff entry opens.
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو'**
+  String get liveKabsoTeamInfoTitle;
+
+  /// D260: the dialog a staff entry opens.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا عضو في فريق كابسو يتابع البث للحفاظ على سلامة المجتمع. لا يُحتسب ضمن المشاهدين ولا الداعمين.'**
+  String get liveKabsoTeamInfo;
+
+  /// D260: a screen reader's label of a staff row.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} من فريق كابسو'**
+  String liveKabsoTeamWatching(String name);
+
+  /// D260: a screen reader's label of the team shield by the top viewers.
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو يتابع هذا البث'**
+  String get liveKabsoTeamHere;
 }
 
 class _AppLocalizationsDelegate

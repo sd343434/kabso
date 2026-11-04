@@ -825,10 +825,14 @@ class FakeLiveRepository implements LiveRepository {
   }
 
   @override
-  Future<({List<LiveViewer> items, String? next})> viewers(
-    String roomId, {
-    String? cursor,
-  }) async => (items: viewerList, next: null);
+  Future<LiveViewersPage> viewers(String roomId, {String? cursor}) async => (
+    items: viewerList,
+    next: null,
+    staff: cursor == null ? staffList : const <LiveStaffWatcher>[],
+  );
+
+  /// D260: the Kabso staff watching (`LiveViewerPage.staff`, first page).
+  List<LiveStaffWatcher> staffList = const [];
 
   /// Each `tap` batch sent (CP-012) and the room's tap points.
   final List<({String roomId, int count})> tapBatches = [];

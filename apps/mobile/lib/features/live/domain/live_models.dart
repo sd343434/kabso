@@ -568,6 +568,48 @@ abstract class LiveViewer with _$LiveViewer {
   factory fromJson(Map<String, dynamic> json) => _$LiveViewerFromJson(json);
 }
 
+/// `LiveStaffWatcher` (D260, v1.63-live): a Kabso staff member watching
+/// this live (`LiveViewerPage.staff`) — shown with the «فريق كابسو» badge,
+/// never counted, never ranked, no person card.
+@immutable
+class LiveStaffWatcher {
+  const new({
+    required this.displayName,
+    required this.avatarUrl,
+    required this.since,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => LiveStaffWatcher(
+    displayName: json['displayName'] as String? ?? '',
+    avatarUrl: json['avatarUrl'] as String?,
+    since:
+        DateTime.tryParse(json['since'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+  );
+
+  final String displayName;
+  final String? avatarUrl;
+  final DateTime since;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiveStaffWatcher &&
+      other.displayName == displayName &&
+      other.avatarUrl == avatarUrl &&
+      other.since == since;
+
+  @override
+  int get hashCode => Object.hash(displayName, avatarUrl, since);
+}
+
+/// The viewers endpoint's page (`LiveViewerPage`): `staff` (D260) on the
+/// first page only; empty from an older server.
+typedef LiveViewersPage = ({
+  List<LiveViewer> items,
+  String? next,
+  List<LiveStaffWatcher> staff,
+});
+
 enum LiveViewerKind {
   @JsonValue('USER')
   user,

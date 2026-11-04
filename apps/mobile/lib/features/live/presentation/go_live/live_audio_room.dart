@@ -1359,7 +1359,13 @@ class LiveViewersStack extends StatelessWidget {
     this.plainCount = false,
     this.ranks = const [],
     this.rankPoints = const [],
+    this.team,
   });
+
+  /// D260 (owner: the host knows the live is watched): the Kabso Team's
+  /// shield before the faces while staff watch — never one of the faces,
+  /// never ranked, not in [count].
+  final Widget? team;
 
   /// D256 (owner: the three who supported the live most wear the owner's
   /// «TOP 1 / 2 / 3» frames): each face's place (1–3) or null, in
@@ -1428,7 +1434,7 @@ class LiveViewersStack extends StatelessWidget {
     final width = shown.isEmpty ? 0.0 : starts.last + size;
     return Semantics(
       button: onTap != null,
-      label: label,
+      label: team == null ? label : '$label, ${context.l10n.liveKabsoTeamHere}',
       onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
@@ -1437,6 +1443,7 @@ class LiveViewersStack extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (team case final shield?) ...[shield, const SizedBox(width: 4)],
             if (shown.isNotEmpty)
               SizedBox(
                 width: width,

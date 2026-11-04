@@ -13044,5 +13044,15 @@
   "vipSpeedupLine": "+{percent}٪ تسريع المستوى",
   "@vipSpeedupLine": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"percent": {"type": "String"}}},
   "vipRenewalDiscountLine": "خصم {percent}٪ عند التجديد",
-  "@vipRenewalDiscountLine": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"percent": {"type": "String"}}}
+  "@vipRenewalDiscountLine": {"description": "D258: the VIP page's purchase panel (owner reference 40).", "placeholders": {"percent": {"type": "String"}}},
+  "liveKabsoTeam": "فريق كابسو",
+  "@liveKabsoTeam": {"description": "D260: the badge of a Kabso staff member watching a live (viewer list and top viewers)."},
+  "liveKabsoTeamInfoTitle": "فريق كابسو",
+  "@liveKabsoTeamInfoTitle": {"description": "D260: the dialog a staff entry opens."},
+  "liveKabsoTeamInfo": "هذا عضو في فريق كابسو يتابع البث للحفاظ على سلامة المجتمع. لا يُحتسب ضمن المشاهدين ولا الداعمين.",
+  "@liveKabsoTeamInfo": {"description": "D260: the dialog a staff entry opens."},
+  "liveKabsoTeamWatching": "{name} من فريق كابسو",
+  "@liveKabsoTeamWatching": {"description": "D260: a screen reader's label of a staff row.", "placeholders": {"name": {"type": "String"}}},
+  "liveKabsoTeamHere": "فريق كابسو يتابع هذا البث",
+  "@liveKabsoTeamHere": {"description": "D260: a screen reader's label of the team shield by the top viewers."}
 }

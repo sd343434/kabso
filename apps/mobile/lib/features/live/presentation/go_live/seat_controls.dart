@@ -12,6 +12,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -36,6 +37,9 @@ abstract final class SeatControlKeys {
   static const contributionTab = Key('seat.contribution.tab');
   static Key contributor(String username) => Key('seat.contributor.$username');
   static Key moderatorUser(String username) => Key('seat.moderator.$username');
+
+  /// D260: the [i]th Kabso staff row of the viewer list.
+  static Key staffRow(int i) => Key('seat.staff.$i');
   static Key count(int count) => Key('seat.count.$count');
   static const inviteFriends = Key('seat.guests.inviteFriends');
 }
@@ -498,23 +502,30 @@ class _ViewersPanel extends ConsumerStatefulWidget {
 }
 
 class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
-  late final Future<({List<LiveViewer> items, bool more})> _load = _fetch();
+  late final Future<
+    ({List<LiveViewer> items, bool more, List<LiveStaffWatcher> staff})
+  >
+  _load = _fetch();
   late final Set<String> _moderators = {
     for (final m in widget.moderators) m.username,
   };
 
-  /// Up to five pages of viewers.
-  Future<({List<LiveViewer> items, bool more})> _fetch() async {
+  /// Up to five pages of viewers; D260: the Kabso staff watching (the
+  /// first page's).
+  Future<({List<LiveViewer> items, bool more, List<LiveStaffWatcher> staff})>
+  _fetch() async {
     final repo = ref.read(liveRepositoryProvider);
     final items = <LiveViewer>[];
+    var staff = const <LiveStaffWatcher>[];
     String? cursor;
     for (var page = 0; page < 5; page++) {
       final result = await repo.viewers(widget.roomId, cursor: cursor);
       items.addAll(result.items);
+      if (page == 0) staff = result.staff;
       cursor = result.next;
       if (cursor == null) break;
     }
-    return (items: items, more: cursor != null);
+    return (items: items, more: cursor != null, staff: staff);
   }
 
   @override
@@ -531,103 +542,110 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
           color: Color(0xFFFFFFFF),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: FutureBuilder<({List<LiveViewer> items, bool more})>(
-          future: _load,
-          builder: (context, snap) {
-            final data = snap.data;
-            final more = data != null && data.more ? '+' : '';
-            final count = data == null
-                ? ''
-                : '${KFormat.grouped(data.items.length)}$more';
-            final guests = '${widget.seated.length}';
-            return Column(
-              children: [
-                // Measured on the reference: tab caps 21 pt below the top,
-                // the mark 19.1 pt under them, ✕ centred 25.4 pt down and
-                // 29.6 pt from the end; the first row 63.8 pt down.
-                Stack(
+        child:
+            FutureBuilder<
+              ({
+                List<LiveViewer> items,
+                bool more,
+                List<LiveStaffWatcher> staff,
+              })
+            >(
+              future: _load,
+              builder: (context, snap) {
+                final data = snap.data;
+                final more = data != null && data.more ? '+' : '';
+                final count = data == null
+                    ? ''
+                    : '${KFormat.grouped(data.items.length)}$more';
+                final guests = '${widget.seated.length}';
+                return Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                        21,
-                        13.6,
-                        60,
-                        0,
-                      ),
-                      child: Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: TabBar(
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.start,
-                          padding: EdgeInsets.zero,
-                          labelPadding: const EdgeInsetsDirectional.only(
-                            end: 28.9,
+                    // Measured on the reference: tab caps 21 pt below the top,
+                    // the mark 19.1 pt under them, ✕ centred 25.4 pt down and
+                    // 29.6 pt from the end; the first row 63.8 pt down.
+                    Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                            21,
+                            13.6,
+                            60,
+                            0,
                           ),
-                          dividerColor: const Color(0x00000000),
-                          labelColor: _Panel.ink,
-                          unselectedLabelColor: _Panel.soft,
-                          labelStyle: tabStyle.copyWith(
-                            fontWeight: FontWeight.w800,
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: TabBar(
+                              isScrollable: true,
+                              tabAlignment: TabAlignment.start,
+                              padding: EdgeInsets.zero,
+                              labelPadding: const EdgeInsetsDirectional.only(
+                                end: 28.9,
+                              ),
+                              dividerColor: const Color(0x00000000),
+                              labelColor: _Panel.ink,
+                              unselectedLabelColor: _Panel.soft,
+                              labelStyle: tabStyle.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                              unselectedLabelStyle: tabStyle.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              indicatorSize: TabBarIndicatorSize.label,
+                              indicator: const _TabDot(),
+                              tabs: [
+                                Tab(
+                                  key: SeatControlKeys.viewersTab,
+                                  height: 29.2,
+                                  text: l10n.liveViewersTab(count).trim(),
+                                ),
+                                Tab(
+                                  key: SeatControlKeys.guestsTab,
+                                  height: 29.2,
+                                  text: '${l10n.liveSeatGuestsTab} $guests',
+                                ),
+                                // CP-014: the live's top 50 by points (ref 75).
+                                Tab(
+                                  key: SeatControlKeys.contributionTab,
+                                  height: 29.2,
+                                  text: l10n.liveContributionTab,
+                                ),
+                              ],
+                            ),
                           ),
-                          unselectedLabelStyle: tabStyle.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                          indicatorSize: TabBarIndicatorSize.label,
-                          indicator: const _TabDot(),
-                          tabs: [
-                            Tab(
-                              key: SeatControlKeys.viewersTab,
-                              height: 29.2,
-                              text: l10n.liveViewersTab(count).trim(),
-                            ),
-                            Tab(
-                              key: SeatControlKeys.guestsTab,
-                              height: 29.2,
-                              text: '${l10n.liveSeatGuestsTab} $guests',
-                            ),
-                            // CP-014: the live's top 50 by points (ref 75).
-                            Tab(
-                              key: SeatControlKeys.contributionTab,
-                              height: 29.2,
-                              text: l10n.liveContributionTab,
-                            ),
-                          ],
                         ),
-                      ),
+                        PositionedDirectional(
+                          top: 3.4,
+                          end: 7.6,
+                          child: IconButton(
+                            tooltip: l10n.liveClose,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 44,
+                              height: 44,
+                            ),
+                            padding: EdgeInsets.zero,
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: _Panel.ink,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    PositionedDirectional(
-                      top: 3.4,
-                      end: 7.6,
-                      child: IconButton(
-                        tooltip: l10n.liveClose,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 44,
-                          height: 44,
-                        ),
-                        padding: EdgeInsets.zero,
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: _Panel.ink,
-                          size: 24,
-                        ),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _viewers(context, snap),
+                          _guests(context),
+                          _contributors(context),
+                        ],
                       ),
                     ),
                   ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _viewers(context, snap),
-                      _guests(context),
-                      _contributors(context),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+                );
+              },
+            ),
       ),
     );
   }
@@ -645,7 +663,10 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
 
   Widget _viewers(
     BuildContext context,
-    AsyncSnapshot<({List<LiveViewer> items, bool more})> snap,
+    AsyncSnapshot<
+      ({List<LiveViewer> items, bool more, List<LiveStaffWatcher> staff})
+    >
+    snap,
   ) {
     final l10n = context.l10n;
     final data = snap.data;
@@ -654,11 +675,38 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
           ? _empty(context, failureMessage(l10n, toAppFailure(snap.error!)))
           : const Center(child: CircularProgressIndicator());
     }
-    if (data.items.isEmpty) return _empty(context, l10n.liveSeatInviteEmpty);
+    if (data.items.isEmpty && data.staff.isEmpty) {
+      return _empty(context, l10n.liveSeatInviteEmpty);
+    }
     final seatedIds = {for (final s in widget.seated) s.user!.id};
     return ListView(
       padding: const EdgeInsets.only(top: 6, bottom: 16),
       children: [
+        // D260 (owner): the Kabso staff watching, first, with the «فريق
+        // كابسو» badge — not counted in the tab's number, no person card
+        // (a tap says who the team is).
+        for (final (i, s) in data.staff.indexed)
+          Semantics(
+            label: l10n.liveKabsoTeamWatching(s.displayName),
+            child: _row(
+              context,
+              key: SeatControlKeys.staffRow(i),
+              name: s.displayName,
+              badge: const KabsoTeamBadge(),
+              avatar: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  KAvatar(name: s.displayName, imageUrl: s.avatarUrl, size: 40),
+                  const PositionedDirectional(
+                    end: -2,
+                    bottom: -2,
+                    child: KabsoTeamShield(size: 18),
+                  ),
+                ],
+              ),
+              onTap: () => unawaited(showKabsoTeamInfo(context)),
+            ),
+          ),
         for (final v in data.items)
           if (v.user case final u?)
             _row(
@@ -1021,6 +1069,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     UserVip? vip,
     VoidCallback? onTap,
     List<Widget> actions = const [],
+    Widget? badge,
   }) {
     final text = context.textStyles;
     final row = Padding(
@@ -1067,6 +1116,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                       height: inlineAgentBadgeHeight(_nameSize),
                       gap: 4,
                     ),
+                    // D260: «فريق كابسو» after a staff member's name.
+                    if (badge != null) ...[const SizedBox(width: 6), badge],
                   ],
                 ),
                 if (handle != null)

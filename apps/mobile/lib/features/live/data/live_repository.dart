@@ -190,10 +190,7 @@ abstract interface class LiveRepository {
 
   /// `GET /live/rooms/{roomId}/viewers` (the host and, D109, anyone who may
   /// watch the room): who is watching now, newest first.
-  Future<({List<LiveViewer> items, String? next})> viewers(
-    String roomId, {
-    String? cursor,
-  });
+  Future<LiveViewersPage> viewers(String roomId, {String? cursor});
 
   /// `POST /live/rooms/{roomId}/taps` (CP-012): a batch of 1–50 taps.
   Future<LiveTapsResult> tap(String roomId, int count);
@@ -513,24 +510,28 @@ class LiveRepositoryImpl implements LiveRepository {
   });
 
   @override
-  Future<({List<LiveViewer> items, String? next})> viewers(
-    String roomId, {
-    String? cursor,
-  }) => guardApiCall(() async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/live/rooms/${pathSegment(roomId)}/viewers',
-      queryParameters: {'cursor': ?cursor},
-    );
-    final body = res.data!;
-    final page = PageInfo.fromJson(body['page']! as Map<String, dynamic>);
-    return (
-      items: [
-        for (final v in body['data']! as List<dynamic>)
-          LiveViewer.fromJson(v as Map<String, dynamic>),
-      ],
-      next: page.hasMore ? page.nextCursor : null,
-    );
-  });
+  Future<LiveViewersPage> viewers(String roomId, {String? cursor}) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}/viewers',
+          queryParameters: {'cursor': ?cursor},
+        );
+        final body = res.data!;
+        final page = PageInfo.fromJson(body['page']! as Map<String, dynamic>);
+        return (
+          items: [
+            for (final v in body['data']! as List<dynamic>)
+              LiveViewer.fromJson(v as Map<String, dynamic>),
+          ],
+          next: page.hasMore ? page.nextCursor : null,
+          // D260: the Kabso staff watching (first page; absent from an older
+          // server).
+          staff: [
+            for (final s in body['staff'] as List<dynamic>? ?? const [])
+              if (s is Map<String, dynamic>) LiveStaffWatcher.fromJson(s),
+          ],
+        );
+      });
 
   @override
   Future<LiveTapsResult> tap(String roomId, int count) =>
