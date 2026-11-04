@@ -385,9 +385,7 @@ describe('D260 staff presence in lives', { timeout: 900_000 }, () => {
     );
     await ctx.app.get(LiveStaffAssignmentService).assignPending('sweep');
     for (const id of rooms.slice(1)) expect(await assignee(id)).toBe(mod1.id);
-    await withMigrationClient((db) =>
-      db.$transaction((tx) => grantRoleIn(tx, mod2.email, 'MODERATION')),
-    );
+    await withMigrationClient((db) => db.$transaction((tx) => grantRoleIn(tx, mod2.email, 'MODERATION')));
     // Nobody on shift: the lives wait.
     await shift(mod2, false);
     await shift(mod1, false);
