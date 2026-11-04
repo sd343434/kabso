@@ -68,6 +68,9 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
 
     /** D228/D232: this plugin's own engine (its flutter_webrtc holds the tracks). */
     private var flutterEngine: FlutterEngine? = null
+
+    /** D251c: flips one camera track's own camera (see [CameraFlip]). */
+    private var cameraFlip: CameraFlip? = null
     private var attachedTrack: LocalVideoTrack? = null
 
     private var licenseKey: String? = null
@@ -79,6 +82,7 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         @Suppress("DEPRECATION")
         flutterEngine = binding.flutterEngine
+        cameraFlip = CameraFlip(binding.applicationContext)
         channel = MethodChannel(binding.binaryMessenger, CHANNEL).also {
             it.setMethodCallHandler(this)
         }
@@ -94,6 +98,7 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         permissionsChannel = null
         releaseProcessor()
         flutterEngine = null
+        cameraFlip = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -134,6 +139,7 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "attach" -> result.success(attach(call.argument<String>("trackId")))
+            "flipCamera" -> flipCamera(call.argument<String>("trackId"), result)
             "setColorMatrix" -> {
                 val values = call.argument<List<Double>>("matrix")
                 colorMatrix = values?.takeIf { it.size == 12 }?.map { it.toFloat() }?.toFloatArray()
@@ -196,6 +202,24 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
             }
             else -> result.notImplemented()
         }
+    }
+
+    /** D251c: the track's flutter_webrtc (own engine first, D232), then [CameraFlip]. */
+    private fun flipCamera(trackId: String?, result: MethodChannel.Result) {
+        val flip = cameraFlip
+        if (trackId.isNullOrEmpty() || flip == null) {
+            result.error("cameraFlip", FlipRules.message(FlipRules.Why.NO_CAPTURER, null), null)
+            return
+        }
+        val own = flutterEngine?.plugins?.get(FlutterWebRTCPlugin::class.java) as? FlutterWebRTCPlugin
+        val found = OwnEngineFirst.find(own, FlutterWebRTCPlugin.sharedSingleton) { plugin ->
+            plugin.getLocalTrack(trackId)
+        }
+        if (found == null) {
+            result.error("cameraFlip", FlipRules.message(FlipRules.Why.NO_CAPTURER, null), null)
+            return
+        }
+        flip.flip(found.first, trackId, result)
     }
 
     private fun attach(trackId: String?): Boolean {

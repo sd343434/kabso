@@ -489,6 +489,9 @@ class _SecondCameraScreenState extends ConsumerState<SecondCameraScreen> {
       SecondCameraScreen.cameraLimit,
       engine.flipCamera,
     );
+    // D251c: which path flipped (`switch`, `restart state=…`, `helper`).
+    final path = LiveKitMediaEngine.lastFlipPath;
+    if (call.ok && path != null) _log.add('flip-path', path);
     if (!mounted) return;
     if (!call.ok) _note(SecondCameraNote.camera);
     setState(() => _flipping = false);

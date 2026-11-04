@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 
 /// D251: the second camera's state log, copied from its screen with
 /// «نسخ سجل التشخيص» and pasted to support.
@@ -104,18 +105,41 @@ const _webrtcMessages = {
   'Video capturer not found': 'no-capturer',
 };
 
-/// `code=<code> why=<tag>` for [e]: the code only when it is a plain name
-/// (letters, digits, `_`, at most 40), the tag only for a known message.
+/// The tags [KabsoCameraFlipper.flip]'s own errors carry (D251c).
+const _flipWhys = {'no-capturer', 'no-device', 'switch-busy', 'switch-error'};
+
+/// `code=<code> why=<tag> state=<camera state>` for [e]: the code only when
+/// it is a plain name (letters, digits, `_`, at most 40), the tag only for a
+/// known message, the state only when it is a known camera state.
+///
+/// D251c: flutter_webrtc prefixes its messages with the method
+/// (`switchCamera(): Switching camera failed: <id>`), which hid the tag; the
+/// prefix is cut before matching. Nothing outside the fixed words is kept.
 @visibleForTesting
 String? platformErrorTag(PlatformException e) {
   final parts = <String>[];
   if (RegExp(r'^[A-Za-z0-9_]{1,40}$').hasMatch(e.code)) {
     parts.add('code=${e.code}');
   }
-  final message = e.message;
-  if (message != null) {
+  final raw = e.message;
+  if (raw != null) {
+    final message = raw.replaceFirst(
+      RegExp(r'^[A-Za-z0-9_]{1,40}\(\):\s*'),
+      '',
+    );
+    String? why;
     for (final m in _webrtcMessages.entries) {
-      if (message.startsWith(m.key)) parts.add('why=${m.value}');
+      if (message.startsWith(m.key)) why = m.value;
+    }
+    final whyToken = RegExp(r'(?:^|\s)why=([a-z-]+)(?=\s|$)')
+        .firstMatch(message);
+    if (why == null && whyToken != null && _flipWhys.contains(whyToken[1])) {
+      why = whyToken[1];
+    }
+    if (why != null) parts.add('why=$why');
+    final state = RegExp(r'(?:^|\s)state=([A-Z]+)(?=\s|$)').firstMatch(message);
+    if (state != null && KabsoCameraFlip.cameraStates.contains(state[1])) {
+      parts.add('state=${state[1]}');
     }
   }
   return parts.isEmpty ? null : parts.join(' ');

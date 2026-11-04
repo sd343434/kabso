@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
@@ -836,12 +837,45 @@ class LiveKitMediaEngine
 
   /// Switches a native camera track to the other camera; the answer is
   /// whether the front camera is now on (null: unknown). A seam for tests.
+  ///
+  /// D251c: on Android the camera fx plugin flips first
+  /// ([KabsoCameraFlipper.flip]): flutter_webrtc's own switch picks the
+  /// target from one plugin-wide facing flag (rewritten by every
+  /// getUserMedia, the HD probe included) and fails at once, every time,
+  /// once the camera session was lost (the frozen second camera). The
+  /// plugin flips from the track's real camera and reopens a lost session
+  /// without stopping anything. The same track carries on, so the effects
+  /// and the mute / away state stay. flutter_webrtc's switch is the
+  /// fallback where the plugin is missing or finds no capturer.
   @visibleForTesting
   static Future<bool?> Function(rtc.MediaStreamTrack track) cameraSwitch =
       (track) async {
+        final id = track.id ?? '';
+        final flipper = KabsoCameraFlipper();
+        if (flipper.isSupported && id.isNotEmpty) {
+          try {
+            final flip = await flipper.flip(id);
+            if (flip != null) {
+              lastFlipPath = flip.state == null
+                  ? flip.path
+                  : '${flip.path} state=${flip.state}';
+              return flip.front;
+            }
+          } on PlatformException catch (e) {
+            // Only a missing capturer is worth flutter_webrtc's own try.
+            if (!(e.message ?? '').contains('why=no-capturer')) rethrow;
+          }
+        }
         final front = await rtc.Helper.switchCamera(track);
+        lastFlipPath = 'helper';
         return front;
       };
+
+  /// D251c: how the last native flip went, for the second camera's log:
+  /// `switch` / `restart` (the camera fx plugin, with the camera's state
+  /// before, e.g. `restart state=DISCONNECTED`) or `helper` (flutter_webrtc).
+  /// Fixed words only; null before any flip.
+  static String? lastFlipPath;
 
   @override
   Future<bool> hasTorch() async {

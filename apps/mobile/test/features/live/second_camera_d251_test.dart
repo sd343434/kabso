@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -960,6 +961,155 @@ void main() {
       expect(late.end, Cam2CallEnd.timedOut);
       expect(log.lines.join('\n'), isNot(contains('private text')));
       expect(log.lines.last, contains('c timeout'));
+    });
+  });
+
+  group('D251c the flip', () {
+    test("flutter_webrtc's `switchCamera(): ` prefix no longer hides the "
+        'reason; ids stay out', () {
+      // The owner's log: code=switchCamera and no reason.
+      expect(
+        platformErrorTag(
+          PlatformException(
+            code: 'switchCamera',
+            message: 'switchCamera(): Switching camera failed: track-123',
+          ),
+        ),
+        'code=switchCamera why=switch-error',
+      );
+      expect(
+        platformErrorTag(
+          PlatformException(
+            code: 'switchCamera',
+            message: 'switchCamera(): Video capturer not found for id: t-9',
+          ),
+        ),
+        'code=switchCamera why=no-capturer',
+      );
+      final text = platformErrorTag(
+        PlatformException(
+          code: 'switchCamera',
+          message: 'switchCamera(): camera is not running track-123',
+        ),
+      );
+      expect(text, 'code=switchCamera');
+    });
+
+    test("the native flip's reason and camera state are kept; anything "
+        'else is not', () {
+      expect(
+        platformErrorTag(
+          PlatformException(
+            code: 'cameraFlip',
+            message: 'why=switch-error state=DISCONNECTED',
+          ),
+        ),
+        'code=cameraFlip why=switch-error state=DISCONNECTED',
+      );
+      expect(
+        platformErrorTag(
+          PlatformException(code: 'cameraFlip', message: 'why=no-device'),
+        ),
+        'code=cameraFlip why=no-device',
+      );
+      expect(
+        platformErrorTag(
+          PlatformException(
+            code: 'cameraFlip',
+            message: 'why=track-123 state=room-1',
+          ),
+        ),
+        'code=cameraFlip',
+      );
+    });
+
+    test('the native answer keeps fixed words only', () {
+      final flip = KabsoCameraFlip.fromMap(const {
+        'front': true,
+        'path': 'restart',
+        'state': 'FREEZED',
+      });
+      expect(flip.front, isTrue);
+      expect(flip.path, 'restart');
+      expect(flip.state, 'FREEZED');
+      final odd = KabsoCameraFlip.fromMap(const {
+        'path': 'track-1',
+        'state': 'room-1',
+      });
+      expect(odd.front, isFalse);
+      expect(odd.path, 'other');
+      expect(odd.state, isNull);
+    });
+
+    test('the flipper asks the plugin for the track, null without a '
+        'plugin, and passes a refusal on', () async {
+      const channel = MethodChannel('test/flip');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final calls = <Object?>[];
+      var refuse = false;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.arguments);
+        if (call.method != 'flipCamera') return null;
+        if (refuse) {
+          throw PlatformException(
+            code: 'cameraFlip',
+            message: 'why=switch-busy',
+          );
+        }
+        return {'front': false, 'path': 'switch', 'state': 'OPENED'};
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      final flipper = KabsoCameraFlipper(channel: channel, supported: true);
+      final flip = await flipper.flip('t-1');
+      expect(calls.single, {'trackId': 't-1'});
+      expect(flip?.path, 'switch');
+      expect(flip?.front, isFalse);
+      refuse = true;
+      await expectLater(flipper.flip('t-1'), throwsA(isA<PlatformException>()));
+      expect(
+        await KabsoCameraFlipper(channel: channel, supported: false).flip('t'),
+        isNull,
+      );
+      messenger.setMockMethodCallHandler(channel, null);
+      expect(await flipper.flip('t-1'), isNull);
+    });
+
+    testWidgets('the log says which path flipped the camera', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final before = LiveKitMediaEngine.lastFlipPath;
+      LiveKitMediaEngine.lastFlipPath = 'restart state=DISCONNECTED';
+      addTearDown(() => LiveKitMediaEngine.lastFlipPath = before);
+      final h = _Harness();
+      final engine = _Engine();
+      await _pump(tester, h, engine, language: AppLanguage.en);
+      await _join(tester);
+      await _settleService(tester);
+      await tester.tap(find.byKey(SecondCameraScreen.flipKey));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(find.byKey(SecondCameraScreen.copyLogKey));
+      await tester.pump();
+      await tester.pump();
+      expect(engine.flips, 1);
+      expect(copied, contains('flip ok'));
+      expect(copied, contains('flip-path restart state=DISCONNECTED'));
+      await _unmount(tester);
     });
   });
 }

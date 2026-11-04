@@ -548,6 +548,83 @@ class KabsoCameraFx {
   }
 }
 
+/// D251c: flips a native camera track to the other camera (same channel as
+/// [KabsoCameraFx]).
+class KabsoCameraFlipper {
+  /// [channel] and [supported] are seams for tests.
+  KabsoCameraFlipper({MethodChannel? channel, bool? supported})
+    : _channel = channel ?? const MethodChannel(KabsoCameraFx.channelName),
+      _supported =
+          supported ??
+          (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
+
+  final MethodChannel _channel;
+  final bool _supported;
+
+  /// Whether this platform has the native flip (Android only).
+  bool get isSupported => _supported;
+
+  /// Flips the camera of the native track [trackId] to the other side,
+  /// judged from the camera that track really has (not flutter_webrtc's
+  /// shared facing flag). A running camera switches in place; a camera whose
+  /// session is gone is restarted on the other side without being stopped.
+  ///
+  /// Null where unsupported or when the plugin does not answer (the caller
+  /// falls back to its own switch). A refusal THROWS the
+  /// [PlatformException] (code `cameraFlip`, message
+  /// `why=<no-capturer|no-device|switch-busy|switch-error> [state=<state>]`).
+  Future<KabsoCameraFlip?> flip(String trackId) async {
+    if (!_supported || trackId.isEmpty) return null;
+    final Map<Object?, Object?>? map;
+    try {
+      map = await _channel.invokeMethod<Map<Object?, Object?>>('flipCamera', {
+        'trackId': trackId,
+      });
+    } on MissingPluginException {
+      return null;
+    }
+    return map == null ? null : KabsoCameraFlip.fromMap(map);
+  }
+}
+
+/// D251c: how [KabsoCameraFlipper.flip] flipped the camera.
+@immutable
+class KabsoCameraFlip {
+  const KabsoCameraFlip({required this.front, required this.path, this.state});
+
+  /// Reads the native answer; unknown words become `other` / null.
+  factory KabsoCameraFlip.fromMap(Map<Object?, Object?> map) {
+    final path = map['path'];
+    final state = map['state'];
+    return KabsoCameraFlip(
+      front: map['front'] == true,
+      path: path == 'switch' || path == 'restart' ? path as String : 'other',
+      state: state is String && cameraStates.contains(state) ? state : null,
+    );
+  }
+
+  /// The camera states the native side may report; nothing else is kept.
+  static const Set<String> cameraStates = {
+    'NEW',
+    'OPENING',
+    'OPENED',
+    'CLOSED',
+    'DISCONNECTED',
+    'ERROR',
+    'FREEZED',
+  };
+
+  /// Whether the camera now on is the front one.
+  final bool front;
+
+  /// `switch` (the running session switched) or `restart` (no session: the
+  /// other camera was opened).
+  final String path;
+
+  /// The camera's state before the flip, if known.
+  final String? state;
+}
+
 /// One permission's state (D144a), from [KabsoPermissions].
 enum KabsoPermissionStatus {
   granted,
