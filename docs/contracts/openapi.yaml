@@ -17579,7 +17579,7 @@ components:
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100), DAILY_COINS (1–10^9) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`." }
     AdminVipTier:
       type: object
-      required: [id, code, nameAr, nameEn, sortOrder, color, nameColor, badgeAnimation, badgeStill, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
+      required: [id, code, nameAr, nameEn, sortOrder, color, nameColor, renewalDiscountPercent, badgeAnimation, badgeStill, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
@@ -17588,6 +17588,7 @@ components:
         sortOrder: { type: integer, minimum: 1, description: "The order and the rank (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$' }
         nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-F]{6}$', description: "v1.83-social (D258, §10.94.10): the special text colour of the tier's members (CHAT_NAME_COLOR), set in the panel; null: none." }
+        renewalDiscountPercent: { type: integer, minimum: 0, maximum: 90, description: "v1.83-social (D258, §10.94.12): percent off a renewal (the same tier while active or up to 7 days after its end); 0 = none." }
         badgeAnimation: { $ref: '#/components/schemas/VipArtRef' }
         badgeStill: { $ref: '#/components/schemas/VipArtRef' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -17621,6 +17622,7 @@ components:
         nameEn: { type: string, minLength: 1, maxLength: 30 }
         color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', description: "Stored upper case." }
         nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$', description: "v1.83-social (D258): the special text colour (CHAT_NAME_COLOR); stored upper case; null clears it." }
+        renewalDiscountPercent: { type: integer, minimum: 0, maximum: 90, description: "v1.83-social (D258): percent off a renewal; default 15 on a new tier; 0 = none." }
         badgeAnimation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         badgeStill: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -17641,6 +17643,7 @@ components:
         nameEn: { type: string, minLength: 1, maxLength: 30 }
         color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
         nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$', description: "v1.83-social (D258): the special text colour (CHAT_NAME_COLOR); stored upper case; null clears it." }
+        renewalDiscountPercent: { type: integer, minimum: 0, maximum: 90, description: "v1.83-social (D258): percent off a renewal; default 15 on a new tier; 0 = none." }
         badgeAnimation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         badgeStill: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -27790,7 +27793,7 @@ components:
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
     VipTier:
       type: object
-      required: [id, code, name, level, color, nameColor, badgeAnimation, badgeStill, priceCoins, durationDays, perks]
+      required: [id, code, name, level, color, nameColor, renewalDiscountPercent, renewPriceCoins, badgeAnimation, badgeStill, priceCoins, durationDays, perks]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
@@ -27798,6 +27801,8 @@ components:
         level: { type: integer, minimum: 1, description: "1 … n among the tiers on sale, in the panel's order (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$' }
         nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-F]{6}$', description: "v1.83-social (D258, §10.94.10): the special text colour of the tier's members (CHAT_NAME_COLOR), set in the panel; null: none." }
+        renewalDiscountPercent: { type: integer, minimum: 0, maximum: 90, description: "v1.83-social (D258, §10.94.12): percent off a renewal (the same tier while active or up to 7 days after its end); 0 = none." }
+        renewPriceCoins: { type: integer, format: int64, minimum: 1, description: "v1.83-social (D258): the price of a renewal (priceCoins with the discount, rounded down; = priceCoins at 0 %)." }
         badgeAnimation: { $ref: '#/components/schemas/VipArtRef' }
         badgeStill: { $ref: '#/components/schemas/VipArtRef' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -27842,6 +27847,15 @@ components:
         dailyCoins:
           $ref: '#/components/schemas/VipDailyCoins'
           description: "v1.83-social (D258, §10.94.5) — present while the active membership holds DAILY_COINS with an amount."
+        renewal:
+          type: object
+          required: [tierId, priceCoins, discountPercent, until]
+          description: "v1.83-social (D258, §10.94.12): present while buying the caller's tier again earns its renewal discount (the membership is active or ended at most 7 days ago, the tier on sale, a discount set) — send `priceCoins` as `BuyVipRequest.priceCoins` for that tier."
+          properties:
+            tierId: { type: string, format: uuid }
+            priceCoins: { type: integer, format: int64, minimum: 1 }
+            discountPercent: { type: integer, minimum: 1, maximum: 90 }
+            until: { type: string, format: date-time, description: "The discount holds until then (the end + 7 days)." }
     VipDailyCoins:
       type: object
       required: [amount, claimedToday, nextAt]
@@ -27884,10 +27898,12 @@ components:
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "The price the person was shown." }
     VipPurchaseResult:
       type: object
-      required: [kind, priceCoins, durationDays, membership, coins]
+      required: [kind, priceCoins, listPriceCoins, discountPercent, durationDays, membership, coins]
       properties:
         kind: { type: string, enum: [NEW, RENEW, UPGRADE] }
-        priceCoins: { type: integer, format: int64, minimum: 1 }
+        priceCoins: { type: integer, format: int64, minimum: 1, description: "The coins charged (after a renewal discount, v1.83-social)." }
+        listPriceCoins: { type: integer, format: int64, minimum: 1, description: "v1.83-social (D258, §10.94.12): the tier's list price then." }
+        discountPercent: { type: integer, minimum: 0, maximum: 90, description: "v1.83-social (D258, §10.94.12): the renewal discount applied; 0 = none." }
         durationDays: { type: integer, minimum: 1 }
         membership: { $ref: '#/components/schemas/VipMembership' }
         coins: { type: integer, format: int64, minimum: 0, description: "The caller's balance right after the purchase." }

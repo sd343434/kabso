@@ -2607,6 +2607,11 @@ only small frames in memory, but the first load on a slow network is long: ask t
 to `#FFD12E`. The medal showcase now holds at most 3: people who chose more keep their first 3 (trimmed on read, no
 data change); an app older than this build may still offer 6 and get 400 `too_big` past 3.
 
+**Renewal discount.** Migration `20270306090500_vip_renewal_discount` gives every tier a 15 % renewal discount (the
+owner changes it per tier in the panel; 0 = none) and records list price and discount on each purchase. An app older
+than this build sends the list price for a renewal and gets 409 `VIP_PRICE_CHANGED`; it reloads and shows the list
+price again — ship the app with it.
+
 **Profile visitors.** Migration `20270306090300_profile_visits` adds the visits table (one row per pair; it grows with
 profile views — about one row per distinct visitor of each profile; rows older than 30 days are never listed and can be
 pruned by a later job).

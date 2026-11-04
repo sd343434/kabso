@@ -18,6 +18,7 @@ import {
   VIP_SUGGESTED_PERKS,
   vipOrderOf,
   vipPerkAvailable,
+  VIP_RENEWAL_DISCOUNT_DEFAULT,
 } from './vip-rules.js';
 import { vipAnimationFile, vipStillFile, type VipArtFile, type VipUploadKind } from './vip-art.js';
 import type { CreateVipTierBody, UpdateVipTierBody, VipPerkInput } from './vip.schemas.js';
@@ -64,6 +65,8 @@ export interface AdminVipTierDto {
   color: string;
   /** v1.83-social (D258): the special text colour, or null. */
   nameColor: string | null;
+  /** v1.83-social (D258): percent off a renewal (0 = none). */
+  renewalDiscountPercent: number;
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
@@ -117,6 +120,7 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
     sortOrder: t.sortOrder,
     color: t.color,
     nameColor: t.nameColor,
+    renewalDiscountPercent: t.renewalDiscountPercent,
     badgeAnimation: t.badgeAnimation,
     badgeStill: t.badgeStill,
     priceCoins: Number(t.priceCoins),
@@ -225,6 +229,7 @@ export class VipAdminService {
             sortOrder: (last._max.sortOrder ?? 0) + 1,
             color: body.color,
             nameColor: body.nameColor ?? null,
+            renewalDiscountPercent: body.renewalDiscountPercent ?? VIP_RENEWAL_DISCOUNT_DEFAULT,
             badgeAnimation: body.badgeAnimation ?? null,
             badgeStill: body.badgeStill ?? null,
             priceCoins: BigInt(body.priceCoins),
@@ -262,6 +267,9 @@ export class VipAdminService {
           ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
           ...(body.color !== undefined ? { color: body.color } : {}),
           ...(body.nameColor !== undefined ? { nameColor: body.nameColor } : {}),
+          ...(body.renewalDiscountPercent !== undefined
+            ? { renewalDiscountPercent: body.renewalDiscountPercent }
+            : {}),
           ...(body.badgeAnimation !== undefined ? { badgeAnimation: body.badgeAnimation } : {}),
           ...(body.badgeStill !== undefined ? { badgeStill: body.badgeStill } : {}),
           ...(body.priceCoins !== undefined ? { priceCoins: BigInt(body.priceCoins) } : {}),
@@ -407,6 +415,7 @@ export class VipAdminService {
       sortOrder: t.sortOrder,
       color: t.color,
       nameColor: t.nameColor,
+      renewalDiscountPercent: t.renewalDiscountPercent,
       badgeAnimation: t.badgeAnimation,
       badgeStill: t.badgeStill,
       priceCoins: Number(t.priceCoins),

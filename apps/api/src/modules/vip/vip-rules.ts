@@ -21,6 +21,35 @@ export const VIP_MAX_DURATION_DAYS = 365;
 export const VIP_MAX_AHEAD_DAYS = 400;
 
 /**
+ * D258 (owner): the renewal discount also applies this many days after a membership ended (buying the same tier
+ * again); never on a first purchase or an upgrade.
+ */
+export const VIP_RENEWAL_GRACE_DAYS = 7;
+
+/** D258: a tier's renewal discount bounds (percent, whole) and its default. */
+export const VIP_RENEWAL_DISCOUNT_MAX = 90;
+export const VIP_RENEWAL_DISCOUNT_DEFAULT = 15;
+
+/** D258: [price] with [percent] off, rounded down to whole coins. */
+export function vipDiscounted(price: bigint, percent: number): bigint {
+  if (percent <= 0) return price;
+  return (price * BigInt(100 - percent)) / 100n;
+}
+
+/**
+ * D258: whether buying [tierId] now is a renewal that earns the tier's discount — the caller's membership is of that
+ * tier and is active, or ended at most {@link VIP_RENEWAL_GRACE_DAYS} days ago.
+ */
+export function vipRenewalApplies(
+  held: { tierId: string; expiresAt: Date } | null,
+  tierId: string,
+  now: Date,
+): boolean {
+  if (held === null || held.tierId !== tierId) return false;
+  return now.getTime() <= held.expiresAt.getTime() + VIP_RENEWAL_GRACE_DAYS * DAY_MS;
+}
+
+/**
  * The perk codes the app really does today. A perk whose code is not here is shown as listed («قريباً»), never as
  * active — the owner can describe any perk in the panel, but only the server says whether it works (CONVENTIONS
  * §10.93.3). D258 (owner's VIP 1 perks): built one by one, §10.94.

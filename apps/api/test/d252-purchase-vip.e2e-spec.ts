@@ -107,6 +107,8 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       durationDays: 30,
       enabled: true,
       reason: 'owner D252',
+      // D258's renewal discount has its own suite (d258-vip-renewal): these tiers renew at the list price.
+      renewalDiscountPercent: 0,
       ...extra,
     });
     expect(res.status, JSON.stringify(res.body)).toBe(201);

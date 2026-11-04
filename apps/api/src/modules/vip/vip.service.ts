@@ -18,7 +18,10 @@ import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import {
   planVipPurchase,
   VIP_MAX_AHEAD_DAYS,
+  VIP_RENEWAL_GRACE_DAYS,
   vipActive,
+  vipDiscounted,
+  vipRenewalApplies,
   vipDaysLeft,
   vipPerkAvailable,
   type VipPurchaseKind,
@@ -56,6 +59,9 @@ export interface VipTierDto {
   color: string;
   /** v1.83-social (D258): the special text colour (CHAT_NAME_COLOR), or null. */
   nameColor: string | null;
+  /** v1.83-social (D258, §10.94.12): percent off a renewal (0 = none) and the renewal's price. */
+  renewalDiscountPercent: number;
+  renewPriceCoins: number;
   /** The tier BADGE (central crest): an SVGA animation and a still (asset path or https URL). */
   badgeAnimation: string | null;
   badgeStill: string | null;
@@ -98,6 +104,12 @@ export interface VipDailyCoinsDto {
 /** `MyVip`. */
 export interface MyVipDto {
   membership: VipMembershipDto | null;
+  /**
+   * v1.83-social (D258, §10.94.12): while buying the caller's tier again earns its renewal discount (the membership
+   * is active or ended at most 7 days ago, the tier on sale, a discount set): the tier, the price to send and until
+   * when it holds.
+   */
+  renewal?: { tierId: string; priceCoins: number; discountPercent: number; until: string };
   /** v1.83-social (D258): present while the member holds DAILY_COINS with an amount. */
   dailyCoins?: VipDailyCoinsDto;
 }
@@ -127,7 +139,11 @@ export interface VipDailyCoinsClaimDto {
 /** `VipPurchaseResult`. */
 export interface VipPurchaseResultDto {
   kind: VipPurchaseKind;
+  /** The coins charged (after a renewal discount). */
   priceCoins: number;
+  /** v1.83-social (D258, §10.94.12): the tier's list price and the discount applied (0 = none). */
+  listPriceCoins: number;
+  discountPercent: number;
   durationDays: number;
   membership: VipMembershipDto;
   /** The caller's coin balance right after the purchase. */
@@ -208,6 +224,8 @@ export class VipService {
         level: i + 1,
         color: t.color,
         nameColor: t.nameColor,
+        renewalDiscountPercent: t.renewalDiscountPercent,
+        renewPriceCoins: Number(vipDiscounted(t.priceCoins, t.renewalDiscountPercent)),
         badgeAnimation: t.badgeAnimation,
         badgeStill: t.badgeStill,
         priceCoins: Number(t.priceCoins),
@@ -222,10 +240,20 @@ export class VipService {
   async mine(userId: string, lang: ContentLanguage): Promise<MyVipDto> {
     const now = this.clock.now();
     const m = await this.prisma.vipMembership.findUnique({ where: { userId }, include: { tier: true } });
-    if (!m || !vipActive(m.expiresAt, now)) return { membership: null };
+    const renewal =
+      m && m.tier.enabled && m.tier.renewalDiscountPercent > 0 && vipRenewalApplies(m, m.tierId, now)
+        ? {
+            tierId: m.tierId,
+            priceCoins: Number(vipDiscounted(m.tier.priceCoins, m.tier.renewalDiscountPercent)),
+            discountPercent: m.tier.renewalDiscountPercent,
+            until: new Date(m.expiresAt.getTime() + VIP_RENEWAL_GRACE_DAYS * 86_400_000).toISOString(),
+          }
+        : undefined;
+    if (!m || !vipActive(m.expiresAt, now)) return { membership: null, ...(renewal ? { renewal } : {}) };
     const daily = await this.dailyCoinsState(this.prisma, userId, now);
     return {
       membership: membershipDto(lang, m, m.tier, now),
+      ...(renewal ? { renewal } : {}),
       ...(daily ? { dailyCoins: daily.dto } : {}),
     };
   }
@@ -386,9 +414,14 @@ export class VipService {
             { field: 'tier', issue: plan.refusal },
           ]);
         }
-        if (tier.priceCoins !== BigInt(body.priceCoins)) throw new AppException(ErrorCode.VIP_PRICE_CHANGED);
+        // D258 (§10.94.12): the same tier again while active, or within the grace after its end, earns the tier's
+        // renewal discount; the price the person saw must match what is charged.
+        const discount =
+          plan.kind !== 'UPGRADE' && vipRenewalApplies(held, tier.id, now) ? tier.renewalDiscountPercent : 0;
+        const charged = vipDiscounted(tier.priceCoins, discount);
+        if (charged !== BigInt(body.priceCoins)) throw new AppException(ErrorCode.VIP_PRICE_CHANGED);
         const purchaseId = randomUUID();
-        const change = await debitIn(tx, userId, tier.priceCoins, 'VIP_PURCHASE', purchaseId);
+        const change = await debitIn(tx, userId, charged, 'VIP_PURCHASE', purchaseId);
         if (!change) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
         const active = held !== null && vipActive(held.expiresAt, now);
         await tx.vipPurchase.create({
@@ -397,7 +430,9 @@ export class VipService {
             userId,
             tierId: tier.id,
             kind: plan.kind,
-            priceCoins: tier.priceCoins,
+            priceCoins: charged,
+            listPriceCoins: tier.priceCoins,
+            discountPercent: discount,
             durationDays: tier.durationDays,
             previousTierId: active ? held.tierId : null,
             previousExpiresAt: active ? held.expiresAt : null,
@@ -423,7 +458,9 @@ export class VipService {
               kind: plan.kind,
               tierId: tier.id,
               tierCode: tier.code,
-              priceCoins: Number(tier.priceCoins),
+              priceCoins: Number(charged),
+              listPriceCoins: Number(tier.priceCoins),
+              discountPercent: discount,
               durationDays: tier.durationDays,
               previousTierId: active ? held.tierId : null,
               previousExpiresAt: active ? held.expiresAt.toISOString() : null,
@@ -434,7 +471,9 @@ export class VipService {
         });
         return {
           kind: plan.kind,
-          priceCoins: Number(tier.priceCoins),
+          priceCoins: Number(charged),
+          listPriceCoins: Number(tier.priceCoins),
+          discountPercent: discount,
           durationDays: tier.durationDays,
           membership: membershipDto(lang, membership, tier, now),
           coins: Number(change.coins),
@@ -478,6 +517,8 @@ export class VipService {
     return {
       kind: purchase.kind,
       priceCoins: Number(purchase.priceCoins),
+      listPriceCoins: Number(purchase.listPriceCoins ?? purchase.priceCoins),
+      discountPercent: purchase.discountPercent,
       durationDays: purchase.durationDays,
       membership,
       coins: Number(purchase.coinsAfter),

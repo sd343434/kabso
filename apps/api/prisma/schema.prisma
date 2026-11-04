@@ -6143,26 +6143,28 @@ enum VipPurchaseKind {
 /// the rank (higher = higher tier). CHECK `vip_tiers_shape` (code, names, colour `#RRGGBB`, https emblem, price 1 …
 /// 10^12 coins, 1 … 365 days). Never deleted: switched off (`enabled`), so memberships and purchases keep their tier.
 model VipTier {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  code           String   @unique(map: "vip_tiers_code_key") @db.VarChar(40)
-  nameAr         String   @map("name_ar") @db.VarChar(30)
-  nameEn         String   @map("name_en") @db.VarChar(30)
-  sortOrder      Int      @map("sort_order")
+  id                     String   @id @default(uuid(7)) @db.Uuid
+  code                   String   @unique(map: "vip_tiers_code_key") @db.VarChar(40)
+  nameAr                 String   @map("name_ar") @db.VarChar(30)
+  nameEn                 String   @map("name_en") @db.VarChar(30)
+  sortOrder              Int      @map("sort_order")
   /// The tier's colour, `#RRGGBB` upper case.
-  color          String   @db.Char(7)
+  color                  String   @db.Char(7)
   /// v1.83-social (D258, §10.94.10): the special text colour of the tier's members (CHAT_NAME_COLOR: their name,
   /// chat message, banner line), `#RRGGBB`, set in the panel; one solid colour in the app. Null: none.
-  nameColor      String?  @map("name_color") @db.Char(7)
+  nameColor              String?  @map("name_color") @db.Char(7)
+  /// v1.83-social (D258, §10.94.12): percent off when renewing this tier (0 – 90; 0 = none), set in the panel.
+  renewalDiscountPercent Int      @default(15) @map("renewal_discount_percent")
   /// The tier BADGE (central crest): an SVGA animation and a still, each a bundled asset path
   /// (`assets/vip/...`) or a hosted https URL. Null = the app draws a token placeholder in `color`.
-  badgeAnimation String?  @map("badge_animation") @db.VarChar(2048)
-  badgeStill     String?  @map("badge_still") @db.VarChar(2048)
-  priceCoins     BigInt   @map("price_coins")
-  durationDays   Int      @map("duration_days")
-  enabled        Boolean  @default(false)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  updatedById    String?  @map("updated_by_id") @db.Uuid
+  badgeAnimation         String?  @map("badge_animation") @db.VarChar(2048)
+  badgeStill             String?  @map("badge_still") @db.VarChar(2048)
+  priceCoins             BigInt   @map("price_coins")
+  durationDays           Int      @map("duration_days")
+  enabled                Boolean  @default(false)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  updatedById            String?  @map("updated_by_id") @db.Uuid
 
   perks           VipTierPerk[]
   memberships     VipMembership[]
@@ -6221,7 +6223,11 @@ model VipPurchase {
   userId            String          @map("user_id") @db.Uuid
   tierId            String          @map("tier_id") @db.Uuid
   kind              VipPurchaseKind
+  /// The coins charged (after any renewal discount).
   priceCoins        BigInt          @map("price_coins")
+  /// v1.83-social (D258): the tier's list price then, and the renewal discount applied (0 = none).
+  listPriceCoins    BigInt?         @map("list_price_coins")
+  discountPercent   Int             @default(0) @map("discount_percent")
   durationDays      Int             @map("duration_days")
   previousTierId    String?         @map("previous_tier_id") @db.Uuid
   previousExpiresAt DateTime?       @map("previous_expires_at") @db.Timestamptz(3)

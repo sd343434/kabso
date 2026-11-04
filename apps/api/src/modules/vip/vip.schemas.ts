@@ -6,6 +6,7 @@ import {
   VIP_MAX_PERKS,
   VIP_MAX_PRICE_COINS,
   VIP_PERK_AMOUNTS,
+  VIP_RENEWAL_DISCOUNT_MAX,
 } from './vip-rules.js';
 
 /** v1.82-social (D252, CONVENTIONS §10.93): request bodies of «شراء VIP» and its panel page. */
@@ -88,6 +89,8 @@ export const createVipTierBody = z.strictObject({
   color,
   /** v1.83-social (D258): the special text colour (CHAT_NAME_COLOR), or null. */
   nameColor: color.nullable().optional(),
+  /** v1.83-social (D258): percent off a renewal, 0 – 90 (default 15). */
+  renewalDiscountPercent: z.number().int().min(0).max(VIP_RENEWAL_DISCOUNT_MAX).optional(),
   /** The tier BADGE (central crest): an SVGA animation and a still (asset path or https URL). */
   badgeAnimation: artRef.nullable().optional(),
   badgeStill: artRef.nullable().optional(),
@@ -105,6 +108,7 @@ export const updateVipTierBody = z
     nameEn: tierName.optional(),
     color: color.optional(),
     nameColor: color.nullable().optional(),
+    renewalDiscountPercent: z.number().int().min(0).max(VIP_RENEWAL_DISCOUNT_MAX).optional(),
     badgeAnimation: artRef.nullable().optional(),
     badgeStill: artRef.nullable().optional(),
     priceCoins: price.optional(),
