@@ -13986,4 +13986,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vipVisitorsNoPerkAction => 'Get VIP';
+
+  @override
+  String get vipIdentity => 'Identification';
+
+  @override
+  String get vipPreviewName => 'Your name';
+
+  @override
+  String vipPerkPerDay(String value) {
+    return '$value a day';
+  }
+
+  @override
+  String vipDailyCoinsTotal(String total) {
+    return 'Daily coins: $total coins in total';
+  }
 }

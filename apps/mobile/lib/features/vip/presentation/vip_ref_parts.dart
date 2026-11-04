@@ -167,41 +167,26 @@ class _VipRefTabsState extends State<VipRefTabs> {
                   child: SizedBox(
                     width: KVip.tabPitch,
                     child: Center(
+                      // D258 (owner, reference 38): text tabs; the chosen
+                      // one brighter over a small ornament underline.
                       child: tier.id == widget.selectedId
-                          ? Container(
-                              height: KVip.pillHeight,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  KVip.pillHeight / 2,
-                                ),
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color.lerp(
-                                      Color(tier.color),
-                                      Colors.white,
-                                      0.25,
-                                    )!,
-                                    Color(tier.color),
-                                  ],
-                                ),
-                              ),
-                              child: Center(
-                                widthFactor: 1,
-                                child: Text(
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
                                   _short(tier),
                                   maxLines: 1,
                                   style: t.label.copyWith(
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     height: 1,
                                     fontWeight: FontWeight.w800,
                                     fontStyle: FontStyle.italic,
-                                    color: vipOnColor(Color(tier.color)),
+                                    color: p.text,
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: 3),
+                                _TabOrnament(color: Color(tier.color)),
+                              ],
                             )
                           : Text(
                               _short(tier),
@@ -295,6 +280,61 @@ class VipShowcaseCard extends StatelessWidget {
   static const cardKey = Key('vip.showcase');
   static Key tileKey(String code) => Key('vip.showcase.$code');
 
+  /// D258 (owner: «ضع القطع»): which piece goes in which tile, by its shape
+  /// — the tall tile the person card, the two wide ones the entry banner and
+  /// the chat bubble, the small ones the frame and the mic wave, the long
+  /// bottom one the entry car; any other art fills the tiles left, in order.
+  static const preferred = [
+    'PROFILE_CARD',
+    'ENTRY_BANNER',
+    'CHAT_BUBBLE',
+    'AVATAR_FRAME',
+    'MIC_WAVE',
+    'ENTRY_EFFECT',
+  ];
+
+  /// [perks] laid out in the six tiles (null: an empty tile).
+  static List<VipPerk?> layout(List<VipPerk> perks) {
+    final tiles = List<VipPerk?>.filled(slots.length, null);
+    final rest = [...perks];
+    for (final (i, code) in preferred.indexed) {
+      final hit = rest.where((p) => p.code == code).firstOrNull;
+      if (hit != null) {
+        tiles[i] = hit;
+        rest.remove(hit);
+      }
+    }
+    for (var i = 0; i < tiles.length && rest.isNotEmpty; i++) {
+      tiles[i] ??= rest.removeAt(0);
+    }
+    return tiles;
+  }
+
+  /// D258 (owner: «لون البوكس … مناسب للـ vip»): the card's and the tiles'
+  /// fill in the tier's colour — a light tint in light mode, a deeper
+  /// translucent shade in dark mode.
+  static (Color card, Color tile) fills(
+    Color accent,
+    VipPalette p, {
+    required bool dark,
+  }) {
+    final card = Color.alphaBlend(
+      accent.withValues(alpha: dark ? 0.16 : 0.08),
+      p.card,
+    );
+    final tile = dark
+        ? Color.alphaBlend(
+            Color.lerp(
+              accent,
+              const Color(0xFF000000),
+              0.45,
+            )!.withValues(alpha: 0.55),
+            p.tile,
+          )
+        : Color.alphaBlend(accent.withValues(alpha: 0.16), p.background);
+    return (card, tile);
+  }
+
   /// Each slot's rectangle inside the card's 362 × 225.5 pt (from the END
   /// side, top, width, height), measured on the Arabic reference from its
   /// left edge — the tall tile sits at the end; English mirrors it.
@@ -311,6 +351,9 @@ class VipShowcaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = VipPalette.of(context);
     final accent = Color(tier.color);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final (cardFill, tileFill) = fills(accent, p, dark: dark);
+    final tiles = layout(perks);
     return LayoutBuilder(
       builder: (context, c) {
         // The slots are measured on 362 − 2 × 9.5 inner pt; a narrower phone
@@ -320,7 +363,7 @@ class VipShowcaseCard extends StatelessWidget {
           key: cardKey,
           height: KVip.cardHeight,
           decoration: BoxDecoration(
-            color: p.card,
+            color: cardFill,
             borderRadius: BorderRadius.circular(KVip.cardRadius),
             border: Border.all(color: accent, width: 1.3),
             boxShadow: [
@@ -336,22 +379,22 @@ class VipShowcaseCard extends StatelessWidget {
                   width: slot.$3 * scale,
                   height: slot.$4,
                   child: Container(
-                    key: i < perks.length ? tileKey(perks[i].code) : null,
+                    key: tiles[i] == null ? null : tileKey(tiles[i]!.code),
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: p.tile,
+                      color: tileFill,
                       borderRadius: BorderRadius.circular(KVip.tileRadius),
                     ),
-                    child: i < perks.length
-                        ? Semantics(
+                    child: tiles[i] == null
+                        ? null
+                        : Semantics(
                             image: true,
-                            label: perks[i].title,
+                            label: tiles[i]!.title,
                             child: VipAnimatedArt(
-                              animation: perks[i].animation,
-                              still: perks[i].still,
+                              animation: tiles[i]!.animation,
+                              still: tiles[i]!.still,
                             ),
-                          )
-                        : null,
+                          ),
                   ),
                 ),
             ],
@@ -393,7 +436,11 @@ class VipPrivilegeCard extends StatelessWidget {
     'DAILY_BULLET' => Icons.campaign_rounded,
     'VIEWER_LIST_PRIORITY' => Icons.trending_up_rounded,
     'MONTHLY_GIFT' => Icons.card_giftcard_rounded,
-    'VISITORS' => Icons.visibility_rounded,
+    'VISITORS' || 'PROFILE_VISITORS' => Icons.visibility_rounded,
+    'PROFILE_CARD' => Icons.badge_rounded,
+    'CHAT_NAME_COLOR' => Icons.format_color_text_rounded,
+    'DAILY_COINS' => Icons.monetization_on_rounded,
+    'LEVEL_SPEEDUP' => Icons.rocket_launch_rounded,
     _ => Icons.auto_awesome_rounded,
   };
 
@@ -542,4 +589,28 @@ class _Perk extends StatelessWidget {
       ),
     );
   }
+}
+
+/// D258: the chosen tab's underline — a short line with a diamond in its
+/// middle, in the tier's colour.
+class _TabOrnament extends StatelessWidget {
+  const new({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 30,
+    height: 6,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(height: 1.2, color: color),
+        Transform.rotate(
+          angle: 0.785398,
+          child: Container(width: 5, height: 5, color: color),
+        ),
+      ],
+    ),
+  );
 }

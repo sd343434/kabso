@@ -13992,4 +13992,20 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get vipVisitorsNoPerkAction => 'شراء VIP';
+
+  @override
+  String get vipIdentity => 'التعريف';
+
+  @override
+  String get vipPreviewName => 'اسمك';
+
+  @override
+  String vipPerkPerDay(String value) {
+    return '$value يومياً';
+  }
+
+  @override
+  String vipDailyCoinsTotal(String total) {
+    return 'إجمالي الكوينز اليومية $total كوينز';
+  }
 }

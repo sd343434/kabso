@@ -22,7 +22,6 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
-import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -310,7 +309,8 @@ void main() {
       expect(_cta(_en.vipPayCoins), findsOneWidget);
       // D252c: «الامتياز الحصري VIPn x/y» (this tier's perks / the most a
       // tier has) and the tier's perks (one not yet built is dimmed).
-      expect(find.text('Exclusive privileges VIP1 1/7'), findsOneWidget);
+      // D258 (owner, reference 38): «التعريف» and a tile per perk.
+      expect(find.text(_en.vipIdentity), findsOneWidget);
       expect(find.byKey(VipScreen.perkKey('BADGE')), findsOneWidget);
 
       await tester.tap(find.byKey(VipScreen.ctaKey));
@@ -365,7 +365,7 @@ void main() {
       // D252c: the perk's art shows in its showcase tile.
       expect(
         find.descendant(
-          of: find.byKey(VipShowcaseCard.tileKey('BADGE')),
+          of: find.byKey(VipScreen.perkKey('BADGE')),
           matching: find.byType(Image),
         ),
         findsOneWidget,
@@ -465,6 +465,41 @@ void main() {
       );
     });
 
+    testWidgets('D258: the bottom bar totals the daily coins over the length '
+        '(only a real amount)', (tester) async {
+      const tier = VipTier(
+        id: 'id-D',
+        code: 'VIP_1',
+        name: 'VIP 1',
+        level: 1,
+        color: 0xFF2E8B3D,
+        priceCoins: 1000000,
+        durationDays: 30,
+        perks: [
+          VipPerk(
+            code: 'DAILY_COINS',
+            title: 'Daily coins',
+            available: true,
+            amount: 500,
+          ),
+        ],
+      );
+      await _pump(
+        tester,
+        vip: _FakeVip(
+          list: const VipTierList(tiers: [tier], maxAheadDays: 400),
+        ),
+      );
+      expect(find.text(_en.vipDailyCoinsTotal('15,000')), findsOneWidget);
+      // The tile shows its value.
+      expect(find.text(_en.vipPerkPerDay('500')), findsOneWidget);
+    });
+
+    testWidgets('D258: no daily coins amount, no total line', (tester) async {
+      await _pump(tester, vip: _FakeVip());
+      expect(find.byKey(VipScreen.dailyTotalKey), findsNothing);
+    });
+
     testWidgets('an off-sale tier shows a note', (tester) async {
       final held = _membership(_tier(2), onSale: false);
       await _pump(tester, vip: _FakeVip(membership: held));
@@ -553,26 +588,32 @@ void main() {
       expect(tab.left, greaterThanOrEqualTo(0));
       expect(tab.right, lessThanOrEqualTo(393));
       expect(find.byKey(VipScreen.perkKey('MONTHLY_GIFT')), findsOneWidget);
-      expect(find.text('Exclusive privileges VIP12 7/7'), findsOneWidget);
       await _tapTab(tester, 'VIP_4');
       expect(find.byKey(VipScreen.perkKey('MONTHLY_GIFT')), findsNothing);
-      expect(find.text('Exclusive privileges VIP4 4/7'), findsOneWidget);
     });
 
-    testWidgets('the page is white in light mode and black in dark mode', (
-      tester,
-    ) async {
+    testWidgets("D258: the page takes the selected tier's colour in both "
+        'modes, and follows the tabs', (tester) async {
+      Color top() =>
+          ((tester
+                              .widget<AnimatedContainer>(
+                                find.byKey(VipScreen.backdropKey),
+                              )
+                              .decoration!
+                          as BoxDecoration)
+                      .gradient!
+                  as LinearGradient)
+              .colors
+              .first;
       await _pump(tester, vip: _FakeVip());
-      expect(
-        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
-        const Color(0xFFFFFFFF),
-      );
+      final list = _list();
+      expect(top(), VipScreen.backdropOf(list.tiers.first).first);
       await tester.pumpWidget(const SizedBox.shrink());
       await _pump(tester, vip: _FakeVip(), brightness: Brightness.dark);
-      expect(
-        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
-        const Color(0xFF000000),
-      );
+      expect(top(), VipScreen.backdropOf(list.tiers.first).first);
+      await _tapTab(tester, 'VIP_3');
+      await tester.pumpAndSettle();
+      expect(top(), VipScreen.backdropOf(list.tiers[2]).first);
     });
 
     // The reference's VIP2: six art perks in the showcase, ten perks.

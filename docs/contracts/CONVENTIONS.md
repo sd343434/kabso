@@ -6268,6 +6268,15 @@ emblem one visible height (the VIP badge sized by what its art shows); line 2: t
 beyond; was 6); a showcase saved before is read as its first 3 (trimmed on read, no migration); chat lines carry at
 most 3 (`LiveChatAuthorBadges.medals`).
 
+#### 10.94.11 The «شراء VIP» page (owner, reference 38)
+
+Text tier tabs (the chosen one brighter over a small ornament line); the tier's big badge on a stage with a glow in the
+tier's colour; a panel with a curved top holding «التعريف» and a 3-column grid of square tiles — each a live preview of
+the perk (the frame around a sample picture, the banner, the special-coloured sample name, the card, the car, the mic
+wave, the bubble) or, without art, its icon and value («٣ يومياً», «+1%») — the perk's title under it. The bottom bar
+adds «إجمالي الكوينز اليومية …» (DAILY_COINS × the tier's days) when the amount is set. The page's background is a deep
+gradient of the tier's colour in both modes (supersedes D252c's white / black), cross-fading as the tabs change.
+
 #### 10.94.6 Uploading the art (`uploadAdminVipArt`)
 
 `POST /admin/vip/uploads?kind=animation|still&tier=CODE` (catalog.manage, CSRF): the raw bytes; `animation` an SVGA 2.x

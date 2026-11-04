@@ -23652,6 +23652,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شراء VIP'**
   String get vipVisitorsNoPerkAction;
+
+  /// D258: the VIP page (owner reference 38).
+  ///
+  /// In ar, this message translates to:
+  /// **'التعريف'**
+  String get vipIdentity;
+
+  /// D258: the VIP page (owner reference 38).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمك'**
+  String get vipPreviewName;
+
+  /// D258: the VIP page (owner reference 38).
+  ///
+  /// In ar, this message translates to:
+  /// **'{value} يومياً'**
+  String vipPerkPerDay(String value);
+
+  /// D258: the VIP page (owner reference 38).
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي الكوينز اليومية {total} كوينز'**
+  String vipDailyCoinsTotal(String total);
 }
 
 class _AppLocalizationsDelegate

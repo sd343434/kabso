@@ -18,6 +18,7 @@ import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -97,6 +98,22 @@ class VipScreen extends ConsumerStatefulWidget {
 
   static Key tabKey(String code) => Key('vip.tab.$code');
   static Key perkKey(String code) => Key('vip.perk.$code');
+
+  /// D258: the daily coins total in the bottom bar.
+  static const dailyTotalKey = Key('vip.dailyTotal');
+
+  /// D258: the page's tier-coloured background.
+  static const backdropKey = Key('vip.backdrop');
+
+  /// D258: the page's background for [tier] — a vertical gradient of deep
+  /// shades of its colour (VIP 1 #2E8B3D → ≈ #0B230F / #050E06).
+  static List<Color> backdropOf(VipTier? tier) {
+    final c = Color(tier?.color ?? 0xFF2A2338);
+    return [
+      Color.lerp(c, const Color(0xFF000000), 0.75)!,
+      Color.lerp(c, const Color(0xFF000000), 0.9)!,
+    ];
+  }
 
   @override
   ConsumerState<VipScreen> createState() => _VipScreenState();
@@ -209,9 +226,13 @@ class _VipScreenState extends ConsumerState<VipScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // D252c (owner): white in light mode, black in dark mode — the app's
-    // own theme (no forced dark page any more).
-    return Builder(builder: _page);
+    // D258 (owner, supersedes D252c's white / black): the page takes the
+    // tier's colour — a deep tint of it in both modes, the art glowing on
+    // it, the text white — so it is drawn with the dark palette.
+    return Theme(
+      data: Theme.of(context).copyWith(brightness: Brightness.dark),
+      child: Builder(builder: _page),
+    );
   }
 
   Widget _page(BuildContext context) {
@@ -233,14 +254,6 @@ class _VipScreenState extends ConsumerState<VipScreen> {
       // caller's): the buy button would renew it, not buy or upgrade.
       final action = vipActionFor(tier, membership, list, now);
       final held = action == VipAction.renew || action == VipAction.lower;
-      final art = [
-        for (final p in tier.perks)
-          if (p.still != null || p.animation != null) p,
-      ];
-      final total = list.tiers.fold<int>(
-        0,
-        (m, t) => t.perks.length > m ? t.perks.length : m,
-      );
       body = [
         // «الخاص بي VIP ›» at the end edge (members only; their status).
         SizedBox(
@@ -256,44 +269,17 @@ class _VipScreenState extends ConsumerState<VipScreen> {
                   ),
                 ),
         ),
-        // The badge hangs over the showcase card's top (ref).
+        // D258 (owner, reference 38): the badge on its stage with the tier's
+        // glow, then «التعريف» and a live preview of every perk.
         Stack(
-          clipBehavior: Clip.none,
+          alignment: Alignment.center,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(
-                top: KVip.badge - KVip.badgeOverlap,
-                left: KVip.side,
-                right: KVip.side,
-              ),
-              child: VipShowcaseCard(tier: tier, perks: art),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    VipBadge(
-                      key: VipScreen.emblemKey,
-                      tier: tier,
-                      size: KVip.badge,
-                    ),
-                    if (tier.badgeStill == null && tier.badgeAnimation == null)
-                      VipNamePlate(name: tier.name),
-                  ],
-                ),
-              ),
-            ),
+            VipStage(key: VipScreen.emblemKey, tier: tier),
+            if (tier.badgeStill == null && tier.badgeAnimation == null)
+              Positioned(bottom: 18, child: VipNamePlate(name: tier.name)),
           ],
         ),
-        const SizedBox(height: 18),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: KVip.side),
-          child: VipPrivilegeCard(tier: tier, total: total, active: held),
-        ),
+        VipIdentityPanel(tier: tier, active: held),
       ];
     } else if (ready) {
       body = [
@@ -339,51 +325,67 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     }
 
     final showBar = ready && tier != null && list.tiers.isNotEmpty;
+    final backdrop = VipScreen.backdropOf(tier);
     return Scaffold(
-      backgroundColor: palette.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // The tabs row: back at the start, the tiers (scrolling) after.
-            SizedBox(
-              height: KVip.tabRow + 6,
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    tooltip: MaterialLocalizations.of(context)
-                        .backButtonTooltip,
-                    // Mirrors in RTL (ref «›» at the right).
-                    icon: Icon(
-                      Icons.chevron_left_rounded,
-                      color: palette.text,
-                      size: 28,
+      backgroundColor: backdrop.last,
+      body: AnimatedContainer(
+        key: VipScreen.backdropKey,
+        // A cross-fade as the tabs change (none with reduced motion).
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: backdrop,
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // The tabs row: back at the start, the tiers (scrolling) after.
+              SizedBox(
+                height: KVip.tabRow + 6,
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      tooltip: MaterialLocalizations.of(context)
+                          .backButtonTooltip,
+                      // Mirrors in RTL (ref «›» at the right).
+                      icon: Icon(
+                        Icons.chevron_left_rounded,
+                        color: palette.text,
+                        size: 28,
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: showBar
-                        ? VipRefTabs(
-                            tiers: list.tiers,
-                            selectedId: tier.id,
-                            onSelect: (t) => setState(() => _selectedId = t.id),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(top: 8, bottom: KSpacing.xl),
-                  children: body,
+                    Expanded(
+                      child: showBar
+                          ? VipRefTabs(
+                              tiers: list.tiers,
+                              selectedId: tier.id,
+                              onSelect: (t) =>
+                                  setState(() => _selectedId = t.id),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 8, bottom: KSpacing.xl),
+                    children: body,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: !showBar
@@ -541,7 +543,12 @@ class _BottomBar extends StatelessWidget {
             excludeSemantics: true,
             child: Material(
               key: VipScreen.ctaKey,
-              color: p.payCard,
+              // D258: the tier's colour, deeper.
+              color: Color.lerp(
+                Color(tier.color),
+                const Color(0xFF000000),
+                0.55,
+              ),
               borderRadius: BorderRadius.circular(12),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -597,6 +604,19 @@ class _BottomBar extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                              // D258: the tier's daily coins over its length
+                              // (only when the owner set an amount).
+                              if (_dailyTotal(tier) case final total?)
+                                Text(
+                                  l10n.vipDailyCoinsTotal(
+                                    KFormat.grouped(total),
+                                  ),
+                                  key: VipScreen.dailyTotalKey,
+                                  style: t.caption.copyWith(
+                                    fontSize: 10,
+                                    color: p.muted,
+                                  ),
+                                ),
                             ],
                           ),
                   ),
@@ -608,6 +628,15 @@ class _BottomBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// D258: the tier's DAILY_COINS amount × its days, or null.
+int? _dailyTotal(VipTier tier) {
+  final amount = tier.perks
+      .where((p) => p.code == VipPerks.dailyCoins)
+      .firstOrNull
+      ?.amount;
+  return amount == null ? null : amount * tier.durationDays;
 }
 
 /// The confirm card (the live family's [KLiveDialogCard]): the tier, the

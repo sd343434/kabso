@@ -13013,5 +13013,13 @@
   "vipVisitorsNoPerkMessage": "اعرف من زار ملفك مع VIP.",
   "@vipVisitorsNoPerkMessage": {"description": "D258: «من زار ملفي» (PROFILE_VISITORS)."},
   "vipVisitorsNoPerkAction": "شراء VIP",
-  "@vipVisitorsNoPerkAction": {"description": "D258: «من زار ملفي» (PROFILE_VISITORS)."}
+  "@vipVisitorsNoPerkAction": {"description": "D258: «من زار ملفي» (PROFILE_VISITORS)."},
+  "vipIdentity": "التعريف",
+  "@vipIdentity": {"description": "D258: the VIP page (owner reference 38)."},
+  "vipPreviewName": "اسمك",
+  "@vipPreviewName": {"description": "D258: the VIP page (owner reference 38)."},
+  "vipPerkPerDay": "{value} يومياً",
+  "@vipPerkPerDay": {"description": "D258: the VIP page (owner reference 38).", "placeholders": {"value": {"type": "String"}}},
+  "vipDailyCoinsTotal": "إجمالي الكوينز اليومية {total} كوينز",
+  "@vipDailyCoinsTotal": {"description": "D258: the VIP page (owner reference 38).", "placeholders": {"total": {"type": "String"}}}
 }

@@ -4360,5 +4360,9 @@
   "vipVisitorsEmptyMessage": "People who open your profile show here.",
   "vipVisitorsNoPerkTitle": "A VIP perk",
   "vipVisitorsNoPerkMessage": "See who visited your profile with VIP.",
-  "vipVisitorsNoPerkAction": "Get VIP"
+  "vipVisitorsNoPerkAction": "Get VIP",
+  "vipIdentity": "Identification",
+  "vipPreviewName": "Your name",
+  "vipPerkPerDay": "{value} a day",
+  "vipDailyCoinsTotal": "Daily coins: {total} coins in total"
 }
