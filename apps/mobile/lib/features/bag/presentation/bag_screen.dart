@@ -912,11 +912,13 @@ class _SelectionBar extends StatelessWidget {
     const pillPadding = WidgetStatePropertyAll(
       EdgeInsets.symmetric(horizontal: KSpacing.md),
     );
-    Widget label(String text) => Text(
+    // The text takes its button's colour (bodyStrong's own colour would
+    // paint «إزالة» black on the red pill).
+    Widget label(String text, Color color) => Text(
       text,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: t.bodyStrong,
+      style: t.bodyStrong.copyWith(color: color),
     );
     return Container(
       decoration: BoxDecoration(
@@ -1024,7 +1026,10 @@ class _SelectionBar extends StatelessWidget {
                         ),
                       ),
                       onPressed: busy ? null : onSend,
-                      child: label(l10n.bagSend),
+                      child: label(
+                        l10n.bagSend,
+                        busy || onSend == null ? p.textTertiary : p.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -1056,7 +1061,12 @@ class _SelectionBar extends StatelessWidget {
                               color: p.onPrimary,
                             ),
                           )
-                        : label(worn ? l10n.bagTakeOff : l10n.bagUse),
+                        : label(
+                            worn ? l10n.bagTakeOff : l10n.bagUse,
+                            busy || onUse == null
+                                ? p.onPrimary.withValues(alpha: 0.8)
+                                : p.onPrimary,
+                          ),
                   ),
                 ),
               ],
