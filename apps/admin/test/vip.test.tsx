@@ -51,6 +51,7 @@ const tier = (
   nameEn: `VIP ${sortOrder}`,
   sortOrder,
   color: "#C9A227",
+  renewalDiscountPercent: 15,
   badgeAnimation: "https://cdn.k.test/vip1_badge.svga",
   badgeStill: "https://cdn.k.test/vip1_badge.png",
   priceCoins: 3_000_000 * sortOrder,

@@ -39,6 +39,8 @@ export interface AdminVipTier {
   color: string;
   /** D258: the special text colour of the tier's members, or null. */
   nameColor?: string | null;
+  /** D258: percent off a renewal (0 = none). */
+  renewalDiscountPercent?: number;
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
@@ -79,6 +81,8 @@ export interface TierDraft {
   color: string;
   /** D258: "" = none. */
   nameColor: string;
+  /** D258: 0 – 90. */
+  renewalDiscountPercent: string;
   badgeAnimation: string;
   badgeStill: string;
   priceCoins: string;
@@ -123,6 +127,7 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
     nameEn: tier?.nameEn ?? "",
     color: tier?.color ?? "#C9A227",
     nameColor: tier?.nameColor ?? "",
+    renewalDiscountPercent: String(tier?.renewalDiscountPercent ?? 15),
     badgeAnimation: tier?.badgeAnimation ?? "",
     badgeStill: tier?.badgeStill ?? "",
     priceCoins: tier ? String(tier.priceCoins) : "",
@@ -156,6 +161,8 @@ export function draftValid(d: TierDraft, creating: boolean): boolean {
     d.nameEn.trim() !== "" &&
     COLOR.test(d.color.trim()) &&
     (d.nameColor.trim() === "" || COLOR.test(d.nameColor.trim())) &&
+    /^\d{1,2}$/.test(d.renewalDiscountPercent.trim()) &&
+    Number(d.renewalDiscountPercent) <= 90 &&
     artOk(d.badgeAnimation) &&
     artOk(d.badgeStill) &&
     Number.isInteger(price) &&
@@ -206,6 +213,7 @@ export function tierBody(
     nameEn: d.nameEn.trim(),
     color: d.color.trim().toUpperCase(),
     nameColor: d.nameColor.trim() ? d.nameColor.trim().toUpperCase() : null,
+    renewalDiscountPercent: Number(d.renewalDiscountPercent),
     badgeAnimation: d.badgeAnimation.trim() || null,
     badgeStill: d.badgeStill.trim() || null,
     priceCoins: Number(d.priceCoins),
@@ -769,6 +777,19 @@ function TierForm({
             />
           </span>
           <small>{t("vipNameColorHint")}</small>
+        </div>
+        <div className="field">
+          <label htmlFor="vip-renewal">{t("vipRenewalDiscount")}</label>
+          <input
+            id="vip-renewal"
+            data-vip-renewal
+            className="ltr"
+            inputMode="numeric"
+            maxLength={2}
+            value={draft.renewalDiscountPercent}
+            onChange={set("renewalDiscountPercent")}
+          />
+          <small>{t("vipRenewalDiscountHint")}</small>
         </div>
         <div className="field">
           <label htmlFor="vip-ar">{t("vipNameAr")}</label>

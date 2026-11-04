@@ -9,6 +9,9 @@ export const AR_D258 = {
   vipUploading: "جارٍ الرفع…",
   vipUploadFailed: "تعذّر رفع الملف",
   vipNameColor: "لون الكتابة الخاص",
+  vipRenewalDiscount: "خصم التجديد ٪",
+  vipRenewalDiscountHint:
+    "عند تجديد نفس المستوى (أثناء الاشتراك أو حتى ٧ أيام بعد انتهائه). من 0 إلى 90؛ 0 بلا خصم.",
   vipNameColorHint:
     "لون اسم العضو ورسائله وسطر دخوله. اتركه فارغاً بلا لون خاص.",
 };
@@ -23,6 +26,9 @@ export const EN_D258: Record<keyof typeof AR_D258, string> = {
   vipUploading: "Uploading…",
   vipUploadFailed: "The file could not be uploaded",
   vipNameColor: "Special text colour",
+  vipRenewalDiscount: "Renewal discount %",
+  vipRenewalDiscountHint:
+    "When the same tier is renewed (while active or up to 7 days after the end). 0 – 90; 0 = none.",
   vipNameColorHint:
     "The member's name, messages and entry line in this colour. Empty: none.",
 };
