@@ -102,6 +102,11 @@ export interface PkSideDto {
   guests: PkGuestDto[];
   /** This side's host turned the opponent's sound off in their room. */
   mutesOpponent: boolean;
+  /**
+   * v1.67-live (D276) «نقاط PK»: this side's host's PK points (`PkHostRecord.points` — win / draw / loss, refused
+   * dares; may be below 0), shown on their half for both rooms. A finished match's own points are in once it ends.
+   */
+  pkPoints: number;
 }
 
 /** v1.50-live (D229) `PkType`: the normal PK, or «PK أحكام». */
@@ -192,6 +197,11 @@ export interface PkMatchDto {
   rematchCount: number;
   /** v1.55-live (D242): rematches this pair may still play in a row (PK_REMATCH_MAX); null = unlimited. */
   rematchesLeft: number | null;
+  /**
+   * v1.67-live (D276, owner: «انسحاب = −3»): what withdrawing from the battle counts now (the panel's
+   * `forfeitPoints`, −3): the app's «إنهاء التحدي» confirm shows it.
+   */
+  forfeitPoints: number;
 }
 
 /** `PkInvite`. */
@@ -756,6 +766,13 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
          ORDER BY seat_index`,
       this.boosterRules(),
     ]);
+    // v1.67-live (D276): both hosts' PK points («نقاط PK») on their halves.
+    const records = await this.prisma.pkHostRecord.findMany({
+      where: { hostId: { in: [row.host_a_id, row.host_b_id] } },
+      select: { hostId: true, points: true },
+    });
+    const pkPointsOf = (hostId: string) => records.find((r) => r.hostId === hostId)?.points ?? 0;
+    const { forfeitPoints } = await pkDareSettingsIn(this.prisma);
     const dare = row.type === 'DARES' ? await this.dareDto(row) : null;
     const people = await this.summaries([
       row.host_a_id,
@@ -802,6 +819,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
             mutedByHost: g.muted_by_host,
           })),
         mutesOpponent: s === 'A' ? row.a_mutes_b : row.b_mutes_a,
+        pkPoints: pkPointsOf(s === 'A' ? row.host_a_id : row.host_b_id),
       };
     };
     const roomOf = (s: PkSideName | null) => (s === null ? null : s === 'A' ? row.room_a_id : row.room_b_id);
@@ -837,6 +855,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       rematchCount: row.rematch_count,
       rematchesLeft:
         this.config.pk.rematchMax === 0 ? null : Math.max(0, this.config.pk.rematchMax - row.rematch_count),
+      forfeitPoints,
     };
   }
 
@@ -1624,22 +1643,30 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                effective = ${effective},
                top_a = ${JSON.stringify(top.A)}::jsonb, top_b = ${JSON.stringify(top.B)}::jsonb
          WHERE id = ${matchId}::uuid`;
-      // v1.44-live (D199): only an «effective PK» counts in the records.
-      const results: [string, 'wins' | 'losses' | 'draws'][] = !effective
+      // v1.44-live (D199): only an «effective PK» counts in the records. v1.67-live (D276, owner: «انسحاب = −3»):
+      // a host who withdrew (FORFEIT, DISCONNECT, AWAY: `finish.loser`) gets `forfeitPoints` instead of the loss's
+      // points, still a loss in the record; both withdrew → both. The other host wins as before.
+      const hostOf = (side: PkSideName) => (side === 'A' ? m.host_a_id : m.host_b_id);
+      const results: [string, 'wins' | 'losses' | 'draws', boolean][] = !effective
         ? []
-        : winner === null
+        : finish.loser === 'both'
           ? [
-              [m.host_a_id, 'draws'],
-              [m.host_b_id, 'draws'],
+              [m.host_a_id, 'losses', true],
+              [m.host_b_id, 'losses', true],
             ]
-          : [
-              [winner === 'A' ? m.host_a_id : m.host_b_id, 'wins'],
-              [winner === 'A' ? m.host_b_id : m.host_a_id, 'losses'],
-            ];
+          : winner === null
+            ? [
+                [m.host_a_id, 'draws', false],
+                [m.host_b_id, 'draws', false],
+              ]
+            : [
+                [hostOf(winner), 'wins', false],
+                [hostOf(otherSide(winner)), 'losses', finish.loser === otherSide(winner)],
+              ];
       // v1.50-live (D229): the record and the PK points (win / draw / loss, `pk_dare_settings`) in one step,
       // idempotent by (match, host, kind).
       const pointValues = await pkDareSettingsIn(tx);
-      for (const [hostId, column] of results) {
+      for (const [hostId, column, withdrew] of results) {
         const kind = column === 'wins' ? 'WIN' : column === 'losses' ? 'LOSS' : 'DRAW';
         await addPkPointsIn(tx, {
           matchId,
@@ -1649,7 +1676,9 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
             kind === 'WIN'
               ? pointValues.winPoints
               : kind === 'LOSS'
-                ? pointValues.lossPoints
+                ? withdrew
+                  ? pointValues.forfeitPoints
+                  : pointValues.lossPoints
                 : pointValues.drawPoints,
           counter: column,
           now,
@@ -1906,7 +1935,8 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
   /**
    * Ends an open dare (under its row lock; nothing when it is no longer in one of `from`): DONE — the loser's «dares
    * done» + 1; REFUSED — the refusal's PK points (`refusePoints`, −3 by default) and «dares refused» + 1; CANCELLED —
-   * nothing. The PK's result phase then lasts PK_DARE_OUTCOME_SECONDS more (at least its own time). Audited.
+   * nothing. The PK's result phase then lasts PK_DARE_OUTCOME_SECONDS more (at least its own time) — v1.67-live (D276):
+   * PK_RESULT_SECONDS more while «جولة أخرى» is still allowed. Audited.
    */
   private async finishDare(
     matchId: string,
@@ -1937,10 +1967,16 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       } else if (outcome.status === 'DONE') {
         await addPkDareDoneIn(tx, d.loser_host_id, now);
       }
+      // v1.67-live (D276): while «جولة أخرى» is still allowed (PK_REMATCH_MAX), the hosts get a whole result phase
+      // (PK_RESULT_SECONDS) after the dare to offer it, as after a normal PK — before, only the outcome's 8 s.
+      const { resultSeconds, dareOutcomeSeconds, rematchMax } = this.config.pk;
+      const after = Math.max(resultSeconds, dareOutcomeSeconds);
       await tx.$executeRaw`
         UPDATE pk_matches
-           SET result_ends_at = GREATEST(ended_at + make_interval(secs => ${this.config.pk.resultSeconds}),
-                                         ${iso(now)}::timestamptz + make_interval(secs => ${this.config.pk.dareOutcomeSeconds})),
+           SET result_ends_at = GREATEST(ended_at + make_interval(secs => ${resultSeconds}),
+                                         ${iso(now)}::timestamptz + make_interval(secs => (CASE
+                                           WHEN ${rematchMax}::int = 0 OR rematch_count < ${rematchMax}::int
+                                           THEN ${after}::int ELSE ${dareOutcomeSeconds}::int END))),
                seq = seq + 1
          WHERE id = ${matchId}::uuid AND status = 'RESULT'`;
       const action =

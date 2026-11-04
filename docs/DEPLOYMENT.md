@@ -2696,3 +2696,19 @@ through the default privileges.
 - **Rollback.** An older API never reads the new tables; store items already in bags stay as bag rows (the categories
   are enum values an older app ignores). Enum values cannot be dropped; leave them.
 
+
+### 5.58 «نقاط PK» on the stage, withdrawal −3, «جولة أخرى» after a dare (migration `20270311090000_pk_forfeit_points`; D276) — [IMPLEMENTED, draft contract v1.67-live; not deployed, not device-tested]
+
+The migration adds `pk_dare_settings.forfeit_points` (default −3) and replaces the `pk_dare_settings_shape` CHECK under
+the same name with its range (−100 … 100). Additive; no backfill. **No new env setting and no flag to turn on**:
+«جولة أخرى» (D242) has none — it needs only `PK_ENABLED` (on for PK at all) and is limited by `PK_REMATCH_MAX` (5 in a
+row; 0 = unlimited — keep it above 0 or unlimited, never set it to a value already reached) and answered within
+`PK_REMATCH_ACCEPT_SECONDS` (15).
+
+- **Withdrawal.** A host who withdraws from the battle (FORFEIT «إنهاء التحدي» during it, DISCONNECT, AWAY) now gets the
+  panel's «الانسحاب من التحدي» value (−3) instead of the loss's 0, still a loss; both withdrew → both (no longer a
+  draw). Ending in the result phase is not a withdrawal. Change it in «أحكام PK» → «نقاط PK والإعدادات» (OWNER, audited).
+- **After a dare.** While a rematch is still allowed, the result stays `PK_RESULT_SECONDS` (60) after a DARES match's
+  dare ends (was `PK_DARE_OUTCOME_SECONDS`, 8 — too short to offer «جولة أخرى»).
+- **Older apps** ignore `PkSideState.pkPoints` and `PkMatch.forfeitPoints`; the new app shows nothing for them against
+  an older API. Order: API (migration) first, then the panel, then the app.

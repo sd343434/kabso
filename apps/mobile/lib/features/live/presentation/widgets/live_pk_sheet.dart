@@ -141,6 +141,14 @@ class LivePkSheet extends ConsumerStatefulWidget {
   static const endKey = Key('pk.sheet.end');
   static const muteKey = Key('pk.sheet.mute');
 
+  /// D276: «جولة أخرى» in the controls (the result): offer; the asking
+  /// host's wait and «إلغاء»; the other host's «قبول» / «رفض»; disabled
+  /// while the dare runs.
+  static const rematchKey = Key('pk.sheet.rematch');
+  static const rematchCancelKey = Key('pk.sheet.rematch.cancel');
+  static const rematchAcceptKey = Key('pk.sheet.rematch.accept');
+  static const rematchDeclineKey = Key('pk.sheet.rematch.decline');
+
   /// v1.50-live (D229): «PK عادي» / «PK أحكام».
   static Key typeKey(PkType type) => Key('pk.sheet.type.${type.wire}');
   static Key modeKey(PkSheetMode m) => Key('pk.sheet.mode.${m.name}');
@@ -856,6 +864,10 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
                   ),
           ),
         ),
+        // D276 (owner: «زر اعادة بيكيه لا يظهر — يظهر فقط كتم الخصم،
+        // انهاء التحدي»): «جولة أخرى» here too, next to them, as long as
+        // the result's dock offers it.
+        ..._rematch(context, match, controller),
         if (match.connected) ...[
           const SizedBox(height: KSpacing.sm),
           KButton(
@@ -894,6 +906,101 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
     );
   }
 
+  /// D276: the result's «جولة أخرى» states (as the dock's card); nothing
+  /// during the battle or past the limit in a row.
+  List<Widget> _rematch(
+    BuildContext context,
+    PkMatch match,
+    LivePkController controller,
+  ) {
+    if (match.status != PkMatchStatus.result) return const [];
+    final l10n = context.l10n;
+    final offer = match.rematch;
+    final (_, other) = match.of(widget.roomId);
+    final name = KFormat.bidiIsolate('@${other.host.username}');
+    Widget note(String text) => Padding(
+      padding: const EdgeInsets.only(bottom: KSpacing.xs),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: context.textStyles.body.copyWith(
+          color: PkSheetMetrics.ink,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    if (offer != null && offer.byRoomId == widget.roomId) {
+      return [
+        const SizedBox(height: KSpacing.sm),
+        note(l10n.pkRematchWaiting(name)),
+        KButton(
+          key: LivePkSheet.rematchCancelKey,
+          variant: KButtonVariant.secondary,
+          icon: Icons.close_rounded,
+          label: MaterialLocalizations.of(context).cancelButtonLabel,
+          loading: _busy,
+          onPressed: () => unawaited(_run(controller.cancelRematch)),
+        ),
+      ];
+    }
+    if (offer != null) {
+      return [
+        const SizedBox(height: KSpacing.sm),
+        note(l10n.pkRematchOffered(name)),
+        Row(
+          children: [
+            Expanded(
+              child: KButton(
+                key: LivePkSheet.rematchAcceptKey,
+                icon: Icons.replay_rounded,
+                label: l10n.pkDareAccept,
+                loading: _busy,
+                onPressed: () => unawaited(_run(controller.acceptRematch)),
+              ),
+            ),
+            const SizedBox(width: KSpacing.sm),
+            Expanded(
+              child: KButton(
+                key: LivePkSheet.rematchDeclineKey,
+                variant: KButtonVariant.secondary,
+                label: l10n.pkDareRefuse,
+                onPressed: _busy
+                    ? null
+                    : () => unawaited(_run(controller.declineRematch)),
+              ),
+            ),
+          ],
+        ),
+      ];
+    }
+    final left = match.rematchesLeft;
+    if (left != null && left <= 0) return const [];
+    final dareRuns = match.dare != null && match.dare!.finishedAt == null;
+    return [
+      const SizedBox(height: KSpacing.sm),
+      KButton(
+        key: LivePkSheet.rematchKey,
+        icon: Icons.replay_rounded,
+        label: l10n.pkRematch,
+        loading: _busy,
+        onPressed: match.canOfferRematch
+            ? () => unawaited(_run(controller.offerRematch))
+            : null,
+      ),
+      if (dareRuns)
+        Padding(
+          padding: const EdgeInsets.only(top: KSpacing.xs),
+          child: Text(
+            l10n.pkRematchAfterDare,
+            textAlign: TextAlign.center,
+            style: context.textStyles.caption.copyWith(
+              color: PkSheetMetrics.grey,
+            ),
+          ),
+        ),
+    ];
+  }
+
   Future<void> _confirmEnd(PkMatch match, LivePkController controller) async {
     final l10n = context.l10n;
     if (match.status == PkMatchStatus.battle) {
@@ -901,7 +1008,13 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
       final ok = await showKLiveConfirm(
         context,
         title: l10n.pkEndConfirmTitle,
-        message: l10n.pkEndConfirmBody,
+        // D276 (owner: «انسحاب = −٣»): what withdrawing costs.
+        message: switch (match.forfeitPoints) {
+          final int points when points < 0 =>
+            '${l10n.pkEndConfirmBody}\n'
+                '${l10n.pkEndForfeitPoints(KFormat.grouped(-points))}',
+          _ => l10n.pkEndConfirmBody,
+        },
         confirmKey: const Key('pk.end.confirm'),
         confirmLabel: l10n.pkEnd,
         cancelLabel: l10n.pkCancel,

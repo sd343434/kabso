@@ -592,6 +592,8 @@ const SETTING_FIELDS: readonly [keyof SettingsDraft, string][] = [
   ["drawPoints", "pkdSetDraw"],
   ["lossPoints", "pkdSetLoss"],
   ["refusePoints", "pkdSetRefuse"],
+  // D276 (owner: «انسحاب = −٣»).
+  ["forfeitPoints", "pkdSetForfeit"],
   ["decideSeconds", "pkdSetDecide"],
   ["reportsToDisable", "pkdSetReports"],
 ];

@@ -5599,6 +5599,8 @@ model PkDareSettings {
   drawPoints       Int      @default(1) @map("draw_points")
   lossPoints       Int      @default(0) @map("loss_points")
   refusePoints     Int      @default(-3) @map("refuse_points")
+  /// v1.67-live (D276): a host who withdrew from the battle (FORFEIT, DISCONNECT, AWAY), instead of lossPoints.
+  forfeitPoints    Int      @default(-3) @map("forfeit_points")
   decideSeconds    Int      @default(30) @map("decide_seconds")
   reportsToDisable Int      @default(5) @map("reports_to_disable")
   updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)

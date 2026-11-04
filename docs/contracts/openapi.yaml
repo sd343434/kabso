@@ -229,6 +229,10 @@ info:
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
+    **D276 (DRAFT v1.67-live)** «نقاط PK» and withdrawal (CONVENTIONS §10.80.1): `PkSideState.pkPoints` — each host's
+    PK points on their half for both rooms; `PkMatch.forfeitPoints` and the panel's `forfeitPoints` (−3): a host who
+    withdrew from the battle (FORFEIT, DISCONNECT, AWAY) gets it instead of `lossPoints` (still a loss; both withdrew →
+    both); after a DARES match's dare the result stays `PK_RESULT_SECONDS` more while «جولة أخرى» is allowed.
     **D271 (DRAFT v1.66-live)** «الموظفون والصلاحيات» — the OWNER manages the panel staff from the panel (CONVENTIONS
     §10.96.5, building on D197's team operations): `listAdminTeam` rows gain `onShift` / `shiftSince` (D260's shift);
     `grantAdminTeamRole` takes `account` (an email or a username, `@` optional; D197's `email` still accepted, exactly
@@ -17320,12 +17324,13 @@ components:
     AdminPkDareSettings:
       type: object
       additionalProperties: false
-      required: [winPoints, drawPoints, lossPoints, refusePoints, decideSeconds, reportsToDisable, updatedAt, updatedById]
+      required: [winPoints, drawPoints, lossPoints, refusePoints, forfeitPoints, decideSeconds, reportsToDisable, updatedAt, updatedById]
       properties:
         winPoints: { type: integer, minimum: -100, maximum: 100, description: Default 3. }
         drawPoints: { type: integer, minimum: -100, maximum: 100, description: Default 1. }
         lossPoints: { type: integer, minimum: -100, maximum: 100, description: Default 0. }
         refusePoints: { type: integer, minimum: -100, maximum: 100, description: "A refused or not-done dare. Default −3." }
+        forfeitPoints: { type: integer, minimum: -100, maximum: 100, description: "v1.67-live (D276, owner: «انسحاب = −3»): a host who withdrew from the battle (FORFEIT «إنهاء التحدي» during it, DISCONNECT, AWAY) gets this instead of lossPoints, still a loss in the record; both withdrew → both. Ending in the result phase is not a withdrawal. Default −3." }
         decideSeconds: { type: integer, minimum: 5, maximum: 300, description: "The loser's «قبول» / «رفض» window after the reveal. Default 30; no answer = refused." }
         reportsToDisable: { type: integer, minimum: 1, maximum: 1000, description: Reports that disable a dare automatically. Default 5. }
         updatedAt: { type: string, format: date-time }
@@ -17340,6 +17345,7 @@ components:
         drawPoints: { type: integer, minimum: -100, maximum: 100 }
         lossPoints: { type: integer, minimum: -100, maximum: 100 }
         refusePoints: { type: integer, minimum: -100, maximum: 100 }
+        forfeitPoints: { type: integer, minimum: -100, maximum: 100, description: "v1.67-live (D276)." }
         decideSeconds: { type: integer, minimum: 5, maximum: 300 }
         reportsToDisable: { type: integer, minimum: 1, maximum: 1000 }
         reason: { type: string, minLength: 1, maxLength: 500 }
@@ -24006,7 +24012,7 @@ components:
         TRIPLE_TURBO: { type: integer, minimum: 0 }
     PkSideState:
       type: object
-      required: [roomId, host, score, totalScore, roundsWon, boost, boosterUses, supporters, guests, mutesOpponent]
+      required: [roomId, host, score, totalScore, roundsWon, boost, boosterUses, supporters, guests, mutesOpponent, pkPoints]
       properties:
         roomId: { type: string, format: uuid }
         host: { $ref: '#/components/schemas/UserSummary' }
@@ -24032,9 +24038,10 @@ components:
           maxItems: 3
           items: { $ref: '#/components/schemas/PkGuest' }
         mutesOpponent: { type: boolean, description: "This side's host turned the opponent's sound off in their room." }
+        pkPoints: { type: integer, description: "v1.67-live (D276) «نقاط PK»: this side's host's PK points (`PkHostRecord.points` — win / draw / loss / withdrawal / refused dare; may be below 0), shown on their half to both rooms and their viewers. A finished match's own points are in once it ends. Older servers leave it out: the app then shows nothing." }
     PkMatch:
       type: object
-      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective, type, dare, rematch, rematchOf, rematchCount, rematchesLeft]
+      required: [id, source, status, startedAt, battleEndsAt, endedAt, resultEndsAt, endReason, winnerRoomId, loserCauseRoomId, seq, serverTime, sides, boosters, mode, roundSeconds, round, rounds, connectedAt, settingsFromRoomId, effective, type, dare, rematch, rematchOf, rematchCount, rematchesLeft, forfeitPoints]
       properties:
         id: { type: string, format: uuid }
         source: { type: string, enum: [INVITE, RANDOM] }
@@ -24084,6 +24091,7 @@ components:
         rematchOf: { type: [string, 'null'], format: uuid, description: "v1.55-live (D242): the battle this one is a rematch of (same two rooms); null for the first." }
         rematchCount: { type: integer, minimum: 0, description: "v1.55-live (D242): rematches before this one in the chain." }
         rematchesLeft: { type: [integer, 'null'], minimum: 0, description: "v1.55-live (D242): rematches still allowed in a row (PK_REMATCH_MAX); null = unlimited. 0: the app shows no «جولة أخرى»." }
+        forfeitPoints: { type: integer, description: "v1.67-live (D276, owner: «انسحاب = −3»): what withdrawing from the battle counts now (`AdminPkDareSettings.forfeitPoints`, −3 by default) — the app's «إنهاء التحدي» confirm says it." }
     PkRematchOffer:
       type: object
       required: [byRoomId, expiresAt]
@@ -24250,7 +24258,7 @@ components:
         wins: { type: integer, minimum: 0 }
         losses: { type: integer, minimum: 0 }
         draws: { type: integer, minimum: 0 }
-        points: { type: integer, description: "v1.50-live (D229): PK points — win +3, draw +1, loss 0 (counted matches), refused dare −3 (the panel's values); may be below 0." }
+        points: { type: integer, description: "v1.50-live (D229): PK points — win +3, draw +1, loss 0 (counted matches), refused dare −3 (the panel's values); v1.67-live (D276): withdrawal −3 instead of the loss's 0; may be below 0." }
         daresDone: { type: integer, minimum: 0 }
         daresRefused: { type: integer, minimum: 0 }
     PkHistoryItem:

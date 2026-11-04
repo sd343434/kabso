@@ -977,6 +977,8 @@ export interface AdminPkDareSettings {
   drawPoints: number;
   lossPoints: number;
   refusePoints: number;
+  /** D276: a host who withdrew from the battle (−3 by default). */
+  forfeitPoints: number;
   decideSeconds: number;
   reportsToDisable: number;
   updatedAt: string;

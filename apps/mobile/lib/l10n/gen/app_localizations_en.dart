@@ -13590,6 +13590,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pkPointsLabel => 'PK points';
+
+  @override
+  String pkPointsSemantics(String name, String points) {
+    return '$name\'s PK points: $points';
+  }
+
+  @override
+  String get pkRematchAfterDare => 'Another round once the dare is over';
+
+  @override
+  String pkEndForfeitPoints(String points) {
+    return 'Withdrawing takes $points PK points off';
+  }
+
+  @override
   String get liveToolReportLive => 'Report live';
 
   @override

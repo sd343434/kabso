@@ -61,6 +61,8 @@ const settingsBody = z
     drawPoints: points.optional(),
     lossPoints: points.optional(),
     refusePoints: points.optional(),
+    // v1.67-live (D276): a host who withdrew from the battle.
+    forfeitPoints: points.optional(),
     decideSeconds: z.number().int().min(5).max(300).optional(),
     reportsToDisable: z.number().int().min(1).max(1000).optional(),
     reason,

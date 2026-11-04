@@ -29,6 +29,7 @@ const SAVED: AdminPkDareSettings = {
   drawPoints: 1,
   lossPoints: 0,
   refusePoints: -3,
+  forfeitPoints: -3,
   decideSeconds: 30,
   reportsToDisable: 5,
   updatedAt: '2026-11-01T09:00:00.000Z',

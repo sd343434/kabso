@@ -45,7 +45,9 @@ interface Match {
   status: string;
   type: string;
   seq: number;
-  sides: { roomId: string; score: number; boosterUses: Record<string, number> }[];
+  sides: { roomId: string; score: number; boosterUses: Record<string, number>; pkPoints: number }[];
+  resultEndsAt: string | null;
+  forfeitPoints: number;
   dare: { status: string } | null;
   rematch: { byRoomId: string; expiresAt: string } | null;
   rematchOf: string | null;
@@ -385,5 +387,103 @@ describe('D242 «جولة أخرى»', { timeout: 600_000 }, () => {
     expect(second.id).toBe(next.id);
     expect(second.status).toBe('RESULT');
     expect(second.dare).not.toBeNull();
+  });
+
+  it("D276 «نقاط PK»: both hosts' PK points on their sides, for both rooms and viewers", async () => {
+    const s = await battle();
+    expect(s.match.sides.map((x) => x.pkPoints)).toEqual([0, 0]);
+    // B wins the forfeit: +3 (the default win); A withdrew: −3 (D276).
+    const ended = await forfeit(s);
+    expect(ended.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+    expect(ended.forfeitPoints).toBe(-3);
+    for (const [room, u] of [
+      [s.roomA, s.a],
+      [s.roomB, s.b],
+    ] as const) {
+      expect((await state(room, u))!.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+    }
+    // A viewer of A's room reads B's points too.
+    const viewer = await signup();
+    expect((await state(s.roomA, viewer))!.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+    // The rematch's battle starts with the points so far.
+    expect((await offer(s.roomA, s.a)).status).toBe(200);
+    const next = (await accept(s.roomB, s.b)).body as Match;
+    expect(next.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+  });
+
+  it("D276: after a DARES match's dare, a whole result phase is left for «جولة أخرى»", async () => {
+    const s = await battle('DARES');
+    await timeUp(s);
+    await advance(5, s);
+    const refused = await call('post', `live/rooms/${s.roomA}/pk/dare/refuse`, s.a);
+    expect(refused.status, JSON.stringify(refused.body)).toBe(200);
+    const after = (await state(s.roomA, s.a))!;
+    expect(Date.parse(after.resultEndsAt!) - clock.now().getTime()).toBeGreaterThanOrEqual(60_000);
+    // Still there 30 s later (before D276 the PK closed 8 s after the dare).
+    await advance(30, s);
+    await pk.tick();
+    expect((await state(s.roomA, s.a))!.status).toBe('RESULT');
+    expect((await offer(s.roomB, s.b)).status).toBe(200);
+  });
+
+  const record = async (u: TestUser) =>
+    (await call('get', 'me/live-pk', u)).body.record as {
+      wins: number;
+      losses: number;
+      draws: number;
+      points: number;
+    };
+
+  it('D276 «انسحاب = −3»: the host who ends during the battle gets −3 and a loss; the other +3 and a win', async () => {
+    const s = await battle();
+    await forfeit(s);
+    expect(await record(s.a)).toMatchObject({ wins: 0, losses: 1, draws: 0, points: -3 });
+    expect(await record(s.b)).toMatchObject({ wins: 1, losses: 0, points: 3 });
+    const row = await ctx.prisma.pkPointEvent.findMany({ where: { hostId: s.a.id } });
+    expect(row.map((r) => [r.kind, r.points])).toEqual([['LOSS', -3]]);
+  });
+
+  it('D276: both hosts away (both withdrew) → both −3 and a loss, no draw', async () => {
+    const s = await battle();
+    for (const [room, u] of [
+      [s.roomA, s.a],
+      [s.roomB, s.b],
+    ] as const) {
+      expect((await call('post', `live/rooms/${room}/host-presence`, u, { away: true })).status).toBe(204);
+    }
+    await advance(31, s);
+    await pk.tick();
+    const m = (await state(s.roomA, s.a))!;
+    expect(m.status).toBe('RESULT');
+    expect(m.sides.map((x) => x.pkPoints)).toEqual([-3, -3]);
+    for (const u of [s.a, s.b])
+      expect(await record(u)).toMatchObject({ losses: 1, draws: 0, wins: 0, points: -3 });
+  });
+
+  it('D276: ending in the result phase is not a withdrawal (the loss stays 0)', async () => {
+    const s = await battle();
+    await timeUp(s);
+    expect((await state(s.roomA, s.a))!.status).toBe('RESULT');
+    const end = await call('post', `live/rooms/${s.roomA}/pk/end`, s.a);
+    expect(end.status, JSON.stringify(end.body)).toBe(200);
+    expect(end.body.status).toBe('CLOSED');
+    expect(await record(s.a)).toMatchObject({ losses: 1, points: 0 });
+    expect(await record(s.b)).toMatchObject({ wins: 1, points: 3 });
+  });
+
+  it('D276: the panel value is used (forfeitPoints −5), and the match says it', async () => {
+    await ctx.prisma.pkDareSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, forfeitPoints: -5 },
+      update: { forfeitPoints: -5 },
+    });
+    try {
+      const s = await battle();
+      expect(s.match.forfeitPoints).toBe(-5);
+      await forfeit(s);
+      expect(await record(s.a)).toMatchObject({ losses: 1, points: -5 });
+    } finally {
+      await ctx.prisma.pkDareSettings.deleteMany({ where: { id: 1 } });
+    }
   });
 });

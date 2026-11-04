@@ -47,6 +47,15 @@ abstract final class KLivePk {
   static const double pillPlus = 13;
   static const Color pillGlass = Color(0x52000000);
 
+  /// D276 (owner: «يجب ان يظهر لكل شخص نقاط بيكيه الاخر»): each host's
+  /// «نقاط PK» in the name pill's glass at the top outer corner of their
+  /// half, just under the battle bar's track, its edge in the side's
+  /// colour — both hosts' for both rooms and every viewer.
+  static const double pointsTop = 5;
+  static const double pointsHeight = 16;
+  static const double pointsLabel = 8.5;
+  static const double pointsValue = 10;
+
   /// The «+»'s touch target around the 13 lp circle (the pill stays the
   /// reference's size; the target reaches past it).
   static const double pillTarget = 28;
@@ -193,6 +202,9 @@ class LivePkStage extends StatefulWidget {
   static Key boostChipKey(String roomId) => Key('pk.boost.$roomId');
   static Key guestKey(String userId) => Key('pk.guest.$userId');
 
+  /// D276: a host's «نقاط PK» chip (by their room).
+  static Key pointsKey(String roomId) => Key('pk.points.$roomId');
+
   /// D238: the «PK أحكام» card for the room's bottom dock
   /// (`KLiveRoomScaffold.dock`) while [match] has a dare after its battle;
   /// the draw stays over the stage. [isHost]: this device is [roomId]'s host
@@ -337,6 +349,7 @@ class _LivePkStageState extends State<LivePkStage> {
                     stage: widget,
                     hostKey: LivePkStage.ownHostKey,
                     end: false,
+                    team: KLivePk.startTeam,
                     onTap: onHost == null
                         ? null
                         : () => onHost(own.host, opponent: false),
@@ -353,6 +366,7 @@ class _LivePkStageState extends State<LivePkStage> {
                     stage: widget,
                     hostKey: LivePkStage.opponentHostKey,
                     end: true,
+                    team: KLivePk.endTeam,
                     // D238b: only the other host's name on their video.
                     pill: true,
                     onFollow: widget.onFollowOpponent,
@@ -629,6 +643,7 @@ class _Pane extends StatelessWidget {
     required this.stage,
     required this.hostKey,
     required this.end,
+    required this.team,
     super.key,
     this.muted = false,
     this.pill = false,
@@ -647,6 +662,9 @@ class _Pane extends StatelessWidget {
 
   /// The pill on the half's end (the opponent: the outer edge).
   final bool end;
+
+  /// D276: the side's colours (the «نقاط PK» chip's edge).
+  final List<Color> team;
 
   /// D238b: this half shows its host's name pill (only the other room's
   /// host: this room's host is already in the top bar).
@@ -721,6 +739,19 @@ class _Pane extends StatelessWidget {
                     ],
                   ),
                 ),
+              // D276: «نقاط PK» at the half's top outer corner.
+              if (side.pkPoints case final points?)
+                PositionedDirectional(
+                  top: KLivePk.pointsTop,
+                  start: end ? null : KLivePk.paneInset,
+                  end: end ? KLivePk.paneInset : null,
+                  child: PkPointsChip(
+                    key: LivePkStage.pointsKey(side.roomId),
+                    name: host.displayName,
+                    points: points,
+                    team: team,
+                  ),
+                ),
               if (pill)
                 PositionedDirectional(
                   start: KLivePk.paneInset,
@@ -746,6 +777,77 @@ class _Pane extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D276 «نقاط PK»: a host's PK points (`PkHostRecord.points`, may be below
+/// 0) in the name pill's dark glass, edged in their side's colour like the
+/// battle bar's halves: the label, then the figure in the bar's face.
+class PkPointsChip extends StatelessWidget {
+  const new({
+    required this.name,
+    required this.points,
+    required this.team,
+    super.key,
+  });
+
+  final String name;
+  final int points;
+  final List<Color> team;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    const white = Color(0xFFFFFFFF);
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    // A real minus below 0, left to right in Arabic too (as D229's
+    // [KFormat.signed], without the «+»).
+    final figure =
+        '\u2066${points < 0 ? '\u2212' : ''}'
+        '${KFormat.grouped(points.abs())}\u2069';
+    return Semantics(
+      label: l10n.pkPointsSemantics(KFormat.bidiIsolate(name), figure),
+      excludeSemantics: true,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: KLivePk.pointsHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: KLivePk.pillGlass,
+          borderRadius: BorderRadius.circular(KLivePk.pointsHeight / 2),
+          border: Border.all(color: team[1].withValues(alpha: 0.9)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.pkPointsLabel,
+              maxLines: 1,
+              textScaler: scaler,
+              style: context.textStyles.caption.copyWith(
+                fontSize: KLivePk.pointsLabel,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
+                color: white.withValues(alpha: 0.85),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              figure,
+              maxLines: 1,
+              textScaler: scaler,
+              style: TextStyle(
+                fontFamily: PkBarMetrics.family,
+                fontSize: KLivePk.pointsValue,
+                height: 1.2,
+                fontWeight: FontWeight.w800,
+                color: team[0],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -39,6 +39,8 @@ export interface PkDareSettingsRow {
   drawPoints: number;
   lossPoints: number;
   refusePoints: number;
+  /** v1.67-live (D276): a host who withdrew from the battle (FORFEIT, DISCONNECT, AWAY) instead of the loss's. */
+  forfeitPoints: number;
   decideSeconds: number;
   reportsToDisable: number;
   updatedAt: Date;
@@ -50,6 +52,7 @@ const DEFAULT_SETTINGS: Omit<PkDareSettingsRow, 'updatedAt' | 'updatedById'> = {
   drawPoints: 1,
   lossPoints: 0,
   refusePoints: -3,
+  forfeitPoints: -3,
   decideSeconds: 30,
   reportsToDisable: 5,
 };
@@ -81,6 +84,7 @@ export async function updatePkDareSettingsIn(
     drawPoints: s.drawPoints,
     lossPoints: s.lossPoints,
     refusePoints: s.refusePoints,
+    forfeitPoints: s.forfeitPoints,
     decideSeconds: s.decideSeconds,
     reportsToDisable: s.reportsToDisable,
   });

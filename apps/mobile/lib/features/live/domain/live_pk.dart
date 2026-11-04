@@ -174,6 +174,7 @@ class PkSide {
     this.supporters = const [],
     this.guests = const [],
     this.mutesOpponent = false,
+    this.pkPoints,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -200,6 +201,7 @@ class PkSide {
           PkGuest.fromJson(g as Map<String, dynamic>),
       ],
       mutesOpponent: j['mutesOpponent'] == true,
+      pkPoints: j['pkPoints'] is num ? (j['pkPoints']! as num).toInt() : null,
     );
   }
 
@@ -219,6 +221,10 @@ class PkSide {
   final List<PkSupporter> supporters;
   final List<PkGuest> guests;
   final bool mutesOpponent;
+
+  /// v1.67-live (D276) «نقاط PK»: this side's host's PK points
+  /// (`PkHostRecord.points`; may be below 0) — null from an older server.
+  final int? pkPoints;
 
   /// The booster still running at [now], or null.
   PkActiveBoost? boostAt(DateTime now) {
@@ -255,6 +261,7 @@ class PkMatch {
     this.rematchOf,
     this.rematchCount = 0,
     this.rematchesLeft,
+    this.forfeitPoints,
   });
 
   factory fromJson(Map<String, dynamic> j) {
@@ -297,6 +304,9 @@ class PkMatch {
       rematchesLeft: j['rematchesLeft'] == null
           ? null
           : _int(j['rematchesLeft']),
+      forfeitPoints: j['forfeitPoints'] is num
+          ? (j['forfeitPoints']! as num).toInt()
+          : null,
     );
   }
 
@@ -346,6 +356,11 @@ class PkMatch {
   /// v1.55-live (D242): rematches still allowed in a row (null: unlimited;
   /// older servers: unknown — the app then offers it and the server says).
   final int? rematchesLeft;
+
+  /// v1.67-live (D276, owner: «انسحاب = −٣»): what withdrawing from the
+  /// battle counts now (−3; null from an older server): the «إنهاء التحدي»
+  /// confirm says it.
+  final int? forfeitPoints;
 
   /// D242: «جولة أخرى» may be offered now from the hosts' side — the result
   /// is showing, its dare (if any) is over, no offer is open and the limit

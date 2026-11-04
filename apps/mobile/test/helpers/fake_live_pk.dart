@@ -332,6 +332,10 @@ PkMatch pkMatchFixture({
   int round = 1,
   int ownRounds = 0,
   int otherRounds = 0,
+  // D276: each host's «نقاط PK» (null: an older server, nothing shown).
+  int? ownPkPoints,
+  int? otherPkPoints,
+  int? forfeitPoints,
 }) {
   String n(String a, String e) => ar ? a : e;
   final multipliers = {
@@ -395,6 +399,7 @@ PkMatch pkMatchFixture({
         ],
         guests: guests('a', ownGuests),
         mutesOpponent: mutesOpponent,
+        pkPoints: ownPkPoints,
       ),
       PkSide(
         roomId: 'room-b',
@@ -407,8 +412,10 @@ PkMatch pkMatchFixture({
           PkSupporter(user: pkUser('fan-5', names[4]), points: 3100),
         ],
         guests: guests('b', otherGuests),
+        pkPoints: otherPkPoints,
       ),
     ),
+    forfeitPoints: forfeitPoints,
     boosters: const [
       PkBoosterRule(
         kind: PkBoosterKind.double,
@@ -576,6 +583,9 @@ PkMatch pkRematchFixture({
   int? rematchesLeft = 5,
   PkMatchStatus status = PkMatchStatus.result,
   String? rematchOf,
+  int? ownPkPoints,
+  int? otherPkPoints,
+  PkDare? dare,
 }) {
   final base = pkMatchFixture(
     now: now,
@@ -583,6 +593,8 @@ PkMatch pkRematchFixture({
     ownRoom: ownRoom,
     status: status,
     winner: status == PkMatchStatus.result ? ownRoom : null,
+    ownPkPoints: ownPkPoints,
+    otherPkPoints: otherPkPoints,
   );
   return PkMatch(
     id: rematchOf == null ? base.id : '${base.id}-2',
@@ -602,5 +614,6 @@ PkMatch pkRematchFixture({
     rematchOf: rematchOf,
     rematchCount: rematchOf == null ? 0 : 1,
     rematchesLeft: rematchesLeft,
+    dare: dare,
   );
 }

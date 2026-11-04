@@ -23044,6 +23044,30 @@ abstract class AppLocalizations {
   /// **'{seconds} ث'**
   String pkRematchSeconds(String seconds);
 
+  /// D276: each host's PK points (PkHostRecord.points) on their half of the PK stage.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط PK'**
+  String get pkPointsLabel;
+
+  /// D276: the PK points chip for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط PK لـ{name}: {points}'**
+  String pkPointsSemantics(String name, String points);
+
+  /// D276: the host's PK sheet in the result while the dare still runs.
+  ///
+  /// In ar, this message translates to:
+  /// **'جولة أخرى بعد انتهاء الحكم'**
+  String get pkRematchAfterDare;
+
+  /// D276 (owner: «انسحاب = −٣»): the «إنهاء التحدي» confirm during the battle; points is the deduction without its sign.
+  ///
+  /// In ar, this message translates to:
+  /// **'الانسحاب يخصم {points} نقاط PK'**
+  String pkEndForfeitPoints(String points);
+
   /// v1.60-live (D250): live moderation — «الإبلاغ عن البث», the device ban and the restriction reason, the LIVE_MODERATED notification.
   ///
   /// In ar, this message translates to:

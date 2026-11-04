@@ -13597,6 +13597,22 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get pkPointsLabel => 'نقاط PK';
+
+  @override
+  String pkPointsSemantics(String name, String points) {
+    return 'نقاط PK لـ$name: $points';
+  }
+
+  @override
+  String get pkRematchAfterDare => 'جولة أخرى بعد انتهاء الحكم';
+
+  @override
+  String pkEndForfeitPoints(String points) {
+    return 'الانسحاب يخصم $points نقاط PK';
+  }
+
+  @override
   String get liveToolReportLive => 'الإبلاغ عن البث';
 
   @override

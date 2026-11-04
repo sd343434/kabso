@@ -81,6 +81,7 @@ export function pkDareSettingsDto(s: PkDareSettingsRow) {
     drawPoints: s.drawPoints,
     lossPoints: s.lossPoints,
     refusePoints: s.refusePoints,
+    forfeitPoints: s.forfeitPoints,
     decideSeconds: s.decideSeconds,
     reportsToDisable: s.reportsToDisable,
     updatedAt: s.updatedAt.toISOString(),

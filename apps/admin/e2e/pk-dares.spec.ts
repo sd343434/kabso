@@ -91,6 +91,7 @@ test('«أحكام PK»: counts, filters, search, reported queue, a refused add,
 
   await page.getByRole('button', { name: 'نقاط PK والإعدادات' }).click();
   await expect(page.locator('[data-setting="refusePoints"]')).toHaveValue('-3');
+  await expect(page.locator('[data-setting="forfeitPoints"]')).toHaveValue('-3');
   await capture(page, '05-ar-settings', 1000);
   expect(errors).toEqual([]);
 });
