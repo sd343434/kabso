@@ -83,6 +83,9 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
       'CHAT_NAME_COLOR',
       'CHAT_BUBBLE',
       'PROFILE_CARD',
+      'ENTRY_BANNER',
+      'ENTRY_EFFECT',
+      'MIC_WAVE',
       'DAILY_BULLET',
       'LEVEL_SPEEDUP',
     ]) {

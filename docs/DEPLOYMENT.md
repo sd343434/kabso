@@ -2584,3 +2584,24 @@ down → no banner, never a failed gift or tap.
 
 Order: API (with its migration) first, then the panel and the app. An older app ignores the `level-ticker` message; an
 older panel does not show the setting (the default 30 applies).
+
+### 5.53 The VIP perks (migrations `20270306090000_vip_perks`, `20270306090100_vip_daily_enums`, `20270306090200_vip_daily`; D258) — [IN PROGRESS, draft contract v1.83-social; not deployed, not device-tested]
+
+CONVENTIONS §10.94. The migration adds `vip_tier_perks.amount` and VIP 1's other six perks (the owner's list:
+`CHAT_NAME_COLOR`, `MIC_WAVE`, `DAILY_BULLET` 3 a day, `PROFILE_VISITORS`, `DAILY_COINS` unset, `LEVEL_SPEEDUP` 1 %;
+`ON CONFLICT DO NOTHING`). No env setting. After deploying, the OWNER uploads VIP 1's art in the panel («VIP» → the tier →
+each perk's «رفع صورة» / «رفع SVGA»: `POST /admin/vip/uploads`, stored under `media/vip/<tier>/` in the media bucket, so
+object storage must be configured) and sets the daily coins amount; the art takes effect at once, with no app update.
+
+**Art size.** The owner's VIP 1 entry car (`peacock_000.svga`) is **13 MB**: it is accepted (≤ 25 MB) but every viewer of a
+live downloads it when the member joins. Ask the designer for a 2–3 MB export (fewer frames / smaller images inside) before
+uploading it; the app shows the banner alone until the car has downloaded, plays it once, and keeps the file on the
+device (the gift art cache), so each viewer downloads it once.
+
+**Daily perks.** The second and third migrations add the wallet reason `VIP_DAILY_COINS`, the daily-claims table, and
+let a bullet message cost 0 (the CHECK becomes `cost >= 0`): a VIP's first 3 public messages a day are free. The level
+speed-up (+1 %) applies to the points a live gift earns on the sender's own level. The daily coins claim answers
+`no_perk` until the app's claim screen ships (phase 3).
+
+Order: API (with its migration) first, then the panel and the app. An older app ignores `UserSummary.vip`; an older panel
+does not show the amount or the upload buttons (the URL fields still work).

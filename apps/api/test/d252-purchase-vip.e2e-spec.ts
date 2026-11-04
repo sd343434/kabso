@@ -189,7 +189,10 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         'CHAT_BUBBLE',
         'CHAT_NAME_COLOR',
         'DAILY_BULLET',
+        'ENTRY_BANNER',
+        'ENTRY_EFFECT',
         'LEVEL_SPEEDUP',
+        'MIC_WAVE',
         'PROFILE_CARD',
       ],
     });
@@ -278,9 +281,9 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     ]);
     expect(before.data[0]!.name).toBe('في آي بي 2');
     expect(before.data[0]!.perks.map((x) => [x.code, x.title, x.available])).toEqual([
-      // D258: the badge is built; the entry banner not yet.
+      // D258: the badge and (phase 2) the entry banner are built.
       ['BADGE', 'ميزة BADGE', true],
-      ['ENTRY_BANNER', 'ميزة ENTRY_BANNER', false],
+      ['ENTRY_BANNER', 'ميزة ENTRY_BANNER', true],
     ]);
     expect(before.maxAheadDays).toBe(400);
 

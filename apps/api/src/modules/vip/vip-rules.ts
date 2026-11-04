@@ -31,7 +31,11 @@ export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>([
   'CHAT_NAME_COLOR',
   'CHAT_BUBBLE',
   'PROFILE_CARD',
-  // Server-side only: free public messages a day (§10.94.4) and the level speed-up (§10.94.5).
+  // Phase 2 (the app draws them from the art; §10.94.7).
+  'ENTRY_BANNER',
+  'ENTRY_EFFECT',
+  'MIC_WAVE',
+  // Server-side only: free public messages a day and the level speed-up (§10.94.4).
   'DAILY_BULLET',
   'LEVEL_SPEEDUP',
 ]);
