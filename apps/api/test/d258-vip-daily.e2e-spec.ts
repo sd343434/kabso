@@ -167,7 +167,7 @@ describe('D258 VIP daily perks', { timeout: 120_000 }, () => {
         nameAr: 'وردة',
         nameEn: 'Rose',
         priceCoins: 10_000,
-        assetKey: 'gift_d258_rose',
+        assetKey: 'gift_d258_rose', // gitleaks:allow (an asset name)
         animationKey: null,
         sortOrder: 0,
         badge: 'NONE',
