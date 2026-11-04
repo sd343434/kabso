@@ -221,10 +221,10 @@ interface TopupRow {
 
 /**
  * The recharge agents' top-ups «شحن الوكلاء»: coins, tier price and what was paid (`recharge.topups.view`: OWNER,
- * FINANCE and, read-only, MODERATION — D275). The CSV is `finance.view`.
+ * FINANCE and, read-only, MODERATION — D275), with the CSV (audited; owner «نعم»).
  */
 export function AgentTopups() {
-  const { t, lang, can } = useApp();
+  const { t, lang } = useApp();
   const [totals, setTotals] = useState<{ coins: number; paidMinor: number; expectedMinor: number } | null>(null);
   return (
     <>
@@ -256,7 +256,7 @@ export function AgentTopups() {
         rowKey={(r) => r.id}
         defaultSort={{ sort: 'createdAt', order: 'desc' }}
         searchLabel="topupsSearch"
-        csv={can('finance.view')}
+        csv
         onLoaded={(p) => setTotals((p as unknown as { totals: { coins: number; paidMinor: number; expectedMinor: number } }).totals)}
         columns={[
           {
@@ -323,7 +323,7 @@ interface CaseRow {
 
 /**
  * Website card top-ups (D190): orders with the team refund (code again) and the Stripe cases. D275: the orders are
- * `recharge.topups.view` (the moderator reads them, with no button); the cases tab and the CSV are `finance.view`.
+ * `recharge.topups.view` (the moderator reads them, with no button); the cases tab is `finance.view`; the CSV is for every reader.
  */
 export function Cards() {
   const { t, lang, can, toast } = useApp();
@@ -357,7 +357,7 @@ export function Cards() {
           reloadKey={bump}
           defaultSort={{ sort: 'createdAt', order: 'desc' }}
           searchLabel="cardsSearch"
-          csv={can('finance.view')}
+          csv
           filters={[{ name: 'status', label: 'colStatus', options: ['PAID', 'PENDING', 'AWAITING_FUNDS', 'EXPIRED', 'FAILED'].map((s) => ({ value: s, label: `order${s}` })) }]}
           columns={[
             { key: 'user', label: 'colUser', render: (r) => <UserCell username={r.user.username} displayName={r.user.displayName} /> },

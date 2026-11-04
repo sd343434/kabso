@@ -33,7 +33,7 @@ export const CAPABILITIES = {
   /**
    * D275 (owner): the top-up records, read-only — the agents' top-ups «شحن الوكلاء» and the users' card top-ups (the
    * orders, not the Stripe cases). Split out of `finance.view` so the moderator «مشرف» sees the transactions without
-   * the financial report or the cases; the CSV of either list stays `finance.view`. Every list read stays audited.
+   * the financial report or the cases. Owner «نعم»: the CSV of either list too (audited `admin.export.csv`).
    */
   'recharge.topups.view': ['OWNER', 'MODERATION', 'FINANCE'],
   /** Send coins to an agent (code again). Never MODERATION (D275). */

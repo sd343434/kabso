@@ -57,7 +57,7 @@ export interface ReportRow {
 
 /**
  * «المال» in the panel v2 (v1.65-social, D197, CONVENTIONS §10.60.5), FINANCE and OWNER (D275: the moderator reads the
- * agents' top-ups and the card orders, `recharge.topups.view`, without the CSV): the recharge agents'
+ * agents' top-ups and the card orders, `recharge.topups.view`, with the CSV): the recharge agents'
  * top-ups (what each agent paid at the tier price), the website's card orders and Stripe cases (D190: refunds,
  * early-fraud warnings, disputes) with the team refund (`payments-admin refund`'s rule, authenticator code again)
  * and closing a case, and the financial report by day or month (Asia/Riyadh): money in from agents and cards, host

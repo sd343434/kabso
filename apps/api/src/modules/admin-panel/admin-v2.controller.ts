@@ -697,7 +697,7 @@ export class AdminV2Controller {
 
   // ---- money (§10.60.5) -----------------------------------------------------------------------------------------
 
-  // D275: the top-up records are read by `recharge.topups.view` (the moderator too); their CSV stays `finance.view`.
+  // D275: the top-up records and their CSV (audited) are `recharge.topups.view` (the moderator too, owner «نعم»).
   @Get('finance/recharge-topups')
   @RequireCapability('recharge.topups.view')
   async rechargeTopups(
@@ -705,8 +705,6 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (q.format === 'csv' && !can(admin.roles, 'finance.view'))
-      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     return sendTable(res, (await this.money.rechargeTopups(q, admin)) as never);
   }
 
@@ -718,8 +716,6 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (q.format === 'csv' && !can(admin.roles, 'finance.view'))
-      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     return sendTable(res, await this.money.cardOrders(q, admin));
   }
 

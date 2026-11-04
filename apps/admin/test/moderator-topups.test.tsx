@@ -1,7 +1,7 @@
 /**
  * D275 (owner): the moderator «مشرف» reads the top-up records — the recharge agents, the agents' top-ups «شحن الوكلاء»
  * and the users' card top-ups — with no button that changes anything (no top-up, suspend / reinstate, cap, refund,
- * cases tab or CSV). Its capabilities come from the table copy (`./capabilities`, checked against the API's).
+ * or cases tab); the CSV download is shown (owner «نعم», audited by the API). Its capabilities come from the table copy (`./capabilities`, checked against the API's).
  */
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -69,14 +69,14 @@ describe('D275 the moderator «مشرف» and the top-up records', () => {
     expect(finance).toContain('تعديل السقف');
   });
 
-  it('«شحن الوكلاء» and the card orders: no CSV and no cases tab for the moderator; FINANCE keeps them', () => {
+  it('«شحن الوكلاء» and the card orders: the CSV but no cases tab for the moderator; FINANCE keeps both', () => {
     const csv = translate('ar', 'tableCsv');
     const cases = translate('ar', 'cardsCases');
-    expect(html('MODERATION', <AgentTopups />)).not.toContain(csv);
+    expect(html('MODERATION', <AgentTopups />)).toContain(csv);
     const modCards = html('MODERATION', <Cards />);
     expect(modCards).toContain(translate('ar', 'cardsOrders'));
     expect(modCards).not.toContain(cases);
-    expect(modCards).not.toContain(csv);
+    expect(modCards).toContain(csv);
     expect(modCards).not.toContain(translate('ar', 'cardsRefund'));
     expect(html('FINANCE', <AgentTopups />)).toContain(csv);
     const financeCards = html('FINANCE', <Cards />);

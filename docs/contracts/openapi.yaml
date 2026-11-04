@@ -246,7 +246,7 @@ info:
     (CONVENTIONS §10.54.1): `recharge.agents` (`listAdminRechargeAgents`, `listAdminRechargeExchangeRates`),
     `users.ledger` (`listAdminUserLedger`, `getAdminUser.ledger`), the new capability `recharge.topups.view` (OWNER,
     FINANCE, MODERATION — `listAdminRechargeTopups` and `listAdminCardOrders`, split out of `finance.view`; their
-    `format=csv` stays `finance.view`, else 403 `AUTH_FORBIDDEN`), `recharge.disputes` and `recharge.disputes.resolve`
+    `format=csv` too — owner «نعم», audited `admin.export.csv`), `recharge.disputes` and `recharge.disputes.resolve`
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
@@ -15532,7 +15532,7 @@ paths:
       - admin-panel
       operationId: listAdminRechargeTopups
       summary: 'Recharge agents'' top-ups: coins, tier price, paid (recharge.topups.view: OWNER, FINANCE, MODERATION read-only — D275)'
-      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`. (D275) The list needs `recharge.topups.view`; `format=csv` still needs `finance.view` (403 `AUTH_FORBIDDEN`).'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`. (D275) The list and its CSV need `recharge.topups.view` (OWNER, FINANCE, MODERATION).'
       security:
       - adminSession: []
       parameters:
@@ -15575,7 +15575,7 @@ paths:
       - admin-panel
       operationId: listAdminCardOrders
       summary: 'Website card orders (D190) (recharge.topups.view: OWNER, FINANCE, MODERATION read-only — D275)'
-      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`. (D275) The list needs `recharge.topups.view`; `format=csv` still needs `finance.view` (403 `AUTH_FORBIDDEN`); the refund stays `finance.refund`.'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`. (D275) The list and its CSV need `recharge.topups.view` (OWNER, FINANCE, MODERATION); the refund stays `finance.refund`.'
       security:
       - adminSession: []
       parameters:

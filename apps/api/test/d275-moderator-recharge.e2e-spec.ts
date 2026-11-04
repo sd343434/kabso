@@ -2,8 +2,8 @@
  * D275 (owner): the panel's moderator «مشرف» (MODERATION) reads the top-up records — the recharge agents and the
  * exchange rates, the agents' top-ups «شحن الوكلاء», the users' card orders and a user's coin / cherry ledger — and
  * views and decides the recharge disputes «نزاعات الشحن» with the authenticator code again. It moves no other coin:
- * top-up, cap, suspend / reinstate, rates, withdrawals, the financial report, the Stripe cases, a refund and the CSV
- * of the money lists are 403. FINANCE keeps all of it. End to end against PostgreSQL + Redis.
+ * top-up, cap, suspend / reinstate, rates, withdrawals, the financial report, the Stripe cases and a refund are 403.
+ * The CSV of the two top-up lists is allowed (owner «نعم»), audited `admin.export.csv`. FINANCE keeps all of it. End to end against PostgreSQL + Redis.
  */
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
@@ -272,6 +272,19 @@ describe(
       expect(user.status).toBe(200);
       expect(user.body.ledger).not.toBeNull();
 
+      // Owner «نعم»: the moderator downloads both top-up lists as CSV, each export audited.
+      const modCsv = await aget(mod, '/admin/finance/recharge-topups?format=csv');
+      expect(modCsv.status).toBe(200);
+      expect(modCsv.headers['content-type']).toContain('text/csv');
+      expect(modCsv.text).toContain(agent.code);
+      const modCards = await aget(mod, '/admin/finance/card-orders?format=csv');
+      expect(modCards.status).toBe(200);
+      expect(modCards.headers['content-type']).toContain('text/csv');
+      const exports = await ctx.prisma.auditLog.findMany({
+        where: { action: 'admin.export.csv', actorUserId: mod.id },
+      });
+      expect(exports).toHaveLength(2);
+
       // SUPPORT gains no top-up record; FINANCE keeps them, with the CSV.
       expect((await aget(support, '/admin/finance/recharge-topups')).status).toBe(403);
       expect((await aget(support, '/admin/finance/card-orders')).status).toBe(403);
@@ -284,7 +297,7 @@ describe(
       ).toBe(200);
     });
 
-    it('403 on every other money route: top-up, cap, status, rates, withdrawals, report, cases, refund, CSV', async () => {
+    it('403 on every other money route: top-up, cap, status, rates, withdrawals, report, cases, refund', async () => {
       const stock = await stockOf(agent.id);
       const forbidden: [string, () => request.Test][] = [
         [
@@ -330,8 +343,6 @@ describe(
               totpCode: '000000',
             }),
         ],
-        ['topups csv', () => aget(mod, '/admin/finance/recharge-topups?format=csv')],
-        ['cards csv', () => aget(mod, '/admin/finance/card-orders?format=csv')],
         ['payments', () => aget(mod, '/admin/payment-settings')],
         [
           'balance adjust',
