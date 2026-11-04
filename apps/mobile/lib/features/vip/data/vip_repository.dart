@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 
@@ -83,9 +84,13 @@ final class VipTier {
     required this.perks,
     this.badgeAnimation,
     this.badgeStill,
+    this.nameColor,
   });
 
   factory fromJson(Map<String, dynamic> json) => VipTier(
+    nameColor: json['nameColor'] is String
+        ? vipColorValue(json['nameColor'])
+        : null,
     id: json['id']! as String,
     code: json['code']! as String,
     name: json['name']! as String,
@@ -105,6 +110,10 @@ final class VipTier {
 
   /// ARGB.
   final int color;
+
+  /// D258 (§10.94.10): the special text colour of the tier's members (ARGB;
+  /// the name, messages and entry line in a gradient of its hue), or null.
+  final int? nameColor;
 
   /// The tier BADGE (central crest): an SVGA animation and a still (asset
   /// path or https URL); null = a token placeholder in [color].
@@ -157,6 +166,32 @@ final class VipDailyCoins {
 /// `VipDailyCoinsClaim`: what a claim credited (0 when already claimed
 /// today), the balance after it and the new state.
 typedef VipDailyCoinsClaim = ({int coins, int balance, VipDailyCoins daily});
+
+/// `ProfileVisitor` (v1.83-social, D258 §10.94.9): one visitor of the
+/// caller's profile.
+@immutable
+final class ProfileVisitor {
+  const new({
+    required this.user,
+    required this.lastVisitedAt,
+    required this.visits,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => ProfileVisitor(
+    user: UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+    lastVisitedAt: DateTime.parse(json['lastVisitedAt']! as String),
+    visits: _int(json['visits']),
+  );
+
+  final UserSummary user;
+  final DateTime lastVisitedAt;
+
+  /// Openings at least 10 minutes apart.
+  final int visits;
+}
+
+/// `ProfileVisitorList`: the newest 100 of the last 30 days, and how many.
+typedef ProfileVisitorList = ({List<ProfileVisitor> data, int total});
 
 /// `VipMembership`: the caller's active membership.
 @immutable
@@ -249,6 +284,9 @@ abstract interface class VipRepository {
 
   /// `POST /me/vip/daily-coins` (D258): today's daily coins (once a day).
   Future<VipDailyCoinsClaim> claimDailyCoins();
+
+  /// `GET /me/profile-visitors` (D258): «من زار ملفي».
+  Future<ProfileVisitorList> profileVisitors();
 }
 
 class VipRepositoryImpl implements VipRepository {
@@ -275,6 +313,16 @@ class VipRepositoryImpl implements VipRepository {
                 ? VipDailyCoins.fromJson(daily)
                 : null,
           );
+  });
+
+  @override
+  Future<ProfileVisitorList> profileVisitors() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/me/profile-visitors');
+    final body = res.data!;
+    return (
+      data: [for (final v in _list(body['data'])) ProfileVisitor.fromJson(v)],
+      total: _int(body['total']),
+    );
   });
 
   @override

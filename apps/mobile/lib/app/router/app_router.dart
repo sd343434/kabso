@@ -103,6 +103,7 @@ import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
+import 'package:kabso_live/features/vip/presentation/vip_visitors_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -520,6 +521,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.svip, builder: (_, _) => const SvipScreen()),
       // D252: «شراء VIP».
       GoRoute(path: AppRoutes.vip, builder: (_, _) => const VipScreen()),
+      GoRoute(
+        path: AppRoutes.vipVisitors,
+        builder: (_, _) => const VipVisitorsScreen(),
+      ),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the routes and the previews are tree-shaken out of release builds.
       // D226: the KL-022 component gallery route is removed.

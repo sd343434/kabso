@@ -422,17 +422,21 @@ class MeHubScreen extends ConsumerWidget {
                       child: GestureDetector(
                         key: nameKey,
                         onTap: openProfile,
-                        child: Text(
-                          user.displayName.isEmpty
-                              ? user.username
-                              : user.displayName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: context.textStyles.title.copyWith(
-                            color: p.textPrimary,
-                            fontSize: KMeHub.nameSize,
-                            fontWeight: FontWeight.w700,
+                        // D258: my VIP name's gold (CHAT_NAME_COLOR).
+                        child: VipNameShimmer(
+                          vip: myVip,
+                          child: Text(
+                            user.displayName.isEmpty
+                                ? user.username
+                                : user.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: context.textStyles.title.copyWith(
+                              color: p.textPrimary,
+                              fontSize: KMeHub.nameSize,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),

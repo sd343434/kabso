@@ -3,14 +3,18 @@
 // member wears — the badge, the name colour, the chat bubble, the animated
 // avatar frame and the VIP person card.
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
@@ -43,6 +47,8 @@ VipPerk _perk(
 
 VipTier _tier(String code, int level, int color, List<VipPerk> perks) =>
     VipTier(
+      // VIP 1's special text colour: the owner's gold (§10.94.10).
+      nameColor: code == 'VIP_1' ? 0xFFFFD12E : null,
       id: 'id-$code',
       code: code,
       name: code,
@@ -157,46 +163,74 @@ void main() {
     WidgetTester tester, {
     required AppLanguage language,
     UserVip? vip,
+    GoldenViewport viewport = GoldenViewport.phone,
+    double textScale = 1,
   }) async {
     await pumpGolden(
       tester,
-      ProviderScope(
-        overrides: [vipCatalogProvider.overrideWith((ref) async => catalog)],
-        child: ColoredBox(
-          color: const Color(0xFF3A4150),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LiveChatFlatLine(
-                    name: language == AppLanguage.ar ? 'ليلى' : 'Layla',
-                    text: language == AppLanguage.ar
-                        ? 'مرحباً بالجميع'
-                        : 'Hello everyone',
-                    label: 'line',
-                    role: LiveChatRole.viewer,
-                    vip: vip,
-                  ),
-                  const SizedBox(height: 6),
-                  LiveChatFlatLine(
-                    name: language == AppLanguage.ar ? 'سامي' : 'Sami',
-                    text: language == AppLanguage.ar ? 'أهلاً' : 'Hi',
-                    label: 'line',
-                    role: LiveChatRole.viewer,
-                    vip: _vip2,
-                  ),
-                  const SizedBox(height: 6),
-                  LiveChatFlatLine(
-                    name: language == AppLanguage.ar ? 'منى' : 'Mona',
-                    text: language == AppLanguage.ar ? 'بدون VIP' : 'No VIP',
-                    label: 'line',
-                    role: LiveChatRole.viewer,
-                  ),
-                ],
+      viewport: viewport,
+      MediaQuery(
+        data: MediaQueryData(
+          size: viewport.logicalSize,
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: ProviderScope(
+          overrides: [vipCatalogProvider.overrideWith((ref) async => catalog)],
+          child: ColoredBox(
+            color: const Color(0xFF3A4150),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LiveChatFlatLine(
+                      name: language == AppLanguage.ar ? 'ليلى' : 'Layla',
+                      text: language == AppLanguage.ar
+                          ? 'مرحباً بالجميع'
+                          : 'Hello everyone',
+                      label: 'line',
+                      role: LiveChatRole.viewer,
+                      vip: vip,
+                      // The owner's three lines: levels, medals, message.
+                      badges: const LiveChatAuthorBadges(
+                        charmLevel: 12,
+                        supportLevel: 32,
+                        medals: [
+                          LiveChatAuthorMedal(
+                            code: 'm1',
+                            iconKey: 'medal_first_family',
+                          ),
+                          LiveChatAuthorMedal(
+                            code: 'm2',
+                            iconKey: 'medal_first_family',
+                          ),
+                          LiveChatAuthorMedal(
+                            code: 'm3',
+                            iconKey: 'medal_first_family',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    LiveChatFlatLine(
+                      name: language == AppLanguage.ar ? 'سامي' : 'Sami',
+                      text: language == AppLanguage.ar ? 'أهلاً' : 'Hi',
+                      label: 'line',
+                      role: LiveChatRole.viewer,
+                      vip: _vip2,
+                    ),
+                    const SizedBox(height: 6),
+                    LiveChatFlatLine(
+                      name: language == AppLanguage.ar ? 'منى' : 'Mona',
+                      text: language == AppLanguage.ar ? 'بدون VIP' : 'No VIP',
+                      label: 'line',
+                      role: LiveChatRole.viewer,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -229,6 +263,21 @@ void main() {
       await expectScreenGolden('vip.chat_line', language: language);
     });
 
+    testWidgets('golden vip.chat_line 360 × 1.3 ($language)', (tester) async {
+      await pumpLine(
+        tester,
+        language: language,
+        vip: _vip1,
+        viewport: GoldenViewport.android,
+        textScale: 1.3,
+      );
+      await expectScreenGolden(
+        'vip.chat_line.scaled',
+        language: language,
+        viewport: GoldenViewport.android,
+      );
+    });
+
     testWidgets('golden vip.person_card ($language)', (tester) async {
       final profile = personCardProfile(ar: language == AppLanguage.ar)
           .copyWith(vip: _vip1);
@@ -248,6 +297,82 @@ void main() {
         matchesGoldenFile('png/vip.person_card.${language.name}.phone.png'),
       );
     });
+  });
+
+  testWidgets('line 1: the VIP badge, the levels and the medals show at '
+      'one visible height (within 1 pt)', (tester) async {
+    await pumpLine(tester, language: AppLanguage.en, vip: _vip1);
+    final header = find.byKey(LiveChatFlatLine.vipHeaderKey).first;
+    var render = tester.renderObject(header);
+    while (!render.isRepaintBoundary) {
+      render = render.parent!;
+    }
+    final boundary = render;
+    final origin = (boundary as RenderBox).localToGlobal(Offset.zero);
+    final image = await tester.runAsync(() async {
+      final layer = boundary.debugLayer! as OffsetLayer;
+      final img = await layer.toImage(boundary.paintBounds);
+      return (await img.toByteData())!;
+    });
+    final w = boundary.paintBounds.width.round();
+    // The visible rows of [rect]: pixels unlike the backdrop (#3A4150).
+    double visible(Rect rect) {
+      // (Some emblems draw beyond their box, e.g. the charm creature.)
+      final r = Rect.fromLTRB(
+        rect.left,
+        rect.top - 8,
+        rect.right,
+        rect.bottom + 1,
+      ).shift(-origin);
+      int? top;
+      int? bottom;
+      for (var y = r.top.floor(); y < r.bottom.ceil(); y++) {
+        for (var x = r.left.ceil(); x < r.right.floor(); x++) {
+          final i = (y * w + x) * 4;
+          final d =
+              (image!.getUint8(i) - 0x3A).abs() +
+              (image.getUint8(i + 1) - 0x41).abs() +
+              (image.getUint8(i + 2) - 0x50).abs();
+          if (d > 60) {
+            top ??= y;
+            bottom = y;
+            break;
+          }
+        }
+      }
+      return top == null ? 0 : (bottom! - top + 1).toDouble();
+    }
+
+    final vipH = visible(
+      tester.getRect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(VipNameBadge.badgeKey),
+        ),
+      ),
+    );
+    final medalH = visible(
+      tester.getRect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(LiveChatMedalRow.medalKey('m1')),
+        ),
+      ),
+    );
+    final charmH = visible(
+      tester.getRect(
+        find.descendant(of: header, matching: find.byType(CharmLevelBadge)),
+      ),
+    );
+    final supportH = visible(
+      tester.getRect(
+        find.descendant(of: header, matching: find.byType(KLevelBadge)),
+      ),
+    );
+    expect(vipH, greaterThan(18));
+    expect((vipH - charmH).abs(), lessThanOrEqualTo(1), reason: 'charm');
+    expect((vipH - supportH).abs(), lessThanOrEqualTo(1), reason: 'support');
+    expect((vipH - medalH).abs(), lessThanOrEqualTo(1), reason: 'medal');
   });
 
   test('a VIP name stays ≥ 4.5:1 on its bubble and the chat box', () {

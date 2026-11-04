@@ -2603,6 +2603,14 @@ device (the gift art cache), so each viewer downloads it once.
 only small frames in memory, but the first load on a slow network is long: ask the designer for lighter exports
 (fewer frames or smaller images; the badge is shown ~20 px tall, 128 px frames are plenty).
 
+**Special colour and medals.** Migration `20270306090400_vip_name_color` adds `vip_tiers.name_color` and sets VIP 1's
+to `#FFD12E`. The medal showcase now holds at most 3: people who chose more keep their first 3 (trimmed on read, no
+data change); an app older than this build may still offer 6 and get 400 `too_big` past 3.
+
+**Profile visitors.** Migration `20270306090300_profile_visits` adds the visits table (one row per pair; it grows with
+profile views — about one row per distinct visitor of each profile; rows older than 30 days are never listed and can be
+pruned by a later job).
+
 **Daily perks.** The second and third migrations add the wallet reason `VIP_DAILY_COINS`, the daily-claims table, and
 let a bullet message cost 0 (the CHECK becomes `cost >= 0`): a VIP's first 3 public messages a day are free. The level
 speed-up (+1 %) applies to the points a live gift earns on the sender's own level. The daily coins claim answers

@@ -1035,6 +1035,14 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               children: [
                 Row(
                   children: [
+                    // D258 (owner): the VIP badge before the name.
+                    if (vip != null) ...[
+                      VipNameBadge(
+                        vip: vip,
+                        height: inlineAgentBadgeHeight(_nameSize),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                     Flexible(
                       child: Text(
                         KFormat.bidiIsolate(name),
@@ -1059,14 +1067,6 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                       height: inlineAgentBadgeHeight(_nameSize),
                       gap: 4,
                     ),
-                    // D258: the VIP badge after the name.
-                    if (vip != null) ...[
-                      const SizedBox(width: 4),
-                      VipNameBadge(
-                        vip: vip,
-                        height: inlineAgentBadgeHeight(_nameSize),
-                      ),
-                    ],
                   ],
                 ),
                 if (handle != null)

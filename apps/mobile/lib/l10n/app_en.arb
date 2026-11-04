@@ -4351,5 +4351,14 @@
   "vipDailyCoinsClaimed": "Claimed today",
   "vipDailyCoinsAdded": "{amount} coins added",
   "liveBulletSentFree": "Free public message sent \u00b7 {count} left today",
-  "vipEntranceJoined": "{name} enters the room"
+  "vipEntranceJoined": "{name} enters the room",
+  "vipVisitorsTitle": "Profile visitors",
+  "vipVisitorsEntry": "Who visited my profile",
+  "vipVisitorsTotal": "{count} visitors in the last 30 days",
+  "vipVisitorsVisits": "{count} visits",
+  "vipVisitorsEmptyTitle": "No visitors yet",
+  "vipVisitorsEmptyMessage": "People who open your profile show here.",
+  "vipVisitorsNoPerkTitle": "A VIP perk",
+  "vipVisitorsNoPerkMessage": "See who visited your profile with VIP.",
+  "vipVisitorsNoPerkAction": "Get VIP"
 }

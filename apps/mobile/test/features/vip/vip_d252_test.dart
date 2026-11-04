@@ -170,6 +170,12 @@ class _FakeVip implements VipRepository {
     return (kind: VipPurchaseKind.bought, membership: m, coins: 100);
   }
 
+  /// D258: «من زار ملفي».
+  ProfileVisitorList visitors = (data: const <ProfileVisitor>[], total: 0);
+
+  @override
+  Future<ProfileVisitorList> profileVisitors() async => visitors;
+
   /// D258: daily coins claims (each answers [dailyAmount] once a day).
   int claims = 0;
   int dailyAmount = 500;

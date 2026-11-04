@@ -13953,4 +13953,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String vipEntranceJoined(String name) {
     return '$name enters the room';
   }
+
+  @override
+  String get vipVisitorsTitle => 'Profile visitors';
+
+  @override
+  String get vipVisitorsEntry => 'Who visited my profile';
+
+  @override
+  String vipVisitorsTotal(String count) {
+    return '$count visitors in the last 30 days';
+  }
+
+  @override
+  String vipVisitorsVisits(String count) {
+    return '$count visits';
+  }
+
+  @override
+  String get vipVisitorsEmptyTitle => 'No visitors yet';
+
+  @override
+  String get vipVisitorsEmptyMessage =>
+      'People who open your profile show here.';
+
+  @override
+  String get vipVisitorsNoPerkTitle => 'A VIP perk';
+
+  @override
+  String get vipVisitorsNoPerkMessage =>
+      'See who visited your profile with VIP.';
+
+  @override
+  String get vipVisitorsNoPerkAction => 'Get VIP';
 }

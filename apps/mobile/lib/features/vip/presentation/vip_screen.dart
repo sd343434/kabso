@@ -8,12 +8,14 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart'
     show newIdempotencyKey;
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
@@ -79,6 +81,9 @@ class VipScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const statusKey = Key('vip.status');
+
+  /// D258: «من زار ملفي» in the member's sheet.
+  static const visitorsKey = Key('vip.visitors');
   static const emblemKey = Key('vip.emblem');
   static const ctaKey = Key('vip.cta');
   static const barKey = Key('vip.bar');
@@ -393,6 +398,15 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     );
   }
 
+  /// D258: whether the member's tier holds [code] (with inheritance).
+  bool _holds(VipMembership m, String code) {
+    final look = vipLookOf(
+      UserVip(tier: m.tierCode, rank: 0, color: m.tierColor),
+      ref.read(vipTiersProvider).value,
+    );
+    return look?.has(code) ?? false;
+  }
+
   /// «الخاص بي VIP»: the member's own VIP — its tier, end and days left.
   Future<void> _showMine(VipMembership membership) =>
       showModalBottomSheet<void>(
@@ -405,6 +419,21 @@ class _VipScreenState extends ConsumerState<VipScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _MemberStatus(membership: membership),
+                // D258: «من زار ملفي» (PROFILE_VISITORS).
+                if (_holds(membership, VipPerks.profileVisitors)) ...[
+                  const SizedBox(height: KSpacing.sm),
+                  ListTile(
+                    key: VipScreen.visitorsKey,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.visibility_outlined),
+                    title: Text(context.l10n.vipVisitorsEntry),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(sheet).pop();
+                      unawaited(context.push(AppRoutes.vipVisitors));
+                    },
+                  ),
+                ],
                 // D258: the daily coins (DAILY_COINS), claimed here.
                 if (membership.dailyCoins case final daily?) ...[
                   const SizedBox(height: KSpacing.md),

@@ -23598,6 +23598,60 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{name} دخل الغرفة'**
   String vipEntranceJoined(String name);
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'من زار ملفي'**
+  String get vipVisitorsTitle;
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'من زار ملفي'**
+  String get vipVisitorsEntry;
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} زائر في آخر 30 يوماً'**
+  String vipVisitorsTotal(String count);
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} زيارات'**
+  String vipVisitorsVisits(String count);
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا زوار بعد'**
+  String get vipVisitorsEmptyTitle;
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'من يفتح ملفك يظهر هنا.'**
+  String get vipVisitorsEmptyMessage;
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'ميزة لأعضاء VIP'**
+  String get vipVisitorsNoPerkTitle;
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'اعرف من زار ملفك مع VIP.'**
+  String get vipVisitorsNoPerkMessage;
+
+  /// D258: «من زار ملفي» (PROFILE_VISITORS).
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء VIP'**
+  String get vipVisitorsNoPerkAction;
 }
 
 class _AppLocalizationsDelegate

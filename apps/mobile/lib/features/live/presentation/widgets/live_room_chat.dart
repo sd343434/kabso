@@ -1030,9 +1030,14 @@ class LiveChatBadgeRow extends StatelessWidget {
     this.rechargeBadge,
     this.agentBadgeHeight,
     this.fadeOverflow = false,
+    this.fullEmblems = false,
   });
 
   final LiveChatRole? role;
+
+  /// D258: the emblems at the row's [height] as in a [fadeOverflow] row,
+  /// without its fade (the VIP row, whose VIP badge follows the levels).
+  final bool fullEmblems;
   final LiveChatAuthorBadges? badges;
 
   /// D230 (owner: «الميداليات والمستوى صغير، واجعل الميداليات أسفل الاسم»):
@@ -1099,7 +1104,7 @@ class LiveChatBadgeRow extends StatelessWidget {
       h,
       agentBadgeHeight ?? inlineAgentBadgeHeight(LiveChatAuthoredLine.nameSize),
     );
-    final big = fadeOverflow;
+    final big = fadeOverflow || fullEmblems;
     // D230: the pills' text and the emblems grow with the row. D234 (owner:
     // «أريدهم بنفس الحجم»): in the line under a name every emblem is [h]
     // tall on screen — the charm creature (1.55 × its pill) and the support
@@ -1219,7 +1224,7 @@ class LiveChatBadgeRow extends StatelessWidget {
     return ExcludeSemantics(
       // A row (not a wrap): each badge takes its own width.
       child: MediaQuery.withNoTextScaling(
-        child: big ? LiveChatFadeOverflow(child: row) : row,
+        child: fadeOverflow ? LiveChatFadeOverflow(child: row) : row,
       ),
     );
   }
@@ -1293,7 +1298,7 @@ class LiveChatMedalRow extends StatelessWidget {
   final double size;
 
   /// The most medals a chat line shows.
-  static const int max = 5;
+  static const int max = 3; // D258 (owner): was 5.
   static const double gap = 4;
 
   static const rowKey = Key('liveChat.medals');

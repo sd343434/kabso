@@ -1,5 +1,5 @@
 // CP-018 screens: create a family (coins), join requests, CP requests and
-// gifts, the medal showcase picker (at most 6, in order), the medals grid,
+// gifts, the medal showcase picker (≤ 3 since D258, in order), medals grid,
 // notifications of the new types, Arabic and English, 360×800 at text
 // scale 2.
 
@@ -363,7 +363,7 @@ void main() {
   });
 
   group('medal showcase picker', () {
-    testWidgets('at most 6, kept in the order chosen, saved with PUT', (
+    testWidgets('at most 3 (D258), kept in the order chosen, saved with PUT', (
       tester,
     ) async {
       final fakes = BondFakes();
@@ -371,7 +371,7 @@ void main() {
       await pumpBonds(tester, const ShowcasePickerScreen(), fakes: fakes);
       // Only earned medals are offered.
       expect(find.byKey(ShowcasePicker.optionKey('M8')), findsNothing);
-      for (final code in ['M5', 'M0', 'M3', 'M7', 'M1', 'M2', 'M4']) {
+      for (final code in ['M5', 'M0', 'M3', 'M7']) {
         await tester.scrollUntilVisible(
           find.byKey(ShowcasePicker.optionKey(code)),
           100,
@@ -382,18 +382,18 @@ void main() {
         await tester.tap(find.byKey(ShowcasePicker.optionKey(code)));
         await tester.pump();
       }
-      // The 7th was refused.
-      expect(find.text(en.medalsShowcaseLimit(6)), findsOneWidget);
+      // The 4th was refused.
+      expect(find.text(en.medalsShowcaseLimit(3)), findsOneWidget);
       // The count sits at the top of the list (scrolled back to it).
       await tester.scrollUntilVisible(
-        find.text(en.medalsShowcaseCount(6, 6)),
+        find.text(en.medalsShowcaseCount(3, 3)),
         -100,
       );
-      expect(find.text(en.medalsShowcaseCount(6, 6)), findsOneWidget);
+      expect(find.text(en.medalsShowcaseCount(3, 3)), findsOneWidget);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ShowcasePicker.saveKey));
       await tester.pumpAndSettle();
-      expect(fakes.medals.calls, contains('setShowcase:M5,M0,M3,M7,M1,M2'));
+      expect(fakes.medals.calls, contains('setShowcase:M5,M0,M3'));
     });
 
     testWidgets('starts from the saved order; taking one out moves the rest', (

@@ -80,11 +80,13 @@ class VipSvgaClip {
     return n == 0 ? null : (mean: sum / n, min: lo, max: hi);
   }
 
-  /// The round transparent window in the middle of an avatar frame art:
-  /// its centre and diameter as fractions of the canvas (the smallest across
-  /// the frames, so the picture never shows a gap), found by walking out
-  /// from the middle along a row and a column until the art is opaque;
-  /// null when the middle is not transparent. Measured once per clip.
+  /// The round window in the middle of an avatar frame art: its centre and
+  /// diameter as fractions of the canvas. A frame's plaque often cuts into
+  /// the bottom of the opening, so the window is its widest side-to-side
+  /// clear run (the ring's inner edge; the largest across the frames, as a
+  /// sparkle can cross it) and its top edge: the centre is half a diameter
+  /// below the top. Null when the middle is not transparent. Measured once
+  /// per clip.
   Future<({Offset centre, double diameter})?> window() =>
       _windows[this] ??= _measureWindow();
 
@@ -92,8 +94,11 @@ class VipSvgaClip {
       Expando<Future<({Offset centre, double diameter})?>>();
 
   Future<({Offset centre, double diameter})?> _measureWindow() async {
-    double? best;
-    Offset? centre;
+    var best = 0;
+    var left = 0;
+    var top = 0;
+    var width = 1;
+    var height = 1;
     final step = math.max(1, frames.length ~/ 6);
     for (var f = 0; f < frames.length; f += step) {
       final image = frames[f];
@@ -102,41 +107,76 @@ class VipSvgaClip {
       final w = image.width;
       final h = image.height;
       bool clear(int x, int y) => data.getUint8((y * w + x) * 4 + 3) < 40;
-      var cx = w ~/ 2;
-      var cy = h ~/ 2;
+      final cx = w ~/ 2;
+      final cy = h ~/ 2;
       if (!clear(cx, cy)) continue;
-      var l = cx;
-      var r = cx;
       var t = cy;
-      var b = cy;
-      for (var pass = 0; pass < 3; pass++) {
-        l = cx;
-        while (l > 0 && clear(l - 1, cy)) {
+      while (t > 0 && clear(cx, t - 1)) {
+        t--;
+      }
+      // The widest row in the upper half of the opening.
+      for (var y = t + 1; y <= cy; y++) {
+        if (!clear(cx, y)) continue;
+        var l = cx;
+        while (l > 0 && clear(l - 1, y)) {
           l--;
         }
-        r = cx;
-        while (r < w - 1 && clear(r + 1, cy)) {
+        var r = cx;
+        while (r < w - 1 && clear(r + 1, y)) {
           r++;
         }
-        cx = (l + r) ~/ 2;
-        t = cy;
-        while (t > 0 && clear(cx, t - 1)) {
-          t--;
+        if (r - l + 1 > best) {
+          best = r - l + 1;
+          left = l;
+          top = t;
+          width = w;
+          height = h;
         }
-        b = cy;
-        while (b < h - 1 && clear(cx, b + 1)) {
-          b++;
-        }
-        cy = (t + b) ~/ 2;
-      }
-      final d = math.min(r - l + 1, b - t + 1) / w;
-      if (best == null || d < best) {
-        best = d;
-        centre = Offset((cx + 0.5) / w, (cy + 0.5) / h);
       }
     }
-    if (best == null || centre == null || best < 0.2) return null;
-    return (centre: centre, diameter: best);
+    if (best == 0) return null;
+    final d = best / width;
+    if (d < 0.2) return null;
+    return (
+      centre: Offset((left + best / 2) / width, (top + best / 2) / height),
+      diameter: d,
+    );
+  }
+
+  /// The part of the canvas the art actually covers (alpha ≥ 40 in any
+  /// sampled frame), as fractions; null when it cannot be read. Measured
+  /// once per clip — badges are sized by what shows, not by the canvas.
+  Future<Rect?> visibleBounds() => _bounds[this] ??= _measureBounds();
+
+  static final _bounds = Expando<Future<Rect?>>();
+
+  Future<Rect?> _measureBounds() async {
+    var l = 1 << 30;
+    var t = 1 << 30;
+    var r = -1;
+    var b = -1;
+    var w = 1;
+    var h = 1;
+    final step = math.max(1, frames.length ~/ 6);
+    for (var f = 0; f < frames.length; f += step) {
+      final image = frames[f];
+      final data = await image.toByteData();
+      if (data == null) return null;
+      w = image.width;
+      h = image.height;
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          if (data.getUint8((y * w + x) * 4 + 3) >= 40) {
+            if (x < l) l = x;
+            if (x > r) r = x;
+            if (y < t) t = y;
+            if (y > b) b = y;
+          }
+        }
+      }
+    }
+    if (r < 0) return null;
+    return Rect.fromLTRB(l / w, t / h, (r + 1) / w, (b + 1) / h);
   }
 
   /// The frame shown [elapsed] after the start (looping).

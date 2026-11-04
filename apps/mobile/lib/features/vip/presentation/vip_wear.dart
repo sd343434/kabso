@@ -32,16 +32,15 @@ class VipNameBadge extends ConsumerWidget {
     }
     final art = look.badgeArt;
     if (art.still != null || art.animation != null) {
-      // The owner's medal is square (`svip_medals`, 500 × 500): drawn 1.6 ×
-      // the line's tag height, overflowing the line without growing it.
-      return SizedBox(
+      // The owner's medal (`svip_medals`) at the level emblems' height —
+      // by what shows (D234: every emblem the same height on screen).
+      return SizedBox.square(
         key: badgeKey,
-        height: height,
-        width: height * 1.6,
-        child: OverflowBox(
-          maxWidth: height * 1.6,
-          maxHeight: height * 1.6,
-          child: VipAnimatedArt(animation: art.animation, still: art.still),
+        dimension: height,
+        child: _VisibleFit(
+          animation: art.animation,
+          still: art.still,
+          size: height,
         ),
       );
     }
@@ -93,10 +92,11 @@ class VipAvatarFrame extends ConsumerWidget {
   final double size;
   final Widget child;
 
-  /// The owner's frame template (`svip_1_frame`, 500 × 500): the window's
-  /// centre (249, 227) and its smallest diameter across the frames, 260.
-  static const templateCentre = Offset(0.498, 0.454);
-  static const double templateWindow = 0.52;
+  /// The owner's frame template (`svip_1_frame`, 500 × 500): the ring's
+  /// opening is 292 across (x 103 – 395), its top at y 97 (the plaque cuts
+  /// the bottom), so its centre is (249, 243).
+  static const templateCentre = Offset(0.498, 0.486);
+  static const double templateWindow = 0.584;
 
   /// How much of the window's rim the picture covers (no gap).
   static const double overlap = 1.03;
@@ -292,6 +292,99 @@ class VipMicWave extends ConsumerWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+/// D258: an art scaled so its visible part (not its canvas) fills [size]
+/// tall: the owner's medal shows 88 % of its canvas (template), measured on
+/// the device from the decoded SVGA when it plays.
+class _VisibleFit extends StatefulWidget {
+  const new({required this.animation, required this.still, required this.size});
+
+  final String? animation;
+  final String? still;
+  final double size;
+
+  /// The owner's medal template (`svip_1_medals`, 500 × 500): y 36 – 475.
+  static const template = Rect.fromLTRB(0.008, 0.072, 0.992, 0.95);
+
+  @override
+  State<_VisibleFit> createState() => _VisibleFitState();
+}
+
+class _VisibleFitState extends State<_VisibleFit> {
+  Rect _bounds = _VisibleFit.template;
+  String? _measured;
+
+  void _measure(double side) {
+    final url = widget.animation;
+    if (url == null || !VipSvga.enabled || !VipAnimatedArt.animationsEnabled) {
+      return;
+    }
+    if (_measured == url) return;
+    _measured = url;
+    unawaited(() async {
+      final clip = await VipSvgaCache.load(url, maxSide: side);
+      final bounds = await clip?.visibleBounds();
+      if (bounds == null || !mounted) return;
+      setState(() => _bounds = bounds);
+    }());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = 1 / _bounds.height.clamp(0.3, 1.0);
+    final art = widget.size * scale;
+    _measure(art * MediaQuery.devicePixelRatioOf(context));
+    // The visible part's centre on the box's centre.
+    final dy = (0.5 - _bounds.center.dy) * art;
+    final dx = (0.5 - _bounds.center.dx) * art;
+    return OverflowBox(
+      maxWidth: art,
+      maxHeight: art,
+      child: Transform.translate(
+        offset: Offset(dx, dy),
+        child: SizedBox.square(
+          dimension: art,
+          child: VipAnimatedArt(
+            animation: widget.animation,
+            still: widget.still,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D258 (CHAT_NAME_COLOR, owner): a member's name (or line) in their
+/// tier's special colour — one solid colour set in the panel, apart from the
+/// tier's theme colour (VIP 1 #FFD12E, the «Syria» gold): no gradient, no
+/// outline, no shadow (owner). Exactly the text's own colour replaced, as a
+/// `TextStyle(color:)` would; without the perk or a colour: [child].
+class VipNameShimmer extends ConsumerWidget {
+  const new({required this.vip, required this.child, super.key});
+
+  final UserVip? vip;
+  final Widget child;
+
+  static const shimmerKey = Key('vip.nameShimmer');
+
+  /// [vip]'s special text colour now, or null.
+  static Color? colorOf(WidgetRef ref, UserVip? vip) {
+    final look = ref.watch(vipLookProvider(vip));
+    if (look == null || !look.has(VipPerks.nameColor)) return null;
+    return look.specialColor;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = colorOf(ref, vip);
+    if (color == null) return child;
+    return ColorFiltered(
+      key: shimmerKey,
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+      child: child,
     );
   }
 }

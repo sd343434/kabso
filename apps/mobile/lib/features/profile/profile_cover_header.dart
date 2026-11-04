@@ -310,13 +310,20 @@ class ProfileInfoBlock extends StatelessWidget {
             spacing: KSpacing.sm,
             runSpacing: KSpacing.xxs,
             children: [
-              Text(
-                profile.displayName,
-                key: const Key('profile.displayName'),
-                style: t.title.copyWith(
-                  color: p.textPrimary,
-                  fontSize: KPublicProfile.nameFont,
-                  fontWeight: FontWeight.w700,
+              // D258: the VIP name's gold (CHAT_NAME_COLOR).
+              VipNameShimmer(
+                vip: profile.vip,
+                child: Text(
+                  profile.displayName,
+                  key: const Key('profile.displayName'),
+                  style: t.title.copyWith(
+                    color: p.textPrimary,
+                    fontSize: KPublicProfile.nameFont,
+                    // D258: the special colour at semi-bold (owner).
+                    fontWeight: profile.vip != null
+                        ? FontWeight.w600
+                        : FontWeight.w700,
+                  ),
                 ),
               ),
               if (agentCode case final code?)

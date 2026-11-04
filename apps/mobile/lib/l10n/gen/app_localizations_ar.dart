@@ -13961,4 +13961,35 @@ class AppLocalizationsAr extends AppLocalizations {
   String vipEntranceJoined(String name) {
     return '$name دخل الغرفة';
   }
+
+  @override
+  String get vipVisitorsTitle => 'من زار ملفي';
+
+  @override
+  String get vipVisitorsEntry => 'من زار ملفي';
+
+  @override
+  String vipVisitorsTotal(String count) {
+    return '$count زائر في آخر 30 يوماً';
+  }
+
+  @override
+  String vipVisitorsVisits(String count) {
+    return '$count زيارات';
+  }
+
+  @override
+  String get vipVisitorsEmptyTitle => 'لا زوار بعد';
+
+  @override
+  String get vipVisitorsEmptyMessage => 'من يفتح ملفك يظهر هنا.';
+
+  @override
+  String get vipVisitorsNoPerkTitle => 'ميزة لأعضاء VIP';
+
+  @override
+  String get vipVisitorsNoPerkMessage => 'اعرف من زار ملفك مع VIP.';
+
+  @override
+  String get vipVisitorsNoPerkAction => 'شراء VIP';
 }

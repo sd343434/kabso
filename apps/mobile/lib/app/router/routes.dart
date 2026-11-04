@@ -247,6 +247,9 @@ abstract final class AppRoutes {
   /// D252: «شراء VIP» — the tiers the owner manages in the admin panel.
   static const vip = '/vip';
 
+  /// D258: «من زار ملفي» (members holding PROFILE_VISITORS).
+  static const vipVisitors = '/vip/visitors';
+
   /// The page of event [eventId].
   static String event(String eventId) =>
       '/events/${Uri.encodeComponent(eventId)}';

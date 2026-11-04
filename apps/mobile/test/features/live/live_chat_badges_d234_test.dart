@@ -125,52 +125,60 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('D234b: the name with the badges beside it, up to 5 medals '
-          'in order under them, then the message', (tester) async {
-        final handle = tester.ensureSemantics();
-        await _pump(tester, _inline(), language: language);
-        final name = tester.getRect(find.byKey(LiveChatInlineRow.nameKey));
-        final badges = tester.getRect(find.byKey(LiveChatInlineRow.badgesKey));
-        final medals = tester.getRect(find.byKey(LiveChatMedalRow.rowKey));
-        final text = tester.getRect(find.byKey(LiveChatInlineRow.textKey));
-        // One line: the name, then the badges after it in reading order.
-        expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
-        expect(
-          ar ? badges.right <= name.left : badges.left >= name.right,
-          isTrue,
-        );
-        expect(medals.top, greaterThanOrEqualTo(badges.bottom - 0.5));
-        expect(text.top, greaterThanOrEqualTo(medals.bottom - 0.5));
-        expect(medals.height, closeTo(LiveChatInlineRow.medalSize, 0.5));
-        // Five of the six, in the server's order, from the reading start.
-        expect(find.byType(MedalIcon), findsNWidgets(5));
-        expect(find.byKey(LiveChatMedalRow.medalKey('m6')), findsNothing);
-        final xs = [
-          for (final c in ['m1', 'm2', 'm3', 'm4', 'm5'])
-            tester.getRect(find.byKey(LiveChatMedalRow.medalKey(c))).center.dx,
-        ];
-        for (var i = 1; i < xs.length; i++) {
-          expect(ar ? xs[i] < xs[i - 1] : xs[i] > xs[i - 1], isTrue);
-        }
-        final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
-        final pad = LiveChatInlineRow.padding.start;
-        for (final r in [name, medals, text]) {
-          if (ar) {
-            expect(r.right, closeTo(row.right - pad, 0.5));
-          } else {
-            expect(r.left, closeTo(row.left + pad, 0.5));
+      testWidgets(
+        'D234b: the name with the badges beside it, up to 3 medals (D258) '
+        'in order under them, then the message',
+        (tester) async {
+          final handle = tester.ensureSemantics();
+          await _pump(tester, _inline(), language: language);
+          final name = tester.getRect(find.byKey(LiveChatInlineRow.nameKey));
+          final badges = tester.getRect(
+            find.byKey(LiveChatInlineRow.badgesKey),
+          );
+          final medals = tester.getRect(find.byKey(LiveChatMedalRow.rowKey));
+          final text = tester.getRect(find.byKey(LiveChatInlineRow.textKey));
+          // One line: the name, then the badges after it in reading order.
+          expect((badges.center.dy - name.center.dy).abs(), lessThan(1.5));
+          expect(
+            ar ? badges.right <= name.left : badges.left >= name.right,
+            isTrue,
+          );
+          expect(medals.top, greaterThanOrEqualTo(badges.bottom - 0.5));
+          expect(text.top, greaterThanOrEqualTo(medals.bottom - 0.5));
+          expect(medals.height, closeTo(LiveChatInlineRow.medalSize, 0.5));
+          // Three of the six (D258), in order, from the reading start.
+          expect(find.byType(MedalIcon), findsNWidgets(3));
+          expect(find.byKey(LiveChatMedalRow.medalKey('m4')), findsNothing);
+          final xs = [
+            for (final c in ['m1', 'm2', 'm3'])
+              tester
+                  .getRect(find.byKey(LiveChatMedalRow.medalKey(c)))
+                  .center
+                  .dx,
+          ];
+          for (var i = 1; i < xs.length; i++) {
+            expect(ar ? xs[i] < xs[i - 1] : xs[i] > xs[i - 1], isTrue);
           }
-        }
-        // The line says how many medals.
-        final l10n = l10nFor(language);
-        expect(
-          find.bySemanticsLabel(
-            RegExp(RegExp.escape(l10n.liveChatMedalsLabel(5))),
-          ),
-          findsOneWidget,
-        );
-        handle.dispose();
-      });
+          final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
+          final pad = LiveChatInlineRow.padding.start;
+          for (final r in [name, medals, text]) {
+            if (ar) {
+              expect(r.right, closeTo(row.right - pad, 0.5));
+            } else {
+              expect(r.left, closeTo(row.left + pad, 0.5));
+            }
+          }
+          // The line says how many medals.
+          final l10n = l10nFor(language);
+          expect(
+            find.bySemanticsLabel(
+              RegExp(RegExp.escape(l10n.liveChatMedalsLabel(3))),
+            ),
+            findsOneWidget,
+          );
+          handle.dispose();
+        },
+      );
 
       testWidgets('D234b: a long name shortens with an ellipsis; the badges '
           'keep their size', (tester) async {

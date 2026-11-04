@@ -74,6 +74,7 @@ class _Look {
     required this.divider,
     required this.fill,
     required this.ring,
+    this.flat = false,
   });
 
   factory of(BuildContext context) {
@@ -104,28 +105,18 @@ class _Look {
           );
   }
 
-  /// D258: the colours on a VIP card art whose inside is light (over the
-  /// white backdrop): dark green ink, ≥ 4.5:1 down to luminance 0.35.
-  static const vipLight = _Look(
-    sheet: Color(0xFFFFFFFF),
-    ink: Color(0xFF0E2410),
-    soft: Color(0xFF243B27),
-    line: Color(0x400E2410),
-    divider: Color(0x400E2410),
-    fill: Color(0x1F0E2410),
-    ring: Color(0xFFFFFFFF),
-  );
-
-  /// D258: on a dark art (over the black backdrop): white ink, ≥ 4.5:1 up
-  /// to luminance 0.18.
-  static const vipDark = _Look(
-    sheet: Color(0xFF000000),
-    ink: Color(0xFFFFFFFF),
-    soft: Color(0xFFE4ECE4),
-    line: Color(0x4DFFFFFF),
-    divider: Color(0x4DFFFFFF),
-    fill: Color(0x26FFFFFF),
-    ring: Color(0xFFFFFFFF),
+  /// D258 (owner: «لون الكتابة على هذا vip اجعله ابيض»): every text and
+  /// icon white on the VIP card art, which lies over a deep shade of the
+  /// tier colour; no button shadows ([flat]).
+  factory vipOn(Color backdrop) => _Look(
+    sheet: backdrop,
+    ink: const Color(0xFFFFFFFF),
+    soft: const Color(0xFFFFFFFF),
+    line: const Color(0x80FFFFFF),
+    divider: const Color(0x66FFFFFF),
+    fill: const Color(0x26FFFFFF),
+    ring: const Color(0xFFFFFFFF),
+    flat: true,
   );
 
   final Color sheet;
@@ -141,6 +132,9 @@ class _Look {
 
   /// The clean ring around a picture without a frame.
   final Color ring;
+
+  /// D258: no shadows under the buttons (the VIP card).
+  final bool flat;
 }
 
 /// D220 geometry (E: the reference's right phone, ≈ 0.97 px per dp).
@@ -258,7 +252,14 @@ class LivePersonSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loaded = ref.watch(publicProfileProvider(username));
     final profile = loaded.value;
-    final look = _Look.of(context);
+    // D258: on the owner's animated VIP card, every text and icon is white
+    // over a deep shade of the tier colour (owner).
+    final vipLook = ref.watch(vipLookProvider(profile?.vip));
+    final cardPerk = vipCardPerk(vipLook);
+    final vipCard = cardPerk != null && vipPlays(cardPerk) && vipLook != null
+        ? _Look.vipOn(vipLook.bubbleShades.$2)
+        : null;
+    final look = vipCard ?? _Look.of(context);
     final header =
         this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
     final picture = _Picture.of(profile, username);
@@ -302,7 +303,7 @@ class LivePersonSheet extends ConsumerWidget {
                 // Room under the edge for the picture's lower part.
                 top: picture.height - picture.centreY + 6 + vipDrop,
               );
-        return Stack(
+        final sheet = Stack(
           key: sheetKey,
           clipBehavior: Clip.none,
           alignment: Alignment.topCenter,
@@ -323,7 +324,13 @@ class LivePersonSheet extends ConsumerWidget {
                   top: false,
                   // Large text: the card scrolls instead of overflowing.
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    // D258: the VIP card hugs its content (owner).
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      0,
+                      16,
+                      vipCard == null ? 12 : 2,
+                    ),
                     child: body,
                   ),
                 ),
@@ -343,7 +350,8 @@ class LivePersonSheet extends ConsumerWidget {
             // the mutes and ⋯ at the end, either side of the picture.
             if (scope != null && profile != null)
               PositionedDirectional(
-                top: edge + 8,
+                // D258 (owner): on the VIP card, inside the art's top band.
+                top: edge + (vipCard == null ? 8 : 22),
                 start: 10,
                 end: 10,
                 child: LivePersonTools(
@@ -355,6 +363,8 @@ class LivePersonSheet extends ConsumerWidget {
                   ),
                   self: profile.isSelf,
                   middle: picture.width + 8,
+                  // D258: white on the VIP card.
+                  ink: vipCard?.ink,
                 ),
               ),
             Positioned(
@@ -371,6 +381,9 @@ class LivePersonSheet extends ConsumerWidget {
             ),
           ],
         );
+        return vipCard == null
+            ? sheet
+            : _LookScope(look: vipCard, child: sheet);
       },
     );
   }
@@ -596,7 +609,14 @@ class _Body extends ConsumerWidget {
             ),
           ),
       // D258: the VIP badge first.
-      if (profile.vip != null) VipNameBadge(vip: profile.vip, height: 20),
+      // (As tall as the level badges beside it.)
+      if (profile.vip != null)
+        VipNameBadge(
+          vip: profile.vip,
+          // The level badges here show ≈ 28 pt (their art is 1.4 × the
+          // badge height): the medal matches them (measured).
+          height: KMetrics.badgeHeight * 1.45,
+        ),
       if (rechargeBadgeShows(profile.rechargeBadge))
         RechargeTierBadge(
           key: LivePersonSheet.rechargeBadgeKey,
@@ -690,15 +710,22 @@ class _Body extends ConsumerWidget {
           child: GestureDetector(
             key: LivePersonSheet.nameKey,
             onTap: () => _openProfile(context, username),
-            child: Text(
-              profile.displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: text.title.copyWith(
-                color: look.ink,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+            // D258: the VIP name's gold (CHAT_NAME_COLOR).
+            child: VipNameShimmer(
+              vip: profile.vip,
+              child: Text(
+                profile.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: text.title.copyWith(
+                  color: look.ink,
+                  fontSize: 20,
+                  // D258: the special colour at semi-bold (owner).
+                  fontWeight: profile.vip != null
+                      ? FontWeight.w600
+                      : FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -1346,7 +1373,7 @@ class _FollowPill extends ConsumerWidget {
           borderRadius: BorderRadius.circular(KRadius.pill),
           color: plain ? null : palette.primary,
           border: plain ? Border.all(color: look.line, width: 1.2) : null,
-          boxShadow: plain
+          boxShadow: plain || look.flat
               ? null
               : [
                   BoxShadow(
@@ -1611,7 +1638,7 @@ class _VipCard extends ConsumerWidget {
     // crest rises above the sheet, the frame follows its edges). The text
     // stays on the card's own opaque panel inside the frame.
     if (vipPlays(perk)) {
-      return _VipCardArt(perk: perk, sheet: sheet, child: child);
+      return _VipCardArt(perk: perk, child: child);
     }
     // Clipped to the sheet's rounded top (only with the art: no change
     // to the plain card).
@@ -1667,123 +1694,40 @@ class _LookScope extends InheritedWidget {
 
 /// D258 (owner: «عند وضع vip يتم ازالة الصندوق الابيض»): the owner's
 /// animated card IS the card's background — its SVGA 9-sliced to the sheet
-/// (the crest rises above it), the content directly on it. The art's inside
-/// is measured over a white backdrop: light → dark green text
-/// ([_Look.vipLight]); dark → a black backdrop and white text
-/// ([_Look.vipDark]). Until it is measured (or when it cannot be), the
-/// card's own opaque panel holds the text inside the art's frame.
-class _VipCardArt extends StatefulWidget {
-  const new({required this.perk, required this.sheet, required this.child});
+/// (the crest rises above it) over a deep shade of the tier colour; the
+/// content sits directly on it in white ([_Look.vipOn], set by the sheet).
+class _VipCardArt extends StatelessWidget {
+  const new({required this.perk, required this.child});
 
   final VipPerk perk;
-  final Color sheet;
   final Widget child;
 
-  /// The card's inside (fractions of the template's canvas), measured.
-  static const inside = Rect.fromLTRB(0.06, 0.36, 0.94, 0.92);
-
   @override
-  State<_VipCardArt> createState() => _VipCardArtState();
-}
-
-class _VipCardArtState extends State<_VipCardArt> {
-  _Look? _look;
-  String? _measured;
-
-  /// The look for an inside whose luminance spans [min] – [max] over white.
-  static _Look? lookFor(double min, double max) {
-    if (vipContrast(_Look.vipLight.soft, _grey(min)) >= 4.5) {
-      return _Look.vipLight;
-    }
-    return null;
-  }
-
-  static Color _grey(double l) {
-    final c = l <= 0.0031308 ? 12.92 * l : 1.055 * math.pow(l, 1 / 2.4) - 0.055;
-    final v = (c * 255).round().clamp(0, 255);
-    return Color.fromARGB(255, v, v, v);
-  }
-
-  Future<void> _measure(String url, double side) async {
-    if (_measured == url) return;
-    _measured = url;
-    final clip = await VipSvgaCache.load(url, maxSide: side);
-    if (clip == null || !mounted) return;
-    final light = await clip.luminanceOf(
-      _VipCardArt.inside,
-      backdrop: const Color(0xFFFFFFFF),
+  Widget build(BuildContext context) {
+    const frame = _VipCard.animatedFrame;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          key: LivePersonSheet.vipCardKey,
+          child: IgnorePointer(
+            child: VipSvga(
+              url: perk.animation!,
+              nine: VipSvgaNine.card,
+              // A big art: frames at about half the device's pixels.
+              resolution: 0.5,
+              still: perk.still == null
+                  ? null
+                  : Image(image: vipArtImage(perk.still!), fit: BoxFit.cover),
+            ),
+          ),
+        ),
+        // The art's frame at the sides; the content hugs the bottom.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(frame, 0, frame, 2),
+          child: child,
+        ),
+      ],
     );
-    var look = light == null ? null : lookFor(light.min, light.max);
-    if (look == null) {
-      final dark = await clip.luminanceOf(_VipCardArt.inside);
-      if (dark != null &&
-          vipContrast(_Look.vipDark.soft, _grey(dark.max)) >= 4.5) {
-        look = _Look.vipDark;
-      }
-    }
-    if (mounted && look != null) setState(() => _look = look);
   }
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) {
-      final dpr = MediaQuery.devicePixelRatioOf(context);
-      // The same size the art itself loads at (one shared clip).
-      unawaited(
-        _measure(widget.perk.animation!, 2.2 * box.maxWidth * dpr * 0.5),
-      );
-      final look = _look;
-      const frame = _VipCard.animatedFrame;
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          if (look != null)
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(LivePersonCardMetrics.radius),
-                ),
-                child: ColoredBox(color: look.sheet),
-              ),
-            ),
-          Positioned.fill(
-            key: LivePersonSheet.vipCardKey,
-            child: IgnorePointer(
-              child: VipSvga(
-                url: widget.perk.animation!,
-                nine: VipSvgaNine.card,
-                // A big art: frames at about half the device's pixels.
-                resolution: 0.5,
-                still: widget.perk.still == null
-                    ? null
-                    : Image(
-                        image: vipArtImage(widget.perk.still!),
-                        fit: BoxFit.cover,
-                      ),
-              ),
-            ),
-          ),
-          if (look == null)
-            Positioned.fill(
-              left: frame,
-              right: frame,
-              top: frame,
-              bottom: frame + 2,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: widget.sheet,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(frame, 0, frame, frame + 2),
-            child: look == null
-                ? widget.child
-                : _LookScope(look: look, child: widget.child),
-          ),
-        ],
-      );
-    },
-  );
 }

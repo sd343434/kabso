@@ -56,6 +56,11 @@ class VipLook {
 
   Color get color => Color(vip.color);
 
+  /// D258 (§10.94.10): the tier's special text colour (set in the panel),
+  /// apart from its theme [color]; null when the tier has none.
+  Color? get specialColor =>
+      tier?.nameColor == null ? null : Color(tier!.nameColor!);
+
   /// The tier's level among those on sale (1 … n), or its rank.
   int get level => tier?.level ?? vip.rank;
 

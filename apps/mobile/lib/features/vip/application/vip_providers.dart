@@ -25,3 +25,10 @@ final FutureProvider<VipMembership?> myVipProvider = FutureProvider.autoDispose(
     return ref.watch(vipRepositoryProvider).mine();
   },
 );
+
+/// «من زار ملفي» (`GET /me/profile-visitors`, D258).
+final FutureProvider<ProfileVisitorList> profileVisitorsProvider =
+    FutureProvider.autoDispose((ref) {
+      ref.watch(currentUserProvider.select((u) => u?.id));
+      return ref.watch(vipRepositoryProvider).profileVisitors();
+    });

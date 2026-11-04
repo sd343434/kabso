@@ -128,6 +128,7 @@ class LivePersonTools extends ConsumerStatefulWidget {
     required this.person,
     required this.self,
     required this.middle,
+    this.ink,
     super.key,
   });
 
@@ -136,12 +137,17 @@ class LivePersonTools extends ConsumerStatefulWidget {
   final bool self;
   final double middle;
 
+  /// D258: the tools' colour on the VIP card (white); null: the default.
+  final Color? ink;
+
   @override
   ConsumerState<LivePersonTools> createState() => _LivePersonToolsState();
 }
 
 class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
-  static const _ink = Color(0xFF5B5E66);
+  static const _defaultInk = Color(0xFF5B5E66);
+
+  Color get _ink => widget.ink ?? _defaultInk;
   static const _danger = Color(0xFFE5484D);
   static const _on = Color(0xFFD9922E);
 
@@ -343,8 +349,24 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
     required IconData icon,
     required String tooltip,
     required VoidCallback onTap,
-    Color color = _ink,
+    Color? color,
     bool active = false,
+  }) => _toolButton(
+    key: key,
+    icon: icon,
+    tooltip: tooltip,
+    onTap: onTap,
+    color: color ?? _ink,
+    active: active,
+  );
+
+  Widget _toolButton({
+    required Key key,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    required Color color,
+    required bool active,
   }) => Semantics(
     button: true,
     toggled: active ? true : null,
@@ -396,7 +418,7 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.flag_outlined, size: 16, color: _ink),
+              Icon(Icons.flag_outlined, size: 16, color: _ink),
               const SizedBox(width: 3),
               Text(
                 l10n.liveCardReport,

@@ -27,6 +27,18 @@ final String? _art = Platform.environment['VIP_ART_DIR'];
 final String? _shots = Platform.environment['VIP_SHOTS_DIR'];
 bool get _skip => _art == null || !Directory(_art!).existsSync();
 
+const _badges = LiveChatAuthorBadges(
+  charmLevel: 12,
+  supportLevel: 32,
+  medals: [
+    LiveChatAuthorMedal(code: 'm1', iconKey: 'medal_first_family'),
+    LiveChatAuthorMedal(code: 'm2', iconKey: 'medal_first_cp'),
+    LiveChatAuthorMedal(code: 'm3', iconKey: 'medal_charm_10'),
+    LiveChatAuthorMedal(code: 'm4', iconKey: 'medal_first_live'),
+    LiveChatAuthorMedal(code: 'm5', iconKey: 'medal_bullet_first'),
+  ],
+);
+
 const _vip1 = UserVip(tier: 'VIP_1', rank: 1, color: 0xFF2E8B3D);
 
 String _url(String name) => 'https://cdn.test/owner/vip1_$name.svga';
@@ -46,6 +58,7 @@ final _catalog = VipTierList(
       name: 'VIP 1',
       level: 1,
       color: 0xFF2E8B3D,
+      nameColor: 0xFFFFD12E,
       priceCoins: 1000000,
       durationDays: 30,
       perks: [
@@ -123,6 +136,7 @@ void main() {
                     label: 'line',
                     role: LiveChatRole.viewer,
                     vip: _vip1,
+                    badges: _badges,
                   ),
                   SizedBox(height: 14),
                   LiveChatFlatLine(
@@ -131,6 +145,7 @@ void main() {
                     label: 'line',
                     role: LiveChatRole.viewer,
                     vip: _vip1,
+                    badges: _badges,
                   ),
                   SizedBox(height: 14),
                   LiveChatFlatLine(
@@ -161,6 +176,7 @@ void main() {
       await pumpGolden(
         tester,
         ProviderScope(
+          overrides: [vipCatalogProvider.overrideWith((ref) async => _catalog)],
           child: ColoredBox(
             color: const Color(0xFF3A4150),
             child: Center(

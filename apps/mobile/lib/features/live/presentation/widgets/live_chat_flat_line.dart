@@ -5,6 +5,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -63,7 +64,7 @@ abstract final class KFlatChat {
             Positioned.fill(child: DecoratedBox(decoration: vip)),
             if (vipArt != null)
               Positioned.fill(child: IgnorePointer(child: vipArt)),
-            Padding(padding: padding, child: child),
+            Padding(padding: LiveChatFlatLine.vipPadding, child: child),
           ],
         )
       : Container(
@@ -167,8 +168,101 @@ class LiveChatFlatLine extends ConsumerWidget {
   static const tagKey = Key('liveChat.flat.tag');
   static const nameKey = Key('liveChat.flat.name');
 
+  /// D258 (owner's ref 18 and revisions): line 1 — the VIP badge, the
+  /// name, the levels and up to 3 medals, every emblem the name's line
+  /// height (1.6 × 15 sp = [LiveChatInlineRow.badgeHeight]); line 2 — the
+  /// message alone in the VIP bubble, hugging one text line.
+  /// The VIP badge's and the medals' height on line 1: what the level
+  /// emblems beside them show (≈ 22 of their 24 pt box; measured).
+  static const double vipEmblemHeight = 22;
+
+  /// Owner: the VIP row shows at most 3 of the chosen medals, on line 1.
+  static const int vipMedalsMax = 3;
+
+  /// The room above the VIP bubble: its ornaments rise ≈ 8 pt above it
+  /// (the owner's template at one text line), plus a clear 4 pt gap from
+  /// line 1.
+  static const double vipBubbleGap = 12;
+  static const EdgeInsetsDirectional vipPadding =
+      EdgeInsetsDirectional.fromSTEB(12, 7, 14, 7);
+
   /// D258: the name and badges above a VIP bubble.
   static const vipHeaderKey = Key('liveChat.flat.vipHeader');
+
+  /// D258 (owner, ref 18): a VIP-bubble message's first line, as the
+  /// three-line chat row (D234b): the name, then the levels and the other
+  /// badges, then the VIP badge at the same height.
+  Widget _vipNameRow(TextScaler scaler, VipLook? look) {
+    final medals = (badges?.medals ?? const <LiveChatAuthorMedal>[])
+        .take(vipMedalsMax)
+        .toList();
+    final levels = LiveChatBadgeRow(
+      role: role,
+      badges: badges,
+      agentCode: agentCode,
+      hostAgentCode: hostAgentCode,
+      rechargeBadge: rechargeBadge,
+      // The emblems at the row's height (D234), hugging their width.
+      fullEmblems: true,
+      agentBadgeHeight: LiveChatInlineRow.badgeHeight,
+    );
+    // Owner: «واجعل الشارة قبل الاسم» — the VIP badge at the reading
+    // start, then the name, then the levels (all one height).
+    return LiveChatNameRow(
+      name: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          VipNameBadge(vip: vip, height: vipEmblemHeight),
+          const SizedBox(width: 4),
+          Flexible(
+            child: GestureDetector(
+              key: nameKey,
+              behavior: HitTestBehavior.opaque,
+              onTap: onProfile,
+              child: Builder(
+                builder: (context) => VipNameShimmer(
+                  vip: vip,
+                  child: Text(
+                    KFormat.bidiIsolate(name),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textScaler: scaler,
+                    style: KFlatChat.style(context).copyWith(
+                      fontSize: LiveChatInlineRow.nameSize,
+                      // Owner: the special colour at the chat's weight.
+                      fontWeight: FontWeight.w600,
+                      shadows: const [],
+                      color: look?.nameColor ?? LiveChatInlineRow.nameColor,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      // Then up to 3 of the medals the person chose (owner), at the same
+      // height; a long line fades at its end instead of wrapping.
+      badges: levels.isNotEmpty || medals.isNotEmpty
+          ? LiveChatFadeOverflow(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (levels.isNotEmpty) levels,
+                  for (final m in medals) ...[
+                    const SizedBox(width: 4),
+                    MedalIcon(
+                      key: LiveChatMedalRow.medalKey(m.code),
+                      iconKey: m.iconKey,
+                      size: vipEmblemHeight,
+                    ),
+                  ],
+                ],
+              ),
+            )
+          : null,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -195,6 +289,7 @@ class LiveChatFlatLine extends ConsumerWidget {
         ? null
         : vipBubbleDecoration(look, radius: KFlatChat.radius);
     final vipBubble = bubble != null;
+    final special = vipBubble ? VipNameShimmer.colorOf(ref, vip) : null;
     final Widget header = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -273,9 +368,12 @@ class LiveChatFlatLine extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // D258: the message in the VIP's special colour (owner).
           Text.rich(
             TextSpan(
-              style: base,
+              style: vipBubble && special != null
+                  ? base.copyWith(color: special)
+                  : base,
               children: [
                 // D257: the heart (CP), the role tag, the name and the
                 // badges in one row in the reading direction (inline
@@ -328,12 +426,17 @@ class LiveChatFlatLine extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1. The name, the levels and the VIP badge (one height).
                   Padding(
                     key: vipHeaderKey,
                     padding: const EdgeInsetsDirectional.only(start: 4),
-                    child: header,
+                    child: _vipNameRow(scaler, look),
                   ),
-                  const SizedBox(height: 3),
+                  // 2. The message, alone in the VIP bubble (its ornaments
+                  // never touch the medals).
+                  SizedBox(
+                    height: vipBubbleArt(look) == null ? 4 : vipBubbleGap,
+                  ),
                   line,
                 ],
               )
