@@ -1923,7 +1923,8 @@ ins {
   top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(66%, 520px, 58vh);
+  /* The art is 512 px (palette PNG): never drawn past ~half its size on 2x screens, so it stays sharp. */
+  width: min(66%, 300px, 58vh);
   height: auto;
   filter: drop-shadow(0 26px 34px rgba(74, 3, 7, 0.4));
   user-select: none;
