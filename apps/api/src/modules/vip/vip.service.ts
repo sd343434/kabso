@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -8,7 +8,10 @@ import { Clock } from '../../common/time/clock.js';
 import type { Prisma, VipTier, VipTierPerk } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
-import { debitIn } from '../wallet/wallet-ledger.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import { dateValue, programWindowsIn } from '../programs/programs-time.js';
+import { creditIn, debitIn } from '../wallet/wallet-ledger.js';
+import { vipPerkAmountIn } from './vip-perks.js';
 import {
   planVipPurchase,
   VIP_MAX_AHEAD_DAYS,
@@ -36,6 +39,8 @@ export interface VipPerkDto {
   still: string | null;
   artWidth: number | null;
   artHeight: number | null;
+  /** D258: the perk's number for this tier (bullets / coins a day, level speed-up %); null otherwise. */
+  amount: number | null;
 }
 
 /** `VipTier`: a tier on sale, in the panel's order. */
@@ -76,9 +81,29 @@ export interface VipMembershipDto {
   daysLeft: number;
 }
 
+/** v1.83-social (D258, §10.94.5): `VipDailyCoins` — the member's daily coins today. */
+export interface VipDailyCoinsDto {
+  /** Coins a day (DAILY_COINS, with inheritance). */
+  amount: number;
+  claimedToday: boolean;
+  /** The next day's start (when the next claim opens), ISO. */
+  nextAt: string;
+}
+
 /** `MyVip`. */
 export interface MyVipDto {
   membership: VipMembershipDto | null;
+  /** v1.83-social (D258): present while the member holds DAILY_COINS with an amount. */
+  dailyCoins?: VipDailyCoinsDto;
+}
+
+/** v1.83-social (D258): `VipDailyCoinsClaim`. */
+export interface VipDailyCoinsClaimDto {
+  /** Coins credited by this call (0 when today's were already claimed). */
+  coins: number;
+  /** The caller's balance now. */
+  balance: number;
+  dailyCoins: VipDailyCoinsDto;
 }
 
 /** `VipPurchaseResult`. */
@@ -105,6 +130,7 @@ export function vipPerkDto(lang: ContentLanguage, p: VipTierPerk): VipPerkDto {
     still: p.still,
     artWidth: p.artWidth,
     artHeight: p.artHeight,
+    amount: p.amount,
   };
 }
 
@@ -146,6 +172,7 @@ export class VipService {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     private readonly users: UsersService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** `GET /vip/tiers`: the tiers switched on, in order, with their perks that are switched on. */
@@ -177,7 +204,68 @@ export class VipService {
     const now = this.clock.now();
     const m = await this.prisma.vipMembership.findUnique({ where: { userId }, include: { tier: true } });
     if (!m || !vipActive(m.expiresAt, now)) return { membership: null };
-    return { membership: membershipDto(lang, m, m.tier, now) };
+    const daily = await this.dailyCoinsState(this.prisma, userId, now);
+    return {
+      membership: membershipDto(lang, m, m.tier, now),
+      ...(daily ? { dailyCoins: daily.dto } : {}),
+    };
+  }
+
+  /** D258: the member's daily coins today, or null without the perk (or an amount). */
+  private async dailyCoinsState(
+    db: Tx | PrismaService,
+    userId: string,
+    now: Date,
+  ): Promise<{ dto: VipDailyCoinsDto; day: string; tierId: string } | null> {
+    const amount = await vipPerkAmountIn(db, userId, 'DAILY_COINS', now);
+    if (amount === null) return null;
+    const membership = await db.vipMembership.findUnique({ where: { userId }, select: { tierId: true } });
+    if (!membership) return null;
+    const { day } = await programWindowsIn(db, now, this.config.live.rankingsTimeZone);
+    const claimed = await db.vipDailyCoinClaim.findUnique({
+      where: { userId_day: { userId, day: dateValue(day.date) } },
+      select: { id: true },
+    });
+    return {
+      dto: { amount, claimedToday: claimed !== null, nextAt: day.end.toISOString() },
+      day: day.date,
+      tierId: membership.tierId,
+    };
+  }
+
+  /**
+   * v1.83-social (D258, §10.94.5) `POST /me/vip/daily-coins`: credits today's coins once (ledger `VIP_DAILY_COINS`,
+   * reference the claim row); a second call the same day credits nothing (`coins` 0). 409 `VIP_UNAVAILABLE`
+   * (`no_perk`) without an active membership holding DAILY_COINS with an amount.
+   */
+  async claimDailyCoins(userId: string): Promise<VipDailyCoinsClaimDto> {
+    const now = this.clock.now();
+    return this.prisma.$transaction(async (tx) => {
+      await lockVipUser(tx, userId);
+      const state = await this.dailyCoinsState(tx, userId, now);
+      if (!state) {
+        throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+      }
+      if (state.dto.claimedToday) {
+        const wallet = await tx.wallet.findUnique({ where: { userId }, select: { coins: true } });
+        return { coins: 0, balance: Number(wallet?.coins ?? 0n), dailyCoins: state.dto };
+      }
+      const claim = await tx.vipDailyCoinClaim.create({
+        data: {
+          id: randomUUID(),
+          userId,
+          day: dateValue(state.day),
+          tierId: state.tierId,
+          coins: BigInt(state.dto.amount),
+        },
+      });
+      const credited = await creditIn(tx, userId, BigInt(state.dto.amount), 'VIP_DAILY_COINS', claim.id);
+      return {
+        coins: state.dto.amount,
+        balance: Number(credited.coins),
+        dailyCoins: { ...state.dto, claimedToday: true },
+      };
+    });
   }
 
   /**

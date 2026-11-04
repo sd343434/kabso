@@ -212,7 +212,7 @@ All non-2xx responses use one envelope:
 | 409 | `REFERRAL_NOT_ALLOWED` | *(v1.74-social, DRAFT, D217)* The caller may not enter a code now; `details: [{field: "referral", issue: "ALREADY_REFERRED" \| "WINDOW_CLOSED"}]` (one inviter per person, ever; within `applyWindowDays` of sign-up). §10.71. |
 | 409 | `DEVICE_ACCOUNT_LIMIT` | *(v1.78-social, DRAFT, D223)* `register` / `registerVerify`: this device (`DeviceInfo.deviceKey`) already created `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` accounts (deleted ones included; an OWNER exception may raise it); `details: [{field: "device", issue: "<the limit, decimal>"}]`. Signing in is never limited. §10.75. |
 | 403 | `DEVICE_BANNED` | *(v1.60-live, DRAFT, D250)* `register`, `registerVerify`, `login` (after the right password) and `startLiveRoom`: the team banned this device «حظر جهاز» (`DeviceInfo.deviceKey`, or the device the session signed in with) for every account; `details: [{field: "until", issue: <ISO 8601 time> \| "permanent"}, {field: "reason", issue: <the team's reason>}]`. §10.91.6. |
-| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. |
+| 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
@@ -657,6 +657,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.83-social (draft) | 2026-11-04 | **D258 (owner's VIP 1 perks):** `UserSummary.vip` and `PublicProfile.vip` (`UserVip` `{tier, rank, color}`, while the membership is active); `VipPerk.amount`, `AdminVipPerk.amount`, `AdminVipPerkInput.amount` (DAILY_BULLET 1–100, DAILY_COINS 1–10^9, LEVEL_SPEEDUP 1–100 %); `uploadAdminVipArt` (`POST /admin/vip/uploads`, `AdminVipUpload`); perk inheritance between tiers; `VIP_BUILT_PERKS` gains BADGE, AVATAR_FRAME, CHAT_NAME_COLOR, CHAT_BUBBLE, PROFILE_CARD, DAILY_BULLET, LEVEL_SPEEDUP; `claimVipDailyCoins` (`POST /me/vip/daily-coins`, `VipDailyCoinsClaim`), `MyVip.dailyCoins`, `WalletLedgerReason.VIP_DAILY_COINS`, `VIP_UNAVAILABLE` `no_perk`; `LiveBulletResult.free` / `freeLeft`. Migrations `20270306090000_vip_perks` (the `amount` column; VIP 1's other six perks), `20270306090100_vip_daily_enums`, `20270306090200_vip_daily` (claims; `live_bullets` cost may be 0). §4, §10.94. | **Additive** (optional fields, a new panel operation). |
 | v1.82-social (draft) | 2026-11-03 | **D252 (owner: «اصنع صفحة شراء vip واجعلها بنفس التصميم مطابق ١٠٠٪ واضافة الفي اي بي وترتيبه يكون من لوحة كل في اي بي له ميزات وامتيازات مختلفة»):** «شراء VIP» — tag `vip`: `listVipTiers` (`GET /vip/tiers`, `VipTierList`, `VipTier`, `VipPerk`), `getMyVip` (`GET /me/vip`, `MyVip`, `VipMembership`), `buyVip` (`POST /me/vip/purchases`, `Idempotency-Key`, `BuyVipRequest`, `VipPurchaseResult`); the panel's `listAdminVipTiers`, `createAdminVipTier`, `updateAdminVipTier`, `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`/admin/vip/tiers…`, `/admin/vip/tier-order`; `AdminVipTier`, `AdminVipPerk`, `AdminVipPerkInput`, `AdminVipTierList`, `CreateAdminVipTierRequest`, `UpdateAdminVipTierRequest`, `ReorderAdminVipTiersRequest`, parameter `AdminVipTierIdPath`; `catalog.view` / `catalog.manage`, reason; audit `vip.tier.add \| update \| enable \| disable \| reorder`, `vip.purchase`); `WalletLedgerReason.VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). Migrations `20270305090000_vip_enums`, `20270305090100_vip`. §4, §8, §10.93. **D252b v2 (owner «طبق هذا التصميم ١٠٠٪», reference `REFERENCE_vip_design_v2`):** the screen reworked to the owner's new reference layout (a horizontal tier tab row + centred badge + gold crown divider + category section headers with a count + a 3-column perks grid + a sticky price/activate bar; the earlier curved arc, crest banners, status/upgrade bars and store entry removed); each tier gains a hosted BADGE (`badgeAnimation` / `badgeStill`) and each perk hosted art (`animation` / `still` / `artWidth` / `artHeight`) — all https, uploaded from the panel, nothing bundled (gifts `animationUrl` pattern, D126); `VipTier.badgeAnimation` / `badgeStill`, `VipPerk.animation` / `still` / `artWidth` / `artHeight`, and the matching `Admin*` fields in `openapi.yaml`. §10.93.5. | **Additive.** VIP 1 is seeded enabled (art URLs null until the owner uploads them); other tiers added from the panel. Clients show an unknown ledger reason as a generic change. |
 | v1.81-social (draft) | 2026-11-02 | **D245 (owner: «اجعل أسعار الصرف متاحة لجميع الدول بشكل أوتوماتيكي بحيث يقوم النظام بتحديث كل دقيقة»):** automatic exchange rates for every country (§10.87). `listAdminRechargeExchangeRates` → every country (`AdminFxRateRow`: `source` MANUAL / AUTO / USD / NONE, `stale`, `manual`, `auto` with `held`) + `status` (`AdminFxStatus`); `clearAdminRechargeExchangeRate` is «إعادة إلى التلقائي»; new `refreshAdminFxRates` (`POST /admin/fx/refresh`), `acceptAdminFxHeldRate` (`POST /admin/fx/held/{currency}/accept`) (capability `recharge.rates`); the OWNER's «مزوّد أسعار الصرف» `getAdminFxSettings` / `updateAdminFxSettings` (PATCH) / `testAdminFxSettings` / `clearAdminFxSettings` (`/admin/fx-settings`, capability `fx.settings`). `RechargePrice.local` uses the effective rate. Tables `fx_rates`, `fx_settings`; audit `fx.settings.update|clear|test`, `fx.rates.refresh`, `fx.rate.accept_held`; server config `FX_*`. No new error code (409 `ADMIN_ACTION_REFUSED` issues `fx_refresh_too_soon`, `fx_nothing_held`, `fx_key_missing`, `fx_test_required`, `fx_test_failed`, `fx_nothing_to_clear`). | Additive. |
 | v1.80-kyc (draft) | 2026-11-01 | **D227 (owner: identity verification with Didit for «كن مضيفاً مع الإدارة», «افتح وكالة» and recharge agents; the keys in the admin panel, never in env files):** tag `kyc` — `getMyKyc` (`GET /me/kyc`, `MyKyc`, `KycPurposeState`), `startKycSession` (`POST /me/kyc/sessions`, `StartKycSessionRequest`, `KycSessionStart`), `syncKycCheck` (`POST /me/kyc/checks/{checkId}/sync`, `KycCheck`), `receiveDiditWebhook` (`POST /kyc/didit/webhook`); schemas `KycPurpose`, `KycStatus`, `KycRefusal`; tag `admin-panel` — `getAdminKycSettings`, `updateAdminKycSettings` (PATCH), `testAdminKycSettings`, `clearAdminKycSettings` (capability `kyc.settings`, OWNER), `getAdminKycCheck`, `getAdminKycCheckMedia` (capability `kyc.view`, OWNER + SUPPORT); schemas `AdminKycSettings`, `KycKeyInfo`, `KycTestReport`, `KycTestWorkflow`, `KycLastTest`, `UpdateAdminKycSettingsRequest`, `TestAdminKycSettingsRequest`, `ClearAdminKycSettingsRequest`, `AdminKycCheck`, `AdminKycPerson`, `AdminKycSummary`, `AdminKycMedia`; `AdminHostApplication.kyc`, `AdminAgencyApplication.kyc`, `AdminRechargeApplication.kyc` (and `paymentMethods[].details`, returned since D191, now declared); codes `KYC_NOT_ALLOWED` (409), `KYC_UNAVAILABLE` (503); `AGENCY_OPEN_NOT_ALLOWED` issue `KYC_REQUIRED`; `ADMIN_ACTION_REFUSED` issue `kyc_required` (host approval, the recharge agent's first top-up); notification types `KYC_APPROVED`, `KYC_DECLINED`, `KYC_IN_REVIEW` (system, no target); `HostingApplicationRequest` / `OpenAgencyRequest` / `RechargeAgentApplicationRequest`: `photoUploadId` and `selfieUploadId` no longer required by the schema (required by the server while Didit is off; ignored while on); config `API_PUBLIC_URL` (optional, shown as the webhook's origin), `RATE_LIMIT_KYC_START_USER` (20/86400), `RATE_LIMIT_KYC_SYNC_USER` (60/3600); migrations `20270214090000_kyc_enums`, `20270214090100_kyc_checks` (also relaxes `recharge_agent_applications_shape`: the two picture keys both or neither); audit `kyc.settings.update\|clear\|test`, `kyc.session.start`, `kyc.check.decision`, `kyc.check.duplicate_document`, `kyc.check.view`, `kyc.check.media.view`; the data export gains `kyc_checks`; the account purge deletes the checks. §4, §7, §8, §10.54.1, §10.77. | **Additive** for clients (new operations, schemas, codes and enum values; clients ignore unknown notification types; older clients that still send the upload ids keep working). Behaviour while Didit is ON: approval / activation / opening need an approved check. While OFF nothing changes. |
@@ -6167,6 +6168,73 @@ Additive; no earlier rule changes. Reels and video (M2), stories (M3), notificat
 personalised ranking (M5), places (M6) and sharing in messages (M7) come later and extend
 these rules. *(v1.41-social, D162)* Video posts and reels (M2, without server-side transcoding)
 are §11.14.
+
+### 10.94 The VIP perks *(v1.83-social, DRAFT — D258)*
+
+The owner chose VIP 1's perks (owner: «vip1: 1,3,4,8,10,14,16,18=3,22,26=من لوحة,27=1%,30»), and a tier holds every lower
+tier's perks (owner: «كل مستوى يحمل امتيازات ما قبله»). This section says what the server and the app do for each perk
+code; §10.93 stays the tier / purchase rules. The perks land in phases (each phase moves its codes into
+`VIP_BUILT_PERKS`, so `VipPerk.available` turns true for them).
+
+#### 10.94.1 Perk codes and amounts
+
+| Code | What the member gets | `amount` |
+| ---- | -------------------- | -------- |
+| `BADGE` | The VIP badge beside the name: chat lines, the viewers list, seats, the person card, the profile header, the Me hub. The perk's art, else the tier's crest, else a «VIPn» pill in the tier's colour. | — |
+| `AVATAR_FRAME` | The animated avatar frame (the perk's SVGA, its still until it plays) around the picture on seats, the person card and the profile; an agent's or a worn bag frame keeps its own art. | — |
+| `CHAT_NAME_COLOR` | The name in chat lines in a bright tint of the tier's colour. | — |
+| `CHAT_BUBBLE` | The chat line drawn in the perk's still (stretched), else a bubble in the tier's colour; a worn CP bubble wins. | — |
+| `PROFILE_CARD` | The person card's sheet drawn over the perk's art. | — |
+| `ENTRY_BANNER`, `ENTRY_EFFECT` | On joining a live: the banner with the name, and the entry effect (the owner's car) once. | — |
+| `MIC_WAVE` | The perk's SVGA around the member's seat while they speak. | — |
+| `DAILY_BULLET` | Free public messages a day. | 1–100 |
+| `PROFILE_VISITORS` | «من زار ملفي»: who visited the member's profile. | — |
+| `DAILY_COINS` | Coins a day while the membership is active. | 1–10^9 |
+| `LEVEL_SPEEDUP` | The level points earned raised by this percent. | 1–100 |
+
+`VipPerk.amount` / `AdminVipPerk.amount` carry the number (null for other codes or not set); `AdminVipPerkInput.amount`
+on another code, or out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`. VIP 1's other six perks
+are added by migration `20270306090000_vip_perks` (`DAILY_BULLET` 3, `LEVEL_SPEEDUP` 1, `DAILY_COINS` unset until the
+owner sets it in the panel).
+
+#### 10.94.2 Inheritance
+
+A member of the tier ranked *r* holds every **enabled** perk of the tiers ranked up to *r* (`sortOrder`), by code; for a
+code several tiers list, the highest-ranked tier's perk (its art and amount) wins. A perk the app does not do yet
+(`available: false`) gives nothing. The server applies it for the perks it does (amounts); the app applies it from
+`listVipTiers` for what it draws.
+
+#### 10.94.3 `UserSummary.vip` and `PublicProfile.vip`
+
+While a person's membership is active (and the account is active), every `UserSummary` (chat messages, joins, seats,
+viewers, followers, …) and `PublicProfile` carry `vip: {tier, rank, color}`; absent otherwise. The app keeps
+`listVipTiers` for the session and draws a member's perks from it by `tier`; a tier no longer on sale shows only the
+«VIPn» pill in its colour.
+
+#### 10.94.4 Free public messages (DAILY_BULLET) and the level speed-up (LEVEL_SPEEDUP)
+
+- **DAILY_BULLET** (VIP 1: 3): a member's first *n* `sendLiveBullet` of the day (in `LIVE_RANKINGS_TIME_ZONE`) cost
+  nothing — stored with `cost` 0 (the `live_bullets` CHECK is `cost >= 0`), no wallet entry. The answer carries
+  `free` (this one was free) and `freeLeft` (free ones left today); both absent for someone without the perk. After
+  that a bullet costs its usual coins.
+- **LEVEL_SPEEDUP** (VIP 1: 1 %): the points a member's live gift earns on their own (sender) level get +*n* %
+  (rounded down; `points + points·n/100`), the ledger entry's reason `VIP level speed-up +n%`. A one-point batch
+  (taps' charm) rounds to nothing and is left as is.
+
+#### 10.94.5 Daily coins (DAILY_COINS, `claimVipDailyCoins`)
+
+`POST /me/vip/daily-coins` credits the perk's `amount` once a day (in `LIVE_RANKINGS_TIME_ZONE`), wallet reason
+`VIP_DAILY_COINS`; a second claim the same day answers `coins: 0` with `dailyCoins.claimedToday: true`, never a second credit.
+Without the perk (or an active membership) 409 `VIP_UNAVAILABLE` `{field: "perk", issue: "no_perk"}`. `getMyVip`
+carries `dailyCoins` (`amount`, `claimedToday`, `nextAt`) for a member holding the perk. Until DAILY_COINS is in `VIP_BUILT_PERKS`
+(when the app shows its claim) every claim answers `no_perk`.
+
+#### 10.94.6 Uploading the art (`uploadAdminVipArt`)
+
+`POST /admin/vip/uploads?kind=animation|still&tier=CODE` (catalog.manage, CSRF): the raw bytes; `animation` an SVGA 2.x
+(≤ 25 MB, the gifts' checks), `still` a PNG / WebP (≤ 2 MB, 16 … 4 096 px a side, any shape, its size answered). Stored
+content-addressed under `media/vip/<tier>/`; the answer's `url` goes into the tier's badge / perk fields
+(`updateAdminVipTier` is the audited step). The panel's tier form has «رفع صورة» / «رفع SVGA» per perk.
 
 ### 11.1 Media upload
 

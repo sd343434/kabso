@@ -41,7 +41,9 @@ export type WalletLedgerReason =
   /** v1.69-social (D204): the frozen coins of a recharge order credited to the buyer (reference: the order). */
   | 'RECHARGE_ORDER'
   /** v1.82-social (D252): a VIP tier bought, renewed or upgraded (reference: the `vip_purchases` row). */
-  | 'VIP_PURCHASE';
+  | 'VIP_PURCHASE'
+  /** v1.83-social (D258): a VIP's daily coins (reference: the `vip_daily_coin_claims` row). */
+  | 'VIP_DAILY_COINS';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

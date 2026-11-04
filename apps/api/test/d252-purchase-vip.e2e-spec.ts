@@ -162,6 +162,13 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       'ENTRY_BANNER',
       'CHAT_BUBBLE',
       'ENTRY_EFFECT',
+      // D258: the owner's VIP 1 list completed.
+      'CHAT_NAME_COLOR',
+      'MIC_WAVE',
+      'DAILY_BULLET',
+      'PROFILE_VISITORS',
+      'DAILY_COINS',
+      'LEVEL_SPEEDUP',
     ]);
     expect(vip1!.perks.every((pk) => pk.still === null && pk.animation === null)).toBe(true);
     await truncate();
@@ -173,7 +180,19 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     const empty = await p.send(support, 'get', '/admin/vip/tiers');
     expect(empty.status).toBe(200);
     expectContract(empty, 'listAdminVipTiers');
-    expect(empty.body).toMatchObject({ data: [], builtPerks: [] });
+    // D258: the perks the app does are listed for the panel.
+    expect(empty.body).toMatchObject({
+      data: [],
+      builtPerks: [
+        'AVATAR_FRAME',
+        'BADGE',
+        'CHAT_BUBBLE',
+        'CHAT_NAME_COLOR',
+        'DAILY_BULLET',
+        'LEVEL_SPEEDUP',
+        'PROFILE_CARD',
+      ],
+    });
     expect(empty.body.suggestedPerks).toContain('BADGE');
     const denied = await p.send(support, 'post', '/admin/vip/tiers', {
       code: 'VIP_X',
@@ -211,11 +230,12 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
       badgeAnimation: 'https://cdn.kabso.test/vip/vip1_badge.svga',
       badgeStill: 'https://cdn.kabso.test/vip/vip1_badge.png',
       perks: [
-        { code: 'BADGE', enabled: true, available: false },
+        // D258: built, so available.
+        { code: 'BADGE', enabled: true, available: true },
         {
           code: 'AVATAR_FRAME',
           enabled: true,
-          available: false,
+          available: true,
           animation: 'https://cdn.kabso.test/vip/vip1_frame.svga',
           still: 'https://cdn.kabso.test/vip/vip1_frame.png',
           artWidth: 500,
@@ -258,7 +278,8 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
     ]);
     expect(before.data[0]!.name).toBe('في آي بي 2');
     expect(before.data[0]!.perks.map((x) => [x.code, x.title, x.available])).toEqual([
-      ['BADGE', 'ميزة BADGE', false],
+      // D258: the badge is built; the entry banner not yet.
+      ['BADGE', 'ميزة BADGE', true],
       ['ENTRY_BANNER', 'ميزة ENTRY_BANNER', false],
     ]);
     expect(before.maxAheadDays).toBe(400);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -8,7 +8,13 @@ import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.j
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { UsersService } from '../users/users.service.js';
 import { buyVipBody } from './vip.schemas.js';
-import { VipService, type MyVipDto, type VipPurchaseResultDto, type VipTierListDto } from './vip.service.js';
+import {
+  VipService,
+  type MyVipDto,
+  type VipDailyCoinsClaimDto,
+  type VipPurchaseResultDto,
+  type VipTierListDto,
+} from './vip.service.js';
 
 const idempotencyKeySchema = z.uuid();
 
@@ -38,6 +44,13 @@ export class VipController {
   @Get('me/vip')
   async mine(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<MyVipDto> {
     return this.vip.mine(auth.userId, await this.language(req, auth));
+  }
+
+  /** v1.83-social (D258, §10.94.5): today's VIP coins (once a day; a second call credits nothing). */
+  @Post('me/vip/daily-coins')
+  @HttpCode(200)
+  claimDailyCoins(@CurrentAuth() auth: AuthContext): Promise<VipDailyCoinsClaimDto> {
+    return this.vip.claimDailyCoins(auth.userId);
   }
 
   /** Buy, renew or upgrade. 201 new, 200 a retry with the same `Idempotency-Key`. */

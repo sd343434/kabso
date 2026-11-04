@@ -9793,6 +9793,26 @@ paths:
               schema: { $ref: '#/components/schemas/MyVip' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/vip/daily-coins:
+    post:
+      tags: [vip]
+      operationId: claimVipDailyCoins
+      summary: "Claims today's VIP coins (v1.83-social, D258)"
+      description: |
+        CONVENTIONS §10.94.5. The member's DAILY_COINS (with inheritance) credited once a day (the day in
+        LIVE_RANKINGS_TIME_ZONE; wallet ledger `VIP_DAILY_COINS`, reference the claim). A second call the same day
+        credits nothing (`coins` 0, 200). 409 `VIP_UNAVAILABLE` (`{field: perk, issue: no_perk}`) without an active
+        membership holding DAILY_COINS with an amount. Per-user default rate limit.
+      responses:
+        '200':
+          description: Credited, or already claimed today.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VipDailyCoinsClaim' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/me/vip/purchases:
     post:
       tags: [vip]
@@ -13787,6 +13807,64 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/vip/uploads:
+    post:
+      tags:
+      - admin-panel
+      operationId: uploadAdminVipArt
+      summary: Checks and stores one file of a VIP tier's badge or perk art, the raw bytes as the body (catalog.manage)
+      description: |
+        (v1.83-social, D258, CONVENTIONS §10.94.6) The body is the file itself (`application/octet-stream`, at most
+        26 MB). `animation`: an SVGA 2.x (at most 25 MB, the gifts' checks; a 1.x zip refused); `still`: a PNG / WebP
+        (at most 2 MB, 16 … 4 096 px a side, any shape — an entry banner is wide, a profile card tall), its size
+        answered. Stored at a content-addressed, immutable key under `media/vip/<tier>/`; the answer's `url` goes into
+        the tier's badge / perk fields (`updateAdminVipTier`, the audited step). 409 `ADMIN_ACTION_REFUSED` with the
+        reason for a refused file (nothing stored); 503 without object storage settings.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminCsrf'
+      - name: kind
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [animation, still]
+      - name: tier
+        in: query
+        required: true
+        description: The tier's code (the files' folder).
+        schema:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{0,39}$'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminVipUpload'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '413':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
   /api/v1/admin/vip/tier-order:
     put:
       tags: [admin-panel]
@@ -17435,9 +17513,20 @@ components:
               decidedAt: { type: [string, 'null'], format: date-time }
               rejectReason: { type: [string, 'null'] }
     # ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.93.4): «VIP» in the panel --------------------------------------------
+    AdminVipUpload:
+      type: object
+      required: [kind, url, bytes, contentType, width, height]
+      description: "v1.83-social (D258, §10.94.6): a stored VIP art file."
+      properties:
+        kind: { type: string, enum: [animation, still] }
+        url: { type: string, format: uri, description: "The file's public URL (https), for the tier's badge / perk fields." }
+        bytes: { type: integer, minimum: 1 }
+        contentType: { type: string, enum: [application/octet-stream, image/png, image/webp] }
+        width: { type: [integer, 'null'], minimum: 1, description: "A still's width in px; null for an animation." }
+        height: { type: [integer, 'null'], minimum: 1 }
     AdminVipPerk:
       type: object
-      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available, animation, still, artWidth, artHeight]
+      required: [code, titleAr, titleEn, descriptionAr, descriptionEn, enabled, available, animation, still, artWidth, artHeight, amount]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         titleAr: { type: string, maxLength: 40 }
@@ -17450,6 +17539,7 @@ components:
         still: { $ref: '#/components/schemas/VipArtRef' }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
     AdminVipPerkInput:
       type: object
       additionalProperties: false
@@ -17465,6 +17555,7 @@ components:
         still: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100), DAILY_COINS (1–10^9) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`." }
     AdminVipTier:
       type: object
       required: [id, code, nameAr, nameEn, sortOrder, color, badgeAnimation, badgeStill, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
@@ -22623,6 +22714,17 @@ components:
         rechargeBadge:
           $ref: '#/components/schemas/RechargeBadge'
           description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows (`until` in the future); never for a recharge agent. The app shows it next to the name in live rooms like the level badge and hides it itself once `until` passes."
+        vip:
+          $ref: '#/components/schemas/UserVip'
+          description: "v1.83-social (D258, §10.94) — present only while the user holds an active VIP membership and the account is active; absent otherwise."
+    UserVip:
+      type: object
+      required: [tier, rank, color]
+      description: "v1.83-social (D258, §10.94): a person's active VIP. The app takes the perks and their art from `listVipTiers` (by `tier`): a tier holds every enabled perk of the tiers ordered before it, the highest tier's perk winning for a code."
+      properties:
+        tier: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "`VipTier.code`." }
+        rank: { type: integer, minimum: 1, description: "The tier's place in the panel's order (higher = higher tier)." }
+        color: { type: string, pattern: '^#[0-9A-F]{6}$', description: "The tier's colour (the name colour of CHAT_NAME_COLOR)." }
     PublicProfile:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
@@ -22712,6 +22814,9 @@ components:
         rechargeBadge:
           $ref: '#/components/schemas/RechargeBadge'
           description: "v1.56-social (D187, §10.50) — present only while the user's daily recharge badge shows; absent otherwise (never for a recharge agent). Shown beside the name on the profile like the level badge."
+        vip:
+          $ref: '#/components/schemas/UserVip'
+          description: "v1.83-social (D258, §10.94) — present only while the user holds an active VIP: the profile header and the person card show the badge, the animated avatar frame and the VIP card."
         coverUrl:
           type: [string, 'null']
           format: uri
@@ -24472,6 +24577,13 @@ components:
           format: int64
           minimum: 0
           description: The caller's balance after the bullet (for a retry, the current balance).
+        free:
+          type: boolean
+          description: "v1.83-social (D258, §10.94.4) — this bullet was one of the sender's free VIP public messages of the day (nothing charged). Present only for a member holding DAILY_BULLET."
+        freeLeft:
+          type: integer
+          minimum: 0
+          description: "v1.83-social (D258) — the free VIP public messages left today after this one. Present with `free`."
     # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
     LevelCategoryCode:
       type: string
@@ -27347,6 +27459,7 @@ components:
         - CARD_TOPUP_RESTORE
         - RECHARGE_ORDER
         - VIP_PURCHASE
+        - VIP_DAILY_COINS
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -27639,7 +27752,7 @@ components:
       description: "D252b: a hosted https URL (an SVGA animation or a still), uploaded from the admin panel. Null = a token placeholder. Nothing is bundled in the app."
     VipPerk:
       type: object
-      required: [code, title, description, available, animation, still, artWidth, artHeight]
+      required: [code, title, description, available, animation, still, artWidth, artHeight, amount]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         title: { type: string, maxLength: 40 }
@@ -27649,6 +27762,7 @@ components:
         still: { $ref: '#/components/schemas/VipArtRef' }
         artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
         artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
     VipTier:
       type: object
       required: [id, code, name, level, color, badgeAnimation, badgeStill, priceCoins, durationDays, perks]
@@ -27699,6 +27813,25 @@ components:
           oneOf:
             - $ref: '#/components/schemas/VipMembership'
             - type: 'null'
+        dailyCoins:
+          $ref: '#/components/schemas/VipDailyCoins'
+          description: "v1.83-social (D258, §10.94.5) — present while the active membership holds DAILY_COINS with an amount."
+    VipDailyCoins:
+      type: object
+      required: [amount, claimedToday, nextAt]
+      description: "v1.83-social (D258, §10.94.5): a member's daily coins today (the day in LIVE_RANKINGS_TIME_ZONE)."
+      properties:
+        amount: { type: integer, minimum: 1, description: "Coins a day (DAILY_COINS, with inheritance)." }
+        claimedToday: { type: boolean }
+        nextAt: { type: string, format: date-time, description: "The next day's start: when the next claim opens." }
+    VipDailyCoinsClaim:
+      type: object
+      required: [coins, balance, dailyCoins]
+      description: "v1.83-social (D258): the answer of `claimVipDailyCoins`."
+      properties:
+        coins: { type: integer, minimum: 0, description: "Coins credited by this call (0 when today's were already claimed)." }
+        balance: { type: integer, format: int64, minimum: 0, description: "The caller's balance now." }
+        dailyCoins: { $ref: '#/components/schemas/VipDailyCoins' }
     BuyVipRequest:
       type: object
       additionalProperties: false

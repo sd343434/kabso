@@ -50,6 +50,8 @@ import {
   type UserSummaryDto,
 } from './live-rooms.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
+import { vipPerkAmountIn } from '../vip/vip-perks.js';
+import { vipSpedUp } from '../vip/vip-rules.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { quipSlot } from '../gifts/quips.js';
 import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
@@ -1215,11 +1217,18 @@ export class LiveGiftsService {
 
     let hostLevelChanged = false;
     const levelUps = new Map<string, LevelUp>();
+    // v1.83-social (D258, §10.94.5): a VIP's level speed-up (LEVEL_SPEEDUP %), read once per person in this send.
+    const speedups = new Map<string, number | null>();
+    for (const id of new Set(credits.map((c) => c.userId))) {
+      speedups.set(id, await vipPerkAmountIn(tx, id, 'LEVEL_SPEEDUP', this.clock.now()));
+    }
     for (const credit of credits) {
       const cat = category(credit.category);
       if (!cat || !isAvailable(cat)) continue;
-      const points = pointsFor(credit.value, cat.version.multiplier);
-      if (points === 0n) continue;
+      const base = pointsFor(credit.value, cat.version.multiplier);
+      if (base === 0n) continue;
+      const speedup = speedups.get(credit.userId) ?? null;
+      const points = vipSpedUp(base, speedup);
       const result = await this.levels.apply(tx, cat, {
         userId: credit.userId,
         entryType: 'EARN',
@@ -1228,6 +1237,8 @@ export class LiveGiftsService {
         sourceTransactionId: credit.source,
         sourceValue: credit.value,
         multiplierUsed: cat.version.multiplier,
+        // D258: the ledger says why the points are higher.
+        ...(points !== base ? { reason: `VIP level speed-up +${String(speedup)}%` } : {}),
       });
       if (
         result.kind === 'applied' &&

@@ -7,7 +7,10 @@ import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { programWindowsIn } from '../programs/programs-time.js';
+import { vipPerkAmountIn } from '../vip/vip-perks.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import { awardMedalsIn } from '../medals/medal-awards.js';
@@ -35,6 +38,12 @@ export interface LiveBulletDto {
 export interface LiveBulletResultDto {
   bullet: LiveBulletDto;
   coins: number;
+  /**
+   * v1.83-social (D258, §10.94.4): this bullet was one of the sender's free VIP public messages of the day (nothing
+   * charged), and how many free ones are left today (absent for someone without the perk).
+   */
+  free?: boolean;
+  freeLeft?: number;
 }
 
 /** What a bullet message costs (owner D104). */
@@ -86,7 +95,23 @@ export class LiveBulletsService {
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     private readonly blockedWords: LiveBlockedWordsService,
     private readonly background: BackgroundTasks,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /**
+   * v1.83-social (D258, §10.94.4): the caller's free VIP public messages a day (DAILY_BULLET, with inheritance) and how
+   * many they used today (their bullets of cost 0 since the day's start in `LIVE_RANKINGS_TIME_ZONE`); null without
+   * the perk.
+   */
+  private async freeBullets(userId: string, now: Date): Promise<{ limit: number; used: number } | null> {
+    const limit = await vipPerkAmountIn(this.prisma, userId, 'DAILY_BULLET', now);
+    if (limit === null) return null;
+    const { day } = await programWindowsIn(this.prisma, now, this.config.live.rankingsTimeZone);
+    const used = await this.prisma.liveBullet.count({
+      where: { userId, cost: 0, createdAt: { gte: day.start, lt: day.end } },
+    });
+    return { limit, used };
+  }
 
   /** In the room now: a row in the room's media session (CP-010 `live_room_viewers`). */
   private async inMediaSession(roomId: string, userId: string): Promise<boolean> {
@@ -142,6 +167,9 @@ export class LiveBulletsService {
 
     // CP-016 B: the origin host's blocked words are masked before the bullet is stored or sent.
     const text = maskBlockedWords(parsed.data.text, await this.blockedWords.wordsOf(row.host_user_id));
+    // v1.83-social (D258): a VIP's free public messages of the day go first (nothing charged).
+    const allowance = await this.freeBullets(callerId, now);
+    const free = allowance !== null && allowance.used < allowance.limit;
     let created: { bullet: BulletRow; coins: bigint };
     try {
       created = await this.prisma.$transaction(async (tx) => {
@@ -151,18 +179,14 @@ export class LiveBulletsService {
             clientId,
             roomId: row.id,
             text,
-            cost: LIVE_BULLET_COST_COINS,
+            cost: free ? 0 : LIVE_BULLET_COST_COINS,
             createdAt: now,
           },
           include: BULLET_INCLUDE,
         });
-        const charged = await this.wallet.debitIn(
-          tx,
-          callerId,
-          LIVE_BULLET_COST_COINS,
-          'BULLET_MESSAGE',
-          bullet.id,
-        );
+        const charged = free
+          ? { coins: BigInt((await this.wallet.mine(callerId)).coins) }
+          : await this.wallet.debitIn(tx, callerId, LIVE_BULLET_COST_COINS, 'BULLET_MESSAGE', bullet.id);
         if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
         // v1.21-live (CP-018, §10.21): the first bullet message earns a medal.
         await awardMedalsIn(tx, callerId, ['BULLET_FIRST'], { at: now });
@@ -180,7 +204,16 @@ export class LiveBulletsService {
     this.background.run('live bullet fan-out', async () => {
       await this.fanOut({ type: 'bullet', bullet });
     });
-    return { created: true, result: { bullet, coins: Number(created.coins) } };
+    return {
+      created: true,
+      result: {
+        bullet,
+        coins: Number(created.coins),
+        ...(allowance
+          ? { free, freeLeft: Math.max(0, allowance.limit - allowance.used - (free ? 1 : 0)) }
+          : {}),
+      },
+    };
   }
 
   private byClientId(userId: string, clientId: string): Promise<BulletRow | null> {

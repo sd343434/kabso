@@ -74,6 +74,8 @@ export function userSummary(
     rechargeBadge?: { tier: number; until: Date } | null;
     /** v1.58-social (D189); absent in older selects. */
     ownedAgency?: { hostCode: string | null; suspendedAt: Date | null; status?: 'OPEN' | 'CLOSED' } | null;
+    /** v1.83-social (D258); absent in older selects. */
+    vipMembership?: { expiresAt: Date; tier: { code: string; sortOrder: number; color: string } } | null;
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -83,6 +85,7 @@ export function userSummary(
   const frame = wornAvatarFrameOf(user.bagItems, now);
   // A recharge agent (from approval on) never shows the daily recharge badge.
   const badge = activeRechargeBadge(user.rechargeBadge, now, (user.rechargeAgent ?? null) !== null);
+  const vip = activeVipOf(user, now);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -98,7 +101,23 @@ export function userSummary(
     ...(frame ? { avatarFrame: frame } : {}),
     // v1.56-social (D187, §10.50): only while the daily recharge badge is showing.
     ...(badge ? { rechargeBadge: badge } : {}),
+    // v1.83-social (D258, §10.94): only while the VIP membership is active (and the account is).
+    ...(vip ? { vip } : {}),
   };
+}
+
+/** v1.83-social (D258, §10.94): the active VIP to show, or null. */
+export function activeVipOf(
+  user: {
+    status?: string;
+    vipMembership?: { expiresAt: Date; tier: { code: string; sortOrder: number; color: string } } | null;
+  },
+  now: Date,
+): { tier: string; rank: number; color: string } | null {
+  const m = user.vipMembership;
+  if (!m || m.expiresAt.getTime() <= now.getTime()) return null;
+  if (user.status !== undefined && user.status !== 'ACTIVE') return null;
+  return { tier: m.tier.code, rank: m.tier.sortOrder, color: m.tier.color };
 }
 
 /**
@@ -158,6 +177,10 @@ export const USER_SUMMARY_SELECT = {
   },
   // v1.56-social (D187): the daily recharge badge (`UserSummary.rechargeBadge`).
   rechargeBadge: { select: { tier: true, until: true } },
+  // v1.83-social (D258, §10.94): the VIP membership (`UserSummary.vip` while active).
+  vipMembership: {
+    select: { expiresAt: true, tier: { select: { code: true, sortOrder: true, color: true } } },
+  },
 } as const;
 
 /**

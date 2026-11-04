@@ -286,8 +286,9 @@ model User {
   balanceAdjustmentsBy      AdminBalanceAdjustment[] @relation("AdjustedBy")
 
   // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
-  vipMembership VipMembership?
-  vipPurchases  VipPurchase[]
+  vipMembership      VipMembership?
+  vipPurchases       VipPurchase[]
+  vipDailyCoinClaims VipDailyCoinClaim[]
 
   @@index([createdAt], map: "users_created_at_idx")
   @@map("users")
@@ -640,80 +641,80 @@ model LiveRoomAudience {
 }
 
 model LiveRoom {
-  id              String             @id @default(uuid(7)) @db.Uuid
-  hostUserId      String             @map("host_user_id") @db.Uuid
+  id                    String             @id @default(uuid(7)) @db.Uuid
+  hostUserId            String             @map("host_user_id") @db.Uuid
   /// 1–80 graphemes / ≤ 160 code points, validated in the application (CONVENTIONS §10.3).
-  title           String             @db.VarChar(160)
-  categoryId      String?            @map("category_id") @db.Uuid
-  status          LiveRoomStatus     @default(LIVE)
-  mode            LiveRoomMode       @default(SOLO)
-  startedAt       DateTime           @default(now()) @map("started_at") @db.Timestamptz(3)
-  lastHeartbeatAt DateTime           @default(now()) @map("last_heartbeat_at") @db.Timestamptz(3)
-  endedAt         DateTime?          @map("ended_at") @db.Timestamptz(3)
-  endReason       LiveRoomEndReason? @map("end_reason")
+  title                 String             @db.VarChar(160)
+  categoryId            String?            @map("category_id") @db.Uuid
+  status                LiveRoomStatus     @default(LIVE)
+  mode                  LiveRoomMode       @default(SOLO)
+  startedAt             DateTime           @default(now()) @map("started_at") @db.Timestamptz(3)
+  lastHeartbeatAt       DateTime           @default(now()) @map("last_heartbeat_at") @db.Timestamptz(3)
+  endedAt               DateTime?          @map("ended_at") @db.Timestamptz(3)
+  endReason             LiveRoomEndReason? @map("end_reason")
   /// CP-010: connected viewers other than the host, guests included (kept from `live_room_viewers`).
-  viewerCount     Int                @default(0) @map("viewer_count")
+  viewerCount           Int                @default(0) @map("viewer_count")
   /// v1.27.6-live (D140, CONVENTIONS §10.31): the most viewers at once (kept with `viewer_count`);
   /// NULL for lives started before D140, which have no audience record.
-  peakViewerCount Int?               @default(0) @map("peak_viewer_count")
+  peakViewerCount       Int?               @default(0) @map("peak_viewer_count")
   /// CP-010: people without an account may watch (owner D93: allowed by default).
-  allowGuests     Boolean            @default(true) @map("allow_guests")
+  allowGuests           Boolean            @default(true) @map("allow_guests")
   /// CP-011: tiles (host included) of a MULTI (4, 6, 9, 12) or AUDIO (5, 10, 15, 20, 25, D103) room; null for
   /// SOLO. CHECK `live_rooms_seat_count_mode` (migration 20261027090000_live_seats).
-  seatCount       Int?               @map("seat_count") @db.SmallInt
+  seatCount             Int?               @map("seat_count") @db.SmallInt
   /// CP-011: a slug of LiveConfig.themes (CHECK `live_rooms_theme_format`).
-  theme           String             @default("classic") @db.VarChar(32)
+  theme                 String             @default("classic") @db.VarChar(32)
   /// v1.27.3-live (D136, CONVENTIONS §10.29): the host's wish list, up to 4 distinct gift codes in
   /// display order (CHECK `live_rooms_wish_gifts_max`). A new live copies the host's last list.
-  wishGifts       String[]           @default([]) @map("wish_gifts") @db.VarChar(40)
+  wishGifts             String[]           @default([]) @map("wish_gifts") @db.VarChar(40)
   /// CP-011: increases on every change of the room's seats, requests, invitations or moderators.
-  seatsVersion    Int                @default(0) @map("seats_version")
+  seatsVersion          Int                @default(0) @map("seats_version")
   /// CP-012: the room's total score (tap + support points), kept equal to the room's
   /// `live_room_scores` row in the same transaction; `popular` orders by it (CONVENTIONS §10.4).
-  score           BigInt             @default(0)
+  score                 BigInt             @default(0)
   /// CP-013: false when the host turned the room chat off (a new live starts with it on).
-  chatEnabled     Boolean            @default(true) @map("chat_enabled")
+  chatEnabled           Boolean            @default(true) @map("chat_enabled")
   /// CP-014: the live's topic (1–100 code points, CHECK `live_rooms_topic_length`); null = none.
-  topic           String?            @db.VarChar(100)
+  topic                 String?            @db.VarChar(100)
   /// CP-014: increases on every change of the title, category or topic (media metadata
   /// `roomInfoVersion`, CONVENTIONS §10.12).
-  infoVersion     Int                @default(0) @map("info_version")
+  infoVersion           Int                @default(0) @map("info_version")
   /// Always null in v1.3 (no upload).
-  coverUrl        String?            @map("cover_url") @db.VarChar(2048)
+  coverUrl              String?            @map("cover_url") @db.VarChar(2048)
   /// v1.32-live (D154, §10.33): when the room's quip queue is free again (null: never used). Written
   /// under the room row's lock by each quip and soundboard sound.
-  quipBusyUntil   DateTime?          @map("quip_busy_until") @db.Timestamptz(3)
+  quipBusyUntil         DateTime?          @map("quip_busy_until") @db.Timestamptz(3)
   /// v1.42-live (D170, §10.44): since when the host of a video (SOLO / MULTI) live has been away
   /// (the app in the background, the camera off); null while present and always null for AUDIO.
-  hostAwaySince   DateTime?          @map("host_away_since") @db.Timestamptz(3)
+  hostAwaySince         DateTime?          @map("host_away_since") @db.Timestamptz(3)
   /// v1.47-live (D212, §10.69): a PODCAST's episode number, per host (1, 2, …); null for other
   /// modes (CHECK `live_rooms_podcast_fields`).
-  episodeNumber   Int?               @map("episode_number")
+  episodeNumber         Int?               @map("episode_number")
   /// v1.47-live (D212): a PODCAST's topic chip (a slug of PODCAST_TOPICS); null for other modes.
-  podcastTopic    String?            @map("podcast_topic") @db.VarChar(32)
+  podcastTopic          String?            @map("podcast_topic") @db.VarChar(32)
   /// v1.47-live (D212): listeners may raise a hand (PODCAST; true for other modes, unused).
-  questionsOpen   Boolean            @default(true) @map("questions_open")
+  questionsOpen         Boolean            @default(true) @map("questions_open")
   /// v1.47-live (D212): how long an accepted hand speaks before going back to the listeners
   /// (60, 120, 180 or 300 s); null = no limit. PODCAST only.
-  questionSeconds Int?               @map("question_seconds") @db.SmallInt
+  questionSeconds       Int?               @map("question_seconds") @db.SmallInt
   /// v1.56-live (D213, §10.86): a STREAMER's screen orientation (`PORTRAIT` / `LANDSCAPE`); null for
   /// other modes (CHECK `live_rooms_streamer_fields`).
-  streamerOrientation   String?   @map("streamer_orientation") @db.VarChar(16)
+  streamerOrientation   String?            @map("streamer_orientation") @db.VarChar(16)
   /// v1.56-live (D213): whether the host's camera bubble shows (STREAMER only; null otherwise).
-  streamerCameraVisible Boolean?  @map("streamer_camera_visible")
+  streamerCameraVisible Boolean?           @map("streamer_camera_visible")
   /// v1.56-live (D213): the camera bubble's corner of the screen picture (`TOP_LEFT`, `TOP_RIGHT`,
   /// `BOTTOM_LEFT`, `BOTTOM_RIGHT`; physical, not mirrored for RTL); STREAMER only.
-  streamerCameraCorner  String?   @map("streamer_camera_corner") @db.VarChar(16)
+  streamerCameraCorner  String?            @map("streamer_camera_corner") @db.VarChar(16)
   /// v1.57-live (D247, §10.88): the main picture — `SCREEN` (the screen track, the camera as the bubble) or
   /// `CAMERA` (the camera track alone, e.g. a browser studio's OBS Virtual Camera); STREAMER only.
-  streamerMain          String?   @map("streamer_main") @db.VarChar(16)
+  streamerMain          String?            @map("streamer_main") @db.VarChar(16)
   /// v1.56-live (D213): increases on every change of the layout (media metadata `streamerVersion`).
-  streamerVersion       Int       @default(0) @map("streamer_version")
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  streamerVersion       Int                @default(0) @map("streamer_version")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  host             User                  @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
-  category         LiveCategory?         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  host             User                   @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category         LiveCategory?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers          LiveRoomViewer[]
   audience         LiveRoomAudience[]
   reports          Report[]
@@ -738,10 +739,10 @@ model LiveRoom {
   watch            LiveWatch?
   watchSuggestions LiveWatchSuggestion[]
   /// v1.43-live (D195): PK battles this room took part in.
-  pkMatchesAsA     PkMatch[]             @relation("PkMatchRoomA")
-  pkMatchesAsB     PkMatch[]             @relation("PkMatchRoomB")
-  pkInvitesSent    PkInvite[]            @relation("PkInviteFromRoom")
-  pkInvitesGot     PkInvite[]            @relation("PkInviteToRoom")
+  pkMatchesAsA     PkMatch[]              @relation("PkMatchRoomA")
+  pkMatchesAsB     PkMatch[]              @relation("PkMatchRoomB")
+  pkInvitesSent    PkInvite[]             @relation("PkInviteFromRoom")
+  pkInvitesGot     PkInvite[]             @relation("PkInviteToRoom")
   pkQueueEntries   PkQueueEntry[]
   /// v1.45-live (D201): second-camera pairings of this live.
   secondCameras    LiveSecondCamera[]
@@ -1039,6 +1040,8 @@ enum WalletLedgerReason {
   ADMIN_ADJUSTMENT
   /// v1.82-social (D252): a VIP tier bought, renewed or upgraded with coins (reference: the `vip_purchases` row).
   VIP_PURCHASE
+  /// v1.83-social (D258): a VIP's daily coins (reference: the `vip_daily_coin_claims` row).
+  VIP_DAILY_COINS
 
   @@map("wallet_ledger_reason")
 }
@@ -1078,7 +1081,7 @@ model WalletLedgerEntry {
 
 /// CP-017 (D104): a bullet message (رسالة عامة), sent from one live to every live. `client_id`
 /// is unique per sender (an idempotent retry, never charged twice); `cost` is what it cost.
-/// CHECKs `live_bullets_text_length`, `live_bullets_cost_positive`.
+/// CHECKs `live_bullets_text_length`, `live_bullets_cost_non_negative`.
 model LiveBullet {
   id        String   @id @default(uuid(7)) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
@@ -5195,67 +5198,67 @@ enum PkInviteStatus {
 /// rankings, charm and levels always use the gift's real value. At most one BATTLE / RESULT match per
 /// room (partial unique indexes on each room column, plus the PK room advisory locks).
 model PkMatch {
-  id            String        @id @default(uuid(7)) @db.Uuid
-  source        PkMatchSource
-  status        PkMatchStatus @default(BATTLE)
-  roomAId       String        @map("room_a_id") @db.Uuid
-  hostAId       String        @map("host_a_id") @db.Uuid
-  roomBId       String        @map("room_b_id") @db.Uuid
-  hostBId       String        @map("host_b_id") @db.Uuid
-  scoreA        BigInt        @default(0) @map("score_a")
-  scoreB        BigInt        @default(0) @map("score_b")
-  startedAt     DateTime      @map("started_at") @db.Timestamptz(3)
-  battleEndsAt  DateTime      @map("battle_ends_at") @db.Timestamptz(3)
+  id               String        @id @default(uuid(7)) @db.Uuid
+  source           PkMatchSource
+  status           PkMatchStatus @default(BATTLE)
+  roomAId          String        @map("room_a_id") @db.Uuid
+  hostAId          String        @map("host_a_id") @db.Uuid
+  roomBId          String        @map("room_b_id") @db.Uuid
+  hostBId          String        @map("host_b_id") @db.Uuid
+  scoreA           BigInt        @default(0) @map("score_a")
+  scoreB           BigInt        @default(0) @map("score_b")
+  startedAt        DateTime      @map("started_at") @db.Timestamptz(3)
+  battleEndsAt     DateTime      @map("battle_ends_at") @db.Timestamptz(3)
   /// When the battle actually ended (time, forfeit, disconnect, admin); null during BATTLE.
-  endedAt       DateTime?     @map("ended_at") @db.Timestamptz(3)
-  resultEndsAt  DateTime?     @map("result_ends_at") @db.Timestamptz(3)
-  closedAt      DateTime?     @map("closed_at") @db.Timestamptz(3)
-  endReason     PkEndReason?  @map("end_reason")
+  endedAt          DateTime?     @map("ended_at") @db.Timestamptz(3)
+  resultEndsAt     DateTime?     @map("result_ends_at") @db.Timestamptz(3)
+  closedAt         DateTime?     @map("closed_at") @db.Timestamptz(3)
+  endReason        PkEndReason?  @map("end_reason")
   /// The winning side; null for a draw, a void (ADMIN) match or while the battle runs.
-  winner        PkSide?
+  winner           PkSide?
   /// The side that forfeited, disconnected or stayed away (FORFEIT / DISCONNECT / AWAY).
-  loserCause    PkSide?       @map("loser_cause")
+  loserCause       PkSide?       @map("loser_cause")
   /// D170 × D195: since when side A's / B's host has been out of the media session (webhook); null
   /// while connected.
-  aLeftAt       DateTime?     @map("a_left_at") @db.Timestamptz(3)
-  bLeftAt       DateTime?     @map("b_left_at") @db.Timestamptz(3)
+  aLeftAt          DateTime?     @map("a_left_at") @db.Timestamptz(3)
+  bLeftAt          DateTime?     @map("b_left_at") @db.Timestamptz(3)
   /// The host of side A / B turned the opponent's sound off in their room.
-  aMutesB       Boolean       @default(false) @map("a_mutes_b")
-  bMutesA       Boolean       @default(false) @map("b_mutes_a")
+  aMutesB          Boolean       @default(false) @map("a_mutes_b")
+  bMutesA          Boolean       @default(false) @map("b_mutes_a")
   /// Increases on every change (data messages carry it; apps keep the highest).
-  seq           Int           @default(0)
+  seq              Int           @default(0)
   /// Set by `pk-admin end` (the CLI cannot reach the media server): the API's PK tick tells both rooms.
-  pendingNotice Boolean       @default(false) @map("pending_notice")
-  adminReason   String?       @map("admin_reason") @db.VarChar(200)
+  pendingNotice    Boolean       @default(false) @map("pending_notice")
+  adminReason      String?       @map("admin_reason") @db.VarChar(200)
   /// The top supporters frozen when the battle ended: `[{userId, points}]`, at most 3 per side.
-  topA          Json?         @map("top_a")
-  topB          Json?         @map("top_b")
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  topA             Json?         @map("top_a")
+  topB             Json?         @map("top_b")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   /// v1.44-live (D199): the settings used (one host's; `settingsFrom` names whose when they differed).
-  mode          PkMode        @default(SINGLE)
-  roundSeconds  Int           @default(300) @map("round_seconds")
+  mode             PkMode        @default(SINGLE)
+  roundSeconds     Int           @default(300) @map("round_seconds")
   /// The round running (or the last one); best of three only goes past 1.
-  round         Int           @default(1) @db.SmallInt
-  roundsA       Int           @default(0) @map("rounds_a") @db.SmallInt
-  roundsB       Int           @default(0) @map("rounds_b") @db.SmallInt
+  round            Int           @default(1) @db.SmallInt
+  roundsA          Int           @default(0) @map("rounds_a") @db.SmallInt
+  roundsB          Int           @default(0) @map("rounds_b") @db.SmallInt
   /// PK points of the rounds already finished (`score_*` is the running round's).
-  totalA        BigInt        @default(0) @map("total_a")
-  totalB        BigInt        @default(0) @map("total_b")
-  settingsFrom  PkSide?       @map("settings_from")
+  totalA           BigInt        @default(0) @map("total_a")
+  totalB           BigInt        @default(0) @map("total_b")
+  settingsFrom     PkSide?       @map("settings_from")
   /// When the hosts were connected (auto-start off: `startedAt` is then when the battle started).
-  connectedAt   DateTime?     @map("connected_at") @db.Timestamptz(3)
+  connectedAt      DateTime?     @map("connected_at") @db.Timestamptz(3)
   /// Whether the finished match counts in the records (combined PK points ≥ PK_EFFECTIVE_MIN_POINTS).
-  effective     Boolean?
+  effective        Boolean?
   /// v1.50-live (D229): «PK أحكام» (DARES) or the normal PK.
-  type          PkType        @default(NORMAL)
+  type             PkType        @default(NORMAL)
   /// v1.55-live (D242) «جولة أخرى»: the battle this rematch follows, the first of its chain (the chain's PK media
   /// watchers stay valid) and how many rematches came before it (PK_REMATCH_MAX).
-  rematchOf        String?   @map("rematch_of") @db.Uuid
-  rematchRootId    String?   @map("rematch_root_id") @db.Uuid
-  rematchCount     Int       @default(0) @map("rematch_count")
+  rematchOf        String?       @map("rematch_of") @db.Uuid
+  rematchRootId    String?       @map("rematch_root_id") @db.Uuid
+  rematchCount     Int           @default(0) @map("rematch_count")
   /// v1.55-live (D242): an open offer on a RESULT match — the side that asked and when it lapses.
-  rematchBy        PkSide?   @map("rematch_by")
-  rematchExpiresAt DateTime? @map("rematch_expires_at") @db.Timestamptz(3)
+  rematchBy        PkSide?       @map("rematch_by")
+  rematchExpiresAt DateTime?     @map("rematch_expires_at") @db.Timestamptz(3)
 
   previous    PkMatch?       @relation("PkRematch", fields: [rematchOf], references: [id], onDelete: SetNull)
   rematches   PkMatch[]      @relation("PkRematch")
@@ -5694,9 +5697,9 @@ model AccountRestriction {
   liftReason  String?                @map("lift_reason") @db.VarChar(500)
   createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  user          User           @relation("RestrictedUser", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy     User?          @relation("RestrictionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  liftedBy      User?          @relation("RestrictionLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
+  user          User                   @relation("RestrictedUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy     User?                  @relation("RestrictionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  liftedBy      User?                  @relation("RestrictionLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
   notifications Notification[]
   /// v1.60-live (D250): the live moderation that set it.
   moderations   LiveModerationAction[]
@@ -5973,29 +5976,29 @@ enum KycStatus {
 /// (AdminSecretBox, HKDF info `kyc-settings/v1`, per-column AAD) and write-only: only their last 4 characters, who
 /// and when. The workflow ids are not secrets (Didit console ids).
 model KycSettings {
-  id                     Int       @id @default(1) @db.SmallInt
-  enabled                Boolean   @default(false)
-  apiKeyEnc              String?   @map("api_key_enc")
-  apiKeyLast4            String?   @map("api_key_last4") @db.VarChar(4)
-  apiKeySetById          String?   @map("api_key_set_by_id") @db.Uuid
-  apiKeySetAt            DateTime? @map("api_key_set_at") @db.Timestamptz(3)
-  webhookSecretEnc       String?   @map("webhook_secret_enc")
-  webhookSecretLast4     String?   @map("webhook_secret_last4") @db.VarChar(4)
-  webhookSecretSetById   String?   @map("webhook_secret_set_by_id") @db.Uuid
-  webhookSecretSetAt     DateTime? @map("webhook_secret_set_at") @db.Timestamptz(3)
+  id                   Int       @id @default(1) @db.SmallInt
+  enabled              Boolean   @default(false)
+  apiKeyEnc            String?   @map("api_key_enc")
+  apiKeyLast4          String?   @map("api_key_last4") @db.VarChar(4)
+  apiKeySetById        String?   @map("api_key_set_by_id") @db.Uuid
+  apiKeySetAt          DateTime? @map("api_key_set_at") @db.Timestamptz(3)
+  webhookSecretEnc     String?   @map("webhook_secret_enc")
+  webhookSecretLast4   String?   @map("webhook_secret_last4") @db.VarChar(4)
+  webhookSecretSetById String?   @map("webhook_secret_set_by_id") @db.Uuid
+  webhookSecretSetAt   DateTime? @map("webhook_secret_set_at") @db.Timestamptz(3)
   /// The default workflow (every purpose without its own).
-  workflowId             String?   @map("workflow_id") @db.Uuid
-  workflowIdHost         String?   @map("workflow_id_host") @db.Uuid
-  workflowIdAgency       String?   @map("workflow_id_agency") @db.Uuid
-  workflowIdRecharge     String?   @map("workflow_id_recharge") @db.Uuid
+  workflowId           String?   @map("workflow_id") @db.Uuid
+  workflowIdHost       String?   @map("workflow_id_host") @db.Uuid
+  workflowIdAgency     String?   @map("workflow_id_agency") @db.Uuid
+  workflowIdRecharge   String?   @map("workflow_id_recharge") @db.Uuid
   /// How many checks one person may start in 24 hours (1–10).
-  maxSessionsPerDay      Int       @default(3) @map("max_sessions_per_day") @db.SmallInt
-  lastTestAt             DateTime? @map("last_test_at") @db.Timestamptz(3)
-  lastTestOk             Boolean?  @map("last_test_ok")
-  lastTestById           String?   @map("last_test_by_id") @db.Uuid
-  lastTest               Json?     @map("last_test")
-  updatedAt              DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
-  updatedById            String?   @map("updated_by_id") @db.Uuid
+  maxSessionsPerDay    Int       @default(3) @map("max_sessions_per_day") @db.SmallInt
+  lastTestAt           DateTime? @map("last_test_at") @db.Timestamptz(3)
+  lastTestOk           Boolean?  @map("last_test_ok")
+  lastTestById         String?   @map("last_test_by_id") @db.Uuid
+  lastTest             Json?     @map("last_test")
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById          String?   @map("updated_by_id") @db.Uuid
 
   @@map("kyc_settings")
 }
@@ -6005,31 +6008,31 @@ model KycSettings {
 /// (18+), the issuing country and the document number as an HMAC (never the number itself). Never an image: the
 /// team sees them in Didit's console, or through a short-lived fetch from the panel (audited).
 model KycCheck {
-  id                 String     @id @default(uuid(7)) @db.Uuid
-  userId             String     @map("user_id") @db.Uuid
-  purpose            KycPurpose
-  status             KycStatus  @default(NOT_STARTED)
+  id                String     @id @default(uuid(7)) @db.Uuid
+  userId            String     @map("user_id") @db.Uuid
+  purpose           KycPurpose
+  status            KycStatus  @default(NOT_STARTED)
   /// Didit's session id (unique) and the number shown in Didit's console.
-  sessionId          String     @unique(map: "kyc_checks_session_key") @map("session_id") @db.Uuid
-  sessionNumber      Int?       @map("session_number")
-  workflowId         String     @map("workflow_id") @db.Uuid
+  sessionId         String     @unique(map: "kyc_checks_session_key") @map("session_id") @db.Uuid
+  sessionNumber     Int?       @map("session_number")
+  workflowId        String     @map("workflow_id") @db.Uuid
   /// Didit's status string as last received (e.g. `In Review`).
-  providerStatus     String     @map("provider_status") @db.VarChar(32)
+  providerStatus    String     @map("provider_status") @db.VarChar(32)
   /// The warnings' `risk` codes of a decline or review (and `UNDER_MIN_AGE`), at most 20.
-  reasons            String[]   @default([]) @db.VarChar(64)
-  fullName           String?    @map("full_name") @db.VarChar(200)
-  dateOfBirth        DateTime?  @map("date_of_birth") @db.Date
+  reasons           String[]   @default([]) @db.VarChar(64)
+  fullName          String?    @map("full_name") @db.VarChar(200)
+  dateOfBirth       DateTime?  @map("date_of_birth") @db.Date
   /// ISO 3166-1 alpha-3 of the document's issuing state.
-  documentCountry    String?    @map("document_country") @db.Char(3)
+  documentCountry   String?    @map("document_country") @db.Char(3)
   /// HMAC-SHA-256 (hex) of `<country>:<number>` under a key derived from ADMIN_TOTP_KEY (`kyc-document/v1`).
-  documentHash       String?    @map("document_hash") @db.Char(64)
+  documentHash      String?    @map("document_hash") @db.Char(64)
   /// The same document hash is on another account's check (flagged to the team; never an automatic decline).
-  duplicateDocument  Boolean    @default(false) @map("duplicate_document")
-  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  decidedAt          DateTime?  @map("decided_at") @db.Timestamptz(3)
+  duplicateDocument Boolean    @default(false) @map("duplicate_document")
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt         DateTime?  @map("decided_at") @db.Timestamptz(3)
   /// The newest event applied (Didit's `created_at` of the webhook, or the sync time): older ones are ignored.
-  lastEventAt        DateTime?  @map("last_event_at") @db.Timestamptz(3)
-  updatedAt          DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+  lastEventAt       DateTime?  @map("last_event_at") @db.Timestamptz(3)
+  updatedAt         DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -6137,27 +6140,28 @@ enum VipPurchaseKind {
 /// the rank (higher = higher tier). CHECK `vip_tiers_shape` (code, names, colour `#RRGGBB`, https emblem, price 1 …
 /// 10^12 coins, 1 … 365 days). Never deleted: switched off (`enabled`), so memberships and purchases keep their tier.
 model VipTier {
-  id           String   @id @default(uuid(7)) @db.Uuid
-  code         String   @unique(map: "vip_tiers_code_key") @db.VarChar(40)
-  nameAr       String   @map("name_ar") @db.VarChar(30)
-  nameEn       String   @map("name_en") @db.VarChar(30)
-  sortOrder    Int      @map("sort_order")
+  id             String   @id @default(uuid(7)) @db.Uuid
+  code           String   @unique(map: "vip_tiers_code_key") @db.VarChar(40)
+  nameAr         String   @map("name_ar") @db.VarChar(30)
+  nameEn         String   @map("name_en") @db.VarChar(30)
+  sortOrder      Int      @map("sort_order")
   /// The tier's colour, `#RRGGBB` upper case.
-  color        String   @db.Char(7)
+  color          String   @db.Char(7)
   /// The tier BADGE (central crest): an SVGA animation and a still, each a bundled asset path
   /// (`assets/vip/...`) or a hosted https URL. Null = the app draws a token placeholder in `color`.
-  badgeAnimation String? @map("badge_animation") @db.VarChar(2048)
-  badgeStill     String? @map("badge_still") @db.VarChar(2048)
-  priceCoins   BigInt   @map("price_coins")
-  durationDays Int      @map("duration_days")
-  enabled      Boolean  @default(false)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  updatedById  String?  @map("updated_by_id") @db.Uuid
+  badgeAnimation String?  @map("badge_animation") @db.VarChar(2048)
+  badgeStill     String?  @map("badge_still") @db.VarChar(2048)
+  priceCoins     BigInt   @map("price_coins")
+  durationDays   Int      @map("duration_days")
+  enabled        Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  updatedById    String?  @map("updated_by_id") @db.Uuid
 
-  perks       VipTierPerk[]
-  memberships VipMembership[]
-  purchases   VipPurchase[]
+  perks           VipTierPerk[]
+  memberships     VipMembership[]
+  purchases       VipPurchase[]
+  dailyCoinClaims VipDailyCoinClaim[]
 
   @@index([sortOrder, id], map: "vip_tiers_sort_idx")
   @@map("vip_tiers")
@@ -6180,6 +6184,9 @@ model VipTierPerk {
   still         String? @db.VarChar(2048)
   artWidth      Int?    @map("art_width")
   artHeight     Int?    @map("art_height")
+  /// D258 (§10.94): the perk's number for this tier — free public messages a day (DAILY_BULLET), coins a day
+  /// (DAILY_COINS), the level speed-up in percent (LEVEL_SPEEDUP); null for other perks or not set yet.
+  amount        Int?
 
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
 
@@ -6225,4 +6232,21 @@ model VipPurchase {
   @@unique([userId, idempotencyKey], map: "vip_purchases_idempotency")
   @@index([userId, createdAt(sort: Desc)], map: "vip_purchases_user_idx")
   @@map("vip_purchases")
+}
+
+/// D258 (§10.94.5): a VIP's daily coins claimed (at most one a day; the day in LIVE_RANKINGS_TIME_ZONE). The wallet
+/// ledger row (`VIP_DAILY_COINS`) references this row.
+model VipDailyCoinClaim {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  day       DateTime @db.Date
+  tierId    String   @map("tier_id") @db.Uuid
+  coins     BigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier VipTier @relation(fields: [tierId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, day], map: "vip_daily_coin_claims_user_day_key")
+  @@map("vip_daily_coin_claims")
 }

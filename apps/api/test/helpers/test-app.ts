@@ -347,16 +347,23 @@ export const SEED_VIP_TIER_SQL = `
     ON CONFLICT (id) DO NOTHING`;
 
 /**
- * VIP 1's six perks, mirroring migration `20270305090100_vip` (art NULL). D252.
+ * VIP 1's perks, mirroring migrations `20270305090100_vip` (six, art NULL; D252) and `20270306090000_vip_perks` (the
+ * owner's other six with their amounts; D258).
  */
 export const SEED_VIP_PERKS_SQL = `
-  INSERT INTO vip_tier_perks (id, tier_id, code, title_ar, title_en, sort_order, enabled) VALUES
-    ('01a25200-0000-7000-8000-0000000000a1', '01a25200-0000-7000-8000-000000000001', 'BADGE', 'الشارة', 'Badge', 0, true),
-    ('01a25200-0000-7000-8000-0000000000a2', '01a25200-0000-7000-8000-000000000001', 'AVATAR_FRAME', 'إطار الصورة', 'Avatar frame', 1, true),
-    ('01a25200-0000-7000-8000-0000000000a3', '01a25200-0000-7000-8000-000000000001', 'PROFILE_CARD', 'إطار البطاقة', 'Profile card', 2, true),
-    ('01a25200-0000-7000-8000-0000000000a4', '01a25200-0000-7000-8000-000000000001', 'ENTRY_BANNER', 'لافتة الدخول', 'Entry banner', 3, true),
-    ('01a25200-0000-7000-8000-0000000000a5', '01a25200-0000-7000-8000-000000000001', 'CHAT_BUBBLE', 'إطار الرسائل', 'Message frame', 4, true),
-    ('01a25200-0000-7000-8000-0000000000a6', '01a25200-0000-7000-8000-000000000001', 'ENTRY_EFFECT', 'مؤثر الدخول', 'Entry effect', 5, true)
+  INSERT INTO vip_tier_perks (id, tier_id, code, title_ar, title_en, sort_order, enabled, amount) VALUES
+    ('01a25200-0000-7000-8000-0000000000a1', '01a25200-0000-7000-8000-000000000001', 'BADGE', 'الشارة', 'Badge', 0, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a2', '01a25200-0000-7000-8000-000000000001', 'AVATAR_FRAME', 'إطار الصورة', 'Avatar frame', 1, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a3', '01a25200-0000-7000-8000-000000000001', 'PROFILE_CARD', 'إطار البطاقة', 'Profile card', 2, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a4', '01a25200-0000-7000-8000-000000000001', 'ENTRY_BANNER', 'لافتة الدخول', 'Entry banner', 3, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a5', '01a25200-0000-7000-8000-000000000001', 'CHAT_BUBBLE', 'إطار الرسائل', 'Message frame', 4, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a6', '01a25200-0000-7000-8000-000000000001', 'ENTRY_EFFECT', 'مؤثر الدخول', 'Entry effect', 5, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a7', '01a25200-0000-7000-8000-000000000001', 'CHAT_NAME_COLOR', 'لون الاسم', 'Name colour', 6, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a8', '01a25200-0000-7000-8000-000000000001', 'MIC_WAVE', 'موجة المايك', 'Mic wave', 7, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000a9', '01a25200-0000-7000-8000-000000000001', 'DAILY_BULLET', 'رسائل عامة مجانية', 'Free public messages', 8, true, 3),
+    ('01a25200-0000-7000-8000-0000000000aa', '01a25200-0000-7000-8000-000000000001', 'PROFILE_VISITORS', 'من زار ملفي', 'Profile visitors', 9, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000ab', '01a25200-0000-7000-8000-000000000001', 'DAILY_COINS', 'عملات يومية', 'Daily coins', 10, true, NULL),
+    ('01a25200-0000-7000-8000-0000000000ac', '01a25200-0000-7000-8000-000000000001', 'LEVEL_SPEEDUP', 'تسريع المستوى', 'Level speed-up', 11, true, 1)
     ON CONFLICT (id) DO NOTHING`;
 
 async function deleteRedisKeys(url: string, prefix: string): Promise<void> {

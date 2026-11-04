@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { VipAdminService } from './vip-admin.service.js';
 import { VipController } from './vip.controller.js';
@@ -10,7 +11,7 @@ import { VipService } from './vip.service.js';
  * {@link VipAdminService} (exported).
  */
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, MediaModule],
   controllers: [VipController],
   providers: [VipService, VipAdminService],
   exports: [VipAdminService],

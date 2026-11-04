@@ -23,9 +23,28 @@ export const VIP_MAX_AHEAD_DAYS = 400;
 /**
  * The perk codes the app really does today. A perk whose code is not here is shown as listed («قريباً»), never as
  * active — the owner can describe any perk in the panel, but only the server says whether it works (CONVENTIONS
- * §10.93.3). None is built yet: each needs Kabso-owned art or a change in the live room (follow-ups in D252).
+ * §10.93.3). D258 (owner's VIP 1 perks): built one by one, §10.94.
  */
-export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>();
+export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>([
+  'BADGE',
+  'AVATAR_FRAME',
+  'CHAT_NAME_COLOR',
+  'CHAT_BUBBLE',
+  'PROFILE_CARD',
+  // Server-side only: free public messages a day (§10.94.4) and the level speed-up (§10.94.5).
+  'DAILY_BULLET',
+  'LEVEL_SPEEDUP',
+]);
+
+/**
+ * D258: the perks that take a number per tier (`VipTierPerk.amount`) and its bounds: free public messages a day,
+ * coins a day, the level speed-up in percent. Absent (null) = the perk gives nothing until the owner sets it.
+ */
+export const VIP_PERK_AMOUNTS: Readonly<Record<string, { readonly min: number; readonly max: number }>> = {
+  DAILY_BULLET: { min: 1, max: 100 },
+  DAILY_COINS: { min: 1, max: 1_000_000_000 },
+  LEVEL_SPEEDUP: { min: 1, max: 100 },
+};
 
 /** The perk codes the panel suggests (CP-024 §3; the same vocabulary as SVIP). Any other code is allowed too. */
 export const VIP_SUGGESTED_PERKS = [
@@ -34,10 +53,39 @@ export const VIP_SUGGESTED_PERKS = [
   'CHAT_NAME_COLOR',
   'ENTRY_BANNER',
   'ENTRY_EFFECT',
+  'MIC_WAVE',
+  'CHAT_BUBBLE',
   'DAILY_BULLET',
+  'PROFILE_VISITORS',
+  'DAILY_COINS',
+  'LEVEL_SPEEDUP',
+  'PROFILE_CARD',
   'VIEWER_LIST_PRIORITY',
   'MONTHLY_GIFT',
 ] as const;
+
+/** A perk as the inheritance sees it. */
+export interface VipPerkRow {
+  readonly code: string;
+  readonly enabled: boolean;
+}
+
+/**
+ * D258 (owner: «كل مستوى يحمل امتيازات ما قبله»): the perks a holder of the tier ranked [rank] has — every enabled
+ * perk of the tiers ranked up to it, by code; for a code several tiers list, the highest-ranked tier's perk (its art
+ * and amount). [tiers] are any tiers (on or off sale: a holder keeps what their tier gave).
+ */
+export function vipEffectivePerks<P extends VipPerkRow>(
+  tiers: readonly { readonly rank: number; readonly perks: readonly P[] }[],
+  rank: number,
+): Map<string, P> {
+  const out = new Map<string, P>();
+  const below = tiers.filter((t) => t.rank <= rank).sort((a, b) => a.rank - b.rank);
+  for (const t of below) {
+    for (const p of t.perks) if (p.enabled) out.set(p.code, p);
+  }
+  return out;
+}
 
 export function vipPerkAvailable(code: string): boolean {
   return VIP_BUILT_PERKS.has(code);
@@ -112,4 +160,13 @@ export function vipOrderOf(ids: readonly string[], existing: readonly string[]):
   const known = new Set(existing);
   if (!ids.every((id) => known.has(id))) return null;
   return new Map(ids.map((id, i) => [id, i + 1]));
+}
+
+/**
+ * D258 (§10.94.5): level points raised by a VIP's LEVEL_SPEEDUP percent (rounded down; nothing without the perk).
+ * Only earned points: reversals and adjustments never pass here.
+ */
+export function vipSpedUp(points: bigint, percent: number | null): bigint {
+  if (percent === null || percent <= 0 || points <= 0n) return points;
+  return points + (points * BigInt(percent)) / 100n;
 }

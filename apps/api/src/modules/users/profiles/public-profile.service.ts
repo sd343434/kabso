@@ -11,6 +11,7 @@ import { LiveRoomsService } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
+import { activeVipOf } from '../../posts/post-views.js';
 import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
 
@@ -58,6 +59,8 @@ export interface PublicProfileDto {
   avatarFrame: { code: string; assetKey: string } | null;
   /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
   rechargeBadge?: RechargeBadgeDto;
+  /** v1.83-social (D258, §10.94): present only while the user holds an active VIP (`UserVip`). */
+  vip?: { tier: string; rank: number; color: string };
   /** v1.76-social (D218, §10.73.3): the profile cover (1 080 px), or null (the app's Kabso gradient). */
   coverUrl: string | null;
   /** v1.76-social (D218): the country the user chose (D133, ISO alpha-2), or null. */
@@ -152,6 +155,7 @@ export class PublicProfileService {
       badge,
       blockedByMe,
       stats,
+      membership,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -183,8 +187,14 @@ export class PublicProfileService {
       isSelf ? Promise.resolve(false) : this.blocked(callerId, user.id),
       // v1.77-social (D220): the card's lifetime totals, minus what the user hides from others.
       this.statsFor(user.id, isSelf),
+      // v1.83-social (D258): the VIP membership (shown while active).
+      this.prisma.vipMembership.findUnique({
+        where: { userId: user.id },
+        select: { expiresAt: true, tier: { select: { code: true, sortOrder: true, color: true } } },
+      }),
     ]);
     const shown = activeRechargeBadge(badge, new Date());
+    const vip = activeVipOf({ vipMembership: membership }, new Date());
     return {
       id: user.id,
       username: user.username,
@@ -211,6 +221,7 @@ export class PublicProfileService {
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       avatarFrame,
       ...(shown ? { rechargeBadge: shown } : {}),
+      ...(vip ? { vip } : {}),
       coverUrl: user.coverUrl,
       country: user.country,
       joinedMonth: user.joinedMonth,

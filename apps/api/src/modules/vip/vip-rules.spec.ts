@@ -7,8 +7,10 @@ import {
   VIP_MAX_TIERS,
   vipActive,
   vipDaysLeft,
+  vipEffectivePerks,
   vipOrderOf,
   vipPerkAvailable,
+  vipSpedUp,
   type VipCurrent,
   type VipTarget,
 } from './vip-rules.js';
@@ -116,9 +118,44 @@ describe('VIP helpers', () => {
     expect(vipDaysLeft(days(-3), NOW)).toBe(0);
   });
 
-  it('no perk is built yet: every perk is listed, none available', () => {
-    expect(VIP_BUILT_PERKS.size).toBe(0);
-    expect(vipPerkAvailable('BADGE')).toBe(false);
+  it('D258: the built perks are available; any other code is listed only', () => {
+    for (const code of [
+      'BADGE',
+      'AVATAR_FRAME',
+      'CHAT_NAME_COLOR',
+      'CHAT_BUBBLE',
+      'PROFILE_CARD',
+      'DAILY_BULLET',
+      'LEVEL_SPEEDUP',
+    ]) {
+      expect(VIP_BUILT_PERKS.has(code)).toBe(true);
+      expect(vipPerkAvailable(code)).toBe(true);
+    }
+    expect(vipPerkAvailable('MONTHLY_GIFT')).toBe(false);
+  });
+
+  it("D258: a tier holds every lower tier's perks; the highest tier's perk wins for a code", () => {
+    const p = (code: string, art: string, enabled = true) => ({ code, art, enabled });
+    const tiers = [
+      { rank: 2, perks: [p('BADGE', 'b2'), p('MIC_WAVE', 'm2')] },
+      { rank: 1, perks: [p('BADGE', 'b1'), p('AVATAR_FRAME', 'f1'), p('DAILY_BULLET', 'x', false)] },
+      { rank: 3, perks: [p('ENTRY_EFFECT', 'e3')] },
+    ];
+    const one = vipEffectivePerks(tiers, 1);
+    expect([...one.keys()].sort()).toEqual(['AVATAR_FRAME', 'BADGE']);
+    expect(one.get('BADGE')?.art).toBe('b1');
+    const two = vipEffectivePerks(tiers, 2);
+    expect([...two.keys()].sort()).toEqual(['AVATAR_FRAME', 'BADGE', 'MIC_WAVE']);
+    expect(two.get('BADGE')?.art).toBe('b2');
+    expect(vipEffectivePerks(tiers, 0).size).toBe(0);
+  });
+
+  it('D258: the level speed-up raises earned points by its percent, rounded down', () => {
+    expect(vipSpedUp(1000n, 1)).toBe(1010n);
+    expect(vipSpedUp(150n, 1)).toBe(151n);
+    expect(vipSpedUp(99n, 1)).toBe(99n);
+    expect(vipSpedUp(1000n, null)).toBe(1000n);
+    expect(vipSpedUp(0n, 50)).toBe(0n);
   });
 
   it('an order names every tier exactly once', () => {

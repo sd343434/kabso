@@ -87,6 +87,11 @@ export interface UserSummaryDto {
   avatarFrame?: { code: string; assetKey: string };
   /** v1.56-social (D187, §10.50): present only while the user's daily recharge badge is showing. */
   rechargeBadge?: RechargeBadgeDto;
+  /**
+   * v1.83-social (D258, §10.94): present only while the user holds an active VIP membership — the tier's code, rank
+   * (`VipTier.sortOrder`, 1 = lowest) and colour; the app takes the perks and their art from `GET /vip/tiers`.
+   */
+  vip?: { tier: string; rank: number; color: string };
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';

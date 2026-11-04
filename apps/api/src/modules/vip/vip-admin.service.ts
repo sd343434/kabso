@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -6,14 +6,20 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
 import type { Prisma, VipTier, VipTierPerk } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { GiftArtError, giftArtUrl, uploadGiftArt } from '../gifts/gift-art.js';
+import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import {
   VIP_BUILT_PERKS,
+  VIP_CODE_PATTERN,
   VIP_MAX_TIERS,
+  VIP_PERK_AMOUNTS,
   VIP_SUGGESTED_PERKS,
   vipOrderOf,
   vipPerkAvailable,
 } from './vip-rules.js';
+import { vipAnimationFile, vipStillFile, type VipArtFile, type VipUploadKind } from './vip-art.js';
 import type { CreateVipTierBody, UpdateVipTierBody, VipPerkInput } from './vip.schemas.js';
 
 type Tx = Prisma.TransactionClient;
@@ -33,6 +39,19 @@ export interface AdminVipPerkDto {
   still: string | null;
   artWidth: number | null;
   artHeight: number | null;
+  /** D258: the perk's number for this tier (bullets / coins a day, level speed-up %); null otherwise. */
+  amount: number | null;
+}
+
+/** v1.83-social (D258): `AdminVipUpload`. */
+export interface AdminVipUploadDto {
+  kind: VipUploadKind;
+  url: string;
+  bytes: number;
+  contentType: string;
+  /** A still's size in px (null for an animation). */
+  width: number | null;
+  height: number | null;
 }
 
 /** `AdminVipTier`. */
@@ -83,6 +102,7 @@ function perkDto(p: VipTierPerk): AdminVipPerkDto {
     still: p.still,
     artWidth: p.artWidth,
     artHeight: p.artHeight,
+    amount: p.amount,
   };
 }
 
@@ -110,6 +130,7 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
       still: p.still,
       artWidth: p.artWidth,
       artHeight: p.artHeight,
+      amount: p.amount,
     })),
   };
 }
@@ -128,7 +149,49 @@ export class VipAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
+
+  /**
+   * v1.83-social (D258, §10.94.6): one file of a tier's badge or perk art (SVGA 2.x or a PNG / WebP still), the raw
+   * bytes; stored content-addressed, the URL returned for the tier's form (the tier itself changes only on save).
+   */
+  async upload(kind: VipUploadKind, tier: string, body: unknown): Promise<AdminVipUploadDto> {
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      throw new AppException(ErrorCode.ADMIN_ACTION_REFUSED, 'The file is empty.', [
+        { field: 'file', issue: 'empty' },
+      ]);
+    }
+    if (!VIP_CODE_PATTERN.test(tier))
+      throw AppException.validation([{ field: 'tier', issue: 'invalid_format' }]);
+    let file: VipArtFile;
+    try {
+      file = kind === 'animation' ? vipAnimationFile(tier, body) : await vipStillFile(tier, body);
+    } catch (err) {
+      if (err instanceof GiftArtError) {
+        throw new AppException(ErrorCode.ADMIN_ACTION_REFUSED, err.message, [
+          { field: 'file', issue: 'invalid_file' },
+        ]);
+      }
+      throw err;
+    }
+    await uploadGiftArt(this.storage, file);
+    const url = giftArtUrl(this.storageSettings.current().publicBaseUrl, file.key);
+    if (url === null) {
+      throw new AppException(ErrorCode.ADMIN_ACTION_REFUSED, 'No public media URL is set.', [
+        { field: 'storage', issue: 'no_public_url' },
+      ]);
+    }
+    return {
+      kind,
+      url,
+      bytes: file.size,
+      contentType: file.contentType,
+      width: file.width ?? null,
+      height: file.height ?? null,
+    };
+  }
 
   async list(): Promise<AdminVipTierListDto> {
     const rows = await this.prisma.vipTier.findMany({
@@ -315,6 +378,8 @@ export class VipAdminService {
         still: p.still ?? null,
         artWidth: p.artWidth ?? null,
         artHeight: p.artHeight ?? null,
+        // D258: only the perks that take a number keep one.
+        amount: VIP_PERK_AMOUNTS[p.code] ? (p.amount ?? null) : null,
       })),
     });
   }
