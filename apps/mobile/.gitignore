@@ -50,3 +50,4 @@ test/goldens/failures/
 
 # D144: the local DeepAR licence key (--dart-define-from-file); never committed.
 deepar.local.json
+test/features/vip/failures/
