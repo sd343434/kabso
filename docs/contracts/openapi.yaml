@@ -238,6 +238,14 @@ info:
     `team_locked` (a D208 lock), `team_self_owner`, `team_last_owner`, `team_not_held`, `team_self_reset`,
     `team_not_member`. The three changes also count in a per-IP bucket `admin-team:ip` (`RATE_LIMIT_ADMIN_TEAM_IP`,
     20 / 15 min). Every change still needs the authenticator code again and a reason (audited, `via: panel`).
+    **D275 (owner)** the moderator «مشرف» (MODERATION) reads the top-up records and decides the recharge disputes
+    (CONVENTIONS §10.54.1): `recharge.agents` (`listAdminRechargeAgents`, `listAdminRechargeExchangeRates`),
+    `users.ledger` (`listAdminUserLedger`, `getAdminUser.ledger`), the new capability `recharge.topups.view` (OWNER,
+    FINANCE, MODERATION — `listAdminRechargeTopups` and `listAdminCardOrders`, split out of `finance.view`; their
+    `format=csv` stays `finance.view`, else 403 `AUTH_FORBIDDEN`), `recharge.disputes` and `recharge.disputes.resolve`
+    (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
+    `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
+    can cause. No shape changes.
     **D264 (DRAFT v1.65-live)** a VIP member's tier items in the bag (CONVENTIONS §10.97): `getMyBag` lists the wearable
     VIP perks the active membership holds (AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT,
     MIC_WAVE) as items with `source: VIP`, code `vip:<PERK>`, `expiresAt` = the membership's end and `BagItem.vip`
@@ -10372,7 +10380,7 @@ paths:
       tags: [admin-panel]
       operationId: getAdminUser
       summary: "A user's profile for the panel (users.view; audited `admin.user.view`)"
-      description: "`balances` is null without the capability `users.balances` (OWNER, MODERATION read-only, SUPPORT, FINANCE); `ledger` is null without `users.ledger` (OWNER, SUPPORT, FINANCE). The base username shows (it is audited)."
+      description: "`balances` is null without the capability `users.balances` (OWNER, MODERATION read-only, SUPPORT, FINANCE); `ledger` is null without `users.ledger` (OWNER, MODERATION read-only since D275, SUPPORT, FINANCE). The base username shows (it is audited)."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminUserIdPath'
@@ -10649,7 +10657,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminRechargeAgents
-      summary: "Recharge agents, newest approved first, with the owner's price tiers (recharge.agents)"
+      summary: "Recharge agents, newest approved first, with the owner's price tiers (recharge.agents: OWNER, SUPPORT, FINANCE, MODERATION read-only since D275)"
       security: [{ adminSession: [] }]
       parameters:
         - name: status
@@ -11888,7 +11896,7 @@ paths:
       tags:
       - admin-panel
       operationId: listAdminUserLedger
-      summary: A user's coin or cherry ledger by pages (users.ledger)
+      summary: "A user's coin or cherry ledger by pages (users.ledger: OWNER, SUPPORT, FINANCE, MODERATION read-only since D275)"
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -15519,8 +15527,8 @@ paths:
       tags:
       - admin-panel
       operationId: listAdminRechargeTopups
-      summary: 'Recharge agents'' top-ups: coins, tier price, paid (finance.view)'
-      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      summary: 'Recharge agents'' top-ups: coins, tier price, paid (recharge.topups.view: OWNER, FINANCE, MODERATION read-only — D275)'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`. (D275) The list needs `recharge.topups.view`; `format=csv` still needs `finance.view` (403 `AUTH_FORBIDDEN`).'
       security:
       - adminSession: []
       parameters:
@@ -15562,8 +15570,8 @@ paths:
       tags:
       - admin-panel
       operationId: listAdminCardOrders
-      summary: Website card orders (D190) (finance.view)
-      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`.'
+      summary: 'Website card orders (D190) (recharge.topups.view: OWNER, FINANCE, MODERATION read-only — D275)'
+      description: '(v1.65-social, D197)  `format=csv`: the matching rows (≤ 5000) as `text/csv`, audited `admin.export.csv`. (D275) The list needs `recharge.topups.view`; `format=csv` still needs `finance.view` (403 `AUTH_FORBIDDEN`); the refund stays `finance.refund`.'
       security:
       - adminSession: []
       parameters:
@@ -16489,7 +16497,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminRechargeDisputes
-      summary: "«نزاعات الشحن»: disputed recharge orders, open ones oldest first (recharge.disputes)"
+      summary: "«نزاعات الشحن»: disputed recharge orders, open ones oldest first (recharge.disputes: OWNER, SUPPORT, FINANCE, MODERATION since D275)"
       description: "v1.69-social, CONVENTIONS §10.64.9. `OPEN` (DISPUTED, the queue) or `RESOLVED` (COMPLETED_BY_ADMIN / REFUNDED_TO_AGENT, newest first). No chat content in the list."
       security: [{ adminSession: [] }]
       parameters:
@@ -16575,7 +16583,7 @@ paths:
     post:
       tags: [admin-panel]
       operationId: resolveAdminRechargeDispute
-      summary: "Decides a dispute: the frozen coins to the buyer or back to the agent (recharge.disputes.resolve; code again; audited)"
+      summary: "Decides a dispute: the frozen coins to the buyer or back to the agent (recharge.disputes.resolve: OWNER, FINANCE, MODERATION since D275; code again; audited)"
       description: "v1.69-social, CONVENTIONS §10.64.9 — the `recharge-admin resolve` rule. Financial: `totpCode` again (403 `ADMIN_TOTP_INVALID`). `CREDIT_BUYER` → COMPLETED_BY_ADMIN (wallet `RECHARGE_ORDER`), `REFUND_AGENT` → REFUNDED_TO_AGENT (stock `ORDER_RELEASE`); audited with the reason, before / after, actor, IP and `via: panel`; both sides notified. The same decision again → 200 `changed: false`; any other state → 409 `ADMIN_ACTION_REFUSED`."
       security: [{ adminSession: [] }]
       parameters:
@@ -16602,7 +16610,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminRechargeExchangeRates
-      summary: "«أسعار الصرف»: the exchange rate per country used to price recharge orders (recharge.agents)"
+      summary: "«أسعار الصرف»: the exchange rate per country used to price recharge orders (recharge.agents: OWNER, SUPPORT, FINANCE, MODERATION read-only since D275)"
       description: "v1.69-social, CONVENTIONS §10.64.1. v1.81-social (D245, §10.87): every country of the ISO 3166 → ISO 4217 table (and any other with a manual rate), each with its effective rate (`source` MANUAL «يدوي» over AUTO «تلقائي»; USD for a USD country; NONE = USD only, also when the automatic value is `stale`), the manual and the automatic values, a value held for review, and the automatic feed's `status` card. `unitsPerUsd` null = USD only."
       security: [{ adminSession: [] }]
       responses:

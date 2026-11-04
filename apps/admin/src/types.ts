@@ -70,6 +70,8 @@ export type Capability =
   | 'recharge.disputes'
   | 'recharge.disputes.resolve'
   | 'recharge.rates'
+  // D275: the top-up records, read-only (agents' top-ups, users' card orders).
+  | 'recharge.topups.view'
   // v1.71-social (D207)
   | 'gifts.categories'
   // v1.72-social (D208)

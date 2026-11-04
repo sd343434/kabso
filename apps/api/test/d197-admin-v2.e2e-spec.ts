@@ -270,7 +270,9 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
         'agencies.view': '/admin/agencies',
         'lives.view': '/admin/lives',
         'catalog.view': '/admin/gifts',
-        'finance.view': '/admin/finance/card-orders',
+        'finance.view': '/admin/finance/cases',
+        // D275: the top-up records' own capability (OWNER, FINANCE, MODERATION).
+        'recharge.topups.view': '/admin/finance/card-orders',
         'audit.view': '/admin/audit',
         'team.manage': '/admin/team',
         'programs.view': '/admin/programs/tasks',
@@ -516,8 +518,10 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       expect(res.body.agents.map((a: { code: string }) => a.code)).toEqual(['coin9001']);
       const byName = await get(moderator, `/admin/search?q=${plain.username}`);
       expect(byName.body.users[0].id).toBe(plain.id);
-      // A moderator does not see agents (no recharge.agents).
-      expect((await get(moderator, `/admin/search?q=coin900`)).body.agents).toEqual([]);
+      // D275 (owner): the moderator reads the recharge agents too (`recharge.agents`, no action).
+      expect(
+        (await get(moderator, `/admin/search?q=coin900`)).body.agents.map((a: { code: string }) => a.code),
+      ).toEqual(['coin9001']);
     });
   });
 

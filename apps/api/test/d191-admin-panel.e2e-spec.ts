@@ -552,7 +552,8 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         cherriesReceived: 0,
         coinsSent: 0,
       });
-      expect(modView.body.ledger).toBeNull();
+      // D275 (owner): the moderator reads the ledger rows too (read-only).
+      expect(modView.body.ledger).toEqual({ coins: [], cherries: [] });
       expect((await audits('admin.user.view', u.id)).map((a) => a.actorUserId).sort()).toEqual(
         [finance.id, moderator.id].sort(),
       );

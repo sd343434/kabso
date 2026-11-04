@@ -1,14 +1,16 @@
 /**
  * D204 «نزاعات الشحن» and «أسعار الصرف»: the disputed order's page rendered to HTML in Node — the facts (USD and the
  * local amount, the frozen coins), the whole chat with «الإدارة» lines and the system steps, the private pictures
- * served only through the panel's audited endpoint, and the decision buttons only for the money roles.
+ * served only through the panel's audited endpoint, and the decision buttons only for the roles that decide (OWNER,
+ * FINANCE and, D275, MODERATION).
  */
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AppContext, type AppState } from '../src/context';
 import { translate, type Lang } from '../src/i18n';
 import { DisputeOrderView, PriceText } from '../src/pages/Disputes';
-import type { AdminOrder } from '../src/types';
+import type { AdminOrder, Capability } from '../src/types';
+import { CAPABILITY_ROLES } from './capabilities';
 
 const state = (lang: Lang, caps: string[]): AppState => ({
   lang,
@@ -74,7 +76,7 @@ describe('DisputeOrderView', () => {
   it('only the money roles get the decision; English labels', () => {
     const support = render(['recharge.disputes']);
     expect(support).not.toContain('إضافة العملات للمشتري');
-    expect(support).toContain('القرار لأدوار المالية والمالك فقط.');
+    expect(support).toContain('القرار للمالك والمالية والمشرف فقط.');
     const en = render(['recharge.disputes', 'recharge.disputes.resolve'], 'en');
     expect(en).toContain('Credit the buyer');
     expect(en).toContain('Team');
@@ -87,6 +89,15 @@ describe('DisputeOrderView', () => {
     });
     expect(decided).not.toContain('إضافة العملات للمشتري');
     expect(decided).toContain('وصلت الحوالة');
+  });
+
+  it('D275: the moderator «مشرف» (its capabilities from the table) reads the chat and decides with the code', () => {
+    const mod = (Object.keys(CAPABILITY_ROLES) as Capability[]).filter((c) => CAPABILITY_ROLES[c]!.includes('MODERATION'));
+    const html = render(mod);
+    expect(html).toContain('نراجع الإثباتات');
+    expect(html).toContain('إضافة العملات للمشتري');
+    expect(html).toContain('إعادة العملات للوكيل');
+    expect(html).not.toContain('القرار للمالك والمالية والمشرف فقط.');
   });
 
   it('shows USD only without a rate', () => {

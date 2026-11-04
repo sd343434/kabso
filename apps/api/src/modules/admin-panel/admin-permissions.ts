@@ -20,15 +20,23 @@ export const CAPABILITIES = {
   'users.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   /** A user's balances, read-only (owner 2026-10-31: the moderator «مشرف» sees them too). */
   'users.balances': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
-  /** The recent coin and cherry ledger rows of a user. */
-  'users.ledger': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** The recent coin and cherry ledger rows of a user (D275: the moderator «مشرف» reads them too, read-only). */
+  'users.ledger': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   'users.ban': ['OWNER', 'MODERATION'],
   'users.avatar': ['OWNER', 'MODERATION'],
   'users.special_username': ['OWNER', 'SUPPORT'],
   /** Applications with their private fields and pictures (each view audited, D185). */
   'recharge.applications': ['OWNER', 'SUPPORT'],
   'recharge.decide': ['OWNER', 'SUPPORT'],
-  'recharge.agents': ['OWNER', 'SUPPORT', 'FINANCE'],
+  /** The recharge agents list and the exchange rates (read). D275: MODERATION reads them too, with no action. */
+  'recharge.agents': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  /**
+   * D275 (owner): the top-up records, read-only — the agents' top-ups «شحن الوكلاء» and the users' card top-ups (the
+   * orders, not the Stripe cases). Split out of `finance.view` so the moderator «مشرف» sees the transactions without
+   * the financial report or the cases; the CSV of either list stays `finance.view`. Every list read stays audited.
+   */
+  'recharge.topups.view': ['OWNER', 'MODERATION', 'FINANCE'],
+  /** Send coins to an agent (code again). Never MODERATION (D275). */
   'recharge.topup': ['OWNER', 'FINANCE'],
   'recharge.status': ['OWNER', 'SUPPORT'],
   'recharge.cap': ['OWNER', 'FINANCE'],
@@ -40,10 +48,11 @@ export const CAPABILITIES = {
   /**
    * v1.69-social (D204): «نزاعات الشحن» — read a disputed order with its chat and pictures (audited) and post as
    * «الإدارة»; the decision (coins to the buyer or back to the agent) needs `recharge.disputes.resolve` (the money
-   * roles, like a top-up or a withdrawal) and the code.
+   * roles, like a top-up or a withdrawal) and the code. D275 (owner): the moderator «مشرف» views and decides
+   * disputes too — the only coin movement a moderator can cause (no top-up, cap, status, rates or withdrawals).
    */
-  'recharge.disputes': ['OWNER', 'SUPPORT', 'FINANCE'],
-  'recharge.disputes.resolve': ['OWNER', 'FINANCE'],
+  'recharge.disputes': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  'recharge.disputes.resolve': ['OWNER', 'MODERATION', 'FINANCE'],
   /** v1.69-social (D204): the exchange rates per country «أسعار الصرف» (read by every recharge role). */
   'recharge.rates': ['OWNER', 'FINANCE'],
   /** v1.64-social (D196): the Stripe keys and top-up options «الدفع (Stripe)». */
@@ -91,7 +100,10 @@ export const CAPABILITIES = {
   'gifts.categories': ['OWNER'],
   /** Give / take back a bag item (frames, profile cards) to a user. */
   'items.grant': ['OWNER', 'SUPPORT'],
-  /** Agent top-ups history, card orders, Stripe cases; the financial reports and their CSV. */
+  /**
+   * The financial report and its CSV, the Stripe cases, the dashboard's money cards; the CSV of the top-up records
+   * (their reading is `recharge.topups.view`, D275).
+   */
   'finance.view': ['OWNER', 'FINANCE'],
   /** A team refund of a card order (TOTP), closing a Stripe case. */
   'finance.refund': ['OWNER', 'FINANCE'],

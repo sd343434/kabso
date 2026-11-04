@@ -219,9 +219,12 @@ interface TopupRow {
   createdAt: string;
 }
 
-/** The recharge agents' top-ups «شحن الوكلاء»: coins, tier price and what was paid (FINANCE, OWNER). */
+/**
+ * The recharge agents' top-ups «شحن الوكلاء»: coins, tier price and what was paid (`recharge.topups.view`: OWNER,
+ * FINANCE and, read-only, MODERATION — D275). The CSV is `finance.view`.
+ */
 export function AgentTopups() {
-  const { t, lang } = useApp();
+  const { t, lang, can } = useApp();
   const [totals, setTotals] = useState<{ coins: number; paidMinor: number; expectedMinor: number } | null>(null);
   return (
     <>
@@ -253,7 +256,7 @@ export function AgentTopups() {
         rowKey={(r) => r.id}
         defaultSort={{ sort: 'createdAt', order: 'desc' }}
         searchLabel="topupsSearch"
-        csv
+        csv={can('finance.view')}
         onLoaded={(p) => setTotals((p as unknown as { totals: { coins: number; paidMinor: number; expectedMinor: number } }).totals)}
         columns={[
           {
@@ -318,7 +321,10 @@ interface CaseRow {
   closedAt: string | null;
 }
 
-/** Website card top-ups (D190): orders with the team refund (code again) and the Stripe cases. */
+/**
+ * Website card top-ups (D190): orders with the team refund (code again) and the Stripe cases. D275: the orders are
+ * `recharge.topups.view` (the moderator reads them, with no button); the cases tab and the CSV are `finance.view`.
+ */
 export function Cards() {
   const { t, lang, can, toast } = useApp();
   const [tab, setTab] = useState<'orders' | 'cases'>('orders');
@@ -337,9 +343,11 @@ export function Cards() {
         <button className="tab" aria-pressed={tab === 'orders'} onClick={() => setTab('orders')}>
           {t('cardsOrders')}
         </button>
-        <button className="tab" aria-pressed={tab === 'cases'} onClick={() => setTab('cases')}>
-          {t('cardsCases')}
-        </button>
+        {can('finance.view') && (
+          <button className="tab" aria-pressed={tab === 'cases'} onClick={() => setTab('cases')}>
+            {t('cardsCases')}
+          </button>
+        )}
       </div>
       {tab === 'orders' && (
         <DataTable<OrderRow>
@@ -349,7 +357,7 @@ export function Cards() {
           reloadKey={bump}
           defaultSort={{ sort: 'createdAt', order: 'desc' }}
           searchLabel="cardsSearch"
-          csv
+          csv={can('finance.view')}
           filters={[{ name: 'status', label: 'colStatus', options: ['PAID', 'PENDING', 'AWAITING_FUNDS', 'EXPIRED', 'FAILED'].map((s) => ({ value: s, label: `order${s}` })) }]}
           columns={[
             { key: 'user', label: 'colUser', render: (r) => <UserCell username={r.user.username} displayName={r.user.displayName} /> },
@@ -365,20 +373,25 @@ export function Cards() {
             { key: 'dispute', label: 'cardsDispute', optional: true, render: (r) => r.disputeStatus ?? '—' },
             { key: 'method', label: 'cardsMethod', optional: true, render: (r) => r.paymentMethodType ?? '—' },
             { key: 'date', label: 'colDate', sort: 'createdAt', render: (r) => <span className="date small">{formatDate(r.createdAt, lang)}</span> },
-            {
-              key: 'act',
-              label: 'colActions',
-              render: (r) =>
-                can('finance.refund') && r.refundable ? (
-                  <button className="btn small danger" onClick={() => setRefund(r)}>
-                    {t('cardsRefund')}
-                  </button>
-                ) : null,
-            },
+            // D275: no actions column without `finance.refund` (the moderator reads the orders only).
+            ...(can('finance.refund')
+              ? [
+                  {
+                    key: 'act',
+                    label: 'colActions' as const,
+                    render: (r: OrderRow) =>
+                      r.refundable ? (
+                        <button className="btn small danger" onClick={() => setRefund(r)}>
+                          {t('cardsRefund')}
+                        </button>
+                      ) : null,
+                  },
+                ]
+              : []),
           ]}
         />
       )}
-      {tab === 'cases' && (
+      {tab === 'cases' && can('finance.view') && (
         <DataTable<CaseRow>
           id="topup-cases"
           endpoint="/admin/finance/cases"

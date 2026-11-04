@@ -134,6 +134,8 @@ export function Agents() {
     toast(text);
     reload();
   };
+  // D275: the moderator «مشرف» reads the list with no action (no top-up, status or cap): no actions column.
+  const anyAction = can('recharge.topup') || can('recharge.status') || can('recharge.cap');
   const capText = (a: AgentRow) => (a.dailyCherryCap === null ? t('capDefault') : a.dailyCherryCap === 0 ? t('capNone') : formatNumber(a.dailyCherryCap, lang));
   return (
     <>
@@ -155,7 +157,7 @@ export function Agents() {
                 <th>{t('stock')}</th>
                 <th>{t('dailyCap')}</th>
                 <th>{t('colCountries')}</th>
-                <th>{t('actions')}</th>
+                {anyAction && <th>{t('actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -171,30 +173,13 @@ export function Agents() {
                   <td className="num">{formatNumber(a.stockCoins, lang)}</td>
                   <td className="num">{capText(a)}</td>
                   <td className="mono small">{a.countries.join(', ')}</td>
-                  <td>
-                    <div className="row">
-                      {can('recharge.topup') && a.status !== 'SUSPENDED' && (
-                        <button className="btn small primary" onClick={() => setAct({ kind: 'topup', agent: a })}>
-                          {t('topup')}
-                        </button>
-                      )}
-                      {can('recharge.status') && a.status !== 'SUSPENDED' && (
-                        <button className="btn small danger" onClick={() => setAct({ kind: 'suspend', agent: a })}>
-                          {t('suspend')}
-                        </button>
-                      )}
-                      {can('recharge.status') && a.status === 'SUSPENDED' && (
-                        <button className="btn small" onClick={() => setAct({ kind: 'reinstate', agent: a })}>
-                          {t('reinstate')}
-                        </button>
-                      )}
-                      {can('recharge.cap') && (
-                        <button className="btn small" onClick={() => setAct({ kind: 'cap', agent: a })}>
-                          {t('setCap')}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                  {anyAction && (
+                    <td>
+                      <div className="row">
+                        <AgentActions agent={a} onAct={setAct} />
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -237,6 +222,38 @@ export function Agents() {
           onClose={() => setAct(null)}
           onDone={() => finish()}
         />
+      )}
+    </>
+  );
+}
+
+/**
+ * An agent row's buttons, each behind its own capability (D275: the moderator «مشرف» has `recharge.agents` only and
+ * gets none of them — no top-up, suspend / reinstate or cap).
+ */
+export function AgentActions({ agent: a, onAct }: { agent: AgentRow; onAct: (act: Act) => void }) {
+  const { t, can } = useApp();
+  return (
+    <>
+      {can('recharge.topup') && a.status !== 'SUSPENDED' && (
+        <button className="btn small primary" onClick={() => onAct({ kind: 'topup', agent: a })}>
+          {t('topup')}
+        </button>
+      )}
+      {can('recharge.status') && a.status !== 'SUSPENDED' && (
+        <button className="btn small danger" onClick={() => onAct({ kind: 'suspend', agent: a })}>
+          {t('suspend')}
+        </button>
+      )}
+      {can('recharge.status') && a.status === 'SUSPENDED' && (
+        <button className="btn small" onClick={() => onAct({ kind: 'reinstate', agent: a })}>
+          {t('reinstate')}
+        </button>
+      )}
+      {can('recharge.cap') && (
+        <button className="btn small" onClick={() => onAct({ kind: 'cap', agent: a })}>
+          {t('setCap')}
+        </button>
       )}
     </>
   );

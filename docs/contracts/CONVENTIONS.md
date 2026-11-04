@@ -698,6 +698,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.66-live (draft) | 2026-11-04 | **D275 (owner: «المشرف يمكن ان يكون لديه سجل شحن للوكلاء والمستخدمين بحيث يعرض المعاملة فقط دون تعديل او حذف» / «يمكنه ايضاً مشاهدة نزاعات الشحن والحكم فيها لكن لا يمكنه ارسال اي عملات او سحب الا من النزاعات الحكم فيها»):** MODERATION gains `recharge.agents`, `users.ledger`, `recharge.disputes`, `recharge.disputes.resolve` and the new capability `recharge.topups.view` (OWNER, FINANCE, MODERATION) that `listAdminRechargeTopups` and `listAdminCardOrders` now need instead of `finance.view` (their `format=csv` still needs `finance.view`, else 403 `AUTH_FORBIDDEN`). Never `recharge.topup` / `.cap` / `.status` / `.rates`, `withdrawals.*`, `finance.*`, `payments.settings`. §10.54.1, §10.60.1, §10.64.9. No migration. | **No shape change** (the session's `capabilities` lists one more value; panel only). |
 | v1.66-live (draft) | 2026-11-04 | **D271 (owner: «اجعل امنحهم صلاحية من لوحة الأدمن»): «الموظفون والصلاحيات»** — the OWNER manages the panel staff from the panel (§10.96.5, on D197's team operations): `AdminTeam` rows gain `onShift`, `shiftSince`; `AdminTeamGrantRequest.account` (email or username; `email` kept, exactly one); `AdminTeamGrantResult.account` (email, username, displayName, totpEnrolled); `AdminTeamRevokeResult.shiftEnded`; refusal issues `team_no_account`, `team_not_active`, `team_locked`, `team_self_owner`, `team_last_owner`, `team_not_held`, `team_self_reset`, `team_not_member` (409 `ADMIN_ACTION_REFUSED`, `details[0].field = rule`); a locked account (D208) cannot be granted; the last-OWNER check serialized; no watch role left → off shift and the lives handed on; per-IP bucket `admin-team:ip` (`RATE_LIMIT_ADMIN_TEAM_IP` 20 / 15 min). No migration. | **Additive** (new optional request field, new response fields; `email` still accepted). |
 | v1.64-live (draft) | 2026-11-04 | **D260 (owner: «حسابات موظفين تدخل البثوث لمراقبتها»; answers: visible with a «فريق كابسو» badge, every new live assigned automatically, real employee accounts):** staff presence in lives (§10.96) — `getAdminMyShift` / `setAdminMyShift` (`GET` / `PUT /admin/me/shift`, `AdminShift`, `UpdateAdminShiftRequest`), `listAdminShifts` (`GET /admin/shifts`, `AdminShiftList`; capability `staff.shifts`: OWNER); every LIVE room assigned to a staff member on shift by load, reported lives first and to OWNER / MODERATION; `listAdminLives?assigned=me`, `AdminLiveRow.assignedTo` / `staffWatching`; `createAdminLiveWatchToken` `visibility` (WATCH default VISIBLE: `team:<adminId>:<nonce>`, not hidden, never counted; HIDDEN needs `lives.watch.hidden`: OWNER, MODERATION); `LiveViewerPage.staff` (`LiveStaffWatcher`); audit `admin.live.assign`, `admin.shift.on|off`; migration `20270307090000_live_staff_presence` (`admin_shifts`, `live_room_assignments`, `live_room_staff_watchers`). The app: the «فريق كابسو» rows in the viewer list and the team shield by the top viewers. | **Additive** for the apps (a new optional field); the panel's WATCH default becomes visible. |
 | v1.63-live (draft) | 2026-11-04 | **D259 (owner: «عرض الكرز الحقيقي في حبّة المضيف، وتبقى النقاط للترتيب وPK فقط بدون أيقونة الكرز»):** `LiveScore.hostCherries` (the host's real cherries of the live, as credited by the cherry ledger) in `LiveRoom.scoreParts`, `LiveTapsResult.score` and `LiveRoomStats.score`; media metadata `hostCherries` (left out at 0); migration `20270306090600_live_host_cherries` (`live_room_scores.host_cherries`, backfilled at CHERRIES_PER_COIN 10). §10.95. | **Additive** (a new response field, a new metadata key). |
@@ -3447,6 +3448,10 @@ Audit actions: `recharge.application.submit`, `.view`, `.approve`, `.reject`, `r
 `recharge.employee.add` / `.update` / `.remove`, `recharge.availability`, `recharge.cherry.request` /
 `.confirm` / `.decline` / `.cancel`, `recharge.purge`.
 
+In the panel (§10.54.5 section 3) the same rules run behind capabilities. D275 (owner): the moderator «مشرف» reads the
+agents list and the stock top-ups (`recharge.agents`, `recharge.topups.view`) but never tops up, suspends, reinstates
+or changes a cap; its only coin movement is a recharge dispute's decision (§10.64.9).
+
 #### 10.48.1 Special usernames «يوزر مميز» *(v1.54-social, DRAFT — D185, owner 2026-10-30)*
 
 A general layer that the recharge agents use first and other sources reuse. A person has at most one **active
@@ -3837,10 +3842,11 @@ session's `capabilities` do not include.
 |---|:-:|:-:|:-:|:-:|
 | `dashboard.view`, `users.view` | ✓ | ✓ | ✓ | ✓ |
 | `users.balances` (a profile's balances, read-only; owner 2026-10-31: the moderator too) | ✓ | ✓ | ✓ | ✓ |
-| `users.ledger` (the latest coin and cherry ledger rows in a profile) | ✓ | | ✓ | ✓ |
+| `users.ledger` (the latest coin and cherry ledger rows in a profile; D275: the moderator too, read-only) | ✓ | ✓ | ✓ | ✓ |
 | `users.ban`, `users.avatar`, `reports.view`, `reports.act` | ✓ | ✓ | | |
 | `users.special_username`, `recharge.applications` (private fields and pictures), `recharge.decide`, `recharge.status` | ✓ | | ✓ | |
-| `recharge.agents` | ✓ | | ✓ | ✓ |
+| `recharge.agents` (the agents list and the exchange rates, read; D275: the moderator too, with no action) | ✓ | ✓ | ✓ | ✓ |
+| `recharge.topups.view` (D275: the top-up records, read-only — the agents' top-ups «شحن الوكلاء» and the users' card orders; their CSV stays `finance.view`) | ✓ | ✓ | | ✓ |
 | `recharge.topup`, `recharge.cap`, `withdrawals.view`, `withdrawals.decide` | ✓ | | | ✓ |
 | `site.settings` | ✓ | | | |
 | `payments.settings` (v1.64-social, D196: the Stripe keys and top-up options, §10.53.1) | ✓ | | | |
@@ -3848,8 +3854,19 @@ session's `capabilities` do not include.
 | `kyc.settings` (v1.80-kyc, D227: the Didit API key, webhook secret, workflows, daily limit and switch, §10.77) | ✓ | | | |
 | `fx.settings` (v1.81-social, D245: the paid exchange-rate provider, its API key and switch «مزوّد أسعار الصرف», §10.87.4) | ✓ | | | |
 | `kyc.view` (v1.80-kyc, D227: a person's identity check — name, birth date, document country, duplicates — and the short-lived image fetch, each audited, §10.77) | ✓ | | ✓ | |
-| `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9) | ✓ | | ✓ | ✓ |
-| `recharge.disputes.resolve`, `recharge.rates` (v1.69-social, D204: a dispute's decision, the exchange rates) | ✓ | | | ✓ |
+| `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9; D275: the moderator too) | ✓ | ✓ | ✓ | ✓ |
+| `recharge.disputes.resolve` (v1.69-social, D204: a dispute's decision, the code again; D275: the moderator too) | ✓ | ✓ | | ✓ |
+| `recharge.rates` (v1.69-social, D204: editing the exchange rates) | ✓ | | | ✓ |
+
+**The moderator and money (D275, owner).** «المشرف يمكن ان يكون لديه سجل شحن للوكلاء والمستخدمين بحيث يعرض المعاملة فقط
+دون تعديل او حذف» — «يمكنه ايضاً مشاهدة نزاعات الشحن والحكم فيها لكن لا يمكنه ارسال اي عملات او سحب الا من النزاعات
+الحكم فيها». MODERATION reads the recharge agents and the exchange rates (`recharge.agents`), the agents' top-ups and
+the users' card orders (`recharge.topups.view`, without their CSV, the Stripe cases or the financial report), a
+user's coin and cherry ledger (`users.ledger`), and views and decides the recharge disputes (`recharge.disputes`,
+`recharge.disputes.resolve`, the authenticator code again, §10.64.9). It never holds `recharge.topup`,
+`recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`, `finance.view`, `finance.refund`,
+`users.balance_adjust`, `referrals.decide` or `payments.settings`: **a dispute decision is the only coin movement a
+moderator can cause.** The panel shows the moderator these pages with no other action button.
 
 An account holding a panel role can be banned, unbanned or otherwise acted on only by an OWNER; nobody acts on their
 own account (409 `ADMIN_ACTION_REFUSED`).
@@ -3928,7 +3945,8 @@ own message.
    fields, audited), `getAdminRechargeApplicationPhoto` (the WebP bytes streamed by the API with
    `Cache-Control: private, no-store` — never a storage URL; audited per view; the panel fetches a picture only when
    asked), approve / reject; `listAdminRechargeAgents` (with the owner's `pricing`), top-up (tier price and paid USD,
-   a different amount needs a note; code again), suspend / reinstate, cap.
+   a different amount needs a note; code again), suspend / reinstate, cap. D275: the moderator «مشرف» reads the agents
+   list (`recharge.agents`) with none of these actions.
 4. **Withdrawals** (D179) `listAdminWithdrawals` (PENDING oldest first), mark paid with a payment reference (kept as
    the decision note `ref: … — note`), reject with a reason (the cherries go back). Stripe cases appear when D190
    merges.
@@ -4278,7 +4296,7 @@ New capabilities (added to the §10.54.1 table; the session's `capabilities` lis
 | `catalog.view` (gifts, bag items, banners, events) | ✓ | | ✓ | ✓ |
 | `catalog.manage` (gift CRUD, banners, events) | ✓ | | | |
 | `items.grant` (a user's frames and profile cards) | ✓ | | ✓ | |
-| `finance.view` (agent top-ups, card orders, Stripe cases, the report) | ✓ | | | ✓ |
+| `finance.view` (Stripe cases, the report, the CSV of the agent top-ups and card orders; reading those two lists is `recharge.topups.view` since D275 — OWNER, FINANCE, MODERATION) | ✓ | | | ✓ |
 | `finance.refund` (team refund — code again — and closing a case) | ✓ | | | ✓ |
 | `audit.view` (audit viewer, a user's «السجل» tab) | ✓ | | | |
 | `team.manage` | ✓ | | | |
@@ -4726,10 +4744,10 @@ admin's decision exactly one wins; the loser gets 409 `RECHARGE_ORDER_STATE_CHAN
 
 #### 10.64.9 The panel «نزاعات الشحن»
 
-Capabilities (§10.54.1): `recharge.disputes` (OWNER, SUPPORT, FINANCE) — the queue (DISPUTED oldest first; decided
+Capabilities (§10.54.1): `recharge.disputes` (OWNER, SUPPORT, FINANCE; MODERATION since D275) — the queue (DISPUTED oldest first; decided
 newest first), the order with its whole chat and pictures (each view audited `recharge.order.admin_view` /
 `recharge.order.image_view`, actor, IP, `via: panel`), and «الإدارة» lines in the chat (`recharge.order.admin_message`;
-users never see the admin's name); `recharge.disputes.resolve` (OWNER, FINANCE — the money roles, like a top-up) —
+users never see the admin's name); `recharge.disputes.resolve` (OWNER, FINANCE and, D275 (owner), MODERATION — the moderator's only coin movement) —
 the decision with a reason and the authenticator code again (§10.54.3): `CREDIT_BUYER` → COMPLETED_BY_ADMIN (wallet
 `RECHARGE_ORDER`) or `REFUND_AGENT` → REFUNDED_TO_AGENT (stock `ORDER_RELEASE`), through `resolveDisputeIn` — the rule
 of `recharge-admin resolve` — audited with before/after, the reason, actor, IP and `via`; both sides notified. The same

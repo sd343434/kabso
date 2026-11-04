@@ -96,6 +96,39 @@ describe('admin panel v2', () => {
       expect.arrayContaining(['lives.manage', 'users.sessions', 'reports.act']),
     );
     expect(capabilitiesOf(['MODERATION'])).not.toContain('finance.view');
+  });
+
+  it('D275 (owner): the moderator reads the top-up records and decides disputes, and moves no other coin', () => {
+    const mod = capabilitiesOf(['MODERATION']);
+    expect(mod).toEqual(
+      expect.arrayContaining([
+        'recharge.agents',
+        'recharge.topups.view',
+        'users.ledger',
+        'recharge.disputes',
+        'recharge.disputes.resolve',
+      ]),
+    );
+    for (const cap of [
+      'recharge.topup',
+      'recharge.cap',
+      'recharge.status',
+      'recharge.rates',
+      'recharge.applications',
+      'recharge.decide',
+      'withdrawals.view',
+      'withdrawals.decide',
+      'finance.view',
+      'finance.refund',
+      'payments.settings',
+      'users.balance_adjust',
+      'referrals.decide',
+    ] as const)
+      expect(mod, cap).not.toContain(cap);
+    // FINANCE and OWNER keep what they had; SUPPORT gains no top-up records.
+    expect(CAPABILITIES['recharge.topups.view']).toEqual(['OWNER', 'MODERATION', 'FINANCE']);
+    expect(capabilitiesOf(['FINANCE'])).toEqual(expect.arrayContaining(['finance.view', 'recharge.topup']));
+    expect(capabilitiesOf(['SUPPORT'])).not.toContain('recharge.topups.view');
     expect(capabilitiesOf(['FINANCE'])).not.toContain('lives.view');
     expect(capabilitiesOf(['SUPPORT'])).toEqual(expect.arrayContaining(['agencies.manage', 'items.grant']));
     // Owner answer CP-039 Q2: the users CSV (with emails) is OWNER only.

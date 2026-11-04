@@ -71,9 +71,10 @@ export const NAV: NavGroup[] = [
       // v1.69-social (D204): «نزاعات الشحن» and «أسعار الصرف».
       { to: '/recharge/disputes', key: 'navDisputes', icon: 'alert', cap: 'recharge.disputes', match: ['disputes', 'dispute'] },
       { to: '/recharge/exchange-rates', key: 'navRates', icon: 'globe', cap: 'recharge.agents', match: ['rates'] },
-      { to: '/finance/topups', key: 'navAgentTopups', icon: 'list', cap: 'finance.view', match: ['topups'] },
+      // D275: the top-up records are read-only for the moderator «مشرف» (`recharge.topups.view`).
+      { to: '/finance/topups', key: 'navAgentTopups', icon: 'list', cap: 'recharge.topups.view', match: ['topups'] },
       { to: '/withdrawals', key: 'navWithdrawals', icon: 'download', cap: 'withdrawals.view', match: ['withdrawals'] },
-      { to: '/finance/cards', key: 'navCards', icon: 'shield', cap: 'finance.view', match: ['cards'] },
+      { to: '/finance/cards', key: 'navCards', icon: 'shield', cap: 'recharge.topups.view', match: ['cards'] },
       // v1.74-social (D217): «الدعوات» and their settings.
       { to: '/referrals', key: 'navReferrals', icon: 'users', cap: 'referrals.view', match: ['referrals', 'referral'] },
       { to: '/referral-settings', key: 'navReferralSettings', icon: 'money', cap: 'referrals.view', match: ['referralSettings'] },

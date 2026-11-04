@@ -85,9 +85,9 @@ describe('panel roles', () => {
     expect(capabilitiesOf(['OWNER'])).toEqual(Object.keys(CAPABILITIES));
     expect(can(['MODERATION'], 'reports.act')).toBe(true);
     expect(can(['MODERATION'], 'recharge.applications')).toBe(false);
-    // Owner 2026-10-31: the moderator sees a user's balances (read-only), not the ledger rows.
+    // Owner 2026-10-31: the moderator sees a user's balances (read-only); D275: and the ledger rows (read-only).
     expect(can(['MODERATION'], 'users.balances')).toBe(true);
-    expect(can(['MODERATION'], 'users.ledger')).toBe(false);
+    expect(can(['MODERATION'], 'users.ledger')).toBe(true);
     expect(can(['SUPPORT'], 'users.ledger')).toBe(true);
     expect(can(['FINANCE'], 'users.ledger')).toBe(true);
     expect(can(['SUPPORT'], 'recharge.applications')).toBe(true);

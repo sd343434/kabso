@@ -697,24 +697,29 @@ export class AdminV2Controller {
 
   // ---- money (§10.60.5) -----------------------------------------------------------------------------------------
 
+  // D275: the top-up records are read by `recharge.topups.view` (the moderator too); their CSV stays `finance.view`.
   @Get('finance/recharge-topups')
-  @RequireCapability('finance.view')
+  @RequireCapability('recharge.topups.view')
   async rechargeTopups(
     @Query(new ZodValidationPipe(rechargeTopupsQuery)) q: RangeQuery,
     @CurrentAdmin() admin: AdminContext,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (q.format === 'csv' && !can(admin.roles, 'finance.view'))
+      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     return sendTable(res, (await this.money.rechargeTopups(q, admin)) as never);
   }
 
   @Get('finance/card-orders')
-  @RequireCapability('finance.view')
+  @RequireCapability('recharge.topups.view')
   async cardOrders(
     @Query(new ZodValidationPipe(cardOrdersQuery))
     q: RangeQuery & { status?: 'PENDING' | 'AWAITING_FUNDS' | 'PAID' | 'EXPIRED' | 'FAILED' },
     @CurrentAdmin() admin: AdminContext,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (q.format === 'csv' && !can(admin.roles, 'finance.view'))
+      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     return sendTable(res, await this.money.cardOrders(q, admin));
   }
 

@@ -123,6 +123,7 @@ describe('QR', () => {
 // ---- v1.65-social (D197): the panel v2's pure parts -----------------------------------------------------------
 import { attachmentName } from '../src/api';
 import { visibleNav, CAP_OF_ROUTE } from '../src/nav';
+import { CAPABILITY_ROLES } from './capabilities';
 import { diffOf, metaText } from '../src/pages/Audit';
 import { filesBody, filesOf, giftBody, type GiftDto } from '../src/pages/Catalog';
 import { categoryBody } from '../src/pages/GiftCategories';
@@ -337,7 +338,7 @@ describe('audit viewer', () => {
 describe('navigation by role', () => {
   const CAPS: Record<string, Capability[]> = {
     MODERATION: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ban', 'users.avatar', 'reports.view', 'reports.act', 'users.sessions', 'lives.view', 'lives.manage', 'hosts.applications'],
-    FINANCE: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ledger', 'recharge.agents', 'recharge.topup', 'recharge.cap', 'withdrawals.view', 'withdrawals.decide', 'agencies.view', 'catalog.view', 'finance.view', 'finance.refund', 'programs.view'],
+    FINANCE: ['dashboard.view', 'users.view', 'users.list', 'users.balances', 'users.ledger', 'recharge.agents', 'recharge.topups.view', 'recharge.topup', 'recharge.cap', 'withdrawals.view', 'withdrawals.decide', 'agencies.view', 'catalog.view', 'finance.view', 'finance.refund', 'programs.view'],
   };
   const items = (role: string) => visibleNav((c) => CAPS[role]!.includes(c)).flatMap((g) => g.items.map((i) => i.to));
   it('shows each role only what it can open (groups without items vanish)', () => {
@@ -346,6 +347,16 @@ describe('navigation by role', () => {
     expect(items('FINANCE')).not.toContain('/team');
     expect(items('FINANCE')).not.toContain('/reports');
     expect(visibleNav((c) => CAPS.MODERATION!.includes(c)).map((g) => g.key)).not.toContain('navGroupMoney');
+  });
+  it('D275: the moderator «مشرف» sees the top-up records and the disputes, not the report, withdrawals or rates editing', () => {
+    const mod = visibleNav((c) => (CAPABILITY_ROLES[c] ?? []).includes('MODERATION')).flatMap((g) => g.items.map((i) => i.to));
+    expect(mod).toEqual(
+      expect.arrayContaining(['/recharge/agents', '/recharge/disputes', '/recharge/exchange-rates', '/finance/topups', '/finance/cards']),
+    );
+    for (const to of ['/finance/report', '/withdrawals', '/recharge/applications', '/referrals', '/payments']) expect(mod, to).not.toContain(to);
+    expect(CAP_OF_ROUTE.topups).toBe('recharge.topups.view');
+    expect(CAP_OF_ROUTE.cards).toBe('recharge.topups.view');
+    expect(CAP_OF_ROUTE.report).toBe('finance.view');
   });
   it('every v2 route has a capability', () => {
     for (const r of ['agencies', 'agency', 'complaints', 'lives', 'hosts', 'gifts', 'items', 'promo', 'report', 'topups', 'cards', 'tasks', 'levels', 'waitlist', 'team', 'audit', 'specialUsernames', 'hostApplications', 'hostApplication', 'referrals', 'referral', 'referralSettings']) {
