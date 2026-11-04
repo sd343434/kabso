@@ -66,7 +66,7 @@ Widget _opener(List<String> opened) => Builder(
 
 void main() {
   test('LiveStaffWatcher reads the page entry; an older server has none', () {
-    final s = LiveStaffWatcher.fromJson({
+    final s = LiveStaffWatcher.fromJson(const {
       'displayName': 'سارة',
       'avatarUrl': null,
       'since': '2026-11-04T10:00:00.000Z',
