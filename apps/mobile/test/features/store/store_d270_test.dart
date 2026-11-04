@@ -53,6 +53,8 @@ class _Coins extends LiveCoinsController {
 /// still; the SVGA / MP4 players are off).
 const _art = {
   'frame': 'assets/host_frames/host_frame_pink.webp',
+  'frame_blue': 'assets/host_frames/host_frame_blue.webp',
+  'frame_gold': 'assets/levels/support_frames/support_frame_12.webp',
   'card': 'assets/card_boxes/family.webp',
   'bubble': 'assets/win_frames/win_frame_sapphire.png',
   'banner': 'assets/win_frames/win_frame_ruby.png',
@@ -111,7 +113,7 @@ StoreItemList _list({required bool ar, int coins = 120000, int cherries = 0}) =>
           'store_000000000002',
           StoreKind.avatarFrame,
           ar ? 'إطار الملكة' : 'Queen frame',
-          art: 'frame',
+          art: 'frame_blue',
           ownedUntil: DateTime.utc(2026, 11, 20),
           prices: const [
             StorePrice(currency: StoreCurrency.coins, days: 14, amount: 90000),
@@ -121,7 +123,7 @@ StoreItemList _list({required bool ar, int coins = 120000, int cherries = 0}) =>
           'store_000000000003',
           StoreKind.avatarFrame,
           ar ? 'إطار الكرز' : 'Cherry frame',
-          art: 'frame',
+          art: 'frame_gold',
           prices: const [
             StorePrice(
               currency: StoreCurrency.cherries,
@@ -339,13 +341,39 @@ void main() {
       find.byKey(StoreScreen.ownedKey('store_000000000002')),
       findsOneWidget,
     );
-    // The lowest coin price; a cherry-only item shows its cherries.
+    // One tile per item (never one per price or currency).
+    for (final code in [
+      'store_000000000001',
+      'store_000000000002',
+      'store_000000000003',
+    ]) {
+      expect(find.byKey(StoreScreen.itemKey(code)), findsOneWidget);
+    }
+    // Priced in both: the lowest coin price AND the lowest cherry price.
+    Finder price(String code, StoreCurrency c, String text) => find.descendant(
+      of: find.byKey(StoreScreen.priceKey(code, c)),
+      matching: find.text(text),
+    );
     expect(
-      find.descendant(
-        of: find.byKey(StoreScreen.itemKey('store_000000000001')),
-        matching: find.text('50,000'),
-      ),
+      price('store_000000000001', StoreCurrency.coins, '50,000'),
       findsOneWidget,
+    );
+    expect(
+      price('store_000000000001', StoreCurrency.cherries, '400,000'),
+      findsOneWidget,
+    );
+    // Priced in one currency: only that one.
+    expect(
+      find.byKey(
+        StoreScreen.priceKey('store_000000000002', StoreCurrency.cherries),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byKey(
+        StoreScreen.priceKey('store_000000000003', StoreCurrency.coins),
+      ),
+      findsNothing,
     );
     expect(
       find.descendant(
@@ -572,6 +600,21 @@ void main() {
       expect(find.byKey(VipNameBadge.badgeKey), findsNothing);
       expect(find.text('VIP0'), findsNothing);
     });
+  });
+
+  testWidgets('two prices fit 3 columns at 360 × 800 (no overflow)', (
+    tester,
+  ) async {
+    await _pump(tester, language: AppLanguage.ar);
+    setViewport(tester, GoldenViewport.android);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(
+        StoreScreen.priceKey('store_000000000001', StoreCurrency.cherries),
+      ),
+      findsOneWidget,
+    );
   });
 
   group('goldens', () {

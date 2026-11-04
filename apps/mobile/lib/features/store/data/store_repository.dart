@@ -132,15 +132,18 @@ final class StoreItem {
       .firstOrNull
       ?.amount;
 
-  /// The grid's price: the lowest in coins, else in cherries.
-  StorePrice? get from {
-    for (final c in StoreCurrency.values) {
-      final inC = prices.where((p) => p.currency == c).toList()
-        ..sort((a, b) => a.amount.compareTo(b.amount));
-      if (inC.isNotEmpty) return inC.first;
-    }
-    return null;
+  /// The lowest price in [currency], or null when not priced in it.
+  StorePrice? lowestIn(StoreCurrency currency) {
+    final inC = prices.where((p) => p.currency == currency).toList()
+      ..sort((a, b) => a.amount.compareTo(b.amount));
+    return inC.firstOrNull;
   }
+
+  /// The grid's prices (owner: «يعرض بسعرين»): the lowest in each currency
+  /// priced — coins first, then cherries; one or two.
+  List<StorePrice> get lowest => [
+    for (final c in StoreCurrency.values) ?lowestIn(c),
+  ];
 }
 
 /// `StoreBalances`: the caller's coins and cherries.

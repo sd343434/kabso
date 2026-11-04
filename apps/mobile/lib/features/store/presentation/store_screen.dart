@@ -39,6 +39,8 @@ class StoreScreen extends ConsumerStatefulWidget {
   static Key itemKey(String code) => Key('store.item.$code');
   static Key newKey(String code) => Key('store.item.$code.new');
   static Key ownedKey(String code) => Key('store.item.$code.owned');
+  static Key priceKey(String code, StoreCurrency currency) =>
+      Key('store.item.$code.price.${currency.wire}');
 
   @override
   ConsumerState<StoreScreen> createState() => _StoreScreenState();
@@ -111,7 +113,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               crossAxisCount: 3,
               mainAxisSpacing: KSpacing.md,
               crossAxisSpacing: KSpacing.md,
-              childAspectRatio: 0.72,
+              childAspectRatio: 0.66,
             ),
             itemCount: items.length,
             itemBuilder: (context, i) => StoreItemTile(
@@ -201,7 +203,6 @@ class StoreItemTile extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final from = item.from;
     return Semantics(
       button: true,
       label: item.name,
@@ -260,7 +261,14 @@ class StoreItemTile extends StatelessWidget {
                   style: t.label.copyWith(color: p.textPrimary),
                 ),
                 const SizedBox(height: KSpacing.xxs),
-                if (from != null) StorePriceText(value: from, compact: true),
+                // One tile per item: the lowest coin price and the lowest
+                // cherry price, each on its line (one when priced in one).
+                for (final price in item.lowest)
+                  StorePriceText(
+                    key: StoreScreen.priceKey(item.code, price.currency),
+                    value: price,
+                    compact: true,
+                  ),
               ],
             ),
           ),
