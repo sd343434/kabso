@@ -214,4 +214,59 @@ describe('D258 VIP daily perks', { timeout: 120_000 }, () => {
     expect(sped[0]!.reason).toBe('VIP level speed-up +1%');
     expect(plain[0]!.reason).toBeNull();
   });
+  it('daily coins: the panel sets the amount; a member claims once a day; no perk → 409 no_perk', async () => {
+    const plain = await signup();
+    const refused = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(plain));
+    expect(refused.status).toBe(409);
+    expect(refused.body.error).toMatchObject({
+      code: 'VIP_UNAVAILABLE',
+      details: [{ field: 'perk', issue: 'no_perk' }],
+    });
+
+    const member = await signup();
+    await vip(member);
+    // VIP 1's DAILY_COINS is seeded without an amount: nothing to claim yet.
+    const none = await ctx.http.get('/api/v1/me/vip').set(auth(member));
+    expect(none.status).toBe(200);
+    expectContract(none, 'getMyVip');
+    expect(none.body.dailyCoins).toBeUndefined();
+    expect((await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member))).status).toBe(409);
+
+    // The owner sets it (as `updateAdminVipTier` does).
+    await ctx.prisma.vipTierPerk.updateMany({
+      where: { tierId: VIP1, code: 'DAILY_COINS' },
+      data: { amount: 500 },
+    });
+    const before = Number((await ctx.http.get('/api/v1/wallet/me').set(auth(member))).body.coins);
+    const state = await ctx.http.get('/api/v1/me/vip').set(auth(member));
+    expectContract(state, 'getMyVip');
+    expect(state.body.dailyCoins).toMatchObject({ amount: 500, claimedToday: false });
+
+    const first = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member));
+    expect(first.status, JSON.stringify(first.body)).toBe(200);
+    expectContract(first, 'claimVipDailyCoins');
+    expect(first.body).toMatchObject({
+      coins: 500,
+      balance: before + 500,
+      dailyCoins: { amount: 500, claimedToday: true },
+    });
+    // The same day: nothing more (also two at once).
+    const [again, racing] = await Promise.all([
+      ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member)),
+      ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member)),
+    ]);
+    for (const res of [again, racing]) {
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ coins: 0, balance: before + 500 });
+    }
+    const ledger = await ctx.prisma.walletLedgerEntry.findMany({
+      where: { userId: member.id, reason: 'VIP_DAILY_COINS' },
+    });
+    expect(ledger.map((l) => l.delta)).toEqual([500n]);
+
+    // The next day: once more.
+    clock.advance(86_400);
+    const tomorrow = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member));
+    expect(tomorrow.body).toMatchObject({ coins: 500, balance: before + 1000 });
+  });
 });

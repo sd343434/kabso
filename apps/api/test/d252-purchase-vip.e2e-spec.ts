@@ -189,6 +189,7 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         'CHAT_BUBBLE',
         'CHAT_NAME_COLOR',
         'DAILY_BULLET',
+        'DAILY_COINS',
         'ENTRY_BANNER',
         'ENTRY_EFFECT',
         'LEVEL_SPEEDUP',

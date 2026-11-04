@@ -87,6 +87,7 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
       'ENTRY_EFFECT',
       'MIC_WAVE',
       'DAILY_BULLET',
+      'DAILY_COINS',
       'LEVEL_SPEEDUP',
     ]) {
       expect(byCode.get(code)!.available, code).toBe(true);

@@ -35,8 +35,9 @@ export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>([
   'ENTRY_BANNER',
   'ENTRY_EFFECT',
   'MIC_WAVE',
-  // Server-side only: free public messages a day and the level speed-up (§10.94.4).
+  // Free public messages a day and the level speed-up (§10.94.4); the daily coins (§10.94.5).
   'DAILY_BULLET',
+  'DAILY_COINS',
   'LEVEL_SPEEDUP',
 ]);
 

@@ -129,6 +129,7 @@ describe('VIP helpers', () => {
       'ENTRY_EFFECT',
       'MIC_WAVE',
       'DAILY_BULLET',
+      'DAILY_COINS',
       'LEVEL_SPEEDUP',
     ]) {
       expect(VIP_BUILT_PERKS.has(code)).toBe(true);
