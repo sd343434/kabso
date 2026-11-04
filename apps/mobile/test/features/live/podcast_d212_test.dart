@@ -561,6 +561,22 @@ void main() {
       },
     );
 
+    testWidgets("D261: a listener's message goes to the server (the host "
+        'sees it through the room)', (tester) async {
+      final (live, _) = await _openRoom(
+        tester,
+        seats: _podcastSeats(role: LiveSeatRole.viewer),
+      );
+      await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(EditableText).last, 'مرحبا');
+      await tester.tap(find.byKey(const Key('liveChat.send')));
+      await tester.pump();
+      await tester.pump();
+      expect(live.chatCalls, contains('send:مرحبا'));
+      await _close(tester);
+    });
+
     test('D230: `written` comes from the controller (what arrives during '
         'the visit), never from where the history sits', () {
       expect(const LiveChatState().written, isFalse);

@@ -262,6 +262,11 @@ class LiveChatController extends Notifier<LiveChatState> {
   /// CP-017: when each VOICE / IMAGE message goes (message id → timer).
   final _expiry = <String, Timer>{};
 
+  /// D261: every message id this chat has read (the history, the data
+  /// messages, its own sends), so [catchUp] adds only what never arrived.
+  final _seen = <String>{};
+  bool _catchingUp = false;
+
   /// Bullets already queued or shown (a data message may come twice).
   final _bulletIds = <String>{};
 
@@ -348,11 +353,13 @@ class LiveChatController extends Notifier<LiveChatState> {
     _events = engine.chatEvents.listen(_onEvent);
     unawaited(_loadBlocks());
     try {
+      final read = await _repo.chatMessages(roomId);
+      if (!ref.mounted) return;
+      _seen.addAll(read.map((m) => m.id));
       final messages = [
-        for (final m in await _repo.chatMessages(roomId))
+        for (final m in read)
           if (_showable(m) && _scheduleExpiry(m, fresh: false)) m,
       ];
-      if (!ref.mounted) return;
       // D141 (owner's device: the lines sat ABOVE the rules line, which
       // stayed at the bottom): the rules line is the first line of the
       // visit and must stay where it was said —
@@ -429,6 +436,30 @@ class LiveChatController extends Notifier<LiveChatState> {
     }
   }
 
+  /// D261 (owner's device: «في بث البودكاست رسائل المشاهد لا تظهر عند
+  /// المضيف»): a line reaches the room as a best-effort media data message
+  /// (§10.11); one that never arrived was missing from the host's screen
+  /// for the rest of the live. This reads the last messages again and adds,
+  /// in order, the ones this chat never had (a message deleted or seen
+  /// before is never brought back). The host's live calls it with each
+  /// heartbeat. Best effort: a failed read is ignored.
+  Future<void> catchUp() async {
+    if (!_attached || !state.loaded || _catchingUp) return;
+    _catchingUp = true;
+    try {
+      final read = await _repo.chatMessages(roomId);
+      if (!ref.mounted) return;
+      for (final m in read) {
+        if (_seen.contains(m.id)) continue;
+        _onEvent(LiveChatReceived(m));
+      }
+    } on Object {
+      // The next heartbeat tries again.
+    } finally {
+      _catchingUp = false;
+    }
+  }
+
   /// D148: whether this person blocked [userId] (as loaded for this live;
   /// best effort, like the chat's own filter).
   bool isBlocked(String userId) => _blocked.contains(userId);
@@ -457,6 +488,7 @@ class LiveChatController extends Notifier<LiveChatState> {
     final me = ref.read(currentUserProvider);
     switch (event) {
       case LiveChatReceived(:final message):
+        _seen.add(message.id);
         if (_blocked.contains(message.author.id)) return;
         if (_has(message.id) || !_showable(message)) return;
         if (!_scheduleExpiry(message, fresh: true)) return;
@@ -714,6 +746,7 @@ class LiveChatController extends Notifier<LiveChatState> {
         }
       }
       if (!ref.mounted) return null;
+      _seen.add(message.id);
       final items = [
         for (final it in state.items)
           if (it is! LiveChatPending || it.clientId != clientId) it,
@@ -798,6 +831,7 @@ class LiveChatController extends Notifier<LiveChatState> {
         clientId: _uuidV4(),
       );
       if (!ref.mounted) return null;
+      _seen.add(message.id);
       if (!_has(message.id) &&
           _showable(message) &&
           _scheduleExpiry(message, fresh: true)) {

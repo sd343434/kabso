@@ -9,6 +9,7 @@ import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
+import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_streamer_host.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
@@ -1012,6 +1013,11 @@ class LiveHostController extends Notifier<GoLiveState> {
     if (room == null || state.phase != GoLivePhase.live) return;
     try {
       await _repo.heartbeat(room.id);
+      // D261: the chat lines whose data message never reached this phone.
+      final chat = liveChatProvider(room.id);
+      if (ref.mounted && ref.exists(chat)) {
+        unawaited(ref.read(chat.notifier).catchUp());
+      }
       // D170: a report that failed (none is under way) is sent again.
       if (_awayWanted != _awayAcked && _reporting == 0) {
         unawaited(_reportAway(away: _awayWanted));
