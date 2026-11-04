@@ -13068,5 +13068,7 @@
   "bagNoSendVip": "عناصر VIP تابعة لعضويتك ولا تُرسل",
   "@bagNoSendVip": {"description": "D264: a VIP member's tier items in the bag (§10.97)."},
   "bagNoSendPermanent": "العناصر الدائمة لا تُرسل",
-  "@bagNoSendPermanent": {"description": "D266: permanent bag items are never sent."}
+  "@bagNoSendPermanent": {"description": "D266: permanent bag items are never sent."},
+  "meHubStore": "المتجر",
+  "@meHubStore": {"description": "D267: the Me tab's store card (not built yet: «قريباً»)."}
 }

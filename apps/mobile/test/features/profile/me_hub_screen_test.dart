@@ -62,7 +62,6 @@ const List<String> _destinations = [
   // D166.
   AppRoutes.taskCenter,
   AppRoutes.eventCenter,
-  AppRoutes.svip,
   // D252.
   AppRoutes.vip,
 ];
@@ -160,8 +159,9 @@ Future<void> _tapItem(WidgetTester tester, MeHubItem item) async {
 
 /// The hub items that are not built yet (faded, "Soon", no action).
 /// D164: Wallet, Earn money and Creator Center are built. D166: Event
-/// Center, SVIP and Task Center too. D252: Purchase VIP too — none is left.
-const Set<MeHubItem> _soon = {};
+/// Center, SVIP and Task Center too. D252: Purchase VIP too. D267 (owner):
+/// SVIP is gone; «المتجر» (the store) is not built yet.
+const Set<MeHubItem> _soon = {MeHubItem.store};
 
 void main() {
   testWidgets('header: the name with the level badge on its line, the '
@@ -285,7 +285,6 @@ void main() {
     // D166.
     (MeHubItem.taskCenter, AppRoutes.taskCenter),
     (MeHubItem.eventCenter, AppRoutes.eventCenter),
-    (MeHubItem.svip, AppRoutes.svip),
     // D252.
     (MeHubItem.vip, AppRoutes.vip),
     // D179.
@@ -402,7 +401,7 @@ void main() {
     );
     expect(
       tester.getCenter(find.byKey(MeHubItem.levels.key)).dx,
-      greaterThan(tester.getCenter(find.byKey(MeHubItem.earn.key)).dx),
+      greaterThan(tester.getCenter(find.byKey(MeHubItem.store.key)).dx),
     );
     expect(
       tester.getCenter(find.byKey(MeHubScreen.avatarKey)).dx,
@@ -420,7 +419,7 @@ void main() {
     );
     expect(
       tester.getCenter(find.byKey(MeHubItem.levels.key)).dx,
-      lessThan(tester.getCenter(find.byKey(MeHubItem.earn.key)).dx),
+      lessThan(tester.getCenter(find.byKey(MeHubItem.store.key)).dx),
     );
   });
 

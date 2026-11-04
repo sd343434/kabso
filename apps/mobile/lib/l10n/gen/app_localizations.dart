@@ -23790,6 +23790,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'العناصر الدائمة لا تُرسل'**
   String get bagNoSendPermanent;
+
+  /// D267: the Me tab's store card (not built yet: «قريباً»).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتجر'**
+  String get meHubStore;
 }
 
 class _AppLocalizationsDelegate

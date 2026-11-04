@@ -79,6 +79,7 @@ enum MeHubItem {
   levels,
   vip,
   family,
+  store,
   earn,
   creatorCenter,
   agency,
@@ -86,7 +87,6 @@ enum MeHubItem {
   eventCenter,
   wallet,
   bag,
-  svip,
   taskCenter,
   medals,
   ranking,
@@ -197,19 +197,13 @@ class MeHubScreen extends ConsumerWidget {
           family == null ? AppRoutes.families : AppRoutes.family(family.id),
         ),
       ),
+      // D267 (owner): «المتجر» takes the earn card's place; the store is not
+      // built yet, so it shows «قريباً».
       _HubCard(
-        item: MeHubItem.earn,
-        icon: Icons.payments_rounded,
+        item: MeHubItem.store,
+        icon: Icons.storefront_rounded,
         hue: _Hues.blue,
-        label: l10n.meHubEarn,
-        // D217 (owner): «اربح المال» opens «دعوة صديق»; the cherry wallet
-        // when the programme was found off (the invite page also gives way
-        // to it when it finds the programme off).
-        onTap: () => push(
-          ref.read(referralEnabledProvider) == false
-              ? AppRoutes.walletCherries
-              : AppRoutes.inviteFriends,
-        ),
+        label: l10n.meHubStore,
       ),
     ];
 
@@ -271,12 +265,20 @@ class MeHubScreen extends ConsumerWidget {
         ),
       ],
       [
+        // D267 (owner): «اربح المال» in SVIP's place (SVIP is not needed).
         _HubRow(
-          item: MeHubItem.svip,
-          icon: Icons.military_tech_rounded,
-          hue: _Hues.gold,
-          title: l10n.meHubSvip,
-          onTap: () => push(AppRoutes.svip),
+          item: MeHubItem.earn,
+          icon: Icons.payments_rounded,
+          hue: _Hues.blue,
+          title: l10n.meHubEarn,
+          // D217 (owner): «اربح المال» opens «دعوة صديق»; the cherry wallet
+          // when the programme was found off (the invite page also gives way
+          // to it when it finds the programme off).
+          onTap: () => push(
+            ref.read(referralEnabledProvider) == false
+                ? AppRoutes.walletCherries
+                : AppRoutes.inviteFriends,
+          ),
         ),
         _HubRow(
           item: MeHubItem.taskCenter,

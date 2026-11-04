@@ -4383,5 +4383,6 @@
   "bagCategoryMicWave": "Mic waves",
   "bagFromVip": "From your {tier} membership",
   "bagNoSendVip": "VIP items belong to your membership and can't be sent",
-  "bagNoSendPermanent": "Permanent items can't be sent"
+  "bagNoSendPermanent": "Permanent items can't be sent",
+  "meHubStore": "Store"
 }

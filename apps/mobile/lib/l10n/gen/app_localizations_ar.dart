@@ -14083,4 +14083,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bagNoSendPermanent => 'العناصر الدائمة لا تُرسل';
+
+  @override
+  String get meHubStore => 'المتجر';
 }

@@ -14078,4 +14078,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bagNoSendPermanent => 'Permanent items can\'t be sent';
+
+  @override
+  String get meHubStore => 'Store';
 }
