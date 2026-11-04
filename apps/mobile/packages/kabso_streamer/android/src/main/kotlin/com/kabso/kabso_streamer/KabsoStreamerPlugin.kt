@@ -1,6 +1,7 @@
 package com.kabso.kabso_streamer
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -8,9 +9,12 @@ import android.content.IntentFilter
 import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionConfig
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Display
 import android.view.WindowManager
@@ -22,6 +26,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.PluginRegistry
 
 /**
  * D213: the Android side of the streamer live (`com.kabso/streamer`).
@@ -46,6 +51,17 @@ import io.flutter.plugin.common.MethodChannel
  *   call rings or is on; `AudioManager` mode, polled each second — no phone
  *   permission), `rotation {landscape}` (the display turned), `headset
  *   {connected}` (a headset was plugged in or out; polled with the call).
+ * - `requestCapture {fullScreenOnly}` (D262): the system's screen-capture
+ *   consent, asked from the attached Activity with our own result listener
+ *   (`MediaProjectionManager.createScreenCaptureIntent`; on Android 14+ with
+ *   `fullScreenOnly`, the whole display). Granted → the result Intent is
+ *   handed to this engine's flutter_webrtc ([StreamerRules.putConsent]) so
+ *   its `getDisplayMedia` uses it (Android 14: one consent, one projection).
+ *   Answers `{outcome: granted|refused|failed, reason}`; reasons:
+ *   `no_activity`, `no_service`, `no_dialog`, `security`, `error`,
+ *   `superseded`, `activity_gone`, `no_data`, `instant_cancel`,
+ *   `no_webrtc`. flutter_webrtc's own request (a deprecated framework
+ *   Fragment) answered «refused» without ever showing the dialog.
  * - `headset`: whether a wired, USB or Bluetooth headset is an output now
  *   (`AudioManager.getDevices`, no permission) — the setup's «use
  *   headphones» tip.
@@ -59,11 +75,15 @@ import io.flutter.plugin.common.MethodChannel
 class KabsoStreamerPlugin :
     FlutterPlugin,
     ActivityAware,
-    MethodChannel.MethodCallHandler {
+    MethodChannel.MethodCallHandler,
+    PluginRegistry.ActivityResultListener {
     private var channel: MethodChannel? = null
     private var context: Context? = null
     private var engine: FlutterEngine? = null
     private var activity: Activity? = null
+    private var activityBinding: ActivityPluginBinding? = null
+    private var consent: MethodChannel.Result? = null
+    private var consentAskedAt = 0L
     private val main = Handler(Looper.getMainLooper())
 
     private val mixer = StreamerMixer()
@@ -122,14 +142,24 @@ class KabsoStreamerPlugin :
 
     override fun onAttachedToActivity(b: ActivityPluginBinding) {
         activity = b.activity
+        activityBinding = b
+        b.addActivityResultListener(this)
         applySecure()
     }
 
-    override fun onDetachedFromActivityForConfigChanges() = onDetachedFromActivity()
+    // The consent's answer reaches the recreated Activity: keep it pending.
+    override fun onDetachedFromActivityForConfigChanges() = unbindActivity()
 
     override fun onReattachedToActivityForConfigChanges(b: ActivityPluginBinding) = onAttachedToActivity(b)
 
     override fun onDetachedFromActivity() {
+        unbindActivity()
+        answerConsent("failed", "activity_gone")
+    }
+
+    private fun unbindActivity() {
+        activityBinding?.removeActivityResultListener(this)
+        activityBinding = null
         activity = null
     }
 
@@ -156,9 +186,76 @@ class KabsoStreamerPlugin :
                 result.success(null)
             }
             "moveToBack" -> result.success(activity?.moveTaskToBack(true) ?: false)
+            "requestCapture" -> requestCapture(call.argument<Boolean>("fullScreenOnly") ?: false, result)
             else -> result.notImplemented()
         }
     }
+
+    /** D262: the consent dialog from the attached Activity (see the class doc). */
+    private fun requestCapture(fullScreenOnly: Boolean, result: MethodChannel.Result) {
+        // A request whose answer never came (the dialog was lost) ends here.
+        answerConsent("failed", "superseded")
+        val act = activity
+        if (act == null) {
+            result.success(consentAnswer("failed", "no_activity"))
+            return
+        }
+        val manager = act.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
+        if (manager == null) {
+            result.success(consentAnswer("failed", "no_service"))
+            return
+        }
+        consent = result
+        consentAskedAt = SystemClock.elapsedRealtime()
+        val reason =
+            try {
+                val intent =
+                    if (fullScreenOnly && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+                    } else {
+                        manager.createScreenCaptureIntent()
+                    }
+                act.startActivityForResult(intent, CONSENT_REQUEST)
+                Log.i(TAG, "consent: asked (sdk ${Build.VERSION.SDK_INT})")
+                null
+            } catch (_: ActivityNotFoundException) {
+                "no_dialog"
+            } catch (_: SecurityException) {
+                "security"
+            } catch (_: RuntimeException) {
+                "error"
+            }
+        if (reason != null) {
+            Log.w(TAG, "consent: could not ask ($reason)")
+            answerConsent("failed", reason)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode != CONSENT_REQUEST) return false
+        val elapsed = SystemClock.elapsedRealtime() - consentAskedAt
+        var (outcome, reason) = StreamerRules.consentOutcome(resultCode, data != null, elapsed)
+        if (outcome == "granted" && data != null) {
+            // D232: this engine's flutter_webrtc first (the one the live's
+            // getDisplayMedia runs on), the singleton only without it.
+            val handed = webrtcPlugins().any { StreamerRules.putConsent(it, data) }
+            if (!handed) {
+                outcome = "failed"
+                reason = "no_webrtc"
+            }
+        }
+        Log.i(TAG, "consent: $outcome (${reason ?: "-"}), code $resultCode after ${elapsed}ms")
+        answerConsent(outcome, reason)
+        return true
+    }
+
+    private fun answerConsent(outcome: String, reason: String?) {
+        val pending = consent ?: return
+        consent = null
+        pending.success(consentAnswer(outcome, reason))
+    }
+
+    private fun consentAnswer(outcome: String, reason: String?) = mapOf("outcome" to outcome, "reason" to reason)
 
     /** D232: this engine's flutter_webrtc first, then the singleton. */
     private fun webrtcPlugins(): List<FlutterWebRTCPlugin> {
@@ -337,5 +434,8 @@ class KabsoStreamerPlugin :
     companion object {
         private const val CHANNEL = "com.kabso/streamer"
         private const val TAG = "KabsoStreamer"
+
+        /** D262: our consent's request code (flutter_webrtc uses its own). */
+        private const val CONSENT_REQUEST = 0x4B53
     }
 }

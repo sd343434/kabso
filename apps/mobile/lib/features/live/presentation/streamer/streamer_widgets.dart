@@ -15,6 +15,21 @@ import 'package:material_ui/material_ui.dart';
 // D213 (v1.56-live, CONVENTIONS §10.86) «بث ستريمر»: the host's phone screen
 // with a small round front-camera bubble at a corner the host picks.
 
+/// D262: what the host is told after the screen-capture consent; null when
+/// granted. A «no» from the person and a dialog that could not be asked (or
+/// never showed) are different messages; the latter carries the short code.
+String? streamerConsentMessage(AppLocalizations l10n, StreamerConsent c) =>
+    switch (c.outcome) {
+      StreamerConsentOutcome.granted => null,
+      StreamerConsentOutcome.refused => l10n.streamerConsentRefused,
+      StreamerConsentOutcome.failed
+          when c.reason == StreamerConsent.startFailed =>
+        l10n.streamerShareAgainFailed,
+      StreamerConsentOutcome.failed => l10n.streamerConsentFailed(
+        c.reason ?? 'unknown',
+      ),
+    };
+
 /// Sizes of the streamer's pieces.
 abstract final class KStreamer {
   /// The camera bubble: 28 % of the screen picture's short side, between

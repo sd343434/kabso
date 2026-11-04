@@ -35,10 +35,18 @@ class FakeStreamerPlatform implements StreamerPlatform {
     return headset;
   }
 
+  /// D262: the consent's answer; null → granted or refused by [allowCapture].
+  StreamerConsent? consentAnswer;
+
+  /// D262: throws instead of answering (a platform that misbehaves).
+  bool throwOnConsent = false;
+
   @override
-  Future<bool> requestCapture() async {
+  Future<StreamerConsent> requestCapture() async {
     consents++;
-    return allowCapture;
+    if (throwOnConsent) throw StateError('consent');
+    return consentAnswer ??
+        (allowCapture ? StreamerConsent.granted : StreamerConsent.refused);
   }
 
   @override

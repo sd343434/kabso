@@ -12779,6 +12779,15 @@ class AppLocalizationsAr extends AppLocalizations {
       'لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث';
 
   @override
+  String streamerConsentFailed(String code) {
+    return 'تعذّر طلب إذن تصوير الشاشة ($code)';
+  }
+
+  @override
+  String get streamerShareAgainFailed =>
+      'تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى';
+
+  @override
   String get streamerOnAir => 'شاشتك على الهواء';
 
   @override

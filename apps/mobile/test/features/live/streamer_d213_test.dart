@@ -429,6 +429,43 @@ void main() {
       await _leave(tester);
     });
 
+    testWidgets('D262: the consent could not be asked → its own message with '
+        'the code, not «you refused»; nothing is created', (tester) async {
+      final h = await _goLive(
+        tester,
+        platform: FakeStreamerPlatform()
+          ..consentAnswer = const StreamerConsent.failed('instant_cancel'),
+      );
+      expect(h.platform.consents, 1);
+      expect(h.repo.startRequests, isEmpty);
+      expect(h.service.starts, isEmpty);
+      expect(h.engine.screenPublishes, 0);
+      expect(
+        find.text('تعذّر طلب إذن تصوير الشاشة (instant_cancel)'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'),
+        findsNothing,
+      );
+      await _leave(tester);
+    });
+
+    testWidgets('D262: a consent that throws is a failure with its type', (
+      tester,
+    ) async {
+      final h = await _goLive(
+        tester,
+        platform: FakeStreamerPlatform()..throwOnConsent = true,
+      );
+      expect(h.repo.startRequests, isEmpty);
+      expect(
+        find.text('تعذّر طلب إذن تصوير الشاشة (stateerror)'),
+        findsOneWidget,
+      );
+      await _leave(tester);
+    });
+
     testWidgets('on air: consent → service with the screen → room → screen, '
         'paused while Kabso is in front', (tester) async {
       final h = await _goLive(tester);
@@ -531,6 +568,51 @@ void main() {
       expect(h.engine.screenPublishes, 2);
       expect(h.engine.screenPublished, isTrue);
       expect(find.text('توقفت مشاركة الشاشة'), findsNothing);
+      await _leave(tester);
+    });
+
+    testWidgets('D262: share again — a «no», a failed dialog and a screen '
+        'that cannot start each say their own thing', (tester) async {
+      final h = await _goLive(tester);
+      Future<void> stopAndShare() async {
+        h.platform.emit(const StreamerProjectionStopped());
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(StreamerHostStage.shareAgainKey));
+        await tester.pumpAndSettle();
+      }
+
+      h.platform.consentAnswer = StreamerConsent.refused;
+      await stopAndShare();
+      expect(
+        find.text('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'),
+        findsOneWidget,
+      );
+      expect(h.engine.screenPublishes, 1);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      h.platform.consentAnswer = const StreamerConsent.failed('no_activity');
+      await tester.tap(find.byKey(StreamerHostStage.shareAgainKey));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('تعذّر طلب إذن تصوير الشاشة (no_activity)'),
+        findsOneWidget,
+      );
+      expect(h.engine.screenPublishes, 1);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      h.platform.consentAnswer = StreamerConsent.granted;
+      h.engine.screenFailure = Exception('capture');
+      await tester.tap(find.byKey(StreamerHostStage.shareAgainKey));
+      await tester.pumpAndSettle();
+      expect(h.engine.screenPublishes, 2);
+      expect(
+        find.text('تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى'),
+        findsOneWidget,
+      );
+      expect(find.text('توقفت مشاركة الشاشة'), findsOneWidget);
+      h.engine.screenFailure = null;
       await _leave(tester);
     });
 

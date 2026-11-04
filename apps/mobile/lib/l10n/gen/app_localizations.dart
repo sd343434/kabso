@@ -21694,6 +21694,18 @@ abstract class AppLocalizations {
   /// **'لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'**
   String get streamerConsentRefused;
 
+  /// D262: the system's screen-capture consent could not be asked or never showed; code is a short technical reason (e.g. instant_cancel).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر طلب إذن تصوير الشاشة ({code})'**
+  String streamerConsentFailed(String code);
+
+  /// D262: allowed, but the screen could not start again («شارك الشاشة من جديد»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى'**
+  String get streamerShareAgainFailed;
+
   /// D213 (the streamer live «بث ستريمر»).
   ///
   /// In ar, this message translates to:

@@ -449,14 +449,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       setState(() => _countdown = null);
     }
     // D213 (Android 14): the screen-capture consent before anything is
-    // created; refused → nothing starts.
+    // created; refused → nothing starts. D262: a dialog that could not be
+    // asked says so (with its code), not «you refused».
     if (ref.read(liveHostControllerProvider).mode == LiveRoomMode.streamer) {
-      final allowed = await ref
-          .read(liveStreamerHostProvider.notifier)
-          .consent();
+      final asked = await ref.read(liveStreamerHostProvider.notifier).consent();
       if (!mounted) return;
-      if (!allowed) {
-        KSnack.info(context, l10n.streamerConsentRefused);
+      final message = streamerConsentMessage(l10n, asked);
+      if (message != null) {
+        KSnack.info(context, message);
         return;
       }
     }
@@ -532,10 +532,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       onGoToGame: live ? () => unawaited(notifier.goToGame()) : null,
       onShareAgain: live
           ? () => unawaited(() async {
-              final ok = await notifier.shareAgain();
-              if (!ok && mounted) {
-                KSnack.info(context, context.l10n.streamerConsentRefused);
-              }
+              final asked = await notifier.shareAgain();
+              if (asked == null || !mounted) return;
+              final message = streamerConsentMessage(context.l10n, asked);
+              if (message != null) KSnack.info(context, message);
             }())
           : null,
     );

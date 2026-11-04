@@ -3971,6 +3971,8 @@
   "streamerGameAudioOld": "Game sound needs Android 10 or newer — only your microphone will be heard",
   "streamerPrivacyNote": "Viewers don't see your screen while you're in Kabso Live",
   "streamerConsentRefused": "Screen capture wasn't allowed, so the live didn't start",
+  "streamerConsentFailed": "Couldn't ask for screen capture permission ({code})",
+  "streamerShareAgainFailed": "Couldn't share the screen again, try once more",
   "streamerOnAir": "Your screen is live",
   "streamerPausedInApp": "Your screen is paused while you're in Kabso Live",
   "streamerPausedCall": "Your screen is paused during the call",

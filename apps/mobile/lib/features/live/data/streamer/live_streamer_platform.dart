@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 /// D213 (owner: «ANDROID FIRST»): where a streamer live can be hosted.
 enum StreamerSupport {
@@ -64,6 +63,81 @@ enum StreamerGameAudio {
   bool get mixed => this == ok;
 }
 
+/// D262: how the system's screen-capture consent ended.
+enum StreamerConsentOutcome {
+  /// The person allowed it; the capture can start.
+  granted,
+
+  /// The person said no in the system dialog.
+  refused,
+
+  /// The dialog could not be asked or never showed ([StreamerConsent.reason]).
+  failed,
+}
+
+/// D262: the consent's answer: [outcome] and, when it failed, a short
+/// code (`no_activity`, `instant_cancel`, `no_webrtc`, a platform error's
+/// code…) shown to the host and logged — never an id.
+@immutable
+final class StreamerConsent {
+  const new _(this.outcome, this.reason);
+
+  const new failed(String this.reason)
+    : outcome = StreamerConsentOutcome.failed;
+
+  /// `requestCapture`'s answer `{outcome, reason}`; anything else failed.
+  factory parse(Object? wire) {
+    final map = wire is Map ? wire : const <Object?, Object?>{};
+    return switch (map['outcome']) {
+      'granted' => granted,
+      'refused' => refused,
+      'failed' => StreamerConsent.failed(code(map['reason'])),
+      _ => const StreamerConsent.failed('bad_answer'),
+    };
+  }
+
+  static const granted = StreamerConsent._(
+    StreamerConsentOutcome.granted,
+    null,
+  );
+  static const refused = StreamerConsent._(
+    StreamerConsentOutcome.refused,
+    null,
+  );
+
+  /// Allowed, but the screen then could not start again («شارك من جديد»).
+  static const startFailed = 'start';
+
+  final StreamerConsentOutcome outcome;
+  final String? reason;
+
+  bool get isGranted => outcome == StreamerConsentOutcome.granted;
+
+  /// The reason as a short code: lower-case letters, digits and `_`, at most
+  /// 32 characters (`unknown` when empty).
+  static String code(Object? raw) {
+    final cleaned = '${raw ?? ''}'
+        .toLowerCase()
+        .replaceAll(RegExp('[^a-z0-9_]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    if (cleaned.isEmpty) return 'unknown';
+    return cleaned.length > 32 ? cleaned.substring(0, 32) : cleaned;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is StreamerConsent &&
+      other.outcome == outcome &&
+      other.reason == reason;
+
+  @override
+  int get hashCode => Object.hash(outcome, reason);
+
+  @override
+  String toString() =>
+      reason == null ? outcome.name : '${outcome.name}($reason)';
+}
+
 /// What the phone reports while streaming.
 sealed class StreamerPlatformEvent {
   const new();
@@ -108,10 +182,12 @@ abstract interface class StreamerPlatform {
   /// headphones» tip). False when unknown.
   Future<bool> headsetConnected();
 
-  /// The system's screen-capture consent (MediaProjection). False: refused.
-  /// Must come before the live's foreground service gains the
-  /// `mediaProjection` type (Android 14).
-  Future<bool> requestCapture();
+  /// The system's screen-capture consent (MediaProjection), asked by
+  /// `kabso_streamer` (D262) and handed to flutter_webrtc's screen capture.
+  /// Never throws: a platform error is [StreamerConsentOutcome.failed]. Must
+  /// come before the live's foreground service gains the `mediaProjection`
+  /// type (Android 14).
+  Future<StreamerConsent> requestCapture();
 
   /// Once the screen track runs: joins the published microphone (the voice
   /// and the game muted separately), watches the capture and, with
@@ -136,7 +212,7 @@ abstract interface class StreamerPlatform {
   Stream<StreamerPlatformEvent> get events;
 }
 
-/// [StreamerPlatform] on `com.kabso/streamer` and flutter_webrtc's consent.
+/// [StreamerPlatform] on `com.kabso/streamer` (the consent too, D262).
 class ChannelStreamerPlatform implements StreamerPlatform {
   new() {
     _channel.setMethodCallHandler(_onCall);
@@ -170,8 +246,27 @@ class ChannelStreamerPlatform implements StreamerPlatform {
   Future<bool> headsetConnected() async =>
       (await _channel.invokeMethod<bool>('headset')) ?? false;
 
+  /// A dialog left open longer than this (or an answer lost with the
+  /// Activity) ends as failed, so «ابدأ» never stays stuck.
+  static const consentTimeout = Duration(minutes: 3);
+
   @override
-  Future<bool> requestCapture() => rtc.Helper.requestCapturePermission();
+  Future<StreamerConsent> requestCapture() async {
+    try {
+      final res = await _channel
+          .invokeMethod<Object?>('requestCapture', {'fullScreenOnly': false})
+          .timeout(consentTimeout);
+      return StreamerConsent.parse(res);
+    } on TimeoutException {
+      return const StreamerConsent.failed('timeout');
+    } on MissingPluginException {
+      return const StreamerConsent.failed('no_plugin');
+    } on PlatformException catch (e) {
+      return StreamerConsent.failed(StreamerConsent.code(e.code));
+    } on Object catch (e) {
+      return StreamerConsent.failed(StreamerConsent.code(e.runtimeType));
+    }
+  }
 
   @override
   Future<({bool projection, StreamerGameAudio gameAudio})> attach({

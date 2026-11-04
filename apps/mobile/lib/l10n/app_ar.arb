@@ -12240,6 +12240,19 @@
   "@streamerConsentRefused": {
     "description": "D213 (the streamer live «بث ستريمر»)."
   },
+  "streamerConsentFailed": "تعذّر طلب إذن تصوير الشاشة ({code})",
+  "@streamerConsentFailed": {
+    "description": "D262: the system's screen-capture consent could not be asked or never showed; code is a short technical reason (e.g. instant_cancel).",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "streamerShareAgainFailed": "تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى",
+  "@streamerShareAgainFailed": {
+    "description": "D262: allowed, but the screen could not start again («شارك الشاشة من جديد»)."
+  },
   "streamerOnAir": "شاشتك على الهواء",
   "@streamerOnAir": {
     "description": "D213 (the streamer live «بث ستريمر»)."

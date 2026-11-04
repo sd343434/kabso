@@ -12767,6 +12767,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Screen capture wasn\'t allowed, so the live didn\'t start';
 
   @override
+  String streamerConsentFailed(String code) {
+    return 'Couldn\'t ask for screen capture permission ($code)';
+  }
+
+  @override
+  String get streamerShareAgainFailed =>
+      'Couldn\'t share the screen again, try once more';
+
+  @override
   String get streamerOnAir => 'Your screen is live';
 
   @override

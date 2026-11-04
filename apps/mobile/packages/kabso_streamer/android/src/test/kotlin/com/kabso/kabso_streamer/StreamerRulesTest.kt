@@ -132,4 +132,57 @@ class StreamerRulesTest {
         assertFalse(StreamerRules.anyHeadset(intArrayOf(1, 2, 9, 27)))
         assertFalse(StreamerRules.anyHeadset(intArrayOf()))
     }
+
+    // D262: flutter_webrtc's consent holder (a private Intent field).
+    open class Data
+
+    class ProjectionIntent : Data()
+
+    open class UserMediaBase {
+        private var mediaProjectionData: ProjectionIntent? = null
+
+        fun data() = mediaProjectionData
+    }
+
+    class ConsentUserMedia : UserMediaBase()
+
+    class ConsentHandler(private val getUserMediaImpl: Any?) {
+        override fun toString() = "$getUserMediaImpl"
+    }
+
+    class ConsentPlugin(private val methodCallHandler: ConsentHandler?) {
+        override fun toString() = "$methodCallHandler"
+    }
+
+    @Test
+    fun consentIsHandedToFlutterWebrtc() {
+        val media = ConsentUserMedia()
+        val data = ProjectionIntent()
+        assertTrue(StreamerRules.putConsent(ConsentPlugin(ConsentHandler(media)), data))
+        assertSame(data, media.data())
+    }
+
+    @Test
+    fun consentIsNotHandedWhenTheShapeDiffers() {
+        val data = ProjectionIntent()
+        assertFalse(StreamerRules.putConsent(null, data))
+        assertFalse(StreamerRules.putConsent(ConsentPlugin(null), data))
+        assertFalse(StreamerRules.putConsent(ConsentPlugin(ConsentHandler(Any())), data))
+        // The field exists but does not take this type.
+        val media = ConsentUserMedia()
+        assertFalse(StreamerRules.putConsent(ConsentPlugin(ConsentHandler(media)), Data()))
+        assertNull(media.data())
+    }
+
+    @Test
+    fun consentOutcomes() {
+        assertEquals("granted" to null, StreamerRules.consentOutcome(-1, hasData = true, elapsedMs = 50))
+        assertEquals("failed" to "no_data", StreamerRules.consentOutcome(-1, hasData = false, elapsedMs = 3000))
+        // Cancelled at once: the dialog never showed.
+        assertEquals("failed" to "instant_cancel", StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 12))
+        assertEquals("failed" to "instant_cancel", StreamerRules.consentOutcome(0, hasData = true, elapsedMs = 399))
+        // A person said no.
+        assertEquals("refused" to null, StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 400))
+        assertEquals("refused" to null, StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 8000))
+    }
 }

@@ -229,15 +229,22 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
 
   // ---- going live ----------------------------------------------------------
 
-  /// The system's screen-capture consent; false when refused (nothing was
-  /// created yet).
-  Future<bool> consent() async {
+  /// The system's screen-capture consent (nothing was created yet). D262:
+  /// granted, refused by the person, or failed with a short code — logged
+  /// (no ids) so a dialog that never showed is told apart from a «no».
+  Future<StreamerConsent> consent() async {
+    StreamerConsent answer;
     try {
-      return await _platform.requestCapture();
+      answer = await _platform.requestCapture();
     } on Object catch (e) {
-      AppLogger.warning('streamer: consent failed (${e.runtimeType})');
-      return false;
+      answer = StreamerConsent.failed(StreamerConsent.code(e.runtimeType));
     }
+    if (answer.outcome == StreamerConsentOutcome.failed) {
+      AppLogger.warning('streamer: consent $answer');
+    } else {
+      AppLogger.info('streamer: consent $answer');
+    }
+    return answer;
   }
 
   /// On air: publishes the screen (throws when it cannot start), joins the
@@ -313,11 +320,14 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
   Future<void> goToGame() => _quiet(_platform.moveToBack);
 
   /// After the system stopped the capture: a new consent, then the screen
-  /// again. False when refused or it could not start.
-  Future<bool> shareAgain() async {
+  /// again. The consent's answer ([StreamerConsent.granted] once the screen
+  /// runs again; `failed(start)` when it could not start); null when there
+  /// was nothing to share again.
+  Future<StreamerConsent?> shareAgain() async {
     final share = _share;
-    if (share == null || !state.stopped) return false;
-    if (!await consent()) return false;
+    if (share == null || !state.stopped) return null;
+    final asked = await consent();
+    if (!asked.isGranted) return asked;
     try {
       await share.publishScreen();
       await share.setScreenPaused(paused: state.paused);
@@ -325,10 +335,10 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
       if (ref.mounted) {
         state = state.copyWith(stopped: false, gameAudio: attached.gameAudio);
       }
-      return true;
+      return StreamerConsent.granted;
     } on Object catch (e) {
       AppLogger.warning('streamer: share again failed (${e.runtimeType})');
-      return false;
+      return const StreamerConsent.failed(StreamerConsent.startFailed);
     }
   }
 

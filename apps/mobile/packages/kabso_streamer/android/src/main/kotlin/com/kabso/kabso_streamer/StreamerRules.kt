@@ -111,6 +111,74 @@ object StreamerRules {
         return null
     }
 
+    /**
+     * D262: where flutter_webrtc 1.6.2+hotfix.4 keeps the screen-capture
+     * consent: `FlutterWebRTCPlugin.methodCallHandler` → `MethodCallHandlerImpl
+     * .getUserMediaImpl`, field `mediaProjectionData` (the system's result
+     * Intent). `getDisplayMedia` uses it when set and only asks (with its own
+     * deprecated fragment) when it is null.
+     */
+    val CONSENT_PATH = listOf("methodCallHandler", "getUserMediaImpl")
+    const val CONSENT_FIELD = "mediaProjectionData"
+
+    /**
+     * D262: hands our own consent [data] to flutter_webrtc behind [root]
+     * (along [CONSENT_PATH]); false when a step is missing or the field does
+     * not take it (another flutter_webrtc version).
+     */
+    fun putConsent(root: Any?, data: Any): Boolean {
+        var at: Any? = root
+        for (name in CONSENT_PATH) {
+            at = field(at, name) ?: return false
+        }
+        return setField(at, CONSENT_FIELD, data)
+    }
+
+    /** Sets a declared field of [obj]'s class or a superclass; false when it cannot. */
+    fun setField(obj: Any?, name: String, value: Any): Boolean {
+        if (obj == null) return false
+        var c: Class<*>? = obj.javaClass
+        while (c != null) {
+            try {
+                val f = c.getDeclaredField(name)
+                if (!f.type.isInstance(value)) return false
+                f.isAccessible = true
+                f.set(obj, value)
+                return true
+            } catch (_: NoSuchFieldException) {
+                c = c.superclass
+            } catch (_: ReflectiveOperationException) {
+                return false
+            } catch (_: RuntimeException) {
+                return false
+            }
+        }
+        return false
+    }
+
+    /** `Activity.RESULT_OK`. */
+    const val RESULT_OK = -1
+
+    /**
+     * D262: a «cancel» this soon after asking never came from a person — the
+     * consent dialog did not show (the system closed it at once).
+     */
+    const val INSTANT_CANCEL_MS = 400L
+
+    /**
+     * D262: the system's answer to the consent dialog as `(outcome, reason)`:
+     * `granted`; `refused` (the person said no); or `failed` with
+     * `no_data` (OK without the Intent) or `instant_cancel` (cancelled before
+     * [INSTANT_CANCEL_MS]: the dialog never showed).
+     */
+    fun consentOutcome(resultCode: Int, hasData: Boolean, elapsedMs: Long): Pair<String, String?> =
+        when {
+            resultCode == RESULT_OK && hasData -> "granted" to null
+            resultCode == RESULT_OK -> "failed" to "no_data"
+            elapsedMs in 0 until INSTANT_CANCEL_MS -> "failed" to "instant_cancel"
+            else -> "refused" to null
+        }
+
     /** A declared field of [obj]'s class or a superclass (private too). */
     fun field(obj: Any?, name: String): Any? {
         if (obj == null) return null
