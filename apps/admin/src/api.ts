@@ -172,6 +172,26 @@ export function uploadBannerPicture(
   return uploadRaw<BannerUpload>(withQuery('/admin/banner-uploads', { placement }), file, onProgress);
 }
 
+/** v1.83-social (D258): what `POST /admin/vip/uploads` answers for a stored VIP art file. */
+export interface VipUpload {
+  kind: 'animation' | 'still';
+  url: string;
+  bytes: number;
+  contentType: string;
+  width: number | null;
+  height: number | null;
+}
+
+/** v1.83-social (D258, §10.94.6): uploads one VIP badge / perk art file (SVGA or PNG / WebP still). */
+export function uploadVipArt(
+  kind: VipUpload['kind'],
+  tier: string,
+  file: Blob,
+  onProgress: (fraction: number) => void = () => undefined,
+): Promise<VipUpload> {
+  return uploadRaw<VipUpload>(withQuery('/admin/vip/uploads', { kind, tier }), file, onProgress);
+}
+
 /** A raw `application/octet-stream` POST with the CSRF token and upload progress (XMLHttpRequest: `fetch` has none). */
 function uploadRaw<T>(path: string, file: Blob, onProgress: (fraction: number) => void): Promise<T> {
   return new Promise((resolve, reject) => {

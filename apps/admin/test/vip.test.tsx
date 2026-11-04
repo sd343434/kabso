@@ -11,6 +11,7 @@ import { AR_D252, EN_D252 } from "../src/i18n-d252";
 import { NAV } from "../src/nav";
 import { matchPath } from "../src/router";
 import {
+  amountOk,
   draftOf,
   draftValid,
   moveTier,
@@ -69,6 +70,7 @@ const tier = (
       still: "https://cdn.k.test/vip1_badge.png",
       artWidth: 500,
       artHeight: 500,
+      amount: null,
     },
   ],
   updatedAt: "2026-11-03T10:00:00.000Z",
@@ -185,6 +187,7 @@ describe("D252 VIP in the panel", () => {
       still: "",
       artWidth: "",
       artHeight: "",
+      amount: "",
     };
     expect(draftValid({ ...fresh, perks: [perk, perk] }, true)).toBe(false);
     expect(tierBody(fresh, null)).toMatchObject({
@@ -217,6 +220,7 @@ describe("D252 VIP in the panel", () => {
           still: "https://cdn.k.test/vip1_badge.png",
           artWidth: 500,
           artHeight: 500,
+          amount: null,
         },
         {
           code: "ENTRY_EFFECT",
@@ -229,9 +233,23 @@ describe("D252 VIP in the panel", () => {
           still: null,
           artWidth: null,
           artHeight: null,
+          amount: null,
         },
       ],
     });
+    // D258: the amount — only the perks that take one, within their bounds.
+    expect(amountOk("DAILY_BULLET", "3")).toBe(true);
+    expect(amountOk("DAILY_BULLET", "101")).toBe(false);
+    expect(amountOk("LEVEL_SPEEDUP", "1")).toBe(true);
+    expect(amountOk("BADGE", "2")).toBe(false);
+    expect(amountOk("BADGE", "")).toBe(true);
+    const bullets = {
+      ...draftOf(before),
+      perks: [{ ...perk, code: "DAILY_BULLET", amount: "3" }],
+    };
+    expect(draftValid(bullets, false)).toBe(true);
+    expect((tierBody(bullets, before).perks as { amount: number }[])[0]!.amount).toBe(3);
+    expect(draftValid({ ...bullets, perks: [{ ...perk, code: "BADGE", amount: "3" }] }, false)).toBe(false);
   });
 
   it("the perks editor says which perks are not built and suggests codes", () => {
@@ -248,5 +266,9 @@ describe("D252 VIP in the panel", () => {
     expect(html).toContain("Not working in the app yet");
     expect(html).toContain('<option value="AVATAR_FRAME">');
     expect(html).toContain('data-vip-perk="0"');
+    // D258: the amount field and the two uploads.
+    expect(html).toContain('data-vip-amount="BADGE"');
+    expect(html).toContain('data-vip-upload="0:still"');
+    expect(html).toContain('data-vip-upload="0:animation"');
   });
 });

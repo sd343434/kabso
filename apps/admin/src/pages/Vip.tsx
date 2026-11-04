@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api";
+import { api, uploadVipArt } from "../api";
 import {
   Dialog,
   ErrorAlert,
@@ -25,6 +25,8 @@ export interface AdminVipPerk {
   still: string | null;
   artWidth: number | null;
   artHeight: number | null;
+  /** v1.83-social (D258): the perk's number for this tier (bullets / coins a day, level speed-up %). */
+  amount: number | null;
 }
 
 /** `AdminVipTier` (v1.82-social, D252). `sortOrder` is the order and the rank. */
@@ -64,6 +66,7 @@ export interface PerkDraft {
   still: string;
   artWidth: string;
   artHeight: string;
+  amount: string;
 }
 
 /** The tier form. */
@@ -88,6 +91,21 @@ const ART = /^https:\/\/\S{1,2040}$/;
 function artOk(v: string): boolean {
   return v.trim() === "" || ART.test(v.trim());
 }
+/** D258: the perks that take a number and its bounds (the server checks them again). */
+export const PERK_AMOUNTS: Record<string, [number, number]> = {
+  DAILY_BULLET: [1, 100],
+  DAILY_COINS: [1, 1_000_000_000],
+  LEVEL_SPEEDUP: [1, 100],
+};
+
+export function amountOk(code: string, v: string): boolean {
+  if (v.trim() === "") return true;
+  const bounds = PERK_AMOUNTS[code.trim()];
+  if (!bounds) return false;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= bounds[0] && n <= bounds[1];
+}
+
 function sizeOk(v: string): boolean {
   if (v.trim() === "") return true;
   const n = Number(v);
@@ -116,6 +134,7 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
       still: p.still ?? "",
       artWidth: p.artWidth === null ? "" : String(p.artWidth),
       artHeight: p.artHeight === null ? "" : String(p.artHeight),
+      amount: p.amount === null || p.amount === undefined ? "" : String(p.amount),
     })),
   };
 }
@@ -147,7 +166,8 @@ export function draftValid(d: TierDraft, creating: boolean): boolean {
         artOk(p.animation) &&
         artOk(p.still) &&
         sizeOk(p.artWidth) &&
-        sizeOk(p.artHeight),
+        sizeOk(p.artHeight) &&
+        amountOk(p.code, p.amount),
     ) &&
     new Set(codes).size === codes.length
   );
@@ -165,6 +185,7 @@ function perksBody(perks: PerkDraft[]) {
     still: p.still.trim() || null,
     artWidth: p.artWidth.trim() === "" ? null : Number(p.artWidth),
     artHeight: p.artHeight.trim() === "" ? null : Number(p.artHeight),
+    amount: p.amount.trim() === "" ? null : Number(p.amount),
   }));
 }
 
@@ -347,15 +368,43 @@ export function PerksEditor({
   built,
   suggested,
   onChange,
+  tierCode = "",
 }: {
   perks: PerkDraft[];
   built: readonly string[];
   suggested: readonly string[];
   onChange: (p: PerkDraft[]) => void;
+  /** D258: the tier's code (the uploads' folder); empty while it is not set. */
+  tierCode?: string;
 }) {
   const { t } = useApp();
   const set = (i: number, patch: Partial<PerkDraft>) =>
     onChange(perks.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  // D258: one upload at a time («i:kind»), and the last failure.
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const upload = async (i: number, kind: "animation" | "still", file: File | undefined) => {
+    if (!file || !CODE.test(tierCode)) return;
+    setUploading(`${i}:${kind}`);
+    setUploadError(null);
+    try {
+      const up = await uploadVipArt(kind, tierCode, file);
+      set(
+        i,
+        kind === "animation"
+          ? { animation: up.url }
+          : {
+              still: up.url,
+              artWidth: up.width === null ? "" : String(up.width),
+              artHeight: up.height === null ? "" : String(up.height),
+            },
+      );
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : t("vipUploadFailed"));
+    } finally {
+      setUploading(null);
+    }
+  };
   const move = (i: number, step: -1 | 1) => {
     const to = i + step;
     if (to < 0 || to >= perks.length) return;
@@ -383,6 +432,7 @@ export function PerksEditor({
                 enabled: true,
                 animation: "",
                 still: "",
+                amount: "",
                 artWidth: "",
                 artHeight: "",
               },
@@ -512,6 +562,52 @@ export function PerksEditor({
               />
             </div>
           </div>
+            <div className="field">
+              <label htmlFor={`vp-amount-${i}`}>{t("vipPerkAmount")}</label>
+              <input
+                id={`vp-amount-${i}`}
+                type="number"
+                min={1}
+                className="num"
+                data-vip-amount={p.code}
+                disabled={!PERK_AMOUNTS[p.code.trim()] && p.amount === ""}
+                aria-invalid={!amountOk(p.code, p.amount)}
+                value={p.amount}
+                onChange={(e) => set(i, { amount: e.target.value })}
+              />
+              {!amountOk(p.code, p.amount) && (
+                <span className="error small">{t("vipPerkAmountBad")}</span>
+              )}
+            </div>
+            <div className="field">
+              <span>{t("vipUploadStill")} / {t("vipUploadAnimation")}</span>
+              <div className="row">
+                <label className="btn small">
+                  {uploading === `${i}:still` ? t("vipUploading") : t("vipUploadStill")}
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/png,image/webp"
+                    data-vip-upload={`${i}:still`}
+                    disabled={uploading !== null || !CODE.test(tierCode)}
+                    onChange={(e) => void upload(i, "still", e.target.files?.[0])}
+                  />
+                </label>
+                <label className="btn small">
+                  {uploading === `${i}:animation` ? t("vipUploading") : t("vipUploadAnimation")}
+                  <input
+                    type="file"
+                    hidden
+                    accept=".svga"
+                    data-vip-upload={`${i}:animation`}
+                    disabled={uploading !== null || !CODE.test(tierCode)}
+                    onChange={(e) => void upload(i, "animation", e.target.files?.[0])}
+                  />
+                </label>
+              </div>
+            </div>
+          <p className="muted small">{t("vipPerkAmountHint")}</p>
+          {uploadError && <div className="alert error">{uploadError}</div>}
           <p className="muted small">{t("vipArtHint")}</p>
           <div className="row end">
             <button
@@ -705,6 +801,7 @@ function TierForm({
         )}
         {tier && <p className="span-2 muted small">{t("vipPriceNote")}</p>}
         <PerksEditor
+          tierCode={draft.code.trim()}
           perks={draft.perks}
           built={list.builtPerks}
           suggested={list.suggestedPerks}
