@@ -1234,16 +1234,106 @@ class VipBagItemPreview extends StatelessWidget {
     } else {
       art = token;
     }
-    return SizedBox.square(key: keyOf(item.code), dimension: width, child: art);
+    // Owner: «تميز عنصر في اي بي» — a glow and an edge in the tier's colour
+    // and the tier's «VIP1» badge on the corner opposite the category glyph.
+    final tier = Color(vipColorValue(vip.color));
+    final edge = math.max(1, width * 0.03).toDouble();
+    return SizedBox.square(
+      key: keyOf(item.code),
+      dimension: width,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              key: markKey(item.code),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(width * 0.16),
+                color: Color.alphaBlend(
+                  tier.withValues(alpha: 0.06),
+                  context.palette.background,
+                ),
+                border: Border.all(color: tier, width: edge),
+                boxShadow: [
+                  BoxShadow(
+                    color: tier.withValues(alpha: 0.4),
+                    blurRadius: width * 0.14,
+                  ),
+                ],
+              ),
+              child: Padding(padding: EdgeInsets.all(width * 0.07), child: art),
+            ),
+          ),
+          PositionedDirectional(
+            top: -width * 0.08,
+            start: -width * 0.08,
+            child: _VipTierBadge(
+              key: badgeKey(item.code),
+              label: vipTierBadgeLabel(vip.tier),
+              shades: shades,
+              height: width * 0.26,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   static Key svgaKey(String code) => Key('bag.vipPreview.svga.$code');
+
+  /// D264: the tier-coloured edge and the «VIP1» badge of a VIP item.
+  static Key markKey(String code) => Key('bag.vipPreview.mark.$code');
+  static Key badgeKey(String code) => Key('bag.vipPreview.badge.$code');
 
   /// Whether [animation] is played here (hosted, and playing is on).
   static bool playsSvga(String animation) =>
       VipSvga.enabled &&
       VipAnimatedArt.animationsEnabled &&
       animation.startsWith('http');
+}
+
+/// D264: the badge text of a tier code: `VIP_1` → «VIP1» (Latin in both
+/// languages, like the name badge).
+String vipTierBadgeLabel(String tierCode) =>
+    tierCode.replaceAll('_', '').toUpperCase();
+
+/// D264: the small «VIP1» pill on a VIP item: deep shades of the tier's
+/// colour, a gold edge and white text (≥ 7:1 on the shades).
+class _VipTierBadge extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.shades,
+    required this.height,
+    super.key,
+  });
+
+  final String label;
+  final (Color, Color) shades;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: height,
+    padding: EdgeInsets.symmetric(horizontal: height * 0.35),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(height / 2),
+      gradient: LinearGradient(colors: [shades.$1, shades.$2]),
+      border: Border.all(color: const Color(0xFFFFE08A), width: 0.8),
+    ),
+    child: Text(
+      label,
+      textDirection: TextDirection.ltr,
+      textScaler: TextScaler.noScaling,
+      style: TextStyle(
+        fontSize: height * 0.62,
+        height: 1,
+        fontWeight: FontWeight.w800,
+        fontStyle: FontStyle.italic,
+        color: const Color(0xFFFFFFFF),
+      ),
+    ),
+  );
 }
 
 /// A small mock-up of the person card's top edge (the live card): a white

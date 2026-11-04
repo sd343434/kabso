@@ -360,6 +360,35 @@ void main() {
       }
       // Every tile draws the uploaded art, never the «VIP» token.
       expect(find.text('VIP'), findsNothing);
+      // Owner: «تميز عنصر في اي بي» — each VIP tile (and the bar's picture)
+      // carries the tier's «VIP1» badge and its tier-coloured edge; the
+      // stored items do not.
+      for (final p in _perks) {
+        final tile = find.byKey(BagScreen.itemKey('vip:${p.$1}'));
+        if (tile.evaluate().isEmpty) continue;
+        expect(
+          find.descendant(
+            of: tile,
+            matching: find.byKey(VipBagItemPreview.markKey('vip:${p.$1}')),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.descendant(
+          of: find.byKey(BagScreen.selectedPreviewKey),
+          matching: find.text('VIP1'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(BagScreen.itemKey('support_frame_03')),
+          matching: find.text('VIP1'),
+        ),
+        findsNothing,
+      );
+      expect(vipTierBadgeLabel('VIP_12'), 'VIP12');
       expect(find.text('Entry effects'), findsWidgets);
       // One worn item per kind: the free card and the support frame are not
       // worn while the VIP card and frame are.
