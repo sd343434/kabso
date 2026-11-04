@@ -1039,8 +1039,8 @@ describe('CP-013 live room chat', () => {
       await end(roomId, owner);
     });
 
-    // v1.52-live (D234, §10.82): the author's showcased medals, at most 3 (D258; was 5), in their order.
-    it('the showcased medals (≤ 3, in order; none → empty) on send, broadcast and list, cached 30 s', async () => {
+    // v1.52-live (D234, §10.82): the author's showcased medals, at most 5 (D269; 3 in D258), in their order.
+    it('the showcased medals (≤ 5, in order; none → empty) on send, broadcast and list, cached 30 s', async () => {
       const codes = ['d234_a', 'd234_b', 'd234_c', 'd234_d', 'd234_e', 'd234_f'];
       for (const [i, code] of codes.entries()) {
         await ctx.prisma.medal.upsert({
@@ -1070,7 +1070,7 @@ describe('CP-013 live room chat', () => {
       await ctx.prisma.userMedal.create({ data: { userId: plain.id, medalCode: 'd234_a' } });
       const expected = [...codes]
         .reverse()
-        .slice(0, 3)
+        .slice(0, 5)
         .map((code) => ({ code, iconKey: `icon_${code}` }));
 
       const byFan = await say(roomId, fan, 'medals');

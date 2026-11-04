@@ -743,9 +743,14 @@ class _VipSvgaState extends State<VipSvga> with SingleTickerProviderStateMixin {
           if (widget.once) _finishSoon();
           return;
         }
-        widget.onStarted?.call(clip.duration);
-        _startSound(clip);
-        (_ticker ??= createTicker(_tick)).start();
+        // A larger size loads again while the first plays (the text grew):
+        // the running ticker keeps going (D269: was started twice).
+        final ticker = _ticker ??= createTicker(_tick);
+        if (!ticker.isActive) {
+          widget.onStarted?.call(clip.duration);
+          _startSound(clip);
+          ticker.start();
+        }
       }),
     );
   }

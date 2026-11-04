@@ -937,8 +937,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
   static const double avatar = 32;
   static const double gap = 8;
   static const double nameTop = 2;
-  static const double nameSize = 15;
-  static const double textSize = 15.5;
+  // D269 (owner): 1 pt smaller (was 15 / 15.5).
+  static const double nameSize = 14;
+  static const double textSize = 14.5;
   static const double radius = 14;
 
   /// D234: one height for every emblem of the badges line (as
@@ -1441,7 +1442,7 @@ class LiveChatMedalRow extends StatelessWidget {
   final double size;
 
   /// The most medals a chat line shows.
-  static const int max = 3; // D258 (owner): was 5.
+  static const int max = 5; // D269 (owner «حدها ٥»): 3 in D258.
   static const double gap = 4;
 
   static const rowKey = Key('liveChat.medals');
@@ -2028,9 +2029,11 @@ class LiveChatInlineRow extends StatefulWidget {
   /// is three lines — the name (15 sp, bold, no colon), the badges under it
   /// (20 pt tall, one row, the overflow faded) and the message (15.5 sp);
   /// joins stay one compact line at the 15 sp base size.
-  static const double textSize = 15.5;
-  static const double nameSize = 15;
-  static const double compactTextSize = 15;
+  /// D269 (owner: «واقترح ان نجعل حجم الخط اقل»): 1 pt smaller — the name
+  /// 14, the message 14.5, joins 14 (was 15 / 15.5 / 15).
+  static const double textSize = 14.5;
+  static const double nameSize = 14;
+  static const double compactTextSize = 14;
   static const double lineHeight = 1.35;
   static const double gap = 4;
   static const double radius = 12;
@@ -2039,10 +2042,12 @@ class LiveChatInlineRow extends StatefulWidget {
   /// الحجم»): every emblem of the badges line — the charm creature, the
   /// support art, the agent and recharge badges — is this tall on screen;
   /// the pills (role, «جديد», family) are [LiveChatBadgeRow.pillHeight].
-  static const double badgeHeight = 24;
+  /// D269: ≈ 1.6 × the 14 sp name (was 24 for 15 sp).
+  static const double badgeHeight = 23;
 
   /// D234: the medals line under the badges (≤ 5), a little smaller.
-  static const double medalSize = 22;
+  /// D269: 21 (was 22), scaled with the text; 5 fit at 360 pt.
+  static const double medalSize = 21;
 
   /// The public message card's small badges (its own design, CP-017).
   static const double cardBadgeHeight = 14;

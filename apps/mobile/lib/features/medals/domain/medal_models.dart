@@ -6,8 +6,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'medal_models.freezed.dart';
 part 'medal_models.g.dart';
 
-/// The most medals a profile shows: 3 (owner, D258; was 6, D106 amendment).
-const int maxShowcaseMedals = 3;
+/// The most medals a profile shows: 5 (owner D269 «حدها ٥»; 3 in D258,
+/// 6 before).
+const int maxShowcaseMedals = 5;
 
 /// `Medal`: one medal of the catalogue with the caller's [awardedAt] (null
 /// while locked). Name and description follow the app language.

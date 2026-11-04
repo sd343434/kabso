@@ -70,7 +70,7 @@ describe('D119 live chat author badges', () => {
     expect(badges.get(B)).toEqual(NO_BADGES);
   });
 
-  it('v1.52-live: the showcased medals in order, at most 3 (D258; was 5); none (or null) is an empty list', async () => {
+  it('v1.52-live: the showcased medals in order, at most 5 (D269; 3 in D258); none (or null) is an empty list', async () => {
     const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((c) => ({ code: `m_${c}`, iconKey: `icon_${c}` }));
     const { prisma } = fakePrisma({
       [A]: { charm: 1, family: null, medals: six },
@@ -79,7 +79,7 @@ describe('D119 live chat author badges', () => {
     const service = new LiveChatBadgesService(prisma, new FakeClock(), config);
     const badges = await service.of([A, B]);
     expect(badges.get(A)?.medals).toEqual(six.slice(0, LIVE_CHAT_MEDALS_MAX));
-    expect(LIVE_CHAT_MEDALS_MAX).toBe(3);
+    expect(LIVE_CHAT_MEDALS_MAX).toBe(5);
     expect(badges.get(B)?.medals).toEqual([]);
     expect(NO_BADGES.medals).toEqual([]);
   });

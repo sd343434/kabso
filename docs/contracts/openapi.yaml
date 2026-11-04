@@ -7938,10 +7938,11 @@ paths:
     put:
       tags: [medals]
       operationId: setMyMedalShowcase
-      summary: "Choose up to 6 unlocked medals to show on the profile, in order (CP-018)"
+      summary: "Choose up to 5 unlocked medals to show on the profile, in order (CP-018; D269)"
       description: |
         CONVENTIONS §10.21 (owner D106 amendment). Replaces the showcase; the order is kept; an
-        empty list shows none. 400 `VALIDATION_FAILED`: more than 6 (`medalCodes` / `too_big`) or a
+        empty list shows none. 400 `VALIDATION_FAILED`: more than 5 (`medalCodes` / `too_big`; v1.84-social,
+        D269 — 3 in D258, 6 before) or a
         code twice (`medalCodes` / `invalid_value`); 409 `MEDAL_NOT_UNLOCKED`: a code the caller
         has not earned (an unknown code too); nothing changes then.
       requestBody:
@@ -25391,11 +25392,11 @@ components:
             - type: 'null'
         medals:
           type: array
-          maxItems: 3
+          maxItems: 5
           description: |
             v1.52-live (D234, CONVENTIONS §10.82; owner: «تحت سطر أيقونات الليفيل تكون الميداليات حتى ٥
-            ميداليات»): the first medals the author chose to show on their profile — at most 3 since v1.83-social
-            (D258; was 5)
+            ميداليات»): the first medals the author chose to show on their profile — at most 5 again since
+            v1.84-social (D269, owner «اجعل الميداليات حدها ٥»; 3 in v1.83-social, D258)
             (`ProfileMedals.showcase`), in their order; empty when none were chosen (no auto-fill). Always
             sent by v1.52-live servers; apps read a missing field as empty.
           items: { $ref: '#/components/schemas/LiveChatAuthorMedal' }
@@ -27407,8 +27408,8 @@ components:
           items: { $ref: '#/components/schemas/ProfileMedal' }
         showcase:
           type: array
-          maxItems: 3
-          description: "The medals the user chose to show (PUT /me/medals/showcase), in their order; empty until they choose (no auto-fill). v1.83-social (D258): at most 3."
+          maxItems: 5
+          description: "The medals the user chose to show (PUT /me/medals/showcase), in their order; empty until they choose (no auto-fill). v1.84-social (D269): at most 5 (3 in v1.83-social, D258)."
           items: { $ref: '#/components/schemas/ProfileMedal' }
     MedalShowcase:
       type: object
@@ -27416,7 +27417,7 @@ components:
       properties:
         showcase:
           type: array
-          maxItems: 6
+          maxItems: 5
           items: { $ref: '#/components/schemas/ProfileMedal' }
     SetMedalShowcaseRequest:
       type: object
@@ -27425,9 +27426,9 @@ components:
       properties:
         medalCodes:
           type: array
-          maxItems: 3
+          maxItems: 5
           uniqueItems: true
-          description: "Unlocked medal codes in display order; [] shows none. v1.83-social (D258): at most 3 (was 6); an older showcase of more is read as its first 3."
+          description: "Unlocked medal codes in display order; [] shows none. v1.84-social (D269): at most 5 (3 in v1.83-social, D258; 6 before); an older showcase of more is read as its first 5."
           items: { type: string, minLength: 1, maxLength: 40 }
     # ---- v1.84-social (DRAFT, D270, CONVENTIONS §10.98): «المتجر» --------------------------------------------------------
     StoreKind:

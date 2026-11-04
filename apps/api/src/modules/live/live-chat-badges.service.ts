@@ -38,7 +38,7 @@ export interface LiveChatAuthorMedalDto {
 }
 
 /** v1.52-live (owner: «تحت سطر أيقونات الليفيل تكون الميداليات حتى ٥ ميداليات»). */
-export const LIVE_CHAT_MEDALS_MAX = 3;
+export const LIVE_CHAT_MEDALS_MAX = 5; // D269 (owner): was 3 (D258), 5 before.
 
 /** Badges are read again after this long (a level-up or a new family shows within it). */
 export const LIVE_CHAT_BADGES_TTL_MS = 30_000;
@@ -88,7 +88,7 @@ interface BadgeRow {
 /**
  * D119 (owner: "make the chat text like this"): the small badges a live chat line shows under the
  * author's name — the charm and support levels (CP-005) and the family (CP-018); v1.52-live: the
- * author's showcased medals (≤ 3, D258). Read in one statement for every author of a page; reading
+ * author's showcased medals (≤ 5, D269; 3 in D258). Read in one statement for every author of a page; reading
  * `level_*`, `user_level_states`, `family_members`, `families`, `user_medals` and `medals` here
  * is a read-only exception to module table ownership like the room level (§10.18). Cached per author for {@link LIVE_CHAT_BADGES_TTL_MS} so a busy chat costs at most one
  * read per author and 30 s.

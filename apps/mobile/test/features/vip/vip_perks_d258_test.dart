@@ -15,6 +15,7 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
@@ -213,6 +214,15 @@ void main() {
                             code: 'm3',
                             iconKey: 'medal_first_family',
                           ),
+                          // D269: up to 5, on line 2.
+                          LiveChatAuthorMedal(
+                            code: 'm4',
+                            iconKey: 'medal_first_family',
+                          ),
+                          LiveChatAuthorMedal(
+                            code: 'm5',
+                            iconKey: 'medal_first_family',
+                          ),
                         ],
                       ),
                     ),
@@ -301,8 +311,8 @@ void main() {
     });
   });
 
-  testWidgets('line 1: the VIP badge, the levels and the medals show at '
-      'one visible height (within 1 pt)', (tester) async {
+  testWidgets('the VIP badge and the levels (line 1) and the medals (line '
+      '2, D269) show at one visible height (within 1 pt)', (tester) async {
     await pumpLine(tester, language: AppLanguage.en, vip: _vip1);
     final header = find.byKey(LiveChatFlatLine.vipHeaderKey).first;
     var render = tester.renderObject(header);
@@ -318,11 +328,11 @@ void main() {
     });
     final w = boundary.paintBounds.width.round();
     // The visible rows of [rect]: pixels unlike the backdrop (#3A4150).
-    double visible(Rect rect) {
+    double visible(Rect rect, {double above = 8}) {
       // (Some emblems draw beyond their box, e.g. the charm creature.)
       final r = Rect.fromLTRB(
         rect.left,
-        rect.top - 8,
+        rect.top - above,
         rect.right,
         rect.bottom + 1,
       ).shift(-origin);
@@ -353,13 +363,11 @@ void main() {
         ),
       ),
     );
+    // D269: the medals on line 2, at the same height.
+    // (Its own rows only: line 1 is just above it.)
     final medalH = visible(
-      tester.getRect(
-        find.descendant(
-          of: header,
-          matching: find.byKey(LiveChatMedalRow.medalKey('m1')),
-        ),
-      ),
+      tester.getRect(find.byKey(LiveChatMedalRow.medalKey('m1')).first),
+      above: 0,
     );
     final charmH = visible(
       tester.getRect(
@@ -401,6 +409,16 @@ void main() {
         expect(badge.left, greaterThanOrEqualTo(name.right));
         expect(charm.left, greaterThanOrEqualTo(badge.right));
       }
+      // D269: the medals on line 2 (none in line 1), the message on line 3.
+      expect(
+        find.descendant(of: header, matching: find.byType(MedalIcon)),
+        findsNothing,
+      );
+      final medals = tester.getRect(find.byKey(LiveChatMedalRow.rowKey).first);
+      final bubble = tester.getRect(find.byKey(KFlatChat.vipBubbleKey).first);
+      expect(medals.top, greaterThanOrEqualTo(tester.getRect(header).bottom));
+      expect(bubble.top, greaterThanOrEqualTo(medals.bottom));
+      expect(find.byType(MedalIcon), findsNWidgets(5));
     });
   }
 

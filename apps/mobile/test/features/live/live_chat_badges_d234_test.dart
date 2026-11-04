@@ -126,7 +126,7 @@ void main() {
       });
 
       testWidgets(
-        'D234b: the name with the badges beside it, up to 3 medals (D258) '
+        'D234b: the name with the badges beside it, up to 5 medals (D269) '
         'in order under them, then the message',
         (tester) async {
           final handle = tester.ensureSemantics();
@@ -146,11 +146,11 @@ void main() {
           expect(medals.top, greaterThanOrEqualTo(badges.bottom - 0.5));
           expect(text.top, greaterThanOrEqualTo(medals.bottom - 0.5));
           expect(medals.height, closeTo(LiveChatInlineRow.medalSize, 0.5));
-          // Three of the six (D258), in order, from the reading start.
-          expect(find.byType(MedalIcon), findsNWidgets(3));
-          expect(find.byKey(LiveChatMedalRow.medalKey('m4')), findsNothing);
+          // Five of the six (D269), in order, from the reading start.
+          expect(find.byType(MedalIcon), findsNWidgets(5));
+          expect(find.byKey(LiveChatMedalRow.medalKey('m6')), findsNothing);
           final xs = [
-            for (final c in ['m1', 'm2', 'm3'])
+            for (final c in ['m1', 'm2', 'm3', 'm4', 'm5'])
               tester
                   .getRect(find.byKey(LiveChatMedalRow.medalKey(c)))
                   .center
@@ -172,7 +172,7 @@ void main() {
           final l10n = l10nFor(language);
           expect(
             find.bySemanticsLabel(
-              RegExp(RegExp.escape(l10n.liveChatMedalsLabel(3))),
+              RegExp(RegExp.escape(l10n.liveChatMedalsLabel(5))),
             ),
             findsOneWidget,
           );

@@ -284,33 +284,41 @@ void main() {
       expect(find.text(en.liveUserCp), findsOneWidget);
     });
 
-    testWidgets(
-      'the medal row: three icons (D258) under the levels, in order',
-      (tester) async {
-        await _card(tester, _profile());
-        expect(find.byKey(LiveCardKeys.medals), findsOneWidget);
-        // D258: the first 3 of the six chosen.
-        final codes = ['FIRST_LIVE', 'FIRST_CP', 'FIRST_FAMILY'];
-        expect(find.byKey(MedalShowcaseRow.medalKey('CHARM_10')), findsNothing);
-        final xs = [
-          for (final c in codes)
-            tester.getCenter(find.byKey(MedalShowcaseRow.medalKey(c))).dx,
-        ];
-        // One row, left to right in English.
-        for (var i = 1; i < xs.length; i++) {
-          expect(xs[i], greaterThan(xs[i - 1]));
-        }
-        final ys = {
-          for (final c in codes)
-            tester.getCenter(find.byKey(MedalShowcaseRow.medalKey(c))).dy,
-        };
-        expect(ys, hasLength(1));
-        // Under the name and above the boxes.
-        final row = tester.getRect(find.byKey(LiveCardKeys.medals));
-        final boxes = tester.getRect(find.byKey(LivePersonBoxes.boxKey(0)));
-        expect(row.bottom, lessThanOrEqualTo(boxes.top));
-      },
-    );
+    testWidgets('the medal row: five icons (D269) under the levels, in order', (
+      tester,
+    ) async {
+      await _card(tester, _profile());
+      expect(find.byKey(LiveCardKeys.medals), findsOneWidget);
+      // D269: the first 5 of the six chosen.
+      final codes = [
+        'FIRST_LIVE',
+        'FIRST_CP',
+        'FIRST_FAMILY',
+        'CHARM_10',
+        'CHARM_50',
+      ];
+      expect(
+        find.byKey(MedalShowcaseRow.medalKey('BULLET_FIRST')),
+        findsNothing,
+      );
+      final xs = [
+        for (final c in codes)
+          tester.getCenter(find.byKey(MedalShowcaseRow.medalKey(c))).dx,
+      ];
+      // One row, left to right in English.
+      for (var i = 1; i < xs.length; i++) {
+        expect(xs[i], greaterThan(xs[i - 1]));
+      }
+      final ys = {
+        for (final c in codes)
+          tester.getCenter(find.byKey(MedalShowcaseRow.medalKey(c))).dy,
+      };
+      expect(ys, hasLength(1));
+      // Under the name and above the boxes.
+      final row = tester.getRect(find.byKey(LiveCardKeys.medals));
+      final boxes = tester.getRect(find.byKey(LivePersonBoxes.boxKey(0)));
+      expect(row.bottom, lessThanOrEqualTo(boxes.top));
+    });
 
     testWidgets('no chosen medals: no row at all, no placeholders', (
       tester,

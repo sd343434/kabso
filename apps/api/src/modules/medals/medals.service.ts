@@ -63,12 +63,13 @@ export interface MedalShowcaseDto {
 }
 
 /**
- * The most medals a profile shows: 3 (owner, D258 — was 6, D106 amendment). An older showcase of more keeps its
- * first 3 on every read (trimmed on read; the rows keep their positions until the person saves a new one).
+ * The most medals a profile shows: 5 (owner, D269 «اجعل الميداليات حدها ٥» — D258 made it 3, was 6 before). An
+ * older showcase of more keeps its first 5 on every read (trimmed on read; the rows keep their positions until the
+ * person saves a new one).
  */
-export const MEDAL_SHOWCASE_MAX = 3;
+export const MEDAL_SHOWCASE_MAX = 5;
 
-/** `SetMedalShowcaseRequest` (strict): 0–3 distinct medal codes, in display order. */
+/** `SetMedalShowcaseRequest` (strict): 0–5 distinct medal codes, in display order. */
 export const setMedalShowcaseSchema = z.strictObject({
   medalCodes: z
     .array(z.string().min(1).max(40))
