@@ -269,9 +269,9 @@ class VipEntranceBanner extends StatelessWidget {
 
   static const slot = Rect.fromLTRB(0.2, 0.27, 0.84, 0.74);
 
-  /// Without the name colour perk: a plain dark text on the owner's light
-  /// green bar (deep green-black, ≈ 9:1 on the bar's middle).
-  static const textColor = Color(0xFF0B2E0B);
+  /// The line's colour (owner): plain near-black on the light green bar
+  /// (≈ 10:1 on its middle) — the special yellow stays on names.
+  static const textColor = Color(0xFF102010);
 
   @override
   Widget build(BuildContext context) {
@@ -309,8 +309,8 @@ class VipEntranceBanner extends StatelessWidget {
                             ),
                     ),
                   ),
-                  // «سارة دخل الغرفة» in the tier's gold with its brown edge
-                  // (owner), on the art's bar, no plate.
+                  // «سارة دخل الغرفة» in plain near-black on the art's bar
+                  // (owner), no plate.
                   Positioned.directional(
                     textDirection: TextDirection.ltr,
                     start: width * slot.left,
@@ -409,8 +409,8 @@ class VipEntranceBanner extends StatelessWidget {
   }
 }
 
-/// «{name} دخل الغرفة» on the owner's banner: the tier's gold (or plain
-/// dark), semi-bold, one line; only the name ellipsizes (the phrase stays
+/// «{name} دخل الغرفة» on the owner's banner: near-black, semi-bold, one
+/// line; only the name ellipsizes (the phrase stays
 /// whole).
 class _NameLine extends StatelessWidget {
   const new({required this.vip, required this.name, required this.size});
@@ -437,25 +437,22 @@ class _NameLine extends StatelessWidget {
         Text(t, maxLines: 1, textScaler: TextScaler.noScaling, style: style);
     final before = parts.first;
     final after = parts.length > 1 ? parts.last : '';
-    return VipNameShimmer(
-      vip: vip,
-      child: Row(
-        key: LiveVipEntranceLayer.nameKey,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (before.isNotEmpty) piece(before),
-          Flexible(
-            child: Text(
-              KFormat.bidiIsolate(name),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: TextScaler.noScaling,
-              style: style,
-            ),
+    return Row(
+      key: LiveVipEntranceLayer.nameKey,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (before.isNotEmpty) piece(before),
+        Flexible(
+          child: Text(
+            KFormat.bidiIsolate(name),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textScaler: TextScaler.noScaling,
+            style: style,
           ),
-          if (after.isNotEmpty) piece(after),
-        ],
-      ),
+        ),
+        if (after.isNotEmpty) piece(after),
+      ],
     );
   }
 }
