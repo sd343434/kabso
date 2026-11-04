@@ -19,6 +19,7 @@ import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -154,15 +155,26 @@ class ProfileCoverHeader extends StatelessWidget {
                   onTap: live
                       ? () => context.push(AppRoutes.liveRoom(room))
                       : null,
-                  child: ProfileAvatar(
-                    displayName: profile.displayName,
-                    avatarUrl: profile.avatarUrl,
-                    live: live,
-                    cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
-                    agentCode: profile.rechargeAgentCode,
-                    hostAgentCode: profile.hostAgentCode,
-                    avatarFrame: profile.avatarFrame,
-                    outline: p.background,
+                  // D258: the VIP's animated frame, unless an agent or bag
+                  // frame is worn (those keep their own art).
+                  child: VipAvatarFrame(
+                    vip:
+                        profile.rechargeAgentCode == null &&
+                            profile.hostAgentCode == null &&
+                            profile.avatarFrame == null
+                        ? profile.vip
+                        : null,
+                    size: KProfile.avatar,
+                    child: ProfileAvatar(
+                      displayName: profile.displayName,
+                      avatarUrl: profile.avatarUrl,
+                      live: live,
+                      cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
+                      agentCode: profile.rechargeAgentCode,
+                      hostAgentCode: profile.hostAgentCode,
+                      avatarFrame: profile.avatarFrame,
+                      outline: p.background,
+                    ),
                   ),
                 ),
               ),
@@ -322,6 +334,9 @@ class ProfileInfoBlock extends StatelessWidget {
                   key: ProfileHeaderView.rechargeBadgeKey,
                   badge: profile.rechargeBadge,
                 ),
+              // D258: the VIP badge.
+              if (profile.vip != null)
+                VipNameBadge(vip: profile.vip, height: 20),
               // Owner (after D218): «اليوزر فقط بالاعلى وليس بجانب الاسم» —
               // the @username is only in the top bar; this place is kept
               // for a verification mark (none yet).

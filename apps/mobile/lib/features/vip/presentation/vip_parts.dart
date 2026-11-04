@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io' show HttpClient;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter_svga/flutter_svga.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -48,6 +48,9 @@ Color _darken(Color c, double t) => Color.lerp(c, Colors.black, t)!;
 @visibleForTesting
 ImageProvider Function(String src) vipImageFor = NetworkImage.new;
 
+/// D258: [vipImageFor] for the app's other files.
+ImageProvider vipArtImage(String src) => vipImageFor(src);
+
 /// Builds the still image for [src] (a hosted https URL), or null. Nothing is
 /// bundled: every VIP art is uploaded from the admin panel.
 Widget? _stillOf(String? src, BoxFit fit) {
@@ -73,6 +76,8 @@ class VipAnimatedArt extends StatefulWidget {
     this.fit = BoxFit.contain,
     this.animate = true,
     this.placeholder,
+    this.once = false,
+    this.onDone,
   });
 
   final String? animation;
@@ -80,6 +85,11 @@ class VipAnimatedArt extends StatefulWidget {
   final BoxFit fit;
   final bool animate;
   final Widget? placeholder;
+
+  /// D258: play the SVGA once (the entry car), then [onDone]; also called
+  /// when it cannot play (no file, reduced motion, a broken file).
+  final bool once;
+  final VoidCallback? onDone;
 
   /// Widget tests and the screenshot harness set this false so only the still
   /// paints (set by `test/flutter_test_config.dart`).
@@ -108,24 +118,35 @@ class _VipAnimatedArtState extends State<VipAnimatedArt>
     super.didChangeDependencies();
     if (_started || !widget._canPlay) return;
     _started = true;
-    if (MediaQuery.disableAnimationsOf(context)) return; // reduced motion.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _finish(); // reduced motion.
+      return;
+    }
     unawaited(_load(widget.animation!));
   }
 
-  static Future<Uint8List?> _fetch(String url) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(Uri.parse(url));
-      final response = await request.close();
-      if (response.statusCode != 200) return null;
-      final chunks = await response.fold<List<int>>(
-        <int>[],
-        (bytes, chunk) => bytes..addAll(chunk),
-      );
-      return Uint8List.fromList(chunks);
-    } finally {
-      client.close();
+  @override
+  void initState() {
+    super.initState();
+    // Nothing to play: a play-once art is done at once.
+    if (widget.once && !widget._canPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _finish());
     }
+  }
+
+  bool _done = false;
+
+  void _finish() {
+    if (_done || !widget.once) return;
+    _done = true;
+    widget.onDone?.call();
+  }
+
+  /// D258: through the gift art cache (D126) — downloaded once and kept on
+  /// the device, so a big file (the 13 MB entry car) is not fetched again.
+  static Future<Uint8List?> _fetch(String url) async {
+    if (!GiftArtCache.allowed(url)) return null;
+    return await GiftArtCache.instance.load(url);
   }
 
   Future<void> _load(String url) async {
@@ -133,15 +154,22 @@ class _VipAnimatedArtState extends State<VipAnimatedArt>
       var movie = _cache[url];
       if (movie == null) {
         final bytes = await _fetch(url);
-        if (bytes == null || !mounted) return;
+        if (bytes == null || !mounted) {
+          _finish();
+          return;
+        }
         movie = await SVGAParser.shared.decodeFromBuffer(bytes);
         _cache[url] = movie..autorelease = false;
       }
       if (!mounted) return;
       final controller = SVGAAnimationController(vsync: this)
         ..muted = true
-        ..videoItem = movie
-        ..repeat();
+        ..videoItem = movie;
+      if (widget.once) {
+        unawaited(controller.forward().whenComplete(_finish));
+      } else {
+        controller.repeat();
+      }
       setState(() {
         _controller = controller;
         _ready = true;
@@ -149,6 +177,7 @@ class _VipAnimatedArtState extends State<VipAnimatedArt>
     } on Object catch (e) {
       // A broken file keeps the still.
       debugPrint('VipAnimatedArt($url): $e');
+      _finish();
     }
   }
 

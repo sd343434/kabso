@@ -13,6 +13,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -844,6 +845,7 @@ class AudioSeatRing extends StatelessWidget {
         agentCode: user.rechargeAgentCode,
         hostAgentCode: user.hostAgentCode,
         frame: user.avatarFrame,
+        vip: user.vip,
         rechargeBadge: user.rechargeBadge,
         semantics: user.displayName,
         muted: seat.mutedByHost || micOff.contains(i),
@@ -941,6 +943,7 @@ class _Seat extends StatelessWidget {
     this.agentCode,
     this.hostAgentCode,
     this.frame,
+    this.vip,
     this.rechargeBadge,
   });
 
@@ -952,6 +955,10 @@ class _Seat extends StatelessWidget {
 
   /// v1.55-social (D186): the avatar frame the seated person wears.
   final AvatarFrame? frame;
+
+  /// D258: the seated person's VIP (the animated frame when no bag frame is
+  /// worn; the mic wave while speaking).
+  final UserVip? vip;
 
   /// v1.56-social (D187): the seated person's daily recharge badge.
   final RechargeBadge? rechargeBadge;
@@ -1003,6 +1010,7 @@ class _Seat extends StatelessWidget {
                   else
                     _framedPicture(
                       frame: frame,
+                      vip: vip,
                       speaking: speaking,
                       cpMic: cpMic,
                       picture: child,
@@ -1280,6 +1288,7 @@ Widget _framedPicture({
   required bool speaking,
   required bool cpMic,
   required Widget picture,
+  UserVip? vip,
 }) {
   final art = AvatarFrameArt.of(frame);
   final size = art == null
@@ -1290,8 +1299,14 @@ Widget _framedPicture({
     cpMic: cpMic,
     size: size,
     picture: picture,
+    vip: vip,
   );
-  if (art == null) return round;
+  // D258: a VIP's animated frame when no bag frame is worn.
+  if (art == null) {
+    return vip == null
+        ? round
+        : VipAvatarFrame(vip: vip, size: size, child: round);
+  }
   return FramedAvatar(art: art, picture: size, child: round);
 }
 
@@ -1302,6 +1317,7 @@ Widget _speakingPicture({
   required bool cpMic,
   required double size,
   required Widget picture,
+  UserVip? vip,
 }) {
   final clipped = ClipOval(
     child: SizedBox.square(dimension: size, child: picture),
@@ -1317,7 +1333,16 @@ Widget _speakingPicture({
     );
     return CpMicEffect(size: size, area: area, child: clipped);
   }
-  return _Glow(on: speaking, child: clipped);
+  final glow = _Glow(on: speaking, child: clipped);
+  // D258: a VIP's mic wave while speaking (the CP mic effect wins above).
+  if (vip == null) return glow;
+  return VipMicWave(
+    vip: vip,
+    speaking: speaking,
+    size: size,
+    fallback: glow,
+    child: clipped,
+  );
 }
 
 /// A speaker's glowing ring.

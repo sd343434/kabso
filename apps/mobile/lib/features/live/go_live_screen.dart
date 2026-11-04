@@ -115,6 +115,7 @@ import 'package:kabso_live/features/live/tools/recorder/live_clip_widgets.dart';
 import 'package:kabso_live/features/live/tools/second_camera/second_camera_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
+import 'package:kabso_live/features/vip/presentation/vip_entrance.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -2004,6 +2005,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // D185: a recharge agent's entrance bar.
                 if (onAir && room != null)
                   LiveRechargeEntranceLayer(roomId: room.id),
+                // D258: a VIP's entry banner and entry car.
+                if (onAir && room != null)
+                  LiveVipEntranceLayer(roomId: room.id),
                 // D144a: DeepAR's diagnostics for the owner's screenshots —
                 // debug/profile builds with the camera processor only.
                 if (LiveFxDiagnostics.enabled &&

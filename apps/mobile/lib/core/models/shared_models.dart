@@ -105,6 +105,57 @@ Map<String, dynamic>? rechargeBadgeToJson(RechargeBadge? badge) => badge == null
     ? null
     : {'tier': badge.tier, 'until': badge.until.toUtc().toIso8601String()};
 
+/// v1.83-social (D258, §10.94): a person's active VIP — the tier's code, its
+/// place in the panel's order and its colour (ARGB). The perks and their art
+/// come from the VIP catalogue (`GET /vip/tiers`, by [tier]).
+@immutable
+class UserVip {
+  const new({required this.tier, required this.rank, required this.color});
+
+  final String tier;
+  final int rank;
+
+  /// ARGB.
+  final int color;
+
+  @override
+  bool operator ==(Object other) =>
+      other is UserVip &&
+      other.tier == tier &&
+      other.rank == rank &&
+      other.color == color;
+
+  @override
+  int get hashCode => Object.hash(tier, rank, color);
+
+  @override
+  String toString() => 'UserVip($tier, $rank)';
+}
+
+/// Reads `UserVip` (`{tier, rank, color}`); anything else is no VIP.
+UserVip? userVipFromJson(Object? json) => switch (json) {
+  {
+    'tier': final String tier,
+    'rank': final int rank,
+    'color': final String color,
+  }
+      when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(color) =>
+    UserVip(
+      tier: tier,
+      rank: rank,
+      color: 0xFF000000 | int.parse(color.substring(1), radix: 16),
+    ),
+  _ => null,
+};
+
+String _hex6(int argb) =>
+    (argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase();
+
+/// The wire shape of [userVipFromJson].
+Map<String, dynamic>? userVipToJson(UserVip? vip) => vip == null
+    ? null
+    : {'tier': vip.tier, 'rank': vip.rank, 'color': '#${_hex6(vip.color)}'};
+
 /// `UserSummary`: minimal public identity of a user. Never has an email.
 @freezed
 abstract class UserSummary with _$UserSummary {
@@ -161,6 +212,15 @@ abstract class UserSummary with _$UserSummary {
       toJson: rechargeBadgeToJson,
     )
     RechargeBadge? rechargeBadge,
+
+    /// v1.83-social (D258, §10.94): the active VIP (badge, frame, name colour,
+    /// bubble, card…, by the catalogue). Null otherwise (also older servers).
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: userVipFromJson,
+      toJson: userVipToJson,
+    )
+    UserVip? vip,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

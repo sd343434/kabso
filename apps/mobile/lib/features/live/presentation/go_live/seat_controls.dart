@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -667,6 +668,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               agentCode: u.rechargeAgentCode,
               hostAgentCode: u.hostAgentCode,
               rechargeBadge: u.rechargeBadge,
+              vip: u.vip,
               handle: _moderators.contains(u.username)
                   ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
                         ' · ${l10n.liveSeatModeratorTag}'
@@ -834,6 +836,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             agentCode: r.user.rechargeAgentCode,
             hostAgentCode: r.user.hostAgentCode,
             rechargeBadge: r.user.rechargeBadge,
+            vip: r.user.vip,
             handle: r.seatIndex == null
                 ? KHandle.plain(
                     r.user.username,
@@ -1015,6 +1018,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     String? agentCode,
     String? hostAgentCode,
     RechargeBadge? rechargeBadge,
+    UserVip? vip,
     VoidCallback? onTap,
     List<Widget> actions = const [],
   }) {
@@ -1055,6 +1059,14 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                       height: inlineAgentBadgeHeight(_nameSize),
                       gap: 4,
                     ),
+                    // D258: the VIP badge after the name.
+                    if (vip != null) ...[
+                      const SizedBox(width: 4),
+                      VipNameBadge(
+                        vip: vip,
+                        height: inlineAgentBadgeHeight(_nameSize),
+                      ),
+                    ],
                   ],
                 ),
                 if (handle != null)

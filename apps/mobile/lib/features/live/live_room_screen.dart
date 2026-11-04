@@ -88,6 +88,7 @@ import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/vip/presentation/vip_entrance.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -1141,6 +1142,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveCpEntranceLayer(roomId: room.id),
             // D185: a recharge agent's entrance bar.
             if (!entrancesHidden) LiveRechargeEntranceLayer(roomId: room.id),
+            // D258: a VIP's entry banner and entry car.
+            if (!entrancesHidden) LiveVipEntranceLayer(roomId: room.id),
           ],
         ),
       ),

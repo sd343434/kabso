@@ -1,9 +1,12 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -31,29 +34,48 @@ abstract final class KFlatChat {
   static const double radius = 12;
 
   /// The box around a line.
-  static Widget boxed(Widget child, {Key? key, bool cp = false}) =>
-      KeyedSubtree(
-        key: key,
-        child: _box(child, cp: cp),
-      );
-
-  static Widget _box(Widget child, {required bool cp}) => Container(
-    // The CP edge (1 pt) sits inside the padding: both lines keep one
-    // height.
-    padding: cp ? const EdgeInsetsDirectional.fromSTEB(9, 3, 11, 3) : padding,
-    decoration: cp
-        // D257: a worn CP bubble (CP-021) keeps its colours and edge.
-        ? BoxDecoration(
-            gradient: const LinearGradient(colors: LiveCpChatBubble.colors),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: LiveCpChatBubble.edge),
-          )
-        : BoxDecoration(
-            color: box,
-            borderRadius: BorderRadius.circular(radius),
-          ),
-    child: child,
+  static Widget boxed(
+    Widget child, {
+    Key? key,
+    bool cp = false,
+    BoxDecoration? vip,
+  }) => KeyedSubtree(
+    key: key,
+    child: _box(child, cp: cp, vip: vip),
   );
+
+  /// D258: a member's VIP bubble (CHAT_BUBBLE), unless a CP bubble is worn.
+  static const vipBubbleKey = Key('liveChat.flat.vipBubble');
+
+  static Widget _box(Widget child, {required bool cp, BoxDecoration? vip}) =>
+      !cp && vip != null
+      ? Container(
+          key: vipBubbleKey,
+          padding: padding,
+          decoration: vip,
+          child: child,
+        )
+      : Container(
+          // The CP edge (1 pt) sits inside the padding: both lines keep one
+          // height.
+          padding: cp
+              ? const EdgeInsetsDirectional.fromSTEB(9, 3, 11, 3)
+              : padding,
+          decoration: cp
+              // D257: a worn CP bubble (CP-021) keeps its colours and edge.
+              ? BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: LiveCpChatBubble.colors,
+                  ),
+                  borderRadius: BorderRadius.circular(radius),
+                  border: Border.all(color: LiveCpChatBubble.edge),
+                )
+              : BoxDecoration(
+                  color: box,
+                  borderRadius: BorderRadius.circular(radius),
+                ),
+          child: child,
+        );
 
   /// Ref: the name `#A4E8E0`.
   static const Color name = Color(0xFFA4E8E0);
@@ -88,12 +110,13 @@ abstract final class KFlatChat {
 }
 
 /// D253: one message of the host's flat chat.
-class LiveChatFlatLine extends StatelessWidget {
+class LiveChatFlatLine extends ConsumerWidget {
   const new({
     required this.name,
     required this.text,
     required this.label,
     super.key,
+    this.vip,
     this.role,
     this.badges,
     this.agentCode,
@@ -121,6 +144,10 @@ class LiveChatFlatLine extends StatelessWidget {
   /// D257: the author's couple wears the Exclusive Chat Bubble.
   final bool cp;
 
+  /// D258: the author's VIP (the badge before the name, the name colour and
+  /// the VIP bubble).
+  final UserVip? vip;
+
   /// Why a pending line failed (under it).
   final String? failed;
   final VoidCallback? onProfile;
@@ -130,9 +157,10 @@ class LiveChatFlatLine extends StatelessWidget {
   static const nameKey = Key('liveChat.flat.name');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final base = KFlatChat.style(context);
+    final look = ref.watch(vipLookProvider(vip));
     final tag = switch (role) {
       LiveChatRole.host => l10n.liveChatHostBadge,
       LiveChatRole.moderator => l10n.liveChatModeratorBadge,
@@ -214,6 +242,10 @@ class LiveChatFlatLine extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                           ],
+                          if (look != null) ...[
+                            VipNameBadge(vip: vip, height: KFlatChat.tagHeight),
+                            const SizedBox(width: 4),
+                          ],
                           Flexible(
                             child: GestureDetector(
                               key: nameKey,
@@ -229,7 +261,10 @@ class LiveChatFlatLine extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   textScaler: scaler,
-                                  style: base.copyWith(color: KFlatChat.name),
+                                  // D258: the VIP name colour.
+                                  style: base.copyWith(
+                                    color: look?.nameColor ?? KFlatChat.name,
+                                  ),
                                 ),
                               ),
                             ),
@@ -270,6 +305,7 @@ class LiveChatFlatLine extends StatelessWidget {
           ),
           key: cp ? LiveCpChatBubble.bubbleKey : LiveChatInlineRow.rowKey,
           cp: cp,
+          vip: vipBubbleDecoration(look, radius: KFlatChat.radius),
         ),
       ),
     );

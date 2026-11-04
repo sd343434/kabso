@@ -110,6 +110,15 @@ abstract class PublicProfile with _$PublicProfile {
     )
     RechargeBadge? rechargeBadge,
 
+    /// v1.83-social (D258, §10.94): the active VIP (badge, animated frame,
+    /// card). Null otherwise.
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: userVipFromJson,
+      toJson: userVipToJson,
+    )
+    UserVip? vip,
+
     /// v1.76-social (D218, §10.73.3): the profile cover across the top, or
     /// null (the Kabso gradient).
     String? coverUrl,

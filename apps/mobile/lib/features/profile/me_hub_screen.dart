@@ -7,6 +7,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
@@ -19,6 +20,9 @@ import 'package:kabso_live/features/live/presentation/go_live/live_rankings_shee
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
+import 'package:kabso_live/features/vip/application/vip_providers.dart';
+import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -136,6 +140,15 @@ class MeHubScreen extends ConsumerWidget {
         : ref.watch(profileStatsProvider(username));
     final stats = statsLoad?.value;
     final coins = ref.watch(liveCoinsProvider).value;
+    // D258: my active VIP (its tier and colour; the look from the catalogue).
+    final myVip = switch (ref.watch(myVipProvider).value) {
+      final VipMembership m => UserVip(
+        tier: m.tierCode,
+        rank: 0,
+        color: m.tierColor,
+      ),
+      null => null,
+    };
 
     Future<void> refresh() async {
       try {
@@ -436,6 +449,8 @@ class MeHubScreen extends ConsumerWidget {
                       badge: stats?.rechargeBadge,
                       height: 26,
                     ),
+                  // D258: my VIP badge while my membership is active.
+                  if (myVip != null) VipNameBadge(vip: myVip, height: 22),
                 ],
               ),
             ),

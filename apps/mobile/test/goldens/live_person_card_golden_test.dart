@@ -13,6 +13,7 @@
 @Tags(['golden'])
 library;
 
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -68,6 +69,7 @@ Future<void> pumpPersonCardRoom(
   required PublicProfile profile,
   GoldenViewport viewport = GoldenViewport.phone,
   Brightness brightness = Brightness.light,
+  List<Override> extraOverrides = const [],
 }) async {
   final ar = language == AppLanguage.ar;
   await loadAppFonts();
@@ -129,6 +131,7 @@ Future<void> pumpPersonCardRoom(
       profileLevelsProvider.overrideWith(
         (ref, _) async => personCardLevels(ar: ar),
       ),
+      ...extraOverrides,
     ],
   );
   await tester.pumpAndSettle();

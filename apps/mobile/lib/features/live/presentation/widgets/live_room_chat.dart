@@ -346,6 +346,8 @@ class LiveRoomChatLines extends ConsumerWidget {
           agentCode: entry.author.rechargeAgentCode,
           hostAgentCode: entry.author.hostAgentCode,
           rechargeBadge: entry.author.rechargeBadge,
+          // D258: the author's VIP (badge, name colour, bubble).
+          vip: entry.author.vip,
           // D257: a worn CP bubble draws in its colours (CP-021).
           cp: entry.cpBubble,
           label: l10n.liveChatLineLabel(

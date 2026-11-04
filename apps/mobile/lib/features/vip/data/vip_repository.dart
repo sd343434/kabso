@@ -37,6 +37,7 @@ final class VipPerk {
     this.still,
     this.artWidth,
     this.artHeight,
+    this.amount,
   });
 
   factory fromJson(Map<String, dynamic> json) => VipPerk(
@@ -48,6 +49,7 @@ final class VipPerk {
     still: json['still'] as String?,
     artWidth: _intOrNull(json['artWidth']),
     artHeight: _intOrNull(json['artHeight']),
+    amount: _intOrNull(json['amount']),
   );
 
   final String code;
@@ -61,6 +63,10 @@ final class VipPerk {
   final String? still;
   final int? artWidth;
   final int? artHeight;
+
+  /// v1.83-social (D258): the perk's number for this tier (free public
+  /// messages / coins a day, the level speed-up %), or null.
+  final int? amount;
 }
 
 /// `VipTier`: a tier on sale, in the panel's order ([level] 1 … n).
