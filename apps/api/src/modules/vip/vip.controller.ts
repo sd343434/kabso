@@ -11,6 +11,7 @@ import { buyVipBody } from './vip.schemas.js';
 import {
   VipService,
   type MyVipDto,
+  type ProfileVisitorListDto,
   type VipDailyCoinsClaimDto,
   type VipPurchaseResultDto,
   type VipTierListDto,
@@ -51,6 +52,12 @@ export class VipController {
   @HttpCode(200)
   claimDailyCoins(@CurrentAuth() auth: AuthContext): Promise<VipDailyCoinsClaimDto> {
     return this.vip.claimDailyCoins(auth.userId);
+  }
+
+  /** v1.83-social (D258, §10.94.9): «من زار ملفي» (members holding PROFILE_VISITORS). */
+  @Get('me/profile-visitors')
+  profileVisitors(@CurrentAuth() auth: AuthContext): Promise<ProfileVisitorListDto> {
+    return this.vip.profileVisitors(auth.userId);
   }
 
   /** Buy, renew or upgrade. 201 new, 200 a retry with the same `Idempotency-Key`. */

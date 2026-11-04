@@ -35,6 +35,8 @@ export const VIP_BUILT_PERKS: ReadonlySet<string> = new Set<string>([
   'ENTRY_BANNER',
   'ENTRY_EFFECT',
   'MIC_WAVE',
+  // Phase 4: «من زار ملفي» (§10.94.9).
+  'PROFILE_VISITORS',
   // Free public messages a day and the level speed-up (§10.94.4); the daily coins (§10.94.5).
   'DAILY_BULLET',
   'DAILY_COINS',

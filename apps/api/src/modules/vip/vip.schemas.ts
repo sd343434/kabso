@@ -86,6 +86,8 @@ export const createVipTierBody = z.strictObject({
   nameAr: tierName,
   nameEn: tierName,
   color,
+  /** v1.83-social (D258): the special text colour (CHAT_NAME_COLOR), or null. */
+  nameColor: color.nullable().optional(),
   /** The tier BADGE (central crest): an SVGA animation and a still (asset path or https URL). */
   badgeAnimation: artRef.nullable().optional(),
   badgeStill: artRef.nullable().optional(),
@@ -102,6 +104,7 @@ export const updateVipTierBody = z
     nameAr: tierName.optional(),
     nameEn: tierName.optional(),
     color: color.optional(),
+    nameColor: color.nullable().optional(),
     badgeAnimation: artRef.nullable().optional(),
     badgeStill: artRef.nullable().optional(),
     priceCoins: price.optional(),

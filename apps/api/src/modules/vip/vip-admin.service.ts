@@ -62,6 +62,8 @@ export interface AdminVipTierDto {
   nameEn: string;
   sortOrder: number;
   color: string;
+  /** v1.83-social (D258): the special text colour, or null. */
+  nameColor: string | null;
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
@@ -114,6 +116,7 @@ function snapshot(t: TierWithPerks): Prisma.InputJsonObject {
     nameEn: t.nameEn,
     sortOrder: t.sortOrder,
     color: t.color,
+    nameColor: t.nameColor,
     badgeAnimation: t.badgeAnimation,
     badgeStill: t.badgeStill,
     priceCoins: Number(t.priceCoins),
@@ -221,6 +224,7 @@ export class VipAdminService {
             nameEn: body.nameEn,
             sortOrder: (last._max.sortOrder ?? 0) + 1,
             color: body.color,
+            nameColor: body.nameColor ?? null,
             badgeAnimation: body.badgeAnimation ?? null,
             badgeStill: body.badgeStill ?? null,
             priceCoins: BigInt(body.priceCoins),
@@ -257,6 +261,7 @@ export class VipAdminService {
           ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
           ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
           ...(body.color !== undefined ? { color: body.color } : {}),
+          ...(body.nameColor !== undefined ? { nameColor: body.nameColor } : {}),
           ...(body.badgeAnimation !== undefined ? { badgeAnimation: body.badgeAnimation } : {}),
           ...(body.badgeStill !== undefined ? { badgeStill: body.badgeStill } : {}),
           ...(body.priceCoins !== undefined ? { priceCoins: BigInt(body.priceCoins) } : {}),
@@ -401,6 +406,7 @@ export class VipAdminService {
       nameEn: t.nameEn,
       sortOrder: t.sortOrder,
       color: t.color,
+      nameColor: t.nameColor,
       badgeAnimation: t.badgeAnimation,
       badgeStill: t.badgeStill,
       priceCoins: Number(t.priceCoins),

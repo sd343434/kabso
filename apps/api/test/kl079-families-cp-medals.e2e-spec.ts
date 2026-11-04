@@ -836,7 +836,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
     });
 
-    it('the profile showcase: up to 6 unlocked medals, in order', async () => {
+    it('the profile showcase: up to 3 unlocked medals (D258), in order; an older longer one reads as its first 3', async () => {
       const u = await signup();
       const reader = await signup();
       await ctx.prisma.userMedal.createMany({
@@ -860,15 +860,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
           .set('Accept-Language', 'en')
           .send({ medalCodes });
 
-      const tooMany = await put([
-        'FIRST_LIVE',
-        'FIRST_CP',
-        'FIRST_FAMILY',
-        'BULLET_FIRST',
-        'CHARM_10',
-        'CHARM_50',
-        'CHARM_100',
-      ]);
+      const tooMany = await put(['FIRST_LIVE', 'FIRST_CP', 'FIRST_FAMILY', 'BULLET_FIRST']);
       expect(tooMany.status).toBe(400);
       expectContract(tooMany, 'setMyMedalShowcase');
       expect(tooMany.body.error.details).toEqual([{ field: 'medalCodes', issue: 'too_big' }]);
@@ -901,6 +893,25 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       const mine = await ctx.http.get('/api/v1/me/medals/showcase').set(auth(u));
       expectContract(mine, 'getMyMedalShowcase');
       expect(mine.body.showcase.map((m: { code: string }) => m.code)).toEqual(['FIRST_LIVE', 'CHARM_100']);
+      // A showcase of 5 saved before D258: read as its first 3 (trimmed on read).
+      await ctx.prisma.userMedal.updateMany({ where: { userId: u.id }, data: { showcasePosition: null } });
+      for (const [i, code] of [
+        'CHARM_50',
+        'FIRST_FAMILY',
+        'BULLET_FIRST',
+        'CHARM_10',
+        'FIRST_CP',
+      ].entries()) {
+        await ctx.prisma.userMedal.update({
+          where: { userId_medalCode: { userId: u.id, medalCode: code } },
+          data: { showcasePosition: i + 1 },
+        });
+      }
+      expect((await profile(reader, u)).medals.showcase.map((m) => m.code)).toEqual([
+        'CHARM_50',
+        'FIRST_FAMILY',
+        'BULLET_FIRST',
+      ]);
       const cleared = await put([]);
       expect(cleared.body).toEqual({ showcase: [] });
       expect((await profile(reader, u)).medals.showcase).toEqual([]);

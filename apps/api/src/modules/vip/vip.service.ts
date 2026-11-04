@@ -11,7 +11,10 @@ import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { dateValue, programWindowsIn } from '../programs/programs-time.js';
 import { creditIn, debitIn } from '../wallet/wallet-ledger.js';
-import { vipPerkAmountIn } from './vip-perks.js';
+import { vipHoldsPerkIn, vipPerkAmountIn } from './vip-perks.js';
+import { PROFILE_VISITORS_DAYS, PROFILE_VISITORS_MAX } from './profile-visits.js';
+import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import {
   planVipPurchase,
   VIP_MAX_AHEAD_DAYS,
@@ -51,6 +54,8 @@ export interface VipTierDto {
   /** 1 … n among the tiers on sale, in order. */
   level: number;
   color: string;
+  /** v1.83-social (D258): the special text colour (CHAT_NAME_COLOR), or null. */
+  nameColor: string | null;
   /** The tier BADGE (central crest): an SVGA animation and a still (asset path or https URL). */
   badgeAnimation: string | null;
   badgeStill: string | null;
@@ -98,6 +103,19 @@ export interface MyVipDto {
 }
 
 /** v1.83-social (D258): `VipDailyCoinsClaim`. */
+/** v1.83-social (D258, §10.94.9): one visitor of the caller's profile. */
+export interface ProfileVisitorDto {
+  user: UserSummaryDto;
+  lastVisitedAt: string;
+  visits: number;
+}
+
+/** `ProfileVisitorList`: a server-bounded list (no `page`). */
+export interface ProfileVisitorListDto {
+  data: ProfileVisitorDto[];
+  total: number;
+}
+
 export interface VipDailyCoinsClaimDto {
   /** Coins credited by this call (0 when today's were already claimed). */
   coins: number;
@@ -189,6 +207,7 @@ export class VipService {
         name: vipName(lang, t),
         level: i + 1,
         color: t.color,
+        nameColor: t.nameColor,
         badgeAnimation: t.badgeAnimation,
         badgeStill: t.badgeStill,
         priceCoins: Number(t.priceCoins),
@@ -266,6 +285,44 @@ export class VipService {
         dailyCoins: { ...state.dto, claimedToday: true },
       };
     });
+  }
+
+  /**
+   * v1.83-social (D258, §10.94.9) `GET /me/profile-visitors` («من زار ملفي»): who opened the caller's profile in the
+   * last {@link PROFILE_VISITORS_DAYS} days, the latest visit first, at most {@link PROFILE_VISITORS_MAX} (a
+   * server-bounded list, §5): only ACTIVE accounts with no block either way. `total` counts them all. 409
+   * `VIP_UNAVAILABLE` (`no_perk`) without an active membership holding PROFILE_VISITORS.
+   */
+  async profileVisitors(userId: string): Promise<ProfileVisitorListDto> {
+    const now = this.clock.now();
+    if (!(await vipHoldsPerkIn(this.prisma, userId, 'PROFILE_VISITORS', now))) {
+      throw new AppException(ErrorCode.VIP_UNAVAILABLE, undefined, [{ field: 'perk', issue: 'no_perk' }]);
+    }
+    const since = new Date(now.getTime() - PROFILE_VISITORS_DAYS * 86_400_000);
+    const where = {
+      ownerId: userId,
+      lastVisitedAt: { gt: since },
+      visitor: {
+        status: 'ACTIVE' as const,
+        blocking: { none: { blockedId: userId } },
+        blockedBy: { none: { blockerId: userId } },
+      },
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.profileVisit.findMany({
+        where,
+        orderBy: [{ lastVisitedAt: 'desc' }, { visitorId: 'asc' }],
+        take: PROFILE_VISITORS_MAX,
+        select: { lastVisitedAt: true, visits: true, visitor: { select: USER_SUMMARY_SELECT } },
+      }),
+      this.prisma.profileVisit.count({ where }),
+    ]);
+    const data: ProfileVisitorDto[] = [];
+    for (const r of rows) {
+      const user = userSummary(r.visitor, now);
+      if (user) data.push({ user, lastVisitedAt: r.lastVisitedAt.toISOString(), visits: r.visits });
+    }
+    return { data, total };
   }
 
   /**

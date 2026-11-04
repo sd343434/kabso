@@ -9813,6 +9813,27 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/me/profile-visitors:
+    get:
+      tags: [vip]
+      operationId: listProfileVisitors
+      summary: "Who visited my profile («من زار ملفي», v1.83-social, D258)"
+      description: |
+        CONVENTIONS §10.94.9. For a member holding PROFILE_VISITORS (with inheritance): who opened the caller's profile
+        (`getPublicProfile` by someone else; never while either blocked the other) in the last 30 days, the latest
+        visit first, at most 100 — a server-bounded list (§5, no `page`); `total` counts them all. Only ACTIVE accounts
+        with no block either way. `visits` counts openings at least 10 minutes apart. 409 `VIP_UNAVAILABLE`
+        (`{field: perk, issue: no_perk}`) without the perk. Per-user default rate limit.
+      responses:
+        '200':
+          description: The visitors.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileVisitorList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/me/vip/purchases:
     post:
       tags: [vip]
@@ -17558,7 +17579,7 @@ components:
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — only for DAILY_BULLET (1–100), DAILY_COINS (1–10^9) and LEVEL_SPEEDUP (1–100 %); another code with an amount, or one out of its range → 400 `perks.N.amount` `not_allowed` / `out_of_range`." }
     AdminVipTier:
       type: object
-      required: [id, code, nameAr, nameEn, sortOrder, color, badgeAnimation, badgeStill, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
+      required: [id, code, nameAr, nameEn, sortOrder, color, nameColor, badgeAnimation, badgeStill, priceCoins, durationDays, enabled, activeMembers, perks, updatedAt]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
@@ -17566,6 +17587,7 @@ components:
         nameEn: { type: string, maxLength: 30 }
         sortOrder: { type: integer, minimum: 1, description: "The order and the rank (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$' }
+        nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-F]{6}$', description: "v1.83-social (D258, §10.94.10): the special text colour of the tier's members (CHAT_NAME_COLOR), set in the panel; null: none." }
         badgeAnimation: { $ref: '#/components/schemas/VipArtRef' }
         badgeStill: { $ref: '#/components/schemas/VipArtRef' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -17598,6 +17620,7 @@ components:
         nameAr: { type: string, minLength: 1, maxLength: 30 }
         nameEn: { type: string, minLength: 1, maxLength: 30 }
         color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', description: "Stored upper case." }
+        nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$', description: "v1.83-social (D258): the special text colour (CHAT_NAME_COLOR); stored upper case; null clears it." }
         badgeAnimation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         badgeStill: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -17617,6 +17640,7 @@ components:
         nameAr: { type: string, minLength: 1, maxLength: 30 }
         nameEn: { type: string, minLength: 1, maxLength: 30 }
         color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+        nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-Fa-f]{6}$', description: "v1.83-social (D258): the special text colour (CHAT_NAME_COLOR); stored upper case; null clears it." }
         badgeAnimation: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         badgeStill: { type: [string, 'null'], pattern: '^https://\S{1,2040}$' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -24379,10 +24403,11 @@ components:
             - type: 'null'
         medals:
           type: array
-          maxItems: 5
+          maxItems: 3
           description: |
             v1.52-live (D234, CONVENTIONS §10.82; owner: «تحت سطر أيقونات الليفيل تكون الميداليات حتى ٥
-            ميداليات»): the first five medals the author chose to show on their profile
+            ميداليات»): the first medals the author chose to show on their profile — at most 3 since v1.83-social
+            (D258; was 5)
             (`ProfileMedals.showcase`), in their order; empty when none were chosen (no auto-fill). Always
             sent by v1.52-live servers; apps read a missing field as empty.
           items: { $ref: '#/components/schemas/LiveChatAuthorMedal' }
@@ -26387,8 +26412,8 @@ components:
           items: { $ref: '#/components/schemas/ProfileMedal' }
         showcase:
           type: array
-          maxItems: 6
-          description: "The medals the user chose to show (PUT /me/medals/showcase), in their order; empty until they choose (no auto-fill)."
+          maxItems: 3
+          description: "The medals the user chose to show (PUT /me/medals/showcase), in their order; empty until they choose (no auto-fill). v1.83-social (D258): at most 3."
           items: { $ref: '#/components/schemas/ProfileMedal' }
     MedalShowcase:
       type: object
@@ -26405,9 +26430,9 @@ components:
       properties:
         medalCodes:
           type: array
-          maxItems: 6
+          maxItems: 3
           uniqueItems: true
-          description: Unlocked medal codes in display order; [] shows none.
+          description: "Unlocked medal codes in display order; [] shows none. v1.83-social (D258): at most 3 (was 6); an older showcase of more is read as its first 3."
           items: { type: string, minLength: 1, maxLength: 40 }
     # ---- v1.22-live (DRAFT, CP-019) — the bag ---------------------------------------------------
     BagCategory:
@@ -27765,13 +27790,14 @@ components:
         amount: { type: [integer, 'null'], minimum: 1, maximum: 1000000000, description: "v1.83-social (D258, §10.94.1) — the perk's number for this tier: DAILY_BULLET free public messages a day (1–100), DAILY_COINS coins a day (1–10^9), LEVEL_SPEEDUP the level speed-up in percent (1–100); null for any other perk or not set yet." }
     VipTier:
       type: object
-      required: [id, code, name, level, color, badgeAnimation, badgeStill, priceCoins, durationDays, perks]
+      required: [id, code, name, level, color, nameColor, badgeAnimation, badgeStill, priceCoins, durationDays, perks]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
         name: { type: string, maxLength: 30 }
         level: { type: integer, minimum: 1, description: "1 … n among the tiers on sale, in the panel's order (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$' }
+        nameColor: { type: ['string', 'null'], pattern: '^#[0-9A-F]{6}$', description: "v1.83-social (D258, §10.94.10): the special text colour of the tier's members (CHAT_NAME_COLOR), set in the panel; null: none." }
         badgeAnimation: { $ref: '#/components/schemas/VipArtRef' }
         badgeStill: { $ref: '#/components/schemas/VipArtRef' }
         priceCoins: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -27824,6 +27850,23 @@ components:
         amount: { type: integer, minimum: 1, description: "Coins a day (DAILY_COINS, with inheritance)." }
         claimedToday: { type: boolean }
         nextAt: { type: string, format: date-time, description: "The next day's start: when the next claim opens." }
+    ProfileVisitor:
+      type: object
+      required: [user, lastVisitedAt, visits]
+      description: "v1.83-social (D258, §10.94.9): one visitor of the caller's profile."
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        lastVisitedAt: { type: string, format: date-time }
+        visits: { type: integer, minimum: 1, description: "Openings at least 10 minutes apart." }
+    ProfileVisitorList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ProfileVisitor' }
+        total: { type: integer, minimum: 0, description: "All visitors of the last 30 days (data holds the newest 100)." }
     VipDailyCoinsClaim:
       type: object
       required: [coins, balance, dailyCoins]

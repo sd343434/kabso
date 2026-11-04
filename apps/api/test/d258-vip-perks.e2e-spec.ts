@@ -77,6 +77,8 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
     const vip1 = (await listed(u)).find((t) => t.code === 'VIP_1')!;
     const byCode = new Map(vip1.perks.map((pk) => [pk.code, pk]));
     expect(byCode.size).toBe(12);
+    // VIP 1's special text colour: the owner's gold (§10.94.10).
+    expect((vip1 as unknown as { nameColor: string | null }).nameColor).toBe('#FFD12E');
     for (const code of [
       'BADGE',
       'AVATAR_FRAME',
@@ -86,6 +88,7 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
       'ENTRY_BANNER',
       'ENTRY_EFFECT',
       'MIC_WAVE',
+      'PROFILE_VISITORS',
       'DAILY_BULLET',
       'DAILY_COINS',
       'LEVEL_SPEEDUP',
@@ -151,6 +154,8 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
             ? { ...pk, animation: anim.body.url as string }
             : pk,
       ),
+      // The special text colour (§10.94.10), stored upper case.
+      nameColor: '#ffcc00',
       reason: 'owner D258',
     });
     expect(ok.status, JSON.stringify(ok.body)).toBe(200);
@@ -159,10 +164,12 @@ describe('D258 VIP perks', { timeout: 180_000 }, () => {
       (pk) => pk.code === 'DAILY_COINS',
     )!;
     expect(saved.amount).toBe(5000);
+    expect(ok.body.nameColor).toBe('#FFCC00');
     const audit = await withMigrationClient((db) =>
       db.auditLog.findFirst({ where: { action: 'vip.tier.update' }, orderBy: { createdAt: 'desc' } }),
     );
     expect(JSON.stringify(audit?.metadata)).toContain('"amount":5000');
+    expect(JSON.stringify(audit?.metadata)).toContain('"nameColor":"#FFCC00"');
   });
 
   it("a member's VIP shows on every UserSummary while active; gone once it ends", async () => {

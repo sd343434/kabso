@@ -30,3 +30,21 @@ export async function vipPerkAmountIn(
   }
   return best?.amount ?? null;
 }
+
+/**
+ * v1.83-social (D258): whether a member's VIP holds the built perk [code] now (enabled on their tier or a lower one,
+ * with or without an amount).
+ */
+export async function vipHoldsPerkIn(db: Db, userId: string, code: string, now: Date): Promise<boolean> {
+  if (!VIP_BUILT_PERKS.has(code)) return false;
+  const membership = await db.vipMembership.findUnique({
+    where: { userId },
+    select: { expiresAt: true, tier: { select: { sortOrder: true } } },
+  });
+  if (!membership || membership.expiresAt.getTime() <= now.getTime()) return false;
+  const perk = await db.vipTierPerk.findFirst({
+    where: { code, enabled: true, tier: { sortOrder: { lte: membership.tier.sortOrder } } },
+    select: { code: true },
+  });
+  return perk !== null;
+}

@@ -62,10 +62,13 @@ export interface MedalShowcaseDto {
   showcase: ProfileMedalDto[];
 }
 
-/** The most medals a profile shows (owner, D106 amendment). */
-export const MEDAL_SHOWCASE_MAX = 6;
+/**
+ * The most medals a profile shows: 3 (owner, D258 — was 6, D106 amendment). An older showcase of more keeps its
+ * first 3 on every read (trimmed on read; the rows keep their positions until the person saves a new one).
+ */
+export const MEDAL_SHOWCASE_MAX = 3;
 
-/** `SetMedalShowcaseRequest` (strict): 0–6 distinct medal codes, in display order. */
+/** `SetMedalShowcaseRequest` (strict): 0–3 distinct medal codes, in display order. */
 export const setMedalShowcaseSchema = z.strictObject({
   medalCodes: z
     .array(z.string().min(1).max(40))
@@ -180,6 +183,7 @@ export class MedalsService {
       where: { userId, showcasePosition: { not: null } },
       orderBy: { showcasePosition: 'asc' },
       include: { medal: true },
+      take: MEDAL_SHOWCASE_MAX,
     });
     return rows.map((r) => ({
       code: r.medalCode,
@@ -195,7 +199,7 @@ export class MedalsService {
 
   /**
    * `PUT /me/medals/showcase {medalCodes}` (owner, D106 amendment): replaces the medals shown on
-   * the caller's profile, in this order. 400: more than 6, duplicates, or not strings; 409
+   * the caller's profile, in this order. 400: more than 3 (D258), duplicates, or not strings; 409
    * MEDAL_NOT_UNLOCKED: a code the caller has not earned (unknown codes too). An empty list shows
    * none. One transaction.
    */

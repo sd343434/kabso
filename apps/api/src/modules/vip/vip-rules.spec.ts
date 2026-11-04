@@ -128,6 +128,7 @@ describe('VIP helpers', () => {
       'ENTRY_BANNER',
       'ENTRY_EFFECT',
       'MIC_WAVE',
+      'PROFILE_VISITORS',
       'DAILY_BULLET',
       'DAILY_COINS',
       'LEVEL_SPEEDUP',

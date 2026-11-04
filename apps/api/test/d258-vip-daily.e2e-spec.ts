@@ -269,4 +269,48 @@ describe('D258 VIP daily perks', { timeout: 120_000 }, () => {
     const tomorrow = await ctx.http.post('/api/v1/me/vip/daily-coins').set(auth(member));
     expect(tomorrow.body).toMatchObject({ coins: 500, balance: before + 1000 });
   });
+  it('profile visitors: someone else opening the profile is listed for a member holding the perk', async () => {
+    const owner = await signup();
+    const visitor = async (u: TestUser) => {
+      const res = await ctx.http.get(`/api/v1/users/${owner.username}`).set(auth(u));
+      expect(res.status).toBe(200);
+    };
+    const list = () => ctx.http.get('/api/v1/me/profile-visitors').set(auth(owner));
+
+    // Without the perk: refused.
+    const refused = await list();
+    expect(refused.status).toBe(409);
+    expect(refused.body.error).toMatchObject({
+      code: 'VIP_UNAVAILABLE',
+      details: [{ field: 'perk', issue: 'no_perk' }],
+    });
+
+    const a = await signup();
+    const b = await signup();
+    const c = await signup();
+    await visitor(a);
+    await visitor(a); // the same visit (within 10 minutes)
+    clock.advance(60);
+    await visitor(b);
+    await visitor(c);
+    await visitor(owner); // never oneself
+    // c is blocked: never listed (nor recorded again).
+    await ctx.prisma.userBlock.create({ data: { blockerId: owner.id, blockedId: c.id } });
+    clock.advance(11 * 60);
+    await visitor(a); // a new visit, the latest
+
+    await vip(owner);
+    const res = await list();
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expectContract(res, 'listProfileVisitors');
+    expect(res.body.total).toBe(2);
+    expect(res.body.data.map((v: { user: { id: string }; visits: number }) => [v.user.id, v.visits])).toEqual(
+      [
+        [a.id, 2],
+        [b.id, 1],
+      ],
+    );
+    const rows = await ctx.prisma.profileVisit.findMany({ where: { ownerId: owner.id } });
+    expect(rows.map((r) => r.visitorId).sort()).toEqual([a.id, b.id, c.id].sort());
+  });
 });

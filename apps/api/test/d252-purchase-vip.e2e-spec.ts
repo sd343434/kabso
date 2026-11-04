@@ -195,6 +195,7 @@ describe('D252 purchase VIP', { timeout: 180_000 }, () => {
         'LEVEL_SPEEDUP',
         'MIC_WAVE',
         'PROFILE_CARD',
+        'PROFILE_VISITORS',
       ],
     });
     expect(empty.body.suggestedPerks).toContain('BADGE');

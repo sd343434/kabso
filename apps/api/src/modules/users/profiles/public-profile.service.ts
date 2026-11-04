@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Clock } from '../../../common/time/clock.js';
+import { recordProfileVisit } from '../../vip/profile-visits.js';
 import { AppException } from '../../../common/errors/app-exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { ErrorCode } from '../../../common/errors/error-codes.js';
@@ -95,7 +97,10 @@ export class PublicProfileService {
     private readonly couples: CouplesService,
     private readonly medals: MedalsService,
     private readonly bag: BagService,
+    private readonly clock: Clock,
   ) {}
+
+  private readonly logger = new Logger(PublicProfileService.name);
 
   /**
    * v1.77-social (D220, §10.74): the card's lifetime totals the caller may see — both for the user themself; for
@@ -193,6 +198,12 @@ export class PublicProfileService {
         select: { expiresAt: true, tier: { select: { code: true, sortOrder: true, color: true } } },
       }),
     ]);
+    // v1.83-social (D258, §10.94.9): someone else's opening is a visit («من زار ملفي»); never fails the read.
+    if (!isSelf) {
+      await recordProfileVisit(this.prisma, user.id, callerId, this.clock.now()).catch((err: unknown) => {
+        this.logger.warn(`profile visit not recorded: ${String(err)}`);
+      });
+    }
     const shown = activeRechargeBadge(badge, new Date());
     const vip = activeVipOf({ vipMembership: membership }, new Date());
     return {

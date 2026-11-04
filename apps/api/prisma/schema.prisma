@@ -286,9 +286,12 @@ model User {
   balanceAdjustmentsBy      AdminBalanceAdjustment[] @relation("AdjustedBy")
 
   // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
-  vipMembership      VipMembership?
-  vipPurchases       VipPurchase[]
-  vipDailyCoinClaims VipDailyCoinClaim[]
+  vipMembership         VipMembership?
+  vipPurchases          VipPurchase[]
+  vipDailyCoinClaims    VipDailyCoinClaim[]
+  /// v1.83-social (D258, §10.94.9): who visited this user's profile, and whose profiles this user visited.
+  profileVisitsReceived ProfileVisit[]      @relation("ProfileVisitOwner")
+  profileVisitsMade     ProfileVisit[]      @relation("ProfileVisitVisitor")
 
   @@index([createdAt], map: "users_created_at_idx")
   @@map("users")
@@ -6147,6 +6150,9 @@ model VipTier {
   sortOrder      Int      @map("sort_order")
   /// The tier's colour, `#RRGGBB` upper case.
   color          String   @db.Char(7)
+  /// v1.83-social (D258, §10.94.10): the special text colour of the tier's members (CHAT_NAME_COLOR: their name,
+  /// chat message, banner line), `#RRGGBB`, set in the panel; one solid colour in the app. Null: none.
+  nameColor      String?  @map("name_color") @db.Char(7)
   /// The tier BADGE (central crest): an SVGA animation and a still, each a bundled asset path
   /// (`assets/vip/...`) or a hosted https URL. Null = the app draws a token placeholder in `color`.
   badgeAnimation String?  @map("badge_animation") @db.VarChar(2048)
@@ -6249,4 +6255,22 @@ model VipDailyCoinClaim {
 
   @@unique([userId, day], map: "vip_daily_coin_claims_user_day_key")
   @@map("vip_daily_coin_claims")
+}
+
+/// v1.83-social (D258, CONVENTIONS §10.94.9): one row per (profile owner, visitor) — someone else opened the owner's
+/// profile; `visits` counts openings at least 10 minutes apart. A VIP holding PROFILE_VISITORS lists theirs
+/// («من زار ملفي»). Kept 30 days after the last visit.
+model ProfileVisit {
+  ownerId        String   @map("owner_id") @db.Uuid
+  visitorId      String   @map("visitor_id") @db.Uuid
+  firstVisitedAt DateTime @map("first_visited_at") @db.Timestamptz(3)
+  lastVisitedAt  DateTime @map("last_visited_at") @db.Timestamptz(3)
+  visits         Int      @default(1)
+
+  owner   User @relation("ProfileVisitOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  visitor User @relation("ProfileVisitVisitor", fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, visitorId], map: "profile_visits_pkey")
+  @@index([ownerId, lastVisitedAt(sort: Desc)], map: "profile_visits_owner_last_idx")
+  @@map("profile_visits")
 }
