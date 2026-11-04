@@ -146,8 +146,10 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     // D272: read the art now (while the banner, or an earlier entrance,
     // plays), so the car starts at once.
     if (VipSvga.enabled && VipAnimatedArt.animationsEnabled) {
-      for (final url in [car?.animation, banner?.animation]) {
-        if (url != null && url.startsWith('http')) {
+      for (final perk in [car, banner]) {
+        final url = perk?.animation;
+        // (An MP4, D270, plays on the gifts' video path.)
+        if (perk?.video == null && url != null && url.startsWith('http')) {
           unawaited(VipSvgaCache.warm(url));
         }
       }
@@ -167,7 +169,14 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     _carDone = entry.car == null;
     _carLimit?.cancel();
     if (!_carDone) {
-      _carLimit = Timer(LiveVipEntranceLayer.carWait, _onCarDone);
+      // An SVGA car says when it starts (then has its own length); an MP4
+      // (D270) keeps the overall limit.
+      _carLimit = Timer(
+        entry.car?.video == null
+            ? LiveVipEntranceLayer.carWait
+            : LiveVipEntranceLayer.carLimit,
+        _onCarDone,
+      );
     }
     setState(() => _current = entry);
     if (!_bannerDone) {

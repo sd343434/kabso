@@ -6351,7 +6351,7 @@ content-addressed under `media/vip/<tier>/`; the answer's `url` goes into the ti
   released; ≈ 32 MB for the car); the frames of the others are drawn one at a time without holding the UI. The art
   is read ahead as the `join` is queued (and the host's own at start); the car **starts only when ready** (the first
   second decoded; at most 8 s to get there, else it is skipped and stays read for the next time) and then has its
-  own length + 1 s (at most 10 s). A late picture keeps the last frame a moment; the clock (and the sound) go on.
+  own length + 1 s (at most 10 s; an MP4 car, D270, keeps the 10 s from its start). A late picture keeps the last frame a moment; the clock (and the sound) go on.
 - D272 **sound**: the SVGA's own sound (`MovieEntity.audios`: from `startFrame`, `startTime` ms into it) plays with
   the **car** — or the **banner** when there is no car — through the gifts' player (§10.66: media volume, no audio
   focus on Android so the live keeps playing, the live's iOS audio session untouched), only while «المؤثرات
