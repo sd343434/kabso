@@ -41,10 +41,12 @@ describe('D229 «أحكام PK»', () => {
     for (const v of Object.values(EN_D229)) expect(v.trim().length).toBeGreaterThan(0);
   });
 
-  it('capabilities: OWNER / MODERATION edit, SUPPORT view, FINANCE nothing', () => {
-    expect(CAPABILITY_ROLES['pk_dares.view']).toEqual(['OWNER', 'MODERATION', 'SUPPORT']);
-    expect(CAPABILITY_ROLES['pk_dares.edit']).toEqual(['OWNER', 'MODERATION']);
-    expect(capsOf('FINANCE')).not.toContain('pk_dares.view');
+  it('capabilities (D274): OWNER only; moderation, support and finance see nothing', () => {
+    expect(CAPABILITY_ROLES['pk_dares.view']).toEqual(['OWNER']);
+    expect(CAPABILITY_ROLES['pk_dares.edit']).toEqual(['OWNER']);
+    for (const role of ['MODERATION', 'SUPPORT', 'FINANCE'] as const) {
+      expect(capsOf(role)).not.toContain('pk_dares.view');
+    }
   });
 
   it('the counts and the level badges (ar / en)', () => {
@@ -69,11 +71,11 @@ describe('D229 «أحكام PK»', () => {
     expect(html).toContain('ingest');
   });
 
-  it('settings: read-only for SUPPORT, a save button for MODERATION; only changes are sent', () => {
+  it('settings: read-only without the edit capability, a save button for the OWNER (D274); only changes are sent', () => {
     const support = render(<PkDareSettingsForm saved={SAVED} draft={SAVED} onChange={() => undefined} onSave={() => undefined} />, 'ar', capsOf('SUPPORT'));
     expect(support).toContain('readOnly');
     expect(support).not.toContain('data-pk-dare-settings-save');
-    const mod = render(<PkDareSettingsForm saved={SAVED} draft={{ ...SAVED, refusePoints: -5 }} onChange={() => undefined} onSave={() => undefined} />, 'en', capsOf('MODERATION'));
+    const mod = render(<PkDareSettingsForm saved={SAVED} draft={{ ...SAVED, refusePoints: -5 }} onChange={() => undefined} onSave={() => undefined} />, 'en', capsOf('OWNER'));
     expect(mod).toContain('data-pk-dare-settings-save');
     expect(pkDareSettingsChanges(SAVED, { ...SAVED, refusePoints: -5 })).toEqual({ refusePoints: -5 });
     expect(pkDareSettingsChanges(SAVED, SAVED)).toEqual({});

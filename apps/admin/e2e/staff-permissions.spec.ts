@@ -83,8 +83,8 @@ for (const [lang, theme, width, height] of [
     page.on('pageerror', (e) => errors.push(e.message));
     await page.addInitScript(
       ([th, lg]) => {
-        window.localStorage.setItem('kabso-admin-theme', th);
-        window.localStorage.setItem('kabso-admin-lang', lg);
+        window.localStorage.setItem('kabso-admin-theme', th ?? 'light');
+        window.localStorage.setItem('kabso-admin-lang', lg ?? 'ar');
       },
       [theme, lang],
     );
