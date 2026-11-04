@@ -436,7 +436,9 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
        WHERE contype = 'c' AND conrelid IN ('live_room_scores'::regclass, 'live_room_tappers'::regclass)
        ORDER BY 1`);
     // v1.23-live (CP-020): the Contribution points are taps + 100 a gift coin.
+    // v1.63-live (D259, §10.95): the live's host cherries are never negative.
     expect(checks.map((c) => c.name)).toEqual([
+      'live_room_scores_host_cherries',
       'live_room_scores_nonneg',
       'live_room_tappers_counted',
       'live_room_tappers_points',
