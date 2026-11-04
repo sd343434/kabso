@@ -27,6 +27,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.da
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_host_target_chip.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
@@ -253,10 +254,13 @@ void main() {
     );
     expect(card.width, moreOrLessEquals(82.6, epsilon: 0.01));
     expect(card.height, moreOrLessEquals(114.6, epsilon: 0.01));
-    // The chat: the host's flat line with the orange tag.
+    // The chat: the host's flat line with the red host tag (D269).
     expect(find.byKey(LiveChatFlatLine.tagKey), findsOneWidget);
-    final tag = tester.widget<Container>(find.byKey(LiveChatFlatLine.tagKey));
-    expect((tag.decoration! as BoxDecoration).color, KFlatChat.hostTag);
+    final tag = tester.widget<LiveChatRoleTag>(
+      find.byKey(LiveChatFlatLine.tagKey),
+    );
+    expect(tag.kind, LiveChatTagKind.host);
+    expect(LiveChatRoleTag.colorOf(tag.kind), LiveChatRoleTag.host);
     // D253d: the host's own live — the rules line is the first line, the
     // host's message under it.
     expect(

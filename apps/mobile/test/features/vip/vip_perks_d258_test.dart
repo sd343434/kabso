@@ -312,7 +312,7 @@ void main() {
   });
 
   testWidgets('the VIP badge and the levels (line 1) and the medals (line '
-      '2, D269) show at one visible height (within 1 pt)', (tester) async {
+      '2, D269) show at one visible height (within 2 px)', (tester) async {
     await pumpLine(tester, language: AppLanguage.en, vip: _vip1);
     final header = find.byKey(LiveChatFlatLine.vipHeaderKey).first;
     var render = tester.renderObject(header);
@@ -379,10 +379,12 @@ void main() {
         find.descendant(of: header, matching: find.byType(KLevelBadge)),
       ),
     );
+    // Within 2 px at 1× (each art's edge rounds to whole pixels, so where
+    // the row sits moves a visible height by up to a pixel either way).
     expect(vipH, greaterThan(18));
-    expect((vipH - charmH).abs(), lessThanOrEqualTo(1), reason: 'charm');
-    expect((vipH - supportH).abs(), lessThanOrEqualTo(1), reason: 'support');
-    expect((vipH - medalH).abs(), lessThanOrEqualTo(1), reason: 'medal');
+    expect((vipH - charmH).abs(), lessThanOrEqualTo(2), reason: 'charm');
+    expect((vipH - supportH).abs(), lessThanOrEqualTo(2), reason: 'support');
+    expect((vipH - medalH).abs(), lessThanOrEqualTo(2), reason: 'medal');
   });
 
   for (final language in [AppLanguage.en, AppLanguage.ar]) {

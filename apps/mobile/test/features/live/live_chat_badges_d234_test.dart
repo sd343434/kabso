@@ -161,7 +161,11 @@ void main() {
           }
           final row = tester.getRect(find.byKey(LiveChatInlineRow.rowKey));
           final pad = LiveChatInlineRow.padding.start;
-          for (final r in [name, medals, text]) {
+          // D269 (owner): the host's red tag starts the line, the name after
+          // it.
+          final tag = tester.getRect(find.byKey(LiveChatBadgeRow.roleKey));
+          expect(ar ? name.right <= tag.left : name.left >= tag.right, isTrue);
+          for (final r in [tag, medals, text]) {
             if (ar) {
               expect(r.right, closeTo(row.right - pad, 0.5));
             } else {

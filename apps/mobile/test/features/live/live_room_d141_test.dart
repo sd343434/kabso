@@ -363,7 +363,8 @@ void main() {
                 color: const Color(0x66000000),
                 label: 'row',
                 name: 'Oz',
-                role: LiveChatRole.host,
+                // (A viewer: a host's line opens with its tag, D269.)
+                role: LiveChatRole.viewer,
                 badges: badges,
                 text: text,
               ),

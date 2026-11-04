@@ -22,6 +22,8 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
@@ -245,7 +247,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           ref,
           entry,
           maxWidth: boxMax,
-          textSize: LiveChatAuthoredLine.textSize,
+          textSize: KChat.textSize,
           picture: true,
         ),
       LiveChatPosted(:final entry) => LiveChatAuthoredLine(
@@ -359,7 +361,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     LiveChatEntry entry, {
-    double textSize = KFlatChat.textSize,
+    double textSize = KChat.textSize,
   }) {
     final l10n = context.l10n;
     return LiveChatFlatLine(
@@ -536,7 +538,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           ref,
           entry,
           maxWidth: max,
-          textSize: LiveChatInlineRow.textSize,
+          textSize: KChat.textSize,
           picture: false,
         );
       case LiveChatPosted(:final entry):
@@ -703,7 +705,7 @@ class LiveRoomChatLines extends ConsumerWidget {
   /// above it).
   Widget _message(BuildContext context, String text, {bool cp = false}) {
     final styles = context.textStyles;
-    const size = LiveChatAuthoredLine.textSize;
+    const size = KChat.textSize;
     return KBidiRichText(
       TextSpan(
         children: [
@@ -937,9 +939,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
   static const double avatar = 32;
   static const double gap = 8;
   static const double nameTop = 2;
-  // D269 (owner): 1 pt smaller (was 15 / 15.5).
-  static const double nameSize = 14;
-  static const double textSize = 14.5;
+  // D269 (owner): the name and the message at [KChat]'s one chat size.
   static const double radius = 14;
 
   /// D234: one height for every emblem of the badges line (as
@@ -993,8 +993,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
     ].join('. ');
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    // D269 (owner): the role tag before the name, not among the badges.
     final row = LiveChatBadgeRow(
-      role: role,
+      role: null,
       badges: badges,
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
@@ -1002,6 +1003,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
       agentBadgeHeight: badgeRowHeight,
       fadeOverflow: true,
     );
+    final roleTag = cp ? null : LiveChatTagKind.of(role);
     final profile = onProfile;
     // The picture and the name are in the line's label already.
     Widget tapProfile(Widget child) => ExcludeSemantics(
@@ -1036,6 +1038,13 @@ class LiveChatAuthoredLine extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: nameTop),
                 child: LiveChatNameRow(
+                  lead: roleTag == null
+                      ? null
+                      : LiveChatRoleTag(
+                          key: LiveChatBadgeRow.roleKey,
+                          kind: roleTag,
+                          height: LiveChatBadgeRow.pillHeight(badgeRowHeight),
+                        ),
                   nameBadge: liveChatVipBadge(
                     vip: cp ? null : vip,
                     height: badgeRowHeight,
@@ -1050,7 +1059,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         textScaler: scaler,
                         style: context.textStyles.caption.copyWith(
-                          fontSize: nameSize,
+                          fontSize: KChat.nameSize,
                           height: 1.25,
                           color: cp ? LiveCpChatBubble.name : nameColor,
                           fontWeight: FontWeight.w800,
@@ -1221,7 +1230,7 @@ class LiveChatBadgeRow extends StatelessWidget {
     final h = height;
     final agentH = math.min(
       h,
-      agentBadgeHeight ?? inlineAgentBadgeHeight(LiveChatAuthoredLine.nameSize),
+      agentBadgeHeight ?? inlineAgentBadgeHeight(KChat.nameSize),
     );
     final big = fadeOverflow || fullEmblems;
     // D230: the pills' text and the emblems grow with the row. D234 (owner:
@@ -1360,7 +1369,8 @@ class LiveChatBadgeRow extends StatelessWidget {
 /// shortens (an ellipsis); the badges keep their size and leave the name at
 /// least [nameMin] (beyond that their own row fades out at the end).
 /// D268: a VIP author's [nameBadge] right after the name, before the
-/// badges; it keeps its width (the badges give way first).
+/// badges; it keeps its width (the badges give way first). D269 (owner):
+/// the author's role tag ([lead], a [LiveChatRoleTag]) before the name.
 class LiveChatNameRow extends StatelessWidget {
   const new({
     super.key,
@@ -1368,12 +1378,17 @@ class LiveChatNameRow extends StatelessWidget {
     this.badges,
     this.heart = false,
     this.nameBadge,
+    this.lead,
   });
 
   final Widget? name;
   final Widget? badges;
   final bool heart;
   final Widget? nameBadge;
+  final Widget? lead;
+
+  /// The room a [lead] tag is given when the badges' share is worked out.
+  static const double leadAllowance = 64;
 
   static const double gap = 6;
 
@@ -1410,12 +1425,19 @@ class LiveChatNameRow extends StatelessWidget {
                 excludeFromSemantics: true,
               ),
             ),
+          if (lead case final tag?) ...[tag, const SizedBox(width: 4)],
           if (name != null) Flexible(child: name),
           if (name != null && badges != null) const SizedBox(width: gap),
           if (badges != null)
             ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: math.max(0, box.maxWidth - nameMin - gap),
+                maxWidth: math.max(
+                  0,
+                  box.maxWidth -
+                      nameMin -
+                      gap -
+                      (lead == null ? 0 : leadAllowance),
+                ),
               ),
               child: badges,
             ),
@@ -2029,11 +2051,8 @@ class LiveChatInlineRow extends StatefulWidget {
   /// is three lines — the name (15 sp, bold, no colon), the badges under it
   /// (20 pt tall, one row, the overflow faded) and the message (15.5 sp);
   /// joins stay one compact line at the 15 sp base size.
-  /// D269 (owner: «واقترح ان نجعل حجم الخط اقل»): 1 pt smaller — the name
-  /// 14, the message 14.5, joins 14 (was 15 / 15.5 / 15).
-  static const double textSize = 14.5;
-  static const double nameSize = 14;
-  static const double compactTextSize = 14;
+  /// D269 (owner: «ووحد حجم الخط في جميع البثوث»): the name, the message
+  /// and the joins at [KChat]'s one chat size.
   static const double lineHeight = 1.35;
   static const double gap = 4;
   static const double radius = 12;
@@ -2084,8 +2103,8 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
     final w = widget;
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    final style = base.copyWith(fontSize: LiveChatInlineRow.compactTextSize);
-    final badgeH = inlineAgentBadgeHeight(LiveChatInlineRow.compactTextSize);
+    final style = base.copyWith(fontSize: KChat.nameSize);
+    final badgeH = inlineAgentBadgeHeight(KChat.nameSize);
     return KBidiRichText(
       TextSpan(
         children: [
@@ -2127,7 +2146,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final base = styles.body.copyWith(
-      fontSize: LiveChatInlineRow.textSize,
+      fontSize: KChat.textSize,
       height: LiveChatInlineRow.lineHeight,
       color: KAudioRoom.text,
       fontWeight: FontWeight.w500,
@@ -2142,8 +2161,12 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
     if (w.join != null) {
       content = _joinLine(base);
     } else {
+      // D269 (owner): the role tag before the name.
+      final roleTag = w.cp || w.name == null
+          ? null
+          : LiveChatTagKind.of(w.role);
       final badges = LiveChatBadgeRow(
-        role: w.role,
+        role: null,
         badges: w.badges,
         agentBadgeHeight: LiveChatInlineRow.badgeHeight,
         agentCode: w.agentCode,
@@ -2161,8 +2184,17 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
           // colon; CP-021's heart before it), then the role pills and level
           // emblems in the same row at one height — the name alone shortens
           // with an ellipsis.
-          if (name != null || badges.isNotEmpty)
+          if (name != null || badges.isNotEmpty || roleTag != null)
             LiveChatNameRow(
+              lead: roleTag == null
+                  ? null
+                  : LiveChatRoleTag(
+                      key: LiveChatBadgeRow.roleKey,
+                      kind: roleTag,
+                      height: LiveChatBadgeRow.pillHeight(
+                        LiveChatInlineRow.badgeHeight,
+                      ),
+                    ),
               nameBadge: liveChatVipBadge(
                 vip: w.cp || name == null ? null : w.vip,
                 height: LiveChatInlineRow.badgeHeight,
@@ -2181,7 +2213,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
                           overflow: TextOverflow.ellipsis,
                           textScaler: scaler,
                           style: base.copyWith(
-                            fontSize: LiveChatInlineRow.nameSize,
+                            fontSize: KChat.nameSize,
                             color: w.cp
                                 ? LiveCpChatBubble.name
                                 : LiveChatInlineRow.nameColor,
@@ -2212,7 +2244,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
                 children: [
                   ...kabiIsolatedSpans(
                     text,
-                    size: LiveChatInlineRow.textSize * KKabiEmoji.inlineScale,
+                    size: KChat.textSize * KKabiEmoji.inlineScale,
                   ),
                 ],
               ),
@@ -2556,7 +2588,7 @@ class LiveChatJoinBubble extends StatelessWidget {
     final at = text.indexOf(name);
     // D230: the chat's 15 sp base size.
     final style = context.textStyles.caption.copyWith(
-      fontSize: LiveChatInlineRow.compactTextSize,
+      fontSize: KChat.nameSize,
       height: 1.35,
       color: textColor,
     );

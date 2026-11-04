@@ -361,10 +361,10 @@ void main() {
           ),
           findsOneWidget,
         );
-        // Arabic: D269 (owner) — the name starts the line at the right, the
-        // role tag after it.
-        expect(name.right, closeTo(row.right - 10, 1));
-        expect(tag.right, lessThanOrEqualTo(name.left));
+        // Arabic: D269 (owner) — the role tag starts the line at the right,
+        // the name after it.
+        expect(tag.right, closeTo(row.right - 10, 1));
+        expect(name.right, lessThanOrEqualTo(tag.left));
         expect(tag.overlaps(name), isFalse);
         await _leave(tester);
       });

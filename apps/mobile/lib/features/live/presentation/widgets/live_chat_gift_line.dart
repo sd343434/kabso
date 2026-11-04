@@ -4,9 +4,9 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -119,7 +119,7 @@ class LiveChatGiftLineView extends ConsumerWidget {
                   textScaler: scaler,
                   // D230: the chat's 15 sp base size.
                   style: context.textStyles.caption.copyWith(
-                    fontSize: LiveChatInlineRow.compactTextSize,
+                    fontSize: KChat.nameSize,
                     height: 1.3,
                     color: win ? gold : const Color(0xFFFFFFFF),
                     fontWeight: FontWeight.w700,

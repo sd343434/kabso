@@ -4,11 +4,12 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
-import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// D253 (owner: the host's screen «مثل التصميم ١٠٠٪», ref 2026-11-03,
@@ -16,13 +17,11 @@ import 'package:material_ui/material_ui.dart';
 /// translucent black box hugging each line (D234's 44 %, 12 pt corners;
 /// the second reference shows it over a bright picture), white bold text
 /// with a shadow, one flowing line per message:
-/// the role tag (the host's orange «المضيف»), the name (teal), the charm
-/// badge, «:» and the text, wrapping under the start.
+/// the role tag (D269: the host's red «المضيف», before the name), the name
+/// (teal), the charm badge, «:» and the text, wrapping under the start.
 abstract final class KFlatChat {
-  /// Ref: 14.5 pt lines of ≈ 13.5 pt bold text. D269 (owner: «واقترح ان
-  /// نجعل حجم الخط اقل»): the message 12.5, the name 12 (both were 13.5).
-  static const double textSize = 12.5;
-  static const double nameSize = 12;
+  /// Ref: 14.5 pt lines of bold text. D269 (owner): the text size is the
+  /// one chat size of every live, [KChat.textSize].
   static const double lineHeight = 1.07;
 
   /// Ref: the boxes 3 pt apart, the text 4 pt inside them.
@@ -122,13 +121,9 @@ abstract final class KFlatChat {
   /// D257: a name's widest (one line).
   static const double nameMaxWidth = 150;
 
-  /// Ref: the host tag `#FC7800`, 15 pt tall, white bold text (D269: 14 pt,
-  /// its text 9 — scaled with the smaller text).
-  static const Color hostTag = Color(0xFFFC7800);
-  static const double tagHeight = 14;
-  static const double tagTextSize = 9;
-
-  static const Color moderatorTag = Color(0xFFFFB13B);
+  /// The role tag's height (D269: a [LiveChatRoleTag] before the name —
+  /// host red, moderator orange, Kabso Team blue; 16 pt at the 14.5 text).
+  static const double tagHeight = 16;
 
   /// The text stays readable over a bright picture.
   static const List<Shadow> shadow = [
@@ -138,7 +133,7 @@ abstract final class KFlatChat {
 
   static TextStyle style(BuildContext context) =>
       context.textStyles.body.copyWith(
-        fontSize: textSize,
+        fontSize: KChat.textSize,
         height: lineHeight,
         color: const Color(0xFFFFFFFF),
         // D255 (owner: Bigo's semi-bold).
@@ -155,7 +150,7 @@ class LiveChatFlatLine extends ConsumerWidget {
     required this.label,
     super.key,
     this.vip,
-    this.textSize = KFlatChat.textSize,
+    this.textSize = KChat.textSize,
     this.role,
     this.badges,
     this.agentCode,
@@ -187,7 +182,7 @@ class LiveChatFlatLine extends ConsumerWidget {
   /// the VIP bubble).
   final UserVip? vip;
 
-  /// The message's size: the host's flat chat [KFlatChat.textSize]; D265:
+  /// The message's size: the host's flat chat [KChat.textSize]; D265:
   /// a VIP line in another chat keeps that chat's message size.
   final double textSize;
 
@@ -241,7 +236,7 @@ class LiveChatFlatLine extends ConsumerWidget {
   /// on a line of their own under it).
   Widget _vipNameRow(TextScaler scaler, VipLook? look) {
     final levels = LiveChatBadgeRow(
-      role: role,
+      role: null,
       badges: badges,
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
@@ -253,7 +248,18 @@ class LiveChatFlatLine extends ConsumerWidget {
     // D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the name, then
     // the VIP badge, then the tags and levels (all one height); the name
     // keeps its least room, the levels give way (fade) first.
+    final roleTag = LiveChatTagKind.of(role);
     return LiveChatNameRow(
+      // D269 (owner): the role tag before the name.
+      lead: roleTag == null
+          ? null
+          : LiveChatRoleTag(
+              key: LiveChatBadgeRow.roleKey,
+              kind: roleTag,
+              height: LiveChatBadgeRow.pillHeight(
+                LiveChatInlineRow.badgeHeight,
+              ),
+            ),
       nameBadge: VipNameBadge(vip: vip, height: vipEmblemHeight),
       name: GestureDetector(
         key: nameKey,
@@ -268,7 +274,7 @@ class LiveChatFlatLine extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
               textScaler: scaler,
               style: KFlatChat.style(context).copyWith(
-                fontSize: LiveChatInlineRow.nameSize,
+                fontSize: KChat.nameSize,
                 // Owner: the special colour at the chat's weight.
                 fontWeight: FontWeight.w600,
                 shadows: const [],
@@ -285,14 +291,8 @@ class LiveChatFlatLine extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
     final base = KFlatChat.style(context).copyWith(fontSize: textSize);
     final look = ref.watch(vipLookProvider(vip));
-    final tag = switch (role) {
-      LiveChatRole.host => l10n.liveChatHostBadge,
-      LiveChatRole.moderator => l10n.liveChatModeratorBadge,
-      _ => null,
-    };
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final badgeRow = LiveChatBadgeRow(
@@ -321,6 +321,12 @@ class LiveChatFlatLine extends ConsumerWidget {
             excludeFromSemantics: true,
           ),
           const SizedBox(width: 3),
+        ],
+        // D269 (owner): the role tag (host red, moderator orange) before the
+        // name.
+        if (LiveChatTagKind.of(role) case final kind?) ...[
+          LiveChatRoleTag(key: tagKey, kind: kind, height: KFlatChat.tagHeight),
+          const SizedBox(width: 4),
         ],
         Flexible(
           child: GestureDetector(
@@ -351,34 +357,6 @@ class LiveChatFlatLine extends ConsumerWidget {
         if (vip.isMember) ...[
           const SizedBox(width: 4),
           VipNameBadge(vip: vip, height: KFlatChat.tagHeight),
-        ],
-        // D269 (owner): the role tag after the name and VIP badge.
-        if (tag != null) ...[
-          const SizedBox(width: 4),
-          Container(
-            key: tagKey,
-            height: KFlatChat.tagHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            decoration: BoxDecoration(
-              color: role == LiveChatRole.host
-                  ? KFlatChat.hostTag
-                  : KFlatChat.moderatorTag,
-              borderRadius: BorderRadius.circular(KRadius.pill),
-            ),
-            child: Center(
-              widthFactor: 1,
-              child: Text(
-                tag,
-                textScaler: TextScaler.noScaling,
-                style: base.copyWith(
-                  fontSize: KFlatChat.tagTextSize,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  shadows: const [],
-                ),
-              ),
-            ),
-          ),
         ],
         if (badgeRow.isNotEmpty) ...[
           const SizedBox(width: 4),
