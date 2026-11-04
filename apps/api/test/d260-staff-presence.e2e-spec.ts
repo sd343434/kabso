@@ -1,6 +1,6 @@
 /**
  * D260 (owner 2026-11-04, «حسابات موظفين تدخل البثوث لمراقبتها»; answers: visible with a «فريق كابسو» badge, every new
- * live assigned automatically, real employee accounts; contract v1.63-live, CONVENTIONS §10.95): staff presence in
+ * live assigned automatically, real employee accounts; contract v1.64-live, CONVENTIONS §10.96): staff presence in
  * lives, end to end against PostgreSQL + Redis with the in-memory media server:
  *
  *  - the shift «في المناوبة» (lives.watch; FINANCE refused; audited on/off; OWNER's list with each one's load);
@@ -44,7 +44,7 @@ const D260_OPS = [
 ];
 
 describe('D260 contract coverage', () => {
-  it('openapi v1.63-live declares the shift routes behind the admin session (CSRF on writes)', () => {
+  it('openapi v1.64-live declares the shift routes behind the admin session (CSRF on writes)', () => {
     const ops = operations();
     const ids = ops.map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
     expect(ids).toEqual(expect.arrayContaining(D260_OPS));

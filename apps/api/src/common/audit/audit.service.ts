@@ -375,7 +375,7 @@ export enum AuditAction {
   DEVICE_BAN_LIFT = 'admin.device_ban.lift',
   DEVICE_BAN_REFUSED = 'auth.device_banned',
   /**
-   * v1.63-live (D260, §10.95): staff presence in lives — a LIVE room assigned to a staff member on shift (no actor: the
+   * v1.64-live (D260, §10.96): staff presence in lives — a LIVE room assigned to a staff member on shift (no actor: the
    * service decides) {adminId, reason live_start | shift_on | shift_off | sweep | reported, reports, previousAdminId};
    * a staff member's shift switched on or off from the panel {assigned / released lives}.
    */

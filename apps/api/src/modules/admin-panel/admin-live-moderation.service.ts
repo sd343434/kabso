@@ -221,7 +221,7 @@ export class AdminLiveModerationService {
   }
 
   /**
-   * `POST /admin/lives/{roomId}/watch-token`: observer tokens (both rooms of a PK); audited. v1.63-live (D260, §10.95):
+   * `POST /admin/lives/{roomId}/watch-token`: observer tokens (both rooms of a PK); audited. v1.64-live (D260, §10.96):
    * a WATCH is VISIBLE by default (`team:` — listed in this live with the «فريق كابسو» badge, never counted); HIDDEN
    * (`staff:`, D250) needs `lives.watch.hidden` (OWNER / MODERATION). A PREVIEW and the PK opponent's room are hidden.
    */

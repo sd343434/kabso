@@ -7,7 +7,7 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { openLiveReportsByRoom } from './live-reports.js';
 
-/** v1.63-live (D260, §10.95): the panel roles that watch lives (SUPPORT watch-only, D250b). FINANCE never. */
+/** v1.64-live (D260, §10.96): the panel roles that watch lives (SUPPORT watch-only, D250b). FINANCE never. */
 export const WATCH_ROLES = ['OWNER', 'MODERATION', 'SUPPORT'] as const satisfies readonly AdminPermission[];
 /** The roles that may act on a reported live (a reported live goes to one of them when any is on shift). */
 export const ACT_ROLES = ['OWNER', 'MODERATION'] as const satisfies readonly AdminPermission[];
@@ -29,7 +29,7 @@ export interface AssignmentResult {
 }
 
 /**
- * v1.63-live (D260, CONVENTIONS §10.95; owner 2026-11-04: «توزيع تلقائي لكل بث جديد … حسابات موظفين حقيقية»): every
+ * v1.64-live (D260, CONVENTIONS §10.96; owner 2026-11-04: «توزيع تلقائي لكل بث جديد … حسابات موظفين حقيقية»): every
  * LIVE room is assigned to one panel staff member on shift (OWNER / MODERATION / SUPPORT), spread by current load
  * (fewest assigned lives first, then the one assigned least recently), the reported lives first and to a staff
  * member who may act on them (OWNER / MODERATION) whenever one is on shift. An assignment ends with the live, and is

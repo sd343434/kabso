@@ -72,14 +72,14 @@ export const STAFF_IDENTITY_PREFIX = 'staff:';
 /** v1.60-live (D250): a staff observer's token joins within 2 minutes (the media server renews a joined session). */
 export const STAFF_TOKEN_TTL_SECONDS = 120;
 /**
- * v1.63-live (D260, §10.95): a staff member watching VISIBLY, `team:<adminId>:<nonce>` — subscribe-only, NOT hidden,
+ * v1.64-live (D260, §10.96): a staff member watching VISIBLY, `team:<adminId>:<nonce>` — subscribe-only, NOT hidden,
  * recorded in `live_room_staff_watchers` and listed in the live's viewers with the «فريق كابسو» badge
  * (`LiveViewerPage.staff`), never a viewer (not in `live_room_viewers`, not counted in `viewer_count`, no join line).
  */
 export const TEAM_IDENTITY_PREFIX = 'team:';
 const TEAM_IDENTITY = /^team:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):[0-9a-f]{6,32}$/;
 
-/** v1.63-live (D260): the admin id of a `team:<adminId>:<nonce>` identity, else null. */
+/** v1.64-live (D260): the admin id of a `team:<adminId>:<nonce>` identity, else null. */
 export function teamAdminIdOf(identity: string): string | null {
   return TEAM_IDENTITY.exec(identity.toLowerCase())?.[1] ?? null;
 }
@@ -253,7 +253,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { status: true } });
     if (!room) throw new AppException(ErrorCode.NOT_FOUND);
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    // v1.63-live (D260): VISIBLE — a `team:` identity, not hidden, listed with the «فريق كابسو» badge.
+    // v1.64-live (D260): VISIBLE — a `team:` identity, not hidden, listed with the «فريق كابسو» badge.
     const identity = `${visible ? TEAM_IDENTITY_PREFIX : STAFF_IDENTITY_PREFIX}${adminId}:${nonce}`;
     const token = await this.media.issueToken({
       room: roomId,
@@ -615,7 +615,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const page = rows.slice(0, limit);
     const last = page.at(-1);
     return {
-      // v1.63-live (D260): the staff watching visibly, on the first page only.
+      // v1.64-live (D260): the staff watching visibly, on the first page only.
       staff: after === null ? await this.staffWatchers(room.id) : [],
       data: page.map((r) => ({
         kind: r.guestId ? 'GUEST' : 'USER',
@@ -638,7 +638,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * v1.63-live (D260, §10.95): the staff watching a LIVE room visibly, one entry per staff member (earliest join
+   * v1.64-live (D260, §10.96): the staff watching a LIVE room visibly, one entry per staff member (earliest join
    * first), with their panel name and picture — never a user card (no username, no id).
    */
   async staffWatchers(roomId: string): Promise<LiveStaffWatcherDto[]> {
@@ -703,7 +703,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (event.identity.startsWith(PK_IDENTITY_PREFIX)) return;
       // v1.60-live (D250): a staff observer was never recorded.
       if (event.identity.startsWith(STAFF_IDENTITY_PREFIX)) return;
-      // v1.63-live (D260): a visible staff watcher is no longer listed (never counted).
+      // v1.64-live (D260): a visible staff watcher is no longer listed (never counted).
       if (event.identity.startsWith(TEAM_IDENTITY_PREFIX)) {
         await this.prisma.liveRoomStaffWatcher.deleteMany({ where: { roomId, identity: event.identity } });
         return;
@@ -748,7 +748,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (!room || room.status !== 'LIVE') await this.kick(roomId, identity);
       return;
     }
-    // v1.63-live (D260, §10.95): a staff member watching visibly — listed with the «فريق كابسو» badge while the room
+    // v1.64-live (D260, §10.96): a staff member watching visibly — listed with the «فريق كابسو» badge while the room
     // is LIVE, never a viewer (no `live_room_viewers` row, not counted, no join line).
     if (identity.startsWith(TEAM_IDENTITY_PREFIX)) {
       const adminId = teamAdminIdOf(identity);
@@ -852,7 +852,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.$executeRaw`
       DELETE FROM live_room_viewers v USING live_rooms r
        WHERE r.id = v.room_id AND r.status <> 'LIVE'`;
-    // v1.63-live (D260): visible staff watchers of ended rooms.
+    // v1.64-live (D260): visible staff watchers of ended rooms.
     await this.prisma.$executeRaw`
       DELETE FROM live_room_staff_watchers w USING live_rooms r
        WHERE r.id = w.room_id AND r.status <> 'LIVE'`;
@@ -879,7 +879,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         select: { identity: true },
       });
       const gone = rows.map((r) => r.identity).filter((i) => !connected.has(i));
-      // v1.63-live (D260): visible staff watchers who are gone are no longer listed.
+      // v1.64-live (D260): visible staff watchers who are gone are no longer listed.
       const team = await this.prisma.liveRoomStaffWatcher.findMany({
         where: { roomId: name.toLowerCase() },
         select: { identity: true },

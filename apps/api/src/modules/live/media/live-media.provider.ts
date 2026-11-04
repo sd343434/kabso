@@ -27,7 +27,7 @@ export interface LiveMediaTokenInput {
    */
   readonly publish: boolean;
   /**
-   * v1.63-live (D260, §10.95): a watch-only participant that is NOT hidden (a staff member watching a
+   * v1.64-live (D260, §10.96): a watch-only participant that is NOT hidden (a staff member watching a
    * live visibly, `team:<adminId>:<nonce>`). Ignored for a publisher (always visible). Default false.
    */
   readonly visible?: boolean;

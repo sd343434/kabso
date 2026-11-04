@@ -244,7 +244,7 @@ export class LiveController {
       ...meta(req),
       sessionId: req.auth?.sessionId ?? null,
     });
-    // v1.63-live (D260): the new live goes to a staff member on shift (best effort, after the reply's data).
+    // v1.64-live (D260): the new live goes to a staff member on shift (best effort, after the reply's data).
     this.staffAssignment.afterLiveStart();
     return room;
   }

@@ -150,7 +150,7 @@ export class AdminLivesService {
           category: { select: { nameAr: true, nameEn: true } },
           host,
           ...pkOpponent,
-          // v1.63-live (D260): who watches it, and the staff watching it visibly now.
+          // v1.64-live (D260): who watches it, and the staff watching it visibly now.
           assignment: {
             select: { adminId: true, admin: { select: { profile: { select: { displayName: true } } } } },
           },

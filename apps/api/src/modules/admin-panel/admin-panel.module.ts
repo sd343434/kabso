@@ -105,7 +105,7 @@ import { AdminVipController } from './admin-vip.controller.js';
     AdminHostApplicationsService,
     AdminDeviceSignupsService,
     AdminLiveModerationService,
-    // v1.63-live (D260): the shift «في المناوبة» and who is on it (§10.95).
+    // v1.64-live (D260): the shift «في المناوبة» and who is on it (§10.96).
     AdminStaffShiftsService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],

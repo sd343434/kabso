@@ -568,7 +568,7 @@ abstract class LiveViewer with _$LiveViewer {
   factory fromJson(Map<String, dynamic> json) => _$LiveViewerFromJson(json);
 }
 
-/// `LiveStaffWatcher` (D260, v1.63-live): a Kabso staff member watching
+/// `LiveStaffWatcher` (D260, v1.64-live): a Kabso staff member watching
 /// this live (`LiveViewerPage.staff`) — shown with the «فريق كابسو» badge,
 /// never counted, never ranked, no person card.
 @immutable

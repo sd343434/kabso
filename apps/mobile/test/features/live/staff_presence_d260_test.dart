@@ -13,7 +13,7 @@ import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
 /// D260 (owner: staff who watch a live are shown with a «فريق كابسو» badge,
-/// so the host knows the live is watched; v1.63-live, CONVENTIONS §10.95):
+/// so the host knows the live is watched; v1.64-live, CONVENTIONS §10.96):
 /// the viewer list shows the Kabso staff first with the badge — not counted
 /// in the tab's number, no person card (a tap says who the team is) — and
 /// the top viewers show the team's shield, never one of the ranked faces.

@@ -82,7 +82,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveCategoriesService,
     LiveRoomsService,
     LiveMediaService,
-    // v1.63-live (D260): every live assigned to a staff member on shift (§10.95).
+    // v1.64-live (D260): every live assigned to a staff member on shift (§10.96).
     LiveStaffAssignmentService,
     LiveSeatsService,
     LiveTapsService,

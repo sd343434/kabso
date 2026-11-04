@@ -14,7 +14,7 @@ export interface AdminShiftDto {
 }
 
 /**
- * v1.63-live (D260, CONVENTIONS §10.95): the shift «في المناوبة» of the panel's watch staff (OWNER / MODERATION /
+ * v1.64-live (D260, CONVENTIONS §10.96): the shift «في المناوبة» of the panel's watch staff (OWNER / MODERATION /
  * SUPPORT) — switched by each staff member for themself (audited); going on shift takes a share of the lives not yet
  * assigned, going off shift hands one's lives to the others. OWNER sees everyone's shift and load.
  */

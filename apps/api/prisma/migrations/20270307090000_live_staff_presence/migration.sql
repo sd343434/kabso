@@ -1,4 +1,4 @@
--- v1.63-live (D260, CONVENTIONS §10.95; owner 2026-11-04): staff presence in lives — a panel staff member's shift
+-- v1.64-live (D260, CONVENTIONS §10.96; owner 2026-11-04): staff presence in lives — a panel staff member's shift
 -- «في المناوبة», every LIVE room assigned to one staff member on shift (spread by load, reported lives first), and
 -- the staff watching a live visibly (listed with the «فريق كابسو» badge, never counted as viewers). The runtime
 -- role gets DML through the default privileges (20261016130000_per_database_runtime_group): no GRANT here.

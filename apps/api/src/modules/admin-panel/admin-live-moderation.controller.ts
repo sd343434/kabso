@@ -17,7 +17,7 @@ const PANEL_LIMIT = RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, 
 const reason = z.string().trim().min(1).max(500);
 
 /**
- * v1.63-live (D260): `visibility` — a WATCH is VISIBLE by default (listed with the «فريق كابسو» badge); HIDDEN needs
+ * v1.64-live (D260): `visibility` — a WATCH is VISIBLE by default (listed with the «فريق كابسو» badge); HIDDEN needs
  * `lives.watch.hidden`. A PREVIEW (the cards' muted previews) is always hidden.
  */
 const watchBody = z.strictObject({
@@ -90,7 +90,7 @@ const moderateBody = z
 
 const reasonBody = z.strictObject({ reason });
 
-/** v1.63-live (D260): the shift switch «في المناوبة». */
+/** v1.64-live (D260): the shift switch «في المناوبة». */
 const shiftBody = z.strictObject({ onShift: z.boolean() });
 
 const chatQuery = z.strictObject({ after: z.iso.datetime({ offset: true }).optional() });
@@ -114,7 +114,7 @@ export class AdminLiveModerationController {
     private readonly shifts: AdminStaffShiftsService,
   ) {}
 
-  // ---- v1.63-live (D260, §10.95): the shift «في المناوبة» -------------------------------------------------------
+  // ---- v1.64-live (D260, §10.96): the shift «في المناوبة» -------------------------------------------------------
 
   @Get('me/shift')
   @RequireCapability('lives.watch')

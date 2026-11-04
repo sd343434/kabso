@@ -73,7 +73,7 @@ model User {
   liveHost               LiveHost?                  @relation("LiveHostUser")
   liveHostsGranted       LiveHost[]                 @relation("LiveHostGrantedBy")
   liveViews              LiveRoomViewer[]
-  /// v1.63-live (D260): the panel staff member's shift, the lives assigned to them, their visible watches.
+  /// v1.64-live (D260): the panel staff member's shift, the lives assigned to them, their visible watches.
   adminShift             AdminShift?
   liveAssignments        LiveRoomAssignment[]
   liveStaffWatches       LiveRoomStaffWatcher[]
@@ -723,7 +723,7 @@ model LiveRoom {
   host             User                   @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
   category         LiveCategory?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers          LiveRoomViewer[]
-  /// v1.63-live (D260): the staff member this live is assigned to, and the staff watching it visibly.
+  /// v1.64-live (D260): the staff member this live is assigned to, and the staff watching it visibly.
   assignment       LiveRoomAssignment?
   staffWatchers    LiveRoomStaffWatcher[]
   audience         LiveRoomAudience[]
@@ -6291,7 +6291,7 @@ model ProfileVisit {
   @@map("profile_visits")
 }
 
-/// v1.63-live (D260, CONVENTIONS §10.95): a panel staff member's shift «في المناوبة». Lives are assigned only to
+/// v1.64-live (D260, CONVENTIONS §10.96): a panel staff member's shift «في المناوبة». Lives are assigned only to
 /// staff on shift; going off shift hands their lives to the others.
 model AdminShift {
   userId    String   @id @map("user_id") @db.Uuid
@@ -6306,7 +6306,7 @@ model AdminShift {
   @@map("admin_shifts")
 }
 
-/// v1.63-live (D260): the staff member who watches a LIVE room (one per room; removed when the live ends).
+/// v1.64-live (D260): the staff member who watches a LIVE room (one per room; removed when the live ends).
 model LiveRoomAssignment {
   roomId     String   @id @map("room_id") @db.Uuid
   adminId    String   @map("admin_id") @db.Uuid
@@ -6319,7 +6319,7 @@ model LiveRoomAssignment {
   @@map("live_room_assignments")
 }
 
-/// v1.63-live (D260): a staff member watching a live VISIBLY (`team:<adminId>:<nonce>`): listed with the
+/// v1.64-live (D260): a staff member watching a live VISIBLY (`team:<adminId>:<nonce>`): listed with the
 /// «فريق كابسو» badge, never a viewer (not in `live_room_viewers`, not counted in `viewer_count`).
 model LiveRoomStaffWatcher {
   roomId   String   @map("room_id") @db.Uuid
