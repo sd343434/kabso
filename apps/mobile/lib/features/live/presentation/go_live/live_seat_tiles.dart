@@ -283,12 +283,18 @@ class AudioSeatRing extends StatelessWidget {
     this.cpPairs = const [],
     this.overlay,
     this.hostFrame,
+    this.hostVip,
   });
 
   /// v1.55-social (D186): the avatar frame the host wears (the room's
   /// `host.avatarFrame`), drawn around the host's picture; guests' frames
   /// come with their seat's user.
   final AvatarFrame? hostFrame;
+
+  /// D265 (owner: the VIP1 host's seat showed no VIP frame): the host's VIP
+  /// (the room's `host.vip`): their animated frame when no bag frame is
+  /// worn, as a seated guest's.
+  final UserVip? hostVip;
 
   /// D138: what plays over tile `i`'s picture now (0 is the host), e.g. a
   /// seat emoji; null for nothing.
@@ -407,6 +413,7 @@ class AudioSeatRing extends StatelessWidget {
       cpMic: !ghost && cpMicTiles.contains(0),
       overlay: ghost ? null : overlay?.call(0),
       frame: ghost ? null : hostFrame,
+      vip: ghost ? null : hostVip,
     );
     return ghost ? _ghost(seat) : seat;
   }
@@ -1056,10 +1063,14 @@ class _HostSeat extends StatelessWidget {
     this.cpMic = false,
     this.overlay,
     this.frame,
+    this.vip,
   });
 
   /// D115: the host's couple has the Couple Mic Effect.
   final bool cpMic;
+
+  /// D265: the host's VIP (their frame when no bag frame is worn).
+  final UserVip? vip;
 
   /// v1.55-social (D186): the avatar frame the host wears.
   final AvatarFrame? frame;
@@ -1108,6 +1119,7 @@ class _HostSeat extends StatelessWidget {
                       speaking: speaking,
                       cpMic: cpMic,
                       picture: circle,
+                      vip: vip,
                     ),
                     Positioned(
                       bottom: -2,

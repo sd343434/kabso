@@ -1474,6 +1474,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ),
         // D186: the avatar frame the host wears (the server's room).
         hostFrame: room?.host.avatarFrame,
+        // D265: the host's VIP frame.
+        hostVip: room?.host.vip,
         hostName: hostName,
         hostMicOn: state.micEnabled,
         // Owner (2026-10-26): a tap on the host's own picture opens their
@@ -2012,8 +2014,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 if (onAir && room != null)
                   LiveRechargeEntranceLayer(roomId: room.id),
                 // D258: a VIP's entry banner and entry car.
+                // D265: and the host's own entrance when on air.
                 if (onAir && room != null)
-                  LiveVipEntranceLayer(roomId: room.id),
+                  LiveVipEntranceLayer(roomId: room.id, self: room.host),
                 // D144a: DeepAR's diagnostics for the owner's screenshots —
                 // debug/profile builds with the camera processor only.
                 if (LiveFxDiagnostics.enabled &&

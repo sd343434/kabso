@@ -177,6 +177,39 @@ void main() {
     expect(find.byKey(LiveVipEntranceLayer.carKey), findsNothing);
   });
 
+  testWidgets("D265: the VIP host's own entrance plays once on their screen "
+      '(the host never joins as a viewer)', (tester) async {
+    setViewport(tester, GoldenViewport.phone);
+    await pumpScreen(
+      tester,
+      const Stack(
+        children: [LiveVipEntranceLayer(roomId: 'room-0', self: _member)],
+      ),
+      liveMediaEngine: FakeLiveMediaEngine()..present.add('user-0'),
+      overrides: [
+        liveRepositoryProvider.overrideWithValue(
+          FakeLiveRepository(room: (id) => apiRoom(id: id)),
+        ),
+        currentUserProvider.overrideWithValue(testUser()),
+        vipCatalogProvider.overrideWith((ref) async => _catalog()),
+      ],
+    );
+    await _frames(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    final banner = find.byKey(LiveVipEntranceLayer.bannerKey);
+    expect(banner, findsOneWidget);
+    expect(
+      find.descendant(of: banner, matching: find.textContaining('Layla')),
+      findsOneWidget,
+    );
+    await tester.pump(LiveVipEntranceLayer.stillDuration);
+    await _frames(tester);
+    expect(banner, findsNothing);
+    // Once: a rebuild does not play it again.
+    await tester.pump(const Duration(seconds: 1));
+    expect(banner, findsNothing);
+  });
+
   testWidgets("an agent's bar wins over the banner; the car still plays "
       'once and leaves (here: cannot play, done at once)', (tester) async {
     LiveRechargeEntranceLayer.animate = false;

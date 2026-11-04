@@ -81,66 +81,129 @@ class VipSvgaClip {
   }
 
   /// The round window in the middle of an avatar frame art: its centre and
-  /// diameter as fractions of the canvas. A frame's plaque often cuts into
-  /// the bottom of the opening, so the window is its widest side-to-side
-  /// clear run (the ring's inner edge; the largest across the frames, as a
-  /// sparkle can cross it) and its top edge: the centre is half a diameter
-  /// below the top. Null when the middle is not transparent. Measured once
-  /// per clip.
+  /// diameter as fractions of the canvas — the smallest circle that holds
+  /// the whole transparent opening, so a picture that size leaves no gap
+  /// anywhere under the frame. D265 (owner: the picture smaller than the
+  /// VIP frame's opening): an opening is rarely a circle (the owner's
+  /// `svip_1_frame` reaches 0.34 of the canvas towards its corners, 0.29 at
+  /// its sides), so D258's widest-row width left the corners open. Measured
+  /// along [rays] rays from the canvas centre, each to the first covered
+  /// pixel (alpha ≥ 40), the farthest across the sampled frames (the ring
+  /// animates; a sparkle that crosses a ray in one frame is outrun in
+  /// another); a ray that reaches the canvas edge is a gap in the art, not
+  /// the window, and is left out. The plaque that cuts the bottom only
+  /// covers more of the picture. Null when the middle is not transparent.
+  /// Measured once per clip.
   Future<({Offset centre, double diameter})?> window() =>
       _windows[this] ??= _measureWindow();
 
   static final _windows =
       Expando<Future<({Offset centre, double diameter})?>>();
 
+  /// The rays [window] measures along.
+  static const int rays = 90;
+
   Future<({Offset centre, double diameter})?> _measureWindow() async {
-    var best = 0;
-    var left = 0;
-    var top = 0;
-    var width = 1;
-    var height = 1;
-    final step = math.max(1, frames.length ~/ 6);
+    if (frames.isEmpty) return null;
+    final w = frames.first.width;
+    final h = frames.first.height;
+    final cx = w / 2;
+    final cy = h / 2;
+    final side = math.min(w, h);
+    // Where a ray starts: past the sparkles that cross the middle.
+    final start = side * 0.12;
+    final reach = List<double>.filled(rays, -1);
+    final step = math.max(1, frames.length ~/ 12);
     for (var f = 0; f < frames.length; f += step) {
       final image = frames[f];
+      if (image.width != w || image.height != h) continue;
       final data = await image.toByteData();
       if (data == null) return null;
-      final w = image.width;
-      final h = image.height;
       bool clear(int x, int y) => data.getUint8((y * w + x) * 4 + 3) < 40;
-      final cx = w ~/ 2;
-      final cy = h ~/ 2;
-      if (!clear(cx, cy)) continue;
-      var t = cy;
-      while (t > 0 && clear(cx, t - 1)) {
-        t--;
-      }
-      // The widest row in the upper half of the opening.
-      for (var y = t + 1; y <= cy; y++) {
-        if (!clear(cx, y)) continue;
-        var l = cx;
-        while (l > 0 && clear(l - 1, y)) {
-          l--;
+      if (!clear(cx.round(), cy.round())) continue;
+      for (var a = 0; a < rays; a++) {
+        final t = a * 2 * math.pi / rays;
+        final dx = math.cos(t);
+        final dy = math.sin(t);
+        var r = start;
+        var x = (cx + r * dx).round();
+        var y = (cy + r * dy).round();
+        if (!clear(x, y)) continue; // a sparkle on this ray now.
+        var last = r;
+        var open = false;
+        while (true) {
+          r += 1;
+          x = (cx + r * dx).round();
+          y = (cy + r * dy).round();
+          if (x < 0 || y < 0 || x >= w || y >= h) {
+            open = true;
+            break;
+          }
+          if (!clear(x, y)) break;
+          last = r;
         }
-        var r = cx;
-        while (r < w - 1 && clear(r + 1, y)) {
-          r++;
-        }
-        if (r - l + 1 > best) {
-          best = r - l + 1;
-          left = l;
-          top = t;
-          width = w;
-          height = h;
-        }
+        if (!open && last > reach[a]) reach[a] = last;
       }
     }
-    if (best == 0) return null;
-    final d = best / width;
-    if (d < 0.2) return null;
+    final points = [
+      for (var a = 0; a < rays; a++)
+        if (reach[a] > 0)
+          Offset(
+            cx + reach[a] * math.cos(a * 2 * math.pi / rays),
+            cy + reach[a] * math.sin(a * 2 * math.pi / rays),
+          ),
+    ];
+    // Most rays must find the ring: else this is not a framed opening.
+    if (points.length < rays * 0.6) return null;
+    final circle = enclosingCircle(points);
+    final d = 2 * circle.radius / w;
+    if (d < 0.2 || d > 1) return null;
     return (
-      centre: Offset((left + best / 2) / width, (top + best / 2) / height),
+      centre: Offset(circle.centre.dx / w, circle.centre.dy / h),
       diameter: d,
     );
+  }
+
+  /// The smallest circle around [points] (≈ 0.1 % of their spread): the
+  /// centre's search narrows around the best one so far.
+  @visibleForTesting
+  static ({Offset centre, double radius}) enclosingCircle(List<Offset> points) {
+    double radiusAt(Offset c) {
+      var r = 0.0;
+      for (final p in points) {
+        r = math.max(r, (p - c).distance);
+      }
+      return r;
+    }
+
+    var left = double.infinity;
+    var top = double.infinity;
+    var right = double.negativeInfinity;
+    var bottom = double.negativeInfinity;
+    for (final p in points) {
+      left = math.min(left, p.dx);
+      top = math.min(top, p.dy);
+      right = math.max(right, p.dx);
+      bottom = math.max(bottom, p.dy);
+    }
+    var best = Offset((left + right) / 2, (top + bottom) / 2);
+    var bestR = radiusAt(best);
+    var span = math.max(right - left, bottom - top) / 4;
+    while (span > 0.001 * math.max(1, bestR)) {
+      final around = best;
+      for (var i = -4; i <= 4; i++) {
+        for (var j = -4; j <= 4; j++) {
+          final c = around + Offset(i * span / 4, j * span / 4);
+          final r = radiusAt(c);
+          if (r < bestR) {
+            bestR = r;
+            best = c;
+          }
+        }
+      }
+      span /= 2;
+    }
+    return (centre: best, radius: bestR);
   }
 
   /// The part of the canvas the art actually covers (alpha ≥ 40 in any

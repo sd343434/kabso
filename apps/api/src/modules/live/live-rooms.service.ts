@@ -26,6 +26,7 @@ import {
 } from './live-cursor.js';
 import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../recharge/recharge-badges.js';
+import { activeVipOf } from '../posts/post-views.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
@@ -57,6 +58,25 @@ function rechargeBadgeOf(row: RoomRow): { rechargeBadge?: RechargeBadgeDto } {
   if (row.badge_tier === null || row.badge_until === null || row.host_status !== 'ACTIVE') return {};
   const badge = activeRechargeBadge({ tier: row.badge_tier, until: row.badge_until }, new Date());
   return badge ? { rechargeBadge: badge } : {};
+}
+
+/** D265 (§10.94.3): the host's active VIP (`UserSummary.vip`, with D264's `off`), as every other summary. */
+function hostVipOf(row: RoomRow): { vip?: NonNullable<ReturnType<typeof activeVipOf>> } {
+  const m = row.host_vip;
+  if (!m) return {};
+  const vip = activeVipOf(
+    {
+      status: row.host_status,
+      vipMembership: {
+        expiresAt: new Date(m.expiresAt),
+        offPerks: m.offPerks ?? [],
+        tier: { code: m.code, sortOrder: m.sortOrder, color: m.color },
+      },
+    },
+    new Date(),
+    row.host_worn ?? [],
+  );
+  return vip ? { vip } : {};
 }
 
 /**
@@ -299,6 +319,16 @@ export interface RoomRow {
   /** v1.56-social (D187): the host's daily recharge badge row (null for none or for any recharge agent). */
   badge_tier: number | null;
   badge_until: Date | null;
+  /** D265: the host's VIP membership now (its tier, end and taken-off perks), else null. */
+  host_vip: {
+    code: string;
+    sortOrder: number;
+    color: string;
+    expiresAt: string;
+    offPerks: string[] | null;
+  } | null;
+  /** D265 (D264's `off`): the categories of the bag items the host wears now. */
+  host_worn: string[] | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -379,6 +409,13 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT rb.badge_tier::int FROM recharge_badges rb WHERE rb.user_id = r.host_user_id
              AND NOT EXISTS (SELECT 1 FROM recharge_agents ra2 WHERE ra2.user_id = r.host_user_id)) AS badge_tier,
          (SELECT rb.badge_until FROM recharge_badges rb WHERE rb.user_id = r.host_user_id) AS badge_until,
+         (SELECT json_build_object('code', vt.code, 'sortOrder', vt.sort_order, 'color', vt.color,
+                                   'expiresAt', vm.expires_at, 'offPerks', vm.off_perks)
+            FROM vip_memberships vm JOIN vip_tiers vt ON vt.id = vm.tier_id
+           WHERE vm.user_id = r.host_user_id AND vm.expires_at > now()) AS host_vip,
+         (SELECT array_agg(b.category::text) FROM user_bag_items b
+           WHERE b.user_id = r.host_user_id AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_worn,
          c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts, r.episode_number, r.podcast_topic, r.questions_open,
@@ -1006,6 +1043,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           ? { avatarFrame: { code: row.host_frame_code, assetKey: row.host_frame_asset } }
           : {}),
         ...rechargeBadgeOf(row),
+        // D265 (v1.83-social, §10.94): the host's VIP like every other summary (their seat's frame, their card).
+        ...hostVipOf(row),
       },
       seatCount: row.seat_count,
       occupiedSeats: row.occupied_seats,

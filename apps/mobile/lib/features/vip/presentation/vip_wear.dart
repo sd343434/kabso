@@ -92,14 +92,16 @@ class VipAvatarFrame extends ConsumerWidget {
   final double size;
   final Widget child;
 
-  /// The owner's frame template (`svip_1_frame`, 500 × 500): the ring's
-  /// opening is 292 across (x 103 – 395), its top at y 97 (the plaque cuts
-  /// the bottom), so its centre is (249, 243).
-  static const templateCentre = Offset(0.498, 0.486);
-  static const double templateWindow = 0.584;
+  /// The owner's frame (`svip_1_frame`, 500 × 500), measured from its
+  /// SVGA as [VipSvgaClip.window] does (D265): the smallest circle holding
+  /// its whole opening is 0.685 of the canvas across, centred. (D258's
+  /// 0.584 was the opening's narrowest width: the picture left the
+  /// opening's corners empty.)
+  static const templateCentre = Offset(0.5, 0.5);
+  static const double templateWindow = 0.685;
 
   /// How much of the window's rim the picture covers (no gap).
-  static const double overlap = 1.03;
+  static const double overlap = 1.02;
 
   static const frameKey = Key('vip.avatarFrame');
 
@@ -114,6 +116,14 @@ class VipAvatarFrame extends ConsumerWidget {
       outer,
       outer,
     );
+  }
+
+  /// Whether [vip]'s frame is drawn (its perk has art): the picture then
+  /// goes in bare (D265: no ring of its own between it and the frame).
+  static bool shows(WidgetRef ref, UserVip? vip) {
+    if (vip == null) return false;
+    final perk = ref.watch(vipLookProvider(vip))?.perk(VipPerks.avatarFrame);
+    return perk != null && (perk.still != null || perk.animation != null);
   }
 
   @override

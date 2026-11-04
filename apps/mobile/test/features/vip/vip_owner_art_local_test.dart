@@ -10,8 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
+import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_entrance.dart';
@@ -19,9 +24,13 @@ import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/live/live_api_fixtures.dart';
 import '../../goldens/live_person_card_golden_test.dart'
     show personCardProfile, pumpPersonCardRoom;
+import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
+import '../../helpers/pump_app.dart';
 
 final String? _art = Platform.environment['VIP_ART_DIR'];
 final String? _shots = Platform.environment['VIP_SHOTS_DIR'];
@@ -216,4 +225,36 @@ void main() {
       await _save(tester, find.byType(MaterialApp), 'card_owner_ar.png');
     },
   );
+
+  // D265 (owner): the frame on the profile page fits the picture (the
+  // picture fills the frame's whole opening).
+  testWidgets('owner art: the profile header (frame)', skip: _skip, (
+    tester,
+  ) async {
+    await loadAppFonts();
+    setViewport(tester, GoldenViewport.phone);
+    await pumpScreen(
+      tester,
+      const PublicProfileScreen(username: 'host0'),
+      language: AppLanguage.ar,
+      brightness: Brightness.light,
+      disableAnimations: true,
+      overrides: [
+        profileRepositoryProvider.overrideWithValue(
+          FakeProfileRepository(
+            apiProfile(ar: true)
+                .copyWith(displayName: 'nabb', vip: _vip1, liveRoomId: null),
+          ),
+        ),
+        vipCatalogProvider.overrideWith((ref) async => _catalog),
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        profileGridProvider.overrideWith(
+          (ref, _) =>
+              FeedItems([for (var i = 0; i < 6; i++) const ProfileGridItem()]),
+        ),
+      ],
+    );
+    await _settle(tester);
+    await _save(tester, find.byType(MaterialApp), 'profile_owner_ar.png');
+  });
 }

@@ -23,9 +23,16 @@ import 'package:material_ui/material_ui.dart';
 /// banner (the car still plays). Several arrive one after another (at most
 /// [maxQueued] waiting). Never takes taps.
 class LiveVipEntranceLayer extends ConsumerStatefulWidget {
-  const new({required this.roomId, super.key});
+  const new({required this.roomId, super.key, this.self});
 
   final String roomId;
+
+  /// D265 (owner: the VIP1 host saw no entry car): the host is never a
+  /// viewer, so no `join` names them — their own entrance (banner and car)
+  /// plays once on their screen when the layer starts (the live goes on
+  /// air, or the host comes back to it). Null on a viewer's screen (their
+  /// own `join` brings theirs).
+  final UserSummary? self;
 
   /// Tests and captures turn the slide off.
   static bool animate = true;
@@ -77,6 +84,21 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
         }
       });
     _seen = ref.read(liveChatProvider(widget.roomId)).latestJoin?.serial ?? -1;
+    _selfPending = widget.self?.vip != null;
+  }
+
+  /// D265: the host's own entrance waits for the catalogue.
+  bool _selfPending = false;
+
+  void _maybeSelf(VipTierList? catalog) {
+    final self = widget.self;
+    if (!_selfPending || self == null || catalog == null) return;
+    _selfPending = false;
+    // After this build (it sets the state); a serial no join of this
+    // visit has (joins count up from 0).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _enqueue(LiveChatJoinLine(self, -1), catalog);
+    });
   }
 
   @override
@@ -93,7 +115,11 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     final line = next.latestJoin;
     if (line == null || line.serial <= _seen) return;
     _seen = line.serial;
-    final look = vipLookOf(line.user.vip, ref.read(vipCatalogProvider).value);
+    _enqueue(line, ref.read(vipCatalogProvider).value);
+  }
+
+  void _enqueue(LiveChatJoinLine line, VipTierList? catalog) {
+    final look = vipLookOf(line.user.vip, catalog);
     if (look == null) return;
     // An agent's bar (D185 / D189) wins over the banner.
     final agent =
@@ -153,6 +179,8 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
       ..listen(liveChatProvider(widget.roomId), (_, next) => _onChat(next))
       // The catalogue is needed by the time someone joins.
       ..watch(vipCatalogProvider);
+    // D265: the host's own entrance once the catalogue is read.
+    _maybeSelf(ref.read(vipCatalogProvider).value);
     final current = _current;
     if (current == null) return const SizedBox.shrink();
     final displayName = current.line.user.displayName.trim();

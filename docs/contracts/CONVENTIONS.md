@@ -6209,7 +6209,7 @@ code several tiers list, the highest-ranked tier's perk (its art and amount) win
 #### 10.94.3 `UserSummary.vip` and `PublicProfile.vip`
 
 While a person's membership is active (and the account is active), every `UserSummary` (chat messages, joins, seats,
-viewers, followers, …) and `PublicProfile` carry `vip: {tier, rank, color}`; absent otherwise. The app keeps
+viewers, followers, a live room's `host` — D265, …) and `PublicProfile` carry `vip: {tier, rank, color}`; absent otherwise. The app keeps
 `listVipTiers` for the session and draws a member's perks from it by `tier`; a tier no longer on sale shows only the
 «VIPn» pill in its colour.
 
@@ -6240,12 +6240,20 @@ drawn once at the size it is shown (bucketed 64…1024 px) and shared by every w
 shows the still (or the first frame). The stretchable arts follow the owner's templates (fractions of the canvas):
 **CHAT_BUBBLE** (`svip_text_bubble`, 990 × 720) 9-sliced to the message (it scales with the line's height and stretches
 sideways; the ornaments overflow it) over an opaque deep shade of the tier colour; the name and badges sit **above**
-the bubble, which holds only the message (owner). **PROFILE_CARD** (`svip_box`, 720 × 1280) 9-sliced to the sheet
+the bubble, which holds only the message (owner). D265: in **every** chat (the host's flat chat, the audio, podcast and
+video rooms of host and viewers), a text line by a member holding CHAT_BUBBLE takes this layout — line 1 the VIP badge
+(outside the name row), the name in the special colour, the levels and up to 3 medals; line 2 the message alone in
+the bubble — with the author's picture at the start where that chat shows pictures; a VIP without the bubble perk
+gets the badge before the name and the name colour in that chat's own row. **PROFILE_CARD** (`svip_box`, 720 × 1280) 9-sliced to the sheet
 (scales with its width, stretches downwards; the crest rises above it); no white panel: the art's inside is measured
 over a white backdrop and the text turns dark green on a light inside (≥ 4.5:1) or white on a dark one (black
-backdrop); the white panel shows only while it loads. **AVATAR_FRAME** (`svip_frame`): the round window is measured on
-the device from the decoded art's transparent middle (template: centre 0.498 / 0.454, Ø 0.52) and the picture fills
-it. **ENTRY_BANNER** (`svip_name`, 660 × 150): the member's picture (white ring) in the art's circle, «{name} دخل
+backdrop); the white panel shows only while it loads. **AVATAR_FRAME** (`svip_frame`): the window is measured on the
+device from the decoded art — D265: the **smallest circle holding the whole transparent opening** (rays from the
+centre to the first covered pixel, alpha ≥ 40, the farthest across the frames; a ray that leaves the canvas is a gap
+in the art and is left out), so the picture (1.02 × that circle) leaves no gap even where the opening is not round
+(the owner's `svip_1_frame`: Ø 0.685 of the canvas, centred; D258's widest-row 0.584 left its corners open). One
+geometry wherever the frame is worn: the person card, guest **and host** seats, the profile header (the bare picture,
+no ring of its own; while live, the live ring wins as over every frame), the visitors list. **ENTRY_BANNER** (`svip_name`, 660 × 150): the member's picture (white ring) in the art's circle, «{name} دخل
 الغرفة» in white bold with a dark 1 pt outline and a soft shadow in its bar (no plate; owner), the name ellipsized.
 
 #### 10.94.9 «من زار ملفي» (PROFILE_VISITORS, `listProfileVisitors`)
@@ -6307,6 +6315,9 @@ content-addressed under `media/vip/<tier>/`; the answer's `url` goes into the ti
   colour with the VIP badge. An agent's own bar (§10.48, §10.52) wins over it.
 - **ENTRY_EFFECT**: the perk's SVGA plays **once**, centred across the room, then leaves (at most 10 s; reduced
   motion or a broken file: nothing). Downloaded once through the gift art cache (D126) and kept on the device.
+- D265: a VIP member's `join` is never dropped by the one-a-second join window (like an agent's, §10.48); the host
+  is never a viewer (no `join`), so a VIP host's own banner and car play once on their own screen when the live goes
+  on air.
 - **MIC_WAVE**: while the member speaks on a guest seat, the perk's art plays behind the picture (1.7 ×) in place of
   the plain glow; the Couple Mic Effect wins.
 - All three follow «إخفاء تأثيرات الدخول» (D225) where entrances do; one at a time, at most 5 waiting.

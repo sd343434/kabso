@@ -2501,6 +2501,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ),
       // D186: the avatar frame the host wears.
       hostFrame: host.avatarFrame,
+      // D265: the host's VIP frame.
+      hostVip: host.vip,
       hostName: host.displayName,
       hostPoints: KFormat.compact(cherries, context.l10n),
       speaking: speaking,

@@ -4,6 +4,7 @@
 // month joined, the links, the buttons and the family / relationship /
 // medals tiles.
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:kabso_live/app/router/routes.dart';
@@ -156,25 +157,36 @@ class ProfileCoverHeader extends StatelessWidget {
                       ? () => context.push(AppRoutes.liveRoom(room))
                       : null,
                   // D258: the VIP's animated frame, unless an agent or bag
-                  // frame is worn (those keep their own art).
-                  child: VipAvatarFrame(
-                    vip:
-                        profile.rechargeAgentCode == null &&
-                            profile.hostAgentCode == null &&
-                            profile.avatarFrame == null
-                        ? profile.vip
-                        : null,
-                    size: KProfile.avatar,
-                    child: ProfileAvatar(
-                      displayName: profile.displayName,
-                      avatarUrl: profile.avatarUrl,
-                      live: live,
-                      cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
-                      agentCode: profile.rechargeAgentCode,
-                      hostAgentCode: profile.hostAgentCode,
-                      avatarFrame: profile.avatarFrame,
-                      outline: p.background,
-                    ),
+                  // frame is worn (those keep their own art). D265 (owner):
+                  // the picture fills the frame's whole opening — no ring
+                  // of the page's colour between them.
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      // While live the live ring and its badge win over
+                      // every frame (ProfileAvatar): the VIP frame too.
+                      final vip =
+                          !live &&
+                              profile.rechargeAgentCode == null &&
+                              profile.hostAgentCode == null &&
+                              profile.avatarFrame == null
+                          ? profile.vip
+                          : null;
+                      final framed = VipAvatarFrame.shows(ref, vip);
+                      return VipAvatarFrame(
+                        vip: vip,
+                        size: KProfile.avatar,
+                        child: ProfileAvatar(
+                          displayName: profile.displayName,
+                          avatarUrl: profile.avatarUrl,
+                          live: live,
+                          cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
+                          agentCode: profile.rechargeAgentCode,
+                          hostAgentCode: profile.hostAgentCode,
+                          avatarFrame: profile.avatarFrame,
+                          outline: framed ? null : p.background,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),

@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { cpChatBubbleOf, cpEntranceOf, type LiveJoinCpDto } from '../cp-space/cp-privileges.js';
 import { MediaService, type MediaAssetDto, type MediaKind } from '../media/media.service.js';
 import {
+  activeVipOf,
   hostAgentCodeOf,
   rechargeAgentCodeOf,
   USER_SUMMARY_SELECT,
@@ -483,8 +484,11 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
           ? shown.gender
           : null;
       // v1.54-social (D185, §10.48): an ACTIVE recharge agent's join (its entrance bar) is never dropped;
-      // v1.58-social (D189, §10.52): nor a host agent's.
-      const agent = rechargeAgentCodeOf(user) !== null || hostAgentCodeOf(user) !== null;
+      // v1.58-social (D189, §10.52): nor a host agent's; D265 (§10.94): nor a VIP member's (their entry car).
+      const agent =
+        rechargeAgentCodeOf(user) !== null ||
+        hostAgentCodeOf(user) !== null ||
+        activeVipOf(user, this.clock.now()) !== null;
       const waitMs = await this.limiter.interval(
         'live:chat:join',
         roomId,

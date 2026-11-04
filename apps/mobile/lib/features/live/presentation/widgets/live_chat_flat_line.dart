@@ -129,6 +129,7 @@ class LiveChatFlatLine extends ConsumerWidget {
     required this.label,
     super.key,
     this.vip,
+    this.textSize = KFlatChat.textSize,
     this.role,
     this.badges,
     this.agentCode,
@@ -159,6 +160,24 @@ class LiveChatFlatLine extends ConsumerWidget {
   /// D258: the author's VIP (the badge before the name, the name colour and
   /// the VIP bubble).
   final UserVip? vip;
+
+  /// The message's size: the host's flat chat [KFlatChat.textSize]; D265:
+  /// a VIP line in another chat keeps that chat's message size.
+  final double textSize;
+
+  /// D265: whether [vip]'s line takes the VIP layout (the D258 rule: the
+  /// VIP badge, the name, the levels and up to 3 medals on line 1; the
+  /// message alone in the VIP bubble) — in every chat, not only the host's
+  /// flat one: the member holds the CHAT_BUBBLE perk and no CP bubble is
+  /// worn.
+  static bool takesVipBubble(WidgetRef ref, UserVip? vip, {bool cp = false}) =>
+      !cp &&
+      vip != null &&
+      vipBubbleDecoration(
+            ref.watch(vipLookProvider(vip)),
+            radius: KFlatChat.radius,
+          ) !=
+          null;
 
   /// Why a pending line failed (under it).
   final String? failed;
@@ -208,14 +227,16 @@ class LiveChatFlatLine extends ConsumerWidget {
     );
     // Owner: «واجعل الشارة قبل الاسم» — the VIP badge at the reading
     // start, then the name, then the levels (all one height).
-    return LiveChatNameRow(
-      name: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          VipNameBadge(vip: vip, height: vipEmblemHeight),
-          const SizedBox(width: 4),
-          Flexible(
-            child: GestureDetector(
+    // D265: the badge outside the name row, so the name keeps its least
+    // room beside the levels.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        VipNameBadge(vip: vip, height: vipEmblemHeight),
+        const SizedBox(width: 4),
+        Flexible(
+          child: LiveChatNameRow(
+            name: GestureDetector(
               key: nameKey,
               behavior: HitTestBehavior.opaque,
               onTap: onProfile,
@@ -238,36 +259,36 @@ class LiveChatFlatLine extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-      // Then up to 3 of the medals the person chose (owner), at the same
-      // height; a long line fades at its end instead of wrapping.
-      badges: levels.isNotEmpty || medals.isNotEmpty
-          ? LiveChatFadeOverflow(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (levels.isNotEmpty) levels,
-                  for (final m in medals) ...[
-                    const SizedBox(width: 4),
-                    MedalIcon(
-                      key: LiveChatMedalRow.medalKey(m.code),
-                      iconKey: m.iconKey,
-                      size: vipEmblemHeight,
+            // Then up to 3 of the medals the person chose (owner), at the same
+            // height; a long line fades at its end instead of wrapping.
+            badges: levels.isNotEmpty || medals.isNotEmpty
+                ? LiveChatFadeOverflow(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (levels.isNotEmpty) levels,
+                        for (final m in medals) ...[
+                          const SizedBox(width: 4),
+                          MedalIcon(
+                            key: LiveChatMedalRow.medalKey(m.code),
+                            iconKey: m.iconKey,
+                            size: vipEmblemHeight,
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
-            )
-          : null,
+                  )
+                : null,
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final base = KFlatChat.style(context);
+    final base = KFlatChat.style(context).copyWith(fontSize: textSize);
     final look = ref.watch(vipLookProvider(vip));
     final tag = switch (role) {
       LiveChatRole.host => l10n.liveChatHostBadge,
@@ -390,7 +411,7 @@ class LiveChatFlatLine extends ConsumerWidget {
                 // Kabi emoji tokens (D66) show as the emoji, inline.
                 ...kabiIsolatedSpans(
                   text,
-                  size: KFlatChat.textSize * KKabiEmoji.inlineScale,
+                  size: textSize * KKabiEmoji.inlineScale,
                 ),
               ],
             ),

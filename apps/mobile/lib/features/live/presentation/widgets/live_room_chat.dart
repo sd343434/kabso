@@ -26,6 +26,7 @@ import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -111,6 +112,10 @@ class LiveRoomChatLines extends ConsumerWidget {
 
   /// D118: the room's rules line.
   static const noticeKey = Key('liveChat.notice');
+
+  /// D265: a VIP member's line (the VIP layout) in the audio room or the
+  /// video live.
+  static const vipLineKey = Key('liveChat.vipLine');
 
   /// CP-021: the heart at the start of a CP bubble line.
   static const cpHeartKey = Key('liveChat.cpHeart');
@@ -227,8 +232,24 @@ class LiveRoomChatLines extends ConsumerWidget {
       LiveChatPosted(:final entry)
           when entry.kind != LiveChatKind.text && entry.media != null =>
         _mediaLine(context, ref, entry, entry.media!, boxMax),
+      // D265: a VIP member's line in the VIP layout.
+      LiveChatPosted(:final entry)
+          when LiveChatFlatLine.takesVipBubble(
+            ref,
+            entry.author.vip,
+            cp: entry.cpBubble,
+          ) =>
+        _vipPosted(
+          context,
+          ref,
+          entry,
+          maxWidth: boxMax,
+          textSize: LiveChatAuthoredLine.textSize,
+          picture: true,
+        ),
       LiveChatPosted(:final entry) => LiveChatAuthoredLine(
         name: entry.author.displayName,
+        vip: entry.author.vip,
         username: entry.author.username,
         premiumTier: entry.author.premiumTier,
         agentCode: entry.author.rechargeAgentCode,
@@ -331,6 +352,89 @@ class LiveRoomChatLines extends ConsumerWidget {
     };
   }
 
+  /// D253: [entry]'s flat line. D265: also a VIP member's line in the other
+  /// chats (the D258 VIP layout, the message at that chat's [textSize]).
+  Widget _flatPosted(
+    BuildContext context,
+    WidgetRef ref,
+    LiveChatEntry entry, {
+    double textSize = KFlatChat.textSize,
+  }) {
+    final l10n = context.l10n;
+    return LiveChatFlatLine(
+      textSize: textSize,
+      name: entry.author.displayName,
+      text: entry.text,
+      role: entry.authorRole,
+      badges: entry.authorBadges,
+      agentCode: entry.author.rechargeAgentCode,
+      hostAgentCode: entry.author.hostAgentCode,
+      rechargeBadge: entry.author.rechargeBadge,
+      // D258: the author's VIP (badge, name colour, bubble).
+      vip: entry.author.vip,
+      // D257: a worn CP bubble draws in its colours (CP-021).
+      cp: entry.cpBubble,
+      label: l10n.liveChatLineLabel(
+        entry.author.displayName,
+        kabiSpokenText(entry.text, l10n),
+      ),
+      onProfile: () => onProfile(entry.author.username),
+      onActions: () => unawaited(
+        showLiveChatActions(
+          context,
+          ref,
+          roomId: roomId,
+          entry: entry,
+          role: role,
+          onProfile: onProfile,
+        ),
+      ),
+    );
+  }
+
+  /// D265 (owner: the VIP1 host's lines showed no VIP bubble nor badge in
+  /// the audio room): a VIP member's text line in the audio room and the
+  /// video live — the D258 VIP layout (badge → name → levels → up to 3
+  /// medals; the message alone in the VIP bubble) at that chat's sizes,
+  /// with the author's picture at the reading start where the chat shows
+  /// pictures ([picture]).
+  Widget _vipPosted(
+    BuildContext context,
+    WidgetRef ref,
+    LiveChatEntry entry, {
+    required double maxWidth,
+    required double textSize,
+    required bool picture,
+  }) {
+    final line = _flatPosted(context, ref, entry, textSize: textSize);
+    return ConstrainedBox(
+      key: LiveRoomChatLines.vipLineKey,
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: !picture
+          ? line
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onProfile(entry.author.username),
+                    child: KAvatar(
+                      key: LiveChatAuthoredLine.avatarKey,
+                      name: entry.author.displayName,
+                      imageUrl: entry.author.avatarUrl,
+                      size: LiveChatAuthoredLine.avatar,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: LiveChatAuthoredLine.gap),
+                Flexible(child: line),
+              ],
+            ),
+    );
+  }
+
   /// D253: the flat line for [item] (null: the item keeps its row — media,
   /// joins, gifts, bullets).
   Widget? _flatLine(BuildContext context, WidgetRef ref, LiveChatItem item) {
@@ -338,34 +442,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     switch (item) {
       case LiveChatPosted(:final entry)
           when entry.kind == LiveChatKind.text || entry.media == null:
-        return LiveChatFlatLine(
-          name: entry.author.displayName,
-          text: entry.text,
-          role: entry.authorRole,
-          badges: entry.authorBadges,
-          agentCode: entry.author.rechargeAgentCode,
-          hostAgentCode: entry.author.hostAgentCode,
-          rechargeBadge: entry.author.rechargeBadge,
-          // D258: the author's VIP (badge, name colour, bubble).
-          vip: entry.author.vip,
-          // D257: a worn CP bubble draws in its colours (CP-021).
-          cp: entry.cpBubble,
-          label: l10n.liveChatLineLabel(
-            entry.author.displayName,
-            kabiSpokenText(entry.text, l10n),
-          ),
-          onProfile: () => onProfile(entry.author.username),
-          onActions: () => unawaited(
-            showLiveChatActions(
-              context,
-              ref,
-              roomId: roomId,
-              entry: entry,
-              role: role,
-              onProfile: onProfile,
-            ),
-          ),
-        );
+        return _flatPosted(context, ref, entry);
       case LiveChatPending(
         :final failed,
         :final text,
@@ -446,9 +523,25 @@ class LiveRoomChatLines extends ConsumerWidget {
               ? LiveVoiceClipPill(key: ValueKey(media.id), media: media)
               : LiveChatPictureThumb(media: media),
         );
+      // D265: a VIP member's line in the VIP layout.
+      case LiveChatPosted(:final entry)
+          when LiveChatFlatLine.takesVipBubble(
+            ref,
+            entry.author.vip,
+            cp: entry.cpBubble,
+          ):
+        return _vipPosted(
+          context,
+          ref,
+          entry,
+          maxWidth: max,
+          textSize: LiveChatInlineRow.textSize,
+          picture: false,
+        );
       case LiveChatPosted(:final entry):
         return LiveChatInlineRow(
           name: entry.author.displayName,
+          vip: entry.author.vip,
           role: entry.authorRole,
           badges: entry.authorBadges,
           agentCode: entry.author.rechargeAgentCode,
@@ -751,6 +844,31 @@ class LiveCpChatBubble extends StatelessWidget {
   );
 }
 
+/// D265: a chat row's name [row] (a [LiveChatNameRow]) with the author's
+/// VIP badge before it, as tall as the row's emblems ([height]): outside the
+/// row, so the name keeps its least room ([LiveChatNameRow.nameMin]) beside
+/// the levels. [row] alone without a VIP.
+Widget liveChatVipLead({
+  required UserVip? vip,
+  required double height,
+  required Widget row,
+}) {
+  if (vip == null) return row;
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      VipNameBadge(vip: vip, height: height * 0.92),
+      const SizedBox(width: 4),
+      Flexible(child: row),
+    ],
+  );
+}
+
+/// D265: a chat row's [name] in the author's VIP colour; [name] alone
+/// without a VIP.
+Widget liveChatVipName({required UserVip? vip, required Widget name}) =>
+    vip == null ? name : VipNameShimmer(vip: vip, child: name);
+
 /// D119 (owner: "make the chat text like this", reference look only; then
 /// "the box must cover the whole person together with what they sent"):
 /// one chat message in one rounded see-through box — the author's round
@@ -782,9 +900,14 @@ class LiveChatAuthoredLine extends StatelessWidget {
     this.agentCode,
     this.hostAgentCode,
     this.rechargeBadge,
+    this.vip,
   });
 
   final String name;
+
+  /// D265: the author's VIP without the VIP bubble (a member with it takes
+  /// the VIP layout): the VIP badge before the name, the name's colour.
+  final UserVip? vip;
 
   /// v1.54-social (D185): the author's recharge-agent code (the badge).
   final String? agentCode;
@@ -924,26 +1047,33 @@ class LiveChatAuthoredLine extends StatelessWidget {
               // it at one height; only the name shortens.
               Padding(
                 padding: const EdgeInsets.only(top: nameTop),
-                child: LiveChatNameRow(
-                  name: tapProfile(
-                    Text(
-                      KFormat.bidiIsolate(name),
-                      key: nameKey,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textScaler: scaler,
-                      style: context.textStyles.caption.copyWith(
-                        fontSize: nameSize,
-                        height: 1.25,
-                        color: cp ? LiveCpChatBubble.name : nameColor,
-                        fontWeight: FontWeight.w800,
-                        shadows: const [
-                          Shadow(color: Color(0x66000000), blurRadius: 2),
-                        ],
+                child: liveChatVipLead(
+                  vip: cp ? null : vip,
+                  height: badgeRowHeight,
+                  row: LiveChatNameRow(
+                    name: liveChatVipName(
+                      vip: cp ? null : vip,
+                      name: tapProfile(
+                        Text(
+                          KFormat.bidiIsolate(name),
+                          key: nameKey,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: scaler,
+                          style: context.textStyles.caption.copyWith(
+                            fontSize: nameSize,
+                            height: 1.25,
+                            color: cp ? LiveCpChatBubble.name : nameColor,
+                            fontWeight: FontWeight.w800,
+                            shadows: const [
+                              Shadow(color: Color(0x66000000), blurRadius: 2),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
+                    badges: row.isNotEmpty ? row : null,
                   ),
-                  badges: row.isNotEmpty ? row : null,
                 ),
               ),
               if ((premiumTier, username) case (final tier?, final handle?))
@@ -1838,9 +1968,14 @@ class LiveChatInlineRow extends StatefulWidget {
     this.mediaInside = false,
     this.onProfile,
     this.onActions,
+    this.vip,
   });
 
   final String? name;
+
+  /// D265: the author's VIP without the VIP bubble (a member with it takes
+  /// the VIP layout): the VIP badge before the name, the name's colour.
+  final UserVip? vip;
   final LiveChatRole? role;
   final LiveChatAuthorBadges? badges;
 
@@ -2009,34 +2144,41 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
           // emblems in the same row at one height — the name alone shortens
           // with an ellipsis.
           if (name != null || badges.isNotEmpty)
-            LiveChatNameRow(
-              name: name == null
-                  ? null
-                  : GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: w.onProfile,
-                      child: Text(
-                        KFormat.bidiIsolate(name),
-                        key: LiveChatInlineRow.nameKey,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textScaler: scaler,
-                        style: base.copyWith(
-                          fontSize: LiveChatInlineRow.nameSize,
-                          color: w.cp
-                              ? LiveCpChatBubble.name
-                              : LiveChatInlineRow.nameColor,
-                          fontWeight: FontWeight.w800,
+            liveChatVipLead(
+              vip: w.cp || name == null ? null : w.vip,
+              height: LiveChatInlineRow.badgeHeight,
+              row: LiveChatNameRow(
+                name: name == null
+                    ? null
+                    : liveChatVipName(
+                        vip: w.cp ? null : w.vip,
+                        name: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: w.onProfile,
+                          child: Text(
+                            KFormat.bidiIsolate(name),
+                            key: LiveChatInlineRow.nameKey,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textScaler: scaler,
+                            style: base.copyWith(
+                              fontSize: LiveChatInlineRow.nameSize,
+                              color: w.cp
+                                  ? LiveCpChatBubble.name
+                                  : LiveChatInlineRow.nameColor,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-              heart: w.cp,
-              badges: badges.isNotEmpty
-                  ? KeyedSubtree(
-                      key: LiveChatInlineRow.badgesKey,
-                      child: badges,
-                    )
-                  : null,
+                heart: w.cp,
+                badges: badges.isNotEmpty
+                    ? KeyedSubtree(
+                        key: LiveChatInlineRow.badgesKey,
+                        child: badges,
+                      )
+                    : null,
+              ),
             ),
           // 2. D234: the showcased medals (≤ 5) under the name row.
           if (w.badges?.medals case final medals? when medals.isNotEmpty) ...[
