@@ -94,8 +94,8 @@ export const PK_DARE_PANEL_IMPORT_MAX = 2000;
 /**
  * «أحكام PK» in the panel (v1.50-live, D229, CONVENTIONS §10.80): the library table (filters, search, CSV), add / edit
  * / disable, import (JSON lines or CSV), the «مُبلَّغ عنها» queue (reported first; keep = clear the reports, optionally
- * enabling again) and the PK points settings. `pk_dares.view` OWNER / MODERATION / SUPPORT; `pk_dares.edit` OWNER /
- * MODERATION. Every write is audited with the reason (`pk-dare-library.ts`, the same code as `pk-dares-admin`).
+ * enabling again) and the PK points settings. `pk_dares.view` and `pk_dares.edit` OWNER only (D274; were OWNER / MODERATION / SUPPORT and OWNER / MODERATION).
+ * Every write is audited with the reason (`pk-dare-library.ts`, the same code as `pk-dares-admin`).
  */
 @Injectable()
 export class AdminPkDaresService {

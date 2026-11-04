@@ -14107,7 +14107,7 @@ paths:
     post:
       tags: [admin-panel]
       operationId: createAdminPkDare
-      summary: "Adds a dare (pk_dares.edit: OWNER, MODERATION; audited)"
+      summary: "Adds a dare (pk_dares.edit: OWNER only since D274; audited)"
       description: "(v1.50-live, D229, §10.80) The texts must pass the safety rules (blocklist and rule checks, Arabic ≤ 90 characters, nothing over 3 minutes) and not duplicate the library (normalized text, or a word-set Jaccard ≥ 0.8): 400 with the rule as `issue`. Audited `pk_dare.create` with the reason."
       security: [{ adminSession: [] }]
       parameters:

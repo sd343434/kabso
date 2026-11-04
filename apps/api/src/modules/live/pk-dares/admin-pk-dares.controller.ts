@@ -68,8 +68,8 @@ const settingsBody = z
   .refine((v) => Object.keys(v).length > 1, { message: 'at least one change' });
 
 /**
- * «أحكام PK» (v1.50-live, D229, CONVENTIONS §10.80): `pk_dares.view` (OWNER, MODERATION, SUPPORT) reads the library,
- * the reported queue, the counts and the settings; `pk_dares.edit` (OWNER, MODERATION) adds, edits, disables, imports,
+ * «أحكام PK» (v1.50-live, D229, CONVENTIONS §10.80): `pk_dares.view` (OWNER only since D274) reads the library,
+ * the reported queue, the counts and the settings; `pk_dares.edit` (OWNER only) adds, edits, disables, imports,
  * clears reports and changes the PK points. Every write needs a reason and the CSRF header (the session guard).
  */
 @Public()

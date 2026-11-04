@@ -135,10 +135,10 @@ export const CAPABILITIES = {
   /** Grant or remove a device's exception to the accounts-per-device limit (the authenticator code again). */
   'users.device_exception': ['OWNER'],
   // ---- v1.50-live (D229, CONVENTIONS §10.80): «أحكام PK» ---------------------------------------------------------------
-  /** The dare library, the reported queue and the PK points settings (read). */
-  'pk_dares.view': ['OWNER', 'MODERATION', 'SUPPORT'],
-  /** Add, edit, disable / enable, import, clear reports; the PK points and dare settings. */
-  'pk_dares.edit': ['OWNER', 'MODERATION'],
+  /** The dare library, the reported queue and the PK points settings (read). D274 (owner): OWNER only. */
+  'pk_dares.view': ['OWNER'],
+  /** Add, edit, disable / enable, import, clear reports; the PK points and dare settings. D274: OWNER only. */
+  'pk_dares.edit': ['OWNER'],
   // ---- v1.60-live (D250, CONVENTIONS §10.91): live moderation «مراقبة البث» ---------------------------------------------
   /** Watch a live as a hidden observer (muted card previews and the watch view); every token audited. */
   'lives.watch': ['OWNER', 'MODERATION', 'SUPPORT'],

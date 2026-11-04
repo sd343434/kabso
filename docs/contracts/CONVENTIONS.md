@@ -5536,8 +5536,8 @@ levels and a server draw; then the final flow: the loser accepts or refuses, the
   (default the seed file; idempotent by `code`, never overwriting an admin's edit) loads the 20 000 dares on deploy;
   `export` (JSON lines or `--csv`), `stats`, `disable` / `enable <code> --reason`. The panel imports up to 2000 lines per
   upload (JSON or CSV with `code,category,level,textAr,textEn`), with a dry run.
-- **The panel «أحكام PK».** `pk_dares.view` (OWNER, MODERATION, SUPPORT): the table (filters category / level / active /
-  reported, search in both texts or a code prefix, CSV), the counts, the settings. `pk_dares.edit` (OWNER, MODERATION):
+- **The panel «أحكام PK».** D274 (owner): **OWNER only** — `pk_dares.view` and `pk_dares.edit` (were OWNER, MODERATION, SUPPORT / OWNER, MODERATION). `pk_dares.view`: the table (filters category / level / active /
+  reported, search in both texts or a code prefix, CSV), the counts, the settings. `pk_dares.edit`:
   add, edit, disable / enable, import, the queue's «إبقاء» (clear the reports, optionally enable again), the PK points
   and `decideSeconds` / `reportsToDisable`. Every write takes a reason and is audited (`pk_dare.create`, `.update`,
   `.import`, `.reports_clear`, `.settings.update`, with before and after).
