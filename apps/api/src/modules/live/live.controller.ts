@@ -59,7 +59,13 @@ import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from '
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
 import { LiveKicksService, type LiveKickDto } from './live-kicks.service.js';
-import { LiveMediaService, type LiveMediaAccessDto, type LiveViewerDto } from './live-media.service.js';
+import {
+  LiveMediaService,
+  type LiveMediaAccessDto,
+  type LiveStaffWatcherDto,
+  type LiveViewerDto,
+} from './live-media.service.js';
+import { LiveStaffAssignmentService } from './live-staff-assignment.service.js';
 import {
   LiveRoomsService,
   type LiveConfigDto,
@@ -139,6 +145,7 @@ export class LiveController {
   constructor(
     private readonly rooms: LiveRoomsService,
     private readonly media: LiveMediaService,
+    private readonly staffAssignment: LiveStaffAssignmentService,
     private readonly categories: LiveCategoriesService,
     private readonly users: UsersService,
     private readonly seats: LiveSeatsService,
@@ -233,10 +240,13 @@ export class LiveController {
   )
   async startRoom(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveRoomDto> {
     // v1.60-live (D250): the session's device (a banned device cannot go live).
-    return this.rooms.startRoom(requireCaller(req), body, await this.language(req), {
+    const room = await this.rooms.startRoom(requireCaller(req), body, await this.language(req), {
       ...meta(req),
       sessionId: req.auth?.sessionId ?? null,
     });
+    // v1.63-live (D260): the new live goes to a staff member on shift (best effort, after the reply's data).
+    this.staffAssignment.afterLiveStart();
+    return room;
   }
 
   /**
@@ -338,7 +348,11 @@ export class LiveController {
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
-  ): Promise<{ data: LiveViewerDto[]; page: { nextCursor: string | null; hasMore: boolean } }> {
+  ): Promise<{
+    data: LiveViewerDto[];
+    staff: LiveStaffWatcherDto[];
+    page: { nextCursor: string | null; hasMore: boolean };
+  }> {
     return this.media.viewers(callerOf(req), roomId, query);
   }
 

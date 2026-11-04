@@ -281,11 +281,11 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
       403,
       'AUTH_FORBIDDEN',
     );
-    // D250b (owner): SUPPORT may watch.
+    // D250b (owner): SUPPORT may watch — D260: visibly (`team:`); hidden is OWNER / MODERATION only.
     const bySupport = await apost(support, `/admin/lives/${roomId}/watch-token`, { purpose: 'WATCH' });
     expect(bySupport.status, JSON.stringify(bySupport.body)).toBe(200);
     expectContract(bySupport, 'createAdminLiveWatchToken');
-    expect(bySupport.body.main.identity).toMatch(new RegExp(`^staff:${support.id}:`));
+    expect(bySupport.body.main.identity).toMatch(new RegExp(`^team:${support.id}:`));
     expect((await audits('admin.live.watch', roomId)).map((r) => r.actorUserId)).toEqual([support.id]);
     const issuedBefore = media.issued.length;
     const res = await apost(moderator, `/admin/lives/${roomId}/watch-token`, { purpose: 'PREVIEW' });

@@ -35,31 +35,9 @@ export interface ModerateBody {
   totpCode?: string | undefined;
 }
 
-/** Open reports of a live (CONVENTIONS §10.91.2): on the room, or on its host as a user since the live started. */
-const OPEN_LIVE_REPORTS_SQL = (roomFilter: Prisma.Sql) => Prisma.sql`
-  SELECT r.id::text AS room_id, count(rep.id)::int AS n
-    FROM live_rooms r
-    JOIN reports rep ON rep.status = 'OPEN'::report_status AND (
-         rep.target_live_room_id = r.id
-      OR (rep.target_type = 'USER'::report_target_type AND rep.target_user_id = r.host_user_id
-          AND rep.created_at >= r.started_at))
-   WHERE ${roomFilter}
-   GROUP BY r.id`;
+import { openLiveReportsByRoom } from '../live/live-reports.js';
 
-/** Open reports per room: every LIVE room, or the given rooms whatever their status (only rooms with at least one). */
-export async function openLiveReportsByRoom(
-  db: Pick<PrismaService, '$queryRaw'>,
-  roomIds?: readonly string[],
-): Promise<Map<string, number>> {
-  const filter =
-    roomIds === undefined
-      ? Prisma.sql`r.status = 'LIVE'::live_room_status`
-      : roomIds.length === 0
-        ? Prisma.sql`false`
-        : Prisma.sql`r.id IN (${Prisma.join(roomIds.map((id) => Prisma.sql`${id}::uuid`))})`;
-  const rows = await db.$queryRaw<{ room_id: string; n: number }[]>(OPEN_LIVE_REPORTS_SQL(filter));
-  return new Map(rows.map((r) => [r.room_id, r.n]));
-}
+export { openLiveReportsByRoom };
 
 /** The `reports` rows of a live (the room's, and its host's as a user since it started). */
 function liveReportsWhere(room: {
@@ -242,12 +220,24 @@ export class AdminLiveModerationService {
     return match.roomAId === roomId ? match.roomBId : match.roomAId;
   }
 
-  /** `POST /admin/lives/{roomId}/watch-token`: hidden observer tokens (both rooms of a PK); audited. */
-  async watchToken(id: string, purpose: 'PREVIEW' | 'WATCH', ctx: AdminContext) {
+  /**
+   * `POST /admin/lives/{roomId}/watch-token`: observer tokens (both rooms of a PK); audited. v1.63-live (D260, §10.95):
+   * a WATCH is VISIBLE by default (`team:` — listed in this live with the «فريق كابسو» badge, never counted); HIDDEN
+   * (`staff:`, D250) needs `lives.watch.hidden` (OWNER / MODERATION). A PREVIEW and the PK opponent's room are hidden.
+   */
+  async watchToken(
+    id: string,
+    purpose: 'PREVIEW' | 'WATCH',
+    ctx: AdminContext,
+    visibility?: 'VISIBLE' | 'HIDDEN',
+  ) {
+    const visible = purpose === 'WATCH' && visibility !== 'HIDDEN';
+    if (purpose === 'WATCH' && !visible && !ctx.capabilities.includes('lives.watch.hidden'))
+      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     const room = await this.room(id);
     if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
     const nonce = randomBytes(6).toString('hex');
-    const main = await this.media.staffAccess(ctx.userId, room.id, nonce);
+    const main = await this.media.staffAccess(ctx.userId, room.id, nonce, visible);
     let opponent: StaffMediaAccessDto | null = null;
     // A preview shows this room only; the watch view also gets the other side of a PK.
     const other = purpose === 'WATCH' ? await this.pkOpponentRoom(room.id) : null;
@@ -265,6 +255,7 @@ export class AdminLiveModerationService {
       targetId: room.id,
       metadata: {
         purpose,
+        visibility: visible ? 'VISIBLE' : 'HIDDEN',
         identity: main.identity,
         hostUserId: room.hostUserId,
         ...(opponent ? { opponentRoomId: opponent.roomId } : {}),
@@ -273,7 +264,7 @@ export class AdminLiveModerationService {
       ip: ctx.ip,
       requestId: ctx.requestId,
     });
-    return { purpose, main, opponent };
+    return { purpose, visibility: visible ? 'VISIBLE' : 'HIDDEN', main, opponent };
   }
 
   // ---- actions -------------------------------------------------------------------------------------------------

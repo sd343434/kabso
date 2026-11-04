@@ -103,6 +103,8 @@ export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
       .enum(['true', 'false'])
       .optional()
       .transform((v) => v === 'true'),
+    // v1.63-live (D260, §10.95): «بثوثي» — only the lives assigned to the signed-in staff member.
+    assigned: z.enum(['me']).optional(),
   })
   .strict();
 

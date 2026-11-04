@@ -149,6 +149,14 @@ export const CAPABILITIES = {
   'lives.moderate': ['OWNER', 'MODERATION'],
   /** Ban the host's devices «حظر جهاز» (the authenticator code again), the device-ban list and lifting a ban. */
   'devices.ban': ['OWNER', 'MODERATION'],
+  // ---- v1.63-live (D260, CONVENTIONS §10.95): staff presence in lives ----------------------------------------------
+  /**
+   * Watch HIDDEN «مراقبة خفية» (the D250 observer, for undercover checks); a watch is otherwise VISIBLE (listed in the
+   * live with the «فريق كابسو» badge). The shift «في المناوبة» and «بثوثي» go with `lives.watch`.
+   */
+  'lives.watch.hidden': ['OWNER', 'MODERATION'],
+  /** Who is on shift and how many lives each watches (OWNER). */
+  'staff.shifts': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

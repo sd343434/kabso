@@ -460,7 +460,11 @@ describe('CP-010 live video', () => {
       );
       expect((await ctx.http.get('/api/v1/live/rooms/nope/viewers')).status).toBe(404);
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
-      expect((await list(a)).body).toEqual({ data: [], page: { hasMore: false, nextCursor: null } });
+      expect((await list(a)).body).toEqual({
+        data: [],
+        staff: [],
+        page: { hasMore: false, nextCursor: null },
+      });
       expect((await list(h)).body.data).toEqual([]);
     });
 

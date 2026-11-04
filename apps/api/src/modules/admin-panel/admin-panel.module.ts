@@ -25,6 +25,7 @@ import { AdminAgenciesService } from './admin-agencies.service.js';
 import { AdminCatalogService } from './admin-catalog.service.js';
 import { AdminLiveModerationController } from './admin-live-moderation.controller.js';
 import { AdminLiveModerationService } from './admin-live-moderation.service.js';
+import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
 import { AdminLivesService } from './admin-lives.service.js';
 import { AdminMoneyService } from './admin-money.service.js';
 import { AdminPeopleService } from './admin-people.service.js';
@@ -104,6 +105,8 @@ import { AdminVipController } from './admin-vip.controller.js';
     AdminHostApplicationsService,
     AdminDeviceSignupsService,
     AdminLiveModerationService,
+    // v1.63-live (D260): the shift «في المناوبة» and who is on it (§10.95).
+    AdminStaffShiftsService,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

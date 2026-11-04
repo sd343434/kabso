@@ -96,7 +96,7 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
       canPublish: sources.length > 0,
       canPublishData: false,
       ...(sources.length > 0 ? { canPublishSources: sources.map(toTrackSource) } : {}),
-      ...(input.publish ? {} : { hidden: true }),
+      ...(input.publish || input.visible === true ? {} : { hidden: true }),
     });
     return token.toJwt();
   }

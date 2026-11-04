@@ -137,7 +137,8 @@ describe.skipIf(!url)('D250 the staff observer on a real LiveKit server', { time
         .post(`/api/v1/admin/lives/${roomId}/watch-token`)
         .set('Cookie', panelCookie)
         .set('X-CSRF-Token', csrf)
-        .send({ purpose: 'WATCH' });
+        // D260: a WATCH is visible by default; this checks the hidden observer.
+        .send({ purpose: 'WATCH', visibility: 'HIDDEN' });
       expect(watch.status, JSON.stringify(watch.body)).toBe(200);
       const access = watch.body.main as { url: string; token: string; identity: string };
       expect(access.identity.startsWith(`staff:${mod.id}:`)).toBe(true);

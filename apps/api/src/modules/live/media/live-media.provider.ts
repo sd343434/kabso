@@ -27,6 +27,11 @@ export interface LiveMediaTokenInput {
    */
   readonly publish: boolean;
   /**
+   * v1.63-live (D260, §10.95): a watch-only participant that is NOT hidden (a staff member watching a
+   * live visibly, `team:<adminId>:<nonce>`). Ignored for a publisher (always visible). Default false.
+   */
+  readonly visible?: boolean;
+  /**
    * CP-011: the sources a publisher may publish (default camera and microphone). Empty: visible
    * but publishing nothing (e.g. an AUDIO guest muted by the host).
    */

@@ -27,6 +27,7 @@ import { LiveLevelTickerService } from './live-level-ticker.service.js';
 import { LiveLuckyTickerService } from './live-lucky-ticker.service.js';
 import { LiveKicksService } from './live-kicks.service.js';
 import { LiveMediaService } from './live-media.service.js';
+import { LiveStaffAssignmentService } from './live-staff-assignment.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LiveStatsService } from './live-stats.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
@@ -81,6 +82,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveCategoriesService,
     LiveRoomsService,
     LiveMediaService,
+    // v1.63-live (D260): every live assigned to a staff member on shift (§10.95).
+    LiveStaffAssignmentService,
     LiveSeatsService,
     LiveTapsService,
     LiveChatService,
@@ -140,6 +143,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     // v1.51-live (D233): the admin panel edits the rocket stages' prices.
     LiveBoostsService,
     LiveMediaService,
+    LiveStaffAssignmentService,
     LiveSeatsService,
     LiveChatService,
     LiveGiftsService,

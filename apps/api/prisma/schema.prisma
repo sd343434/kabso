@@ -73,6 +73,10 @@ model User {
   liveHost               LiveHost?                  @relation("LiveHostUser")
   liveHostsGranted       LiveHost[]                 @relation("LiveHostGrantedBy")
   liveViews              LiveRoomViewer[]
+  /// v1.63-live (D260): the panel staff member's shift, the lives assigned to them, their visible watches.
+  adminShift             AdminShift?
+  liveAssignments        LiveRoomAssignment[]
+  liveStaffWatches       LiveRoomStaffWatcher[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
   liveAudience           LiveRoomAudience[]
   liveSeats              LiveRoomSeat[]
@@ -719,6 +723,9 @@ model LiveRoom {
   host             User                   @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
   category         LiveCategory?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers          LiveRoomViewer[]
+  /// v1.63-live (D260): the staff member this live is assigned to, and the staff watching it visibly.
+  assignment       LiveRoomAssignment?
+  staffWatchers    LiveRoomStaffWatcher[]
   audience         LiveRoomAudience[]
   reports          Report[]
   /// v1.60-live (D250): what the team did on this live from the panel.
@@ -6282,4 +6289,48 @@ model ProfileVisit {
   @@id([ownerId, visitorId], map: "profile_visits_pkey")
   @@index([ownerId, lastVisitedAt(sort: Desc)], map: "profile_visits_owner_last_idx")
   @@map("profile_visits")
+}
+
+/// v1.63-live (D260, CONVENTIONS §10.95): a panel staff member's shift «في المناوبة». Lives are assigned only to
+/// staff on shift; going off shift hands their lives to the others.
+model AdminShift {
+  userId    String   @id @map("user_id") @db.Uuid
+  onShift   Boolean  @default(false) @map("on_shift")
+  /// When the shift last changed (on or off).
+  since     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([onShift], map: "admin_shifts_on_idx", where: raw("on_shift"))
+  @@map("admin_shifts")
+}
+
+/// v1.63-live (D260): the staff member who watches a LIVE room (one per room; removed when the live ends).
+model LiveRoomAssignment {
+  roomId     String   @id @map("room_id") @db.Uuid
+  adminId    String   @map("admin_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+
+  room  LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  admin User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId], map: "live_room_assignments_admin_idx")
+  @@map("live_room_assignments")
+}
+
+/// v1.63-live (D260): a staff member watching a live VISIBLY (`team:<adminId>:<nonce>`): listed with the
+/// «فريق كابسو» badge, never a viewer (not in `live_room_viewers`, not counted in `viewer_count`).
+model LiveRoomStaffWatcher {
+  roomId   String   @map("room_id") @db.Uuid
+  identity String   @db.VarChar(80)
+  adminId  String   @map("admin_id") @db.Uuid
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  room  LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  admin User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, identity])
+  @@index([adminId], map: "live_room_staff_watchers_admin_idx")
+  @@map("live_room_staff_watchers")
 }

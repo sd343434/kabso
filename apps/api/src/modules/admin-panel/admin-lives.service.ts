@@ -96,6 +96,7 @@ export class AdminLivesService {
     q: TableQuery & {
       mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER' | undefined;
       reported?: boolean | undefined;
+      assigned?: 'me' | undefined;
     },
     ctx: AdminContext,
   ) {
@@ -115,7 +116,11 @@ export class AdminLivesService {
             : {};
     const where: Prisma.LiveRoomWhereInput = {
       status: 'LIVE',
-      AND: [modeWhere, ...(reported ? [{ id: { in: [...reported.keys()] } }] : [])],
+      AND: [
+        modeWhere,
+        ...(reported ? [{ id: { in: [...reported.keys()] } }] : []),
+        ...(q.assigned === 'me' ? [{ assignment: { adminId: ctx.userId } }] : []),
+      ],
       ...(text
         ? {
             OR: [
@@ -145,6 +150,11 @@ export class AdminLivesService {
           category: { select: { nameAr: true, nameEn: true } },
           host,
           ...pkOpponent,
+          // v1.63-live (D260): who watches it, and the staff watching it visibly now.
+          assignment: {
+            select: { adminId: true, admin: { select: { profile: { select: { displayName: true } } } } },
+          },
+          _count: { select: { staffWatchers: true } },
         },
       }),
       this.prisma.liveRoom.count({ where }),
@@ -174,6 +184,10 @@ export class AdminLivesService {
         avatarUrl: r.host.profile?.avatarUrl ?? null,
       },
       pk: pkOf(r),
+      assignedTo: r.assignment
+        ? { id: r.assignment.adminId, displayName: r.assignment.admin.profile?.displayName ?? '' }
+        : null,
+      staffWatching: r._count.staffWatchers,
     }));
     return tableResult(
       this.audit,
@@ -191,7 +205,11 @@ export class AdminLivesService {
         ['viewers', (r) => r.viewers],
         ['started_at', (r) => r.startedAt],
       ],
-      { ...(q.mode ? { mode: q.mode } : {}), ...(q.reported ? { reported: true } : {}) },
+      {
+        ...(q.mode ? { mode: q.mode } : {}),
+        ...(q.reported ? { reported: true } : {}),
+        ...(q.assigned ? { assigned: q.assigned } : {}),
+      },
     );
   }
 

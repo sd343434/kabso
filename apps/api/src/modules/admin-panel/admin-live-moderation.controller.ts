@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
@@ -8,6 +8,7 @@ import type { AdminContext } from './admin-auth.service.js';
 import { AdminLiveModerationService, type ModerateBody } from './admin-live-moderation.service.js';
 import { pathUuid } from './admin-panel.schemas.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from './admin-session.guard.js';
+import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
 import { sendTable, tableQuery, type TableQuery } from './admin-tables.js';
 
 /** Every cookie-authenticated panel route: per-IP limit instead of the public default (§10.54.2). */
@@ -15,7 +16,14 @@ const PANEL_LIMIT = RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, 
 
 const reason = z.string().trim().min(1).max(500);
 
-const watchBody = z.strictObject({ purpose: z.enum(['PREVIEW', 'WATCH']).default('WATCH') });
+/**
+ * v1.63-live (D260): `visibility` — a WATCH is VISIBLE by default (listed with the «فريق كابسو» badge); HIDDEN needs
+ * `lives.watch.hidden`. A PREVIEW (the cards' muted previews) is always hidden.
+ */
+const watchBody = z.strictObject({
+  purpose: z.enum(['PREVIEW', 'WATCH']).default('WATCH'),
+  visibility: z.enum(['VISIBLE', 'HIDDEN']).optional(),
+});
 
 /**
  * The quick durations are 1 h, 24 h, 3 d, 7 d, 30 d («مخصّص» sends `until`); any whole number of hours up to a year is
@@ -82,6 +90,9 @@ const moderateBody = z
 
 const reasonBody = z.strictObject({ reason });
 
+/** v1.63-live (D260): the shift switch «في المناوبة». */
+const shiftBody = z.strictObject({ onShift: z.boolean() });
+
 const chatQuery = z.strictObject({ after: z.iso.datetime({ offset: true }).optional() });
 
 const deviceBansQuery = tableQuery(['createdAt'], 'createdAt')
@@ -98,7 +109,33 @@ const deviceBansQuery = tableQuery(['createdAt'], 'createdAt')
 @PANEL_LIMIT
 @UseGuards(AdminSessionGuard)
 export class AdminLiveModerationController {
-  constructor(private readonly moderation: AdminLiveModerationService) {}
+  constructor(
+    private readonly moderation: AdminLiveModerationService,
+    private readonly shifts: AdminStaffShiftsService,
+  ) {}
+
+  // ---- v1.63-live (D260, §10.95): the shift «في المناوبة» -------------------------------------------------------
+
+  @Get('me/shift')
+  @RequireCapability('lives.watch')
+  myShift(@CurrentAdmin() admin: AdminContext) {
+    return this.shifts.mine(admin);
+  }
+
+  @Put('me/shift')
+  @RequireCapability('lives.watch')
+  setMyShift(
+    @Body(new ZodValidationPipe(shiftBody)) body: z.infer<typeof shiftBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.shifts.set(body.onShift, admin);
+  }
+
+  @Get('shifts')
+  @RequireCapability('staff.shifts')
+  allShifts() {
+    return this.shifts.list();
+  }
 
   @Get('live-reports/summary')
   @RequireCapability('lives.reports')
@@ -114,7 +151,7 @@ export class AdminLiveModerationController {
     @Body(new ZodValidationPipe(watchBody)) body: z.infer<typeof watchBody>,
     @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.moderation.watchToken(pathUuid(id), body.purpose, admin);
+    return this.moderation.watchToken(pathUuid(id), body.purpose, admin, body.visibility);
   }
 
   @Get('lives/:roomId/chat')

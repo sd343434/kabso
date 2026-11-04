@@ -374,6 +374,14 @@ export enum AuditAction {
   DEVICE_BAN_CREATE = 'admin.device_ban.create',
   DEVICE_BAN_LIFT = 'admin.device_ban.lift',
   DEVICE_BAN_REFUSED = 'auth.device_banned',
+  /**
+   * v1.63-live (D260, §10.95): staff presence in lives — a LIVE room assigned to a staff member on shift (no actor: the
+   * service decides) {adminId, reason live_start | shift_on | shift_off | sweep | reported, reports, previousAdminId};
+   * a staff member's shift switched on or off from the panel {assigned / released lives}.
+   */
+  ADMIN_LIVE_ASSIGN = 'admin.live.assign',
+  ADMIN_SHIFT_ON = 'admin.shift.on',
+  ADMIN_SHIFT_OFF = 'admin.shift.off',
   // v1.69-social (DRAFT, D204): recharge orders with escrow — each state change (before/after, the coins moved), an
   // admin's view of a disputed order and of its pictures, an admin's message «الإدارة», a dispute's decision, and an
   // exchange rate set or cleared (OWNER / FINANCE, panel or CLI).

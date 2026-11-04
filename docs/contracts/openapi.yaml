@@ -229,6 +229,13 @@ info:
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
+    **D260 (DRAFT v1.63-live)** staff presence in lives (CONVENTIONS §10.95): a staff member's shift «في المناوبة»
+    (`getAdminMyShift`, `setAdminMyShift`; OWNER: `listAdminShifts`), every LIVE room assigned to one staff member on
+    shift (spread by load, reported lives first and to OWNER / MODERATION; `listAdminLives?assigned=me` «بثوثي»,
+    `AdminLiveRow.assignedTo`, `staffWatching`), and a VISIBLE watch (`createAdminLiveWatchToken` `visibility`, default
+    VISIBLE for WATCH: identity `team:<adminId>:<nonce>`, not hidden, listed in `LiveViewerPage.staff` with the
+    «فريق كابسو» badge, never counted in `viewerCount`); HIDDEN needs `lives.watch.hidden` (OWNER, MODERATION).
+    Capabilities `lives.watch.hidden`, `staff.shifts` (OWNER); audit `admin.live.assign`, `admin.shift.on|off`.
     **D254 (DRAFT v1.62-live)** the level-up banner «شريط ترقية المستويات»: when someone's support (`SUPPORT`) or
     charm (`ATTRACTIVENESS`) level rises in a live (a gift send or the host's tap charm) to the OWNER's threshold or
     above (`levelTickerMinLevel`, default 30, 1–100), every LIVE room — its own included — gets the data message
@@ -13059,12 +13066,78 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/me/shift:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminMyShift
+      summary: "The signed-in staff member's shift «في المناوبة» and their lives (lives.watch)"
+      description: |
+        (v1.63-live, D260, §10.95) Lives are assigned only to staff on shift (OWNER, MODERATION, SUPPORT).
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminShift' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: setAdminMyShift
+      summary: "Goes on or off shift (lives.watch; audited)"
+      description: |
+        (v1.63-live, D260, §10.95) Idempotent. Going on shift takes a share of the lives nobody watches (by load);
+        going off shift hands one's lives to the others on shift (or leaves them unassigned). A change is audited
+        `admin.shift.on` / `admin.shift.off` and each new assignment `admin.live.assign`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminShiftRequest' }
+      responses:
+        '200':
+          description: The shift now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminShift' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/shifts:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminShifts
+      summary: "Who is on shift and how many lives each watches (staff.shifts: OWNER)"
+      description: |
+        (v1.63-live, D260, §10.95) Every OWNER / MODERATION / SUPPORT account, on shift first.
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminShiftList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/lives/{roomId}/watch-token:
     post:
       tags: [admin-panel]
       operationId: createAdminLiveWatchToken
-      summary: "A hidden observer's media token for a live (lives.watch: OWNER, MODERATION, SUPPORT; audited)"
+      summary: "An observer's media token for a live — visible «فريق كابسو» or hidden (lives.watch: OWNER, MODERATION, SUPPORT; HIDDEN WATCH also lives.watch.hidden; audited)"
       description: |
+        (v1.63-live, D260, §10.95) `visibility`: a WATCH is VISIBLE by default — identity `team:<adminId>:<nonce>`,
+        subscribe-only but NOT hidden, listed in the live's viewers (`LiveViewerPage.staff`) with the «فريق كابسو»
+        badge and never counted in `viewerCount`. HIDDEN (the D250 observer below) needs `lives.watch.hidden` (OWNER,
+        MODERATION; SUPPORT → 403 `AUTH_FORBIDDEN`). A PREVIEW and the PK `opponent` room are always hidden. The audit
+        gains `visibility`.
+
         (v1.60-live, D250, §10.91.1) Subscribe only — no publishing, no data — with `hidden` set, so neither the host
         nor the viewers see the observer; identity `staff:<adminId>:<nonce>`, never recorded or counted as a viewer.
         A token joins within 2 minutes (the media server renews a joined session). `purpose` PREVIEW (a card's muted
@@ -13338,6 +13411,13 @@ paths:
         schema:
           type: string
           enum: ['true', 'false']
+      - name: assigned
+        in: query
+        required: false
+        description: (v1.63-live, D260, §10.95) «بثوثي» — `me` lists only the lives assigned to the signed-in staff member; combinable with the others.
+        schema:
+          type: string
+          enum: [me]
       responses:
         '200':
           description: OK.
@@ -19580,6 +19660,56 @@ components:
           oneOf:
           - $ref: '#/components/schemas/AdminLivePk'
           - type: 'null'
+        assignedTo:
+          description: (v1.63-live, D260) the staff member on shift this live is assigned to; null while nobody is on shift.
+          oneOf:
+          - $ref: '#/components/schemas/AdminLiveAssignee'
+          - type: 'null'
+        staffWatching:
+          type: integer
+          minimum: 0
+          description: (v1.63-live, D260) staff watching it visibly now («فريق كابسو» in the live).
+    AdminLiveAssignee:
+      type: object
+      required: [id, displayName]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+    AdminShift:
+      type: object
+      description: (v1.63-live, D260, §10.95) the signed-in staff member's shift «في المناوبة».
+      required: [onShift, since, assignedLives]
+      properties:
+        onShift: { type: boolean }
+        since: { type: [string, 'null'], format: date-time, description: When the shift last changed; null when never set. }
+        assignedLives: { type: integer, minimum: 0, description: The lives on air assigned to them now. }
+    UpdateAdminShiftRequest:
+      type: object
+      additionalProperties: false
+      required: [onShift]
+      properties:
+        onShift: { type: boolean }
+    AdminShiftRow:
+      type: object
+      required: [user, roles, onShift, since, assignedLives]
+      properties:
+        user: { $ref: '#/components/schemas/AdminPersonRef' }
+        roles:
+          type: array
+          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE] }
+        onShift: { type: boolean }
+        since: { type: [string, 'null'], format: date-time }
+        assignedLives: { type: integer, minimum: 0 }
+    AdminShiftList:
+      type: object
+      description: (v1.63-live, D260) every watch staff member (OWNER, MODERATION, SUPPORT), on shift first.
+      required: [data, onShift, unassignedLives]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminShiftRow' }
+        onShift: { type: integer, minimum: 0 }
+        unassignedLives: { type: integer, minimum: 0, description: Lives on air nobody watches (nobody on shift). }
     AdminLivePk:
       type: object
       description: (v1.54-live, D241) the other side of the room's open PK match.
@@ -19604,21 +19734,26 @@ components:
       additionalProperties: false
       properties:
         purpose: { type: string, enum: [PREVIEW, WATCH], default: WATCH }
+        visibility:
+          type: string
+          enum: [VISIBLE, HIDDEN]
+          description: (v1.63-live, D260) WATCH only (a PREVIEW is always hidden); default VISIBLE. HIDDEN needs `lives.watch.hidden`.
     AdminLiveMediaAccess:
       type: object
-      description: (v1.60-live, D250) a hidden, subscribe-only observer's access to one media room.
+      description: (v1.60-live, D250) a subscribe-only observer's access to one media room — hidden (`staff:`), or (v1.63-live, D260) visible (`team:`).
       required: [roomId, url, token, identity, expiresAt]
       properties:
         roomId: { type: string, format: uuid }
         url: { type: string, description: The media server's WebSocket URL. }
         token: { type: string }
-        identity: { type: string, pattern: '^staff:', description: "`staff:<adminId>:<nonce>`." }
+        identity: { type: string, pattern: '^(staff|team):', description: "`staff:<adminId>:<nonce>` (hidden) or `team:<adminId>:<nonce>` (visible, D260)." }
         expiresAt: { type: string, format: date-time, description: Join before this time. }
     AdminLiveWatchAccess:
       type: object
       required: [purpose, main, opponent]
       properties:
         purpose: { type: string, enum: [PREVIEW, WATCH] }
+        visibility: { type: string, enum: [VISIBLE, HIDDEN], description: "(v1.63-live, D260) of `main` (the opponent is always hidden)." }
         main: { $ref: '#/components/schemas/AdminLiveMediaAccess' }
         opponent:
           description: WATCH only — the other room of the live's open PK, else null.
@@ -24018,7 +24153,21 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/LiveViewer' }
+        staff:
+          type: array
+          description: |
+            (v1.63-live, D260, §10.95) the Kabso staff watching this live now (one per staff member, earliest first),
+            shown above the viewers with the «فريق كابسو» / «Kabso Team» badge — never counted in `viewerCount`, never in
+            a support ranking, no user card. First page only (empty with a `cursor`). Absent from older servers.
+          items: { $ref: '#/components/schemas/LiveStaffWatcher' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    LiveStaffWatcher:
+      type: object
+      required: [displayName, avatarUrl, since]
+      properties:
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'] }
+        since: { type: string, format: date-time }
     # ---- v1.7-live (DRAFT, CP-011) --------------------------------------------------------
     LiveSeatCount:
       type: integer
