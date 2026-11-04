@@ -62,7 +62,8 @@ export interface PublicProfileDto {
   /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
   rechargeBadge?: RechargeBadgeDto;
   /** v1.83-social (D258, §10.94): present only while the user holds an active VIP (`UserVip`). */
-  vip?: { tier: string; rank: number; color: string };
+  /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
+  vip?: { tier: string; rank: number; color: string; off?: string[] };
   /** v1.76-social (D218, §10.73.3): the profile cover (1 080 px), or null (the app's Kabso gradient). */
   coverUrl: string | null;
   /** v1.76-social (D218): the country the user chose (D133, ISO alpha-2), or null. */
@@ -195,7 +196,11 @@ export class PublicProfileService {
       // v1.83-social (D258): the VIP membership (shown while active).
       this.prisma.vipMembership.findUnique({
         where: { userId: user.id },
-        select: { expiresAt: true, tier: { select: { code: true, sortOrder: true, color: true } } },
+        select: {
+          expiresAt: true,
+          offPerks: true,
+          tier: { select: { code: true, sortOrder: true, color: true } },
+        },
       }),
     ]);
     // v1.83-social (D258, §10.94.9): someone else's opening is a visit («من زار ملفي»); never fails the read.
@@ -205,7 +210,11 @@ export class PublicProfileService {
       });
     }
     const shown = activeRechargeBadge(badge, new Date());
-    const vip = activeVipOf({ vipMembership: membership }, new Date());
+    // v1.65-live (D264): a profile card or frame worn from the bag covers the VIP one (one worn item per kind).
+    const vip = activeVipOf({ vipMembership: membership }, new Date(), [
+      ...(profileCard ? ['PROFILE_CARD'] : []),
+      ...(avatarFrame ? ['AVATAR_FRAME'] : []),
+    ]);
     return {
       id: user.id,
       username: user.username,

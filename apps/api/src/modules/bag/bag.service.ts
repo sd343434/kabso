@@ -13,8 +13,28 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { blockedEitherWayIn, lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService } from '../users/users.service.js';
 import { inCoinDebtIn } from '../wallet/wallet-ledger.js';
+import {
+  isVipOnlyBagCategory,
+  VIP_BAG_PERKS,
+  vipBagCode,
+  vipBagIn,
+  vipBagPerkIn,
+  vipBagPerkOf,
+  vipNotWorn,
+  vipOffPerksAfter,
+  type VipBag,
+  type VipBagEntry,
+  type VipBagPerk,
+  type VipOnlyBagCategory,
+} from '../vip/vip-bag.js';
 import { addItemTimeIn, catalogueItemIn, lockItemHoldersIn } from './bag-grants.js';
-import { BAG_DAY_MS, isTransferable, type BagCategory, type BagItemSource } from './bag.catalogue.js';
+import {
+  BAG_CATEGORIES,
+  BAG_DAY_MS,
+  isTransferable,
+  type BagCategory,
+  type BagItemSource,
+} from './bag.catalogue.js';
 import type { BagQuery, EquipBody, SendBody } from './bag.schemas.js';
 import { assertNotRestricted } from '../users/account-control.js';
 
@@ -33,14 +53,27 @@ export interface BagCatalogueDto {
   data: BagCatalogueItemDto[];
 }
 
+/** v1.65-live (D264, §10.97): `BagItemVip` — where a VIP item comes from and its art. */
+export interface BagItemVipDto {
+  /** `VipTier.code` of the membership (the item may be inherited from a lower tier). */
+  tier: string;
+  tierName: string;
+  color: string;
+  /** The VIP perk code (AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE). */
+  perk: string;
+  animation: string | null;
+  still: string | null;
+}
+
 /** `BagItem`: an item the caller owns. */
 export interface BagOwnedItemDto {
   code: string;
-  category: BagCategory;
+  category: BagCategory | VipOnlyBagCategory;
   name: string;
   assetKey: string;
   acquiredAt: string;
-  source: BagItemSource;
+  /** v1.65-live (D264): `VIP` — a VIP member's tier item (derived from the membership; `vip` present). */
+  source: BagItemSource | 'VIP';
   equipped: boolean;
   /** v1.48-social (D171): null = permanent. */
   expiresAt: string | null;
@@ -48,6 +81,8 @@ export interface BagOwnedItemDto {
   giftedBy: UserSummaryDto | null;
   /** v1.48-social (D171): free items are not. */
   transferable: boolean;
+  /** v1.65-live (D264): only on a `VIP` item. */
+  vip?: BagItemVipDto;
 }
 
 /** `Bag`. */
@@ -64,7 +99,7 @@ export interface BagEquippedItemDto {
 
 /** `BagEquipped`: what the caller wears in one category (null: nothing). */
 export interface BagEquippedDto {
-  category: BagCategory;
+  category: BagCategory | VipOnlyBagCategory;
   equipped: BagEquippedItemDto | null;
 }
 
@@ -103,6 +138,38 @@ type OwnedRow = Prisma.UserBagItemGetPayload<{ include: typeof OWNED_INCLUDE }>;
 
 const SWEEP_BATCH = 5000;
 
+/** v1.65-live (D264): the categories in display order (stored first, then the VIP-only ones). */
+const CATEGORY_ORDER: readonly string[] = [...new Set([...BAG_CATEGORIES, ...Object.values(VIP_BAG_PERKS)])];
+
+/** v1.65-live (D264): a VIP item as a `BagItem` (its time is the membership's; never sent). */
+function vipItemDto(
+  bag: VipBag,
+  item: VipBagEntry,
+  equipped: boolean,
+  lang: ContentLanguage,
+): BagOwnedItemDto {
+  return {
+    code: vipBagCode(item.perk),
+    category: item.category,
+    name: lang === 'ar' ? item.titleAr : item.titleEn,
+    assetKey: `vip_${item.perk.toLowerCase()}`,
+    acquiredAt: bag.startedAt.toISOString(),
+    source: 'VIP',
+    equipped,
+    expiresAt: bag.expiresAt.toISOString(),
+    giftedBy: null,
+    transferable: false,
+    vip: {
+      tier: bag.tier.code,
+      tierName: lang === 'ar' ? bag.tier.nameAr : bag.tier.nameEn,
+      color: bag.tier.color,
+      perk: item.perk,
+      animation: item.animation,
+      still: item.still,
+    },
+  };
+}
+
 /**
  * The bag (الحقيبة, CP-019, owner D107, CONVENTIONS §10.22; v1.48-social D171, §10.45): the
  * catalogue, what a user owns now (never an expired item) and what they wear, and sending an item
@@ -136,8 +203,11 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
 
   /** `GET /bag/catalogue`: every item (of the category), by category then sort order. */
   async catalogue(query: BagQuery, lang: ContentLanguage): Promise<BagCatalogueDto> {
+    // v1.65-live (D264): VIP items are not in the catalogue (they come with a membership).
+    if (query.category && isVipOnlyBagCategory(query.category)) return { data: [] };
+    const category = query.category;
     const items = await this.prisma.bagItem.findMany({
-      where: query.category ? { category: query.category } : {},
+      where: category ? { category } : {},
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
     });
     return {
@@ -152,19 +222,42 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /** `GET /me/bag`: the caller's items owned now (of the category), in catalogue order. */
+  /**
+   * `GET /me/bag`: the caller's items owned now (of the category), in catalogue order. v1.65-live (D264, §10.97): a VIP
+   * member's tier items too (source `VIP`, first in their category), derived from the active membership.
+   */
   async mine(callerId: string, query: BagQuery, lang: ContentLanguage): Promise<BagDto> {
-    const rows = await this.prisma.userBagItem.findMany({
-      where: {
-        userId: callerId,
-        ...(query.category ? { category: query.category } : {}),
-        ...liveWhere(this.clock.now()),
-      },
-      include: OWNED_INCLUDE,
-      orderBy: [{ category: 'asc' }, { item: { sortOrder: 'asc' } }, { itemCode: 'asc' }],
-    });
+    const now = this.clock.now();
+    const category = query.category;
+    const rows =
+      category && isVipOnlyBagCategory(category)
+        ? []
+        : await this.prisma.userBagItem.findMany({
+            where: {
+              userId: callerId,
+              ...(category ? { category } : {}),
+              ...liveWhere(now),
+            },
+            include: OWNED_INCLUDE,
+            orderBy: [{ category: 'asc' }, { item: { sortOrder: 'asc' } }, { itemCode: 'asc' }],
+          });
     const visible = await this.visibleGivers(callerId, rows);
-    return { data: rows.map((r) => this.ownedDto(r, lang, visible)) };
+    const owned = rows.map((r) => this.ownedDto(r, lang, visible));
+    const vip = await vipBagIn(this.prisma, callerId, now);
+    if (!vip) return { data: owned };
+    // One worn item per kind: a VIP item is worn unless taken off or a bag item of its kind is worn (that one shows).
+    const bagWorn = await this.wornCategories(callerId, now);
+    const notWorn = vipNotWorn(vip.off, bagWorn);
+    const vipItems = vip.items
+      .filter((i) => !category || i.category === category)
+      .map((i) => vipItemDto(vip, i, !notWorn.includes(i.perk), lang));
+    const rank = (c: string) => CATEGORY_ORDER.indexOf(c);
+    // A stable order: by category, the VIP item first in its category, then the stored rows as read.
+    const data = [...vipItems, ...owned]
+      .map((item, i) => ({ item, i }))
+      .sort((a, b) => rank(a.item.category) - rank(b.item.category) || a.i - b.i)
+      .map((x) => x.item);
+    return { data };
   }
 
   /** Givers among `rows` the caller may see: ACTIVE and no block either way (§10.45). */
@@ -210,8 +303,32 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
    * calls), so concurrent calls apply one after the other.
    */
   async equip(callerId: string, body: EquipBody, lang: ContentLanguage): Promise<BagEquippedDto> {
-    const { category, code } = body;
+    const { code } = body;
     const now = this.clock.now();
+    // v1.65-live (D264, §10.97): a VIP item (`vip:<PERK>`), or a VIP-only category.
+    const vipPerk = vipBagPerkIn(body.category);
+    if (isVipOnlyBagCategory(body.category) || (code !== null && code.startsWith('vip:'))) {
+      const perk = code === null ? vipPerk : vipBagPerkOf(code);
+      if (perk === null || VIP_BAG_PERKS[perk] !== body.category) {
+        throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
+      }
+      await this.prisma.$transaction(async (tx) => {
+        const held = await this.lockVipBagIn(tx, callerId, now);
+        if (code !== null && !held?.items.some((i) => i.perk === perk)) {
+          throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
+        }
+        if (held) await this.setVipWornIn(tx, callerId, held, perk, code !== null);
+        // One worn item per kind: wearing the VIP frame or card takes off the bag item worn of that kind.
+        if (code !== null && !isVipOnlyBagCategory(body.category)) {
+          await tx.userBagItem.updateMany({
+            where: { userId: callerId, category: body.category, equipped: true },
+            data: { equipped: false },
+          });
+        }
+      });
+      return this.equipped(callerId, body.category, lang);
+    }
+    const category = body.category;
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`
         DELETE FROM user_bag_items
@@ -223,6 +340,12 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
          FOR UPDATE`;
       if (code !== null && !rows.some((r) => r.item_code === code)) {
         throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
+      }
+      // v1.65-live (D264): one worn item per kind — wearing a bag item (or nothing) in a category with a VIP item takes
+      // the VIP one off (a renewal or an upgrade keeps that choice).
+      if (vipPerk !== null) {
+        const held = await this.lockVipBagIn(tx, callerId, now);
+        if (held) await this.setVipWornIn(tx, callerId, held, vipPerk, false);
       }
       const worn = rows.find((r) => r.equipped)?.item_code ?? null;
       if (worn === code) return;
@@ -242,18 +365,66 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     return this.equipped(callerId, category, lang);
   }
 
-  /** What the user wears in `category` now (an expired item is not worn). */
-  async equipped(userId: string, category: BagCategory, lang: ContentLanguage): Promise<BagEquippedDto> {
-    const row = await this.prisma.userBagItem.findFirst({
-      where: { userId, category, equipped: true, ...liveWhere(this.clock.now()) },
-      include: { item: true },
+  /** v1.65-live (D264): the stored categories in which the user wears an item now. */
+  private async wornCategories(userId: string, now: Date): Promise<string[]> {
+    const rows = await this.prisma.userBagItem.findMany({
+      where: { userId, equipped: true, ...liveWhere(now) },
+      select: { category: true },
     });
-    return {
-      category,
-      equipped: row
-        ? { code: row.itemCode, name: nameOf(row.item, lang), assetKey: row.item.assetKey }
-        : null,
-    };
+    return rows.map((r) => r.category);
+  }
+
+  /** v1.65-live (D264): locks the caller's membership row (a purchase upserts it) and reads their VIP bag. */
+  private async lockVipBagIn(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    now: Date,
+  ): Promise<VipBag | null> {
+    await tx.$queryRaw`SELECT 1 FROM vip_memberships WHERE user_id = ${userId}::uuid FOR UPDATE`;
+    return vipBagIn(tx, userId, now);
+  }
+
+  /** v1.65-live (D264): wears or takes off the VIP item of [perk] (only what the member took off is stored). */
+  private async setVipWornIn(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    bag: VipBag,
+    perk: VipBagPerk,
+    wear: boolean,
+  ): Promise<void> {
+    const off = vipOffPerksAfter(bag.off, perk, wear);
+    if (off.length === bag.off.length && off.every((p, i) => p === bag.off[i])) return;
+    await tx.vipMembership.update({ where: { userId }, data: { offPerks: off } });
+  }
+
+  /**
+   * What the user wears in `category` now (an expired item is not worn). v1.65-live (D264): a bag frame worn wins over
+   * the VIP frame; otherwise the category's VIP item while not taken off.
+   */
+  async equipped(
+    userId: string,
+    category: BagCategory | VipOnlyBagCategory,
+    lang: ContentLanguage,
+  ): Promise<BagEquippedDto> {
+    const now = this.clock.now();
+    const row = isVipOnlyBagCategory(category)
+      ? null
+      : await this.prisma.userBagItem.findFirst({
+          where: { userId, category, equipped: true, ...liveWhere(now) },
+          include: { item: true },
+        });
+    if (row) {
+      return {
+        category,
+        equipped: { code: row.itemCode, name: nameOf(row.item, lang), assetKey: row.item.assetKey },
+      };
+    }
+    const perk = vipBagPerkIn(category);
+    const vip = perk === null ? null : await vipBagIn(this.prisma, userId, now);
+    const item = vip?.items.find((i) => i.perk === perk && i.on);
+    if (!vip || !item) return { category, equipped: null };
+    const dto = vipItemDto(vip, item, true, lang);
+    return { category, equipped: { code: dto.code, name: dto.name, assetKey: dto.assetKey } };
   }
 
   /** `PublicProfile.profileCard`: the PROFILE_CARD the user wears now, or null. */

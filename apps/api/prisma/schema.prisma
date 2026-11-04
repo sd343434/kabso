@@ -6219,6 +6219,8 @@ model VipMembership {
   startedAt DateTime @map("started_at") @db.Timestamptz(3)
   expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// v1.65-live (D264, §10.97): the VIP bag items the member took off (perk codes); a new membership starts empty.
+  offPerks  String[] @default([]) @map("off_perks")
 
   user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   tier VipTier @relation(fields: [tierId], references: [id], onDelete: Restrict)

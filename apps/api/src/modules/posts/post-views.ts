@@ -6,6 +6,7 @@ import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
 import { activeRechargeBadge } from '../recharge/recharge-badges.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
+import { vipNotWorn } from '../vip/vip-bag.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -75,7 +76,11 @@ export function userSummary(
     /** v1.58-social (D189); absent in older selects. */
     ownedAgency?: { hostCode: string | null; suspendedAt: Date | null; status?: 'OPEN' | 'CLOSED' } | null;
     /** v1.83-social (D258); absent in older selects. */
-    vipMembership?: { expiresAt: Date; tier: { code: string; sortOrder: number; color: string } } | null;
+    vipMembership?: {
+      expiresAt: Date;
+      offPerks?: string[];
+      tier: { code: string; sortOrder: number; color: string };
+    } | null;
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -106,18 +111,39 @@ export function userSummary(
   };
 }
 
-/** v1.83-social (D258, §10.94): the active VIP to show, or null. */
+/**
+ * v1.83-social (D258, §10.94): the active VIP to show, or null. v1.65-live (D264, §10.97): `off` — the tier items not
+ * worn: taken off in the bag, or covered by a bag item worn of the same kind (one frame, one card: [bagWorn] are the
+ * categories of the stored items worn now; by default those of `user.bagItems`).
+ */
 export function activeVipOf(
   user: {
     status?: string;
-    vipMembership?: { expiresAt: Date; tier: { code: string; sortOrder: number; color: string } } | null;
+    bagItems?: readonly WornFrameRow[];
+    vipMembership?: {
+      expiresAt: Date;
+      offPerks?: string[];
+      tier: { code: string; sortOrder: number; color: string };
+    } | null;
   },
   now: Date,
-): { tier: string; rank: number; color: string } | null {
+  bagWorn?: readonly string[],
+): { tier: string; rank: number; color: string; off?: string[] } | null {
   const m = user.vipMembership;
   if (!m || m.expiresAt.getTime() <= now.getTime()) return null;
   if (user.status !== undefined && user.status !== 'ACTIVE') return null;
-  return { tier: m.tier.code, rank: m.tier.sortOrder, color: m.tier.color };
+  const worn =
+    bagWorn ??
+    (user.bagItems ?? [])
+      .filter((r) => r.expiresAt === null || r.expiresAt > now)
+      .map((r) => r.category ?? 'AVATAR_FRAME');
+  const off = vipNotWorn(m.offPerks ?? [], worn);
+  return {
+    tier: m.tier.code,
+    rank: m.tier.sortOrder,
+    color: m.tier.color,
+    ...(off.length > 0 ? { off } : {}),
+  };
 }
 
 /**
@@ -134,8 +160,10 @@ export function hostAgentCodeOf(user: {
   return agency.hostCode;
 }
 
-/** v1.55-social (D186): a worn AVATAR_FRAME row of {@link USER_SUMMARY_SELECT}. */
+/** v1.55-social (D186): a worn AVATAR_FRAME row of {@link USER_SUMMARY_SELECT} (v1.65-live: or PROFILE_CARD). */
 export interface WornFrameRow {
+  /** v1.65-live (D264); absent in older selects (an AVATAR_FRAME then). */
+  readonly category?: string;
   readonly itemCode: string;
   readonly expiresAt: Date | null;
   readonly item: { readonly assetKey: string };
@@ -146,7 +174,9 @@ export function wornAvatarFrameOf(
   rows: readonly WornFrameRow[] | undefined,
   now: Date = new Date(),
 ): { code: string; assetKey: string } | null {
-  const row = rows?.find((r) => r.expiresAt === null || r.expiresAt > now);
+  const row = rows?.find(
+    (r) => (r.category ?? 'AVATAR_FRAME') === 'AVATAR_FRAME' && (r.expiresAt === null || r.expiresAt > now),
+  );
   return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;
 }
 
@@ -170,16 +200,24 @@ export const USER_SUMMARY_SELECT = {
   // v1.58-social (D189): the host-agent badge (`UserSummary.hostAgent`).
   ownedAgency: { select: { hostCode: true, suspendedAt: true, status: true } },
   // v1.55-social (D186): the avatar frame worn (`UserSummary.avatarFrame`; at most one per category).
+  // v1.65-live (D264, §10.97): and whether a profile card is worn (it covers the VIP card: one worn item per kind).
   bagItems: {
-    where: { category: 'AVATAR_FRAME', equipped: true },
-    select: { itemCode: true, expiresAt: true, item: { select: { assetKey: true } } },
-    take: 1,
+    where: {
+      category: { in: ['AVATAR_FRAME', 'PROFILE_CARD'] as ('AVATAR_FRAME' | 'PROFILE_CARD')[] },
+      equipped: true,
+    },
+    select: { category: true, itemCode: true, expiresAt: true, item: { select: { assetKey: true } } },
+    take: 2,
   },
   // v1.56-social (D187): the daily recharge badge (`UserSummary.rechargeBadge`).
   rechargeBadge: { select: { tier: true, until: true } },
   // v1.83-social (D258, §10.94): the VIP membership (`UserSummary.vip` while active).
   vipMembership: {
-    select: { expiresAt: true, tier: { select: { code: true, sortOrder: true, color: true } } },
+    select: {
+      expiresAt: true,
+      offPerks: true,
+      tier: { select: { code: true, sortOrder: true, color: true } },
+    },
   },
 } as const;
 

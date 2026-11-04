@@ -18,6 +18,9 @@ import 'package:kabso_live/features/bag/presentation/host_frame_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
+import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -73,6 +76,10 @@ abstract final class KBagMetrics {
 ///
 /// The bottom bar (both tabs) names the selection with where it came from
 /// and offers «استخدام» / «إزالة» and «إرسال» (D171's send sheet).
+///
+/// D264 (§10.97): a VIP member's tier items are listed too (source `VIP`,
+/// «من عضوية VIP 1», the membership's time left, never sent), worn by
+/// default and taken off or worn again like any item.
 class BagScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -349,8 +356,10 @@ class _BagScreenState extends ConsumerState<BagScreen> {
   /// select it: the bar takes it off or sends it).
   Widget _toolsTab(List<BagItem> items) {
     final l10n = context.l10n;
+    // D264: the VIP-only categories have a slot only while owned.
     final slots = <String>{
-      for (final c in BagCategory.values) c.wire,
+      for (final c in BagCategory.values)
+        if (c.always) c.wire,
       ..._ownedCategories(items),
     }.toList();
     return ListView(
@@ -615,6 +624,10 @@ IconData bagCategoryGlyph(String category) =>
     switch (BagCategory.fromWire(category)) {
       BagCategory.profileCard => Icons.badge_rounded,
       BagCategory.avatarFrame => Icons.account_circle_rounded,
+      BagCategory.chatBubble => Icons.chat_bubble_rounded,
+      BagCategory.entryBanner => Icons.flag_rounded,
+      BagCategory.entryEffect => Icons.directions_car_rounded,
+      BagCategory.micWave => Icons.graphic_eq_rounded,
       null => Icons.auto_awesome_rounded,
     };
 
@@ -1076,6 +1089,10 @@ class BagItemPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // D264: a VIP item shows its perk's art, else the tier's token.
+    if (item.vip case final vip?) {
+      return VipBagItemPreview(item: item, vip: vip, width: width);
+    }
     if (BagCategory.fromWire(item.category) == BagCategory.profileCard) {
       return ProfileCardPreview(
         header: KabsoProfileHeader.byCode(item.code),
@@ -1111,6 +1128,76 @@ class BagItemPreview extends StatelessWidget {
         color: p.textTertiary,
         size: width * 0.3,
       ),
+    );
+  }
+}
+
+/// D264: a VIP item's picture — the perk's art (its still, or the SVGA
+/// where it plays), else a token in deep shades of the tier's colour with
+/// the category's glyph and «VIP».
+class VipBagItemPreview extends StatelessWidget {
+  const new({
+    required this.item,
+    required this.vip,
+    required this.width,
+    super.key,
+  });
+
+  final BagItem item;
+  final BagItemVip vip;
+  final double width;
+
+  static Key keyOf(String code) => Key('bag.vipPreview.$code');
+
+  @override
+  Widget build(BuildContext context) {
+    final shades = vipBubbleShades(Color(vipColorValue(vip.color)));
+    final token = Container(
+      width: width,
+      height: width,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(KRadius.sm),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [shades.$1, shades.$2],
+        ),
+        border: Border.all(color: const Color(0xCCFFE08A)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            bagCategoryGlyph(item.category),
+            color: const Color(0xFFFFE08A),
+            size: width * 0.38,
+          ),
+          Text(
+            'VIP',
+            textDirection: TextDirection.ltr,
+            textScaler: TextScaler.noScaling,
+            style: TextStyle(
+              fontSize: width * 0.18,
+              height: 1.1,
+              fontWeight: FontWeight.w800,
+              fontStyle: FontStyle.italic,
+              color: const Color(0xFFFFFFFF),
+            ),
+          ),
+        ],
+      ),
+    );
+    final hasArt = vip.still != null || vip.animation != null;
+    return SizedBox.square(
+      key: keyOf(item.code),
+      dimension: width,
+      child: hasArt
+          ? VipAnimatedArt(
+              animation: vip.animation,
+              still: vip.still,
+              placeholder: token,
+            )
+          : token,
     );
   }
 }

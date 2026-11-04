@@ -108,9 +108,16 @@ Map<String, dynamic>? rechargeBadgeToJson(RechargeBadge? badge) => badge == null
 /// v1.83-social (D258, §10.94): a person's active VIP — the tier's code, its
 /// place in the panel's order and its colour (ARGB). The perks and their art
 /// come from the VIP catalogue (`GET /vip/tiers`, by [tier]).
+/// v1.65-live (D264, §10.97): [off] — the tier items the member took off in
+/// the bag (perk codes); the look leaves them out.
 @immutable
 class UserVip {
-  const new({required this.tier, required this.rank, required this.color});
+  const new({
+    required this.tier,
+    required this.rank,
+    required this.color,
+    this.off = const {},
+  });
 
   final String tier;
   final int rank;
@@ -118,21 +125,33 @@ class UserVip {
   /// ARGB.
   final int color;
 
+  /// D264: the perks taken off (empty: every tier item worn).
+  final Set<String> off;
+
   @override
   bool operator ==(Object other) =>
       other is UserVip &&
       other.tier == tier &&
       other.rank == rank &&
-      other.color == color;
+      other.color == color &&
+      other.off.length == off.length &&
+      other.off.containsAll(off);
 
   @override
-  int get hashCode => Object.hash(tier, rank, color);
+  int get hashCode =>
+      Object.hash(tier, rank, color, Object.hashAllUnordered(off));
 
   @override
   String toString() => 'UserVip($tier, $rank)';
 }
 
-/// Reads `UserVip` (`{tier, rank, color}`); anything else is no VIP.
+/// D264: `UserVip.off` (absent: nothing taken off).
+Set<String> _vipOff(Object? json) => switch (json) {
+  {'off': final List<dynamic> list} => {...list.whereType<String>()},
+  _ => const {},
+};
+
+/// Reads `UserVip` (`{tier, rank, color, off?}`); anything else is no VIP.
 UserVip? userVipFromJson(Object? json) => switch (json) {
   {
     'tier': final String tier,
@@ -144,6 +163,7 @@ UserVip? userVipFromJson(Object? json) => switch (json) {
       tier: tier,
       rank: rank,
       color: 0xFF000000 | int.parse(color.substring(1), radix: 16),
+      off: _vipOff(json),
     ),
   _ => null,
 };
@@ -154,7 +174,12 @@ String _hex6(int argb) =>
 /// The wire shape of [userVipFromJson].
 Map<String, dynamic>? userVipToJson(UserVip? vip) => vip == null
     ? null
-    : {'tier': vip.tier, 'rank': vip.rank, 'color': '#${_hex6(vip.color)}'};
+    : {
+        'tier': vip.tier,
+        'rank': vip.rank,
+        'color': '#${_hex6(vip.color)}',
+        if (vip.off.isNotEmpty) 'off': [...vip.off],
+      };
 
 /// `UserSummary`: minimal public identity of a user. Never has an email.
 @freezed

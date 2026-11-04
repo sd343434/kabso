@@ -11,6 +11,7 @@ import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { dateValue, programWindowsIn } from '../programs/programs-time.js';
 import { creditIn, debitIn } from '../wallet/wallet-ledger.js';
+import { wearVipItemsIn } from './vip-bag.js';
 import { vipHoldsPerkIn, vipPerkAmountIn } from './vip-perks.js';
 import { PROFILE_VISITORS_DAYS, PROFILE_VISITORS_MAX } from './profile-visits.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
@@ -445,8 +446,18 @@ export class VipService {
         const membership = await tx.vipMembership.upsert({
           where: { userId },
           create: { userId, tierId: tier.id, startedAt: plan.startedAt, expiresAt: plan.expiresAt },
-          update: { tierId: tier.id, startedAt: plan.startedAt, expiresAt: plan.expiresAt },
+          update: {
+            tierId: tier.id,
+            startedAt: plan.startedAt,
+            expiresAt: plan.expiresAt,
+            // v1.65-live (D264, §10.97): a new membership wears every tier item again (a renewal or an upgrade keeps
+            // what the member took off in the bag).
+            ...(plan.kind === 'NEW' ? { offPerks: [] } : {}),
+          },
         });
+        // D264 (owner: one worn item per kind): the tier's frame and card replace the bag's worn ones — on a new
+        // membership all of them, on an upgrade or a renewal those the member did not take off.
+        await wearVipItemsIn(tx, userId, tier.sortOrder, membership.offPerks);
         await tx.auditLog.create({
           data: {
             action: AuditAction.VIP_PURCHASE,

@@ -6,6 +6,25 @@ part of 'bag_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_BagItemVip _$BagItemVipFromJson(Map<String, dynamic> json) => _BagItemVip(
+  tier: json['tier'] as String,
+  tierName: json['tierName'] as String,
+  color: json['color'] as String,
+  perk: json['perk'] as String,
+  animation: json['animation'] as String?,
+  still: json['still'] as String?,
+);
+
+Map<String, dynamic> _$BagItemVipToJson(_BagItemVip instance) =>
+    <String, dynamic>{
+      'tier': instance.tier,
+      'tierName': instance.tierName,
+      'color': instance.color,
+      'perk': instance.perk,
+      'animation': instance.animation,
+      'still': instance.still,
+    };
+
 _BagTransfer _$BagTransferFromJson(Map<String, dynamic> json) => _BagTransfer(
   id: json['id'] as String,
   code: json['code'] as String,
@@ -74,6 +93,9 @@ _BagItem _$BagItemFromJson(Map<String, dynamic> json) => _BagItem(
       ? null
       : UserSummary.fromJson(json['giftedBy'] as Map<String, dynamic>),
   transferable: json['transferable'] as bool? ?? false,
+  vip: json['vip'] == null
+      ? null
+      : BagItemVip.fromJson(json['vip'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$BagItemToJson(_BagItem instance) => <String, dynamic>{
@@ -87,6 +109,7 @@ Map<String, dynamic> _$BagItemToJson(_BagItem instance) => <String, dynamic>{
   'expiresAt': instance.expiresAt?.toIso8601String(),
   'giftedBy': instance.giftedBy,
   'transferable': instance.transferable,
+  'vip': instance.vip,
 };
 
 _BagEquippedItem _$BagEquippedItemFromJson(Map<String, dynamic> json) =>

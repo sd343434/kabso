@@ -2650,3 +2650,17 @@ each shift change and at `LIVE_SWEEP_INTERVAL_SECONDS` (0 turns the periodic pas
 - **Rollback.** The tables are only read by D260 code; an older API ignores them (a `team:` participant joined from an older
   panel cannot happen: the token comes from the new API).
 
+### 5.56 VIP items in the bag «عناصر VIP في الحقيبة» (migration `20270308090000_vip_bag`; D264) — [IMPLEMENTED, draft contract v1.65-live; not deployed, not device-tested]
+
+CONVENTIONS §10.97. The migration adds `vip_memberships.off_perks` (text[], default empty, checked against the six wearable
+perk codes) and, once, takes off the bag frame / profile card of members active at deploy time where their tier holds that
+perk (owner: one worn item per kind — they wore both). No env setting. The VIP items are derived from the membership on
+every `GET /me/bag` (nothing to backfill or sweep).
+
+- **Visible change.** Active VIP members: the bag lists their tier items with the membership's time; where they wore a bag
+  frame or card (the free «الأرنب الملكي» included), the VIP one is worn instead after the migration — they can wear the
+  bag one again from the bag. A new VIP purchase does the same; when VIP ends those slots stay empty.
+- **Older apps.** They show the VIP-only items under «أدوات أخرى» and ignore `UserVip.off`, so until updated they still
+  draw a VIP item that is taken off or covered by a bag item (e.g. the VIP card with the bag's card).
+- **Rollback.** An older API ignores `off_perks`; the bag rows the migration took off stay off (re-wear from the bag).
+

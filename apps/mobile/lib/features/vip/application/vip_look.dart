@@ -134,7 +134,8 @@ Color vipNameTint(Color color) {
   return (shade(t), shade((t + 0.2).clamp(0, 1)));
 }
 
-/// D258: the look of [vip] in [catalog] (null without a VIP).
+/// D258: the look of [vip] in [catalog] (null without a VIP). D264: the
+/// tier items the member took off in the bag ([UserVip.off]) are left out.
 VipLook? vipLookOf(UserVip? vip, VipTierList? catalog) {
   if (vip == null) return null;
   final tiers = [...?catalog?.tiers]
@@ -151,6 +152,7 @@ VipLook? vipLookOf(UserVip? vip, VipTierList? catalog) {
       if (p.available) perks[p.code] = p;
     }
   }
+  perks.removeWhere((code, _) => vip.off.contains(code));
   return VipLook(vip: vip, tier: own, perks: perks);
 }
 

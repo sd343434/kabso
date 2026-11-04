@@ -1,7 +1,15 @@
 import { z } from 'zod';
+import { VIP_ONLY_BAG_CATEGORIES, type VipOnlyBagCategory } from '../vip/vip-bag.js';
 import { BAG_CATEGORIES, BAG_MAX_DAYS, type BagCategory } from './bag.catalogue.js';
 
-const categorySchema = z.enum(BAG_CATEGORIES as [BagCategory, ...BagCategory[]]);
+/** v1.65-live (D264, §10.97): the stored categories and the VIP-only ones (a VIP member's tier items). */
+const CATEGORIES: readonly (BagCategory | VipOnlyBagCategory)[] = [
+  ...BAG_CATEGORIES,
+  ...VIP_ONLY_BAG_CATEGORIES,
+];
+const categorySchema = z.enum(
+  CATEGORIES as [BagCategory | VipOnlyBagCategory, ...(BagCategory | VipOnlyBagCategory)[]],
+);
 
 /** `GET /bag/catalogue` and `GET /me/bag`: `?category=` (optional; all categories when absent). */
 export const bagQuerySchema = z.strictObject({

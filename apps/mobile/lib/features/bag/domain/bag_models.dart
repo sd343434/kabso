@@ -10,17 +10,29 @@ part 'bag_models.g.dart';
 /// `BagCategory`: the categories this app knows. The server adds more
 /// later; items of a category the app does not know are ignored (§10.22).
 enum BagCategory {
-  /// The decoration on the profile card's header.
+  /// The decoration on the profile card's header (D264: or the VIP card
+  /// art; one worn per kind).
   profileCard('PROFILE_CARD'),
 
   /// D169 / D186: the frame drawn around the person's photo (the support
-  /// tier frames, the active-host frames).
-  avatarFrame('AVATAR_FRAME');
+  /// tier frames, the active-host frames; D264: the VIP frame).
+  avatarFrame('AVATAR_FRAME'),
 
-  new(this.wire);
+  /// v1.65-live (D264, §10.97): VIP items only — the chat bubble, the
+  /// entry banner, the entry car (ENTRY_EFFECT) and the mic wave. Shown
+  /// only while owned.
+  chatBubble('CHAT_BUBBLE', always: false),
+  entryBanner('ENTRY_BANNER', always: false),
+  entryEffect('ENTRY_EFFECT', always: false),
+  micWave('MIC_WAVE', always: false);
+
+  new(this.wire, {this.always = true});
 
   /// The exact string used on the wire.
   final String wire;
+
+  /// Whether «قيد الاستخدام» shows its slot when nothing of it is owned.
+  final bool always;
 
   /// The category named [wire], or null when the app does not know it.
   static BagCategory? fromWire(String? wire) =>
@@ -44,6 +56,26 @@ abstract final class BagSource {
 
   /// A future store.
   static const purchase = 'PURCHASE';
+
+  /// v1.65-live (D264): a VIP member's tier item, there while the
+  /// membership is active ([BagItem.vip]); never sent.
+  static const vip = 'VIP';
+}
+
+/// `BagItemVip` (v1.65-live, D264, §10.97): the membership a VIP item comes
+/// from ([tierName], [color] `#RRGGBB`) and the perk's art.
+@freezed
+abstract class BagItemVip with _$BagItemVip {
+  const factory({
+    required String tier,
+    required String tierName,
+    required String color,
+    required String perk,
+    String? animation,
+    String? still,
+  }) = _BagItemVip;
+
+  factory fromJson(Map<String, dynamic> json) => _$BagItemVipFromJson(json);
 }
 
 /// `BagTransfer` (`POST /me/bag/transfers`, D171): an item sent; [remaining]
@@ -94,7 +126,9 @@ abstract class BagCatalogueItem with _$BagCatalogueItem {
 /// later, see [BagSource]); [equipped] is true for at most one item per
 /// category. v1.48-social (D171): [expiresAt] (null = permanent; the
 /// server never lists an expired item), [giftedBy] (the sender of a
-/// `GIFT`, when they may be shown) and [transferable].
+/// `GIFT`, when they may be shown) and [transferable]. v1.65-live (D264):
+/// [vip] on a VIP member's tier item (source `VIP`; its [expiresAt] is the
+/// membership's end).
 @freezed
 abstract class BagItem with _$BagItem {
   const factory({
@@ -108,6 +142,7 @@ abstract class BagItem with _$BagItem {
     DateTime? expiresAt,
     UserSummary? giftedBy,
     @Default(false) bool transferable,
+    BagItemVip? vip,
   }) = _BagItem;
 
   factory fromJson(Map<String, dynamic> json) => _$BagItemFromJson(json);

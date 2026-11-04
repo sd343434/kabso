@@ -11,6 +11,11 @@ String bagCategoryTitle(AppLocalizations l10n, String wire) =>
     switch (BagCategory.fromWire(wire)) {
       BagCategory.profileCard => l10n.bagCategoryProfileCard,
       BagCategory.avatarFrame => l10n.bagCategoryAvatarFrame,
+      // D264: a VIP member's tier items.
+      BagCategory.chatBubble => l10n.bagCategoryChatBubble,
+      BagCategory.entryBanner => l10n.bagCategoryEntryBanner,
+      BagCategory.entryEffect => l10n.bagCategoryEntryEffect,
+      BagCategory.micWave => l10n.bagCategoryMicWave,
       null => l10n.bagCategoryOther,
     };
 
@@ -44,7 +49,8 @@ String bagTimeLeft(AppLocalizations l10n, DateTime? expiresAt, DateTime now) {
 }
 
 /// Who the item came from (D171, owner): «هدية من Kabso», «هدية من @user»,
-/// a level reward, bought; null for a source this app does not word.
+/// a level reward, bought, (D264) «من عضوية VIP 1»; null for a source this
+/// app does not word.
 String? bagSourceLine(AppLocalizations l10n, BagItem item) =>
     switch (item.source) {
       BagSource.freeSignup ||
@@ -59,6 +65,7 @@ String? bagSourceLine(AppLocalizations l10n, BagItem item) =>
       BagSource.levelReward => l10n.bagFromLevel,
       BagSource.hostActive => l10n.bagFromHostActive,
       BagSource.purchase => l10n.bagFromPurchase,
+      BagSource.vip => l10n.bagFromVip(item.vip?.tierName ?? 'VIP'),
       _ => null,
     };
 
@@ -69,6 +76,7 @@ String? bagNoSendReason(AppLocalizations l10n, BagItem item) {
     BagSource.freeSignup || BagSource.backfill => l10n.bagNoSendFree,
     BagSource.levelReward => l10n.bagNoSendLevel,
     BagSource.hostActive => l10n.bagNoSendHostActive,
+    BagSource.vip => l10n.bagNoSendVip,
     _ => l10n.bagNoSendOther,
   };
 }

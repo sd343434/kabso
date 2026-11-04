@@ -13054,5 +13054,17 @@
   "liveKabsoTeamWatching": "{name} من فريق كابسو",
   "@liveKabsoTeamWatching": {"description": "D260: a screen reader's label of a staff row.", "placeholders": {"name": {"type": "String"}}},
   "liveKabsoTeamHere": "فريق كابسو يتابع هذا البث",
-  "@liveKabsoTeamHere": {"description": "D260: a screen reader's label of the team shield by the top viewers."}
+  "@liveKabsoTeamHere": {"description": "D260: a screen reader's label of the team shield by the top viewers."},
+  "bagCategoryChatBubble": "إطارات الرسائل",
+  "@bagCategoryChatBubble": {"description": "D264: a VIP member's tier items in the bag (§10.97)."},
+  "bagCategoryEntryBanner": "لافتات الدخول",
+  "@bagCategoryEntryBanner": {"description": "D264: a VIP member's tier items in the bag (§10.97)."},
+  "bagCategoryEntryEffect": "مؤثرات الدخول",
+  "@bagCategoryEntryEffect": {"description": "D264: a VIP member's tier items in the bag (§10.97)."},
+  "bagCategoryMicWave": "موجات المايك",
+  "@bagCategoryMicWave": {"description": "D264: a VIP member's tier items in the bag (§10.97)."},
+  "bagFromVip": "من عضوية {tier}",
+  "@bagFromVip": {"description": "D264: a VIP member's tier items in the bag (§10.97).", "placeholders": {"tier": {"type": "String"}}},
+  "bagNoSendVip": "عناصر VIP تابعة لعضويتك ولا تُرسل",
+  "@bagNoSendVip": {"description": "D264: a VIP member's tier items in the bag (§10.97)."}
 }

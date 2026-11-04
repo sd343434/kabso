@@ -229,6 +229,13 @@ info:
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
+    **D264 (DRAFT v1.65-live)** a VIP member's tier items in the bag (CONVENTIONS §10.97): `getMyBag` lists the wearable
+    VIP perks the active membership holds (AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT,
+    MIC_WAVE) as items with `source: VIP`, code `vip:<PERK>`, `expiresAt` = the membership's end and `BagItem.vip`
+    (tier, art) — derived on every read, never stored; `setMyBagEquipped` wears or takes them off. One worn item per kind:
+    the VIP frame / card and the bag's take each other off, a new membership replaces the worn ones; `UserVip.off` lists
+    the tier items not worn (the apps leave those perks out of the look). New `BagCategory` values CHAT_BUBBLE,
+    ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE (VIP items only) and `BagItemSource` VIP.
     **D260 (DRAFT v1.64-live)** staff presence in lives (CONVENTIONS §10.96): a staff member's shift «في المناوبة»
     (`getAdminMyShift`, `setAdminMyShift`; OWNER: `listAdminShifts`), every LIVE room assigned to one staff member on
     shift (spread by load, reported lives first and to OWNER / MODERATION; `listAdminLives?assigned=me` «بثوثي»,
@@ -7963,6 +7970,11 @@ paths:
         one item per category. Only items owned now: an item whose `expiresAt` has passed is never
         listed (v1.48-social, D171). Names follow `Accept-Language`, else the caller's locale. An
         unknown `category` → 400 `VALIDATION_FAILED` (`category` / `invalid_value`).
+        (v1.65-live, D264, §10.97) A VIP member's tier items too, first in their category: every wearable perk the
+        active membership holds (its tier's or a lower tier's), `source: VIP`, code `vip:<PERK>`, `acquiredAt` = the
+        membership's start, `expiresAt` = its end (counting down whether worn or not; a renewal moves it, the end
+        removes them), `transferable: false`, `vip` set. Derived from the membership on every read. `equipped`: worn
+        unless taken off; one worn item per category (a bag frame or card worn means the VIP one is not).
       parameters:
         - $ref: '#/components/parameters/BagCategoryQuery'
       responses:
@@ -7992,6 +8004,12 @@ paths:
         `code`, or an unknown field; 409
         `BAG_ITEM_NOT_OWNED`: the caller does not own `code` in that category (an unknown code
         too, and an expired item since v1.48-social); nothing changes then. Names follow `Accept-Language`.
+        (v1.65-live, D264, §10.97) A VIP item (`vip:<PERK>`, in its own category) is worn or taken off the same way;
+        the member's choice is kept with the membership (`UserVip.off`) through renewals and upgrades, and a new
+        membership wears everything again (its frame and card take off the bag's worn ones). AVATAR_FRAME and
+        PROFILE_CARD hold one worn item each: wearing the VIP one takes off the bag's and the other way round, and
+        `code: null` takes both off. The response names the VIP item while it is worn. A VIP code without an active membership holding that perk →
+        409 `BAG_ITEM_NOT_OWNED`.
       requestBody:
         required: true
         content:
@@ -8001,6 +8019,9 @@ paths:
               wear:
                 summary: Wear the emerald wings
                 value: { category: PROFILE_CARD, code: emerald_wings }
+              wearVip:
+                summary: (v1.65-live, D264) Wear the VIP chat bubble
+                value: { category: CHAT_BUBBLE, code: 'vip:CHAT_BUBBLE' }
               takeOff:
                 summary: Wear nothing
                 value: { category: PROFILE_CARD, code: null }
@@ -22887,6 +22908,12 @@ components:
         tier: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "`VipTier.code`." }
         rank: { type: integer, minimum: 1, description: "The tier's place in the panel's order (higher = higher tier)." }
         color: { type: string, pattern: '^#[0-9A-F]{6}$', description: "The tier's colour (the name colour of CHAT_NAME_COLOR)." }
+        off:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE] }
+          description: "(v1.65-live, D264, §10.97) The tier items the member does not wear: taken off in the bag, or a frame / profile card worn from the bag instead (one worn item per kind). The apps leave these perks out of the look. Absent when none."
     PublicProfile:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
@@ -26598,12 +26625,12 @@ components:
     # ---- v1.22-live (DRAFT, CP-019) — the bag ---------------------------------------------------
     BagCategory:
       type: string
-      enum: [PROFILE_CARD, AVATAR_FRAME]
-      description: "A bag category. PROFILE_CARD: the decoration on the profile card's header. AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames). More categories come later; clients ignore items of categories they do not know (§10.22)."
+      enum: [PROFILE_CARD, AVATAR_FRAME, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE]
+      description: "A bag category; one worn item each (v1.65-live, D264). PROFILE_CARD: the decoration on the profile card's header (v1.65-live, D264: or the VIP card art). AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames; v1.65-live, D264: the VIP frame too). (v1.65-live, D264, §10.97) VIP items only: CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT (the entry car), MIC_WAVE. More categories come later; clients ignore items of categories they do not know (§10.22)."
     BagItemSource:
       type: string
-      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE]
-      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
+      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE, VIP]
+      description: "(v1.65-live, D264) `VIP`: a VIP member's tier item, there while the membership is active (`BagItem.vip`; not transferable, `expiresAt` = the membership's end, §10.97). How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
     BagCatalogueItem:
       type: object
       required: [code, category, name, assetKey, sortOrder, free]
@@ -26639,6 +26666,18 @@ components:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
         transferable: { type: boolean, description: "(v1.48-social, D171) Whether `sendMyBagItem` accepts it (false for free items every account gets and for level rewards, source `LEVEL_REWARD`)." }
+        vip: { $ref: '#/components/schemas/BagItemVip' }
+    BagItemVip:
+      type: object
+      required: [tier, tierName, color, perk, animation, still]
+      description: "(v1.65-live, D264, §10.97) Present only on a `source: VIP` item: the membership's tier and the perk's art (the highest tier's for a perk several tiers list; null until the owner uploads it)."
+      properties:
+        tier: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$', description: "`VipTier.code` of the membership." }
+        tierName: { type: string, description: "The tier's name in the reader's language." }
+        color: { type: string, pattern: '^#[0-9A-F]{6}$' }
+        perk: { type: string, enum: [AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE] }
+        animation: { type: [string, 'null'], description: SVGA animation (asset path or https URL). }
+        still: { type: [string, 'null'], description: Still image (asset path or https URL). }
     Bag:
       type: object
       required: [data]

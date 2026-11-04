@@ -23748,6 +23748,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'فريق كابسو يتابع هذا البث'**
   String get liveKabsoTeamHere;
+
+  /// D264: a VIP member's tier items in the bag (§10.97).
+  ///
+  /// In ar, this message translates to:
+  /// **'إطارات الرسائل'**
+  String get bagCategoryChatBubble;
+
+  /// D264: a VIP member's tier items in the bag (§10.97).
+  ///
+  /// In ar, this message translates to:
+  /// **'لافتات الدخول'**
+  String get bagCategoryEntryBanner;
+
+  /// D264: a VIP member's tier items in the bag (§10.97).
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤثرات الدخول'**
+  String get bagCategoryEntryEffect;
+
+  /// D264: a VIP member's tier items in the bag (§10.97).
+  ///
+  /// In ar, this message translates to:
+  /// **'موجات المايك'**
+  String get bagCategoryMicWave;
+
+  /// D264: a VIP member's tier items in the bag (§10.97).
+  ///
+  /// In ar, this message translates to:
+  /// **'من عضوية {tier}'**
+  String bagFromVip(String tier);
+
+  /// D264: a VIP member's tier items in the bag (§10.97).
+  ///
+  /// In ar, this message translates to:
+  /// **'عناصر VIP تابعة لعضويتك ولا تُرسل'**
+  String get bagNoSendVip;
 }
 
 class _AppLocalizationsDelegate

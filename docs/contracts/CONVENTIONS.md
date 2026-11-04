@@ -6381,6 +6381,47 @@ neither). Older apps ignore `staff`.
 **Compatibility.** Additive for the apps. Panel: a WATCH without `visibility` is now visible (D250's panel always watched
 hidden); the panel sends `HIDDEN` from its «مراقبة خفية» switch. Media load: one extra subscriber per watched live.
 
+### 10.97 A VIP member's tier items in the bag — one worn item per kind *(v1.65-live, DRAFT — D264)*
+
+Owner: «ويجب عند تفعيل في اي بي ان تظهر العناصر في الحقيبة حتى وان لم يرتديه الشخص المدة تنقضي وتعد» — once a VIP
+membership is bought or renewed, the tier's items show in the bag (§10.22), and their time counts down from then whether
+worn or not. Owner, same day: every VIP item can be worn and taken off like any bag item, and **a person never wears two
+items of the same kind at once** (two frames, two profile cards, two bubbles, two entry effects). Builds on §10.93 /
+§10.94.
+
+- **Which items.** Every *wearable* perk the active membership holds (its tier's or a lower tier's, enabled; the highest
+  tier's art for a code, §10.94.2), listed with or without art: AVATAR_FRAME and PROFILE_CARD (the VIP card art — in the
+  bag's own `AVATAR_FRAME` / `PROFILE_CARD` categories, the same kinds as the bag's frames and header cards), CHAT_BUBBLE,
+  ENTRY_BANNER, ENTRY_EFFECT (the entry car) and MIC_WAVE (VIP-only categories). The badge and the name colour are
+  identity, not bag items.
+- **Derived, never copied.** `getMyBag` builds them from the membership on every read: code `vip:<PERK>`, `source: VIP`,
+  `acquiredAt` = the membership's start, `expiresAt` = its end, `transferable: false`, `giftedBy: null`, `assetKey`
+  `vip_<perk>` (the art is in `BagItem.vip {tier, tierName, color, perk, animation, still}`). So the time is exactly the
+  membership's: a renewal moves it, an upgrade shows the higher tier's items (with the lower tiers'), the end removes them
+  — no grant to keep in step, nothing for the sweeper. Copied rows would need the bag's per-item expiry, transfer and
+  sweep rules to follow every purchase, upgrade and the panel's perk changes; none of that is needed to list and wear
+  them. The VIP item comes first in its category; VIP-only categories follow the stored ones.
+- **One worn item per kind.** In AVATAR_FRAME and PROFILE_CARD, wearing the VIP item takes off the bag item worn, and
+  wearing a bag item (or `code: null`) takes the VIP one off; a VIP item also reads not worn whenever a bag item of its
+  kind is worn (whatever put it on). The other kinds have only the VIP item.
+- **Start, renewal, upgrade, end.** A **new** membership (none, or the last one ended) wears every tier item: its frame and
+  card take off the bag's worn ones. A renewal or an upgrade keeps the member's choices (an upgrade's frame / card replace
+  a bag one only where the member had not taken the VIP one off). When the membership ends the VIP items leave the bag
+  and those slots are simply empty — the bag item replaced at the start is not put back. Members active when this ships
+  are moved to the same state (migration: their bag frame / card give way where their tier holds that perk).
+- **Wearing.** `setMyBagEquipped {category, code: 'vip:<PERK>'}` wears one, `{category, code: null}` takes it off; only
+  what the member took off is stored (`vip_memberships.off_perks`). A VIP code the membership does not hold (none, ended,
+  another perk) or in the wrong category → 409 `BAG_ITEM_NOT_OWNED`; `sendMyBagItem` refuses them the same way.
+- **Everyone sees the one worn item.** `UserVip.off` (absent when empty) lists the tier items not worn — taken off, or a
+  bag frame / card worn instead; `UserSummary.avatarFrame` and `PublicProfile.profileCard` / `avatarFrame` stay the bag's
+  worn items. So every renderer (person card, profile, live seats, chat, entry) draws exactly one item per kind: the
+  apps leave the `off` perks out of the member's look.
+- `getBagCatalogue?category=<VIP-only category>` → an empty list (VIP items come with a membership, not the catalogue).
+
+**Compatibility.** Additive. An older app shows the VIP-only categories under «other items» with a plain tile and can
+wear or take them off; it ignores `UserVip.off` (a taken-off VIP item still shows there until it updates). Migration
+`20270308090000_vip_bag` (`vip_memberships.off_perks`, default empty; the active members' bag frame / card taken off).
+
 ### 11.1 Media upload
 
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and

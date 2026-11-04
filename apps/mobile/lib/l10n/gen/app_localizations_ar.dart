@@ -14060,4 +14060,24 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveKabsoTeamHere => 'فريق كابسو يتابع هذا البث';
+
+  @override
+  String get bagCategoryChatBubble => 'إطارات الرسائل';
+
+  @override
+  String get bagCategoryEntryBanner => 'لافتات الدخول';
+
+  @override
+  String get bagCategoryEntryEffect => 'مؤثرات الدخول';
+
+  @override
+  String get bagCategoryMicWave => 'موجات المايك';
+
+  @override
+  String bagFromVip(String tier) {
+    return 'من عضوية $tier';
+  }
+
+  @override
+  String get bagNoSendVip => 'عناصر VIP تابعة لعضويتك ولا تُرسل';
 }

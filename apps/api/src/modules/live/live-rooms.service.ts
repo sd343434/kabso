@@ -91,7 +91,8 @@ export interface UserSummaryDto {
    * v1.83-social (D258, §10.94): present only while the user holds an active VIP membership — the tier's code, rank
    * (`VipTier.sortOrder`, 1 = lowest) and colour; the app takes the perks and their art from `GET /vip/tiers`.
    */
-  vip?: { tier: string; rank: number; color: string };
+  /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
+  vip?: { tier: string; rank: number; color: string; off?: string[] };
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';

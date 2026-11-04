@@ -14054,4 +14054,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveKabsoTeamHere => 'The Kabso Team is following this live';
+
+  @override
+  String get bagCategoryChatBubble => 'Chat bubbles';
+
+  @override
+  String get bagCategoryEntryBanner => 'Entry banners';
+
+  @override
+  String get bagCategoryEntryEffect => 'Entry effects';
+
+  @override
+  String get bagCategoryMicWave => 'Mic waves';
+
+  @override
+  String bagFromVip(String tier) {
+    return 'From your $tier membership';
+  }
+
+  @override
+  String get bagNoSendVip =>
+      'VIP items belong to your membership and can\'t be sent';
 }
