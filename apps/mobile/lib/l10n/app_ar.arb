@@ -12251,6 +12251,10 @@
       }
     }
   },
+  "streamerConsentHint": "اضغط \"بدء\" في نافذة أندرويد لمشاركة شاشتك",
+  "@streamerConsentHint": {
+    "description": "D262b: the go-live streamer panel's one-line hint before Android's screen-capture dialog (whole screen)."
+  },
   "streamerShareAgainFailed": "تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى",
   "@streamerShareAgainFailed": {
     "description": "D262: allowed, but the screen could not start again («شارك الشاشة من جديد»)."

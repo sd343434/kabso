@@ -51,7 +51,7 @@ import io.flutter.plugin.common.PluginRegistry
  *   call rings or is on; `AudioManager` mode, polled each second — no phone
  *   permission), `rotation {landscape}` (the display turned), `headset
  *   {connected}` (a headset was plugged in or out; polled with the call).
- * - `requestCapture {fullScreenOnly}` (D262): the system's screen-capture
+ * - `requestCapture {fullScreenOnly = true}` (D262, D262b): the system's screen-capture
  *   consent, asked from the attached Activity with our own result listener
  *   (`MediaProjectionManager.createScreenCaptureIntent`; on Android 14+ with
  *   `fullScreenOnly`, the whole display). Granted → the result Intent is
@@ -186,7 +186,8 @@ class KabsoStreamerPlugin :
                 result.success(null)
             }
             "moveToBack" -> result.success(activity?.moveTaskToBack(true) ?: false)
-            "requestCapture" -> requestCapture(call.argument<Boolean>("fullScreenOnly") ?: false, result)
+            // D262b: the whole screen unless told otherwise.
+            "requestCapture" -> requestCapture(call.argument<Boolean>("fullScreenOnly") ?: true, result)
             else -> result.notImplemented()
         }
     }
@@ -210,7 +211,9 @@ class KabsoStreamerPlugin :
         val reason =
             try {
                 val intent =
-                    if (fullScreenOnly && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    if (StreamerRules.wholeDisplayConsent(Build.VERSION.SDK_INT, fullScreenOnly) &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    ) {
                         manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
                     } else {
                         manager.createScreenCaptureIntent()

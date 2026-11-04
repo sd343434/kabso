@@ -312,6 +312,7 @@ class GoLiveStreamerPanel extends StatelessWidget {
   static const micKey = 'goLive.streamer.mic';
   static const gameKey = 'goLive.streamer.game';
   static const headphonesKey = Key('goLive.streamer.headphones');
+  static const consentHintKey = Key('goLive.streamer.consentHint');
 
   @override
   Widget build(BuildContext context) {
@@ -392,6 +393,30 @@ class GoLiveStreamerPanel extends StatelessWidget {
                 color: white.withValues(alpha: 0.85),
               ),
             ),
+          // D262b: what to press in Android's dialog (the whole screen).
+          Padding(
+            key: consentHintKey,
+            padding: const EdgeInsetsDirectional.only(top: 2, end: 6),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.touch_app_outlined,
+                  size: 14,
+                  color: white.withValues(alpha: 0.72),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l10n.streamerConsentHint,
+                    style: text.caption.copyWith(
+                      color: white.withValues(alpha: 0.72),
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsetsDirectional.only(top: 2, end: 6),
             child: Row(

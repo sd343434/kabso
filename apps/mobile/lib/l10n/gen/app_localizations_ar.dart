@@ -12789,6 +12789,10 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get streamerConsentHint =>
+      'اضغط \"بدء\" في نافذة أندرويد لمشاركة شاشتك';
+
+  @override
   String get streamerShareAgainFailed =>
       'تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى';
 

@@ -21706,6 +21706,12 @@ abstract class AppLocalizations {
   /// **'تعذّر طلب إذن تصوير الشاشة ({code})'**
   String streamerConsentFailed(String code);
 
+  /// D262b: the go-live streamer panel's one-line hint before Android's screen-capture dialog (whole screen).
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط \"بدء\" في نافذة أندرويد لمشاركة شاشتك'**
+  String get streamerConsentHint;
+
   /// D262: allowed, but the screen could not start again («شارك الشاشة من جديد»).
   ///
   /// In ar, this message translates to:

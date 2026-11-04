@@ -12777,6 +12777,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get streamerConsentHint =>
+      'Tap \"Start\" in Android\'s window to share your screen';
+
+  @override
   String get streamerShareAgainFailed =>
       'Couldn\'t share the screen again, try once more';
 

@@ -156,6 +156,21 @@ object StreamerRules {
         return false
     }
 
+    /** Android 14 (`UPSIDE_DOWN_CAKE`): `MediaProjectionConfig` exists. */
+    const val SDK_PROJECTION_CONFIG = 34
+
+    /**
+     * D262b (owner): the consent intent carries
+     * `MediaProjectionConfig.createConfigForDefaultDisplay()` — the dialog
+     * then offers only the entire screen, no «single app» (whose app picker,
+     * left with back, read as a refusal). Below Android 14 the plain intent
+     * already means the whole screen. flutter_webrtc's capturer is unchanged
+     * by it: `getMediaProjection(RESULT_OK, data)` + a virtual display of the
+     * default display.
+     */
+    fun wholeDisplayConsent(sdkInt: Int, fullScreenOnly: Boolean): Boolean =
+        fullScreenOnly && sdkInt >= SDK_PROJECTION_CONFIG
+
     /** `Activity.RESULT_OK`. */
     const val RESULT_OK = -1
 

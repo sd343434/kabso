@@ -73,7 +73,7 @@ void main() {
       });
       expect(answer, StreamerConsent.granted);
       expect(calls.single.method, 'requestCapture');
-      expect(calls.single.arguments, {'fullScreenOnly': false});
+      expect(calls.single.arguments, {'fullScreenOnly': true});
       expect(
         await ask((_) async => {'outcome': 'refused'}),
         StreamerConsent.refused,

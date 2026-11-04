@@ -451,6 +451,18 @@ void main() {
       await _leave(tester);
     });
 
+    testWidgets('D262b: the setup says what to press in the Android dialog', (
+      tester,
+    ) async {
+      await _goLive(tester, start: false);
+      expect(find.byKey(GoLiveStreamerPanel.consentHintKey), findsOneWidget);
+      expect(
+        find.text('اضغط "بدء" في نافذة أندرويد لمشاركة شاشتك'),
+        findsOneWidget,
+      );
+      await _leave(tester);
+    });
+
     testWidgets('D262: a consent that throws is a failure with its type', (
       tester,
     ) async {

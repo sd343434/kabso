@@ -175,6 +175,18 @@ class StreamerRulesTest {
     }
 
     @Test
+    fun wholeScreenConsentFromAndroid14() {
+        // D262b: Android 14+ asks for the entire screen only (no «single app»).
+        assertTrue(StreamerRules.wholeDisplayConsent(34, fullScreenOnly = true))
+        assertTrue(StreamerRules.wholeDisplayConsent(36, fullScreenOnly = true))
+        // Older Android: the plain intent (no MediaProjectionConfig there).
+        assertFalse(StreamerRules.wholeDisplayConsent(33, fullScreenOnly = true))
+        assertFalse(StreamerRules.wholeDisplayConsent(23, fullScreenOnly = true))
+        // Asked without it: the plain intent everywhere.
+        assertFalse(StreamerRules.wholeDisplayConsent(35, fullScreenOnly = false))
+    }
+
+    @Test
     fun consentOutcomes() {
         assertEquals("granted" to null, StreamerRules.consentOutcome(-1, hasData = true, elapsedMs = 50))
         assertEquals("failed" to "no_data", StreamerRules.consentOutcome(-1, hasData = false, elapsedMs = 3000))

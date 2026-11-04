@@ -254,7 +254,10 @@ class ChannelStreamerPlatform implements StreamerPlatform {
   Future<StreamerConsent> requestCapture() async {
     try {
       final res = await _channel
-          .invokeMethod<Object?>('requestCapture', {'fullScreenOnly': false})
+          // D262b (owner): the whole screen at once — Android 14+ then
+          // offers no «single app» choice (whose app picker, left with
+          // back, read as a refusal).
+          .invokeMethod<Object?>('requestCapture', {'fullScreenOnly': true})
           .timeout(consentTimeout);
       return StreamerConsent.parse(res);
     } on TimeoutException {
