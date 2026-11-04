@@ -229,7 +229,7 @@ info:
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
-    **D260 (DRAFT v1.63-live)** staff presence in lives (CONVENTIONS §10.95): a staff member's shift «في المناوبة»
+    **D260 (DRAFT v1.64-live)** staff presence in lives (CONVENTIONS §10.96): a staff member's shift «في المناوبة»
     (`getAdminMyShift`, `setAdminMyShift`; OWNER: `listAdminShifts`), every LIVE room assigned to one staff member on
     shift (spread by load, reported lives first and to OWNER / MODERATION; `listAdminLives?assigned=me` «بثوثي»,
     `AdminLiveRow.assignedTo`, `staffWatching`), and a VISIBLE watch (`createAdminLiveWatchToken` `visibility`, default
@@ -13072,7 +13072,7 @@ paths:
       operationId: getAdminMyShift
       summary: "The signed-in staff member's shift «في المناوبة» and their lives (lives.watch)"
       description: |
-        (v1.63-live, D260, §10.95) Lives are assigned only to staff on shift (OWNER, MODERATION, SUPPORT).
+        (v1.64-live, D260, §10.96) Lives are assigned only to staff on shift (OWNER, MODERATION, SUPPORT).
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -13088,7 +13088,7 @@ paths:
       operationId: setAdminMyShift
       summary: "Goes on or off shift (lives.watch; audited)"
       description: |
-        (v1.63-live, D260, §10.95) Idempotent. Going on shift takes a share of the lives nobody watches (by load);
+        (v1.64-live, D260, §10.96) Idempotent. Going on shift takes a share of the lives nobody watches (by load);
         going off shift hands one's lives to the others on shift (or leaves them unassigned). A change is audited
         `admin.shift.on` / `admin.shift.off` and each new assignment `admin.live.assign`.
       security: [{ adminSession: [] }]
@@ -13115,7 +13115,7 @@ paths:
       operationId: listAdminShifts
       summary: "Who is on shift and how many lives each watches (staff.shifts: OWNER)"
       description: |
-        (v1.63-live, D260, §10.95) Every OWNER / MODERATION / SUPPORT account, on shift first.
+        (v1.64-live, D260, §10.96) Every OWNER / MODERATION / SUPPORT account, on shift first.
       security: [{ adminSession: [] }]
       responses:
         '200':
@@ -13132,7 +13132,7 @@ paths:
       operationId: createAdminLiveWatchToken
       summary: "An observer's media token for a live — visible «فريق كابسو» or hidden (lives.watch: OWNER, MODERATION, SUPPORT; HIDDEN WATCH also lives.watch.hidden; audited)"
       description: |
-        (v1.63-live, D260, §10.95) `visibility`: a WATCH is VISIBLE by default — identity `team:<adminId>:<nonce>`,
+        (v1.64-live, D260, §10.96) `visibility`: a WATCH is VISIBLE by default — identity `team:<adminId>:<nonce>`,
         subscribe-only but NOT hidden, listed in the live's viewers (`LiveViewerPage.staff`) with the «فريق كابسو»
         badge and never counted in `viewerCount`. HIDDEN (the D250 observer below) needs `lives.watch.hidden` (OWNER,
         MODERATION; SUPPORT → 403 `AUTH_FORBIDDEN`). A PREVIEW and the PK `opponent` room are always hidden. The audit
@@ -13414,7 +13414,7 @@ paths:
       - name: assigned
         in: query
         required: false
-        description: (v1.63-live, D260, §10.95) «بثوثي» — `me` lists only the lives assigned to the signed-in staff member; combinable with the others.
+        description: (v1.64-live, D260, §10.96) «بثوثي» — `me` lists only the lives assigned to the signed-in staff member; combinable with the others.
         schema:
           type: string
           enum: [me]
@@ -19661,14 +19661,14 @@ components:
           - $ref: '#/components/schemas/AdminLivePk'
           - type: 'null'
         assignedTo:
-          description: (v1.63-live, D260) the staff member on shift this live is assigned to; null while nobody is on shift.
+          description: (v1.64-live, D260) the staff member on shift this live is assigned to; null while nobody is on shift.
           oneOf:
           - $ref: '#/components/schemas/AdminLiveAssignee'
           - type: 'null'
         staffWatching:
           type: integer
           minimum: 0
-          description: (v1.63-live, D260) staff watching it visibly now («فريق كابسو» in the live).
+          description: (v1.64-live, D260) staff watching it visibly now («فريق كابسو» in the live).
     AdminLiveAssignee:
       type: object
       required: [id, displayName]
@@ -19677,7 +19677,7 @@ components:
         displayName: { type: string }
     AdminShift:
       type: object
-      description: (v1.63-live, D260, §10.95) the signed-in staff member's shift «في المناوبة».
+      description: (v1.64-live, D260, §10.96) the signed-in staff member's shift «في المناوبة».
       required: [onShift, since, assignedLives]
       properties:
         onShift: { type: boolean }
@@ -19702,7 +19702,7 @@ components:
         assignedLives: { type: integer, minimum: 0 }
     AdminShiftList:
       type: object
-      description: (v1.63-live, D260) every watch staff member (OWNER, MODERATION, SUPPORT), on shift first.
+      description: (v1.64-live, D260) every watch staff member (OWNER, MODERATION, SUPPORT), on shift first.
       required: [data, onShift, unassignedLives]
       properties:
         data:
@@ -19737,10 +19737,10 @@ components:
         visibility:
           type: string
           enum: [VISIBLE, HIDDEN]
-          description: (v1.63-live, D260) WATCH only (a PREVIEW is always hidden); default VISIBLE. HIDDEN needs `lives.watch.hidden`.
+          description: (v1.64-live, D260) WATCH only (a PREVIEW is always hidden); default VISIBLE. HIDDEN needs `lives.watch.hidden`.
     AdminLiveMediaAccess:
       type: object
-      description: (v1.60-live, D250) a subscribe-only observer's access to one media room — hidden (`staff:`), or (v1.63-live, D260) visible (`team:`).
+      description: (v1.60-live, D250) a subscribe-only observer's access to one media room — hidden (`staff:`), or (v1.64-live, D260) visible (`team:`).
       required: [roomId, url, token, identity, expiresAt]
       properties:
         roomId: { type: string, format: uuid }
@@ -19753,7 +19753,7 @@ components:
       required: [purpose, main, opponent]
       properties:
         purpose: { type: string, enum: [PREVIEW, WATCH] }
-        visibility: { type: string, enum: [VISIBLE, HIDDEN], description: "(v1.63-live, D260) of `main` (the opponent is always hidden)." }
+        visibility: { type: string, enum: [VISIBLE, HIDDEN], description: "(v1.64-live, D260) of `main` (the opponent is always hidden)." }
         main: { $ref: '#/components/schemas/AdminLiveMediaAccess' }
         opponent:
           description: WATCH only — the other room of the live's open PK, else null.
@@ -24156,7 +24156,7 @@ components:
         staff:
           type: array
           description: |
-            (v1.63-live, D260, §10.95) the Kabso staff watching this live now (one per staff member, earliest first),
+            (v1.64-live, D260, §10.96) the Kabso staff watching this live now (one per staff member, earliest first),
             shown above the viewers with the «فريق كابسو» / «Kabso Team» badge — never counted in `viewerCount`, never in
             a support ranking, no user card. First page only (empty with a `cursor`). Absent from older servers.
           items: { $ref: '#/components/schemas/LiveStaffWatcher' }

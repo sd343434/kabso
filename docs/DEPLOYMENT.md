@@ -2634,4 +2634,19 @@ in a quiet hour on a large database. No env setting.
 
 Order: API (with its migration) first, then the app. An older app ignores `hostCherries` and keeps showing the score in
 the pill; the new app on an older server shows 0 cherries.
+### 5.55 Staff presence in lives «فريق كابسو» (migration `20270307090000_live_staff_presence`; D260) — [IMPLEMENTED, draft contract v1.64-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96. The migration adds `admin_shifts`, `live_room_assignments` and `live_room_staff_watchers` (no backfill;
+the runtime role gets DML through the default privileges). No env setting: the assignment pass runs after each go-live, on
+each shift change and at `LIVE_SWEEP_INTERVAL_SECONDS` (0 turns the periodic pass off; the go-live and shift passes still run).
+
+- **Staff accounts.** Real panel accounts only (OWNER / MODERATION / SUPPORT, granted with `admin-admin grant`, each with
+  their own authenticator). After deploying, each staff member turns on «في المناوبة» on «البث الآن»; nothing is assigned
+  while nobody is on shift (the OWNER's «من في المناوبة» shows the lives nobody watches).
+- **Media load.** A visible watch is one extra subscriber per watched live (video and audio of the host and seats), from
+  the staff member's browser. Watching all assigned lives at once multiplies that; staff open «بثوثي» lives one at a time.
+- **Behaviour change in the panel.** «مشاهدة» now joins visibly (the host and viewers see «فريق كابسو» in the viewer list);
+  OWNER / MODERATION switch «مراقبة خفية» for the D250 hidden observer. Card previews stay hidden.
+- **Rollback.** The tables are only read by D260 code; an older API ignores them (a `team:` participant joined from an older
+  panel cannot happen: the token comes from the new API).
 
