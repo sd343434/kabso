@@ -1,8 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { safeErrorLog } from '../../logging/redact-text.js';
+import { LiveStaffAssignmentService } from '../live/live-staff-assignment.service.js';
 import { normalizeUsername } from '../users/username.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { PANEL_ROLES, type PanelRole } from './admin-permissions.js';
@@ -20,11 +22,20 @@ export interface AuditQuery extends TableQuery {
   readonly to?: string | undefined;
 }
 
+/** `grantAdminTeamRole` (D271: `account` = email or username; D197's `email` still accepted). */
+export interface TeamGrantBody {
+  readonly account?: string | undefined;
+  readonly email?: string | undefined;
+  readonly role: PanelRole;
+  readonly reason: string;
+  readonly totpCode: string;
+}
+
 async function rule<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (err) {
-    if (err instanceof AdminRoleError) throw refused(err.message);
+    if (err instanceof AdminRoleError) throw refused(err.message, err.issue, 'rule');
     throw err;
   }
 }
@@ -35,13 +46,20 @@ async function rule<T>(step: () => Promise<T>): Promise<T> {
  * granting and revoking a role and resetting an authenticator with the `admin-admin` rules themselves
  * (admin-roles.ts, through `kabso_admin_panel_role`), each with the authenticator code again and a reason. The CLI
  * stays (the first OWNER is still bootstrapped there).
+ *
+ * v1.66-live (D271, CONVENTIONS §10.96.5) «الموظفون والصلاحيات»: the list also shows each one's shift «في المناوبة»;
+ * a grant finds the account by email or username and answers who it is (the panel's next steps for the new staff
+ * member); a revoke that ends a shift hands that person's lives on at once. The code is checked before any rule.
  */
 @Injectable()
 export class AdminTeamService {
+  private readonly logger = new Logger(AdminTeamService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly auth: AdminAuthService,
+    private readonly assignments: LiveStaffAssignmentService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -132,6 +150,7 @@ export class AdminTeamService {
           take: 1,
           select: { createdAt: true },
         },
+        adminShift: { select: { onShift: true, since: true } },
       },
     });
     return {
@@ -151,18 +170,38 @@ export class AdminTeamService {
             ? u.adminCredential.lockedUntil.toISOString()
             : null,
         lastSignInAt: u.adminSessions[0]?.createdAt.toISOString() ?? null,
+        onShift: u.adminShift?.onShift ?? false,
+        shiftSince: u.adminShift?.onShift ? u.adminShift.since.toISOString() : null,
       })),
     };
   }
 
-  async grant(body: { email: string; role: PanelRole; reason: string; totpCode: string }, ctx: AdminContext) {
+  async grant(body: TeamGrantBody, ctx: AdminContext) {
     await this.auth.reauthenticate(ctx, body.totpCode);
+    const who = body.account ?? body.email ?? '';
     const r = await rule(() =>
-      this.prisma.$transaction((tx) =>
-        grantRoleIn(tx, body.email, body.role, viaOf(ctx), { reason: body.reason }),
-      ),
+      this.prisma.$transaction((tx) => grantRoleIn(tx, who, body.role, viaOf(ctx), { reason: body.reason })),
     );
-    return { userId: r.userId, role: body.role, madeAdmin: r.madeAdmin, already: r.already };
+    const u = await this.prisma.user.findUniqueOrThrow({
+      where: { id: r.userId },
+      select: {
+        email: true,
+        profile: { select: { username: true, displayName: true } },
+        adminCredential: { select: { totpEnrolledAt: true } },
+      },
+    });
+    return {
+      userId: r.userId,
+      role: body.role,
+      madeAdmin: r.madeAdmin,
+      already: r.already,
+      account: {
+        email: u.email,
+        username: u.profile?.username ?? '',
+        displayName: u.profile?.displayName ?? '',
+        totpEnrolled: (u.adminCredential?.totpEnrolledAt ?? null) !== null,
+      },
+    };
   }
 
   async revoke(
@@ -176,7 +215,16 @@ export class AdminTeamService {
         revokeRoleIn(tx, userId, body.role, viaOf(ctx), { reason: body.reason }),
       ),
     );
-    return { userId: r.userId, left: r.left };
+    if (r.shiftEnded) {
+      // Their lives go to the others on shift now, not at the next sweep (best effort: the sweep retries).
+      await this.assignments.assignPending('shift_off').catch((err: unknown) => {
+        this.logger.warn(
+          { error: safeErrorLog(err) },
+          'Could not hand on the lives of a revoked staff member',
+        );
+      });
+    }
+    return { userId: r.userId, left: r.left, shiftEnded: r.shiftEnded };
   }
 
   async resetTotp(userId: string, body: { reason: string; totpCode: string }, ctx: AdminContext) {
@@ -186,7 +234,7 @@ export class AdminTeamService {
         where: { userId, permission: { in: [...PANEL_ROLES] } },
       }))
     ) {
-      throw refused('The account is not on the team.');
+      throw refused('The account is not on the team.', 'team_not_member', 'rule');
     }
     await rule(() =>
       this.prisma.$transaction((tx) => resetSecondFactorIn(tx, userId, viaOf(ctx), { reason: body.reason })),

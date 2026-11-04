@@ -349,12 +349,19 @@ export const auditQuery = rangeTableQuery(['createdAt'], 'createdAt')
   .strict();
 
 const role = z.enum(PANEL_ROLES);
-export const teamGrantBody = z.strictObject({
-  email: z.string().trim().min(3).max(254),
-  role,
-  reason,
-  totpCode,
-});
+/** D271: `account` (email or username, `@` optional); D197's `email` still accepted. Exactly one of the two. */
+export const teamGrantBody = z
+  .strictObject({
+    account: z.string().trim().min(1).max(254).optional(),
+    email: z.string().trim().min(3).max(254).optional(),
+    role,
+    reason,
+    totpCode,
+  })
+  .refine((v) => (v.account === undefined) !== (v.email === undefined), {
+    message: 'one of account or email',
+    path: ['account'],
+  });
 export const teamRevokeBody = z.strictObject({ role, reason, totpCode });
 export const teamResetBody = z.strictObject({ reason, totpCode });
 

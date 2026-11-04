@@ -114,6 +114,8 @@ export interface AppConfig {
     /** v1.60-social (D191). */
     readonly adminLoginIp: RateLimitRule;
     readonly adminIp: RateLimitRule;
+    /** v1.66-live (D271): the team's grant / revoke / reset-2fa. */
+    readonly adminTeamIp: RateLimitRule;
     readonly registerEmail: RateLimitRule;
     readonly registerVerifyIp: RateLimitRule;
     readonly registerVerifyEmail: RateLimitRule;
@@ -625,6 +627,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       publicIp: e.RATE_LIMIT_PUBLIC_IP,
       adminLoginIp: e.RATE_LIMIT_ADMIN_LOGIN_IP,
       adminIp: e.RATE_LIMIT_ADMIN_IP,
+      adminTeamIp: e.RATE_LIMIT_ADMIN_TEAM_IP,
       registerEmail: e.RATE_LIMIT_REGISTER_EMAIL,
       registerVerifyIp: e.RATE_LIMIT_REGISTER_VERIFY_IP,
       registerVerifyEmail: e.RATE_LIMIT_REGISTER_VERIFY_EMAIL,

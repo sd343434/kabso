@@ -509,6 +509,8 @@ export const envSchema = z
     RATE_LIMIT_ADMIN_LOGIN_IP: rateLimit('30/900'),
     /** v1.60-social (D191): every other cookie-authenticated panel request per IP. */
     RATE_LIMIT_ADMIN_IP: rateLimit('1200/900'),
+    /** v1.66-live (D271): the team's grant / revoke / reset-2fa per IP (on top of `RATE_LIMIT_ADMIN_IP`). */
+    RATE_LIMIT_ADMIN_TEAM_IP: rateLimit('20/900'),
     // v1.2 (CONVENTIONS §7)
     RATE_LIMIT_REGISTER_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_VERIFY_IP: rateLimit('10/900'),

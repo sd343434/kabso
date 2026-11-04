@@ -1643,6 +1643,21 @@ ins {
   display: grid;
   gap: 12px;
 }
+.member[data-on-shift='true'] {
+  border-inline-start: 3px solid var(--success);
+}
+/* D271: a new staff member's next steps. */
+.next-steps {
+  display: grid;
+  gap: 10px;
+}
+.next-steps .steps {
+  margin: 0;
+  padding-inline-start: 22px;
+  display: grid;
+  gap: 8px;
+  line-height: 1.6;
+}
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

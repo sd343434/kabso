@@ -1,7 +1,8 @@
 import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { PANEL_ROLES, type PanelRole } from './admin-permissions.js';
+import { activeRestrictionOf } from '../users/account-control.js';
+import { CAPABILITIES, PANEL_ROLES, type PanelRole } from './admin-permissions.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -15,8 +16,24 @@ type Tx = Prisma.TransactionClient;
  * actor, the IP and the required reason). The role rows are written only through the SECURITY DEFINER function
  * `kabso_admin_panel_role` (migration 20270112100000_admin_v2): the runtime role cannot write
  * `user_admin_permissions` itself, and the function refuses every permission that is not a panel role.
+ *
+ * v1.66-live (D271, CONVENTIONS §10.96.5): «الموظفون والصلاحيات» — the account is found by email, id or username
+ * (`@name`); a locked account (D208) is refused like a banned one; the last-OWNER check is serialized (an advisory
+ * lock) and counts the OWNERs who can still sign in other than the target; losing every watch role ends the person's
+ * shift «في المناوبة» (D260). Each refusal carries a machine-readable `issue` the panel words itself.
  */
-export class AdminRoleError extends Error {}
+export class AdminRoleError extends Error {
+  constructor(
+    message: string,
+    /** `team_*` (ADMIN_ACTION_REFUSED `details[0].issue`); none for the CLI-only argument errors. */
+    readonly issue?: string,
+  ) {
+    super(message);
+  }
+}
+
+/** The panel roles that watch lives and have a shift (D260's `WATCH_ROLES`: the `lives.watch` capability). */
+const SHIFT_ROLES: readonly string[] = CAPABILITIES['lives.watch'];
 
 export function parseRole(raw: string): PanelRole {
   const v = raw.trim().toUpperCase();
@@ -27,14 +44,26 @@ export function parseRole(raw: string): PanelRole {
   return role as PanelRole;
 }
 
-/** The account by email (the CLI) or by id (the panel). */
+/**
+ * The account by id (the panel's paths), email or username (`@name` or `name`; D271), its row locked FOR NO KEY UPDATE
+ * (serializes with a ban's FOR UPDATE, never with a foreign key's KEY SHARE such as an audit row's actor).
+ */
 async function userOf(tx: Tx, who: string) {
   const value = who.trim();
-  const user = await tx.user.findUnique({
-    where: /^[0-9a-f-]{36}$/i.test(value) ? { id: value.toLowerCase() } : { email: value.toLowerCase() },
-    select: { id: true, role: true, status: true },
-  });
-  if (!user) throw new AdminRoleError(`No account ${who}.`);
+  let id: string | null = null;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) id = value.toLowerCase();
+  else if (/^[^@\s]+@[^@\s]+$/.test(value)) {
+    id =
+      (await tx.user.findUnique({ where: { email: value.toLowerCase() }, select: { id: true } }))?.id ?? null;
+  } else if (value.length > 0) {
+    const username = value.replace(/^@/, '').toLowerCase();
+    id = (await tx.userProfile.findUnique({ where: { username }, select: { userId: true } }))?.userId ?? null;
+  }
+  const [user] = id
+    ? await tx.$queryRaw<{ id: string; role: string; status: string }[]>`
+        SELECT id::text AS id, role::text AS role, status::text AS status FROM users WHERE id = ${id}::uuid FOR NO KEY UPDATE`
+    : [];
+  if (!user) throw new AdminRoleError(`No account ${who}.`, 'team_no_account');
   return user;
 }
 
@@ -63,7 +92,11 @@ export async function grantRoleIn(
   extra: Extra = {},
 ): Promise<{ userId: string; madeAdmin: boolean; already: boolean }> {
   const user = await userOf(tx, who);
-  if (user.status !== 'ACTIVE') throw new AdminRoleError(`The account is ${user.status}.`);
+  if (user.status !== 'ACTIVE') throw new AdminRoleError(`The account is ${user.status}.`, 'team_not_active');
+  const lock = await activeRestrictionOf(tx, user.id, 'LOCK');
+  if (lock) {
+    throw new AdminRoleError(`The account is locked until ${lock.endsAt.toISOString()}.`, 'team_locked');
+  }
   const madeAdmin = user.role !== 'ADMIN';
   if (madeAdmin) await tx.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } });
   const already = !(await setRoleRow(tx, user.id, role, true, by));
@@ -85,23 +118,29 @@ export async function revokeRoleIn(
   role: PanelRole,
   by: AdminVia = CLI_VIA,
   extra: Extra = {},
-): Promise<{ userId: string; left: PanelRole[] }> {
+): Promise<{ userId: string; left: PanelRole[]; shiftEnded: boolean }> {
+  const ownerCheck = by.via === 'panel' && role === 'OWNER';
+  // The panel never leaves the team without an OWNER who can sign in (the CLI can, on the server). One such check at a
+  // time — taken before any row lock, so two OWNERs revoking each other at once queue instead of deadlocking — and the
+  // second one counts after the first committed.
+  if (ownerCheck) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:admin-owner'))`;
   const user = await userOf(tx, who);
   if (by.via === 'panel') {
     if (user.id === by.actorUserId && role === 'OWNER') {
-      throw new AdminRoleError('You cannot take OWNER from your own account.');
+      throw new AdminRoleError('You cannot take OWNER from your own account.', 'team_self_owner');
     }
-    if (role === 'OWNER') {
-      // The panel never leaves the team without an OWNER (the CLI can, on the server).
-      const owners = await tx.userAdminPermission.count({
-        where: { permission: 'OWNER', user: { status: 'ACTIVE', role: 'ADMIN' } },
+    if (ownerCheck) {
+      const others = await tx.userAdminPermission.count({
+        where: { permission: 'OWNER', userId: { not: user.id }, user: { status: 'ACTIVE', role: 'ADMIN' } },
       });
-      if (owners <= 1) throw new AdminRoleError('This is the last OWNER.');
+      if (others === 0 && user.status === 'ACTIVE' && user.role === 'ADMIN') {
+        throw new AdminRoleError('This is the last OWNER.', 'team_last_owner');
+      }
     }
   }
   const before = await panelRolesIn(tx, user.id);
   if (!(await setRoleRow(tx, user.id, role, false, by))) {
-    throw new AdminRoleError(`The account does not hold ${role}.`);
+    throw new AdminRoleError(`The account does not hold ${role}.`, 'team_not_held');
   }
   const left = before.filter((r) => r !== role);
   if (left.length === 0) {
@@ -110,16 +149,25 @@ export async function revokeRoleIn(
       data: { revokedAt: new Date() },
     });
   }
+  // D271: no watch role left → the shift ends (the next assignment pass hands their lives on, §10.96.2).
+  const shiftEnded =
+    !left.some((r) => SHIFT_ROLES.includes(r)) &&
+    (
+      await tx.adminShift.updateMany({
+        where: { userId: user.id, onShift: true },
+        data: { onShift: false, since: new Date() },
+      })
+    ).count > 0;
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
       action: AuditAction.ADMIN_ROLE_REVOKE,
       targetType: 'user',
       targetId: user.id,
-      metadata: { role, left, before, ...extra, via: by.via },
+      metadata: { role, left, before, ...(shiftEnded ? { shiftEnded } : {}), ...extra, via: by.via },
     },
   });
-  return { userId: user.id, left };
+  return { userId: user.id, left, shiftEnded };
 }
 
 /** A lost authenticator: the secret, recovery codes and lock go, every panel session ends; the next sign-in enrols again. */
@@ -131,7 +179,7 @@ export async function resetSecondFactorIn(
 ): Promise<{ userId: string }> {
   const user = await userOf(tx, who);
   if (by.via === 'panel' && user.id === by.actorUserId) {
-    throw new AdminRoleError('You cannot reset your own authenticator here.');
+    throw new AdminRoleError('You cannot reset your own authenticator here.', 'team_self_reset');
   }
   await tx.adminCredential.deleteMany({ where: { userId: user.id } });
   await tx.adminRecoveryCode.deleteMany({ where: { userId: user.id } });

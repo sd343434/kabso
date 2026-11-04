@@ -31,7 +31,7 @@ import { AdminProgramsService } from './admin-programs.service.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from './admin-session.guard.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { sendTable, type TableQuery } from './admin-tables.js';
-import { AdminTeamService, type AuditQuery } from './admin-team.service.js';
+import { AdminTeamService, type AuditQuery, type TeamGrantBody } from './admin-team.service.js';
 import {
   agenciesQuery,
   agencyProbationExtendBody,
@@ -77,7 +77,10 @@ import {
 } from './admin-v2.schemas.js';
 
 /** Every cookie-authenticated panel route: per-IP limit instead of the public default (§10.54.2). */
-const PANEL_LIMIT = RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true });
+const PANEL_SPEC = { bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true } as const;
+const PANEL_LIMIT = RateLimit(PANEL_SPEC);
+/** v1.66-live (D271): a team change also counts in its own tighter bucket (the route's specs replace the class's). */
+const TEAM_LIMIT = RateLimit(PANEL_SPEC, { bucket: 'admin-team:ip', rule: 'adminTeamIp', key: byIp });
 
 function giftCode(raw: string): string {
   if (!GIFT_CODE_PATTERN.test(raw)) throw new AppException(ErrorCode.NOT_FOUND);
@@ -784,10 +787,10 @@ export class AdminV2Controller {
 
   @Post('team/grant')
   @HttpCode(200)
+  @TEAM_LIMIT
   @RequireCapability('team.manage')
   teamGrant(
-    @Body(new ZodValidationPipe(teamGrantBody))
-    body: { email: string; role: PanelRole; reason: string; totpCode: string },
+    @Body(new ZodValidationPipe(teamGrantBody)) body: TeamGrantBody,
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.team.grant(body, admin);
@@ -795,6 +798,7 @@ export class AdminV2Controller {
 
   @Post('team/:userId/revoke')
   @HttpCode(200)
+  @TEAM_LIMIT
   @RequireCapability('team.manage')
   teamRevoke(
     @Param('userId') id: string,
@@ -806,6 +810,7 @@ export class AdminV2Controller {
 
   @Post('team/:userId/reset-2fa')
   @HttpCode(200)
+  @TEAM_LIMIT
   @RequireCapability('team.manage')
   teamReset(
     @Param('userId') id: string,

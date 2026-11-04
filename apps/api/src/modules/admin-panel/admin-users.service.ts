@@ -27,13 +27,10 @@ export function viaOf(ctx: AdminContext): AdminVia {
   return { via: 'panel', actorUserId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId };
 }
 
-export function refused(message: string, issue?: string): AppException {
+export function refused(message: string, issue?: string, field = 'kyc'): AppException {
   // v1.80-kyc (D227): a refusal with a machine-readable reason (`kyc_required`) carries it as the first detail.
-  return new AppException(
-    ErrorCode.ADMIN_ACTION_REFUSED,
-    message,
-    issue ? [{ field: 'kyc', issue }] : undefined,
-  );
+  // v1.66-live (D271): the team's rules carry theirs under `field: 'rule'` (`team_last_owner` …).
+  return new AppException(ErrorCode.ADMIN_ACTION_REFUSED, message, issue ? [{ field, issue }] : undefined);
 }
 
 export interface AdminUserRowDto {

@@ -437,6 +437,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier). *(v1.2, SEC-023)* the account bucket counts **failed** attempts only, and a source (IPv4 / IPv6 /64) that logged into the account successfully within the last 30 days bypasses the account bucket (still subject to the IP+account bucket). |
 | `POST /admin/auth/login`, `…/totp/enrolment`, `…/totp/enrolment/confirm`, `…/totp/verify` *(v1.60-social, D191)* | 30 / 15 min per IP (bucket `admin_login:ip`, `RATE_LIMIT_ADMIN_LOGIN_IP`); plus the lockout of §10.54.2 (`ADMIN_LOCKOUT_ATTEMPTS` failures per email and per admin account → 429 `ADMIN_LOCKED`). **Replaces** the public default |
 | Every other cookie-authenticated `/admin/*` route of §10.54 *(v1.60-social, D191)* | 1200 / 15 min per IP (bucket `admin:ip`, `RATE_LIMIT_ADMIN_IP`). **Replaces** the public default |
+| `grantAdminTeamRole`, `revokeAdminTeamRole`, `resetAdminTeamTotp` *(v1.66-live, D271)* | 20 / 15 min per IP (bucket `admin-team:ip`, `RATE_LIMIT_ADMIN_TEAM_IP`) **and** the `admin:ip` bucket above |
 | `POST /auth/register` | 5 / hour per IP; *(v1.2)* 3 / hour per email |
 | `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
@@ -693,6 +694,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.66-live (draft) | 2026-11-04 | **D271 (owner: «اجعل امنحهم صلاحية من لوحة الأدمن»): «الموظفون والصلاحيات»** — the OWNER manages the panel staff from the panel (§10.96.5, on D197's team operations): `AdminTeam` rows gain `onShift`, `shiftSince`; `AdminTeamGrantRequest.account` (email or username; `email` kept, exactly one); `AdminTeamGrantResult.account` (email, username, displayName, totpEnrolled); `AdminTeamRevokeResult.shiftEnded`; refusal issues `team_no_account`, `team_not_active`, `team_locked`, `team_self_owner`, `team_last_owner`, `team_not_held`, `team_self_reset`, `team_not_member` (409 `ADMIN_ACTION_REFUSED`, `details[0].field = rule`); a locked account (D208) cannot be granted; the last-OWNER check serialized; no watch role left → off shift and the lives handed on; per-IP bucket `admin-team:ip` (`RATE_LIMIT_ADMIN_TEAM_IP` 20 / 15 min). No migration. | **Additive** (new optional request field, new response fields; `email` still accepted). |
 | v1.64-live (draft) | 2026-11-04 | **D260 (owner: «حسابات موظفين تدخل البثوث لمراقبتها»; answers: visible with a «فريق كابسو» badge, every new live assigned automatically, real employee accounts):** staff presence in lives (§10.96) — `getAdminMyShift` / `setAdminMyShift` (`GET` / `PUT /admin/me/shift`, `AdminShift`, `UpdateAdminShiftRequest`), `listAdminShifts` (`GET /admin/shifts`, `AdminShiftList`; capability `staff.shifts`: OWNER); every LIVE room assigned to a staff member on shift by load, reported lives first and to OWNER / MODERATION; `listAdminLives?assigned=me`, `AdminLiveRow.assignedTo` / `staffWatching`; `createAdminLiveWatchToken` `visibility` (WATCH default VISIBLE: `team:<adminId>:<nonce>`, not hidden, never counted; HIDDEN needs `lives.watch.hidden`: OWNER, MODERATION); `LiveViewerPage.staff` (`LiveStaffWatcher`); audit `admin.live.assign`, `admin.shift.on|off`; migration `20270307090000_live_staff_presence` (`admin_shifts`, `live_room_assignments`, `live_room_staff_watchers`). The app: the «فريق كابسو» rows in the viewer list and the team shield by the top viewers. | **Additive** for the apps (a new optional field); the panel's WATCH default becomes visible. |
 | v1.63-live (draft) | 2026-11-04 | **D259 (owner: «عرض الكرز الحقيقي في حبّة المضيف، وتبقى النقاط للترتيب وPK فقط بدون أيقونة الكرز»):** `LiveScore.hostCherries` (the host's real cherries of the live, as credited by the cherry ledger) in `LiveRoom.scoreParts`, `LiveTapsResult.score` and `LiveRoomStats.score`; media metadata `hostCherries` (left out at 0); migration `20270306090600_live_host_cherries` (`live_room_scores.host_cherries`, backfilled at CHERRIES_PER_COIN 10). §10.95. | **Additive** (a new response field, a new metadata key). |
 | v1.62-live (draft) | 2026-11-03 | **D254 (owner: «شريط متحرك لاعلان عن ترقية الحسابات وصعود ليفيلات لليفيلات المرتفعة»; answers: the support and charm levels, a threshold set in the panel (default 30), every live, a tap opens the room):** the data message `level-ticker` on topic `level` to every LIVE room, its own included (`{"type":"level-ticker","levelUp":{id, user, category: SUPPORT \| ATTRACTIVENESS, level, previousLevel, roomId, createdAt},"room":{id, title, host}}`), when a gift send or the host's tap charm raises a support or charm level to `levelTickerMinLevel` or above (each level from there), one every 8 s for the whole service, the others waiting in line (§10.92); `getAdminLevelTicker` / `updateAdminLevelTicker` (`GET` / `PUT /admin/level-ticker`, `LevelTickerSettings` `{minLevel}` 1–100, `UpdateLevelTickerRequest`; `site.settings`: OWNER; audited); migration `20270305090000_level_ticker` (the `site_settings` key CHECK). | Additive (a new data message older apps ignore; two new panel operations). |
@@ -3813,11 +3815,14 @@ by Caddy, which proxies `/api/*` to the API on the same origin). It calls only t
 
 The panel's roles are **values of the existing admin permissions** (`admin_permission`, CP-005 §9.8) held by an
 account whose `users.role` is `ADMIN`: `OWNER`, `MODERATION` (the moderator «مشرف»), `SUPPORT` «دعم», `FINANCE`
-«مالية». They are granted and revoked **only** with the CLI `admin-admin grant|revoke <email> <role>` (`MODERATOR` is
+«مالية». They are granted and revoked with the CLI `admin-admin grant|revoke <email> <role>` (`MODERATOR` is
 accepted for `MODERATION`), which writes an audit row; a grant makes the account an admin when it is not one yet
 (how the first OWNER is bootstrapped). `admin-admin list` shows the panel admins; `admin-admin reset-2fa <email>`
 clears a lost authenticator (the next sign-in enrols again). Revoking the last panel role ends the person's panel
-sessions.
+sessions. **Since D197 / D271 the OWNER also manages roles in the panel** («الموظفون والصلاحيات», capability
+`team.manage`, OWNER only; §10.60.6, §10.96.5) with the same rule functions (`admin-roles.ts`), each change with a
+reason and the OWNER's authenticator code again; the CLI stays the bootstrap of the first OWNER (and accepts
+`@username` for `<email>` since D271).
 
 Every panel route names one capability and the server checks it on **every request** against the roles held at that
 moment (a revoked role or a suspended account applies at once; 403 `AUTH_FORBIDDEN`). The panel only hides what the
@@ -4371,7 +4376,8 @@ the real fees are Stripe's; the cherries not withdrawn yet are not deducted); a 
   function `kabso_admin_panel_role(user, role, grant, by)` (migration `20270112100000_admin_v2`): it accepts only the
   four panel roles, is executable only by the database's runtime group, and `user_admin_permissions` stays
   read-only for the runtime role (`LEVELS_*` stay CLI-only). `admin-admin grant|revoke|list|reset-2fa` stays (the
-  first OWNER is still bootstrapped there) and uses the same function.
+  first OWNER is still bootstrapped there) and uses the same function. D271 (§10.96.5) renames the page «الموظفون
+  والصلاحيات» and adds the shift, the account by username, the next steps, the refusal issues and the tighter limit.
 
 #### 10.60.7 Tasks, levels, special usernames, waitlist
 
@@ -6405,6 +6411,40 @@ neither). Older apps ignore `staff`.
 
 **Compatibility.** Additive for the apps. Panel: a WATCH without `visibility` is now visible (D250's panel always watched
 hidden); the panel sends `HIDDEN` from its «مراقبة خفية» switch. Media load: one extra subscriber per watched live.
+
+**10.96.5 «الموظفون والصلاحيات» — the OWNER manages the staff from the panel *(v1.66-live, DRAFT — D271)*.** Owner:
+«اجعل امنحهم صلاحية من لوحة الأدمن» — the staff of §10.96 get their role from the panel, not only from the CLI. The page is
+D197's team page (§10.60.6, `team.manage`: **OWNER only**, checked on every request), renamed and extended:
+
+- **The list** (`listAdminTeam`): every panel admin — name, `@username`, email, roles, authenticator set up or not, lock,
+  last sign-in, and the shift (`onShift`, `shiftSince`; FINANCE: «لا مناوبة لهذا الدور»).
+- **Grant** (`grantAdminTeamRole` `{account, role, reason, totpCode}`): an existing app account by **email or username**
+  (`@` optional; D197's `email` field still accepted, exactly one of the two). Refused (409 `ADMIN_ACTION_REFUSED`,
+  `details[0] = {field: rule, issue}`): `team_no_account`; `team_not_active` (SUSPENDED = banned, PENDING_DELETION,
+  DELETED); `team_locked` (an active D208 lock). The answer's `account` drives the panel's **next steps** for the new staff
+  member: sign in at `admin.<domain>` with the app account's email and password, enrol the authenticator (or «already set
+  up»), open «البث الآن» and turn on «في المناوبة» (FINANCE: no shift). Granting OWNER shows a warning in the dialog.
+- **Revoke** (`revokeAdminTeamRole`): never one's own OWNER (`team_self_owner`), never the last OWNER who can sign in
+  (`team_last_owner`: no other OWNER that is ACTIVE with `users.role = ADMIN`; a banned OWNER's role may go). The check
+  holds a transaction advisory lock, so two OWNERs revoking each other at once cannot both pass. `team_not_held` for a
+  role the person does not hold. The last panel role ends the person's panel sessions (as the CLI). **No watch role left**
+  (OWNER / MODERATION / SUPPORT) → the person goes off shift in the same transaction (audit metadata `shiftEnded`), and
+  the API runs an assignment pass at once (reason `shift_off`), handing their lives on (§10.96.2). This applies to the CLI
+  too.
+- **Reset the authenticator** (`resetAdminTeamTotp`): a lost phone — the secret, recovery codes and lock go and the
+  person's panel sessions end; never one's own (`team_self_reset`), only a team member (`team_not_member`).
+- **Step-up.** Each change needs the reason and **a fresh code from the OWNER's own authenticator**, verified by the server
+  before any rule runs (the session's TOTP, single use per 30 s step; a wrong code is 403 `ADMIN_TOTP_INVALID` and counts
+  towards the lockout, which ends the OWNER's sessions — a hijacked panel session alone cannot change the team). Missing
+  code or reason: 400.
+- **Audit.** `admin.role.grant` / `admin.role.revoke` / `admin.totp.reset` with the OWNER as the actor, the IP, `via:
+  panel`, the reason, and the role / `madeAdmin` / `before` / `left` / `shiftEnded`.
+- **Limits.** On top of `admin:ip`, the three changes count in `admin-team:ip` (`RATE_LIMIT_ADMIN_TEAM_IP`, 20 / 15 min per
+  IP; 429 `RATE_LIMITED`).
+- **One rule.** The panel and `admin-admin` run the same functions (`admin-roles.ts`: `grantRoleIn`, `revokeRoleIn`,
+  `resetSecondFactorIn`), and the role rows are written only through `kabso_admin_panel_role`. The account is found by id,
+  email or username with its `users` row locked FOR UPDATE. Only the panel refuses the self / last-OWNER revoke; the CLI
+  (the migration role, on the server) stays the bootstrap of the first OWNER and the escape hatch.
 
 ### 10.97 A VIP member's tier items in the bag — one worn item per kind *(v1.65-live, DRAFT — D264)*
 

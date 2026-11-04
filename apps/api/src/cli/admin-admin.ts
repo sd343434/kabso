@@ -11,6 +11,9 @@
  *
  * A grant makes the account an admin (`users.role = ADMIN`) when it is not yet. Every change writes an audit row in
  * its transaction; a bad argument or a refused change exits 1 (nothing changed).
+ *
+ * v1.66-live (D271): `<email>` may also be a username (`@name`); the OWNER manages the team from the panel's
+ * «الموظفون والصلاحيات» with the same rules (admin-roles.ts). This CLI stays the bootstrap of the first OWNER.
  */
 import 'dotenv/config';
 import { parseArgs } from 'node:util';
@@ -31,8 +34,8 @@ function fail(message: string): never {
 }
 
 const USAGE = [
-  'Usage: pnpm admin:admin grant|revoke <email> OWNER|MODERATOR|SUPPORT|FINANCE',
-  '       pnpm admin:admin list | reset-2fa <email>',
+  'Usage: pnpm admin:admin grant|revoke <email|@username> OWNER|MODERATOR|SUPPORT|FINANCE',
+  '       pnpm admin:admin list | reset-2fa <email|@username>',
 ].join('\n');
 
 const url = process.env.MIGRATION_DATABASE_URL;
@@ -53,7 +56,8 @@ try {
     } else {
       const r = await prisma.$transaction((tx) => revokeRoleIn(tx, email, role));
       process.stdout.write(
-        `${email}: ${role} revoked; ${r.left.length === 0 ? 'no panel role left (panel sessions ended)' : `left ${r.left.join(', ')}`}.\n`,
+        `${email}: ${role} revoked; ${r.left.length === 0 ? 'no panel role left (panel sessions ended)' : `left ${r.left.join(', ')}`}` +
+          `${r.shiftEnded ? '; off shift' : ''}.\n`,
       );
     }
   } else if (command === 'reset-2fa') {

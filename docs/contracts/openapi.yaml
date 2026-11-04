@@ -229,6 +229,15 @@ info:
     also read by `login` (kept with the session); code `DEVICE_BANNED` (403) on `register`, `registerVerify`, `login`
     and `startLiveRoom`; `ACCOUNT_RESTRICTED` gains the reason; notification `LIVE_MODERATED` (target
     `LIVE_MODERATION`) (CONVENTIONS §10.91).
+    **D271 (DRAFT v1.66-live)** «الموظفون والصلاحيات» — the OWNER manages the panel staff from the panel (CONVENTIONS
+    §10.96.5, building on D197's team operations): `listAdminTeam` rows gain `onShift` / `shiftSince` (D260's shift);
+    `grantAdminTeamRole` takes `account` (an email or a username, `@` optional; D197's `email` still accepted, exactly
+    one) and answers `account` (email, username, display name, authenticator set up) for the panel's next steps;
+    `revokeAdminTeamRole` answers `shiftEnded` (no watch role left → off shift, the lives handed on at once). Refusals
+    (409 `ADMIN_ACTION_REFUSED`) carry `details[0] = {field: rule, issue}`: `team_no_account`, `team_not_active`,
+    `team_locked` (a D208 lock), `team_self_owner`, `team_last_owner`, `team_not_held`, `team_self_reset`,
+    `team_not_member`. The three changes also count in a per-IP bucket `admin-team:ip` (`RATE_LIMIT_ADMIN_TEAM_IP`,
+    20 / 15 min). Every change still needs the authenticator code again and a reason (audited, `via: panel`).
     **D264 (DRAFT v1.65-live)** a VIP member's tier items in the bag (CONVENTIONS §10.97): `getMyBag` lists the wearable
     VIP perks the active membership holds (AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT,
     MIC_WAVE) as items with `source: VIP`, code `vip:<PERK>`, `expiresAt` = the membership's end and `BagItem.vip`
@@ -15591,8 +15600,8 @@ paths:
       tags:
       - admin-panel
       operationId: listAdminTeam
-      summary: 'The panel admins: roles, authenticator, lock, last sign-in (team.manage)'
-      description: '(v1.65-social, D197) '
+      summary: 'The panel admins: roles, authenticator, lock, last sign-in, shift (team.manage)'
+      description: (v1.65-social, D197) (v1.66-live, D271, §10.96.5) Each row also has the shift «في المناوبة» (`onShift`, `shiftSince`).
       security:
       - adminSession: []
       responses:
@@ -15612,7 +15621,13 @@ paths:
       - admin-panel
       operationId: grantAdminTeamRole
       summary: Grants a panel role — the `admin-admin grant` rule (code again; reason; audited) (team.manage)
-      description: (v1.65-social, D197) Through `kabso_admin_panel_role` (the only write the runtime role has on the roles).
+      description: >-
+        (v1.65-social, D197) Through `kabso_admin_panel_role` (the only write the runtime role has on the roles).
+        (v1.66-live, D271, §10.96.5) The account by `account` (email or username) or `email`; the code is checked
+        first (403 `ADMIN_TOTP_INVALID`, counted towards the lockout); 409 `ADMIN_ACTION_REFUSED` with
+        `team_no_account`, `team_not_active` (banned, deleted or pending deletion) or `team_locked`. The answer names
+        the account for the next steps (sign in, enrol the authenticator, go on shift). 429 past
+        `RATE_LIMIT_ADMIN_TEAM_IP`.
       security:
       - adminSession: []
       parameters:
@@ -15646,7 +15661,11 @@ paths:
       - admin-panel
       operationId: revokeAdminTeamRole
       summary: Revokes a panel role — the `admin-admin revoke` rule (code again; reason; audited) (team.manage)
-      description: (v1.65-social, D197) Never one's own OWNER, never the last OWNER (409). The last role ends the person's panel sessions.
+      description: >-
+        (v1.65-social, D197) Never one's own OWNER, never the last OWNER (409). The last role ends the person's panel sessions.
+        (v1.66-live, D271, §10.96.5) 409 issues `team_self_owner`, `team_last_owner` (no other active OWNER; serialized),
+        `team_not_held`. No watch role left (OWNER / MODERATION / SUPPORT) → the shift ends and the lives are handed on
+        (`shiftEnded`). 429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
       security:
       - adminSession: []
       parameters:
@@ -15681,7 +15700,10 @@ paths:
       - admin-panel
       operationId: resetAdminTeamTotp
       summary: Resets an admin's authenticator — `admin-admin reset-2fa` (code again; reason; audited) (team.manage)
-      description: '(v1.65-social, D197) '
+      description: >-
+        (v1.65-social, D197) (v1.66-live, D271, §10.96.5) A lost phone: the authenticator and recovery codes go, the
+        person's panel sessions end, the next sign-in enrols again. 409 issues `team_self_reset`, `team_not_member`.
+        429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
       security:
       - adminSession: []
       parameters:
@@ -21441,6 +21463,8 @@ components:
             - totpEnrolled
             - lockedUntil
             - lastSignInAt
+            - onShift
+            - shiftSince
             properties:
               id:
                 type: string
@@ -21473,17 +21497,32 @@ components:
                 - string
                 - 'null'
                 format: date-time
+              onShift:
+                type: boolean
+                description: (v1.66-live, D271) On shift «في المناوبة» now (D260; FINANCE never).
+              shiftSince:
+                type:
+                - string
+                - 'null'
+                format: date-time
+                description: (v1.66-live, D271) When the current shift started; null when off shift.
     AdminTeamGrantRequest:
       type: object
+      description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).
       required:
-      - email
       - role
       - reason
       - totpCode
       properties:
+        account:
+          type: string
+          minLength: 1
+          maxLength: 254
+          description: (v1.66-live, D271) The account's email or username (`@` optional).
         email:
           type: string
           maxLength: 254
+          description: (v1.65-social, D197) The account's email; kept for older panels — prefer `account`.
         role:
           $ref: '#/components/schemas/AdminPanelRole'
         reason:
@@ -21513,6 +21552,23 @@ components:
           type: boolean
         already:
           type: boolean
+        account:
+          type: object
+          description: (v1.66-live, D271) Who was granted, for the panel's next steps.
+          required:
+          - email
+          - username
+          - displayName
+          - totpEnrolled
+          properties:
+            email:
+              type: string
+            username:
+              type: string
+            displayName:
+              type: string
+            totpEnrolled:
+              type: boolean
     AdminTeamRevokeRequest:
       type: object
       required:
@@ -21545,6 +21601,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdminPanelRole'
+        shiftEnded:
+          type: boolean
+          description: (v1.66-live, D271) The person held no watch role any more and was taken off shift.
     AdminTeamResetRequest:
       type: object
       required:

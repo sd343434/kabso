@@ -1527,7 +1527,8 @@ first-party). The panel signs in an existing admin account with its password and
    unreadable). Optional settings (defaults): `ADMIN_SESSION_IDLE_SECONDS` 1800, `ADMIN_SESSION_MAX_SECONDS` 28800,
    `ADMIN_PENDING_SECONDS` 300, `ADMIN_LOCKOUT_ATTEMPTS` 5, `ADMIN_LOCKOUT_SECONDS` 900, `ADMIN_DASHBOARD_TIME_ZONE`
    `Asia/Riyadh` (the dashboard's «today»), `RATE_LIMIT_ADMIN_LOGIN_IP`
-   `30/900`, `RATE_LIMIT_ADMIN_IP` `1200/900`.
+   `30/900`, `RATE_LIMIT_ADMIN_IP` `1200/900`, `RATE_LIMIT_ADMIN_TEAM_IP` `20/900` (D271: the staff page's grant /
+   revoke / reset-2fa per IP).
 3. **Optional IP allowlist:** `KABSO_ADMIN_ALLOW_IPS='203.0.113.7/32 198.51.100.0/24'` in `/etc/kabso/kabso.env`
    (space-separated CIDRs) answers 403 at admin.<domain> to every other address. **Leave it unset for everyone** — an
    empty value (`KABSO_ADMIN_ALLOW_IPS=`) blocks everyone. Then `docker compose … up -d caddy`.
@@ -1540,7 +1541,12 @@ first-party). The panel signs in an existing admin account with its password and
    ```
 
    Other roles the same way: `MODERATOR`, `SUPPORT`, `FINANCE`; `revoke <email> <role>` takes one back (the last one
-   ends the person's panel sessions); `reset-2fa <email>` after a lost phone. The panel itself cannot change roles.
+   ends the person's panel sessions); `reset-2fa <email>` after a lost phone. `<email>` may also be `@username`.
+   **After the first OWNER (D197, D271):** the OWNER manages everyone else from the panel's **«الموظفون والصلاحيات»**
+   (Staff & permissions; settings group): grant a role to an existing app account by email or username, revoke one,
+   reset a lost authenticator — each with a written reason and a fresh code from the OWNER's own authenticator, audited
+   `via: panel` with the OWNER as the actor. The panel never takes OWNER from oneself or from the last active OWNER; the
+   CLI stays the bootstrap and the server-side escape hatch (it can, run as the migration role on the server).
 5. **Enrol the authenticator:** open `https://admin.kabsolive.com`, sign in with the account's email and password,
    scan the QR code with Google Authenticator / Microsoft Authenticator / 1Password, enter the code, and **store the
    ten recovery codes** offline (shown once; each works once).
@@ -2640,9 +2646,13 @@ CONVENTIONS §10.96. The migration adds `admin_shifts`, `live_room_assignments` 
 the runtime role gets DML through the default privileges). No env setting: the assignment pass runs after each go-live, on
 each shift change and at `LIVE_SWEEP_INTERVAL_SECONDS` (0 turns the periodic pass off; the go-live and shift passes still run).
 
-- **Staff accounts.** Real panel accounts only (OWNER / MODERATION / SUPPORT, granted with `admin-admin grant`, each with
-  their own authenticator). After deploying, each staff member turns on «في المناوبة» on «البث الآن»; nothing is assigned
-  while nobody is on shift (the OWNER's «من في المناوبة» shows the lives nobody watches).
+- **Staff accounts.** Real panel accounts only (OWNER / MODERATION / SUPPORT, each with their own authenticator). Since
+  D271 the OWNER grants them from the panel's «الموظفون والصلاحيات» (email or `@username` of an existing app account, a
+  reason, the OWNER's fresh code; `admin-admin grant` still works). The panel then shows the new staff member's next steps:
+  sign in at `https://admin.kabsolive.com` with the app account's email and password, enrol the authenticator, open
+  «البث الآن» and turn on «في المناوبة». Nothing is assigned while nobody is on shift (the OWNER's «من في المناوبة» shows
+  the lives nobody watches). Revoking a person's last watch role takes them off shift and hands their lives on at once;
+  revoking their last panel role also ends their panel sessions.
 - **Media load.** A visible watch is one extra subscriber per watched live (video and audio of the host and seats), from
   the staff member's browser. Watching all assigned lives at once multiplies that; staff open «بثوثي» lives one at a time.
 - **Behaviour change in the panel.** «مشاهدة» now joins visibly (the host and viewers see «فريق كابسو» in the viewer list);

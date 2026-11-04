@@ -48,7 +48,7 @@ export const AR_V2 = {
   navTasks: 'المهام',
   navLevels: 'المستويات',
   navWaitlist: 'قائمة البريد',
-  navTeam: 'الفريق',
+  navTeam: 'الموظفون والصلاحيات',
   navAudit: 'سجل التدقيق',
   // top bar
   searchPlaceholder: 'ابحث عن مستخدم أو وكيل أو وكالة…',
@@ -654,7 +654,7 @@ export const EN_V2: Record<keyof typeof AR_V2, string> = {
   navTasks: 'Tasks',
   navLevels: 'Levels',
   navWaitlist: 'Mailing list',
-  navTeam: 'Team',
+  navTeam: 'Staff & permissions',
   navAudit: 'Audit log',
   searchPlaceholder: 'Search a user, an agent or an agency…',
   searchUsers: 'Users',

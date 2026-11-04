@@ -23,6 +23,15 @@ const REFUSAL_KEYS: Record<string, Key> = {
   kyc_test_failed: 'kycErrTestFailed',
   kyc_nothing_to_clear: 'kycErrNothingToClear',
   kyc_required: 'kycErrRequired',
+  // D271 «الموظفون والصلاحيات»: the team rules (admin-roles.ts).
+  team_no_account: 'teamErrNoAccount',
+  team_not_active: 'teamErrNotActive',
+  team_locked: 'teamErrLocked',
+  team_self_owner: 'teamErrSelfOwner',
+  team_last_owner: 'teamErrLastOwner',
+  team_not_held: 'teamErrNotHeld',
+  team_self_reset: 'teamErrSelfReset',
+  team_not_member: 'teamErrNotMember',
 };
 
 function refusalKey(err: ApiError): Key | null {
