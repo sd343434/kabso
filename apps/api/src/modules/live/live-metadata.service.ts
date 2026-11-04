@@ -18,13 +18,16 @@ export function roomMetadataJson(
   score: number,
   roomInfoVersion = 0,
   streamerVersion = 0,
+  hostCherries = 0,
 ): string {
   // v1.56-live (D213, §10.86): a STREAMER's layout version, once the host changed it (left out at 0).
+  // v1.63-live (D259, §10.95): the host's real cherries of this live, once there are any (left out at 0).
   return JSON.stringify({
     seatsVersion,
     score,
     ...(roomInfoVersion > 0 ? { roomInfoVersion } : {}),
     ...(streamerVersion > 0 ? { streamerVersion } : {}),
+    ...(hostCherries > 0 ? { hostCherries } : {}),
   });
 }
 
@@ -135,12 +138,19 @@ export class LiveRoomMetadataService implements OnModuleDestroy {
   ): Promise<{ json: string; score: number; roomInfoVersion: number; streamerVersion: number } | null> {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
-      select: { seatsVersion: true, score: true, infoVersion: true, streamerVersion: true },
+      select: {
+        seatsVersion: true,
+        score: true,
+        infoVersion: true,
+        streamerVersion: true,
+        scoreParts: { select: { hostCherries: true } },
+      },
     });
     if (!room) return null;
     const score = Number(room.score);
+    const hostCherries = Number(room.scoreParts?.hostCherries ?? 0n);
     return {
-      json: roomMetadataJson(room.seatsVersion, score, room.infoVersion, room.streamerVersion),
+      json: roomMetadataJson(room.seatsVersion, score, room.infoVersion, room.streamerVersion, hostCherries),
       score,
       roomInfoVersion: room.infoVersion,
       streamerVersion: room.streamerVersion,

@@ -69,7 +69,7 @@ describe('CP-012 live taps and the room score', () => {
     expect(res.status).toBe(201);
     expectContract(res, 'startLiveRoom');
     expect(res.body.score).toBe(0);
-    expect(res.body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0 });
+    expect(res.body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0 });
     return res.body.id as string;
   };
   const end = async (roomId: string, u: TestUser) => {
@@ -126,19 +126,19 @@ describe('CP-012 live taps and the room score', () => {
 
       expect(await tapOk(roomId, v, 7)).toEqual({
         accepted: 7,
-        score: { total: 7, tapPoints: 7, supportPoints: 0 },
+        score: { total: 7, tapPoints: 7, supportPoints: 0, hostCherries: 0 },
       });
       clock.advance(1);
       expect(await tapOk(roomId, v, 4)).toEqual({
         accepted: 4,
-        score: { total: 11, tapPoints: 11, supportPoints: 0 },
+        score: { total: 11, tapPoints: 11, supportPoints: 0, hostCherries: 0 },
       });
 
       const detail = await room(roomId, v);
       expect(detail.status).toBe(200);
       expect(detail.body).toMatchObject({
         score: 11,
-        scoreParts: { total: 11, tapPoints: 11, supportPoints: 0 },
+        scoreParts: { total: 11, tapPoints: 11, supportPoints: 0, hostCherries: 0 },
       });
       // Guests read the score too (the room allows guests by default).
       expect((await room(roomId)).body.score).toBe(11);
@@ -172,7 +172,10 @@ describe('CP-012 live taps and the room score', () => {
       expect((await tapOk(roomId, v, 4)).accepted).toBe(4); // never more than the batch
       clock.advance(30);
       const res = await tapOk(roomId, v, 50);
-      expect(res).toEqual({ accepted: 50, score: { total: 82, tapPoints: 82, supportPoints: 0 } });
+      expect(res).toEqual({
+        accepted: 50,
+        score: { total: 82, tapPoints: 82, supportPoints: 0, hostCherries: 0 },
+      });
       expect((await tapper(roomId, v.id))?.counted).toBe(82);
 
       // Another viewer has their own allowance.
@@ -187,7 +190,12 @@ describe('CP-012 live taps and the room score', () => {
       const roomId = await goLive(h);
       const results = await Promise.all(Array.from({ length: 6 }, () => tapOk(roomId, v, 10)));
       expect(results.reduce((sum, r) => sum + r.accepted, 0)).toBe(10);
-      expect((await room(roomId)).body.scoreParts).toEqual({ total: 10, tapPoints: 10, supportPoints: 0 });
+      expect((await room(roomId)).body.scoreParts).toEqual({
+        total: 10,
+        tapPoints: 10,
+        supportPoints: 0,
+        hostCherries: 0,
+      });
       // Several callers at once: each is counted, and the score is their sum.
       const others = [await signup(), await signup(), await signup()];
       clock.advance(1);
@@ -211,7 +219,7 @@ describe('CP-012 live taps and the room score', () => {
       clock.advance(10);
       expect(await tapOk(roomId, v, 50)).toEqual({
         accepted: 5,
-        score: { total: 10_000, tapPoints: 10_000, supportPoints: 0 },
+        score: { total: 10_000, tapPoints: 10_000, supportPoints: 0, hostCherries: 0 },
       });
       clock.advance(10);
       expect((await tapOk(roomId, v, 50)).accepted).toBe(0);
@@ -228,7 +236,7 @@ describe('CP-012 live taps and the room score', () => {
       // A first batch counts at most 10, like anyone's.
       expect(await tapOk(roomId, h, 15)).toEqual({
         accepted: 10,
-        score: { total: 10, tapPoints: 10, supportPoints: 0 },
+        score: { total: 10, tapPoints: 10, supportPoints: 0, hostCherries: 0 },
       });
       expect((await tapper(roomId, h.id))?.counted).toBe(10);
       // 10 a second: no time passed → nothing more; 2 seconds later at most 20.
@@ -247,7 +255,12 @@ describe('CP-012 live taps and the room score', () => {
       clock.advance(10);
       expect((await tapOk(roomId, h, 50)).accepted).toBe(0);
       expect((await tapper(roomId, h.id))?.counted).toBe(10_000);
-      expect((await room(roomId)).body.scoreParts).toEqual({ total: 45, tapPoints: 45, supportPoints: 0 });
+      expect((await room(roomId)).body.scoreParts).toEqual({
+        total: 45,
+        tapPoints: 45,
+        supportPoints: 0,
+        hostCherries: 0,
+      });
       // The score reaches the media room's metadata like a viewer's taps.
       expect(media.metadataWrites.some((w) => w.room === roomId)).toBe(true);
       await end(roomId, h);
@@ -273,7 +286,12 @@ describe('CP-012 live taps and the room score', () => {
       expect((await tapOk(roomId, mod, 4)).accepted).toBe(4);
       // D120: the host on their own seat counts too.
       expect((await tapOk(roomId, h, 9)).accepted).toBe(9);
-      expect((await room(roomId)).body.scoreParts).toEqual({ total: 19, tapPoints: 19, supportPoints: 0 });
+      expect((await room(roomId)).body.scoreParts).toEqual({
+        total: 19,
+        tapPoints: 19,
+        supportPoints: 0,
+        hostCherries: 0,
+      });
       await end(roomId, h);
     });
   });
@@ -298,7 +316,7 @@ describe('CP-012 live taps and the room score', () => {
       expect(ended.body).toMatchObject({
         status: 'ENDED',
         score: 9,
-        scoreParts: { total: 9, tapPoints: 9, supportPoints: 0 },
+        scoreParts: { total: 9, tapPoints: 9, supportPoints: 0, hostCherries: 0 },
       });
       clock.advance(5);
       const res = await tap(roomId, v, { count: 5 });
@@ -308,7 +326,12 @@ describe('CP-012 live taps and the room score', () => {
       expect((await room(roomId, v)).body).toMatchObject({ status: 'ENDED', score: 9 });
       // A new live starts at 0.
       const next = await goLive(h);
-      expect((await room(next)).body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0 });
+      expect((await room(next)).body.scoreParts).toEqual({
+        total: 0,
+        tapPoints: 0,
+        supportPoints: 0,
+        hostCherries: 0,
+      });
       await end(next, h);
     });
 

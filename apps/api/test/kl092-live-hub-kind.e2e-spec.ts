@@ -216,7 +216,7 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
     ]);
     const detail = await ctx.http.get(`/api/v1/live/rooms/${again}`);
     expect(detail.status).toBe(200);
-    expect(detail.body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0 });
+    expect(detail.body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0 });
 
     // The ended room keeps its own final score (history), and only there.
     const old = await ctx.http.get(`/api/v1/live/rooms/${first}`);

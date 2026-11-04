@@ -295,7 +295,10 @@ describe.skipIf(!url)('CP-011 seats through the API on a real LiveKit server', (
       // seat version (the first write of a room is immediate), and the next seat change keeps it.
       const tapped = await ctx.http.post(`${base}/taps`).set(bearer(guest)).send({ count: 5 });
       expect(tapped.status).toBe(200);
-      expect(tapped.body).toEqual({ accepted: 5, score: { total: 5, tapPoints: 5, supportPoints: 0 } });
+      expect(tapped.body).toEqual({
+        accepted: 5,
+        score: { total: 5, tapPoints: 5, supportPoints: 0, hostCherries: 0 },
+      });
       expect(await metadata()).toBe('{"seatsVersion":3,"score":5}');
 
       await ctx.http.post(`${base}/seats/1/remove`).set(bearer(host)).send({}).expect(200);

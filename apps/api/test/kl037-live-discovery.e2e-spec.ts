@@ -373,7 +373,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         // v1.58-live (D246): the only live of its kind is in its top N; the host set no country, so no
         // `hostCountry` key (roomLevel is below).
         popular: true,
-        scoreParts: { total: 0, tapPoints: 0, supportPoints: 0 },
+        scoreParts: { total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0 },
         // CP-013 (v1.9-live): a new live starts with the chat on; the host is never muted.
         chatEnabled: true,
         chatMuted: false,

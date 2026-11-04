@@ -145,6 +145,7 @@ export class LiveStatsService {
         total: Number(row.score),
         tapPoints: Number(row.tap_points),
         supportPoints: Number(row.support_points),
+        hostCherries: Number(row.host_cherries),
       },
       hostOwnPoints: Number(own?.points ?? 0n),
       supporters,

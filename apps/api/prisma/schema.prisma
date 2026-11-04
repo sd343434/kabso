@@ -868,6 +868,9 @@ model LiveRoomScore {
   roomId        String   @id @map("room_id") @db.Uuid
   tapPoints     BigInt   @default(0) @map("tap_points")
   supportPoints BigInt   @default(0) @map("support_points")
+  /// v1.63-live (D259, §10.95): the cherries the host's balance was credited for gifts received in
+  /// this live (CHECK `live_room_scores_host_cherries` >= 0). The points above are not cherries.
+  hostCherries  BigInt   @default(0) @map("host_cherries")
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)

@@ -158,9 +158,12 @@ export class LiveTapsService {
         }
       }
 
-      const [score] = await tx.$queryRaw<{ total: bigint; tap_points: bigint; support_points: bigint }[]>`
+      const [score] = await tx.$queryRaw<
+        { total: bigint; tap_points: bigint; support_points: bigint; host_cherries: bigint }[]
+      >`
         SELECT r.score AS total, COALESCE(sc.tap_points, 0)::bigint AS tap_points,
-               COALESCE(sc.support_points, 0)::bigint AS support_points
+               COALESCE(sc.support_points, 0)::bigint AS support_points,
+               COALESCE(sc.host_cherries, 0)::bigint AS host_cherries
           FROM live_rooms r LEFT JOIN live_room_scores sc ON sc.room_id = r.id
          WHERE r.id = ${id}::uuid`;
       return {
@@ -171,6 +174,7 @@ export class LiveTapsService {
           total: Number(score?.total ?? 0),
           tapPoints: Number(score?.tap_points ?? 0),
           supportPoints: Number(score?.support_points ?? 0),
+          hostCherries: Number(score?.host_cherries ?? 0),
         },
       };
     }, LIVE_TX_OPTIONS);

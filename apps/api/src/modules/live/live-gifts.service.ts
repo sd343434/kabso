@@ -25,7 +25,7 @@ import { isAvailable, loadCategories, type LoadedCategory } from '../levels/leve
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { qualify, type Credit } from '../levels/level-qualification.js';
 import { pointsFor } from '../levels/points-math.js';
-import { creditGiftCherriesIn } from '../economy/cherry-ledger.js';
+import { creditGiftCherriesIn, type GiftCherryCredit } from '../economy/cherry-ledger.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
@@ -626,7 +626,21 @@ export class LiveGiftsService {
           }
           // v1.52-social (D179, §10.46): the recipients' cherries and their agencies' commissions, credited
           // now in the send's transaction (a free quip credits nothing).
-          if (!freeQuip) await this.creditCherries(tx, giftId, now);
+          if (!freeQuip) {
+            const credit = await this.creditCherries(tx, giftId, now);
+            // v1.63-live (D259, §10.95): the host's real cherries of this live (what their balance got), shown
+            // in the host pill instead of the score's points.
+            const hostCherries = credit.recipients
+              .filter((r) => r.userId === state.host_user_id)
+              .reduce((sum, r) => sum + r.cherries, 0n);
+            if (hostCherries > 0n) {
+              await tx.$executeRaw`
+                INSERT INTO live_room_scores (room_id, tap_points, support_points, host_cherries, updated_at)
+                VALUES (${row.id}::uuid, 0, 0, ${hostCherries}, ${now}::timestamptz)
+                ON CONFLICT (room_id) DO UPDATE
+                   SET host_cherries = live_room_scores.host_cherries + EXCLUDED.host_cherries`;
+            }
+          }
           // v1.43-live (D195, §10.58): PK points — the send's REAL coin value (lucky gifts too) × the
           // side's booster, in their own tables only (money, cherries, scores and levels above all used
           // the real value). A refused booster rolls the whole send back.
@@ -986,8 +1000,12 @@ export class LiveGiftsService {
   }
 
   /** D179: the cherry credit of a send (CONVENTIONS §10.46), inside its transaction. */
-  private async creditCherries(tx: Prisma.TransactionClient, giftId: string, now: Date): Promise<void> {
-    await creditGiftCherriesIn(tx, giftId, now, this.config.economy, this.config.live.rankingsTimeZone);
+  private async creditCherries(
+    tx: Prisma.TransactionClient,
+    giftId: string,
+    now: Date,
+  ): Promise<GiftCherryCredit> {
+    return creditGiftCherriesIn(tx, giftId, now, this.config.economy, this.config.live.rankingsTimeZone);
   }
 
   /**

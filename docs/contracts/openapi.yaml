@@ -24195,6 +24195,15 @@ components:
       description: CP-012 — a live's points. A new live starts at 0; an ended room keeps them.
       required: [total, tapPoints, supportPoints]
       properties:
+        hostCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            v1.63-live (D259, CONVENTIONS §10.95). The cherries the host's balance was credited for the gifts
+            they received in this live: per send floor(coins × the send's stored host share × CHERRIES_PER_COIN),
+            exactly the cherry ledger's GIFT_RECEIVED credit (§10.46). Not points: the apps show this (not
+            `total`) beside the cherry icon. Older servers omit it (read as 0).
         total: { type: integer, format: int64, minimum: 0, description: tapPoints + supportPoints. }
         tapPoints: { type: integer, format: int64, minimum: 0, description: 1 per counted tap. }
         supportPoints:

@@ -265,6 +265,22 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
     },
   });
   if (credits.length === 0 || done > 0) return { reversed: false, rows: 0, cherries: 0n };
+  // v1.63-live (D259, §10.95): a live send's reversed host credit leaves the live's host cherries too (never
+  // below 0), so the host pill keeps showing what the balance holds from this live.
+  const [live] = await tx.$queryRaw<{ room_id: string; host_user_id: string }[]>`
+    SELECT g.room_id::text AS room_id, r.host_user_id::text AS host_user_id
+      FROM live_gifts g JOIN live_rooms r ON r.id = g.room_id
+     WHERE g.id = ${giftId}::uuid`;
+  if (live) {
+    const hostCredit = credits
+      .filter((c) => c.reason === 'GIFT_RECEIVED' && c.userId === live.host_user_id)
+      .reduce((sum, c) => sum + c.delta, 0n);
+    if (hostCredit > 0n) {
+      await tx.$executeRaw`
+        UPDATE live_room_scores SET host_cherries = GREATEST(host_cherries - ${hostCredit}, 0)
+         WHERE room_id = ${live.room_id}::uuid`;
+    }
+  }
   const earnings = await tx.$queryRaw<
     {
       agency_id: string;

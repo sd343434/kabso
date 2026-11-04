@@ -182,6 +182,8 @@ export interface LiveScoreDto {
   total: number;
   tapPoints: number;
   supportPoints: number;
+  /** v1.63-live (D259, §10.95): the cherries the host's balance was credited for this live's gifts. */
+  hostCherries: number;
 }
 
 export interface LiveRoomDto extends LiveRoomSummaryDto {
@@ -270,6 +272,8 @@ export interface RoomRow {
   score: bigint;
   tap_points: bigint;
   support_points: bigint;
+  /** v1.63-live (D259): `live_room_scores.host_cherries` (0 without a row). */
+  host_cherries: bigint;
   occupied_seats: number;
   /** CP-013: the host's chat switch. */
   chat_enabled: boolean;
@@ -355,6 +359,7 @@ const ROOM_COLUMNS = Prisma.sql`
          r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score,
          COALESCE(sc.tap_points, 0)::bigint AS tap_points,
          COALESCE(sc.support_points, 0)::bigint AS support_points,
+         COALESCE(sc.host_cherries, 0)::bigint AS host_cherries,
          (SELECT count(*)::int FROM live_room_seats s
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
@@ -1042,6 +1047,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         total: Number(row.score),
         tapPoints: Number(row.tap_points),
         supportPoints: Number(row.support_points),
+        hostCherries: Number(row.host_cherries),
       },
       chatEnabled: row.chat_enabled,
       chatMuted: row.chat_muted ?? false,

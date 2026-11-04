@@ -5,6 +5,13 @@ describe('CP-012 room metadata (CONVENTIONS §10.9, §10.10)', () => {
   it('carries the seat version and the score together', () => {
     expect(roomMetadataJson(3, 1234)).toBe('{"seatsVersion":3,"score":1234}');
     expect(JSON.parse(roomMetadataJson(0, 0))).toEqual({ seatsVersion: 0, score: 0 });
+    // v1.63-live (D259): the host's real cherries, left out at 0.
+    expect(JSON.parse(roomMetadataJson(2, 10_000, 0, 0, 650))).toEqual({
+      seatsVersion: 2,
+      score: 10_000,
+      hostCherries: 650,
+    });
+    expect(roomMetadataJson(2, 10_000, 0, 0, 0)).toBe('{"seatsVersion":2,"score":10000}');
   });
 });
 
