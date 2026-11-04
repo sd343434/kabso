@@ -6238,8 +6238,11 @@ free ones are left today.
 Every perk's hosted SVGA plays through one engine: downloaded once (the gift art cache), decoded once, each frame
 drawn once at the size it is shown (bucketed 64…1024 px) and shared by every widget on one clock; reduced motion
 shows the still (or the first frame). The stretchable arts follow the owner's templates (fractions of the canvas):
-**CHAT_BUBBLE** (`svip_text_bubble`, 990 × 720) 9-sliced to the message (it scales with the line's height and stretches
-sideways; the ornaments overflow it) over an opaque deep shade of the tier colour; the name and badges sit **above**
+**CHAT_BUBBLE** (`svip_text_bubble`, 990 × 720) 9-sliced to the message (it scales with the line's height up to one
+text line, 32 pt, and stretches sideways between x 620 – 760 and, for more lines, downwards between y 340 – 380 —
+D265: the ornaments and the edge keep their one-line size; never narrower than its fixed parts, 529 / 457 × 32 pt; the
+ornaments overflow it) over an opaque deep shade of the tier colour (D265: under the art only its fill, inside the
+art's edge, no edge of ours); the name and badges sit **above**
 the bubble, which holds only the message (owner). D265: in **every** chat (the host's flat chat, the audio, podcast and
 video rooms of host and viewers), a text line by a member holding CHAT_BUBBLE takes this layout — line 1 the VIP badge
 (outside the name row), the name in the special colour, the levels and up to 3 medals; line 2 the message alone in

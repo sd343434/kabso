@@ -416,19 +416,51 @@ typedef VipSvgaPlacement = ({BoxFit? fit, VipSvgaNine? nine});
 /// width (it stretches downwards).
 @immutable
 class VipSvgaNine {
-  const new({required this.body, required this.slice, required this.scaleBy});
+  const new({
+    required this.body,
+    required this.slice,
+    required this.scaleBy,
+    this.maxHeight,
+    this.template,
+  });
 
   final Rect body;
   final Rect slice;
   final Axis scaleBy;
 
+  /// D265: the tallest [body] is drawn at (screen units, [Axis.vertical]
+  /// only): a taller box keeps that scale and stretches the slice
+  /// downwards, so a message of several lines keeps the frame's edge and
+  /// ornaments at their one-line size (they grew with the box before).
+  final double? maxHeight;
+
+  /// The template's canvas (its proportions, for [minWidth]).
+  final Size? template;
+
+  /// D265: the narrowest box the art's fixed parts fit (the ornaments'
+  /// corner and the end), at [maxHeight]: a one-letter message is never
+  /// narrower than its frame (the art overflowed its box before).
+  double get minWidth {
+    final t = template;
+    final h = maxHeight;
+    if (t == null || h == null) return 0;
+    final b = _abs(body, t);
+    final c = _abs(slice, t);
+    return (b.width - c.width) * h / b.height;
+  }
+
   /// The owner's chat bubble template (`svip_text_bubble`, 990 × 720): the
   /// frame's edge 150,127 – 819,584; the ornaments overflow up and left; it
-  /// stretches between x 620 and 760 (right of the ornaments).
+  /// stretches between x 620 and 760 (right of the ornaments) and, D265,
+  /// between y 340 and 380 (straight edges; the rounded bottom corners
+  /// smeared when 530 – 560 stretched).
   static const bubble = VipSvgaNine(
     body: Rect.fromLTRB(150 / 990, 127 / 720, 819 / 990, 584 / 720),
-    slice: Rect.fromLTRB(620 / 990, 530 / 720, 760 / 990, 560 / 720),
+    slice: Rect.fromLTRB(620 / 990, 340 / 720, 760 / 990, 380 / 720),
     scaleBy: Axis.vertical,
+    // One text line of the chats (≈ 28–31 pt with its padding).
+    maxHeight: 32,
+    template: Size(990, 720),
   );
 
   /// The owner's person card template (`svip_box`, 720 × 1280): the card
@@ -451,7 +483,7 @@ class VipSvgaNine {
   double scaleFor(Size size, Size viewBox) {
     final b = _abs(body, viewBox);
     return scaleBy == Axis.vertical
-        ? size.height / b.height
+        ? math.min(size.height, maxHeight ?? double.infinity) / b.height
         : size.width / b.width;
   }
 
@@ -639,7 +671,10 @@ class _VipSvgaState extends State<VipSvga> with SingleTickerProviderStateMixin {
         // twice the side it scales by.
         final side = nine == null
             ? math.max(w, h)
-            : 2.2 * (nine.scaleBy == Axis.vertical ? h : w);
+            : 2.2 *
+                  (nine.scaleBy == Axis.vertical
+                      ? math.min(h, nine.maxHeight ?? h)
+                      : w);
         _load(side * dpr * widget.resolution);
       }
       final clip = _clip;

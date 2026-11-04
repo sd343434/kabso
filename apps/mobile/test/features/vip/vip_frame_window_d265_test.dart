@@ -91,4 +91,22 @@ void main() {
     expect(rect.center.dx, closeTo(42, 1e-9));
     expect(rect.center.dy, closeTo(42, 1e-9));
   });
+
+  test('the bubble keeps its one-line scale on a taller message and is never '
+      'narrower than its fixed parts', () {
+    const nine = VipSvgaNine.bubble;
+    const box = Size(990, 720);
+    final one = nine.scaleFor(const Size(200, 30), box);
+    final three = nine.scaleFor(const Size(200, 75), box);
+    expect(one, closeTo(30 / 457, 1e-9));
+    // Taller than one line: the scale stops at maxHeight; the slice
+    // stretches.
+    expect(three, closeTo(32 / 457, 1e-9));
+    // The ornament corner and the end: (669 − 140) units at 32 pt.
+    expect(nine.minWidth, closeTo(529 * 32 / 457, 1e-6));
+    // The stretched band is on straight edges (between the ornaments and the
+    // rounded bottom corners).
+    expect(nine.slice.top * 720, closeTo(340, 1e-9));
+    expect(nine.slice.bottom * 720, closeTo(380, 1e-9));
+  });
 }

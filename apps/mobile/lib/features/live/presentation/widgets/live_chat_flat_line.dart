@@ -7,6 +7,7 @@ import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
+import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -55,17 +56,39 @@ abstract final class KFlatChat {
     BoxDecoration? vip,
     Widget? vipArt,
   }) => !cp && vip != null
-      ? Stack(
+      ? ConstrainedBox(
           key: vipBubbleKey,
-          clipBehavior: Clip.none,
-          children: [
-            // The opaque bubble under the text (and under the owner's
-            // animated bubble, whose ornaments overflow the line).
-            Positioned.fill(child: DecoratedBox(decoration: vip)),
-            if (vipArt != null)
-              Positioned.fill(child: IgnorePointer(child: vipArt)),
-            Padding(padding: LiveChatFlatLine.vipPadding, child: child),
-          ],
+          // D265: never narrower than the owner's bubble art's fixed parts.
+          constraints: BoxConstraints(
+            minWidth: vipArt == null ? 0 : VipSvgaNine.bubble.minWidth,
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // The opaque bubble under the text (and under the owner's
+              // animated bubble, whose ornaments overflow the line). D265:
+              // under the art, only its fill, inside the art's edge (no
+              // edge of ours beside the owner's).
+              Positioned.fill(
+                child: vipArt == null
+                    ? DecoratedBox(decoration: vip)
+                    : Padding(
+                        // Inside the art's edge (its inner corners ≈ 3 pt).
+                        padding: const EdgeInsets.all(3),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: vip.gradient,
+                            image: vip.image,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+              ),
+              if (vipArt != null)
+                Positioned.fill(child: IgnorePointer(child: vipArt)),
+              Padding(padding: LiveChatFlatLine.vipPadding, child: child),
+            ],
+          ),
         )
       : Container(
           // The CP edge (1 pt) sits inside the padding: both lines keep one
