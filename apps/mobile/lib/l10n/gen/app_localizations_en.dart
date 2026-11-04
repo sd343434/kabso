@@ -14075,4 +14075,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bagNoSendVip =>
       'VIP items belong to your membership and can\'t be sent';
+
+  @override
+  String get bagNoSendPermanent => 'Permanent items can\'t be sent';
 }

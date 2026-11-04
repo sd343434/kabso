@@ -245,29 +245,21 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     expect((await equip(b, 'emerald_wings')).status).toBe(200);
   });
 
-  it('a permanent item sent whole stays permanent; part of a permanent item is refused', async () => {
+  it('D266: a permanent item is never sent, whole or in part; nothing changes', async () => {
     const a = await signup();
     const b = await signup();
     await give(a, 'kabi_royal', null);
-    const part = await send(a, { code: 'kabi_royal', username: b.username, days: 3 });
-    expect(part.status).toBe(409);
-    expectContract(part, 'sendMyBagItem');
-    expect(part.body.error.code).toBe('BAG_SEND_PERMANENT_WHOLE_ONLY');
+    for (const days of [3, null]) {
+      const res = await send(a, { code: 'kabi_royal', username: b.username, days });
+      expect(res.status, String(days)).toBe(409);
+      expectContract(res, 'sendMyBagItem');
+      expect(res.body.error.code).toBe('BAG_ITEM_NOT_TRANSFERABLE');
+    }
     expect((await owned(a, 'kabi_royal'))?.expiresAt).toBeNull();
-    const whole = await send(a, { code: 'kabi_royal', username: b.username, days: null });
-    expect(whole.status).toBe(201);
-    expect(whole.body).toMatchObject({ whole: true, durationSeconds: null, remaining: null });
-    expect(await owned(b, 'kabi_royal')).toMatchObject({ expiresAt: null, source: 'GIFT' });
-    expect(await owned(a, 'kabi_royal')).toBeUndefined();
-    const ledger = await ctx.prisma.bagTransfer.findFirst({ where: { senderId: a.id } });
-    expect(ledger).toMatchObject({ whole: true, durationMs: null, recipientExpiresAt: null });
-    // Sending again to someone who owns it permanently: refused, nothing changes.
-    const c = await signup();
-    await give(c, 'kabi_royal', 4);
-    const again = await send(c, { code: 'kabi_royal', username: b.username });
-    expect(again.status).toBe(409);
-    expect(again.body.error.code).toBe('BAG_RECIPIENT_HAS_PERMANENT');
-    expect(await owned(c, 'kabi_royal')).toBeDefined();
+    expect(await owned(b, 'kabi_royal')).toBeUndefined();
+    expect(await ctx.prisma.bagTransfer.count({ where: { senderId: a.id } })).toBe(0);
+    // The bag says so: a permanent item is not transferable.
+    expect((await bag(a)).find((i) => i.code === 'kabi_royal')).toMatchObject({ transferable: false });
   });
 
   it('sends some days: the sender keeps the rest (still worn), the recipient gets exactly those days', async () => {
@@ -312,7 +304,7 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     expect((await send(a, { code: 'golden_stags', username: b.username, days: 2 })).status).toBe(201);
   });
 
-  it('stacks on the recipient’s copy: time is added, what they wear is unchanged; whole permanent makes it permanent', async () => {
+  it('stacks on the recipient’s copy: time is added, what they wear is unchanged', async () => {
     const a = await signup();
     const b = await signup();
     await give(b, 'emerald_wings', 5);
@@ -330,11 +322,6 @@ describe('D171 the bag v2', { timeout: 180_000 }, () => {
     expect(
       Math.abs(expiresIn(await owned(b, 'emerald_wings'))! - (theirsBefore + 2 * DAY + aLeft)),
     ).toBeLessThan(SLACK);
-    // A whole permanent item on a timed copy: permanent.
-    const c = await signup();
-    await give(c, 'emerald_wings', null);
-    expect((await send(c, { code: 'emerald_wings', username: b.username })).status).toBe(201);
-    expect((await owned(b, 'emerald_wings'))?.expiresAt).toBeNull();
     // An expired copy on the recipient's side is replaced, counting from now.
     const d = await signup();
     await give(d, 'kabi_royal', 1);

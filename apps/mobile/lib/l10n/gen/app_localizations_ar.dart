@@ -14080,4 +14080,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bagNoSendVip => 'عناصر VIP تابعة لعضويتك ولا تُرسل';
+
+  @override
+  String get bagNoSendPermanent => 'العناصر الدائمة لا تُرسل';
 }

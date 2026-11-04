@@ -62,9 +62,13 @@ describe('active-host frames (D186)', () => {
       const item = BAG_CATALOGUE.find((i) => i.code === code)!;
       expect(item).toMatchObject({ category: 'AVATAR_FRAME', assetKey: code, free: false });
     }
-    expect(isTransferable(false, 'HOST_ACTIVE')).toBe(false);
-    expect(isTransferable(false, 'LEVEL_REWARD')).toBe(false);
-    expect(isTransferable(false, 'GIFT')).toBe(true);
+    const later = new Date(Date.now() + 86_400_000);
+    expect(isTransferable(false, 'HOST_ACTIVE', later)).toBe(false);
+    expect(isTransferable(false, 'LEVEL_REWARD', later)).toBe(false);
+    expect(isTransferable(false, 'GIFT', later)).toBe(true);
+    // D266: a permanent item is never sent.
+    expect(isTransferable(false, 'GIFT', null)).toBe(false);
+    expect(isTransferable(false, 'ADMIN', null)).toBe(false);
   });
 });
 

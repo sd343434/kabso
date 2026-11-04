@@ -23784,6 +23784,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عناصر VIP تابعة لعضويتك ولا تُرسل'**
   String get bagNoSendVip;
+
+  /// D266: permanent bag items are never sent.
+  ///
+  /// In ar, this message translates to:
+  /// **'العناصر الدائمة لا تُرسل'**
+  String get bagNoSendPermanent;
 }
 
 class _AppLocalizationsDelegate

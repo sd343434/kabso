@@ -13066,5 +13066,7 @@
   "bagFromVip": "من عضوية {tier}",
   "@bagFromVip": {"description": "D264: a VIP member's tier items in the bag (§10.97).", "placeholders": {"tier": {"type": "String"}}},
   "bagNoSendVip": "عناصر VIP تابعة لعضويتك ولا تُرسل",
-  "@bagNoSendVip": {"description": "D264: a VIP member's tier items in the bag (§10.97)."}
+  "@bagNoSendVip": {"description": "D264: a VIP member's tier items in the bag (§10.97)."},
+  "bagNoSendPermanent": "العناصر الدائمة لا تُرسل",
+  "@bagNoSendPermanent": {"description": "D266: permanent bag items are never sent."}
 }

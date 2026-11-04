@@ -8057,7 +8057,7 @@ paths:
         Refusals (nothing changes): 400 `VALIDATION_FAILED` (strict body; `username` / `invalid_value`
         for oneself); 404 `NOT_FOUND` (no ACTIVE account with that username, or a block either way);
         409 `BAG_ITEM_NOT_OWNED` (not owned, expired or unknown), `BAG_ITEM_NOT_TRANSFERABLE` (a free
-        item, a level reward or (v1.55-social, D186) an active-host frame), `BAG_SEND_PERMANENT_WHOLE_ONLY`,
+        item, a level reward, (v1.55-social, D186) an active-host frame or (D266) any permanent item), `BAG_SEND_PERMANENT_WHOLE_ONLY` (no longer reached: D266),
         `BAG_SEND_EXCEEDS_REMAINING`,
         `BAG_RECIPIENT_HAS_PERMANENT`. Rate limit 30 / hour per user (`bag:send`). Names follow
         `Accept-Language`.
@@ -26665,7 +26665,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/UserSummary'
             - type: 'null'
-        transferable: { type: boolean, description: "(v1.48-social, D171) Whether `sendMyBagItem` accepts it (false for free items every account gets and for level rewards, source `LEVEL_REWARD`)." }
+        transferable: { type: boolean, description: "(v1.48-social, D171) Whether `sendMyBagItem` accepts it (false for free items every account gets and for level rewards, source `LEVEL_REWARD`; D266: false for every permanent item, `expiresAt: null`)." }
         vip: { $ref: '#/components/schemas/BagItemVip' }
     BagItemVip:
       type: object

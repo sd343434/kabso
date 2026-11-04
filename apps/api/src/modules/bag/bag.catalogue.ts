@@ -29,9 +29,12 @@ export const BAG_DAY_MS = 24 * 3600_000;
  */
 export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set(['LEVEL_REWARD', 'HOST_ACTIVE']);
 
-/** Whether an owned item may be sent: not free, not a level reward. */
-export function isTransferable(free: boolean, source: string): boolean {
-  return !free && !NON_TRANSFERABLE_SOURCES.has(source);
+/**
+ * Whether an owned item may be sent: not free, not a level reward, and (D266, owner: «العناصر الدائمة ايضاً لا
+ * ترسل») not permanent — only an item with an expiry is sent.
+ */
+export function isTransferable(free: boolean, source: string, expiresAt: Date | null): boolean {
+  return !free && !NON_TRANSFERABLE_SOURCES.has(source) && expiresAt !== null;
 }
 
 /** The most days a send or a grant may carry (§10.45). */

@@ -290,7 +290,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       equipped: row.equipped,
       expiresAt: row.expiresAt?.toISOString() ?? null,
       giftedBy: row.giftedBy && visibleGivers.has(row.giftedBy.id) ? userSummary(row.giftedBy) : null,
-      transferable: isTransferable(row.item.free, row.source),
+      transferable: isTransferable(row.item.free, row.source, row.expiresAt),
     };
   }
 
@@ -479,7 +479,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       if (!mine || (mine.expires_at !== null && mine.expires_at <= now)) {
         throw new AppException(ErrorCode.BAG_ITEM_NOT_OWNED);
       }
-      if (!isTransferable(mine.free, mine.source))
+      if (!isTransferable(mine.free, mine.source, mine.expires_at))
         throw new AppException(ErrorCode.BAG_ITEM_NOT_TRANSFERABLE);
       const whole = body.days === undefined || body.days === null;
       let durationMs: number | null;

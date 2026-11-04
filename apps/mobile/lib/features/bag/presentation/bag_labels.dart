@@ -77,6 +77,8 @@ String? bagNoSendReason(AppLocalizations l10n, BagItem item) {
     BagSource.levelReward => l10n.bagNoSendLevel,
     BagSource.hostActive => l10n.bagNoSendHostActive,
     BagSource.vip => l10n.bagNoSendVip,
+    // D266: permanent items are never sent.
+    _ when item.expiresAt == null => l10n.bagNoSendPermanent,
     _ => l10n.bagNoSendOther,
   };
 }
