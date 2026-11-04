@@ -387,7 +387,7 @@ class LiveChatFlatLine extends ConsumerWidget {
           ),
         ),
         // D268 (owner): the VIP badge right after the name, never before.
-        if (look != null) ...[
+        if (vip.isMember) ...[
           const SizedBox(width: 4),
           VipNameBadge(vip: vip, height: KFlatChat.tagHeight),
         ],

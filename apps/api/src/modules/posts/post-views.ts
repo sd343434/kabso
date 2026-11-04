@@ -7,6 +7,7 @@ import { MediaService, type MediaAssetDto } from '../media/media.service.js';
 import { activeRechargeBadge } from '../recharge/recharge-badges.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
 import { vipNotWorn } from '../vip/vip-bag.js';
+import { STORE_ART_SELECT, storeWearOf, type StoreArtRow } from '../store/store-rules.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -91,6 +92,8 @@ export function userSummary(
   // A recharge agent (from approval on) never shows the daily recharge badge.
   const badge = activeRechargeBadge(user.rechargeBadge, now, (user.rechargeAgent ?? null) !== null);
   const vip = activeVipOf(user, now);
+  // D270 (§10.98): the store items worn — only for an active account, as the other badges.
+  const wear = user.status === undefined || user.status === 'ACTIVE' ? storeWearOf(user.bagItems, now) : null;
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -108,6 +111,8 @@ export function userSummary(
     ...(badge ? { rechargeBadge: badge } : {}),
     // v1.83-social (D258, §10.94): only while the VIP membership is active (and the account is).
     ...(vip ? { vip } : {}),
+    // D270 (§10.98): only while the user wears a store item.
+    ...(wear ? { wear } : {}),
   };
 }
 
@@ -166,7 +171,8 @@ export interface WornFrameRow {
   readonly category?: string;
   readonly itemCode: string;
   readonly expiresAt: Date | null;
-  readonly item: { readonly assetKey: string };
+  /** D270 (§10.98): `storeItem` — a store item's art (absent in older selects; null: not a store item). */
+  readonly item: { readonly assetKey: string; readonly storeItem?: StoreArtRow | null };
 }
 
 /** v1.55-social (D186): the avatar frame worn now (`AvatarFrame`), or null (an expired one is not worn). */
@@ -174,8 +180,12 @@ export function wornAvatarFrameOf(
   rows: readonly WornFrameRow[] | undefined,
   now: Date = new Date(),
 ): { code: string; assetKey: string } | null {
+  // D270: a store frame is drawn from its hosted art (`UserSummary.wear.avatarFrame`), not a bundled asset.
   const row = rows?.find(
-    (r) => (r.category ?? 'AVATAR_FRAME') === 'AVATAR_FRAME' && (r.expiresAt === null || r.expiresAt > now),
+    (r) =>
+      (r.category ?? 'AVATAR_FRAME') === 'AVATAR_FRAME' &&
+      !r.item.storeItem &&
+      (r.expiresAt === null || r.expiresAt > now),
   );
   return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;
 }
@@ -201,13 +211,23 @@ export const USER_SUMMARY_SELECT = {
   ownedAgency: { select: { hostCode: true, suspendedAt: true, status: true } },
   // v1.55-social (D186): the avatar frame worn (`UserSummary.avatarFrame`; at most one per category).
   // v1.65-live (D264, §10.97): and whether a profile card is worn (it covers the VIP card: one worn item per kind).
+  // D270 (§10.98): and the store items worn (bubble, banner, car too: `UserSummary.wear`; one worn per category).
   bagItems: {
     where: {
-      category: { in: ['AVATAR_FRAME', 'PROFILE_CARD'] as ('AVATAR_FRAME' | 'PROFILE_CARD')[] },
+      category: {
+        in: ['AVATAR_FRAME', 'PROFILE_CARD', 'CHAT_BUBBLE', 'ENTRY_BANNER', 'ENTRY_EFFECT'] as (
+          'AVATAR_FRAME' | 'PROFILE_CARD' | 'CHAT_BUBBLE' | 'ENTRY_BANNER' | 'ENTRY_EFFECT'
+        )[],
+      },
       equipped: true,
     },
-    select: { category: true, itemCode: true, expiresAt: true, item: { select: { assetKey: true } } },
-    take: 2,
+    select: {
+      category: true,
+      itemCode: true,
+      expiresAt: true,
+      item: { select: { assetKey: true, storeItem: { select: STORE_ART_SELECT } } },
+    },
+    take: 5,
   },
   // v1.56-social (D187): the daily recharge badge (`UserSummary.rechargeBadge`).
   rechargeBadge: { select: { tier: true, until: true } },

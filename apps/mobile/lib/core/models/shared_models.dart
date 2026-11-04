@@ -1,8 +1,12 @@
 // Wire models shared by several features (docs/contracts/openapi.yaml
 // v1.3 `components.schemas`).
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/store_art.dart';
+
+export 'package:kabso_live/core/models/store_art.dart';
 
 part 'shared_models.freezed.dart';
 part 'shared_models.g.dart';
@@ -117,7 +121,16 @@ class UserVip {
     required this.rank,
     required this.color,
     this.off = const {},
+    this.store = const {},
   });
+
+  /// D270 (§10.98.4): a person who wears store items and holds no VIP — the
+  /// look carries the store items only (no badge, no name colour).
+  const new storeOnly(this.store)
+    : tier = '',
+      rank = 0,
+      color = 0xFF000000,
+      off = const {};
 
   final String tier;
   final int rank;
@@ -128,6 +141,15 @@ class UserVip {
   /// D264: the perks taken off (empty: every tier item worn).
   final Set<String> off;
 
+  /// D270 (§10.98.4): the store items worn (`UserSummary.wear`), by kind —
+  /// AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT.
+  /// Each replaces the VIP item of its kind in the look (the server lists
+  /// that one in [off]: one worn item per kind).
+  final Map<String, StoreArt> store;
+
+  /// Whether this is a VIP membership (false: only store items worn).
+  bool get member => tier.isNotEmpty;
+
   @override
   bool operator ==(Object other) =>
       other is UserVip &&
@@ -135,14 +157,29 @@ class UserVip {
       other.rank == rank &&
       other.color == color &&
       other.off.length == off.length &&
-      other.off.containsAll(off);
+      other.off.containsAll(off) &&
+      mapEquals(other.store, store);
 
   @override
-  int get hashCode =>
-      Object.hash(tier, rank, color, Object.hashAllUnordered(off));
+  int get hashCode => Object.hash(
+    tier,
+    rank,
+    color,
+    Object.hashAllUnordered(off),
+    Object.hashAllUnordered(
+      store.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
+  );
 
   @override
-  String toString() => 'UserVip($tier, $rank)';
+  String toString() => store.isEmpty
+      ? 'UserVip($tier, $rank)'
+      : 'UserVip($tier, $rank, store: ${store.keys})';
+}
+
+/// D270: whether a VIP value is a membership (null or store items only: no).
+extension UserVipMember on UserVip? {
+  bool get isMember => this?.member ?? false;
 }
 
 /// D264: `UserVip.off` (absent: nothing taken off).
@@ -152,21 +189,39 @@ Set<String> _vipOff(Object? json) => switch (json) {
 };
 
 /// Reads `UserVip` (`{tier, rank, color, off?}`); anything else is no VIP.
-UserVip? userVipFromJson(Object? json) => switch (json) {
-  {
-    'tier': final String tier,
-    'rank': final int rank,
-    'color': final String color,
-  }
-      when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(color) =>
-    UserVip(
-      tier: tier,
-      rank: rank,
-      color: 0xFF000000 | int.parse(color.substring(1), radix: 16),
-      off: _vipOff(json),
-    ),
-  _ => null,
-};
+/// D270: a `wear` key (put there by [userVipWithWear]) adds the store items
+/// worn — alone, a store-only look ([UserVip.storeOnly]).
+UserVip? userVipFromJson(Object? json) {
+  final store = json is Map
+      ? storeWearFromJson(json['wear'])
+      : const <String, StoreArt>{};
+  return switch (json) {
+    {
+      'tier': final String tier,
+      'rank': final int rank,
+      'color': final String color,
+    }
+        when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(color) =>
+      UserVip(
+        tier: tier,
+        rank: rank,
+        color: 0xFF000000 | int.parse(color.substring(1), radix: 16),
+        off: _vipOff(json),
+        store: store,
+      ),
+    _ => store.isEmpty ? null : UserVip.storeOnly(store),
+  };
+}
+
+/// D270 (§10.98.4): the `readValue` of a `vip` field — `UserSummary.vip` with
+/// the sibling `UserSummary.wear` (the store items worn) put inside it, so
+/// every renderer that draws a member's VIP items draws the store ones too.
+Object? userVipWithWear(Map<dynamic, dynamic> json, String key) {
+  final vip = json[key];
+  final wear = json['wear'];
+  if (wear == null) return vip;
+  return {if (vip is Map) ...vip, 'wear': wear};
+}
 
 String _hex6(int argb) =>
     (argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase();
@@ -175,10 +230,13 @@ String _hex6(int argb) =>
 Map<String, dynamic>? userVipToJson(UserVip? vip) => vip == null
     ? null
     : {
-        'tier': vip.tier,
-        'rank': vip.rank,
-        'color': '#${_hex6(vip.color)}',
-        if (vip.off.isNotEmpty) 'off': [...vip.off],
+        if (vip.member) ...{
+          'tier': vip.tier,
+          'rank': vip.rank,
+          'color': '#${_hex6(vip.color)}',
+          if (vip.off.isNotEmpty) 'off': [...vip.off],
+        },
+        if (vip.store.isNotEmpty) 'wear': storeWearToJson(vip.store),
       };
 
 /// `UserSummary`: minimal public identity of a user. Never has an email.
@@ -240,8 +298,11 @@ abstract class UserSummary with _$UserSummary {
 
     /// v1.83-social (D258, §10.94): the active VIP (badge, frame, name colour,
     /// bubble, card…, by the catalogue). Null otherwise (also older servers).
+    /// D270 (§10.98.4): with the store items worn (`UserSummary.wear`) — a
+    /// store-only look when the person holds no VIP ([UserVip.member]).
     @JsonKey(
       includeIfNull: false,
+      readValue: userVipWithWear,
       fromJson: userVipFromJson,
       toJson: userVipToJson,
     )

@@ -133,6 +133,9 @@ const Map<ErrorCode, int> _statusFor = {
   // v1.82-social (D252).
   ErrorCode.vipUnavailable: 409,
   ErrorCode.vipPriceChanged: 409,
+  // D270.
+  ErrorCode.storeUnavailable: 409,
+  ErrorCode.storePriceChanged: 409,
 };
 
 DioException _badResponse(
@@ -295,6 +298,8 @@ void main() {
           // v1.82-social (D252).
           'VIP_UNAVAILABLE',
           'VIP_PRICE_CHANGED',
+          'STORE_UNAVAILABLE',
+          'STORE_PRICE_CHANGED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

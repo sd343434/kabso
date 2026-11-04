@@ -33,7 +33,10 @@ class VipNameBadge extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final look = ref.watch(vipLookProvider(vip));
-    if (look == null || (look.tier != null && !look.has(VipPerks.badge))) {
+    // D270: a store-only look (no membership) has no badge.
+    if (look == null ||
+        !look.vip.member ||
+        (look.tier != null && !look.has(VipPerks.badge))) {
       return const SizedBox.shrink();
     }
     if (look.nameBadgeArt case final art?) {
@@ -310,6 +313,7 @@ class _FittedFrameState extends State<_FittedFrame> {
             child: VipAnimatedArt(
               animation: widget.perk.animation,
               still: widget.perk.still,
+              video: widget.perk.video,
             ),
           ),
         ),
@@ -350,10 +354,18 @@ BoxDecoration? vipBubbleDecoration(VipLook? look, {required double radius}) {
   );
 }
 
-/// Whether [perk]'s hosted SVGA plays here (not in widget tests).
+/// Whether [perk]'s hosted SVGA plays here (not in widget tests). D270: an
+/// MP4 (a store item's art) never does — [VipAnimatedArt] plays it.
 bool vipPlays(VipPerk perk) =>
     VipSvga.enabled &&
     VipAnimatedArt.animationsEnabled &&
+    perk.video == null &&
+    (perk.animation?.startsWith('http') ?? false);
+
+/// D270: whether [perk]'s hosted MP4 (a store item's art) plays here.
+bool vipPlaysVideo(VipPerk perk) =>
+    VipAnimatedArt.animationsEnabled &&
+    perk.video != null &&
     (perk.animation?.startsWith('http') ?? false);
 
 /// D258: the owner's animated CHAT_BUBBLE (its SVGA 9-sliced to the line:
@@ -361,7 +373,17 @@ bool vipPlays(VipPerk perk) =>
 /// over the plain bubble and under the text; null without one.
 Widget? vipBubbleArt(VipLook? look) {
   final perk = look?.perk(VipPerks.bubble);
-  if (perk == null || !vipPlays(perk)) return null;
+  if (perk == null) return null;
+  // D270: a store bubble's MP4 is stretched over the line (no 9-slice).
+  if (vipPlaysVideo(perk)) {
+    return VipAnimatedArt(
+      animation: perk.animation,
+      still: perk.still,
+      video: perk.video,
+      fit: BoxFit.fill,
+    );
+  }
+  if (!vipPlays(perk)) return null;
   return VipSvga(url: perk.animation!, nine: VipSvgaNine.bubble);
 }
 

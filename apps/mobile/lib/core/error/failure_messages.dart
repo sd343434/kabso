@@ -98,6 +98,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.deviceBanned => l10n.errorDeviceBanned,
     ErrorCode.vipUnavailable => l10n.errorVipUnavailable,
     ErrorCode.vipPriceChanged => l10n.errorVipPriceChanged,
+    ErrorCode.storeUnavailable => l10n.errorStoreUnavailable,
+    ErrorCode.storePriceChanged => l10n.errorStorePriceChanged,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

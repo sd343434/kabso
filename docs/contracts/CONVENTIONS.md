@@ -214,6 +214,8 @@ All non-2xx responses use one envelope:
 | 403 | `DEVICE_BANNED` | *(v1.60-live, DRAFT, D250)* `register`, `registerVerify`, `login` (after the right password) and `startLiveRoom`: the team banned this device «حظر جهاز» (`DeviceInfo.deviceKey`, or the device the session signed in with) for every account; `details: [{field: "until", issue: <ISO 8601 time> \| "permanent"}, {field: "reason", issue: <the team's reason>}]`. §10.91.6. |
 | 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
+| 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
+| 409 | `STORE_PRICE_CHANGED` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: `price` differs from the item's price for that currency and duration now (the owner changed it in the panel). Nothing was charged; the app reloads the items and shows the new price. §10.98. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -501,6 +503,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020; v1.29.1-live, D145c; v1.29.2-live, D145d)* | Every send: 6000 / min per user (bucket `live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER`), checked first. Then, once the gift is known (after the `clientId` replay, which is not counted again): a **normal** gift 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"); a **LUCKY** gift 100 / s per user (bucket `live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER`) instead — a MAX X streak is never held to the normal 120 / min. 429 `RATE_LIMITED` with `Retry-After`; nothing charged. **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `POST /me/bag/transfers` *(v1.48-social, D171)* | 30 / hour per user (bucket `bag:send`, `RATE_LIMIT_BAG_SEND_USER`). **Replaces** the per-user default |
+| `POST /me/store/purchases` *(v1.84-social, D270)* | 30 / hour per user (bucket `store:buy`, the bag send's numbers, `RATE_LIMIT_BAG_SEND_USER`). **Replaces** the per-user default; `GET /store/items` uses the default |
 | `POST /me/recharge-agent/sales` *(v1.54-social, D185)* | 120 / hour per user (bucket `recharge:sell`, `RATE_LIMIT_RECHARGE_SELL_USER`). **Replaces** the per-user default |
 | `POST /topup/checkout` *(v1.59-social, D190)* | 20 / hour per user (bucket `topup:checkout`, `RATE_LIMIT_TOPUP_CHECKOUT_USER`). **Replaces** the per-user default; the other top-up reads use it; `POST /payments/stripe/webhook` has **no** rate limit (signed by Stripe) |
 | `PUT /me/host-frame/style` *(v1.55-social, D186)* | 60 / hour per user (bucket `host-frame:style`, the family-write numbers like `PUT /me/bag/equipped`). **Replaces** the per-user default; `GET /me/host-frame` uses the per-user default |
@@ -658,6 +661,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.84-social (draft) | 2026-11-04 | **D270 (owner: «المتجر» — frames, profile cards, chat bubbles, entry banners and entry cars, for coins and cherries, 7 / 14 / 30 days, for oneself or as a gift; set in the panel):** tag `store`: `listStoreItems` (`GET /store/items`, `StoreItemList`, `StoreItem`, `StorePrice`, `StoreBalances`, `StoreArt`, `StoreKind`, `StoreCurrency`), `buyStoreItem` (`POST /me/store/purchases`, `Idempotency-Key`, `BuyStoreItemRequest`, `StorePurchaseResult`); the panel's `uploadAdminStoreArt` (`POST /admin/store/uploads`, SVGA / MP4 / still, `AdminStoreUpload`), `listAdminStoreItems`, `createAdminStoreItem`, `updateAdminStoreItem`, `enableAdminStoreItem`, `disableAdminStoreItem` (`/admin/store/items…`, `AdminStoreItem`, `AdminStoreItemList`, `AdminStoreItemCreateRequest`, `AdminStoreItemUpdateRequest`, `AdminStorePriceInput`, parameter `AdminStoreItemIdPath`), `listAdminStoreSales` (`AdminStoreSales`, `AdminStoreSale`); `catalog.view` / `catalog.manage`, reason; audit `store.item.add \| update \| enable \| disable`, `store.purchase`. `BagCategory` CHAT_BUBBLE / ENTRY_BANNER / ENTRY_EFFECT are stored categories now (only MIC_WAVE stays VIP-only); `BagItemSource.STORE`; `BagItem.art`, `BagCatalogueItem.art`, `BagEquippedItem.art`; `UserSummary.wear`, `PublicProfile.wear` (`StoreWear`, `StoreWornItem`); `WalletLedgerReason.STORE_PURCHASE`, `CherryLedgerReason.STORE_PURCHASE`; codes `STORE_UNAVAILABLE`, `STORE_PRICE_CHANGED` (409). Migrations `20270310090000_store_enums`, `20270310090100_store`. §4, §7, §10.98. | **Additive.** Nothing is on sale until the OWNER adds items. An older app ignores `wear` (a store item worn shows nothing there) and lists store items in the bag with a plain tile; clients show an unknown ledger reason as a generic change. |
 | v1.83-social (draft) | 2026-11-04 | **D258 (owner's VIP 1 perks):** `UserSummary.vip` and `PublicProfile.vip` (`UserVip` `{tier, rank, color}`, while the membership is active); `VipPerk.amount`, `AdminVipPerk.amount`, `AdminVipPerkInput.amount` (DAILY_BULLET 1–100, DAILY_COINS 1–10^9, LEVEL_SPEEDUP 1–100 %); `uploadAdminVipArt` (`POST /admin/vip/uploads`, `AdminVipUpload`); perk inheritance between tiers; `VIP_BUILT_PERKS` gains BADGE, AVATAR_FRAME, CHAT_NAME_COLOR, CHAT_BUBBLE, PROFILE_CARD, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE (§10.94.7), PROFILE_VISITORS (§10.94.9, `listProfileVisitors`, `ProfileVisitor`, `ProfileVisitorList`, migration `20270306090300_profile_visits`), `VipTier.nameColor` / `AdminVipTier.nameColor` and the panel's «لون الكتابة الخاص» (§10.94.10, migration `20270306090400_vip_name_color`), the medal showcase capped at 3 (was 6) and chat medals at 3 (was 5), the renewal discount (§10.94.12: `VipTier.renewalDiscountPercent` / `renewPriceCoins`, `MyVip.renewal`, `VipPurchaseResult.listPriceCoins` / `discountPercent`), DAILY_BULLET, DAILY_COINS, LEVEL_SPEEDUP; `claimVipDailyCoins` (`POST /me/vip/daily-coins`, `VipDailyCoinsClaim`), `MyVip.dailyCoins`, `WalletLedgerReason.VIP_DAILY_COINS`, `VIP_UNAVAILABLE` `no_perk`; `LiveBulletResult.free` / `freeLeft`. Migrations `20270306090000_vip_perks` (the `amount` column; VIP 1's other six perks), `20270306090100_vip_daily_enums`, `20270306090200_vip_daily` (claims; `live_bullets` cost may be 0). §4, §10.94. | **Additive** (optional fields, a new panel operation). |
 | v1.82-social (draft) | 2026-11-03 | **D252 (owner: «اصنع صفحة شراء vip واجعلها بنفس التصميم مطابق ١٠٠٪ واضافة الفي اي بي وترتيبه يكون من لوحة كل في اي بي له ميزات وامتيازات مختلفة»):** «شراء VIP» — tag `vip`: `listVipTiers` (`GET /vip/tiers`, `VipTierList`, `VipTier`, `VipPerk`), `getMyVip` (`GET /me/vip`, `MyVip`, `VipMembership`), `buyVip` (`POST /me/vip/purchases`, `Idempotency-Key`, `BuyVipRequest`, `VipPurchaseResult`); the panel's `listAdminVipTiers`, `createAdminVipTier`, `updateAdminVipTier`, `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`/admin/vip/tiers…`, `/admin/vip/tier-order`; `AdminVipTier`, `AdminVipPerk`, `AdminVipPerkInput`, `AdminVipTierList`, `CreateAdminVipTierRequest`, `UpdateAdminVipTierRequest`, `ReorderAdminVipTiersRequest`, parameter `AdminVipTierIdPath`; `catalog.view` / `catalog.manage`, reason; audit `vip.tier.add \| update \| enable \| disable \| reorder`, `vip.purchase`); `WalletLedgerReason.VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). Migrations `20270305090000_vip_enums`, `20270305090100_vip`. §4, §8, §10.93. **D252b v2 (owner «طبق هذا التصميم ١٠٠٪», reference `REFERENCE_vip_design_v2`):** the screen reworked to the owner's new reference layout (a horizontal tier tab row + centred badge + gold crown divider + category section headers with a count + a 3-column perks grid + a sticky price/activate bar; the earlier curved arc, crest banners, status/upgrade bars and store entry removed); each tier gains a hosted BADGE (`badgeAnimation` / `badgeStill`) and each perk hosted art (`animation` / `still` / `artWidth` / `artHeight`) — all https, uploaded from the panel, nothing bundled (gifts `animationUrl` pattern, D126); `VipTier.badgeAnimation` / `badgeStill`, `VipPerk.animation` / `still` / `artWidth` / `artHeight`, and the matching `Admin*` fields in `openapi.yaml`. §10.93.5. | **Additive.** VIP 1 is seeded enabled (art URLs null until the owner uploads them); other tiers added from the panel. Clients show an unknown ledger reason as a generic change. |
 | v1.81-social (draft) | 2026-11-02 | **D245 (owner: «اجعل أسعار الصرف متاحة لجميع الدول بشكل أوتوماتيكي بحيث يقوم النظام بتحديث كل دقيقة»):** automatic exchange rates for every country (§10.87). `listAdminRechargeExchangeRates` → every country (`AdminFxRateRow`: `source` MANUAL / AUTO / USD / NONE, `stale`, `manual`, `auto` with `held`) + `status` (`AdminFxStatus`); `clearAdminRechargeExchangeRate` is «إعادة إلى التلقائي»; new `refreshAdminFxRates` (`POST /admin/fx/refresh`), `acceptAdminFxHeldRate` (`POST /admin/fx/held/{currency}/accept`) (capability `recharge.rates`); the OWNER's «مزوّد أسعار الصرف» `getAdminFxSettings` / `updateAdminFxSettings` (PATCH) / `testAdminFxSettings` / `clearAdminFxSettings` (`/admin/fx-settings`, capability `fx.settings`). `RechargePrice.local` uses the effective rate. Tables `fx_rates`, `fx_settings`; audit `fx.settings.update|clear|test`, `fx.rates.refresh`, `fx.rate.accept_held`; server config `FX_*`. No new error code (409 `ADMIN_ACTION_REFUSED` issues `fx_refresh_too_soon`, `fx_nothing_held`, `fx_key_missing`, `fx_test_required`, `fx_test_failed`, `fx_nothing_to_clear`). | Additive. |
@@ -6490,6 +6494,92 @@ items of the same kind at once** (two frames, two profile cards, two bubbles, tw
 **Compatibility.** Additive. An older app shows the VIP-only categories under «other items» with a plain tile and can
 wear or take them off; it ignores `UserVip.off` (a taken-off VIP item still shows there until it updates). Migration
 `20270308090000_vip_bag` (`vip_memberships.off_perks`, default empty; the active members' bag frame / card taken off).
+
+### 10.98 «المتجر» — the store: timed bag items for coins or cherries *(v1.84-social, DRAFT — D270)*
+
+Owner (2026-11-04): the Me tab's «المتجر» card (D267) becomes a real store. It sells, for now, avatar frames «إطارات
+الصور», profile cards «بطاقات تعريفية», chat bubbles «فقاعات الرسائل», entry banners «لافتات الدخول» and entry cars /
+effects «سيارات الدخول» — more kinds later. Prices are in **coins and / or cherries**, per duration (**7, 14, 30 days**),
+set in the panel; a duration without a price is not offered. Store items are never permanent. Economy context (owner):
+1 000 000 coins = $12.50, 1 000 000 cherries = $1.10 — the panel sets each price; the server does not convert.
+
+#### 10.98.1 Items
+
+- A store item is a `store_items` row **and** a bag catalogue row (`bag_items`, code `store_<12 hex>`, its category = the
+  item's `kind`): once bought it is an ordinary bag item (§10.22 / §10.45) — listed, worn, timed, swept, and (timed, not
+  free) sendable from the bag (D171; D266's permanent rule never applies). `kind` is one of `StoreKind` (AVATAR_FRAME,
+  PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT); a new kind is a `bag_category` value, a `StoreKind` value, the
+  `store_items_shape` CHECK and the apps' renderer. CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT were VIP-only categories
+  (§10.97); they are stored categories now. MIC_WAVE stays VIP-only.
+- Fields: names ar / en (1–40), the art (`StoreArt`, §10.98.4), prices (`StorePrice` `{currency, days, amount}`, amount
+  1 … 10^12, at most one per currency and duration), `sortOrder` (the order in its tab), `isNew` («جديد»), `enabled`.
+  Items are never deleted (purchases and bag rows point at them); one switched off is no longer listed or bought, and
+  what was bought runs to its end. At most 500 items.
+- `listStoreItems` lists the items switched on **with at least one price**, by `sortOrder`; `kinds` the tabs that have
+  items; per item the prices, the lowest per currency (`fromCoins` / `fromCherries`, the grid's price), `ownedUntil` (the
+  caller holds it until then) and the caller's `balances` (coins, cherries).
+
+#### 10.98.2 Buying (`buyStoreItem`)
+
+- `{itemId, currency, days, price, recipient?}`: `price` must be the item's price for that currency and duration now
+  (else 409 `STORE_PRICE_CHANGED`); a duration not priced in that currency → 409 `STORE_UNAVAILABLE` `days`
+  `not_priced`; an item switched off → `item` `item_off`.
+- **Coins** are debited from the wallet (`wallet_ledger` `STORE_PURCHASE`, guarded: never below 0, else 409
+  `INSUFFICIENT_COINS`). **Cherries** — the hosts' earnings (§10.46) — are debited from the cherry wallet (`cherry_ledger`
+  `STORE_PURCHASE`, the same guarded debit as a withdrawal hold, else 409 `INSUFFICIENT_CHERRIES`). Task cherries still
+  locked for withdrawal (§10.46.1) may be spent here: the lock is about cashing out, and the store is not a payout.
+  Either ledger row's reference is the `store_purchases` row.
+- **Frozen accounts.** While the person's coin balance is below 0 (a reversed website purchase, §10.53) nothing is
+  bought, in either currency: 403 `TOPUP_ACCOUNT_FROZEN`.
+- **The item lands in the bag**: a new item counts from now; one the recipient holds gets the days **added to its end**
+  (`extended: true`), never past 3 650 days from now (`days` `too_far`); a permanent copy (an admin grant) is refused
+  (`item` `owned_permanent`). Bought items are not worn: the result offers «ارتدِ الآن» (the bag's `setMyBagEquipped`).
+- **A gift** (`recipient` = a username): the item lands in their bag as `source: GIFT` with `giftedBy` = the buyer, and
+  they get the bag's `BAG_ITEM_RECEIVED` notification. As the bag send (D171): 404 for no ACTIVE account with that name or
+  a block either way (no hint which), 400 `recipient` `invalid_value` for oneself, 403 `ACCOUNT_RESTRICTED` while the
+  team's «منع إرسال الهدايا» stands (D208). For oneself the source is `STORE`.
+- **Atomic, idempotent, audited**: one transaction, serialized per buyer (advisory lock), the item row `FOR SHARE`, the
+  holder's bag row locked as a bag send locks it; `Idempotency-Key` (24 h): the same key and body → 200 with the first
+  result, nothing charged again; another body → 409 `IDEMPOTENCY_CONFLICT`. An audit row `store.purchase` (item, currency,
+  days, price, gift, recipient, the new end). A refused request charges and changes nothing.
+
+#### 10.98.3 The app
+
+The Me tab's «المتجر» card opens the store: tabs by kind (`kinds`), a grid of items — the animated preview, the name,
+«جديد», the lowest price (coins first) — and a sheet per item: a big preview (the frame around the person's own picture,
+the bubble around sample text, the banner / car playing), duration chips (only the durations priced), a currency toggle
+(only the currencies priced), the price, the balance, «شراء» and «إهداء» (a username, or someone from their following).
+Short coins → the wallet's recharge; short cherries → an explanation (cherries are earned from gifts). After a purchase
+for oneself: «ارتدِ الآن». Kabso's design system, red action buttons, light and dark.
+
+#### 10.98.4 The art and every renderer
+
+- `StoreArt` `{still, animation, format, alpha, width, height}`: a hosted PNG / WebP still and an animation — an **SVGA**
+  (as the VIP perks) or an **MP4** (as gift effects, D207: `alpha` NONE plays as is, SIDE_BY_SIDE is composited — the
+  left half colour, the right half the alpha mask). The still shows while the animation loads, with reduced motion and in
+  tests. Nothing is bundled.
+- Worn store items travel as `UserSummary.wear` / `PublicProfile.wear` (`StoreWear`: `avatarFrame`, `profileCard`,
+  `chatBubble`, `entryBanner`, `entryEffect`, each `StoreWornItem` = code + art; only the kinds worn). A store frame is
+  in `wear`, not in `avatarFrame` (which stays the bundled frames); a store card likewise not in `profileCard`.
+- **One worn item per kind** with the VIP items (§10.97): a store item worn covers the VIP item of its kind
+  (`UserVip.off` lists it), and wearing the VIP item takes the store one off. The apps draw the worn store item exactly
+  where the VIP one goes — the frame around the photo, the person card's art, the chat bubble, the entry banner and car
+  (a join of someone wearing a store banner or car is never dropped by the 1 / s join window, as a VIP's).
+
+#### 10.98.5 The panel «المتجر»
+
+`listAdminStoreItems` (`catalog.view`: OWNER, SUPPORT, FINANCE) lists every item (on and off) with its prices, the people
+holding it now and the purchases of it; `listAdminStoreSales` the latest sales (≤ 200) of all items or one, with the
+totals (purchases, gifts, coins, cherries). `uploadAdminStoreArt` (raw bytes; a still, or an animation — SVGA 2.x or MP4,
+told by its bytes, the gifts' checks; content-addressed under `media/store/`), `createAdminStoreItem`,
+`updateAdminStoreItem` (names, art, the whole price list, order, «جديد»; the kind never changes),
+`enableAdminStoreItem` / `disableAdminStoreItem` need `catalog.manage` (OWNER), the CSRF header and a reason, and write
+`store.item.add | update | enable | disable` with before / after, the actor, the IP and `via: panel`.
+
+**Compatibility.** Additive. Nothing is on sale until the OWNER adds items. An older app lists a store item in the bag with
+a plain tile and ignores `wear` (a store item worn shows nothing there until it updates). Migrations
+`20270310090000_store_enums` (the bag categories, `bag_item_source.STORE`, both ledgers' `STORE_PURCHASE`,
+`store_currency`) and `20270310090100_store` (the tables; both ledgers' sign CHECKs extended in place).
 
 ### 11.1 Media upload
 

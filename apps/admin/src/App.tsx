@@ -8,6 +8,7 @@ import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
 import { LiveBoostPrices } from './pages/LiveBoostPrices';
 import { Vip } from './pages/Vip';
+import { Store } from './pages/Store';
 import { Hosts, Lives } from './pages/Lives';
 import { DeviceBans } from './pages/LiveModeration';
 import { LiveWatch } from './pages/LiveWatch';
@@ -236,6 +237,9 @@ export function App() {
           break;
         case 'vip':
           page = <Vip />;
+          break;
+        case 'store':
+          page = <Store />;
           break;
         case 'report':
           page = <Report />;

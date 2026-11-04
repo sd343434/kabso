@@ -718,7 +718,7 @@ class _Body extends ConsumerWidget {
                         color: look.ink,
                         fontSize: 20,
                         // D258: the special colour at semi-bold (owner).
-                        fontWeight: profile.vip != null
+                        fontWeight: profile.vip.isMember
                             ? FontWeight.w600
                             : FontWeight.w700,
                       ),
@@ -727,7 +727,7 @@ class _Body extends ConsumerWidget {
                 ),
               ),
             ),
-            if (profile.vip != null) ...[
+            if (profile.vip.isMember) ...[
               const SizedBox(width: 6),
               // As tall as the name's line.
               VipNameBadge(vip: profile.vip, height: 24),
@@ -1657,6 +1657,7 @@ class _VipCard extends ConsumerWidget {
             child: VipAnimatedArt(
               animation: perk.animation,
               still: perk.still,
+              video: perk.video,
               fit: BoxFit.cover,
             ),
           ),

@@ -19,12 +19,14 @@ describe('D264 VIP bag rules', () => {
     expect(vipBagPerkOf('support_frame_01')).toBeNull();
   });
 
-  it('categories: the frame and the card share the bag categories (one per kind); the rest are VIP-only', () => {
+  it('categories: every wearable perk shares a bag category but the mic wave (D270: the store sells the rest)', () => {
     expect(vipBagPerkIn('AVATAR_FRAME')).toBe('AVATAR_FRAME');
     expect(vipBagPerkIn('PROFILE_CARD')).toBe('PROFILE_CARD');
     expect(vipBagPerkIn('ROOM_CARD')).toBeNull();
     expect(vipBagPerkIn('ENTRY_EFFECT')).toBe('ENTRY_EFFECT');
-    expect(isVipOnlyBagCategory('CHAT_BUBBLE')).toBe(true);
+    expect(isVipOnlyBagCategory('MIC_WAVE')).toBe(true);
+    expect(isVipOnlyBagCategory('CHAT_BUBBLE')).toBe(false);
+    expect(isVipOnlyBagCategory('ENTRY_BANNER')).toBe(false);
     expect(isVipOnlyBagCategory('AVATAR_FRAME')).toBe(false);
     expect(isVipOnlyBagCategory('PROFILE_CARD')).toBe(false);
   });
@@ -42,5 +44,8 @@ describe('D264 VIP bag rules', () => {
     expect(vipNotWorn(['MIC_WAVE'], ['PROFILE_CARD'])).toEqual(['PROFILE_CARD', 'MIC_WAVE']);
     expect(vipNotWorn([], ['AVATAR_FRAME', 'PROFILE_CARD'])).toEqual(['AVATAR_FRAME', 'PROFILE_CARD']);
     expect(vipNotWorn(['AVATAR_FRAME'], ['AVATAR_FRAME'])).toEqual(['AVATAR_FRAME']);
+    // D270: a store bubble / car worn covers the VIP one too; nothing covers the mic wave.
+    expect(vipNotWorn([], ['CHAT_BUBBLE', 'ENTRY_EFFECT'])).toEqual(['CHAT_BUBBLE', 'ENTRY_EFFECT']);
+    expect(vipNotWorn([], ['MIC_WAVE'])).toEqual([]);
   });
 });

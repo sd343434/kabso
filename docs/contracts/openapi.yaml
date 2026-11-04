@@ -699,6 +699,17 @@ info:
     `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`catalog.view` / `catalog.manage`, reason,
     audited `vip.tier.*`). Ledger reason `VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). A perk the
     app does not do yet is `available: false`. Additive (CONVENTIONS §10.93).
+    **D270 (DRAFT v1.84-social)**: «المتجر» — timed bag items the OWNER manages in the admin panel (kind: avatar frame,
+    profile card, chat bubble, entry banner, entry car / effect; names ar/en; a still + an SVGA or MP4 animation; a
+    price per duration — 7 / 14 / 30 days — per currency, coins and / or cherries; order; «جديد»; on / off), bought for
+    oneself or as a gift with coins or cherries: `listStoreItems`, `buyStoreItem` (tag `store`; `Idempotency-Key`; a
+    held item gets the days added); the panel's `uploadAdminStoreArt`, `listAdminStoreItems`, `createAdminStoreItem`,
+    `updateAdminStoreItem`, `enableAdminStoreItem`, `disableAdminStoreItem`, `listAdminStoreSales` (`catalog.view` /
+    `catalog.manage`, reason, audited `store.item.*`). `BagCategory` CHAT_BUBBLE / ENTRY_BANNER / ENTRY_EFFECT are real
+    bag items now; `BagItemSource.STORE`; `BagItem.art`, `BagCatalogueItem.art`, `BagEquippedItem.art` (`StoreArt`);
+    `UserSummary.wear` and `PublicProfile.wear` (`StoreWear`) — one worn item per kind with the VIP items. Ledger reason
+    `STORE_PURCHASE` (coins and cherries); codes `STORE_UNAVAILABLE`, `STORE_PRICE_CHANGED` (409). Additive
+    (CONVENTIONS §10.98).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -727,6 +738,8 @@ tags:
     description: "The Me hub's programs: the Task Center, the Event Center and SVIP (v1.44-social DRAFT, D166)."
   - name: vip
     description: "(v1.82-social DRAFT, D252) «شراء VIP»: VIP tiers managed in the admin panel, each with its own perks, bought with coins (CONVENTIONS §10.93)."
+  - name: store
+    description: "(v1.84-social DRAFT, D270) «المتجر»: timed bag items (frames, profile cards, chat bubbles, entry banners and cars) the OWNER manages in the admin panel, bought for oneself or as a gift with coins or cherries (CONVENTIONS §10.98)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017); their history and gift earnings (v1.43-social DRAFT, D164); cherries and withdrawals (v1.52-social DRAFT, D179)."
   - name: topup
@@ -9911,6 +9924,76 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.84-social (DRAFT, D270, CONVENTIONS §10.98): «المتجر» ----------------------------------------------------------
+  /api/v1/store/items:
+    get:
+      tags: [store]
+      operationId: listStoreItems
+      summary: "The store's items on sale, the kinds with items and the caller's balances (D270)"
+      description: |
+        v1.84-social, CONVENTIONS §10.98. The items the OWNER switched on that have at least one price, in the panel's
+        order (`kind` filters one tab); a server-bounded list (≤ 500, §5). Names follow `Accept-Language`, else the
+        caller's locale. `kinds`: the kinds with items on sale (all of them, even with `kind`), in tab order.
+        `ownedUntil`: the caller holds it until then (a purchase adds the days). `balances`: the caller's coins and
+        cherries now (the sheet's balance). 400 `kind`; 401.
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/StoreKind' }
+      responses:
+        '200':
+          description: The items.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreItemList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/store/purchases:
+    post:
+      tags: [store]
+      operationId: buyStoreItem
+      summary: "Buy a store item for oneself or as a gift, with coins or cherries (D270)"
+      description: |
+        v1.84-social, CONVENTIONS §10.98.2. `currency` / `days` must be a price the item has (`price` the one the app
+        showed). Coins: wallet ledger `STORE_PURCHASE`; cherries: cherry ledger `STORE_PURCHASE` (the hosts' earnings;
+        task cherries locked for withdrawal may be spent here) — reference = the purchase, one transaction serialized
+        per buyer. The item lands in the recipient's bag (`source: STORE`, or for a gift `GIFT` with `giftedBy` = the
+        buyer, who gets the `BAG_ITEM_RECEIVED` notification); one they hold already gets the days added to its end
+        (never past 3 650 days from now); it is not worn. `recipient` (a username) makes it a gift; absent / null: for
+        oneself. Order after auth: 400 body or `Idempotency-Key` → a retry (the same key within 24 h and the same body
+        → **200** with the first result, nothing charged again; another body → 409 `IDEMPOTENCY_CONFLICT`) → 404 unknown
+        item → a gift: 404 (no ACTIVE account with that username, or a block either way), 400 `recipient`
+        `invalid_value` (oneself) → 403 `TOPUP_ACCOUNT_FROZEN` (the coin balance is below 0, either currency) → 403
+        `ACCOUNT_RESTRICTED` (a gift while the team's «منع إرسال الهدايا» stands) → 409 `STORE_UNAVAILABLE` (`item`
+        `item_off` | `owned_permanent`; `days` `not_priced` | `too_far`) → 409 `STORE_PRICE_CHANGED` → 409
+        `INSUFFICIENT_COINS` / `INSUFFICIENT_CHERRIES`. A refused request charges and changes nothing. Audited
+        `store.purchase`. 30 / hour per user (bucket `store:buy`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuyStoreItemRequest' }
+      responses:
+        '201':
+          description: Bought.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorePurchaseResult' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first result (the balances as they are now).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorePurchaseResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/events:
     get:
       tags: [programs]
@@ -13996,6 +14079,193 @@ paths:
           $ref: '#/components/responses/Error'
         '503':
           $ref: '#/components/responses/Error'
+  # ---- v1.84-social (DRAFT, D270, CONVENTIONS §10.98.5): «المتجر» in the panel --------------------------------------------
+  /api/v1/admin/store/uploads:
+    post:
+      tags: [admin-panel]
+      operationId: uploadAdminStoreArt
+      summary: Checks and stores one file of a store item's art, the raw bytes as the body (catalog.manage)
+      description: |
+        (v1.84-social, D270, CONVENTIONS §10.98.5) The body is the file itself (`application/octet-stream`, at most
+        26 MB). `still`: a PNG / WebP (at most 2 MB, 16 … 4 096 px a side, any shape), its size answered. `animation`:
+        an SVGA 2.x (at most 25 MB, the gifts' checks) **or** an MP4 (told by its bytes; H.264, 1 … 15 s, at most 8 MB —
+        the gifts' D207 checks), its format answered and, for an MP4, its size, length and the suggested transparency
+        (`SIDE_BY_SIDE` when the frame is at least 1.8 × as wide as tall; the panel may change it). Stored at a
+        content-addressed, immutable key under `media/store/`; the answer's `url` goes into the item's form
+        (`createAdminStoreItem` / `updateAdminStoreItem`, the audited step). 409 `ADMIN_ACTION_REFUSED` with the reason
+        for a refused file (nothing stored).
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - name: kind
+          in: query
+          required: true
+          schema: { type: string, enum: [animation, still] }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreUpload' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store/items:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminStoreItems
+      summary: "Every store item with its prices, owners and sales count (catalog.view: OWNER, SUPPORT, FINANCE)"
+      description: "(v1.84-social, D270, §10.98.5) On and off, by kind (tab order) then the order."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The items.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItemList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminStoreItem
+      summary: "Adds a store item (catalog.manage: OWNER; reason; audited)"
+      description: |
+        (v1.84-social, D270, §10.98.5) A new bag catalogue item (`code` `store_<12 hex>`, of `kind`) with its store row:
+        names, art, prices (at most one per currency and duration; none = not listed), the order (default: last of its
+        kind), the «جديد» badge; off unless `enabled: true`. 409 `ADMIN_ACTION_REFUSED` past 500 items. Audited
+        `store.item.add`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminStoreItemCreateRequest' }
+      responses:
+        '201':
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItem' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store/items/{itemId}:
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminStoreItem
+      summary: "Changes a store item (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.84-social, D270, §10.98.5) Any of the names, the art, the whole price list, the order, the «جديد» badge; the kind never changes. A new price applies to purchases from then on. Audited `store.item.update` with before / after."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminStoreItemIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminStoreItemUpdateRequest' }
+      responses:
+        '200':
+          description: The item now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItem' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store/items/{itemId}/enable:
+    post:
+      tags: [admin-panel]
+      operationId: enableAdminStoreItem
+      summary: "Puts a store item on sale (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.84-social, D270, §10.98.5) Listed again once it has a price. Already on: 200, nothing written. Audited `store.item.enable`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminStoreItemIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The item now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItem' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store/items/{itemId}/disable:
+    post:
+      tags: [admin-panel]
+      operationId: disableAdminStoreItem
+      summary: "Takes a store item off sale; owners keep it to its end (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.84-social, D270, §10.98.5) No longer listed or bought (409 `STORE_UNAVAILABLE` `item_off`); the bag items bought run to their end and stay worn. Already off: 200, nothing written. Audited `store.item.disable`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminStoreItemIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: The item now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItem' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store/sales:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminStoreSales
+      summary: "The store's latest sales and their totals (catalog.view: OWNER, SUPPORT, FINANCE)"
+      description: "(v1.84-social, D270, §10.98.5) The newest `limit` (1–200, default 50) purchases — of one item with `itemId` — and the totals of that filter: purchases, gifts among them, coins and cherries taken."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: itemId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: The sales.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreSales' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/vip/tier-order:
     put:
       tags: [admin-panel]
@@ -16561,6 +16831,12 @@ components:
       required: true
       schema:
         type: string
+    AdminStoreItemIdPath:
+      name: itemId
+      in: path
+      required: true
+      description: (v1.84-social, D270) a store item's id; malformed or unknown → 404.
+      schema: { type: string, format: uuid }
     AdminVipTierIdPath:
       name: tierId
       in: path
@@ -22959,6 +23235,9 @@ components:
         vip:
           $ref: '#/components/schemas/UserVip'
           description: "v1.83-social (D258, §10.94) — present only while the user holds an active VIP membership and the account is active; absent otherwise."
+        wear:
+          $ref: '#/components/schemas/StoreWear'
+          description: "(v1.84-social, D270, §10.98.4) — present only while the user wears a store item and the account is active (a store frame is here, not in `avatarFrame`)."
     UserVip:
       type: object
       required: [tier, rank, color]
@@ -23065,6 +23344,9 @@ components:
         vip:
           $ref: '#/components/schemas/UserVip'
           description: "v1.83-social (D258, §10.94) — present only while the user holds an active VIP: the profile header and the person card show the badge, the animated avatar frame and the VIP card."
+        wear:
+          $ref: '#/components/schemas/StoreWear'
+          description: "(v1.84-social, D270, §10.98.4) — present only while the user wears a store item (a store frame / card is here, not in `avatarFrame` / `profileCard`)."
         coverUrl:
           type: [string, 'null']
           format: uri
@@ -26681,15 +26963,300 @@ components:
           uniqueItems: true
           description: "Unlocked medal codes in display order; [] shows none. v1.83-social (D258): at most 3 (was 6); an older showcase of more is read as its first 3."
           items: { type: string, minLength: 1, maxLength: 40 }
+    # ---- v1.84-social (DRAFT, D270, CONVENTIONS §10.98): «المتجر» --------------------------------------------------------
+    StoreKind:
+      type: string
+      enum: [AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT]
+      description: "(v1.84-social, D270) What a store item is — the bag category it lands in, in the app's tab order: «إطارات الصور», «بطاقات تعريفية», «فقاعات الرسائل», «لافتات الدخول», «سيارات الدخول». More kinds come later; clients skip a kind they do not know."
+    StoreCurrency:
+      type: string
+      enum: [COINS, CHERRIES]
+    StoreArt:
+      type: object
+      additionalProperties: false
+      required: [still, animation, format, alpha, width, height]
+      description: "(v1.84-social, D270, §10.98.4) A store item's hosted art: a still (PNG / WebP) and an animation — an SVGA, or an MP4 (`alpha` NONE: played as is; SIDE_BY_SIDE: the left half colour, the right half the alpha mask, as gift effects, D207) — and the picture's size. The still shows while the animation loads, with reduced motion and in tests. Null until the owner uploads it."
+      properties:
+        still: { type: [string, 'null'], format: uri }
+        animation: { type: [string, 'null'], format: uri }
+        format: { type: [string, 'null'], enum: [SVGA, MP4, null], description: "Null without an animation." }
+        alpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null], description: "MP4 only." }
+        width: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        height: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+    StoreWornItem:
+      type: object
+      additionalProperties: false
+      required: [code, still, animation, format, alpha, width, height]
+      description: "(v1.84-social, D270) A store item a person wears now: its bag code and art (as `StoreArt`)."
+      properties:
+        code: { type: string, pattern: '^store_[0-9a-f]{12}$' }
+        still: { type: [string, 'null'], format: uri }
+        animation: { type: [string, 'null'], format: uri }
+        format: { type: [string, 'null'], enum: [SVGA, MP4, null] }
+        alpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
+        width: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        height: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+    StoreWear:
+      type: object
+      additionalProperties: false
+      description: "(v1.84-social, D270, §10.98.4) The store items a person wears, by kind — what every renderer draws (the frame around the photo, the person card's art, the chat bubble, the entry banner and car). One worn item per kind: a store item worn takes the VIP item of its kind off (`UserVip.off` lists it). Only the kinds worn are present."
+      properties:
+        avatarFrame: { $ref: '#/components/schemas/StoreWornItem' }
+        profileCard: { $ref: '#/components/schemas/StoreWornItem' }
+        chatBubble: { $ref: '#/components/schemas/StoreWornItem' }
+        entryBanner: { $ref: '#/components/schemas/StoreWornItem' }
+        entryEffect: { $ref: '#/components/schemas/StoreWornItem' }
+    StorePrice:
+      type: object
+      additionalProperties: false
+      required: [currency, days, amount]
+      properties:
+        currency: { $ref: '#/components/schemas/StoreCurrency' }
+        days: { type: integer, enum: [7, 14, 30] }
+        amount: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+    StoreBalances:
+      type: object
+      additionalProperties: false
+      required: [coins, cherries]
+      properties:
+        coins: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991 }
+        cherries: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991 }
+    StoreItem:
+      type: object
+      additionalProperties: false
+      required: [id, code, kind, name, art, isNew, prices, fromCoins, fromCherries, ownedUntil]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^store_[0-9a-f]{12}$', description: "The bag code it has once bought (`BagItem.code`)." }
+        kind: { $ref: '#/components/schemas/StoreKind' }
+        name: { type: string, description: "In the reader's language." }
+        art: { $ref: '#/components/schemas/StoreArt' }
+        isNew: { type: boolean, description: "The «جديد» badge (set in the panel)." }
+        prices:
+          type: array
+          minItems: 1
+          maxItems: 6
+          description: "Every price set: coins first, then cherries; shorter first. A duration missing in a currency is not offered in it."
+          items: { $ref: '#/components/schemas/StorePrice' }
+        fromCoins: { type: [integer, 'null'], format: int64, description: "The lowest coin price (the grid's «من»), null without one." }
+        fromCherries: { type: [integer, 'null'], format: int64 }
+        ownedUntil: { type: [string, 'null'], format: date-time, description: "The caller holds it until then; null when not." }
+    StoreItemList:
+      type: object
+      additionalProperties: false
+      required: [data, kinds, balances]
+      properties:
+        data:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/StoreItem' }
+        kinds:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/StoreKind' }
+        balances: { $ref: '#/components/schemas/StoreBalances' }
+    BuyStoreItemRequest:
+      type: object
+      additionalProperties: false
+      required: [itemId, currency, days, price]
+      properties:
+        itemId: { type: string, format: uuid }
+        currency: { $ref: '#/components/schemas/StoreCurrency' }
+        days: { type: integer, enum: [7, 14, 30] }
+        price: { type: integer, format: int64, minimum: 1, maximum: 1000000000000, description: "The price the app showed." }
+        recipient: { type: [string, 'null'], minLength: 1, maxLength: 30, description: "A username: a gift to that person. Absent / null: for oneself." }
+    StorePurchaseResult:
+      type: object
+      additionalProperties: false
+      required: [id, item, currency, days, price, recipient, expiresAt, extended, balances]
+      properties:
+        id: { type: string, format: uuid }
+        item:
+          type: object
+          additionalProperties: false
+          required: [id, code, kind, name, art]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string, pattern: '^store_[0-9a-f]{12}$' }
+            kind: { $ref: '#/components/schemas/StoreKind' }
+            name: { type: string }
+            art: { $ref: '#/components/schemas/StoreArt' }
+        currency: { $ref: '#/components/schemas/StoreCurrency' }
+        days: { type: integer, enum: [7, 14, 30] }
+        price: { type: integer, format: int64, minimum: 1 }
+        recipient:
+          description: "The person it was given to; null when bought for oneself."
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        expiresAt: { type: string, format: date-time, description: "The item's end in the recipient's bag now." }
+        extended: { type: boolean, description: "The recipient held it already: the days were added to its end." }
+        balances: { $ref: '#/components/schemas/StoreBalances' }
+    AdminStoreItem:
+      type: object
+      additionalProperties: false
+      required: [id, code, kind, nameAr, nameEn, still, animation, animationFormat, animationAlpha, artWidth, artHeight, prices, sortOrder, isNew, enabled, owners, sold, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^store_[0-9a-f]{12}$' }
+        kind: { $ref: '#/components/schemas/StoreKind' }
+        nameAr: { type: string, maxLength: 40 }
+        nameEn: { type: string, maxLength: 40 }
+        still: { type: [string, 'null'], format: uri }
+        animation: { type: [string, 'null'], format: uri }
+        animationFormat: { type: [string, 'null'], enum: [SVGA, MP4, null] }
+        animationAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
+        artWidth: { type: [integer, 'null'] }
+        artHeight: { type: [integer, 'null'] }
+        prices:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/StorePrice' }
+        sortOrder: { type: integer, minimum: 0 }
+        isNew: { type: boolean }
+        enabled: { type: boolean }
+        owners: { type: integer, minimum: 0, description: "People holding it now." }
+        sold: { type: integer, minimum: 0, description: "Purchases of it, ever." }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminStoreItemList:
+      type: object
+      additionalProperties: false
+      required: [data, kinds, days, currencies]
+      properties:
+        data:
+          type: array
+          maxItems: 500
+          items: { $ref: '#/components/schemas/AdminStoreItem' }
+        kinds:
+          type: array
+          items: { $ref: '#/components/schemas/StoreKind' }
+        days:
+          type: array
+          items: { type: integer }
+        currencies:
+          type: array
+          items: { $ref: '#/components/schemas/StoreCurrency' }
+    AdminStorePriceInput:
+      type: object
+      additionalProperties: false
+      required: [currency, days, amount]
+      properties:
+        currency: { $ref: '#/components/schemas/StoreCurrency' }
+        days: { type: integer, enum: [7, 14, 30] }
+        amount: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+    AdminStoreItemCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, nameAr, nameEn, prices, reason]
+      properties:
+        kind: { $ref: '#/components/schemas/StoreKind' }
+        nameAr: { type: string, minLength: 1, maxLength: 40 }
+        nameEn: { type: string, minLength: 1, maxLength: 40 }
+        still: { type: [string, 'null'], pattern: '^https://' }
+        animation: { type: [string, 'null'], pattern: '^https://' }
+        animationFormat: { type: [string, 'null'], enum: [SVGA, MP4, null], description: "Told by the URL (`.mp4`) when absent." }
+        animationAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null], description: "MP4 only (default NONE)." }
+        artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        prices:
+          type: array
+          maxItems: 6
+          description: "At most one per currency and duration (else 400 `duplicate_value`)."
+          items: { $ref: '#/components/schemas/AdminStorePriceInput' }
+        sortOrder: { type: integer, minimum: 0, maximum: 100000 }
+        isNew: { type: boolean }
+        enabled: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminStoreItemUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      minProperties: 2
+      properties:
+        nameAr: { type: string, minLength: 1, maxLength: 40 }
+        nameEn: { type: string, minLength: 1, maxLength: 40 }
+        still: { type: [string, 'null'], pattern: '^https://' }
+        animation: { type: [string, 'null'], pattern: '^https://' }
+        animationFormat: { type: [string, 'null'], enum: [SVGA, MP4, null] }
+        animationAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
+        artWidth: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        artHeight: { type: [integer, 'null'], minimum: 1, maximum: 8192 }
+        prices:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/AdminStorePriceInput' }
+        sortOrder: { type: integer, minimum: 0, maximum: 100000 }
+        isNew: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminStoreUpload:
+      type: object
+      additionalProperties: false
+      required: [kind, url, bytes, contentType, format, width, height, detectedAlpha, durationMs]
+      properties:
+        kind: { type: string, enum: [animation, still] }
+        url: { type: string, format: uri }
+        bytes: { type: integer, minimum: 1 }
+        contentType: { type: string }
+        format: { type: [string, 'null'], enum: [SVGA, MP4, null] }
+        width: { type: [integer, 'null'] }
+        height: { type: [integer, 'null'] }
+        detectedAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
+        durationMs: { type: [integer, 'null'] }
+    AdminStoreSale:
+      type: object
+      additionalProperties: false
+      required: [id, createdAt, item, buyer, recipient, currency, days, price, extended]
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        item:
+          type: object
+          additionalProperties: false
+          required: [id, code, kind, nameAr, nameEn]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string }
+            kind: { $ref: '#/components/schemas/StoreKind' }
+            nameAr: { type: string }
+            nameEn: { type: string }
+        buyer: { $ref: '#/components/schemas/UserSummary' }
+        recipient:
+          description: Null when bought for themselves.
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        currency: { $ref: '#/components/schemas/StoreCurrency' }
+        days: { type: integer }
+        price: { type: integer, format: int64 }
+        extended: { type: boolean }
+    AdminStoreSales:
+      type: object
+      additionalProperties: false
+      required: [data, totals]
+      properties:
+        data:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/AdminStoreSale' }
+        totals:
+          type: object
+          additionalProperties: false
+          required: [purchases, gifts, coins, cherries]
+          properties:
+            purchases: { type: integer, minimum: 0 }
+            gifts: { type: integer, minimum: 0 }
+            coins: { type: integer, format: int64, minimum: 0 }
+            cherries: { type: integer, format: int64, minimum: 0 }
     # ---- v1.22-live (DRAFT, CP-019) — the bag ---------------------------------------------------
     BagCategory:
       type: string
       enum: [PROFILE_CARD, AVATAR_FRAME, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE]
-      description: "A bag category; one worn item each (v1.65-live, D264). PROFILE_CARD: the decoration on the profile card's header (v1.65-live, D264: or the VIP card art). AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames; v1.65-live, D264: the VIP frame too). (v1.65-live, D264, §10.97) VIP items only: CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT (the entry car), MIC_WAVE. More categories come later; clients ignore items of categories they do not know (§10.22)."
+      description: "(v1.84-social, D270, §10.98) CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT are also real bag items now (sold in the store); only MIC_WAVE stays VIP-only. A bag category; one worn item each (v1.65-live, D264). PROFILE_CARD: the decoration on the profile card's header (v1.65-live, D264: or the VIP card art). AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames; v1.65-live, D264: the VIP frame too). (v1.65-live, D264, §10.97) VIP items only: CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT (the entry car), MIC_WAVE. More categories come later; clients ignore items of categories they do not know (§10.22)."
     BagItemSource:
       type: string
-      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE, VIP]
-      description: "(v1.65-live, D264) `VIP`: a VIP member's tier item, there while the membership is active (`BagItem.vip`; not transferable, `expiresAt` = the membership's end, §10.97). How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
+      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE, VIP, STORE]
+      description: "(v1.84-social, D270) `STORE`: bought in the store for oneself (a store gift is `GIFT` with `giftedBy`); timed, so transferable. (v1.65-live, D264) `VIP`: a VIP member's tier item, there while the membership is active (`BagItem.vip`; not transferable, `expiresAt` = the membership's end, §10.97). How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
     BagCatalogueItem:
       type: object
       required: [code, category, name, assetKey, sortOrder, free]
@@ -26700,6 +27267,9 @@ components:
         assetKey: { type: string, maxLength: 60, description: "The app's asset for the item (for a profile card, the header animation `assets/profile_card/<assetKey>.svga`).", example: header_bunny_royal }
         sortOrder: { type: integer }
         free: { type: boolean, description: Every new account receives it. }
+        art:
+          $ref: '#/components/schemas/StoreArt'
+          description: "(v1.84-social, D270) A store item's hosted art (its `assetKey` is not an app asset then); absent for a bundled item."
     BagCatalogue:
       type: object
       required: [data]
@@ -26726,6 +27296,9 @@ components:
             - type: 'null'
         transferable: { type: boolean, description: "(v1.48-social, D171) Whether `sendMyBagItem` accepts it (false for free items every account gets and for level rewards, source `LEVEL_REWARD`; D266: false for every permanent item, `expiresAt: null`)." }
         vip: { $ref: '#/components/schemas/BagItemVip' }
+        art:
+          $ref: '#/components/schemas/StoreArt'
+          description: "(v1.84-social, D270) A store item's hosted art; absent for a bundled item."
     BagItemVip:
       type: object
       required: [tier, tierName, color, perk, animation, still]
@@ -26751,6 +27324,9 @@ components:
         code: { type: string, maxLength: 40 }
         name: { type: string }
         assetKey: { type: string, maxLength: 60 }
+        art:
+          $ref: '#/components/schemas/StoreArt'
+          description: "(v1.84-social, D270) A store item's hosted art."
     BagEquipped:
       type: object
       required: [category, equipped]
@@ -27744,6 +28320,7 @@ components:
         - RECHARGE_ORDER
         - VIP_PURCHASE
         - VIP_DAILY_COINS
+        - STORE_PURCHASE
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -28339,11 +28916,12 @@ components:
         `RECHARGE_SALE` (debit): cherries sold to a recharge agent (§10.48). *(v1.74-social, D217)*
         `REFERRAL_REWARD` (credit): a «دعوة الأصدقاء» reward credited after its hold (reference: the reward; §10.71).
         `REFERRAL_REVERSAL` (debit): that reward taken back when the team voided the referral (reference: the same
-        reward; the balance may go below 0).
+        reward; the balance may go below 0). *(v1.84-social, D270)* `STORE_PURCHASE` (debit): a store item bought with
+        cherries (reference: the purchase; §10.98).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
-             REFERRAL_REWARD, REFERRAL_REVERSAL]
+             REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."

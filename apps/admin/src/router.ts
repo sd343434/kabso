@@ -56,6 +56,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'levels', pattern: '/programs/levels' },
   // v1.82-social (D252): «VIP».
   { name: 'vip', pattern: '/vip' },
+  // D270: «المتجر».
+  { name: 'store', pattern: '/store' },
   { name: 'waitlist', pattern: '/waitlist' },
   { name: 'team', pattern: '/team' },
   { name: 'audit', pattern: '/audit' },

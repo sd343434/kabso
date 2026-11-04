@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:kabso_live/core/models/store_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/art_video.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -75,10 +77,15 @@ class VipAnimatedArt extends StatefulWidget {
     this.placeholder,
     this.once = false,
     this.onDone,
+    this.video,
   });
 
   final String? animation;
   final String? still;
+
+  /// D270: the [animation] is an MP4 (a store item's art; the gifts' D207
+  /// player), not an SVGA.
+  final ArtVideo? video;
   final BoxFit fit;
   final bool animate;
   final Widget? placeholder;
@@ -123,6 +130,17 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
   @override
   Widget build(BuildContext context) {
     final still = _stillOf(widget.still, widget.fit) ?? widget.placeholder;
+    if (widget._canPlay && widget.video != null) {
+      // D270: an MP4 (store art) on the gifts' video path.
+      return ArtVideoPlayer(
+        url: widget.animation!,
+        video: widget.video!,
+        still: still,
+        fit: widget.fit,
+        once: widget.once,
+        onDone: _finish,
+      );
+    }
     if (widget._canPlay) {
       // D258: the shared SVGA engine (one decoded, downsized clip per file
       // and size; one clock; the gift art cache on the device).

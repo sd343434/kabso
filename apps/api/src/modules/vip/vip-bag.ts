@@ -25,8 +25,12 @@ export const VIP_BAG_PERKS = {
 export type VipBagPerk = keyof typeof VIP_BAG_PERKS;
 export type VipBagCategory = (typeof VIP_BAG_PERKS)[VipBagPerk];
 
-/** The bag categories only VIP items have (not in `bag_category`, nothing stored). */
-export const VIP_ONLY_BAG_CATEGORIES = ['CHAT_BUBBLE', 'ENTRY_BANNER', 'ENTRY_EFFECT', 'MIC_WAVE'] as const;
+/**
+ * The bag categories only VIP items have (not in `bag_category`, nothing stored). D270 (§10.98): the chat bubble, the
+ * entry banner and the entry car / effect are sold in the store too, so they are stored categories now; only the mic
+ * wave stays VIP-only.
+ */
+export const VIP_ONLY_BAG_CATEGORIES = ['MIC_WAVE'] as const;
 export type VipOnlyBagCategory = (typeof VIP_ONLY_BAG_CATEGORIES)[number];
 
 export function isVipOnlyBagCategory(category: string): category is VipOnlyBagCategory {
@@ -35,8 +39,18 @@ export function isVipOnlyBagCategory(category: string): category is VipOnlyBagCa
 
 const PERKS = Object.keys(VIP_BAG_PERKS) as VipBagPerk[];
 
-/** The perks whose category the bag's stored items share: one worn item there (a bag item worn covers the VIP one). */
-export const VIP_SHARED_PERKS = ['AVATAR_FRAME', 'PROFILE_CARD'] as const;
+/**
+ * The perks whose category the bag's stored items share: one worn item there (a bag item worn covers the VIP one).
+ * D270 (§10.98): with the store's bubbles, banners and cars, every wearable perk but the mic wave.
+ */
+export const VIP_SHARED_PERKS = [
+  'AVATAR_FRAME',
+  'PROFILE_CARD',
+  'CHAT_BUBBLE',
+  'ENTRY_BANNER',
+  'ENTRY_EFFECT',
+] as const;
+export type VipSharedPerk = (typeof VIP_SHARED_PERKS)[number];
 
 /**
  * The perks a member does not wear now: those taken off in the bag ([off]) and those whose category holds a bag item
@@ -156,7 +170,7 @@ export async function vipBagIn(db: Db, userId: string, now: Date): Promise<VipBa
 }
 
 /**
- * D264: the bag's worn frame and profile card give way to the member's VIP ones (one worn item per kind) — for each
+ * D264 (D270: and the store's bubble, banner and car): the bag's worn frame and profile card give way to the member's VIP ones (one worn item per kind) — for each
  * shared perk the tier ranked [rank] holds (its own or a lower tier's, enabled) and the member did not take off.
  */
 export async function wearVipItemsIn(
@@ -176,7 +190,7 @@ export async function wearVipItemsIn(
   const categories = [...new Set(held.map((p) => VIP_BAG_PERKS[p.code as VipBagPerk]))];
   if (categories.length === 0) return;
   await tx.userBagItem.updateMany({
-    where: { userId, equipped: true, category: { in: categories as ('AVATAR_FRAME' | 'PROFILE_CARD')[] } },
+    where: { userId, equipped: true, category: { in: categories as VipSharedPerk[] } },
     data: { equipped: false },
   });
 }

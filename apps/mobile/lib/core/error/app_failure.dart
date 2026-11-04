@@ -342,6 +342,15 @@ enum ErrorCode {
   /// nothing was charged; the app reloads the tiers.
   vipPriceChanged('VIP_PRICE_CHANGED'),
 
+  /// D270 (§10.98, 409): this store item cannot be bought now (`details`:
+  /// `item` `item_off` / `owned_permanent`, `days` `not_priced` /
+  /// `too_far`); nothing was charged.
+  storeUnavailable('STORE_UNAVAILABLE'),
+
+  /// D270 (§10.98, 409): the owner changed the item's price; nothing was
+  /// charged; the app reloads the items.
+  storePriceChanged('STORE_PRICE_CHANGED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

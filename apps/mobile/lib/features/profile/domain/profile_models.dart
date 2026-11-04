@@ -111,9 +111,10 @@ abstract class PublicProfile with _$PublicProfile {
     RechargeBadge? rechargeBadge,
 
     /// v1.83-social (D258, §10.94): the active VIP (badge, animated frame,
-    /// card). Null otherwise.
+    /// card). Null otherwise. D270: with the store items worn (`wear`).
     @JsonKey(
       includeIfNull: false,
+      readValue: userVipWithWear,
       fromJson: userVipFromJson,
       toJson: userVipToJson,
     )

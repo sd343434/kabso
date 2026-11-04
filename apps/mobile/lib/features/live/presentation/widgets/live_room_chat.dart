@@ -848,7 +848,7 @@ class LiveCpChatBubble extends StatelessWidget {
 /// for a chat row's [LiveChatNameRow.nameBadge] — right after the name, as
 /// tall as the row's emblems ([height]); null without a VIP.
 Widget? liveChatVipBadge({required UserVip? vip, required double height}) =>
-    vip == null ? null : VipNameBadge(vip: vip, height: height * 0.92);
+    !vip.isMember ? null : VipNameBadge(vip: vip, height: height * 0.92);
 
 /// D265: a chat row's [name] in the author's VIP colour; [name] alone
 /// without a VIP.

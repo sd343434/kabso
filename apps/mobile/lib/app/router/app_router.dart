@@ -99,6 +99,7 @@ import 'package:kabso_live/features/settings/account_deletion/account_deletion_s
 import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
 import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
+import 'package:kabso_live/features/store/presentation/store_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
@@ -521,6 +522,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.svip, builder: (_, _) => const SvipScreen()),
       // D252: «شراء VIP».
       GoRoute(path: AppRoutes.vip, builder: (_, _) => const VipScreen()),
+      // D270: «المتجر».
+      GoRoute(path: AppRoutes.store, builder: (_, _) => const StoreScreen()),
       GoRoute(
         path: AppRoutes.vipVisitors,
         builder: (_, _) => const VipVisitorsScreen(),

@@ -124,7 +124,7 @@ class _List extends StatelessWidget {
                 ),
               ),
               // D268 (owner): the VIP badge right after the name.
-              if (v.user.vip != null) ...[
+              if (v.user.vip?.member ?? false) ...[
                 const SizedBox(width: KSpacing.xs),
                 VipNameBadge(vip: v.user.vip, height: 18),
               ],

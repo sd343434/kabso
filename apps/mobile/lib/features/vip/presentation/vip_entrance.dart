@@ -202,6 +202,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                       key: ValueKey('vipCar.${current.line.serial}'),
                       animation: car.animation,
                       still: car.still,
+                      video: car.video,
                       once: true,
                       onDone: _onCarDone,
                     ),
@@ -410,6 +411,7 @@ class VipEntranceBanner extends StatelessWidget {
                       ? VipAnimatedArt(
                           animation: perk.animation,
                           still: perk.still,
+                          video: perk.video,
                           fit: BoxFit.fill,
                         )
                       : DecoratedBox(

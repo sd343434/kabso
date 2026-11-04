@@ -62,6 +62,9 @@ describe('ErrorCode', () => {
         // v1.82-social (D252).
         'VIP_UNAVAILABLE',
         'VIP_PRICE_CHANGED',
+        // D270.
+        'STORE_UNAVAILABLE',
+        'STORE_PRICE_CHANGED',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
         // v1.56-live (D213).
@@ -313,6 +316,8 @@ describe('ErrorCode', () => {
       DEVICE_BANNED: 403,
       VIP_UNAVAILABLE: 409,
       VIP_PRICE_CHANGED: 409,
+      STORE_UNAVAILABLE: 409,
+      STORE_PRICE_CHANGED: 409,
       LIVE_QUESTIONS_CLOSED: 409,
       LIVE_NOT_STREAMER: 409,
     });

@@ -30,6 +30,9 @@ enum CherryLedgerReason {
   /// v1.74-social (D217): that reward taken back when the team voided the
   /// referral (the balance may go below 0: a debt).
   referralReversal('REFERRAL_REVERSAL'),
+
+  /// D270: a store item bought with cherries.
+  storePurchase('STORE_PURCHASE'),
   other('');
 
   new(this.wire);

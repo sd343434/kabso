@@ -2676,3 +2676,23 @@ every `GET /me/bag` (nothing to backfill or sweep).
   draw a VIP item that is taken off or covered by a bag item (e.g. the VIP card with the bag's card).
 - **Rollback.** An older API ignores `off_perks`; the bag rows the migration took off stay off (re-wear from the bag).
 
+### 5.57 The store «المتجر» (migrations `20270310090000_store_enums`, `20270310090100_store`; D270) — [IMPLEMENTED, draft contract v1.84-social; not deployed, not device-tested]
+
+CONVENTIONS §10.98. The first migration adds enum values only (`bag_category` CHAT_BUBBLE / ENTRY_BANNER / ENTRY_EFFECT,
+`bag_item_source` STORE, `wallet_ledger_reason` and `cherry_ledger_reason` STORE_PURCHASE) and the `store_currency` type;
+the second creates `store_items`, `store_item_prices`, `store_purchases` and extends both ledgers' sign CHECKs in place
+(read from the catalogue, as `20270206090100_referrals`). Additive; no backfill, no env setting. The runtime role gets DML
+through the default privileges.
+
+- **Object storage.** Store art uploads (`POST /admin/store/uploads`) go under `media/store/` in the public bucket, like
+  VIP / gift art; `MEDIA_PUBLIC_BASE_URL` (or the panel's storage settings) must be set or uploads answer 409
+  `no_public_url`. The raw-bytes body parser covers the new path (`app.setup.ts`).
+- **After deploy.** Nothing is on sale until the OWNER adds items in the panel «المتجر» (Programs → المتجر,
+  `/store`): kind, names ar / en, a PNG still + an SVGA or MP4 animation, a price per duration (7 / 14 / 30 days) per
+  currency, order, «جديد», then «تفعيل». Every change asks a reason and is audited (`store.item.*`); sales are listed on
+  the same page.
+- **Older apps.** They do not show the store card's screen (it stayed «قريباً» before D270), list a bought store item in
+  the bag with a plain tile and ignore `UserSummary.wear` (a worn store item shows nothing to them).
+- **Rollback.** An older API never reads the new tables; store items already in bags stay as bag rows (the categories
+  are enum values an older app ignores). Enum values cannot be dropped; leave them.
+

@@ -293,6 +293,13 @@ export enum ErrorCode {
   VIP_UNAVAILABLE = 'VIP_UNAVAILABLE',
   /** v1.82-social (DRAFT, D252, §10.93): the tier's price changed since the app showed it. Nothing was charged. */
   VIP_PRICE_CHANGED = 'VIP_PRICE_CHANGED',
+  /**
+   * D270 (DRAFT, §10.98): this store item cannot be bought now — `details: [{field: 'item' | 'days' | 'currency',
+   * issue: 'item_off' | 'not_priced' | 'owned_permanent' | 'too_far'}]`. Nothing was charged.
+   */
+  STORE_UNAVAILABLE = 'STORE_UNAVAILABLE',
+  /** D270 (DRAFT, §10.98): the item's price changed since the app showed it. Nothing was charged. */
+  STORE_PRICE_CHANGED = 'STORE_PRICE_CHANGED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -438,6 +445,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.DEVICE_BANNED]: 403,
   [ErrorCode.VIP_UNAVAILABLE]: 409,
   [ErrorCode.VIP_PRICE_CHANGED]: 409,
+  [ErrorCode.STORE_UNAVAILABLE]: 409,
+  [ErrorCode.STORE_PRICE_CHANGED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -584,6 +593,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DEVICE_BANNED]: 'This device is banned by the Kabso team.',
   [ErrorCode.VIP_UNAVAILABLE]: 'This VIP tier cannot be bought now.',
   [ErrorCode.VIP_PRICE_CHANGED]: 'The price of this VIP tier changed.',
+  [ErrorCode.STORE_UNAVAILABLE]: 'This store item cannot be bought now.',
+  [ErrorCode.STORE_PRICE_CHANGED]: 'The price of this store item changed.',
 };
 
 export interface ErrorDetail {

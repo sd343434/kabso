@@ -32,6 +32,8 @@ enum WalletLedgerReason {
   vipPurchase('VIP_PURCHASE'),
   // D258: a VIP's daily coins.
   vipDailyCoins('VIP_DAILY_COINS'),
+  // D270: a store item bought with coins.
+  storePurchase('STORE_PURCHASE'),
   other('');
 
   new(this.wire);

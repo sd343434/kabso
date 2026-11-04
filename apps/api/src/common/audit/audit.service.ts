@@ -111,6 +111,13 @@ export enum AuditAction {
   VIP_TIER_REORDER = 'vip.tier.reorder',
   /** v1.82-social (D252): a person bought, renewed or upgraded a VIP tier with coins. */
   VIP_PURCHASE = 'vip.purchase',
+  /** D270 (§10.98): «المتجر» — an item added, changed or switched on / off in the panel. */
+  STORE_ITEM_ADD = 'store.item.add',
+  STORE_ITEM_UPDATE = 'store.item.update',
+  STORE_ITEM_ENABLE = 'store.item.enable',
+  STORE_ITEM_DISABLE = 'store.item.disable',
+  /** D270 (§10.98): a person bought a store item for themselves or as a gift (coins or cherries). */
+  STORE_PURCHASE = 'store.purchase',
   // v1.43-live (D195, §10.58): PK 1 v 1 — a match starts, its battle ends (with the reason), a
   // moderator ends one (`pk-admin end`, with the reason), a host switches invitations.
   LIVE_PK_START = 'live.pk.start',

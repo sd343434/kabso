@@ -42,6 +42,7 @@ import { WalletModule } from './modules/wallet/wallet.module.js';
 import { CreatorModule } from './modules/creator/creator.module.js';
 import { ProgramsModule } from './modules/programs/programs.module.js';
 import { VipModule } from './modules/vip/vip.module.js';
+import { StoreModule } from './modules/store/store.module.js';
 import { EconomyModule } from './modules/economy/economy.module.js';
 import { RechargeModule } from './modules/recharge/recharge.module.js';
 import { TopupModule } from './modules/topup/topup.module.js';
@@ -123,6 +124,7 @@ export class AppModule {
         ProgramsModule,
         // v1.82-social (DRAFT, D252): «شراء VIP».
         VipModule,
+        StoreModule,
         // v1.52-social (DRAFT, D179): cherries, host agencies, commissions and withdrawals.
         EconomyModule,
         // v1.73-social (D209, §10.68): «كن مضيفاً مع الإدارة».

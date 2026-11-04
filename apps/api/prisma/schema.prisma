@@ -292,6 +292,9 @@ model User {
   // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
   vipMembership         VipMembership?
   vipPurchases          VipPurchase[]
+  /// D270 (§10.98).
+  storePurchases        StorePurchase[]     @relation("StorePurchaseBuyer")
+  storeGiftsReceived    StorePurchase[]     @relation("StorePurchaseRecipient")
   vipDailyCoinClaims    VipDailyCoinClaim[]
   /// v1.83-social (D258, §10.94.9): who visited this user's profile, and whose profiles this user visited.
   profileVisitsReceived ProfileVisit[]      @relation("ProfileVisitOwner")
@@ -1055,6 +1058,8 @@ enum WalletLedgerReason {
   VIP_PURCHASE
   /// v1.83-social (D258): a VIP's daily coins (reference: the `vip_daily_coin_claims` row).
   VIP_DAILY_COINS
+  /// D270 (§10.98): a store item bought with coins (reference: the `store_purchases` row).
+  STORE_PURCHASE
 
   @@map("wallet_ledger_reason")
 }
@@ -2717,6 +2722,10 @@ model UserMedal {
 enum BagCategory {
   PROFILE_CARD
   AVATAR_FRAME
+  /// D270 (§10.98): kinds the store sells that were VIP-only (D264); MIC_WAVE stays VIP-only (not stored).
+  CHAT_BUBBLE
+  ENTRY_BANNER
+  ENTRY_EFFECT
 
   @@map("bag_category")
 }
@@ -2735,6 +2744,8 @@ enum BagItemSource {
   GIFT
   /// v1.55-social (D186): the active-host frame, kept while the user is an active agency host (never sent).
   HOST_ACTIVE
+  /// D270 (§10.98): bought in the store for oneself (a store gift is a GIFT with its giver).
+  STORE
 
   @@map("bag_item_source")
 }
@@ -2754,6 +2765,8 @@ model BagItem {
 
   owners        UserBagItem[]
   notifications Notification[]
+  /// D270 (§10.98): the store row of a store item (its art, prices, order).
+  storeItem     StoreItem?
 
   @@unique([code, category], map: "bag_items_code_category_key")
   @@index([category, sortOrder], map: "bag_items_category_sort_idx")
@@ -3858,6 +3871,8 @@ enum CherryLedgerReason {
   /// v1.74-social (D217, owner 2026-11-01): that reward taken back when the team voided the referral (reference: the
   /// same `referral_rewards` row; the balance may go below 0 — a debt that blocks withdrawals).
   REFERRAL_REVERSAL
+  /// D270 (§10.98): a store item bought with cherries (reference: the `store_purchases` row).
+  STORE_PURCHASE
 
   @@map("cherry_ledger_reason")
 }
@@ -6335,4 +6350,85 @@ model LiveRoomStaffWatcher {
   @@id([roomId, identity])
   @@index([adminId], map: "live_room_staff_watchers_admin_idx")
   @@map("live_room_staff_watchers")
+}
+
+// ---- D270 (CONVENTIONS §10.98): «المتجر» ------------------------------------------------------------------------------
+
+/// D270: what a store price is in.
+enum StoreCurrency {
+  COINS
+  CHERRIES
+
+  @@map("store_currency")
+}
+
+/// D270: an item on the store — a bag catalogue row (`bagCode`, `store_<12 hex>`) with its hosted art, names, order,
+/// «جديد» badge, on / off and prices (per duration per currency). Never deleted (purchases point at it).
+model StoreItem {
+  id              String               @id @default(uuid(7)) @db.Uuid
+  bagCode         String               @unique(map: "store_items_bag_code_key") @map("bag_code") @db.VarChar(40)
+  kind            BagCategory
+  nameAr          String               @map("name_ar") @db.VarChar(40)
+  nameEn          String               @map("name_en") @db.VarChar(40)
+  /// Hosted https art: a PNG / WebP still and an SVGA or MP4 animation (MP4: `animationAlpha` set).
+  still           String?              @db.VarChar(2048)
+  animation       String?              @db.VarChar(2048)
+  animationFormat GiftAnimationFormat? @map("animation_format")
+  animationAlpha  GiftVideoAlpha?      @map("animation_alpha")
+  artWidth        Int?                 @map("art_width")
+  artHeight       Int?                 @map("art_height")
+  sortOrder       Int                  @map("sort_order")
+  isNew           Boolean              @default(false) @map("is_new")
+  enabled         Boolean              @default(false)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  bagItem   BagItem          @relation(fields: [bagCode, kind], references: [code, category], onDelete: Restrict)
+  prices    StoreItemPrice[]
+  purchases StorePurchase[]
+
+  @@unique([bagCode, kind], map: "store_items_bag_code_kind_key")
+  @@index([kind, sortOrder, id], map: "store_items_kind_sort_idx")
+  @@map("store_items")
+}
+
+/// D270: one price of an item (7, 14 or 30 days) in one currency.
+model StoreItemPrice {
+  itemId   String        @map("item_id") @db.Uuid
+  currency StoreCurrency
+  days     Int
+  amount   BigInt
+
+  item StoreItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, currency, days], map: "store_item_prices_pkey")
+  @@map("store_item_prices")
+}
+
+/// D270: a store purchase — for oneself or a gift (`recipientId` another person). The ledger row (`STORE_PURCHASE`
+/// in the coin or the cherry ledger) references it.
+model StorePurchase {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  buyerId        String        @map("buyer_id") @db.Uuid
+  recipientId    String        @map("recipient_id") @db.Uuid
+  itemId         String        @map("item_id") @db.Uuid
+  currency       StoreCurrency
+  days           Int
+  price          BigInt
+  balanceAfter   BigInt        @map("balance_after")
+  expiresAt      DateTime      @map("expires_at") @db.Timestamptz(3)
+  extended       Boolean
+  idempotencyKey String?       @map("idempotency_key") @db.Uuid
+  requestHash    String?       @map("request_hash") @db.Char(64)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  buyer     User      @relation("StorePurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  recipient User      @relation("StorePurchaseRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  item      StoreItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([buyerId, idempotencyKey], map: "store_purchases_idempotency")
+  @@index([buyerId, createdAt(sort: Desc)], map: "store_purchases_buyer_idx")
+  @@index([createdAt(sort: Desc), id], map: "store_purchases_created_idx")
+  @@index([itemId, createdAt(sort: Desc)], map: "store_purchases_item_idx")
+  @@map("store_purchases")
 }

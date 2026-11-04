@@ -332,14 +332,14 @@ class ProfileInfoBlock extends StatelessWidget {
                     color: p.textPrimary,
                     fontSize: KPublicProfile.nameFont,
                     // D258: the special colour at semi-bold (owner).
-                    fontWeight: profile.vip != null
+                    fontWeight: (profile.vip?.member ?? false)
                         ? FontWeight.w600
                         : FontWeight.w700,
                   ),
                 ),
               ),
               // D258 / D268 (owner): the VIP badge right after the name.
-              if (profile.vip != null)
+              if (profile.vip?.member ?? false)
                 VipNameBadge(vip: profile.vip, height: 20),
               if (agentCode case final code?)
                 RechargeAgentBadge(

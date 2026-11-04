@@ -18,9 +18,10 @@ enum BagCategory {
   /// tier frames, the active-host frames; D264: the VIP frame).
   avatarFrame('AVATAR_FRAME'),
 
-  /// v1.65-live (D264, §10.97): VIP items only — the chat bubble, the
-  /// entry banner, the entry car (ENTRY_EFFECT) and the mic wave. Shown
-  /// only while owned.
+  /// v1.65-live (D264, §10.97): VIP items — the chat bubble, the entry
+  /// banner, the entry car (ENTRY_EFFECT) and the mic wave. D270 (§10.98):
+  /// the store sells bubbles, banners and cars too (the mic wave stays
+  /// VIP-only). Shown only while owned.
   chatBubble('CHAT_BUBBLE', always: false),
   entryBanner('ENTRY_BANNER', always: false),
   entryEffect('ENTRY_EFFECT', always: false),
@@ -54,8 +55,9 @@ abstract final class BagSource {
   /// sendable.
   static const hostActive = 'HOST_ACTIVE';
 
-  /// A future store.
-  static const purchase = 'PURCHASE';
+  /// D270 (§10.98): bought in the store for oneself (a store gift is a
+  /// [gift] with its giver). Timed, so sendable.
+  static const purchase = 'STORE';
 
   /// v1.65-live (D264): a VIP member's tier item, there while the
   /// membership is active ([BagItem.vip]); never sent.
@@ -116,6 +118,9 @@ abstract class BagCatalogueItem with _$BagCatalogueItem {
     required String assetKey,
     required int sortOrder,
     required bool free,
+
+    /// D270 (§10.98): a store item's hosted art.
+    @JsonKey(fromJson: StoreArt.fromJson, toJson: storeArtToJson) StoreArt? art,
   }) = _BagCatalogueItem;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -143,6 +148,9 @@ abstract class BagItem with _$BagItem {
     UserSummary? giftedBy,
     @Default(false) bool transferable,
     BagItemVip? vip,
+
+    /// D270 (§10.98): a store item's hosted art (still + SVGA / MP4).
+    @JsonKey(fromJson: StoreArt.fromJson, toJson: storeArtToJson) StoreArt? art,
   }) = _BagItem;
 
   factory fromJson(Map<String, dynamic> json) => _$BagItemFromJson(json);
@@ -155,6 +163,9 @@ abstract class BagEquippedItem with _$BagEquippedItem {
     required String code,
     required String name,
     required String assetKey,
+
+    /// D270 (§10.98): a store item's hosted art.
+    @JsonKey(fromJson: StoreArt.fromJson, toJson: storeArtToJson) StoreArt? art,
   }) = _BagEquippedItem;
 
   factory fromJson(Map<String, dynamic> json) =>

@@ -39,7 +39,21 @@ final class VipPerk {
     this.artWidth,
     this.artHeight,
     this.amount,
+    this.video,
   });
+
+  /// D270 (§10.98.4): a store item worn, as the perk of its kind (the store
+  /// item replaces the VIP one: one worn item per kind).
+  factory fromStoreArt(String code, StoreArt art) => VipPerk(
+    code: code,
+    title: code,
+    available: true,
+    animation: art.animation,
+    still: art.still,
+    artWidth: art.width,
+    artHeight: art.height,
+    video: art.video,
+  );
 
   factory fromJson(Map<String, dynamic> json) => VipPerk(
     code: json['code']! as String,
@@ -68,6 +82,9 @@ final class VipPerk {
   /// v1.83-social (D258): the perk's number for this tier (free public
   /// messages / coins a day, the level speed-up %), or null.
   final int? amount;
+
+  /// D270: the [animation] is an MP4 (a store item's art), else an SVGA.
+  final ArtVideo? video;
 }
 
 /// `VipTier`: a tier on sale, in the panel's order ([level] 1 … n).

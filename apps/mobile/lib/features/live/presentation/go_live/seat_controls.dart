@@ -1098,7 +1098,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     ),
                     // D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the
                     // VIP badge right after the name.
-                    if (vip != null) ...[
+                    if (vip.isMember) ...[
                       const SizedBox(width: 4),
                       VipNameBadge(
                         vip: vip,

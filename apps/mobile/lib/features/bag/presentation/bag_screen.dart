@@ -1120,11 +1120,27 @@ class BagItemPreview extends StatelessWidget {
   final BagItem item;
   final double width;
 
+  /// D270: a store item's art.
+  static Key storeArtKey(String code) => Key('bag.storePreview.$code');
+
   @override
   Widget build(BuildContext context) {
     // D264: a VIP item shows its perk's art, else the tier's token.
     if (item.vip case final vip?) {
       return VipBagItemPreview(item: item, vip: vip, width: width);
+    }
+    // D270: a store item shows its hosted art (an SVGA or an MP4 over its
+    // still; the still in tests and with reduced motion).
+    if (item.art case final art? when !art.isEmpty) {
+      return SizedBox.square(
+        key: storeArtKey(item.code),
+        dimension: width,
+        child: VipAnimatedArt(
+          animation: art.animation,
+          still: art.still,
+          video: art.video,
+        ),
+      );
     }
     if (BagCategory.fromWire(item.category) == BagCategory.profileCard) {
       return ProfileCardPreview(

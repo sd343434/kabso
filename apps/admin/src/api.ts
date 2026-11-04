@@ -192,6 +192,28 @@ export function uploadVipArt(
   return uploadRaw<VipUpload>(withQuery('/admin/vip/uploads', { kind, tier }), file, onProgress);
 }
 
+/** D270 (§10.98.5): `AdminStoreUpload`. */
+export interface StoreUpload {
+  kind: 'animation' | 'still';
+  url: string;
+  bytes: number;
+  contentType: string;
+  format: 'SVGA' | 'MP4' | null;
+  width: number | null;
+  height: number | null;
+  detectedAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
+  durationMs: number | null;
+}
+
+/** D270: uploads one store item art file (a PNG / WebP still, or an SVGA / MP4 animation). */
+export function uploadStoreArt(
+  kind: StoreUpload['kind'],
+  file: Blob,
+  onProgress: (fraction: number) => void = () => undefined,
+): Promise<StoreUpload> {
+  return uploadRaw<StoreUpload>(withQuery('/admin/store/uploads', { kind }), file, onProgress);
+}
+
 /** A raw `application/octet-stream` POST with the CSRF token and upload progress (XMLHttpRequest: `fetch` has none). */
 function uploadRaw<T>(path: string, file: Blob, onProgress: (fraction: number) => void): Promise<T> {
   return new Promise((resolve, reject) => {

@@ -17,6 +17,8 @@ const migration = [
   read('20261215090000_support_frames_enums'),
   read('20261215100000_support_frames'),
   read('20270102100000_host_frames'),
+  // D270: the store's kinds (CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT) became stored categories.
+  read('20270310090000_store_enums'),
 ].join('\n');
 
 describe('bag catalogue (CP-019)', () => {
@@ -50,7 +52,9 @@ describe('bag catalogue (CP-019)', () => {
   it('the migration enum lists every category', () => {
     for (const c of BAG_CATEGORIES)
       expect(migration).toMatch(
-        new RegExp(`"bag_category" AS ENUM \\([^)]*'${c}'|ALTER TYPE "bag_category" ADD VALUE '${c}'`),
+        new RegExp(
+          `"bag_category" AS ENUM \\([^)]*'${c}'|ALTER TYPE "bag_category" ADD VALUE (IF NOT EXISTS )?'${c}'`,
+        ),
       );
   });
 });

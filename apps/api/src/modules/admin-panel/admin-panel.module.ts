@@ -6,6 +6,7 @@ import { TopupModule } from '../topup/topup.module.js';
 import { MediaModule } from '../media/media.module.js';
 import { RechargeModule } from '../recharge/recharge.module.js';
 import { VipModule } from '../vip/vip.module.js';
+import { StoreModule } from '../store/store.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
 import { PublicProfileModule } from '../users/profiles/public-profile.module.js';
 import { AdminAuthService } from './admin-auth.service.js';
@@ -41,6 +42,7 @@ import { AdminHostApplicationsService } from './admin-host-applications.service.
 import { AdminDeviceSignupsController } from './admin-device-signups.controller.js';
 import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
 import { AdminVipController } from './admin-vip.controller.js';
+import { AdminStoreController } from './admin-store.controller.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -65,6 +67,7 @@ import { AdminVipController } from './admin-vip.controller.js';
     RechargeModule,
     // v1.82-social (D252): «VIP».
     VipModule,
+    StoreModule,
   ],
   controllers: [
     AdminAuthController,
@@ -85,6 +88,7 @@ import { AdminVipController } from './admin-vip.controller.js';
     AdminLiveModerationController,
     // v1.82-social (D252, §10.93.4): «VIP».
     AdminVipController,
+    AdminStoreController,
   ],
   providers: [
     AdminAuthService,

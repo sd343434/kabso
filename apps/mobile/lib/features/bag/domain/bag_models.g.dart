@@ -66,6 +66,7 @@ _BagCatalogueItem _$BagCatalogueItemFromJson(Map<String, dynamic> json) =>
       assetKey: json['assetKey'] as String,
       sortOrder: (json['sortOrder'] as num).toInt(),
       free: json['free'] as bool,
+      art: StoreArt.fromJson(json['art']),
     );
 
 Map<String, dynamic> _$BagCatalogueItemToJson(_BagCatalogueItem instance) =>
@@ -76,6 +77,7 @@ Map<String, dynamic> _$BagCatalogueItemToJson(_BagCatalogueItem instance) =>
       'assetKey': instance.assetKey,
       'sortOrder': instance.sortOrder,
       'free': instance.free,
+      'art': storeArtToJson(instance.art),
     };
 
 _BagItem _$BagItemFromJson(Map<String, dynamic> json) => _BagItem(
@@ -96,6 +98,7 @@ _BagItem _$BagItemFromJson(Map<String, dynamic> json) => _BagItem(
   vip: json['vip'] == null
       ? null
       : BagItemVip.fromJson(json['vip'] as Map<String, dynamic>),
+  art: StoreArt.fromJson(json['art']),
 );
 
 Map<String, dynamic> _$BagItemToJson(_BagItem instance) => <String, dynamic>{
@@ -110,6 +113,7 @@ Map<String, dynamic> _$BagItemToJson(_BagItem instance) => <String, dynamic>{
   'giftedBy': instance.giftedBy,
   'transferable': instance.transferable,
   'vip': instance.vip,
+  'art': storeArtToJson(instance.art),
 };
 
 _BagEquippedItem _$BagEquippedItemFromJson(Map<String, dynamic> json) =>
@@ -117,6 +121,7 @@ _BagEquippedItem _$BagEquippedItemFromJson(Map<String, dynamic> json) =>
       code: json['code'] as String,
       name: json['name'] as String,
       assetKey: json['assetKey'] as String,
+      art: StoreArt.fromJson(json['art']),
     );
 
 Map<String, dynamic> _$BagEquippedItemToJson(_BagEquippedItem instance) =>
@@ -124,6 +129,7 @@ Map<String, dynamic> _$BagEquippedItemToJson(_BagEquippedItem instance) =>
       'code': instance.code,
       'name': instance.name,
       'assetKey': instance.assetKey,
+      'art': storeArtToJson(instance.art),
     };
 
 _BagEquipped _$BagEquippedFromJson(Map<String, dynamic> json) => _BagEquipped(

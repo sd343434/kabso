@@ -28,6 +28,7 @@ import {
 } from './live-chat-badges.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { storeWearOf, wearHasEntrance } from '../store/store-rules.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
 
@@ -488,7 +489,9 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       const agent =
         rechargeAgentCodeOf(user) !== null ||
         hostAgentCodeOf(user) !== null ||
-        activeVipOf(user, this.clock.now()) !== null;
+        activeVipOf(user, this.clock.now()) !== null ||
+        // D270 (§10.98): nor one wearing a store entry banner or car.
+        wearHasEntrance(storeWearOf(user.bagItems, this.clock.now()));
       const waitMs = await this.limiter.interval(
         'live:chat:join',
         roomId,

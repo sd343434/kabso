@@ -27,6 +27,7 @@ import {
 import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../recharge/recharge-badges.js';
 import { activeVipOf } from '../posts/post-views.js';
+import { storeWearOf, type StoreWearDto } from '../store/store-rules.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
@@ -79,6 +80,21 @@ function hostVipOf(row: RoomRow): { vip?: NonNullable<ReturnType<typeof activeVi
   return vip ? { vip } : {};
 }
 
+/** D270 (§10.98): the store items the host wears (`UserSummary.wear`), as every other summary. */
+function hostWearOf(row: RoomRow): { wear?: StoreWearDto } {
+  if (!row.host_wear || row.host_status !== 'ACTIVE') return {};
+  const wear = storeWearOf(
+    row.host_wear.map((w) => ({
+      category: w.category,
+      itemCode: w.code,
+      expiresAt: w.expiresAt === null ? null : new Date(w.expiresAt),
+      item: { storeItem: w },
+    })),
+    new Date(),
+  );
+  return wear ? { wear } : {};
+}
+
 /**
  * What every path that ends rooms does in its transaction: guests leave their seats (CP-011) and,
  * v1.21-live (CP-018), the hosts get their live medals (FIRST_LIVE, live hours).
@@ -113,6 +129,8 @@ export interface UserSummaryDto {
    */
   /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
   vip?: { tier: string; rank: number; color: string; off?: string[] };
+  /** D270 (§10.98): the store items the user wears now, by kind (absent when none). */
+  wear?: StoreWearDto;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
@@ -329,6 +347,20 @@ export interface RoomRow {
   } | null;
   /** D265 (D264's `off`): the categories of the bag items the host wears now. */
   host_worn: string[] | null;
+  /** D270 (§10.98): the store items the host wears now (category, code, end and art), else null. */
+  host_wear:
+    | {
+        category: string;
+        code: string;
+        expiresAt: string | null;
+        still: string | null;
+        animation: string | null;
+        animationFormat: 'SVGA' | 'MP4' | null;
+        animationAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
+        artWidth: number | null;
+        artHeight: number | null;
+      }[]
+    | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -402,10 +434,20 @@ const ROOM_COLUMNS = Prisma.sql`
              AND ag.status = 'OPEN'::agency_status) AS host_agent_code,
          (SELECT b.item_code FROM user_bag_items b
            WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
-             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_frame_code,
+             AND (b.expires_at IS NULL OR b.expires_at > now())
+             AND NOT EXISTS (SELECT 1 FROM store_items si WHERE si.bag_code = b.item_code)) AS host_frame_code,
          (SELECT i.asset_key FROM user_bag_items b JOIN bag_items i ON i.code = b.item_code
            WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
-             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_frame_asset,
+             AND (b.expires_at IS NULL OR b.expires_at > now())
+             AND NOT EXISTS (SELECT 1 FROM store_items si WHERE si.bag_code = b.item_code)) AS host_frame_asset,
+         (SELECT json_agg(json_build_object('category', b.category::text, 'code', b.item_code,
+                                            'expiresAt', b.expires_at, 'still', si.still,
+                                            'animation', si.animation, 'animationFormat', si.animation_format::text,
+                                            'animationAlpha', si.animation_alpha::text,
+                                            'artWidth', si.art_width, 'artHeight', si.art_height))
+            FROM user_bag_items b JOIN store_items si ON si.bag_code = b.item_code
+           WHERE b.user_id = r.host_user_id AND b.equipped
+             AND (b.expires_at IS NULL OR b.expires_at > now())) AS host_wear,
          (SELECT rb.badge_tier::int FROM recharge_badges rb WHERE rb.user_id = r.host_user_id
              AND NOT EXISTS (SELECT 1 FROM recharge_agents ra2 WHERE ra2.user_id = r.host_user_id)) AS badge_tier,
          (SELECT rb.badge_until FROM recharge_badges rb WHERE rb.user_id = r.host_user_id) AS badge_until,
@@ -1045,6 +1087,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         ...rechargeBadgeOf(row),
         // D265 (v1.83-social, §10.94): the host's VIP like every other summary (their seat's frame, their card).
         ...hostVipOf(row),
+        ...hostWearOf(row),
       },
       seatCount: row.seat_count,
       occupiedSeats: row.occupied_seats,

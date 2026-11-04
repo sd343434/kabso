@@ -26,7 +26,7 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
   avatarFrame: avatarFrameFromJson(json['avatarFrame']),
   rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
-  vip: userVipFromJson(json['vip']),
+  vip: userVipFromJson(userVipWithWear(json, 'vip')),
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>

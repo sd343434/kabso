@@ -5,20 +5,35 @@
  * migration row plus a row here; a new category is a new `bag_category` value plus a row in
  * `BAG_CATEGORIES`.
  */
-export type BagCategory = 'PROFILE_CARD' | 'AVATAR_FRAME';
+export type BagCategory = 'PROFILE_CARD' | 'AVATAR_FRAME' | 'CHAT_BUBBLE' | 'ENTRY_BANNER' | 'ENTRY_EFFECT';
 
 /**
- * Every category, in display order: PROFILE_CARD (D107), AVATAR_FRAME (v1.46-levels, D169: the
- * frame around the user's photo; the support tier frames).
+ * Every stored category, in display order: PROFILE_CARD (D107), AVATAR_FRAME (v1.46-levels, D169: the
+ * frame around the user's photo; the support tier frames); D270 (§10.98): CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT —
+ * VIP-only kinds in D264, now also sold in the store as real bag items (MIC_WAVE stays VIP-only).
  */
-export const BAG_CATEGORIES: readonly BagCategory[] = ['PROFILE_CARD', 'AVATAR_FRAME'];
+export const BAG_CATEGORIES: readonly BagCategory[] = [
+  'PROFILE_CARD',
+  'AVATAR_FRAME',
+  'CHAT_BUBBLE',
+  'ENTRY_BANNER',
+  'ENTRY_EFFECT',
+];
 
 /**
  * How a user got an item (`bag_item_source`); LEVEL_REWARD (v1.46-levels, D169): given when a level
  * is reached; `GIFT` (v1.48-social, D171): sent by another user; `HOST_ACTIVE` (v1.55-social, D186):
  * the active-host frame, kept only while the user is an active agency host.
  */
-export type BagItemSource = 'FREE_SIGNUP' | 'BACKFILL' | 'ADMIN' | 'LEVEL_REWARD' | 'GIFT' | 'HOST_ACTIVE';
+export type BagItemSource =
+  | 'FREE_SIGNUP'
+  | 'BACKFILL'
+  | 'ADMIN'
+  | 'LEVEL_REWARD'
+  | 'GIFT'
+  | 'HOST_ACTIVE'
+  /** D270 (§10.98): bought in the store for oneself (a store gift is a `GIFT` with its giver). */
+  | 'STORE';
 
 /** One day, the unit of a partial send and of an admin grant (§10.45). */
 export const BAG_DAY_MS = 24 * 3600_000;

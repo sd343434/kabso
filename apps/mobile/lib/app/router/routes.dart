@@ -247,6 +247,10 @@ abstract final class AppRoutes {
   /// D252: «شراء VIP» — the tiers the owner manages in the admin panel.
   static const vip = '/vip';
 
+  /// D270: «المتجر» — frames, profile cards, chat bubbles, entry banners
+  /// and cars for coins or cherries (the Me hub's store card).
+  static const store = '/store';
+
   /// D258: «من زار ملفي» (members holding PROFILE_VISITORS).
   static const vipVisitors = '/vip/visitors';
 

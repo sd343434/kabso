@@ -37,6 +37,13 @@ import {
 } from './bag.catalogue.js';
 import type { BagQuery, EquipBody, SendBody } from './bag.schemas.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import {
+  STORE_ART_SELECT,
+  storeArtDto,
+  storeWearOf,
+  type StoreArtDto,
+  type StoreWearDto,
+} from '../store/store-rules.js';
 
 /** `BagCatalogueItem`. */
 export interface BagCatalogueItemDto {
@@ -46,6 +53,8 @@ export interface BagCatalogueItemDto {
   assetKey: string;
   sortOrder: number;
   free: boolean;
+  /** D270 (§10.98): a store item's hosted art (absent for a bundled item: `assetKey`). */
+  art?: StoreArtDto;
 }
 
 /** `BagCatalogue`. */
@@ -83,6 +92,8 @@ export interface BagOwnedItemDto {
   transferable: boolean;
   /** v1.65-live (D264): only on a `VIP` item. */
   vip?: BagItemVipDto;
+  /** D270 (§10.98): a store item's hosted art (absent for a bundled item). */
+  art?: StoreArtDto;
 }
 
 /** `Bag`. */
@@ -95,6 +106,8 @@ export interface BagEquippedItemDto {
   code: string;
   name: string;
   assetKey: string;
+  /** D270 (§10.98): a store item's hosted art. */
+  art?: StoreArtDto;
 }
 
 /** `BagEquipped`: what the caller wears in one category (null: nothing). */
@@ -131,7 +144,7 @@ function liveWhere(now: Date): Prisma.UserBagItemWhereInput {
 }
 
 const OWNED_INCLUDE = {
-  item: true,
+  item: { include: { storeItem: { select: STORE_ART_SELECT } } },
   giftedBy: { select: { ...USER_SUMMARY_SELECT, status: true } },
 } as const satisfies Prisma.UserBagItemInclude;
 type OwnedRow = Prisma.UserBagItemGetPayload<{ include: typeof OWNED_INCLUDE }>;
@@ -208,6 +221,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     const category = query.category;
     const items = await this.prisma.bagItem.findMany({
       where: category ? { category } : {},
+      include: { storeItem: { select: STORE_ART_SELECT } },
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
     });
     return {
@@ -218,6 +232,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
         assetKey: i.assetKey,
         sortOrder: i.sortOrder,
         free: i.free,
+        ...(i.storeItem ? { art: storeArtDto(i.storeItem) } : {}),
       })),
     };
   }
@@ -291,6 +306,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       expiresAt: row.expiresAt?.toISOString() ?? null,
       giftedBy: row.giftedBy && visibleGivers.has(row.giftedBy.id) ? userSummary(row.giftedBy) : null,
       transferable: isTransferable(row.item.free, row.source, row.expiresAt),
+      ...(row.item.storeItem ? { art: storeArtDto(row.item.storeItem) } : {}),
     };
   }
 
@@ -411,12 +427,17 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
       ? null
       : await this.prisma.userBagItem.findFirst({
           where: { userId, category, equipped: true, ...liveWhere(now) },
-          include: { item: true },
+          include: { item: { include: { storeItem: { select: STORE_ART_SELECT } } } },
         });
     if (row) {
       return {
         category,
-        equipped: { code: row.itemCode, name: nameOf(row.item, lang), assetKey: row.item.assetKey },
+        equipped: {
+          code: row.itemCode,
+          name: nameOf(row.item, lang),
+          assetKey: row.item.assetKey,
+          ...(row.item.storeItem ? { art: storeArtDto(row.item.storeItem) } : {}),
+        },
       };
     }
     const perk = vipBagPerkIn(category);
@@ -427,19 +448,49 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     return { category, equipped: { code: dto.code, name: dto.name, assetKey: dto.assetKey } };
   }
 
-  /** `PublicProfile.profileCard`: the PROFILE_CARD the user wears now, or null. */
+  /**
+   * D270 (§10.98): what the user wears now from the bag — every stored category worn (one worn item per kind: it
+   * covers the VIP item of that kind) and the store items' art (`PublicProfile.wear`).
+   */
+  async wornNow(userId: string): Promise<{ categories: string[]; wear: StoreWearDto | null }> {
+    const now = this.clock.now();
+    const rows = await this.prisma.userBagItem.findMany({
+      where: { userId, equipped: true, ...liveWhere(now) },
+      select: {
+        category: true,
+        itemCode: true,
+        expiresAt: true,
+        item: { select: { storeItem: { select: STORE_ART_SELECT } } },
+      },
+    });
+    return { categories: rows.map((r) => r.category), wear: storeWearOf(rows, now) };
+  }
+
+  /** `PublicProfile.profileCard`: the PROFILE_CARD the user wears now (D270: a bundled one; a store card is `wear`), or null. */
   async profileCard(userId: string): Promise<ProfileCardDto | null> {
     const row = await this.prisma.userBagItem.findFirst({
-      where: { userId, category: 'PROFILE_CARD', equipped: true, ...liveWhere(this.clock.now()) },
+      where: {
+        userId,
+        category: 'PROFILE_CARD',
+        equipped: true,
+        item: { storeItem: { is: null } },
+        ...liveWhere(this.clock.now()),
+      },
       select: { itemCode: true, item: { select: { assetKey: true } } },
     });
     return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;
   }
 
-  /** v1.55-social (D186): `PublicProfile.avatarFrame` — the AVATAR_FRAME the user wears now, or null. */
+  /** v1.55-social (D186): `PublicProfile.avatarFrame` — the AVATAR_FRAME the user wears now (D270: bundled), or null. */
   async avatarFrame(userId: string): Promise<ProfileCardDto | null> {
     const row = await this.prisma.userBagItem.findFirst({
-      where: { userId, category: 'AVATAR_FRAME', equipped: true, ...liveWhere(this.clock.now()) },
+      where: {
+        userId,
+        category: 'AVATAR_FRAME',
+        equipped: true,
+        item: { storeItem: { is: null } },
+        ...liveWhere(this.clock.now()),
+      },
       select: { itemCode: true, item: { select: { assetKey: true } } },
     });
     return row ? { code: row.itemCode, assetKey: row.item.assetKey } : null;

@@ -148,14 +148,23 @@ Color vipNameTint(Color color) {
 
 /// D258: the look of [vip] in [catalog] (null without a VIP). D264: the
 /// tier items the member took off in the bag ([UserVip.off]) are left out.
+///
+/// D270 (§10.98.4): the store items worn ([UserVip.store]) are the perks of
+/// their kind — over the VIP ones (one worn item per kind: the server lists
+/// the VIP item covered in [UserVip.off]); a store-only look has no tier.
 VipLook? vipLookOf(UserVip? vip, VipTierList? catalog) {
   if (vip == null) return null;
+  final store = {
+    for (final MapEntry(:key, :value) in vip.store.entries)
+      key: VipPerk.fromStoreArt(key, value),
+  };
+  if (!vip.member) return VipLook(vip: vip, perks: store);
   final tiers = [...?catalog?.tiers]
     ..sort((a, b) => a.level.compareTo(b.level));
   final own = tiers.where((t) => t.code == vip.tier).firstOrNull;
   if (own == null) {
     // Not on sale (or no catalogue): the badge in the tier's colour only.
-    return VipLook(vip: vip, perks: const {});
+    return VipLook(vip: vip, perks: store);
   }
   final perks = <String, VipPerk>{};
   for (final t in tiers) {
@@ -164,7 +173,9 @@ VipLook? vipLookOf(UserVip? vip, VipTierList? catalog) {
       if (p.available) perks[p.code] = p;
     }
   }
-  perks.removeWhere((code, _) => vip.off.contains(code));
+  perks
+    ..removeWhere((code, _) => vip.off.contains(code))
+    ..addAll(store);
   return VipLook(vip: vip, tier: own, perks: perks);
 }
 

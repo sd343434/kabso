@@ -197,13 +197,13 @@ class MeHubScreen extends ConsumerWidget {
           family == null ? AppRoutes.families : AppRoutes.family(family.id),
         ),
       ),
-      // D267 (owner): «المتجر» takes the earn card's place; the store is not
-      // built yet, so it shows «قريباً».
+      // D267 (owner): «المتجر» takes the earn card's place; D270: built.
       _HubCard(
         item: MeHubItem.store,
         icon: Icons.storefront_rounded,
         hue: _Hues.blue,
         label: l10n.meHubStore,
+        onTap: () => push(AppRoutes.store),
       ),
     ];
 

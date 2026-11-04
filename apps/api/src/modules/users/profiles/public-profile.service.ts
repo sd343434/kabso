@@ -14,6 +14,7 @@ import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
 import { activeVipOf } from '../../posts/post-views.js';
+import type { StoreWearDto } from '../../store/store-rules.js';
 import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
 
@@ -64,6 +65,8 @@ export interface PublicProfileDto {
   /** v1.83-social (D258, §10.94): present only while the user holds an active VIP (`UserVip`). */
   /** v1.65-live (D264): `off` — the VIP items the member took off in the bag (absent when none). */
   vip?: { tier: string; rank: number; color: string; off?: string[] };
+  /** D270 (§10.98): the store items the user wears now, by kind (absent when none). */
+  wear?: StoreWearDto;
   /** v1.76-social (D218, §10.73.3): the profile cover (1 080 px), or null (the app's Kabso gradient). */
   coverUrl: string | null;
   /** v1.76-social (D218): the country the user chose (D133, ISO alpha-2), or null. */
@@ -162,6 +165,7 @@ export class PublicProfileService {
       blockedByMe,
       stats,
       membership,
+      worn,
     ] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
@@ -202,6 +206,8 @@ export class PublicProfileService {
           tier: { select: { code: true, sortOrder: true, color: true } },
         },
       }),
+      // D270 (§10.98): every stored item worn now (its kind covers the VIP one) and the store items' art.
+      this.bag.wornNow(user.id),
     ]);
     // v1.83-social (D258, §10.94.9): someone else's opening is a visit («من زار ملفي»); never fails the read.
     if (!isSelf) {
@@ -211,10 +217,8 @@ export class PublicProfileService {
     }
     const shown = activeRechargeBadge(badge, new Date());
     // v1.65-live (D264): a profile card or frame worn from the bag covers the VIP one (one worn item per kind).
-    const vip = activeVipOf({ vipMembership: membership }, new Date(), [
-      ...(profileCard ? ['PROFILE_CARD'] : []),
-      ...(avatarFrame ? ['AVATAR_FRAME'] : []),
-    ]);
+    // D270: every stored kind worn (a store bubble, banner or car covers the VIP one too).
+    const vip = activeVipOf({ vipMembership: membership }, new Date(), worn.categories);
     return {
       id: user.id,
       username: user.username,
@@ -242,6 +246,7 @@ export class PublicProfileService {
       avatarFrame,
       ...(shown ? { rechargeBadge: shown } : {}),
       ...(vip ? { vip } : {}),
+      ...(worn.wear ? { wear: worn.wear } : {}),
       coverUrl: user.coverUrl,
       country: user.country,
       joinedMonth: user.joinedMonth,

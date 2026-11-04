@@ -14085,4 +14085,126 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meHubStore => 'Store';
+
+  @override
+  String get storeTitle => 'Store';
+
+  @override
+  String get storeKindAvatarFrame => 'Avatar frames';
+
+  @override
+  String get storeKindProfileCard => 'Profile cards';
+
+  @override
+  String get storeKindChatBubble => 'Chat bubbles';
+
+  @override
+  String get storeKindEntryBanner => 'Entry banners';
+
+  @override
+  String get storeKindEntryEffect => 'Entry cars';
+
+  @override
+  String get storeNew => 'New';
+
+  @override
+  String get storeOwned => 'Owned';
+
+  @override
+  String storeOwnedUntil(String date) {
+    return 'Yours until $date — buying adds the days';
+  }
+
+  @override
+  String get storeCoins => 'Coins';
+
+  @override
+  String get storeCherries => 'Cherries';
+
+  @override
+  String get storeDuration => 'Duration';
+
+  @override
+  String get storePayWith => 'Pay with';
+
+  @override
+  String get storePrice => 'Price';
+
+  @override
+  String get storeBalance => 'Your balance';
+
+  @override
+  String get storeBuy => 'Buy';
+
+  @override
+  String get storeGift => 'Gift';
+
+  @override
+  String get storeRecharge => 'Recharge';
+
+  @override
+  String get storeShortCoins => 'You don\'t have enough coins for this item.';
+
+  @override
+  String get storeShortCherries =>
+      'You don\'t have enough cherries. Cherries are earned from gifts you receive in lives; they can\'t be recharged.';
+
+  @override
+  String storeBuyConfirm(String name, String days, String price) {
+    return 'Buy “$name” for $days for $price?';
+  }
+
+  @override
+  String storeGiftConfirm(String name, String days, String user, String price) {
+    return 'Give “$name” for $days to $user for $price?';
+  }
+
+  @override
+  String storeBought(String name, String date) {
+    return 'Bought. “$name” is in your bag until $date.';
+  }
+
+  @override
+  String storeGiftSent(String user) {
+    return 'Your gift was sent to $user.';
+  }
+
+  @override
+  String get storeWearNow => 'Wear now';
+
+  @override
+  String get storeWorn => 'You\'re wearing it now';
+
+  @override
+  String get storeGiftTitle => 'Give to…';
+
+  @override
+  String get storeGiftSearch => 'Username';
+
+  @override
+  String get storeGiftFollowing => 'People you follow';
+
+  @override
+  String get storeGiftNone => 'No one here yet.';
+
+  @override
+  String get storeEmpty => 'Nothing in the store yet. Check back soon.';
+
+  @override
+  String get storePreviewSample => 'Hello everyone 👋';
+
+  @override
+  String storeTotal(String price, String days) {
+    return '$price · $days';
+  }
+
+  @override
+  String get errorStoreUnavailable => 'This item can\'t be bought now.';
+
+  @override
+  String get errorStorePriceChanged =>
+      'The price of this item changed. Check the new price.';
+
+  @override
+  String get walletReasonStorePurchase => 'Store purchase';
 }

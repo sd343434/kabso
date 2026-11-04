@@ -14090,4 +14090,126 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get meHubStore => 'المتجر';
+
+  @override
+  String get storeTitle => 'المتجر';
+
+  @override
+  String get storeKindAvatarFrame => 'إطارات الصور';
+
+  @override
+  String get storeKindProfileCard => 'بطاقات تعريفية';
+
+  @override
+  String get storeKindChatBubble => 'فقاعات الرسائل';
+
+  @override
+  String get storeKindEntryBanner => 'لافتات الدخول';
+
+  @override
+  String get storeKindEntryEffect => 'سيارات الدخول';
+
+  @override
+  String get storeNew => 'جديد';
+
+  @override
+  String get storeOwned => 'تملكه';
+
+  @override
+  String storeOwnedUntil(String date) {
+    return 'تملكه حتى $date — الشراء يضيف المدة إليه';
+  }
+
+  @override
+  String get storeCoins => 'عملات';
+
+  @override
+  String get storeCherries => 'كرز';
+
+  @override
+  String get storeDuration => 'المدة';
+
+  @override
+  String get storePayWith => 'الدفع بـ';
+
+  @override
+  String get storePrice => 'السعر';
+
+  @override
+  String get storeBalance => 'رصيدك';
+
+  @override
+  String get storeBuy => 'شراء';
+
+  @override
+  String get storeGift => 'إهداء';
+
+  @override
+  String get storeRecharge => 'شحن';
+
+  @override
+  String get storeShortCoins => 'رصيد العملات لا يكفي لهذا العنصر.';
+
+  @override
+  String get storeShortCherries =>
+      'رصيد الكرز لا يكفي. الكرز يُكسب من الهدايا التي تصلك في البث ولا يُشحن.';
+
+  @override
+  String storeBuyConfirm(String name, String days, String price) {
+    return 'شراء «$name» لمدة $days مقابل $price؟';
+  }
+
+  @override
+  String storeGiftConfirm(String name, String days, String user, String price) {
+    return 'إهداء «$name» لمدة $days إلى $user مقابل $price؟';
+  }
+
+  @override
+  String storeBought(String name, String date) {
+    return 'تم الشراء. «$name» في حقيبتك حتى $date.';
+  }
+
+  @override
+  String storeGiftSent(String user) {
+    return 'أُرسلت الهدية إلى $user.';
+  }
+
+  @override
+  String get storeWearNow => 'ارتدِ الآن';
+
+  @override
+  String get storeWorn => 'ترتديه الآن';
+
+  @override
+  String get storeGiftTitle => 'إهداء إلى…';
+
+  @override
+  String get storeGiftSearch => 'اسم المستخدم';
+
+  @override
+  String get storeGiftFollowing => 'من تتابعهم';
+
+  @override
+  String get storeGiftNone => 'لا يوجد أحد هنا بعد.';
+
+  @override
+  String get storeEmpty => 'لا توجد عناصر في المتجر بعد. عُد قريباً.';
+
+  @override
+  String get storePreviewSample => 'مرحباً بالجميع 👋';
+
+  @override
+  String storeTotal(String price, String days) {
+    return '$price · $days';
+  }
+
+  @override
+  String get errorStoreUnavailable => 'لا يمكن شراء هذا العنصر الآن.';
+
+  @override
+  String get errorStorePriceChanged =>
+      'تغيّر سعر هذا العنصر. راجع السعر الجديد.';
+
+  @override
+  String get walletReasonStorePurchase => 'شراء من المتجر';
 }

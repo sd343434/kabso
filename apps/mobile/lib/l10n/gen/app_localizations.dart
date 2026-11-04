@@ -23797,11 +23797,227 @@ abstract class AppLocalizations {
   /// **'العناصر الدائمة لا تُرسل'**
   String get bagNoSendPermanent;
 
-  /// D267: the Me tab's store card (not built yet: «قريباً»).
+  /// D267: the Me tab's store card (D270: opens the store).
   ///
   /// In ar, this message translates to:
   /// **'المتجر'**
   String get meHubStore;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتجر'**
+  String get storeTitle;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'إطارات الصور'**
+  String get storeKindAvatarFrame;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقات تعريفية'**
+  String get storeKindProfileCard;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'فقاعات الرسائل'**
+  String get storeKindChatBubble;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'لافتات الدخول'**
+  String get storeKindEntryBanner;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'سيارات الدخول'**
+  String get storeKindEntryEffect;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get storeNew;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'تملكه'**
+  String get storeOwned;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'تملكه حتى {date} — الشراء يضيف المدة إليه'**
+  String storeOwnedUntil(String date);
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'عملات'**
+  String get storeCoins;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز'**
+  String get storeCherries;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة'**
+  String get storeDuration;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدفع بـ'**
+  String get storePayWith;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر'**
+  String get storePrice;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك'**
+  String get storeBalance;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء'**
+  String get storeBuy;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'إهداء'**
+  String get storeGift;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن'**
+  String get storeRecharge;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد العملات لا يكفي لهذا العنصر.'**
+  String get storeShortCoins;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد الكرز لا يكفي. الكرز يُكسب من الهدايا التي تصلك في البث ولا يُشحن.'**
+  String get storeShortCherries;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء «{name}» لمدة {days} مقابل {price}؟'**
+  String storeBuyConfirm(String name, String days, String price);
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'إهداء «{name}» لمدة {days} إلى {user} مقابل {price}؟'**
+  String storeGiftConfirm(String name, String days, String user, String price);
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الشراء. «{name}» في حقيبتك حتى {date}.'**
+  String storeBought(String name, String date);
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت الهدية إلى {user}.'**
+  String storeGiftSent(String user);
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'ارتدِ الآن'**
+  String get storeWearNow;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتديه الآن'**
+  String get storeWorn;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'إهداء إلى…'**
+  String get storeGiftTitle;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get storeGiftSearch;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'من تتابعهم'**
+  String get storeGiftFollowing;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد أحد هنا بعد.'**
+  String get storeGiftNone;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عناصر في المتجر بعد. عُد قريباً.'**
+  String get storeEmpty;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحباً بالجميع 👋'**
+  String get storePreviewSample;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'{price} · {days}'**
+  String storeTotal(String price, String days);
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن شراء هذا العنصر الآن.'**
+  String get errorStoreUnavailable;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيّر سعر هذا العنصر. راجع السعر الجديد.'**
+  String get errorStorePriceChanged;
+
+  /// D270: «المتجر» (the store).
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء من المتجر'**
+  String get walletReasonStorePurchase;
 }
 
 class _AppLocalizationsDelegate

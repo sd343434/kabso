@@ -43,7 +43,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
       avatarFrame: avatarFrameFromJson(json['avatarFrame']),
       rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
-      vip: userVipFromJson(json['vip']),
+      vip: userVipFromJson(userVipWithWear(json, 'vip')),
       coverUrl: json['coverUrl'] as String?,
       country: json['country'] as String?,
       joinedMonth: json['joinedMonth'] as String?,
