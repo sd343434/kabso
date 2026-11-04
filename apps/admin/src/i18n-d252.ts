@@ -14,7 +14,7 @@ export const AR_D252 = {
   vipBadgeStill: "رابط صورة البدج الثابتة (https)",
   vipBadgeAnimation: "رابط حركة البدج SVGA (https)",
   vipBadgeHint:
-    "البدج هو الميدالية المركزية. رابط https مستضاف (ارفع الملف إلى مساحتك ثم ألصق الرابط). تُعرض الصورة الثابتة حتى تُحمَّل الحركة وفي الاختبارات. لا شيء مضمّن في التطبيق.",
+    "البدج هو الميدالية المركزية. ارفع الملف بزر «رفع صورة» / «رفع SVGA» (أو ألصق رابط https مستضاف). تُعرض الصورة الثابتة حتى تُحمَّل الحركة وفي الاختبارات. لا شيء مضمّن في التطبيق.",
   vipPerkStill: "صورة الميزة الثابتة",
   vipPerkAnimation: "حركة الميزة SVGA",
   vipArtW: "عرض الصورة",
@@ -70,7 +70,7 @@ export const EN_D252: Record<keyof typeof AR_D252, string> = {
   vipBadgeStill: "Badge still URL (https)",
   vipBadgeAnimation: "Badge SVGA URL (https)",
   vipBadgeHint:
-    "The badge is the central medallion. A hosted https URL (upload the file to your storage, then paste the URL). The still shows until the SVGA loads and in tests. Nothing is bundled in the app.",
+    "The badge is the central medallion. Upload it with «Upload image» / «Upload SVGA» (or paste a hosted https URL). The still shows until the SVGA loads and in tests. Nothing is bundled in the app.",
   vipPerkStill: "Perk still",
   vipPerkAnimation: "Perk SVGA",
   vipArtW: "Art width",

@@ -696,6 +696,46 @@ function TierForm({
       ...d,
       [k]: k === "code" ? e.target.value.toUpperCase() : e.target.value,
     }));
+  // D263: the badge's own upload (it took a pasted link only).
+  const [badgeUploading, setBadgeUploading] = useState<string | null>(null);
+  const [badgeUploadError, setBadgeUploadError] = useState<string | null>(null);
+  const tierCode = draft.code.trim();
+  const uploadBadge = async (
+    kind: "animation" | "still",
+    file: File | undefined,
+  ) => {
+    if (!file || !CODE.test(tierCode)) return;
+    setBadgeUploading(kind);
+    setBadgeUploadError(null);
+    try {
+      const up = await uploadVipArt(kind, tierCode, file);
+      setDraft((d) => ({
+        ...d,
+        [kind === "animation" ? "badgeAnimation" : "badgeStill"]: up.url,
+      }));
+    } catch (e) {
+      setBadgeUploadError(
+        e instanceof Error ? e.message : t("vipUploadFailed"),
+      );
+    } finally {
+      setBadgeUploading(null);
+    }
+  };
+  const badgeUpload = (kind: "animation" | "still") => (
+    <label className="btn small">
+      {badgeUploading === kind
+        ? t("vipUploading")
+        : t(kind === "animation" ? "vipUploadAnimation" : "vipUploadStill")}
+      <input
+        type="file"
+        hidden
+        accept={kind === "animation" ? ".svga" : "image/png,image/webp"}
+        data-vip-badge-upload={kind}
+        disabled={badgeUploading !== null || !CODE.test(tierCode)}
+        onChange={(e) => void uploadBadge(kind, e.target.files?.[0])}
+      />
+    </label>
+  );
   return (
     <Dialog
       title={tier ? t("vipEdit", { code: tier.code }) : t("vipAdd")}
@@ -843,6 +883,7 @@ function TierForm({
             value={draft.badgeStill}
             onChange={set("badgeStill")}
           />
+          {badgeUpload("still")}
         </div>
         <div className="field">
           <label htmlFor="vip-badge-anim">{t("vipBadgeAnimation")}</label>
@@ -853,7 +894,11 @@ function TierForm({
             value={draft.badgeAnimation}
             onChange={set("badgeAnimation")}
           />
+          {badgeUpload("animation")}
         </div>
+        {badgeUploadError && (
+          <div className="span-2 alert error">{badgeUploadError}</div>
+        )}
         <p className="span-2 muted small">{t("vipBadgeHint")}</p>
         {!tier && (
           <label className="check span-2">
