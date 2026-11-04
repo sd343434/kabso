@@ -17,6 +17,11 @@ enum LiveChatTagKind {
     LiveChatRole.moderator => moderator,
     _ => null,
   };
+
+  /// A chat line's tag: D273's Kabso Team line ([LiveChatAuthorBadges]
+  /// `kabsoTeam`) wears the team's, else the author's [role]'s.
+  static LiveChatTagKind? ofLine(LiveChatRole? role, LiveChatAuthorBadges? b) =>
+      (b?.kabsoTeam ?? false) ? team : of(role);
 }
 
 /// D269 (owner: the role tag BEFORE the name — «[role tag] → name → VIP badge

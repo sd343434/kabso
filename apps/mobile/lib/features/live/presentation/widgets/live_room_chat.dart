@@ -996,6 +996,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
     // D269 (owner): the role tag before the name, not among the badges.
     final row = LiveChatBadgeRow(
       role: null,
+      tagLed: true,
       badges: badges,
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
@@ -1003,7 +1004,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
       agentBadgeHeight: badgeRowHeight,
       fadeOverflow: true,
     );
-    final roleTag = cp ? null : LiveChatTagKind.of(role);
+    final roleTag = cp ? null : LiveChatTagKind.ofLine(role, badges);
     final profile = onProfile;
     // The picture and the name are in the line's label already.
     Widget tapProfile(Widget child) => ExcludeSemantics(
@@ -1158,9 +1159,14 @@ class LiveChatBadgeRow extends StatelessWidget {
     this.agentBadgeHeight,
     this.fadeOverflow = false,
     this.fullEmblems = false,
+    this.tagLed = false,
   });
 
   final LiveChatRole? role;
+
+  /// D269: the line opens with its tag ([LiveChatRoleTag], the Kabso Team's
+  /// too): the row leaves it out.
+  final bool tagLed;
 
   /// D258: the emblems at the row's [height] as in a [fadeOverflow] row,
   /// without its fade (the VIP row, whose VIP badge follows the levels).
@@ -1207,7 +1213,7 @@ class LiveChatBadgeRow extends StatelessWidget {
   static double pillHeight(double height) => height - 2;
 
   bool get isNotEmpty =>
-      (badges?.kabsoTeam ?? false) ||
+      (!tagLed && (badges?.kabsoTeam ?? false)) ||
       agentCode != null ||
       hostAgentCode != null ||
       rechargeBadgeShows(rechargeBadge) ||
@@ -1254,8 +1260,9 @@ class LiveChatBadgeRow extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // D273: «فريق كابسو» instead of every other badge.
-        if (badges?.kabsoTeam ?? false) ...[
+        // D273: «فريق كابسو» instead of every other badge (D269: before
+        // the name instead, as the line's tag, when [tagLed]).
+        if (!tagLed && (badges?.kabsoTeam ?? false)) ...[
           KabsoTeamBadge(height: pillH),
           const SizedBox(width: _space),
         ],
@@ -2164,9 +2171,10 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       // D269 (owner): the role tag before the name.
       final roleTag = w.cp || w.name == null
           ? null
-          : LiveChatTagKind.of(w.role);
+          : LiveChatTagKind.ofLine(w.role, w.badges);
       final badges = LiveChatBadgeRow(
         role: null,
+        tagLed: true,
         badges: w.badges,
         agentBadgeHeight: LiveChatInlineRow.badgeHeight,
         agentCode: w.agentCode,

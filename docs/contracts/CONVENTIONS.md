@@ -6345,7 +6345,7 @@ animation (owner). Null: no special colour. The theme `color` stays for tabs, bo
 
 **The chat row (owner; D269 «اجعل الميداليات حدها ٥ وفي اسطر اسفل الاسم وثم سطر اسفله لتكست»).** In every chat mode,
 VIP or not: line 1 the **role tag** (fixed colours: host «المضيف» red, room moderator «مشرف» orange, Kabso Team «فريق
-كابسو» blue — `LiveChatRoleTag`, shared with D273's staff lines), the name, the VIP name badge, the other tags
+كابسو» blue — `LiveChatRoleTag`; D273's staff line (`LiveChatAuthorBadges.kabsoTeam`) wears the blue tag here instead of its badge among the others), the name, the VIP name badge, the other tags
 («جديد», family) and the levels, every emblem one height — only the levels fade at the line's end, never the name (it
 keeps its least room) or the VIP badge; line 2 up to 5 of the chosen medals on their own row (no fade, sized so 5 fit
 at 360 pt; no line without medals); line 3 the message (alone in the VIP bubble for a member holding CHAT_BUBBLE). The

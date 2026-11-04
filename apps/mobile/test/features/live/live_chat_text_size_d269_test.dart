@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
@@ -146,6 +147,39 @@ void main() {
       tester.widget<LiveChatRoleTag>(find.byKey(LiveChatFlatLine.tagKey)).kind,
       LiveChatTagKind.host,
     );
+  });
+
+  testWidgets("a Kabso Team line (D273) opens with the team's blue tag", (
+    tester,
+  ) async {
+    await pumpGolden(
+      tester,
+      const ProviderScope(
+        child: Align(
+          child: LiveChatFlatLine(
+            name: 'Kabso',
+            text: _marker,
+            label: 'line',
+            role: LiveChatRole.viewer,
+            badges: LiveChatAuthorBadges(kabsoTeam: true),
+          ),
+        ),
+      ),
+      language: AppLanguage.en,
+      bare: true,
+    );
+    final tag = tester.widget<LiveChatRoleTag>(
+      find.byKey(LiveChatFlatLine.tagKey),
+    );
+    expect(tag.kind, LiveChatTagKind.team);
+    expect(
+      tester.getRect(find.byKey(LiveChatFlatLine.tagKey)).right,
+      lessThanOrEqualTo(
+        tester.getRect(find.byKey(LiveChatFlatLine.nameKey)).left,
+      ),
+    );
+    // Not a second time among the badges.
+    expect(find.byKey(KabsoTeamBadge.badgeKey), findsNothing);
   });
 
   test('the tags keep their fixed colours', () {

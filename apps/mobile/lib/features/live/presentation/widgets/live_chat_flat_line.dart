@@ -237,6 +237,7 @@ class LiveChatFlatLine extends ConsumerWidget {
   Widget _vipNameRow(TextScaler scaler, VipLook? look) {
     final levels = LiveChatBadgeRow(
       role: null,
+      tagLed: true,
       badges: badges,
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
@@ -248,7 +249,7 @@ class LiveChatFlatLine extends ConsumerWidget {
     // D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the name, then
     // the VIP badge, then the tags and levels (all one height); the name
     // keeps its least room, the levels give way (fade) first.
-    final roleTag = LiveChatTagKind.of(role);
+    final roleTag = LiveChatTagKind.ofLine(role, badges);
     return LiveChatNameRow(
       // D269 (owner): the role tag before the name.
       lead: roleTag == null
@@ -297,6 +298,7 @@ class LiveChatFlatLine extends ConsumerWidget {
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final badgeRow = LiveChatBadgeRow(
       role: null,
+      tagLed: true,
       badges: badges,
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
@@ -324,7 +326,7 @@ class LiveChatFlatLine extends ConsumerWidget {
         ],
         // D269 (owner): the role tag (host red, moderator orange) before the
         // name.
-        if (LiveChatTagKind.of(role) case final kind?) ...[
+        if (LiveChatTagKind.ofLine(role, badges) case final kind?) ...[
           LiveChatRoleTag(key: tagKey, kind: kind, height: KFlatChat.tagHeight),
           const SizedBox(width: 4),
         ],
