@@ -511,6 +511,10 @@ export const envSchema = z
     RATE_LIMIT_ADMIN_IP: rateLimit('1200/900'),
     /** v1.66-live (D271): the team's grant / revoke / reset-2fa per IP (on top of `RATE_LIMIT_ADMIN_IP`). */
     RATE_LIMIT_ADMIN_TEAM_IP: rateLimit('20/900'),
+    /** v1.68-live (D273): «أدوات فريق كابسو» in the app — every staff route per user … */
+    RATE_LIMIT_STAFF_APP_USER: rateLimit('300/900'),
+    /** … and the step-up (the authenticator code) per user, on top of the lockout. */
+    RATE_LIMIT_STAFF_STEP_UP_USER: rateLimit('10/900'),
     // v1.2 (CONVENTIONS §7)
     RATE_LIMIT_REGISTER_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_VERIFY_IP: rateLimit('10/900'),
@@ -1252,6 +1256,8 @@ export const envSchema = z
     ADMIN_LOCKOUT_ATTEMPTS: intSetting(5, 3, 50),
     /** … for this long. */
     ADMIN_LOCKOUT_SECONDS: intSetting(900, 60, 86_400),
+    /** v1.68-live (D273, §10.96.6): how long the staff tools' step-up in the app lasts (default 12 h). */
+    STAFF_APP_GRANT_SECONDS: intSetting(43_200, 300, 86_400),
     /** The zone of the panel dashboard's «today» (owner 2026-10-31: the Asia/Riyadh day, like the recharge badges). */
     ADMIN_DASHBOARD_TIME_ZONE: ianaTimeZone('Asia/Riyadh'),
     /**

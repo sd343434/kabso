@@ -19,6 +19,8 @@ export interface NotificationText {
   readonly requiredHosts?: number | null;
   /** v1.70-social (D206): AGENCY_PROBATION_DAYS (the closing's sentence). */
   readonly probationDays?: number | null;
+  /** v1.68-live (D273): LIVE_MODERATED — what the team did (WARN reads as a warning). */
+  readonly moderation?: string | null;
 }
 
 export type PushLocale = 'ar' | 'en';
@@ -185,8 +187,22 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
     // carries the team's reason (clipped; the inbox row has all of it, with the ban's end).
     case 'LIVE_MODERATED': {
       const why = n.targetText ? clip(n.targetText, 80) : null;
+      // v1.68-live (D273): a warning — the live goes on.
+      if (n.moderation === 'WARN') {
+        if (ar) return why ? `تنبيه من فريق Kabso على بثك: ${why}` : 'تنبيه من فريق Kabso على بثك';
+        return why
+          ? `A warning from the Kabso team on your live: ${why}`
+          : 'A warning from the Kabso team on your live';
+      }
       if (ar) return why ? `أنهى فريق Kabso بثك. السبب: ${why}` : 'أنهى فريق Kabso بثك';
       return why ? `The Kabso team ended your live. Reason: ${why}` : 'The Kabso team ended your live';
+    }
+    // v1.68-live (D273, §10.96.8): a report on a live the staff member looks after — the host's name only (never the
+    // reporter, the reason or the reported person).
+    case 'LIVE_STAFF_REPORT': {
+      const host = n.targetText ? clip(n.targetText, 40) : null;
+      if (ar) return host ? `بلاغ جديد على بث ${host}` : 'بلاغ جديد على بث';
+      return host ? `New report on ${host}'s live` : 'New report on a live';
     }
     default:
       return null;

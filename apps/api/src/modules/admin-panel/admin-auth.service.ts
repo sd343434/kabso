@@ -19,6 +19,7 @@ import {
 } from './admin-crypto.js';
 import { capabilitiesOf, isPanelRole, type Capability, type PanelRole } from './admin-permissions.js';
 import { matchTotp, newTotpSecret, otpauthUri } from './totp.js';
+import { revokeStaffGrantsIn } from '../live/live-staff.js';
 
 /** The cookie of a panel session (`__Host-`: Secure, Path=/, no Domain — admin.<domain> only). */
 export const ADMIN_COOKIE = '__Host-kabso_admin';
@@ -38,6 +39,11 @@ export interface AdminContext {
   readonly capabilities: Capability[];
   readonly ip: string | null;
   readonly requestId: string | null;
+  /**
+   * v1.68-live (D273, §10.96.6): where the action comes from — the panel (default) or the staff tools in the app
+   * (`sessionId` is then the step-up grant's id). Written as `via` in every audit row.
+   */
+  readonly via?: 'panel' | 'app';
 }
 
 /** A session token for the cookie and when the cookie should expire. */
@@ -348,6 +354,8 @@ export class AdminAuthService {
           where: { userId, revokedAt: null },
           data: { revokedAt: new Date() },
         });
+        // v1.68-live (D273): the staff tools in the app end with the lockout too.
+        await revokeStaffGrantsIn(tx, userId, 'LOCKED');
         await this.audit.recordIn(tx, {
           action: AuditAction.ADMIN_LOCKED,
           actorUserId: userId,
@@ -511,5 +519,25 @@ export class AdminAuthService {
     const meta = { ip: ctx.ip, requestId: ctx.requestId };
     await this.requireNotLocked(ctx.userId, meta);
     if (!code || !(await this.consumeTotp(ctx.userId, code))) await this.failCode(ctx.userId, 'reauth', meta);
+  }
+
+  /**
+   * v1.68-live (D273, §10.96.6): the staff tools' step-up in the app — the same authenticator, the same single-use
+   * step, the same lockout (a wrong code counts; at the limit the account locks, every panel session and every app
+   * grant ends: 429 ADMIN_LOCKED). 409 STAFF_TOTP_NOT_ENROLLED before the panel enrolment.
+   */
+  async stepUpCode(userId: string, code: string, meta: AdminMeta): Promise<void> {
+    this.requireOn();
+    await this.requireNotLocked(userId, meta);
+    const cred = await this.credentialOf(userId);
+    if (!cred?.totpEnrolledAt) throw new AppException(ErrorCode.STAFF_TOTP_NOT_ENROLLED);
+    if (!(await this.consumeTotp(userId, code))) await this.failCode(userId, 'app_step_up', meta);
+  }
+
+  /** v1.68-live (D273): the authenticator is set up and the account not locked now (`StaffStatus`). */
+  async secondFactorState(userId: string): Promise<{ enrolled: boolean; lockedUntil: Date | null }> {
+    const cred = await this.credentialOf(userId);
+    const locked = cred?.lockedUntil && cred.lockedUntil > new Date() ? cred.lockedUntil : null;
+    return { enrolled: (cred?.totpEnrolledAt ?? null) !== null, lockedUntil: locked };
   }
 }

@@ -300,6 +300,23 @@ export enum ErrorCode {
   STORE_UNAVAILABLE = 'STORE_UNAVAILABLE',
   /** D270 (DRAFT, §10.98): the item's price changed since the app showed it. Nothing was charged. */
   STORE_PRICE_CHANGED = 'STORE_PRICE_CHANGED',
+  /**
+   * v1.68-live (DRAFT, D273, §10.96.7): the target holds a panel role (OWNER, MODERATION, SUPPORT, FINANCE) — nobody acts
+   * on «فريق كابسو» from the app (kick, chat mute, a message removed, a seat, a family kick or mute). Nothing changed.
+   */
+  STAFF_PROTECTED = 'STAFF_PROTECTED',
+  /**
+   * v1.68-live (DRAFT, D273, §10.96.6): a Kabso staff member (a watch role) in a live does not send gifts, tap, send
+   * bullets or take a seat — `details: [{field: 'staff', issue: 'gifts' | 'taps' | 'bullets' | 'seat' | 'hidden_chat'}]`.
+   */
+  LIVE_STAFF_REFUSED = 'LIVE_STAFF_REFUSED',
+  /**
+   * v1.68-live (DRAFT, D273, §10.96.6): a staff tool needs the step-up — the panel authenticator code in the app
+   * (`createStaffStepUp`); none, expired or ended (sign-out, a role revoked, a lockout, a reset authenticator).
+   */
+  STAFF_STEP_UP_REQUIRED = 'STAFF_STEP_UP_REQUIRED',
+  /** v1.68-live (DRAFT, D273): the staff member has not set up the panel authenticator yet (admin.<domain>). */
+  STAFF_TOTP_NOT_ENROLLED = 'STAFF_TOTP_NOT_ENROLLED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -447,6 +464,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.VIP_PRICE_CHANGED]: 409,
   [ErrorCode.STORE_UNAVAILABLE]: 409,
   [ErrorCode.STORE_PRICE_CHANGED]: 409,
+  [ErrorCode.STAFF_PROTECTED]: 403,
+  [ErrorCode.LIVE_STAFF_REFUSED]: 403,
+  [ErrorCode.STAFF_STEP_UP_REQUIRED]: 403,
+  [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -595,6 +616,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.VIP_PRICE_CHANGED]: 'The price of this VIP tier changed.',
   [ErrorCode.STORE_UNAVAILABLE]: 'This store item cannot be bought now.',
   [ErrorCode.STORE_PRICE_CHANGED]: 'The price of this store item changed.',
+  [ErrorCode.STAFF_PROTECTED]: 'This cannot be done to the Kabso Team.',
+  [ErrorCode.LIVE_STAFF_REFUSED]: 'The Kabso Team does not do this in a live.',
+  [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
+  [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',
 };
 
 export interface ErrorDetail {

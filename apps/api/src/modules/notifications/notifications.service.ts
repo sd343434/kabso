@@ -31,7 +31,8 @@ export interface NotificationTargetDto {
     | 'AGENCY'
     | 'ACCOUNT_RESTRICTION'
     | 'BALANCE_ADJUSTMENT'
-    | 'LIVE_MODERATION';
+    | 'LIVE_MODERATION'
+    | 'LIVE_ROOM';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -59,10 +60,12 @@ export interface NotificationTargetDto {
    * v1.60-live (D250) LIVE_MODERATION only: what the team did (END, NO_LIVE, SUSPEND, DEVICE_BAN), the full reason
    * (`text` is its excerpt), `endsAt` the ban's end (absent when it is permanent: `permanent` true) and the live.
    */
-  moderation?: 'END' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN';
+  moderation?: 'END' | 'WARN' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN';
   reason?: string;
   permanent?: boolean;
   roomId?: string;
+  /** v1.68-live (D273) LIVE_ROOM only (LIVE_STAFF_REPORT): the live is still on air (`text` is the host's name). */
+  live?: boolean;
 }
 
 /** `Notification`. */
@@ -194,6 +197,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'REFERRAL_REWARD_REVERSED' },
       // v1.60-live (D250): the team acted on the caller's live from the panel (system; the action is the target).
       { type: 'LIVE_MODERATED', liveModerationId: { not: null } },
+      // v1.68-live (D273): a report on a live the caller looks after as «فريق كابسو» (system; the live is the target).
+      { type: 'LIVE_STAFF_REPORT', liveRoomId: { not: null } },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -238,6 +243,13 @@ function include(me: string) {
     accountRestriction: { select: { kind: true, endsAt: true, reason: true } },
     balanceAdjustment: { select: { currency: true, delta: true } },
     liveModeration: { select: { kind: true, reason: true, endsAt: true, roomId: true } },
+    liveRoom: {
+      select: {
+        id: true,
+        status: true,
+        host: { select: { profile: { select: { displayName: true, avatarUrl: true } } } },
+      },
+    },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -423,17 +435,29 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         endsAt: row.accountRestriction.endsAt.toISOString(),
       };
     }
+    // v1.68-live (D273): the live a staff member is alerted about — the host's name and picture only.
+    if (row.liveRoomId !== null && row.liveRoom) {
+      return {
+        type: 'LIVE_ROOM',
+        id: row.liveRoom.id,
+        postId: null,
+        thumbUrl: row.liveRoom.host.profile?.avatarUrl ?? null,
+        text: excerpt(row.liveRoom.host.profile?.displayName ?? null),
+        roomId: row.liveRoom.id,
+        live: row.liveRoom.status === 'LIVE',
+      };
+    }
     // v1.60-live (D250): the team's action on the live, with the reason and the ban's end.
     if (row.liveModerationId !== null && row.liveModeration && row.liveModeration.kind !== 'DISMISS') {
       const m = row.liveModeration;
-      const timed = m.kind !== 'END';
+      const timed = m.kind !== 'END' && m.kind !== 'WARN';
       return {
         type: 'LIVE_MODERATION',
         id: row.liveModerationId,
         postId: null,
         thumbUrl: null,
         text: excerpt(m.reason),
-        moderation: m.kind as 'END' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN',
+        moderation: m.kind as 'END' | 'WARN' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN',
         reason: m.reason,
         roomId: m.roomId,
         ...(m.endsAt ? { endsAt: m.endsAt.toISOString() } : {}),

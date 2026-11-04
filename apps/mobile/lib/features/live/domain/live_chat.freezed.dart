@@ -849,7 +849,9 @@ mixin _$LiveChatAuthorBadges {
 
  int? get charmLevel; int? get supportLevel; LiveChatAuthorFamily? get family;/// v1.34-live (D154c): the author's account is younger than the
 /// server's newcomer window (owner: 30 days) — «جديد 🌱».
- bool get newcomer;/// v1.52-live (D234, §10.82): the first five medals the author chose
+ bool get newcomer;/// v1.68-live (D273): set by the app from `LiveChatMessage.authorStaff`
+/// (never sent inside the badges): the row shows «فريق كابسو» alone.
+@JsonKey(includeFromJson: false, includeToJson: false) bool get kabsoTeam;/// v1.52-live (D234, §10.82): the first five medals the author chose
 /// to show on their profile, in their order; empty when none (older
 /// servers send nothing).
  List<LiveChatAuthorMedal> get medals;
@@ -866,20 +868,20 @@ $LiveChatAuthorBadgesCopyWith<LiveChatAuthorBadges> get copyWith => _$LiveChatAu
 @override
 bool operator ==(Object other) {
   final _this = this as LiveChatAuthorBadges;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatAuthorBadges&&(identical(other.charmLevel, _this.charmLevel) || other.charmLevel == _this.charmLevel)&&(identical(other.supportLevel, _this.supportLevel) || other.supportLevel == _this.supportLevel)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.newcomer, _this.newcomer) || other.newcomer == _this.newcomer)&&const DeepCollectionEquality().equals(other.medals, _this.medals));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatAuthorBadges&&(identical(other.charmLevel, _this.charmLevel) || other.charmLevel == _this.charmLevel)&&(identical(other.supportLevel, _this.supportLevel) || other.supportLevel == _this.supportLevel)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.newcomer, _this.newcomer) || other.newcomer == _this.newcomer)&&(identical(other.kabsoTeam, _this.kabsoTeam) || other.kabsoTeam == _this.kabsoTeam)&&const DeepCollectionEquality().equals(other.medals, _this.medals));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveChatAuthorBadges;
-  return Object.hash(runtimeType,_this.charmLevel,_this.supportLevel,_this.family,_this.newcomer,const DeepCollectionEquality().hash(_this.medals));
+  return Object.hash(runtimeType,_this.charmLevel,_this.supportLevel,_this.family,_this.newcomer,_this.kabsoTeam,const DeepCollectionEquality().hash(_this.medals));
 }
 
 @override
 String toString() {
   final _this = this as LiveChatAuthorBadges;
-  return 'LiveChatAuthorBadges(charmLevel: ${_this.charmLevel}, supportLevel: ${_this.supportLevel}, family: ${_this.family}, newcomer: ${_this.newcomer}, medals: ${_this.medals})';
+  return 'LiveChatAuthorBadges(charmLevel: ${_this.charmLevel}, supportLevel: ${_this.supportLevel}, family: ${_this.family}, newcomer: ${_this.newcomer}, kabsoTeam: ${_this.kabsoTeam}, medals: ${_this.medals})';
 }
 
 
@@ -890,7 +892,7 @@ abstract mixin class $LiveChatAuthorBadgesCopyWith<$Res>  {
   factory $LiveChatAuthorBadgesCopyWith(LiveChatAuthorBadges value, $Res Function(LiveChatAuthorBadges) _then) = _$LiveChatAuthorBadgesCopyWithImpl;
 @useResult
 $Res call({
- int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family, bool newcomer, List<LiveChatAuthorMedal> medals
+ int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family, bool newcomer,@JsonKey(includeFromJson: false, includeToJson: false) bool kabsoTeam, List<LiveChatAuthorMedal> medals
 });
 
 
@@ -907,12 +909,13 @@ class _$LiveChatAuthorBadgesCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatAuthorBadges
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,Object? newcomer = null,Object? medals = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,Object? newcomer = null,Object? kabsoTeam = null,Object? medals = null,}) {
   return _then(LiveChatAuthorBadges(
 charmLevel: freezed == charmLevel ? _self.charmLevel : charmLevel // ignore: cast_nullable_to_non_nullable
 as int?,supportLevel: freezed == supportLevel ? _self.supportLevel : supportLevel // ignore: cast_nullable_to_non_nullable
 as int?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
 as LiveChatAuthorFamily?,newcomer: null == newcomer ? _self.newcomer : newcomer // ignore: cast_nullable_to_non_nullable
+as bool,kabsoTeam: null == kabsoTeam ? _self.kabsoTeam : kabsoTeam // ignore: cast_nullable_to_non_nullable
 as bool,medals: null == medals ? _self.medals : medals // ignore: cast_nullable_to_non_nullable
 as List<LiveChatAuthorMedal>,
   ));
@@ -1011,10 +1014,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer,  List<LiveChatAuthorMedal> medals)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer, @JsonKey(includeFromJson: false, includeToJson: false)  bool kabsoTeam,  List<LiveChatAuthorMedal> medals)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveChatAuthorBadges() when $default != null:
-return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,_that.medals);case _:
+return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,_that.kabsoTeam,_that.medals);case _:
   return orElse();
 
 }
@@ -1032,10 +1035,10 @@ return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer,  List<LiveChatAuthorMedal> medals)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer, @JsonKey(includeFromJson: false, includeToJson: false)  bool kabsoTeam,  List<LiveChatAuthorMedal> medals)  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatAuthorBadges():
-return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,_that.medals);case _:
+return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,_that.kabsoTeam,_that.medals);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1052,10 +1055,10 @@ return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer,  List<LiveChatAuthorMedal> medals)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family,  bool newcomer, @JsonKey(includeFromJson: false, includeToJson: false)  bool kabsoTeam,  List<LiveChatAuthorMedal> medals)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatAuthorBadges() when $default != null:
-return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,_that.medals);case _:
+return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,_that.kabsoTeam,_that.medals);case _:
   return null;
 
 }
@@ -1067,7 +1070,7 @@ return $default(_that.charmLevel,_that.supportLevel,_that.family,_that.newcomer,
 @JsonSerializable()
 
 class _LiveChatAuthorBadges implements LiveChatAuthorBadges {
-  const _LiveChatAuthorBadges({this.charmLevel, this.supportLevel, this.family, this.newcomer = false,  List<LiveChatAuthorMedal> medals = const <LiveChatAuthorMedal>[]}): _medals = medals;
+  const _LiveChatAuthorBadges({this.charmLevel, this.supportLevel, this.family, this.newcomer = false, @JsonKey(includeFromJson: false, includeToJson: false) this.kabsoTeam = false,  List<LiveChatAuthorMedal> medals = const <LiveChatAuthorMedal>[]}): _medals = medals;
   factory _LiveChatAuthorBadges.fromJson(Map<String, dynamic> json) => _$LiveChatAuthorBadgesFromJson(json);
 
 @override final  int? charmLevel;
@@ -1076,6 +1079,9 @@ class _LiveChatAuthorBadges implements LiveChatAuthorBadges {
 /// v1.34-live (D154c): the author's account is younger than the
 /// server's newcomer window (owner: 30 days) — «جديد 🌱».
 @override@JsonKey() final  bool newcomer;
+/// v1.68-live (D273): set by the app from `LiveChatMessage.authorStaff`
+/// (never sent inside the badges): the row shows «فريق كابسو» alone.
+@override@JsonKey(includeFromJson: false, includeToJson: false) final  bool kabsoTeam;
 /// v1.52-live (D234, §10.82): the first five medals the author chose
 /// to show on their profile, in their order; empty when none (older
 /// servers send nothing).
@@ -1103,18 +1109,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatAuthorBadges&&(identical(other.charmLevel, charmLevel) || other.charmLevel == charmLevel)&&(identical(other.supportLevel, supportLevel) || other.supportLevel == supportLevel)&&(identical(other.family, family) || other.family == family)&&(identical(other.newcomer, newcomer) || other.newcomer == newcomer)&&const DeepCollectionEquality().equals(other.medals, _medals));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatAuthorBadges&&(identical(other.charmLevel, charmLevel) || other.charmLevel == charmLevel)&&(identical(other.supportLevel, supportLevel) || other.supportLevel == supportLevel)&&(identical(other.family, family) || other.family == family)&&(identical(other.newcomer, newcomer) || other.newcomer == newcomer)&&(identical(other.kabsoTeam, kabsoTeam) || other.kabsoTeam == kabsoTeam)&&const DeepCollectionEquality().equals(other.medals, _medals));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,charmLevel,supportLevel,family,newcomer,const DeepCollectionEquality().hash(_medals));
+    return Object.hash(runtimeType,charmLevel,supportLevel,family,newcomer,kabsoTeam,const DeepCollectionEquality().hash(_medals));
 }
 
 @override
 String toString() {
-    return 'LiveChatAuthorBadges(charmLevel: $charmLevel, supportLevel: $supportLevel, family: $family, newcomer: $newcomer, medals: $medals)';
+    return 'LiveChatAuthorBadges(charmLevel: $charmLevel, supportLevel: $supportLevel, family: $family, newcomer: $newcomer, kabsoTeam: $kabsoTeam, medals: $medals)';
 }
 
 
@@ -1125,7 +1131,7 @@ abstract mixin class _$LiveChatAuthorBadgesCopyWith<$Res> implements $LiveChatAu
   factory _$LiveChatAuthorBadgesCopyWith(_LiveChatAuthorBadges value, $Res Function(_LiveChatAuthorBadges) _then) = __$LiveChatAuthorBadgesCopyWithImpl;
 @override @useResult
 $Res call({
- int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family, bool newcomer, List<LiveChatAuthorMedal> medals
+ int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family, bool newcomer,@JsonKey(includeFromJson: false, includeToJson: false) bool kabsoTeam, List<LiveChatAuthorMedal> medals
 });
 
 
@@ -1142,12 +1148,13 @@ class __$LiveChatAuthorBadgesCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatAuthorBadges
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,Object? newcomer = null,Object? medals = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,Object? newcomer = null,Object? kabsoTeam = null,Object? medals = null,}) {
   return _then(_LiveChatAuthorBadges(
 charmLevel: freezed == charmLevel ? _self.charmLevel : charmLevel // ignore: cast_nullable_to_non_nullable
 as int?,supportLevel: freezed == supportLevel ? _self.supportLevel : supportLevel // ignore: cast_nullable_to_non_nullable
 as int?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
 as LiveChatAuthorFamily?,newcomer: null == newcomer ? _self.newcomer : newcomer // ignore: cast_nullable_to_non_nullable
+as bool,kabsoTeam: null == kabsoTeam ? _self.kabsoTeam : kabsoTeam // ignore: cast_nullable_to_non_nullable
 as bool,medals: null == medals ? _self._medals : medals // ignore: cast_nullable_to_non_nullable
 as List<LiveChatAuthorMedal>,
   ));
@@ -1180,7 +1187,10 @@ mixin _$LiveChatEntry {
 /// the CP bubble. Older servers send nothing (false).
  bool get cpBubble;/// v1.24.4-live (D119): the author's level and family badges; older
 /// servers send none (null: no badges).
- LiveChatAuthorBadges? get authorBadges;
+ LiveChatAuthorBadges? get authorBadges;/// v1.68-live (D273, §10.96.6): the author is «فريق كابسو» — the line
+/// shows the team's tag instead of levels, family and VIP. Older servers
+/// send nothing (false).
+ bool get authorStaff;
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1194,20 +1204,20 @@ $LiveChatEntryCopyWith<LiveChatEntry> get copyWith => _$LiveChatEntryCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as LiveChatEntry;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorRole, _this.authorRole) || other.authorRole == _this.authorRole)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.cpBubble, _this.cpBubble) || other.cpBubble == _this.cpBubble)&&(identical(other.authorBadges, _this.authorBadges) || other.authorBadges == _this.authorBadges));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorRole, _this.authorRole) || other.authorRole == _this.authorRole)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.cpBubble, _this.cpBubble) || other.cpBubble == _this.cpBubble)&&(identical(other.authorBadges, _this.authorBadges) || other.authorBadges == _this.authorBadges)&&(identical(other.authorStaff, _this.authorStaff) || other.authorStaff == _this.authorStaff));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveChatEntry;
-  return Object.hash(runtimeType,_this.id,_this.roomId,_this.author,_this.authorRole,_this.text,_this.createdAt,_this.kind,_this.media,_this.expiresAt,_this.cpBubble,_this.authorBadges);
+  return Object.hash(runtimeType,_this.id,_this.roomId,_this.author,_this.authorRole,_this.text,_this.createdAt,_this.kind,_this.media,_this.expiresAt,_this.cpBubble,_this.authorBadges,_this.authorStaff);
 }
 
 @override
 String toString() {
   final _this = this as LiveChatEntry;
-  return 'LiveChatEntry(id: ${_this.id}, roomId: ${_this.roomId}, author: ${_this.author}, authorRole: ${_this.authorRole}, text: ${_this.text}, createdAt: ${_this.createdAt}, kind: ${_this.kind}, media: ${_this.media}, expiresAt: ${_this.expiresAt}, cpBubble: ${_this.cpBubble}, authorBadges: ${_this.authorBadges})';
+  return 'LiveChatEntry(id: ${_this.id}, roomId: ${_this.roomId}, author: ${_this.author}, authorRole: ${_this.authorRole}, text: ${_this.text}, createdAt: ${_this.createdAt}, kind: ${_this.kind}, media: ${_this.media}, expiresAt: ${_this.expiresAt}, cpBubble: ${_this.cpBubble}, authorBadges: ${_this.authorBadges}, authorStaff: ${_this.authorStaff})';
 }
 
 
@@ -1218,7 +1228,7 @@ abstract mixin class $LiveChatEntryCopyWith<$Res>  {
   factory $LiveChatEntryCopyWith(LiveChatEntry value, $Res Function(LiveChatEntry) _then) = _$LiveChatEntryCopyWithImpl;
 @useResult
 $Res call({
- String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble, LiveChatAuthorBadges? authorBadges
+ String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble, LiveChatAuthorBadges? authorBadges, bool authorStaff
 });
 
 
@@ -1235,7 +1245,7 @@ class _$LiveChatEntryCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,Object? authorBadges = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,Object? authorBadges = freezed,Object? authorStaff = null,}) {
   return _then(LiveChatEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -1248,7 +1258,8 @@ as LiveChatKind,media: freezed == media ? _self.media : media // ignore: cast_nu
 as LiveChatMedia?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,cpBubble: null == cpBubble ? _self.cpBubble : cpBubble // ignore: cast_nullable_to_non_nullable
 as bool,authorBadges: freezed == authorBadges ? _self.authorBadges : authorBadges // ignore: cast_nullable_to_non_nullable
-as LiveChatAuthorBadges?,
+as LiveChatAuthorBadges?,authorStaff: null == authorStaff ? _self.authorStaff : authorStaff // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 /// Create a copy of LiveChatEntry
@@ -1366,10 +1377,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges,  bool authorStaff)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveChatEntry() when $default != null:
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges,_that.authorStaff);case _:
   return orElse();
 
 }
@@ -1387,10 +1398,10 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges,  bool authorStaff)  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatEntry():
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges,_that.authorStaff);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1407,10 +1418,10 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges,  bool authorStaff)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatEntry() when $default != null:
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges,_that.authorStaff);case _:
   return null;
 
 }
@@ -1422,7 +1433,7 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 @JsonSerializable()
 
 class _LiveChatEntry implements LiveChatEntry {
-  const _LiveChatEntry({required this.id, required this.roomId, required this.author, @JsonKey(unknownEnumValue: LiveChatRole.viewer) required this.authorRole, required this.text, required this.createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text) this.kind = LiveChatKind.text, this.media, this.expiresAt, this.cpBubble = false, this.authorBadges});
+  const _LiveChatEntry({required this.id, required this.roomId, required this.author, @JsonKey(unknownEnumValue: LiveChatRole.viewer) required this.authorRole, required this.text, required this.createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text) this.kind = LiveChatKind.text, this.media, this.expiresAt, this.cpBubble = false, this.authorBadges, this.authorStaff = false});
   factory _LiveChatEntry.fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
 
 @override final  String id;
@@ -1444,6 +1455,10 @@ class _LiveChatEntry implements LiveChatEntry {
 /// v1.24.4-live (D119): the author's level and family badges; older
 /// servers send none (null: no badges).
 @override final  LiveChatAuthorBadges? authorBadges;
+/// v1.68-live (D273, §10.96.6): the author is «فريق كابسو» — the line
+/// shows the team's tag instead of levels, family and VIP. Older servers
+/// send nothing (false).
+@override@JsonKey() final  bool authorStaff;
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
@@ -1458,18 +1473,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorRole, authorRole) || other.authorRole == authorRole)&&(identical(other.text, text) || other.text == text)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.media, media) || other.media == media)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.cpBubble, cpBubble) || other.cpBubble == cpBubble)&&(identical(other.authorBadges, authorBadges) || other.authorBadges == authorBadges));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorRole, authorRole) || other.authorRole == authorRole)&&(identical(other.text, text) || other.text == text)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.media, media) || other.media == media)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.cpBubble, cpBubble) || other.cpBubble == cpBubble)&&(identical(other.authorBadges, authorBadges) || other.authorBadges == authorBadges)&&(identical(other.authorStaff, authorStaff) || other.authorStaff == authorStaff));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,roomId,author,authorRole,text,createdAt,kind,media,expiresAt,cpBubble,authorBadges);
+    return Object.hash(runtimeType,id,roomId,author,authorRole,text,createdAt,kind,media,expiresAt,cpBubble,authorBadges,authorStaff);
 }
 
 @override
 String toString() {
-    return 'LiveChatEntry(id: $id, roomId: $roomId, author: $author, authorRole: $authorRole, text: $text, createdAt: $createdAt, kind: $kind, media: $media, expiresAt: $expiresAt, cpBubble: $cpBubble, authorBadges: $authorBadges)';
+    return 'LiveChatEntry(id: $id, roomId: $roomId, author: $author, authorRole: $authorRole, text: $text, createdAt: $createdAt, kind: $kind, media: $media, expiresAt: $expiresAt, cpBubble: $cpBubble, authorBadges: $authorBadges, authorStaff: $authorStaff)';
 }
 
 
@@ -1480,7 +1495,7 @@ abstract mixin class _$LiveChatEntryCopyWith<$Res> implements $LiveChatEntryCopy
   factory _$LiveChatEntryCopyWith(_LiveChatEntry value, $Res Function(_LiveChatEntry) _then) = __$LiveChatEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble, LiveChatAuthorBadges? authorBadges
+ String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble, LiveChatAuthorBadges? authorBadges, bool authorStaff
 });
 
 
@@ -1497,7 +1512,7 @@ class __$LiveChatEntryCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,Object? authorBadges = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,Object? authorBadges = freezed,Object? authorStaff = null,}) {
   return _then(_LiveChatEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -1510,7 +1525,8 @@ as LiveChatKind,media: freezed == media ? _self.media : media // ignore: cast_nu
 as LiveChatMedia?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,cpBubble: null == cpBubble ? _self.cpBubble : cpBubble // ignore: cast_nullable_to_non_nullable
 as bool,authorBadges: freezed == authorBadges ? _self.authorBadges : authorBadges // ignore: cast_nullable_to_non_nullable
-as LiveChatAuthorBadges?,
+as LiveChatAuthorBadges?,authorStaff: null == authorStaff ? _self.authorStaff : authorStaff // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

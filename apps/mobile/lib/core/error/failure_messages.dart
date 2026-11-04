@@ -100,6 +100,13 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.vipPriceChanged => l10n.errorVipPriceChanged,
     ErrorCode.storeUnavailable => l10n.errorStoreUnavailable,
     ErrorCode.storePriceChanged => l10n.errorStorePriceChanged,
+    ErrorCode.staffProtected => l10n.errorStaffProtected,
+    ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
+    ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,
+    ErrorCode.staffTotpNotEnrolled => l10n.errorStaffTotpNotEnrolled,
+    ErrorCode.adminTotpInvalid => l10n.errorAdminTotpInvalid,
+    ErrorCode.adminLocked => l10n.errorAdminLocked,
+    ErrorCode.adminActionRefused => l10n.errorAdminActionRefused,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

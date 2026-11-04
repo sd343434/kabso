@@ -32,7 +32,13 @@ class LiveRoomSessionState {
     this.kicked = false,
     this.soundMuted = false,
     this.volume = 1,
+    this.staff,
   });
+
+  /// v1.68-live (D273, §10.96.6): `VISIBLE` / `HIDDEN` while this person is
+  /// in the live as «فريق كابسو» (the server's `LiveMediaAccess.staff`):
+  /// the staff tools show, gifts and taps do not. Null for everyone else.
+  final String? staff;
 
   /// D225 (owner, decision 7): «كتم صوت البث عندي» — this live's sound is off
   /// on this phone only, for this visit (a new visit starts with it on).
@@ -97,7 +103,9 @@ class LiveRoomSessionState {
     bool? kicked,
     bool? soundMuted,
     double? volume,
+    String? staff,
   }) => LiveRoomSessionState(
+    staff: staff ?? this.staff,
     soundMuted: soundMuted ?? this.soundMuted,
     volume: volume ?? this.volume,
     joined: joined ?? this.joined,
@@ -256,10 +264,14 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   /// of an audio or video room) keeps the live running while the app is in
   /// the background; the notification's Leave leaves the seat, or calls
   /// [onLeave] (the screen leaves the room) for a listener.
+  ///
+  /// v1.68-live (D273): [staffVisibility] (`VISIBLE` / `HIDDEN`) is how a
+  /// Kabso staff member enters (the server decides; others send none).
   Future<void> start(
     LiveRoom room, {
     LiveBackgroundTexts? background,
     VoidCallback? onLeave,
+    String? staffVisibility,
   }) async {
     _background = background;
     _onLeave = onLeave;
@@ -274,10 +286,11 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       final access = await _repo.mediaToken(
         roomId,
         guestId: user == null ? ref.read(liveGuestIdProvider) : null,
+        staffVisibility: staffVisibility,
       );
       await _engine.join(access);
       if (!ref.mounted) return;
-      state = state.copyWith(joined: true);
+      state = state.copyWith(joined: true, staff: access.staff);
       if (_mode.hasGuestSeats) {
         await refreshSeats();
         _poll = Timer.periodic(
@@ -292,6 +305,24 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       } else if (ref.mounted) {
         state = state.copyWith(joinFailure: failure);
       }
+    }
+  }
+
+  /// v1.68-live (D273): «فريق كابسو» switched between visible and hidden —
+  /// the media session is joined again with the new identity.
+  Future<void> rejoinAsStaff(LiveRoom room, String visibility) async {
+    try {
+      final access = await _repo.mediaToken(
+        roomId,
+        staffVisibility: visibility,
+      );
+      await _engine.stop();
+      await _engine.join(access);
+      if (ref.mounted) {
+        state = state.copyWith(joined: true, staff: access.staff);
+      }
+    } on Object catch (e) {
+      if (ref.mounted) state = state.copyWith(joinFailure: toAppFailure(e));
     }
   }
 

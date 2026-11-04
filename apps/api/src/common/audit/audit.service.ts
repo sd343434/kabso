@@ -389,6 +389,18 @@ export enum AuditAction {
   ADMIN_LIVE_ASSIGN = 'admin.live.assign',
   ADMIN_SHIFT_ON = 'admin.shift.on',
   ADMIN_SHIFT_OFF = 'admin.shift.off',
+  /**
+   * v1.68-live (D273, §10.96.6–8): «فريق كابسو» from the app — the staff tools' step-up {expiresAt} and its end {reason};
+   * a room action from the staff tools (a message removed, a chat mute / unmute) {roomId, reason, via: app}; a staff
+   * alert of a report on a live {reportId, recipients, route assigned | actors | owners} (no actor: the service) and
+   * its push {sent, onShift}. Kicks are `live.kick` with `staff`, `reason` and `via: app`.
+   */
+  ADMIN_APP_STEP_UP = 'admin.app.step_up',
+  ADMIN_APP_STEP_UP_END = 'admin.app.step_up_end',
+  ADMIN_LIVE_CHAT_REMOVE = 'admin.live.chat_remove',
+  ADMIN_LIVE_CHAT_MUTE = 'admin.live.chat_mute',
+  LIVE_STAFF_REPORT_ALERT = 'live.staff_report.alert',
+  LIVE_STAFF_REPORT_PUSH = 'live.staff_report.push',
   // v1.69-social (DRAFT, D204): recharge orders with escrow — each state change (before/after, the coins moved), an
   // admin's view of a disputed order and of its pictures, an admin's message «الإدارة», a dispute's decision, and an
   // exchange rate set or cleared (OWNER / FINANCE, panel or CLI).

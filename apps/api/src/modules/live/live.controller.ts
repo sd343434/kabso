@@ -331,7 +331,13 @@ export class LiveController {
     @Param('roomId') roomId: string,
     @Body() body: unknown,
   ): Promise<LiveMediaAccessDto> {
-    return this.media.mediaToken(callerOf(req), roomId, body);
+    // v1.68-live (D273): the app session, for a staff member's hidden watch (bound to the step-up grant).
+    return this.media.mediaToken(
+      callerOf(req),
+      roomId,
+      body,
+      req.auth ? { sessionId: req.auth.sessionId, meta: meta(req) } : undefined,
+    );
   }
 
   /**

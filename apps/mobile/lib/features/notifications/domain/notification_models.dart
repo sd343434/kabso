@@ -109,6 +109,11 @@ enum NotificationType {
   /// live, a suspension or a device ban until a time (or for good) — with
   /// the team's reason. No tap target.
   liveModerated('LIVE_MODERATED'),
+
+  /// v1.68-live (D273, system; target LIVE_ROOM): a report on a live this
+  /// staff member looks after — opens the live as «فريق كابسو» on its
+  /// reports.
+  liveStaffReport('LIVE_STAFF_REPORT'),
   unknown('');
 
   new(this.wire);
@@ -135,6 +140,7 @@ enum NotificationType {
       isHostApplication ||
       isKyc ||
       this == liveModerated ||
+      this == liveStaffReport ||
       this == referralRewardReversed;
 
   /// v1.80-kyc (D227): the identity check's result.
@@ -185,7 +191,10 @@ enum NotificationTargetType {
 
   /// v1.60-live (D250): the team's action on a live (its id; `moderation`,
   /// `reason`, `endsAt` or `permanent`; `text` the reason's excerpt).
-  liveModeration('LIVE_MODERATION');
+  liveModeration('LIVE_MODERATION'),
+
+  /// v1.68-live (D273): a live (its id; `text` the host's name).
+  liveRoom('LIVE_ROOM');
 
   new(this.wire);
 

@@ -50,7 +50,8 @@ const DAY_MS = 24 * 3600_000;
 describe('v1.20-live contract coverage', () => {
   it('openapi declares the kick operations and the one-person contribution', () => {
     const ids = operations().map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
-    expect(ids.filter((id) => id.includes('/kicks')).sort()).toEqual(
+    // v1.68-live (D273): the staff tools' kick is under /staff (d273-staff-app).
+    expect(ids.filter((id) => id.includes('/live/rooms/') && id.includes('/kicks')).sort()).toEqual(
       [
         'kickFromLive POST /api/v1/live/rooms/{roomId}/kicks',
         'listLiveKicks GET /api/v1/live/rooms/{roomId}/kicks',

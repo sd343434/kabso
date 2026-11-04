@@ -362,6 +362,8 @@ class LivePersonSheet extends ConsumerWidget {
                     name: profile.displayName,
                   ),
                   self: profile.isSelf,
+                  // D273: no actions against «فريق كابسو».
+                  kabsoTeam: profile.kabsoTeam,
                   middle: picture.width + 8,
                   // D258: white on the VIP card.
                   ink: vipCard?.ink,

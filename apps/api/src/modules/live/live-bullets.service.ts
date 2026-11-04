@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { refuseWatchStaff } from './live-staff.js';
 import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
@@ -143,6 +144,8 @@ export class LiveBulletsService {
     await assertNotRestricted(this.prisma, callerId, 'CHAT_MUTE');
 
     if (callerId !== row.host_user_id) {
+      // v1.68-live (D273, §10.96.6): «فريق كابسو» sends no bullets (paid or free) in a live.
+      await refuseWatchStaff(this.prisma, callerId, 'bullets');
       // v1.20-live (D105, §10.20): kicked out of this live.
       if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
       if (!(await this.inMediaSession(row.id, callerId))) {

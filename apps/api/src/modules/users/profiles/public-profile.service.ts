@@ -17,6 +17,7 @@ import { activeVipOf } from '../../posts/post-views.js';
 import type { StoreWearDto } from '../../store/store-rules.js';
 import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
+import { isPanelStaff } from '../../live/live-staff.js';
 
 /**
  * `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time (D218: only the month
@@ -35,6 +36,11 @@ export interface PublicProfileDto {
   /** CP-007: the caller's own mute of this user; the muted user is never told. */
   isMuted: boolean;
   isSelf: boolean;
+  /**
+   * v1.68-live (D273, §10.96.7): the account holds a panel role — «فريق كابسو»; the app hides the actions against it
+   * (kick, mute, seat, family) and the server refuses them (403 STAFF_PROTECTED). Absent (false) for everyone else.
+   */
+  kabsoTeam?: true;
   liveRoomId: string | null;
   /** v1.21-live (CP-018): the user's family and role, or null. */
   family: ProfileFamilyDto | null;
@@ -233,6 +239,7 @@ export class PublicProfileService {
       followRequested,
       isMuted,
       isSelf,
+      ...((await isPanelStaff(this.prisma, user.id)) ? { kabsoTeam: true as const } : {}),
       liveRoomId,
       family,
       cp,

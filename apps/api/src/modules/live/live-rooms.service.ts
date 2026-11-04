@@ -49,6 +49,7 @@ import {
 } from './live.schemas.js';
 import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { watchStaffSql } from './live-staff.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -545,15 +546,17 @@ export function streamerOf(row: {
 /** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
 function chatMutedSql(viewerId: string | null): Prisma.Sql {
   if (viewerId === null) return Prisma.sql`FALSE`;
-  return Prisma.sql`EXISTS (SELECT 1 FROM live_chat_mutes m
-                    WHERE m.room_id = r.id AND m.user_id = ${viewerId}::uuid)`;
+  // v1.68-live (D273, §10.96.7): «فريق كابسو» is never chat-muted in a live.
+  return Prisma.sql`(EXISTS (SELECT 1 FROM live_chat_mutes m
+                    WHERE m.room_id = r.id AND m.user_id = ${viewerId}::uuid) AND NOT ${watchStaffSql(viewerId)})`;
 }
 
 /** v1.20-live (D105): the reader was kicked out of the room (false for a guest). */
 function kickedSql(viewerId: string | null): Prisma.Sql {
   if (viewerId === null) return Prisma.sql`FALSE`;
-  return Prisma.sql`EXISTS (SELECT 1 FROM live_room_kicks k
-                    WHERE k.room_id = r.id AND k.user_id = ${viewerId}::uuid)`;
+  // v1.68-live (D273, §10.96.7): «فريق كابسو» is never kept out of a live.
+  return Prisma.sql`(EXISTS (SELECT 1 FROM live_room_kicks k
+                    WHERE k.room_id = r.id AND k.user_id = ${viewerId}::uuid) AND NOT ${watchStaffSql(viewerId)})`;
 }
 
 /** CP-013 (owner D96): chat messages and mutes are kept 30 days after their room ended. */
@@ -658,9 +661,12 @@ function notFound(): AppException {
  */
 function notBlockedSql(viewerId: string | null): Prisma.Sql {
   if (viewerId === null) return Prisma.sql`TRUE`;
-  return Prisma.sql`NOT EXISTS (SELECT 1 FROM user_blocks b
+  // v1.68-live (D273, §10.96.7): a block (either way) never keeps «فريق كابسو» from finding or entering a live; it
+  // still applies to DMs, follows and the rest of the app.
+  return Prisma.sql`(NOT EXISTS (SELECT 1 FROM user_blocks b
                     WHERE (b.blocker_id = ${viewerId}::uuid AND b.blocked_id = r.host_user_id)
-                       OR (b.blocker_id = r.host_user_id AND b.blocked_id = ${viewerId}::uuid))`;
+                       OR (b.blocker_id = r.host_user_id AND b.blocked_id = ${viewerId}::uuid))
+                     OR ${watchStaffSql(viewerId)})`;
 }
 
 /**

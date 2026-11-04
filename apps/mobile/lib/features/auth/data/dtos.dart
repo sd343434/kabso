@@ -34,6 +34,7 @@ class MeDto {
     this.links = const [],
     this.specialUsername,
     this.coverUrl,
+    this.kabsoTeam = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -93,6 +94,11 @@ class MeDto {
   /// v1.76-social (D218, §10.73.3): the profile cover, or null.
   final String? coverUrl;
 
+  /// v1.68-live (D273, §10.96.6): the account holds OWNER, MODERATION or
+  /// SUPPORT — «فريق كابسو» in every live and the Me tab's staff entry.
+  @JsonKey(defaultValue: false)
+  final bool kabsoTeam;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -117,6 +123,7 @@ class MeDto {
     links: links,
     specialUsername: specialUsername,
     coverUrl: coverUrl,
+    kabsoTeam: kabsoTeam,
   );
 }
 

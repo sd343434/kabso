@@ -333,6 +333,10 @@ class NotificationRow extends StatelessWidget {
       NotificationTargetType.medal => AppRoutes.medals,
       // D250: the team's action on a live — the row says it all.
       NotificationTargetType.liveModeration => null,
+      // D273: a staff alert opens the live as staff on its reports.
+      NotificationTargetType.liveRoom => AppRoutes.liveRoomStaffReports(
+        target.id,
+      ),
     };
   }
 
@@ -448,6 +452,10 @@ class NotificationRow extends StatelessWidget {
         l10n,
         item.target,
         localeTag,
+      ),
+      // D273: the host's name only (never the reporter or the reason).
+      NotificationType.liveStaffReport => l10n.notifLiveStaffReport(
+        KFormat.bidiIsolate(item.target?.text ?? ''),
       ),
       NotificationType.unknown => '',
     };

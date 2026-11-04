@@ -89,6 +89,11 @@ import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/live_recharge_entrance.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
+import 'package:kabso_live/features/staff/application/staff_providers.dart';
+import 'package:kabso_live/features/staff/domain/staff_models.dart';
+import 'package:kabso_live/features/staff/presentation/staff_entry_dialog.dart';
+import 'package:kabso_live/features/staff/presentation/staff_step_up_dialog.dart';
+import 'package:kabso_live/features/staff/presentation/staff_tools_sheet.dart';
 import 'package:kabso_live/features/vip/presentation/vip_entrance.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -115,7 +120,10 @@ import 'package:material_ui/material_ui.dart';
 /// States (HL-L10): loading, live (video unavailable), ended (host ended /
 /// heartbeat timeout / other), not found, error and offline with Try again.
 class LiveRoomScreen extends ConsumerWidget {
-  const new({required this.roomId, super.key});
+  const new({required this.roomId, super.key, this.openStaffReports = false});
+
+  /// v1.68-live (D273): «أدوات فريق كابسو» (staff accounts in the live).
+  static const staffToolsKey = Key('room.staffTools');
 
   /// CP-012: the live's points next to the viewer count.
   static const scoreKey = Key('room.score');
@@ -159,6 +167,10 @@ class LiveRoomScreen extends ConsumerWidget {
 
   final String roomId;
 
+  /// v1.68-live (D273): opened from a staff alert «بلاغ جديد على بث» — the
+  /// staff tools open on the live's reports once joined.
+  final bool openStaffReports;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -173,7 +185,11 @@ class LiveRoomScreen extends ConsumerWidget {
       // Kicked out of this live (§10.20): opening it again says so.
       body = kickedMessage(l10n, close);
     } else if (room != null && !async.isLoading) {
-      body = _RoomView(room: room, onClose: close);
+      body = _RoomView(
+        room: room,
+        onClose: close,
+        openStaffReports: openStaffReports,
+      );
     } else if (async.hasError && !async.isLoading) {
       body = _failure(l10n, toAppFailure(async.error!), close, retry);
     } else {
@@ -275,10 +291,15 @@ class _LoadingRoom extends StatelessWidget {
 }
 
 class _RoomView extends ConsumerStatefulWidget {
-  const new({required this.room, required this.onClose});
+  const new({
+    required this.room,
+    required this.onClose,
+    this.openStaffReports = false,
+  });
 
   final LiveRoom room;
   final VoidCallback onClose;
+  final bool openStaffReports;
 
   @override
   ConsumerState<_RoomView> createState() => _RoomViewState();
@@ -412,20 +433,90 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   LiveRoomSession get _session =>
       ref.read(liveRoomSessionProvider(widget.room.id).notifier);
 
+  /// v1.68-live (D273, §10.96.6): how a Kabso staff member enters — asked
+  /// once per app run («دخول ظاهر» / «مراقبة خفية»), hidden only with
+  /// `lives.watch.hidden` and the step-up. Null for everyone else.
+  Future<StaffVisibility?> _staffEntry() async {
+    final me = ref.read(currentUserProvider);
+    if (me == null || !me.kabsoTeam || me.id == widget.room.host.id) {
+      return null;
+    }
+    var mode = ref.read(staffWatchModeProvider);
+    StaffStatus? status;
+    try {
+      status = await ref.read(staffStatusProvider.future);
+    } on Object {
+      status = null;
+    }
+    final canHidden = status?.can(StaffCapability.watchHidden) ?? false;
+    if (mode == null && mounted) {
+      mode = canHidden
+          ? await showStaffEntryChoice(context, canHidden: true)
+          : StaffVisibility.visible;
+      mode ??= StaffVisibility.visible;
+      ref.read(staffWatchModeProvider.notifier).choose(mode);
+    }
+    if (mode == StaffVisibility.hidden && !(status?.unlocked ?? false)) {
+      // The hidden watch needs the step-up first; without it, visible.
+      final ok = mounted && await showStaffStepUp(context);
+      if (!ok) mode = StaffVisibility.visible;
+    }
+    if (mode == StaffVisibility.hidden && !canHidden) {
+      mode = StaffVisibility.visible;
+    }
+    return mode;
+  }
+
+  /// D273: «أدوات فريق كابسو» in this live.
+  Future<void> _staffTools() async {
+    final session = ref.read(liveRoomSessionProvider(widget.room.id));
+    final visibility =
+        StaffVisibility.fromWire(session.staff) ?? StaffVisibility.visible;
+    ref.invalidate(staffStatusProvider);
+    await showStaffTools(
+      context,
+      roomId: widget.room.id,
+      hostName: widget.room.host.displayName,
+      visibility: visibility,
+      onSwitchMode: (mode) async {
+        if (mode == StaffVisibility.hidden) {
+          final status = await ref.read(staffStatusProvider.future);
+          final unlocked =
+              status.unlocked || (mounted && await showStaffStepUp(context));
+          if (!unlocked) return;
+        }
+        ref.read(staffWatchModeProvider.notifier).choose(mode);
+        await _session.rejoinAsStaff(_room, mode.wire);
+      },
+    );
+  }
+
   void _start() {
     if (_started || widget.room.status != LiveRoomStatus.live) return;
     _started = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final room = _room;
+      final staff = await _staffEntry();
+      if (!mounted) return;
       unawaited(
-        _session.start(
-          room,
-          background: liveBackgroundTexts(context.l10n),
-          onLeave: () {
-            if (mounted) closeLiveRoom(context);
-          },
-        ),
+        _session
+            .start(
+              room,
+              background: liveBackgroundTexts(context.l10n),
+              onLeave: () {
+                if (mounted) closeLiveRoom(context);
+              },
+              staffVisibility: staff?.wire,
+            )
+            .then((_) {
+              // D273: a staff alert opens the live on its reports.
+              if (mounted &&
+                  widget.openStaffReports &&
+                  ref.read(liveRoomSessionProvider(room.id)).staff != null) {
+                unawaited(_staffTools());
+              }
+            }),
       );
       // CP-020: the room's gifts, on the same media session.
       ref
@@ -1153,6 +1244,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             if (!entrancesHidden) LiveRechargeEntranceLayer(roomId: room.id),
             // D258: a VIP's entry banner and entry car.
             if (!entrancesHidden) LiveVipEntranceLayer(roomId: room.id),
+            // D273: «أدوات فريق كابسو» while in the live as staff.
+            if (session.staff != null && room.status == LiveRoomStatus.live)
+              PositionedDirectional(
+                end: KSpacing.md,
+                top: MediaQuery.paddingOf(context).top + 112,
+                child: StaffToolsButton(
+                  key: LiveRoomScreen.staffToolsKey,
+                  hidden: session.staff == StaffVisibility.hidden.wire,
+                  onTap: () => unawaited(_staffTools()),
+                ),
+              ),
           ],
         ),
       ),
@@ -1181,7 +1283,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // CP-012: signed-in people tap to cheer (D95); D120 (owner): the host's
     // own taps count too.
     final me = ref.watch(currentUserProvider);
-    final canTap = !ended && me != null;
+    // D273: «فريق كابسو» does not tap for points in a live.
+    final canTap = !ended && me != null && session.staff == null;
     // D259: the host pill shows the real cherries (the score is points).
     final cherries = _hostCherries(session, engine);
     final composer = liveChatComposerHint(
@@ -2523,6 +2626,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// CP-020: the gift panel for this live (the host and the people on a
   /// seat now), [preselect] chosen when they can receive.
   Future<void> _openGifts({
+    LiveGiftPreselect? preselect,
+    String? preselectGift,
+  }) async {
+    // D273: «فريق كابسو» sends no gifts in a live (the server refuses too).
+    if (ref.read(liveRoomSessionProvider(widget.room.id)).staff != null) {
+      KSnack.info(context, context.l10n.staffNoEconomy);
+      return;
+    }
+    await _showGifts(preselect: preselect, preselectGift: preselectGift);
+  }
+
+  Future<void> _showGifts({
     LiveGiftPreselect? preselect,
     String? preselectGift,
   }) => KLiveGiftSheet.show(

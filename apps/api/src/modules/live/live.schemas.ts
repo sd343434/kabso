@@ -594,7 +594,11 @@ export const liveSoundSchema = z.strictObject({
 export type LiveSoundInput = z.output<typeof liveSoundSchema>;
 
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
-export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });
+export const liveMediaTokenSchema = z.strictObject({
+  guestId: z.uuid().optional(),
+  /** v1.68-live (D273): «فريق كابسو» enters VISIBLE (default) or HIDDEN «مراقبة خفية» (OWNER / MODERATION, step-up). */
+  staffVisibility: z.enum(['VISIBLE', 'HIDDEN']).optional(),
+});
 export type StartLiveRoomInput = z.output<typeof startLiveRoomSchema>;
 
 /** `limit`: integer 1–50, default 20 (CONVENTIONS §5). */

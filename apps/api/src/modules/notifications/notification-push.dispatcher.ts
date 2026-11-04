@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
@@ -64,6 +65,7 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
     private readonly throttle: PushThrottle,
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly audit: AuditService,
   ) {}
 
   onModuleInit(): void {
@@ -105,8 +107,12 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
   private async pushOne(row: Claimed): Promise<boolean> {
     const dto = await this.notifications.visible(row.recipient_id, row.id);
     if (!dto || dto.read) return false;
-    if (!(await this.throttle.allow(`n:${row.id}`, PUSH_PER_NOTIFICATION_SECONDS))) return false;
-    if (!(await this.throttle.allow(`g:${row.recipient_id}`, this.config.push.generalGapSeconds)))
+    // v1.68-live (D273, §10.96.8): a report alert to a staff member on shift always goes out (never held back by the
+    // general gap between pushes); off shift (the OWNERs' fallback) it follows the usual rules.
+    const staffAlert = dto.type === 'LIVE_STAFF_REPORT';
+    const onShift = staffAlert && (await this.onShift(row.recipient_id));
+    if (!onShift && !(await this.throttle.allow(`n:${row.id}`, PUSH_PER_NOTIFICATION_SECONDS))) return false;
+    if (!onShift && !(await this.throttle.allow(`g:${row.recipient_id}`, this.config.push.generalGapSeconds)))
       return false;
     const actor = dto.actors[0];
     const sent = await this.push.deliver({
@@ -126,13 +132,28 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
             activatedHosts: dto.target?.activatedHosts ?? null,
             requiredHosts: dto.target?.requiredHosts ?? null,
             probationDays: this.config.economy.probationDays,
+            moderation: dto.target?.moderation ?? null,
           },
           locale,
         );
         return body === null ? null : { title: PUSH_TITLE[locale], body };
       },
     });
+    if (staffAlert) {
+      await this.audit.record({
+        action: AuditAction.LIVE_STAFF_REPORT_PUSH,
+        actorUserId: null,
+        targetType: 'live_room',
+        targetId: dto.target?.id,
+        metadata: { recipientId: row.recipient_id, notificationId: row.id, sent, onShift },
+      });
+    }
     return sent > 0;
+  }
+
+  private async onShift(userId: string): Promise<boolean> {
+    const shift = await this.prisma.adminShift.findUnique({ where: { userId }, select: { onShift: true } });
+    return shift?.onShift === true;
   }
 
   private schedule(): void {

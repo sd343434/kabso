@@ -404,8 +404,11 @@ class DemoLiveRepository implements LiveRepository {
       throw _serverOnly;
 
   @override
-  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId}) async =>
-      throw _serverOnly;
+  Future<LiveMediaAccess> mediaToken(
+    String roomId, {
+    String? guestId,
+    String? staffVisibility,
+  }) async => throw _serverOnly;
 
   @override
   Future<LiveViewersPage> viewers(String roomId, {String? cursor}) async => (

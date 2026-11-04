@@ -5030,7 +5030,10 @@ $PageInfoCopyWith<$Res> get page {
 /// @nodoc
 mixin _$LiveMediaAccess {
 
- String get url; String get token; DateTime get expiresAt;@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole get role; String get identity; int? get guestNumber;
+ String get url; String get token; DateTime get expiresAt;@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole get role; String get identity; int? get guestNumber;/// v1.68-live (D273, §10.96.6): `VISIBLE` / `HIDDEN` when this caller
+/// is «فريق كابسو» in the live (always a watch-only viewer); null for
+/// everyone else.
+ String? get staff;
 /// Create a copy of LiveMediaAccess
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -5044,20 +5047,20 @@ $LiveMediaAccessCopyWith<LiveMediaAccess> get copyWith => _$LiveMediaAccessCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LiveMediaAccess;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveMediaAccess&&(identical(other.url, _this.url) || other.url == _this.url)&&(identical(other.token, _this.token) || other.token == _this.token)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.identity, _this.identity) || other.identity == _this.identity)&&(identical(other.guestNumber, _this.guestNumber) || other.guestNumber == _this.guestNumber));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveMediaAccess&&(identical(other.url, _this.url) || other.url == _this.url)&&(identical(other.token, _this.token) || other.token == _this.token)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.identity, _this.identity) || other.identity == _this.identity)&&(identical(other.guestNumber, _this.guestNumber) || other.guestNumber == _this.guestNumber)&&(identical(other.staff, _this.staff) || other.staff == _this.staff));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveMediaAccess;
-  return Object.hash(runtimeType,_this.url,_this.token,_this.expiresAt,_this.role,_this.identity,_this.guestNumber);
+  return Object.hash(runtimeType,_this.url,_this.token,_this.expiresAt,_this.role,_this.identity,_this.guestNumber,_this.staff);
 }
 
 @override
 String toString() {
   final _this = this as LiveMediaAccess;
-  return 'LiveMediaAccess(url: ${_this.url}, token: ${_this.token}, expiresAt: ${_this.expiresAt}, role: ${_this.role}, identity: ${_this.identity}, guestNumber: ${_this.guestNumber})';
+  return 'LiveMediaAccess(url: ${_this.url}, token: ${_this.token}, expiresAt: ${_this.expiresAt}, role: ${_this.role}, identity: ${_this.identity}, guestNumber: ${_this.guestNumber}, staff: ${_this.staff})';
 }
 
 
@@ -5068,7 +5071,7 @@ abstract mixin class $LiveMediaAccessCopyWith<$Res>  {
   factory $LiveMediaAccessCopyWith(LiveMediaAccess value, $Res Function(LiveMediaAccess) _then) = _$LiveMediaAccessCopyWithImpl;
 @useResult
 $Res call({
- String url, String token, DateTime expiresAt,@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole role, String identity, int? guestNumber
+ String url, String token, DateTime expiresAt,@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole role, String identity, int? guestNumber, String? staff
 });
 
 
@@ -5085,7 +5088,7 @@ class _$LiveMediaAccessCopyWithImpl<$Res>
 
 /// Create a copy of LiveMediaAccess
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? url = null,Object? token = null,Object? expiresAt = null,Object? role = null,Object? identity = null,Object? guestNumber = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? url = null,Object? token = null,Object? expiresAt = null,Object? role = null,Object? identity = null,Object? guestNumber = freezed,Object? staff = freezed,}) {
   return _then(LiveMediaAccess(
 url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
@@ -5093,7 +5096,8 @@ as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: 
 as DateTime,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as LiveMediaRole,identity: null == identity ? _self.identity : identity // ignore: cast_nullable_to_non_nullable
 as String,guestNumber: freezed == guestNumber ? _self.guestNumber : guestNumber // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,staff: freezed == staff ? _self.staff : staff // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -5178,10 +5182,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber,  String? staff)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveMediaAccess() when $default != null:
-return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber);case _:
+return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber,_that.staff);case _:
   return orElse();
 
 }
@@ -5199,10 +5203,10 @@ return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber,  String? staff)  $default,) {final _that = this;
 switch (_that) {
 case _LiveMediaAccess():
-return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber);case _:
+return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber,_that.staff);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -5219,10 +5223,10 @@ return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber,  String? staff)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveMediaAccess() when $default != null:
-return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber);case _:
+return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber,_that.staff);case _:
   return null;
 
 }
@@ -5234,7 +5238,7 @@ return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,
 @JsonSerializable()
 
 class _LiveMediaAccess implements LiveMediaAccess {
-  const _LiveMediaAccess({required this.url, required this.token, required this.expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer) required this.role, required this.identity, this.guestNumber});
+  const _LiveMediaAccess({required this.url, required this.token, required this.expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer) required this.role, required this.identity, this.guestNumber, this.staff});
   factory _LiveMediaAccess.fromJson(Map<String, dynamic> json) => _$LiveMediaAccessFromJson(json);
 
 @override final  String url;
@@ -5243,6 +5247,10 @@ class _LiveMediaAccess implements LiveMediaAccess {
 @override@JsonKey(unknownEnumValue: LiveMediaRole.viewer) final  LiveMediaRole role;
 @override final  String identity;
 @override final  int? guestNumber;
+/// v1.68-live (D273, §10.96.6): `VISIBLE` / `HIDDEN` when this caller
+/// is «فريق كابسو» in the live (always a watch-only viewer); null for
+/// everyone else.
+@override final  String? staff;
 
 /// Create a copy of LiveMediaAccess
 /// with the given fields replaced by the non-null parameter values.
@@ -5257,18 +5265,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveMediaAccess&&(identical(other.url, url) || other.url == url)&&(identical(other.token, token) || other.token == token)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.role, role) || other.role == role)&&(identical(other.identity, identity) || other.identity == identity)&&(identical(other.guestNumber, guestNumber) || other.guestNumber == guestNumber));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveMediaAccess&&(identical(other.url, url) || other.url == url)&&(identical(other.token, token) || other.token == token)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.role, role) || other.role == role)&&(identical(other.identity, identity) || other.identity == identity)&&(identical(other.guestNumber, guestNumber) || other.guestNumber == guestNumber)&&(identical(other.staff, staff) || other.staff == staff));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,url,token,expiresAt,role,identity,guestNumber);
+    return Object.hash(runtimeType,url,token,expiresAt,role,identity,guestNumber,staff);
 }
 
 @override
 String toString() {
-    return 'LiveMediaAccess(url: $url, token: $token, expiresAt: $expiresAt, role: $role, identity: $identity, guestNumber: $guestNumber)';
+    return 'LiveMediaAccess(url: $url, token: $token, expiresAt: $expiresAt, role: $role, identity: $identity, guestNumber: $guestNumber, staff: $staff)';
 }
 
 
@@ -5279,7 +5287,7 @@ abstract mixin class _$LiveMediaAccessCopyWith<$Res> implements $LiveMediaAccess
   factory _$LiveMediaAccessCopyWith(_LiveMediaAccess value, $Res Function(_LiveMediaAccess) _then) = __$LiveMediaAccessCopyWithImpl;
 @override @useResult
 $Res call({
- String url, String token, DateTime expiresAt,@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole role, String identity, int? guestNumber
+ String url, String token, DateTime expiresAt,@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole role, String identity, int? guestNumber, String? staff
 });
 
 
@@ -5296,7 +5304,7 @@ class __$LiveMediaAccessCopyWithImpl<$Res>
 
 /// Create a copy of LiveMediaAccess
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? url = null,Object? token = null,Object? expiresAt = null,Object? role = null,Object? identity = null,Object? guestNumber = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? url = null,Object? token = null,Object? expiresAt = null,Object? role = null,Object? identity = null,Object? guestNumber = freezed,Object? staff = freezed,}) {
   return _then(_LiveMediaAccess(
 url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
@@ -5304,7 +5312,8 @@ as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: 
 as DateTime,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as LiveMediaRole,identity: null == identity ? _self.identity : identity // ignore: cast_nullable_to_non_nullable
 as String,guestNumber: freezed == guestNumber ? _self.guestNumber : guestNumber // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,staff: freezed == staff ? _self.staff : staff // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

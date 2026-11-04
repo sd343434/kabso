@@ -20,6 +20,7 @@ import { closeVisits, recountViewers } from './live-audience.js';
 import { LiveSeatsService } from './live-seats.service.js';
 import { releaseUserIn, type ReleasedUser } from './live-seats.store.js';
 import { liveKickBodySchema } from './live.schemas.js';
+import { assertNotStaffTarget } from './live-staff.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
 // ---- Response shapes (openapi v1.20-live, D105) ------------------------------------------------
@@ -37,8 +38,15 @@ export const LIVE_KICK_TOPIC = 'kick';
 export interface LiveKickData {
   readonly type: 'kick';
   readonly user: UserSummaryDto;
-  readonly by: UserSummaryDto;
+  /** v1.68-live (D273): null when «فريق كابسو» removed the person (`byTeam` true) — never a staff member's name. */
+  readonly by: UserSummaryDto | null;
+  readonly byTeam?: true;
   readonly at: string;
+}
+
+/** v1.68-live (D273, §10.96.6): a kick by «فريق كابسو» from the staff tools (the guard checked role and step-up). */
+export interface StaffKickActor {
+  readonly reason: string;
 }
 
 function forbidden(): AppException {
@@ -111,15 +119,18 @@ export class LiveKicksService {
     roomId: string,
     body: unknown,
     meta: RequestMeta,
+    staff?: StaffKickActor,
   ): Promise<{ created: boolean; kick: LiveKickDto }> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
     const parsed = liveKickBodySchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    await this.privilege(this.prisma, row, callerId);
+    if (!staff) await this.privilege(this.prisma, row, callerId);
     const target = await this.users.findActivePublicUser(parsed.data.username);
     if (!target) throw notFound();
     if (target.id === callerId || target.id === row.host_user_id) throw forbidden();
+    // v1.68-live (D273, §10.96.7): nobody removes «فريق كابسو» from a live.
+    await assertNotStaffTarget(this.prisma, target.id);
 
     const now = this.clock.now();
     const outcome = await this.prisma.$transaction(async (tx) => {
@@ -129,8 +140,10 @@ export class LiveKicksService {
         SELECT status::text AS status FROM live_rooms WHERE id = ${row.id}::uuid FOR UPDATE`;
       if (!room) throw notFound();
       if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-      const privilege = await this.privilege(tx, row, callerId);
-      if (privilege === 'MODERATOR' && (await this.isModerator(tx, row.id, target.id))) throw forbidden();
+      if (!staff) {
+        const privilege = await this.privilege(tx, row, callerId);
+        if (privilege === 'MODERATOR' && (await this.isModerator(tx, row.id, target.id))) throw forbidden();
+      }
 
       const inserted = await tx.liveRoomKick.createMany({
         data: [{ roomId: row.id, userId: target.id, kickedById: callerId, createdAt: now }],
@@ -156,7 +169,11 @@ export class LiveKicksService {
         actorUserId: callerId,
         targetType: 'user',
         targetId: target.id,
-        metadata: { roomId: row.id, wasSeated: released.some((r) => r.wasSeated) },
+        metadata: {
+          roomId: row.id,
+          wasSeated: released.some((r) => r.wasSeated),
+          ...(staff ? { reason: staff.reason, staff: true, via: 'app' } : {}),
+        },
         ip: meta.ip,
         requestId: meta.requestId,
       });
@@ -169,7 +186,8 @@ export class LiveKicksService {
       const data: LiveKickData = {
         type: 'kick',
         user,
-        by: await this.summaryOf(callerId),
+        by: staff ? null : await this.summaryOf(callerId),
+        ...(staff ? { byTeam: true as const } : {}),
         at: outcome.kickedAt.toISOString(),
       };
       // Sent before the removal, so the kicked app can still receive it (§10.20).

@@ -1,4 +1,4 @@
-import { createHmac, hkdfSync } from 'node:crypto';
+import { createHmac, hkdfSync, randomBytes } from 'node:crypto';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -27,6 +27,7 @@ import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LivePkService } from './live-pk.service.js';
 import { PK_IDENTITY_PREFIX } from './live-pk.js';
+import { activeStaffGrant, staffRolesOf, WATCH_STAFF_ROLES, watchStaffAmong } from './live-staff.js';
 import { LiveToolsService, SECOND_CAMERA_PREFIX } from './live-tools.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
@@ -52,6 +53,11 @@ export interface LiveMediaAccessDto {
   role: 'HOST' | 'VIEWER' | 'SPEAKER';
   identity: string;
   guestNumber: number | null;
+  /**
+   * v1.68-live (D273, §10.96.6): the caller is «فريق كابسو» in this live — VISIBLE (listed with the badge, never
+   * counted) or HIDDEN (the D250 observer: not listed, not counted, no chat). Absent for everyone else.
+   */
+  staff?: 'VISIBLE' | 'HIDDEN';
 }
 
 /** `LiveViewer`. */
@@ -178,8 +184,19 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Media access ----------------------------------------------------------------------------
 
-  /** `POST /live/rooms/{roomId}/media-token`; `callerId` null is a guest. */
-  async mediaToken(callerId: string | null, roomId: string, body: unknown): Promise<LiveMediaAccessDto> {
+  /**
+   * `POST /live/rooms/{roomId}/media-token`; `callerId` null is a guest. v1.68-live (D273, §10.96.6): a caller who
+   * holds a watch role (OWNER, MODERATION, SUPPORT) and is not the host always joins as «فريق كابسو» — the D260
+   * `team:` identity (listed with the badge, never counted, no join line) or, with `staffVisibility: HIDDEN`, the D250
+   * `staff:` observer (`lives.watch.hidden` and the step-up grant of this app session required; 403 otherwise). Both
+   * are subscribe-only and audited `admin.live.watch` with `via: app`.
+   */
+  async mediaToken(
+    callerId: string | null,
+    roomId: string,
+    body: unknown,
+    auth?: { sessionId: string; meta: RequestMeta },
+  ): Promise<LiveMediaAccessDto> {
     if (!this.config.live.hostingEnabled) throw new AppException(ErrorCode.LIVE_HOSTING_UNAVAILABLE);
     const parsed = liveMediaTokenSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
@@ -189,6 +206,13 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     }
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    if (callerId !== null && callerId !== row.host_user_id) {
+      const roles = await staffRolesOf(this.prisma, callerId);
+      if (roles.some((r) => (WATCH_STAFF_ROLES as readonly string[]).includes(r))) {
+        return this.staffAppAccess(callerId, row.id, row.host_user_id, roles, parsed.data, auth);
+      }
+    }
+    if (parsed.data.staffVisibility !== undefined) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     // v1.20-live (D105, §10.20): a signed-in caller kicked out of this live gets no token for it.
     if (callerId !== null && row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
     if (guestId !== undefined && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
@@ -235,6 +259,65 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       role,
       identity,
       guestNumber,
+    };
+  }
+
+  /**
+   * v1.68-live (D273, §10.96.6): «فريق كابسو» entering a live from the app (see {@link mediaToken}). The same identities
+   * as the panel's watch (D260 `team:` visible, D250 `staff:` hidden), so the webhook and the viewer list treat them
+   * alike; the media token lasts like a viewer's (the app reconnects with a new one).
+   */
+  private async staffAppAccess(
+    userId: string,
+    roomId: string,
+    hostUserId: string,
+    roles: readonly string[],
+    input: { staffVisibility?: 'VISIBLE' | 'HIDDEN' | undefined },
+    auth: { sessionId: string; meta: RequestMeta } | undefined,
+  ): Promise<LiveMediaAccessDto> {
+    const hidden = input.staffVisibility === 'HIDDEN';
+    if (hidden) {
+      // The panel's rule: `lives.watch.hidden` (OWNER, MODERATION), and the step-up of this app session.
+      if (!roles.includes('OWNER') && !roles.includes('MODERATION'))
+        throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+      const grant = auth
+        ? await activeStaffGrant(this.prisma, userId, auth.sessionId, this.clock.now())
+        : null;
+      if (!grant) throw new AppException(ErrorCode.STAFF_STEP_UP_REQUIRED);
+    }
+    const nonce = randomBytes(6).toString('hex');
+    const identity = `${hidden ? STAFF_IDENTITY_PREFIX : TEAM_IDENTITY_PREFIX}${userId}:${nonce}`;
+    const token = await this.media.issueToken({
+      room: roomId,
+      identity,
+      name: hidden ? 'Kabso staff' : 'Kabso Team',
+      publish: false,
+      ...(hidden ? {} : { visible: true }),
+      ttlSeconds: MEDIA_TOKEN_TTL_SECONDS,
+    });
+    await this.audit.record({
+      action: AuditAction.ADMIN_LIVE_WATCH,
+      actorUserId: userId,
+      targetType: 'live_room',
+      targetId: roomId,
+      metadata: {
+        purpose: 'WATCH',
+        visibility: hidden ? 'HIDDEN' : 'VISIBLE',
+        identity,
+        hostUserId,
+        via: 'app',
+      },
+      ip: auth?.meta.ip ?? null,
+      requestId: auth?.meta.requestId ?? null,
+    });
+    return {
+      url: this.media.url,
+      token,
+      expiresAt: new Date(this.clock.now().getTime() + MEDIA_TOKEN_TTL_SECONDS * 1000).toISOString(),
+      role: 'VIEWER',
+      identity,
+      guestNumber: null,
+      staff: hidden ? 'HIDDEN' : 'VISIBLE',
     };
   }
 
@@ -643,7 +726,16 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
    */
   async staffWatchers(roomId: string): Promise<LiveStaffWatcherDto[]> {
     const rows = await this.prisma.liveRoomStaffWatcher.findMany({
-      where: { roomId, room: { status: 'LIVE' } },
+      // v1.68-live (D273, §10.96.6): only who holds a watch role now — a revoked role drops the badge at once.
+      where: {
+        roomId,
+        room: { status: 'LIVE' },
+        admin: {
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          adminPermissions: { some: { permission: { in: [...WATCH_STAFF_ROLES] } } },
+        },
+      },
       orderBy: [{ joinedAt: 'asc' }, { identity: 'asc' }],
       select: {
         adminId: true,
@@ -818,6 +910,38 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * v1.68-live (D273, §10.96.6): `userId` lost their last watch role (or the account) — their visible watches are no
+   * longer listed and every `team:` / `staff:` connection of theirs is disconnected (best effort; the reconciliation
+   * repeats it for the visible ones). Returns how many were disconnected.
+   */
+  async dropStaffPresence(userId: string): Promise<number> {
+    const rows = await this.prisma.liveRoomStaffWatcher.findMany({
+      where: { adminId: userId },
+      select: { roomId: true, identity: true },
+    });
+    await this.prisma.liveRoomStaffWatcher.deleteMany({ where: { adminId: userId } });
+    let n = 0;
+    for (const r of rows) {
+      await this.kick(r.roomId, r.identity);
+      n += 1;
+    }
+    try {
+      const hiddenPrefix = `${STAFF_IDENTITY_PREFIX}${userId}:`;
+      for (const room of (await this.media.listRooms()).filter(isUuid)) {
+        for (const identity of await this.media.listIdentities(room)) {
+          if (identity.toLowerCase().startsWith(hiddenPrefix)) {
+            await this.kick(room, identity);
+            n += 1;
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.warn({ error: safeErrorLog(err) }, 'Could not list the media rooms for a staff member');
+    }
+    return n;
+  }
+
   // ---- Ending ----------------------------------------------------------------------------------
 
   /** Closes a room's media session for everyone and clears its presence (best effort). */
@@ -885,6 +1009,18 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         select: { identity: true },
       });
       const teamGone = team.map((r) => r.identity).filter((i) => !connected.has(i));
+      // v1.68-live (D273): a visible staff watcher who no longer holds a watch role is disconnected.
+      const holders = await watchStaffAmong(
+        this.prisma,
+        team.map((r) => teamAdminIdOf(r.identity)).filter((id): id is string => id !== null),
+      );
+      for (const r of team) {
+        const adminId = teamAdminIdOf(r.identity);
+        if (adminId !== null && !holders.has(adminId) && connected.has(r.identity)) {
+          await this.kick(name.toLowerCase(), r.identity);
+          teamGone.push(r.identity);
+        }
+      }
       if (teamGone.length > 0) {
         await this.prisma.liveRoomStaffWatcher.deleteMany({
           where: { roomId: name.toLowerCase(), identity: { in: teamGone } },

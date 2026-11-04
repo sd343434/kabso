@@ -12,6 +12,7 @@ import { AdminRoleError, grantRoleIn, resetSecondFactorIn, revokeRoleIn } from '
 import { AUDIT_ROW, auditRowDto } from './admin-people.service.js';
 import { dayBound, tableResult, window, type TableQuery } from './admin-tables.js';
 import { refused, viaOf } from './admin-users.service.js';
+import { LiveMediaService } from '../live/live-media.service.js';
 
 export interface AuditQuery extends TableQuery {
   readonly actor?: string | undefined;
@@ -61,6 +62,7 @@ export class AdminTeamService {
     private readonly auth: AdminAuthService,
     private readonly assignments: LiveStaffAssignmentService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly media: LiveMediaService,
   ) {}
 
   /** Every audit action the code writes (the viewer's filter list). */
@@ -215,6 +217,16 @@ export class AdminTeamService {
         revokeRoleIn(tx, userId, body.role, viaOf(ctx), { reason: body.reason }),
       ),
     );
+    if (r.watchLost) {
+      // v1.68-live (D273): no watch role left — no longer «فريق كابسو» in any live (best effort; the
+      // reconciliation repeats it for the visible watches).
+      await this.media.dropStaffPresence(r.userId).catch((err: unknown) => {
+        this.logger.warn(
+          { error: safeErrorLog(err) },
+          'Could not end the live presence of a revoked staff member',
+        );
+      });
+    }
     if (r.shiftEnded) {
       // Their lives go to the others on shift now, not at the next sweep (best effort: the sweep retries).
       await this.assignments.assignPending('shift_off').catch((err: unknown) => {

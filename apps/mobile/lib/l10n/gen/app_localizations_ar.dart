@@ -14233,4 +14233,234 @@ class AppLocalizationsAr extends AppLocalizations {
   String storeLockedCherries(String amount) {
     return 'كرز المهام المقفل لا يُصرف في المتجر ($amount مقفل).';
   }
+
+  @override
+  String get staffToolsTitle => 'أدوات فريق كابسو';
+
+  @override
+  String get staffMeIntro => 'الإشراف على البثوث من هاتفك';
+
+  @override
+  String get staffRoleOwner => 'مالك';
+
+  @override
+  String get staffRoleModeration => 'مشرف';
+
+  @override
+  String get staffRoleSupport => 'دعم';
+
+  @override
+  String get staffRoleFinance => 'مالية';
+
+  @override
+  String get staffShift => 'في المناوبة';
+
+  @override
+  String get staffShiftHint => 'تُوزَّع عليك البثوث وتصلك بلاغاتها على هاتفك';
+
+  @override
+  String get staffMyLives => 'بثوثي';
+
+  @override
+  String get staffMyLivesEmpty => 'لا بثوث موكلة إليك الآن';
+
+  @override
+  String get staffMyLivesOffShift => 'شغّل «في المناوبة» لتصلك البثوث';
+
+  @override
+  String get staffAnyLive => 'يمكنك دخول أي بث كفريق كابسو من القائمة الرئيسية';
+
+  @override
+  String staffReportsCount(String count) {
+    return 'بلاغات: $count';
+  }
+
+  @override
+  String staffViewersCount(String count) {
+    return '$count مشاهد';
+  }
+
+  @override
+  String get staffStepUpTitle => 'تأكيد هويتك';
+
+  @override
+  String get staffStepUpBody =>
+      'أدخل الرمز من تطبيق المصادقة الذي تستخدمه للوحة الإدارة.';
+
+  @override
+  String get staffStepUpCode => 'الرمز (6 أرقام)';
+
+  @override
+  String get staffStepUpConfirm => 'فتح الأدوات';
+
+  @override
+  String get staffStepUpEnrol =>
+      'فعّل تطبيق المصادقة أولاً من لوحة الإدارة: admin.kabsolive.com';
+
+  @override
+  String get staffStepUpLockedHint =>
+      'الأخطاء المتكررة تقفل حسابك في اللوحة أيضاً.';
+
+  @override
+  String staffUnlocked(String time) {
+    return 'الأدوات مفتوحة حتى $time';
+  }
+
+  @override
+  String get staffLockedTools => 'الأدوات مقفلة — تحتاج رمز المصادقة';
+
+  @override
+  String get staffUnlock => 'فتح أدوات الفريق';
+
+  @override
+  String get staffLock => 'إنهاء';
+
+  @override
+  String get staffEnterTitle => 'كيف تدخل البث؟';
+
+  @override
+  String get staffEnterVisible => 'دخول ظاهر (فريق كابسو)';
+
+  @override
+  String get staffEnterVisibleHint =>
+      'تظهر في المشاهدين بشارة فريق كابسو ولا تُحتسب';
+
+  @override
+  String get staffEnterHidden => 'مراقبة خفية';
+
+  @override
+  String get staffEnterHiddenHint => 'لا يراك أحد ولا تكتب في الدردشة';
+
+  @override
+  String staffModeNow(String mode) {
+    return 'أنت الآن: $mode';
+  }
+
+  @override
+  String get staffModeSwitch => 'تبديل';
+
+  @override
+  String get staffReports => 'البلاغات';
+
+  @override
+  String get staffReportsEmpty => 'لا بلاغات على هذا البث';
+
+  @override
+  String get staffReportOnLive => 'على البث';
+
+  @override
+  String staffReportOnUser(String name) {
+    return 'على $name';
+  }
+
+  @override
+  String staffReportOnMessage(String name) {
+    return 'رسالة من $name';
+  }
+
+  @override
+  String staffReportBy(String name) {
+    return 'أبلغ: $name';
+  }
+
+  @override
+  String get staffReportClosed => 'تمت معالجته';
+
+  @override
+  String get staffActions => 'الإجراءات';
+
+  @override
+  String get staffActionWarn => 'تنبيه المضيف';
+
+  @override
+  String get staffActionEnd => 'إنهاء البث';
+
+  @override
+  String get staffActionNoLive => 'منع من البث';
+
+  @override
+  String get staffActionSuspend => 'تعليق الحساب';
+
+  @override
+  String get staffActionDismiss => 'تمت المراجعة — لا مخالفة';
+
+  @override
+  String get staffActionKick => 'إخراج من البث';
+
+  @override
+  String get staffActionMute => 'كتم في الدردشة';
+
+  @override
+  String get staffActionRemoveMessage => 'حذف الرسالة';
+
+  @override
+  String get staffPersonActions => 'إجراء على شخص';
+
+  @override
+  String get staffPersonField => 'اسم المستخدم';
+
+  @override
+  String get staffReason => 'السبب (يُسجَّل)';
+
+  @override
+  String get staffReasonHostHint =>
+      'يصل السبب إلى المضيف من «فريق Kabso» دون اسمك.';
+
+  @override
+  String get staffDuration => 'المدة';
+
+  @override
+  String get staffDuration1h => 'ساعة';
+
+  @override
+  String get staffDuration24h => '24 ساعة';
+
+  @override
+  String get staffDuration3d => '3 أيام';
+
+  @override
+  String get staffDuration7d => '7 أيام';
+
+  @override
+  String get staffDuration30d => '30 يوماً';
+
+  @override
+  String get staffApply => 'تنفيذ';
+
+  @override
+  String get staffDone => 'تم';
+
+  @override
+  String get staffReadOnly => 'دورك: الاطلاع على البلاغات فقط';
+
+  @override
+  String get staffNoEconomy => 'فريق كابسو لا يرسل هدايا ولا ينقر في البث';
+
+  @override
+  String notifLiveStaffReport(String host) {
+    return 'بلاغ جديد على بث $host';
+  }
+
+  @override
+  String get errorStaffProtected => 'لا يمكن اتخاذ إجراء ضد فريق كابسو';
+
+  @override
+  String get errorLiveStaffRefused => 'فريق كابسو لا يفعل هذا في البث';
+
+  @override
+  String get errorStaffStepUpRequired =>
+      'أدخل رمز المصادقة لاستخدام أدوات الفريق';
+
+  @override
+  String get errorStaffTotpNotEnrolled =>
+      'فعّل تطبيق المصادقة من لوحة الإدارة أولاً';
+
+  @override
+  String get errorAdminTotpInvalid => 'رمز المصادقة غير صحيح';
+
+  @override
+  String get errorAdminLocked => 'محاولات خاطئة كثيرة. حاول لاحقاً';
+
+  @override
+  String get errorAdminActionRefused => 'رُفض الإجراء';
 }

@@ -29,9 +29,10 @@ const watchBody = z.strictObject({
  * The quick durations are 1 h, 24 h, 3 d, 7 d, 30 d («مخصّص» sends `until`); any whole number of hours up to a year is
  * accepted. A device ban may be `permanent` and needs the authenticator code again.
  */
-const moderateBody = z
+export const moderateBody = z
   .strictObject({
-    action: z.enum(['END', 'NO_LIVE', 'SUSPEND', 'DEVICE_BAN']),
+    // v1.68-live (D273): WARN — the host is told the reason; the live goes on.
+    action: z.enum(['END', 'WARN', 'NO_LIVE', 'SUSPEND', 'DEVICE_BAN']),
     reason,
     hours: z
       .number()
@@ -50,7 +51,7 @@ const moderateBody = z
     const timed = b.hours !== undefined || b.until !== undefined;
     if (b.hours !== undefined && b.until !== undefined)
       ctx.addIssue({ code: 'custom', path: ['until'], message: 'until', params: { issue: 'invalid_value' } });
-    if (b.action === 'END' && (timed || b.permanent !== undefined))
+    if ((b.action === 'END' || b.action === 'WARN') && (timed || b.permanent !== undefined))
       ctx.addIssue({ code: 'custom', path: ['hours'], message: 'hours', params: { issue: 'invalid_value' } });
     if ((b.action === 'NO_LIVE' || b.action === 'SUSPEND') && !timed)
       ctx.addIssue({ code: 'custom', path: ['hours'], message: 'hours', params: { issue: 'required' } });
@@ -88,7 +89,7 @@ const moderateBody = z
     }
   });
 
-const reasonBody = z.strictObject({ reason });
+export const reasonBody = z.strictObject({ reason });
 
 /** v1.64-live (D260): the shift switch «في المناوبة». */
 const shiftBody = z.strictObject({ onShift: z.boolean() });

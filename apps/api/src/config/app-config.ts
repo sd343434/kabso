@@ -116,6 +116,9 @@ export interface AppConfig {
     readonly adminIp: RateLimitRule;
     /** v1.66-live (D271): the team's grant / revoke / reset-2fa. */
     readonly adminTeamIp: RateLimitRule;
+    /** v1.68-live (D273): the staff tools in the app, and their step-up. */
+    readonly staffAppUser: RateLimitRule;
+    readonly staffStepUpUser: RateLimitRule;
     readonly registerEmail: RateLimitRule;
     readonly registerVerifyIp: RateLimitRule;
     readonly registerVerifyEmail: RateLimitRule;
@@ -392,6 +395,8 @@ export interface AppConfig {
     readonly pendingSeconds: number;
     readonly lockoutAttempts: number;
     readonly lockoutSeconds: number;
+    /** v1.68-live (D273): the staff tools' step-up in the app lasts this long (STAFF_APP_GRANT_SECONDS). */
+    readonly staffAppGrantSeconds: number;
     /** IANA zone of the dashboard's «today» (default Asia/Riyadh). */
     readonly dashboardTimeZone: string;
     /** v1.65-social (D197): the report's estimated card fees (basis points + fixed cents per order). */
@@ -628,6 +633,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       adminLoginIp: e.RATE_LIMIT_ADMIN_LOGIN_IP,
       adminIp: e.RATE_LIMIT_ADMIN_IP,
       adminTeamIp: e.RATE_LIMIT_ADMIN_TEAM_IP,
+      staffAppUser: e.RATE_LIMIT_STAFF_APP_USER,
+      staffStepUpUser: e.RATE_LIMIT_STAFF_STEP_UP_USER,
       registerEmail: e.RATE_LIMIT_REGISTER_EMAIL,
       registerVerifyIp: e.RATE_LIMIT_REGISTER_VERIFY_IP,
       registerVerifyEmail: e.RATE_LIMIT_REGISTER_VERIFY_EMAIL,
@@ -862,6 +869,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       pendingSeconds: e.ADMIN_PENDING_SECONDS,
       lockoutAttempts: e.ADMIN_LOCKOUT_ATTEMPTS,
       lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
+      staffAppGrantSeconds: e.STAFF_APP_GRANT_SECONDS,
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
       reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
       adjustDailyCap: { coins: e.ADMIN_ADJUST_DAILY_CAP_COINS, cherries: e.ADMIN_ADJUST_DAILY_CAP_CHERRIES },

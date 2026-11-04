@@ -28,6 +28,7 @@ import { LiveLuckyTickerService } from './live-lucky-ticker.service.js';
 import { LiveKicksService } from './live-kicks.service.js';
 import { LiveMediaService } from './live-media.service.js';
 import { LiveStaffAssignmentService } from './live-staff-assignment.service.js';
+import { LiveStaffAlertsService } from './live-staff-alerts.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LiveStatsService } from './live-stats.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
@@ -84,6 +85,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveMediaService,
     // v1.64-live (D260): every live assigned to a staff member on shift (§10.96).
     LiveStaffAssignmentService,
+    // v1.68-live (D273): a report on a live alerts its staff member (§10.96.8).
+    LiveStaffAlertsService,
     LiveSeatsService,
     LiveTapsService,
     LiveChatService,
@@ -144,10 +147,14 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveBoostsService,
     LiveMediaService,
     LiveStaffAssignmentService,
+    // v1.68-live (D273): a report on a live alerts its staff member (§10.96.8).
+    LiveStaffAlertsService,
     LiveSeatsService,
     LiveChatService,
     LiveGiftsService,
     LiveDataCenterService,
+    // v1.68-live (D273): the staff tools' kick as «فريق كابسو».
+    LiveKicksService,
   ],
 })
 export class LiveModule {}

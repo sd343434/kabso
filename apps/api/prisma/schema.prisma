@@ -106,6 +106,8 @@ model User {
   adminCredential        AdminCredential?
   adminRecoveryCodes     AdminRecoveryCode[]
   adminSessions          AdminSession[]
+  /// v1.68-live (D273): the staff tools' step-up grants in the app.
+  adminAppGrants         AdminAppGrant[]
   mediaUploads           MediaUpload[]
   mediaAssets            MediaAsset[]
   posts                  Post[]
@@ -427,9 +429,11 @@ model Session {
   /// device ban refuses going live and ends the device's sessions. NULL: none sent (website, older app).
   deviceHash                String?   @map("device_hash") @db.Char(64)
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// v1.30-live (D152): at most one push token per session.
-  deviceTokens DeviceToken[]
+  deviceTokens   DeviceToken[]
+  /// v1.68-live (D273): the staff tools' step-up, bound to this session.
+  adminAppGrants AdminAppGrant[]
 
   @@index([userId, createdAt(sort: Desc)], map: "sessions_user_id_created_at_idx")
   @@index([expiresAt], map: "sessions_expires_at_idx")
@@ -723,42 +727,46 @@ model LiveRoom {
   createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  host             User                   @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
-  category         LiveCategory?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  viewers          LiveRoomViewer[]
+  host               User                   @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category           LiveCategory?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  viewers            LiveRoomViewer[]
   /// v1.64-live (D260): the staff member this live is assigned to, and the staff watching it visibly.
-  assignment       LiveRoomAssignment?
-  staffWatchers    LiveRoomStaffWatcher[]
-  audience         LiveRoomAudience[]
-  reports          Report[]
+  assignment         LiveRoomAssignment?
+  staffWatchers      LiveRoomStaffWatcher[]
+  audience           LiveRoomAudience[]
+  reports            Report[]               @relation("ReportTargetLive")
+  /// v1.68-live (D273): reports of a user made inside this live (the app sends the live as the report's context).
+  contextReports     Report[]               @relation("ReportContextLive")
+  /// v1.68-live (D273): the staff alerts «بلاغ جديد على بث» about this live.
+  staffNotifications Notification[]
   /// v1.60-live (D250): what the team did on this live from the panel.
-  moderations      LiveModerationAction[]
-  seats            LiveRoomSeat[]
-  seatRequests     LiveSeatRequest[]
-  seatInvites      LiveSeatInvite[]
-  moderators       LiveRoomModerator[]
-  scoreParts       LiveRoomScore?
-  tappers          LiveRoomTapper[]
-  chatMessages     LiveChatMessage[]
-  chatMutes        LiveChatMute[]
-  kicks            LiveRoomKick[]
-  bullets          LiveBullet[]
-  gifts            LiveGift[]
-  freeQuips        LiveFreeQuip[]
-  boosts           LiveBoost[]
-  summary          LiveSummary?
-  program          LiveProgramItem[]
-  stickers         LiveSticker[]
-  watch            LiveWatch?
-  watchSuggestions LiveWatchSuggestion[]
+  moderations        LiveModerationAction[]
+  seats              LiveRoomSeat[]
+  seatRequests       LiveSeatRequest[]
+  seatInvites        LiveSeatInvite[]
+  moderators         LiveRoomModerator[]
+  scoreParts         LiveRoomScore?
+  tappers            LiveRoomTapper[]
+  chatMessages       LiveChatMessage[]
+  chatMutes          LiveChatMute[]
+  kicks              LiveRoomKick[]
+  bullets            LiveBullet[]
+  gifts              LiveGift[]
+  freeQuips          LiveFreeQuip[]
+  boosts             LiveBoost[]
+  summary            LiveSummary?
+  program            LiveProgramItem[]
+  stickers           LiveSticker[]
+  watch              LiveWatch?
+  watchSuggestions   LiveWatchSuggestion[]
   /// v1.43-live (D195): PK battles this room took part in.
-  pkMatchesAsA     PkMatch[]              @relation("PkMatchRoomA")
-  pkMatchesAsB     PkMatch[]              @relation("PkMatchRoomB")
-  pkInvitesSent    PkInvite[]             @relation("PkInviteFromRoom")
-  pkInvitesGot     PkInvite[]             @relation("PkInviteToRoom")
-  pkQueueEntries   PkQueueEntry[]
+  pkMatchesAsA       PkMatch[]              @relation("PkMatchRoomA")
+  pkMatchesAsB       PkMatch[]              @relation("PkMatchRoomB")
+  pkInvitesSent      PkInvite[]             @relation("PkInviteFromRoom")
+  pkInvitesGot       PkInvite[]             @relation("PkInviteToRoom")
+  pkQueueEntries     PkQueueEntry[]
   /// v1.45-live (D201): second-camera pairings of this live.
-  secondCameras    LiveSecondCamera[]
+  secondCameras      LiveSecondCamera[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@unique([hostUserId, episodeNumber], map: "live_rooms_host_episode_key")
@@ -2000,13 +2008,17 @@ model Report {
   /// D193: the content was deleted with its author's account and is kept under this legal hold (the target id of a
   /// deleted row is then null; the hold carries it). Deleted with the hold (REPORT_LEGAL_HOLD_DAYS).
   legalHoldId               String?          @map("legal_hold_id") @db.Uuid
+  /// v1.68-live (D273, §10.96.6): a USER report made inside a live (the context, not the target): the live's staff
+  /// see it with the live's reports and are alerted.
+  contextLiveRoomId         String?          @map("context_live_room_id") @db.Uuid
 
   reporter                User               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   targetPost              Post?              @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
   targetComment           Comment?           @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
   targetUser              User?              @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
   targetStory             Story?             @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
-  targetLiveRoom          LiveRoom?          @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
+  targetLiveRoom          LiveRoom?          @relation("ReportTargetLive", fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
+  contextLiveRoom         LiveRoom?          @relation("ReportContextLive", fields: [contextLiveRoomId], references: [id], onDelete: SetNull)
   targetLiveChatMessage   LiveChatMessage?   @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
   targetCpConfession      CpConfession?      @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
   targetFamilyChatMessage FamilyChatMessage? @relation(fields: [targetFamilyChatMessageId], references: [id], onDelete: Cascade)
@@ -2035,6 +2047,7 @@ model Report {
   @@index([targetDmMessageId], map: "reports_target_dm_message_idx")
   @@index([targetProfileLinkId], map: "reports_target_profile_link_idx")
   @@index([legalHoldId], map: "reports_legal_hold_idx")
+  @@index([contextLiveRoomId], map: "reports_context_live_room_idx", where: raw("context_live_room_id IS NOT NULL"))
   @@map("reports")
 }
 
@@ -2185,6 +2198,8 @@ enum NotificationType {
   /// v1.60-live (D250, system; target LIVE_MODERATION): the team acted on the person's live from the panel — ended
   /// it, possibly with a ban from going live / a suspension / a device ban — with the reason «السبب».
   LIVE_MODERATED
+  /// v1.68-live (D273): a report on a live the staff member is responsible for (or, nobody on it, the actors / OWNERs).
+  LIVE_STAFF_REPORT
 
   @@map("notification_type")
 }
@@ -2236,6 +2251,9 @@ model Notification {
   /// v1.60-live (D250): LIVE_MODERATED.
   liveModerationId     String?                 @map("live_moderation_id") @db.Uuid
   liveModeration       LiveModerationAction?   @relation(fields: [liveModerationId], references: [id], onDelete: Cascade)
+  /// v1.68-live (D273): LIVE_STAFF_REPORT — the live a staff member is alerted about (one unread row per live).
+  liveRoomId           String?                 @map("live_room_id") @db.Uuid
+  liveRoom             LiveRoom?               @relation(fields: [liveRoomId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2254,6 +2272,7 @@ model Notification {
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
   @@index([agencyId], map: "notifications_agency_idx", where: raw("agency_id IS NOT NULL"))
   @@index([liveModerationId], map: "notifications_live_moderation_idx", where: raw("live_moderation_id IS NOT NULL"))
+  @@index([liveRoomId], map: "notifications_live_room_idx", where: raw("live_room_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
@@ -4857,6 +4876,29 @@ model AdminSession {
   @@map("admin_sessions")
 }
 
+/// v1.68-live (D273, CONVENTIONS §10.96.6): «أدوات فريق كابسو» in the app — the step-up with the panel authenticator
+/// code, bound to one app session (sign-in) of the staff member, for STAFF_APP_GRANT_SECONDS (12 h). Every staff route
+/// checks it with the roles held now; it ends with the session, a revoked role, a lockout, a reset authenticator or
+/// «إنهاء» in the app.
+model AdminAppGrant {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  sessionId     String    @map("session_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// ENDED | ROLE_REVOKED | LOCKED | TOTP_RESET | REPLACED
+  revokedReason String?   @map("revoked_reason") @db.VarChar(16)
+  ip            String?   @db.VarChar(64)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId], map: "admin_app_grants_session_idx", where: raw("revoked_at IS NULL"))
+  @@index([userId], map: "admin_app_grants_user_idx")
+  @@map("admin_app_grants")
+}
+
 /// v1.60-social (D191/D192, CONVENTIONS §10.54.6): the public website's settings, one row per key
 /// (`socials`, `topupEnabled`). Read by `GET /site/settings`, changed by the OWNER from the panel (audited).
 /// D228: also `cameraFxEngine` (`"DEEPAR"` / `"FREE"`), served in `LiveConfig.cameraFxEngine`.
@@ -6091,6 +6133,8 @@ model KycWebhookEvent {
 /// devices; DISMISS «تمت المراجعة — لا مخالفة» closes the live's open reports and changes nothing else.
 enum LiveModerationKind {
   END
+  /// v1.68-live (D273): a warning with the reason; the live goes on.
+  WARN
   NO_LIVE
   SUSPEND
   DEVICE_BAN

@@ -433,6 +433,7 @@ _LiveMediaAccess _$LiveMediaAccessFromJson(Map<String, dynamic> json) =>
       ),
       identity: json['identity'] as String,
       guestNumber: (json['guestNumber'] as num?)?.toInt(),
+      staff: json['staff'] as String?,
     );
 
 Map<String, dynamic> _$LiveMediaAccessToJson(_LiveMediaAccess instance) =>
@@ -443,6 +444,7 @@ Map<String, dynamic> _$LiveMediaAccessToJson(_LiveMediaAccess instance) =>
       'role': _$LiveMediaRoleEnumMap[instance.role]!,
       'identity': instance.identity,
       'guestNumber': instance.guestNumber,
+      'staff': instance.staff,
     };
 
 const _$LiveMediaRoleEnumMap = {

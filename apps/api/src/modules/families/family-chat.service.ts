@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { assertNotStaffTarget } from '../live/live-staff.js';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
@@ -224,6 +225,8 @@ export class FamilyChatService {
     if (!row) throw notFound();
     if (row.authorId !== callerId) {
       if (family.role === 'MEMBER') throw forbidden();
+      // v1.68-live (D273, §10.96.7): nobody removes a message of «فريق كابسو».
+      await assertNotStaffTarget(this.prisma, row.authorId);
       if (family.role === 'DEPUTY') {
         const author = await this.prisma.familyMember.findUnique({
           where: { userId: row.authorId },
@@ -257,6 +260,8 @@ export class FamilyChatService {
     if (target.id === callerId)
       throw AppException.validation([{ field: 'username', issue: 'invalid_value' }]);
     if (member.role === 'LEADER' || (family.role === 'DEPUTY' && member.role === 'DEPUTY')) throw forbidden();
+    // v1.68-live (D273, §10.96.7): «فريق كابسو» is never muted (lifting an old mute is allowed).
+    if (muted) await assertNotStaffTarget(this.prisma, target.id);
     if (muted) {
       await this.prisma.familyChatMute.createMany({
         data: [{ familyId: family.id, userId: target.id, mutedById: callerId, createdAt: this.clock.now() }],

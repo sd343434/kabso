@@ -14228,4 +14228,239 @@ class AppLocalizationsEn extends AppLocalizations {
   String storeLockedCherries(String amount) {
     return 'Locked task cherries can\'t be spent in the store ($amount locked).';
   }
+
+  @override
+  String get staffToolsTitle => 'Kabso Team tools';
+
+  @override
+  String get staffMeIntro => 'Moderate lives from your phone';
+
+  @override
+  String get staffRoleOwner => 'Owner';
+
+  @override
+  String get staffRoleModeration => 'Moderator';
+
+  @override
+  String get staffRoleSupport => 'Support';
+
+  @override
+  String get staffRoleFinance => 'Finance';
+
+  @override
+  String get staffShift => 'On shift';
+
+  @override
+  String get staffShiftHint =>
+      'Lives are assigned to you and their reports reach your phone';
+
+  @override
+  String get staffMyLives => 'My lives';
+
+  @override
+  String get staffMyLivesEmpty => 'No lives assigned to you now';
+
+  @override
+  String get staffMyLivesOffShift => 'Turn on «On shift» to get lives';
+
+  @override
+  String get staffAnyLive =>
+      'You can enter any live as the Kabso Team from the live lists';
+
+  @override
+  String staffReportsCount(String count) {
+    return '$count reports';
+  }
+
+  @override
+  String staffViewersCount(String count) {
+    return '$count watching';
+  }
+
+  @override
+  String get staffStepUpTitle => 'Confirm it’s you';
+
+  @override
+  String get staffStepUpBody =>
+      'Enter the code from the authenticator you use for the admin panel.';
+
+  @override
+  String get staffStepUpCode => 'Code (6 digits)';
+
+  @override
+  String get staffStepUpConfirm => 'Unlock tools';
+
+  @override
+  String get staffStepUpEnrol =>
+      'Set up the authenticator in the admin panel first: admin.kabsolive.com';
+
+  @override
+  String get staffStepUpLockedHint =>
+      'Repeated wrong codes also lock your panel account.';
+
+  @override
+  String staffUnlocked(String time) {
+    return 'Tools unlocked until $time';
+  }
+
+  @override
+  String get staffLockedTools =>
+      'Tools locked — the authenticator code is needed';
+
+  @override
+  String get staffUnlock => 'Unlock team tools';
+
+  @override
+  String get staffLock => 'Lock';
+
+  @override
+  String get staffEnterTitle => 'How do you enter this live?';
+
+  @override
+  String get staffEnterVisible => 'Visible (Kabso Team)';
+
+  @override
+  String get staffEnterVisibleHint =>
+      'Listed with the Kabso Team badge, never counted';
+
+  @override
+  String get staffEnterHidden => 'Watch hidden';
+
+  @override
+  String get staffEnterHiddenHint => 'Nobody sees you; no chat';
+
+  @override
+  String staffModeNow(String mode) {
+    return 'You are: $mode';
+  }
+
+  @override
+  String get staffModeSwitch => 'Switch';
+
+  @override
+  String get staffReports => 'Reports';
+
+  @override
+  String get staffReportsEmpty => 'No reports on this live';
+
+  @override
+  String get staffReportOnLive => 'On the live';
+
+  @override
+  String staffReportOnUser(String name) {
+    return 'On $name';
+  }
+
+  @override
+  String staffReportOnMessage(String name) {
+    return 'A message by $name';
+  }
+
+  @override
+  String staffReportBy(String name) {
+    return 'Reported by $name';
+  }
+
+  @override
+  String get staffReportClosed => 'Handled';
+
+  @override
+  String get staffActions => 'Actions';
+
+  @override
+  String get staffActionWarn => 'Warn the host';
+
+  @override
+  String get staffActionEnd => 'End the live';
+
+  @override
+  String get staffActionNoLive => 'Ban from going live';
+
+  @override
+  String get staffActionSuspend => 'Suspend the account';
+
+  @override
+  String get staffActionDismiss => 'Reviewed — no violation';
+
+  @override
+  String get staffActionKick => 'Remove from the live';
+
+  @override
+  String get staffActionMute => 'Mute in chat';
+
+  @override
+  String get staffActionRemoveMessage => 'Remove the message';
+
+  @override
+  String get staffPersonActions => 'Act on a person';
+
+  @override
+  String get staffPersonField => 'Username';
+
+  @override
+  String get staffReason => 'Reason (recorded)';
+
+  @override
+  String get staffReasonHostHint =>
+      'The host is told the reason from «the Kabso team», never your name.';
+
+  @override
+  String get staffDuration => 'Duration';
+
+  @override
+  String get staffDuration1h => '1 hour';
+
+  @override
+  String get staffDuration24h => '24 hours';
+
+  @override
+  String get staffDuration3d => '3 days';
+
+  @override
+  String get staffDuration7d => '7 days';
+
+  @override
+  String get staffDuration30d => '30 days';
+
+  @override
+  String get staffApply => 'Apply';
+
+  @override
+  String get staffDone => 'Done';
+
+  @override
+  String get staffReadOnly => 'Your role: reports only';
+
+  @override
+  String get staffNoEconomy =>
+      'The Kabso Team doesn’t send gifts or tap in a live';
+
+  @override
+  String notifLiveStaffReport(String host) {
+    return 'New report on $host’s live';
+  }
+
+  @override
+  String get errorStaffProtected => 'This can’t be done to the Kabso Team';
+
+  @override
+  String get errorLiveStaffRefused =>
+      'The Kabso Team doesn’t do this in a live';
+
+  @override
+  String get errorStaffStepUpRequired =>
+      'Enter your authenticator code to use the team tools';
+
+  @override
+  String get errorStaffTotpNotEnrolled =>
+      'Set up the authenticator in the admin panel first';
+
+  @override
+  String get errorAdminTotpInvalid => 'The authenticator code is not valid';
+
+  @override
+  String get errorAdminLocked => 'Too many wrong codes. Try again later';
+
+  @override
+  String get errorAdminActionRefused => 'The action was refused';
 }

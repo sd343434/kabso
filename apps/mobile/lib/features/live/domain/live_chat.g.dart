@@ -104,6 +104,7 @@ _LiveChatEntry _$LiveChatEntryFromJson(Map<String, dynamic> json) =>
           : LiveChatAuthorBadges.fromJson(
               json['authorBadges'] as Map<String, dynamic>,
             ),
+      authorStaff: json['authorStaff'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$LiveChatEntryToJson(_LiveChatEntry instance) =>
@@ -119,6 +120,7 @@ Map<String, dynamic> _$LiveChatEntryToJson(_LiveChatEntry instance) =>
       'expiresAt': instance.expiresAt?.toIso8601String(),
       'cpBubble': instance.cpBubble,
       'authorBadges': instance.authorBadges,
+      'authorStaff': instance.authorStaff,
     };
 
 const _$LiveChatRoleEnumMap = {

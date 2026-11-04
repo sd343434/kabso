@@ -24,7 +24,7 @@ import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { can, isPanelRole } from './admin-permissions.js';
 
 export function viaOf(ctx: AdminContext): AdminVia {
-  return { via: 'panel', actorUserId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId };
+  return { via: ctx.via ?? 'panel', actorUserId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId };
 }
 
 export function refused(message: string, issue?: string, field = 'kyc'): AppException {

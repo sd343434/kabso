@@ -50,6 +50,11 @@ export const createReportSchema = z.strictObject({
   targetId: z.string().min(1).max(64),
   reason: z.enum(REPORT_REASONS),
   note: noteSchema.optional(),
+  /**
+   * v1.68-live (D273, §10.96.8): a USER reported from inside a live — that live (the report's context), so the live's
+   * staff see it and are alerted. Only with `targetType` USER (400 otherwise); a live the reporter cannot see → 404.
+   */
+  liveRoomId: z.uuid().optional(),
 });
 export type CreateReportInput = z.output<typeof createReportSchema>;
 

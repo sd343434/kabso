@@ -144,6 +144,11 @@ abstract class PublicProfile with _$PublicProfile {
     /// v1.77-social (D220, §10.74): the lifetime coins sent on gifts; null
     /// like [cherriesReceived].
     @JsonKey(includeIfNull: false) int? coinsSent,
+
+    /// v1.68-live (D273, §10.96.7): the account holds a panel role — «فريق
+    /// كابسو». The person card hides the actions against it (kick, mute,
+    /// seat); the server refuses them anyway (`STAFF_PROTECTED`).
+    @Default(false) bool kabsoTeam,
   }) = _PublicProfile;
 
   const new _();

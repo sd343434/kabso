@@ -17,6 +17,7 @@ import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
@@ -126,6 +127,9 @@ class MeHubScreen extends ConsumerWidget {
   static const followingKey = Key('meHub.stat.following');
   static const fansKey = Key('meHub.stat.fans');
   static const cardsKey = Key('meHub.cards');
+
+  /// v1.68-live (D273): «فريق كابسو» — staff accounts only.
+  static const kabsoTeamKey = Key('meHub.kabsoTeam');
   static const soonKey = Key('meHub.soon');
 
   @override
@@ -208,6 +212,19 @@ class MeHubScreen extends ConsumerWidget {
     ];
 
     final groups = <List<Widget>>[
+      // v1.68-live (D273, owner: «المناوبة من الهاتف»): the staff's shift,
+      // «بثوثي» and the step-up — only for an account holding a watch role.
+      if (user?.kabsoTeam ?? false)
+        [
+          _HubRow(
+            rowKey: kabsoTeamKey,
+            icon: Icons.verified_user_rounded,
+            hue: KabsoTeamColors.end,
+            title: l10n.liveKabsoTeam,
+            value: l10n.staffMyLives,
+            onTap: () => push(AppRoutes.staff),
+          ),
+        ],
       [
         _HubRow(
           item: MeHubItem.creatorCenter,
@@ -788,17 +805,21 @@ class _HubCard extends StatelessWidget {
 /// shows).
 class _HubRow extends StatelessWidget {
   const new({
-    required this.item,
     required this.icon,
     required this.hue,
     required this.title,
+    this.item,
+    this.rowKey,
     this.value,
     this.valueLabel,
     this.valueArt,
     this.onTap,
   });
 
-  final MeHubItem item;
+  final MeHubItem? item;
+
+  /// D273: a row that is not a [MeHubItem] (the staff entry).
+  final Key? rowKey;
   final IconData icon;
   final Color hue;
   final String title;
@@ -842,7 +863,7 @@ class _HubRow extends StatelessWidget {
       ?(valueLabel ?? value),
     ].join(', ');
     return Semantics(
-      key: item.key,
+      key: rowKey ?? item?.key,
       button: true,
       enabled: !soon,
       label: label,

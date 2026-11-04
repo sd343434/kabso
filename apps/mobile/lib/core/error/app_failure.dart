@@ -351,6 +351,31 @@ enum ErrorCode {
   /// charged; the app reloads the items.
   storePriceChanged('STORE_PRICE_CHANGED'),
 
+  /// v1.68-live (D273, §10.96.7, 403): the person holds a panel role — the
+  /// app never acts on «فريق كابسو» (kick, mute, message, seat, family).
+  staffProtected('STAFF_PROTECTED'),
+
+  /// v1.68-live (D273, §10.96.6, 403): «فريق كابسو» sends no gifts, taps or
+  /// bullets in a live and takes no seat; a hidden observer does not chat.
+  liveStaffRefused('LIVE_STAFF_REFUSED'),
+
+  /// v1.68-live (D273, §10.96.6, 403): a staff tool needs the step-up (the
+  /// panel authenticator code in the app).
+  staffStepUpRequired('STAFF_STEP_UP_REQUIRED'),
+
+  /// v1.68-live (D273, 409): the panel authenticator is not set up yet.
+  staffTotpNotEnrolled('STAFF_TOTP_NOT_ENROLLED'),
+
+  /// v1.60-social (D191; used by the app since D273, 403): the authenticator
+  /// code is wrong or used (counts towards the lockout).
+  adminTotpInvalid('ADMIN_TOTP_INVALID'),
+
+  /// v1.60-social (D191; app since D273, 429): locked after wrong codes.
+  adminLocked('ADMIN_LOCKED'),
+
+  /// v1.60-social (D191; app since D273, 409): a panel rule refused it.
+  adminActionRefused('ADMIN_ACTION_REFUSED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

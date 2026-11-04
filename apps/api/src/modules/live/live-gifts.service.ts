@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { refuseWatchStaff } from './live-staff.js';
 import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -297,6 +298,8 @@ export class LiveGiftsService {
     if (first) return { created: false, result: await this.replay(callerId, first, row.id) };
 
     if (callerId !== row.host_user_id) {
+      // v1.68-live (D273, §10.96.6): «فريق كابسو» sends no gifts in a live (no conflict of interest).
+      await refuseWatchStaff(this.prisma, callerId, 'gifts');
       if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
       if (!(await this.inMediaSession(row.id, callerId))) {
         throw new AppException(ErrorCode.LIVE_CHAT_NOT_IN_ROOM);

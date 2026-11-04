@@ -77,6 +77,8 @@ class PushPayload {
     // D217: a referral's cherries taken back.
     if (type == 'REFERRAL_REWARD_REVERSED') return AppRoutes.walletCherries;
     if (id == null || id.isEmpty) return null;
+    // D273: a staff alert — the live, as staff, on its reports.
+    if (type == 'LIVE_STAFF_REPORT') return AppRoutes.liveRoomStaffReports(id);
     // D204: a recharge order's chat.
     if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);
     final postId = data['targetPostId'];

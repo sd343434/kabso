@@ -1528,7 +1528,8 @@ first-party). The panel signs in an existing admin account with its password and
    `ADMIN_PENDING_SECONDS` 300, `ADMIN_LOCKOUT_ATTEMPTS` 5, `ADMIN_LOCKOUT_SECONDS` 900, `ADMIN_DASHBOARD_TIME_ZONE`
    `Asia/Riyadh` (the dashboard's «today»), `RATE_LIMIT_ADMIN_LOGIN_IP`
    `30/900`, `RATE_LIMIT_ADMIN_IP` `1200/900`, `RATE_LIMIT_ADMIN_TEAM_IP` `20/900` (D271: the staff page's grant /
-   revoke / reset-2fa per IP).
+   revoke / reset-2fa per IP); D273: `STAFF_APP_GRANT_SECONDS` 43200 (the app's staff step-up), `RATE_LIMIT_STAFF_APP_USER`
+   `300/900`, `RATE_LIMIT_STAFF_STEP_UP_USER` `10/900`.
 3. **Optional IP allowlist:** `KABSO_ADMIN_ALLOW_IPS='203.0.113.7/32 198.51.100.0/24'` in `/etc/kabso/kabso.env`
    (space-separated CIDRs) answers 403 at admin.<domain> to every other address. **Leave it unset for everyone** — an
    empty value (`KABSO_ADMIN_ALLOW_IPS=`) blocks everyone. Then `docker compose … up -d caddy`.
@@ -2712,3 +2713,23 @@ row; 0 = unlimited — keep it above 0 or unlimited, never set it to a value alr
   dare ends (was `PK_DARE_OUTCOME_SECONDS`, 8 — too short to offer «جولة أخرى»).
 - **Older apps** ignore `PkSideState.pkPoints` and `PkMatch.forfeitPoints`; the new app shows nothing for them against
   an older API. Order: API (migration) first, then the panel, then the app.
+
+### 5.59 «فريق كابسو» from the app (migration `20270312090000_staff_app_tools`; D273) — [IMPLEMENTED, draft contract v1.68-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.6–§10.96.8. The migration adds `admin_app_grants` (the staff tools' step-up, bound to an app session;
+CHECKs on the expiry and the end reason), `notifications.live_room_id` and `reports.context_live_room_id` (nullable FKs,
+partial indexes) and the enum values `live_moderation_kind.WARN`, `notification_type.LIVE_STAFF_REPORT` (no backfill; the
+runtime role gets DML through the default privileges). Optional env: `STAFF_APP_GRANT_SECONDS` (43200),
+`RATE_LIMIT_STAFF_APP_USER` (`300/900`), `RATE_LIMIT_STAFF_STEP_UP_USER` (`10/900`). Needs `ADMIN_TOTP_KEY` (the step-up
+answers 503 without it, like the panel).
+
+- **Staff.** Every OWNER / MODERATION / SUPPORT account is «فريق كابسو» in every live it opens from the app at once (no
+  setting). Tell staff: the app's Me tab → «فريق كابسو» → «فتح الأدوات» with the code of the authenticator they enrolled at
+  admin.kabsolive.com (staff who never signed in to the panel must enrol there first); «في المناوبة» works from the phone.
+- **Behaviour change.** Staff accounts can no longer send gifts / taps / bullets or take a seat in a live; users can no
+  longer kick, mute or remove panel accounts (incl. FINANCE). Report alerts reach the staff member's phone (push needs
+  Firebase, §5.40).
+- **Order.** API (with its migration) first, then the app. An older app on the new API: staff join as «فريق كابسو» (the
+  server decides) but see no tools; gifts / taps are refused with a generic message.
+- **Rollback.** The new columns and table are only read by D273 code; an older API ignores them (WARN rows and
+  LIVE_STAFF_REPORT notifications would be unknown values to it — delete them before rolling back the code).

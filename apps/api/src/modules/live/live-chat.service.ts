@@ -29,6 +29,7 @@ import {
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { storeWearOf, wearHasEntrance } from '../store/store-rules.js';
+import { assertNotStaffTarget, refuseWatchStaff, watchStaffAmong } from './live-staff.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
 
@@ -52,6 +53,11 @@ export interface LiveChatMessageDto {
   cpBubble: boolean;
   /** v1.24.4-live (D119): the author's level and family badges now (cached up to 30 s). */
   authorBadges: LiveChatAuthorBadgesDto;
+  /**
+   * v1.68-live (D273, §10.96.6): the author is «فريق كابسو» now (a watch role): the app shows the team's tag instead of
+   * levels, family, VIP and the CP bubble (`authorBadges` is then empty). Read live, so a revoked role drops it.
+   */
+  authorStaff: boolean;
 }
 
 /** `LiveChatMute`. */
@@ -174,7 +180,11 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     this.sweepTimer.unref();
   }
 
-  private toDto(row: MessageRow, authorBadges: LiveChatAuthorBadgesDto): LiveChatMessageDto {
+  private toDto(
+    row: MessageRow,
+    authorBadges: LiveChatAuthorBadgesDto,
+    authorStaff = false,
+  ): LiveChatMessageDto {
     return {
       id: row.id,
       roomId: row.roomId,
@@ -185,14 +195,16 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       media: row.media ? this.assets.toDto(row.media) : null,
       expiresAt: row.expiresAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
-      cpBubble: row.cpBubble,
-      authorBadges,
+      cpBubble: authorStaff ? false : row.cpBubble,
+      authorBadges: authorStaff ? NO_BADGES : authorBadges,
+      authorStaff,
     };
   }
 
-  /** One message with its author's badges (D119). */
+  /** One message with its author's badges (D119) and, D273, whether the author is «فريق كابسو». */
   private async withBadges(row: MessageRow): Promise<LiveChatMessageDto> {
-    return this.toDto(row, await this.badges.one(row.userId));
+    const staff = await watchStaffAmong(this.prisma, [row.userId]);
+    return this.toDto(row, await this.badges.one(row.userId), staff.has(row.userId));
   }
 
   // ---- Delivery --------------------------------------------------------------------------------
@@ -237,9 +249,13 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     return seated > 0 ? 'SPEAKER' : 'VIEWER';
   }
 
-  /** In the room now: a row in the room's media session (CP-010 `live_room_viewers`). */
+  /**
+   * In the room now: a row in the room's media session (CP-010 `live_room_viewers`); v1.68-live (D273): or watching it
+   * visibly as «فريق كابسو» (`live_room_staff_watchers`). A hidden observer has neither (no chat).
+   */
   private async inMediaSession(roomId: string, userId: string): Promise<boolean> {
-    return (await this.prisma.liveRoomViewer.count({ where: { roomId, userId } })) > 0;
+    if ((await this.prisma.liveRoomViewer.count({ where: { roomId, userId } })) > 0) return true;
+    return (await this.prisma.liveRoomStaffWatcher.count({ where: { roomId, adminId: userId } })) > 0;
   }
 
   // ---- Sending ---------------------------------------------------------------------------------
@@ -275,6 +291,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       // v1.20-live (D105, §10.20): kicked out of this live.
       if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
       if (!(await this.inMediaSession(row.id, callerId))) {
+        // v1.68-live (D273): a hidden staff observer never writes in the chat.
+        await refuseWatchStaff(this.prisma, callerId, 'hidden_chat');
         throw new AppException(ErrorCode.LIVE_CHAT_NOT_IN_ROOM);
       }
       if (row.chat_muted) throw new AppException(ErrorCode.LIVE_CHAT_MUTED);
@@ -389,7 +407,13 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       include: MESSAGE_INCLUDE,
     });
     const badges = await this.badges.of(rows.map((r) => r.userId));
-    return { data: rows.reverse().map((r) => this.toDto(r, badges.get(r.userId) ?? NO_BADGES)) };
+    const staff = await watchStaffAmong(
+      this.prisma,
+      rows.map((r) => r.userId),
+    );
+    return {
+      data: rows.reverse().map((r) => this.toDto(r, badges.get(r.userId) ?? NO_BADGES, staff.has(r.userId))),
+    };
   }
 
   // ---- Moderation ------------------------------------------------------------------------------
@@ -416,6 +440,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       ) {
         throw forbidden();
       }
+      // v1.68-live (D273, §10.96.7): nobody removes a message of «فريق كابسو».
+      await assertNotStaffTarget(this.prisma, message.userId);
     }
     if (message.deletedAt !== null) return;
     const deleted = await this.prisma.liveChatMessage.updateMany({
@@ -438,6 +464,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     if (!target) throw notFound();
     if (target.id === row.host_user_id) throw forbidden();
     if (privilege === 'MODERATOR' && (await this.isModerator(row.id, target.id))) throw forbidden();
+    // v1.68-live (D273, §10.96.7): «فريق كابسو» is never chat-muted (lifting an old mute is allowed).
+    if (muted) await assertNotStaffTarget(this.prisma, target.id);
     if (muted) {
       await this.prisma.liveChatMute.createMany({
         data: [{ roomId: row.id, userId: target.id, mutedById: callerId, createdAt: this.clock.now() }],
@@ -446,6 +474,63 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     } else {
       await this.prisma.liveChatMute.deleteMany({ where: { roomId: row.id, userId: target.id } });
     }
+  }
+
+  /**
+   * v1.68-live (D273, §10.96.6): «فريق كابسو» removes a message from the staff tools (the staff guard checked the role
+   * and the step-up; the caller audits it). Any message of the live but one of the team's own (403 STAFF_PROTECTED).
+   * Returns the author and whether this call deleted it (already deleted → false, nothing sent).
+   */
+  async removeAsStaff(
+    roomId: string,
+    messageId: string,
+    actorId: string,
+  ): Promise<{ authorId: string; deleted: boolean }> {
+    const row = await this.rooms.visibleRow(roomId, actorId);
+    if (!isUuid(messageId)) throw notFound();
+    const message = await this.prisma.liveChatMessage.findFirst({
+      where: { id: messageId.toLowerCase(), roomId: row.id },
+      select: { id: true, userId: true, deletedAt: true },
+    });
+    if (!message) throw notFound();
+    if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    if (message.userId !== actorId) await assertNotStaffTarget(this.prisma, message.userId);
+    if (message.deletedAt !== null) return { authorId: message.userId, deleted: false };
+    const deleted = await this.prisma.liveChatMessage.updateMany({
+      where: { id: message.id, deletedAt: null },
+      data: { deletedAt: this.clock.now(), deletedById: actorId },
+    });
+    if (deleted.count > 0) await this.broadcast(row.id, { type: 'chat-delete', id: message.id });
+    return { authorId: message.userId, deleted: deleted.count > 0 };
+  }
+
+  /**
+   * v1.68-live (D273, §10.96.6): «فريق كابسو» mutes (or unmutes) someone in this live's chat from the staff tools.
+   * Never the host (409 via the caller) nor the team (403 STAFF_PROTECTED). Returns the person and whether it changed.
+   */
+  async muteAsStaff(
+    roomId: string,
+    username: string,
+    actorId: string,
+    muted: boolean,
+  ): Promise<{ userId: string; hostUserId: string; changed: boolean }> {
+    const row = await this.rooms.visibleRow(roomId, actorId);
+    if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    const target = await this.users.findActivePublicUser(username);
+    if (!target) throw notFound();
+    if (target.id === row.host_user_id || target.id === actorId) {
+      return { userId: target.id, hostUserId: row.host_user_id, changed: false };
+    }
+    if (muted) await assertNotStaffTarget(this.prisma, target.id);
+    if (muted) {
+      const out = await this.prisma.liveChatMute.createMany({
+        data: [{ roomId: row.id, userId: target.id, mutedById: actorId, createdAt: this.clock.now() }],
+        skipDuplicates: true,
+      });
+      return { userId: target.id, hostUserId: row.host_user_id, changed: out.count > 0 };
+    }
+    const out = await this.prisma.liveChatMute.deleteMany({ where: { roomId: row.id, userId: target.id } });
+    return { userId: target.id, hostUserId: row.host_user_id, changed: out.count > 0 };
   }
 
   /** `GET /live/rooms/{roomId}/chat/mutes` (host or moderator): newest first. */

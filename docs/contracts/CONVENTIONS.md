@@ -216,6 +216,10 @@ All non-2xx responses use one envelope:
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
 | 409 | `STORE_PRICE_CHANGED` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: `price` differs from the item's price for that currency and duration now (the owner changed it in the panel). Nothing was charged; the app reloads the items and shows the new price. §10.98. |
+| 403 | `STAFF_PROTECTED` | *(v1.68-live, DRAFT, D273)* The target holds a panel role (OWNER, MODERATION, SUPPORT, FINANCE): nobody acts on «فريق كابسو» from the app — a live kick or chat mute, removing their chat message, a seat mute / removal, a family kick or chat mute. The app says «لا يمكن اتخاذ إجراء ضد فريق كابسو». Nothing changed. §10.96.7. |
+| 403 | `LIVE_STAFF_REFUSED` | *(v1.68-live, DRAFT, D273)* A Kabso staff member (OWNER, MODERATION, SUPPORT) in a live does not send gifts, tap, send bullets or take a seat; a hidden observer does not chat — `details: [{field: "staff", issue: "gifts" \| "taps" \| "bullets" \| "seat" \| "hidden_chat"}]`. Nothing charged or sent. §10.96.6. |
+| 403 | `STAFF_STEP_UP_REQUIRED` | *(v1.68-live, DRAFT, D273)* A staff tool in the app without a valid step-up grant (none, expired, or ended by sign-out, a revoked role, a lockout or a reset authenticator): the app asks for the panel authenticator code (`createStaffStepUp`). §10.96.6. |
+| 409 | `STAFF_TOTP_NOT_ENROLLED` | *(v1.68-live, DRAFT, D273)* `createStaffStepUp`: the staff member has not set up the panel authenticator yet; the app sends them to admin.<domain>. §10.96.6. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -439,6 +443,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier). *(v1.2, SEC-023)* the account bucket counts **failed** attempts only, and a source (IPv4 / IPv6 /64) that logged into the account successfully within the last 30 days bypasses the account bucket (still subject to the IP+account bucket). |
 | `POST /admin/auth/login`, `…/totp/enrolment`, `…/totp/enrolment/confirm`, `…/totp/verify` *(v1.60-social, D191)* | 30 / 15 min per IP (bucket `admin_login:ip`, `RATE_LIMIT_ADMIN_LOGIN_IP`); plus the lockout of §10.54.2 (`ADMIN_LOCKOUT_ATTEMPTS` failures per email and per admin account → 429 `ADMIN_LOCKED`). **Replaces** the public default |
 | Every other cookie-authenticated `/admin/*` route of §10.54 *(v1.60-social, D191)* | 1200 / 15 min per IP (bucket `admin:ip`, `RATE_LIMIT_ADMIN_IP`). **Replaces** the public default |
+| Every `staff` operation *(v1.68-live, D273)* | 300 / 15 min per user (bucket `staff:user`, `RATE_LIMIT_STAFF_APP_USER`), replacing the default |
+| `createStaffStepUp` *(v1.68-live, D273)* | also 10 / 15 min per user (bucket `staff-step-up:user`, `RATE_LIMIT_STAFF_STEP_UP_USER`); plus the admin lockout of §10.54.2 |
 | `grantAdminTeamRole`, `revokeAdminTeamRole`, `resetAdminTeamTotp` *(v1.66-live, D271)* | 20 / 15 min per IP (bucket `admin-team:ip`, `RATE_LIMIT_ADMIN_TEAM_IP`) **and** the `admin:ip` bucket above |
 | `POST /auth/register` | 5 / hour per IP; *(v1.2)* 3 / hour per email |
 | `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
@@ -698,6 +704,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.49-social (draft) | 2026-10-30 | **D172 (owner: the Creator Center «مركز صنّاع المحتوى» in the layout of the owner's reference, whose stats card shows «بيانات أكتوبر» — the current month):** `getMyCreatorStats` takes `period=THIS_MONTH` — the current calendar month so far, from the 1st at 00:00 in `LIVE_RANKINGS_TIME_ZONE` (the region's zone, as the families' month, §10.21) until now; `CreatorStats.month` (`YYYY-MM` for `THIS_MONTH`, else null; required in responses). No migration. §10.40. | **Additive** (an enum value the app sends only when it knows it, and a response field older apps ignore). |
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
+| v1.68-live (draft) | 2026-11-04 | **D273 (owner: «فريق كابسو» from the app — always visible, the panel's powers on the phone, the shift, free roaming, «مراقبة خفية», report pushes, untouchable):** tag `staff`: `getStaffStatus`, `createStaffStepUp` / `endStaffStepUp`, `getStaffShift` / `setStaffShift`, `listStaffLives`, `listStaffLiveReports`, `listStaffLiveModerations`, `moderateStaffLive`, `dismissStaffLiveReports`, `kickFromStaffLive`, `muteInStaffLive`, `removeStaffLiveMessage` (`StaffStatus`, `StaffStepUp(Request)`, `StaffLive(List)`, `StaffKick*`, `StaffChatMute*`, `StaffMessageRemoveResult`); `Me.kabsoTeam`, `PublicProfile.kabsoTeam`; `LiveMediaTokenRequest.staffVisibility`, `LiveMediaAccess.staff` (identity up to 80); `LiveChatMessage.authorStaff`; `AdminLiveModerateRequest.action` / results / history gain `WARN`; `AdminLiveReport.targetType` `LIVE_CHAT_MESSAGE` and `target`; `CreateReportRequest.liveRoomId`; notification `LIVE_STAFF_REPORT` (target `LIVE_ROOM`, `live`); `LIVE_MODERATION.moderation` `WARN`; codes `STAFF_PROTECTED`, `LIVE_STAFF_REFUSED`, `STAFF_STEP_UP_REQUIRED` (403), `STAFF_TOTP_NOT_ENROLLED` (409); `STAFF_APP_GRANT_SECONDS`, `RATE_LIMIT_STAFF_APP_USER`, `RATE_LIMIT_STAFF_STEP_UP_USER`. Migration `20270312090000_staff_app_tools` (`admin_app_grants`, `notifications.live_room_id`, `reports.context_live_room_id`, enum values `WARN`, `LIVE_STAFF_REPORT`). §4, §7, §10.96.6–§10.96.8. | **Additive for apps** (new optional fields; an older app ignores `staff`, `authorStaff`, `kabsoTeam` and the new notification). **Behaviour change:** a staff account entering from the app is listed as «فريق كابسو» instead of a viewer and can no longer send gifts / taps / bullets or take a seat there; users can no longer kick / mute / remove panel accounts (403). |
 | v1.67-live (draft) | 2026-11-04 | **D276 (owner, from a device: «زر اعادة بيكيه لا يظهر … ويجب ان يظهر لكل شخص نقاط بيكيه الاخر»; then «انسحاب = −٣»):** `PkSideState.pkPoints` (each host's `PkHostRecord.points` in every match payload); `PkMatch.forfeitPoints`; `AdminPkDareSettings.forfeitPoints` / `UpdateAdminPkDareSettingsRequest.forfeitPoints` (−3, DARES matches only: a host who withdrew from the battle — FORFEIT, DISCONNECT, AWAY — instead of `lossPoints`, still a loss; both withdrew → both, no longer a draw; NORMAL unchanged; `PkMatch.forfeitPoints` null for NORMAL); after a DARES match's dare the result stays `PK_RESULT_SECONDS` more while «جولة أخرى» is allowed; migration `20270311090000_pk_forfeit_points`. §10.80.1. | **Additive** (new response fields and an optional request field); the point values of a withdrawal change. |
 | v1.66-live (draft) | 2026-11-04 | **D275 (owner: «المشرف يمكن ان يكون لديه سجل شحن للوكلاء والمستخدمين بحيث يعرض المعاملة فقط دون تعديل او حذف» / «يمكنه ايضاً مشاهدة نزاعات الشحن والحكم فيها لكن لا يمكنه ارسال اي عملات او سحب الا من النزاعات الحكم فيها»):** MODERATION gains `recharge.agents`, `users.ledger`, `recharge.disputes`, `recharge.disputes.resolve` and the new capability `recharge.topups.view` (OWNER, FINANCE, MODERATION) that `listAdminRechargeTopups` and `listAdminCardOrders` now need instead of `finance.view` (and their `format=csv`, audited — owner «نعم»). Never `recharge.topup` / `.cap` / `.status` / `.rates`, `withdrawals.*`, `finance.*`, `payments.settings`. §10.54.1, §10.60.1, §10.64.9. No migration. | **No shape change** (the session's `capabilities` lists one more value; panel only). |
 | v1.66-live (draft) | 2026-11-04 | **D271 (owner: «اجعل امنحهم صلاحية من لوحة الأدمن»): «الموظفون والصلاحيات»** — the OWNER manages the panel staff from the panel (§10.96.5, on D197's team operations): `AdminTeam` rows gain `onShift`, `shiftSince`; `AdminTeamGrantRequest.account` (email or username; `email` kept, exactly one); `AdminTeamGrantResult.account` (email, username, displayName, totpEnrolled); `AdminTeamRevokeResult.shiftEnded`; refusal issues `team_no_account`, `team_not_active`, `team_locked`, `team_self_owner`, `team_last_owner`, `team_not_held`, `team_self_reset`, `team_not_member` (409 `ADMIN_ACTION_REFUSED`, `details[0].field = rule`); a locked account (D208) cannot be granted; the last-OWNER check serialized; no watch role left → off shift and the lives handed on; per-IP bucket `admin-team:ip` (`RATE_LIMIT_ADMIN_TEAM_IP` 20 / 15 min). No migration. | **Additive** (new optional request field, new response fields; `email` still accepted). |
@@ -6519,6 +6526,86 @@ D197's team page (§10.60.6, `team.manage`: **OWNER only**, checked on every req
   (owner 2026-11-04): `admin-admin revoke <email> OWNER` exits 1 with «This is the last OWNER: grant OWNER to another
   active account first, then revoke this one.» (nothing changes, no audit row); only the self-OWNER refusal is panel-only
   (the CLI has no actor). The CLI stays the bootstrap of the first OWNER.
+
+**10.96.6 «فريق كابسو» from the app — the badge, the tools and the shift *(v1.68-live, DRAFT — D273)*.** Owner: staff are
+always visible from the app, have the panel's live powers on the phone («بعض الموظفين ليس لديهم لابتوب»), keep their shift
+there, may watch hidden «كما في اللوحة», and roam freely.
+
+- **Who.** An account holding OWNER, MODERATION or SUPPORT now (ACTIVE, `users.role = ADMIN` — the panel's `rolesOf`, read on
+  every request; a revoked role or a suspension applies at once). `Me.kabsoTeam` (the Me tab's «فريق كابسو» entry);
+  `getStaffStatus` (`GET /staff/me`, any account) gives roles, the tools' capabilities, the authenticator, the lockout, this
+  session's step-up and the shift. FINANCE is not «فريق كابسو» in lives (an ordinary viewer) but is protected (§10.96.7).
+- **Entering a live (no step-up).** From the app, `createLiveMediaToken` for such an account (not the host) always answers
+  `staff: VISIBLE` with the D260 `team:<id>:<nonce>` identity: listed in `LiveViewerPage.staff` with the badge, never counted
+  in `viewerCount` / the peak, no join line, no statistics visit — exactly the panel's visible watch. **Any live** (free
+  roaming): staff are never kept out by a kick, a block either way (§10.96.7) or a chat mute; the assignment (§10.96.2) only
+  decides who is responsible. A losing of the role drops the badge at once (the list reads the roles now) and the API
+  disconnects the person's `team:` / `staff:` connections (`dropStaffPresence`, the reconciliation repeats it); their next
+  token is an ordinary viewer's.
+- **Hidden «مراقبة خفية».** `LiveMediaTokenRequest.staffVisibility: HIDDEN` → the D250 `staff:<id>:<nonce>` observer (not
+  listed, not counted, no chat) — `lives.watch.hidden` (OWNER, MODERATION; SUPPORT 403 `AUTH_FORBIDDEN`) and the step-up of
+  this app session (403 `STAFF_STEP_UP_REQUIRED`); any other account 403. The app asks «دخول ظاهر (فريق كابسو)» or «مراقبة
+  خفية» once per app run and switches from the staff sheet (it joins again). Every staff token from the app is audited
+  `admin.live.watch` {visibility, identity, `via: app`}.
+- **In the live.** Chat lines carry `LiveChatMessage.authorStaff` (read live): the app shows «فريق كابسو» instead of levels,
+  family, VIP / store wear, agent badges and the CP bubble (`authorBadges` empty, `cpBubble` false). **No economy** (owner's
+  suggestion, decided): no gifts, taps or bullets and no seat (request or accept) while staff — 403 `LIVE_STAFF_REFUSED`
+  (`details[0].issue` `gifts` / `taps` / `bullets` / `seat`; a hidden observer's chat `hidden_chat`), so no conflict of
+  interest and no points from the team. DMs and gifts outside a live are unchanged.
+- **The step-up.** `createStaffStepUp` `{code}` — the staff member's **panel authenticator** (the same secret, the same
+  single-use step, **the same lockout**: a wrong code is 403 `ADMIN_TOTP_INVALID` and counts; at `ADMIN_LOCKOUT_ATTEMPTS` the
+  admin account locks, every panel session **and every app grant** ends, 429 `ADMIN_LOCKED`). Not enrolled yet → 409
+  `STAFF_TOTP_NOT_ENROLLED` (the app: «فعّل تطبيق المصادقة أولاً من لوحة الإدارة: admin.kabsolive.com»). A grant
+  (`admin_app_grants`) is bound to the user **and this app session**, lasts `STAFF_APP_GRANT_SECONDS` (12 h), replaces the
+  session's previous one, and ends with sign-out / the session's revocation (the bearer guard refuses the session; the row
+  cascades), `endStaffStepUp` «إنهاء», **any** revoked role (`ROLE_REVOKED`; a re-grant needs a new code), a lockout
+  (`LOCKED`), a reset authenticator (`TOTP_RESET`). Audited `admin.app.step_up` / `admin.app.step_up_end`. Badge visibility
+  never needs it; every tool does.
+- **The tools** (tag `staff`, bearer session; every route checks the role, the panel capability and the step-up on every
+  request — `StaffAppGuard`; the panel's rule functions run with an `AdminContext` of `via: app`):
+
+  | Route | Capability | OWNER | MODERATION | SUPPORT |
+  |---|---|:-:|:-:|:-:|
+  | `getStaffShift` / `setStaffShift` (`/staff/shift`, the panel's shift rule, audited `via: app`), `listStaffLives` «بثوثي» | `lives.watch` | ✓ | ✓ | ✓ |
+  | `listStaffLiveReports` (the room, its host, its chat and users reported inside it, with the reporter), `listStaffLiveModerations` | `lives.reports` | ✓ | ✓ | ✓ |
+  | `moderateStaffLive` (the panel's END / **WARN** / NO_LIVE / SUSPEND; DEVICE_BAN also `devices.ban` + the code), `dismissStaffLiveReports` | `lives.moderate` | ✓ | ✓ | |
+  | `kickFromStaffLive`, `muteInStaffLive`, `removeStaffLiveMessage` (the room's rules as «فريق كابسو») | `lives.moderate` | ✓ | ✓ | |
+
+  Every action takes a reason (400 without) and is audited with the actor, IP, request id, the reason and `via: app`
+  (`admin.live.moderate`, `admin.live.reports_dismiss`, `live.kick` {staff, reason}, `admin.live.chat_mute`,
+  `admin.live.chat_remove`). The host learns «فريق Kabso» and the reason, never a name: `LIVE_MODERATED` has no actor (WARN
+  reads «تنبيه من فريق Kabso على بثك»), and a staff kick's data message has `by: null`, `byTeam: true`. A hidden observer uses
+  the tools too. Kicking or removing a message closes that person's / message's open reports made in the live as ACTIONED.
+  **WARN** is new for the panel's `moderateAdminLive` too (the same rule; the live goes on). The live's reports (panel and app)
+  now include its chat messages' reports and USER reports made inside it (`CreateReportRequest.liveRoomId`, kept as
+  `reports.context_live_room_id`; counted for «لايفات مبلّغ عنها» and the assignment priority); an action on the live closes
+  them all.
+- **Limits.** Every staff route counts in `staff:user` (`RATE_LIMIT_STAFF_APP_USER`, 300 / 15 min per user, replacing the
+  default); the step-up also in `staff-step-up:user` (`RATE_LIMIT_STAFF_STEP_UP_USER`, 10 / 15 min) on top of the lockout.
+
+**10.96.7 Nobody acts on «فريق كابسو» from the app *(v1.68-live, DRAFT — D273)*.** An account holding **any** panel role
+(OWNER, MODERATION, SUPPORT, FINANCE) cannot be acted on by a user: a live kick (`kickFromLive`), a live chat mute, removing
+their live chat message (host or room moderator), a seat mute or removal, a family member removal, a family chat mute or a
+family chat message removal → 403 `STAFF_PROTECTED` («لا يمكن اتخاذ إجراء ضد فريق كابسو»); one staff member cannot remove
+another's message from the staff tools either. `PublicProfile.kabsoTeam` lets the app hide those buttons. Not "against" and
+kept: making them a room moderator and taking it back, a family role change, the PK opponent mute (it mutes a host's audio in
+one's own room), lifting an old mute. **Blocks (decided):** a user may block a staff account — it still applies to DMs,
+follows, comments and the rest of the app — but it never keeps staff from finding, entering or moderating a live (the live
+discovery, `visibleRow` and the token ignore a block either way, a kick and a chat mute for watch staff). Reporting a staff
+account stays possible (the report goes to the queue).
+
+**10.96.8 Reports reach the responsible staff member's phone *(v1.68-live, DRAFT — D273)*.** A new report about a live —
+`LIVE_ROOM`, a `USER` report of its host while on air, a `LIVE_CHAT_MESSAGE` of its chat, or a `USER` reported with
+`liveRoomId` — alerts (best effort, after the report is stored): the live's assigned staff member if on shift; else an
+assignment pass runs first (D260: a reported live goes to OWNER / MODERATION when one is on shift) and its holder; still
+nobody → every OWNER / MODERATION on shift; none → every OWNER. Never the reporter or the live's host. Each recipient has one
+unread `LIVE_STAFF_REPORT` notification per live (target `LIVE_ROOM`: `id` the live, `text` the host's name, `thumbUrl` their
+picture, `live`); a new report moves it up and pushes it again. The push says only «بلاغ جديد على بث» and the host's name
+(`New report on <host>'s live`) — no reporter, reason or note. It is a system notification (always on); a staff member **on
+shift** gets it even within the general gap between pushes (`PUSH_GENERAL_GAP_SECONDS`) and the per-row minute; off shift (the
+OWNERs' fallback) the usual push rules apply. Audited `live.staff_report.alert` {reportId, recipients, route `assigned` |
+`actors` | `owners`} and `live.staff_report.push` {recipientId, sent, onShift}. A tap (inbox or push) opens the live as staff
+with «أدوات فريق كابسو» on its reports (`/home/room/<id>?staff=reports`).
 
 ### 10.97 A VIP member's tier items in the bag — one worn item per kind *(v1.65-live, DRAFT — D264)*
 

@@ -136,6 +136,14 @@ const Map<ErrorCode, int> _statusFor = {
   // D270.
   ErrorCode.storeUnavailable: 409,
   ErrorCode.storePriceChanged: 409,
+  // v1.68-live (D273).
+  ErrorCode.staffProtected: 403,
+  ErrorCode.liveStaffRefused: 403,
+  ErrorCode.staffStepUpRequired: 403,
+  ErrorCode.staffTotpNotEnrolled: 409,
+  ErrorCode.adminTotpInvalid: 403,
+  ErrorCode.adminLocked: 429,
+  ErrorCode.adminActionRefused: 409,
 };
 
 DioException _badResponse(
@@ -300,6 +308,14 @@ void main() {
           'VIP_PRICE_CHANGED',
           'STORE_UNAVAILABLE',
           'STORE_PRICE_CHANGED',
+          // v1.68-live (D273): the staff tools in the app.
+          'STAFF_PROTECTED',
+          'LIVE_STAFF_REFUSED',
+          'STAFF_STEP_UP_REQUIRED',
+          'STAFF_TOTP_NOT_ENROLLED',
+          'ADMIN_TOTP_INVALID',
+          'ADMIN_LOCKED',
+          'ADMIN_ACTION_REFUSED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

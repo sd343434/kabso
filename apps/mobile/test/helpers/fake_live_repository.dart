@@ -414,8 +414,13 @@ class FakeLiveRepository implements LiveRepository {
   }
 
   @override
-  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId}) async {
+  Future<LiveMediaAccess> mediaToken(
+    String roomId, {
+    String? guestId,
+    String? staffVisibility,
+  }) async {
     tokenRequests.add((roomId: roomId, guestId: guestId));
+    staffVisibilities.add(staffVisibility);
     if (tokenFailure case final failure?) throw failure;
     return LiveMediaAccess(
       url: 'wss://media.test',
@@ -426,8 +431,16 @@ class FakeLiveRepository implements LiveRepository {
           : LiveMediaRole.viewer,
       identity: guestId == null ? 'user-me' : 'guest:$guestId',
       guestNumber: guestId == null ? null : 1234,
+      // D273: the server's answer for «فريق كابسو».
+      staff: staffAnswer ?? staffVisibility,
     );
   }
+
+  /// D273: what each token request asked for (`staffVisibility`).
+  final List<String?> staffVisibilities = [];
+
+  /// D273: the `staff` the fake server answers (as a staff account would get).
+  String? staffAnswer;
 
   // CP-011: seats, in memory. [seatState] answers reads; every call is
   // recorded in [seatCalls] as `name:args`.

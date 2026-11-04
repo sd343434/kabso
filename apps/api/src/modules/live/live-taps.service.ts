@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { refuseWatchStaff } from './live-staff.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -91,6 +92,8 @@ export class LiveTapsService {
     if (visible.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
     // v1.20-live (D105, §10.20): nobody kicked out of this live taps in it.
     if (visible.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
+    // v1.68-live (D273, §10.96.6): «فريق كابسو» does not tap for points in a live.
+    if (callerId !== visible.host_user_id) await refuseWatchStaff(this.prisma, callerId, 'taps');
     const id = visible.id;
 
     const now = this.clock.now();

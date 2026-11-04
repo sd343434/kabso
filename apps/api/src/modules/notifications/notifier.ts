@@ -64,6 +64,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'KYC_IN_REVIEW',
   // v1.60-live (D250): the team acted on the person's live from the panel (target the action, with the reason).
   'LIVE_MODERATED',
+  // v1.68-live (D273): a report on a live the staff member looks after (target the live).
+  'LIVE_STAFF_REPORT',
 ];
 
 /** Types that join one unread row per target (owner, D92). */

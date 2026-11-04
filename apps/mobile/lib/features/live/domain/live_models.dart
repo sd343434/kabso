@@ -537,6 +537,11 @@ abstract class LiveMediaAccess with _$LiveMediaAccess {
     required LiveMediaRole role,
     required String identity,
     int? guestNumber,
+
+    /// v1.68-live (D273, §10.96.6): `VISIBLE` / `HIDDEN` when this caller
+    /// is «فريق كابسو» in the live (always a watch-only viewer); null for
+    /// everyone else.
+    String? staff,
   }) = _LiveMediaAccess;
 
   factory fromJson(Map<String, dynamic> json) =>

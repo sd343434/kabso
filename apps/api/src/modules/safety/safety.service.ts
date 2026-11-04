@@ -17,6 +17,7 @@ import {
   type DmSnapshotDto,
 } from '../messages/dm-reports.js';
 import { LiveChatService } from '../live/live-chat.service.js';
+import { LiveStaffAlertsService } from '../live/live-staff-alerts.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { LiveSeatsService } from '../live/live-seats.service.js';
@@ -179,6 +180,7 @@ export class SafetyService {
     private readonly liveSeats: LiveSeatsService,
     private readonly liveChat: LiveChatService,
     private readonly media: MediaService,
+    private readonly staffAlerts: LiveStaffAlertsService,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -339,6 +341,13 @@ export class SafetyService {
     const parsed = createReportSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
+    // v1.68-live (D273): the live a user was reported from (its context; USER only).
+    let contextLiveRoomId: string | null = null;
+    if (input.liveRoomId !== undefined) {
+      if (input.targetType !== 'USER')
+        throw AppException.validation([{ field: 'liveRoomId', issue: 'invalid_value' }]);
+      contextLiveRoomId = (await this.liveRooms.visibleRow(input.liveRoomId.toLowerCase(), reporterId)).id;
+    }
     // v1.40-social (D155): a direct message is kept as a snapshot (it is deleted after 24 h).
     const dm =
       input.targetType === 'DM_MESSAGE' && isUuid(input.targetId)
@@ -355,7 +364,14 @@ export class SafetyService {
         : await this.resolveTarget(reporterId, input);
     const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', ...target };
     const existing = await this.prisma.report.findFirst({ where, include: REPORT_INCLUDE });
-    if (existing) return { report: this.toDto(existing, false), created: false };
+    if (existing) {
+      // v1.68-live (D273): the same person reported again from inside a live — the staff of that live are told.
+      if (contextLiveRoomId !== null && existing.contextLiveRoomId === null) {
+        await this.prisma.report.update({ where: { id: existing.id }, data: { contextLiveRoomId } });
+        await this.staffAlerts.afterReport(existing.id, reporterId);
+      }
+      return { report: this.toDto(existing, false), created: false };
+    }
     const reportId = uuidv7();
     let snapshot: DmSnapshot | null = null;
     if (dm) {
@@ -376,10 +392,13 @@ export class SafetyService {
           targetType: input.targetType,
           reason: input.reason,
           note: input.note ?? null,
+          ...(contextLiveRoomId !== null ? { contextLiveRoomId } : {}),
           ...target,
         },
         include: REPORT_INCLUDE,
       });
+      // v1.68-live (D273, §10.96.8): a report on a live alerts its staff member (best effort, never fails the report).
+      await this.staffAlerts.afterReport(row.id, reporterId);
       return { report: this.toDto(row, false), created: true };
     } catch (err) {
       // A concurrent identical report won (partial unique index): return it.

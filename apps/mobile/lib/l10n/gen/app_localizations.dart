@@ -24048,6 +24048,420 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'كرز المهام المقفل لا يُصرف في المتجر ({amount} مقفل).'**
   String storeLockedCherries(String amount);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات فريق كابسو'**
+  String get staffToolsTitle;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشراف على البثوث من هاتفك'**
+  String get staffMeIntro;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مالك'**
+  String get staffRoleOwner;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف'**
+  String get staffRoleModeration;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم'**
+  String get staffRoleSupport;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مالية'**
+  String get staffRoleFinance;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'في المناوبة'**
+  String get staffShift;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تُوزَّع عليك البثوث وتصلك بلاغاتها على هاتفك'**
+  String get staffShiftHint;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بثوثي'**
+  String get staffMyLives;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بثوث موكلة إليك الآن'**
+  String get staffMyLivesEmpty;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'شغّل «في المناوبة» لتصلك البثوث'**
+  String get staffMyLivesOffShift;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك دخول أي بث كفريق كابسو من القائمة الرئيسية'**
+  String get staffAnyLive;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغات: {count}'**
+  String staffReportsCount(String count);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مشاهد'**
+  String staffViewersCount(String count);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد هويتك'**
+  String get staffStepUpTitle;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل الرمز من تطبيق المصادقة الذي تستخدمه للوحة الإدارة.'**
+  String get staffStepUpBody;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز (6 أرقام)'**
+  String get staffStepUpCode;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الأدوات'**
+  String get staffStepUpConfirm;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل تطبيق المصادقة أولاً من لوحة الإدارة: admin.kabsolive.com'**
+  String get staffStepUpEnrol;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأخطاء المتكررة تقفل حسابك في اللوحة أيضاً.'**
+  String get staffStepUpLockedHint;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأدوات مفتوحة حتى {time}'**
+  String staffUnlocked(String time);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأدوات مقفلة — تحتاج رمز المصادقة'**
+  String get staffLockedTools;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح أدوات الفريق'**
+  String get staffUnlock;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get staffLock;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف تدخل البث؟'**
+  String get staffEnterTitle;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'دخول ظاهر (فريق كابسو)'**
+  String get staffEnterVisible;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر في المشاهدين بشارة فريق كابسو ولا تُحتسب'**
+  String get staffEnterVisibleHint;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'مراقبة خفية'**
+  String get staffEnterHidden;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يراك أحد ولا تكتب في الدردشة'**
+  String get staffEnterHiddenHint;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت الآن: {mode}'**
+  String staffModeNow(String mode);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تبديل'**
+  String get staffModeSwitch;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'البلاغات'**
+  String get staffReports;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بلاغات على هذا البث'**
+  String get staffReportsEmpty;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'على البث'**
+  String get staffReportOnLive;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'على {name}'**
+  String staffReportOnUser(String name);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة من {name}'**
+  String staffReportOnMessage(String name);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أبلغ: {name}'**
+  String staffReportBy(String name);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجته'**
+  String get staffReportClosed;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجراءات'**
+  String get staffActions;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تنبيه المضيف'**
+  String get staffActionWarn;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء البث'**
+  String get staffActionEnd;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'منع من البث'**
+  String get staffActionNoLive;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليق الحساب'**
+  String get staffActionSuspend;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت المراجعة — لا مخالفة'**
+  String get staffActionDismiss;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخراج من البث'**
+  String get staffActionKick;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم في الدردشة'**
+  String get staffActionMute;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الرسالة'**
+  String get staffActionRemoveMessage;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'إجراء على شخص'**
+  String get staffPersonActions;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get staffPersonField;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب (يُسجَّل)'**
+  String get staffReason;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'يصل السبب إلى المضيف من «فريق Kabso» دون اسمك.'**
+  String get staffReasonHostHint;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة'**
+  String get staffDuration;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'ساعة'**
+  String get staffDuration1h;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'24 ساعة'**
+  String get staffDuration24h;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'3 أيام'**
+  String get staffDuration3d;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'7 أيام'**
+  String get staffDuration7d;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'30 يوماً'**
+  String get staffDuration30d;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تنفيذ'**
+  String get staffApply;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get staffDone;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'دورك: الاطلاع على البلاغات فقط'**
+  String get staffReadOnly;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو لا يرسل هدايا ولا ينقر في البث'**
+  String get staffNoEconomy;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغ جديد على بث {host}'**
+  String notifLiveStaffReport(String host);
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن اتخاذ إجراء ضد فريق كابسو'**
+  String get errorStaffProtected;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو لا يفعل هذا في البث'**
+  String get errorLiveStaffRefused;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رمز المصادقة لاستخدام أدوات الفريق'**
+  String get errorStaffStepUpRequired;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل تطبيق المصادقة من لوحة الإدارة أولاً'**
+  String get errorStaffTotpNotEnrolled;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز المصادقة غير صحيح'**
+  String get errorAdminTotpInvalid;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات خاطئة كثيرة. حاول لاحقاً'**
+  String get errorAdminLocked;
+
+  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفض الإجراء'**
+  String get errorAdminActionRefused;
 }
 
 class _AppLocalizationsDelegate

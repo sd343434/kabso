@@ -39,7 +39,11 @@ import { openLiveReportsByRoom } from '../live/live-reports.js';
 
 export { openLiveReportsByRoom };
 
-/** The `reports` rows of a live (the room's, and its host's as a user since it started). */
+/**
+ * The `reports` rows of a live (the room's, and its host's as a user since it started). v1.68-live (D273, §10.96.6):
+ * also its chat messages' and the users reported inside it (the report's context live), so the staff see — and close
+ * — everything reported in the live.
+ */
 function liveReportsWhere(room: {
   id: string;
   hostUserId: string;
@@ -49,6 +53,8 @@ function liveReportsWhere(room: {
     OR: [
       { targetLiveRoomId: room.id },
       { targetType: 'USER', targetUserId: room.hostUserId, createdAt: { gte: room.startedAt } },
+      { targetLiveChatMessage: { roomId: room.id } },
+      { contextLiveRoomId: room.id },
     ],
   };
 }
@@ -141,6 +147,8 @@ export class AdminLiveModerationService {
         resolvedAt: true,
         resolutionNote: true,
         reporter: person,
+        targetUser: person,
+        targetLiveChatMessage: { select: { id: true, text: true, kind: true, user: person } },
       },
     });
     const data = [];
@@ -151,9 +159,17 @@ export class AdminLiveModerationService {
         take: REPORT_CHAT_LINES,
         select: this.chatSelect,
       });
+      // v1.68-live (D273): who or what was reported when it is not the live itself.
+      const message = r.targetLiveChatMessage;
       data.push({
         id: r.id,
-        targetType: r.targetType as 'LIVE_ROOM' | 'USER',
+        targetType: r.targetType as 'LIVE_ROOM' | 'USER' | 'LIVE_CHAT_MESSAGE',
+        target:
+          r.targetType === 'USER'
+            ? { user: personOf(r.targetUser), messageId: null, text: null }
+            : r.targetType === 'LIVE_CHAT_MESSAGE' && message
+              ? { user: personOf(message.user), messageId: message.id, text: message.text }
+              : null,
         reason: r.reason,
         note: r.note,
         status: r.status,
@@ -259,7 +275,7 @@ export class AdminLiveModerationService {
         identity: main.identity,
         hostUserId: room.hostUserId,
         ...(opponent ? { opponentRoomId: opponent.roomId } : {}),
-        via: 'panel',
+        via: ctx.via ?? 'panel',
       },
       ip: ctx.ip,
       requestId: ctx.requestId,
@@ -316,7 +332,11 @@ export class AdminLiveModerationService {
     return closed.count;
   }
 
-  /** `POST /admin/lives/{roomId}/moderate`: END / NO_LIVE / SUSPEND / DEVICE_BAN with a reason (§10.91.4). */
+  /**
+   * `POST /admin/lives/{roomId}/moderate`: END / NO_LIVE / SUSPEND / DEVICE_BAN with a reason (§10.91.4); v1.68-live
+   * (D273): WARN — the host is told the reason (the live goes on). The same rule from the staff tools in the app
+   * (`ctx.via` app, §10.96.6).
+   */
   async moderate(id: string, body: ModerateBody, ctx: AdminContext) {
     const room = await this.room(id);
     await this.host(room.hostUserId, ctx);
@@ -333,7 +353,8 @@ export class AdminLiveModerationService {
         : body.action === 'DEVICE_BAN' && body.permanent !== true
           ? this.endOf(now, body)
           : null;
-    if (body.action === 'END' && room.status !== 'LIVE') throw refused('The live is not on air.');
+    if ((body.action === 'END' || body.action === 'WARN') && room.status !== 'LIVE')
+      throw refused('The live is not on air.');
     // The authenticator code again for a device ban (it shuts out every account on the device), before anything.
     if (body.action === 'DEVICE_BAN') await this.adminAuth.reauthenticate(ctx, body.totpCode);
 
@@ -353,11 +374,15 @@ export class AdminLiveModerationService {
             );
           }
         }
+        // v1.68-live (D273): a warning ends nothing.
         ended =
-          body.action === 'END'
-            ? await this.rooms.endByAdminIn(tx, { roomId: room.id })
-            : await this.rooms.endByAdminIn(tx, { hostUserId: room.hostUserId });
-        if (body.action !== 'END') await this.rooms.releaseSeatsOfUserIn(tx, room.hostUserId);
+          body.action === 'WARN'
+            ? []
+            : body.action === 'END'
+              ? await this.rooms.endByAdminIn(tx, { roomId: room.id })
+              : await this.rooms.endByAdminIn(tx, { hostUserId: room.hostUserId });
+        if (body.action !== 'END' && body.action !== 'WARN')
+          await this.rooms.releaseSeatsOfUserIn(tx, room.hostUserId);
         let restrictionId: string | null = null;
         if (body.action === 'NO_LIVE' || body.action === 'SUSPEND') {
           const out = await restrictIn(
@@ -430,7 +455,7 @@ export class AdminLiveModerationService {
             liveModerationId: action.id,
             before: room.status,
             after: ended.length > 0 ? 'ENDED' : room.status,
-            via: 'panel',
+            via: ctx.via ?? 'panel',
           },
           ip: ctx.ip,
           requestId: ctx.requestId,
@@ -489,7 +514,7 @@ export class AdminLiveModerationService {
         actorUserId: ctx.userId,
         targetType: 'live_room',
         targetId: room.id,
-        metadata: { reason, reportsClosed, liveModerationId: action.id, via: 'panel' },
+        metadata: { reason, reportsClosed, liveModerationId: action.id, via: ctx.via ?? 'panel' },
         ip: ctx.ip,
         requestId: ctx.requestId,
       });

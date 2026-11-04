@@ -46,6 +46,8 @@ function fakeTx(w: World) {
     adminSession: { updateMany: sessionsEnded },
     adminShift: { updateMany: shiftOff },
     adminCredential: { deleteMany: vi.fn(async () => ({ count: 1 })) },
+    // v1.68-live (D273): a revoke / reset also ends the staff tools' step-up in the app.
+    adminAppGrant: { updateMany: vi.fn(async () => ({ count: 0 })) },
     adminRecoveryCode: { deleteMany: vi.fn(async () => ({ count: 10 })) },
     auditLog: {
       create: vi.fn(async ({ data }: { data: { action: string; metadata: Record<string, unknown> } }) => {
@@ -183,7 +185,7 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
   it('the last role ends the panel sessions; no watch role left ends the shift; audited', async () => {
     const f = fakeTx(world({ roles: ['SUPPORT'], onShift: true }));
     const r = await revokeRoleIn(f.tx, TARGET_ID, 'SUPPORT', PANEL, { reason: 'left the company' });
-    expect(r).toEqual({ userId: TARGET_ID, left: [], shiftEnded: true });
+    expect(r).toEqual({ userId: TARGET_ID, left: [], shiftEnded: true, watchLost: true });
     expect(f.sessionsEnded).toHaveBeenCalledWith({
       where: { userId: TARGET_ID, revokedAt: null },
       data: { revokedAt: expect.any(Date) },
@@ -208,6 +210,7 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
       userId: TARGET_ID,
       left: ['FINANCE'],
       shiftEnded: true,
+      watchLost: true,
     });
     expect(g.sessionsEnded).not.toHaveBeenCalled();
     // A watch role left: the shift is untouched.

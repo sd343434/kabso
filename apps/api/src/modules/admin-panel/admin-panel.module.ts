@@ -55,6 +55,10 @@ import { AdminStoreController } from './admin-store.controller.js';
  * host-agents, gift-admin-rules, bag-admin-rules, home-banners, event-admin-rules, topup-core, admin-roles,
  * waitlist-admin, LiveRoomsService / LiveMediaService, SessionsService).
  */
+import { StaffAppController } from './staff-app.controller.js';
+import { StaffAppGuard } from './staff-app.guard.js';
+import { StaffAppService } from './staff-app.service.js';
+
 @Module({
   imports: [
     AuthModule,
@@ -89,6 +93,8 @@ import { AdminStoreController } from './admin-store.controller.js';
     // v1.82-social (D252, §10.93.4): «VIP».
     AdminVipController,
     AdminStoreController,
+    // v1.68-live (D273, §10.96.6): «أدوات فريق كابسو» in the app.
+    StaffAppController,
   ],
   providers: [
     AdminAuthService,
@@ -111,6 +117,9 @@ import { AdminStoreController } from './admin-store.controller.js';
     AdminLiveModerationService,
     // v1.64-live (D260): the shift «في المناوبة» and who is on it (§10.96).
     AdminStaffShiftsService,
+    // v1.68-live (D273): the staff tools in the app.
+    StaffAppService,
+    StaffAppGuard,
   ],
   exports: [AdminAuthService, AdminSessionGuard],
 })

@@ -59,8 +59,11 @@ export class AdminStaffShiftsService {
         targetType: 'user',
         targetId: ctx.userId,
         metadata: onShift
-          ? { assigned: pass.assigned.filter((a) => a.adminId === ctx.userId).length, via: 'panel' }
-          : { released: held, via: 'panel' },
+          ? {
+              assigned: pass.assigned.filter((a) => a.adminId === ctx.userId).length,
+              via: ctx.via ?? 'panel',
+            }
+          : { released: held, via: ctx.via ?? 'panel' },
         ip: ctx.ip,
         requestId: ctx.requestId,
       });

@@ -5,7 +5,8 @@
  * CLI change and a panel change are the same code and leave the same row, told apart only by `via` and the actor.
  */
 export interface AdminVia {
-  readonly via: 'cli' | 'panel';
+  /** v1.68-live (D273): `app` — a staff member's tools in the app after the step-up (§10.96.6). */
+  readonly via: 'cli' | 'panel' | 'app';
   readonly actorUserId: string | null;
   readonly ip?: string | null;
   readonly requestId?: string | null;

@@ -30,6 +30,15 @@ abstract final class AppRoutes {
   static String liveRoom(String roomId) =>
       '$home/room/${Uri.encodeComponent(roomId)}';
 
+  /// v1.68-live (D273): a live opened from a staff alert «بلاغ جديد على بث» —
+  /// it opens with «أدوات فريق كابسو» on its reports.
+  static String liveRoomStaffReports(String roomId) =>
+      '${liveRoom(roomId)}?staff=reports';
+
+  /// v1.68-live (D273): «فريق كابسو» — the shift, «بثوثي» and the step-up
+  /// (the Me tab, staff accounts only).
+  static const staff = '/me/staff';
+
   /// The Me tab. D163 (owner): a hub of the person's features (Bigo-style
   /// layout); the profile with its grids moved to [myProfile].
   static const profile = '/profile';

@@ -86,6 +86,12 @@ abstract class LiveChatAuthorBadges with _$LiveChatAuthorBadges {
     /// server's newcomer window (owner: 30 days) — «جديد 🌱».
     @Default(false) bool newcomer,
 
+    /// v1.68-live (D273): set by the app from `LiveChatMessage.authorStaff`
+    /// (never sent inside the badges): the row shows «فريق كابسو» alone.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(false)
+    bool kabsoTeam,
+
     /// v1.52-live (D234, §10.82): the first five medals the author chose
     /// to show on their profile, in their order; empty when none (older
     /// servers send nothing).
@@ -127,9 +133,31 @@ abstract class LiveChatEntry with _$LiveChatEntry {
     /// v1.24.4-live (D119): the author's level and family badges; older
     /// servers send none (null: no badges).
     LiveChatAuthorBadges? authorBadges,
+
+    /// v1.68-live (D273, §10.96.6): the author is «فريق كابسو» — the line
+    /// shows the team's tag instead of levels, family and VIP. Older servers
+    /// send nothing (false).
+    @Default(false) bool authorStaff,
   }) = _LiveChatEntry;
 
-  factory fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
+  factory fromJson(Map<String, dynamic> json) =>
+      _staffLine(_$LiveChatEntryFromJson(json));
+
+  /// v1.68-live (D273, §10.96.6): a line of «فريق كابسو» shows the team's
+  /// tag instead of levels, family, VIP, agent badges and the CP bubble.
+  static LiveChatEntry _staffLine(LiveChatEntry e) => !e.authorStaff
+      ? e
+      : e.copyWith(
+          cpBubble: false,
+          authorBadges: const LiveChatAuthorBadges(kabsoTeam: true),
+          author: e.author.copyWith(
+            vip: null,
+            rechargeAgentCode: null,
+            hostAgentCode: null,
+            rechargeBadge: null,
+            premiumTier: null,
+          ),
+        );
 }
 
 /// `LiveChatMute`: someone muted in this live's chat.

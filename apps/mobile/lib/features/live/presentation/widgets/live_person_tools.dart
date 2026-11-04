@@ -129,8 +129,13 @@ class LivePersonTools extends ConsumerStatefulWidget {
     required this.self,
     required this.middle,
     this.ink,
+    this.kabsoTeam = false,
     super.key,
   });
+
+  /// v1.68-live (D273, §10.96.7): the person holds a panel role — no kick,
+  /// chat mute or seat mute against «فريق كابسو» (the server refuses too).
+  final bool kabsoTeam;
 
   final LivePersonScope scope;
   final LivePersonTarget person;
@@ -161,7 +166,8 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
 
   LivePersonScope get _scope => widget.scope;
 
-  bool get _moderates => !widget.self && _scope.canModerate(_target);
+  bool get _moderates =>
+      !widget.self && !widget.kabsoTeam && _scope.canModerate(_target);
 
   bool get _canAdmin =>
       !widget.self &&

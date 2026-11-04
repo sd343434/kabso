@@ -50,6 +50,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       blockedByMe: json['blockedByMe'] as bool? ?? false,
       cherriesReceived: (json['cherriesReceived'] as num?)?.toInt(),
       coinsSent: (json['coinsSent'] as num?)?.toInt(),
+      kabsoTeam: json['kabsoTeam'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -86,6 +87,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'blockedByMe': instance.blockedByMe,
       'cherriesReceived': ?instance.cherriesReceived,
       'coinsSent': ?instance.coinsSent,
+      'kabsoTeam': instance.kabsoTeam,
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(

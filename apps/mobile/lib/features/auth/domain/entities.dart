@@ -57,6 +57,10 @@ abstract class User with _$User {
 
     /// v1.76-social (D218, §10.73.3): the profile cover, or null.
     String? coverUrl,
+
+    /// v1.68-live (D273, §10.96.6): «فريق كابسو» (OWNER, MODERATION or
+    /// SUPPORT) — the Me tab's staff entry and the staff tools in lives.
+    @Default(false) bool kabsoTeam,
   }) = _User;
 }
 

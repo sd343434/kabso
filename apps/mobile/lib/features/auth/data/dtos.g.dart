@@ -28,6 +28,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   links: json['links'] == null ? const [] : profileLinksFromJson(json['links']),
   specialUsername: specialUsernameFromJson(json['specialUsername']),
   coverUrl: json['coverUrl'] as String?,
+  kabsoTeam: json['kabsoTeam'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -52,6 +53,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'links': profileLinksToJson(instance.links),
   'specialUsername': ?specialUsernameToJson(instance.specialUsername),
   'coverUrl': instance.coverUrl,
+  'kabsoTeam': instance.kabsoTeam,
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

@@ -250,6 +250,24 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D273 (DRAFT v1.68-live)** «فريق كابسو» from the app (CONVENTIONS §10.96.6–§10.96.8): an account holding OWNER /
+    MODERATION / SUPPORT enters EVERY live from the app as «فريق كابسو» — `LiveMediaAccess.staff` (`VISIBLE`: the D260
+    `team:` identity, listed in `LiveViewerPage.staff`, never counted, no join line; `HIDDEN` with
+    `LiveMediaTokenRequest.staffVisibility`: the D250 `staff:` observer, `lives.watch.hidden` and the step-up), never
+    kicked, chat-muted or kept out by a block; their chat lines carry `LiveChatMessage.authorStaff` (no levels, VIP or CP
+    bubble); they send no gifts, taps or bullets and take no seat (403 `LIVE_STAFF_REFUSED`). Tag `staff` — «أدوات فريق
+    كابسو», the panel's live moderation from the phone behind the step-up `createStaffStepUp` (the panel authenticator
+    code; a grant bound to this app session, `STAFF_APP_GRANT_SECONDS` 12 h; wrong codes count towards the panel lockout;
+    403 `STAFF_STEP_UP_REQUIRED` / 409 `STAFF_TOTP_NOT_ENROLLED`): `getStaffStatus`, `createStaffStepUp`,
+    `endStaffStepUp`, `getStaffShift` / `setStaffShift`, `listStaffLives` («بثوثي»), `listStaffLiveReports`,
+    `listStaffLiveModerations`, `moderateStaffLive` (the panel's END / WARN / NO_LIVE / SUSPEND / DEVICE_BAN),
+    `dismissStaffLiveReports`, `kickFromStaffLive`, `muteInStaffLive`, `removeStaffLiveMessage` — each with the panel's
+    capability for its role, a reason, audited `via: app`. `moderateAdminLive` gains `WARN`. Reports: a USER may be
+    reported from inside a live (`CreateReportRequest.liveRoomId`); every report on a live (the room, its host, its chat,
+    a user inside it) alerts the responsible staff member — notification `LIVE_STAFF_REPORT` (target `LIVE_ROOM`), pushed
+    as «بلاغ جديد على بث» and the host's name only. Nobody acts on a panel account from the app (403 `STAFF_PROTECTED`;
+    `PublicProfile.kabsoTeam`). Codes `STAFF_PROTECTED`, `LIVE_STAFF_REFUSED`, `STAFF_STEP_UP_REQUIRED` (403),
+    `STAFF_TOTP_NOT_ENROLLED` (409).
     **D264 (DRAFT v1.65-live)** a VIP member's tier items in the bag (CONVENTIONS §10.97): `getMyBag` lists the wearable
     VIP perks the active membership holds (AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT,
     MIC_WAVE) as items with `source: VIP`, code `vip:<PERK>`, `expiresAt` = the membership's end and `BagItem.vip`
@@ -796,6 +814,8 @@ tags:
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
     description: "The report queue (admin permission MODERATION; v1.5-social DRAFT)."
+  - name: staff
+    description: "(v1.68-live DRAFT, D273) «أدوات فريق كابسو» — the panel staff's live moderation from their own app account, behind the step-up with the panel authenticator code (CONVENTIONS §10.96.6)."
   - name: admin-panel
     description: "(v1.60-social DRAFT, D191) The admin panel «لوحة الإدارة» at admin.<domain>: its own cookie session with a mandatory authenticator (TOTP) second factor, roles OWNER / MODERATION / SUPPORT / FINANCE (CONVENTIONS §10.54)."
   - name: site
@@ -13191,6 +13211,293 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/me:
+    get:
+      tags: [staff]
+      operationId: getStaffStatus
+      summary: "The caller's «فريق كابسو» state (any signed-in account)"
+      description: |
+        (v1.68-live, D273, §10.96.6) Roles, the staff tools' capabilities, the authenticator, the lockout, this session's
+        step-up and the shift. No step-up needed; another account reads `isStaff` false.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/step-up:
+    post:
+      tags: [staff]
+      operationId: createStaffStepUp
+      summary: "Unlocks the staff tools with the panel authenticator code"
+      description: |
+        (v1.68-live, D273, §10.96.6) OWNER / MODERATION / SUPPORT only (403). The panel's rule: the code's 30-second step
+        is consumed (a code works once); a wrong one is 403 `ADMIN_TOTP_INVALID` and counts towards the panel lockout — at
+        `ADMIN_LOCKOUT_ATTEMPTS` the account locks (429 `ADMIN_LOCKED`), every panel session and every app grant ends. 409
+        `STAFF_TOTP_NOT_ENROLLED` before the panel enrolment. The grant is bound to this app session and replaces its
+        previous one; audited `admin.app.step_up`. Rate limit `staff-step-up:user` (10 / 15 min).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffStepUpRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffStepUp' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [staff]
+      operationId: endStaffStepUp
+      summary: "«إنهاء» — ends this session's step-up"
+      description: |
+        (v1.68-live, D273) Idempotent; audited `admin.app.step_up_end` when one ended.
+      responses:
+        '204': { description: Done. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/shift:
+    get:
+      tags: [staff]
+      operationId: getStaffShift
+      summary: "The caller's shift «في المناوبة» (lives.watch)"
+      description: |
+        (v1.68-live, D273) The panel's `getAdminMyShift` from the app. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminShift' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [staff]
+      operationId: setStaffShift
+      summary: "Goes on or off shift from the app (lives.watch; audited via app)"
+      description: |
+        (v1.68-live, D273) The panel's `setAdminMyShift` (same rule, same assignment pass), audited `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminShiftRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminShift' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives:
+    get:
+      tags: [staff]
+      operationId: listStaffLives
+      summary: "«بثوثي» — the lives assigned to the caller (lives.watch)"
+      description: |
+        (v1.68-live, D273) LIVE rooms assigned to the caller, the most reported first. Staff may enter ANY live from the
+        usual lists too; the assignment decides who is responsible. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffLiveList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/reports:
+    get:
+      tags: [staff]
+      operationId: listStaffLiveReports
+      summary: "A live's reports (lives.reports)"
+      description: |
+        (v1.68-live, D273) The panel's `listAdminLiveReports`: the live, its host, its chat and users reported inside it. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.reports`.
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveReportList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/moderations:
+    get:
+      tags: [staff]
+      operationId: listStaffLiveModerations
+      summary: "What the team did on a live (lives.reports)"
+      description: |
+        (v1.68-live, D273) The panel's `listAdminLiveModerations`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.reports`.
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveModerationList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/moderate:
+    post:
+      tags: [staff]
+      operationId: moderateStaffLive
+      summary: "END / WARN / NO_LIVE / SUSPEND / DEVICE_BAN from the app (lives.moderate)"
+      description: |
+        (v1.68-live, D273) The panel's `moderateAdminLive` rule unchanged (a reason the host is told as «فريق Kabso», a
+        DEVICE_BAN also needs `devices.ban` and the code again), audited `admin.live.moderate` with `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and
+        `lives.moderate` (OWNER, MODERATION; SUPPORT 403).
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminLiveModerateRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveModerationResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/reports/dismiss:
+    post:
+      tags: [staff]
+      operationId: dismissStaffLiveReports
+      summary: "«تمت المراجعة — لا مخالفة» from the app (lives.moderate)"
+      description: |
+        (v1.68-live, D273) The panel's `dismissAdminLiveReports`, audited `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.moderate`.
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLiveDismissResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/kicks:
+    post:
+      tags: [staff]
+      operationId: kickFromStaffLive
+      summary: "Removes a viewer from the live as «فريق كابسو» (lives.moderate)"
+      description: |
+        (v1.68-live, D273) The room's kick rule with «فريق كابسو» as the actor (the kick data message has `by` null and
+        `byTeam` true — never a staff member's name); never the host or a panel account (403 `STAFF_PROTECTED`). Their open
+        reports made inside this live close as ACTIONED. Audited `live.kick` with `staff`, `reason`, `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and
+        `lives.moderate`.
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffKickRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffKickResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/chat-mutes:
+    put:
+      tags: [staff]
+      operationId: muteInStaffLive
+      summary: "Mutes (or unmutes) someone in the live's chat (lives.moderate)"
+      description: |
+        (v1.68-live, D273) Never the host (409) nor a panel account (403 `STAFF_PROTECTED`). Audited `admin.live.chat_mute`
+        `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.moderate`.
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffChatMuteRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffChatMuteResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/lives/{roomId}/chat/{messageId}/remove:
+    post:
+      tags: [staff]
+      operationId: removeStaffLiveMessage
+      summary: "Removes a chat message (lives.moderate)"
+      description: |
+        (v1.68-live, D273) Any message of the live but one of a panel account (403 `STAFF_PROTECTED`); its open reports close
+        as ACTIONED. Audited `admin.live.chat_remove` `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.moderate`.
+      parameters:
+        - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminReasonRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffMessageRemoveResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/me/shift:
     get:
       tags: [admin-panel]
@@ -18079,6 +18386,97 @@ components:
           description: "Every tier's id exactly once, lowest first."
           items: { type: string, format: uuid }
         reason: { type: string, minLength: 1, maxLength: 500 }
+    StaffStatus:
+      type: object
+      required: [isStaff, protected, roles, capabilities, authenticatorEnrolled, lockedUntil, stepUp, onShift]
+      description: (v1.68-live, D273, §10.96.6) The caller's «فريق كابسو» state; every field false / empty for anyone else.
+      properties:
+        isStaff: { type: boolean, description: "Holds OWNER, MODERATION or SUPPORT now: «فريق كابسو» in every live, the Me tab's entry." }
+        protected: { type: boolean, description: "Holds any panel role now (FINANCE too): nobody acts on the account from the app." }
+        roles:
+          type: array
+          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE] }
+        capabilities:
+          type: array
+          description: The panel capabilities the staff tools use, for the caller's roles (the app shows only these).
+          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban] }
+        authenticatorEnrolled: { type: boolean, description: "False: the app says to set it up at admin.<domain> first." }
+        lockedUntil: { type: [string, 'null'], format: date-time, description: "Locked after wrong codes (the panel's lockout)." }
+        stepUp:
+          description: The step-up of THIS app session while valid; null → the tools ask for the code.
+          oneOf:
+            - $ref: '#/components/schemas/StaffStepUp'
+            - type: 'null'
+        onShift: { type: boolean }
+    StaffStepUpRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[0-9]{6}$', description: The panel authenticator's current code (single use). }
+    StaffStepUp:
+      type: object
+      required: [expiresAt]
+      properties:
+        expiresAt: { type: string, format: date-time, description: "STAFF_APP_GRANT_SECONDS (12 h) after the code; ends earlier on sign-out, a revoked role, a lockout or a reset authenticator." }
+    StaffLive:
+      type: object
+      required: [roomId, title, host, viewerCount, startedAt, openReports, assignedAt]
+      properties:
+        roomId: { type: string, format: uuid }
+        title: { type: string }
+        host:
+          type: object
+          required: [username, displayName, avatarUrl]
+          properties:
+            username: { type: string }
+            displayName: { type: string }
+            avatarUrl: { type: [string, 'null'], format: uri }
+        viewerCount: { type: integer, minimum: 0 }
+        startedAt: { type: string, format: date-time }
+        openReports: { type: integer, minimum: 0 }
+        assignedAt: { type: string, format: date-time }
+    StaffLiveList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/StaffLive' }
+    StaffKickRequest:
+      type: object
+      additionalProperties: false
+      required: [username, reason]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 40, description: "`@` optional." }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    StaffKickResult:
+      type: object
+      required: [created, kick, reportsClosed]
+      properties:
+        created: { type: boolean, description: False when the person was already out of this live. }
+        kick: { $ref: '#/components/schemas/LiveKick' }
+        reportsClosed: { type: integer, minimum: 0, description: "Open reports on that person made inside this live, closed as ACTIONED." }
+    StaffChatMuteRequest:
+      type: object
+      additionalProperties: false
+      required: [username, reason]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 40 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        muted: { type: boolean, default: true, description: False lifts the mute. }
+    StaffChatMuteResult:
+      type: object
+      required: [muted, changed]
+      properties:
+        muted: { type: boolean }
+        changed: { type: boolean }
+    StaffMessageRemoveResult:
+      type: object
+      required: [removed, reportsClosed]
+      properties:
+        removed: { type: boolean, description: False when it was already removed. }
+        reportsClosed: { type: integer, minimum: 0 }
     AdminReasonRequest:
       type: object
       additionalProperties: false
@@ -20117,10 +20515,23 @@ components:
           items: { $ref: '#/components/schemas/AdminLiveChatLine' }
     AdminLiveReport:
       type: object
-      required: [id, targetType, reason, note, status, createdAt, resolvedAt, resolutionNote, reporter, chatBefore]
+      required: [id, targetType, target, reason, note, status, createdAt, resolvedAt, resolutionNote, reporter, chatBefore]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [LIVE_ROOM, USER], description: USER is a report of the host made during the live. }
+        targetType: { type: string, enum: [LIVE_ROOM, USER, LIVE_CHAT_MESSAGE], description: "USER is a report of the host made during the live, or (v1.68-live, D273) of a user reported from inside it; LIVE_CHAT_MESSAGE (D273) a message of its chat." }
+        target:
+          description: (v1.68-live, D273) Who or what was reported when it is not the live itself (null for LIVE_ROOM).
+          oneOf:
+            - type: object
+              required: [user, messageId, text]
+              properties:
+                user:
+                  oneOf:
+                    - $ref: '#/components/schemas/AdminPersonRef'
+                    - type: 'null'
+                messageId: { type: [string, 'null'], format: uuid }
+                text: { type: [string, 'null'] }
+            - type: 'null'
         reason: { type: string, enum: [SPAM, NUDITY, VIOLENCE, HATE, HARASSMENT, ILLEGAL, OTHER] }
         note: { type: [string, 'null'] }
         status: { type: string, enum: [OPEN, ACTIONED, DISMISSED] }
@@ -20150,7 +20561,7 @@ components:
       additionalProperties: false
       required: [action, reason]
       properties:
-        action: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN] }
+        action: { type: string, enum: [END, WARN, NO_LIVE, SUSPEND, DEVICE_BAN], description: "(v1.68-live, D273) WARN — the host is told the reason; the live goes on (no duration)." }
         reason: { type: string, minLength: 1, maxLength: 500, description: Required; the host is told it. }
         hours: { type: integer, minimum: 1, maximum: 8760, description: "NO_LIVE / SUSPEND / DEVICE_BAN: the duration (the panel's 1 h, 24 h, 3 d, 7 d, 30 d)." }
         until: { type: string, format: date-time, description: "«مخصّص»: the end instead of `hours` (future, ≤ 365 days)." }
@@ -20161,9 +20572,9 @@ components:
       required: [id, kind, reason, endsAt, endedLive, reportsClosed, devicesBanned, sessionsEnded]
       properties:
         id: { type: string, format: uuid }
-        kind: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN] }
+        kind: { type: string, enum: [END, WARN, NO_LIVE, SUSPEND, DEVICE_BAN] }
         reason: { type: string }
-        endsAt: { type: [string, 'null'], format: date-time, description: Null for END and a permanent device ban. }
+        endsAt: { type: [string, 'null'], format: date-time, description: "Null for END, WARN and a permanent device ban." }
         endedLive: { type: boolean }
         reportsClosed: { type: integer, minimum: 0 }
         devicesBanned: { type: integer, minimum: 0 }
@@ -20181,7 +20592,7 @@ components:
       required: [id, kind, reason, endsAt, endedLive, reportsClosed, devicesBanned, createdAt, actor]
       properties:
         id: { type: string, format: uuid }
-        kind: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN, DISMISS] }
+        kind: { type: string, enum: [END, WARN, NO_LIVE, SUSPEND, DEVICE_BAN, DISMISS] }
         reason: { type: string }
         endsAt: { type: [string, 'null'], format: date-time }
         endedLive: { type: boolean }
@@ -23115,6 +23526,12 @@ components:
       type: object
       required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, coverUrl]
       properties:
+        kabsoTeam:
+          type: boolean
+          const: true
+          description: |
+            (v1.68-live, D273, §10.96.6) The account holds OWNER, MODERATION or SUPPORT now — «فريق كابسو» in every live
+            and the Me tab's staff entry («في المناوبة», «بثوثي», the step-up). Absent for everyone else.
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         emailVerified: { type: boolean }
@@ -23307,6 +23724,12 @@ components:
           type: [string, 'null']
           format: uuid
           description: The user's LIVE room with a fresh heartbeat, else null.
+        kabsoTeam:
+          type: boolean
+          const: true
+          description: |
+            (v1.68-live, D273, §10.96.7) The account holds a panel role — «فريق كابسو». The app hides the actions against
+            it (kick, chat mute, seat, family); the server refuses them (403 `STAFF_PROTECTED`). Absent for everyone else.
         family:
           description: "(v1.21-live, CP-018) The user's family and role, or null."
           oneOf:
@@ -23944,6 +24367,13 @@ components:
           type: string
           format: uuid
           description: Required without a bearer token (a guest); ignored with one.
+        staffVisibility:
+          type: string
+          enum: [VISIBLE, HIDDEN]
+          description: |
+            (v1.68-live, D273, §10.96.6) «فريق كابسو» only: VISIBLE (default) or HIDDEN «مراقبة خفية» — the D250 observer
+            (not listed, not counted, no chat). HIDDEN needs `lives.watch.hidden` (OWNER, MODERATION) and the step-up of
+            this app session (403 `AUTH_FORBIDDEN` / `STAFF_STEP_UP_REQUIRED`); from any other account 403.
     LiveMediaAccess:
       type: object
       required: [url, token, expiresAt, role, identity, guestNumber]
@@ -23955,8 +24385,16 @@ components:
           type: string
           enum: [HOST, VIEWER, SPEAKER]
           description: SPEAKER (CP-011) is a seated guest; seating and removing also change a joined session's permission at once.
-        identity: { type: string, maxLength: 64, description: "The caller's identity in the session (a user id, or guest:<guestId>)." }
+        identity: { type: string, maxLength: 80, description: "The caller's identity in the session (a user id, or guest:<guestId>; v1.68-live, D273: team:<id>:<nonce> / staff:<id>:<nonce> for «فريق كابسو»)." }
         guestNumber: { type: [integer, 'null'], minimum: 1000, maximum: 9999, description: Guests only. }
+        staff:
+          type: string
+          enum: [VISIBLE, HIDDEN]
+          description: |
+            (v1.68-live, D273, §10.96.6) Present only when the caller is «فريق كابسو» (OWNER, MODERATION, SUPPORT) in this
+            live — always as a VIEWER, subscribe-only. VISIBLE: listed in `LiveViewerPage.staff` with the badge, never
+            counted, no join line; HIDDEN: not listed at all, no chat. Either way no gifts, taps, bullets or seat; the
+            app shows «أدوات فريق كابسو».
     PkBoosterKind:
       type: string
       enum: [DOUBLE, DOUBLE_TURBO, TRIPLE, TRIPLE_TURBO]
@@ -24869,6 +25307,11 @@ components:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
         authorBadges: { $ref: '#/components/schemas/LiveChatAuthorBadges' }
+        authorStaff:
+          type: boolean
+          description: |
+            (v1.68-live, D273, §10.96.6) The author is «فريق كابسو» now: the app shows the team's tag instead of levels,
+            family, VIP and the CP bubble (`authorBadges` is then empty, `cpBubble` false). Absent from an older server.
         cpBubble:
           type: boolean
           description: |
@@ -26136,13 +26579,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM], description: "(v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -26158,10 +26601,11 @@ components:
         restriction: { $ref: '#/components/schemas/AccountRestrictionKind', description: "ACCOUNT_RESTRICTION only (v1.72-social, D208); `endsAt` is its end." }
         currency: { type: string, enum: [COINS, CHERRIES], description: "BALANCE_ADJUSTMENT only (v1.72-social, D208)." }
         amount: { type: integer, format: int64, description: "BALANCE_ADJUSTMENT only (v1.72-social, D208): > 0 credited, < 0 debited." }
-        moderation: { type: string, enum: [END, NO_LIVE, SUSPEND, DEVICE_BAN], description: "LIVE_MODERATION only (v1.60-live, D250): the live was ended; NO_LIVE also bans going live until `endsAt`; SUSPEND also locks the account until `endsAt`; DEVICE_BAN also bans the account's devices until `endsAt` (or `permanent`)." }
+        moderation: { type: string, enum: [END, WARN, NO_LIVE, SUSPEND, DEVICE_BAN], description: "LIVE_MODERATION only (v1.60-live, D250): the live was ended (v1.68-live, D273: WARN — a warning, the live went on); NO_LIVE also bans going live until `endsAt`; SUSPEND also locks the account until `endsAt`; DEVICE_BAN also bans the account's devices until `endsAt` (or `permanent`)." }
         reason: { type: string, maxLength: 500, description: "LIVE_MODERATION only (v1.60-live, D250): the team's reason, in full." }
         permanent: { type: boolean, const: true, description: "LIVE_MODERATION only (v1.60-live, D250): a DEVICE_BAN with no end (then no `endsAt`)." }
-        roomId: { type: string, format: uuid, description: "LIVE_MODERATION only (v1.60-live, D250): the live." }
+        roomId: { type: string, format: uuid, description: "LIVE_MODERATION only (v1.60-live, D250): the live; LIVE_ROOM (v1.68-live, D273) too." }
+        live: { type: boolean, description: "LIVE_ROOM only (v1.68-live, D273): the live is still on air (the app opens it as staff)." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -26264,6 +26708,12 @@ components:
           description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message or (v1.47-social, D175) profile link (`ProfileLink.id`) id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
+        liveRoomId:
+          type: string
+          format: uuid
+          description: |
+            (v1.68-live, D273, §10.96.8) USER only (400 otherwise): the live the person was reported from — its staff see
+            the report with the live's reports and are alerted (`LIVE_STAFF_REPORT`). A live the reporter cannot see → 404.
     Report:
       type: object
       required: [id, targetType, targetId, reason, status, createdAt]

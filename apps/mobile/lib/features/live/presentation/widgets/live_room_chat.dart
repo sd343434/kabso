@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
@@ -1196,6 +1197,7 @@ class LiveChatBadgeRow extends StatelessWidget {
   static double pillHeight(double height) => height - 2;
 
   bool get isNotEmpty =>
+      (badges?.kabsoTeam ?? false) ||
       agentCode != null ||
       hostAgentCode != null ||
       rechargeBadgeShows(rechargeBadge) ||
@@ -1242,6 +1244,11 @@ class LiveChatBadgeRow extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // D273: «فريق كابسو» instead of every other badge.
+        if (badges?.kabsoTeam ?? false) ...[
+          KabsoTeamBadge(height: pillH),
+          const SizedBox(width: _space),
+        ],
         // D185 (owner): the recharge agent's badge next to the name.
         if (agentCode case final code?) ...[
           RechargeAgentBadge(code: code, height: agentH),

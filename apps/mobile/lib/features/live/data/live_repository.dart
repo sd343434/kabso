@@ -186,7 +186,15 @@ abstract interface class LiveRepository {
 
   /// `POST /live/rooms/{roomId}/media-token`; [guestId] only without an
   /// account.
-  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId});
+  ///
+  /// v1.68-live (D273): [staffVisibility] `HIDDEN` asks for «مراقبة خفية» (a
+  /// staff member with the step-up); the server decides
+  /// `LiveMediaAccess.staff`.
+  Future<LiveMediaAccess> mediaToken(
+    String roomId, {
+    String? guestId,
+    String? staffVisibility,
+  });
 
   /// `GET /live/rooms/{roomId}/viewers` (the host and, D109, anyone who may
   /// watch the room): who is watching now, newest first.
@@ -435,14 +443,17 @@ class LiveRepositoryImpl implements LiveRepository {
       });
 
   @override
-  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId}) =>
-      guardApiCall(() async {
-        final res = await _dio.post<Map<String, dynamic>>(
-          '/live/rooms/${pathSegment(roomId)}/media-token',
-          data: {'guestId': ?guestId},
-        );
-        return LiveMediaAccess.fromJson(res.data!);
-      });
+  Future<LiveMediaAccess> mediaToken(
+    String roomId, {
+    String? guestId,
+    String? staffVisibility,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/media-token',
+      data: {'guestId': ?guestId, 'staffVisibility': ?staffVisibility},
+    );
+    return LiveMediaAccess.fromJson(res.data!);
+  });
 
   @override
   Future<LiveRoom> editRoom(

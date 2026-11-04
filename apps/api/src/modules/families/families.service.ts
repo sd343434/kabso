@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } f
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { assertNotStaffTarget } from '../live/live-staff.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -844,6 +845,8 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
       const target = await this.memberByUsername(tx, family.id, username);
       if (target.id === callerId)
         throw AppException.validation([{ field: 'username', issue: 'invalid_value' }]);
+      // v1.68-live (D273, §10.96.7): «فريق كابسو» is never removed from a family by someone else.
+      await assertNotStaffTarget(tx, target.id);
       await tx.familyMember.delete({ where: { userId: target.id } });
       await tx.family.update({ where: { id: family.id }, data: { memberCount: { decrement: 1 } } });
       await this.audit.recordIn(tx, {

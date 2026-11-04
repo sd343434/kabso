@@ -3,6 +3,7 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { activeRestrictionOf } from '../users/account-control.js';
 import { CAPABILITIES, PANEL_ROLES, type PanelRole } from './admin-permissions.js';
+import { revokeStaffGrantsIn } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -118,7 +119,7 @@ export async function revokeRoleIn(
   role: PanelRole,
   by: AdminVia = CLI_VIA,
   extra: Extra = {},
-): Promise<{ userId: string; left: PanelRole[]; shiftEnded: boolean }> {
+): Promise<{ userId: string; left: PanelRole[]; shiftEnded: boolean; watchLost: boolean }> {
   const ownerCheck = role === 'OWNER';
   // Neither the panel nor the CLI (owner 2026-11-04, D271) leaves the team without an OWNER who can sign in. One such
   // check at a time — taken before any row lock, so two OWNERs revoking each other at once queue instead of
@@ -159,16 +160,26 @@ export async function revokeRoleIn(
         data: { onShift: false, since: new Date() },
       })
     ).count > 0;
+  // v1.68-live (D273, §10.96.6): any revoked role ends the staff tools' step-up in the app (a new code is needed).
+  const appGrantsEnded = await revokeStaffGrantsIn(tx, user.id, 'ROLE_REVOKED');
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
       action: AuditAction.ADMIN_ROLE_REVOKE,
       targetType: 'user',
       targetId: user.id,
-      metadata: { role, left, before, ...(shiftEnded ? { shiftEnded } : {}), ...extra, via: by.via },
+      metadata: {
+        role,
+        left,
+        before,
+        ...(shiftEnded ? { shiftEnded } : {}),
+        ...(appGrantsEnded > 0 ? { appGrantsEnded } : {}),
+        ...extra,
+        via: by.via,
+      },
     },
   });
-  return { userId: user.id, left, shiftEnded };
+  return { userId: user.id, left, shiftEnded, watchLost: !left.some((r) => SHIFT_ROLES.includes(r)) };
 }
 
 /** A lost authenticator: the secret, recovery codes and lock go, every panel session ends; the next sign-in enrols again. */
@@ -184,6 +195,8 @@ export async function resetSecondFactorIn(
   }
   await tx.adminCredential.deleteMany({ where: { userId: user.id } });
   await tx.adminRecoveryCode.deleteMany({ where: { userId: user.id } });
+  // v1.68-live (D273): the staff tools' step-up in the app ends too.
+  await revokeStaffGrantsIn(tx, user.id, 'TOTP_RESET');
   await tx.adminSession.updateMany({
     where: { userId: user.id, revokedAt: null },
     data: { revokedAt: new Date() },

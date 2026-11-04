@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode, type ErrorDetail } from '../../common/errors/error-codes.js';
+import { assertNotStaffTarget, refuseWatchStaff } from './live-staff.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { Prisma } from '../../generated/prisma/client.js';
@@ -346,6 +347,8 @@ export class LiveSeatsService {
     privilege: 'HOST' | 'MODERATOR',
     targetId: string,
   ): Promise<void> {
+    // v1.68-live (D273, §10.96.7): nobody acts on «فريق كابسو» — not even the host.
+    if (targetId !== callerId) await assertNotStaffTarget(tx, targetId);
     if (privilege === 'HOST' || targetId === callerId) return;
     if (targetId === room.hostUserId || (await this.isModerator(tx, room.id, targetId))) throw forbidden();
   }
@@ -668,6 +671,8 @@ export class LiveSeatsService {
     const row = await this.seatedRoom(roomId, callerId);
     // v1.20-live (D105, §10.20): nobody kicked out of this live asks for a seat in it.
     if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
+    // v1.68-live (D273, §10.96.6): «فريق كابسو» watches; it never takes a seat.
+    if (callerId !== row.host_user_id) await refuseWatchStaff(this.prisma, callerId, 'seat');
     // v1.47-live (D212): a question goes with a podcast hand only.
     if (input.question !== undefined && row.mode !== 'PODCAST') {
       throw AppException.validation([{ field: 'question', issue: 'invalid_value' }]);
@@ -942,6 +947,8 @@ export class LiveSeatsService {
   /** `POST /live/rooms/{roomId}/seat-invites/me/accept`. */
   async acceptInvite(callerId: string, roomId: string, lang: ContentLanguage): Promise<LiveSeatsDto> {
     const row = await this.seatedRoom(roomId, callerId);
+    // v1.68-live (D273, §10.96.6): «فريق كابسو» never takes a seat.
+    await refuseWatchStaff(this.prisma, callerId, 'seat');
     await this.change(row.id, async (tx, now) => {
       const room = await this.lockRoom(tx, row.id);
       const invite = await tx.liveSeatInvite.findFirst({
