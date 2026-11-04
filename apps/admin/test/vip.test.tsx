@@ -203,6 +203,13 @@ describe("D252 VIP in the panel", () => {
     expect(
       tierBody({ ...draftOf(before), priceCoins: "4000000" }, before),
     ).toEqual({ priceCoins: 4_000_000 });
+    // D258: the special text colour, upper case; a bad one is refused.
+    expect(
+      tierBody({ ...draftOf(before), nameColor: "#ffd12e" }, before),
+    ).toEqual({ nameColor: "#FFD12E" });
+    expect(draftValid({ ...draftOf(before), nameColor: "gold" }, false)).toBe(
+      false,
+    );
     const withPerk = {
       ...draftOf(before),
       perks: [...draftOf(before).perks, { ...perk, code: "ENTRY_EFFECT" }],
@@ -248,8 +255,15 @@ describe("D252 VIP in the panel", () => {
       perks: [{ ...perk, code: "DAILY_BULLET", amount: "3" }],
     };
     expect(draftValid(bullets, false)).toBe(true);
-    expect((tierBody(bullets, before).perks as { amount: number }[])[0]!.amount).toBe(3);
-    expect(draftValid({ ...bullets, perks: [{ ...perk, code: "BADGE", amount: "3" }] }, false)).toBe(false);
+    expect(
+      (tierBody(bullets, before).perks as { amount: number }[])[0]!.amount,
+    ).toBe(3);
+    expect(
+      draftValid(
+        { ...bullets, perks: [{ ...perk, code: "BADGE", amount: "3" }] },
+        false,
+      ),
+    ).toBe(false);
   });
 
   it("the perks editor says which perks are not built and suggests codes", () => {

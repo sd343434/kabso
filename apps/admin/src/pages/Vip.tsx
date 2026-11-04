@@ -37,6 +37,8 @@ export interface AdminVipTier {
   nameEn: string;
   sortOrder: number;
   color: string;
+  /** D258: the special text colour of the tier's members, or null. */
+  nameColor?: string | null;
   badgeAnimation: string | null;
   badgeStill: string | null;
   priceCoins: number;
@@ -75,6 +77,8 @@ export interface TierDraft {
   nameAr: string;
   nameEn: string;
   color: string;
+  /** D258: "" = none. */
+  nameColor: string;
   badgeAnimation: string;
   badgeStill: string;
   priceCoins: string;
@@ -118,6 +122,7 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
     nameAr: tier?.nameAr ?? "",
     nameEn: tier?.nameEn ?? "",
     color: tier?.color ?? "#C9A227",
+    nameColor: tier?.nameColor ?? "",
     badgeAnimation: tier?.badgeAnimation ?? "",
     badgeStill: tier?.badgeStill ?? "",
     priceCoins: tier ? String(tier.priceCoins) : "",
@@ -134,7 +139,8 @@ export function draftOf(tier: AdminVipTier | null): TierDraft {
       still: p.still ?? "",
       artWidth: p.artWidth === null ? "" : String(p.artWidth),
       artHeight: p.artHeight === null ? "" : String(p.artHeight),
-      amount: p.amount === null || p.amount === undefined ? "" : String(p.amount),
+      amount:
+        p.amount === null || p.amount === undefined ? "" : String(p.amount),
     })),
   };
 }
@@ -149,6 +155,7 @@ export function draftValid(d: TierDraft, creating: boolean): boolean {
     d.nameAr.trim() !== "" &&
     d.nameEn.trim() !== "" &&
     COLOR.test(d.color.trim()) &&
+    (d.nameColor.trim() === "" || COLOR.test(d.nameColor.trim())) &&
     artOk(d.badgeAnimation) &&
     artOk(d.badgeStill) &&
     Number.isInteger(price) &&
@@ -198,6 +205,7 @@ export function tierBody(
     nameAr: d.nameAr.trim(),
     nameEn: d.nameEn.trim(),
     color: d.color.trim().toUpperCase(),
+    nameColor: d.nameColor.trim() ? d.nameColor.trim().toUpperCase() : null,
     badgeAnimation: d.badgeAnimation.trim() || null,
     badgeStill: d.badgeStill.trim() || null,
     priceCoins: Number(d.priceCoins),
@@ -209,7 +217,8 @@ export function tierBody(
   }
   const out: Record<string, unknown> = Object.fromEntries(
     Object.entries(fields).filter(
-      ([k, v]) => (before as unknown as Record<string, unknown>)[k] !== v,
+      ([k, v]) =>
+        ((before as unknown as Record<string, unknown>)[k] ?? null) !== v,
     ),
   );
   const beforePerks = perksBody(draftOf(before).perks);
@@ -383,7 +392,11 @@ export function PerksEditor({
   // D258: one upload at a time («i:kind»), and the last failure.
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const upload = async (i: number, kind: "animation" | "still", file: File | undefined) => {
+  const upload = async (
+    i: number,
+    kind: "animation" | "still",
+    file: File | undefined,
+  ) => {
     if (!file || !CODE.test(tierCode)) return;
     setUploading(`${i}:${kind}`);
     setUploadError(null);
@@ -562,50 +575,58 @@ export function PerksEditor({
               />
             </div>
           </div>
-            <div className="field">
-              <label htmlFor={`vp-amount-${i}`}>{t("vipPerkAmount")}</label>
-              <input
-                id={`vp-amount-${i}`}
-                type="number"
-                min={1}
-                className="num"
-                data-vip-amount={p.code}
-                disabled={!PERK_AMOUNTS[p.code.trim()] && p.amount === ""}
-                aria-invalid={!amountOk(p.code, p.amount)}
-                value={p.amount}
-                onChange={(e) => set(i, { amount: e.target.value })}
-              />
-              {!amountOk(p.code, p.amount) && (
-                <span className="error small">{t("vipPerkAmountBad")}</span>
-              )}
+          <div className="field">
+            <label htmlFor={`vp-amount-${i}`}>{t("vipPerkAmount")}</label>
+            <input
+              id={`vp-amount-${i}`}
+              type="number"
+              min={1}
+              className="num"
+              data-vip-amount={p.code}
+              disabled={!PERK_AMOUNTS[p.code.trim()] && p.amount === ""}
+              aria-invalid={!amountOk(p.code, p.amount)}
+              value={p.amount}
+              onChange={(e) => set(i, { amount: e.target.value })}
+            />
+            {!amountOk(p.code, p.amount) && (
+              <span className="error small">{t("vipPerkAmountBad")}</span>
+            )}
+          </div>
+          <div className="field">
+            <span>
+              {t("vipUploadStill")} / {t("vipUploadAnimation")}
+            </span>
+            <div className="row">
+              <label className="btn small">
+                {uploading === `${i}:still`
+                  ? t("vipUploading")
+                  : t("vipUploadStill")}
+                <input
+                  type="file"
+                  hidden
+                  accept="image/png,image/webp"
+                  data-vip-upload={`${i}:still`}
+                  disabled={uploading !== null || !CODE.test(tierCode)}
+                  onChange={(e) => void upload(i, "still", e.target.files?.[0])}
+                />
+              </label>
+              <label className="btn small">
+                {uploading === `${i}:animation`
+                  ? t("vipUploading")
+                  : t("vipUploadAnimation")}
+                <input
+                  type="file"
+                  hidden
+                  accept=".svga"
+                  data-vip-upload={`${i}:animation`}
+                  disabled={uploading !== null || !CODE.test(tierCode)}
+                  onChange={(e) =>
+                    void upload(i, "animation", e.target.files?.[0])
+                  }
+                />
+              </label>
             </div>
-            <div className="field">
-              <span>{t("vipUploadStill")} / {t("vipUploadAnimation")}</span>
-              <div className="row">
-                <label className="btn small">
-                  {uploading === `${i}:still` ? t("vipUploading") : t("vipUploadStill")}
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/png,image/webp"
-                    data-vip-upload={`${i}:still`}
-                    disabled={uploading !== null || !CODE.test(tierCode)}
-                    onChange={(e) => void upload(i, "still", e.target.files?.[0])}
-                  />
-                </label>
-                <label className="btn small">
-                  {uploading === `${i}:animation` ? t("vipUploading") : t("vipUploadAnimation")}
-                  <input
-                    type="file"
-                    hidden
-                    accept=".svga"
-                    data-vip-upload={`${i}:animation`}
-                    disabled={uploading !== null || !CODE.test(tierCode)}
-                    onChange={(e) => void upload(i, "animation", e.target.files?.[0])}
-                  />
-                </label>
-              </div>
-            </div>
+          </div>
           <p className="muted small">{t("vipPerkAmountHint")}</p>
           {uploadError && <div className="alert error">{uploadError}</div>}
           <p className="muted small">{t("vipArtHint")}</p>
@@ -722,6 +743,32 @@ function TierForm({
               onChange={set("color")}
             />
           </span>
+        </div>
+        <div className="field">
+          <label htmlFor="vip-name-color">{t("vipNameColor")}</label>
+          <span className="vip-color">
+            <input
+              type="color"
+              aria-label={t("vipNameColor")}
+              value={COLOR.test(draft.nameColor) ? draft.nameColor : "#FFD12E"}
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  nameColor: e.target.value.toUpperCase(),
+                }))
+              }
+            />
+            <input
+              id="vip-name-color"
+              data-vip-name-color
+              className="ltr mono"
+              maxLength={7}
+              placeholder="#FFD12E"
+              value={draft.nameColor}
+              onChange={set("nameColor")}
+            />
+          </span>
+          <small>{t("vipNameColorHint")}</small>
         </div>
         <div className="field">
           <label htmlFor="vip-ar">{t("vipNameAr")}</label>
