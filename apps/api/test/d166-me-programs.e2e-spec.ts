@@ -82,8 +82,11 @@ describe('D166 contract coverage', () => {
       ]),
     );
     // Purchases stay blocked (B5): no purchase operation exists.
-    // D252 adds `buyVip POST /me/vip/purchases` (VIP bought with coins, not a B5 money purchase); exclude it here.
-    expect(ids.some((id) => /recharge-packages\/|purchase/i.test(id) && !/\/me\/vip\//.test(id))).toBe(false);
+    // D252 adds `buyVip POST /me/vip/purchases` (VIP bought with coins) and D270 `POST /me/store/purchases`
+    // (store items bought with coins or cherries); neither is a B5 money purchase, so both are excluded here.
+    expect(
+      ids.some((id) => /recharge-packages\/|purchase/i.test(id) && !/\/me\/(vip|store)\//.test(id)),
+    ).toBe(false);
   });
 });
 
