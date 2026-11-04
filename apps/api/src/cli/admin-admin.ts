@@ -5,7 +5,8 @@
  * (docs/DEPLOYMENT.md), locally `pnpm admin:admin …`.
  *
  *   pnpm admin:admin grant <email> OWNER|MODERATOR|SUPPORT|FINANCE   # the first OWNER is bootstrapped this way
- *   pnpm admin:admin revoke <email> OWNER|MODERATOR|SUPPORT|FINANCE  # the last role ends the panel sessions
+ *   pnpm admin:admin revoke <email> OWNER|MODERATOR|SUPPORT|FINANCE  # the last role ends the panel sessions;
+ *                                                                    # never the last active OWNER (D271)
  *   pnpm admin:admin list
  *   pnpm admin:admin reset-2fa <email>                               # a lost phone: enrol again at the next sign-in
  *
@@ -36,6 +37,7 @@ function fail(message: string): never {
 const USAGE = [
   'Usage: pnpm admin:admin grant|revoke <email|@username> OWNER|MODERATOR|SUPPORT|FINANCE',
   '       pnpm admin:admin list | reset-2fa <email|@username>',
+  'The last active OWNER cannot be revoked: grant OWNER to another account first.',
 ].join('\n');
 
 const url = process.env.MIGRATION_DATABASE_URL;

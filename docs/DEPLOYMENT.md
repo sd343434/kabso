@@ -1545,8 +1545,10 @@ first-party). The panel signs in an existing admin account with its password and
    **After the first OWNER (D197, D271):** the OWNER manages everyone else from the panel's **«الموظفون والصلاحيات»**
    (Staff & permissions; settings group): grant a role to an existing app account by email or username, revoke one,
    reset a lost authenticator — each with a written reason and a fresh code from the OWNER's own authenticator, audited
-   `via: panel` with the OWNER as the actor. The panel never takes OWNER from oneself or from the last active OWNER; the
-   CLI stays the bootstrap and the server-side escape hatch (it can, run as the migration role on the server).
+   `via: panel` with the OWNER as the actor. The panel never takes OWNER from oneself. **Neither the panel nor the CLI
+   revokes the last active OWNER**: `revoke <email> OWNER` on the last one exits 1 («grant OWNER to another active
+   account first») — to hand ownership over, `grant <new> OWNER` first, then `revoke <old> OWNER`. The CLI stays the
+   bootstrap of the first OWNER.
 5. **Enrol the authenticator:** open `https://admin.kabsolive.com`, sign in with the account's email and password,
    scan the QR code with Google Authenticator / Microsoft Authenticator / 1Password, enter the code, and **store the
    ten recovery codes** offline (shown once; each works once).

@@ -18,8 +18,8 @@ type Tx = Prisma.TransactionClient;
  * `user_admin_permissions` itself, and the function refuses every permission that is not a panel role.
  *
  * v1.66-live (D271, CONVENTIONS §10.96.5): «الموظفون والصلاحيات» — the account is found by email, id or username
- * (`@name`); a locked account (D208) is refused like a banned one; the last-OWNER check is serialized (an advisory
- * lock) and counts the OWNERs who can still sign in other than the target; losing every watch role ends the person's
+ * (`@name`); a locked account (D208) is refused like a banned one; the last-OWNER check (panel and CLI) is serialized (an
+ * advisory lock) and counts the OWNERs who can still sign in other than the target; losing every watch role ends the person's
  * shift «في المناوبة» (D260). Each refusal carries a machine-readable `issue` the panel words itself.
  */
 export class AdminRoleError extends Error {
@@ -119,23 +119,24 @@ export async function revokeRoleIn(
   by: AdminVia = CLI_VIA,
   extra: Extra = {},
 ): Promise<{ userId: string; left: PanelRole[]; shiftEnded: boolean }> {
-  const ownerCheck = by.via === 'panel' && role === 'OWNER';
-  // The panel never leaves the team without an OWNER who can sign in (the CLI can, on the server). One such check at a
-  // time — taken before any row lock, so two OWNERs revoking each other at once queue instead of deadlocking — and the
-  // second one counts after the first committed.
+  const ownerCheck = role === 'OWNER';
+  // Neither the panel nor the CLI (owner 2026-11-04, D271) leaves the team without an OWNER who can sign in. One such
+  // check at a time — taken before any row lock, so two OWNERs revoking each other at once queue instead of
+  // deadlocking — and the second one counts after the first committed.
   if (ownerCheck) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:admin-owner'))`;
   const user = await userOf(tx, who);
-  if (by.via === 'panel') {
-    if (user.id === by.actorUserId && role === 'OWNER') {
-      throw new AdminRoleError('You cannot take OWNER from your own account.', 'team_self_owner');
-    }
-    if (ownerCheck) {
-      const others = await tx.userAdminPermission.count({
-        where: { permission: 'OWNER', userId: { not: user.id }, user: { status: 'ACTIVE', role: 'ADMIN' } },
-      });
-      if (others === 0 && user.status === 'ACTIVE' && user.role === 'ADMIN') {
-        throw new AdminRoleError('This is the last OWNER.', 'team_last_owner');
-      }
+  if (by.via === 'panel' && user.id === by.actorUserId && role === 'OWNER') {
+    throw new AdminRoleError('You cannot take OWNER from your own account.', 'team_self_owner');
+  }
+  if (ownerCheck) {
+    const others = await tx.userAdminPermission.count({
+      where: { permission: 'OWNER', userId: { not: user.id }, user: { status: 'ACTIVE', role: 'ADMIN' } },
+    });
+    if (others === 0 && user.status === 'ACTIVE' && user.role === 'ADMIN') {
+      throw new AdminRoleError(
+        'This is the last OWNER: grant OWNER to another active account first, then revoke this one.',
+        'team_last_owner',
+      );
     }
   }
   const before = await panelRolesIn(tx, user.id);

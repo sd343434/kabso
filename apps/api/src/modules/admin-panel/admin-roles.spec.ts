@@ -170,9 +170,14 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
     await expect(revokeRoleIn(two.tx, TARGET_ID, 'OWNER', PANEL, { reason: 'x' })).resolves.toMatchObject({
       left: ['SUPPORT'],
     });
-    // The CLI keeps its D191 behaviour (the server's escape hatch).
+    // The CLI too (owner 2026-11-04): the last OWNER stays; the message says to grant another OWNER first.
     const cli = fakeTx(world({ roles: ['OWNER'], otherActiveOwners: 0 }));
-    await expect(revokeRoleIn(cli.tx, TARGET_ID, 'OWNER')).resolves.toMatchObject({ left: [] });
+    await expect(revokeRoleIn(cli.tx, TARGET_ID, 'OWNER')).rejects.toThrow(
+      /grant OWNER to another active account first/,
+    );
+    expect(cli.audits).toEqual([]);
+    const cliTwo = fakeTx(world({ roles: ['OWNER'], otherActiveOwners: 1 }));
+    await expect(revokeRoleIn(cliTwo.tx, TARGET_ID, 'OWNER')).resolves.toMatchObject({ left: [] });
   });
 
   it('the last role ends the panel sessions; no watch role left ends the shift; audited', async () => {

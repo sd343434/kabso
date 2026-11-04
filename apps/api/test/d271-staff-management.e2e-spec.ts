@@ -9,7 +9,8 @@
  *  - revoke: one's own OWNER and a role not held refused; two OWNERs revoking each other at once leave one OWNER; the
  *    last watch role ends the shift and hands the person's live to another staff member on shift; the last role ends
  *    the panel sessions; reset-2fa ends the sessions;
- *  - every change audited with the OWNER as actor, the IP, `via: panel` and the reason; the CLI runs the same rules;
+ *  - every change audited with the OWNER as actor, the IP, `via: panel` and the reason; the CLI runs the same rules
+ *    (it refuses the last active OWNER too: grant another OWNER first);
  *  - the team routes' own rate limit (`admin-team:ip`).
  */
 import { execFile } from 'node:child_process';
@@ -478,6 +479,38 @@ describe('D271 staff and permissions from the panel', { timeout: 900_000 }, () =
     expect((await lastAudit('admin.role.grant', p.id))!.metadata).toMatchObject({ via: 'cli' });
     const list = await run('node', ['--import', 'tsx', 'src/cli/admin-admin.ts', 'list'], { env });
     expect(list.stdout).toContain(p.email);
+
+    // The last active OWNER: the CLI refuses too (exit 1, grant another OWNER first); nothing changes, no audit row.
+    const cli = (...args: string[]) =>
+      run('node', ['--import', 'tsx', 'src/cli/admin-admin.ts', ...args], { env });
+    const auditsBefore = await ctx.prisma.auditLog.count({
+      where: { action: 'admin.role.revoke', targetId: owner.id },
+    });
+    const refused = await cli('revoke', owner.email, 'OWNER').then(
+      () => null,
+      (err: { code?: number; stderr?: string }) => err,
+    );
+    expect(refused?.code).toBe(1);
+    expect(refused?.stderr).toContain('This is the last OWNER: grant OWNER to another active account first');
+    expect(
+      await ctx.prisma.userAdminPermission.count({ where: { userId: owner.id, permission: 'OWNER' } }),
+    ).toBe(1);
+    expect(
+      await ctx.prisma.auditLog.count({ where: { action: 'admin.role.revoke', targetId: owner.id } }),
+    ).toBe(auditsBefore);
+    // The usage text names the rule.
+    const usage = await cli('revoke').then(
+      () => null,
+      (err: { stderr?: string }) => err,
+    );
+    expect(usage?.stderr).toContain('The last active OWNER cannot be revoked');
+    // With another OWNER, the CLI hands ownership over: grant first, then revoke.
+    expect((await cli('grant', p.email, 'OWNER')).stdout).toContain('OWNER granted');
+    expect((await cli('revoke', `@${p.username}`, 'OWNER')).stdout).toContain('OWNER revoked');
+    expect((await lastAudit('admin.role.revoke', p.id))!.metadata).toMatchObject({
+      role: 'OWNER',
+      via: 'cli',
+    });
   });
 
   it('two OWNERs revoking each other at once leave exactly one OWNER (last; it may take the first OWNER)', async () => {

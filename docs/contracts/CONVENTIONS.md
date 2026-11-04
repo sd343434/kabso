@@ -3822,7 +3822,8 @@ clears a lost authenticator (the next sign-in enrols again). Revoking the last p
 sessions. **Since D197 / D271 the OWNER also manages roles in the panel** («الموظفون والصلاحيات», capability
 `team.manage`, OWNER only; §10.60.6, §10.96.5) with the same rule functions (`admin-roles.ts`), each change with a
 reason and the OWNER's authenticator code again; the CLI stays the bootstrap of the first OWNER (and accepts
-`@username` for `<email>` since D271).
+`@username` for `<email>` since D271). Neither the panel nor the CLI revokes the **last active OWNER** (D271: grant
+OWNER to another account first).
 
 Every panel route names one capability and the server checks it on **every request** against the roles held at that
 moment (a revoked role or a suspended account applies at once; 403 `AUTH_FORBIDDEN`). The panel only hides what the
@@ -6424,7 +6425,8 @@ D197's team page (§10.60.6, `team.manage`: **OWNER only**, checked on every req
   DELETED); `team_locked` (an active D208 lock). The answer's `account` drives the panel's **next steps** for the new staff
   member: sign in at `admin.<domain>` with the app account's email and password, enrol the authenticator (or «already set
   up»), open «البث الآن» and turn on «في المناوبة» (FINANCE: no shift). Granting OWNER shows a warning in the dialog.
-- **Revoke** (`revokeAdminTeamRole`): never one's own OWNER (`team_self_owner`), never the last OWNER who can sign in
+- **Revoke** (`revokeAdminTeamRole`; the CLI's `revoke` the same, except the self rule): never one's own OWNER
+  (`team_self_owner`), never the last OWNER who can sign in
   (`team_last_owner`: no other OWNER that is ACTIVE with `users.role = ADMIN`; a banned OWNER's role may go). The check
   holds a transaction advisory lock, so two OWNERs revoking each other at once cannot both pass. `team_not_held` for a
   role the person does not hold. The last panel role ends the person's panel sessions (as the CLI). **No watch role left**
@@ -6443,8 +6445,10 @@ D197's team page (§10.60.6, `team.manage`: **OWNER only**, checked on every req
   IP; 429 `RATE_LIMITED`).
 - **One rule.** The panel and `admin-admin` run the same functions (`admin-roles.ts`: `grantRoleIn`, `revokeRoleIn`,
   `resetSecondFactorIn`), and the role rows are written only through `kabso_admin_panel_role`. The account is found by id,
-  email or username with its `users` row locked FOR UPDATE. Only the panel refuses the self / last-OWNER revoke; the CLI
-  (the migration role, on the server) stays the bootstrap of the first OWNER and the escape hatch.
+  email or username with its `users` row locked FOR NO KEY UPDATE. **The last active OWNER is refused in the CLI too**
+  (owner 2026-11-04): `admin-admin revoke <email> OWNER` exits 1 with «This is the last OWNER: grant OWNER to another
+  active account first, then revoke this one.» (nothing changes, no audit row); only the self-OWNER refusal is panel-only
+  (the CLI has no actor). The CLI stays the bootstrap of the first OWNER.
 
 ### 10.97 A VIP member's tier items in the bag — one worn item per kind *(v1.65-live, DRAFT — D264)*
 
