@@ -47,7 +47,7 @@ interface Match {
   seq: number;
   sides: { roomId: string; score: number; boosterUses: Record<string, number>; pkPoints: number }[];
   resultEndsAt: string | null;
-  forfeitPoints: number;
+  forfeitPoints: number | null;
   dare: { status: string } | null;
   rematch: { byRoomId: string; expiresAt: string } | null;
   rematchOf: string | null;
@@ -392,23 +392,23 @@ describe('D242 «جولة أخرى»', { timeout: 600_000 }, () => {
   it("D276 «نقاط PK»: both hosts' PK points on their sides, for both rooms and viewers", async () => {
     const s = await battle();
     expect(s.match.sides.map((x) => x.pkPoints)).toEqual([0, 0]);
-    // B wins the forfeit: +3 (the default win); A withdrew: −3 (D276).
+    // B wins the forfeit: +3 (the default win); A's NORMAL withdrawal is a plain loss: 0.
     const ended = await forfeit(s);
-    expect(ended.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
-    expect(ended.forfeitPoints).toBe(-3);
+    expect(ended.sides.map((x) => x.pkPoints)).toEqual([0, 3]);
+    expect(ended.forfeitPoints).toBeNull();
     for (const [room, u] of [
       [s.roomA, s.a],
       [s.roomB, s.b],
     ] as const) {
-      expect((await state(room, u))!.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+      expect((await state(room, u))!.sides.map((x) => x.pkPoints)).toEqual([0, 3]);
     }
     // A viewer of A's room reads B's points too.
     const viewer = await signup();
-    expect((await state(s.roomA, viewer))!.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+    expect((await state(s.roomA, viewer))!.sides.map((x) => x.pkPoints)).toEqual([0, 3]);
     // The rematch's battle starts with the points so far.
     expect((await offer(s.roomA, s.a)).status).toBe(200);
     const next = (await accept(s.roomB, s.b)).body as Match;
-    expect(next.sides.map((x) => x.pkPoints)).toEqual([-3, 3]);
+    expect(next.sides.map((x) => x.pkPoints)).toEqual([0, 3]);
   });
 
   it("D276: after a DARES match's dare, a whole result phase is left for «جولة أخرى»", async () => {
@@ -434,17 +434,25 @@ describe('D242 «جولة أخرى»', { timeout: 600_000 }, () => {
       points: number;
     };
 
-  it('D276 «انسحاب = −3»: the host who ends during the battle gets −3 and a loss; the other +3 and a win', async () => {
+  it('D276 «الاحكام فقط»: a NORMAL withdrawal is a plain loss (0); the other host +3', async () => {
     const s = await battle();
+    expect(s.match.forfeitPoints).toBeNull();
+    await forfeit(s);
+    expect(await record(s.a)).toMatchObject({ wins: 0, losses: 1, draws: 0, points: 0 });
+    expect(await record(s.b)).toMatchObject({ wins: 1, losses: 0, points: 3 });
+  });
+
+  it('D276 «انسحاب = −3»: in «PK أحكام» the host who ends during the battle gets −3 and a loss', async () => {
+    const s = await battle('DARES');
+    expect(s.match.forfeitPoints).toBe(-3);
     await forfeit(s);
     expect(await record(s.a)).toMatchObject({ wins: 0, losses: 1, draws: 0, points: -3 });
     expect(await record(s.b)).toMatchObject({ wins: 1, losses: 0, points: 3 });
-    const row = await ctx.prisma.pkPointEvent.findMany({ where: { hostId: s.a.id } });
-    expect(row.map((r) => [r.kind, r.points])).toEqual([['LOSS', -3]]);
+    const rows = await ctx.prisma.pkPointEvent.findMany({ where: { hostId: s.a.id } });
+    expect(rows.map((r) => [r.kind, r.points])).toEqual([['LOSS', -3]]);
   });
 
-  it('D276: both hosts away (both withdrew) → both −3 and a loss, no draw', async () => {
-    const s = await battle();
+  const bothAway = async (s: Pair) => {
     for (const [room, u] of [
       [s.roomA, s.a],
       [s.roomB, s.b],
@@ -455,30 +463,46 @@ describe('D242 «جولة أخرى»', { timeout: 600_000 }, () => {
     await pk.tick();
     const m = (await state(s.roomA, s.a))!;
     expect(m.status).toBe('RESULT');
+    return m;
+  };
+
+  it('D276: both hosts away in «PK أحكام» → both −3 and a loss, no draw', async () => {
+    const s = await battle('DARES');
+    const m = await bothAway(s);
     expect(m.sides.map((x) => x.pkPoints)).toEqual([-3, -3]);
     for (const u of [s.a, s.b])
       expect(await record(u)).toMatchObject({ losses: 1, draws: 0, wins: 0, points: -3 });
   });
 
-  it('D276: ending in the result phase is not a withdrawal (the loss stays 0)', async () => {
+  it('D276: both hosts away in a NORMAL PK → a draw for both, as before', async () => {
     const s = await battle();
-    await timeUp(s);
-    expect((await state(s.roomA, s.a))!.status).toBe('RESULT');
-    const end = await call('post', `live/rooms/${s.roomA}/pk/end`, s.a);
-    expect(end.status, JSON.stringify(end.body)).toBe(200);
-    expect(end.body.status).toBe('CLOSED');
-    expect(await record(s.a)).toMatchObject({ losses: 1, points: 0 });
-    expect(await record(s.b)).toMatchObject({ wins: 1, points: 3 });
+    const m = await bothAway(s);
+    expect(m.sides.map((x) => x.pkPoints)).toEqual([1, 1]);
+    for (const u of [s.a, s.b])
+      expect(await record(u)).toMatchObject({ losses: 0, draws: 1, wins: 0, points: 1 });
   });
 
-  it('D276: the panel value is used (forfeitPoints −5), and the match says it', async () => {
+  it('D276: ending in the result phase is not a withdrawal (the loss stays 0)', async () => {
+    const s = await battle('DARES');
+    await timeUp(s);
+    expect((await state(s.roomA, s.a))!.status).toBe('RESULT');
+    const end = await call('post', `live/rooms/${s.roomB}/pk/end`, s.b);
+    expect(end.status, JSON.stringify(end.body)).toBe(200);
+    expect(end.body.status).toBe('CLOSED');
+    // B won by score; B's End in the result is no withdrawal: +3 stays (the winner's End cancels the unanswered
+    // dare, no points). A lost by score: 0.
+    expect(await record(s.b)).toMatchObject({ wins: 1, losses: 0, points: 3 });
+    expect(await record(s.a)).toMatchObject({ losses: 1, points: 0 });
+  });
+
+  it('D276: the panel value is used (forfeitPoints −5), and the DARES match says it', async () => {
     await ctx.prisma.pkDareSettings.upsert({
       where: { id: 1 },
       create: { id: 1, forfeitPoints: -5 },
       update: { forfeitPoints: -5 },
     });
     try {
-      const s = await battle();
+      const s = await battle('DARES');
       expect(s.match.forfeitPoints).toBe(-5);
       await forfeit(s);
       expect(await record(s.a)).toMatchObject({ losses: 1, points: -5 });

@@ -336,6 +336,7 @@ PkMatch pkMatchFixture({
   int? ownPkPoints,
   int? otherPkPoints,
   int? forfeitPoints,
+  PkType type = PkType.normal,
 }) {
   String n(String a, String e) => ar ? a : e;
   final multipliers = {
@@ -416,6 +417,7 @@ PkMatch pkMatchFixture({
       ),
     ),
     forfeitPoints: forfeitPoints,
+    type: type,
     boosters: const [
       PkBoosterRule(
         kind: PkBoosterKind.double,

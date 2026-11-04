@@ -1008,9 +1008,10 @@ class _LivePkSheetState extends ConsumerState<LivePkSheet> {
       final ok = await showKLiveConfirm(
         context,
         title: l10n.pkEndConfirmTitle,
-        // D276 (owner: «انسحاب = −٣»): what withdrawing costs.
+        // D276 (owner: «انسحاب = −٣»، «الاحكام فقط»): what withdrawing
+        // costs — «PK أحكام» only (a normal PK's is a plain loss).
         message: switch (match.forfeitPoints) {
-          final int points when points < 0 =>
+          final int points when points < 0 && match.type == PkType.dares =>
             '${l10n.pkEndConfirmBody}\n'
                 '${l10n.pkEndForfeitPoints(KFormat.grouped(-points))}',
           _ => l10n.pkEndConfirmBody,

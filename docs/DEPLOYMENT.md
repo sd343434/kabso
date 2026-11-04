@@ -2705,9 +2705,9 @@ the same name with its range (−100 … 100). Additive; no backfill. **No new e
 row; 0 = unlimited — keep it above 0 or unlimited, never set it to a value already reached) and answered within
 `PK_REMATCH_ACCEPT_SECONDS` (15).
 
-- **Withdrawal.** A host who withdraws from the battle (FORFEIT «إنهاء التحدي» during it, DISCONNECT, AWAY) now gets the
-  panel's «الانسحاب من التحدي» value (−3) instead of the loss's 0, still a loss; both withdrew → both (no longer a
-  draw). Ending in the result phase is not a withdrawal. Change it in «أحكام PK» → «نقاط PK والإعدادات» (OWNER, audited).
+- **Withdrawal («PK الأحكام» only).** In a DARES match a host who withdraws from the battle (FORFEIT «إنهاء التحدي»
+  during it, DISCONNECT, AWAY) now gets the panel's «الانسحاب من تحدي الأحكام» value (−3) instead of the loss's 0, still a
+  loss; both withdrew → both (no longer a draw). A NORMAL PK is unchanged. Ending in the result phase is not a withdrawal. Change it in «أحكام PK» → «نقاط PK والإعدادات» (OWNER, audited).
 - **After a dare.** While a rematch is still allowed, the result stays `PK_RESULT_SECONDS` (60) after a DARES match's
   dare ends (was `PK_DARE_OUTCOME_SECONDS`, 8 — too short to offer «جولة أخرى»).
 - **Older apps** ignore `PkSideState.pkPoints` and `PkMatch.forfeitPoints`; the new app shows nothing for them against

@@ -357,9 +357,9 @@ class PkMatch {
   /// older servers: unknown — the app then offers it and the server says).
   final int? rematchesLeft;
 
-  /// v1.67-live (D276, owner: «انسحاب = −٣»): what withdrawing from the
-  /// battle counts now (−3; null from an older server): the «إنهاء التحدي»
-  /// confirm says it.
+  /// v1.67-live (D276, owner: «انسحاب = −٣»، «الاحكام فقط»): what
+  /// withdrawing from a «PK أحكام» battle counts now (−3; null for a normal
+  /// PK and from an older server): the «إنهاء التحدي» confirm says it.
   final int? forfeitPoints;
 
   /// D242: «جولة أخرى» may be offered now from the hosts' side — the result

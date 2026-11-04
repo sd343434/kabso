@@ -198,10 +198,10 @@ export interface PkMatchDto {
   /** v1.55-live (D242): rematches this pair may still play in a row (PK_REMATCH_MAX); null = unlimited. */
   rematchesLeft: number | null;
   /**
-   * v1.67-live (D276, owner: «انسحاب = −3»): what withdrawing from the battle counts now (the panel's
-   * `forfeitPoints`, −3): the app's «إنهاء التحدي» confirm shows it.
+   * v1.67-live (D276, owner: «انسحاب = −3»، «الاحكام فقط»): what withdrawing from a DARES battle counts now (the
+   * panel's `forfeitPoints`, −3): the app's «إنهاء التحدي» confirm shows it. Null for a NORMAL match (a plain loss).
    */
-  forfeitPoints: number;
+  forfeitPoints: number | null;
 }
 
 /** `PkInvite`. */
@@ -772,7 +772,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
       select: { hostId: true, points: true },
     });
     const pkPointsOf = (hostId: string) => records.find((r) => r.hostId === hostId)?.points ?? 0;
-    const { forfeitPoints } = await pkDareSettingsIn(this.prisma);
+    const forfeitPoints = row.type === 'DARES' ? (await pkDareSettingsIn(this.prisma)).forfeitPoints : null;
     const dare = row.type === 'DARES' ? await this.dareDto(row) : null;
     const people = await this.summaries([
       row.host_a_id,
@@ -1643,13 +1643,15 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
                effective = ${effective},
                top_a = ${JSON.stringify(top.A)}::jsonb, top_b = ${JSON.stringify(top.B)}::jsonb
          WHERE id = ${matchId}::uuid`;
-      // v1.44-live (D199): only an «effective PK» counts in the records. v1.67-live (D276, owner: «انسحاب = −3»):
-      // a host who withdrew (FORFEIT, DISCONNECT, AWAY: `finish.loser`) gets `forfeitPoints` instead of the loss's
-      // points, still a loss in the record; both withdrew → both. The other host wins as before.
+      // v1.44-live (D199): only an «effective PK» counts in the records. v1.67-live (D276, owner: «انسحاب = −3»،
+      // «الاحكام فقط»): in a DARES match a host who withdrew (FORFEIT, DISCONNECT, AWAY: `finish.loser`) gets
+      // `forfeitPoints` instead of the loss's points, still a loss in the record; both withdrew → both. The other
+      // host wins as before. A NORMAL match is unchanged (a withdrawal is a plain loss; both withdrew: a draw).
+      const dares = m.type === 'DARES';
       const hostOf = (side: PkSideName) => (side === 'A' ? m.host_a_id : m.host_b_id);
       const results: [string, 'wins' | 'losses' | 'draws', boolean][] = !effective
         ? []
-        : finish.loser === 'both'
+        : dares && finish.loser === 'both'
           ? [
               [m.host_a_id, 'losses', true],
               [m.host_b_id, 'losses', true],
@@ -1661,7 +1663,7 @@ export class LivePkService implements OnModuleInit, OnModuleDestroy {
               ]
             : [
                 [hostOf(winner), 'wins', false],
-                [hostOf(otherSide(winner)), 'losses', finish.loser === otherSide(winner)],
+                [hostOf(otherSide(winner)), 'losses', dares && finish.loser === otherSide(winner)],
               ];
       // v1.50-live (D229): the record and the PK points (win / draw / loss, `pk_dare_settings`) in one step,
       // idempotent by (match, host, kind).

@@ -3,7 +3,8 @@
 // «جولة أخرى» in the result's dock and in the host's PK controls next to
 // «كتم الخصم» / «إنهاء التحدي» (offer, waiting / cancel, accept / refuse,
 // disabled while the dare runs); both hosts' «نقاط PK» on their halves for
-// either room; the «إنهاء التحدي» confirm says what withdrawing costs.
+// either room; the «إنهاء التحدي» confirm says what withdrawing costs in
+// «PK أحكام» only (owner: «الاحكام فقط»).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -296,12 +297,16 @@ void main() {
     });
   });
 
-  testWidgets('«إنهاء التحدي» during the battle says withdrawing costs 3', (
+  testWidgets('«إنهاء التحدي» in «PK أحكام» says withdrawing costs 3', (
     tester,
   ) async {
     final repo = await _pumpSheet(
       tester,
-      pkMatchFixture(now: DateTime.now(), forfeitPoints: -3),
+      pkMatchFixture(
+        now: DateTime.now(),
+        forfeitPoints: -3,
+        type: PkType.dares,
+      ),
     );
     await tester.tap(find.byKey(LivePkSheet.endKey));
     await tester.pumpAndSettle();
@@ -309,5 +314,15 @@ void main() {
     await tester.tap(find.byKey(const Key('pk.end.confirm')));
     await tester.pumpAndSettle();
     expect(repo.calls, contains('end'));
+  });
+
+  testWidgets('«إنهاء التحدي» in a normal PK: no −3 line (a plain loss)', (
+    tester,
+  ) async {
+    await _pumpSheet(tester, pkMatchFixture(now: DateTime.now()));
+    await tester.tap(find.byKey(LivePkSheet.endKey));
+    await tester.pumpAndSettle();
+    expect(find.text('إنهاء التحدي الآن؟'), findsOneWidget);
+    expect(find.textContaining('الانسحاب يخصم'), findsNothing);
   });
 }

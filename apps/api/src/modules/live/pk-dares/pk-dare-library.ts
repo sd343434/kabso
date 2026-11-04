@@ -39,7 +39,7 @@ export interface PkDareSettingsRow {
   drawPoints: number;
   lossPoints: number;
   refusePoints: number;
-  /** v1.67-live (D276): a host who withdrew from the battle (FORFEIT, DISCONNECT, AWAY) instead of the loss's. */
+  /** v1.67-live (D276): a host who withdrew from a DARES battle (FORFEIT, DISCONNECT, AWAY) instead of the loss's. */
   forfeitPoints: number;
   decideSeconds: number;
   reportsToDisable: number;
