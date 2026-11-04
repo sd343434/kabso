@@ -9970,7 +9970,7 @@ paths:
       description: |
         v1.84-social, CONVENTIONS §10.98.2. `currency` / `days` must be a price the item has (`price` the one the app
         showed). Coins: wallet ledger `STORE_PURCHASE`; cherries: cherry ledger `STORE_PURCHASE` (the hosts' earnings;
-        task cherries locked for withdrawal may be spent here) — reference = the purchase, one transaction serialized
+        only the unlocked balance — task cherries still locked are not spent, as a withdrawal) — reference = the purchase, one transaction serialized
         per buyer. The item lands in the recipient's bag (`source: STORE`, or for a gift `GIFT` with `giftedBy` = the
         buyer, who gets the `BAG_ITEM_RECEIVED` notification); one they hold already gets the days added to its end
         (never past 3 650 days from now); it is not worn. `recipient` (a username) makes it a gift; absent / null: for
@@ -27033,10 +27033,12 @@ components:
     StoreBalances:
       type: object
       additionalProperties: false
-      required: [coins, cherries]
+      required: [coins, cherries, lockedCherries]
+      description: "(D270, owner: «هل يُصرف كرز المهام المقفل في المتجر؟ لا») `cherries` is what the store may spend: the cherry balance less the task cherries still locked (§10.46.1 — the amount a withdrawal may take); `lockedCherries` is that locked part (0 when none)."
       properties:
         coins: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991 }
-        cherries: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991 }
+        cherries: { type: integer, format: int64, minimum: 0, maximum: 9007199254740991, description: "Spendable (unlocked) cherries." }
+        lockedCherries: { type: integer, format: int64, minimum: 0, maximum: 9007199254740991, description: "Task cherries not spendable yet." }
     StoreItem:
       type: object
       additionalProperties: false

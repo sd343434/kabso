@@ -14228,4 +14228,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get walletReasonStorePurchase => 'شراء من المتجر';
+
+  @override
+  String storeLockedCherries(String amount) {
+    return 'كرز المهام المقفل لا يُصرف في المتجر ($amount مقفل).';
+  }
 }

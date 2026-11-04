@@ -54,6 +54,7 @@ class StoreItemSheet extends ConsumerStatefulWidget {
   static const giftKey = Key('store.sheet.gift');
   static const rechargeKey = Key('store.sheet.recharge');
   static const shortKey = Key('store.sheet.short');
+  static const lockedKey = Key('store.sheet.locked');
   static const priceKey = Key('store.sheet.price');
   static const balanceKey = Key('store.sheet.balance');
   static const ownedKey = Key('store.sheet.owned');
@@ -431,6 +432,16 @@ class _StoreItemSheetState extends ConsumerState<StoreItemSheet> {
           ],
         ),
       ),
+      // Owner (D270): locked task cherries are not spent in the store.
+      if (_currency == StoreCurrency.cherries &&
+          _balances.lockedCherries > 0) ...[
+        const SizedBox(height: KSpacing.sm),
+        Text(
+          l10n.storeLockedCherries(KFormat.grouped(_balances.lockedCherries)),
+          key: StoreItemSheet.lockedKey,
+          style: t.caption.copyWith(color: p.textSecondary),
+        ),
+      ],
       if (_short) ...[
         const SizedBox(height: KSpacing.sm),
         Text(

@@ -4427,5 +4427,6 @@
   "storeTotal": "{price} · {days}",
   "errorStoreUnavailable": "This item can't be bought now.",
   "errorStorePriceChanged": "The price of this item changed. Check the new price.",
-  "walletReasonStorePurchase": "Store purchase"
+  "walletReasonStorePurchase": "Store purchase",
+  "storeLockedCherries": "Locked task cherries can't be spent in the store ({amount} locked)."
 }

@@ -24042,6 +24042,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شراء من المتجر'**
   String get walletReasonStorePurchase;
+
+  /// D270: locked task cherries are not spendable in the store (owner).
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز المهام المقفل لا يُصرف في المتجر ({amount} مقفل).'**
+  String storeLockedCherries(String amount);
 }
 
 class _AppLocalizationsDelegate

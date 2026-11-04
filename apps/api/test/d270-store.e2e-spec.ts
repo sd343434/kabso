@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { creditTaskCherriesIn } from '../src/modules/economy/cherry-ledger.js';
+import { creditReferralCherriesIn, creditTaskCherriesIn } from '../src/modules/economy/cherry-ledger.js';
 import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
 import { creditIn, reverseTopupIn } from '../src/modules/wallet/wallet-ledger.js';
 import { panel, type Admin, type Person } from './helpers/admin-panel.js';
@@ -69,7 +69,13 @@ describe('D270 the store', { timeout: 180_000 }, () => {
     (await ctx.http.get('/api/v1/me').set(auth(u))).body.username as string;
   const coins = (u: Person, amount: number) =>
     ctx.prisma.$transaction((tx) => creditIn(tx, u.id, BigInt(amount), 'ADMIN_GRANT', randomUUID()));
+  /** Unlocked cherries (a referral reward: spendable). */
   const cherries = (u: Person, amount: number) =>
+    ctx.prisma.$transaction((tx) =>
+      creditReferralCherriesIn(tx, u.id, BigInt(amount), randomUUID(), new Date()),
+    );
+  /** Task cherries: locked (no gifts received) — never spent in the store (owner, D270). */
+  const taskCherries = (u: Person, amount: number) =>
     ctx.prisma.$transaction((tx) =>
       creditTaskCherriesIn(tx, u.id, BigInt(amount), `TEST@${randomUUID()}`, new Date()),
     );
@@ -251,7 +257,7 @@ describe('D270 the store', { timeout: 180_000 }, () => {
     await coins(u, 1_000);
     const list = await items(u, '', 'en');
     expect(list.kinds).toEqual(['AVATAR_FRAME', 'CHAT_BUBBLE']);
-    expect(list.balances).toEqual({ coins: 1_000, cherries: 0 });
+    expect(list.balances).toEqual({ coins: 1_000, cherries: 0, lockedCherries: 0 });
     const f = list.data.find((i) => i.id === frame.id)!;
     expect(f).toMatchObject({ name: 'Rose frame II', isNew: true, fromCoins: 50_000, fromCherries: 400_000 });
     expect(f.prices.map((pr) => `${pr.currency}:${pr.days}`)).toEqual(['COINS:7', 'COINS:30', 'CHERRIES:7']);
@@ -300,7 +306,7 @@ describe('D270 the store', { timeout: 180_000 }, () => {
     await cherries(u, 500_000);
     const ok = await buy(u, { itemId: frame.id, currency: 'CHERRIES', days: 7, price: 400_000 });
     expect(ok.status, JSON.stringify(ok.body)).toBe(201);
-    expect(ok.body.balances).toEqual({ coins: 0, cherries: 100_000 });
+    expect(ok.body.balances).toEqual({ coins: 0, cherries: 100_000, lockedCherries: 0 });
     const row = await ctx.prisma.cherryLedgerEntry.findFirst({
       where: { userId: u.id, reason: 'STORE_PURCHASE' },
     });
@@ -314,6 +320,29 @@ describe('D270 the store', { timeout: 180_000 }, () => {
     expect(noCherries.status).toBe(409);
     expect(noCherries.body.error.code).toBe('INSUFFICIENT_CHERRIES');
     expect(await bag(poor)).not.toContainEqual(expect.objectContaining({ code: frame.code }));
+  });
+
+  it('locked task cherries are never spent (owner: «هل يُصرف كرز المهام المقفل في المتجر؟ لا»)', async () => {
+    // Only locked task cherries: refused, nothing taken; the list shows them as locked, none spendable.
+    const u = await p.signup();
+    await taskCherries(u, 900_000);
+    expect((await items(u)).balances).toEqual({ coins: 0, cherries: 0, lockedCherries: 900_000 });
+    const refused = await buy(u, { itemId: frame.id, currency: 'CHERRIES', days: 7, price: 400_000 });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.code).toBe('INSUFFICIENT_CHERRIES');
+    expect((await balances(u)).cherries).toBe(900_000);
+
+    // Some unlocked and some locked: only the unlocked part pays.
+    const mixed = await p.signup();
+    await cherries(mixed, 500_000);
+    await taskCherries(mixed, 300_000);
+    expect((await items(mixed)).balances).toEqual({ coins: 0, cherries: 500_000, lockedCherries: 300_000 });
+    const ok = await buy(mixed, { itemId: frame.id, currency: 'CHERRIES', days: 7, price: 400_000 });
+    expect(ok.status, JSON.stringify(ok.body)).toBe(201);
+    expect(ok.body.balances).toEqual({ coins: 0, cherries: 100_000, lockedCherries: 300_000 });
+    const again = await buy(mixed, { itemId: frame.id, currency: 'CHERRIES', days: 7, price: 400_000 });
+    expect(again.body.error.code).toBe('INSUFFICIENT_CHERRIES');
+    expect((await balances(mixed)).cherries).toBe(400_000);
   });
 
   it('a price not offered, a changed price and a disabled item are refused; nothing charged', async () => {
@@ -475,10 +504,10 @@ describe('D270 the store', { timeout: 180_000 }, () => {
     expect(res.status).toBe(200);
     expectContract(res, 'listAdminStoreSales');
     expect(res.body.data).toHaveLength(5);
-    // 2 coin purchases, 1 cherry, 1 (replayed), 1 gift, 1 bubble.
-    expect(res.body.totals.purchases).toBe(6);
+    // 2 coin purchases, 2 cherry (one with locked task cherries beside), 1 (replayed), 1 gift, 1 bubble.
+    expect(res.body.totals.purchases).toBe(7);
     expect(res.body.totals.gifts).toBe(1);
-    expect(res.body.totals.cherries).toBe(400_000);
+    expect(res.body.totals.cherries).toBe(800_000);
     const one = await p.send(support, 'get', `/admin/store/sales?itemId=${bubble.id}`);
     expect(one.body.totals).toMatchObject({ purchases: 1, coins: 20_000 });
   });

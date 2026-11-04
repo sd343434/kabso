@@ -14223,4 +14223,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletReasonStorePurchase => 'Store purchase';
+
+  @override
+  String storeLockedCherries(String amount) {
+    return 'Locked task cherries can\'t be spent in the store ($amount locked).';
+  }
 }

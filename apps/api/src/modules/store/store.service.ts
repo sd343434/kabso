@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -8,7 +8,8 @@ import { Clock } from '../../common/time/clock.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { addItemTimeIn, lockItemHoldersIn } from '../bag/bag-grants.js';
-import { holdCherriesIn } from '../economy/cherry-ledger.js';
+import { holdCherriesIn, taskCherryLockIn } from '../economy/cherry-ledger.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
@@ -59,10 +60,15 @@ export interface StoreItemDto {
   ownedUntil: string | null;
 }
 
-/** `StoreBalances`: the caller's coins and cherries now. */
+/**
+ * `StoreBalances`: the caller's coins and the cherries they may spend now. Owner (D270): «هل يُصرف كرز المهام المقفل في
+ * المتجر؟ لا» — `cherries` is the balance less the task cherries still locked (§10.46.1, the amount a withdrawal may
+ * take); `lockedCherries` is that locked part (0 when none).
+ */
 export interface StoreBalancesDto {
   coins: number;
   cherries: number;
+  lockedCherries: number;
 }
 
 /** `StoreItemList`: the items on sale, in the panel's order; a server-bounded list (§5). */
@@ -103,12 +109,24 @@ function pricesOf(item: ItemWithPrices): StorePriceDto[] {
   }));
 }
 
-async function balancesIn(db: Tx | PrismaService, userId: string): Promise<StoreBalancesDto> {
-  const [wallet, cherries] = await Promise.all([
+async function balancesIn(
+  db: Tx | PrismaService,
+  userId: string,
+  rules: AppConfig['economy'],
+): Promise<StoreBalancesDto> {
+  const [wallet, cherries, lock] = await Promise.all([
     db.wallet.findUnique({ where: { userId }, select: { coins: true } }),
     db.cherryWallet.findUnique({ where: { userId }, select: { cherries: true } }),
+    taskCherryLockIn(db, userId, rules),
   ]);
-  return { coins: Number(wallet?.coins ?? 0n), cherries: Number(cherries?.cherries ?? 0n) };
+  const balance = cherries?.cherries ?? 0n;
+  const locked = lock.lockedCherries < 0n ? 0n : lock.lockedCherries;
+  const spendable = balance - locked;
+  return {
+    coins: Number(wallet?.coins ?? 0n),
+    cherries: Number(spendable > 0n ? spendable : 0n),
+    lockedCherries: Number(balance > 0n ? (locked < balance ? locked : balance) : 0n),
+  };
 }
 
 /** Serializes one buyer's store purchases (and every read of their balances inside them). */
@@ -129,6 +147,7 @@ export class StoreService {
     private readonly clock: Clock,
     private readonly users: UsersService,
     private readonly notifier: Notifier,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** `GET /store/items?kind=`: the items switched on with at least one price, in the panel's order. */
@@ -161,7 +180,7 @@ export class StoreService {
     return {
       data: rows.map((r) => this.itemDto(r, lang, until.get(r.bagCode))),
       kinds: STORE_KINDS.filter((k) => kinds.has(k)),
-      balances: await balancesIn(this.prisma, userId),
+      balances: await balancesIn(this.prisma, userId, this.config.economy),
     };
   }
 
@@ -267,14 +286,17 @@ export class StoreService {
           if (!change) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
           balanceAfter = change.coins;
         } else {
-          // Cherries are the hosts' earnings: spending them in the store is a guarded debit of the cherry ledger.
+          // Cherries are the hosts' earnings: spending them in the store is a guarded debit of the cherry ledger. Owner
+          // (D270): «هل يُصرف كرز المهام المقفل في المتجر؟ لا» — only the unlocked balance, exactly what a withdrawal may
+          // take (the task-cherry lock, §10.46.1), checked in this transaction.
+          const lock = await taskCherryLockIn(tx, buyerId, this.config.economy);
           const after = await holdCherriesIn(
             tx,
             buyerId,
             price.amount,
             purchaseId,
             now,
-            0n,
+            lock.lockedCherries,
             'STORE_PURCHASE',
           );
           if (after === null) throw new AppException(ErrorCode.INSUFFICIENT_CHERRIES);
@@ -404,7 +426,7 @@ export class StoreService {
       recipient: p.recipientId === buyerId ? null : userSummary(p.recipient, this.clock.now()),
       expiresAt: p.expiresAt.toISOString(),
       extended: p.extended,
-      balances: await balancesIn(this.prisma, buyerId),
+      balances: await balancesIn(this.prisma, buyerId, this.config.economy),
     };
   }
 }

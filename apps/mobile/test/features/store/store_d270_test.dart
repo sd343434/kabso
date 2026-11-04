@@ -97,69 +97,73 @@ StoreItem _item(
   ownedUntil: ownedUntil,
 );
 
-StoreItemList _list({required bool ar, int coins = 120000, int cherries = 0}) =>
-    StoreItemList(
-      kinds: StoreKind.values,
-      balances: StoreBalances(coins: coins, cherries: cherries),
-      items: [
-        _item(
-          'store_000000000001',
-          StoreKind.avatarFrame,
-          ar ? 'إطار الوردة' : 'Rose frame',
-          art: 'frame',
-          isNew: true,
-        ),
-        _item(
-          'store_000000000002',
-          StoreKind.avatarFrame,
-          ar ? 'إطار الملكة' : 'Queen frame',
-          art: 'frame_blue',
-          ownedUntil: DateTime.utc(2026, 11, 20),
-          prices: const [
-            StorePrice(currency: StoreCurrency.coins, days: 14, amount: 90000),
-          ],
-        ),
-        _item(
-          'store_000000000003',
-          StoreKind.avatarFrame,
-          ar ? 'إطار الكرز' : 'Cherry frame',
-          art: 'frame_gold',
-          prices: const [
-            StorePrice(
-              currency: StoreCurrency.cherries,
-              days: 30,
-              amount: 2000000,
-            ),
-          ],
-        ),
-        _item(
-          'store_000000000004',
-          StoreKind.profileCard,
-          ar ? 'بطاقة العائلة' : 'Family card',
-          art: 'card',
-        ),
-        _item(
-          'store_000000000005',
-          StoreKind.chatBubble,
-          ar ? 'فقاعة الياقوت' : 'Sapphire bubble',
-          art: 'bubble',
-          video: ArtVideo.sideBySide,
-        ),
-        _item(
-          'store_000000000006',
-          StoreKind.entryBanner,
-          ar ? 'لافتة الياقوت' : 'Ruby banner',
-          art: 'banner',
-        ),
-        _item(
-          'store_000000000007',
-          StoreKind.entryEffect,
-          ar ? 'سيارة التاج' : 'Crown car',
-          art: 'car',
-          isNew: true,
-        ),
+StoreItemList _list({
+  required bool ar,
+  int coins = 120000,
+  int cherries = 0,
+  int locked = 0,
+}) => StoreItemList(
+  kinds: StoreKind.values,
+  balances: StoreBalances(
+    coins: coins,
+    cherries: cherries,
+    lockedCherries: locked,
+  ),
+  items: [
+    _item(
+      'store_000000000001',
+      StoreKind.avatarFrame,
+      ar ? 'إطار الوردة' : 'Rose frame',
+      art: 'frame',
+      isNew: true,
+    ),
+    _item(
+      'store_000000000002',
+      StoreKind.avatarFrame,
+      ar ? 'إطار الملكة' : 'Queen frame',
+      art: 'frame_blue',
+      ownedUntil: DateTime.utc(2026, 11, 20),
+      prices: const [
+        StorePrice(currency: StoreCurrency.coins, days: 14, amount: 90000),
       ],
-    );
+    ),
+    _item(
+      'store_000000000003',
+      StoreKind.avatarFrame,
+      ar ? 'إطار الكرز' : 'Cherry frame',
+      art: 'frame_gold',
+      prices: const [
+        StorePrice(currency: StoreCurrency.cherries, days: 30, amount: 2000000),
+      ],
+    ),
+    _item(
+      'store_000000000004',
+      StoreKind.profileCard,
+      ar ? 'بطاقة العائلة' : 'Family card',
+      art: 'card',
+    ),
+    _item(
+      'store_000000000005',
+      StoreKind.chatBubble,
+      ar ? 'فقاعة الياقوت' : 'Sapphire bubble',
+      art: 'bubble',
+      video: ArtVideo.sideBySide,
+    ),
+    _item(
+      'store_000000000006',
+      StoreKind.entryBanner,
+      ar ? 'لافتة الياقوت' : 'Ruby banner',
+      art: 'banner',
+    ),
+    _item(
+      'store_000000000007',
+      StoreKind.entryEffect,
+      ar ? 'سيارة التاج' : 'Crown car',
+      art: 'car',
+      isNew: true,
+    ),
+  ],
+);
 
 class _FakeStore implements StoreRepository {
   new(this.list);
@@ -249,12 +253,18 @@ Future<(_FakeStore, FakeBagRepository)> _pump(
   AppLanguage language = AppLanguage.en,
   int coins = 120000,
   int cherries = 0,
+  int locked = 0,
   Brightness brightness = Brightness.dark,
 }) async {
   await loadAppFonts();
   setViewport(tester, GoldenViewport.phone);
   final store = _FakeStore(
-    _list(ar: language == AppLanguage.ar, coins: coins, cherries: cherries),
+    _list(
+      ar: language == AppLanguage.ar,
+      coins: coins,
+      cherries: cherries,
+      locked: locked,
+    ),
   );
   final bag = FakeBagRepository();
   final router = GoRouter(
@@ -454,6 +464,28 @@ void main() {
     expect(buy.onPressed, isNull);
     await _tapButton(tester, StoreItemSheet.rechargeKey);
     expect(find.text('page ${AppRoutes.wallet}'), findsOneWidget);
+    expect(store.buys, isEmpty);
+  });
+
+  testWidgets('locked task cherries: only the unlocked ones count, and the '
+      'sheet says the locked ones are not spent', (tester) async {
+    final (store, _) = await _pump(tester, cherries: 100000, locked: 900000);
+    await _open(tester, 'store_000000000001');
+    await _tapButton(
+      tester,
+      StoreItemSheet.currencyKey(StoreCurrency.cherries),
+    );
+    expect(find.byKey(StoreItemSheet.lockedKey), findsOneWidget);
+    expect(find.textContaining('900,000 locked'), findsOneWidget);
+    // 100,000 spendable < 400,000: short, buying off.
+    expect(find.byKey(StoreItemSheet.shortKey), findsOneWidget);
+    expect(
+      tester.widget<KButton>(find.byKey(StoreItemSheet.buyKey)).onPressed,
+      isNull,
+    );
+    // Not shown when paying with coins.
+    await _tapButton(tester, StoreItemSheet.currencyKey(StoreCurrency.coins));
+    expect(find.byKey(StoreItemSheet.lockedKey), findsNothing);
     expect(store.buys, isEmpty);
   });
 

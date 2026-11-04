@@ -6590,9 +6590,13 @@ set in the panel; a duration without a price is not offered. Store items are nev
   `not_priced`; an item switched off → `item` `item_off`.
 - **Coins** are debited from the wallet (`wallet_ledger` `STORE_PURCHASE`, guarded: never below 0, else 409
   `INSUFFICIENT_COINS`). **Cherries** — the hosts' earnings (§10.46) — are debited from the cherry wallet (`cherry_ledger`
-  `STORE_PURCHASE`, the same guarded debit as a withdrawal hold, else 409 `INSUFFICIENT_CHERRIES`). Task cherries still
-  locked for withdrawal (§10.46.1) may be spent here: the lock is about cashing out, and the store is not a payout.
-  Either ledger row's reference is the `store_purchases` row.
+  `STORE_PURCHASE`, the same guarded debit as a withdrawal hold, else 409 `INSUFFICIENT_CHERRIES`). **Only unlocked
+  cherries are spent** (owner, 2026-11-04: «هل يُصرف كرز المهام المقفل في المتجر؟ لا»): the debit takes the task cherries
+  still locked (§10.46.1) out of the balance exactly as a withdrawal does, computed in the purchase's transaction; a
+  person whose cherries are all locked task cherries gets 409 `INSUFFICIENT_CHERRIES`. `StoreBalances.cherries` is that
+  spendable amount and `lockedCherries` the locked part, so the app's balance and affordability use what can be spent
+  (and says «كرز المهام المقفل لا يُصرف في المتجر» when some are locked). Either ledger row's reference is the
+  `store_purchases` row.
 - **Frozen accounts.** While the person's coin balance is below 0 (a reversed website purchase, §10.53) nothing is
   bought, in either currency: 403 `TOPUP_ACCOUNT_FROZEN`.
 - **The item lands in the bag**: a new item counts from now; one the recipient holds gets the days **added to its end**

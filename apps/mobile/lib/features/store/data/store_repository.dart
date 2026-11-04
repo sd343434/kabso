@@ -146,20 +146,31 @@ final class StoreItem {
   ];
 }
 
-/// `StoreBalances`: the caller's coins and cherries.
+/// `StoreBalances`: the caller's coins and the cherries they may spend.
+/// Owner (D270): «هل يُصرف كرز المهام المقفل في المتجر؟ لا» — [cherries] is
+/// the unlocked balance (what a withdrawal may take); [lockedCherries] the
+/// task cherries not spendable yet.
 @immutable
 final class StoreBalances {
-  const new({required this.coins, required this.cherries});
+  const new({
+    required this.coins,
+    required this.cherries,
+    this.lockedCherries = 0,
+  });
 
   factory fromJson(Object? json) => json is Map<String, dynamic>
       ? StoreBalances(
           coins: _int(json['coins']),
           cherries: _int(json['cherries']),
+          lockedCherries: _int(json['lockedCherries']),
         )
       : const StoreBalances(coins: 0, cherries: 0);
 
   final int coins;
+
+  /// Spendable (unlocked) cherries.
   final int cherries;
+  final int lockedCherries;
 
   int of(StoreCurrency currency) =>
       currency == StoreCurrency.coins ? coins : cherries;

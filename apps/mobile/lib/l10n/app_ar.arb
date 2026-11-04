@@ -13154,5 +13154,7 @@
   "errorStorePriceChanged": "تغيّر سعر هذا العنصر. راجع السعر الجديد.",
   "@errorStorePriceChanged": {"description": "D270: «المتجر» (the store)."},
   "walletReasonStorePurchase": "شراء من المتجر",
-  "@walletReasonStorePurchase": {"description": "D270: «المتجر» (the store)."}
+  "@walletReasonStorePurchase": {"description": "D270: «المتجر» (the store)."},
+  "storeLockedCherries": "كرز المهام المقفل لا يُصرف في المتجر ({amount} مقفل).",
+  "@storeLockedCherries": {"description": "D270: locked task cherries are not spendable in the store (owner).", "placeholders": {"amount": {"type": "String"}}}
 }
