@@ -11,7 +11,6 @@
 // A fixed clock. The goldens are in test/goldens/recruits_d285_golden_test.dart.
 
 import 'package:clock/clock.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';

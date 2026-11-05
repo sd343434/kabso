@@ -17,7 +17,6 @@
 library;
 
 import 'package:clock/clock.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/recruits/data/recruits_repository.dart';
