@@ -987,6 +987,8 @@ export interface AdminHostTargetSettings {
   taskNoRepeatDays: number;
   historyDays: number;
   completionShift: number;
+  /** D281b: the new-host defaults per kind, per band 1…4: [easy, medium, hard]. */
+  newHostDefaults: Record<string, number[][]>;
   engineFrom: string | null;
   updatedAt: string;
   updatedById: string | null;
@@ -998,13 +1000,18 @@ export interface AdminTargetCatalogue {
     total: number;
     windows: number;
     gifts: number;
+    /** D281b. */
+    luckyGifts: number;
     categories: number;
     byKind: Record<string, number>;
+    byTrack: Record<string, number>;
   };
   tasks: { total: number; templates: number; byTemplate: Record<string, number> };
 }
 /** v1.71-live (D281) `AdminHostTarget`. */
 export interface AdminHostTarget {
+  /** D281b: «الهدايا» or «هدايا الحظ». */
+  track: 'GIFTS' | 'LUCKY';
   level: 'EASY' | 'MEDIUM' | 'HARD';
   code: string;
   kind: string;

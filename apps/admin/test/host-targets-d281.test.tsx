@@ -43,6 +43,14 @@ const SAVED: AdminHostTargetSettings = {
   taskNoRepeatDays: 3,
   historyDays: 30,
   completionShift: 10,
+  newHostDefaults: {
+    GIFT_SENDS: [[5, 10, 20], [10, 25, 50], [25, 60, 120], [50, 120, 250]],
+    SUPPORTERS: [[2, 3, 5], [3, 5, 8], [5, 8, 12], [8, 12, 20]],
+    GIFT_CHERRIES: [[20_000, 60_000, 150_000], [60_000, 200_000, 500_000], [200_000, 600_000, 1_500_000], [600_000, 2_000_000, 5_000_000]],
+    LUCKY_SENDS: [[5, 10, 20], [10, 25, 50], [25, 60, 120], [50, 120, 250]],
+    LUCKY_SUPPORTERS: [[1, 2, 3], [2, 3, 5], [3, 5, 8], [5, 8, 12]],
+    LUCKY_CHERRIES: [[5_000, 15_000, 40_000], [15_000, 50_000, 120_000], [50_000, 150_000, 400_000], [150_000, 500_000, 1_200_000]],
+  },
   engineFrom: '2027-01-14',
   updatedAt: '2027-01-13T07:00:00.000Z',
   updatedById: null,
@@ -70,6 +78,15 @@ describe('D281 the knobs', () => {
     expect(html).not.toContain('readOnly');
     expect(knobChanges(SAVED, { ...draftOf(SAVED), hardRewardBps: 500 })).toEqual({ hardRewardBps: 500 });
     expect(knobChanges(SAVED, draftOf(SAVED))).toEqual({});
+    // D281b: the new-host defaults (owner: today's prices are placeholders) — editable, sent only when changed.
+    expect(html).toContain('data-new-host-defaults');
+    expect(html).toContain('data-default="LUCKY_CHERRIES.3.2"');
+    const raised = structuredClone(SAVED.newHostDefaults);
+    raised.GIFT_CHERRIES![0] = [200_000, 600_000, 1_500_000];
+    expect(knobChanges(SAVED, { ...draftOf(SAVED), newHostDefaults: raised })).toEqual({ newHostDefaults: raised });
+    const wrong = structuredClone(SAVED.newHostDefaults);
+    wrong.SUPPORTERS![0] = [5, 3, 2];
+    expect(knobsValid({ ...draftOf(SAVED), newHostDefaults: wrong })).toBe(false);
     expect(bpsPercent(400, 'en')).toBe('4%');
   });
 
@@ -95,14 +112,27 @@ describe('D281 the knobs', () => {
 describe('D281 the catalogue and a host’s day', () => {
   it('the catalogue counts targets by kind and tasks by template', () => {
     const data: AdminTargetCatalogue = {
-      targets: { version: 'ab12cd34', total: 235_200, windows: 147, gifts: 19, categories: 5, byKind: { GIFT_COUNT: 111_720 } },
+      targets: {
+        version: 'ab12cd34',
+        total: 229_320,
+        windows: 147,
+        gifts: 15,
+        luckyGifts: 4,
+        categories: 4,
+        byKind: { GIFT_COUNT: 88_200, LUCKY_GIFT_COUNT: 23_520 },
+        byTrack: { GIFTS: 158_760, LUCKY: 70_560 },
+      },
       tasks: { total: 115_983, templates: 23, byTemplate: { P_WATCH_LIVES: 5_880 } },
     };
     const ar = render(<CatalogueStats data={data} />, 'ar', capsOf('OWNER'));
     expect(ar).toContain('عدد هدية');
+    // D281b: the lucky track's own count and the split by tab.
+    expect(ar).toContain('عدد هدية حظ');
+    expect(ar).toContain('هدايا الحظ');
     expect(ar).toContain('ab12cd34');
     const en = render(<CatalogueStats data={data} />, 'en', capsOf('OWNER'));
-    expect(en).toContain('235,200');
+    expect(en).toContain('229,320');
+    expect(en).toContain('70,560');
     expect(en).toContain('115,983');
     expect(en).toContain('P_WATCH_LIVES');
   });
@@ -113,6 +143,7 @@ describe('D281 the catalogue and a host’s day', () => {
       day: '2027-01-14',
       targets: [
         {
+          track: 'GIFTS',
           level: 'EASY',
           code: 'T.GIFT_COUNT.warrior.100.0-1440',
           kind: 'GIFT_COUNT',
@@ -132,8 +163,9 @@ describe('D281 the catalogue and a host’s day', () => {
           reason: { newHost: false, why: 'Warrior received: the 50th percentile …', whyAr: 'استلام المحارب: المئين 50 …' },
         },
         {
+          track: 'LUCKY',
           level: 'HARD',
-          code: 'T.GIFT_CHERRIES.*.3000000.0-1440',
+          code: 'T.LUCKY_CHERRIES.*.3000000.0-1440',
           kind: 'GIFT_CHERRIES',
           subject: null,
           titleAr: 'هدف الهدايا: 3,000,000 كرزة',
@@ -157,6 +189,9 @@ describe('D281 the catalogue and a host’s day', () => {
     expect(ar).toContain('استلام المحارب: المئين 50');
     expect(ar).toContain('سهل');
     expect(ar).toContain('صعب');
+    // D281b: each row names its tab.
+    expect(ar).toContain('data-track="GIFTS"');
+    expect(ar).toContain('data-track="LUCKY"');
     // Progress capped at the amount; the share as a percent; unpaid as a dash.
     expect(ar).toContain('100 / 100');
     expect(ar).toContain('4٪');

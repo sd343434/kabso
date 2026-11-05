@@ -11,8 +11,19 @@ import type { AdminHostTargetDay, AdminHostTargetSettings, AdminTargetCatalogue 
  * generated catalogues, and a host's targets of a day with «لماذا هذا الهدف».
  */
 type Draft = Omit<AdminHostTargetSettings, 'engineFrom' | 'updatedAt' | 'updatedById'>;
+type Knob = Exclude<keyof Draft, 'newHostDefaults'>;
 
-export const KNOB_FIELDS: readonly [keyof Draft, string][] = [
+/** D281b: the new-host defaults' kinds, in the order the form shows them. */
+export const DEFAULT_KINDS = [
+  'GIFT_SENDS',
+  'SUPPORTERS',
+  'GIFT_CHERRIES',
+  'LUCKY_SENDS',
+  'LUCKY_SUPPORTERS',
+  'LUCKY_CHERRIES',
+] as const;
+
+export const KNOB_FIELDS: readonly [Knob, string][] = [
   ['easyPercentile', 'htEasyPercentile'],
   ['mediumPercentile', 'htMediumPercentile'],
   ['hardPercentile', 'htHardPercentile'],
@@ -29,7 +40,17 @@ export const KNOB_FIELDS: readonly [keyof Draft, string][] = [
 export function knobChanges(saved: AdminHostTargetSettings, draft: Draft): Partial<Draft> {
   const out: Partial<Draft> = {};
   for (const [k] of KNOB_FIELDS) if (draft[k] !== saved[k]) out[k] = draft[k];
+  if (JSON.stringify(draft.newHostDefaults) !== JSON.stringify(saved.newHostDefaults)) {
+    out.newHostDefaults = draft.newHostDefaults;
+  }
   return out;
+}
+
+/** D281b: every band of the new-host defaults keeps easy ≤ medium ≤ hard (whole numbers ≥ 1). */
+export function defaultsValid(d: Record<string, number[][]>): boolean {
+  return DEFAULT_KINDS.every((k) =>
+    (d[k] ?? []).every((b) => b.every((x) => Number.isInteger(x) && x >= 1) && b[0]! <= b[1]! && b[1]! <= b[2]!),
+  );
 }
 
 /** Whether the order holds (easy < medium < hard; easy ≤ medium ≤ hard shares) — the API refuses it otherwise. */
@@ -38,7 +59,8 @@ export function knobsValid(d: Draft): boolean {
     d.easyPercentile < d.mediumPercentile &&
     d.mediumPercentile < d.hardPercentile &&
     d.easyRewardBps <= d.mediumRewardBps &&
-    d.mediumRewardBps <= d.hardRewardBps
+    d.mediumRewardBps <= d.hardRewardBps &&
+    defaultsValid(d.newHostDefaults)
   );
 }
 
@@ -86,6 +108,47 @@ export function HostTargetKnobsForm({
           </label>
         ))}
       </div>
+      <h3>{t('htDefaults')}</h3>
+      <p className="muted small">{t('htDefaultsHint')}</p>
+      <div className="table-wrap">
+        <table data-new-host-defaults>
+          <thead>
+            <tr>
+              <th>{t('htTarget')}</th>
+              {[1, 2, 3, 4].map((b) => (
+                <th key={b}>{t('htBand', { band: String(b) })}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {DEFAULT_KINDS.map((k) => (
+              <tr key={k}>
+                <td>{t(`htKind${k}` as never)}</td>
+                {(draft.newHostDefaults[k] ?? []).map((band, bi) => (
+                  <td key={bi}>
+                    {band.map((v, li) => (
+                      <input
+                        key={li}
+                        type="number"
+                        className="num"
+                        style={{ width: '6.5em' }}
+                        value={v}
+                        readOnly={!edit}
+                        data-default={`${k}.${String(bi)}.${String(li)}`}
+                        onChange={(e) => {
+                          const next = structuredClone(draft.newHostDefaults);
+                          next[k]![bi]![li] = Number(e.target.value);
+                          onChange({ ...draft, newHostDefaults: next });
+                        }}
+                      />
+                    ))}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="muted small">
         {t('htEngineFrom')}: <span className="date">{saved.engineFrom ?? t('htEngineNotYet')}</span>
         {' · '}
@@ -116,6 +179,10 @@ export function CatalogueStats({ data }: { data: AdminTargetCatalogue }) {
         <div>
           <p className="kpi" data-catalogue-targets>
             {t('htCatalogueTargets')}: <strong className="num">{n(data.targets.total)}</strong>
+          </p>
+          <p className="muted small">
+            {t('htTrackGIFTS')}: {n(data.targets.byTrack.GIFTS ?? 0)} · {t('htTrackLUCKY')}:{' '}
+            {n(data.targets.byTrack.LUCKY ?? 0)} · {t('htCatalogueLuckyGifts')}: {n(data.targets.luckyGifts)}
           </p>
           <p className="muted small">
             {t('htCatalogueGifts')}: {n(data.targets.gifts)} · {t('htCatalogueWindows')}: {n(data.targets.windows)} ·{' '}
@@ -156,6 +223,7 @@ export function HostTargetDayView({ data }: { data: AdminHostTargetDay }) {
       <table>
         <thead>
           <tr>
+            <th>{t('htTrack')}</th>
             <th>{t('htLevel')}</th>
             <th>{t('htTarget')}</th>
             <th>{t('htProgress')}</th>
@@ -166,7 +234,8 @@ export function HostTargetDayView({ data }: { data: AdminHostTargetDay }) {
         </thead>
         <tbody>
           {data.targets.map((x) => (
-            <tr key={x.level} data-level={x.level}>
+            <tr key={`${x.track}:${x.level}`} data-level={x.level} data-track={x.track}>
+              <td>{t(`htTrack${x.track}` as never)}</td>
               <td>{t(`htLevel${x.level}` as never)}</td>
               <td>
                 <div>{lang === 'ar' ? x.titleAr : x.titleEn}</div>
