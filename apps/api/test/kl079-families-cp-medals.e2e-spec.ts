@@ -860,7 +860,14 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
           .set('Accept-Language', 'en')
           .send({ medalCodes });
 
-      const tooMany = await put(['FIRST_LIVE', 'FIRST_CP', 'FIRST_FAMILY', 'BULLET_FIRST', 'CHARM_10', 'CHARM_50']);
+      const tooMany = await put([
+        'FIRST_LIVE',
+        'FIRST_CP',
+        'FIRST_FAMILY',
+        'BULLET_FIRST',
+        'CHARM_10',
+        'CHARM_50',
+      ]);
       expect(tooMany.status).toBe(400);
       expectContract(tooMany, 'setMyMedalShowcase');
       expect(tooMany.body.error.details).toEqual([{ field: 'medalCodes', issue: 'too_big' }]);
