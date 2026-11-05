@@ -239,7 +239,7 @@ describe('D166 check-in rules', () => {
     expect(TASK_METRICS.at(-10)).toBe('HOST_LUCKY_COINS');
     // D277 (v1.69-live): the host's targets in cherries.
     expect(TASK_METRICS.slice(-9, -7)).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
-    // D281 (v1.85-social): the generated catalogue's new actions.
+    // D281 (v1.86-social): the generated catalogue's new actions.
     expect(TASK_METRICS.slice(-7)).toEqual([
       'GIFT_COUNT_SENT',
       'CATEGORY_GIFTS_SENT',

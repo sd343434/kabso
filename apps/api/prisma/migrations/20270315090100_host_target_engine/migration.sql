@@ -1,4 +1,4 @@
--- v1.71-live / v1.85-social (D281, owner, CONVENTIONS §10.62.2 and §10.41.4): the smart targets and tasks.
+-- v1.71-live / v1.86-social (D281, owner, CONVENTIONS §10.62.2 and §10.41.4): the smart targets and tasks.
 --
 -- 1. «الأهداف الذكية»: three daily targets per host (easy / medium / hard) from a generated catalogue of more
 --    than 100 000 targets (templates × parameters, regenerated from the enabled gift catalogue at each read —

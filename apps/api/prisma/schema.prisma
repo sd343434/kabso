@@ -3763,7 +3763,7 @@ model TaskAssignment {
   rewardCherries Int      @map("reward_cherries")
   position       Int      @db.SmallInt
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  /// v1.85-social (D281): the generated variant (`K.<template>.<subject|*>.<amount>.<from>-<to>`; its amount is
+  /// v1.86-social (D281): the generated variant (`K.<template>.<subject|*>.<amount>.<from>-<to>`; its amount is
   /// `target`), its gift or category, its window of the day (minutes; null = the whole day), its resolved names
   /// and the reasons of the smart assignment. Null on rows before D281 (the template itself, the whole day).
   variant        String?  @db.VarChar(120)

@@ -443,7 +443,7 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
       .split(';')
       .map((x) => x.trim())
       .filter((x) => x.length > 0)
-      // D281: a later migration (20270314090100) widened the metrics CHECK; the old one would refuse its rows.
+      // D281: a later migration (20270315090100) widened the metrics CHECK; the old one would refuse its rows.
       .filter((x) => !x.startsWith('ALTER TABLE "task_definitions"'));
     await withMigrationClient(async (db) => {
       for (const st of statements) await db.$executeRawUnsafe(st);

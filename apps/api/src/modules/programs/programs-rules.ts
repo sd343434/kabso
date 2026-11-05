@@ -43,7 +43,7 @@ export const TASK_METRICS = [
   // from other ACTIVE people; «هدف هدايا الحظ»: lucky gifts only, the caller's own sends to themself too.
   'HOST_GIFT_CHERRIES',
   'HOST_LUCKY_CHERRIES',
-  // v1.85-social (D281): the generated catalogue's new measurable actions — a chosen gift (`subject` = its code)
+  // v1.86-social (D281): the generated catalogue's new measurable actions — a chosen gift (`subject` = its code)
   // or a gift category (`subject` = its code) sent (quantity, paid, to other ACTIVE people); different ACTIVE
   // people gifted; joining a family; family chat messages; PK battles started and won (hosts).
   'GIFT_COUNT_SENT',
@@ -361,7 +361,7 @@ export function cherriesForCoins(coins: number, cherriesPerCoin: number, shareBp
   return Math.floor((coins * cherriesPerCoin * shareBps) / 10_000);
 }
 
-/** v1.85-social (D281): the pool templates migration 20270314090100_host_target_engine seeds. */
+/** v1.86-social (D281): the pool templates migration 20270315090100_host_target_engine seeds. */
 export const D281_POOL_TASKS: readonly string[] = [
   'P_SEND_GIFT_OF',
   'P_SEND_CATEGORY',
@@ -733,7 +733,7 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     nameEn: 'Accept a guest on a seat',
     sortOrder: 720,
   },
-  // v1.85-social (D281, owner: «أكثر من 100 ألف مهمة متنوعة»): new templates the generated catalogue multiplies
+  // v1.86-social (D281, owner: «أكثر من 100 ألف مهمة متنوعة»): new templates the generated catalogue multiplies
   // by amounts, windows, gifts and categories (task-catalogue.ts). A chosen gift / a category: the band target
   // is a COIN VALUE (the count = that value in the gift's price) and the reward follows D188's rate (0.1 cherry
   // per coin, as «أرسل هدايا»); the other new actions pay the symbolic 300 → 1 000 (hosts as their host tasks).

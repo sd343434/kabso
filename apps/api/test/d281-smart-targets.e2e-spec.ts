@@ -1,5 +1,5 @@
 /**
- * D281 (v1.71-live / v1.85-social, CONVENTIONS §10.62.2, §10.41.4): «الأهداف الذكية» — the switch at the next day
+ * D281 (v1.71-live / v1.86-social, CONVENTIONS §10.62.2, §10.41.4): «الأهداف الذكية» — the switch at the next day
  * boundary (today's D277 targets kept), three smart targets a day at three levels, the progress of every target kind
  * (gift counts included) from stored sends, the profit-share reward paid once in locked task cherries (never more
  * than the level's share of the ACTUAL profit counted), yesterday's reached targets settled, the Task Center's

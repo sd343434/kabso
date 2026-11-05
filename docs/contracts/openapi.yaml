@@ -746,7 +746,7 @@ info:
     `UserSummary.wear` and `PublicProfile.wear` (`StoreWear`) — one worn item per kind with the VIP items. Ledger reason
     `STORE_PURCHASE` (coins and cherries); codes `STORE_UNAVAILABLE`, `STORE_PRICE_CHANGED` (409). Additive
     (CONVENTIONS §10.98).
-    **D281 (DRAFT v1.71-live / v1.85-social)**: «الأهداف الذكية» — a host's three daily targets (easy / medium / hard)
+    **D281 (DRAFT v1.71-live / v1.86-social)**: «الأهداف الذكية» — a host's three daily targets (easy / medium / hard)
     chosen from their own data out of a generated catalogue of more than 100 000 targets; each pays a share of the
     platform profit it produced (1.5 % / 2.5 % / 4 %) in locked task cherries, once: `LiveHostTargets.daily`
     (`HostDailyTarget`), ledger reason `HOST_TARGET_REWARD`; the Task Center's generated catalogue (more than 100 000
@@ -25164,7 +25164,7 @@ components:
             - type: 'null'
     TaskGift:
       type: object
-      description: "v1.71-live / v1.85-social (D281): a gift a target or a task names."
+      description: "v1.71-live / v1.86-social (D281): a gift a target or a task names."
       required: [code, name, assetKey, imageUrl]
       properties:
         code: { type: string, maxLength: 40 }
@@ -29285,18 +29285,18 @@ components:
             coin value of paid gifts sent (the target is coins, like `HOST_GIFT_COINS`). v1.69-live (D277,
             §10.62.1) adds `HOST_GIFT_CHERRIES` («هدف الهدايا»: the cherries of gifts outside the lucky category
             from other people) and `HOST_LUCKY_CHERRIES` («هدف هدايا الحظ»: the cherries of lucky gifts, self-sends
-            included); their targets are cherries. v1.85-social (D281, §10.41.4) adds `GIFT_COUNT_SENT` (how many of
+            included); their targets are cherries. v1.86-social (D281, §10.41.4) adds `GIFT_COUNT_SENT` (how many of
             the task's `gift` were sent), `CATEGORY_GIFTS_SENT` (of one gift category), `GIFTED_HOSTS` (different
             people gifted), `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES` and `PK_WINS` (hosts).
         audience: { type: string, enum: [EVERYONE, HOSTS] }
-        name: { type: string, description: "v1.85-social (D281): a generated task's name states its gift, category or window." }
+        name: { type: string, description: "v1.86-social (D281): a generated task's name states its gift, category or window." }
         gift:
-          description: "v1.85-social (D281): the gift a `GIFT_COUNT_SENT` task names (its picture and name), else null. Sent by a v1.85-social server."
+          description: "v1.86-social (D281): the gift a `GIFT_COUNT_SENT` task names (its picture and name), else null. Sent by a v1.86-social server."
           oneOf:
             - $ref: '#/components/schemas/TaskGift'
             - type: 'null'
         window:
-          description: "v1.85-social (D281): the task's hours of the day (`HH:MM`; only what happens then counts), null for the whole day. Sent by a v1.85-social server."
+          description: "v1.86-social (D281): the task's hours of the day (`HH:MM`; only what happens then counts), null for the whole day. Sent by a v1.86-social server."
           oneOf:
             - type: object
               required: [from, to]

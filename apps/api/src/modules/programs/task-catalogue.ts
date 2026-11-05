@@ -1,5 +1,5 @@
 /**
- * D281 (owner, contract v1.85-social, CONVENTIONS §10.41.4): the Task Center's generated catalogue — more than
+ * D281 (owner, contract v1.86-social, CONVENTIONS §10.41.4): the Task Center's generated catalogue — more than
  * 100 000 different tasks from the pool templates × parameters (an amount ladder per metric, a time window of
  * the day, a gift or a gift category) — and the smart per-person assignment that reads the person's own
  * activity. Rewards keep the Task Center's rules (D184 / D188: free actions a symbolic reward, money tasks

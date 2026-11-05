@@ -58,7 +58,7 @@ describe('the default pool and bands (D176)', () => {
     );
     // D176 seeded every template (in coins); D184 made the rewards cherries (×10, then ×300) and D188
     // (v1.57-social, owner) rebalanced them: 20261231130000_task_rewards_rebalance holds the values.
-    // D281 (v1.85-social): its new templates are seeded by 20270314090100_host_target_engine (checked below).
+    // D281 (v1.86-social): its new templates are seeded by 20270315090100_host_target_engine (checked below).
     const d281 = (code: string) => D281_POOL_TASKS.includes(code);
     for (const t of DEFAULT_POOL_TASKS) if (!d281(t.code)) expect(sql).toContain(`('${t.code}', 'DAILY', '`);
     const cherries = readFileSync(
@@ -90,7 +90,7 @@ describe('the default pool and bands (D176)', () => {
     const engine = readFileSync(
       fileURLToPath(
         new URL(
-          '../../../prisma/migrations/20270314090100_host_target_engine/migration.sql',
+          '../../../prisma/migrations/20270315090100_host_target_engine/migration.sql',
           import.meta.url,
         ),
       ),

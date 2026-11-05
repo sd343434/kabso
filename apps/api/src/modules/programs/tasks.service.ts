@@ -147,7 +147,7 @@ interface OfferedTask {
   rewardCherries: number;
   pooled: boolean;
   /**
-   * v1.85-social (D281): a generated variant's gift or category, its window of the day (minutes; null = the whole
+   * v1.86-social (D281): a generated variant's gift or category, its window of the day (minutes; null = the whole
    * day) and its resolved names (null: the template's).
    */
   subject: string | null;
@@ -176,9 +176,9 @@ export interface ProgramTaskDto {
   metric: TaskMetric;
   audience: 'EVERYONE' | 'HOSTS';
   name: string;
-  /** v1.85-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
+  /** v1.86-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
   gift: { code: string; name: string; assetKey: string; imageUrl: string | null } | null;
-  /** v1.85-social (D281): the task's hours of the day (`HH:MM`), null for the whole day / week. */
+  /** v1.86-social (D281): the task's hours of the day (`HH:MM`), null for the whole day / week. */
   window: { from: string; to: string } | null;
   target: number;
   progress: number;
@@ -293,7 +293,7 @@ function progressSql(
   switch (metric) {
     case 'GIFT_COUNT_SENT':
     case 'CATEGORY_GIFTS_SENT':
-      // v1.85-social (D281): how many of one gift (or of one category's gifts) the caller sent in the period, paid
+      // v1.86-social (D281): how many of one gift (or of one category's gifts) the caller sent in the period, paid
       // with coins, to other ACTIVE people (the send's quantity).
       return Prisma.sql`
         SELECT COALESCE(sum(g.quantity), 0)::bigint AS n
@@ -570,7 +570,7 @@ export class TasksService {
     return Number(rows[0]?.n ?? 0);
   }
 
-  /** v1.85-social (D281): a task's period narrowed to its window of the day (the whole period without one). */
+  /** v1.86-social (D281): a task's period narrowed to its window of the day (the whole period without one). */
   private narrowed(w: ProgramWindow, window: OfferedTask['window']): ProgramWindow {
     if (window === null) return w;
     return {
@@ -652,7 +652,7 @@ export class TasksService {
     } as const;
     let rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
     if (rows.length > 0) return { rows };
-    // v1.85-social (D281): from the smart engine's first day, the generated catalogue and the smart assignment.
+    // v1.86-social (D281): from the smart engine's first day, the generated catalogue and the smart assignment.
     if (await this.targets.engineOn(day, db)) {
       await this.smartAssign(db, me, day);
       rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
@@ -746,7 +746,7 @@ export class TasksService {
   }
 
   /**
-   * v1.85-social (D281, CONVENTIONS §10.41.4): what the smart task assignment reads about the caller — their 7-day
+   * v1.86-social (D281, CONVENTIONS §10.41.4): what the smart task assignment reads about the caller — their 7-day
    * daily average of each offered metric (stored data, the same queries as the progress), their completion over the
    * last 7 days, the variants of the last `task_no_repeat_days` days and yesterday's templates, family membership,
    * the gifts they send most and the hours they join lives (30 days).
@@ -829,7 +829,7 @@ export class TasksService {
   }
 
   /**
-   * v1.85-social (D281): the caller's tasks of `day` from the generated catalogue (task-catalogue.ts): the smart
+   * v1.86-social (D281): the caller's tasks of `day` from the generated catalogue (task-catalogue.ts): the smart
    * assignment from their profile, each with its variant, gift or category, window, names and reasons, stored for the
    * day (concurrent first reads pick the same and keep one set).
    */
@@ -1011,7 +1011,7 @@ export class TasksService {
     return this.taskDto(task, progress, claim ?? null, lang, await this.giftOf(db, task, lang));
   }
 
-  /** v1.85-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
+  /** v1.86-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
   private async giftOf(db: Db, task: OfferedTask, lang: ContentLanguage): Promise<ProgramTaskDto['gift']> {
     if (task.subject === null || task.def.metric !== 'GIFT_COUNT_SENT') return null;
     const [g] = await db.$queryRaw<
@@ -1451,7 +1451,7 @@ export class TasksService {
     };
   }
 
-  // ---- v1.85-social (D281): the panel's catalogue stats -------------------------------------------
+  // ---- v1.86-social (D281): the panel's catalogue stats -------------------------------------------
 
   /** The Task Center catalogue's size now (the enabled pool templates × parameters, the enabled gifts). */
   async taskCatalogue() {

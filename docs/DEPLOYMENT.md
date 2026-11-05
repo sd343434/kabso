@@ -2772,7 +2772,7 @@ CONVENTIONS §10.99. Adds `user_profiles.tags` (`VARCHAR(24)[] NOT NULL DEFAULT 
 The column add with a constant default is metadata-only on PostgreSQL ≥ 11 (no table rewrite). Order: API (with its
 migration) first, then the app; an older app ignores `tags`, and an older API leaves it out (the app shows no chips).
 
-### 5.62 Smart host targets and the generated Task Center «الأهداف الذكية» (migrations `20270314090000_host_target_engine_enums`, `20270314090100_host_target_engine`; D281) — [IMPLEMENTED, draft contracts v1.71-live / v1.85-social; not deployed, not device-tested]
+### 5.62 Smart host targets and the generated Task Center «الأهداف الذكية» (migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`; D281) — [IMPLEMENTED, draft contracts v1.71-live / v1.86-social; not deployed, not device-tested]
 
 CONVENTIONS §10.62.2 (targets: the catalogue, the assignment, the profit-share reward) and §10.41.4 (the Task Center's
 generated catalogue and smart assignment). The migrations:
