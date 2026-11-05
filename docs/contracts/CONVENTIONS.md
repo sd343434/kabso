@@ -6414,6 +6414,10 @@ role tag, name, VIP badge, tags and levels, «:», the text — and show no meda
 13.5 rows one point larger), read by every chat line of every live type (video / solo, multi-guest, audio, podcast,
 streamer, PK; host and viewer); no per-mode sizes. The viewer's own «حجم خط الدردشة» preference still scales it. The
 one-line rows' role tag is 16 pt; line-1 emblems 23 pt (≈ 1.6 × the name), medals and the VIP badge 21 pt.
+D269c (owner, audio room on the phone: «حجم الخط هنا لم يتغير»): the boxed line of the audio / podcast rooms (picture,
+name, badges, medals, message) is scaled down with the text so it reads like the video live's rows — a 26 pt picture
+(was 32), 6 pt to the column (was 8), 6 / 5 pt padding (was 8 / 8), 12 pt corners (was 14), emblems 20 pt and medals
+18 pt (were 23 / 21), the rows 3 pt apart. The text itself is `KChat` (checked by a test for the Kabso Team line too).
 
 **The VIP name badge (D268, owner: «ايقونة vip دائماً تأتي بعد الاسم وازل الميدالية التي قبل الاسم»).** Wherever a
 VIP member's name shows with their badge (every chat mode, the person card, the profile header, the Me hub, the

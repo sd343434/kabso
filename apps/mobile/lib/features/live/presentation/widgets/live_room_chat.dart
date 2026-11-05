@@ -936,18 +936,26 @@ class LiveChatAuthoredLine extends StatelessWidget {
   /// the message stacked 4 and 5 pt apart; 14 pt text (measured 14.6).
   /// D230 (owner: «الكتابة صغيرة والميداليات والمستوى صغير»): the name
   /// 15 sp bold, the badges 20 pt under it, the message 15.5 sp.
-  static const double avatar = 32;
-  static const double gap = 8;
-  static const double nameTop = 2;
-  // D269 (owner): the name and the message at [KChat]'s one chat size.
-  static const double radius = 14;
+  /// D269c (owner, audio room on the phone: «حجم الخط هنا لم يتغير» — the
+  /// lines should read like the video live's compact rows): the name and the
+  /// message at [KChat]'s one chat size, and the box around them scaled
+  /// down with it — a 26 pt picture (was 32), 6 pt after it (was 8), 6 / 5 pt
+  /// padding (was 8 / 8), 12 pt corners (was 14), emblems 20 pt (was 23)
+  /// and medals 18 pt (was 21), the rows 3 pt apart.
+  static const double avatar = 26;
+  static const double gap = 6;
+  static const double nameTop = 1;
+  static const double radius = 12;
 
-  /// D234: one height for every emblem of the badges line (as
-  /// [LiveChatInlineRow.badgeHeight]) and the medals under it.
-  static const double badgeRowHeight = LiveChatInlineRow.badgeHeight;
-  static const double medalSize = LiveChatInlineRow.medalSize;
+  /// D234: one height for every emblem of the badges line and the medals
+  /// under it (D269c: ≈ 1.4 × the 14 sp name, as the video live's rows).
+  static const double badgeRowHeight = 20;
+  static const double medalSize = 18;
+
+  /// The rows' spacing: name → medals, medals → message.
+  static const double rowGap = 3;
   static const EdgeInsetsDirectional boxPadding =
-      EdgeInsetsDirectional.fromSTEB(8, 8, 12, 8);
+      EdgeInsetsDirectional.fromSTEB(6, 5, 10, 5);
 
   /// The name: muted white.
   static const nameColor = Color(0xB3FFFFFF);
@@ -1091,10 +1099,10 @@ class LiveChatAuthoredLine extends StatelessWidget {
                 ),
               // D234: the showcased medals (≤ 5) under the name row.
               if (badges?.medals case final medals? when medals.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                LiveChatMedalRow(medals: medals),
+                const SizedBox(height: rowGap),
+                LiveChatMedalRow(medals: medals, size: medalSize),
               ],
-              const SizedBox(height: 5),
+              const SizedBox(height: rowGap),
               KeyedSubtree(key: bubbleKey, child: message),
             ],
           ),
@@ -2176,6 +2184,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
         role: null,
         tagLed: true,
         badges: w.badges,
+        height: LiveChatInlineRow.badgeHeight,
         agentBadgeHeight: LiveChatInlineRow.badgeHeight,
         agentCode: w.agentCode,
         hostAgentCode: w.hostAgentCode,

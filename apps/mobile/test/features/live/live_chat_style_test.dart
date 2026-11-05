@@ -314,9 +314,17 @@ void main() {
           expect(
             rtl
                 ? (list.right - box.right).abs() < 1 &&
-                      (box.right - avatar.right - 8).abs() < 1
+                      (box.right -
+                                  avatar.right -
+                                  LiveChatAuthoredLine.boxPadding.start)
+                              .abs() <
+                          1
                 : (box.left - list.left).abs() < 1 &&
-                      (avatar.left - box.left - 8).abs() < 1,
+                      (avatar.left -
+                                  box.left -
+                                  LiveChatAuthoredLine.boxPadding.start)
+                              .abs() <
+                          1,
             isTrue,
           );
           expect(

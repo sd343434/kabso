@@ -15,6 +15,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -60,16 +61,20 @@ void main() {
     expect(KChat.nameSize, 14);
   });
 
-  for (final mode in [
-    LiveRoomMode.solo,
-    LiveRoomMode.multi,
-    LiveRoomMode.pk,
-    LiveRoomMode.audio,
-    LiveRoomMode.podcast,
-    LiveRoomMode.streamer,
+  for (final (mode, staff) in [
+    (LiveRoomMode.solo, false),
+    (LiveRoomMode.multi, false),
+    (LiveRoomMode.pk, false),
+    (LiveRoomMode.audio, false),
+    (LiveRoomMode.podcast, false),
+    (LiveRoomMode.streamer, false),
+    // D269c (owner's phone, audio room: «حجم الخط هنا لم يتغير»): a Kabso
+    // Team line (D273) in the audio room and in the video live.
+    (LiveRoomMode.audio, true),
+    (LiveRoomMode.solo, true),
   ]) {
-    testWidgets("a viewer's chat line in a ${mode.name} live is "
-        'KChat.textSize', (tester) async {
+    testWidgets("a ${staff ? 'Kabso Team' : "viewer's"} chat line in a "
+        '${mode.name} live is KChat.textSize', (tester) async {
       final engine = FakeLiveMediaEngine()..present.add('user-0');
       setViewport(tester, GoldenViewport.phone);
       final repo = FakeLiveRepository(
@@ -109,6 +114,11 @@ void main() {
             authorRole: LiveChatRole.viewer,
             text: _marker,
             createdAt: DateTime.utc(2026, 11, 4, 20),
+            authorStaff: staff,
+            // (What `fromJson` makes of a staff line, D273.)
+            authorBadges: staff
+                ? const LiveChatAuthorBadges(kabsoTeam: true)
+                : null,
           ),
         ),
       );
@@ -116,6 +126,24 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(_sizeOf(tester, _marker), KChat.textSize, reason: mode.name);
+      // The name at the one name size too (whichever line draws it).
+      expect(_sizeOf(tester, 'Huda'), KChat.nameSize, reason: mode.name);
+      if (staff) {
+        expect(
+          tester
+              .widget<LiveChatRoleTag>(
+                find.byWidgetPredicate((w) => w is LiveChatRoleTag),
+              )
+              .kind,
+          LiveChatTagKind.team,
+        );
+      }
+      // D269c: the audio room's boxed line is the compact one.
+      final avatar = find.byKey(LiveChatAuthoredLine.avatarKey);
+      if (avatar.evaluate().isNotEmpty) {
+        expect(tester.getSize(avatar.first).width, LiveChatAuthoredLine.avatar);
+        expect(LiveChatAuthoredLine.avatar, 26);
+      }
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
     });

@@ -244,6 +244,7 @@ class LiveChatFlatLine extends ConsumerWidget {
       rechargeBadge: rechargeBadge,
       // The emblems at the row's height (D234), hugging their width.
       fullEmblems: true,
+      height: LiveChatInlineRow.badgeHeight,
       agentBadgeHeight: LiveChatInlineRow.badgeHeight,
     );
     // D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the name, then
