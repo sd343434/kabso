@@ -704,7 +704,10 @@ describe('D283 staff regions and the team picture (admin_staff_regions, user_pro
       SELECT conname::text AS name FROM pg_constraint
        WHERE contype = 'c' AND conname IN ('admin_staff_regions_code', 'user_profiles_staff_saved_avatar')
        ORDER BY 1`);
-    expect(checks.map((c) => c.name)).toEqual(['admin_staff_regions_code', 'user_profiles_staff_saved_avatar']);
+    expect(checks.map((c) => c.name)).toEqual([
+      'admin_staff_regions_code',
+      'user_profiles_staff_saved_avatar',
+    ]);
   });
 
   it('the runtime role has DML; the CHECKs hold; DDL and TRUNCATE are refused', async () => {

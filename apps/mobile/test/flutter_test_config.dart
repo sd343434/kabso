@@ -42,6 +42,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // D145d: the MAX X orb's endless motion, and its sounds (no audio plugin).
   MaxXOrb.animate = false;
   AudioplayersMaxXSounds.enabled = false;
+  // D283: the team frame's window from its constants (no async measurement).
+  KabsoTeamFrameWindow.enabled = false;
   // D154: the quips' sounds (no audio plugin in tests).
   AudioplayersQuipAudio.enabled = false;
   KabsoProfileHeaderArt.animate = false;

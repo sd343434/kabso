@@ -128,7 +128,9 @@ class _KabsoTeamAvatarState extends State<KabsoTeamAvatar> {
   void initState() {
     super.initState();
     final known = KabsoTeamFrameWindow.measured;
-    if (known != null) {
+    if (!KabsoTeamFrameWindow.enabled) {
+      // The constants (tests and goldens).
+    } else if (known != null) {
       _window = known;
     } else {
       unawaited(
@@ -198,6 +200,11 @@ class _KabsoTeamAvatarState extends State<KabsoTeamAvatar> {
 /// when the art has no round opening: the constants then stay).
 abstract final class KabsoTeamFrameWindow {
   static ({Offset centre, double diameter})? measured;
+
+  /// Widget tests and goldens set this false (`test/flutter_test_config.dart`):
+  /// the constants are used, so a capture never depends on when the
+  /// measurement finished (a test checks they match the art).
+  static bool enabled = true;
   static Future<({Offset centre, double diameter})?>? _pending;
 
   static const int rays = 90;
