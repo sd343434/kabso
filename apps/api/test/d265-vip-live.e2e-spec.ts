@@ -6,6 +6,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Clock } from '../src/common/time/clock.js';
 import { LiveMediaService } from '../src/modules/live/live-media.service.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
@@ -17,8 +18,20 @@ import { createTestApp, type TestContext } from './helpers/test-app.js';
 const VIP1 = '01a25200-0000-7000-8000-000000000001';
 const VIP1_SUMMARY = { tier: 'VIP_1', rank: 1, color: '#2E8B3D' };
 
+/** The real time, until `freeze()`: then that instant, so "the same join window" is not a race on a slow runner. */
+class FreezableClock extends Clock {
+  private frozen: number | null = null;
+  now(): Date {
+    return new Date(this.frozen ?? Date.now());
+  }
+  freeze(): void {
+    this.frozen = Date.now();
+  }
+}
+
 describe('D265 VIP in lives', { timeout: 180_000 }, () => {
   const media = new MemoryLiveMedia();
+  const clock = new FreezableClock();
   let ctx: TestContext;
   const p = panel(() => ctx);
   const auth = (u: Person) => ({ Authorization: `Bearer ${u.token}` });
@@ -40,7 +53,10 @@ describe('D265 VIP in lives', { timeout: 180_000 }, () => {
         LIVE_HEARTBEAT_STALE_SECONDS: '3600',
         LIVE_RANKINGS_TIME_ZONE: 'UTC',
       },
-      [{ token: LIVE_MEDIA_PROVIDER, value: media }],
+      [
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+        { token: Clock, value: clock },
+      ],
     );
   });
   afterAll(async () => ctx?.close());
@@ -69,6 +85,8 @@ describe('D265 VIP in lives', { timeout: 180_000 }, () => {
       ctx.app
         .get<LiveMediaService, { onJoined(r: string, i: string): Promise<void> }>(LiveMediaService)
         .onJoined(roomId, id);
+    // The three joins at one instant (the window is LIVE_CHAT_JOIN_INTERVAL_MS, 200 ms since D212).
+    clock.freeze();
     await onJoined(viewer.id);
     await onJoined(member.id);
     const joins = media.broadcastsOf(roomId, 'join');
