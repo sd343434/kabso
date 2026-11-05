@@ -4768,7 +4768,10 @@ day of the switch and the amounts `gifts` / `lucky` received.
   expected payout (`LUCKY_GIFT_RTP_PERCENT` × the coin value) − the host's cherries. Exact integers (micro-cents ×
   the payout rate's cherries). At the owner's numbers (1 000 000 coins = $12.50, 1 000 000 cherries = $1.10, 10 cherries
   a coin, shares 65 % / 50 % / 10 %, RTP 75 %): 1 000 000 coins of normal gifts → $12.50 − $7.15 = **$5.35**; of quips →
-  $12.50 − $5.50 = $7.00; of lucky gifts → $12.50 − $9.375 − $1.10 = **$2.025**.
+  $12.50 − $5.50 = $7.00; of lucky gifts → $12.50 − $9.375 − $1.10 = **$2.025**. Agency and parent commissions (extra
+  cherries to the agencies, §10.46: 15–16 % + 3 % of the host's cherries by default) are not subtracted — the owner's
+  formula; with them the platform still keeps ≈ $3.99 (normal) and ≈ $1.82 (lucky) per 1 000 000 coins, far above the 4 %
+  share.
 - **The reward.** Shown before completion on each target (`HostDailyTarget.rewardCherries`): the level's share
   (`reward_bps`: 150 / 250 / 400) of the profit the NOMINAL amount stands for — a cherries target's coins at the highest
   normal share (or the lucky share), a count target's coin value (the gift's price; the host's own coins per supporter /
