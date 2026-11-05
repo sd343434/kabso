@@ -5,6 +5,7 @@ import { useApp } from '../context';
 import { formatDate } from '../format';
 import type { PanelRole } from '../types';
 import { Icon } from '../ui/icons';
+import { STAFF_REGIONS, type StaffRegion } from '../i18n-d283';
 
 export interface Member {
   id: string;
@@ -20,6 +21,49 @@ export interface Member {
   /** D271: the shift «في المناوبة» (D260); absent from an older API. */
   onShift?: boolean;
   shiftSince?: string | null;
+  /** D283: the regions of a MODERATION / SUPPORT staff member (absent from an older API). */
+  regions?: StaffRegion[];
+}
+
+/** D283: the roles that carry regions. */
+export const REGION_ROLES: PanelRole[] = ['MODERATION', 'SUPPORT'];
+
+/** D283: the whole set of a staff member's regions (OWNER; the reason and a fresh code; audited). */
+export const setStaffRegions = (userId: string, regions: StaffRegion[], reason: string, totpCode: string) =>
+  api.put<{ userId: string; regions: StaffRegion[]; before: StaffRegion[] }>(`/admin/team/${userId}/regions`, {
+    regions,
+    reason,
+    totpCode,
+  });
+
+/** D283: pick the regions (checkboxes in the catalogue's order), then the reason and the code. */
+export function RegionsDialog({ member, onClose, onDone }: { member: Member; onClose: () => void; onDone: () => void }) {
+  const { t } = useApp();
+  const [picked, setPicked] = useState<StaffRegion[]>(member.regions ?? []);
+  const toggle = (r: StaffRegion) =>
+    setPicked((p) => (p.includes(r) ? p.filter((x) => x !== r) : STAFF_REGIONS.filter((x) => x === r || p.includes(x))));
+  return (
+    <FormDialog
+      title={t('staffRegionsTitle', { name: member.displayName || `@${member.username}` })}
+      intro={
+        <>
+          <p className="muted small">{t('staffRegionsIntro')}</p>
+          <div className="region-picks" role="group" aria-label={t('staffRegions')}>
+            {STAFF_REGIONS.map((r) => (
+              <label key={r} className="check-row" data-region={r}>
+                <input type="checkbox" checked={picked.includes(r)} onChange={() => toggle(r)} /> {t(`region${r}`)}
+              </label>
+            ))}
+          </div>
+        </>
+      }
+      fields={[reasonField(t), stepField(t)]}
+      confirmLabel={t('save')}
+      submit={(v) => setStaffRegions(member.id, picked, v.reason ?? '', v.totpCode ?? '')}
+      onClose={onClose}
+      onDone={onDone}
+    />
+  );
 }
 
 /** `AdminTeamGrantResult` (D271 adds `account`). */
@@ -143,17 +187,21 @@ export function MemberCard({
   activeOwners,
   onRevoke,
   onReset,
+  onRegions,
 }: {
   m: Member;
   selfId: string | undefined;
   activeOwners: number;
   onRevoke: () => void;
   onReset: () => void;
+  /** D283: edit the regions (MODERATION / SUPPORT only). */
+  onRegions?: () => void;
 }) {
   const { t, lang } = useApp();
   const self = m.id === selfId;
   const watches = m.roles.some((r) => SHIFT_ROLES.includes(r));
   const canRevoke = revocableRoles(m, selfId, activeOwners).length > 0;
+  const regional = m.regions !== undefined && m.roles.some((r) => REGION_ROLES.includes(r));
   return (
     <div className="card member" data-member={m.id} data-on-shift={m.onShift ? 'true' : 'false'}>
       <div className="row">
@@ -196,6 +244,22 @@ export function MemberCard({
             </dd>
           </>
         )}
+        {regional && (
+          <>
+            <dt>{t('staffRegions')}</dt>
+            <dd data-regions={(m.regions ?? []).join(',')}>
+              {(m.regions ?? []).length === 0 ? (
+                <span className="muted">{t('staffRegionsNone')}</span>
+              ) : (
+                (m.regions ?? []).map((r) => (
+                  <span key={r} className="badge info region">
+                    {t(`region${r}`)}
+                  </span>
+                ))
+              )}
+            </dd>
+          </>
+        )}
         {m.lockedUntil && (
           <>
             <dt>{t('teamLocked')}</dt>
@@ -203,8 +267,13 @@ export function MemberCard({
           </>
         )}
       </dl>
-      {(canRevoke || (!self && m.totpEnrolled)) && (
+      {(canRevoke || (!self && m.totpEnrolled) || (regional && onRegions)) && (
         <div className="row">
+          {regional && onRegions && (
+            <button className="btn small" data-edit-regions onClick={onRegions}>
+              {t('staffRegionsEdit')}
+            </button>
+          )}
           {canRevoke && (
             <button className="btn small" onClick={onRevoke}>
               {t('teamRevoke')}
@@ -230,7 +299,9 @@ export function MemberCard({
 export function Team() {
   const { t, session, toast } = useApp();
   const { data, error, reload } = useAsync(() => api.get<{ data: Member[] }>('/admin/team'), []);
-  const [dialog, setDialog] = useState<'grant' | { revoke: Member } | { reset: Member } | { next: GrantResult } | null>(null);
+  const [dialog, setDialog] = useState<
+    'grant' | { revoke: Member } | { reset: Member } | { next: GrantResult } | { regions: Member } | null
+  >(null);
   const [revokeRole, setRevokeRole] = useState<PanelRole | null>(null);
   const members = data?.data ?? [];
   const selfId = session?.admin.id;
@@ -270,6 +341,7 @@ export function Team() {
             activeOwners={activeOwners}
             onRevoke={() => setDialog({ revoke: m })}
             onReset={() => setDialog({ reset: m })}
+            onRegions={() => setDialog({ regions: m })}
           />
         ))}
       </div>
@@ -322,6 +394,9 @@ export function Team() {
           }}
           onDone={done}
         />
+      )}
+      {dialog && dialog !== 'grant' && 'regions' in dialog && (
+        <RegionsDialog member={dialog.regions} onClose={() => setDialog(null)} onDone={done} />
       )}
       {dialog && dialog !== 'grant' && 'reset' in dialog && (
         <FormDialog

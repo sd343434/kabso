@@ -29,6 +29,7 @@ const REFUSAL_KEYS: Record<string, Key> = {
   team_locked: 'teamErrLocked',
   team_self_owner: 'teamErrSelfOwner',
   team_last_owner: 'teamErrLastOwner',
+  team_regions_role: 'teamErrRegionsRole',
   team_not_held: 'teamErrNotHeld',
   team_self_reset: 'teamErrSelfReset',
   team_not_member: 'teamErrNotMember',

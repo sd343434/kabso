@@ -11,6 +11,7 @@ import { previewPool, startPreview, useOnScreenSlot, usePreviewSlot, type Previe
 import { ACTION_ICON, ACTION_LABEL, isDangerAction, liveActions, ModerateDialog, useLiveReportsSummary, type ModAction } from './LiveModeration';
 import { MineTab, ShiftsPanel, ShiftSwitch, useShifts, type ShiftDto } from './StaffShifts';
 import './live-moderation.css';
+import { STAFF_REGIONS, type StaffRegion } from '../i18n-d283';
 
 /** D241: the other side of the live's open PK (the opponent is null for a legacy mode PK room). */
 export interface LivePk {
@@ -38,6 +39,35 @@ export interface LiveRow {
   assignedTo?: { id: string; displayName: string } | null;
   /** D260: staff watching it visibly now («فريق كابسو» in the live). */
   staffWatching?: number;
+  /** D283: the host's country and its staff region (absent from an older API). */
+  hostCountry?: string | null;
+  region?: StaffRegion | null;
+}
+
+/** D283: «البث الآن»'s region filter — '' all, `mine` the signed-in staff member's regions, or one region. */
+export type RegionFilterValue = '' | 'mine' | StaffRegion;
+
+export function RegionFilter({ value, onChange, mine }: { value: RegionFilterValue; onChange: (v: RegionFilterValue) => void; mine: boolean }) {
+  const { t } = useApp();
+  return (
+    <label className="row small region-filter">
+      <span className="muted">{t('liveRegionFilter')}</span>
+      <select
+        aria-label={t('liveRegionFilter')}
+        data-region-filter
+        value={value}
+        onChange={(e) => onChange(e.target.value as RegionFilterValue)}
+      >
+        <option value="">{t('liveRegionAll')}</option>
+        {mine && <option value="mine">{t('liveRegionMine')}</option>}
+        {STAFF_REGIONS.map((r) => (
+          <option key={r} value={r}>
+            {t(`region${r}`)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 interface LiveDetailDto extends Omit<LiveRow, 'score' | 'openReports'> {
@@ -269,6 +299,11 @@ export function LiveCard({
           <span className="row small muted">
             <Avatar url={l.host.avatarUrl ?? null} name={l.host.displayName || l.host.username} />
             <span className="ltr">@{l.host.username}</span>
+            {l.region && (
+              <span className="badge region" data-live-region={l.region}>
+                {t(`region${l.region}`)}
+              </span>
+            )}
             <span className="spacer" />
             <span className="num">{onAir(l.startedAt)}</span>
           </span>
@@ -380,6 +415,8 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
   // SOLO lives not in one (the chips partition the lives). D213 adds «ستريمر». D250: `reported` = «لايفات مبلّغ عنها».
   // D260: `MINE` = «بثوثي» (the lives assigned to me).
   const [mode, setMode] = useState<LiveModeChip | 'REPORTED' | 'MINE'>('');
+  // D283: the region filter (combinable with the chips).
+  const [region, setRegion] = useState<RegionFilterValue>('');
   const summary = useLiveReportsSummary(can('lives.reports'));
   const { data, error, loading } = useAsync(
     () =>
@@ -389,8 +426,9 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
         sort: 'viewers',
         order: 'desc',
         ...(mode === 'REPORTED' ? { reported: 'true' } : mode === 'MINE' ? { assigned: 'me' } : mode ? { mode } : {}),
+        ...(region ? { region } : {}),
       }),
-    [page, bump, mode],
+    [page, bump, mode, region],
   );
   useEffect(() => {
     const h = window.setInterval(() => setBump((b) => b + 1), 15_000);
@@ -452,6 +490,14 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
           />
         )}
       </LiveModeTabs>
+      <RegionFilter
+        value={region}
+        mine={can('lives.watch')}
+        onChange={(v) => {
+          setRegion(v);
+          setPage(1);
+        }}
+      />
       {mode === 'REPORTED' && summary && summary.reports > 0 && (
         <p className="muted small">{t('liveReportedCount', { n: formatNumber(summary.reports, lang) })}</p>
       )}
