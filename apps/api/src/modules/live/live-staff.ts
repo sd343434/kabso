@@ -167,7 +167,10 @@ export function limitedRoleOf(roles: readonly string[]): LimitedStaffRole | null
 }
 
 /** The ids among `userIds` that are limited staff now, with the role their line names. */
-export async function limitedStaffAmong(db: Db, userIds: readonly string[]): Promise<Map<string, LimitedStaffRole>> {
+export async function limitedStaffAmong(
+  db: Db,
+  userIds: readonly string[],
+): Promise<Map<string, LimitedStaffRole>> {
   const ids = [...new Set(userIds)];
   const out = new Map<string, LimitedStaffRole>();
   if (ids.length === 0) return out;
@@ -188,7 +191,18 @@ export async function isLimitedStaff(db: Db, userId: string): Promise<boolean> {
   return (await limitedStaffAmong(db, [userId])).has(userId);
 }
 
-export type LimitedStaffIssue = 'live' | 'post_kind' | 'story' | 'repost' | 'family' | 'vip' | 'tasks';
+export type LimitedStaffIssue =
+  | 'live'
+  | 'post_kind'
+  | 'story'
+  | 'repost'
+  | 'family'
+  | 'vip'
+  | 'tasks'
+  | 'avatar'
+  | 'cover'
+  | 'frame'
+  | 'store';
 
 /** 403 STAFF_ACCOUNT_LIMITED (`details[0].issue`) when the caller is a limited staff account (§10.96.10). */
 export async function refuseLimitedStaff(db: Db, callerId: string, issue: LimitedStaffIssue): Promise<void> {

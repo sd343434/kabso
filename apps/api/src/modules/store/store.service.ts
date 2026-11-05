@@ -32,6 +32,7 @@ import {
   type StoreKind,
 } from './store-rules.js';
 import type { BuyStoreItemBody, StoreItemsQuery } from './store.schemas.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -224,6 +225,8 @@ export class StoreService {
     const requestHash = storeRequestHash({ ...body, recipient: recipientName });
     const replay = await this.findReplay(buyerId, key, requestHash, lang);
     if (replay) return { replay: true, result: replay };
+    // v1.71-live (D283, §10.96.10): the store is not for the Kabso Team (its Me tab has no store; its look is fixed).
+    await refuseLimitedStaff(this.prisma, buyerId, 'store');
     try {
       const done = await this.prisma.$transaction(async (tx) => {
         // Bound every lock wait (as VIP's purchase, D252b): contention rolls back fast.

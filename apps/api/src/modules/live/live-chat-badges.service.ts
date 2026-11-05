@@ -137,18 +137,20 @@ export class LiveChatBadgesService {
     for (const row of rows) {
       // v1.71-live (D283, §10.96.10): a Kabso Team account shows no levels, family, medals or newcomer tag — only
       // the team badge.
-      const badges: LiveChatAuthorBadgesDto = row.limited_staff ? NO_BADGES : {
-        charmLevel: row.charm_level,
-        supportLevel: row.support_level,
-        family:
-          row.family_name !== null && row.family_level !== null
-            ? { name: row.family_name, level: row.family_level }
-            : null,
-        newcomer: row.newcomer === true,
-        medals: (row.medals ?? [])
-          .slice(0, LIVE_CHAT_MEDALS_MAX)
-          .map((m) => ({ code: m.code, iconKey: m.iconKey })),
-      };
+      const badges: LiveChatAuthorBadgesDto = row.limited_staff
+        ? NO_BADGES
+        : {
+            charmLevel: row.charm_level,
+            supportLevel: row.support_level,
+            family:
+              row.family_name !== null && row.family_level !== null
+                ? { name: row.family_name, level: row.family_level }
+                : null,
+            newcomer: row.newcomer === true,
+            medals: (row.medals ?? [])
+              .slice(0, LIVE_CHAT_MEDALS_MAX)
+              .map((m) => ({ code: m.code, iconKey: m.iconKey })),
+          };
       out.set(row.user_id, badges);
       this.remember(row.user_id, badges, now);
     }

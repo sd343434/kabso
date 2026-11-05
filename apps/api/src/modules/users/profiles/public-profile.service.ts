@@ -268,11 +268,13 @@ export class PublicProfileService {
       tags: user.tags,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
-      avatarFrame,
+      // v1.71-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's
+      // team cover — no bag, VIP or store frame, no VIP / store wear, no cover of its own.
+      avatarFrame: staff ? null : avatarFrame,
       ...(shown ? { rechargeBadge: shown } : {}),
-      ...(vip ? { vip } : {}),
-      ...(worn.wear ? { wear: worn.wear } : {}),
-      coverUrl: user.coverUrl,
+      ...(vip && !staff ? { vip } : {}),
+      ...(worn.wear && !staff ? { wear: worn.wear } : {}),
+      coverUrl: staff ? null : user.coverUrl,
       country: user.country,
       joinedMonth: user.joinedMonth,
       blockedByMe,

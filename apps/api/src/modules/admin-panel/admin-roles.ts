@@ -4,6 +4,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { activeRestrictionOf } from '../users/account-control.js';
 import { CAPABILITIES, PANEL_ROLES, type PanelRole } from './admin-permissions.js';
 import { revokeStaffGrantsIn } from '../live/live-staff.js';
+import { syncTeamAvatarsIn } from '../live/staff-avatar.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -101,6 +102,9 @@ export async function grantRoleIn(
   const madeAdmin = user.role !== 'ADMIN';
   if (madeAdmin) await tx.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } });
   const already = !(await setRoleRow(tx, user.id, role, true, by));
+  // v1.71-live (D283, §10.96.10): a limited staff account wears the fixed team picture (an OWNER grant gives the
+  // person's own photo back).
+  await syncTeamAvatarsIn(tx, user.id);
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
@@ -145,6 +149,8 @@ export async function revokeRoleIn(
     throw new AdminRoleError(`The account does not hold ${role}.`, 'team_not_held');
   }
   const left = before.filter((r) => r !== role);
+  // v1.71-live (D283): no limited role left → the person's own photo again.
+  await syncTeamAvatarsIn(tx, user.id);
   if (left.length === 0) {
     await tx.adminSession.updateMany({
       where: { userId: user.id, revokedAt: null },

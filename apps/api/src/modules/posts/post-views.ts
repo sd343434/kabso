@@ -8,6 +8,7 @@ import { activeRechargeBadge } from '../recharge/recharge-badges.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
 import { vipNotWorn } from '../vip/vip-bag.js';
 import { STORE_ART_SELECT, storeWearOf, type StoreArtRow } from '../store/store-rules.js';
+import { isTeamAvatarUrl } from '../live/staff-avatar.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -90,12 +91,17 @@ export function userSummary(
   const tier = user.profile?.premiumTier;
   const agentCode = rechargeAgentCodeOf(user);
   const hostCode = hostAgentCodeOf(user);
-  const frame = wornAvatarFrameOf(user.bagItems, now);
+  const wornFrame = wornAvatarFrameOf(user.bagItems, now);
   // A recharge agent (from approval on) never shows the daily recharge badge.
   const badge = activeRechargeBadge(user.rechargeBadge, now, (user.rechargeAgent ?? null) !== null);
-  const vip = activeVipOf(user, now);
+  // v1.71-live (D283, §10.96.10): the Kabso Team's fixed picture marks a limited staff account — it wears the team
+  // frame (the app's) only: no bag / VIP / store frame or wear.
+  const team = isTeamAvatarUrl(user.profile?.avatarUrl);
+  const frame = team ? null : wornFrame;
+  const vip = team ? null : activeVipOf(user, now);
   // D270 (§10.98): the store items worn — only for an active account, as the other badges.
-  const wear = user.status === undefined || user.status === 'ACTIVE' ? storeWearOf(user.bagItems, now) : null;
+  const wear =
+    !team && (user.status === undefined || user.status === 'ACTIVE') ? storeWearOf(user.bagItems, now) : null;
   return {
     id: user.id,
     username: user.profile?.username ?? '',

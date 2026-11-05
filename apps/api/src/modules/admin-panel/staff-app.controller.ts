@@ -1,4 +1,20 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
 import { z } from 'zod';
 import { clientIp, type AppRequest } from '../../common/http/request-context.js';
 import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
@@ -13,6 +29,8 @@ import { pathUuid } from './admin-panel.schemas.js';
 import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
 import { CurrentStaff, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
+import { teamAvatarPng } from '../live/staff-avatar.js';
+import { Public } from '../auth/public.decorator.js';
 
 /** Every staff route: per user, instead of the default (§7). */
 const STAFF_LIMIT = {
@@ -47,6 +65,23 @@ function meta(req: AppRequest) {
  * Each route names the panel's capability and the guard checks role, capability and step-up on every request; the
  * panel's rule functions run unchanged and audit `via: app`.
  */
+/**
+ * v1.71-live (D283, §10.96.10): the Kabso Team's fixed picture (public, cached a day) — the `avatar_url` of every
+ * limited staff account.
+ */
+@Public()
+@Controller('staff')
+export class StaffTeamAvatarController {
+  @Get('team-avatar.png')
+  avatar(@Res() res: Response): void {
+    const png = teamAvatarPng();
+    if (!png) throw new AppException(ErrorCode.NOT_FOUND);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(png);
+  }
+}
+
 @Controller('staff')
 export class StaffAppController {
   constructor(

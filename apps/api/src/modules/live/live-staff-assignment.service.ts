@@ -33,7 +33,10 @@ interface StaffRow {
  * nobody there (or a country in no region) → the whole pool. Then the D260 load order (fewest lives, assigned least
  * recently, earliest shift). Exported for the unit tests.
  */
-export function pickStaffFor<T extends Omit<StaffRow, 'canAct'>>(pool: readonly T[], hostCountry: string | null): T | undefined {
+export function pickStaffFor<T extends Omit<StaffRow, 'canAct'>>(
+  pool: readonly T[],
+  hostCountry: string | null,
+): T | undefined {
   const region = regionOfCountry(hostCountry);
   const local = region === null ? [] : pool.filter((s) => s.regions.has(region));
   return [...(local.length > 0 ? local : pool)].sort(
@@ -146,7 +149,9 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
         lastAssignedAt: Math.max(0, ...s.user.liveAssignments.map((a) => a.assignedAt.getTime())),
         // Regions count only while the person holds MODERATION or SUPPORT (an OWNER-only account has none).
         regions: new Set(
-          s.user.adminPermissions.some((p) => (REGION_STAFF_ROLES as readonly string[]).includes(p.permission))
+          s.user.adminPermissions.some((p) =>
+            (REGION_STAFF_ROLES as readonly string[]).includes(p.permission),
+          )
             ? s.user.staffRegions.map((r) => r.region).filter(isStaffRegion)
             : [],
         ),

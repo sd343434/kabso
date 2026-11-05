@@ -6,6 +6,13 @@
 -- An official announcement post or reel «إعلان رسمي — فريق كابسو». Constant default: metadata-only, no rewrite.
 ALTER TABLE "posts" ADD COLUMN "announcement" BOOLEAN NOT NULL DEFAULT false;
 
+-- The Kabso Team's fixed picture (src/modules/live/staff-avatar.ts): set by the API on a grant / revoke and at its
+-- start (so no backfill here); the person's own photo waits in staff_saved_avatar_url.
+ALTER TABLE "user_profiles" ADD COLUMN "staff_avatar" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "user_profiles" ADD COLUMN "staff_saved_avatar_url" VARCHAR(2048);
+ALTER TABLE "user_profiles" ADD CONSTRAINT "user_profiles_staff_saved_avatar"
+  CHECK (staff_avatar OR staff_saved_avatar_url IS NULL);
+
 CREATE TABLE "admin_staff_regions" (
     "user_id" UUID NOT NULL,
     "region" VARCHAR(24) NOT NULL,

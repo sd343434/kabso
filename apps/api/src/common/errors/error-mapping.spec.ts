@@ -70,6 +70,7 @@ describe('ErrorCode', () => {
         'LIVE_STAFF_REFUSED',
         'STAFF_STEP_UP_REQUIRED',
         'STAFF_TOTP_NOT_ENROLLED',
+        'STAFF_ACCOUNT_LIMITED',
         // v1.47-live (D212).
         'LIVE_QUESTIONS_CLOSED',
         // v1.56-live (D213).
@@ -327,6 +328,7 @@ describe('ErrorCode', () => {
       LIVE_STAFF_REFUSED: 403,
       STAFF_STEP_UP_REQUIRED: 403,
       STAFF_TOTP_NOT_ENROLLED: 409,
+      STAFF_ACCOUNT_LIMITED: 403,
       LIVE_QUESTIONS_CLOSED: 409,
       LIVE_NOT_STREAMER: 409,
     });

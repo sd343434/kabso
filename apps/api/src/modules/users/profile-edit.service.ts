@@ -14,6 +14,7 @@ import { MediaService } from '../media/media.service.js';
 import { containsReservedTerm } from './confusables.js';
 import type { AccountCategory, Gender, ProfileLinkInput } from './profile-fields.js';
 import { UsersService, type MeDto } from './users.service.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 /** Request metadata for audit records. */
 export interface ProfileEditMeta {
@@ -185,6 +186,8 @@ export class ProfileEditService {
    * the last 24 hours).
    */
   async setAvatar(userId: string, body: unknown, meta: ProfileEditMeta): Promise<AvatarDto> {
+    // v1.71-live (D283, §10.96.10): a Kabso Team account's picture is the team's, fixed.
+    await refuseLimitedStaff(this.prisma, userId, 'avatar');
     await this.media.assertEnabled();
     const parsed = setAvatarSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
@@ -207,6 +210,7 @@ export class ProfileEditService {
 
   /** `DELETE /me/avatar`: back to the initial; idempotent (no photo → 204 too); uploads may be off. */
   async removeAvatar(userId: string, meta: ProfileEditMeta): Promise<void> {
+    await refuseLimitedStaff(this.prisma, userId, 'avatar');
     const oldKeys = await this.prisma.$transaction(async (tx) => {
       const old = await this.lockProfile(tx, userId);
       if (old.avatar_media_id === null && old.avatar_url === null) return [];
@@ -222,6 +226,8 @@ export class ProfileEditService {
    * the same transaction, its objects after commit. Setting the current cover again changes nothing.
    */
   async setCover(userId: string, body: unknown, meta: ProfileEditMeta): Promise<CoverDto> {
+    // v1.71-live (D283, §10.96.10): a Kabso Team account's cover is its region's team cover (the app's), fixed.
+    await refuseLimitedStaff(this.prisma, userId, 'cover');
     await this.media.assertEnabled();
     const parsed = setAvatarSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
@@ -244,6 +250,7 @@ export class ProfileEditService {
 
   /** v1.76-social (D218): `DELETE /me/cover` — back to the Kabso gradient; idempotent; uploads may be off. */
   async removeCover(userId: string, meta: ProfileEditMeta): Promise<void> {
+    await refuseLimitedStaff(this.prisma, userId, 'cover');
     const oldKeys = await this.prisma.$transaction(async (tx) => {
       const old = await this.lockCover(tx, userId);
       if (old.cover_media_id === null) return [];

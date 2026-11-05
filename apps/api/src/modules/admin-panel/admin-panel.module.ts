@@ -55,7 +55,7 @@ import { AdminStoreController } from './admin-store.controller.js';
  * host-agents, gift-admin-rules, bag-admin-rules, home-banners, event-admin-rules, topup-core, admin-roles,
  * waitlist-admin, LiveRoomsService / LiveMediaService, SessionsService).
  */
-import { StaffAppController } from './staff-app.controller.js';
+import { StaffAppController, StaffTeamAvatarController } from './staff-app.controller.js';
 import { StaffAppGuard } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
 
@@ -94,6 +94,7 @@ import { StaffAppService } from './staff-app.service.js';
     AdminVipController,
     AdminStoreController,
     // v1.68-live (D273, §10.96.6): «أدوات فريق كابسو» in the app.
+    StaffTeamAvatarController,
     StaffAppController,
   ],
   providers: [

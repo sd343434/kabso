@@ -16,6 +16,7 @@ import { LiveMediaService } from '../live/live-media.service.js';
 import { isStaffRegion, sortRegions, staffRegionCatalog } from '../live/staff-regions.js';
 import { REGION_STAFF_ROLES } from '../live/live-staff.js';
 import type { TeamRegionsBody } from './admin-v2.schemas.js';
+import { syncTeamAvatarsIn, teamAvatarUrl } from '../live/staff-avatar.js';
 
 export interface AuditQuery extends TableQuery {
   readonly actor?: string | undefined;
@@ -67,6 +68,18 @@ export class AdminTeamService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly media: LiveMediaService,
   ) {}
+
+  /**
+   * v1.71-live (D283, §10.96.10): at the start, every limited staff account wears the team picture at this API's
+   * URL (a CLI grant, a changed `API_PUBLIC_URL`) and everyone else has their own photo. Best effort.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      await syncTeamAvatarsIn(this.prisma, null, teamAvatarUrl());
+    } catch (err) {
+      this.logger.warn({ error: safeErrorLog(err) }, 'Could not sync the Kabso Team pictures');
+    }
+  }
 
   /** Every audit action the code writes (the viewer's filter list). */
   actions(): { data: string[] } {

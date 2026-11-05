@@ -225,7 +225,10 @@ export class AdminLivesService {
   /** The countries of one region, or of the staff member's own regions (`mine`). */
   private async regionCountries(region: string, adminId: string): Promise<string[]> {
     if (isStaffRegion(region)) return countriesOfRegions([region]);
-    const mine = await this.prisma.adminStaffRegion.findMany({ where: { userId: adminId }, select: { region: true } });
+    const mine = await this.prisma.adminStaffRegion.findMany({
+      where: { userId: adminId },
+      select: { region: true },
+    });
     return countriesOfRegions(mine.map((r) => r.region).filter(isStaffRegion));
   }
 

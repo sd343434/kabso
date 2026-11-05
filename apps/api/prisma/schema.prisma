@@ -318,6 +318,10 @@ model UserProfile {
   displayName   String               @map("display_name") @db.VarChar(100)
   bio           String?              @db.VarChar(300)
   avatarUrl     String?              @map("avatar_url") @db.VarChar(2048)
+  /// v1.71-live (D283, §10.96.10): `avatar_url` is the Kabso Team's fixed picture while the account is limited staff
+  /// (MODERATION / SUPPORT / FINANCE, not OWNER); the person's own photo URL waits in `staff_saved_avatar_url`.
+  staffAvatar         Boolean @default(false) @map("staff_avatar")
+  staffSavedAvatarUrl String? @map("staff_saved_avatar_url") @db.VarChar(2048)
   /// v1.45-social (D168): the user's profile photo when it was uploaded (an `AVATAR` asset); its
   /// 640 px URL is `avatarUrl`. CHECK `user_profiles_avatar_media_has_url`.
   avatarMediaId String?              @unique @map("avatar_media_id") @db.Uuid

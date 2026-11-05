@@ -118,12 +118,17 @@ export class LiveStaffAlertsService {
         select: { id: true, staffRegions: { select: { region: true } } },
       });
       // v1.71-live (D283, §10.96.11): those whose region covers the host's country, when any; else all of them.
-      const host = await this.prisma.userProfile.findUnique({
-        where: { userId: room.hostUserId },
-        select: { countryCode: true },
-      });
+      const withRegions = actors.filter((a) => (a.staffRegions?.length ?? 0) > 0);
+      const host =
+        withRegions.length === 0
+          ? null
+          : await this.prisma.userProfile.findUnique({
+              where: { userId: room.hostUserId },
+              select: { countryCode: true },
+            });
       const region = regionOfCountry(host?.countryCode);
-      const local = region === null ? [] : actors.filter((a) => a.staffRegions.some((r) => r.region === region));
+      const local =
+        region === null ? [] : withRegions.filter((a) => a.staffRegions.some((r) => r.region === region));
       recipients = (local.length > 0 ? local : actors).map((u) => u.id);
       if (recipients.length === 0) {
         route = 'owners';
