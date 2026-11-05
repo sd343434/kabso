@@ -94,9 +94,9 @@ Future<void> _shot(
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
 void main() {
-  test('the art is the badge aspect ratio (600 × 258) and in the bundle', () {
-    expect(KabsoTeamBadge.aspectRatio, closeTo(2.3256, 0.001));
-    expect(const KabsoTeamBadge(height: 21).width, closeTo(48.84, 0.01));
+  test('the art is the badge aspect ratio (720 × 328) and in the bundle', () {
+    expect(KabsoTeamBadge.aspectRatio, closeTo(2.1951, 0.001));
+    expect(const KabsoTeamBadge(height: 21).width, closeTo(46.10, 0.01));
   });
 
   testWidgets('the asset decodes at the declared aspect ratio', (tester) async {

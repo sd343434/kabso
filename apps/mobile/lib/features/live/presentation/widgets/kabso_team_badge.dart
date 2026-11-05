@@ -13,7 +13,8 @@ abstract final class KabsoTeamColors {
 
 /// D282 (owner: «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه
 /// عربي وانجليزي لمن هاتفه انجليزي»): THE «فريق كابسو» badge — the owner's
-/// crest and green banner ([asset]), the team's name written in the banner
+/// crest and banner ([asset]; D282c: the red-and-gold crest with Kabi in a
+/// headset, replacing the green one), the team's name written in the banner
 /// in the app's language («فريق كابسو» / "Kabso Team"). Drawn [height] tall
 /// at the art's own [aspectRatio] wherever the team is shown: before a staff
 /// line's name in every chat mode (D269's team tag), the viewer list's staff
@@ -34,12 +35,12 @@ class KabsoTeamBadge extends StatelessWidget {
   /// The owner's art (assets/staff/PROVENANCE.md), trimmed to its bounds.
   static const asset = 'assets/staff/kabso_team_badge.png';
 
-  /// The art's width ÷ height (600 × 258 px).
-  static const double aspectRatio = 600 / 258;
+  /// The art's width ÷ height (720 × 328 px).
+  static const double aspectRatio = 720 / 328;
 
   /// The banner's inner (green) area, as fractions of the art's width and
   /// height, so the name scales with the badge.
-  static const banner = Rect.fromLTRB(0.540, 0.411, 0.883, 0.725);
+  static const banner = Rect.fromLTRB(0.555, 0.449, 0.875, 0.727);
 
   /// D282b (owner: «نكبّرها في الدردشة»): in a chat line the badge is
   /// taller than the line's other emblems so its name reads — 24 pt in the
@@ -50,8 +51,10 @@ class KabsoTeamBadge extends StatelessWidget {
   /// … and 22 pt on the host's compact flat line (still readable).
   static const double flatChatHeight = 22;
 
-  /// The name's colour: a light gold, bold, over a soft shadow.
-  static const ink = Color(0xFFFFF4CF);
+  /// D282c (owner: «ولون الخط في داخلها ذهبي مناسب»): the name in a warm
+  /// gold matching the banner's frame, bold, over a thin dark shadow so it
+  /// reads on the red.
+  static const ink = Color(0xFFFFD36A);
 
   final double height;
 
@@ -111,9 +114,9 @@ class KabsoTeamBadge extends StatelessWidget {
                           letterSpacing: 0,
                           shadows: [
                             Shadow(
-                              color: const Color(0xCC000000),
+                              color: const Color(0xE6400000),
                               offset: Offset(0, bannerH * 0.04),
-                              blurRadius: bannerH * 0.1,
+                              blurRadius: bannerH * 0.05,
                             ),
                           ],
                         ),

@@ -526,7 +526,14 @@ void main() {
           ),
           findsOneWidget,
         );
-      });
+        await precacheImages(tester);
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile(
+            '../../goldens/png/profile_staff_d282.${language.name}.phone.png',
+          ),
+        );
+      }, tags: goldenTag);
     }
 
     testWidgets('the more button opens the sheet (copy username, mute, '
