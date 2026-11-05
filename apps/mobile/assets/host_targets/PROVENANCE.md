@@ -7,7 +7,7 @@ its sheet. To swap a badge, replace the file and keep its name. No code changes.
 
 | File | Target | Now (temporary stand-in) | Source |
 | ---- | ------ | ------------------------ | ------ |
-| `gifts_target.png` | «هدف الهدايا» (gifts outside the lucky category, in cherries) | The Kabso cherry | `assets/currency/kabso_cherry.webp` (D182, owner-supplied; sha256 `545939d6…f49232`), re-saved as PNG at 256×256 and otherwise unchanged |
+| `gifts_target.png` | «هدف الهدايا» (gifts outside the lucky category, in cherries) | The gift box (owner, 2026-11-05: «ضع محل الكرز صندوق الهدايا لكن بنفس حجم الكرز») | `assets/live_bar/bar_gift.png` (D135, owner-supplied): trimmed to its visible box and scaled to fill 246 px of a 256×256 transparent square, so it reads at the cherry's size |
 | `lucky_target.png` | «هدف هدايا الحظ» (lucky gifts, in cherries) | The D199 wizard hat | Kabso's own `WizardHatPainter` (drawn in code, no third-party art), rendered at 256×256 |
 
 Replacement art: a square PNG with a transparent background, at least 192×192 (the chip draws it at 12–16 pt, the
