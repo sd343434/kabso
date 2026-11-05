@@ -6,6 +6,7 @@ import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/special_username.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'dtos.g.dart';
 
@@ -36,6 +37,7 @@ class MeDto {
     this.specialUsername,
     this.coverUrl,
     this.kabsoTeam = false,
+    this.staff,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -103,6 +105,15 @@ class MeDto {
   @JsonKey(defaultValue: false)
   final bool kabsoTeam;
 
+  /// v1.71-live (D283, §10.96.10): a limited Kabso Team account — the
+  /// staff-only Me tab; null for everyone else.
+  @JsonKey(
+    fromJson: staffIdentityFromJson,
+    toJson: staffIdentityToJson,
+    includeIfNull: false,
+  )
+  final KabsoStaffIdentity? staff;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -129,6 +140,7 @@ class MeDto {
     specialUsername: specialUsername,
     coverUrl: coverUrl,
     kabsoTeam: kabsoTeam,
+    staff: staff,
   );
 }
 

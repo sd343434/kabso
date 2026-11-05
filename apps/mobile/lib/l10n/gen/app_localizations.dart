@@ -24073,13 +24073,13 @@ abstract class AppLocalizations {
   /// **'مالك'**
   String get staffRoleOwner;
 
-  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  /// D283: the line of a moderator with no region.
   ///
   /// In ar, this message translates to:
   /// **'مشرف'**
   String get staffRoleModeration;
 
-  /// D273: «فريق كابسو» from the app (staff tools, step-up, shift, «بثوثي»).
+  /// D283: the line of a support staff member with no region.
   ///
   /// In ar, this message translates to:
   /// **'دعم'**
@@ -24634,6 +24634,168 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مكافأة هدف يومي'**
   String get cherryReasonHostTarget;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوطن العربي'**
+  String get staffRegionArabWorld;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصين الكبرى'**
+  String get staffRegionGreaterChina;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'تركيا'**
+  String get staffRegionTurkey;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيران'**
+  String get staffRegionIran;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'جنوب آسيا'**
+  String get staffRegionSouthAsia;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'جنوب شرق آسيا'**
+  String get staffRegionSoutheastAsia;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'شرق آسيا'**
+  String get staffRegionEastAsia;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوروبا'**
+  String get staffRegionEurope;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'أمريكا الشمالية'**
+  String get staffRegionNorthAmerica;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'أمريكا اللاتينية'**
+  String get staffRegionLatinAmerica;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفريقيا جنوب الصحراء'**
+  String get staffRegionSubSaharanAfrica;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'روسيا وآسيا الوسطى'**
+  String get staffRegionRussiaCentralAsia;
+
+  /// D283: a staff region.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوقيانوسيا'**
+  String get staffRegionOceania;
+
+  /// D283: two regions on the profile line.
+  ///
+  /// In ar, this message translates to:
+  /// **'{first} و{second}'**
+  String staffRegionsTwo(String first, String second);
+
+  /// D283: three or more regions on the profile line.
+  ///
+  /// In ar, this message translates to:
+  /// **'{first} و{second} وأكثر'**
+  String staffRegionsMore(String first, String second);
+
+  /// D283: a moderator's profile line (Arabic is built as «مشرف للوطن العربي» in code).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف — {regions}'**
+  String staffLineModeration(String regions);
+
+  /// D283: a support staff member's profile line.
+  ///
+  /// In ar, this message translates to:
+  /// **'دعم — {regions}'**
+  String staffLineSupport(String regions);
+
+  /// D283: the line of a finance staff member.
+  ///
+  /// In ar, this message translates to:
+  /// **'المالية'**
+  String get staffLineFinance;
+
+  /// D283: the label of an announcement post or reel in the feeds.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعلان رسمي — فريق كابسو'**
+  String get postAnnouncementLabel;
+
+  /// D283: the composer note for a staff account.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو تنشر إعلانات رسمية فقط.'**
+  String get postComposerAnnouncementOnly;
+
+  /// D283: the staff Me tab entry to the announcement composer.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر إعلان'**
+  String get meStaffAnnouncement;
+
+  /// D283: the staff Me tab entry to the announcement reel composer.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر ريلز إعلان'**
+  String get meStaffAnnouncementReel;
+
+  /// D283: a page a staff account cannot use.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح لحسابات فريق كابسو.'**
+  String get staffFeatureUnavailable;
+
+  /// D283: edit profile, instead of «تغيير الصورة».
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة فريق كابسو ثابتة ولا يمكن تغييرها.'**
+  String get staffPictureLocked;
+
+  /// D283: edit profile / the cover, instead of «تغيير الغلاف».
+  ///
+  /// In ar, this message translates to:
+  /// **'غلاف فريق كابسو ثابت ولا يمكن تغييره.'**
+  String get staffCoverLocked;
+
+  /// D283: the bag's frames for a staff account.
+  ///
+  /// In ar, this message translates to:
+  /// **'إطار فريق كابسو مثبّت ولا يمكن تغييره.'**
+  String get staffFrameLocked;
+
+  /// D283: the screen reader label of the team picture.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة فريق كابسو'**
+  String get staffTeamPicture;
 }
 
 class _AppLocalizationsDelegate

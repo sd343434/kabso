@@ -14,6 +14,7 @@ export 'components/k_special_username.dart';
 export 'components/k_states.dart';
 export 'components/k_tab_bar.dart';
 export 'components/k_tabs.dart';
+export 'components/k_team_avatar.dart';
 export 'components/k_text_field.dart';
 export 'components/k_top_bar.dart';
 export 'theme/app_theme.dart';

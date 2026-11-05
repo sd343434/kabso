@@ -13,6 +13,7 @@ import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'profile_models.freezed.dart';
 part 'profile_models.g.dart';
@@ -160,6 +161,17 @@ abstract class PublicProfile with _$PublicProfile {
     /// كابسو». The person card hides the actions against it (kick, mute,
     /// seat); the server refuses them anyway (`STAFF_PROTECTED`).
     @Default(false) bool kabsoTeam,
+
+    /// v1.71-live (D283, §10.96.10–11): a limited Kabso Team account
+    /// (MODERATION / SUPPORT / FINANCE, not OWNER): the team badge, the
+    /// locked frame, picture and region cover, the region line, no levels.
+    /// Null for everyone else (the OWNER too) and from older servers.
+    @JsonKey(
+      fromJson: staffIdentityFromJson,
+      toJson: staffIdentityToJson,
+      includeIfNull: false,
+    )
+    KabsoStaffIdentity? staff,
   }) = _PublicProfile;
 
   const new _();

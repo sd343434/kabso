@@ -140,6 +140,8 @@ flutter:
     - assets/taps/
     # D282 the owner's Kabso Team badge (assets/staff/PROVENANCE.md).
     - assets/staff/
+    # D283 the Kabso Team covers per region (assets/staff/PROVENANCE.md).
+    - assets/staff/covers/
     # D277 the host target badges (owner art to come; assets/host_targets/PROVENANCE.md).
     - assets/host_targets/
     # D156 the owner's launch video and its last frame; the D63 Lottie (the

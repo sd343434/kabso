@@ -1,4 +1,5 @@
 import 'package:kabso_live/design_system/components/k_badge.dart';
+import 'package:kabso_live/design_system/components/k_team_avatar.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/design_system/tokens/component_metrics.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
@@ -96,6 +97,15 @@ class KAvatar extends StatelessWidget {
     );
 
     final url = imageUrl;
+    // v1.71-live (D283, §10.96.10): a Kabso Team account's fixed picture —
+    // the bundled art in the locked team frame (rings are not drawn).
+    if (image == null && isTeamAvatarUrl(url)) {
+      return Semantics(
+        image: true,
+        label: semanticLabel ?? name,
+        child: ExcludeSemantics(child: KabsoTeamAvatar(pictureSize: size)),
+      );
+    }
     final provider =
         image ?? (url == null || url.isEmpty ? null : NetworkImage(url));
     var content = provider == null

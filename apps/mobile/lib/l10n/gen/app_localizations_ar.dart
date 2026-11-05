@@ -14580,4 +14580,94 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get cherryReasonHostTarget => 'مكافأة هدف يومي';
+
+  @override
+  String get staffRegionArabWorld => 'الوطن العربي';
+
+  @override
+  String get staffRegionGreaterChina => 'الصين الكبرى';
+
+  @override
+  String get staffRegionTurkey => 'تركيا';
+
+  @override
+  String get staffRegionIran => 'إيران';
+
+  @override
+  String get staffRegionSouthAsia => 'جنوب آسيا';
+
+  @override
+  String get staffRegionSoutheastAsia => 'جنوب شرق آسيا';
+
+  @override
+  String get staffRegionEastAsia => 'شرق آسيا';
+
+  @override
+  String get staffRegionEurope => 'أوروبا';
+
+  @override
+  String get staffRegionNorthAmerica => 'أمريكا الشمالية';
+
+  @override
+  String get staffRegionLatinAmerica => 'أمريكا اللاتينية';
+
+  @override
+  String get staffRegionSubSaharanAfrica => 'أفريقيا جنوب الصحراء';
+
+  @override
+  String get staffRegionRussiaCentralAsia => 'روسيا وآسيا الوسطى';
+
+  @override
+  String get staffRegionOceania => 'أوقيانوسيا';
+
+  @override
+  String staffRegionsTwo(String first, String second) {
+    return '$first و$second';
+  }
+
+  @override
+  String staffRegionsMore(String first, String second) {
+    return '$first و$second وأكثر';
+  }
+
+  @override
+  String staffLineModeration(String regions) {
+    return 'مشرف — $regions';
+  }
+
+  @override
+  String staffLineSupport(String regions) {
+    return 'دعم — $regions';
+  }
+
+  @override
+  String get staffLineFinance => 'المالية';
+
+  @override
+  String get postAnnouncementLabel => 'إعلان رسمي — فريق كابسو';
+
+  @override
+  String get postComposerAnnouncementOnly =>
+      'حسابات فريق كابسو تنشر إعلانات رسمية فقط.';
+
+  @override
+  String get meStaffAnnouncement => 'نشر إعلان';
+
+  @override
+  String get meStaffAnnouncementReel => 'نشر ريلز إعلان';
+
+  @override
+  String get staffFeatureUnavailable => 'غير متاح لحسابات فريق كابسو.';
+
+  @override
+  String get staffPictureLocked => 'صورة فريق كابسو ثابتة ولا يمكن تغييرها.';
+
+  @override
+  String get staffCoverLocked => 'غلاف فريق كابسو ثابت ولا يمكن تغييره.';
+
+  @override
+  String get staffFrameLocked => 'إطار فريق كابسو مثبّت ولا يمكن تغييره.';
+
+  @override
+  String get staffTeamPicture => 'صورة فريق كابسو';
 }

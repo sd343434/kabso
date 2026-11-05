@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/special_username.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'entities.freezed.dart';
 
@@ -64,6 +65,11 @@ abstract class User with _$User {
     /// v1.68-live (D273, §10.96.6): «فريق كابسو» (OWNER, MODERATION or
     /// SUPPORT) — the Me tab's staff entry and the staff tools in lives.
     @Default(false) bool kabsoTeam,
+
+    /// v1.71-live (D283, §10.96.10): a limited Kabso Team account
+    /// (MODERATION / SUPPORT / FINANCE, not OWNER) — the staff-only Me tab,
+    /// no go-live, levels, VIP, family, store, wallet or bag. Null otherwise.
+    KabsoStaffIdentity? staff,
   }) = _User;
 }
 

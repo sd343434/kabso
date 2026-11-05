@@ -112,6 +112,7 @@ class Post {
     required this.hideLikeCount,
     required this.pendingModeration,
     this.isReel = false,
+    this.announcement = false,
     this.location,
     this.publishAt,
     this.publishedAt,
@@ -158,6 +159,7 @@ class Post {
       hideLikeCount: settings['hideLikeCount']! as bool,
       pendingModeration: json['moderation'] == 'PENDING',
       isReel: json['format'] == 'REEL',
+      announcement: json['announcement'] == true,
       repostedBy: switch (json['repostedBy']) {
         final Map<String, dynamic> by => UserSummary.fromJson(by),
         _ => null,
@@ -201,6 +203,11 @@ class Post {
 
   /// D162: `format: REEL` — one vertical video, listed in Moments' reels.
   final bool isReel;
+
+  /// v1.71-live (D283, §10.96.10): an official announcement of the Kabso
+  /// Team — the feeds label it «إعلان رسمي — فريق كابسو». False from older
+  /// servers.
+  final bool announcement;
 
   /// The post's video (a reel's, or a video post's), if it has one.
   MediaAsset? get video =>

@@ -14581,4 +14581,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cherryReasonHostTarget => 'Daily target reward';
+
+  @override
+  String get staffRegionArabWorld => 'Arab World';
+
+  @override
+  String get staffRegionGreaterChina => 'Greater China';
+
+  @override
+  String get staffRegionTurkey => 'Türkiye';
+
+  @override
+  String get staffRegionIran => 'Iran';
+
+  @override
+  String get staffRegionSouthAsia => 'South Asia';
+
+  @override
+  String get staffRegionSoutheastAsia => 'Southeast Asia';
+
+  @override
+  String get staffRegionEastAsia => 'East Asia';
+
+  @override
+  String get staffRegionEurope => 'Europe';
+
+  @override
+  String get staffRegionNorthAmerica => 'North America';
+
+  @override
+  String get staffRegionLatinAmerica => 'Latin America';
+
+  @override
+  String get staffRegionSubSaharanAfrica => 'Sub-Saharan Africa';
+
+  @override
+  String get staffRegionRussiaCentralAsia => 'Russia & Central Asia';
+
+  @override
+  String get staffRegionOceania => 'Oceania';
+
+  @override
+  String staffRegionsTwo(String first, String second) {
+    return '$first & $second';
+  }
+
+  @override
+  String staffRegionsMore(String first, String second) {
+    return '$first, $second and more';
+  }
+
+  @override
+  String staffLineModeration(String regions) {
+    return 'Moderator — $regions';
+  }
+
+  @override
+  String staffLineSupport(String regions) {
+    return 'Support — $regions';
+  }
+
+  @override
+  String get staffLineFinance => 'Finance';
+
+  @override
+  String get postAnnouncementLabel => 'Official announcement — Kabso Team';
+
+  @override
+  String get postComposerAnnouncementOnly =>
+      'Kabso Team accounts publish official announcements only.';
+
+  @override
+  String get meStaffAnnouncement => 'Post an announcement';
+
+  @override
+  String get meStaffAnnouncementReel => 'Post an announcement reel';
+
+  @override
+  String get staffFeatureUnavailable =>
+      'Not available for Kabso Team accounts.';
+
+  @override
+  String get staffPictureLocked =>
+      'The Kabso Team picture is fixed and cannot be changed.';
+
+  @override
+  String get staffCoverLocked =>
+      'The Kabso Team cover is fixed and cannot be changed.';
+
+  @override
+  String get staffFrameLocked => 'The Kabso Team frame is locked.';
+
+  @override
+  String get staffTeamPicture => 'Kabso Team picture';
 }
