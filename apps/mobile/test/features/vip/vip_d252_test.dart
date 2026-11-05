@@ -121,6 +121,8 @@ VipMembership _membership(
   int days = 20,
   bool onSale = true,
   VipDailyCoins? dailyCoins,
+  // Goldens fix the date: the page shows «حتى <expiresAt>».
+  DateTime? now,
 }) => VipMembership(
   dailyCoins: dailyCoins,
   tierId: tier.id,
@@ -128,8 +130,8 @@ VipMembership _membership(
   tierName: tier.name,
   tierColor: tier.color,
   onSale: onSale,
-  startedAt: DateTime.now().subtract(const Duration(days: 10)),
-  expiresAt: DateTime.now().add(Duration(days: days)),
+  startedAt: (now ?? DateTime.now()).subtract(const Duration(days: 10)),
+  expiresAt: (now ?? DateTime.now()).add(Duration(days: days)),
   daysLeft: days,
 );
 
@@ -752,6 +754,8 @@ void main() {
     ) async {
       final held = _membership(
         _tier(1),
+        // The day the golden was made: «حتى 24 نوفمبر 2026» whatever today is.
+        now: DateTime(2026, 11, 4, 12),
         dailyCoins: VipDailyCoins(
           amount: 500,
           claimedToday: false,
