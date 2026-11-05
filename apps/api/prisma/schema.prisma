@@ -243,6 +243,18 @@ model User {
   /// v1.73-social (D209): the person's applications «كن مضيفاً مع الإدارة», and those a team member decided.
   hostApplications       HostApplication[]          @relation("HostApplicant")
   hostAppsDecided        HostApplication[]          @relation("HostApplicationDecider")
+  /// v1.75-live (D285, §10.96.13): recruitment by staff — the applications naming the person as their recruiter, the
+  /// recruitments they made / that attribute them, their commissions; the creator programme «صانع المحتوى».
+  agencyAppsReferred     AgencyApplication[]        @relation("AgencyApplicationRecruiter")
+  hostAppsReferred       HostApplication[]          @relation("HostApplicationRecruiter")
+  rechargeAppsReferred   RechargeAgentApplication[] @relation("RechargeApplicationRecruiter")
+  creatorAppsReferred    CreatorApplication[]       @relation("CreatorApplicationRecruiter")
+  creatorApplications    CreatorApplication[]       @relation("CreatorApplicant")
+  creatorAppsDecided     CreatorApplication[]       @relation("CreatorApplicationDecider")
+  creatorMember          CreatorMember?
+  recruitsMade           StaffRecruitment[]         @relation("StaffRecruiter")
+  recruitedAs            StaffRecruitment[]         @relation("StaffRecruit")
+  recruitCommissions     StaffRecruitCommission[]
   /// v1.74-social (D217): the person's invite code, whom they invited, who invited them, their rewards.
   referralCode           ReferralCode?
   referralsMade          Referral[]                 @relation("ReferralInviter")
@@ -313,42 +325,42 @@ model User {
 }
 
 model UserProfile {
-  userId        String               @id @map("user_id") @db.Uuid
+  userId              String               @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
-  username      String               @unique @db.VarChar(30)
+  username            String               @unique @db.VarChar(30)
   /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
-  displayName   String               @map("display_name") @db.VarChar(100)
-  bio           String?              @db.VarChar(300)
-  avatarUrl     String?              @map("avatar_url") @db.VarChar(2048)
+  displayName         String               @map("display_name") @db.VarChar(100)
+  bio                 String?              @db.VarChar(300)
+  avatarUrl           String?              @map("avatar_url") @db.VarChar(2048)
   /// v1.72-live (D283, §10.96.10): `avatar_url` is the Kabso Team's fixed picture while the account is limited staff
   /// (MODERATION / SUPPORT / FINANCE, not OWNER); the person's own photo URL waits in `staff_saved_avatar_url`.
-  staffAvatar         Boolean @default(false) @map("staff_avatar")
-  staffSavedAvatarUrl String? @map("staff_saved_avatar_url") @db.VarChar(2048)
+  staffAvatar         Boolean              @default(false) @map("staff_avatar")
+  staffSavedAvatarUrl String?              @map("staff_saved_avatar_url") @db.VarChar(2048)
   /// v1.45-social (D168): the user's profile photo when it was uploaded (an `AVATAR` asset); its
   /// 640 px URL is `avatarUrl`. CHECK `user_profiles_avatar_media_has_url`.
-  avatarMediaId String?              @unique @map("avatar_media_id") @db.Uuid
+  avatarMediaId       String?              @unique @map("avatar_media_id") @db.Uuid
   /// v1.76-social (D218, §10.73.3): the profile cover (a `PROFILE_COVER` asset) and its 1 080 px URL; both null
   /// (the app's Kabso gradient) or both set (CHECK `user_profiles_cover_media_has_url`).
-  coverMediaId  String?              @unique @map("cover_media_id") @db.Uuid
-  coverUrl      String?              @map("cover_url") @db.VarChar(2048)
-  locale        String               @default("ar") @db.VarChar(8)
+  coverMediaId        String?              @unique @map("cover_media_id") @db.Uuid
+  coverUrl            String?              @map("cover_url") @db.VarChar(2048)
+  locale              String               @default("ar") @db.VarChar(8)
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
-  countryCode   String?              @map("country_code") @db.Char(2)
+  countryCode         String?              @map("country_code") @db.Char(2)
   /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
   /// `username` by the premium-usernames module); null for a regular username.
-  premiumTier   PremiumUsernameTier? @map("premium_tier")
+  premiumTier         PremiumUsernameTier? @map("premium_tier")
   /// v1.47-social (D175): chosen at sign-up (null for accounts created before, and social sign-in,
   /// until set). Private unless `showGender` (owner: private by default).
-  gender        Gender?
-  showGender    Boolean              @default(false) @map("show_gender")
+  gender              Gender?
+  showGender          Boolean              @default(false) @map("show_gender")
   /// v1.47-social (D175): the account category shown under the name; optional.
-  category      AccountCategory?     @map("account_category")
+  category            AccountCategory?     @map("account_category")
   /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order; 0–10 (CHECK
   /// `user_profiles_tags_count`), each 1–24 code points (the app's `PATCH /me` rules).
-  tags          String[]             @default([]) @db.VarChar(24)
-  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tags                String[]             @default([]) @db.VarChar(24)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   avatarMedia MediaAsset? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: NoAction)
@@ -1522,6 +1534,8 @@ enum AdminPermission {
   OWNER
   SUPPORT
   FINANCE
+  /// v1.75-live (D285, §10.96.13): «تطوير الأعمال» — recruitment only (a limited staff account, no moderation).
+  BD
 
   @@map("admin_permission")
 }
@@ -3983,6 +3997,9 @@ enum CherryLedgerReason {
   /// v1.71-live (D281): a completed smart host target's profit-share reward (reference `HT:<level>@<day>`), locked
   /// for withdrawal and the store like TASK_REWARD (§10.46.1).
   HOST_TARGET_REWARD
+  /// v1.75-live (D285): a recruiter's daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`),
+  /// withdrawable (not locked like TASK_REWARD).
+  STAFF_RECRUIT_COMMISSION
 
   @@map("cherry_ledger_reason")
 }
@@ -4143,24 +4160,27 @@ model Agency {
 /// made at once; no approval). PRIVATE: the fields and the two pictures (the D185 private uploads) are read only in
 /// the panel, every view audited. `(user, clientKey)` once: the `Idempotency-Key`.
 model AgencyApplication {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  agencyId      String    @map("agency_id") @db.Uuid
-  userId        String    @map("user_id") @db.Uuid
-  clientKey     String    @map("client_key") @db.Uuid
-  requestHash   String    @map("request_hash") @db.Char(64)
-  name          String    @db.VarChar(40)
-  country       String    @db.Char(2)
-  contactType   String    @map("contact_type") @db.VarChar(16)
-  contactValue  String?   @map("contact_value") @db.VarChar(100)
-  expectedHosts Int       @map("expected_hosts")
-  bio           String?   @db.VarChar(300)
-  photoKey      String?   @map("photo_key") @db.VarChar(256)
-  selfieKey     String?   @map("selfie_key") @db.VarChar(256)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  purgedAt      DateTime? @map("purged_at") @db.Timestamptz(3)
+  id              String    @id @default(uuid(7)) @db.Uuid
+  agencyId        String    @map("agency_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  clientKey       String    @map("client_key") @db.Uuid
+  requestHash     String    @map("request_hash") @db.Char(64)
+  name            String    @db.VarChar(40)
+  country         String    @db.Char(2)
+  contactType     String    @map("contact_type") @db.VarChar(16)
+  contactValue    String?   @map("contact_value") @db.VarChar(100)
+  expectedHosts   Int       @map("expected_hosts")
+  bio             String?   @db.VarChar(300)
+  photoKey        String?   @map("photo_key") @db.VarChar(256)
+  selfieKey       String?   @map("selfie_key") @db.VarChar(256)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  purgedAt        DateTime? @map("purged_at") @db.Timestamptz(3)
+  /// v1.75-live (D285): the Kabso Team member who referred the applicant (MODERATION / BD), if named.
+  recruiterUserId String?   @map("recruiter_user_id") @db.Uuid
 
-  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agency    Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recruiter User?  @relation("AgencyApplicationRecruiter", fields: [recruiterUserId], references: [id], onDelete: SetNull)
 
   @@unique([userId, clientKey], map: "agency_applications_client_once")
   @@index([agencyId, createdAt(sort: Desc)], map: "agency_applications_agency_idx")
@@ -4322,22 +4342,25 @@ enum RechargeCherryRequestStatus {
 /// D185: an application «كن وكيل شحن». PRIVATE (admins only, through the recharge-admin CLI, audited); the
 /// personal fields are NULL once `purgedAt` is set (retention).
 model RechargeAgentApplication {
-  id             String                    @id @default(uuid(7)) @db.Uuid
-  userId         String                    @map("user_id") @db.Uuid
-  status         RechargeApplicationStatus @default(PENDING)
-  fullName       String?                   @map("full_name") @db.VarChar(120)
-  phone          String?                   @db.VarChar(16)
-  photoKey       String?                   @map("photo_key") @db.VarChar(256)
-  selfieKey      String?                   @map("selfie_key") @db.VarChar(256)
-  locations      Json?
-  paymentMethods Json?                     @map("payment_methods")
-  rejectReason   String?                   @map("reject_reason") @db.VarChar(500)
-  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
-  decidedAt      DateTime?                 @map("decided_at") @db.Timestamptz(3)
-  purgedAt       DateTime?                 @map("purged_at") @db.Timestamptz(3)
+  id              String                    @id @default(uuid(7)) @db.Uuid
+  userId          String                    @map("user_id") @db.Uuid
+  status          RechargeApplicationStatus @default(PENDING)
+  fullName        String?                   @map("full_name") @db.VarChar(120)
+  phone           String?                   @db.VarChar(16)
+  photoKey        String?                   @map("photo_key") @db.VarChar(256)
+  selfieKey       String?                   @map("selfie_key") @db.VarChar(256)
+  locations       Json?
+  paymentMethods  Json?                     @map("payment_methods")
+  rejectReason    String?                   @map("reject_reason") @db.VarChar(500)
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt       DateTime?                 @map("decided_at") @db.Timestamptz(3)
+  purgedAt        DateTime?                 @map("purged_at") @db.Timestamptz(3)
+  /// v1.75-live (D285): the Kabso Team member who referred the applicant (MODERATION / BD), if named.
+  recruiterUserId String?                   @map("recruiter_user_id") @db.Uuid
 
-  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent RechargeAgent?
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent     RechargeAgent?
+  recruiter User?          @relation("RechargeApplicationRecruiter", fields: [recruiterUserId], references: [id], onDelete: SetNull)
 
   @@unique([userId], map: "recharge_agent_applications_one_pending", where: raw("status = 'PENDING'::recharge_application_status"))
   @@index([userId, createdAt(sort: Desc)], map: "recharge_agent_applications_user_idx")
@@ -5933,9 +5956,12 @@ model HostApplication {
   /// CANCELLED only: `USER` (the person), `AGENCY` (they joined or opened an agency), `ACCOUNT` (deletion).
   cancelReason    String?               @map("cancel_reason") @db.VarChar(16)
   purgedAt        DateTime?             @map("purged_at") @db.Timestamptz(3)
+  /// v1.75-live (D285): the Kabso Team member who referred the applicant (MODERATION / BD), if named.
+  recruiterUserId String?               @map("recruiter_user_id") @db.Uuid
 
   user      User  @relation("HostApplicant", fields: [userId], references: [id], onDelete: Cascade)
   decidedBy User? @relation("HostApplicationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  recruiter User? @relation("HostApplicationRecruiter", fields: [recruiterUserId], references: [id], onDelete: SetNull)
 
   @@unique([userId, clientKey], map: "host_applications_client_once")
   // Created by 20270202090100_host_applications; declared with the `partialIndexes` preview feature (no drift).
@@ -6598,4 +6624,132 @@ model StorePurchase {
   @@index([createdAt(sort: Desc), id], map: "store_purchases_created_idx")
   @@index([itemId, createdAt(sort: Desc)], map: "store_purchases_item_idx")
   @@map("store_purchases")
+}
+
+// ---- v1.75-live (D285, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب» and the creator programme ----------
+
+/// What a recruit became: a direct host, a host agency, a recharge agent or a content creator.
+enum StaffRecruitType {
+  HOST
+  AGENCY
+  RECHARGE_AGENT
+  CREATOR
+
+  @@map("staff_recruit_type")
+}
+
+enum CreatorApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("creator_application_status")
+}
+
+/// v1.75-live (D285): an application «انضم كصانع محتوى» (the creator programme). PRIVATE (the links and the bio are
+/// read only in the panel). At most one PENDING per user (partial unique); approving makes a `creator_members` row.
+model CreatorApplication {
+  id              String                   @id @default(uuid(7)) @db.Uuid
+  userId          String                   @map("user_id") @db.Uuid
+  status          CreatorApplicationStatus @default(PENDING)
+  country         String                   @db.Char(2)
+  category        String                   @db.VarChar(24)
+  links           String[]                 @db.VarChar(200)
+  bio             String?                  @db.VarChar(300)
+  recruiterUserId String?                  @map("recruiter_user_id") @db.Uuid
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt       DateTime?                @map("decided_at") @db.Timestamptz(3)
+  decidedById     String?                  @map("decided_by_id") @db.Uuid
+  rejectReason    String?                  @map("reject_reason") @db.VarChar(500)
+
+  user      User           @relation("CreatorApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?          @relation("CreatorApplicationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  recruiter User?          @relation("CreatorApplicationRecruiter", fields: [recruiterUserId], references: [id], onDelete: SetNull)
+  member    CreatorMember?
+
+  @@unique([userId], map: "creator_applications_one_pending", where: raw("status = 'PENDING'::creator_application_status"))
+  @@index([userId, createdAt(sort: Desc)], map: "creator_applications_user_idx")
+  @@index([status, createdAt(sort: Desc)], map: "creator_applications_status_idx")
+  @@map("creator_applications")
+}
+
+/// v1.75-live (D285): a member of the creator programme (from the approval on).
+model CreatorMember {
+  userId        String   @id @map("user_id") @db.Uuid
+  applicationId String   @unique(map: "creator_members_application_key") @map("application_id") @db.Uuid
+  activatedAt   DateTime @map("activated_at") @db.Timestamptz(3)
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application CreatorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("creator_members")
+}
+
+/// v1.75-live (D285): a recruit permanently attributed to the staff member who referred them, made when the
+/// application was ACTIVATED (approved; an agency at its opening). One per (type, recruit); a person is a HOST or a
+/// CREATOR recruit, not both (`staff_recruitments_one_gift_recruit`). The recruiter changes only by the OWNER in the
+/// panel, with a reason (audited).
+model StaffRecruitment {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  type            StaffRecruitType
+  recruiterUserId String           @map("recruiter_user_id") @db.Uuid
+  recruitUserId   String           @map("recruit_user_id") @db.Uuid
+  /// The application that named the recruiter (agency / recharge / host / creator application id).
+  applicationId   String           @map("application_id") @db.Uuid
+  /// The agency (AGENCY), else null.
+  agencyId        String?          @map("agency_id") @db.Uuid
+  activatedAt     DateTime         @map("activated_at") @db.Timestamptz(3)
+  reassignedAt    DateTime?        @map("reassigned_at") @db.Timestamptz(3)
+  reassignedById  String?          @map("reassigned_by_id") @db.Uuid
+  reassignReason  String?          @map("reassign_reason") @db.VarChar(500)
+
+  recruiter   User                     @relation("StaffRecruiter", fields: [recruiterUserId], references: [id], onDelete: Cascade)
+  recruit     User                     @relation("StaffRecruit", fields: [recruitUserId], references: [id], onDelete: Cascade)
+  commissions StaffRecruitCommission[]
+
+  @@unique([type, recruitUserId], map: "staff_recruitments_type_recruit_key")
+  @@unique([recruitUserId], map: "staff_recruitments_one_gift_recruit", where: raw("type IN ('HOST'::staff_recruit_type, 'CREATOR'::staff_recruit_type)"))
+  @@index([recruiterUserId, type, activatedAt(sort: Desc)], map: "staff_recruitments_recruiter_idx")
+  @@map("staff_recruitments")
+}
+
+/// v1.75-live (D285): the OWNER's commission shares per recruit type (one row, id 1), basis points of the profit.
+model StaffRecruitSettings {
+  id          Int      @id @default(1) @db.SmallInt
+  hostBps     Int      @default(200) @map("host_bps")
+  creatorBps  Int      @default(200) @map("creator_bps")
+  agencyBps   Int      @default(100) @map("agency_bps")
+  rechargeBps Int      @default(100) @map("recharge_bps")
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  @@map("staff_recruit_settings")
+}
+
+/// v1.75-live (D285): one recruitment's commission of one day (the programs' day), written once by the daily job:
+/// the platform profit counted (money units, D281), the share in effect, the cherries credited — never more than that
+/// share of the profit (CHECK `staff_recruit_commissions_guard`). `skipped` when nothing was paid for a reason
+/// (`RECRUITER_INACTIVE`).
+model StaffRecruitCommission {
+  recruitmentId   String           @map("recruitment_id") @db.Uuid
+  day             DateTime         @db.Date
+  type            StaffRecruitType
+  recruiterUserId String           @map("recruiter_user_id") @db.Uuid
+  recruitUserId   String           @map("recruit_user_id") @db.Uuid
+  profitUnits     Decimal          @map("profit_units") @db.Decimal(40, 0)
+  rateCherries    BigInt           @map("rate_cherries")
+  rateMinor       Int              @map("rate_minor")
+  bps             Int
+  cherries        BigInt
+  skipped         String?          @db.VarChar(24)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  recruitment StaffRecruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  recruiter   User             @relation(fields: [recruiterUserId], references: [id], onDelete: Cascade)
+
+  @@id([recruitmentId, day], map: "staff_recruit_commissions_pkey")
+  @@index([recruiterUserId, day(sort: Desc)], map: "staff_recruit_commissions_recruiter_idx")
+  @@index([day], map: "staff_recruit_commissions_day_idx")
+  @@map("staff_recruit_commissions")
 }
