@@ -29,12 +29,15 @@ import {
 export const RECRUIT_TYPES = ['HOST', 'AGENCY', 'RECHARGE_AGENT', 'CREATOR'] as const;
 export type RecruitType = (typeof RECRUIT_TYPES)[number];
 
-/** The owner's suggested defaults (basis points): 2 % hosts and creators, 1 % agencies and recharge agents. */
+/**
+ * The owner's defaults (basis points, so 0.75 % is exact): 1 % for hosts, content creators and host agencies, 0.75 %
+ * for recharge agents. OWNER-editable in the panel (`staff_recruit_settings`).
+ */
 export const DEFAULT_RECRUIT_BPS: Readonly<Record<RecruitType, number>> = {
-  HOST: 200,
-  CREATOR: 200,
+  HOST: 100,
+  CREATOR: 100,
   AGENCY: 100,
-  RECHARGE_AGENT: 100,
+  RECHARGE_AGENT: 75,
 };
 
 /** The highest share the OWNER may set (20 %; the CHECK `staff_recruit_settings_shape`). */

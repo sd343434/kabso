@@ -8,8 +8,8 @@
 -- 3. `staff_recruitments`: the recruit permanently attributed to the recruiter when the application is ACTIVATED
 --    (approved; an agency at its opening). One per (type, recruit); HOST and CREATOR exclusive per person. The OWNER
 --    alone changes the recruiter (panel, reason, audited).
--- 4. `staff_recruit_settings`: the OWNER's shares per type (bps of the platform profit; defaults 2 % host / creator,
---    1 % agency / recharge agent; at most 20 %).
+-- 4. `staff_recruit_settings`: the OWNER's shares per type (bps of the platform profit; owner defaults 1 % host / creator / agency,
+--    0.75 % recharge agent; at most 20 %).
 -- 5. `staff_recruit_commissions`: one row per recruitment and day, written once by the daily job (primary key =
 --    idempotency) with the profit counted and the share; CHECK `staff_recruit_commissions_guard`: the cherries are never
 --    more than the share of the ACTUAL profit counted (cherry value = rate_minor / rate_cherries). Append-only for the
@@ -111,10 +111,10 @@ ALTER TABLE "staff_recruitments" ADD CONSTRAINT "staff_recruitments_recruit_user
 -- 4. The OWNER's shares (one row).
 CREATE TABLE "staff_recruit_settings" (
     "id" SMALLINT NOT NULL DEFAULT 1,
-    "host_bps" INTEGER NOT NULL DEFAULT 200,
-    "creator_bps" INTEGER NOT NULL DEFAULT 200,
+    "host_bps" INTEGER NOT NULL DEFAULT 100,
+    "creator_bps" INTEGER NOT NULL DEFAULT 100,
     "agency_bps" INTEGER NOT NULL DEFAULT 100,
-    "recharge_bps" INTEGER NOT NULL DEFAULT 100,
+    "recharge_bps" INTEGER NOT NULL DEFAULT 75,
     "updated_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_by_id" UUID,
 

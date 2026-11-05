@@ -181,8 +181,8 @@ export const CAPABILITIES = {
   /** Who is on shift and how many lives each watches (OWNER). */
   'staff.shifts': ['OWNER'],
   // ---- v1.75-live (D285, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب» --------------------------------------
-  /** «استقطاباتي»: the caller's own recruits and commissions (the recruiters: MODERATION and BD). */
-  'recruits.mine': ['MODERATION', 'BD'],
+  /** «استقطاباتي»: the caller's own recruits and commissions (the recruiters: MODERATION and BD; OWNER holds every capability). */
+  'recruits.mine': ['OWNER', 'MODERATION', 'BD'],
   /** Every staff member's recruits, each recruit's profit and the commissions paid; the shares (read). */
   'recruits.view': ['OWNER'],
   /** Reassign a recruit to another recruiter, change the shares per type (the code again and a reason). */

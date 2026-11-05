@@ -6717,10 +6717,10 @@ model StaffRecruitment {
 /// v1.75-live (D285): the OWNER's commission shares per recruit type (one row, id 1), basis points of the profit.
 model StaffRecruitSettings {
   id          Int      @id @default(1) @db.SmallInt
-  hostBps     Int      @default(200) @map("host_bps")
-  creatorBps  Int      @default(200) @map("creator_bps")
+  hostBps     Int      @default(100) @map("host_bps")
+  creatorBps  Int      @default(100) @map("creator_bps")
   agencyBps   Int      @default(100) @map("agency_bps")
-  rechargeBps Int      @default(100) @map("recharge_bps")
+  rechargeBps Int      @default(75) @map("recharge_bps")
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   updatedById String?  @map("updated_by_id") @db.Uuid
 
