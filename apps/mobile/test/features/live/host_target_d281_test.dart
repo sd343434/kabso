@@ -388,7 +388,8 @@ void main() {
     ) async {
       useD281Art();
       LiveHostTargetChip.debugIgnoreReducedMotion = true;
-      // A long turn, so each step (a turn + 1 s for the switch) lands on one turn.
+      // A long turn, so each step (a turn + 1 s for the switch) lands on
+      // one turn.
       final turn = LiveHostTargetChip.rotateEvery;
       LiveHostTargetChip.rotateEvery = const Duration(seconds: 10);
       addTearDown(() => LiveHostTargetChip.rotateEvery = turn);
