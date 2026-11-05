@@ -94,6 +94,7 @@ import 'package:kabso_live/features/staff/domain/staff_models.dart';
 import 'package:kabso_live/features/staff/presentation/staff_entry_dialog.dart';
 import 'package:kabso_live/features/staff/presentation/staff_step_up_dialog.dart';
 import 'package:kabso_live/features/staff/presentation/staff_tools_sheet.dart';
+import 'package:kabso_live/features/vip/application/vip_entrance_plays.dart';
 import 'package:kabso_live/features/vip/presentation/vip_entrance.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -329,10 +330,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// (the next visit gets its own).
   late final Map<String, LiveChatVisit> _visits;
 
+  /// D280: the VIP entrances this visit played (a new visit plays them
+  /// again).
+  late final VipEntrancePlays _plays;
+
   @override
   void initState() {
     super.initState();
     _visits = ref.read(liveChatVisitsProvider);
+    _plays = ref.read(vipEntrancePlaysProvider);
     // D181: this room minimized comes back full screen (this screen holds
     // its session again); another minimized room is left.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -354,7 +360,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   @override
   void dispose() {
     _demoteTimer?.cancel();
-    if (!_minimized) endLiveChatVisit(_visits, widget.room.id);
+    if (!_minimized) {
+      endLiveChatVisit(_visits, widget.room.id);
+      _plays.forget(widget.room.id);
+    }
     _chat.dispose();
     _chatFocus.dispose();
     super.dispose();

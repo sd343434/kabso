@@ -56,6 +56,7 @@ class SvgaDoc {
     required this.drawn,
     required this.sounds,
     this.bounds,
+    this.area,
     this.vector = false,
     this.skeleton,
   });
@@ -180,6 +181,9 @@ class SvgaDoc {
       bounds: box.isEmpty || area == null
           ? box
           : box.expandToInclude(area.intersect(limit)),
+      area: box.isEmpty || area == null || !area.overlaps(box)
+          ? null
+          : area.intersect(box),
       vector: vector,
       skeleton: skeleton,
       viewBox: Size(movie.params.viewBoxWidth, movie.params.viewBoxHeight),
@@ -200,6 +204,11 @@ class SvgaDoc {
   /// What the clip draws over all its frames (canvas units), at least the
   /// canvas: a gift is fitted by it (KGiftMovieFrame, D145c).
   final Rect? bounds;
+
+  /// D280: what the clip draws inside its canvas over all its frames
+  /// (canvas units; null when unknown): the entry car's transparent rows
+  /// below it leave no gap at the screen's bottom.
+  final Rect? area;
 
   /// D272b: it has vector shapes or clip paths, which only the package's
   /// player draws ([toMovie]).

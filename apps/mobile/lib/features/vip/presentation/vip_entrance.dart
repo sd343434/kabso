@@ -8,6 +8,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
+import 'package:kabso_live/features/vip/application/vip_entrance_plays.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
@@ -38,9 +39,9 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
 
   /// D265 (owner: the VIP1 host saw no entry car): the host is never a
   /// viewer, so no `join` names them — their own entrance (banner and car)
-  /// plays once on their screen when the layer starts (the live goes on
-  /// air, or the host comes back to it). Null on a viewer's screen (their
-  /// own `join` brings theirs).
+  /// plays once on their screen when the live goes on air. D280: once per
+  /// live ([VipEntrancePlays]), not again when the minimized live is opened
+  /// again. Null on a viewer's screen (their own `join` brings theirs).
   final UserSummary? self;
 
   /// Tests and captures turn the slide off.
@@ -62,6 +63,11 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   static const carWait = Duration(seconds: 8);
   static const maxQueued = 5;
 
+  /// D280: the car covers the screen's width, its bottom on the screen's
+  /// bottom.
+  static const BoxFit carFit = BoxFit.fitWidth;
+  static const Alignment carAlignment = Alignment.bottomCenter;
+
   @override
   ConsumerState<LiveVipEntranceLayer> createState() =>
       _LiveVipEntranceLayerState();
@@ -79,12 +85,14 @@ class _Entry {
 class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     with SingleTickerProviderStateMixin {
   late final AnimationController _clock;
+
+  /// D280: what this room's visit already played (outlives this layer).
+  late final VipEntrancePlays _plays;
   final _queue = Queue<_Entry>();
   _Entry? _current;
   bool _bannerDone = true;
   bool _carDone = true;
   Timer? _carLimit;
-  int _seen = -1;
 
   @override
   void initState() {
@@ -96,7 +104,11 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
           _maybeNext();
         }
       });
-    _seen = ref.read(liveChatProvider(widget.roomId)).latestJoin?.serial ?? -1;
+    _plays = ref.read(vipEntrancePlaysProvider);
+    // D280: a join already in the chat (before this layer was built: the
+    // live minimized and opened again) is never played now.
+    final latest = ref.read(liveChatProvider(widget.roomId)).latestJoin;
+    if (latest != null) _plays.takeJoin(widget.roomId, latest);
     _selfPending = widget.self?.vip != null;
   }
 
@@ -107,8 +119,9 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     final self = widget.self;
     if (!_selfPending || self == null || catalog == null) return;
     _selfPending = false;
-    // After this build (it sets the state); a serial no join of this
-    // visit has (joins count up from 0).
+    // D280: once per live, not each time its screen is built again.
+    if (!_plays.takeSelf(widget.roomId)) return;
+    // After this build (it sets the state).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _enqueue(LiveChatJoinLine(self, -1), catalog);
     });
@@ -126,9 +139,12 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
 
   void _onChat(LiveChatState next) {
     final line = next.latestJoin;
-    if (line == null || line.serial <= _seen) return;
-    _seen = line.serial;
-    _enqueue(line, ref.read(vipCatalogProvider).value);
+    if (line == null || !_plays.takeJoin(widget.roomId, line)) return;
+    final catalog = ref.read(vipCatalogProvider).value;
+    // Only an entrance that would play counts as played (D280).
+    if (vipLookOf(line.user.vip, catalog) == null) return;
+    if (!_plays.takeUser(widget.roomId, line.user.id)) return;
+    _enqueue(line, catalog);
   }
 
   void _enqueue(LiveChatJoinLine line, VipTierList? catalog) {
@@ -237,24 +253,25 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
       child: Stack(
         children: [
           if (car != null && !_carDone)
+            // D280 (owner: «تبدأ من اسفل الشاشة بحيث لا يظهر فراغ من
+            // اسفل»): the car fills the screen's width with its art's
+            // bottom (the rows it never draws left out) on the screen's
+            // bottom edge, under the bars; a taller one loses its top.
             Positioned.fill(
               key: LiveVipEntranceLayer.carKey,
-              child: Center(
-                child: FractionallySizedBox(
-                  widthFactor: 1,
-                  child: AspectRatio(
-                    aspectRatio: _aspect(car, 1),
-                    child: VipAnimatedArt(
-                      key: ValueKey('vipCar.${current.line.serial}'),
-                      animation: car.animation,
-                      still: car.still,
-                      video: car.video,
-                      once: true,
-                      onDone: _onCarDone,
-                      onStarted: _onCarStarted,
-                      sound: soundOn,
-                    ),
-                  ),
+              child: ClipRect(
+                child: VipAnimatedArt(
+                  key: ValueKey('vipCar.${identityHashCode(current)}'),
+                  animation: car.animation,
+                  still: car.still,
+                  video: car.video,
+                  fit: LiveVipEntranceLayer.carFit,
+                  alignment: LiveVipEntranceLayer.carAlignment,
+                  trimBottom: true,
+                  once: true,
+                  onDone: _onCarDone,
+                  onStarted: _onCarStarted,
+                  sound: soundOn,
                 ),
               ),
             ),
@@ -268,7 +285,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                 alignment: const AlignmentDirectional(-1, 0.08),
                 child: _slide(
                   VipEntranceBanner(
-                    key: ValueKey('vipBanner.${current.line.serial}'),
+                    key: ValueKey('vipBanner.${identityHashCode(current)}'),
                     name: name,
                     look: current.look,
                     perk: banner,

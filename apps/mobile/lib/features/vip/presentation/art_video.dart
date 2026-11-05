@@ -22,9 +22,14 @@ class ArtVideoPlayer extends StatefulWidget {
     super.key,
     this.still,
     this.fit = BoxFit.contain,
+    this.alignment = Alignment.center,
     this.once = false,
     this.onDone,
   });
+
+  /// D280: where the fitted video sits in its box (the entry car: at the
+  /// bottom).
+  final Alignment alignment;
 
   final String url;
   final ArtVideo video;
@@ -151,6 +156,7 @@ class _ArtVideoPlayerState extends State<ArtVideoPlayer> {
     return IgnorePointer(
       child: FittedBox(
         fit: widget.fit,
+        alignment: widget.alignment,
         clipBehavior: Clip.hardEdge,
         child: SizedBox(
           width: box.width,

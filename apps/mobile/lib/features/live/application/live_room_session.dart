@@ -16,6 +16,7 @@ import 'package:kabso_live/features/live/data/live_media_extras.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/vip/application/vip_entrance_plays.dart';
 
 /// What a viewer's room session knows (CP-010 video, CP-011 seats).
 class LiveRoomSessionState {
@@ -595,6 +596,8 @@ class LiveViewerMinimized extends Notifier<LiveRoom?> {
     final room = state;
     if (room == null) return;
     endLiveChatVisit(ref.read(liveChatVisitsProvider), room.id);
+    // D280: the next visit plays its VIP entrances again.
+    ref.read(vipEntrancePlaysProvider).forget(room.id);
     _release();
   }
 

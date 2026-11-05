@@ -33,10 +33,26 @@ class VipSvgaClip {
     this.sounds = const [],
     this.live,
     this.frameTotal,
+    this.area,
   });
 
   /// The SVGA's canvas, in its own units.
   final Size viewBox;
+
+  /// D280: what the clip draws inside its canvas (canvas units; null:
+  /// unknown), [SvgaDoc.area].
+  final Rect? area;
+
+  /// D280: the canvas without the rows the clip never draws below its art
+  /// (canvas units, from the top).
+  Size get trimmedBox {
+    final bottom = area?.bottom;
+    if (bottom == null || bottom <= 0 || bottom >= viewBox.height) {
+      return viewBox;
+    }
+    return Size(viewBox.width, bottom);
+  }
+
   final int fps;
 
   /// Each frame drawn at [scale] × the canvas (empty when [live]).
@@ -431,6 +447,7 @@ abstract final class VipSvgaCache {
           sounds: doc.sounds,
           live: SvgaLive(doc, scaleOf(s)),
           frameTotal: doc.frameCount,
+          area: doc.area,
         );
       }
       while (s > 64 && pixelsOf(s) > clipPixels) {
@@ -472,6 +489,7 @@ abstract final class VipSvgaCache {
       frames: frames,
       scale: k,
       sounds: doc.sounds,
+      area: doc.area,
     );
   }
 }
@@ -631,9 +649,19 @@ class VipSvga extends StatefulWidget {
     this.onStarted,
     this.sound = false,
     this.resolution = 1,
+    this.alignment = Alignment.center,
+    this.trimBottom = false,
   });
 
   final String url;
+
+  /// D280: where the fitted clip sits in its box (the entry car: at the
+  /// bottom).
+  final Alignment alignment;
+
+  /// D280: the rows the clip never draws below its art are left out (so a
+  /// bottom-aligned car touches the box's bottom).
+  final bool trimBottom;
 
   /// The frames' sharpness: 1 draws them at the device's pixels; less keeps
   /// a big art (the card) lighter in memory.
@@ -844,6 +872,8 @@ class _VipSvgaState extends State<VipSvga> with SingleTickerProviderStateMixin {
           fit: widget.fit,
           nine: widget.nine,
           reader: _reader,
+          alignment: widget.alignment,
+          trimBottom: widget.trimBottom,
         ),
       );
     },
@@ -857,7 +887,12 @@ class _ClipPainter extends CustomPainter {
     required this.fit,
     required this.nine,
     this.reader,
+    this.alignment = Alignment.center,
+    this.trimBottom = false,
   });
+
+  final Alignment alignment;
+  final bool trimBottom;
 
   final VipSvgaClip clip;
   final int frame;
@@ -871,13 +906,10 @@ class _ClipPainter extends CustomPainter {
     final live = clip.live;
     if (live != null && reader != null) {
       // D272: drawn now from the decoded window, fitted like a frame.
-      final box = clip.viewBox;
+      final box = trimBottom ? clip.trimmedBox : clip.viewBox;
       final fitted = applyBoxFit(fit, box, size);
-      final dst = Alignment.center.inscribe(
-        fitted.destination,
-        Offset.zero & size,
-      );
-      final from = Alignment.center.inscribe(fitted.source, Offset.zero & box);
+      final dst = alignment.inscribe(fitted.destination, Offset.zero & size);
+      final from = alignment.inscribe(fitted.source, Offset.zero & box);
       canvas
         ..save()
         ..clipRect(dst)
@@ -895,13 +927,16 @@ class _ClipPainter extends CustomPainter {
       nine.paint(canvas, size, clip, image);
       return;
     }
-    final src = Size(image.width.toDouble(), image.height.toDouble());
-    final fitted = applyBoxFit(fit, src, size);
-    final dst = Alignment.center.inscribe(
-      fitted.destination,
-      Offset.zero & size,
+    final trimmed = trimBottom ? clip.trimmedBox : clip.viewBox;
+    final src = Size(
+      image.width.toDouble(),
+      clip.viewBox.height > 0
+          ? image.height * trimmed.height / clip.viewBox.height
+          : image.height.toDouble(),
     );
-    final from = Alignment.center.inscribe(fitted.source, Offset.zero & src);
+    final fitted = applyBoxFit(fit, src, size);
+    final dst = alignment.inscribe(fitted.destination, Offset.zero & size);
+    final from = alignment.inscribe(fitted.source, Offset.zero & src);
     canvas.drawImageRect(
       image,
       from,
@@ -915,5 +950,7 @@ class _ClipPainter extends CustomPainter {
       old.clip != clip ||
       old.frame != frame ||
       old.fit != fit ||
-      old.reader != reader;
+      old.reader != reader ||
+      old.alignment != alignment ||
+      old.trimBottom != trimBottom;
 }

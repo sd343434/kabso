@@ -52,11 +52,20 @@ ImageProvider vipArtImage(String src) => vipImageFor(src);
 
 /// Builds the still image for [src] (a hosted https URL), or null. Nothing is
 /// bundled: every VIP art is uploaded from the admin panel.
-Widget? _stillOf(String? src, BoxFit fit) {
+Widget? _stillOf(
+  String? src,
+  BoxFit fit, {
+  Alignment alignment = Alignment.center,
+}) {
   if (src == null) return null;
   Widget onError(BuildContext _, Object _, StackTrace? _) =>
       const SizedBox.shrink();
-  return Image(image: vipImageFor(src), fit: fit, errorBuilder: onError);
+  return Image(
+    image: vipImageFor(src),
+    fit: fit,
+    alignment: alignment,
+    errorBuilder: onError,
+  );
 }
 
 /// The owner's VIP art: a looping SVGA ([animation]) over its [still], both
@@ -80,9 +89,16 @@ class VipAnimatedArt extends StatefulWidget {
     this.video,
     this.onStarted,
     this.sound = false,
+    this.alignment = Alignment.center,
+    this.trimBottom = false,
   });
 
   final String? animation;
+
+  /// D280: see [VipSvga.alignment] (an MP4 and the still too) and
+  /// [VipSvga.trimBottom] (the entry car: at the screen's bottom).
+  final Alignment alignment;
+  final bool trimBottom;
   final String? still;
 
   /// D270: the [animation] is an MP4 (a store item's art; the gifts' D207
@@ -136,7 +152,9 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
 
   @override
   Widget build(BuildContext context) {
-    final still = _stillOf(widget.still, widget.fit) ?? widget.placeholder;
+    final still =
+        _stillOf(widget.still, widget.fit, alignment: widget.alignment) ??
+        widget.placeholder;
     if (widget._canPlay && widget.video != null) {
       // D270: an MP4 (store art) on the gifts' video path.
       return ArtVideoPlayer(
@@ -144,6 +162,7 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
         video: widget.video!,
         still: still,
         fit: widget.fit,
+        alignment: widget.alignment,
         once: widget.once,
         onDone: _finish,
       );
@@ -159,9 +178,11 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
         onDone: _finish,
         onStarted: widget.onStarted,
         sound: widget.sound,
+        alignment: widget.alignment,
+        trimBottom: widget.trimBottom,
       );
     }
-    return _stillOf(widget.still, widget.fit) ??
+    return _stillOf(widget.still, widget.fit, alignment: widget.alignment) ??
         widget.placeholder ??
         const SizedBox.shrink();
   }
