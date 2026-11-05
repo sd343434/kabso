@@ -84,10 +84,11 @@ describe('D101 levels:admin publish-charm', () => {
       where: { actorUserId: admin.id, action: { startsWith: 'levels.' } },
       orderBy: { createdAt: 'asc' },
     });
-    expect(audits.map((a) => a.action)).toEqual([
+    // One transaction writes all three: they can share created_at, so no order between them.
+    expect(audits.map((a) => a.action).sort()).toEqual([
+      'levels.category.update',
       'levels.version.create',
       'levels.version.publish',
-      'levels.category.update',
     ]);
 
     // A host's room now has a level.

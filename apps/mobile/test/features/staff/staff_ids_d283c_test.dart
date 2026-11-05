@@ -25,7 +25,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../goldens/live_person_card_golden_test.dart'
     show personCardProfile, pumpPersonCardRoom;
-import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 import '../profile/profile_cover_d278_test.dart' show pumpOther;
 import 'staff_d283_test.dart';
@@ -53,8 +52,14 @@ void main() {
         ),
         'Kabso07',
       );
-      expect(KHandle.isolated('sara_2026', staffId: 'Kabso100'), '⁦Kabso100⁩');
-      expect(KHandle.text(en, 'sara_2026', staffId: 'Kabso02'), '⁦Kabso02⁩');
+      expect(
+        KHandle.isolated('sara_2026', staffId: 'Kabso100'),
+        '\u2066Kabso100\u2069',
+      );
+      expect(
+        KHandle.text(en, 'sara_2026', staffId: 'Kabso02'),
+        '\u2066Kabso02\u2069',
+      );
       expect(KHandle.text(en, 'sara_2026'), en.profileUsername('sara_2026'));
       expect(KHandle.id('sara_2026', staffId: 'Kabso02'), 'Kabso02');
       expect(KHandle.id('sara_2026'), 'sara_2026');
@@ -83,9 +88,9 @@ void main() {
       expect(plain.toJson().containsKey('staffId'), isFalse);
 
       // A round trip through JSON text (nested parts serialised too).
-      final json = jsonDecode(
-        jsonEncode(apiProfile(ar: false).toJson()),
-      ) as Map<String, dynamic>..['staffId'] = 'Kabso03';
+      final json =
+          jsonDecode(jsonEncode(apiProfile().toJson())) as Map<String, dynamic>
+            ..['staffId'] = 'Kabso03';
       expect(PublicProfile.fromJson(json).staffId, 'Kabso03');
 
       final me = MeDto.fromJson({
@@ -160,7 +165,7 @@ void main() {
   testWidgets('a normal profile keeps its @username (no staff ID line)', (
     tester,
   ) async {
-    await pumpOther(tester, apiProfile(ar: false), language: AppLanguage.en);
+    await pumpOther(tester, apiProfile(), language: AppLanguage.en);
     expect(find.byKey(ProfileCoverHeader.staffIdKey), findsNothing);
     expect(
       find.text(l10nFor(AppLanguage.en).profileUsername('host0')),
