@@ -24814,6 +24814,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'صورة فريق كابسو'**
   String get staffTeamPicture;
+
+  /// D283c: a staff account's official staff ID «Kabso01» where the @username is shown (profile, person card, Me tab). Reads left to right in both languages.
+  ///
+  /// In ar, this message translates to:
+  /// **'ID: {id}'**
+  String profileStaffId(String id);
+
+  /// D283c: the screen reader hint of the staff ID line.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم موظف رسمي في فريق كابسو'**
+  String get profileStaffIdHint;
 }
 
 class _AppLocalizationsDelegate

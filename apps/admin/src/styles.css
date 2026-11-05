@@ -2520,3 +2520,11 @@ fieldset.plain {
 .badge.region {
   margin-inline-end: 4px;
 }
+
+/* D283c: the official staff ID «Kabso01» on a staff card and in the next steps. */
+.badge.staff-id {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary-text);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

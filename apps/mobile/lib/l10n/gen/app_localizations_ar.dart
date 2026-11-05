@@ -14680,4 +14680,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get staffTeamPicture => 'صورة فريق كابسو';
+
+  @override
+  String profileStaffId(String id) {
+    return 'ID: $id';
+  }
+
+  @override
+  String get profileStaffIdHint => 'رقم موظف رسمي في فريق كابسو';
 }

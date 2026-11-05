@@ -70,6 +70,11 @@ abstract class User with _$User {
     /// (MODERATION / SUPPORT / FINANCE, not OWNER) — the staff-only Me tab,
     /// no go-live, levels, VIP, family, store, wallet or bag. Null otherwise.
     KabsoStaffIdentity? staff,
+
+    /// v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while
+    /// a panel role is held (the OWNER too) — the Me tab shows it instead of
+    /// the @username. Null otherwise.
+    String? staffId,
   }) = _User;
 }
 

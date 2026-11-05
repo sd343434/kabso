@@ -1809,6 +1809,7 @@ Future<void> showLiveChatActions(
   final handle = KHandle.isolated(
     entry.author.username,
     premiumTier: entry.author.premiumTier,
+    staffId: entry.author.staffId,
   );
 
   // Whether the author is muted now (only the host and moderators ask).

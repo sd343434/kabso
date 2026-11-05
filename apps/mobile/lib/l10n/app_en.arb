@@ -4586,5 +4586,7 @@
   "staffOfficialBio": "The official account of the Kabso Live Team. We work around the clock to keep Kabso Live safe and fun for everyone. For support or to report a problem, message us directly.",
   "staffBioLocked": "Official bio, fixed and not editable",
   "staffFrameLocked": "The Kabso Team frame is locked.",
-  "staffTeamPicture": "Kabso Team picture"
+  "staffTeamPicture": "Kabso Team picture",
+  "profileStaffId": "ID: {id}",
+  "profileStaffIdHint": "Official Kabso Team staff ID"
 }

@@ -2110,6 +2110,7 @@ class _Requests extends ConsumerWidget {
                   l10n,
                   r.user.username,
                   premiumTier: r.user.premiumTier,
+                  staffId: r.user.staffId,
                 ),
                 textDirection: TextDirection.ltr,
                 maxLines: 1,

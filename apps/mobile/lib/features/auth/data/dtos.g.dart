@@ -33,6 +33,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   coverUrl: json['coverUrl'] as String?,
   kabsoTeam: json['kabsoTeam'] as bool? ?? false,
   staff: staffIdentityFromJson(json['staff']),
+  staffId: json['staffId'] as String?,
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -60,6 +61,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'coverUrl': instance.coverUrl,
   'kabsoTeam': instance.kabsoTeam,
   'staff': ?staffIdentityToJson(instance.staff),
+  'staffId': ?instance.staffId,
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

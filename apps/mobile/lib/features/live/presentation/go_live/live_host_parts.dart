@@ -555,7 +555,11 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
               style: t.body.copyWith(color: _ink),
             ),
             subtitle: Text(
-              KHandle.plain(u.username, premiumTier: u.premiumTier),
+              KHandle.plain(
+                u.username,
+                premiumTier: u.premiumTier,
+                staffId: u.staffId,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textDirection: TextDirection.ltr,

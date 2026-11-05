@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { LiveStaffAssignmentService } from '../live/live-staff-assignment.service.js';
 import { normalizeUsername } from '../users/username.js';
+import { formatStaffId } from '../users/staff-ids.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { PANEL_ROLES, type PanelRole } from './admin-permissions.js';
 import { AdminRoleError, grantRoleIn, resetSecondFactorIn, revokeRoleIn } from './admin-roles.js';
@@ -174,6 +175,7 @@ export class AdminTeamService {
         },
         adminShift: { select: { onShift: true, since: true } },
         staffRegions: { select: { region: true } },
+        staffNumber: { select: { number: true } },
       },
     });
     return {
@@ -197,6 +199,8 @@ export class AdminTeamService {
         shiftSince: u.adminShift?.onShift ? u.adminShift.since.toISOString() : null,
         // v1.72-live (D283, §10.96.11): the regions of a MODERATION / SUPPORT staff member (catalogue order).
         regions: sortRegions(u.staffRegions.map((r) => r.region).filter(isStaffRegion)),
+        // v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» (given with the first panel role).
+        staffId: u.staffNumber ? formatStaffId(u.staffNumber.number) : null,
       })),
     };
   }
@@ -263,6 +267,8 @@ export class AdminTeamService {
       role: body.role,
       madeAdmin: r.madeAdmin,
       already: r.already,
+      // v1.73-live (D283c, §10.96.12): the staff ID the person shows (kept from an earlier grant if any).
+      staffId: r.staffId,
       account: {
         email: u.email,
         username: u.profile?.username ?? '',

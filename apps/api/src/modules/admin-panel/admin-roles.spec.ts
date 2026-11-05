@@ -21,6 +21,8 @@ interface World {
   otherActiveOwners: number;
   locked: boolean;
   onShift: boolean;
+  /** v1.73-live (D283c): the person's staff number (given by `kabso_admin_panel_role` on a grant). */
+  staffNumber: number | null;
 }
 
 function fakeTx(w: World) {
@@ -34,6 +36,14 @@ function fakeTx(w: World) {
       update: vi.fn(async () => ({})),
     },
     userProfile: { findUnique: vi.fn(async () => (w.user ? { userId: w.user.id } : null)) },
+    staffId: {
+      findUnique: vi.fn(async ({ where }: { where: { number?: number; userId?: string } }) => {
+        if (where.number !== undefined) {
+          return w.user && w.staffNumber === where.number ? { userId: w.user.id } : null;
+        }
+        return w.staffNumber !== null ? { number: w.staffNumber } : null;
+      }),
+    },
     userAdminPermission: {
       findMany: vi.fn(async () => w.roles.map((permission) => ({ permission }))),
       count: vi.fn(async () => w.otherActiveOwners),
@@ -63,6 +73,7 @@ function fakeTx(w: World) {
         const [, role, grant] = values as [string, string, boolean];
         const held = w.roles.includes(role);
         if (grant && !held) w.roles.push(role);
+        if (grant) w.staffNumber ??= 7;
         if (!grant && held) w.roles = w.roles.filter((r) => r !== role);
         return [{ changed: grant ? !held : held }];
       }
@@ -82,6 +93,7 @@ const world = (over: Partial<World> = {}): World => ({
   otherActiveOwners: 1,
   locked: false,
   onShift: false,
+  staffNumber: null,
   ...over,
 });
 
@@ -118,15 +130,37 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
     );
   });
 
+  it('v1.73-live (D283c): finds a former staff member by the staff ID kept for them and gives it back', async () => {
+    const f = fakeTx(world({ roles: [], staffNumber: 3 }));
+    const r = await grantRoleIn(f.tx, 'kabso03', 'SUPPORT', PANEL, { reason: 'back' });
+    expect(f.mock.staffId.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { number: 3 } }));
+    expect(f.mock.userProfile.findUnique).not.toHaveBeenCalled();
+    expect(r.staffId).toBe('Kabso03');
+    expect(f.audits[0]?.metadata).toMatchObject({ staffId: 'Kabso03' });
+    // An unknown staff ID falls back to the username (and then «no account»).
+    const g = fakeTx(world({ user: null, staffNumber: null }));
+    expect(await issueOf(grantRoleIn(g.tx, 'Kabso99', 'SUPPORT', PANEL))).toBe('team_no_account');
+    expect(g.mock.userProfile.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { username: 'kabso99' } }),
+    );
+  });
+
   it('a grant: audited with via panel and the reason; makes the account an admin; banned or locked refused', async () => {
     const f = fakeTx(world({ user: { id: TARGET_ID, role: 'USER', status: 'ACTIVE' }, roles: [] }));
     const r = await grantRoleIn(f.tx, TARGET_ID, 'OWNER', PANEL, { reason: 'co-owner' });
-    expect(r).toEqual({ userId: TARGET_ID, madeAdmin: true, already: false });
+    expect(r).toEqual({ userId: TARGET_ID, madeAdmin: true, already: false, staffId: 'Kabso07' });
     expect(f.mock.user.update).toHaveBeenCalledWith({ where: { id: TARGET_ID }, data: { role: 'ADMIN' } });
     expect(f.audits).toEqual([
       {
         action: 'admin.role.grant',
-        metadata: { role: 'OWNER', madeAdmin: true, already: false, reason: 'co-owner', via: 'panel' },
+        metadata: {
+          role: 'OWNER',
+          madeAdmin: true,
+          already: false,
+          staffId: 'Kabso07',
+          reason: 'co-owner',
+          via: 'panel',
+        },
       },
     ]);
     for (const status of ['SUSPENDED', 'PENDING_DELETION', 'DELETED']) {

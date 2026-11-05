@@ -18,6 +18,7 @@ import type { StoreWearDto } from '../../store/store-rules.js';
 import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
 import { isPanelStaff, staffIdentityOf, type LimitedStaffRole } from '../../live/live-staff.js';
+import { staffIdOf } from '../staff-ids.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
 
 /**
@@ -47,7 +48,9 @@ export interface PublicProfileDto {
    * role its profile line names and its regions; the app shows the team badge and frame, the line, and no levels.
    * Absent for everyone else (the OWNER too).
    */
-  staff?: { role: LimitedStaffRole; regions: StaffRegion[] };
+  staff?: { role: LimitedStaffRole; regions: StaffRegion[]; staffId?: string };
+  /** v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while a panel role is held (the OWNER too). */
+  staffId?: string;
   liveRoomId: string | null;
   /**
    * v1.70-live (D279, §10.5.1): the «في بث الآن» card's facts while `liveRoomId` is set (null otherwise, and across a
@@ -240,6 +243,8 @@ export class PublicProfileService {
     // D270: every stored kind worn (a store bubble, banner or car covers the VIP one too).
     const vip = activeVipOf({ vipMembership: membership }, new Date(), worn.categories);
     const staff = await staffIdentityOf(this.prisma, user.id);
+    // v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while a panel role is held (the OWNER too).
+    const staffId = await staffIdOf(this.prisma, user.id);
     return {
       id: user.id,
       username: user.username,
@@ -255,7 +260,8 @@ export class PublicProfileService {
       isMuted,
       isSelf,
       ...((await isPanelStaff(this.prisma, user.id)) ? { kabsoTeam: true as const } : {}),
-      ...(staff ? { staff } : {}),
+      ...(staffId ? { staffId } : {}),
+      ...(staff ? { staff: { ...staff, ...(staffId ? { staffId } : {}) } } : {}),
       liveRoomId,
       live,
       family,

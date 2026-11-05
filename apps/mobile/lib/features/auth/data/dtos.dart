@@ -38,6 +38,7 @@ class MeDto {
     this.coverUrl,
     this.kabsoTeam = false,
     this.staff,
+    this.staffId,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -114,6 +115,12 @@ class MeDto {
   )
   final KabsoStaffIdentity? staff;
 
+  /// v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while
+  /// the account holds a panel role (the OWNER too); shown instead of the
+  /// @username. Null for everyone else.
+  @JsonKey(includeIfNull: false)
+  final String? staffId;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -141,6 +148,7 @@ class MeDto {
     coverUrl: coverUrl,
     kabsoTeam: kabsoTeam,
     staff: staff,
+    staffId: staffId,
   );
 }
 

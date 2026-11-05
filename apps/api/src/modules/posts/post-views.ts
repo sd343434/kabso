@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client.js';
+import { Prisma, type AdminPermission } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { hostAgentPerksActive } from '../economy/host-agents.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
@@ -9,6 +9,7 @@ import { parseHashtags, parseMentions } from './text-entities.js';
 import { vipNotWorn } from '../vip/vip-bag.js';
 import { STORE_ART_SELECT, storeWearOf, type StoreArtRow } from '../store/store-rules.js';
 import { isTeamAvatarUrl } from '../live/staff-avatar.js';
+import { summaryStaffIdOf } from '../users/staff-ids.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -85,6 +86,10 @@ export function userSummary(
       offPerks?: string[];
       tier: { code: string; sortOrder: number; color: string };
     } | null;
+    /** v1.73-live (D283c); absent in older selects. */
+    role?: string;
+    staffNumber?: { number: number } | null;
+    adminPermissions?: readonly { permission: string }[];
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -102,6 +107,7 @@ export function userSummary(
   // D270 (§10.98): the store items worn — only for an active account, as the other badges.
   const wear =
     !team && (user.status === undefined || user.status === 'ACTIVE') ? storeWearOf(user.bagItems, now) : null;
+  const staffId = summaryStaffIdOf(user);
   return {
     id: user.id,
     username: user.profile?.username ?? '',
@@ -121,6 +127,8 @@ export function userSummary(
     ...(vip ? { vip } : {}),
     // D270 (§10.98): only while the user wears a store item.
     ...(wear ? { wear } : {}),
+    // v1.73-live (D283c, §10.96.12): only while a panel role is held (the apps show it instead of the @username).
+    ...(staffId ? { staffId } : {}),
   };
 }
 
@@ -246,6 +254,14 @@ export const USER_SUMMARY_SELECT = {
       offPerks: true,
       tier: { select: { code: true, sortOrder: true, color: true } },
     },
+  },
+  // v1.73-live (D283c, §10.96.12): the staff ID (`UserSummary.staffId` while a panel role is held).
+  role: true,
+  staffNumber: { select: { number: true } },
+  adminPermissions: {
+    where: { permission: { in: ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'] as AdminPermission[] } },
+    select: { permission: true },
+    take: 1,
   },
 } as const;
 

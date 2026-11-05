@@ -10,6 +10,8 @@ import { PostViews, visiblePostSql, type PageDto, type PostDto } from './post-vi
 import type { HashtagPostsQuery, SearchQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
 import { isValidHashtag, normalizeHashtag } from './text-entities.js';
+import { panelStaffSql } from '../live/live-staff.js';
+import { formatStaffId, parseStaffId } from '../users/staff-ids.js';
 
 /** `Hashtag` (openapi v1.5-social). */
 export interface HashtagDto {
@@ -169,23 +171,32 @@ export class SearchService {
   ): Promise<UserSummaryDto[]> {
     const lower = q.toLowerCase();
     const prefix = likePrefix(lower);
+    // v1.73-live (D283c, §10.96.12): «Kabso01» finds the staff member who shows that staff ID now (first).
+    const staffNumber = parseStaffId(q);
     const rows = await this.prisma.$queryRaw<
-      (UserSummaryDto & { tier: UserSummaryDto['premiumTier'] | null })[]
+      (UserSummaryDto & { tier: UserSummaryDto['premiumTier'] | null; staffNumber: number | null })[]
     >`
       SELECT u.id::text AS id, p.username AS "username", p.display_name AS "displayName",
-             p.avatar_url AS "avatarUrl", p.premium_tier::text AS "tier"
+             p.avatar_url AS "avatarUrl", p.premium_tier::text AS "tier", si.number AS "staffNumber"
         FROM user_profiles p
         JOIN users u ON u.id = p.user_id AND u.status = 'ACTIVE'::user_status
-       WHERE (p.username LIKE ${prefix} ESCAPE '\\' OR lower(p.display_name) LIKE ${prefix} ESCAPE '\\')
+        LEFT JOIN staff_ids si ON si.user_id = u.id AND ${panelStaffSql(Prisma.sql`u.id`)}
+       WHERE (p.username LIKE ${prefix} ESCAPE '\\' OR lower(p.display_name) LIKE ${prefix} ESCAPE '\\'
+              OR si.number = ${staffNumber}::int)
          AND NOT EXISTS (SELECT 1 FROM user_blocks b
                           WHERE (b.blocker_id = u.id AND b.blocked_id = ${viewerId}::uuid)
                              OR (b.blocker_id = ${viewerId}::uuid AND b.blocked_id = u.id))
-       ORDER BY (p.username = ${lower} OR lower(p.display_name) = ${lower}) DESC,
+       ORDER BY (si.number IS NOT NULL AND si.number = ${staffNumber}::int) DESC,
+                (p.username = ${lower} OR lower(p.display_name) = ${lower}) DESC,
                 (SELECT count(*) FROM follows f WHERE f.followee_id = u.id) DESC,
                 p.username ASC
        OFFSET ${offset} LIMIT ${take}`;
     // v1.28-live (D146): the badge tier only for premium usernames.
-    return rows.map(({ tier, ...user }) => (tier ? { ...user, premiumTier: tier } : user));
+    return rows.map(({ tier, staffNumber: n, ...user }) => ({
+      ...user,
+      ...(tier ? { premiumTier: tier } : {}),
+      ...(n !== null ? { staffId: formatStaffId(n) } : {}),
+    }));
   }
 
   private async searchHashtags(

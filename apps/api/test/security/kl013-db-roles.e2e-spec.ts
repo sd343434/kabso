@@ -228,8 +228,9 @@ describe('KL-013 runtime role DML', () => {
         'family_points_ledger',
         'cp_points_ledger',
       ].includes(row.table);
-      // KL-058: admin permissions are granted by the migration role only.
-      const readOnly = row.table === 'user_admin_permissions';
+      // KL-058: admin permissions are granted by the migration role only. v1.73-live (D283c): the staff IDs are given
+      // only by the SECURITY DEFINER `kabso_assign_staff_id` (through `kabso_admin_panel_role`).
+      const readOnly = ['user_admin_permissions', 'staff_ids'].includes(row.table);
       expect({ table: row.table, owner: row.owner, s: row.s, i: row.i, u: row.u, d: row.d }).toEqual({
         table: row.table,
         owner: migrationUser,
@@ -734,6 +735,73 @@ describe('D283 staff regions and the team picture (admin_staff_regions, user_pro
     ]) {
       await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
     }
+  });
+});
+
+describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-0000000d283c';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM staff_ids WHERE user_id = '${user}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('is owned by the migration role, read-only for the runtime role, with its constraints', async () => {
+    expect(
+      await scalar<string>(
+        runtime,
+        `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'staff_ids'`,
+      ),
+    ).toBe(migrationUser);
+    const constraints = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE conrelid = 'public.staff_ids'::regclass ORDER BY 1`);
+    expect(constraints.map((c) => c.name)).toEqual([
+      'staff_ids_number_positive',
+      'staff_ids_pkey',
+      'staff_ids_user_id_fkey',
+    ]);
+    expect(
+      await scalar<boolean>(
+        runtime,
+        `SELECT indisunique AS v FROM pg_index WHERE indexrelid = 'public.staff_ids_user_id_key'::regclass`,
+      ),
+    ).toBe(true);
+  });
+
+  it('only the grant function writes it: one number per person, kept, MAX + 1; DML and DDL refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd283c-${suffix}@example.com', 'x', now())`,
+    );
+    for (const sql of [
+      `INSERT INTO staff_ids (number, user_id) VALUES (99999, '${user}')`,
+      `UPDATE staff_ids SET number = number + 1000`,
+      `DELETE FROM staff_ids`,
+      `SELECT kabso_assign_staff_id('${user}'::uuid)`,
+      'TRUNCATE TABLE staff_ids',
+      'ALTER TABLE staff_ids DROP CONSTRAINT staff_ids_number_positive',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    const max = await scalar<number | null>(runtime, 'SELECT MAX(number) AS v FROM staff_ids');
+    await runtime.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'FINANCE', true, NULL)`);
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'SUPPORT', true, NULL)`);
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'FINANCE', false, NULL)`);
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${user}'::uuid, 'SUPPORT', false, NULL)`);
+    });
+    const rows = await runtime.$queryRawUnsafe<{ number: number }[]>(
+      `SELECT number FROM staff_ids WHERE user_id = '${user}'`,
+    );
+    expect(rows).toEqual([{ number: (max ?? 0) + 1 }]);
+    await withMigrationClient((m) =>
+      expect(m.$executeRawUnsafe(`INSERT INTO staff_ids (number, user_id) VALUES (0, NULL)`)).rejects.toThrow(
+        /staff_ids_number_positive/,
+      ),
+    );
   });
 });
 

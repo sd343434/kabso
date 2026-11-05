@@ -8946,7 +8946,7 @@ paths:
       tags: [search]
       operationId: search
       summary: "Prefix search for users, hashtags or posts (caption words)"
-      description: CONVENTIONS §11.6. `q` is 1–64 characters after NFC and trim; a leading `@` or `#` is ignored.
+      description: CONVENTIONS §11.6. `q` is 1–64 characters after NFC and trim; a leading `@` or `#` is ignored. (v1.73-live, D283c, §10.96.12) For `type=users`, a staff ID («Kabso01», any case) also finds the account that shows it, first.
       parameters:
         - name: q
           in: query
@@ -10442,7 +10442,7 @@ paths:
     get:
       tags: [admin-panel]
       operationId: searchAdminUsers
-      summary: "User search by shown, base or special username (also a prefix), email (prefix) or id (users.view)"
+      summary: "User search by shown, base or special username (also a prefix), email (prefix), id or staff ID «Kabso01» (v1.73-live, D283c) (users.view)"
       security: [{ adminSession: [] }]
       parameters:
         - name: q
@@ -16349,7 +16349,7 @@ paths:
       - admin-panel
       operationId: listAdminTeam
       summary: 'The panel admins: roles, authenticator, lock, last sign-in, shift (team.manage)'
-      description: (v1.65-social, D197) (v1.66-live, D271, §10.96.5) Each row also has the shift «في المناوبة» (`onShift`, `shiftSince`).
+      description: (v1.65-social, D197) (v1.66-live, D271, §10.96.5) Each row also has the shift «في المناوبة» (`onShift`, `shiftSince`). (v1.73-live, D283c, §10.96.12) And the staff ID (`staffId`).
       security:
       - adminSession: []
       responses:
@@ -16375,7 +16375,8 @@ paths:
         first (403 `ADMIN_TOTP_INVALID`, counted towards the lockout); 409 `ADMIN_ACTION_REFUSED` with
         `team_no_account`, `team_not_active` (banned, deleted or pending deletion) or `team_locked`. The answer names
         the account for the next steps (sign in, enrol the authenticator, go on shift). 429 past
-        `RATE_LIMIT_ADMIN_TEAM_IP`.
+        `RATE_LIMIT_ADMIN_TEAM_IP`. (v1.73-live, D283c, §10.96.12) The first grant gives the person the next staff ID
+        («Kabso01», …) in the same transaction; a re-grant gives back the one kept for them (`staffId`).
       security:
       - adminSession: []
       parameters:
@@ -18833,6 +18834,19 @@ components:
           maxItems: 13
           uniqueItems: true
           items: { $ref: '#/components/schemas/StaffRegion' }
+        staffId:
+          $ref: '#/components/schemas/StaffId'
+          description: (v1.73-live, D283c, §10.96.12) The account's official staff ID (the same as the top-level `staffId`).
+    StaffId:
+      type: string
+      pattern: '^Kabso(0[1-9]|[1-9][0-9]{1,8})$'
+      description: |
+        (v1.73-live, D283c, §10.96.12) The official staff ID of an account holding a panel role (OWNER, MODERATION,
+        SUPPORT, FINANCE): «Kabso01», «Kabso02», … (two digits, then «Kabso100»), given in grant order with the first
+        role, kept for life and never reused (a re-grant shows the same one). The apps show it where they show the
+        @username (profile «ID: Kabso01», person card, live viewers, chat, search, Me tab); the username stays for login
+        and links. `search` finds the account by it. No account can take a username that looks like one.
+      examples: [Kabso01]
     AdminStaffRegionCatalog:
       type: object
       required: [data]
@@ -22657,6 +22671,11 @@ components:
                 items:
                   $ref: '#/components/schemas/StaffRegion'
                 description: (v1.72-live, D283, §10.96.11) The regions this staff member is responsible for (catalogue order); set with `setAdminTeamRegions`.
+              staffId:
+                oneOf:
+                - $ref: '#/components/schemas/StaffId'
+                - type: 'null'
+                description: (v1.73-live, D283c, §10.96.12) The staff ID given with the first panel role (null only for a row granted outside `kabso_admin_panel_role`). The page shows it on each card and its search finds it.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).
@@ -22669,7 +22688,7 @@ components:
           type: string
           minLength: 1
           maxLength: 254
-          description: (v1.66-live, D271) The account's email or username (`@` optional).
+          description: (v1.66-live, D271) The account's email or username (`@` optional). (v1.73-live, D283c) Or the staff ID kept for a former staff member («Kabso03»).
         email:
           type: string
           maxLength: 254
@@ -22703,6 +22722,11 @@ components:
           type: boolean
         already:
           type: boolean
+        staffId:
+          oneOf:
+          - $ref: '#/components/schemas/StaffId'
+          - type: 'null'
+          description: (v1.73-live, D283c, §10.96.12) The person's staff ID — new with a first grant, the same one again on a re-grant.
         account:
           type: object
           description: (v1.66-live, D271) Who was granted, for the panel's next steps.
@@ -23997,6 +24021,11 @@ components:
             (v1.72-live, D283, §10.96.10) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the app
             shows the staff-only Me tab (profile header, «فريق كابسو», the announcement composer, settings) and hides
             going live, levels, VIP, family, store, wallet, bag and the rest. Absent for everyone else.
+        staffId:
+          $ref: '#/components/schemas/StaffId'
+          description: |
+            (v1.73-live, D283c, §10.96.12) The official staff ID while the account holds a panel role (the OWNER too): the
+            Me tab shows «ID: Kabso01» instead of the @username. Absent for everyone else (also after a revoke).
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         emailVerified: { type: boolean }
@@ -24139,6 +24168,9 @@ components:
         wear:
           $ref: '#/components/schemas/StoreWear'
           description: "(v1.84-social, D270, §10.98.4) — present only while the user wears a store item and the account is active (a store frame is here, not in `avatarFrame`)."
+        staffId:
+          $ref: '#/components/schemas/StaffId'
+          description: "(v1.73-live, D283c, §10.96.12) — present only while the user holds a panel role (the OWNER too) with an active account: the apps show it where they show the @username (live viewers and chat, the person card, search results, lists). Absent otherwise."
     UserVip:
       type: object
       required: [tier, rank, color]
@@ -24226,6 +24258,11 @@ components:
             (v1.72-live, D283, §10.96.10–11) A limited Kabso Team account: the team badge, frame and region cover, the
             line «مشرف للوطن العربي» / "Moderator — Arab World", no levels. Its `coverUrl` and `avatarFrame` are then null
             and `vip` / `wear` absent. Absent for everyone else (the OWNER too).
+        staffId:
+          $ref: '#/components/schemas/StaffId'
+          description: |
+            (v1.73-live, D283c, §10.96.12) The official staff ID while the account holds a panel role (the OWNER too): the
+            profile and the person card show «ID: Kabso01» instead of the @username. Absent for everyone else.
         family:
           description: "(v1.21-live, CP-018) The user's family and role, or null."
           oneOf:

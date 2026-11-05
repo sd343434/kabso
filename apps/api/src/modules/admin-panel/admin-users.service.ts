@@ -19,6 +19,7 @@ import {
   resolveUserIdByUsername,
   SpecialUsernameError,
 } from '../users/special-usernames.js';
+import { parseStaffId } from '../users/staff-ids.js';
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { can, isPanelRole } from './admin-permissions.js';
@@ -155,6 +156,14 @@ export class AdminUsersService {
       return { data: rows.map(rowDto) };
     }
     const name = normalizeUsername(value).replace(/^@/, '');
+    // v1.73-live (D283c, §10.96.12): a staff ID «Kabso01» finds its holder (kept after a revoke too) first.
+    const staffNumber = parseStaffId(value);
+    const staff =
+      staffNumber === null
+        ? null
+        : ((
+            await this.prisma.staffId.findUnique({ where: { number: staffNumber }, select: { userId: true } })
+          )?.userId ?? null);
     const exact = await resolveUserIdByUsername(this.prisma, name);
     const special = await this.prisma.specialUsername.findMany({
       where: { OR: [{ username: name }, { baseUsername: name }] },
@@ -167,9 +176,9 @@ export class AdminUsersService {
       take: limit,
       select: { userId: true },
     });
-    const ids = [...new Set([exact, ...special.map((s) => s.userId), ...prefix.map((p) => p.userId)])].filter(
-      (x): x is string => x !== null,
-    );
+    const ids = [
+      ...new Set([staff, exact, ...special.map((s) => s.userId), ...prefix.map((p) => p.userId)]),
+    ].filter((x): x is string => x !== null);
     const users = await this.prisma.user.findMany({ where: { id: { in: ids } }, select: ROW_SELECT });
     const byId = new Map(users.map((u) => [u.id, u]));
     return {

@@ -613,7 +613,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                       ),
                       Text(
-                        KHandle.text(l10n, username, premiumTier: tier),
+                        KHandle.text(
+                          l10n,
+                          username,
+                          premiumTier: tier,
+                          staffId: user?.staffId,
+                        ),
                         maxLines: 1,
                         textDirection: TextDirection.ltr,
                         style: context.textStyles.caption.copyWith(
@@ -780,6 +785,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         username,
                         premiumTier:
                             s.peer.user.premiumTier ?? widget.premiumTier,
+                        staffId: s.peer.user.staffId,
                       ),
                       textAlign: TextAlign.center,
                       textDirection: TextDirection.ltr,

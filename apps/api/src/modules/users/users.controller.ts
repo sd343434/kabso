@@ -18,6 +18,7 @@ import {
 import { UsersService, type MeDto } from './users.service.js';
 import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 import { isWatchStaff, staffIdentityOf, type LimitedStaffRole } from '../live/live-staff.js';
+import { staffIdOf } from './staff-ids.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { StaffRegion } from '../live/staff-regions.js';
 
@@ -37,19 +38,26 @@ export class UsersController {
 
   @Get('me')
   @ConsentExempt()
-  async me(
-    @CurrentAuth() auth: AuthContext,
-  ): Promise<MeDto & { kabsoTeam?: true; staff?: { role: LimitedStaffRole; regions: StaffRegion[] } }> {
+  async me(@CurrentAuth() auth: AuthContext): Promise<
+    MeDto & {
+      kabsoTeam?: true;
+      staffId?: string;
+      staff?: { role: LimitedStaffRole; regions: StaffRegion[]; staffId?: string };
+    }
+  > {
     const me = await this.users.getMe(auth.userId);
     if (!me) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     // v1.72-live (D283, §10.96.10): a limited Kabso Team account — the app hides going live, levels, VIP, families,
     // tasks and every post kind but the announcement.
     const staff = await staffIdentityOf(this.prisma, auth.userId);
+    // v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» (any panel role, the OWNER too).
+    const staffId = await staffIdOf(this.prisma, auth.userId);
     // v1.68-live (D273, §10.96.6): «فريق كابسو» (a watch role now) — the app's Me tab entry and the tools in lives.
     return {
       ...me,
       ...((await isWatchStaff(this.prisma, auth.userId)) ? { kabsoTeam: true as const } : {}),
-      ...(staff ? { staff } : {}),
+      ...(staffId ? { staffId } : {}),
+      ...(staff ? { staff: { ...staff, ...(staffId ? { staffId } : {}) } } : {}),
     };
   }
 

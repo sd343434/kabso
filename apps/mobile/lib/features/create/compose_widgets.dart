@@ -669,6 +669,7 @@ class _MentionSearchState extends ConsumerState<_MentionSearch> {
                                 context.l10n,
                                 u.username,
                                 premiumTier: u.premiumTier,
+                                staffId: u.staffId,
                               ),
                             ),
                             onTap: () => Navigator.of(context).pop(u),

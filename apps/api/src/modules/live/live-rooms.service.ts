@@ -132,6 +132,11 @@ export interface UserSummaryDto {
   vip?: { tier: string; rank: number; color: string; off?: string[] };
   /** D270 (§10.98): the store items the user wears now, by kind (absent when none). */
   wear?: StoreWearDto;
+  /**
+   * v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while the user holds a panel role (OWNER too) with an
+   * active account — the apps show it where they show the @username; absent otherwise.
+   */
+  staffId?: string;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';

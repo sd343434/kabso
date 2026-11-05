@@ -1,3 +1,5 @@
+import { isStaffIdLike } from './staff-ids.js';
+
 /**
  * CONVENTIONS §6 stored username shape: 1–30 chars, lowercase, no leading/trailing `.`/`_`.
  * v1.28-live (D146): widened from 3–30 so 1–2 character premium usernames work everywhere; new
@@ -83,13 +85,20 @@ export function isValidUsername(username: string): boolean {
 /**
  * Reserved names. v1.54-social (D185): `coin` + digits (also with `.` / `_` inside) is the recharge agents'
  * special username, given only by the system (CONVENTIONS §10.48.1); v1.58-social (D189): `host` + digits, the
- * host agents' (§10.52). Existing accounts that already have such a name keep it.
+ * host agents' (§10.52). Existing accounts that already have such a name keep it. v1.73-live (D283c, §10.96.12): a
+ * name that looks like a staff ID (`kabso` + digits, any case, and look-alikes such as `kabs0`).
  */
 export function isReservedUsername(username: string): boolean {
   const lowered = username.toLowerCase();
   const bare = lowered.replace(/[._]/g, '');
   // v1.58-social (D189): `host` + digits too (the host agents' special usernames).
-  return RESERVED.has(lowered) || RESERVED.has(bare) || /^(?:coin|host)[0-9]+$/.test(bare);
+  // v1.73-live (D283c, §10.96.12): and anything that looks like a staff ID «Kabso01» (look-alikes such as `kabs0` too).
+  return (
+    RESERVED.has(lowered) ||
+    RESERVED.has(bare) ||
+    /^(?:coin|host)[0-9]+$/.test(bare) ||
+    isStaffIdLike(lowered)
+  );
 }
 
 /** Emails are compared and stored trimmed + lowercased (CONVENTIONS §6). */

@@ -718,10 +718,14 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               hostAgentCode: u.hostAgentCode,
               rechargeBadge: u.rechargeBadge,
               vip: u.vip,
-              handle: _moderators.contains(u.username)
-                  ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
-                        ' · ${l10n.liveSeatModeratorTag}'
-                  : KHandle.plain(u.username, premiumTier: u.premiumTier),
+              handle: [
+                KHandle.plain(
+                  u.username,
+                  premiumTier: u.premiumTier,
+                  staffId: u.staffId,
+                ),
+                if (_moderators.contains(u.username)) l10n.liveSeatModeratorTag,
+              ].join(' · '),
               avatar: KAvatar(
                 name: u.displayName,
                 imageUrl: u.avatarUrl,
@@ -890,6 +894,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                 ? KHandle.plain(
                     r.user.username,
                     premiumTier: r.user.premiumTier,
+                    staffId: r.user.staffId,
                   )
                 : l10n.goLiveSeat(r.seatIndex! + 1),
             avatar: KAvatar(
@@ -977,6 +982,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                   handle: KHandle.plain(
                     c.user.username,
                     premiumTier: c.user.premiumTier,
+                    staffId: c.user.staffId,
                   ),
                   avatar: Row(
                     mainAxisSize: MainAxisSize.min,

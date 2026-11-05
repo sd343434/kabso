@@ -204,6 +204,7 @@ class FollowRequestsScreen extends ConsumerWidget {
                                         l10n,
                                         u.username,
                                         premiumTier: u.premiumTier,
+                                        staffId: u.staffId,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,

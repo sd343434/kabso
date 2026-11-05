@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -138,6 +139,9 @@ class MeHubScreen extends ConsumerWidget {
   static const staffSettingsKey = Key('meHub.staff.settings');
   static const staffLineKey = Key('meHub.staff.line');
   static const soonKey = Key('meHub.soon');
+
+  /// D283c: the official staff ID «ID: Kabso01» under the name.
+  static const staffIdKey = Key('meHub.staffId');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -498,7 +502,10 @@ class MeHubScreen extends ConsumerWidget {
                           vip: myVip,
                           child: Text(
                             user.displayName.isEmpty
-                                ? user.username
+                                ? KHandle.id(
+                                    user.username,
+                                    staffId: user.staffId,
+                                  )
                                 : user.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -535,6 +542,23 @@ class MeHubScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            // D283c: the official staff ID «ID: Kabso01» (the OWNER too).
+            if (user?.staffId case final id?) ...[
+              const SizedBox(height: KSpacing.xxs),
+              Semantics(
+                hint: l10n.profileStaffIdHint,
+                child: Text(
+                  l10n.profileStaffId(id),
+                  key: staffIdKey,
+                  textAlign: TextAlign.center,
+                  textDirection: TextDirection.ltr,
+                  style: context.textStyles.body.copyWith(
+                    color: p.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
             // D283: «مشرف للوطن العربي» / "Moderator — Arab World".
             if (staff != null) ...[
               const SizedBox(height: KSpacing.xs),

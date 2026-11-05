@@ -23,6 +23,24 @@ export interface Member {
   shiftSince?: string | null;
   /** D283: the regions of a MODERATION / SUPPORT staff member (absent from an older API). */
   regions?: StaffRegion[];
+  /** D283c: the official staff ID «Kabso01» (absent from an older API; null for a row granted outside the API). */
+  staffId?: string | null;
+}
+
+/**
+ * D283c: the staff list's search — the staff ID («Kabso01», «kabso1», «01» all find Kabso01), the name, the username
+ * (`@` optional) or the email, any case.
+ */
+export function matchesStaffQuery(m: Member, raw: string): boolean {
+  const q = raw.trim().toLowerCase().replace(/^@/, '');
+  if (q === '') return true;
+  if (m.staffId) {
+    const id = m.staffId.toLowerCase();
+    if (id.includes(q)) return true;
+    const typed = /^(?:kabso)?0*([1-9][0-9]*)$/.exec(q);
+    if (typed && Number(id.replace(/^kabso/, '')) === Number(typed[1])) return true;
+  }
+  return [m.displayName, m.username, m.email].some((v) => v.toLowerCase().includes(q));
 }
 
 /** D283: the roles that carry regions. */
@@ -72,6 +90,8 @@ export interface GrantResult {
   role: PanelRole;
   madeAdmin: boolean;
   already: boolean;
+  /** D283c: the person's staff ID (new with a first grant, the same again on a re-grant). */
+  staffId?: string | null;
   account?: { email: string; username: string; displayName: string; totpEnrolled: boolean };
 }
 
@@ -157,8 +177,14 @@ export function NextSteps({ result, origin, onClose }: { result: GrantResult; or
       <div className="next-steps" data-role={result.role}>
         <div className="row roles">
           <span className="badge info">{t(`role${result.role}`)}</span>
+          {result.staffId ? (
+            <span className="badge staff-id ltr" data-staff-id={result.staffId}>
+              {t('staffIdLabel', { id: result.staffId })}
+            </span>
+          ) : null}
           {a?.username ? <span className="ltr muted small">@{a.username}</span> : null}
         </div>
+        {result.staffId ? <p className="small">{t('staffNextId', { id: result.staffId })}</p> : null}
         {result.already ? (
           <p className="muted">{t('staffNextAlready')}</p>
         ) : (
@@ -210,6 +236,13 @@ export function MemberCard({
           <div className="strong">
             {m.displayName} {self && <span className="badge">{t('teamYou')}</span>}
           </div>
+          {m.staffId ? (
+            <div>
+              <span className="badge staff-id ltr" data-staff-id={m.staffId} title={t('staffIdTitle')}>
+                {t('staffIdLabel', { id: m.staffId })}
+              </span>
+            </div>
+          ) : null}
           {m.username ? <div className="ltr muted small">@{m.username}</div> : null}
           <div className="ltr muted small">{m.email}</div>
         </div>
@@ -303,7 +336,9 @@ export function Team() {
     'grant' | { revoke: Member } | { reset: Member } | { next: GrantResult } | { regions: Member } | null
   >(null);
   const [revokeRole, setRevokeRole] = useState<PanelRole | null>(null);
+  const [query, setQuery] = useState('');
   const members = data?.data ?? [];
+  const shown = members.filter((m) => matchesStaffQuery(m, query));
   const selfId = session?.admin.id;
   const activeOwners = members.filter((m) => m.status === 'ACTIVE' && m.roles.includes('OWNER')).length;
   const onShift = members.filter((m) => m.onShift).length;
@@ -332,8 +367,24 @@ export function Team() {
         </button>
       </div>
       <ErrorAlert error={error} />
+      <div className="filters card">
+        <label className="field">
+          <span>{t('staffSearch')}</span>
+          <input
+            type="search"
+            className="ltr"
+            data-staff-search
+            placeholder="Kabso01"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      </div>
+      {data && shown.length === 0 && query.trim() !== '' && (
+        <p className="muted">{t('staffSearchNone', { q: query.trim() })}</p>
+      )}
       <div className="team-grid">
-        {members.map((m) => (
+        {shown.map((m) => (
           <MemberCard
             key={m.id}
             m={m}
@@ -345,6 +396,7 @@ export function Team() {
           />
         ))}
       </div>
+      <p className="muted small">{t('staffIdNote')}</p>
       <p className="muted small">{t('teamCliNote')}</p>
       {dialog === 'grant' && (
         <GrantDialog

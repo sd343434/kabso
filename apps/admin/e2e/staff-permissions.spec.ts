@@ -1,7 +1,8 @@
 /**
  * D271 «الموظفون والصلاحيات» with a mocked API (no server needed): the OWNER's staff page (roles, authenticator, last
  * sign-in, shift), granting MODERATION to `@username` with a reason and a fresh code, the next steps for the new staff
- * member, and a refused revoke (the last OWNER) worded in Arabic. With KABSO_CAPTURE_DIR set it saves captures
+ * member, and a refused revoke (the last OWNER) worded in Arabic. D283c: the staff ID «Kabso01» on each card and the search
+ * by it. With KABSO_CAPTURE_DIR set it saves captures
  * (Arabic light 1440×900, dark, English, phone 390×844).
  */
 import { mkdirSync } from 'node:fs';
@@ -19,7 +20,7 @@ const TEAM = [
   { id: id(3), email: 'omar@kabsolive.com', username: 'help.omar', displayName: 'عمر', roles: ['SUPPORT'], totpEnrolled: true, lastSignInAt: ago(60 * 20), onShift: false, shiftSince: null },
   { id: id(4), email: 'lina@kabsolive.com', username: 'fin.lina', displayName: 'لينا', roles: ['FINANCE'], totpEnrolled: true, lastSignInAt: ago(60 * 26), onShift: false, shiftSince: null },
   { id: id(5), email: 'sami@kabsolive.com', username: 'sami.new', displayName: 'سامي', roles: ['SUPPORT', 'MODERATION'], totpEnrolled: false, lastSignInAt: null, onShift: false, shiftSince: null },
-].map((m) => ({ avatarUrl: null, status: 'ACTIVE', lockedUntil: null, ...m }));
+].map((m, i) => ({ avatarUrl: null, status: 'ACTIVE', lockedUntil: null, staffId: `Kabso0${i + 1}`, ...m }));
 
 const CAPS = ['dashboard.view', 'users.view', 'lives.watch', 'audit.view', 'team.manage', 'staff.shifts'];
 const sent: { path: string; body: unknown }[] = [];
@@ -97,6 +98,13 @@ for (const [lang, theme, width, height] of [
     await expect(page.locator('.member')).toHaveCount(5);
     await expect(page.locator('.member[data-on-shift="true"]')).toHaveCount(2);
     await expect(page.getByText('@mod.huda')).toBeVisible();
+    // D283c: the official staff ID on each card, and the list searched by it.
+    await expect(page.locator('.member [data-staff-id="Kabso02"]')).toHaveText('ID: Kabso02');
+    await page.locator('[data-staff-search]').fill('kabso3');
+    await expect(page.locator('.member')).toHaveCount(1);
+    await expect(page.getByText('@help.omar')).toBeVisible();
+    await page.locator('[data-staff-search]').fill('');
+    await expect(page.locator('.member')).toHaveCount(5);
     const tag = `${lang}.${theme}${width < 600 ? '.phone' : ''}`;
     await capture(page, `01-staff-list.${tag}`);
 

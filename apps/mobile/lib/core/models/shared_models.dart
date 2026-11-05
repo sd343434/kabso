@@ -307,6 +307,11 @@ abstract class UserSummary with _$UserSummary {
       toJson: userVipToJson,
     )
     UserVip? vip,
+
+    /// v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while
+    /// the user holds a panel role (the OWNER too): shown where the
+    /// @username is (live viewers and chat, search, lists). Null otherwise.
+    @JsonKey(includeIfNull: false) String? staffId,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

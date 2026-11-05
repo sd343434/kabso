@@ -58,7 +58,12 @@ String? bagSourceLine(AppLocalizations l10n, BagItem item) =>
       BagSource.admin => l10n.bagFromKabso,
       BagSource.gift => switch (item.giftedBy) {
         final u? => l10n.bagFromUser(
-          KHandle.text(l10n, u.username, premiumTier: u.premiumTier),
+          KHandle.text(
+            l10n,
+            u.username,
+            premiumTier: u.premiumTier,
+            staffId: u.staffId,
+          ),
         ),
         null => l10n.bagFromSomeone,
       },

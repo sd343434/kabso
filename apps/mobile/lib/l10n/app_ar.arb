@@ -13414,5 +13414,9 @@
   "staffFrameLocked": "إطار فريق كابسو مثبّت ولا يمكن تغييره.",
   "@staffFrameLocked": {"description": "D283: the bag's frames for a staff account."},
   "staffTeamPicture": "صورة فريق كابسو",
-  "@staffTeamPicture": {"description": "D283: the screen reader label of the team picture."}
+  "@staffTeamPicture": {"description": "D283: the screen reader label of the team picture."},
+  "profileStaffId": "ID: {id}",
+  "@profileStaffId": {"description": "D283c: a staff account's official staff ID «Kabso01» where the @username is shown (profile, person card, Me tab). Reads left to right in both languages.", "placeholders": {"id": {"type": "String"}}},
+  "profileStaffIdHint": "رقم موظف رسمي في فريق كابسو",
+  "@profileStaffIdHint": {"description": "D283c: the screen reader hint of the staff ID line."}
 }

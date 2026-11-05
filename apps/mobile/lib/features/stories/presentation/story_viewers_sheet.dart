@@ -147,6 +147,7 @@ class _StoryViewersSheetState extends ConsumerState<StoryViewersSheet> {
                             l10n,
                             u.username,
                             premiumTier: u.premiumTier,
+                            staffId: u.staffId,
                           ),
                           maxLines: 1,
                           textDirection: TextDirection.ltr,

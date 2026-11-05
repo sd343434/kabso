@@ -27,6 +27,7 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   avatarFrame: avatarFrameFromJson(json['avatarFrame']),
   rechargeBadge: rechargeBadgeFromJson(json['rechargeBadge']),
   vip: userVipFromJson(userVipWithWear(json, 'vip')),
+  staffId: json['staffId'] as String?,
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
@@ -41,4 +42,5 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),
       'rechargeBadge': ?rechargeBadgeToJson(instance.rechargeBadge),
       'vip': ?userVipToJson(instance.vip),
+      'staffId': ?instance.staffId,
     };

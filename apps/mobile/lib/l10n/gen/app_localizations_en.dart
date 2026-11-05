@@ -14684,4 +14684,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get staffTeamPicture => 'Kabso Team picture';
+
+  @override
+  String profileStaffId(String id) {
+    return 'ID: $id';
+  }
+
+  @override
+  String get profileStaffIdHint => 'Official Kabso Team staff ID';
 }

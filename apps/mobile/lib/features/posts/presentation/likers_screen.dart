@@ -115,7 +115,12 @@ class LikersScreen extends ConsumerWidget {
                 ),
                 title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
-                  KHandle.text(l10n, u.username, premiumTier: u.premiumTier),
+                  KHandle.text(
+                    l10n,
+                    u.username,
+                    premiumTier: u.premiumTier,
+                    staffId: u.staffId,
+                  ),
                   maxLines: 1,
                   textDirection: TextDirection.ltr,
                   textAlign: Directionality.of(context) == TextDirection.rtl

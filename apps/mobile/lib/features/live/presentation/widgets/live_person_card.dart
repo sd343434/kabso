@@ -744,7 +744,8 @@ class _Body extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 2),
-        // «ID: username», copied with one tap.
+        // «ID: username», copied with one tap (D283c: «ID: Kabso01» for a
+        // staff account).
         InkWell(
           key: LivePersonSheet.copyKey,
           borderRadius: BorderRadius.circular(KRadius.pill),
@@ -755,6 +756,7 @@ class _Body extends ConsumerWidget {
                   text: KHandle.plain(
                     profile.username,
                     premiumTier: profile.premiumTier,
+                    staffId: profile.staffId,
                   ),
                 ),
               ),
@@ -781,7 +783,8 @@ class _Body extends ConsumerWidget {
                   const SizedBox(width: 4),
                 ],
                 // D146: a premium username wears its special-ID badge.
-                if (profile.premiumTier case final tier?)
+                if (profile.premiumTier case final tier?
+                    when profile.staffId == null)
                   KSpecialUsername(
                     username: profile.username,
                     tier: tier,
@@ -790,7 +793,14 @@ class _Body extends ConsumerWidget {
                 else
                   Flexible(
                     child: Text(
-                      l10n.liveCardId(KFormat.bidiIsolate(profile.username)),
+                      l10n.liveCardId(
+                        KFormat.bidiIsolate(
+                          KHandle.id(
+                            profile.username,
+                            staffId: profile.staffId,
+                          ),
+                        ),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       // «ID: username» reads left to right in both

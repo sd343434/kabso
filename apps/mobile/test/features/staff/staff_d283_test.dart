@@ -80,11 +80,20 @@ PublicProfile staffProfile({
   staff: staff,
 );
 
-User staffUser({required bool ar, KabsoStaffIdentity staff = arabModerator}) =>
+User staffUser({
+  required bool ar,
+  KabsoStaffIdentity staff = arabModerator,
+  String? staffId,
+}) =>
     testUser(
       displayName: ar ? 'مشرف كابسو' : 'Kabso Moderator',
       username: 'kabso.mod',
-    ).copyWith(avatarUrl: teamAvatarUrl, kabsoTeam: true, staff: staff);
+    ).copyWith(
+      avatarUrl: teamAvatarUrl,
+      kabsoTeam: true,
+      staff: staff,
+      staffId: staffId,
+    );
 
 class _Coins extends LiveCoinsController {
   @override
@@ -97,9 +106,11 @@ Future<void> pumpStaffHub(
   WidgetTester tester, {
   required AppLanguage language,
   KabsoStaffIdentity staff = arabModerator,
+  // D283c: the official staff ID «Kabso01» (none in the D283 goldens).
+  String? staffId,
 }) async {
   final ar = language == AppLanguage.ar;
-  final user = staffUser(ar: ar, staff: staff);
+  final user = staffUser(ar: ar, staff: staff, staffId: staffId);
   final router = GoRouter(
     initialLocation: AppRoutes.profile,
     routes: [
@@ -133,8 +144,10 @@ Future<void> pumpStaffHub(
           currentUserProvider.overrideWithValue(user),
           meProvider.overrideWith((ref) => user),
           profileStatsProvider.overrideWith(
-            (ref, _) =>
-                staffProfile(ar: ar, staff: staff).copyWith(isSelf: true),
+            (ref, _) => staffProfile(
+              ar: ar,
+              staff: staff,
+            ).copyWith(isSelf: true, staffId: staffId),
           ),
           profileLevelsProvider.overrideWith((ref, _) => const []),
           liveCoinsProvider.overrideWith(_Coins.new),

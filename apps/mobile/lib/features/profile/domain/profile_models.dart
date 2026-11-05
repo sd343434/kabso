@@ -172,6 +172,12 @@ abstract class PublicProfile with _$PublicProfile {
       includeIfNull: false,
     )
     KabsoStaffIdentity? staff,
+
+    /// v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» while
+    /// the account holds a panel role (the OWNER too): the profile and the
+    /// person card show «ID: Kabso01» instead of the @username. Null for
+    /// everyone else and from older servers.
+    @JsonKey(includeIfNull: false) String? staffId,
   }) = _PublicProfile;
 
   const new _();

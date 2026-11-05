@@ -5,6 +5,7 @@ import { activeRestrictionOf } from '../users/account-control.js';
 import { CAPABILITIES, PANEL_ROLES, type PanelRole } from './admin-permissions.js';
 import { revokeStaffGrantsIn } from '../live/live-staff.js';
 import { syncTeamAvatarsIn } from '../live/staff-avatar.js';
+import { formatStaffId, keptStaffIdOf, parseStaffId } from '../users/staff-ids.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -47,19 +48,29 @@ export function parseRole(raw: string): PanelRole {
 }
 
 /**
- * The account by id (the panel's paths), email or username (`@name` or `name`; D271), its row locked FOR NO KEY UPDATE
+ * The account by id (the panel's paths), email, staff ID (`Kabso01`; D283c) or username (`@name` or `name`; D271), its row locked FOR NO KEY UPDATE
  * (serializes with a ban's FOR UPDATE, never with a foreign key's KEY SHARE such as an audit row's actor).
  */
 async function userOf(tx: Tx, who: string) {
   const value = who.trim();
   let id: string | null = null;
+  const staffNumber = parseStaffId(value);
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) id = value.toLowerCase();
   else if (/^[^@\s]+@[^@\s]+$/.test(value)) {
     id =
       (await tx.user.findUnique({ where: { email: value.toLowerCase() }, select: { id: true } }))?.id ?? null;
   } else if (value.length > 0) {
-    const username = value.replace(/^@/, '').toLowerCase();
-    id = (await tx.userProfile.findUnique({ where: { username }, select: { userId: true } }))?.userId ?? null;
+    // v1.73-live (D283c, §10.96.12): a staff ID «Kabso01» (kept after a revoke, so a re-grant finds the person too).
+    if (staffNumber !== null) {
+      id =
+        (await tx.staffId.findUnique({ where: { number: staffNumber }, select: { userId: true } }))?.userId ??
+        null;
+    }
+    if (id === null) {
+      const username = value.replace(/^@/, '').toLowerCase();
+      id =
+        (await tx.userProfile.findUnique({ where: { username }, select: { userId: true } }))?.userId ?? null;
+    }
   }
   const [user] = id
     ? await tx.$queryRaw<{ id: string; role: string; status: string }[]>`
@@ -92,7 +103,7 @@ export async function grantRoleIn(
   role: PanelRole,
   by: AdminVia = CLI_VIA,
   extra: Extra = {},
-): Promise<{ userId: string; madeAdmin: boolean; already: boolean }> {
+): Promise<{ userId: string; madeAdmin: boolean; already: boolean; staffId: string | null }> {
   const user = await userOf(tx, who);
   if (user.status !== 'ACTIVE') throw new AdminRoleError(`The account is ${user.status}.`, 'team_not_active');
   const lock = await activeRestrictionOf(tx, user.id, 'LOCK');
@@ -102,6 +113,9 @@ export async function grantRoleIn(
   const madeAdmin = user.role !== 'ADMIN';
   if (madeAdmin) await tx.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } });
   const already = !(await setRoleRow(tx, user.id, role, true, by));
+  // v1.73-live (D283c, §10.96.12): `kabso_admin_panel_role` gave the person their staff ID in this transaction (or kept
+  // the one from an earlier grant).
+  const staffId = await keptStaffIdOf(tx, user.id);
   // v1.72-live (D283, §10.96.10): a limited staff account wears the fixed team picture (an OWNER grant gives the
   // person's own photo back).
   await syncTeamAvatarsIn(tx, user.id);
@@ -111,10 +125,10 @@ export async function grantRoleIn(
       action: AuditAction.ADMIN_ROLE_GRANT,
       targetType: 'user',
       targetId: user.id,
-      metadata: { role, madeAdmin, already, ...extra, via: by.via },
+      metadata: { role, madeAdmin, already, ...(staffId ? { staffId } : {}), ...extra, via: by.via },
     },
   });
-  return { userId: user.id, madeAdmin, already };
+  return { userId: user.id, madeAdmin, already, staffId };
 }
 
 export async function revokeRoleIn(
@@ -233,6 +247,7 @@ export async function listPanelAdmins(tx: Tx) {
           role: true,
           status: true,
           adminCredential: { select: { totpEnrolledAt: true, lockedUntil: true } },
+          staffNumber: { select: { number: true } },
         },
       },
     },
@@ -247,6 +262,8 @@ export async function listPanelAdmins(tx: Tx) {
       roles: string[];
       enrolled: boolean;
       lockedUntil: Date | null;
+      /** v1.73-live (D283c): the staff ID «Kabso01». */
+      staffId: string | null;
     }
   >();
   for (const r of rows) {
@@ -260,6 +277,7 @@ export async function listPanelAdmins(tx: Tx) {
         r.user.adminCredential?.totpEnrolledAt !== null &&
         r.user.adminCredential?.totpEnrolledAt !== undefined,
       lockedUntil: r.user.adminCredential?.lockedUntil ?? null,
+      staffId: r.user.staffNumber ? formatStaffId(r.user.staffNumber.number) : null,
     };
     entry.roles.push(r.permission === 'MODERATION' ? 'MODERATOR' : r.permission);
     byUser.set(r.user.id, entry);

@@ -310,6 +310,9 @@ class ProfileCoverHeader extends StatelessWidget {
   static const coverButtonKey = Key('profile.cover.tap');
   static const watchLiveKey = Key('profile.public.watchLive');
   static const handleKey = Key('profile.cover.handle');
+
+  /// D283c: the «ID: Kabso01» line of a staff account.
+  static const staffIdKey = Key('profile.cover.staffId');
   static const levelsKey = Key('profile.public.levels');
 
   /// D283: a staff profile's team cover and its region line.
@@ -558,9 +561,25 @@ class ProfileCoverHeader extends StatelessWidget {
         ),
         const SizedBox(height: KSpacing.xxs),
         // The @username (a premium one with its badge, D146) under it.
+        // D283c: a staff account shows its official staff ID «ID: Kabso01»
+        // instead (the username stays for login and links).
         KeyedSubtree(
           key: handleKey,
           child: switch (tier) {
+            _ when profile.staffId != null => Semantics(
+              hint: l10n.profileStaffIdHint,
+              child: Text(
+                l10n.profileStaffId(profile.staffId!),
+                key: staffIdKey,
+                textDirection: TextDirection.ltr,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.body.copyWith(
+                  color: p.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             final tier? => KSpecialUsername(
               username: profile.username,
               tier: tier,

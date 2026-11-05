@@ -19,7 +19,12 @@ import 'package:material_ui/material_ui.dart';
 /// How a recipient is named in the bag's sentences (`@sara` or a premium
 /// name without `@`, D158).
 String bagRecipientHandle(AppLocalizations l10n, UserSummary user) =>
-    KHandle.text(l10n, user.username, premiumTier: user.premiumTier);
+    KHandle.text(
+      l10n,
+      user.username,
+      premiumTier: user.premiumTier,
+      staffId: user.staffId,
+    );
 
 /// D171 «إرسال»: send [item] to someone — the whole item or, for an item
 /// with an end, some whole days of its time (owner amendment «يمكن أن

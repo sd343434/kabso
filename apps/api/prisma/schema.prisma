@@ -77,6 +77,8 @@ model User {
   adminShift             AdminShift?
   /// v1.72-live (D283): the regions a MODERATION / SUPPORT staff member is responsible for.
   staffRegions           AdminStaffRegion[]
+  /// v1.73-live (D283c): the official staff ID «Kabso01» given on the first panel role (kept, never reused).
+  staffNumber            StaffId?
   liveAssignments        LiveRoomAssignment[]
   liveStaffWatches       LiveRoomStaffWatcher[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
@@ -6472,6 +6474,20 @@ model AdminStaffRegion {
   @@id([userId, region])
   @@index([region], map: "admin_staff_regions_region_idx")
   @@map("admin_staff_regions")
+}
+
+/// v1.73-live (D283c, CONVENTIONS §10.96.12): the official staff IDs «Kabso01», «Kabso02», … — one per person, given
+/// in the same transaction as their first panel role by `kabso_admin_panel_role` (the only writer: the runtime role may
+/// only read this table), sequential under an advisory lock (no gaps, no duplicates). Retired, never reused: a revoke
+/// keeps the row (shown again on a re-grant); a purged account leaves the number with `user_id` NULL.
+model StaffId {
+  number     Int      @id
+  userId     String?  @unique @map("user_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("staff_ids")
 }
 
 /// v1.64-live (D260): the staff member who watches a LIVE room (one per room; removed when the live ends).

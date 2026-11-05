@@ -126,6 +126,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       tags: user.tags,
       premiumTier: user.premiumTier,
       kabsoTeam: user.kabsoTeam,
+      // D283c: the official staff ID «Kabso01» (the OWNER too).
+      staffId: user.staffId,
       rechargeAgentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,
@@ -182,6 +184,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final tier = me.hasValue
         ? me.value!.premiumTier
         : ref.watch(currentUserProvider)?.premiumTier;
+    // D283c: a staff account's bar shows «ID: Kabso01».
+    final staffId = me.hasValue
+        ? me.value!.staffId
+        : ref.watch(currentUserProvider)?.staffId;
 
     // D278: the bar of before (owner: «استخدم ازراري» — back, @username,
     // drafts and settings) over the full-bleed cover: no background and the
@@ -195,9 +201,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         solid: solid,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
         // the tab label).
-        title: tier == null
+        title: staffId != null || tier == null
             ? Text(
-                l10n.profileUsername(username),
+                staffId != null
+                    ? l10n.profileStaffId(staffId)
+                    : l10n.profileUsername(username),
                 key: const Key('profile.title'),
                 textDirection: TextDirection.ltr,
                 style: context.textStyles.title.copyWith(color: p.textPrimary),

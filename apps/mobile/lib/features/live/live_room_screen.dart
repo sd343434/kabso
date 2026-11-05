@@ -1813,6 +1813,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       KHandle.plain(
                         host.username,
                         premiumTier: host.premiumTier,
+                        staffId: host.staffId,
                       ),
                     ),
                   ),
@@ -2152,7 +2153,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onTap: () => unawaited(
           _share(
             room.title,
-            KHandle.plain(host.username, premiumTier: host.premiumTier),
+            KHandle.plain(
+              host.username,
+              premiumTier: host.premiumTier,
+              staffId: host.staffId,
+            ),
           ),
         ),
       ),

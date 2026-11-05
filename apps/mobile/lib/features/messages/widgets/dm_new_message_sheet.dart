@@ -165,6 +165,7 @@ class _DmNewMessageSheetState extends ConsumerState<DmNewMessageSheet> {
                                   l10n,
                                   u.username,
                                   premiumTier: u.premiumTier,
+                                  staffId: u.staffId,
                                 ),
                                 maxLines: 1,
                                 textDirection: TextDirection.ltr,

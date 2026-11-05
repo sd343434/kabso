@@ -15,6 +15,9 @@
  *
  * v1.66-live (D271): `<email>` may also be a username (`@name`); the OWNER manages the team from the panel's
  * «الموظفون والصلاحيات» with the same rules (admin-roles.ts). This CLI stays the bootstrap of the first OWNER.
+ *
+ * v1.73-live (D283c, §10.96.12): or a staff ID (`Kabso01`); a grant prints the person's staff ID (given in the grant's
+ * transaction, the same one again after a revoke), and `list` starts each line with it.
  */
 import 'dotenv/config';
 import { parseArgs } from 'node:util';
@@ -35,7 +38,7 @@ function fail(message: string): never {
 }
 
 const USAGE = [
-  'Usage: pnpm admin:admin grant|revoke <email|@username> OWNER|MODERATOR|SUPPORT|FINANCE',
+  'Usage: pnpm admin:admin grant|revoke <email|@username|KabsoNN> OWNER|MODERATOR|SUPPORT|FINANCE',
   '       pnpm admin:admin list | reset-2fa <email|@username>',
   'The last active OWNER cannot be revoked: grant OWNER to another account first.',
 ].join('\n');
@@ -53,7 +56,8 @@ try {
     if (command === 'grant') {
       const r = await prisma.$transaction((tx) => grantRoleIn(tx, email, role));
       process.stdout.write(
-        `${email}: ${role} granted${r.madeAdmin ? ' (the account is now an admin)' : ''}.\n`,
+        `${email}: ${role} granted${r.madeAdmin ? ' (the account is now an admin)' : ''}` +
+          `${r.staffId ? `; staff ID ${r.staffId}` : ''}.\n`,
       );
     } else {
       const r = await prisma.$transaction((tx) => revokeRoleIn(tx, email, role));
@@ -70,7 +74,7 @@ try {
     const rows = await prisma.$transaction((tx) => listPanelAdmins(tx));
     for (const r of rows) {
       process.stdout.write(
-        `${r.email}  ${r.roles.join(',')}  ${r.role}/${r.status}  2FA ${r.enrolled ? 'on' : 'not set up'}` +
+        `${r.staffId ?? '-'}  ${r.email}  ${r.roles.join(',')}  ${r.role}/${r.status}  2FA ${r.enrolled ? 'on' : 'not set up'}` +
           `${r.lockedUntil && r.lockedUntil > new Date() ? `  locked until ${r.lockedUntil.toISOString()}` : ''}\n`,
       );
     }

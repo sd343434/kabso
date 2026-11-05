@@ -2817,6 +2817,24 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.64 The official staff ID «Kabso01» (migration `20270317090000_staff_ids`; D283c) — [IMPLEMENTED, draft contract v1.73-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.12. The migration creates `staff_ids` (`number` PK with CHECK `staff_ids_number_positive`, `user_id`
+UNIQUE with FK `ON DELETE SET NULL`, `assigned_at`) and **revokes INSERT / UPDATE / DELETE / TRUNCATE from the runtime
+group** (read-only, like `user_admin_permissions`; KL-013 test updated); adds the SECURITY DEFINER function
+`kabso_assign_staff_id(uuid)` (no runtime EXECUTE) and replaces `kabso_admin_panel_role` so that every grant gives the
+person their number in the same transaction (advisory lock `kabso:staff-id`, MAX + 1). It then **backfills** the current
+holders of OWNER / MODERATION / SUPPORT / FINANCE in the order of their first grant — normally the bootstrapped OWNER is
+`Kabso01`. Check after the deploy with `pnpm admin:admin list` (each line now starts with the staff ID). No env setting.
+
+- **Numbers are retired, never reused:** a revoke keeps the number for the person (hidden while they hold no role) and
+  a re-grant shows it again; never delete rows from `staff_ids` by hand.
+- **Usernames** that look like a staff ID (`kabso` + digits, any case, look-alikes such as `kabs0`) are now refused for
+  new accounts and username changes; existing accounts that already have one keep it (tell support if one exists).
+- **Order:** API (with its migration) first, then the panel, then the app; older apps simply keep showing the @username.
+  **Rollback:** an older API ignores the table; the replaced `kabso_admin_panel_role` keeps working with it (it only also
+  writes `staff_ids`).
+
 ### 5.63 The Kabso Team's limited accounts and regions (migration `20270316090000_staff_limits_regions`; D283) — [IMPLEMENTED, draft contract v1.72-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.10–11. The migration adds `posts.announcement` (`BOOLEAN NOT NULL DEFAULT false`),

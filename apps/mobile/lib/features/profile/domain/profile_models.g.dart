@@ -58,6 +58,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       coinsSent: (json['coinsSent'] as num?)?.toInt(),
       kabsoTeam: json['kabsoTeam'] as bool? ?? false,
       staff: staffIdentityFromJson(json['staff']),
+      staffId: json['staffId'] as String?,
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -98,6 +99,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'coinsSent': ?instance.coinsSent,
       'kabsoTeam': instance.kabsoTeam,
       'staff': ?staffIdentityToJson(instance.staff),
+      'staffId': ?instance.staffId,
     };
 
 _ProfileLive _$ProfileLiveFromJson(Map<String, dynamic> json) => _ProfileLive(

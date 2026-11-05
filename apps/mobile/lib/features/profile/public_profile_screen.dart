@@ -329,6 +329,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             text: KHandle.plain(
               profile.username,
               premiumTier: profile.premiumTier,
+              staffId: profile.staffId,
             ),
           ),
         );
@@ -504,6 +505,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         solid: solid,
         // D146: a premium username wears its special-ID badge.
         title: switch (load.value?.premiumTier) {
+          // D283c: a staff account's official staff ID «ID: Kabso01».
+          _ when load.value?.staffId != null => Text(
+            l10n.profileStaffId(load.value!.staffId!),
+            textDirection: TextDirection.ltr,
+            style: context.textStyles.title.copyWith(color: p.textPrimary),
+          ),
           final tier? => KSpecialUsername(
             username: load.value!.username,
             tier: tier,
