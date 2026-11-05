@@ -226,6 +226,8 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
   let moderator: Admin;
   let support: Admin;
   let finance: Admin;
+  // v1.75-live (D285): the recruitment-only role.
+  let bd: Admin;
   let plain: Person;
   let agentUser: Person;
 
@@ -278,11 +280,14 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
         'programs.view': '/admin/programs/tasks',
         'waitlist.view': '/admin/waitlist',
       };
+      // v1.75-live (D285): BD signs in here (a fresh session for this test).
+      bd = await makeAdmin(['BD']);
       const byRole: Record<string, Admin> = {
         OWNER: owner,
         MODERATION: moderator,
         SUPPORT: support,
         FINANCE: finance,
+        BD: bd,
       };
       for (const role of PANEL_ROLES) {
         const a = byRole[role]!;
@@ -534,7 +539,8 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       expect(res.body.total).toBeGreaterThanOrEqual(6);
       expect(res.body.data[0].id).toBe(agentUser.id); // created «yesterday»: the oldest
       const admins = await get(owner, '/admin/tables/users?role=ADMIN');
-      expect(admins.body.total).toBe(4);
+      // The four panel admins (and BD once the permission matrix signed it in, D285).
+      expect([4, 5]).toContain(admins.body.total);
       const q = await get(owner, `/admin/tables/users?q=${plain.username}`);
       expect(q.body.data.map((u: { id: string }) => u.id)).toEqual([plain.id]);
       expect((await get(owner, '/admin/tables/users?sort=password')).status).toBe(400);
@@ -547,9 +553,9 @@ describe('D197 admin panel v2', { timeout: 600_000 }, () => {
       expect(csv.text.split('\r\n')[0]).toBe(
         'id,username,display_name,email,status,role,country,created_at,last_active_at',
       );
-      expect(csv.text.split('\r\n').filter(Boolean)).toHaveLength(5);
+      expect(csv.text.split('\r\n').filter(Boolean)).toHaveLength(admins.body.total + 1);
       const meta = await expectPanelAudit('admin.export.csv', 'users', owner);
-      expect(meta).toMatchObject({ table: 'users', count: 4, filters: { role: 'ADMIN' } });
+      expect(meta).toMatchObject({ table: 'users', count: admins.body.total, filters: { role: 'ADMIN' } });
     });
 
     it('a user page: ledger pages, posts, audit tab, sessions signed out with a reason (audited)', async () => {

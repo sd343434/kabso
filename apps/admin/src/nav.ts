@@ -80,6 +80,15 @@ export const NAV: NavGroup[] = [
       { to: '/referral-settings', key: 'navReferralSettings', icon: 'money', cap: 'referrals.view', match: ['referralSettings'] },
     ],
   },
+  {
+    // v1.75-live (D285): recruitment by staff — «استقطاباتي» (MODERATION, BD), «الاستقطاب» (OWNER), creator applications.
+    key: 'navGroupRecruits',
+    items: [
+      { to: '/my-recruits', key: 'navMyRecruits', icon: 'users', cap: 'recruits.mine', match: ['myRecruits'] },
+      { to: '/recruits', key: 'navRecruits', icon: 'agency', cap: 'recruits.view', match: ['recruits'] },
+      { to: '/creator-applications', key: 'navCreatorApplications', icon: 'inbox', cap: 'creators.applications', match: ['creatorApplications'] },
+    ],
+  },
   { key: 'navGroupContent', items: [{ to: '/reports', key: 'navReports', icon: 'flag', cap: 'reports.view', match: ['reports'] }] },
   {
     key: 'navGroupPrograms',

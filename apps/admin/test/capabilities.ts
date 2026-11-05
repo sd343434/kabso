@@ -79,4 +79,10 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   // v1.78-social (D223).
   'users.device_view': ['OWNER', 'SUPPORT'],
   'users.device_exception': ['OWNER'],
+  // v1.75-live (D285).
+  'recruits.mine': ['OWNER', 'MODERATION', 'BD'],
+  'recruits.view': ['OWNER'],
+  'recruits.manage': ['OWNER'],
+  'creators.applications': ['OWNER', 'SUPPORT'],
+  'creators.decide': ['OWNER', 'SUPPORT'],
 };

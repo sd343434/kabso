@@ -6,6 +6,7 @@ import { formatDate } from '../format';
 import type { PanelRole } from '../types';
 import { Icon } from '../ui/icons';
 import { STAFF_REGIONS, type StaffRegion } from '../i18n-d283';
+import { recruitBreakdown, type RecruitCounts } from './Recruits';
 
 export interface Member {
   id: string;
@@ -25,6 +26,8 @@ export interface Member {
   regions?: StaffRegion[];
   /** D283c: the official staff ID «Kabso01» (absent from an older API; null for a row granted outside the API). */
   staffId?: string | null;
+  /** D285: how many recruits the person has, by type (absent from an older API). */
+  recruits?: RecruitCounts;
 }
 
 /**
@@ -44,7 +47,7 @@ export function matchesStaffQuery(m: Member, raw: string): boolean {
 }
 
 /** D283: the roles that carry regions. */
-export const REGION_ROLES: PanelRole[] = ['MODERATION', 'SUPPORT'];
+export const REGION_ROLES: PanelRole[] = ['MODERATION', 'SUPPORT', 'BD'];
 
 /** D283: the whole set of a staff member's regions (OWNER; the reason and a fresh code; audited). */
 export const setStaffRegions = (userId: string, regions: StaffRegion[], reason: string, totpCode: string) =>
@@ -95,7 +98,7 @@ export interface GrantResult {
   account?: { email: string; username: string; displayName: string; totpEnrolled: boolean };
 }
 
-export const ROLES: PanelRole[] = ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'];
+export const ROLES: PanelRole[] = ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'BD'];
 /** The roles with a shift and lives to watch (D260; the API's `lives.watch`). */
 export const SHIFT_ROLES: PanelRole[] = ['OWNER', 'MODERATION', 'SUPPORT'];
 
@@ -290,6 +293,15 @@ export function MemberCard({
                   </span>
                 ))
               )}
+            </dd>
+          </>
+        )}
+        {m.recruits && (m.recruits.total > 0 || m.roles.includes('BD') || m.roles.includes('MODERATION')) && (
+          <>
+            <dt>{t('recruitsTitle')}</dt>
+            <dd data-recruits={m.recruits.total}>
+              <span className="badge info">{t('recruitsCount', { n: m.recruits.total })}</span>{' '}
+              <span className="muted small">{recruitBreakdown(m.recruits, t)}</span>
             </dd>
           </>
         )}

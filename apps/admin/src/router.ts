@@ -66,6 +66,10 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'disputes', pattern: '/recharge/disputes' },
   { name: 'dispute', pattern: '/recharge/disputes/:id' },
   { name: 'rates', pattern: '/recharge/exchange-rates' },
+  // v1.75-live (D285): «استقطاباتي», «الاستقطاب», «طلبات صناع المحتوى».
+  { name: 'myRecruits', pattern: '/my-recruits' },
+  { name: 'recruits', pattern: '/recruits' },
+  { name: 'creatorApplications', pattern: '/creator-applications' },
 ];
 
 export function matchPath(path: string): Match | null {

@@ -1,5 +1,5 @@
 /** The shapes of openapi.yaml's `admin-panel` schemas the panel reads (contract v1.60-social, D191). */
-export type PanelRole = 'OWNER' | 'MODERATION' | 'SUPPORT' | 'FINANCE';
+export type PanelRole = 'OWNER' | 'MODERATION' | 'SUPPORT' | 'FINANCE' | 'BD';
 
 export type Capability =
   | 'dashboard.view'
@@ -89,7 +89,13 @@ export type Capability =
   | 'users.delete'
   // v1.78-social (D223)
   | 'users.device_view'
-  | 'users.device_exception';
+  | 'users.device_exception'
+  // v1.75-live (D285): recruitment by staff «الاستقطاب» and the creator programme.
+  | 'recruits.mine'
+  | 'recruits.view'
+  | 'recruits.manage'
+  | 'creators.applications'
+  | 'creators.decide';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };

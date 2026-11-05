@@ -14,6 +14,7 @@ import { DeviceBans } from './pages/LiveModeration';
 import { LiveWatch } from './pages/LiveWatch';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { PkDares } from './pages/PkDares';
+import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
 import { HostTargets } from './pages/HostTargets';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
@@ -142,6 +143,8 @@ export function App() {
     const cap = match ? CAP_OF_ROUTE[match.name] : undefined;
     let page: React.ReactNode;
     if (!match) page = <p className="muted">{t('errNotFound')}</p>;
+    // v1.75-live (D285): BD has no dashboard — its home is «استقطاباتي».
+    else if (match.name === 'dashboard' && !state.can('dashboard.view') && state.can('recruits.mine')) page = <MyRecruits />;
     else if (cap && !state.can(cap)) page = <div className="alert error">{t('errForbidden')}</div>;
     else {
       switch (match.name) {
@@ -220,6 +223,16 @@ export function App() {
           break;
         case 'pkDares':
           page = <PkDares />;
+          break;
+        // v1.75-live (D285).
+        case 'myRecruits':
+          page = <MyRecruits />;
+          break;
+        case 'recruits':
+          page = <Recruits />;
+          break;
+        case 'creatorApplications':
+          page = <CreatorApplications />;
           break;
         case 'gifts':
           page = <Gifts />;

@@ -225,6 +225,8 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
   let moderator: Admin;
   let support: Admin;
   let finance: Admin;
+  // v1.75-live (D285): the recruitment-only role.
+  let bd: Admin;
 
   beforeAll(async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: clock });
@@ -446,16 +448,19 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       'recharge.disputes': '/admin/recharge/disputes',
     };
     it('every role gets exactly its capabilities (server-side)', async () => {
+      // v1.75-live (D285): BD signs in here (a fresh session for this test).
+      bd = await makeAdmin(['BD']);
       const byRole: Record<string, Admin> = {
         OWNER: owner,
         MODERATION: moderator,
         SUPPORT: support,
         FINANCE: finance,
+        BD: bd,
       };
       for (const role of PANEL_ROLES) {
         const a = byRole[role]!;
         const me = await get(a, '/admin/auth/session');
-        expect(me.body.roles).toEqual([role]);
+        expect(me.body.roles, JSON.stringify(me.body)).toEqual([role]);
         for (const [cap, path] of Object.entries(READS)) {
           const allowed = (CAPABILITIES[cap as Capability] as readonly string[]).includes(role);
           const res = await get(a, path);
