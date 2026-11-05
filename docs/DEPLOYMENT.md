@@ -2772,7 +2772,7 @@ CONVENTIONS §10.99. Adds `user_profiles.tags` (`VARCHAR(24)[] NOT NULL DEFAULT 
 The column add with a constant default is metadata-only on PostgreSQL ≥ 11 (no table rewrite). Order: API (with its
 migration) first, then the app; an older app ignores `tags`, and an older API leaves it out (the app shows no chips).
 
-### 5.62 Smart host targets and the generated Task Center «الأهداف الذكية» (migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`; D281) — [IMPLEMENTED, draft contracts v1.71-live / v1.86-social; not deployed, not device-tested]
+### 5.62 Smart host targets and the generated Task Center «الأهداف الذكية» (migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`, `20270315090200_host_target_tracks`; D281, D281b) — [IMPLEMENTED, draft contracts v1.71-live / v1.86-social; not deployed, not device-tested]
 
 CONVENTIONS §10.62.2 (targets: the catalogue, the assignment, the profit-share reward) and §10.41.4 (the Task Center's
 generated catalogue and smart assignment). The migrations:
@@ -2811,3 +2811,9 @@ offered metric; later reads use the stored day. Order: API first (the new fields
 older API ignores the new tables and columns and hides the new templates (unknown metrics, `isTaskMetric`), but it
 cannot read a `HOST_TARGET_REWARD` ledger row (an unknown enum value): once a target has been paid, roll the API back
 only to a build that knows the reason.
+
+**D281b** (`20270315090200_host_target_tracks`): `host_target_assignments.track` (GIFTS / LUCKY, existing rows GIFTS),
+primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds; `host_target_settings.new_host_defaults`
+(JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
+set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
+the current prices by itself.
