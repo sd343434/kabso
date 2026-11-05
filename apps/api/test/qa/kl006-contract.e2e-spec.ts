@@ -45,6 +45,8 @@ const ME_REQUIRED = [
   'showGender',
   'category',
   'links',
+  // D278b (v1.85-social): the profile tags «منشنات».
+  'tags',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];
