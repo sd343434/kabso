@@ -45,3 +45,17 @@ shoulders: a square of 0.68 of the art's width from (0.16, 0.14) (`KabsoTeamLook
 other region or none → `international.webp`, until the owner sends a region's own cover — add it to the map). They are
 2:1 and the 42 % cover box is about square, so the sides are cropped (`StaffCovers.alignment`, slightly to the title's
 side: the title stays whole, the mascot's face mostly in); the photo sits at the bottom-start over the tiles.
+
+## D283: the team entry car (owner-supplied 2026-11-05)
+
+Owner: «سيارة دخولية للمشرفين والإدارة».
+
+| File | What | Source |
+| ---- | ---- | ------ |
+| `kabso_team_entry.svga` | The Kabso Team's entry car: a red sports car with a gold crown grille and the Kabi mascot in a suit and headset, on red light streaks | Owner-supplied on 2026-11-05 (`premium_effect.svga`), unchanged: SVGA 2.0, 3 085 488 bytes (3 115 395 inflated), viewBox 396 × 720, 12 fps, 73 frames (≈ 6.1 s), 73 sprites each one full-frame **opaque JPEG** 396 × 720 (one per frame, no transparency: it covers the live under it while it plays), and one MP3 (`audio`, ID3, 97 531 bytes, frames 0–73, 6 042 ms) |
+
+It plays through the shared SVGA engine (D272 / D272b: read off the UI isolate, the read-ahead window, its own sound
+while the app's sound effects are on), bottom-anchored at the screen's full width like the VIP car (D280: about 715 pt
+of an 852 pt phone, the top of the live stays visible), once per visible entry «فريق كابسو» (the `staff-join` data
+message; never a hidden watch), not again after the live is minimized and opened again. It is the only entrance a
+limited staff account has (no VIP or store car, banner or effect).

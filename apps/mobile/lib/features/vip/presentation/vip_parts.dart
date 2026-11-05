@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:kabso_live/core/models/store_art.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/art_video.dart';
@@ -126,7 +127,9 @@ class VipAnimatedArt extends StatefulWidget {
       animate &&
       animationsEnabled &&
       animation != null &&
-      animation!.startsWith('http');
+      // D283: a bundled SVGA (`asset:`, the Kabso Team's entry car) too.
+      (animation!.startsWith('http') ||
+          animation!.startsWith(SvgaDocs.assetPrefix));
 
   @override
   State<VipAnimatedArt> createState() => _VipAnimatedArtState();

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/svga/svga_engine.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/vip/application/vip_entrance_plays.dart';
@@ -51,6 +52,12 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   static const nameKey = Key('live.vipEntrance.name');
   static const carKey = Key('live.vipEntrance.car');
 
+  /// v1.71-live (D283, owner: «سيارة دخولية للمشرفين والإدارة»): the Kabso
+  /// Team's own entry car (assets/staff/PROVENANCE.md), the only entrance a
+  /// limited staff account ever has (no VIP or store car, banner or effect).
+  static const teamCarAsset = 'assets/staff/kabso_team_entry.svga';
+  static const teamCarSource = '${SvgaDocs.assetPrefix}$teamCarAsset';
+
   /// The agents' bar timing (D185).
   static const duration = Duration(milliseconds: 3200);
   static const stillDuration = Duration(milliseconds: 2200);
@@ -77,7 +84,9 @@ class _Entry {
   new(this.line, this.look, {required this.banner, required this.car});
 
   final LiveChatJoinLine line;
-  final VipLook look;
+
+  /// Null for the Kabso Team's entrance (D283: the car only).
+  final VipLook? look;
   final VipPerk? banner;
   final VipPerk? car;
 }
@@ -107,8 +116,12 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     _plays = ref.read(vipEntrancePlaysProvider);
     // D280: a join already in the chat (before this layer was built: the
     // live minimized and opened again) is never played now.
-    final latest = ref.read(liveChatProvider(widget.roomId)).latestJoin;
+    final chat = ref.read(liveChatProvider(widget.roomId));
+    final latest = chat.latestJoin;
     if (latest != null) _plays.takeJoin(widget.roomId, latest);
+    // D283: the same for a Kabso Team entry.
+    final staff = chat.latestStaffJoin;
+    if (staff != null) _plays.takeStaffJoin(widget.roomId, staff);
     _selfPending = widget.self?.vip != null;
   }
 
@@ -138,13 +151,44 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
       p != null && (p.still != null || p.animation != null);
 
   void _onChat(LiveChatState next) {
+    // v1.71-live (D283): a Kabso Team account's visible entry plays the
+    // team's entry car — once per join, never again after minimize/restore.
+    final staff = next.latestStaffJoin;
+    if (staff != null && _plays.takeStaffJoin(widget.roomId, staff)) {
+      if (_plays.takeUser(widget.roomId, staff.user.id)) _enqueueTeam(staff);
+    }
     final line = next.latestJoin;
     if (line == null || !_plays.takeJoin(widget.roomId, line)) return;
+    // D283: a Kabso Team account joining as a viewer (FINANCE): its fixed
+    // picture marks it; the team's car, never a VIP or store one.
+    if (isTeamAvatarUrl(line.user.avatarUrl)) {
+      if (_plays.takeUser(widget.roomId, line.user.id)) _enqueueTeam(line);
+      return;
+    }
     final catalog = ref.read(vipCatalogProvider).value;
     // Only an entrance that would play counts as played (D280).
     if (vipLookOf(line.user.vip, catalog) == null) return;
     if (!_plays.takeUser(widget.roomId, line.user.id)) return;
     _enqueue(line, catalog);
+  }
+
+  /// D283: the Kabso Team's entrance — the bundled entry car only.
+  void _enqueueTeam(LiveChatJoinLine line) {
+    const car = VipPerk(
+      code: VipPerks.entryEffect,
+      title: '',
+      available: true,
+      animation: LiveVipEntranceLayer.teamCarSource,
+    );
+    if (VipSvga.enabled && VipAnimatedArt.animationsEnabled) {
+      unawaited(VipSvgaCache.warm(LiveVipEntranceLayer.teamCarSource));
+    }
+    final entry = _Entry(line, null, banner: null, car: car);
+    if (_current == null) {
+      _show(entry);
+    } else if (_queue.length < LiveVipEntranceLayer.maxQueued) {
+      _queue.add(entry);
+    }
   }
 
   void _enqueue(LiveChatJoinLine line, VipTierList? catalog) {
@@ -287,7 +331,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                   VipEntranceBanner(
                     key: ValueKey('vipBanner.${identityHashCode(current)}'),
                     name: name,
-                    look: current.look,
+                    look: current.look!,
                     perk: banner,
                     // The car's sound wins over the banner's.
                     sound: soundOn && car == null,

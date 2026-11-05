@@ -29,7 +29,7 @@ import {
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { storeWearOf, wearHasEntrance } from '../store/store-rules.js';
-import { assertNotStaffTarget, refuseWatchStaff, watchStaffAmong } from './live-staff.js';
+import { assertNotStaffTarget, isLimitedStaff, refuseWatchStaff, watchStaffAmong } from './live-staff.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
 
@@ -103,7 +103,12 @@ export type LiveChatData =
        */
       readonly gender: 'MALE' | 'FEMALE' | null;
     }
-  | { readonly type: 'chat-state'; readonly enabled: boolean };
+  | { readonly type: 'chat-state'; readonly enabled: boolean }
+  /**
+   * v1.71-live (D283, §10.96.10): a limited Kabso Team account entered VISIBLY as «فريق كابسو» (never a hidden
+   * watch): the apps play the team's entry car once; no chat line (D273).
+   */
+  | { readonly type: 'staff-join'; readonly user: UserSummaryDto };
 
 const MESSAGE_INCLUDE = { user: { select: USER_SUMMARY_SELECT }, media: true } as const;
 type MessageRow = Prisma.LiveChatMessageGetPayload<{ include: typeof MESSAGE_INCLUDE }>;
@@ -557,6 +562,21 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
    * line, at most one a second per room (extras dropped, owner D96). Best effort: a limiter or
    * media failure only drops the line.
    */
+  /**
+   * v1.71-live (D283): a limited Kabso Team account's visible entry (its `team:` identity joined): one `staff-join`
+   * (the team entry car in the apps). Never for the OWNER or a hidden watch. Best effort.
+   */
+  async announceStaffJoin(roomId: string, userId: string): Promise<void> {
+    try {
+      if (!(await isLimitedStaff(this.prisma, userId))) return;
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: USER_SUMMARY_SELECT });
+      if (!user) return;
+      await this.broadcast(roomId, { type: 'staff-join', user: userSummary(user) });
+    } catch (err) {
+      this.logger.warn({ error: safeErrorLog(err) }, 'Could not announce a staff entry in the live');
+    }
+  }
+
   async announceJoin(roomId: string, userId: string): Promise<void> {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: USER_SUMMARY_SELECT });

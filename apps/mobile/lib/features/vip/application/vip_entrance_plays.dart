@@ -19,6 +19,15 @@ class VipEntrancePlays {
 
   final _self = <String>{};
   final _lastJoin = <String, LiveChatJoinLine>{};
+  final _lastStaffJoin = <String, LiveChatJoinLine>{};
+
+  /// D283: like [takeJoin], for the room's newest Kabso Team entry.
+  bool takeStaffJoin(String roomId, LiveChatJoinLine line) {
+    if (identical(_lastStaffJoin[roomId], line)) return false;
+    _lastStaffJoin[roomId] = line;
+    return true;
+  }
+
   final _users = <String, Map<String, DateTime>>{};
 
   /// Whether the host's own entrance in [roomId] may play now (once per
@@ -49,6 +58,7 @@ class VipEntrancePlays {
   void forget(String roomId) {
     _self.remove(roomId);
     _lastJoin.remove(roomId);
+    _lastStaffJoin.remove(roomId);
     _users.remove(roomId);
   }
 }

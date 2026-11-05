@@ -179,11 +179,16 @@ class LiveChatState {
     this.loaded = false,
     this.kicked = false,
     this.latestJoin,
+    this.latestStaffJoin,
     this.written = false,
   });
 
   /// D119: the newest "X joined" (the join strip under the chat), or null.
   final LiveChatJoinLine? latestJoin;
+
+  /// v1.71-live (D283): the newest visible Kabso Team entry (the team's
+  /// entry car; never a chat line), or null.
+  final LiveChatJoinLine? latestStaffJoin;
 
   /// v1.20-live (D105): this person was kicked out of the live (the kick
   /// data message named them, or the server answered `LIVE_KICKED`).
@@ -218,10 +223,12 @@ class LiveChatState {
     bool? loaded,
     bool? kicked,
     LiveChatJoinLine? latestJoin,
+    LiveChatJoinLine? latestStaffJoin,
     bool? written,
   }) => LiveChatState(
     written: written ?? this.written,
     latestJoin: latestJoin ?? this.latestJoin,
+    latestStaffJoin: latestStaffJoin ?? this.latestStaffJoin,
     items: items ?? this.items,
     enabled: enabled ?? this.enabled,
     muted: muted ?? this.muted,
@@ -537,6 +544,12 @@ class LiveChatController extends Notifier<LiveChatState> {
           // every room shows each join as its own line (the server sends at
           // most 5 a second per room).
           items: _trim([...state.items, LiveChatJoinItem(join)]),
+        );
+      case LiveStaffJoined(:final user):
+        if (user.id == me?.id) return;
+        // D283: the team's entry car only (no line, no join strip).
+        state = state.copyWith(
+          latestStaffJoin: LiveChatJoinLine(user, _serial++),
         );
       case LiveChatStateChanged(:final enabled):
         state = state.copyWith(enabled: enabled);

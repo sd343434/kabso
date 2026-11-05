@@ -848,10 +848,12 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         await this.kick(roomId, identity);
         return;
       }
-      await this.prisma.liveRoomStaffWatcher.createMany({
+      const added = await this.prisma.liveRoomStaffWatcher.createMany({
         data: [{ roomId, identity, adminId, joinedAt: this.clock.now() }],
         skipDuplicates: true,
       });
+      // v1.71-live (D283): a limited staff account's visible entry plays the team's entry car.
+      if (added.count > 0) await this.chat.announceStaffJoin(roomId, adminId);
       return;
     }
     // v1.45-live (D201): the host's second camera — kept or removed, never counted.
