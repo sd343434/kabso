@@ -11,9 +11,24 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import { creditTaskCherriesIn, taskRewardReference } from '../economy/cherry-ledger.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
+import { giftArtUrl } from '../gifts/gift-art.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
+import { isAllDay } from './host-target-engine.js';
+import { HostTargetsService, type HostDailyTargetDto } from './host-targets.service.js';
+import {
+  TARGET_METRICS,
+  assignSmartTasks,
+  catalogueTemplates,
+  taskCatalogueStats,
+  taskSeed,
+  variantName,
+  type TaskProfile,
+  type TaskTemplate,
+} from './task-catalogue.js';
 import { addDays, dateValue, programWindowsIn, type ProgramWindow } from './programs-time.js';
 import {
   CHECK_IN_CYCLE_DAYS,
+  D281_POOL_TASKS,
   DEFAULT_TASK_POOL_BANDS,
   NEW_HOST_DAYS,
   TASK_POOL_BANDS,
@@ -92,6 +107,11 @@ export interface LiveHostTargetsDto {
   luckySupporters: HostSupporterDto[];
   /** D199b: a signed-in caller's own place today (null for guests and the host). */
   me: { gifts: HostSupporterRankDto; cherries: HostSupporterRankDto; lucky: HostSupporterRankDto } | null;
+  /**
+   * v1.71-live (D281): the host's three smart targets of today (easy, medium, hard) with their progress and reward;
+   * [] before the smart engine's first day (then `gifts` / `lucky` carry D277's two targets).
+   */
+  daily: HostDailyTargetDto[];
 }
 
 /** v1.44-live (D199) `HostGiftStats`: the host's own statistics of a period. */
@@ -126,7 +146,18 @@ interface OfferedTask {
   /** v1.53-social (D184): task rewards are cherries. */
   rewardCherries: number;
   pooled: boolean;
+  /**
+   * v1.85-social (D281): a generated variant's gift or category, its window of the day (minutes; null = the whole
+   * day) and its resolved names (null: the template's).
+   */
+  subject: string | null;
+  window: { from: number; to: number } | null;
+  nameAr: string | null;
+  nameEn: string | null;
 }
+
+/** A pool task as offered without a variant (rows before D281, fixed tasks). */
+const PLAIN = { subject: null, window: null, nameAr: null, nameEn: null } as const;
 
 /** A claim as stored: what it paid and in which currency (claims before v1.53-social paid coins). */
 interface StoredClaim {
@@ -145,6 +176,10 @@ export interface ProgramTaskDto {
   metric: TaskMetric;
   audience: 'EVERYONE' | 'HOSTS';
   name: string;
+  /** v1.85-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
+  gift: { code: string; name: string; assetKey: string; imageUrl: string | null } | null;
+  /** v1.85-social (D281): the task's hours of the day (`HH:MM`), null for the whole day / week. */
+  window: { from: string; to: string } | null;
   target: number;
   progress: number;
   /** Deprecated since v1.53-social (D184): always 0 — the reward is `rewardCherries`. */
@@ -246,10 +281,61 @@ function hostCherriesSql(me: string, from: Date | null, to: Date, lucky: boolean
  * The query counting `metric` for `me` in `w` (column `n`). Counterparts (hosts, people followed, gift
  * recipients and senders) must be ACTIVE; nothing is counted from the caller's own lives or gifts.
  */
-function progressSql(me: string, metric: TaskMetric, w: ProgramWindow, now: Date): Prisma.Sql {
+function progressSql(
+  me: string,
+  metric: TaskMetric,
+  w: ProgramWindow,
+  now: Date,
+  subject: string | null = null,
+): Prisma.Sql {
   const from = w.start;
   const to = w.end;
   switch (metric) {
+    case 'GIFT_COUNT_SENT':
+    case 'CATEGORY_GIFTS_SENT':
+      // v1.85-social (D281): how many of one gift (or of one category's gifts) the caller sent in the period, paid
+      // with coins, to other ACTIVE people (the send's quantity).
+      return Prisma.sql`
+        SELECT COALESCE(sum(g.quantity), 0)::bigint AS n
+          FROM live_gifts g
+          JOIN gifts gf ON gf.code = g.gift_code
+         WHERE g.sender_id = ${me}::uuid AND g.coins_charged > 0
+           AND ${metric === 'GIFT_COUNT_SENT' ? Prisma.sql`g.gift_code = ${subject}` : Prisma.sql`gf.category = ${subject}`}
+           AND g.created_at >= ${from}::timestamptz AND g.created_at < ${to}::timestamptz
+           AND EXISTS (SELECT 1 FROM live_gift_recipients gr JOIN users u ON u.id = gr.user_id
+                        WHERE gr.gift_id = g.id AND gr.user_id <> ${me}::uuid AND u.status = 'ACTIVE')`;
+    case 'GIFTED_HOSTS':
+      // D281: different ACTIVE people the caller sent a paid gift to in the period.
+      return Prisma.sql`
+        SELECT count(DISTINCT gr.user_id) AS n
+          FROM live_gifts g
+          JOIN live_gift_recipients gr ON gr.gift_id = g.id AND gr.user_id <> ${me}::uuid
+          JOIN users u ON u.id = gr.user_id AND u.status = 'ACTIVE'
+         WHERE g.sender_id = ${me}::uuid AND g.coins_charged > 0
+           AND g.created_at >= ${from}::timestamptz AND g.created_at < ${to}::timestamptz`;
+    case 'FAMILY_JOIN':
+      // D281: the caller joined (or founded) a family in the period and is still in it.
+      return Prisma.sql`
+        SELECT count(*) AS n FROM family_members m
+         WHERE m.user_id = ${me}::uuid
+           AND m.joined_at >= ${from}::timestamptz AND m.joined_at < ${to}::timestamptz`;
+    case 'FAMILY_CHAT_MESSAGES':
+      return Prisma.sql`
+        SELECT count(*) AS n FROM family_chat_messages m
+         WHERE m.author_id = ${me}::uuid AND m.deleted_at IS NULL
+           AND m.created_at >= ${from}::timestamptz AND m.created_at < ${to}::timestamptz`;
+    case 'PK_BATTLES':
+    case 'PK_WINS':
+      // D281: PK battles the caller (a host) started in the period — started, never the void ones (cancelled or
+      // ended by a moderator) — and of those, the ones they won.
+      return Prisma.sql`
+        SELECT count(*) AS n FROM pk_matches p
+         WHERE (p.host_a_id = ${me}::uuid OR p.host_b_id = ${me}::uuid)
+           AND p.status <> 'CONNECTED'
+           AND (p.end_reason IS NULL OR p.end_reason NOT IN ('CANCELLED', 'ADMIN'))
+           AND p.started_at >= ${from}::timestamptz AND p.started_at < ${to}::timestamptz
+           AND (${metric === 'PK_BATTLES'}
+                OR (p.winner = 'A' AND p.host_a_id = ${me}::uuid) OR (p.winner = 'B' AND p.host_b_id = ${me}::uuid))`;
     case 'WATCH_LIVES':
       // Lives of someone else first joined in the period and watched ≥ 15 s in total.
       return Prisma.sql`
@@ -461,6 +547,8 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly targets: HostTargetsService,
+    private readonly storage: StorageSettingsStore,
   ) {}
 
   private get zone(): string {
@@ -474,9 +562,20 @@ export class TasksService {
     metric: TaskMetric,
     w: ProgramWindow,
     now: Date,
+    subject: string | null = null,
   ): Promise<number> {
-    const rows = await db.$queryRaw<{ n: bigint | number | null }[]>(progressSql(me, metric, w, now));
+    const rows = await db.$queryRaw<{ n: bigint | number | null }[]>(progressSql(me, metric, w, now, subject));
     return Number(rows[0]?.n ?? 0);
+  }
+
+  /** v1.85-social (D281): a task's period narrowed to its window of the day (the whole period without one). */
+  private narrowed(w: ProgramWindow, window: OfferedTask['window']): ProgramWindow {
+    if (window === null) return w;
+    return {
+      date: w.date,
+      start: new Date(w.start.getTime() + window.from * 60_000),
+      end: new Date(Math.min(w.end.getTime(), w.start.getTime() + window.to * 60_000)),
+    };
   }
 
   private async isHost(db: Db, me: string): Promise<boolean> {
@@ -523,7 +622,18 @@ export class TasksService {
     me: string,
     day: string,
   ): Promise<{
-    rows: { taskCode: string; target: number; rewardCherries: number; position: number; band: number }[];
+    rows: {
+      taskCode: string;
+      target: number;
+      rewardCherries: number;
+      position: number;
+      band: number;
+      subject: string | null;
+      windowFrom: number | null;
+      windowTo: number | null;
+      nameAr: string | null;
+      nameEn: string | null;
+    }[];
   }> {
     const where = { userId: me, day: dateValue(day) };
     const select = {
@@ -532,11 +642,25 @@ export class TasksService {
       rewardCherries: true,
       position: true,
       band: true,
+      subject: true,
+      windowFrom: true,
+      windowTo: true,
+      nameAr: true,
+      nameEn: true,
     } as const;
     let rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
     if (rows.length > 0) return { rows };
+    // v1.85-social (D281): from the smart engine's first day, the generated catalogue and the smart assignment.
+    if (await this.targets.engineOn(day, db)) {
+      await this.smartAssign(db, me, day);
+      rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+      return { rows };
+    }
     const templates = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
-    const usable = templates.filter((t) => isTaskMetric(t.metric) && t.poolGroup !== null);
+    // D281: its new templates need the smart engine (a gift, a category, a variant): never on the old path.
+    const usable = templates.filter(
+      (t) => isTaskMetric(t.metric) && t.poolGroup !== null && !D281_POOL_TASKS.includes(t.code),
+    );
     if (usable.length === 0) return { rows };
     const band = bandForLevel(await this.levelOf(db, me), await this.bands(db));
     const picks = assignDailyTasks(
@@ -581,7 +705,18 @@ export class TasksService {
     const pooled: OfferedTask[] = [];
     for (const r of rows) {
       const def = byCode.get(r.taskCode);
-      if (def?.pool) pooled.push({ def, target: r.target, rewardCherries: r.rewardCherries, pooled: true });
+      if (def?.pool) {
+        pooled.push({
+          def,
+          target: r.target,
+          rewardCherries: r.rewardCherries,
+          pooled: true,
+          subject: r.subject,
+          window: r.windowFrom !== null && r.windowTo !== null ? { from: r.windowFrom, to: r.windowTo } : null,
+          nameAr: r.nameAr,
+          nameEn: r.nameEn,
+        });
+      }
     }
     const banded = (d: TaskDefinition) =>
       d.bandTargets.length === TASK_POOL_BANDS && d.bandRewards.length === TASK_POOL_BANDS;
@@ -589,17 +724,157 @@ export class TasksService {
     if (band === null && defs.some((d) => !d.pool && banded(d))) {
       band = bandForLevel(await this.levelOf(db, me), await this.bands(db)).band;
     }
+    // v1.71-live (D281): from the smart engine's first day the host's targets are the targets engine's own (rewarded
+    // with a share of the profit), never Task Center tasks: the fixed «هدف هدايا الحظ» task is no longer offered.
+    const engine = await this.targets.engineOn(day, db);
     const fixed: OfferedTask[] = [];
     for (const def of defs.filter((d) => !d.pool)) {
+      if (engine && (TARGET_METRICS as readonly string[]).includes(def.metric)) continue;
       if (!banded(def)) {
-        fixed.push({ def, target: def.target, rewardCherries: def.rewardCherries, pooled: false });
+        fixed.push({ def, target: def.target, rewardCherries: def.rewardCherries, pooled: false, ...PLAIN });
         continue;
       }
       const target = def.bandTargets[band! - 1] ?? 0;
       const rewardCherries = def.bandRewards[band! - 1] ?? 0;
-      if (target > 0 && rewardCherries > 0) fixed.push({ def, target, rewardCherries, pooled: false });
+      if (target > 0 && rewardCherries > 0) fixed.push({ def, target, rewardCherries, pooled: false, ...PLAIN });
     }
     return [...pooled, ...fixed];
+  }
+
+  /**
+   * v1.85-social (D281, CONVENTIONS §10.41.4): what the smart task assignment reads about the caller — their 7-day
+   * daily average of each offered metric (stored data, the same queries as the progress), their completion over the
+   * last 7 days, the variants of the last `task_no_repeat_days` days and yesterday's templates, family membership,
+   * the gifts they send most and the hours they join lives (30 days).
+   */
+  private async taskProfile(
+    db: Tx | PrismaService,
+    me: string,
+    day: string,
+    dayStart: Date,
+    templates: readonly TaskTemplate[],
+    noRepeatDays: number,
+  ): Promise<TaskProfile> {
+    const now = this.clock.now();
+    const week: ProgramWindow = { date: day, start: new Date(dayStart.getTime() - 7 * 86_400_000), end: dayStart };
+    const month = new Date(dayStart.getTime() - 30 * 86_400_000);
+    const [favourites, hours, family, recent, claimed, host, level, bands] = await Promise.all([
+      db.$queryRaw<{ code: string }[]>`
+        SELECT g.gift_code AS code FROM live_gifts g
+         WHERE g.sender_id = ${me}::uuid AND g.coins_charged > 0
+           AND g.created_at >= ${month}::timestamptz AND g.created_at < ${dayStart}::timestamptz
+         GROUP BY g.gift_code ORDER BY sum(g.quantity) DESC, g.gift_code LIMIT 3`,
+      db.$queryRaw<{ h: number; n: number }[]>`
+        SELECT extract(hour FROM a.first_joined_at AT TIME ZONE ${this.zone})::int AS h, count(*)::int AS n
+          FROM live_room_audience a
+         WHERE a.user_id = ${me}::uuid
+           AND a.first_joined_at >= ${month}::timestamptz AND a.first_joined_at < ${dayStart}::timestamptz
+         GROUP BY 1`,
+      db.$queryRaw<{ inside: boolean }[]>`
+        SELECT EXISTS (SELECT 1 FROM family_members WHERE user_id = ${me}::uuid) AS inside`,
+      db.taskAssignment.findMany({
+        where: { userId: me, day: { gte: dateValue(addDays(day, -Math.max(7, noRepeatDays))), lt: dateValue(day) } },
+        select: { day: true, taskCode: true, variant: true },
+      }),
+      db.$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM task_claims c
+          JOIN task_assignments a ON a.user_id = c.user_id AND a.task_code = c.task_code AND a.day = c.period_start
+         WHERE c.user_id = ${me}::uuid AND c.period_start >= ${addDays(day, -7)}::date
+           AND c.period_start < ${day}::date`,
+      this.isHost(db, me),
+      this.levelOf(db, me),
+      this.bands(db),
+    ]);
+    const favouriteGifts = favourites.map((f) => f.code);
+    const dailyAverage: Partial<Record<TaskMetric, number>> = {};
+    for (const metric of new Set(templates.map((t) => t.metric))) {
+      // A chosen gift: the average of their favourite one (the one the assignment names); a category: not read.
+      if (metric === 'CATEGORY_GIFTS_SENT') continue;
+      const subject = metric === 'GIFT_COUNT_SENT' ? (favouriteGifts[0] ?? null) : null;
+      if (metric === 'GIFT_COUNT_SENT' && subject === null) continue;
+      dailyAverage[metric] = (await this.progressOf(db, me, metric, week, now, subject)) / 7;
+    }
+    const activeHours = new Array<number>(24).fill(0);
+    for (const h of hours) activeHours[h.h] = h.n;
+    const yesterday = addDays(day, -1);
+    const sinceRepeat = addDays(day, -noRepeatDays);
+    const recentWeek = recent.filter((r) => r.day.toISOString().slice(0, 10) >= addDays(day, -7));
+    return {
+      band: bandForLevel(level, bands),
+      isHost: host,
+      dailyAverage,
+      recentAssigned: recentWeek.length,
+      recentClaimed: claimed[0]?.n ?? 0,
+      recentVariants: recent
+        .filter((r) => r.variant !== null && r.day.toISOString().slice(0, 10) >= sinceRepeat)
+        .map((r) => r.variant!),
+      yesterdayTemplates: recent.filter((r) => r.day.toISOString().slice(0, 10) === yesterday).map((r) => r.taskCode),
+      inFamily: family[0]?.inside ?? false,
+      favouriteGifts,
+      activeHours,
+    };
+  }
+
+  /**
+   * v1.85-social (D281): the caller's tasks of `day` from the generated catalogue (task-catalogue.ts): the smart
+   * assignment from their profile, each with its variant, gift or category, window, names and reasons, stored for the
+   * day (concurrent first reads pick the same and keep one set).
+   */
+  private async smartAssign(db: Tx | PrismaService, me: string, day: string): Promise<void> {
+    const windows = await programWindowsIn(db, this.clock.now(), this.zone);
+    const dayStart = windows.day.date === day ? windows.day.start : dateValue(day);
+    const rows = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
+    const templates: TaskTemplate[] = rows
+      .filter((t) => isTaskMetric(t.metric) && t.poolGroup !== null)
+      .map((t) => ({
+        code: t.code,
+        metric: t.metric as TaskMetric,
+        group: t.poolGroup!,
+        audience: t.audience,
+        bandTargets: t.bandTargets,
+        bandRewards: t.bandRewards,
+        sortOrder: t.sortOrder,
+        nameAr: t.nameAr,
+        nameEn: t.nameEn,
+      }));
+    if (templates.length === 0) return;
+    const settings = await this.targets.settings(db);
+    const gifts = await this.targets.catalogueGifts(db);
+    const profile = await this.taskProfile(db, me, day, dayStart, catalogueTemplates(templates), settings.taskNoRepeatDays);
+    const picks = assignSmartTasks(templates, profile, gifts, taskSeed(me, day));
+    const giftBy = new Map(gifts.map((g) => [g.code, g]));
+    const cats = new Map(
+      (await db.giftCategory.findMany({ select: { code: true, nameAr: true, nameEn: true } })).map((c) => [c.code, c]),
+    );
+    const byCode = new Map(templates.map((t) => [t.code, t]));
+    await db.taskAssignment.createMany({
+      data: picks.map((p) => {
+        const t = byCode.get(p.template)!;
+        const s = p.variant.subject;
+        const names = variantName(t, p.variant, {
+          ar: s ? (giftBy.get(s)?.nameAr ?? cats.get(s)?.nameAr) : undefined,
+          en: s ? (giftBy.get(s)?.nameEn ?? cats.get(s)?.nameEn) : undefined,
+        });
+        const whole = isAllDay(p.variant.window);
+        return {
+          userId: me,
+          day: dateValue(day),
+          taskCode: p.template,
+          band: profile.band.band,
+          target: p.target,
+          rewardCherries: p.rewardCherries,
+          position: p.position,
+          variant: p.variant.code,
+          subject: s,
+          windowFrom: whole ? null : p.variant.window.from,
+          windowTo: whole ? null : p.variant.window.to,
+          nameAr: s !== null || !whole ? names.ar.slice(0, 160) : null,
+          nameEn: s !== null || !whole ? names.en.slice(0, 160) : null,
+          reason: p.reason as unknown as Prisma.InputJsonValue,
+        };
+      }),
+      skipDuplicates: true,
+    });
   }
 
   /**
@@ -665,15 +940,19 @@ export class TasksService {
     progress: number,
     claim: StoredClaim | null,
     lang: ContentLanguage,
+    gift: ProgramTaskDto['gift'] = null,
   ): ProgramTaskDto {
     const { def, target } = task;
+    const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     return {
       code: def.code,
       pooled: task.pooled,
       period: def.period,
       metric: def.metric as TaskMetric,
       audience: def.audience,
-      name: lang === 'ar' ? def.nameAr : def.nameEn,
+      name: lang === 'ar' ? (task.nameAr ?? def.nameAr) : (task.nameEn ?? def.nameEn),
+      gift,
+      window: task.window === null ? null : { from: hm(task.window.from), to: hm(task.window.to) },
       target,
       progress: Math.min(progress, target),
       rewardCoins: 0,
@@ -697,8 +976,30 @@ export class TasksService {
     const [claim] = await db.$queryRaw<{ amount: number; currency: 'COINS' | 'CHERRIES' }[]>`
       SELECT reward_amount AS amount, reward_currency::text AS currency FROM task_claims
        WHERE user_id = ${me}::uuid AND task_code = ${task.def.code} AND period_start = ${w.date}::date`;
-    const progress = await this.progressOf(db, me, task.def.metric as TaskMetric, w, now);
-    return this.taskDto(task, progress, claim ?? null, lang);
+    const progress = await this.progressOf(
+      db,
+      me,
+      task.def.metric as TaskMetric,
+      this.narrowed(w, task.window),
+      now,
+      task.subject,
+    );
+    return this.taskDto(task, progress, claim ?? null, lang, await this.giftOf(db, task, lang));
+  }
+
+  /** v1.85-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
+  private async giftOf(db: Db, task: OfferedTask, lang: ContentLanguage): Promise<ProgramTaskDto['gift']> {
+    if (task.subject === null || task.def.metric !== 'GIFT_COUNT_SENT') return null;
+    const [g] = await db.$queryRaw<
+      { code: string; name_ar: string; name_en: string; asset_key: string; image_object_key: string | null }[]
+    >`SELECT code, name_ar, name_en, asset_key, image_object_key FROM gifts WHERE code = ${task.subject}`;
+    if (!g) return null;
+    return {
+      code: g.code,
+      name: lang === 'ar' ? g.name_ar : g.name_en,
+      assetKey: g.asset_key,
+      imageUrl: giftArtUrl(this.storage.current().publicBaseUrl, g.image_object_key),
+    };
   }
 
   /** `GET /me/tasks`. */
@@ -866,7 +1167,14 @@ export class TasksService {
           const paid: StoredClaim = { amount: existing.rewardAmount, currency: existing.rewardCurrency };
           return { created: false, task, paid };
         }
-        const progress = await this.progressOf(tx, me, def.metric as TaskMetric, w, now);
+        const progress = await this.progressOf(
+          tx,
+          me,
+          def.metric as TaskMetric,
+          this.narrowed(w, offered.window),
+          now,
+          offered.subject,
+        );
         if (progress < offered.target) throw new AppException(ErrorCode.TASK_NOT_COMPLETED);
         const { pay: cherries, cap } = cappedTaskReward(
           offered.rewardCherries,
@@ -893,7 +1201,8 @@ export class TasksService {
         });
         await creditTaskCherriesIn(tx, me, BigInt(cherries), taskRewardReference(def.code, w.date), now);
         const paid: StoredClaim = { amount: cherries, currency: 'CHERRIES' };
-        return { created: true, task: this.taskDto(offered, progress, paid, lang), paid };
+        const task = this.taskDto(offered, progress, paid, lang, await this.giftOf(tx, offered, lang));
+        return { created: true, task, paid };
       });
     let outcome: { created: boolean; task: ProgramTaskDto; paid: StoredClaim };
     try {
@@ -1025,10 +1334,19 @@ export class TasksService {
    * people, «هدف هدايا الحظ» HOST_LUCKY_COINS's against the cherries of today's lucky gifts (self-sends
    * too); 0 when that task is switched off. The band: today's assignment's, else the level's now (as the
    * Task Center).
+   *
+   * v1.71-live (D281): from the smart engine's first day `daily` holds the host's three targets (easy, medium,
+   * hard; reached ones are paid here, once); `gifts` / `lucky` keep today's amounts received and, for older apps,
+   * the target of the whole-day «هدف الهدايا» / «هدف هدايا الحظ» among the three (0 when none is).
    */
-  async hostTargets(host: string, viewer: string | null = null): Promise<LiveHostTargetsDto> {
+  async hostTargets(
+    host: string,
+    viewer: string | null = null,
+    lang: ContentLanguage = 'ar',
+  ): Promise<LiveHostTargetsDto> {
     const now = this.clock.now();
     const { day } = await programWindowsIn(this.prisma, now, this.zone);
+    if (await this.targets.engineOn(day.date)) return this.smartTargets(host, viewer, lang, day);
     const bands = await this.bands(this.prisma);
     const assigned = await this.assignedBand(host, day.date);
     const band =
@@ -1064,7 +1382,67 @@ export class TasksService {
       luckySupporters: luckyTop.list,
       me:
         me !== null && top.me && luckyTop.me ? { gifts: top.me, cherries: top.me, lucky: luckyTop.me } : null,
+      daily: [],
     };
+  }
+
+  /** v1.71-live (D281): {@link hostTargets} from the smart engine's first day. */
+  private async smartTargets(
+    host: string,
+    viewer: string | null,
+    lang: ContentLanguage,
+    day: ProgramWindow,
+  ): Promise<LiveHostTargetsDto> {
+    const me = viewer !== null && viewer !== host ? viewer : null;
+    const [daily, giftsCherries, luckyCherries, top, luckyTop, band] = await Promise.all([
+      this.targets.daily(host, lang),
+      this.hostCherries(host, day.start, day.end, false),
+      this.hostCherries(host, day.start, day.end, true),
+      this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me),
+      this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me),
+      this.levelOf(this.prisma, host).then(async (level) => bandForLevel(level, await this.bands(this.prisma))),
+    ]);
+    const wholeDay = (kind: string) => daily.find((t) => t.kind === kind && t.window === null)?.amount ?? 0;
+    const target = (received: number, t: number): HostTargetDto => ({
+      received,
+      target: t,
+      reached: t > 0 && received >= t,
+    });
+    const gifts = target(giftsCherries, wholeDay('GIFT_CHERRIES'));
+    return {
+      day: day.date,
+      timeZone: this.zone,
+      endsAt: day.end.toISOString(),
+      band: band.band,
+      gifts,
+      cherries: gifts,
+      lucky: target(luckyCherries, wholeDay('LUCKY_CHERRIES')),
+      topSupporters: top.list,
+      luckySupporters: luckyTop.list,
+      me: me !== null && top.me && luckyTop.me ? { gifts: top.me, cherries: top.me, lucky: luckyTop.me } : null,
+      daily,
+    };
+  }
+
+  // ---- v1.85-social (D281): the panel's catalogue stats -------------------------------------------
+
+  /** The Task Center catalogue's size now (the enabled pool templates × parameters, the enabled gifts). */
+  async taskCatalogue() {
+    const rows = await this.prisma.taskDefinition.findMany({ where: { enabled: true, pool: true } });
+    const templates: TaskTemplate[] = rows
+      .filter((t) => isTaskMetric(t.metric) && t.poolGroup !== null)
+      .map((t) => ({
+        code: t.code,
+        metric: t.metric as TaskMetric,
+        group: t.poolGroup!,
+        audience: t.audience,
+        bandTargets: t.bandTargets,
+        bandRewards: t.bandRewards,
+        sortOrder: t.sortOrder,
+        nameAr: t.nameAr,
+        nameEn: t.nameEn,
+      }));
+    return taskCatalogueStats(templates, await this.targets.catalogueGifts());
   }
 
   /**
@@ -1075,7 +1453,7 @@ export class TasksService {
    * cherries side is «هدف الهدايا»'s — gifts outside the lucky category from other people (the series
    * too); lucky adds the cherries of lucky gifts (self-sends included).
    */
-  async hostGiftStats(me: string, period: HostStatsPeriod): Promise<HostGiftStatsDto> {
+  async hostGiftStats(me: string, period: HostStatsPeriod, lang: ContentLanguage = 'ar'): Promise<HostGiftStatsDto> {
     const now = this.clock.now();
     const windows = await programWindowsIn(this.prisma, now, this.zone);
     const w =
@@ -1138,7 +1516,7 @@ export class TasksService {
         givers: lucky.givers,
         topSupporters: luckyTop.list,
       },
-      targets: period === 'DAY' ? await this.hostTargets(me) : null,
+      targets: period === 'DAY' ? await this.hostTargets(me, null, lang) : null,
     };
   }
 }

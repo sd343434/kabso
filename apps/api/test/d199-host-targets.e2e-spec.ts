@@ -19,6 +19,7 @@ import { LUCKY_RNG } from '../src/modules/gifts/lucky-rng.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { seedDefaultTaskPoolIn, seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { keepLegacyTargetsEngine } from './helpers/d281.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import {
@@ -150,6 +151,8 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
         { token: LUCKY_RNG, value: rng },
       ],
     );
+    // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+    await keepLegacyTargetsEngine(ctx.prisma);
     await seedDefaultTasksIn(ctx.prisma);
     await seedDefaultTaskPoolIn(ctx.prisma);
     host = await signup();
@@ -439,7 +442,9 @@ describe('D199 host targets and statistics', { timeout: 300_000 }, () => {
       .join('\n')
       .split(';')
       .map((x) => x.trim())
-      .filter((x) => x.length > 0);
+      .filter((x) => x.length > 0)
+      // D281: a later migration (20270314090100) widened the metrics CHECK; the old one would refuse its rows.
+      .filter((x) => !x.startsWith('ALTER TABLE "task_definitions"'));
     await withMigrationClient(async (db) => {
       for (const st of statements) await db.$executeRawUnsafe(st);
       // Once only: a second run changes nothing.

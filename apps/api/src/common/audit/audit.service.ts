@@ -143,6 +143,12 @@ export enum AuditAction {
   PK_DARE_IMPORT = 'pk_dare.import',
   PK_DARE_REPORTS_CLEAR = 'pk_dare.reports_clear',
   PK_DARE_SETTINGS_UPDATE = 'pk_dare.settings.update',
+  /** v1.71-live (D281): a smart host target's profit-share reward paid {host, day, level, code, progress, profitUsd, paid}. */
+  HOST_TARGET_REWARD = 'host_targets.reward',
+  /** v1.71-live (D281): the OWNER changed the targets' and tasks' knobs {before, after, reason, via}. */
+  HOST_TARGET_SETTINGS_UPDATE = 'host_targets.settings.update',
+  /** v1.71-live (D281): the OWNER read a host's targets with the reasons {host, day}. */
+  HOST_TARGET_VIEW = 'host_targets.view',
   // v1.45-live (D201, §10.63): the host's live tools — a second-camera pairing code created, redeemed
   // (or refused, with the reason, never the code), the second camera ended, the main feed chosen; the
   // one-time music-rights notice accepted; a clip recording started or stopped (viewers are told).

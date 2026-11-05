@@ -3,6 +3,7 @@ import { UsersModule } from '../users/users.module.js';
 import { EventsService } from './events.service.js';
 import { ProgramsController } from './programs.controller.js';
 import { SvipService } from './svip.service.js';
+import { HostTargetsService } from './host-targets.service.js';
 import { TasksService } from './tasks.service.js';
 
 /**
@@ -14,7 +15,7 @@ import { TasksService } from './tasks.service.js';
 @Module({
   imports: [UsersModule],
   controllers: [ProgramsController],
-  providers: [TasksService, EventsService, SvipService],
-  exports: [EventsService],
+  providers: [TasksService, HostTargetsService, EventsService, SvipService],
+  exports: [EventsService, TasksService, HostTargetsService],
 })
 export class ProgramsModule {}

@@ -83,15 +83,20 @@ export class ProgramsController {
     ) {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
-    return this.tasks.hostTargets(user.id, caller);
+    // D281: the targets' titles in the caller's language (`Accept-Language`, else Arabic).
+    return this.tasks.hostTargets(user.id, caller, languageFromAcceptLanguage(req.headers['accept-language']) ?? 'ar');
   }
 
   /** v1.44-live (D199) `GET /me/host-gift-stats?period=DAY|WEEK|MONTH|ALL`: the caller's own. */
   @Get('me/host-gift-stats')
-  async hostGiftStats(@CurrentAuth() auth: AuthContext, @Query() query: unknown): Promise<HostGiftStatsDto> {
+  async hostGiftStats(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Query() query: unknown,
+  ): Promise<HostGiftStatsDto> {
     const parsed = statsQuerySchema.safeParse(query ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    return this.tasks.hostGiftStats(auth.userId, parsed.data.period);
+    return this.tasks.hostGiftStats(auth.userId, parsed.data.period, await this.language(req, auth));
   }
 
   private async language(req: AppRequest, auth: AuthContext): Promise<ContentLanguage> {

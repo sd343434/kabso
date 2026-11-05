@@ -15,6 +15,7 @@ import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { seedDefaultTaskPoolIn, seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { keepLegacyTargetsEngine } from './helpers/d281.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, openapi } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -196,6 +197,8 @@ describe('D188 coin-value gift tasks, the defaults and the $60 unlock', { timeou
       },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
+    // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+    await keepLegacyTargetsEngine(ctx.prisma);
     await gift('r188_rose', 10, 0);
     await gift('r188_gem', 5_000, 1);
     expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
@@ -329,6 +332,8 @@ describe('D188 the monthly cap of task cherries', { timeout: 240_000 }, () => {
       },
       [{ token: Clock, value: clock }],
     );
+    // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+    await keepLegacyTargetsEngine(ctx.prisma);
     expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
     // The team's settings for this test (task-admin set): one follow a day pays 4 000; a weekly task too.
     await ctx.prisma.taskDefinition.update({
@@ -441,6 +446,8 @@ describe(
           tagNameEn: null,
         }),
       );
+      // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+      await keepLegacyTargetsEngine(ctx.prisma);
     });
     afterAll(async () => ctx?.close());
 

@@ -17,6 +17,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import {
   DEFAULT_POOL_TASKS,
   DEFAULT_TASK_POOL_BANDS,
+  D281_POOL_TASKS,
   assignDailyTasks,
   seedOf,
 } from '../src/modules/programs/programs-rules.js';
@@ -26,6 +27,7 @@ import {
   seedDefaultTasksIn,
 } from '../src/modules/programs/programs-seed.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { keepLegacyTargetsEngine } from './helpers/d281.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, findOperation, openapi } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -217,7 +219,8 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
   const expected = async (u: TestUser, day: string, band: number, host: boolean) => {
     const rows = await ctx.prisma.taskDefinition.findMany({ where: { pool: true, enabled: true } });
     return assignDailyTasks(
-      rows.map((t) => ({
+      // D281: its templates belong to the smart engine only.
+      rows.filter((t) => !D281_POOL_TASKS.includes(t.code)).map((t) => ({
         code: t.code,
         group: t.poolGroup!,
         audience: t.audience,
@@ -244,6 +247,8 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
         { token: Clock, value: clock },
       ],
     );
+    // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+    await keepLegacyTargetsEngine(ctx.prisma);
     await ctx.prisma.$transaction((tx) =>
       addGiftIn(tx, 'pool_rose', {
         category: 'POPULAR',

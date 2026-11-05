@@ -14,6 +14,7 @@ import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provid
 import { EventsService } from '../src/modules/programs/events.service.js';
 import { seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
 import { creditIn, debitIn } from '../src/modules/wallet/wallet-ledger.js';
+import { keepLegacyTargetsEngine } from './helpers/d281.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -193,6 +194,8 @@ describe('D166 Me hub programs', { timeout: 240_000 }, () => {
         { token: Clock, value: clock },
       ],
     );
+    // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+    await keepLegacyTargetsEngine(ctx.prisma);
     await ctx.prisma.$transaction((tx) =>
       addGiftIn(tx, 'prog_rose', {
         category: 'POPULAR',

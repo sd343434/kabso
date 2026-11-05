@@ -151,6 +151,11 @@ export const CAPABILITIES = {
   'pk_dares.view': ['OWNER'],
   /** Add, edit, disable / enable, import, clear reports; the PK points and dare settings. D274: OWNER only. */
   'pk_dares.edit': ['OWNER'],
+  // ---- v1.71-live (D281, CONVENTIONS §10.62.2): «الأهداف الذكية» -----------------------------------------------------
+  /** The smart targets' knobs, the catalogues' size and a host's targets with the reasons (read; the host read audited). */
+  'host_targets.view': ['OWNER'],
+  /** Change the knobs (the percentiles, the reward shares, the no-repeat days…); audited with a reason. */
+  'host_targets.edit': ['OWNER'],
   // ---- v1.60-live (D250, CONVENTIONS §10.91): live moderation «مراقبة البث» ---------------------------------------------
   /** Watch a live as a hidden observer (muted card previews and the watch view); every token audited. */
   'lives.watch': ['OWNER', 'MODERATION', 'SUPPORT'],

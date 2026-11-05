@@ -12,6 +12,7 @@ import { creditTaskCherriesIn } from '../src/modules/economy/cherry-ledger.js';
 import { dateValue } from '../src/modules/programs/programs-time.js';
 import { seedDefaultTasksIn } from '../src/modules/programs/programs-seed.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { keepLegacyTargetsEngine } from './helpers/d281.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { expectContract, openapi } from './helpers/openapi.js';
@@ -170,6 +171,8 @@ describe('D184 task rewards in cherries', { timeout: 240_000 }, () => {
       },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
+    // D281: these rules are the engine before the smart targets and tasks (the switch day and before).
+    await keepLegacyTargetsEngine(ctx.prisma);
     expect(await seedDefaultTasksIn(ctx.prisma)).toBe(7); // D199: + «استقبل هدايا الحظ»
     for (let i = 0; i < 10; i++) targets.push(await signup());
     targets = [...targets];

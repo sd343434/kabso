@@ -56,6 +56,7 @@ import { HomeModule } from './modules/home/home.module.js';
 import { HostApplicationsModule } from './modules/host-applications/host-applications.module.js';
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
 import { PkDaresAdminModule } from './modules/live/pk-dares/pk-dares-admin.module.js';
+import { ProgramsAdminModule } from './modules/programs/admin-host-targets.controller.js';
 import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
 import { ClockModule } from './common/time/clock.js';
 import { ConsentGuard } from './modules/privacy/consents.service.js';
@@ -133,6 +134,8 @@ export class AppModule {
         ReferralsModule,
         // v1.50-live (D229): «أحكام PK».
         PkDaresAdminModule,
+        // v1.71-live (D281): «الأهداف الذكية» (OWNER only).
+        ProgramsAdminModule,
         RechargeModule,
         // v1.59-social (DRAFT, D190): card top-ups on the website through Stripe; v1.64-social (DRAFT, D196): the
         // keys and options from the admin panel «الدفع (Stripe)» (over the env).

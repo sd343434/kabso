@@ -397,6 +397,26 @@ export function taskRewardReference(taskCode: string, periodStart: string): stri
 }
 
 /**
+ * v1.71-live (D281, CONVENTIONS §10.62.2): a completed smart host target's profit-share reward — `cherries` (> 0) as
+ * one `HOST_TARGET_REWARD` row, reference `HT:<level>@<day>`, so the ledger itself allows one payment per host, level
+ * and day (a second one fails on `cherry_ledger_reference_once`). Locked like task rewards ({@link taskCherryLockIn}).
+ */
+export async function creditHostTargetCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  reference: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'HOST_TARGET_REWARD', delta: cherries }], reference, now);
+}
+
+/** The ledger reference of a host target's reward: one per host, level and day. */
+export function hostTargetRewardReference(level: string, day: string): string {
+  return `HT:${level}@${day}`;
+}
+
+/**
  * v1.53-social (D184, §10.46.1): the person's task-cherry lock now — the sums of their `TASK_REWARD` rows
  * and their gift cherries (GIFT_RECEIVED + GIFT_REVERSAL) through `taskCherryLock` (the owner's $50 rule).
  */
@@ -405,11 +425,13 @@ export async function taskCherryLockIn(
   userId: string,
   rules: { taskCherriesUnlockGiftMinor: number; rateCherries: number; rateMinor: number },
 ): Promise<TaskCherryLock> {
+  // v1.71-live (D281): the smart host targets' rewards (HOST_TARGET_REWARD) are locked by the same rule.
   const [row] = await db.$queryRaw<{ task: bigint; gift: bigint }[]>`
-    SELECT COALESCE(sum(delta) FILTER (WHERE reason = 'TASK_REWARD'), 0)::bigint AS task,
+    SELECT COALESCE(sum(delta) FILTER (WHERE reason IN ('TASK_REWARD', 'HOST_TARGET_REWARD')), 0)::bigint AS task,
            COALESCE(sum(delta) FILTER (WHERE reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')), 0)::bigint AS gift
       FROM cherry_ledger
-     WHERE user_id = ${userId}::uuid AND reason IN ('TASK_REWARD', 'GIFT_RECEIVED', 'GIFT_REVERSAL')`;
+     WHERE user_id = ${userId}::uuid
+       AND reason IN ('TASK_REWARD', 'HOST_TARGET_REWARD', 'GIFT_RECEIVED', 'GIFT_REVERSAL')`;
   return taskCherryLock(
     row?.task ?? 0n,
     row?.gift ?? 0n,
