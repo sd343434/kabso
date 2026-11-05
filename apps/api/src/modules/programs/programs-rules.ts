@@ -43,6 +43,16 @@ export const TASK_METRICS = [
   // from other ACTIVE people; «هدف هدايا الحظ»: lucky gifts only, the caller's own sends to themself too.
   'HOST_GIFT_CHERRIES',
   'HOST_LUCKY_CHERRIES',
+  // v1.85-social (D281): the generated catalogue's new measurable actions — a chosen gift (`subject` = its code)
+  // or a gift category (`subject` = its code) sent (quantity, paid, to other ACTIVE people); different ACTIVE
+  // people gifted; joining a family; family chat messages; PK battles started and won (hosts).
+  'GIFT_COUNT_SENT',
+  'CATEGORY_GIFTS_SENT',
+  'GIFTED_HOSTS',
+  'FAMILY_JOIN',
+  'FAMILY_CHAT_MESSAGES',
+  'PK_BATTLES',
+  'PK_WINS',
 ] as const;
 
 /**
@@ -350,6 +360,17 @@ export const HOST_LUCKY_TARGET_TASK = 'HOST_LUCKY_COINS';
 export function cherriesForCoins(coins: number, cherriesPerCoin: number, shareBps: number): number {
   return Math.floor((coins * cherriesPerCoin * shareBps) / 10_000);
 }
+
+/** v1.85-social (D281): the pool templates migration 20270314090100_host_target_engine seeds. */
+export const D281_POOL_TASKS: readonly string[] = [
+  'P_SEND_GIFT_OF',
+  'P_SEND_CATEGORY',
+  'P_GIFT_HOSTS',
+  'P_FAMILY_JOIN',
+  'P_FAMILY_CHAT',
+  'P_PK_BATTLES',
+  'P_PK_WINS',
+];
 
 // ---- The daily task pool (v1.50-social, D176, CONVENTIONS §10.41.1) ---------------------------
 
@@ -711,5 +732,86 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     nameAr: 'اقبل ضيفاً على مقعد',
     nameEn: 'Accept a guest on a seat',
     sortOrder: 720,
+  },
+  // v1.85-social (D281, owner: «أكثر من 100 ألف مهمة متنوعة»): new templates the generated catalogue multiplies
+  // by amounts, windows, gifts and categories (task-catalogue.ts). A chosen gift / a category: the band target
+  // is a COIN VALUE (the count = that value in the gift's price) and the reward follows D188's rate (0.1 cherry
+  // per coin, as «أرسل هدايا»); the other new actions pay the symbolic 300 → 1 000 (hosts as their host tasks).
+  {
+    code: 'P_SEND_GIFT_OF',
+    metric: 'GIFT_COUNT_SENT',
+    group: 'GIFT',
+    audience: 'EVERYONE',
+    bandTargets: [5_000, 10_000, 25_000, 50_000],
+    bandRewards: [500, 1_000, 2_500, 5_000],
+    nameAr: 'أرسل هدية محددة',
+    nameEn: 'Send a chosen gift',
+    sortOrder: 430,
+  },
+  {
+    code: 'P_SEND_CATEGORY',
+    metric: 'CATEGORY_GIFTS_SENT',
+    group: 'GIFT',
+    audience: 'EVERYONE',
+    bandTargets: [5_000, 10_000, 25_000, 50_000],
+    bandRewards: [500, 1_000, 2_500, 5_000],
+    nameAr: 'أرسل هدايا من فئة',
+    nameEn: 'Send gifts from a category',
+    sortOrder: 440,
+  },
+  {
+    code: 'P_GIFT_HOSTS',
+    metric: 'GIFTED_HOSTS',
+    group: 'GIFT',
+    audience: 'EVERYONE',
+    bandTargets: [1, 2, 3, 5],
+    bandRewards: [300, 500, 750, 1_000],
+    nameAr: 'أهدِ أشخاصاً مختلفين',
+    nameEn: 'Gift different people',
+    sortOrder: 450,
+  },
+  {
+    code: 'P_FAMILY_JOIN',
+    metric: 'FAMILY_JOIN',
+    group: 'SOCIAL',
+    audience: 'EVERYONE',
+    bandTargets: [1, 1, 1, 1],
+    bandRewards: [300, 500, 750, 1_000],
+    nameAr: 'انضم إلى عائلة',
+    nameEn: 'Join a family',
+    sortOrder: 320,
+  },
+  {
+    code: 'P_FAMILY_CHAT',
+    metric: 'FAMILY_CHAT_MESSAGES',
+    group: 'SOCIAL',
+    audience: 'EVERYONE',
+    bandTargets: [3, 5, 10, 20],
+    bandRewards: [300, 500, 750, 1_000],
+    nameAr: 'دردش في عائلتك',
+    nameEn: 'Chat in your family',
+    sortOrder: 330,
+  },
+  {
+    code: 'P_PK_BATTLES',
+    metric: 'PK_BATTLES',
+    group: 'HOST',
+    audience: 'HOSTS',
+    bandTargets: [1, 2, 3, 5],
+    bandRewards: [2_000, 3_000, 4_000, 6_000],
+    nameAr: 'ادخل معارك PK',
+    nameEn: 'Enter PK battles',
+    sortOrder: 730,
+  },
+  {
+    code: 'P_PK_WINS',
+    metric: 'PK_WINS',
+    group: 'HOST',
+    audience: 'HOSTS',
+    bandTargets: [1, 1, 2, 3],
+    bandRewards: [3_000, 4_000, 6_000, 8_000],
+    nameAr: 'اربح معارك PK',
+    nameEn: 'Win PK battles',
+    sortOrder: 740,
   },
 ];

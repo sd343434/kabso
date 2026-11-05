@@ -234,11 +234,21 @@ describe('D166 check-in rules', () => {
       'HOST_GIFT_COINS',
     ]);
     // D199 (v1.44-live): the lucky gifts received.
-    expect(TASK_METRICS).toHaveLength(22);
-    expect(TASK_METRICS.at(-4)).toBe('GIFT_COINS_SENT');
-    expect(TASK_METRICS.at(-3)).toBe('HOST_LUCKY_COINS');
+    expect(TASK_METRICS).toHaveLength(29);
+    expect(TASK_METRICS.at(-11)).toBe('GIFT_COINS_SENT');
+    expect(TASK_METRICS.at(-10)).toBe('HOST_LUCKY_COINS');
     // D277 (v1.69-live): the host's targets in cherries.
-    expect(TASK_METRICS.slice(-2)).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
+    expect(TASK_METRICS.slice(-9, -7)).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
+    // D281 (v1.85-social): the generated catalogue's new actions.
+    expect(TASK_METRICS.slice(-7)).toEqual([
+      'GIFT_COUNT_SENT',
+      'CATEGORY_GIFTS_SENT',
+      'GIFTED_HOSTS',
+      'FAMILY_JOIN',
+      'FAMILY_CHAT_MESSAGES',
+      'PK_BATTLES',
+      'PK_WINS',
+    ]);
     expect(isTaskMetric('FOLLOWS')).toBe(true);
     expect(isTaskMetric('SHARES')).toBe(false);
   });

@@ -226,6 +226,8 @@ model User {
   // v1.44-social (D166): the Me hub's programs.
   taskClaims             TaskClaim[]
   taskAssignments        TaskAssignment[]
+  /// v1.71-live (D281): the host's smart daily targets.
+  hostTargetAssignments  HostTargetAssignment[]
   dailyCheckIns          DailyCheckIn[]
   eventResults           EventResult[]
   // v1.52-social (D179): the cherry economy.
@@ -3761,6 +3763,16 @@ model TaskAssignment {
   rewardCherries Int      @map("reward_cherries")
   position       Int      @db.SmallInt
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// v1.85-social (D281): the generated variant (`K.<template>.<subject|*>.<amount>.<from>-<to>`; its amount is
+  /// `target`), its gift or category, its window of the day (minutes; null = the whole day), its resolved names
+  /// and the reasons of the smart assignment. Null on rows before D281 (the template itself, the whole day).
+  variant        String?  @db.VarChar(120)
+  subject        String?  @db.VarChar(40)
+  windowFrom     Int?     @map("window_from") @db.SmallInt
+  windowTo       Int?     @map("window_to") @db.SmallInt
+  nameAr         String?  @map("name_ar") @db.VarChar(160)
+  nameEn         String?  @map("name_en") @db.VarChar(160)
+  reason         Json?    @db.JsonB
 
   user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   task TaskDefinition @relation(fields: [taskCode], references: [code], onDelete: Cascade)
@@ -3768,7 +3780,65 @@ model TaskAssignment {
   @@id([userId, day, taskCode], map: "task_assignments_pkey")
   @@index([taskCode], map: "task_assignments_task_idx")
   @@index([day], map: "task_assignments_day_idx")
+  @@index([userId, day(sort: Desc)], map: "task_assignments_user_day_idx")
   @@map("task_assignments")
+}
+
+/// v1.71-live (D281, CONVENTIONS §10.62.2): the owner's knobs of the smart targets and tasks (one row, id 1;
+/// OWNER only in the panel, audited `host_targets.settings.update`). CHECK `host_target_settings_shape`.
+model HostTargetSettings {
+  id               Int       @id @default(1) @db.SmallInt
+  easyPercentile   Int       @default(50) @map("easy_percentile") @db.SmallInt
+  mediumPercentile Int       @default(75) @map("medium_percentile") @db.SmallInt
+  hardPercentile   Int       @default(90) @map("hard_percentile") @db.SmallInt
+  easyRewardBps    Int       @default(150) @map("easy_reward_bps")
+  mediumRewardBps  Int       @default(250) @map("medium_reward_bps")
+  hardRewardBps    Int       @default(400) @map("hard_reward_bps")
+  noRepeatDays     Int       @default(7) @map("no_repeat_days") @db.SmallInt
+  taskNoRepeatDays Int       @default(3) @map("task_no_repeat_days") @db.SmallInt
+  historyDays      Int       @default(30) @map("history_days") @db.SmallInt
+  completionShift  Int       @default(10) @map("completion_shift") @db.SmallInt
+  /// The first day of the smart engine (null until the API's first read sets it to the next day).
+  engineFrom       DateTime? @map("engine_from") @db.Date
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById      String?   @map("updated_by_id") @db.Uuid
+
+  @@map("host_target_settings")
+}
+
+/// v1.71-live (D281): one of a host's three targets of a day (EASY / MEDIUM / HARD), fixed at the day's first read;
+/// `reward_cherries` is the reward shown (the level's share of the nominal profit); a completion pays at most that
+/// share of the actual profit counted, once (`paid_*`; cherry ledger HOST_TARGET_REWARD, reference `HT:<level>@<day>`).
+/// CHECK `host_target_assignments_shape`.
+model HostTargetAssignment {
+  userId           String    @map("user_id") @db.Uuid
+  day              DateTime  @db.Date
+  level            String    @db.VarChar(6)
+  code             String    @db.VarChar(120)
+  kind             String    @db.VarChar(20)
+  subject          String?   @db.VarChar(40)
+  amount           BigInt
+  windowFrom       Int       @map("window_from") @db.SmallInt
+  windowTo         Int       @map("window_to") @db.SmallInt
+  expectedCoins    BigInt    @map("expected_coins")
+  rewardBps        Int       @map("reward_bps")
+  rewardCherries   BigInt    @map("reward_cherries")
+  titleAr          String    @map("title_ar") @db.VarChar(160)
+  titleEn          String    @map("title_en") @db.VarChar(160)
+  reason           Json      @db.JsonB
+  catalogueVersion String    @map("catalogue_version") @db.VarChar(16)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(3)
+  progress         BigInt?
+  profitMicrocents BigInt?   @map("profit_microcents")
+  paidCherries     BigInt?   @map("paid_cherries")
+  paidAt           DateTime? @map("paid_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day, level], map: "host_target_assignments_pkey")
+  @@index([day], map: "host_target_assignments_day_idx")
+  @@map("host_target_assignments")
 }
 
 /// D166: a task's reward, paid once per person, task and period (`task_claims_once`). Until v1.53-social
@@ -3895,6 +3965,9 @@ enum CherryLedgerReason {
   REFERRAL_REVERSAL
   /// D270 (§10.98): a store item bought with cherries (reference: the `store_purchases` row).
   STORE_PURCHASE
+  /// v1.71-live (D281): a completed smart host target's profit-share reward (reference `HT:<level>@<day>`), locked
+  /// for withdrawal and the store like TASK_REWARD (§10.46.1).
+  HOST_TARGET_REWARD
 
   @@map("cherry_ledger_reason")
 }

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  D281_POOL_TASKS,
   DEFAULT_POOL_TASKS,
   DEFAULT_TASK_POOL_BANDS,
   TASK_METRICS,
@@ -57,7 +58,9 @@ describe('the default pool and bands (D176)', () => {
     );
     // D176 seeded every template (in coins); D184 made the rewards cherries (×10, then ×300) and D188
     // (v1.57-social, owner) rebalanced them: 20261231130000_task_rewards_rebalance holds the values.
-    for (const t of DEFAULT_POOL_TASKS) expect(sql).toContain(`('${t.code}', 'DAILY', '`);
+    // D281 (v1.85-social): its new templates are seeded by 20270314090100_host_target_engine (checked below).
+    const d281 = (code: string) => D281_POOL_TASKS.includes(code);
+    for (const t of DEFAULT_POOL_TASKS) if (!d281(t.code)) expect(sql).toContain(`('${t.code}', 'DAILY', '`);
     const cherries = readFileSync(
       fileURLToPath(
         new URL('../../../prisma/migrations/20261231110000_task_cherries/migration.sql', import.meta.url),
@@ -84,7 +87,19 @@ describe('the default pool and bands (D176)', () => {
       ),
       'utf8',
     ).replace(/\s+/g, ' ');
+    const engine = readFileSync(
+      fileURLToPath(
+        new URL('../../../prisma/migrations/20270314090100_host_target_engine/migration.sql', import.meta.url),
+      ),
+      'utf8',
+    ).replace(/\s+/g, ' ');
     for (const t of DEFAULT_POOL_TASKS) {
+      if (d281(t.code)) {
+        expect(engine, t.code).toContain(
+          `('${t.code}', 'DAILY', '${t.metric}', ${String(Math.max(...t.bandTargets))}, ${String(Math.max(...t.bandRewards))}, '${t.audience}', '${t.nameAr}', '${t.nameEn}', ${String(t.sortOrder)}, true, '${t.group}', ARRAY[${t.bandTargets.join(', ')}], ARRAY[${t.bandRewards.join(', ')}])`,
+        );
+        continue;
+      }
       if (t.group === 'HOST') {
         expect(hostBands).toContain(`('${t.code}', ARRAY[${t.bandRewards.join(', ')}])`);
         const at = rebalance.indexOf(`('${t.code}',`);
