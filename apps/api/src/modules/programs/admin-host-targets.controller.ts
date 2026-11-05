@@ -7,7 +7,14 @@ import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js
 import { Clock } from '../../common/time/clock.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  DEFAULT_KINDS,
+  validNewHostDefaults,
+  type DefaultKind,
+  type NewHostDefaults,
+} from './host-target-engine.js';
 import type { AdminContext } from '../admin-panel/admin-auth.service.js';
 import { AdminPanelModule } from '../admin-panel/admin-panel.module.js';
 import { AdminSessionGuard, CurrentAdmin, RequireCapability } from '../admin-panel/admin-session.guard.js';
@@ -32,11 +39,31 @@ const knobs = {
 type Knob = keyof typeof knobs;
 const KNOBS = Object.keys(knobs) as Knob[];
 
+/** D281b: the OWNER's new-host defaults (every kind, 4 bands of [easy, medium, hard]); null = back to the code's. */
+const band = z.tuple([
+  z.number().int().min(1).max(1_000_000_000),
+  z.number().int().min(1).max(1_000_000_000),
+  z.number().int().min(1).max(1_000_000_000),
+]);
+const newHostDefaults = z
+  .strictObject(
+    Object.fromEntries(DEFAULT_KINDS.map((k) => [k, z.array(band).length(4)])) as Record<
+      DefaultKind,
+      z.ZodArray<typeof band>
+    >,
+  )
+  .refine((v) => validNewHostDefaults(v), { message: 'easy ≤ medium ≤ hard' })
+  .nullable();
+
 export const settingsBody = z
   .strictObject({
     ...Object.fromEntries(KNOBS.map((k) => [k, knobs[k].optional()])),
+    newHostDefaults: newHostDefaults.optional(),
     reason: z.string().trim().min(1).max(500),
-  } as { [K in Knob]: z.ZodOptional<(typeof knobs)[K]> } & { reason: z.ZodString })
+  } as { [K in Knob]: z.ZodOptional<(typeof knobs)[K]> } & {
+    newHostDefaults: z.ZodOptional<typeof newHostDefaults>;
+    reason: z.ZodString;
+  })
   .refine((v) => Object.keys(v).length > 1, { message: 'at least one change' });
 
 const dayQuery = z.strictObject({
@@ -76,7 +103,13 @@ export class AdminHostTargetsController {
     @Body(new ZodValidationPipe(settingsBody)) body: z.infer<typeof settingsBody>,
     @CurrentAdmin() admin: AdminContext,
   ): Promise<HostTargetSettingsDto> {
-    const { reason, ...patch } = body as { reason: string } & Partial<Record<Knob, number>>;
+    const {
+      reason,
+      newHostDefaults: defaults,
+      ...patch
+    } = body as { reason: string } & Partial<Record<Knob, number>> & {
+        newHostDefaults?: NewHostDefaults | null;
+      };
     const now = this.clock.now();
     const row = await this.prisma.$transaction(async (tx) => {
       const before = settingsDto(await this.targets.settings(tx));
@@ -92,9 +125,22 @@ export class AdminHostTargetsController {
       }
       const after = await tx.hostTargetSettings.update({
         where: { id: 1 },
-        data: { ...patch, updatedAt: now, updatedById: admin.userId },
+        data: {
+          ...patch,
+          ...(defaults === undefined
+            ? {}
+            : {
+                newHostDefaults:
+                  defaults === null ? Prisma.DbNull : (defaults as unknown as Prisma.InputJsonValue),
+              }),
+          updatedAt: now,
+          updatedById: admin.userId,
+        },
       });
-      const pick = (s: HostTargetSettingsDto) => Object.fromEntries(KNOBS.map((k) => [k, s[k]]));
+      const pick = (s: HostTargetSettingsDto) => ({
+        ...Object.fromEntries(KNOBS.map((k) => [k, s[k]])),
+        newHostDefaults: s.newHostDefaults,
+      });
       await tx.auditLog.create({
         data: {
           action: AuditAction.HOST_TARGET_SETTINGS_UPDATE,

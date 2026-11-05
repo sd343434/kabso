@@ -4,6 +4,8 @@ import {
   CHERRY_LADDER,
   DEFAULT_TARGET_TUNING,
   NEW_HOST_DEFAULTS,
+  trackOf,
+  validNewHostDefaults,
   assignHostTargets,
   cappedTargetReward,
   catalogueStats,
@@ -127,12 +129,16 @@ describe('D281 the target catalogue', () => {
     expect(n).toBeGreaterThan(100_000);
     const stats = catalogueStats(GIFTS);
     expect(stats.total).toBe(n);
-    // 19 paid gifts (the free quip never), 5 categories, 147 windows.
-    expect(stats).toMatchObject({ gifts: 19, categories: 5, windows: 147 });
+    // 15 paid gifts outside the lucky category (the free quip never), 4 lucky, 4 categories, 147 windows.
+    expect(stats).toMatchObject({ gifts: 15, luckyGifts: 4, categories: 4, windows: 147 });
     expect(stats.byKind.GIFT_CHERRIES).toBe(90 * 147);
-    expect(stats.byKind.GIFT_COUNT).toBe(19 * 40 * 147);
+    expect(stats.byKind.GIFT_COUNT).toBe(15 * 40 * 147);
+    // D281b: the lucky track has its own part of the catalogue (a count per lucky gift too).
+    expect(stats.byKind.LUCKY_GIFT_COUNT).toBe(4 * 40 * 147);
+    expect(stats.byTrack.LUCKY).toBe((90 + 4 * 40 + 40 + 20 + 20) * 147);
+    expect(stats.byTrack.GIFTS + stats.byTrack.LUCKY).toBe(stats.total);
     // The gift side alone and the kinds without a gift each make many thousands.
-    expect(catalogueStats([]).total).toBe((90 + 90 + 20 + 40 + 20) * 147);
+    expect(catalogueStats([]).total).toBe((90 + 20 + 40 + 20 + 90 + 40 + 20 + 20) * 147);
   });
 
   it('follows the gift catalogue: a gift added or switched off adds or removes its targets', () => {
@@ -366,15 +372,118 @@ describe('D281 the smart assignment', () => {
       }
     }
     expect(seen).toEqual(
-      new Set([
-        'GIFT_CHERRIES',
-        'LUCKY_CHERRIES',
-        'GIFT_COUNT',
-        'CATEGORY_COUNT',
-        'SUPPORTERS',
-        'GIFT_SENDS',
-        'COMBO',
-      ]),
+      new Set(['GIFT_CHERRIES', 'GIFT_COUNT', 'CATEGORY_COUNT', 'SUPPORTERS', 'GIFT_SENDS', 'COMBO']),
     );
+  });
+});
+
+describe('D281b the lucky track', () => {
+  /** Twenty days of lucky gifts: lucky cherries 10k … 200k, lucky sends, lucky supporters, a usual lucky gift. */
+  const luckyHost = () =>
+    Array.from({ length: 20 }, (_, i) =>
+      day(i, {
+        luckyCherries: (i + 1) * 10_000,
+        luckyCoins: (i + 1) * 10_000,
+        luckySends: 20 + i,
+        luckySupporters: 2 + (i % 3),
+        luckyCombo: 10 + i,
+        luckyQty: { luck_0: 15 + i },
+      }),
+    );
+
+  it('three lucky targets from the lucky history: only lucky kinds, HARD lucky cherries, deterministic', () => {
+    const p = profile(luckyHost());
+    const seed = targetSeed('host-1', '2027-01-31', 'LUCKY');
+    expect(seed).not.toBe(targetSeed('host-1', '2027-01-31'));
+    const a = assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, seed, 'LUCKY');
+    expect(a.map((x) => [x.track, x.level])).toEqual([
+      ['LUCKY', 'EASY'],
+      ['LUCKY', 'MEDIUM'],
+      ['LUCKY', 'HARD'],
+    ]);
+    for (const x of a) expect(trackOf(x.target.kind)).toBe('LUCKY');
+    expect(a[2]!.target.kind).toBe('LUCKY_CHERRIES');
+    expect(assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, seed, 'LUCKY')).toEqual(a);
+    // The same 1.5 / 2.5 / 4 % of the lucky profit (after the RTP).
+    expect(a.map((x) => x.rewardBps)).toEqual([150, 250, 400]);
+    const hard = a[2]!;
+    expect(hard.rewardCherries).toBe(
+      rewardCherriesFor(expectedProfitUnits('LUCKY_CHERRIES', hard.target.amount, 0, ECONOMY), 400, ECONOMY),
+    );
+    // Across many days every lucky kind shows up; never a gift kind.
+    const seen = new Set<string>();
+    for (let s2 = 0; s2 < 60; s2++) {
+      for (const x of assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, s2, 'LUCKY')) {
+        seen.add(x.target.kind);
+        if (x.target.kind === 'LUCKY_GIFT_COUNT') expect(x.target.subject).toBe('luck_0');
+      }
+    }
+    expect(seen).toEqual(
+      new Set(['LUCKY_CHERRIES', 'LUCKY_GIFT_COUNT', 'LUCKY_SENDS', 'LUCKY_SUPPORTERS', 'LUCKY_COMBO']),
+    );
+  });
+
+  it('the lucky levels sit on the lucky percentiles (p50 / p75 / p90) and the completion adjustment', () => {
+    const days = luckyHost().map((d) => ({
+      ...d,
+      luckySends: 0,
+      luckySupporters: 0,
+      luckyCombo: 0,
+      luckyQty: {},
+    }));
+    const a = assignHostTargets(profile(days), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 3, 'LUCKY');
+    expect(a.map((x) => x.reason.basis)).toEqual([105_000, 152_500, 181_000]);
+    expect(a.map((x) => x.target.amount)).toEqual([120_000, 180_000, 200_000]);
+    const always = assignHostTargets(
+      profile(days, { recentAssigned: 9, recentCompleted: 9 }),
+      GIFTS,
+      ECONOMY,
+      DEFAULT_TARGET_TUNING,
+      3,
+      'LUCKY',
+    );
+    expect(always[0]!.reason.percentile).toBe(60);
+  });
+
+  it('a host with gift history but no lucky history gets the lucky band defaults (OWNER-editable)', () => {
+    const p = profile(richHost().map((d) => ({ ...d, luckyCherries: 0 })));
+    const a = assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 1, 'LUCKY');
+    expect(a.map((x) => x.target.kind)).toEqual(['LUCKY_SENDS', 'LUCKY_SUPPORTERS', 'LUCKY_CHERRIES']);
+    expect(a.every((x) => x.reason.newHost)).toBe(true);
+    expect(a[2]!.target.amount).toBe(NEW_HOST_DEFAULTS.LUCKY_CHERRIES[1]![2]);
+    // The OWNER raised the defaults (real prices): the new values are used.
+    const raised = {
+      ...NEW_HOST_DEFAULTS,
+      LUCKY_CHERRIES: NEW_HOST_DEFAULTS.LUCKY_CHERRIES.map(([x, y, z]) => [x * 10, y * 10, z * 10] as const),
+    };
+    expect(validNewHostDefaults(raised)).toBe(true);
+    expect(validNewHostDefaults({ ...raised, GIFT_SENDS: [[3, 2, 1]] })).toBe(false);
+    const b = assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 1, 'LUCKY', raised);
+    expect(b[2]!.target.amount).toBe(1_200_000);
+    // The gifts track of the same host is unaffected (its own history).
+    const g = assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 1, 'GIFTS');
+    expect(g.every((x) => trackOf(x.target.kind) === 'GIFTS')).toBe(true);
+    expect(g[0]!.reason.newHost).toBe(false);
+  });
+
+  it('a gift count follows the gift’s CURRENT price: fewer of an expensive gift (owner: real prices will be higher)', () => {
+    const days = Array.from({ length: 10 }, (_, i) =>
+      day(i, { giftCherries: 650_000, giftCoins: 100_000, sends: 0, giftQty: { car_0: 50 } }),
+    );
+    // car_0 was cheap in the history; now it costs 50 000 coins: a day of 100 000 coins buys 2.
+    const expensive = GIFTS.map((g) => (g.code === 'car_0' ? { ...g, priceCoins: 50_000 } : g));
+    let counted = 0;
+    for (let s2 = 0; s2 < 40; s2++) {
+      for (const x of assignHostTargets(profile(days), expensive, ECONOMY, DEFAULT_TARGET_TUNING, s2)) {
+        if (x.target.kind !== 'GIFT_COUNT') continue;
+        counted += 1;
+        expect(x.target.amount).toBe(2);
+        expect(x.reason.priceCap).toBe(2);
+        expect(x.expectedCoins).toBe(100_000);
+      }
+    }
+    expect(counted).toBeGreaterThan(0);
+    // The ladders reach far beyond today's prices.
+    expect(CHERRY_LADDER.at(-1)).toBe(900_000_000);
   });
 });

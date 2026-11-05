@@ -11,6 +11,11 @@ import { giftArtUrl } from '../gifts/gift-art.js';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
 import {
+  NEW_HOST_DEFAULTS,
+  TARGET_TRACKS,
+  validNewHostDefaults,
+  type NewHostDefaults,
+  type TargetTrack,
   DEFAULT_TARGET_TUNING,
   TARGET_LEVELS,
   assignHostTargets,
@@ -39,8 +44,10 @@ import { addDays, dateValue, programWindowsIn } from './programs-time.js';
 type Tx = Prisma.TransactionClient;
 type Db = Tx | PrismaService;
 
-/** v1.71-live (D281) `HostDailyTarget`: one of a host's three targets of today. */
+/** v1.71-live (D281) `HostDailyTarget`: one of the host's targets of today (D281b: three per track). */
 export interface HostDailyTargetDto {
+  /** D281b: «الهدايا» (GIFTS) or «هدايا الحظ» (LUCKY). */
+  track: TargetTrack;
   level: TargetLevel;
   code: string;
   kind: TargetKind;
@@ -58,7 +65,7 @@ export interface HostDailyTargetDto {
   locked: true;
   /** The target's hours of the day (`HH:MM`), null for the whole day. */
   window: { from: string; to: string } | null;
-  /** The gift of a gift target (GIFT_COUNT, GIFT_COMBO), else null. */
+  /** The ONE gift a target is about (GIFT_COUNT, GIFT_COMBO, LUCKY_GIFT_COUNT; its current hosted art), else null. */
   gift: { code: string; name: string; assetKey: string; imageUrl: string | null } | null;
   /** The category of a CATEGORY_COUNT target, else null. */
   category: { code: string; name: string } | null;
@@ -84,6 +91,8 @@ interface SendRow {
 /** The settings row as the engine reads it. */
 export interface HostTargetSettingsDto extends TargetTuning {
   taskNoRepeatDays: number;
+  /** D281b: the new-host defaults in effect (the panel's, else the code's), per kind and band: [easy, medium, hard]. */
+  newHostDefaults: NewHostDefaults;
   engineFrom: string | null;
   updatedAt: string;
   updatedById: string | null;
@@ -101,26 +110,47 @@ export function settingsDto(row: HostTargetSettings): HostTargetSettingsDto {
     taskNoRepeatDays: row.taskNoRepeatDays,
     historyDays: row.historyDays,
     completionShift: row.completionShift,
+    newHostDefaults: newHostDefaultsOf(row),
     engineFrom: row.engineFrom?.toISOString().slice(0, 10) ?? null,
     updatedAt: row.updatedAt.toISOString(),
     updatedById: row.updatedById,
   };
 }
 
+/** D281b: the new-host defaults in effect — the OWNER's (`new_host_defaults`) when valid, else the code's. */
+export function newHostDefaultsOf(row: HostTargetSettings): NewHostDefaults {
+  return validNewHostDefaults(row.newHostDefaults) ? row.newHostDefaults : NEW_HOST_DEFAULTS;
+}
+
+/** Gifts first, then lucky; easy, medium, hard. */
+export function orderTargets<T extends { track: string; level: string }>(rows: readonly T[]): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      TARGET_TRACKS.indexOf(a.track as TargetTrack) - TARGET_TRACKS.indexOf(b.track as TargetTrack) ||
+      TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel),
+  );
+}
+
 /** Does `kind` count the send (the host's own sends count only for the lucky target, as D277)? */
 function counts(kind: TargetKind, subject: string | null, s: SendRow): boolean {
   switch (kind) {
-    case 'GIFT_CHERRIES':
-      return !s.lucky && !s.self;
+    // D281b: the lucky track — lucky gifts only, the host's own sends included (never as a supporter).
     case 'LUCKY_CHERRIES':
+    case 'LUCKY_SENDS':
+    case 'LUCKY_COMBO':
       return s.lucky;
+    case 'LUCKY_GIFT_COUNT':
+      return s.lucky && s.giftCode === subject;
+    case 'LUCKY_SUPPORTERS':
+      return s.lucky && !s.self;
+    // The gifts track — gifts outside the lucky category from other people.
     case 'GIFT_COUNT':
     case 'GIFT_COMBO':
-      return !s.self && s.giftCode === subject;
+      return !s.lucky && !s.self && s.giftCode === subject;
     case 'CATEGORY_COUNT':
-      return !s.self && s.category === subject;
+      return !s.lucky && !s.self && s.category === subject;
     default:
-      return !s.self;
+      return !s.lucky && !s.self;
   }
 }
 
@@ -131,9 +161,11 @@ export function progressOf(kind: TargetKind, rows: readonly SendRow[]): number {
     case 'LUCKY_CHERRIES':
       return Number(rows.reduce((a, r) => a + r.cherries, 0n));
     case 'SUPPORTERS':
+    case 'LUCKY_SUPPORTERS':
       return new Set(rows.map((r) => r.senderId)).size;
     case 'COMBO':
     case 'GIFT_COMBO':
+    case 'LUCKY_COMBO':
       return rows.reduce((a, r) => Math.max(a, r.combo), 0);
     default:
       return rows.reduce((a, r) => a + r.quantity, 0);
@@ -313,7 +345,7 @@ export class HostTargetsService {
     day: string,
     dayStart: Date,
     tuning: TargetTuning,
-  ): Promise<HostProfile> {
+  ): Promise<Record<TargetTrack, HostProfile>> {
     const from = new Date(dayStart.getTime() - tuning.historyDays * 86_400_000);
     const zone = this.zone;
     const [sendRows, supporters, rooms, viewers, recent, codes, band] = await Promise.all([
@@ -345,14 +377,16 @@ export class HostTargetsService {
          WHERE gr.user_id = ${host}::uuid
            AND g.created_at >= ${from}::timestamptz AND g.created_at < ${dayStart}::timestamptz
          GROUP BY 1, 2, 3, 4, 5`,
-      db.$queryRaw<{ d: string; n: number }[]>`
-        SELECT to_char((g.created_at AT TIME ZONE ${zone})::date, 'YYYY-MM-DD') AS d, count(DISTINCT g.sender_id)::int AS n
+      db.$queryRaw<{ d: string; lucky: boolean; n: number }[]>`
+        SELECT to_char((g.created_at AT TIME ZONE ${zone})::date, 'YYYY-MM-DD') AS d,
+               EXISTS (SELECT 1 FROM lucky_gift_draws ld WHERE ld.gift_id = g.id) AS lucky,
+               count(DISTINCT g.sender_id)::int AS n
           FROM live_gift_recipients gr
           JOIN live_gifts g ON g.id = gr.gift_id
           JOIN users s ON s.id = g.sender_id AND s.status = 'ACTIVE'
          WHERE gr.user_id = ${host}::uuid AND g.sender_id <> ${host}::uuid
            AND g.created_at >= ${from}::timestamptz AND g.created_at < ${dayStart}::timestamptz
-         GROUP BY 1`,
+         GROUP BY 1, 2`,
       db.$queryRaw<{ start: Date; end: Date }[]>`
         SELECT GREATEST(r.started_at, ${from}::timestamptz) AS start,
                LEAST(COALESCE(r.ended_at, r.last_heartbeat_at), ${dayStart}::timestamptz) AS "end"
@@ -366,11 +400,12 @@ export class HostTargetsService {
            WHERE r.host_user_id = ${host}::uuid AND r.started_at >= ${from}::timestamptz
              AND r.started_at < ${dayStart}::timestamptz
            GROUP BY r.id) x`,
-      db.$queryRaw<{ assigned: number; completed: number }[]>`
-        SELECT count(*)::int AS assigned, count(*) FILTER (WHERE completed_at IS NOT NULL)::int AS completed
+      db.$queryRaw<{ track: string; assigned: number; completed: number }[]>`
+        SELECT track, count(*)::int AS assigned, count(*) FILTER (WHERE completed_at IS NOT NULL)::int AS completed
           FROM host_target_assignments
          WHERE user_id = ${host}::uuid AND day < ${day}::date
-           AND day >= ${addDays(day, -Math.max(1, Math.floor(tuning.historyDays / 2)))}::date`,
+           AND day >= ${addDays(day, -Math.max(1, Math.floor(tuning.historyDays / 2)))}::date
+         GROUP BY track`,
       db.hostTargetAssignment.findMany({
         where: {
           userId: host,
@@ -392,6 +427,10 @@ export class HostTargetsService {
         combo: number;
         hour: number[];
         qty: Record<string, number>;
+        lsends: number;
+        lcombo: number;
+        lhour: number[];
+        lqty: Record<string, number>;
         minutes: number;
         hourMinutes: number[];
       }
@@ -408,6 +447,10 @@ export class HostTargetsService {
           combo: 0,
           hour: new Array<number>(24).fill(0),
           qty: {},
+          lsends: 0,
+          lcombo: 0,
+          lhour: new Array<number>(24).fill(0),
+          lqty: {},
           minutes: 0,
           hourMinutes: new Array<number>(24).fill(0),
         };
@@ -418,15 +461,18 @@ export class HostTargetsService {
     for (const r of sendRows) {
       const v = at(r.d);
       const cherries = Number(r.cherries);
+      // D281b: the lucky side (the host's own sends included) and the gifts side (others, outside the lucky category).
       if (r.lucky) {
         v.lc += cherries;
         v.lco += Number(r.coins);
+        v.lhour[r.h] = (v.lhour[r.h] ?? 0) + cherries;
+        v.lsends += Number(r.qty);
+        v.lcombo = Math.max(v.lcombo, Number(r.combo));
+        v.lqty[r.gift_code] = (v.lqty[r.gift_code] ?? 0) + Number(r.qty);
       } else if (!r.self) {
         v.gc += cherries;
         v.gco += Number(r.coins);
-      }
-      if (r.lucky || !r.self) v.hour[r.h] = (v.hour[r.h] ?? 0) + cherries;
-      if (!r.self) {
+        v.hour[r.h] = (v.hour[r.h] ?? 0) + cherries;
         v.sends += Number(r.qty);
         v.combo = Math.max(v.combo, Number(r.combo));
         v.qty[r.gift_code] = (v.qty[r.gift_code] ?? 0) + Number(r.qty);
@@ -456,9 +502,10 @@ export class HostTargetsService {
         t = next;
       }
     }
-    const sup = new Map(supporters.map((s) => [s.d, s.n]));
+    const sup = new Map(supporters.filter((s) => !s.lucky).map((s) => [s.d, s.n]));
+    const lsup = new Map(supporters.filter((s) => s.lucky).map((s) => [s.d, s.n]));
     const days: HostDay[] = [...byDay.entries()]
-      .filter(([, v]) => v.minutes > 0 || v.gc + v.lc + v.sends > 0)
+      .filter(([, v]) => v.minutes > 0 || v.gc + v.lc + v.sends + v.lsends > 0)
       .sort((a, b) => (a[0] < b[0] ? 1 : -1))
       .map(([d, v]) => ({
         day: d,
@@ -472,15 +519,31 @@ export class HostTargetsService {
         liveMinutes: Math.round(v.minutes),
         hourCherries: v.hour,
         giftQty: v.qty,
+        luckySends: v.lsends,
+        luckySupporters: lsup.get(d) ?? 0,
+        luckyCombo: v.lcombo,
+        luckyHourCherries: v.lhour,
+        luckyQty: v.lqty,
       }));
-    return {
+    const base = {
       band,
       days,
       liveHourMinutes,
       avgViewers: viewers[0]?.v ?? 0,
-      recentAssigned: recent[0]?.assigned ?? 0,
-      recentCompleted: recent[0]?.completed ?? 0,
       recentCodes: codes.map((c) => c.code),
+    };
+    const of = (t: TargetTrack) => recent.find((r) => r.track === t);
+    return {
+      GIFTS: {
+        ...base,
+        recentAssigned: of('GIFTS')?.assigned ?? 0,
+        recentCompleted: of('GIFTS')?.completed ?? 0,
+      },
+      LUCKY: {
+        ...base,
+        recentAssigned: of('LUCKY')?.assigned ?? 0,
+        recentCompleted: of('LUCKY')?.completed ?? 0,
+      },
     };
   }
 
@@ -490,19 +553,18 @@ export class HostTargetsService {
    */
   async assignmentsFor(db: Db, host: string, day: string, dayStart: Date): Promise<HostTargetAssignment[]> {
     const where = { userId: host, day: dateValue(day) };
-    const order = (rows: HostTargetAssignment[]) =>
-      [...rows].sort(
-        (a, b) =>
-          TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel),
-      );
     const existing = await db.hostTargetAssignment.findMany({ where });
-    if (existing.length > 0) return order(existing);
+    if (existing.length > 0) return orderTargets(existing);
     const settings = await this.settings(db);
     const tuning = this.tuningOf(settings);
     const gifts = await this.catalogueGifts(db);
-    const profile = await this.profileOf(db, host, day, dayStart, tuning);
+    const profiles = await this.profileOf(db, host, day, dayStart, tuning);
     const e = this.economy();
-    const picks = assignHostTargets(profile, gifts, e, tuning, targetSeed(host, day));
+    const defaults = newHostDefaultsOf(settings);
+    // D281b: three gift targets and three lucky targets, each track from its own history.
+    const picks = TARGET_TRACKS.flatMap((track) =>
+      assignHostTargets(profiles[track], gifts, e, tuning, targetSeed(host, day, track), track, defaults),
+    );
     const giftBy = new Map(gifts.map((g) => [g.code, g]));
     const categories = await db.giftCategory.findMany({ select: { code: true, nameAr: true, nameEn: true } });
     const catBy = new Map(categories.map((c) => [c.code, c]));
@@ -520,6 +582,7 @@ export class HostTargetsService {
         return {
           userId: host,
           day: dateValue(day),
+          track: p.track,
           level: p.level,
           code: p.target.code,
           kind: p.target.kind,
@@ -538,7 +601,7 @@ export class HostTargetsService {
       }),
       skipDuplicates: true,
     });
-    return order(await db.hostTargetAssignment.findMany({ where }));
+    return orderTargets(await db.hostTargetAssignment.findMany({ where }));
   }
 
   /**
@@ -567,15 +630,18 @@ export class HostTargetsService {
       return await this.prisma.$transaction(async (tx) => {
         const [locked] = await tx.$queryRaw<{ paid: boolean }[]>`
           SELECT paid_at IS NOT NULL AS paid FROM host_target_assignments
-           WHERE user_id = ${a.userId}::uuid AND day = ${day}::date AND level = ${a.level} FOR UPDATE`;
+           WHERE user_id = ${a.userId}::uuid AND day = ${day}::date AND track = ${a.track}
+             AND level = ${a.level} FOR UPDATE`;
         if (!locked || locked.paid) {
           return tx.hostTargetAssignment.findUniqueOrThrow({
-            where: { userId_day_level: { userId: a.userId, day: a.day, level: a.level } },
+            where: {
+              userId_day_track_level: { userId: a.userId, day: a.day, track: a.track, level: a.level },
+            },
           });
         }
         const microcents = profit / BigInt(e.rateCherries);
         const row = await tx.hostTargetAssignment.update({
-          where: { userId_day_level: { userId: a.userId, day: a.day, level: a.level } },
+          where: { userId_day_track_level: { userId: a.userId, day: a.day, track: a.track, level: a.level } },
           data: {
             completedAt: now,
             progress: BigInt(progress),
@@ -589,7 +655,7 @@ export class HostTargetsService {
             tx,
             a.userId,
             BigInt(pay),
-            hostTargetRewardReference(a.level, day),
+            hostTargetRewardReference(a.track, a.level, day),
             now,
           );
         }
@@ -598,10 +664,11 @@ export class HostTargetsService {
             action: AuditAction.HOST_TARGET_REWARD,
             actorUserId: null,
             targetType: 'host_target',
-            targetId: `${a.userId.slice(0, 36)}:${a.level}`.slice(0, 64),
+            targetId: `${a.userId.slice(0, 36)}:${a.track}:${a.level}`.slice(0, 64),
             metadata: {
               host: a.userId,
               day,
+              track: a.track,
               level: a.level,
               code: a.code,
               amount: Number(a.amount),
@@ -621,7 +688,7 @@ export class HostTargetsService {
       if (index === null || !index.includes('cherry_ledger_reference_once')) throw err;
       this.logger.warn(`host target ${a.level}@${day} of ${a.userId} was paid by a concurrent read`);
       return this.prisma.hostTargetAssignment.findUniqueOrThrow({
-        where: { userId_day_level: { userId: a.userId, day: a.day, level: a.level } },
+        where: { userId_day_track_level: { userId: a.userId, day: a.day, track: a.track, level: a.level } },
       });
     }
   }
@@ -680,9 +747,13 @@ export class HostTargetsService {
       const rows = this.counted(a0, sends);
       const progress = progressOf(kind, rows);
       const a = await this.payIfReached(a0, progress, rows);
-      const g = kind === 'GIFT_COUNT' || kind === 'GIFT_COMBO' ? gifts.get(a.subject ?? '') : undefined;
+      const g =
+        kind === 'GIFT_COUNT' || kind === 'GIFT_COMBO' || kind === 'LUCKY_GIFT_COUNT'
+          ? gifts.get(a.subject ?? '')
+          : undefined;
       const c = kind === 'CATEGORY_COUNT' ? cats.get(a.subject ?? '') : undefined;
       out.push({
+        track: a.track as TargetTrack,
         level: a.level as TargetLevel,
         code: a.code,
         kind,
@@ -728,32 +799,28 @@ export class HostTargetsService {
     const windows = await programWindowsIn(this.prisma, new Date(`${day}T12:00:00.000Z`), this.zone);
     const sends =
       rows.length > 0 ? await this.sendsIn(this.prisma, host, windows.day.start, windows.day.end) : [];
-    return rows
-      .sort(
-        (a, b) =>
-          TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel),
-      )
-      .map((a) => {
-        const counted = this.counted(a, sends);
-        return {
-          level: a.level,
-          code: a.code,
-          kind: a.kind,
-          subject: a.subject,
-          titleAr: a.titleAr,
-          titleEn: a.titleEn,
-          amount: Number(a.amount),
-          progress: progressOf(a.kind as TargetKind, counted),
-          window: this.windowDto(a.windowFrom, a.windowTo),
-          expectedCoins: Number(a.expectedCoins),
-          rewardBps: a.rewardBps,
-          rewardCherries: Number(a.rewardCherries),
-          paidCherries: a.paidCherries === null ? null : Number(a.paidCherries),
-          paidAt: a.paidAt?.toISOString() ?? null,
-          profitUsd: a.profitMicrocents === null ? null : Number(a.profitMicrocents) / 100_000_000,
-          catalogueVersion: a.catalogueVersion,
-          reason: a.reason,
-        };
-      });
+    return orderTargets(rows).map((a) => {
+      const counted = this.counted(a, sends);
+      return {
+        track: a.track,
+        level: a.level,
+        code: a.code,
+        kind: a.kind,
+        subject: a.subject,
+        titleAr: a.titleAr,
+        titleEn: a.titleEn,
+        amount: Number(a.amount),
+        progress: progressOf(a.kind as TargetKind, counted),
+        window: this.windowDto(a.windowFrom, a.windowTo),
+        expectedCoins: Number(a.expectedCoins),
+        rewardBps: a.rewardBps,
+        rewardCherries: Number(a.rewardCherries),
+        paidCherries: a.paidCherries === null ? null : Number(a.paidCherries),
+        paidAt: a.paidAt?.toISOString() ?? null,
+        profitUsd: a.profitMicrocents === null ? null : Number(a.profitMicrocents) / 100_000_000,
+        catalogueVersion: a.catalogueVersion,
+        reason: a.reason,
+      };
+    });
   }
 }

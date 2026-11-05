@@ -3798,6 +3798,8 @@ model HostTargetSettings {
   taskNoRepeatDays Int       @default(3) @map("task_no_repeat_days") @db.SmallInt
   historyDays      Int       @default(30) @map("history_days") @db.SmallInt
   completionShift  Int       @default(10) @map("completion_shift") @db.SmallInt
+  /// D281b: the OWNER's new-host defaults {kind: [[easy, medium, hard] × 4 bands]}; null = the code's.
+  newHostDefaults  Json?     @map("new_host_defaults") @db.JsonB
   /// The first day of the smart engine (null until the API's first read sets it to the next day).
   engineFrom       DateTime? @map("engine_from") @db.Date
   updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
@@ -3813,6 +3815,8 @@ model HostTargetSettings {
 model HostTargetAssignment {
   userId           String    @map("user_id") @db.Uuid
   day              DateTime  @db.Date
+  /// D281b: GIFTS («الهدايا») or LUCKY («هدايا الحظ»); three levels each.
+  track            String    @default("GIFTS") @db.VarChar(6)
   level            String    @db.VarChar(6)
   code             String    @db.VarChar(120)
   kind             String    @db.VarChar(20)
@@ -3836,7 +3840,7 @@ model HostTargetAssignment {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([userId, day, level], map: "host_target_assignments_pkey")
+  @@id([userId, day, track, level], map: "host_target_assignments_pkey")
   @@index([day], map: "host_target_assignments_day_idx")
   @@map("host_target_assignments")
 }

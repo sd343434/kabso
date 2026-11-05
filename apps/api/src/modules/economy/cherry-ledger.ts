@@ -412,8 +412,9 @@ export async function creditHostTargetCherriesIn(
 }
 
 /** The ledger reference of a host target's reward: one per host, level and day. */
-export function hostTargetRewardReference(level: string, day: string): string {
-  return `HT:${level}@${day}`;
+export function hostTargetRewardReference(track: string, level: string, day: string): string {
+  // D281b: the gifts track keeps D281's `HT:<level>@<day>`; the lucky track is `HT:LUCKY:<level>@<day>`.
+  return track === 'LUCKY' ? `HT:LUCKY:${level}@${day}` : `HT:${level}@${day}`;
 }
 
 /**
