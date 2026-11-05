@@ -413,6 +413,15 @@ export interface AppConfig {
   readonly referrals: {
     readonly sweepIntervalSeconds: number;
   };
+  /**
+   * v1.75-live (D285, CONVENTIONS §10.96.13): recruitment by staff. The shares per type live in
+   * `staff_recruit_settings` (the panel); the daily commission job's interval (0 = off: tests; refused in production)
+   * and how many past days it catches up after a pause are server settings.
+   */
+  readonly recruits: {
+    readonly sweepIntervalSeconds: number;
+    readonly catchUpDays: number;
+  };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
     readonly graceDays: number;
@@ -877,6 +886,10 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     referrals: {
       sweepIntervalSeconds: e.REFERRAL_SWEEP_INTERVAL_SECONDS,
+    },
+    recruits: {
+      sweepIntervalSeconds: e.RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS,
+      catchUpDays: e.RECRUIT_COMMISSION_CATCH_UP_DAYS,
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,

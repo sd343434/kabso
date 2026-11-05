@@ -42,7 +42,7 @@ export function parseRole(raw: string): PanelRole {
   const v = raw.trim().toUpperCase();
   const role = v === 'MODERATOR' ? 'MODERATION' : v;
   if (!(PANEL_ROLES as readonly string[]).includes(role)) {
-    throw new AdminRoleError(`Unknown role ${raw}: one of OWNER, MODERATOR, SUPPORT, FINANCE.`);
+    throw new AdminRoleError(`Unknown role ${raw}: one of OWNER, MODERATOR, SUPPORT, FINANCE, BD.`);
   }
   return role as PanelRole;
 }

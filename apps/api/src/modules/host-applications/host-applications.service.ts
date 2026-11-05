@@ -20,6 +20,7 @@ import {
   hostApplicationPictureKey,
 } from './host-applications.core.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
+import { recruiterOfForm } from '../recruits/recruit-core.js';
 
 const DAY_MS = 86_400_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,6 +87,8 @@ export const hostingApplicationBodySchema = z.strictObject({
   /** v1.80-kyc (D227): required only while Didit is off (with Didit on, ignored: the identity check replaces them). */
   photoUploadId: z.string().regex(UUID).optional(),
   selfieUploadId: z.string().regex(UUID).optional(),
+  /** v1.75-live (D285): «إن كنت تابعاً لمشرف، ضع معرّفه هنا» — a staff ID or username (optional). */
+  recruiter: z.string().trim().max(64).optional(),
 });
 export type HostingApplicationBody = z.infer<typeof hostingApplicationBodySchema>;
 
@@ -257,6 +260,8 @@ export class HostApplicationsService {
     };
     const before = await replay();
     if (before) return before;
+    // v1.75-live (D285, §10.96.13): the optional recruiter field (400 `recruiter` when it names no recruiter).
+    const recruiter = await recruiterOfForm(this.prisma, input.recruiter, me);
     // v1.80-kyc (D227): with Didit on the ID pictures are not asked (the identity check replaces them).
     const kyc = kycOn(await kycSettingsIn(this.prisma));
     if (!kyc) await this.media.assertEnabled();
@@ -294,6 +299,7 @@ export class HostApplicationsService {
             selfieKey,
             rulesAcceptedAt: now,
             createdAt: now,
+            recruiterUserId: recruiter,
           },
         });
         // The application's private fields never go to the audit trail.

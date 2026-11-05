@@ -24,6 +24,8 @@ export const PANEL_STAFF_ROLES = [
   'MODERATION',
   'SUPPORT',
   'FINANCE',
+  // v1.75-live (D285, §10.96.13): «تطوير الأعمال» — recruitment only (never watch staff).
+  'BD',
 ] as const satisfies readonly AdminPermission[];
 
 type Db = Pick<PrismaService, '$queryRaw'> | Prisma.TransactionClient;
@@ -143,11 +145,20 @@ export const LIMITED_STAFF_ROLES = [
   'MODERATION',
   'SUPPORT',
   'FINANCE',
+  // v1.75-live (D285, §10.96.13): BD is a limited staff account too (no live, no levels, the team picture).
+  'BD',
 ] as const satisfies readonly AdminPermission[];
 export type LimitedStaffRole = (typeof LIMITED_STAFF_ROLES)[number];
 
-/** The roles that carry regions (§10.96.11). */
-export const REGION_STAFF_ROLES = ['MODERATION', 'SUPPORT'] as const satisfies readonly AdminPermission[];
+/**
+ * The roles that carry regions (§10.96.11). v1.75-live (D285): BD too — its profile line «تطوير الأعمال — الوطن
+ * العربي» (the regions only label it: BD has no shift, so no live is ever assigned to it).
+ */
+export const REGION_STAFF_ROLES = [
+  'MODERATION',
+  'SUPPORT',
+  'BD',
+] as const satisfies readonly AdminPermission[];
 
 /** SQL: `userId` is a limited staff account now. */
 export function limitedStaffSql(userId: string | Prisma.Sql): Prisma.Sql {

@@ -3,6 +3,7 @@ import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { LiveHostSource, Prisma } from '../../generated/prisma/client.js';
 import { Notifier } from '../notifications/notifier.js';
+import { attributeRecruitIn } from '../recruits/recruit-core.js';
 
 /**
  * «كن مضيفاً مع الإدارة» (v1.73-social, D209, CONVENTIONS §10.68): the team's decisions on an application to host
@@ -108,7 +109,7 @@ export async function approveHostApplicationIn(
   // v1.80-kyc (D227): Didit on → an approved identity check first; off → the manual ID pictures (or a check).
   const pictures = await tx.hostApplication.findUniqueOrThrow({
     where: { id: app.id },
-    select: { photoKey: true, selfieKey: true },
+    select: { photoKey: true, selfieKey: true, recruiterUserId: true },
   });
   await kycGateOrThrow(tx, app.user_id, !!pictures.photoKey && !!pictures.selfieKey);
 
@@ -168,6 +169,15 @@ export async function approveHostApplicationIn(
     },
     by,
   );
+  // v1.75-live (D285, §10.96.13): the recruiter the form named is attributed for good at this activation.
+  await attributeRecruitIn(tx, {
+    type: 'HOST',
+    recruitUserId: app.user_id,
+    recruiterUserId: pictures.recruiterUserId,
+    applicationId: app.id,
+    now,
+    by,
+  });
   return { userId: app.user_id, source };
 }
 

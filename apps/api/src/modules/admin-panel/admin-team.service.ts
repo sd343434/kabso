@@ -18,6 +18,7 @@ import { isStaffRegion, sortRegions, staffRegionCatalog } from '../live/staff-re
 import { REGION_STAFF_ROLES } from '../live/live-staff.js';
 import type { TeamRegionsBody } from './admin-v2.schemas.js';
 import { syncTeamAvatarsIn, teamAvatarUrl } from '../live/staff-avatar.js';
+import { emptyRecruitCounts, recruitCountsOf } from '../recruits/recruit-core.js';
 
 export interface AuditQuery extends TableQuery {
   readonly actor?: string | undefined;
@@ -178,6 +179,10 @@ export class AdminTeamService {
         staffNumber: { select: { number: true } },
       },
     });
+    const recruitCounts = await recruitCountsOf(
+      this.prisma,
+      rows.map((u) => u.id),
+    );
     return {
       data: rows.map((u) => ({
         id: u.id,
@@ -201,6 +206,8 @@ export class AdminTeamService {
         regions: sortRegions(u.staffRegions.map((r) => r.region).filter(isStaffRegion)),
         // v1.73-live (D283c, §10.96.12): the official staff ID «Kabso01» (given with the first panel role).
         staffId: u.staffNumber ? formatStaffId(u.staffNumber.number) : null,
+        // v1.75-live (D285, §10.96.13): how many recruits the person has, by type.
+        recruits: recruitCounts.get(u.id) ?? emptyRecruitCounts(),
       })),
     };
   }
@@ -226,7 +233,7 @@ export class AdminTeamService {
         where: { userId, permission: { in: [...REGION_STAFF_ROLES] } },
       });
       if (holds === 0) {
-        throw refused('Regions are for MODERATION and SUPPORT staff.', 'team_regions_role', 'rule');
+        throw refused('Regions are for MODERATION, SUPPORT and BD staff.', 'team_regions_role', 'rule');
       }
       const old = await tx.adminStaffRegion.findMany({ where: { userId }, select: { region: true } });
       await tx.adminStaffRegion.deleteMany({ where: { userId } });

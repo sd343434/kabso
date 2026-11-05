@@ -25,6 +25,7 @@ import { recordRechargeIn } from './recharge-badges.js';
 import { referralRechargeIn } from '../referrals/referral-core.js';
 import { RechargeOrdersService } from './recharge-orders.service.js';
 import { moveStockIn, privateKeyOf, purgeApplications } from './recharge-core.js';
+import { recruiterOfForm } from '../recruits/recruit-core.js';
 import {
   applicationSchema,
   availabilitySchema,
@@ -450,6 +451,8 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
       this.activeEmployment(userId),
     ]);
     if (pending > 0 || agent > 0 || job) throw new AppException(ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED);
+    // v1.75-live (D285, §10.96.13): the optional recruiter field (400 `recruiter` when it names no recruiter).
+    const recruiter = await recruiterOfForm(this.prisma, input.recruiter, userId);
     const id = uuidv7();
     const { photoKey, selfieKey } = await takeIdPictures(
       this.media,
@@ -471,6 +474,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
             locations: input.locations,
             paymentMethods: input.paymentMethods,
             createdAt: this.clock.now(),
+            recruiterUserId: recruiter,
           },
         });
         // Field names only: the application's data never goes to logs or the audit trail.

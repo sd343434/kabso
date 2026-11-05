@@ -7,6 +7,7 @@ import { nameInUse } from '../premium-usernames/premium-username-ops.js';
 import { syncAgentUsernameIn } from '../users/agent-usernames.js';
 import { SpecialUsernameError } from '../users/special-usernames.js';
 import { agentCode, topUpPrice, type PriceTier } from './recharge-rules.js';
+import { attributeRecruitIn } from '../recruits/recruit-core.js';
 
 /**
  * Recharge agents (v1.54-social, D185, CONVENTIONS §10.48): the team's decisions and the stock ledger, shared by
@@ -83,8 +84,16 @@ export async function approveApplicationIn(
   by: AdminVia = CLI_VIA,
 ): Promise<{ userId: string }> {
   const [app] = await tx.$queryRaw<
-    { id: string; user_id: string; status: string; locations: unknown; payment_methods: unknown }[]
-  >`SELECT id::text AS id, user_id::text AS user_id, status::text AS status, locations, payment_methods
+    {
+      id: string;
+      user_id: string;
+      status: string;
+      locations: unknown;
+      payment_methods: unknown;
+      recruiter: string | null;
+    }[]
+  >`SELECT id::text AS id, user_id::text AS user_id, status::text AS status, locations, payment_methods,
+           recruiter_user_id::text AS recruiter
       FROM recharge_agent_applications WHERE id = ${applicationId}::uuid FOR UPDATE`;
   if (!app) throw new RechargeAdminError(`No application ${applicationId}.`);
   if (app.status !== 'PENDING')
@@ -129,6 +138,15 @@ export async function approveApplicationIn(
     { user: app.user_id, before: 'PENDING', after: 'APPROVED' },
     by,
   );
+  // v1.75-live (D285, §10.96.13): the recruiter the form named is attributed for good at this approval.
+  await attributeRecruitIn(tx, {
+    type: 'RECHARGE_AGENT',
+    recruitUserId: app.user_id,
+    recruiterUserId: app.recruiter,
+    applicationId: app.id,
+    now,
+    by,
+  });
   return { userId: app.user_id };
 }
 

@@ -1059,6 +1059,12 @@ export const envSchema = z
      */
     REFERRAL_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86_400),
     /**
+     * v1.75-live (D285, CONVENTIONS §10.96.13): the staff recruiters' daily commission job — how often it looks for
+     * finished days to pay (0 = off: tests; refused in production) and how many past days it still pays after a pause.
+     */
+    RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    RECRUIT_COMMISSION_CATCH_UP_DAYS: intSetting(7, 1, 60),
+    /**
      * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
      * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units
      * (owner: $10) and the payout time shown to the requester («تُدفع يدوياً خلال … أيام»).
@@ -1732,6 +1738,14 @@ export const envSchema = z
           code: 'custom',
           path: ['REFERRAL_SWEEP_INTERVAL_SECONDS'],
           message: 'the referral sweeper cannot be disabled in production',
+        });
+      }
+      // D285: the recruiters' commissions are paid by the daily job.
+      if (env.RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS'],
+          message: 'the recruit commission job cannot be disabled in production',
         });
       }
       // D193: a deletion request must be carried out when its grace period ends (store and privacy rules).

@@ -35,7 +35,7 @@ export function isTeamAvatarUrl(url: string | null | undefined): boolean {
 function holdsLimitedRoleSql(id: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`(EXISTS (SELECT 1 FROM user_admin_permissions sp WHERE sp.user_id = ${id}
                        AND sp.permission IN ('MODERATION'::admin_permission, 'SUPPORT'::admin_permission,
-                                             'FINANCE'::admin_permission))
+                                             'FINANCE'::admin_permission, 'BD'::admin_permission))
                  AND NOT EXISTS (SELECT 1 FROM user_admin_permissions so WHERE so.user_id = ${id}
                        AND so.permission = 'OWNER'::admin_permission))`;
 }

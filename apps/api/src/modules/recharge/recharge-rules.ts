@@ -222,6 +222,8 @@ export const applicationSchema = z
       .array(z.strictObject({ country, type: z.enum(PAYMENT_METHOD_TYPES), details: plainText(1, 200) }))
       .min(1)
       .max(30),
+    /** v1.75-live (D285): «إن كنت تابعاً لمشرف، ضع معرّفه هنا» — a staff ID or username (optional). */
+    recruiter: z.string().trim().max(64).optional(),
   })
   .refine((a) => a.paymentMethods.every((p) => a.locations.some((l) => l.country === p.country)), {
     message: 'a payment method outside the locations',

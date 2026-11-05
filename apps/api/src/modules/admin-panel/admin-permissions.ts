@@ -12,6 +12,12 @@ export const PANEL_ROLES = [
   'MODERATION',
   'SUPPORT',
   'FINANCE',
+  /**
+   * v1.75-live (D285, CONVENTIONS §10.96.13; owner: «دور جديد للاستقطاب فقط»): business development «تطوير الأعمال» —
+   * recruits agencies, recharge agents, hosts and creators and sees only its own recruits and earnings
+   * («استقطاباتي»). No moderation power at all: no live tools, no shift, no reports, no hidden watch.
+   */
+  'BD',
 ] as const satisfies readonly AdminPermission[];
 export type PanelRole = (typeof PANEL_ROLES)[number];
 
@@ -174,6 +180,17 @@ export const CAPABILITIES = {
   'lives.watch.hidden': ['OWNER', 'MODERATION'],
   /** Who is on shift and how many lives each watches (OWNER). */
   'staff.shifts': ['OWNER'],
+  // ---- v1.75-live (D285, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب» --------------------------------------
+  /** «استقطاباتي»: the caller's own recruits and commissions (the recruiters: MODERATION and BD). */
+  'recruits.mine': ['MODERATION', 'BD'],
+  /** Every staff member's recruits, each recruit's profit and the commissions paid; the shares (read). */
+  'recruits.view': ['OWNER'],
+  /** Reassign a recruit to another recruiter, change the shares per type (the code again and a reason). */
+  'recruits.manage': ['OWNER'],
+  /** The creator programme's applications «صناع المحتوى» (the list and an application's fields). */
+  'creators.applications': ['OWNER', 'SUPPORT'],
+  /** Approve or reject a creator application (approving activates the creator and attributes a named recruiter). */
+  'creators.decide': ['OWNER', 'SUPPORT'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

@@ -149,6 +149,17 @@ export enum AuditAction {
   HOST_TARGET_SETTINGS_UPDATE = 'host_targets.settings.update',
   /** v1.71-live (D281): the OWNER read a host's targets with the reasons {host, day}. */
   HOST_TARGET_VIEW = 'host_targets.view',
+  // v1.75-live (D285, §10.96.13): recruitment by staff — a recruit attributed at the activation {type, recruiter,
+  // recruit, application}, an attribution skipped {type, recruiter, recruit, reason}, the OWNER's reassignment {before,
+  // after, reason}, the shares changed {before, after, reason}; the creator programme's applications.
+  STAFF_RECRUIT_ATTRIBUTE = 'staff.recruit.attribute',
+  STAFF_RECRUIT_SKIP = 'staff.recruit.skip',
+  STAFF_RECRUIT_REASSIGN = 'staff.recruit.reassign',
+  STAFF_RECRUIT_SETTINGS_UPDATE = 'staff.recruit.settings.update',
+  CREATOR_APPLICATION_SUBMIT = 'creator.application.submit',
+  CREATOR_APPLICATION_APPROVE = 'creator.application.approve',
+  CREATOR_APPLICATION_REJECT = 'creator.application.reject',
+  CREATOR_APPLICATION_CANCEL = 'creator.application.cancel',
   // v1.45-live (D201, §10.63): the host's live tools — a second-camera pairing code created, redeemed
   // (or refused, with the reason, never the code), the second camera ended, the main feed chosen; the
   // one-time music-rights notice accepted; a clip recording started or stopped (viewers are told).

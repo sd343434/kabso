@@ -259,7 +259,7 @@ export const USER_SUMMARY_SELECT = {
   role: true,
   staffNumber: { select: { number: true } },
   adminPermissions: {
-    where: { permission: { in: ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'] as AdminPermission[] } },
+    where: { permission: { in: ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE', 'BD'] as AdminPermission[] } },
     select: { permission: true },
     take: 1,
   },

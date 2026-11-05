@@ -145,6 +145,8 @@ export enum ErrorCode {
   AGENCY_OPEN_NOT_ALLOWED = 'AGENCY_OPEN_NOT_ALLOWED',
   /** v1.73-social (D209): «كن مضيفاً مع الإدارة» refused — `details[0].issue` says why (§10.68). */
   HOST_APPLICATION_NOT_ALLOWED = 'HOST_APPLICATION_NOT_ALLOWED',
+  /** v1.75-live (D285): the creator programme application «انضم كصانع محتوى» is not possible now (`details[0].issue`). */
+  CREATOR_APPLICATION_NOT_ALLOWED = 'CREATOR_APPLICATION_NOT_ALLOWED',
   /** v1.80-kyc (D227): an identity check cannot be started now (`details[0].issue`, CONVENTIONS §10.77). */
   KYC_NOT_ALLOWED = 'KYC_NOT_ALLOWED',
   /** v1.80-kyc (D227): identity verification (Didit) is off or not configured. */
@@ -411,6 +413,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 409,
   [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 409,
   [ErrorCode.HOST_APPLICATION_NOT_ALLOWED]: 409,
+  [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 409,
   [ErrorCode.KYC_NOT_ALLOWED]: 409,
   [ErrorCode.KYC_UNAVAILABLE]: 503,
   [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
@@ -563,6 +566,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.AGENCY_LEAVE_WINDOW_CLOSED]: 'The leave window is over; send a complaint to the admin.',
   [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 'You cannot open an agency now.',
   [ErrorCode.HOST_APPLICATION_NOT_ALLOWED]: 'You cannot apply to host with the Kabso team now.',
+  [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 'You cannot apply to the creator programme now.',
   [ErrorCode.KYC_NOT_ALLOWED]: 'An identity check cannot be started now.',
   [ErrorCode.KYC_UNAVAILABLE]: 'Identity verification is not available right now.',
   [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',

@@ -411,6 +411,21 @@ export async function creditHostTargetCherriesIn(
   await applyMovementsIn(tx, [{ userId, reason: 'HOST_TARGET_REWARD', delta: cherries }], reference, now);
 }
 
+/**
+ * v1.75-live (D285, CONVENTIONS §10.96.13): a recruiter's commission of one recruit and day — `cherries` (> 0) as one
+ * `STAFF_RECRUIT_COMMISSION` row, reference `SR:<recruitment>@<day>` (the ledger allows it once). WITHDRAWABLE: not
+ * in the task-cherry lock.
+ */
+export async function creditRecruitCommissionIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  reference: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'STAFF_RECRUIT_COMMISSION', delta: cherries }], reference, now);
+}
+
 /** The ledger reference of a host target's reward: one per host, level and day. */
 export function hostTargetRewardReference(track: string, level: string, day: string): string {
   // D281b: the gifts track keeps D281's `HT:<level>@<day>`; the lucky track is `HT:LUCKY:<level>@<day>`.

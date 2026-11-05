@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { kycGateIn } from '../kyc/kyc-core.js';
 import { takeIdPictures } from '../kyc/id-pictures.js';
+import { attributeRecruitIn, recruiterOfForm } from '../recruits/recruit-core.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { AuditAction } from '../../common/audit/audit.service.js';
@@ -231,6 +232,8 @@ export const openAgencyBodySchema = z.strictObject({
   /** v1.80-kyc (D227): required only while Didit is off (with Didit on, ignored: an approved check is needed). */
   photoUploadId: z.string().regex(UUID).optional(),
   selfieUploadId: z.string().regex(UUID).optional(),
+  /** v1.75-live (D285): «إن كنت تابعاً لمشرف، ضع معرّفه هنا» — a staff ID or username (optional). */
+  recruiter: z.string().trim().max(64).optional(),
 });
 export type OpenAgencyBody = z.infer<typeof openAgencyBodySchema>;
 
@@ -528,6 +531,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     };
     const before = await replay();
     if (before) return before;
+    // v1.75-live (D285, §10.96.13): the optional recruiter field (400 `recruiter` when it names no recruiter).
+    const recruiter = await recruiterOfForm(this.prisma, input.recruiter, me);
     // v1.80-kyc (D227): with Didit on the ID pictures are not asked: an approved identity check is.
     const kycGate = await kycGateIn(this.prisma, me, 'AGENCY_OPEN');
     if (!kycGate.enabled) await this.media.assertEnabled();
@@ -639,7 +644,19 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
                 photoKey,
                 selfieKey,
                 createdAt: now,
+                recruiterUserId: recruiter,
               },
+            });
+            // v1.75-live (D285, §10.96.13): the agency is active at once (no approval): the recruiter the form named
+            // is attributed for good now (a reopened agency keeps its first attribution).
+            await attributeRecruitIn(tx, {
+              type: 'AGENCY',
+              recruitUserId: me,
+              recruiterUserId: recruiter,
+              applicationId,
+              agencyId,
+              now,
+              by: { via: 'app', actorUserId: me },
             });
             await this.notifier.agency(tx, { type: 'AGENCY_OPENED', recipientId: me, agencyId });
             // v1.73-social (D209, §10.68): an agency owner is not a direct host — a pending application goes.

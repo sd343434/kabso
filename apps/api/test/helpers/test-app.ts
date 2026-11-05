@@ -252,6 +252,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     ACCOUNT_DELETION_SWEEP_INTERVAL_SECONDS: '0',
     // v1.74-social (D217): the referral sweeper runs only when a test calls it.
     REFERRAL_SWEEP_INTERVAL_SECONDS: '0',
+    RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_ACCOUNT_DELETION_USER: GENEROUS,
     // D198: specs call DataExportsService.sweep() / build directly.
     DATA_EXPORT_SWEEP_INTERVAL_SECONDS: '0',

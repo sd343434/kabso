@@ -4,8 +4,8 @@
  * `recharge-admin`: on the server `docker compose --profile jobs run --rm migrate node dist/cli/admin-admin.js …`
  * (docs/DEPLOYMENT.md), locally `pnpm admin:admin …`.
  *
- *   pnpm admin:admin grant <email> OWNER|MODERATOR|SUPPORT|FINANCE   # the first OWNER is bootstrapped this way
- *   pnpm admin:admin revoke <email> OWNER|MODERATOR|SUPPORT|FINANCE  # the last role ends the panel sessions;
+ *   pnpm admin:admin grant <email> OWNER|MODERATOR|SUPPORT|FINANCE|BD   # the first OWNER is bootstrapped this way
+ *   pnpm admin:admin revoke <email> OWNER|MODERATOR|SUPPORT|FINANCE|BD  # the last role ends the panel sessions;
  *                                                                    # never the last active OWNER (D271)
  *   pnpm admin:admin list
  *   pnpm admin:admin reset-2fa <email>                               # a lost phone: enrol again at the next sign-in
@@ -38,7 +38,7 @@ function fail(message: string): never {
 }
 
 const USAGE = [
-  'Usage: pnpm admin:admin grant|revoke <email|@username|KabsoNN> OWNER|MODERATOR|SUPPORT|FINANCE',
+  'Usage: pnpm admin:admin grant|revoke <email|@username|KabsoNN> OWNER|MODERATOR|SUPPORT|FINANCE|BD',
   '       pnpm admin:admin list | reset-2fa <email|@username>',
   'The last active OWNER cannot be revoked: grant OWNER to another account first.',
 ].join('\n');

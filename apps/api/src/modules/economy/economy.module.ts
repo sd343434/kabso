@@ -17,6 +17,6 @@ import { HostFrameService } from './host-frame.service.js';
   imports: [UsersModule, MediaModule],
   controllers: [EconomyController],
   providers: [CherriesService, AgencyService, HostFrameService],
-  exports: [AgencyService],
+  exports: [AgencyService, CherriesService],
 })
 export class EconomyModule {}
