@@ -41,6 +41,15 @@ class KabsoTeamBadge extends StatelessWidget {
   /// height, so the name scales with the badge.
   static const banner = Rect.fromLTRB(0.540, 0.411, 0.883, 0.725);
 
+  /// D282b (owner: «نكبّرها في الدردشة»): in a chat line the badge is
+  /// taller than the line's other emblems so its name reads — 24 pt in the
+  /// boxed, inline and VIP rows (the smallest height where «فريق كابسو» /
+  /// "Kabso Team" reads clearly) …
+  static const double chatHeight = 24;
+
+  /// … and 22 pt on the host's compact flat line (still readable).
+  static const double flatChatHeight = 22;
+
   /// The name's colour: a light gold, bold, over a soft shadow.
   static const ink = Color(0xFFFFF4CF);
 

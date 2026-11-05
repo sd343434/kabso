@@ -44,8 +44,9 @@ class LiveChatRoleTag extends StatelessWidget {
   /// The pill's height (host, moderator).
   final double height;
 
-  /// D282: the Kabso Team badge's height — the line's emblems' ([height]
-  /// when unset).
+  /// D282: the Kabso Team badge's height ([height] when unset) — D282b:
+  /// in a chat line taller than the other emblems, so its name reads
+  /// ([KabsoTeamBadge.chatHeight]).
   final double? emblemHeight;
 
   /// Host red, moderator orange (white text ≥ 4.5 : 1 on each).

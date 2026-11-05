@@ -4,6 +4,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -261,7 +262,7 @@ class LiveChatFlatLine extends ConsumerWidget {
               height: LiveChatBadgeRow.pillHeight(
                 LiveChatInlineRow.badgeHeight,
               ),
-              emblemHeight: LiveChatInlineRow.badgeHeight,
+              emblemHeight: KabsoTeamBadge.chatHeight,
             ),
       nameBadge: VipNameBadge(vip: vip, height: vipEmblemHeight),
       name: GestureDetector(
@@ -329,7 +330,13 @@ class LiveChatFlatLine extends ConsumerWidget {
         // D269 (owner): the role tag (host red, moderator orange) before the
         // name.
         if (LiveChatTagKind.ofLine(role, badges) case final kind?) ...[
-          LiveChatRoleTag(key: tagKey, kind: kind, height: KFlatChat.tagHeight),
+          LiveChatRoleTag(
+            key: tagKey,
+            kind: kind,
+            height: KFlatChat.tagHeight,
+            // D282b: the team's badge taller, so its name reads.
+            emblemHeight: KabsoTeamBadge.flatChatHeight,
+          ),
           const SizedBox(width: 4),
         ],
         Flexible(

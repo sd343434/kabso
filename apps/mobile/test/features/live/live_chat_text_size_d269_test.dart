@@ -218,7 +218,7 @@ void main() {
     );
     expect(
       tester.getSize(find.byKey(KabsoTeamBadge.badgeKey)).height,
-      KFlatChat.tagHeight,
+      KabsoTeamBadge.flatChatHeight,
     );
   });
 

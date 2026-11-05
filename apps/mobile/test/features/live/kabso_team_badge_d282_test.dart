@@ -167,8 +167,8 @@ void main() {
     }
   });
 
-  testWidgets("every chat look: the team's badge before the name at the "
-      "line's emblem height", (tester) async {
+  testWidgets("every chat look: the team's badge before the name, taller "
+      'than the emblems (D282b)', (tester) async {
     await pumpGolden(tester, _lines('Omar'), language: AppLanguage.en);
     final badges = find.byKey(KabsoTeamBadge.badgeKey);
     expect(badges, findsNWidgets(3));
@@ -176,11 +176,17 @@ void main() {
       for (final e in badges.evaluate())
         tester.getSize(find.byWidget(e.widget)),
     ];
+    // D282b: taller than the lines' other emblems, so the name reads.
     expect(heights.map((s) => s.height), [
-      KFlatChat.tagHeight,
-      LiveChatAuthoredLine.badgeRowHeight,
-      LiveChatInlineRow.badgeHeight,
+      KabsoTeamBadge.flatChatHeight,
+      KabsoTeamBadge.chatHeight,
+      KabsoTeamBadge.chatHeight,
     ]);
+    expect(KabsoTeamBadge.flatChatHeight, greaterThan(KFlatChat.tagHeight));
+    expect(
+      KabsoTeamBadge.chatHeight,
+      greaterThan(LiveChatInlineRow.badgeHeight),
+    );
     for (final s in heights) {
       expect(s.width / s.height, closeTo(KabsoTeamBadge.aspectRatio, .01));
     }
