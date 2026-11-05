@@ -142,7 +142,7 @@ export class AdminRecruitsController {
       counts,
       commissionCherries: Number(sum?.cherries ?? 0n),
       bps: recruitSettingsDto(await recruitSettingsIn(this.prisma)).bps,
-      data: data.map(({ recruiter: _r, ...r }) => r),
+      data: data.map(({ recruiter: _r, reassignedAt: _at, ...r }) => r),
     };
   }
 
