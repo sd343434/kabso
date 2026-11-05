@@ -2771,3 +2771,43 @@ CONVENTIONS §10.99. Adds `user_profiles.tags` (`VARCHAR(24)[] NOT NULL DEFAULT 
 `user_profiles_tags_count` (at most 10). Every existing profile gets an empty set; nothing to backfill, no env setting.
 The column add with a constant default is metadata-only on PostgreSQL ≥ 11 (no table rewrite). Order: API (with its
 migration) first, then the app; an older app ignores `tags`, and an older API leaves it out (the app shows no chips).
+
+### 5.62 Smart host targets and the generated Task Center «الأهداف الذكية» (migrations `20270314090000_host_target_engine_enums`, `20270314090100_host_target_engine`; D281) — [IMPLEMENTED, draft contracts v1.71-live / v1.85-social; not deployed, not device-tested]
+
+CONVENTIONS §10.62.2 (targets: the catalogue, the assignment, the profit-share reward) and §10.41.4 (the Task Center's
+generated catalogue and smart assignment). The migrations:
+
+- add the cherry ledger reason `HOST_TARGET_REWARD` (its own migration) and extend `cherry_ledger_reason_sign` in place
+  (a credit);
+- widen `task_definitions_shape` with the metrics `GIFT_COUNT_SENT`, `CATEGORY_GIFTS_SENT`, `GIFTED_HOSTS`, `FAMILY_JOIN`,
+  `FAMILY_CHAT_MESSAGES`, `PK_BATTLES`, `PK_WINS` and seed seven pool templates (`P_SEND_GIFT_OF`, `P_SEND_CATEGORY`,
+  `P_GIFT_HOSTS`, `P_FAMILY_JOIN`, `P_FAMILY_CHAT`, `P_PK_BATTLES`, `P_PK_WINS`; an existing code is left alone);
+- add to `task_assignments` the generated variant's columns (`variant`, `subject`, `window_from`, `window_to`,
+  `name_ar`, `name_en`, `reason`; CHECK `task_assignments_variant_shape`; index `task_assignments_user_day_idx`) — old
+  rows keep NULLs;
+- create `host_target_settings` (one row: the knobs with the owner's defaults 50 / 75 / 90 percentiles, 150 / 250 / 400
+  bps, 7 / 3 no-repeat days, 30 history days, 10-point completion shift; `engine_from` NULL) and
+  `host_target_assignments` (a host's three targets of a day; CHECK `host_target_assignments_shape`). Runtime grants come
+  from the default privileges (KL-013).
+
+**The switch is automatic and keeps today:** the API's first read after the deploy sets `engine_from` to the NEXT day
+(the programs' zone, `LIVE_RANKINGS_TIME_ZONE`). Until then every host keeps D277's two targets and their progress, and
+the Task Center keeps today's list; from that day the three smart targets and the generated tasks start, and the fixed
+`HOST_LUCKY_COINS` / pool `P_HOST_GIFTS` tasks are no longer offered (their rows stay; history and claims untouched). To
+start on a chosen day instead, set `host_target_settings.engine_from` before the deploy's first read (migration role).
+
+**Economy settings read (no new env):** `COIN_RETAIL_USD_PER_MILLION` (12.5), `CHERRY_PAYOUT_RATE` (1000000:110),
+`CHERRIES_PER_COIN` (10), `GIFT_HOST_SHARE_PERCENTS` (65 / 50), `LUCKY_GIFT_HOST_SHARE_PERCENT` (10) and
+**`LUCKY_GIFT_RTP_PERCENT` — set it to the owner's 75 on the server** (the code default is 85, which makes lucky targets
+pay less). The rewards are a share of the profit these give (§10.62.2 worked example: a hard 3 000 000-cherry target →
+$2.469 profit → 89 790 cherries); they are locked task cherries (withdrawal, store and cherry sales wait for the unlock
+rule) and are outside the Task Center caps. The panel «الأهداف الذكية» (OWNER only) changes the knobs with a reason
+(audited) and shows each host's «لماذا هذا الهدف».
+
+Load: a host's first read of the day runs ~7 history queries over `history_days` of their gifts (indexes
+`live_gift_recipients_user_idx`, the ledger's reference index) and a person's first Task Center read one 7-day query per
+offered metric; later reads use the stored day. Order: API first (the new fields are additive; an older app ignores
+`daily`, shows the generated names and unknown metrics with the generic icon), then the app and the panel. Rollback: an
+older API ignores the new tables and columns and hides the new templates (unknown metrics, `isTaskMetric`), but it
+cannot read a `HOST_TARGET_REWARD` ledger row (an unknown enum value): once a target has been paid, roll the API back
+only to a build that knows the reason.

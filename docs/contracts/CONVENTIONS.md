@@ -708,6 +708,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.48-social (draft) | 2026-10-29 | **D171 (owner: «الحقيبة تعرض العنصر الذي تم شراؤه أو استلامه كهدية … ارتداء / إزالة … إرسال … الوقت المتبقي»; amendment «يمكن أن تجزّئ المدة»):** `BagItem` gains `expiresAt` (null = permanent), `giftedBy` (`UserSummary` or null) and `transferable` (all **required** in responses); `BagItemSource` gains `GIFT`; `getMyBag` never lists expired items; new `sendMyBagItem` (`POST /me/bag/transfers`, `SendBagItemRequest {code, username, days?}`, 201 `BagTransfer`): the whole item or `days` of its remaining time to another user, stacking on the recipient's copy; codes `BAG_ITEM_NOT_TRANSFERABLE`, `BAG_SEND_PERMANENT_WHOLE_ONLY`, `BAG_SEND_EXCEEDS_REMAINING`, `BAG_RECIPIENT_HAS_PERMANENT` (409); notification type `BAG_ITEM_RECEIVED` (target `BAG_ITEM`, `NotificationTarget.bagCategory`). `bag-admin grant <email> <code> [<days>|forever]`. Migrations `20261216090000_bag_expiry_send_enums`, `20261216100000_bag_expiry_send`. Version number: v1.39–v1.47 are taken (live and social share one sequence), so this is v1.48-social. §4, §7, §8, §10.22, §10.45, §11.10. | **Additive** (an operation, codes, enum values clients treat as unknown-safe, required response fields strict clients add in the same change set). `GET /bag/catalogue` is unchanged (the app no longer shows items the user does not own). |
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
 | v1.70-live (draft) | 2026-11-05 | **D279 (owner: a «في بث الآن» card on the profile under the cover while its owner is live — how long, viewers, score, «انضم»):** `PublicProfile.live` (`ProfileLive`: `roomId`, `title`, `mode`, `startedAt`, `viewerCount`, `score`; required, nullable) — the fresh LIVE room of `liveRoomId`, null when that is null and across a block either way. No migration. §10.5.1. | **Additive** (a new response field; an older app ignores it). |
+| v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270314090000_host_target_engine_enums`, `20270314090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.85-social (draft) | 2026-11-05 | **D281 (owner: more than 100 000 generated Task Center tasks, assigned from each person's data):** `ProgramTask.gift`, `ProgramTask.window`; metrics `GIFT_COUNT_SENT`, `CATEGORY_GIFTS_SENT`, `GIFTED_HOSTS`, `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES`, `PK_WINS`. §10.41.4. | **Additive** (an older app shows an unknown metric with the generic icon). |
 | v1.69-live (draft) | 2026-11-04 | **D277 (owner: the lucky target «هدف هدايا الحظ» counts only lucky gifts, including the host's own sends to themself, in cherries; the cherries target becomes «هدف الهدايا», gifts outside the lucky category in cherries; new badges to come):** `LiveHostTargets.gifts`, `me.gifts`, `HostGiftStats.lucky.cherries`, `ProgramTask.metric` `HOST_GIFT_CHERRIES` / `HOST_LUCKY_CHERRIES`, `AdminTasks` `targetUnit`. `LiveHostTargets.cherries` / `me.cherries` are deprecated (now the same as `gifts`). `lucky` is in cherries, and `HostGiftStats.cherries` is «هدف الهدايا»'s. Migration `20270313090000_host_targets_cherries` stores both targets in cherries. §10.62.1. | **Additive** (new fields and enum values; `lucky`'s unit is cherries, the same number at the default 10 % except for self-sends). |
 | v1.68-live (draft) | 2026-11-04 | **D273 (owner: «فريق كابسو» from the app — always visible, the panel's powers on the phone, the shift, free roaming, «مراقبة خفية», report pushes, untouchable):** tag `staff`: `getStaffStatus`, `createStaffStepUp` / `endStaffStepUp`, `getStaffShift` / `setStaffShift`, `listStaffLives`, `listStaffLiveReports`, `listStaffLiveModerations`, `moderateStaffLive`, `dismissStaffLiveReports`, `kickFromStaffLive`, `muteInStaffLive`, `removeStaffLiveMessage` (`StaffStatus`, `StaffStepUp(Request)`, `StaffLive(List)`, `StaffKick*`, `StaffChatMute*`, `StaffMessageRemoveResult`); `Me.kabsoTeam`, `PublicProfile.kabsoTeam`; `LiveMediaTokenRequest.staffVisibility`, `LiveMediaAccess.staff` (identity up to 80); `LiveChatMessage.authorStaff`; `AdminLiveModerateRequest.action` / results / history gain `WARN`; `AdminLiveReport.targetType` `LIVE_CHAT_MESSAGE` and `target`; `CreateReportRequest.liveRoomId`; notification `LIVE_STAFF_REPORT` (target `LIVE_ROOM`, `live`); `LIVE_MODERATION.moderation` `WARN`; codes `STAFF_PROTECTED`, `LIVE_STAFF_REFUSED`, `STAFF_STEP_UP_REQUIRED` (403), `STAFF_TOTP_NOT_ENROLLED` (409); `STAFF_APP_GRANT_SECONDS`, `RATE_LIMIT_STAFF_APP_USER`, `RATE_LIMIT_STAFF_STEP_UP_USER`. Migration `20270312090000_staff_app_tools` (`admin_app_grants`, `notifications.live_room_id`, `reports.context_live_room_id`, enum values `WARN`, `LIVE_STAFF_REPORT`). §4, §7, §10.96.6–§10.96.8. | **Additive for apps** (new optional fields; an older app ignores `staff`, `authorStaff`, `kabsoTeam` and the new notification). **Behaviour change:** a staff account entering from the app is listed as «فريق كابسو» instead of a viewer and can no longer send gifts / taps / bullets or take a seat there; users can no longer kick / mute / remove panel accounts (403). |
 | v1.67-live (draft) | 2026-11-04 | **D276 (owner, from a device: «زر اعادة بيكيه لا يظهر … ويجب ان يظهر لكل شخص نقاط بيكيه الاخر»; then «انسحاب = −٣»):** `PkSideState.pkPoints` (each host's `PkHostRecord.points` in every match payload); `PkMatch.forfeitPoints`; `AdminPkDareSettings.forfeitPoints` / `UpdateAdminPkDareSettingsRequest.forfeitPoints` (−3, DARES matches only: a host who withdrew from the battle — FORFEIT, DISCONNECT, AWAY — instead of `lossPoints`, still a loss; both withdrew → both, no longer a draw; NORMAL unchanged; `PkMatch.forfeitPoints` null for NORMAL); after a DARES match's dare the result stays `PK_RESULT_SECONDS` more while «جولة أخرى» is allowed; migration `20270311090000_pk_forfeit_points`. §10.80.1. | **Additive** (new response fields and an optional request field); the point values of a withdrawal change. |
@@ -3001,6 +3003,53 @@ has no tab bar there) and the active tasks («المهام النشطة», «م�
 - *(v1.57-social, D188)* **Superseded values:** the ×300 raise and the 150 000 daily cap came from wrong
   pricing; §10.51 sets the defaults, the 50 000 daily cap and a monthly cap.
 
+#### 10.41.4 The generated Task Center and the smart assignment *(v1.85-social, DRAFT — D281)*
+
+Owner (D281): more than 100 000 different, varied Task Center tasks, generated from templates × parameters, assigned
+smartly to each person from their own data (activity, host or viewer, level, recent completion, variety). The Task
+Center's reward rules stay (§10.41.3, §10.51); they are separate from the host targets' profit share (§10.62.2). From
+the smart engine's first day (§10.62.2, «The switch») a person's pool tasks of the day come from here; before it, §10.41.1.
+
+- **The catalogue.** A task is *an enabled pool template × an amount on the template metric's ladder × a window of the
+  day × (one gift / one category)*, code `K.<template>.<subject|*>.<amount>.<from>-<to>`. Ladders: actions 40 steps
+  (1 … 1 000), minutes 24 (5 … 480), hearts 25 (10 … 3 000), coin values 75 (100 … 9 000 000), «join a family» 1. Windows:
+  the 147 of §10.62.2. The host targets' metrics (`HOST_GIFT_CHERRIES`, `HOST_LUCKY_CHERRIES`) are never Task Center
+  tasks. **115 983 tasks** from the default templates with no gifts; + 5 880 per paid gift and 5 880 per category (257 103
+  with 20 gifts).
+- **New measurable actions (templates seeded by migration `20270314090100_host_target_engine`).** `P_SEND_GIFT_OF`
+  (`GIFT_COUNT_SENT`: how many of ONE gift were sent, paid, to other ACTIVE people), `P_SEND_CATEGORY`
+  (`CATEGORY_GIFTS_SENT`), `P_GIFT_HOSTS` (`GIFTED_HOSTS`: different ACTIVE people gifted), `P_FAMILY_JOIN`
+  (`FAMILY_JOIN`: joined or founded a family in the window and still in it), `P_FAMILY_CHAT`
+  (`FAMILY_CHAT_MESSAGES`), and for hosts `P_PK_BATTLES` (`PK_BATTLES`: battles started, never the void ones) and
+  `P_PK_WINS` (`PK_WINS`). Left out as before: anything the server cannot see (sharing, recharging, app-reported events).
+  A chosen gift's and a category's band target is a COIN VALUE: the count is that value in the gift's price (the
+  category's cheapest).
+- **The assignment.** At the person's first read of the day, deterministic for the person and the day:
+  1. **Read:** their 7-day daily average of every offered metric (the same stored-data queries as the progress); tasks
+     assigned and claimed in the last 7 days; the variants of the last `task_no_repeat_days` (default 3) and yesterday's
+     templates; whether they are in a family; the gifts they sent most (30 days); the hours they join lives (30 days);
+     their level band and whether they host.
+  2. **Weigh:** what they already do weighs more (1 + 2 × min(1, average / the band's target)); a template given yesterday
+     × 0.4; «join a family» only outside a family, the family chat only inside one; gift tasks only with gifts. A seeded
+     weighted order.
+  3. **Select** as §10.41.1: hosts get their band's host tasks first, then at most one per group, then two, up to the
+     band's daily count; never one template twice.
+  4. **Amount:** their average × the completion factor (0.7 when they never finish … 1.3 when they always do; 1 with fewer
+     than 5 tasks), or the band's target when they never do it, kept within ½ … 3 × the band's target and snapped up to the
+     ladder; a gift task names their favourite gift (else a paid gift at random); one WATCH / LIVE task may take their
+     usual 3 hours (≥ 60 % of their joins) with half the amount.
+  5. **No repeat:** a variant of the last `task_no_repeat_days` moves one ladder step up.
+  6. **Reward (unchanged rules):** a coin-valued task pays the template's rate per coin (0.1 cherry a coin for gifts,
+     D188) — never more than twice the band's reward; any other task the band's reward × amount / target, within ½ … 2 ×
+     (free actions stay symbolic). The daily cap (50 000) and the monthly cap ($5) apply at the claim as before.
+  7. Stored in `task_assignments` (+ `variant`, `subject`, `window_from` / `window_to`, `name_ar` / `name_en`, `reason`).
+- **Progress and claims** count only the window of a windowed task and only the named gift / category.
+- **Contract (additive).** `ProgramTask.gift` (`TaskGift`, a chosen-gift task's picture and name, else null),
+  `ProgramTask.window` (`HH:MM`, else null); `name` states the gift, category or window; metrics `GIFT_COUNT_SENT`,
+  `CATEGORY_GIFTS_SENT`, `GIFTED_HOSTS`, `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES`, `PK_WINS` (an older app shows
+  an unknown metric with the generic icon). The panel's knob `taskNoRepeatDays` and the catalogue's task counts
+  (§10.62.2).
+
 ### 10.42 Editing the own profile *(v1.45-social, DRAFT — D168)*
 
 Owner request (2026-10-29, from the phone): «فعّل الأزرار المتبقية في تعديل الملف وتغيير الصورة» —
@@ -4661,6 +4710,96 @@ lucky rules of §10.62 above.
   art arrives, they hold stand-ins (the Kabso cherry and the D199 wizard hat), with a PROVENANCE note; replacing a file
   swaps the badge with no code change. A missing file falls back to the same art drawn in code. The app reads `gifts`,
   or `cherries` from an older server.
+
+#### 10.62.2 Smart daily targets «الأهداف الذكية»: three levels, a generated catalogue, a profit-share reward *(v1.71-live, DRAFT — D281)*
+
+Owner (D281): a huge, varied catalogue of host targets (more than 100 000, generated from templates × parameters);
+three targets per host per day — easy / medium / hard («سهل / متوسط / صعب») — chosen automatically from the host's own
+data; the reward is SEPARATE from the Task Center: a share of the PLATFORM PROFIT the target produced (1.5 % / 2.5 % /
+4 %), paid in locked task cherries, so a big reward only appears when the host made very good profit. The owner asked
+«كيف يتم تقسيم المهام والاهداف للشخص اوتماتيكياً بحيث ان النظام ذكي يقرأ بيانات ثم يوزع»: the answer is the algorithm
+below. This replaces §10.62.1's two fixed band targets from the engine's first day (below); §10.62.1 still describes the
+day of the switch and the amounts `gifts` / `lucky` received.
+
+- **The catalogue (generated, never hand-written rows).** A target is *kind × amount × window of the day × (one gift /
+  one category)*, with the code `T.<kind>.<subject|*>.<amount>.<from>-<to>` (minutes of the host's day):
+  - kinds — `GIFT_CHERRIES` (cherries credited for gifts outside the lucky category from other people, «هدف
+    الهدايا»), `LUCKY_CHERRIES` (cherries of lucky gifts, the host's own sends included, «هدف هدايا الحظ»),
+    `GIFT_COUNT` (how many of ONE gift: «استقبل 100 هدية من المحارب»), `CATEGORY_COUNT` (how many gifts of one
+    category), `SUPPORTERS` (different people who sent a gift), `GIFT_SENDS` (gifts received), `COMBO` (the biggest
+    combo of one send streak) and `GIFT_COMBO` (the biggest combo of one gift). The host's own sends count only for
+    `LUCKY_CHERRIES` (D277); senders must be ACTIVE; everything is read from stored sends and the cherry ledger;
+  - amounts — cherries: 15 round steps a decade from 1 000 to 900 000 000 (90); counts: 40 steps 1 … 10 000;
+    supporters: 20 steps 1 … 100; combos: 20 customary sizes 5 … 9 999;
+  - windows — the whole day + every window of 1, 2, 3, 4, 5, 6 or 8 hours starting on the hour (147), e.g. «tonight
+    20:00–24:00»;
+  - gifts and categories — the ENABLED paid gifts of enabled categories, read at each assignment: a gift added or
+    switched off adds or removes its targets at once (the catalogue version changes).
+  Size: 38 220 targets without gifts + 8 820 per paid gift + 5 880 per category — **235 200** for 19 gifts in 5
+  categories, 149 940 for 10 gifts. The panel shows the live counts.
+- **The assignment («يقرأ بيانات ثم يوزع»).** At the host's first read of the day (the chip, the sheet, the panel never)
+  the server reads their last `history_days` days (default 30; not today), per day: cherries and coins from gifts and
+  from lucky gifts, gifts received, different supporters, the biggest combo, minutes live and cherries per hour, gifts
+  by code; their usual live hours; average viewers; their band (the Task Center's level band); how many of their
+  targets of the last `history_days / 2` days were completed; the codes of the last `no_repeat_days` days. Then,
+  deterministically for the host and the day (a seeded generator — the same picks on every read and server):
+  1. **New host** (fewer than 3 active days): the band's defaults — easy «gifts received», medium «different
+     supporters», hard «cherries from gifts» (band 1…4: 20 000 / 60 000 / 150 000 cherries … 600 000 / 2 000 000 /
+     5 000 000).
+  2. **Candidates** from what the host's data supports, each with its value on every active day: cherries from gifts
+     (weight by its share of their cherries), cherries from lucky gifts, the same in their usual hours (when ≥ 60 % of
+     their cherries come in a 2–4 hour window), the gifts they get on ≥ 30 % of active days (a count of that gift), their
+     top category, supporters (when they average ≥ 2), combos (median ≥ 5), gifts received.
+  3. **Kinds mixed:** HARD is always a cherries target (the biggest share of profit only for real profit); MEDIUM and
+     EASY are drawn by weight from the other kinds (a kind not drawn yet first).
+  4. **Calibration:** each level aims at a percentile of the candidate's daily values — **easy ≈ the 50th** (a typical
+     day), **medium ≈ the 75th** (a good day), **hard ≈ the 90th** (their best days) — moved by the completion rate:
+     with ≥ 3 targets in the look-back, (rate − 0.5) × 2 × `completion_shift` points (default ±10: always finishing →
+     +10, harder; never → −10, easier). The value is snapped UP to the kind's ladder; two levels of the same kind grow
+     strictly.
+  5. **No repeat:** a code given in the last `no_repeat_days` (default 7) moves one ladder step (easy tries one down
+     first).
+  6. Stored in `host_target_assignments` with the reasons («لماذا هذا الهدف»: the percentile used, the completion rate
+     and adjustment, the host's value at the percentile, 7- and 30-day averages, the best day, a sentence in Arabic and
+     English) and the catalogue version. Fixed for the day; the knobs change only later days.
+- **The economics (one unit-tested function, `platformProfitUnits`, from the configuration).** Per send (the recipient's
+  part): **a normal gift** — the coins PAID (`coins_charged` share; a bag gift or a free quip earns nothing now) at
+  `COIN_RETAIL_USD_PER_MILLION` − the host's cherries at `CHERRY_PAYOUT_RATE`; **a lucky gift** — the coins paid − the
+  expected payout (`LUCKY_GIFT_RTP_PERCENT` × the coin value) − the host's cherries. Exact integers (micro-cents ×
+  the payout rate's cherries). At the owner's numbers (1 000 000 coins = $12.50, 1 000 000 cherries = $1.10, 10 cherries
+  a coin, shares 65 % / 50 % / 10 %, RTP 75 %): 1 000 000 coins of normal gifts → $12.50 − $7.15 = **$5.35**; of quips →
+  $12.50 − $5.50 = $7.00; of lucky gifts → $12.50 − $9.375 − $1.10 = **$2.025**.
+- **The reward.** Shown before completion on each target (`HostDailyTarget.rewardCherries`): the level's share
+  (`reward_bps`: 150 / 250 / 400) of the profit the NOMINAL amount stands for — a cherries target's coins at the highest
+  normal share (or the lucky share), a count target's coin value (the gift's price; the host's own coins per supporter /
+  per gift for the others). *Worked example:* hard «3 000 000 cherries from gifts» → 461 538 coins = $5.769 in, $3.30 to
+  the host → profit **$2.469** → 4 % = $0.0988 = **89 790 cherries** (easy 1.5 % would be 33 671, medium 2.5 % 56 118). A
+  lucky «200 000 cherries» → 200 000 coins: $2.50 − $1.875 − $0.22 = $0.405 → 4 % = 14 727 cherries (at RTP 85 %: $0.155 →
+  5 636). **Guard (owner):** the payment is `min(shown, the level's share of the ACTUAL profit of the sends the target
+  counted)` — never of the nominal; a loss pays 0.
+- **Payment.** When a read (the host's, a viewer's, a guest's) sees a target reached, it is paid at once, once: the
+  assignment row is locked, `completed_at`, `progress`, `profit_microcents`, `paid_cherries`, `paid_at` are set and a
+  cherry ledger row `HOST_TARGET_REWARD` (reference `HT:<level>@<day>`, unique per host) is written in the same
+  transaction, audited `host_targets.reward` {host, day, level, code, progress, profitUsd, shown, paid}. The next read
+  also settles yesterday's targets reached after the last read. The reward is **locked like task cherries** (§10.46.1:
+  not withdrawable, not spendable in the store or sellable until the unlock rule passes; counted in
+  `CherryWallet.lockedTaskCherries`). It is outside the Task Center's daily and monthly caps (its own cap is the profit).
+- **The switch.** Migration `20270314090100_host_target_engine` leaves `engine_from` empty; the API's first read sets it
+  to the NEXT day. Today keeps D277's two targets with their progress and Task Center rewards; from the next day the
+  smart engine runs, the fixed «هدف هدايا الحظ» task (`HOST_LUCKY_COINS`) and the pool's `P_HOST_GIFTS` are no longer
+  Task Center tasks, and `LiveHostTargets.daily` holds the three targets.
+- **Contract (additive).** `LiveHostTargets.daily` (`HostDailyTarget`: `level`, `code`, `kind`, `title` in the caller's
+  `Accept-Language`, `amount`, `progress`, `reached`, `rewardCherries`, `rewardBps`, `paidCherries`, `locked`, `window`,
+  `gift` (`TaskGift`: code, name, assetKey, imageUrl), `category`); from the engine's first day `gifts.target` /
+  `lucky.target` are the whole-day cherries targets among the three (else 0), for older apps. `CherryLedgerReason`
+  `HOST_TARGET_REWARD`. Panel (OWNER only): `getAdminHostTargetSettings` / `updateAdminHostTargetSettings` (the
+  percentiles 50 / 75 / 90, the shares 150 / 250 / 400 bps ≤ 2 000, `noRepeatDays` 7, `taskNoRepeatDays` 3,
+  `historyDays` 30, `completionShift` 10; easy < medium < hard kept; a reason; audited `host_targets.settings.update`
+  with before / after), `getAdminTargetCatalogue` (targets by kind, tasks by template), `getAdminHostTargets` (a host's
+  day with «لماذا هذا الهدف»; audited `host_targets.view`). Capabilities `host_targets.view` / `host_targets.edit`.
+- **App.** The chip turns through the three targets («سهل / متوسط / صعب», progress) and the sheet lists them with the
+  level, the progress, the reward («+89,790 🍒 مقفل») and, when paid, «تم ✓». A gift target shows the gift's picture and
+  name; cherries targets keep the gift-box badge (`assets/host_targets/gifts_target.png`) and lucky ones the lucky badge.
 
 ### 10.63 The host's live tools: two cameras, music and the clip recorder *(v1.45-live, DRAFT — D201)*
 
