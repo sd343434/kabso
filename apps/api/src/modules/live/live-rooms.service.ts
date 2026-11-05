@@ -49,7 +49,7 @@ import {
 } from './live.schemas.js';
 import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
 import { assertNotRestricted } from '../users/account-control.js';
-import { watchStaffSql } from './live-staff.js';
+import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -1430,6 +1430,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     meta: RequestMeta & { readonly sessionId?: string | null },
   ): Promise<LiveRoomDto> {
     this.assertHostingEnabled();
+    // v1.71-live (D283, §10.96.10): a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) never goes live —
+    // every mode (solo, audio, podcast, streamer, multi-guest) comes through here (403 STAFF_ACCOUNT_LIMITED `live`).
+    await refuseLimitedStaff(this.prisma, callerId, 'live');
     // CP-010 (§10.8): the hosting permission, checked right after the hosting switch.
     if ((await this.prisma.liveHost.count({ where: { userId: callerId } })) === 0) {
       throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);

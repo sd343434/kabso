@@ -10,6 +10,7 @@ import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from './post-views.js';
 import { recordViewsSchema, type PageQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -139,6 +140,9 @@ export class PostInteractionsService {
     postId: string,
     reposted: boolean,
   ): Promise<{ reposted: boolean; repostCount: number }> {
+    // v1.71-live (D283, §10.96.10): a Kabso Team account's page shows its announcements only — no reposts (undoing
+    // an older one stays possible).
+    if (reposted) await refuseLimitedStaff(this.prisma, userId, 'repost');
     return this.prisma.$transaction(async (tx) => {
       const post = await this.visiblePublished(tx, userId, postId);
       let changed: number;

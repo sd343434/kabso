@@ -23,6 +23,7 @@ import {
 import { SocialCursorCodec } from './social-cursor.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { isPanelStaff, refuseLimitedStaff } from '../live/live-staff.js';
 
 /** At most 3 pinned posts per user (§11.2). */
 export const MAX_PINS = 3;
@@ -104,6 +105,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
     if (replay) return replay;
     // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
     await assertNotRestricted(this.prisma, authorId, 'NO_POSTING');
+    await this.checkAnnouncement(authorId, input.announcement === true);
     this.checkCreateRules(input);
 
     try {
@@ -142,6 +144,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
             authorId,
             text: input.text ?? '',
             format,
+            announcement: input.announcement === true,
             location: input.location ?? null,
             status,
             // v1.42-social (D162a, owner «جميعها تظهر فوراً»): every post — photos, a video, a reel —
@@ -175,6 +178,23 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
       }
       throw err;
     }
+  }
+
+  /**
+   * v1.71-live (D283, §10.96.10): who may publish what. A limited staff account (MODERATION / SUPPORT / FINANCE, not
+   * OWNER) publishes announcements only (403 STAFF_ACCOUNT_LIMITED `post_kind` otherwise); an announcement needs a
+   * panel role (the OWNER too) — anyone else gets 403 STAFF_ACCOUNT_LIMITED `announcement`.
+   */
+  private async checkAnnouncement(authorId: string, announcement: boolean): Promise<void> {
+    if (announcement) {
+      if (!(await isPanelStaff(this.prisma, authorId))) {
+        throw new AppException(ErrorCode.STAFF_ACCOUNT_LIMITED, undefined, [
+          { field: 'announcement', issue: 'announcement' },
+        ]);
+      }
+      return;
+    }
+    await refuseLimitedStaff(this.prisma, authorId, 'post_kind');
   }
 
   private async findIdempotent(authorId: string, key: string, requestHash: string): Promise<PostDto | null> {

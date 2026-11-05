@@ -16,6 +16,7 @@ import { parseMentions } from '../posts/text-entities.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { createStorySchema, MAX_STORY_MENTIONS } from './stories.schemas.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 /** `Story` (openapi v1.5-social, CP-008). */
 export interface StoryDto {
@@ -136,6 +137,8 @@ export class StoriesService {
     if (replay) return replay;
     // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
     await assertNotRestricted(this.prisma, authorId, 'NO_POSTING');
+    // v1.71-live (D283, §10.96.10): a Kabso Team account publishes announcement posts and reels only — no story.
+    await refuseLimitedStaff(this.prisma, authorId, 'story');
     try {
       const id = await this.prisma.$transaction(async (tx) => {
         if (!(await this.users.lockActiveById(tx, authorId))) {

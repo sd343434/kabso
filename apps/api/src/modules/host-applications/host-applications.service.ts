@@ -19,6 +19,7 @@ import {
   cancelPendingHostApplicationIn,
   hostApplicationPictureKey,
 } from './host-applications.core.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 const DAY_MS = 86_400_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -239,6 +240,8 @@ export class HostApplicationsService {
     body: unknown,
   ): Promise<{ created: boolean; result: MyHostingApplicationDto }> {
     const key = idempotencyKey(rawKey);
+    // v1.71-live (D283, §10.96.10): a Kabso Team account never goes live, so it never applies to host.
+    await refuseLimitedStaff(this.prisma, me, 'live');
     const parsed = hostingApplicationBodySchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;

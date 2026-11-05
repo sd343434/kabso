@@ -17,7 +17,8 @@ import { activeVipOf } from '../../posts/post-views.js';
 import type { StoreWearDto } from '../../store/store-rules.js';
 import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
-import { isPanelStaff } from '../../live/live-staff.js';
+import { isPanelStaff, staffIdentityOf, type LimitedStaffRole } from '../../live/live-staff.js';
+import type { StaffRegion } from '../../live/staff-regions.js';
 
 /**
  * `PublicProfile` (openapi v1.3). Never an email, role, status, locale or created-at time (D218: only the month
@@ -41,6 +42,12 @@ export interface PublicProfileDto {
    * (kick, mute, seat, family) and the server refuses them (403 STAFF_PROTECTED). Absent (false) for everyone else.
    */
   kabsoTeam?: true;
+  /**
+   * v1.71-live (D283, §10.96.10–11): a limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) — the
+   * role its profile line names and its regions; the app shows the team badge and frame, the line, and no levels.
+   * Absent for everyone else (the OWNER too).
+   */
+  staff?: { role: LimitedStaffRole; regions: StaffRegion[] };
   liveRoomId: string | null;
   /**
    * v1.70-live (D279, §10.5.1): the «في بث الآن» card's facts while `liveRoomId` is set (null otherwise, and across a
@@ -232,6 +239,7 @@ export class PublicProfileService {
     // v1.65-live (D264): a profile card or frame worn from the bag covers the VIP one (one worn item per kind).
     // D270: every stored kind worn (a store bubble, banner or car covers the VIP one too).
     const vip = activeVipOf({ vipMembership: membership }, new Date(), worn.categories);
+    const staff = await staffIdentityOf(this.prisma, user.id);
     return {
       id: user.id,
       username: user.username,
@@ -247,6 +255,7 @@ export class PublicProfileService {
       isMuted,
       isSelf,
       ...((await isPanelStaff(this.prisma, user.id)) ? { kabsoTeam: true as const } : {}),
+      ...(staff ? { staff } : {}),
       liveRoomId,
       live,
       family,

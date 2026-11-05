@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { clientIp, type AppRequest } from '../../common/http/request-context.js';
 import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
@@ -31,6 +31,8 @@ const username = z
   .transform((u) => u.replace(/^@/, ''));
 const stepUpBody = z.strictObject({ code: z.string().regex(/^[0-9]{6}$/) });
 const shiftBody = z.strictObject({ onShift: z.boolean() });
+/** v1.71-live (D283, §10.96.11): «بثوثي» — the lives assigned to me (default) or every live in my regions. */
+const livesScopeQuery = z.strictObject({ scope: z.enum(['assigned', 'regions']).optional() });
 const kickBody = z.strictObject({ username, reason });
 const muteBody = z.strictObject({ username, reason, muted: z.boolean().default(true) });
 
@@ -104,8 +106,11 @@ export class StaffAppController {
   @RateLimit(STAFF_LIMIT)
   @UseGuards(StaffAppGuard)
   @StaffCapability('lives.watch')
-  lives(@CurrentStaff() ctx: AdminContext) {
-    return this.staff.myLives(ctx);
+  lives(
+    @CurrentStaff() ctx: AdminContext,
+    @Query(new ZodValidationPipe(livesScopeQuery)) q: z.infer<typeof livesScopeQuery>,
+  ) {
+    return this.staff.myLives(ctx, q.scope ?? 'assigned');
   }
 
   // ---- one live -------------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import { normalizeDisplayName, textHygieneIssue } from '../users/display-name.js
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import type { RequestMeta, UserSummaryDto } from './live-rooms.service.js';
 import { PODCAST_TOPICS } from './live.schemas.js';
+import { refuseLimitedStaff } from './live-staff.js';
 
 /** At most this many upcoming slots per host (CONVENTIONS §10.16). */
 export const LIVE_SCHEDULE_MAX = 10;
@@ -135,6 +136,8 @@ export class LiveScheduleService {
    * checked under a per-host advisory lock so two requests cannot both take the last place.
    */
   async create(userId: string, body: unknown, meta: RequestMeta): Promise<LiveScheduleSlotDto> {
+    // v1.71-live (D283, §10.96.10): a Kabso Team account announces no live either.
+    await refuseLimitedStaff(this.prisma, userId, 'live');
     await this.requireHost(userId);
     const parsed = createLiveScheduleSlotSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));

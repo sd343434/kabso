@@ -317,6 +317,12 @@ export enum ErrorCode {
   STAFF_STEP_UP_REQUIRED = 'STAFF_STEP_UP_REQUIRED',
   /** v1.68-live (DRAFT, D273): the staff member has not set up the panel authenticator yet (admin.<domain>). */
   STAFF_TOTP_NOT_ENROLLED = 'STAFF_TOTP_NOT_ENROLLED',
+  /**
+   * v1.71-live (DRAFT, D283, §10.96.10): a Kabso Team account (MODERATION, SUPPORT or FINANCE, not OWNER) cannot do
+   * this — `details: [{field: 'staff', issue: 'live' | 'post_kind' | 'story' | 'repost' | 'family' | 'vip' | 'tasks'}]`;
+   * `announcement` when an account outside the team asks for an announcement post or reel.
+   */
+  STAFF_ACCOUNT_LIMITED = 'STAFF_ACCOUNT_LIMITED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -468,6 +474,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.LIVE_STAFF_REFUSED]: 403,
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 403,
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
+  [ErrorCode.STAFF_ACCOUNT_LIMITED]: 403,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -620,6 +627,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_STAFF_REFUSED]: 'The Kabso Team does not do this in a live.',
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',
+  [ErrorCode.STAFF_ACCOUNT_LIMITED]: 'A Kabso Team account cannot do this.',
 };
 
 export interface ErrorDetail {

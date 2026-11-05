@@ -2,6 +2,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Prisma, type AdminPermission } from '../../generated/prisma/client.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import { isStaffRegion, sortRegions, type StaffRegion } from './staff-regions.js';
 
 /**
  * v1.68-live (D273, CONVENTIONS §10.96.6 / §10.96.7): who is «فريق كابسو» in the app. Read from the roles held NOW
@@ -128,4 +129,86 @@ export async function refuseWatchStaff(
   if (await isWatchStaff(db, callerId)) {
     throw new AppException(ErrorCode.LIVE_STAFF_REFUSED, undefined, [{ field: 'staff', issue }]);
   }
+}
+
+/**
+ * v1.71-live (D283, CONVENTIONS §10.96.10; owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه
+ * ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل
+ * بوست اعلان فقط او ريلز اعلان»): the **limited** staff account — an ACTIVE ADMIN account holding MODERATION,
+ * SUPPORT or FINANCE and **not** OWNER (the OWNER's account stays a normal one: lives, levels, any post). Read from the
+ * roles held now, like the rest of this file. Such an account cannot go live, shows no levels, posts only
+ * announcements, joins no family, buys no VIP and has no tasks.
+ */
+export const LIMITED_STAFF_ROLES = [
+  'MODERATION',
+  'SUPPORT',
+  'FINANCE',
+] as const satisfies readonly AdminPermission[];
+export type LimitedStaffRole = (typeof LIMITED_STAFF_ROLES)[number];
+
+/** The roles that carry regions (§10.96.11). */
+export const REGION_STAFF_ROLES = ['MODERATION', 'SUPPORT'] as const satisfies readonly AdminPermission[];
+
+/** SQL: `userId` is a limited staff account now. */
+export function limitedStaffSql(userId: string | Prisma.Sql): Prisma.Sql {
+  const id = typeof userId === 'string' ? Prisma.sql`${userId}::uuid` : userId;
+  return Prisma.sql`(EXISTS (SELECT 1 FROM users su JOIN user_admin_permissions sp ON sp.user_id = su.id
+                      WHERE su.id = ${id} AND su.role = 'ADMIN'::user_role AND su.status = 'ACTIVE'::user_status
+                        AND sp.permission IN (${rolesSql(LIMITED_STAFF_ROLES)}))
+                 AND NOT EXISTS (SELECT 1 FROM user_admin_permissions so
+                      WHERE so.user_id = ${id} AND so.permission = 'OWNER'::admin_permission))`;
+}
+
+/** The limited staff role a person's line names: MODERATION, else SUPPORT, else FINANCE; null for OWNER / none. */
+export function limitedRoleOf(roles: readonly string[]): LimitedStaffRole | null {
+  if (roles.includes('OWNER')) return null;
+  for (const r of LIMITED_STAFF_ROLES) if (roles.includes(r)) return r;
+  return null;
+}
+
+/** The ids among `userIds` that are limited staff now, with the role their line names. */
+export async function limitedStaffAmong(db: Db, userIds: readonly string[]): Promise<Map<string, LimitedStaffRole>> {
+  const ids = [...new Set(userIds)];
+  const out = new Map<string, LimitedStaffRole>();
+  if (ids.length === 0) return out;
+  const rows = await db.$queryRaw<{ id: string; roles: string[] }[]>`
+    SELECT u.id::text AS id, array_agg(p.permission::text) AS roles
+      FROM users u JOIN user_admin_permissions p ON p.user_id = u.id
+     WHERE u.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+       AND u.role = 'ADMIN'::user_role AND u.status = 'ACTIVE'::user_status
+     GROUP BY u.id`;
+  for (const r of rows) {
+    const role = limitedRoleOf(r.roles);
+    if (role) out.set(r.id, role);
+  }
+  return out;
+}
+
+export async function isLimitedStaff(db: Db, userId: string): Promise<boolean> {
+  return (await limitedStaffAmong(db, [userId])).has(userId);
+}
+
+export type LimitedStaffIssue = 'live' | 'post_kind' | 'story' | 'repost' | 'family' | 'vip' | 'tasks';
+
+/** 403 STAFF_ACCOUNT_LIMITED (`details[0].issue`) when the caller is a limited staff account (§10.96.10). */
+export async function refuseLimitedStaff(db: Db, callerId: string, issue: LimitedStaffIssue): Promise<void> {
+  if (await isLimitedStaff(db, callerId)) {
+    throw new AppException(ErrorCode.STAFF_ACCOUNT_LIMITED, undefined, [{ field: 'staff', issue }]);
+  }
+}
+
+/**
+ * The «فريق كابسو» identity a limited staff account's profile shows (`KabsoStaffIdentity`, §10.96.10–11): the role
+ * its line names and, for MODERATION / SUPPORT, the regions it is responsible for (catalogue order). Null for
+ * anyone else (the OWNER too).
+ */
+export async function staffIdentityOf(
+  db: Pick<PrismaService, '$queryRaw' | 'adminStaffRegion'> | Prisma.TransactionClient,
+  userId: string,
+): Promise<{ role: LimitedStaffRole; regions: StaffRegion[] } | null> {
+  const role = (await limitedStaffAmong(db, [userId])).get(userId);
+  if (!role) return null;
+  if (role === 'FINANCE') return { role, regions: [] };
+  const rows = await db.adminStaffRegion.findMany({ where: { userId }, select: { region: true } });
+  return { role, regions: sortRegions(rows.map((r) => r.region).filter(isStaffRegion)) };
 }

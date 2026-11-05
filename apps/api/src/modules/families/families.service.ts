@@ -38,6 +38,7 @@ import {
 } from './families.schemas.js';
 import { familyNameIssue, familyNameKey, normalizeFamilyName } from './family-name.js';
 import { familyWindow, memberViews, type FamilyMemberDto, type MemberRow } from './family-views.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 export type { FamilyMemberDto } from './family-views.js';
 
@@ -556,6 +557,8 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
     body: unknown,
     meta: RequestMeta,
   ): Promise<{ created: boolean; result: CreateFamilyResultDto }> {
+    // v1.71-live (D283, §10.96.10): a Kabso Team account neither owns nor joins a family.
+    await refuseLimitedStaff(this.prisma, callerId, 'family');
     const parsed = createFamilySchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const issue = familyNameIssue(
@@ -938,6 +941,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
     callerId: string,
     familyId: string,
   ): Promise<{ created: boolean; request: FamilyJoinRequestDto }> {
+    await refuseLimitedStaff(this.prisma, callerId, 'family');
     const now = this.clock.now();
     const result = await this.prisma.$transaction(async (tx) => {
       const family = await this.lockFamily(tx, familyId);

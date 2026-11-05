@@ -4,6 +4,7 @@ import { Clock } from '../../common/time/clock.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { limitedStaffSql } from './live-staff.js';
 
 /** `LiveChatAuthorFamily` (v1.24.3-live, D119). */
 export interface LiveChatAuthorFamilyDto {
@@ -83,6 +84,7 @@ interface BadgeRow {
   family_level: number | null;
   newcomer: boolean | null;
   medals: LiveChatAuthorMedalDto[] | null;
+  limited_staff: boolean | null;
 }
 
 /**
@@ -121,6 +123,7 @@ export class LiveChatBadgesService {
              ${levelSql('SUPPORT')} AS support_level,
              f.name AS family_name, f.level AS family_level,
              (SELECT u.created_at > ${since}::timestamptz FROM users u WHERE u.id = a.id) AS newcomer,
+             ${limitedStaffSql(Prisma.sql`a.id`)} AS limited_staff,
              (SELECT COALESCE(json_agg(json_build_object('code', s.code, 'iconKey', s.icon_key) ORDER BY s.pos), '[]'::json)
                 FROM (SELECT um.medal_code AS code, md.icon_key, um.showcase_position AS pos
                         FROM user_medals um
@@ -132,7 +135,9 @@ export class LiveChatBadgesService {
         LEFT JOIN family_members fm ON fm.user_id = a.id
         LEFT JOIN families f ON f.id = fm.family_id AND f.disbanded_at IS NULL`;
     for (const row of rows) {
-      const badges: LiveChatAuthorBadgesDto = {
+      // v1.71-live (D283, §10.96.10): a Kabso Team account shows no levels, family, medals or newcomer tag — only
+      // the team badge.
+      const badges: LiveChatAuthorBadgesDto = row.limited_staff ? NO_BADGES : {
         charmLevel: row.charm_level,
         supportLevel: row.support_level,
         family:

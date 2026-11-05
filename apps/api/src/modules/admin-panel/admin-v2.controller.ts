@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -70,6 +71,8 @@ import {
   statsSeriesQuery,
   teamGrantBody,
   teamResetBody,
+  teamRegionsBody,
+  type TeamRegionsBody,
   teamRevokeBody,
   updateGiftBody,
   usersTableQuery,
@@ -807,6 +810,26 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.team.revoke(pathUuid(id), body, admin);
+  }
+
+  /** v1.71-live (D283, §10.96.11): the regions and their countries. */
+  @Get('team/regions')
+  @RequireCapability('team.manage')
+  teamRegionCatalog() {
+    return this.team.regionCatalog();
+  }
+
+  /** v1.71-live (D283, §10.96.11): a MODERATION / SUPPORT staff member's regions (OWNER, code + reason, audited). */
+  @Put('team/:userId/regions')
+  @HttpCode(200)
+  @TEAM_LIMIT
+  @RequireCapability('team.manage')
+  teamRegions(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(teamRegionsBody)) body: TeamRegionsBody,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.team.setRegions(pathUuid(id), body, admin);
   }
 
   @Post('team/:userId/reset-2fa')

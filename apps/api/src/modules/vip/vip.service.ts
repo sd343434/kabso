@@ -27,6 +27,7 @@ import {
   vipPerkAvailable,
   type VipPurchaseKind,
 } from './vip-rules.js';
+import { refuseLimitedStaff } from '../live/live-staff.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -373,6 +374,8 @@ export class VipService {
       .digest('hex');
     const replay = await this.findReplay(userId, key, requestHash, lang);
     if (replay) return { replay: true, result: replay };
+    // v1.71-live (D283, §10.96.10): a Kabso Team account wears the team frame and badge, never VIP.
+    await refuseLimitedStaff(this.prisma, userId, 'vip');
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         // Bound every lock wait in this purchase (the user row below, the

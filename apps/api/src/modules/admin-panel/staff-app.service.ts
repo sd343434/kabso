@@ -12,6 +12,7 @@ import { openLiveReportsByRoom } from '../live/live-reports.js';
 import { AdminAuthService, type AdminContext, type AdminMeta } from './admin-auth.service.js';
 import { capabilitiesOf, type Capability } from './admin-permissions.js';
 import { refused } from './admin-users.service.js';
+import { countriesOfRegions, isStaffRegion, regionOfCountry, type StaffRegion } from '../live/staff-regions.js';
 
 /**
  * The capabilities the app's staff tools use (a subset of the panel's table, §10.54.1): the app shows only these, and
@@ -50,8 +51,24 @@ export interface StaffLiveDto {
   viewerCount: number;
   startedAt: string;
   openReports: number;
-  assignedAt: string;
+  /** When it was assigned to the caller; null (v1.71-live, `scope=regions`) for a live in their regions held by another. */
+  assignedAt: string | null;
+  /** v1.71-live (D283): the host's country (ISO alpha-2) and its staff region, or null. */
+  hostCountry: string | null;
+  region: StaffRegion | null;
 }
+
+const STAFF_LIVE_ROOM = {
+  select: {
+    id: true,
+    title: true,
+    viewerCount: true,
+    startedAt: true,
+    host: {
+      select: { profile: { select: { username: true, displayName: true, avatarUrl: true, countryCode: true } } },
+    },
+  },
+} as const;
 
 /**
  * v1.68-live (D273, CONVENTIONS §10.96.6; owner: «نفس صلاحيات اللوحة من الهاتف»): the staff tools in the app — the
@@ -167,22 +184,17 @@ export class StaffAppService {
   }
 
   /** `GET /staff/lives`: «بثوثي» — the LIVE rooms assigned to the caller, most reported first, then the oldest. */
-  async myLives(ctx: AdminContext): Promise<{ data: StaffLiveDto[] }> {
-    const rows = await this.prisma.liveRoomAssignment.findMany({
-      where: { adminId: ctx.userId, room: { status: 'LIVE' } },
-      select: {
-        assignedAt: true,
-        room: {
-          select: {
-            id: true,
-            title: true,
-            viewerCount: true,
-            startedAt: true,
-            host: { select: { profile: { select: { username: true, displayName: true, avatarUrl: true } } } },
-          },
-        },
-      },
-    });
+  async myLives(ctx: AdminContext, scope: 'assigned' | 'regions' = 'assigned'): Promise<{ data: StaffLiveDto[] }> {
+    const room = STAFF_LIVE_ROOM;
+    // v1.71-live (D283, §10.96.11): `regions` — every live on air whose host's country is in my regions (assigned
+    // to anyone; `assignedAt` null when not to me), at most 200, the reported first.
+    const rows =
+      scope === 'regions'
+        ? await this.livesInMyRegions(ctx.userId, room)
+        : await this.prisma.liveRoomAssignment.findMany({
+            where: { adminId: ctx.userId, room: { status: 'LIVE' } },
+            select: { assignedAt: true, room },
+          });
     const reports = await openLiveReportsByRoom(
       this.prisma,
       rows.map((r) => r.room.id),
@@ -198,7 +210,9 @@ export class StaffAppService {
       viewerCount: r.room.viewerCount,
       startedAt: r.room.startedAt.toISOString(),
       openReports: reports.get(r.room.id) ?? 0,
-      assignedAt: r.assignedAt.toISOString(),
+      assignedAt: r.assignedAt?.toISOString() ?? null,
+      hostCountry: r.room.host.profile?.countryCode ?? null,
+      region: regionOfCountry(r.room.host.profile?.countryCode),
     }));
     data.sort(
       (a, b) =>
@@ -207,6 +221,22 @@ export class StaffAppService {
         a.roomId.localeCompare(b.roomId),
     );
     return { data };
+  }
+
+  private async livesInMyRegions(adminId: string, room: typeof STAFF_LIVE_ROOM) {
+    const mine = await this.prisma.adminStaffRegion.findMany({ where: { userId: adminId }, select: { region: true } });
+    const countries = countriesOfRegions(mine.map((r) => r.region).filter(isStaffRegion));
+    if (countries.length === 0) return [];
+    const lives = await this.prisma.liveRoom.findMany({
+      where: { status: 'LIVE', host: { profile: { countryCode: { in: countries } } } },
+      orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
+      take: 200,
+      select: { ...room.select, assignment: { select: { adminId: true, assignedAt: true } } },
+    });
+    return lives.map(({ assignment, ...rest }) => ({
+      assignedAt: assignment?.adminId === adminId ? assignment.assignedAt : null,
+      room: rest,
+    }));
   }
 
   /** Closes the open reports on one user (or message) of this live as ACTIONED with the reason; returns how many. */

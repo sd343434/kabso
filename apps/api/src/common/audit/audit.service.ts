@@ -292,6 +292,8 @@ export enum AuditAction {
   ADMIN_ROLE_GRANT = 'admin.role.grant',
   ADMIN_ROLE_REVOKE = 'admin.role.revoke',
   ADMIN_TOTP_RESET = 'admin.totp.reset',
+  /** v1.71-live (D283, §10.96.11): the OWNER sets a MODERATION / SUPPORT staff member's regions. */
+  ADMIN_TEAM_REGIONS = 'admin.team.regions',
   /** … and what the panel does that has no older action name. */
   ADMIN_USER_VIEW = 'admin.user.view',
   ADMIN_USER_BAN = 'admin.user.ban',

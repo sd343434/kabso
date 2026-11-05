@@ -13,6 +13,7 @@ import { GIFT_CATEGORY_ICON_KEY_PATTERN } from '../gifts/gift-categories.js';
 import { EVENT_METRICS, EVENT_TONES } from '../programs/event-admin-rules.js';
 import { PANEL_ROLES } from './admin-permissions.js';
 import { dayRange, tableQuery } from './admin-tables.js';
+import { STAFF_REGION_CODES, type StaffRegion } from '../live/staff-regions.js';
 
 /** Request bodies and queries of the panel v2 (v1.65-social, D197, CONVENTIONS §10.60; openapi tag `admin-panel`). */
 
@@ -105,6 +106,9 @@ export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
       .transform((v) => v === 'true'),
     // v1.64-live (D260, §10.96): «بثوثي» — only the lives assigned to the signed-in staff member.
     assigned: z.enum(['me']).optional(),
+    // v1.71-live (D283, §10.96.11): the lives whose host's country is in a region, or in the signed-in staff
+    // member's own regions (`mine`; none → no live).
+    region: z.enum([...STAFF_REGION_CODES, 'mine'] as unknown as [string, ...string[]]).optional(),
   })
   .strict();
 
@@ -364,6 +368,16 @@ export const teamGrantBody = z
   });
 export const teamRevokeBody = z.strictObject({ role, reason, totpCode });
 export const teamResetBody = z.strictObject({ reason, totpCode });
+/** v1.71-live (D283, §10.96.11): the whole set of a MODERATION / SUPPORT staff member's regions (0 = none). */
+export const teamRegionsBody = z.strictObject({
+  regions: z
+    .array(z.enum(STAFF_REGION_CODES as [StaffRegion, ...StaffRegion[]]))
+    .max(STAFF_REGION_CODES.length)
+    .refine((v) => new Set(v).size === v.length, { message: 'duplicate', params: { issue: 'duplicate' } }),
+  reason,
+  totpCode,
+});
+export type TeamRegionsBody = z.output<typeof teamRegionsBody>;
 
 export const specialUsernamesQuery = tableQuery(['grantedAt', 'username'], 'grantedAt')
   .extend({

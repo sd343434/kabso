@@ -6,6 +6,8 @@ import type { AdminPermission } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { openLiveReportsByRoom } from './live-reports.js';
+import { REGION_STAFF_ROLES } from './live-staff.js';
+import { isStaffRegion, regionOfCountry, type StaffRegion } from './staff-regions.js';
 
 /** v1.64-live (D260, §10.96): the panel roles that watch lives (SUPPORT watch-only, D250b). FINANCE never. */
 export const WATCH_ROLES = ['OWNER', 'MODERATION', 'SUPPORT'] as const satisfies readonly AdminPermission[];
@@ -21,6 +23,26 @@ interface StaffRow {
   canAct: boolean;
   load: number;
   lastAssignedAt: number;
+  /** v1.71-live (D283): the regions this MODERATION / SUPPORT staff member is responsible for. */
+  regions: ReadonlySet<StaffRegion>;
+}
+
+/**
+ * v1.71-live (D283, CONVENTIONS §10.96.11): the staff a live goes to, from `pool` (already filtered by the D260 rules:
+ * never one's own live, a reported live to someone who may act): those whose region covers the host's country first;
+ * nobody there (or a country in no region) → the whole pool. Then the D260 load order (fewest lives, assigned least
+ * recently, earliest shift). Exported for the unit tests.
+ */
+export function pickStaffFor<T extends Omit<StaffRow, 'canAct'>>(pool: readonly T[], hostCountry: string | null): T | undefined {
+  const region = regionOfCountry(hostCountry);
+  const local = region === null ? [] : pool.filter((s) => s.regions.has(region));
+  return [...(local.length > 0 ? local : pool)].sort(
+    (a, b) =>
+      a.load - b.load ||
+      a.lastAssignedAt - b.lastAssignedAt ||
+      a.since.getTime() - b.since.getTime() ||
+      a.id.localeCompare(b.id),
+  )[0];
 }
 
 export interface AssignmentResult {
@@ -111,6 +133,7 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
             select: {
               adminPermissions: { select: { permission: true } },
               liveAssignments: { select: { roomId: true, assignedAt: true } },
+              staffRegions: { select: { region: true } },
             },
           },
         },
@@ -121,19 +144,39 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
         canAct: s.user.adminPermissions.some((p) => (ACT_ROLES as readonly string[]).includes(p.permission)),
         load: s.user.liveAssignments.length,
         lastAssignedAt: Math.max(0, ...s.user.liveAssignments.map((a) => a.assignedAt.getTime())),
+        // Regions count only while the person holds MODERATION or SUPPORT (an OWNER-only account has none).
+        regions: new Set(
+          s.user.adminPermissions.some((p) => (REGION_STAFF_ROLES as readonly string[]).includes(p.permission))
+            ? s.user.staffRegions.map((r) => r.region).filter(isStaffRegion)
+            : [],
+        ),
       }));
       const result: AssignmentResult = { assigned: [], released };
       if (staff.length === 0) return result;
       const byId = new Map(staff.map((s) => [s.id, s]));
       const anyActor = staff.some((s) => s.canAct);
 
-      const lives = await tx.liveRoom.findMany({
-        where: { status: 'LIVE' },
-        select: { id: true, hostUserId: true, startedAt: true, assignment: { select: { adminId: true } } },
-      });
+      const lives = (
+        await tx.liveRoom.findMany({
+          where: { status: 'LIVE' },
+          select: {
+            id: true,
+            hostUserId: true,
+            startedAt: true,
+            assignment: { select: { adminId: true } },
+            host: { select: { profile: { select: { countryCode: true } } } },
+          },
+        })
+      ).map(({ host, ...live }) => ({ ...live, hostCountry: host.profile?.countryCode ?? null }));
       const reports = await openLiveReportsByRoom(tx);
       // 3. A reported live watched by someone who may not act moves to someone who may (when one is on shift).
-      const pending: { id: string; hostUserId: string; startedAt: Date; previous: string | null }[] = [];
+      const pending: {
+        id: string;
+        hostUserId: string;
+        hostCountry: string | null;
+        startedAt: Date;
+        previous: string | null;
+      }[] = [];
       for (const live of lives) {
         const current = live.assignment?.adminId ?? null;
         if (current === null) {
@@ -161,13 +204,8 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
         const n = reports.get(live.id) ?? 0;
         // Never one's own live; a reported live to someone who may act when any is on shift.
         const pool = staff.filter((s) => s.id !== live.hostUserId && (n === 0 || !anyActor || s.canAct));
-        const pick = pool.sort(
-          (a, b) =>
-            a.load - b.load ||
-            a.lastAssignedAt - b.lastAssignedAt ||
-            a.since.getTime() - b.since.getTime() ||
-            a.id.localeCompare(b.id),
-        )[0];
+        // v1.71-live (D283): the host's region first, then by load.
+        const pick = pickStaffFor(pool, live.hostCountry);
         if (!pick) continue;
         // Distinct times so the round-robin order holds within one pass.
         const at = new Date(now.getTime() + tick);

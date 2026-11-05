@@ -17,6 +17,8 @@ import type {
 import { categoryFromSlug } from './levels.constants.js';
 import { LevelsQueryService, type PublicLevelDto } from './levels-query.service.js';
 import { myLevelsListQuerySchema, type MyLevelsListQuery } from './levels.schemas.js';
+import { isLimitedStaff } from '../live/live-staff.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 /** A path category that is not one of the four (lower case) is 404. */
 export function categoryParam(slug: string): LevelCategoryCode {
@@ -91,6 +93,7 @@ export class UserLevelsController {
   constructor(
     private readonly levels: LevelsQueryService,
     private readonly users: UsersService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get(':username/levels')
@@ -101,6 +104,8 @@ export class UserLevelsController {
   ): Promise<{ data: PublicLevelDto[] }> {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
+    // v1.71-live (D283, §10.96.10): a Kabso Team account shows no levels anywhere — an empty list.
+    if (await isLimitedStaff(this.prisma, user.id)) return { data: [] };
     const lang =
       languageFromAcceptLanguage(req.headers['accept-language']) ?? (await this.users.getLocale(auth.userId));
     return { data: await this.levels.publicLevels(user.id, lang) };

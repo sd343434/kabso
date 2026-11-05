@@ -4,6 +4,7 @@ import { Clock } from '../../common/time/clock.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ACT_ROLES, LiveStaffAssignmentService, WATCH_ROLES } from './live-staff-assignment.service.js';
+import { regionOfCountry } from './staff-regions.js';
 
 /** How the recipients of a staff alert were chosen (audit metadata). */
 export type StaffAlertRoute = 'assigned' | 'actors' | 'owners';
@@ -107,17 +108,23 @@ export class LiveStaffAlertsService {
       recipients = [holder];
     } else {
       route = 'actors';
-      recipients = (
-        await this.prisma.user.findMany({
-          where: {
-            role: 'ADMIN',
-            status: 'ACTIVE',
-            adminShift: { onShift: true },
-            adminPermissions: { some: { permission: { in: [...ACT_ROLES] } } },
-          },
-          select: { id: true },
-        })
-      ).map((u) => u.id);
+      const actors = await this.prisma.user.findMany({
+        where: {
+          role: 'ADMIN',
+          status: 'ACTIVE',
+          adminShift: { onShift: true },
+          adminPermissions: { some: { permission: { in: [...ACT_ROLES] } } },
+        },
+        select: { id: true, staffRegions: { select: { region: true } } },
+      });
+      // v1.71-live (D283, §10.96.11): those whose region covers the host's country, when any; else all of them.
+      const host = await this.prisma.userProfile.findUnique({
+        where: { userId: room.hostUserId },
+        select: { countryCode: true },
+      });
+      const region = regionOfCountry(host?.countryCode);
+      const local = region === null ? [] : actors.filter((a) => a.staffRegions.some((r) => r.region === region));
+      recipients = (local.length > 0 ? local : actors).map((u) => u.id);
       if (recipients.length === 0) {
         route = 'owners';
         recipients = (

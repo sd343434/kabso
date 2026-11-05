@@ -13,6 +13,9 @@ import { AUDIT_ROW, auditRowDto } from './admin-people.service.js';
 import { dayBound, tableResult, window, type TableQuery } from './admin-tables.js';
 import { refused, viaOf } from './admin-users.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
+import { isStaffRegion, sortRegions, staffRegionCatalog } from '../live/staff-regions.js';
+import { REGION_STAFF_ROLES } from '../live/live-staff.js';
+import type { TeamRegionsBody } from './admin-v2.schemas.js';
 
 export interface AuditQuery extends TableQuery {
   readonly actor?: string | undefined;
@@ -153,6 +156,7 @@ export class AdminTeamService {
           select: { createdAt: true },
         },
         adminShift: { select: { onShift: true, since: true } },
+        staffRegions: { select: { region: true } },
       },
     });
     return {
@@ -174,8 +178,53 @@ export class AdminTeamService {
         lastSignInAt: u.adminSessions[0]?.createdAt.toISOString() ?? null,
         onShift: u.adminShift?.onShift ?? false,
         shiftSince: u.adminShift?.onShift ? u.adminShift.since.toISOString() : null,
+        // v1.71-live (D283, §10.96.11): the regions of a MODERATION / SUPPORT staff member (catalogue order).
+        regions: sortRegions(u.staffRegions.map((r) => r.region).filter(isStaffRegion)),
       })),
     };
+  }
+
+  /** v1.71-live (D283, §10.96.11): the regions and their countries (`AdminStaffRegionCatalog`). */
+  regionCatalog() {
+    return staffRegionCatalog();
+  }
+
+  /**
+   * v1.71-live (D283, §10.96.11) `setAdminTeamRegions`: the OWNER sets the whole set of regions a MODERATION / SUPPORT
+   * staff member is responsible for (the OWNER's code again and a reason, like the other team changes). Refused for
+   * anyone holding neither (`team_regions_role`). Audited `admin.team.regions` {before, regions, reason}. The next
+   * assignment pass uses them (a live already assigned stays where it is).
+   */
+  async setRegions(userId: string, body: TeamRegionsBody, ctx: AdminContext) {
+    await this.auth.reauthenticate(ctx, body.totpCode);
+    const regions = sortRegions(body.regions);
+    const before = await this.prisma.$transaction(async (tx) => {
+      // The person's row locked so two OWNERs' changes apply one after the other.
+      await tx.$queryRaw`SELECT 1 FROM users WHERE id = ${userId}::uuid FOR NO KEY UPDATE`;
+      const holds = await tx.userAdminPermission.count({
+        where: { userId, permission: { in: [...REGION_STAFF_ROLES] } },
+      });
+      if (holds === 0) {
+        throw refused('Regions are for MODERATION and SUPPORT staff.', 'team_regions_role', 'rule');
+      }
+      const old = await tx.adminStaffRegion.findMany({ where: { userId }, select: { region: true } });
+      await tx.adminStaffRegion.deleteMany({ where: { userId } });
+      if (regions.length > 0) {
+        await tx.adminStaffRegion.createMany({ data: regions.map((region) => ({ userId, region })) });
+      }
+      const prior = sortRegions(old.map((r) => r.region).filter(isStaffRegion));
+      await this.audit.recordIn(tx, {
+        action: AuditAction.ADMIN_TEAM_REGIONS,
+        actorUserId: ctx.userId,
+        targetType: 'user',
+        targetId: userId,
+        metadata: { before: prior, regions, reason: body.reason, via: ctx.via ?? 'panel' },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+      return prior;
+    });
+    return { userId, regions, before };
   }
 
   async grant(body: TeamGrantBody, ctx: AdminContext) {

@@ -17,8 +17,9 @@ import {
 } from './profile-edit.service.js';
 import { UsersService, type MeDto } from './users.service.js';
 import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
-import { isWatchStaff } from '../live/live-staff.js';
+import { isWatchStaff, staffIdentityOf, type LimitedStaffRole } from '../live/live-staff.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { StaffRegion } from '../live/staff-regions.js';
 
 function meta(req: AppRequest): ProfileEditMeta {
   return { ip: clientIp(req), requestId: getRequestId(req) };
@@ -36,11 +37,20 @@ export class UsersController {
 
   @Get('me')
   @ConsentExempt()
-  async me(@CurrentAuth() auth: AuthContext): Promise<MeDto & { kabsoTeam?: true }> {
+  async me(
+    @CurrentAuth() auth: AuthContext,
+  ): Promise<MeDto & { kabsoTeam?: true; staff?: { role: LimitedStaffRole; regions: StaffRegion[] } }> {
     const me = await this.users.getMe(auth.userId);
     if (!me) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    // v1.71-live (D283, §10.96.10): a limited Kabso Team account — the app hides going live, levels, VIP, families,
+    // tasks and every post kind but the announcement.
+    const staff = await staffIdentityOf(this.prisma, auth.userId);
     // v1.68-live (D273, §10.96.6): «فريق كابسو» (a watch role now) — the app's Me tab entry and the tools in lives.
-    return (await isWatchStaff(this.prisma, auth.userId)) ? { ...me, kabsoTeam: true } : me;
+    return {
+      ...me,
+      ...((await isWatchStaff(this.prisma, auth.userId)) ? { kabsoTeam: true as const } : {}),
+      ...(staff ? { staff } : {}),
+    };
   }
 
   /**

@@ -75,6 +75,8 @@ model User {
   liveViews              LiveRoomViewer[]
   /// v1.64-live (D260): the panel staff member's shift, the lives assigned to them, their visible watches.
   adminShift             AdminShift?
+  /// v1.71-live (D283): the regions a MODERATION / SUPPORT staff member is responsible for.
+  staffRegions           AdminStaffRegion[]
   liveAssignments        LiveRoomAssignment[]
   liveStaffWatches       LiveRoomStaffWatcher[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
@@ -1702,6 +1704,9 @@ model Post {
   text            String         @default("") @db.VarChar(2200)
   /// D162: `REEL` — one `REEL_VIDEO`, listed by the reels feed only.
   format          PostFormat     @default(POST)
+  /// v1.71-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو» — only the Kabso Team
+  /// creates one, and a limited staff account (MODERATION / SUPPORT / FINANCE) creates nothing else. Never changes.
+  announcement    Boolean        @default(false)
   location        String?        @db.VarChar(80)
   status          PostStatus     @default(PUBLISHED)
   moderation      PostModeration @default(VISIBLE)
@@ -6447,6 +6452,22 @@ model AdminShift {
 
   @@index([onShift], map: "admin_shifts_on_idx", where: raw("on_shift"))
   @@map("admin_shifts")
+}
+
+/// v1.71-live (D283, CONVENTIONS §10.96.11): a region (a fixed group of countries, `staff-regions.ts`) a MODERATION /
+/// SUPPORT staff member is responsible for. Set by the OWNER in «الموظفون والصلاحيات» (audited `admin.team.regions`).
+/// The live assignment and report alerts prefer a staff member whose region covers the host's country. CHECK
+/// `admin_staff_regions_code` (the 13 codes).
+model AdminStaffRegion {
+  userId     String   @map("user_id") @db.Uuid
+  region     String   @db.VarChar(24)
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, region])
+  @@index([region], map: "admin_staff_regions_region_idx")
+  @@map("admin_staff_regions")
 }
 
 /// v1.64-live (D260): the staff member who watches a LIVE room (one per room; removed when the live ends).

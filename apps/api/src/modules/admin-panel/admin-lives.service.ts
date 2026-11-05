@@ -11,6 +11,7 @@ import type { AdminContext } from './admin-auth.service.js';
 import { tableResult, window, type TableQuery } from './admin-tables.js';
 import { refused } from './admin-users.service.js';
 import { openLiveReportsByRoom } from './admin-live-moderation.service.js';
+import { countriesOfRegions, isStaffRegion, regionOfCountry } from '../live/staff-regions.js';
 
 /** v1.54-live (D241): an open D195 PK match (CONNECTED, BATTLE or RESULT) on either side. */
 const OPEN_PK = { status: { not: 'CLOSED' as const } };
@@ -71,7 +72,7 @@ function pkOf(r: PkSides) {
 const host = {
   select: {
     id: true,
-    profile: { select: { username: true, displayName: true, avatarUrl: true } },
+    profile: { select: { username: true, displayName: true, avatarUrl: true, countryCode: true } },
     liveHost: { select: { coverUrl: true, roomNumber: true } },
   },
 };
@@ -97,9 +98,12 @@ export class AdminLivesService {
       mode?: 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER' | undefined;
       reported?: boolean | undefined;
       assigned?: 'me' | undefined;
+      region?: string | undefined;
     },
     ctx: AdminContext,
   ) {
+    // v1.71-live (D283, §10.96.11): the region filter — the host's country in the region (or in my regions).
+    const regionCountries = q.region ? await this.regionCountries(q.region, ctx.userId) : null;
     // v1.60-live (D250, §10.91.2): «لايفات مبلّغ عنها» — the lives with open reports (a filter, combinable with a mode).
     const reported = q.reported === true ? await openLiveReportsByRoom(this.prisma) : null;
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');
@@ -120,6 +124,7 @@ export class AdminLivesService {
         modeWhere,
         ...(reported ? [{ id: { in: [...reported.keys()] } }] : []),
         ...(q.assigned === 'me' ? [{ assignment: { adminId: ctx.userId } }] : []),
+        ...(regionCountries ? [{ host: { profile: { countryCode: { in: regionCountries } } } }] : []),
       ],
       ...(text
         ? {
@@ -183,6 +188,9 @@ export class AdminLivesService {
         displayName: r.host.profile?.displayName ?? '',
         avatarUrl: r.host.profile?.avatarUrl ?? null,
       },
+      // v1.71-live (D283): the host's country (ISO alpha-2) and its staff region, or null.
+      hostCountry: r.host.profile?.countryCode ?? null,
+      region: regionOfCountry(r.host.profile?.countryCode),
       pk: pkOf(r),
       assignedTo: r.assignment
         ? { id: r.assignment.adminId, displayName: r.assignment.admin.profile?.displayName ?? '' }
@@ -209,8 +217,16 @@ export class AdminLivesService {
         ...(q.mode ? { mode: q.mode } : {}),
         ...(q.reported ? { reported: true } : {}),
         ...(q.assigned ? { assigned: q.assigned } : {}),
+        ...(q.region ? { region: q.region } : {}),
       },
     );
+  }
+
+  /** The countries of one region, or of the staff member's own regions (`mine`). */
+  private async regionCountries(region: string, adminId: string): Promise<string[]> {
+    if (isStaffRegion(region)) return countriesOfRegions([region]);
+    const mine = await this.prisma.adminStaffRegion.findMany({ where: { userId: adminId }, select: { region: true } });
+    return countriesOfRegions(mine.map((r) => r.region).filter(isStaffRegion));
   }
 
   async detail(id: string) {

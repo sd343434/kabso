@@ -51,6 +51,11 @@ export const createPostSchema = z.strictObject({
   settings: postSettingsPatchSchema.optional(),
   /** v1.41-social (D162): `REEL` takes exactly one `REEL_VIDEO`. */
   format: z.enum(['POST', 'REEL']).optional(),
+  /**
+   * v1.71-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو» — the Kabso Team only, and a
+   * limited staff account must send `true`.
+   */
+  announcement: z.boolean().optional(),
 });
 export type CreatePostInput = z.output<typeof createPostSchema>;
 

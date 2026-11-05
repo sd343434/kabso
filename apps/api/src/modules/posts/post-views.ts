@@ -14,6 +14,8 @@ export interface PostDto {
   id: string;
   /** v1.41-social (D162): `REEL` — one vertical video (Moments). */
   format: 'POST' | 'REEL';
+  /** v1.71-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو». */
+  announcement: boolean;
   author: UserSummaryDto;
   text: string;
   media: MediaAssetDto[];
@@ -406,6 +408,7 @@ export class PostViews {
     return {
       id: row.id,
       format: row.format,
+      announcement: row.announcement,
       author: userSummary(row.author),
       text: row.text,
       media: row.media.map((m) => this.media.toDto(m.mediaAsset)),
