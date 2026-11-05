@@ -13,6 +13,7 @@ import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_flat_line.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
@@ -381,10 +382,17 @@ void main() {
     );
     // Within 2 px at 1× (each art's edge rounds to whole pixels, so where
     // the row sits moves a visible height by up to a pixel either way).
-    expect(vipH, greaterThan(18));
-    expect((vipH - charmH).abs(), lessThanOrEqualTo(2), reason: 'charm');
-    expect((vipH - supportH).abs(), lessThanOrEqualTo(2), reason: 'support');
-    expect((vipH - medalH).abs(), lessThanOrEqualTo(2), reason: 'medal');
+    // D284 (owner: «حاول توحيد الايقونات بالحجم»): the «VIP1» pill (no art
+    // here) is a tag — as tall as the emblems' bars (its 0.8 pt edge
+    // around it) — and the level arts and the medals one height.
+    expect(
+      vipH,
+      closeTo(KChat.tagHeight(LiveChatInlineRow.badgeHeight) + 1, 1.5),
+    );
+    expect(charmH, greaterThan(18));
+    // (The «17» creature shows ≈ 0.9 of its box, the support art ≈ 0.97.)
+    expect((charmH - supportH).abs(), lessThanOrEqualTo(3), reason: 'support');
+    expect((charmH - medalH).abs(), lessThanOrEqualTo(2), reason: 'medal');
   });
 
   for (final language in [AppLanguage.en, AppLanguage.ar]) {

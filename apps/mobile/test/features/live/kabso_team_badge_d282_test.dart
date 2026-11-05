@@ -182,7 +182,7 @@ void main() {
       KabsoTeamBadge.chatHeight,
       KabsoTeamBadge.chatHeight,
     ]);
-    expect(KabsoTeamBadge.flatChatHeight, greaterThan(KFlatChat.tagHeight));
+    expect(KabsoTeamBadge.flatChatHeight, greaterThan(KFlatChat.emblemHeight));
     expect(
       KabsoTeamBadge.chatHeight,
       greaterThan(LiveChatInlineRow.badgeHeight),

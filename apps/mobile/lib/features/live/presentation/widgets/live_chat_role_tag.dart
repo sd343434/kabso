@@ -1,6 +1,7 @@
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -73,7 +74,7 @@ class LiveChatRoleTag extends StatelessWidget {
       ? KabsoTeamBadge(height: emblemHeight ?? height)
       : Container(
           height: height,
-          padding: EdgeInsets.symmetric(horizontal: height * 0.38),
+          padding: EdgeInsets.symmetric(horizontal: height * 0.4),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: colorOf(kind),
@@ -84,7 +85,8 @@ class LiveChatRoleTag extends StatelessWidget {
             maxLines: 1,
             textScaler: TextScaler.noScaling,
             style: context.textStyles.caption.copyWith(
-              fontSize: height * 0.62,
+              // D284: the tags' one text size on the emblems' bar.
+              fontSize: KChat.tagTextSize(height),
               height: 1.1,
               color: const Color(0xFFFFFFFF),
               fontWeight: FontWeight.w800,

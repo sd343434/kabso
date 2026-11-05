@@ -23,10 +23,21 @@ import 'package:material_ui/material_ui.dart';
 /// beside it are the row's own), else a small «VIPn» pill in the tier's
 /// colour. The tier's central medal is not shown beside a name.
 class VipNameBadge extends ConsumerWidget {
-  const new({required this.vip, required this.height, super.key});
+  const new({
+    required this.vip,
+    required this.height,
+    this.pillHeight,
+    super.key,
+  });
 
   final UserVip? vip;
+
+  /// The art's height.
   final double height;
+
+  /// D284: the «VIPn» pill's height without art ([height] when unset) — a
+  /// chat line's tag height, as the art's bar.
+  final double? pillHeight;
 
   static const badgeKey = Key('vip.nameBadge');
 
@@ -45,9 +56,10 @@ class VipNameBadge extends ConsumerWidget {
         animation: art.animation,
         still: art.still,
         aspect: art.aspect,
-        height: height,
+        height: this.height,
       );
     }
+    final height = pillHeight ?? this.height;
     return Container(
       key: badgeKey,
       height: height,

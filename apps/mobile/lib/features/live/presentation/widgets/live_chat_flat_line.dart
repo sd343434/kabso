@@ -124,7 +124,11 @@ abstract final class KFlatChat {
 
   /// The role tag's height (D269: a [LiveChatRoleTag] before the name —
   /// host red, moderator orange, Kabso Team blue; 16 pt at the 14.5 text).
-  static const double tagHeight = 16;
+  /// D284 (owner: «حاول توحيد الايقونات بالحجم»): the emblems of the line
+  /// are [KChat.emblemHeight] as in the boxed lines, and every tag (role,
+  /// «جديد», the VIP pill) their bar, [KChat.tagHeight].
+  static const double emblemHeight = KChat.emblemHeight;
+  static final double tagHeight = KChat.tagHeight(emblemHeight);
 
   /// The text stays readable over a bright picture.
   static const List<Shadow> shadow = [
@@ -209,17 +213,14 @@ class LiveChatFlatLine extends ConsumerWidget {
   static const tagKey = Key('liveChat.flat.tag');
   static const nameKey = Key('liveChat.flat.name');
 
-  /// D258 (owner's ref 18 and revisions), D269 (owner: «اجعل الميداليات
-  /// حدها ٥ وفي اسطر اسفل الاسم وثم سطر اسفله لتكست»): line 1 — the name,
-  /// the VIP badge after it (D268), the tags and the levels, every emblem
-  /// the name's line height (1.6 × the name = [LiveChatInlineRow.badgeHeight]);
-  /// line 2 — up to 5 medals (none: no line); line 3 — the message alone in
-  /// the VIP bubble, hugging one text line.
-  /// The VIP badge's and the medals' height: what the level emblems show
-  /// (≈ 22 of their 24 pt box; measured).
-  /// D269: 21 (was 22), with the 1 pt smaller text (measured: within
-  /// 1 pt of the 23 pt row's emblems).
-  static const double vipEmblemHeight = 21;
+  // D258 (owner's ref 18 and revisions), D269 (owner: «اجعل الميداليات
+  // حدها ٥ وفي اسطر اسفل الاسم وثم سطر اسفله لتكست»): line 1 — the name,
+  // the VIP badge after it (D268), the tags and the levels, every emblem
+  // the name's line height (1.6 × the name = LiveChatInlineRow.badgeHeight);
+  // line 2 — up to 5 medals (none: no line); line 3 — the message alone in
+  // the VIP bubble, hugging one text line. D284: the VIP badge as every
+  // chat line's (liveChatVipBadge): its art the row's height, its «VIPn»
+  // pill (no art) the tags' height.
 
   /// The room above the VIP bubble: its ornaments rise ≈ 8 pt above it
   /// (the owner's template at one text line), plus a clear 4 pt gap from
@@ -264,7 +265,10 @@ class LiveChatFlatLine extends ConsumerWidget {
               ),
               emblemHeight: KabsoTeamBadge.chatHeight,
             ),
-      nameBadge: VipNameBadge(vip: vip, height: vipEmblemHeight),
+      nameBadge: liveChatVipBadge(
+        vip: vip,
+        height: LiveChatInlineRow.badgeHeight,
+      ),
       name: GestureDetector(
         key: nameKey,
         behavior: HitTestBehavior.opaque,
@@ -306,7 +310,8 @@ class LiveChatFlatLine extends ConsumerWidget {
       agentCode: agentCode,
       hostAgentCode: hostAgentCode,
       rechargeBadge: rechargeBadge,
-      height: KFlatChat.tagHeight,
+      // D284: the row's default height, KFlatChat.emblemHeight.
+      agentBadgeHeight: KFlatChat.emblemHeight,
       fadeOverflow: true,
     );
     final bubble = cp
@@ -367,7 +372,11 @@ class LiveChatFlatLine extends ConsumerWidget {
         // D268 (owner): the VIP badge right after the name, never before.
         if (vip.isMember) ...[
           const SizedBox(width: 4),
-          VipNameBadge(vip: vip, height: KFlatChat.tagHeight),
+          VipNameBadge(
+            vip: vip,
+            height: KFlatChat.emblemHeight,
+            pillHeight: KFlatChat.tagHeight,
+          ),
         ],
         if (badgeRow.isNotEmpty) ...[
           const SizedBox(width: 4),

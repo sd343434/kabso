@@ -850,8 +850,17 @@ class LiveCpChatBubble extends StatelessWidget {
 /// D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the author's VIP badge
 /// for a chat row's [LiveChatNameRow.nameBadge] — right after the name, as
 /// tall as the row's emblems ([height]); null without a VIP.
+/// D284: the art [height] tall (its bar then the tags' height, the art
+/// ≈ the level emblems'); without art the «VIPn» pill is a tag
+/// ([KChat.tagHeight]).
 Widget? liveChatVipBadge({required UserVip? vip, required double height}) =>
-    !vip.isMember ? null : VipNameBadge(vip: vip, height: height * 0.92);
+    !vip.isMember
+    ? null
+    : VipNameBadge(
+        vip: vip,
+        height: height,
+        pillHeight: KChat.tagHeight(height),
+      );
 
 /// D265: a chat row's [name] in the author's VIP colour; [name] alone
 /// without a VIP.
@@ -1219,7 +1228,8 @@ class LiveChatBadgeRow extends StatelessWidget {
   static const double _space = 5;
 
   /// D234: the pills' height in a row of [height] (role, «جديد», family).
-  static double pillHeight(double height) => height - 2;
+  /// D284: the emblems' bar ([KChat.tagHeight]), not 2 pt under the row.
+  static double pillHeight(double height) => KChat.tagHeight(height);
 
   bool get isNotEmpty =>
       (!tagLed && (badges?.kabsoTeam ?? false)) ||
@@ -1253,8 +1263,11 @@ class LiveChatBadgeRow extends StatelessWidget {
     // tall on screen — the charm creature (1.55 × its pill) and the support
     // art (1.5 × its height) both fill [h] (both arts fill their image) —
     // and the pills are [pillHeight].
+    // D284 (owner: «ايقونة الجديد اجعلها بنفس مقاس باقي الايقونات»): the
+    // text tags are as tall as the emblems' bars — the charm pill, the
+    // support art's bar, the VIP art's — not the whole emblem.
     final pillH = big ? pillHeight(h) : h - 2;
-    final pillText = big ? pillH * 0.6 : 10.5;
+    final pillText = big ? KChat.tagTextSize(pillH) : 10.5;
     final charmH = big ? h / 1.55 : CharmLevelBadge.lineHeight;
     final supportH = h / 1.5;
     final family = badges?.family;
@@ -1265,6 +1278,7 @@ class LiveChatBadgeRow extends StatelessWidget {
             name: family.name,
             level: family.level,
             height: big ? pillH : LiveChatAuthoredLine.badgeRowHeight,
+            textSize: big ? pillText : null,
           );
     final row = Row(
       mainAxisSize: MainAxisSize.min,
@@ -1295,7 +1309,7 @@ class LiveChatBadgeRow extends StatelessWidget {
           Container(
             key: roleKey,
             height: pillH,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            padding: EdgeInsets.symmetric(horizontal: big ? pillH * 0.4 : 6),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: role == LiveChatRole.host
@@ -1316,24 +1330,10 @@ class LiveChatBadgeRow extends StatelessWidget {
         if (tag != null) const SizedBox(width: _space),
         // D154c (owner): «جديد 🌱» next to a newcomer's name.
         if (badges?.newcomer ?? false) ...[
-          Container(
+          LiveChatNewcomerTag(
             key: newcomerKey,
             height: pillH,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3DDC97),
-              borderRadius: BorderRadius.circular(KRadius.pill),
-            ),
-            child: Text(
-              l10n.liveNewcomerBadge,
-              style: context.textStyles.caption.copyWith(
-                fontSize: pillText,
-                height: 1.1,
-                color: const Color(0xFF06301F),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            textSize: pillText,
           ),
           const SizedBox(width: _space),
         ],
@@ -1638,6 +1638,60 @@ class _RenderFadeOverflow extends RenderProxyBox {
   }
 }
 
+/// D154c: «جديد 🌱» next to a newcomer's name. D284 (owner: «ايقونة
+/// الجديد اجعلها بنفس مقاس باقي الايقونات»): [height] tall — the emblems'
+/// bar ([KChat.tagHeight]) — its words [textSize] and the 🌱 scaled to fit
+/// inside the pill, the padding tight.
+class LiveChatNewcomerTag extends StatelessWidget {
+  const new({required this.height, required this.textSize, super.key});
+
+  final double height;
+  final double textSize;
+
+  static const color = Color(0xFF3DDC97);
+  static const ink = Color(0xFF06301F);
+  static const sprout = '🌱';
+
+  @override
+  Widget build(BuildContext context) {
+    final label = context.l10n.liveNewcomerBadge;
+    final words = label.replaceAll(sprout, '').trim();
+    final style = context.textStyles.caption.copyWith(
+      fontSize: textSize,
+      height: 1.1,
+      color: ink,
+      fontWeight: FontWeight.w800,
+      shadows: const [],
+    );
+    return Container(
+      height: height,
+      padding: EdgeInsets.symmetric(horizontal: height * 0.4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(KRadius.pill),
+      ),
+      child: Text.rich(
+        TextSpan(
+          style: style,
+          children: [
+            TextSpan(text: words),
+            if (label.contains(sprout))
+              // The emoji's glyph is taller than the letters: 0.8 × them
+              // keeps it inside the pill.
+              TextSpan(
+                text: ' $sprout',
+                style: style.copyWith(fontSize: textSize * 0.8),
+              ),
+          ],
+        ),
+        maxLines: 1,
+        textScaler: TextScaler.noScaling,
+      ),
+    );
+  }
+}
+
 /// D119: the author's family under their name in the chat — a small blue
 /// to violet pill with the family level in a ring and the family's name
 /// (Kabso's own look; one line, cut with an ellipsis).
@@ -1647,6 +1701,7 @@ class LiveChatFamilyChip extends StatelessWidget {
     required this.level,
     super.key,
     this.height = LiveChatAuthoredLine.badgeRowHeight,
+    this.textSize,
   });
 
   final String name;
@@ -1655,15 +1710,22 @@ class LiveChatFamilyChip extends StatelessWidget {
   /// D230: the row's height (the stacked rows' badges are taller).
   final double height;
 
+  /// D284: the name's size as a chat line's tag (the other tags' words);
+  /// unset, it grows with [height].
+  final double? textSize;
+
   static const colors = [Color(0xFF2E5BFF), Color(0xFF7B5CFF)];
 
   @override
   Widget build(BuildContext context) {
     final h = height;
     final grow = h / LiveChatAuthoredLine.badgeRowHeight;
+    final textSize = this.textSize;
     return Container(
       height: h,
-      constraints: BoxConstraints(maxWidth: 132 * grow),
+      constraints: BoxConstraints(
+        maxWidth: 132 * (textSize == null ? grow : 0.9),
+      ),
       padding: const EdgeInsetsDirectional.only(start: 1.5, end: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(KRadius.pill),
@@ -1691,7 +1753,7 @@ class LiveChatFamilyChip extends StatelessWidget {
               textDirection: TextDirection.ltr,
               style: TextStyle(
                 fontFamily: KFonts.latin,
-                fontSize: 9 * grow,
+                fontSize: textSize == null ? 9 * grow : textSize * 0.8,
                 height: 1,
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFFFFFFFF),
@@ -1705,7 +1767,7 @@ class LiveChatFamilyChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: context.textStyles.caption.copyWith(
-                fontSize: 11 * grow,
+                fontSize: textSize ?? 11 * grow,
                 height: 1.1,
                 color: const Color(0xFFFFFFFF),
                 fontWeight: FontWeight.w700,
