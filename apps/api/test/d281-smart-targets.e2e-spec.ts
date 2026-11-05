@@ -434,7 +434,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
           subject: 'POPULAR',
           windowFrom: 1200,
           windowTo: 1260,
-          nameAr: 'أرسل 1 هدية من فئة شائعة بين 20:00–21:00',
+          nameAr: 'أرسل 1 هدية من فئة شائعة من 20:00 إلى 21:00',
           nameEn: 'Send 1 gifts from Popular between 20:00–21:00',
         },
       ],

@@ -160,7 +160,7 @@ describe('D281 the target catalogue', () => {
     expect(w[0]).toEqual(ALL_DAY);
     expect(w.every((x) => x.from >= 0 && x.to <= 1440 && x.from < x.to)).toBe(true);
     expect(targetTitle(t, { giftAr: 'المحارب', giftEn: 'Warrior' })).toEqual({
-      ar: 'استقبل 100 هدية من المحارب بين 20:00–24:00',
+      ar: 'استقبل 100 هدية من المحارب من 20:00 إلى 24:00',
       en: 'Receive 100 × Warrior between 20:00–24:00',
     });
   });

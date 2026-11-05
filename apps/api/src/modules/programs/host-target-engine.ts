@@ -70,6 +70,15 @@ export function windowLabel(w: TargetWindow): string {
   return `${hm(w.from)}–${hm(w.to)}`;
 }
 
+/**
+ * «من 20:00 إلى 24:00»: the Arabic window names each hour on its own (two LTR numbers joined by a dash would be
+ * shown in the reverse order inside Arabic text).
+ */
+export function windowLabelAr(w: TargetWindow): string {
+  const [from, to] = windowLabel(w).split('–');
+  return `من ${from!} إلى ${to!}`;
+}
+
 // ---- Amount ladders -----------------------------------------------------------------------------
 
 const MANTISSAS = [1, 1.2, 1.5, 1.8, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9];
@@ -636,7 +645,7 @@ function candidatesOf(p: HostProfile, gifts: readonly CatalogueGift[], e: Profit
           lucky: false,
           shareBps: normalShare,
           label: `cherries from gifts ${windowLabel(window)}`,
-          labelAr: `كرز الهدايا ${windowLabel(window)}`,
+          labelAr: `كرز الهدايا ${windowLabelAr(window)}`,
         });
         break;
       }
@@ -985,14 +994,14 @@ const groupedEn = (n: number) => n.toLocaleString('en-US');
 
 /**
  * A target's title in Arabic and English, e.g. «استقبل 100 هدية من المحارب», «اجمع 3,000,000 كرزة من الهدايا
- * بين 20:00–24:00».
+ * من 20:00 إلى 24:00» (the Arabic window names each hour on its own: no bidi reordering of «20:00–24:00»).
  */
 export function targetTitle(
   t: Omit<CatalogueTarget, 'code'>,
   names: { giftAr?: string; giftEn?: string; categoryAr?: string; categoryEn?: string },
 ): { ar: string; en: string } {
   const a = groupedEn(t.amount);
-  const winAr = isAllDay(t.window) ? '' : ` بين ${windowLabel(t.window)}`;
+  const winAr = isAllDay(t.window) ? '' : ` ${windowLabelAr(t.window)}`;
   const winEn = isAllDay(t.window) ? '' : ` between ${windowLabel(t.window)}`;
   switch (t.kind) {
     case 'GIFT_CHERRIES':

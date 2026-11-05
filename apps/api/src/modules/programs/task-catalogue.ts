@@ -10,6 +10,7 @@ import {
   catalogueWindows,
   isAllDay,
   windowLabel,
+  windowLabelAr,
   type CatalogueGift,
   type TargetWindow,
   ALL_DAY,
@@ -412,7 +413,7 @@ export function variantName(
   names: { ar?: string; en?: string },
 ): { ar: string; en: string } {
   const a = v.amount.toLocaleString('en-US');
-  const winAr = isAllDay(v.window) ? '' : ` بين ${windowLabel(v.window)}`;
+  const winAr = isAllDay(v.window) ? '' : ` ${windowLabelAr(v.window)}`;
   const winEn = isAllDay(v.window) ? '' : ` between ${windowLabel(v.window)}`;
   if (GIFT_SUBJECT_METRICS.includes(t.metric)) {
     return {

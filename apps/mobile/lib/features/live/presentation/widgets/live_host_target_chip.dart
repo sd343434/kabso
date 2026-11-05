@@ -365,29 +365,42 @@ class _DailyFace extends StatelessWidget {
         KDailyTargetBadge(target, size: plain ? 12 : 16),
         const SizedBox(width: 3),
         if (!compact) ...[
-          Text(
-            targetLevelLabel(l10n, target.level),
-            maxLines: 1,
-            style: text.copyWith(color: targetLevelColor(target.level)),
+          Flexible(
+            child: Text(
+              targetLevelLabel(l10n, target.level),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              softWrap: false,
+              style: text.copyWith(color: targetLevelColor(target.level)),
+            ),
           ),
           const SizedBox(width: 4),
         ],
         Flexible(
+          flex: 2,
           child: Text(
-            '${_short(target.progress)}/${_short(target.amount)}',
+            // Compact (all three at once): the share done, «37%».
+            compact
+                ? '${(target.fraction * 100).floor()}%'
+                : '${_short(target.progress)}/${_short(target.amount)}',
             textDirection: TextDirection.ltr,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            softWrap: false,
             style: text,
           ),
         ),
         if (!compact && target.shownReward > 0) ...[
           const SizedBox(width: 4),
-          Text(
-            '+${_short(target.shownReward)}',
-            textDirection: TextDirection.ltr,
-            maxLines: 1,
-            style: text.copyWith(color: const Color(0xFFFFD36E)),
+          Flexible(
+            child: Text(
+              '+${_short(target.shownReward)}',
+              textDirection: TextDirection.ltr,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              softWrap: false,
+              style: text.copyWith(color: const Color(0xFFFFD36E)),
+            ),
           ),
           const SizedBox(width: 1),
           const KCherryIcon(size: 10),

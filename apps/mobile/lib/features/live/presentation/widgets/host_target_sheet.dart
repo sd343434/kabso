@@ -1010,7 +1010,13 @@ class _DailyTargetsBlock extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Row(
+                    // The progress on the reading start, the reward on the
+                    // far side; a narrow phone wraps the reward under it.
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 2,
                       children: [
                         Text(
                           value,
@@ -1020,18 +1026,26 @@ class _DailyTargetsBlock extends StatelessWidget {
                             color: t.reached ? _Ink.amount : ink.strong,
                           ),
                         ),
-                        const Spacer(),
-                        const KCherryIcon(size: 11),
-                        const SizedBox(width: 3),
-                        Text(
-                          t.paid
-                              ? l10n.liveTargetRewardPaid(reward)
-                              : l10n.liveTargetRewardLocked(reward),
-                          key: HostTargetSheet.rewardKey(t.level),
-                          style: style.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: _Ink.amount,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const KCherryIcon(size: 11),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                t.paid
+                                    ? l10n.liveTargetRewardPaid(reward)
+                                    : l10n.liveTargetRewardLocked(reward),
+                                key: HostTargetSheet.rewardKey(t.level),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: style.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: _Ink.amount,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

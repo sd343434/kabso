@@ -179,7 +179,7 @@ describe('D281 the smart task assignment', () => {
       { ar: 'المحارب', en: 'Warrior' },
     );
     expect(name).toEqual({
-      ar: 'أرسل 10 من المحارب بين 20:00–23:00',
+      ar: 'أرسل 10 من المحارب من 20:00 إلى 23:00',
       en: 'Send 10 × Warrior between 20:00–23:00',
     });
   });
