@@ -14821,7 +14821,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorProgrammeIntro =>
-      'Apply and the Kabso team will review it. Once approved you are a Kabso content creator.';
+      'Apply and the Kabso team will review it. Once approved you are a Kabso Live content creator.';
 
   @override
   String get creatorProgrammeCountry => 'Country';
@@ -14851,7 +14851,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get creatorProgrammePending => 'Your application is under review';
 
   @override
-  String get creatorProgrammeMember => 'You are a Kabso content creator';
+  String get creatorProgrammeMember => 'You are a Kabso Live content creator';
 
   @override
   String creatorProgrammeRejected(String reason) {

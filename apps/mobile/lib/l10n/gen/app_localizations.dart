@@ -25039,7 +25039,7 @@ abstract class AppLocalizations {
   /// D285: recruitment by staff «الاستقطاب».
   ///
   /// In ar, this message translates to:
-  /// **'قدّم طلبك ليراجعه فريق كابسو. بعد الموافقة تصبح صانع محتوى في كابسو.'**
+  /// **'قدّم طلبك ليراجعه فريق كابسو. بعد الموافقة تصبح صانع محتوى في Kabso Live.'**
   String get creatorProgrammeIntro;
 
   /// D285: recruitment by staff «الاستقطاب».
@@ -25099,7 +25099,7 @@ abstract class AppLocalizations {
   /// D285: recruitment by staff «الاستقطاب».
   ///
   /// In ar, this message translates to:
-  /// **'أنت صانع محتوى في كابسو'**
+  /// **'أنت صانع محتوى في Kabso Live'**
   String get creatorProgrammeMember;
 
   /// D285: recruitment by staff «الاستقطاب».

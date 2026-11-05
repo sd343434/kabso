@@ -14816,7 +14816,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorProgrammeIntro =>
-      'قدّم طلبك ليراجعه فريق كابسو. بعد الموافقة تصبح صانع محتوى في كابسو.';
+      'قدّم طلبك ليراجعه فريق كابسو. بعد الموافقة تصبح صانع محتوى في Kabso Live.';
 
   @override
   String get creatorProgrammeCountry => 'الدولة';
@@ -14846,7 +14846,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get creatorProgrammePending => 'طلبك قيد المراجعة';
 
   @override
-  String get creatorProgrammeMember => 'أنت صانع محتوى في كابسو';
+  String get creatorProgrammeMember => 'أنت صانع محتوى في Kabso Live';
 
   @override
   String creatorProgrammeRejected(String reason) {
