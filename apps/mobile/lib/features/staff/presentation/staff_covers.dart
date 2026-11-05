@@ -18,5 +18,5 @@ abstract final class StaffCovers {
   /// are cropped: a slight bias to the right keeps the title «إدارة التطبيق
   /// والمشرفون» / "App Administration & Moderation" whole and the mascot's
   /// face in (the box shows the art's full height).
-  static const alignment = Alignment(0.04, 0);
+  static const alignment = Alignment(0.12, 0);
 }

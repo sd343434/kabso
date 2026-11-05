@@ -560,7 +560,9 @@ class ProfileBondsBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         levels,
-        if (profile != null) ...[
+        // D283: a Kabso Team account shows no family, relationship, medals
+        // or bag — only the team's identity.
+        if (profile != null && profile.staff == null) ...[
           if (profile.medals.showcase.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: KSpacing.sm),
