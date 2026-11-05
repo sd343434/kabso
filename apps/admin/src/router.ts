@@ -54,6 +54,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'cards', pattern: '/finance/cards' },
   { name: 'tasks', pattern: '/programs/tasks' },
   { name: 'levels', pattern: '/programs/levels' },
+  // v1.71-live (D281): «الأهداف الذكية».
+  { name: 'hostTargets', pattern: '/programs/host-targets' },
   // v1.82-social (D252): «VIP».
   { name: 'vip', pattern: '/vip' },
   // D270: «المتجر».

@@ -67,6 +67,9 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'referrals.settings': ['OWNER', 'FINANCE'],
   'pk_dares.view': ['OWNER'],
   'pk_dares.edit': ['OWNER'],
+  // v1.71-live (D281).
+  'host_targets.view': ['OWNER'],
+  'host_targets.edit': ['OWNER'],
   'lives.watch': ['OWNER', 'MODERATION', 'SUPPORT'],
   'lives.reports': ['OWNER', 'MODERATION', 'SUPPORT'],
   'lives.moderate': ['OWNER', 'MODERATION'],

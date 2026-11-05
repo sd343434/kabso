@@ -14,6 +14,7 @@ import { DeviceBans } from './pages/LiveModeration';
 import { LiveWatch } from './pages/LiveWatch';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { PkDares } from './pages/PkDares';
+import { HostTargets } from './pages/HostTargets';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
 import { CAP_OF_ROUTE } from './nav';
@@ -258,6 +259,9 @@ export function App() {
           break;
         case 'tasks':
           page = <Tasks />;
+          break;
+        case 'hostTargets':
+          page = <HostTargets />;
           break;
         case 'levels':
           page = <Levels />;

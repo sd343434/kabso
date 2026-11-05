@@ -47,6 +47,9 @@ export type Capability =
   | 'referrals.settings'
   | 'pk_dares.view'
   | 'pk_dares.edit'
+  // v1.71-live (D281): «الأهداف الذكية» (OWNER only).
+  | 'host_targets.view'
+  | 'host_targets.edit'
   // v1.60-live (D250): live moderation «مراقبة البث».
   | 'lives.watch'
   | 'lives.reports'
@@ -971,6 +974,60 @@ export interface AdminPkDareStats {
   reported: number;
   byLevel: Record<string, number>;
   byCategory: Record<string, number>;
+}
+/** v1.71-live (D281) `AdminHostTargetSettings`. */
+export interface AdminHostTargetSettings {
+  easyPercentile: number;
+  mediumPercentile: number;
+  hardPercentile: number;
+  easyRewardBps: number;
+  mediumRewardBps: number;
+  hardRewardBps: number;
+  noRepeatDays: number;
+  taskNoRepeatDays: number;
+  historyDays: number;
+  completionShift: number;
+  engineFrom: string | null;
+  updatedAt: string;
+  updatedById: string | null;
+}
+/** v1.71-live (D281) `AdminTargetCatalogue`. */
+export interface AdminTargetCatalogue {
+  targets: {
+    version: string;
+    total: number;
+    windows: number;
+    gifts: number;
+    categories: number;
+    byKind: Record<string, number>;
+  };
+  tasks: { total: number; templates: number; byTemplate: Record<string, number> };
+}
+/** v1.71-live (D281) `AdminHostTarget`. */
+export interface AdminHostTarget {
+  level: 'EASY' | 'MEDIUM' | 'HARD';
+  code: string;
+  kind: string;
+  subject: string | null;
+  titleAr: string;
+  titleEn: string;
+  amount: number;
+  progress: number;
+  window: { from: string; to: string } | null;
+  expectedCoins: number;
+  rewardBps: number;
+  rewardCherries: number;
+  paidCherries: number | null;
+  paidAt: string | null;
+  profitUsd: number | null;
+  catalogueVersion: string;
+  reason: { newHost?: boolean; why?: string; whyAr?: string; [key: string]: unknown };
+}
+/** v1.71-live (D281) `AdminHostTargetDay`. */
+export interface AdminHostTargetDay {
+  host: { id: string; username: string; displayName: string };
+  day: string;
+  targets: AdminHostTarget[];
 }
 export interface AdminPkDareSettings {
   winPoints: number;
