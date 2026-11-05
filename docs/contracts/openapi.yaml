@@ -250,6 +250,18 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D285 (DRAFT v1.75-live)** recruitment by staff «الاستقطاب» (CONVENTIONS §10.96.13): the agency, recharge-agent,
+    host and new creator-programme forms take an optional `recruiter` (`RecruiterField`: a staff ID or username of an
+    ACTIVE MODERATION or BD staff member; live check `lookupStaffRecruiter`); at the activation (approval; an agency
+    at its opening) the recruit is attributed for good (OWNER reassignment only, `reassignAdminRecruit`); a daily job
+    credits the recruiter a share of each recruit's platform profit (owner defaults 1 % hosts / creators / agencies,
+    0.75 % recharge agents; `updateAdminRecruitSettings`) as withdrawable cherries, ledger reason
+    `STAFF_RECRUIT_COMMISSION`; «استقطاباتي» / «أرباحي» (`getMyStaffRecruits`, `getMyStaffEarnings`,
+    `getAdminMyRecruits`); the OWNER's views (`listAdminRecruits`, `listAdminRecruitStaff`,
+    `getAdminRecruitCommissions`); `AdminTeam` rows' `recruits`. A new panel role **BD** «تطوير الأعمال» (recruitment
+    only, a limited staff account; `AdminPanelRole`, `KabsoStaffIdentity.role`). The creator programme:
+    `getMyCreatorApplication`, `applyForCreatorProgramme`, `cancelMyCreatorApplication`, code
+    `CREATOR_APPLICATION_NOT_ALLOWED`, panel `listAdminCreatorApplications` / approve / reject. Additive.
     **D283 (DRAFT v1.72-live)** the Kabso Team's accounts are limited, and staff have regions (CONVENTIONS §10.96.10–11):
     an account holding MODERATION / SUPPORT / FINANCE and not OWNER cannot go live, join or own a family, buy VIP or
     store items, claim tasks, post anything but an announcement (`CreatePostRequest.announcement`, `Post.announcement`),
@@ -6263,6 +6275,343 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReferralTickerPage' }
+        '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.75-live (DRAFT, D285, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب» -------------------------
+  /api/v1/staff-recruiters/lookup:
+    get:
+      tags: [agency]
+      operationId: lookupStaffRecruiter
+      summary: "The application forms' live check of «إن كنت تابعاً لمشرف، ضع معرّفه هنا» (D285)"
+      description: |
+        v1.75-live, CONVENTIONS §10.96.13. `q`: a staff ID («Kabso01», «kabso1», «@Kabso01») or the staff member's
+        username (`@` optional). `found` is true only for a recruiter — an ACTIVE MODERATION or BD staff member; anyone
+        else (unknown, a normal user, SUPPORT / FINANCE / OWNER) is `found: false` alike («غير موجود»). Per-user default
+        rate limit.
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 64 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffRecruiterLookup' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/staff/recruits:
+    get:
+      tags: [agency]
+      operationId: getMyStaffRecruits
+      summary: "«استقطاباتي»: the caller's own recruits by type with their status (MODERATION / BD; D285)"
+      description: "v1.75-live, §10.96.13. 403 `AUTH_FORBIDDEN` unless the caller is an ACTIVE MODERATION or BD staff member. `type` filters `data`; `counts` are always all types."
+      parameters:
+        - { name: type, in: query, required: false, schema: { $ref: '#/components/schemas/StaffRecruitType' } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffRecruitList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/staff/earnings:
+    get:
+      tags: [agency]
+      operationId: getMyStaffEarnings
+      summary: "«أرباحي»: the recruiter's commission balance, per-recruit breakdown and history (MODERATION / BD; D285)"
+      description: "v1.75-live, §10.96.13. 403 `AUTH_FORBIDDEN` unless the caller is an ACTIVE MODERATION or BD staff member. The commissions are withdrawable cherries: «سحب» uses `requestCherryWithdrawal` (the staff account's wallet is hidden elsewhere, D283; this page is its way in)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffEarnings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/creator-application:
+    get:
+      tags: [agency]
+      operationId: getMyCreatorApplication
+      summary: "«انضم كصانع محتوى»: the caller's creator programme membership, latest application and whether they may apply (D285)"
+      description: "v1.75-live, §10.96.13. `rule.refusal` in this order: `ACCOUNT_NOT_ACTIVE`, `MEMBER`, `STAFF`, `PENDING`."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyCreatorApplication' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [agency]
+      operationId: applyForCreatorProgramme
+      summary: "«انضم كصانع محتوى»: apply to the creator programme (D285)"
+      description: |
+        v1.75-live, §10.96.13. Order: 400 body → 400 `recruiter` (`not_found`: no recruiter by that ID / username;
+        `self`) → 409 `CREATOR_APPLICATION_NOT_ALLOWED` (`details[0] = {field: application, issue}`, the refusal) → 201.
+        The team approves (the person becomes a creator; a named recruiter is attributed) or rejects with a reason in
+        the panel. Rate limit `creator:apply` (5 / 24 h per user).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatorApplicationRequest' }
+      responses:
+        '201':
+          description: Submitted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyCreatorApplication' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/creator-application/cancel:
+    post:
+      tags: [agency]
+      operationId: cancelMyCreatorApplication
+      summary: "Withdraws the caller's PENDING creator application (404: none pending; D285)"
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyCreatorApplication' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/mine:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminMyRecruits
+      summary: "«استقطاباتي»: the signed-in staff member's own recruits and commissions (recruits.mine: MODERATION, BD)"
+      description: "(v1.75-live, D285, §10.96.13) Only the caller's own recruits; never another staff member's."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMyRecruits' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/mine/{recruitmentId}/commissions:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminMyRecruitCommissions
+      summary: "The days the caller was paid for one of their own recruits (recruits.mine; 404 for anyone else's)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: recruitmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRecruitCommissionList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRecruits
+      summary: "«الاستقطاب»: every recruit with its recruiter, status, profit and commissions (recruits.view; OWNER)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: recruiter, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: type, in: query, required: false, schema: { $ref: '#/components/schemas/StaffRecruitType' } }
+      responses:
+        '200':
+          description: OK (newest first, at most 500).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRecruitList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/staff:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRecruitStaff
+      summary: "Per staff member: recruits by type, the profit they generated and the commissions paid (recruits.view; OWNER)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRecruitStaffList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminRecruitSettings
+      summary: "The commission shares per recruit type (recruits.view; OWNER)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffRecruitSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminRecruitSettings
+      summary: "Changes the shares (recruits.manage; OWNER; the code again and a reason; audited)"
+      description: "(v1.75-live, D285) Any subset (at least one), 0–2000 bps each. Audited `staff.recruit.settings.update` {before, after, reason}. Applies to the days paid from now on."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateStaffRecruitSettingsRequest' }
+      responses:
+        '200':
+          description: The shares now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffRecruitSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/{recruitmentId}/commissions:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminRecruitCommissions
+      summary: "The days paid for one recruit, with the recruiter of each day (recruits.view; OWNER)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: recruitmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK (newest first, at most 120).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRecruitCommissionList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/{recruitmentId}/reassign:
+    post:
+      tags: [admin-panel]
+      operationId: reassignAdminRecruit
+      summary: "Moves a recruit to another recruiter (recruits.manage; OWNER; the code again and a reason; audited)"
+      description: |
+        (v1.75-live, D285) `recruiter`: a staff ID or username of an ACTIVE MODERATION / BD staff member. 409
+        `ADMIN_ACTION_REFUSED` with `details[0] = {field: recruiter, issue}`: `recruiter_not_found`, `recruiter_self`
+        (the recruit), `recruiter_same`; 404 no such recruit. Audited `staff.recruit.reassign` {before, after, reason}.
+        The days not paid yet go to the new recruiter.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: recruitmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReassignStaffRecruitRequest' }
+      responses:
+        '200':
+          description: The recruit now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRecruit' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/creator-applications:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminCreatorApplications
+      summary: "«طلبات صناع المحتوى»: the creator programme applications (creators.applications: OWNER, SUPPORT)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] } }
+      responses:
+        '200':
+          description: OK (newest first, at most 200).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminCreatorApplicationList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/creator-applications/{applicationId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminCreatorApplication
+      summary: "Approves: the person becomes a creator; a named recruiter is attributed (creators.decide)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, recruitmentId]
+                properties:
+                  status: { type: string, enum: [APPROVED] }
+                  recruitmentId: { type: [string, 'null'], format: uuid }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/creator-applications/{applicationId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminCreatorApplication
+      summary: "Rejects with a reason the person sees (creators.decide)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [REJECTED] }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/hosting-application:
     get:
@@ -18316,8 +18665,8 @@ components:
     # ---- v1.60-social (DRAFT, D191, CONVENTIONS §10.54): the admin panel ------------------------------------------
     AdminPanelRole:
       type: string
-      description: "The panel's roles (values of the admin permissions): OWNER (everything), MODERATION (the moderator «مشرف»), SUPPORT «دعم», FINANCE «مالية». Granted only with `admin-admin grant`."
-      enum: [OWNER, MODERATION, SUPPORT, FINANCE]
+      description: "The panel's roles (values of the admin permissions): OWNER (everything), MODERATION (the moderator «مشرف»), SUPPORT «دعم», FINANCE «مالية», (v1.75-live, D285) BD «تطوير الأعمال» (recruitment only: «استقطاباتي», no moderation). Granted only with `admin-admin grant` or the OWNER's team page."
+      enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD]
     AdminLoginRequest:
       type: object
       additionalProperties: false
@@ -18449,6 +18798,7 @@ components:
       description: v1.73-social (D209). Text is trimmed; no control characters (line breaks allowed in the bio).
       required: [displayName, country, dateOfBirth, contact, bio, acceptRules]
       properties:
+        recruiter: { $ref: '#/components/schemas/RecruiterField' }
         displayName: { type: string, minLength: 1, maxLength: 100, description: "The name the person hosts under (the §6 display-name rules; the app fills in the profile's)." }
         country: { type: string, pattern: '^[A-Za-z]{2}$', description: ISO 3166-1 alpha-2. }
         dateOfBirth: { type: string, format: date, description: "YYYY-MM-DD; at least `rule.minAge` (18) years before today (UTC), else 409 `UNDER_MIN_AGE`." }
@@ -18764,7 +19114,7 @@ components:
         protected: { type: boolean, description: "Holds any panel role now (FINANCE too): nobody acts on the account from the app." }
         roles:
           type: array
-          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE] }
+          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
         capabilities:
           type: array
           description: The panel capabilities the staff tools use, for the caller's roles (the app shows only these).
@@ -18828,7 +19178,7 @@ components:
         no levels.
       required: [role, regions]
       properties:
-        role: { type: string, enum: [MODERATION, SUPPORT, FINANCE] }
+        role: { type: string, enum: [MODERATION, SUPPORT, FINANCE, BD], description: "(v1.75-live, D285) BD «تطوير الأعمال»: the line reads «تطوير الأعمال — الوطن العربي» / \"Business development — Arab World\"." }
         regions:
           type: array
           maxItems: 13
@@ -18837,6 +19187,280 @@ components:
         staffId:
           $ref: '#/components/schemas/StaffId'
           description: (v1.73-live, D283c, §10.96.12) The account's official staff ID (the same as the top-level `staffId`).
+    # ---- v1.75-live (DRAFT, D285, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب» -----------------------
+    RecruiterField:
+      type: string
+      maxLength: 64
+      description: |
+        (v1.75-live, D285, §10.96.13) Optional «إن كنت تابعاً لمشرف، ضع معرّفه هنا» / "If a Kabso Team member referred
+        you, enter their ID": a staff ID («Kabso01», «kabso1», «@Kabso01») or the staff member's username. Empty = none.
+        It must name an ACTIVE MODERATION or BD staff member who is not the applicant, else 400 `VALIDATION_FAILED`
+        `{field: recruiter, issue: not_found | self}`. At the activation the recruit is attributed to them for good.
+    StaffRecruitType:
+      type: string
+      description: (v1.75-live, D285) What the recruit became.
+      enum: [HOST, AGENCY, RECHARGE_AGENT, CREATOR]
+    StaffRecruiterLookup:
+      type: object
+      required: [found, recruiter]
+      properties:
+        found: { type: boolean }
+        recruiter:
+          oneOf:
+            - type: object
+              required: [staffId, username, displayName, avatarUrl, role]
+              properties:
+                staffId: { oneOf: [{ $ref: '#/components/schemas/StaffId' }, { type: 'null' }] }
+                username: { type: string }
+                displayName: { type: string }
+                avatarUrl: { type: [string, 'null'] }
+                role: { type: string, enum: [MODERATION, BD] }
+            - type: 'null'
+    StaffRecruitCounts:
+      type: object
+      required: [HOST, AGENCY, RECHARGE_AGENT, CREATOR, total]
+      properties:
+        HOST: { type: integer, minimum: 0 }
+        AGENCY: { type: integer, minimum: 0 }
+        RECHARGE_AGENT: { type: integer, minimum: 0 }
+        CREATOR: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+    StaffRecruit:
+      type: object
+      required: [id, type, recruit, status, activatedAt, profitUsd, profitUsd30d, commissionCherries, lastDay]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/StaffRecruitType' }
+        recruit: { $ref: '#/components/schemas/UserSummary' }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          description: "ACTIVE: the account is ACTIVE and still a host / an OPEN agency / a recharge agent not SUSPENDED / a creator."
+        activatedAt: { type: string, format: date-time }
+        profitUsd: { type: number, description: The platform profit counted for this recruit on the days paid so far (USD). }
+        profitUsd30d: { type: number, description: The same over the last 30 days. }
+        commissionCherries: { type: integer, minimum: 0, description: The commissions credited for this recruit. }
+        lastDay: { type: [string, 'null'], format: date }
+    StaffRecruitList:
+      type: object
+      required: [counts, data]
+      properties:
+        counts: { $ref: '#/components/schemas/StaffRecruitCounts' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/StaffRecruit' }
+    StaffEarnings:
+      type: object
+      required: [wallet, totalCherries, last30DaysCherries, bps, byRecruit, history]
+      properties:
+        wallet: { $ref: '#/components/schemas/CherryWallet' }
+        totalCherries: { type: integer, minimum: 0 }
+        last30DaysCherries: { type: integer, minimum: 0 }
+        bps: { $ref: '#/components/schemas/StaffRecruitBps' }
+        byRecruit:
+          type: array
+          items:
+            type: object
+            required: [recruitmentId, type, recruit, cherries]
+            properties:
+              recruitmentId: { type: string, format: uuid }
+              type: { $ref: '#/components/schemas/StaffRecruitType' }
+              recruit: { $ref: '#/components/schemas/UserSummary' }
+              cherries: { type: integer, minimum: 0 }
+        history:
+          type: array
+          description: The last 60 days credited (newest first; days without a commission left out).
+          items:
+            type: object
+            required: [day, recruitmentId, type, recruit, profitUsd, bps, cherries]
+            properties:
+              day: { type: string, format: date }
+              recruitmentId: { type: string, format: uuid }
+              type: { $ref: '#/components/schemas/StaffRecruitType' }
+              recruit: { $ref: '#/components/schemas/UserSummary' }
+              profitUsd: { type: number }
+              bps: { type: integer, minimum: 0, maximum: 2000 }
+              cherries: { type: integer, minimum: 1 }
+    StaffRecruitBps:
+      type: object
+      description: "Basis points of the platform profit per recruit type (owner defaults HOST 100, CREATOR 100, AGENCY 100, RECHARGE_AGENT 75)."
+      required: [HOST, AGENCY, RECHARGE_AGENT, CREATOR]
+      properties:
+        HOST: { type: integer, minimum: 0, maximum: 2000 }
+        AGENCY: { type: integer, minimum: 0, maximum: 2000 }
+        RECHARGE_AGENT: { type: integer, minimum: 0, maximum: 2000 }
+        CREATOR: { type: integer, minimum: 0, maximum: 2000 }
+    StaffRecruitSettings:
+      type: object
+      required: [bps, defaults, updatedAt, updatedById]
+      properties:
+        bps: { $ref: '#/components/schemas/StaffRecruitBps' }
+        defaults: { $ref: '#/components/schemas/StaffRecruitBps' }
+        updatedAt: { type: string, format: date-time }
+        updatedById: { type: [string, 'null'], format: uuid }
+    UpdateStaffRecruitSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, totpCode]
+      properties:
+        host: { type: integer, minimum: 0, maximum: 2000 }
+        agency: { type: integer, minimum: 0, maximum: 2000 }
+        rechargeAgent: { type: integer, minimum: 0, maximum: 2000 }
+        creator: { type: integer, minimum: 0, maximum: 2000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    ReassignStaffRecruitRequest:
+      type: object
+      additionalProperties: false
+      required: [recruiter, reason, totpCode]
+      properties:
+        recruiter: { type: string, minLength: 1, maxLength: 64 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminRecruit:
+      allOf:
+        - $ref: '#/components/schemas/StaffRecruit'
+        - type: object
+          required: [recruiter, reassignedAt]
+          properties:
+            recruiter: { $ref: '#/components/schemas/UserSummary' }
+            reassignedAt: { type: [string, 'null'], format: date-time }
+    AdminRecruitList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminRecruit' }
+    AdminMyRecruits:
+      type: object
+      required: [counts, commissionCherries, bps, data]
+      properties:
+        counts: { $ref: '#/components/schemas/StaffRecruitCounts' }
+        commissionCherries: { type: integer, minimum: 0 }
+        bps: { $ref: '#/components/schemas/StaffRecruitBps' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/StaffRecruit' }
+    AdminRecruitCommissionList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [day, recruiter, profitUsd, bps, cherries, skipped]
+            properties:
+              day: { type: string, format: date }
+              recruiter: { $ref: '#/components/schemas/UserSummary' }
+              profitUsd: { type: number }
+              bps: { type: integer, minimum: 0, maximum: 2000 }
+              cherries: { type: integer, minimum: 0 }
+              skipped: { type: [string, 'null'], enum: [RECRUITER_INACTIVE, null] }
+    AdminRecruitStaffList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [userId, username, displayName, avatarUrl, staffId, status, roles, canRecruit, recruits, commissionCherries, profitUsd]
+            properties:
+              userId: { type: string, format: uuid }
+              username: { type: string }
+              displayName: { type: string }
+              avatarUrl: { type: [string, 'null'] }
+              staffId: { oneOf: [{ $ref: '#/components/schemas/StaffId' }, { type: 'null' }] }
+              status: { type: string }
+              roles:
+                type: array
+                items: { $ref: '#/components/schemas/AdminPanelRole' }
+              canRecruit: { type: boolean }
+              recruits: { $ref: '#/components/schemas/StaffRecruitCounts' }
+              commissionCherries: { type: integer, minimum: 0 }
+              profitUsd: { type: number }
+    CreatorApplicationRequest:
+      type: object
+      additionalProperties: false
+      required: [country, category, links]
+      properties:
+        country: { type: string, pattern: '^[A-Z]{2}$' }
+        category: { $ref: '#/components/schemas/CreatorCategory' }
+        links:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { type: string, maxLength: 200, pattern: '^https?://\S+$' }
+        bio: { type: string, maxLength: 300 }
+        recruiter: { $ref: '#/components/schemas/RecruiterField' }
+    CreatorCategory:
+      type: string
+      enum: [VIDEO, PHOTO, MUSIC, GAMING, COMEDY, EDUCATION, LIFESTYLE, OTHER]
+    CreatorApplication:
+      type: object
+      required: [id, status, country, category, links, bio, recruiter, createdAt, decidedAt, rejectReason]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] }
+        country: { type: string }
+        category: { $ref: '#/components/schemas/CreatorCategory' }
+        links:
+          type: array
+          items: { type: string }
+        bio: { type: [string, 'null'] }
+        recruiter:
+          oneOf:
+            - type: object
+              required: [staffId, displayName]
+              properties:
+                staffId: { oneOf: [{ $ref: '#/components/schemas/StaffId' }, { type: 'null' }] }
+                displayName: { type: string }
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'] }
+    MyCreatorApplication:
+      type: object
+      required: [member, application, rule]
+      properties:
+        member:
+          oneOf:
+            - type: object
+              required: [activatedAt]
+              properties:
+                activatedAt: { type: string, format: date-time }
+            - type: 'null'
+        application:
+          oneOf:
+            - $ref: '#/components/schemas/CreatorApplication'
+            - type: 'null'
+        rule:
+          type: object
+          required: [canApply, refusal]
+          properties:
+            canApply: { type: boolean }
+            refusal: { type: [string, 'null'], enum: [ACCOUNT_NOT_ACTIVE, MEMBER, STAFF, PENDING, null] }
+    AdminCreatorApplicationList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/CreatorApplication'
+              - type: object
+                required: [user]
+                properties:
+                  user:
+                    type: object
+                    required: [id, username, displayName]
+                    properties:
+                      id: { type: string, format: uuid }
+                      username: { type: string }
+                      displayName: { type: string }
     StaffId:
       type: string
       pattern: '^Kabso(0[1-9]|[1-9][0-9]{1,8})?$'
@@ -20887,7 +21511,7 @@ components:
         user: { $ref: '#/components/schemas/AdminPersonRef' }
         roles:
           type: array
-          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE] }
+          items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
         onShift: { type: boolean }
         since: { type: [string, 'null'], format: date-time }
         assignedLives: { type: integer, minimum: 0 }
@@ -22677,6 +23301,9 @@ components:
                 - $ref: '#/components/schemas/StaffId'
                 - type: 'null'
                 description: (v1.73-live, D283c, §10.96.12) The staff ID given with the first panel role (null only for a row granted outside `kabso_admin_panel_role`). The page shows it on each card and its search finds it.
+              recruits:
+                $ref: '#/components/schemas/StaffRecruitCounts'
+                description: (v1.75-live, D285, §10.96.13) How many recruits the person has, by type.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).
@@ -30032,11 +30659,12 @@ components:
         reward; the balance may go below 0). *(v1.84-social, D270)* `STORE_PURCHASE` (debit): a store item bought with
         cherries (reference: the purchase; §10.98). *(v1.71-live, D281)* `HOST_TARGET_REWARD` (credit): a smart host
         target's profit-share reward (reference `HT:<level>@<day>`, D281b's lucky track `HT:LUCKY:<level>@<day>`; locked like
-        `TASK_REWARD`, §10.62.2).
+        `TASK_REWARD`, §10.62.2). *(v1.75-live, D285)* `STAFF_RECRUIT_COMMISSION` (credit): a Kabso Team recruiter's
+        daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`; withdrawable, §10.96.13).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
-             REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD]
+             REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD, STAFF_RECRUIT_COMMISSION]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -30312,6 +30940,7 @@ components:
       description: v1.70-social (D206). Text is trimmed; no control characters.
       required: [name, country, contact, expectedHosts]
       properties:
+        recruiter: { $ref: '#/components/schemas/RecruiterField' }
         name: { type: string, minLength: 2, maxLength: 40 }
         country: { type: string, pattern: '^[A-Za-z]{2}$', description: ISO 3166-1 alpha-2. }
         contact:
@@ -30498,6 +31127,7 @@ components:
       additionalProperties: false
       required: [fullName, phone, whatsapp, locations, paymentMethods]
       properties:
+        recruiter: { $ref: '#/components/schemas/RecruiterField' }
         fullName: { type: string, minLength: 8, maxLength: 120, description: "The full four-part name (at least four words)." }
         phone: { type: string, pattern: '^\+[1-9][0-9]{7,14}$', description: "E.164." }
         whatsapp: { type: boolean, const: true, description: "The number has WhatsApp." }
