@@ -15,6 +15,7 @@ import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -37,6 +38,7 @@ class FeedReelData {
     this.aspect,
     this.isSelf = false,
     this.pendingModeration = false,
+    this.announcement = false,
     this.authorAvatar,
     this.authorUsername,
     this.authorId,
@@ -73,6 +75,9 @@ class FeedReelData {
 
   /// Waiting for moderation: visible to its author only (CP-006 Q2).
   final bool pendingModeration;
+
+  /// v1.71-live (D283): an official announcement reel of the Kabso Team.
+  final bool announcement;
 
   /// The author's username, the key of the follow API
   /// (`PUT /users/{username}/follow`) and of their profile.
@@ -1010,6 +1015,12 @@ class _ReelInfo extends StatelessWidget {
               ),
             ),
           ),
+          // D283: the Kabso Team's official announcement reel.
+          if (reel.announcement)
+            const Padding(
+              padding: EdgeInsets.only(top: KSpacing.xs),
+              child: AnnouncementLabel(onMedia: true),
+            ),
           if (reel.pendingModeration)
             Padding(
               key: HomeReelPage.pendingKey,

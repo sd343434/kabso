@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_mode_bar.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/video_source.dart';
+import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -264,14 +266,19 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
               ],
               _UpToNote(video: videos || draft.video != null),
               const SizedBox(height: KSpacing.xs),
-              CreateModeBar(
-                selected: CreateMode.post,
-                onSelect: (mode) => switch (mode) {
-                  CreateMode.post => null,
-                  CreateMode.story => context.push(AppRoutes.newStory),
-                  CreateMode.live => context.push(AppRoutes.goLive),
-                },
-              ),
+              // D283: a Kabso Team account posts announcements only — no
+              // story or live modes, the label instead.
+              if (ref.watch(currentUserProvider)?.staff != null)
+                const AnnouncementComposerNote()
+              else
+                CreateModeBar(
+                  selected: CreateMode.post,
+                  onSelect: (mode) => switch (mode) {
+                    CreateMode.post => null,
+                    CreateMode.story => context.push(AppRoutes.newStory),
+                    CreateMode.live => context.push(AppRoutes.goLive),
+                  },
+                ),
             ],
           ),
         ),

@@ -39,6 +39,56 @@ abstract final class AppRoutes {
   /// (the Me tab, staff accounts only).
   static const staff = '/me/staff';
 
+  /// v1.71-live (D283): what a Kabso Team account sees instead of a page it
+  /// cannot use.
+  static const staffUnavailable = '/me/staff/unavailable';
+
+  /// v1.71-live (D283, §10.96.10): the pages a Kabso Team account (MODERATION
+  /// / SUPPORT / FINANCE, not OWNER) cannot use: going live and announcing a
+  /// live, levels, VIP, family, store, wallet / recharge, bag, agency,
+  /// creator / event / task centres, medals, CP, premium usernames, the
+  /// invite programme and stories.
+  static bool staffBlocked(String location) {
+    final path = Uri.tryParse(location)?.path ?? location;
+    const exact = {
+      goLive,
+      newStory,
+      levels,
+      families,
+      cp,
+      cpSpace,
+      medals,
+      bag,
+      premium,
+      wallet,
+      inviteFriends,
+      creatorCenter,
+      agency,
+      recharge,
+      taskCenter,
+      eventCenter,
+      vip,
+      store,
+    };
+    if (exact.contains(path)) return true;
+    const prefixes = [
+      '/levels/',
+      '/families/',
+      '/family/',
+      '/cp/',
+      '/wallet/',
+      '/agency/',
+      '/recharge/',
+      '/vip/',
+      '/store/',
+      '/creator/',
+      '/tasks/',
+      '/events/',
+      '/medals/',
+    ];
+    return prefixes.any(path.startsWith);
+  }
+
   /// The Me tab. D163 (owner): a hub of the person's features (Bigo-style
   /// layout); the profile with its grids moved to [myProfile].
   static const profile = '/profile';

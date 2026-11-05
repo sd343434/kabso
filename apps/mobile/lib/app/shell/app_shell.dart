@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/messages/unread_messages.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
@@ -22,8 +23,12 @@ class AppShell extends ConsumerWidget {
   Future<void> _onSelect(BuildContext context, WidgetRef ref, int index) async {
     final create = AppRoutes.shellBranches.indexOf(AppRoutes.create);
     if (index == create && navigationShell.currentIndex != create) {
-      // D162 (owner): ➕ opens a menu — post, reel, story or go live.
-      final choice = await showCreateMenu(context);
+      // D162 (owner): ➕ opens a menu — post, reel, story or go live. D283: a
+      // Kabso Team account gets announcements only (no story, no live).
+      final choice = await showCreateMenu(
+        context,
+        staff: ref.read(currentUserProvider)?.staff != null,
+      );
       if (!context.mounted) return;
       switch (choice) {
         case null:

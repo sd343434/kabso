@@ -16,6 +16,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/application/view_recorder.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -57,6 +58,7 @@ class FeedPostData {
     this.edited = false,
     this.isSelf = false,
     this.pendingModeration = false,
+    this.announcement = false,
     this.repostedBy,
     this.commentsOpen = true,
     this.hashtags = const {},
@@ -130,6 +132,9 @@ class FeedPostData {
 
   /// Waiting for moderation: visible to its author only (CP-006 Q2).
   final bool pendingModeration;
+
+  /// v1.71-live (D283): an official announcement «إعلان رسمي — فريق كابسو».
+  final bool announcement;
 
   /// The display name of who reposted it into the Following feed.
   final String? repostedBy;
@@ -705,6 +710,12 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: t.caption.copyWith(color: p.textTertiary),
+                            ),
+                          // D283: the Kabso Team's official announcement.
+                          if (post.announcement)
+                            const Padding(
+                              padding: EdgeInsets.only(top: KSpacing.xxs),
+                              child: AnnouncementLabel(),
                             ),
                         ],
                       ),

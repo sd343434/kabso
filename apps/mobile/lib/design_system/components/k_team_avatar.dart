@@ -76,9 +76,7 @@ class KabsoTeamPicture extends StatelessWidget {
             children: [
               const Positioned.fill(
                 child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: KabsoTeamLook.background,
-                  ),
+                  decoration: BoxDecoration(gradient: KabsoTeamLook.background),
                 ),
               ),
               Positioned(
@@ -264,9 +262,7 @@ abstract final class KabsoTeamFrameWindow {
   }
 
   /// The smallest circle around [points] (a narrowing grid search).
-  static ({Offset centre, double radius}) enclosingCircle(
-    List<Offset> points,
-  ) {
+  static ({Offset centre, double radius}) enclosingCircle(List<Offset> points) {
     double radiusAt(Offset c) {
       var r = 0.0;
       for (final p in points) {

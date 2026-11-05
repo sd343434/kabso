@@ -83,6 +83,7 @@ abstract interface class PostsRepository {
     String status = 'PUBLISHED',
     DateTime? publishAt,
     bool reel = false,
+    bool announcement = false,
   });
 
   /// v1.41-social (D162): `GET /feed/reels`, one page of reels for Moments.
@@ -340,11 +341,14 @@ class PostsRepositoryImpl implements PostsRepository {
     String status = 'PUBLISHED',
     DateTime? publishAt,
     bool reel = false,
+    bool announcement = false,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/posts',
       data: {
         if (reel) 'format': 'REEL',
+        // v1.71-live (D283): a Kabso Team account's announcement.
+        if (announcement) 'announcement': true,
         if (text != null && text.isNotEmpty) 'text': text,
         if (mediaIds.isNotEmpty) 'mediaIds': mediaIds,
         if (location != null && location.isNotEmpty) 'location': location,

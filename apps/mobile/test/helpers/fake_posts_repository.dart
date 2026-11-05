@@ -292,6 +292,7 @@ class FakePostsRepository implements PostsRepository {
       String status,
       DateTime? publishAt,
       bool reel,
+      bool announcement,
     })
   >
   created = [];
@@ -309,6 +310,7 @@ class FakePostsRepository implements PostsRepository {
     String status = 'PUBLISHED',
     DateTime? publishAt,
     bool reel = false,
+    bool announcement = false,
   }) async {
     await _step('create:$idempotencyKey');
     created.add((
@@ -320,6 +322,7 @@ class FakePostsRepository implements PostsRepository {
       status: status,
       publishAt: publishAt,
       reel: reel,
+      announcement: announcement,
     ));
     final post = testPost(
       'new-${created.length}',

@@ -8,16 +8,24 @@ enum CreateChoice { post, reel, story, live }
 /// The ➕ tab's menu (owner, D162): 📝 Post (Create: photos, a video or
 /// text), 🎬 Reel (a vertical short video for Moments), ⭕ Story (CP-008)
 /// and 🔴 Go live (CP-010). Returns the choice, or `null` when dismissed.
-Future<CreateChoice?> showCreateMenu(BuildContext context) =>
-    showModalBottomSheet<CreateChoice>(
-      context: context,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (_) => const CreateMenuSheet(),
-    );
+///
+/// v1.71-live (D283, §10.96.10): for a Kabso Team account ([staff]) only
+/// «نشر إعلان» and «نشر ريلز إعلان» — no story and no go live.
+Future<CreateChoice?> showCreateMenu(
+  BuildContext context, {
+  bool staff = false,
+}) => showModalBottomSheet<CreateChoice>(
+  context: context,
+  showDragHandle: true,
+  useSafeArea: true,
+  builder: (_) => CreateMenuSheet(staff: staff),
+);
 
 class CreateMenuSheet extends StatelessWidget {
-  const new({super.key});
+  const new({super.key, this.staff = false});
+
+  /// D283: a Kabso Team account (announcements only).
+  final bool staff;
 
   static Key choiceKey(CreateChoice choice) =>
       Key('create.menu.${choice.name}');
@@ -72,32 +80,39 @@ class CreateMenuSheet extends StatelessWidget {
             ),
             item(
               CreateChoice.post,
-              Icons.edit_note_rounded,
+              staff ? Icons.campaign_rounded : Icons.edit_note_rounded,
               p.primary,
-              l10n.createMenuPost,
-              l10n.createMenuPostHint,
+              staff ? l10n.meStaffAnnouncement : l10n.createMenuPost,
+              staff
+                  ? l10n.postComposerAnnouncementOnly
+                  : l10n.createMenuPostHint,
             ),
             item(
               CreateChoice.reel,
               Icons.movie_creation_rounded,
               p.primary,
-              l10n.createMenuReel,
-              l10n.createMenuReelHint,
+              staff ? l10n.meStaffAnnouncementReel : l10n.createMenuReel,
+              staff
+                  ? l10n.postComposerAnnouncementOnly
+                  : l10n.createMenuReelHint,
             ),
-            item(
-              CreateChoice.story,
-              Icons.donut_large_rounded,
-              p.primary,
-              l10n.createMenuStory,
-              l10n.createMenuStoryHint,
-            ),
-            item(
-              CreateChoice.live,
-              Icons.sensors_rounded,
-              p.error,
-              l10n.createMenuLive,
-              l10n.createMenuLiveHint,
-            ),
+            if (!staff) ...[
+              item(
+                CreateChoice.story,
+                Icons.donut_large_rounded,
+                p.primary,
+                l10n.createMenuStory,
+                l10n.createMenuStoryHint,
+              ),
+              // D283: never for a Kabso Team account (no live).
+              item(
+                CreateChoice.live,
+                Icons.sensors_rounded,
+                p.error,
+                l10n.createMenuLive,
+                l10n.createMenuLiveHint,
+              ),
+            ],
             const SizedBox(height: KSpacing.sm),
           ],
         ),

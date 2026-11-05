@@ -10,6 +10,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
@@ -172,6 +173,9 @@ class _NewReelScreenState extends ConsumerState<NewReelScreen> {
             text: text,
             mediaIds: [assetId],
             reel: true,
+            // v1.71-live (D283): a Kabso Team account's reel is an
+            // announcement.
+            announcement: ref.read(currentUserProvider)?.staff != null,
           );
       if (!mounted) return;
       for (final feed in HomeFeed.values) {

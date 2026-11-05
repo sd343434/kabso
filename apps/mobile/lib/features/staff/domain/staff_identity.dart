@@ -116,9 +116,8 @@ class KabsoStaffIdentity {
       other is KabsoStaffIdentity &&
       other.role == role &&
       other.regions.length == regions.length &&
-      [
-        for (var i = 0; i < regions.length; i++) other.regions[i] == regions[i],
-      ].every((e) => e);
+      [for (var i = 0; i < regions.length; i++) other.regions[i] == regions[i]]
+          .every((e) => e);
 
   @override
   int get hashCode => Object.hash(role, Object.hashAll(regions));

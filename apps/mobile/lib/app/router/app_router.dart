@@ -100,6 +100,7 @@ import 'package:kabso_live/features/settings/account_deletion/deletion_pending_s
 import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:kabso_live/features/staff/presentation/staff_screen.dart';
+import 'package:kabso_live/features/staff/presentation/staff_unavailable_screen.dart';
 import 'package:kabso_live/features/store/presentation/store_screen.dart';
 import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
 import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
@@ -527,6 +528,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.store, builder: (_, _) => const StoreScreen()),
       // D273: «فريق كابسو» (staff accounts; the server checks every tool).
       GoRoute(path: AppRoutes.staff, builder: (_, _) => const StaffScreen()),
+      GoRoute(
+        path: AppRoutes.staffUnavailable,
+        builder: (_, _) => const StaffUnavailableScreen(),
+      ),
       GoRoute(
         path: AppRoutes.vipVisitors,
         builder: (_, _) => const VipVisitorsScreen(),

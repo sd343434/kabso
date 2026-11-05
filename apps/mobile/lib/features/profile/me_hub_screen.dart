@@ -130,6 +130,12 @@ class MeHubScreen extends ConsumerWidget {
 
   /// v1.68-live (D273): «فريق كابسو» — staff accounts only.
   static const kabsoTeamKey = Key('meHub.kabsoTeam');
+
+  /// D283: the staff-only Me tab's rows and line.
+  static const staffAnnouncementKey = Key('meHub.staff.announcement');
+  static const staffAnnouncementReelKey = Key('meHub.staff.announcementReel');
+  static const staffSettingsKey = Key('meHub.staff.settings');
+  static const staffLineKey = Key('meHub.staff.line');
   static const soonKey = Key('meHub.soon');
 
   @override
@@ -175,176 +181,218 @@ class MeHubScreen extends ConsumerWidget {
     final family = stats?.family;
     final cp = stats?.cp;
     final medals = stats?.medals;
+    // v1.71-live (D283, owner: «اجعل لوحة الادارة والمشرفين تكون في أنا بحيث
+    // ميزات المستخدمين والمضيفين والوكلاء لا يظهر للمشرفين والادارة»): a Kabso
+    // Team account's Me tab is its profile header, «فريق كابسو», the
+    // announcement composer and settings only.
+    final staff = user?.staff;
 
-    final cards = [
-      _HubCard(
-        item: MeHubItem.levels,
-        icon: Icons.diamond_rounded,
-        hue: p.primary,
-        label: l10n.meHubLevels,
-        onTap: () => push(AppRoutes.levels),
-      ),
-      _HubCard(
-        item: MeHubItem.vip,
-        icon: Icons.workspace_premium_rounded,
-        hue: _Hues.gold,
-        label: l10n.meHubVip,
-        // D252: «شراء VIP» (tiers from the admin panel).
-        onTap: () => push(AppRoutes.vip),
-      ),
-      _HubCard(
-        item: MeHubItem.family,
-        icon: Icons.shield_rounded,
-        hue: _Hues.orange,
-        label: family?.name ?? l10n.liveUserFamily,
-        onTap: () => push(
-          family == null ? AppRoutes.families : AppRoutes.family(family.id),
-        ),
-      ),
-      // D267 (owner): «المتجر» takes the earn card's place; D270: built.
-      _HubCard(
-        item: MeHubItem.store,
-        icon: Icons.storefront_rounded,
-        hue: _Hues.blue,
-        label: l10n.meHubStore,
-        onTap: () => push(AppRoutes.store),
+    final cards = staff != null
+        ? const <Widget>[]
+        : [
+            _HubCard(
+              item: MeHubItem.levels,
+              icon: Icons.diamond_rounded,
+              hue: p.primary,
+              label: l10n.meHubLevels,
+              onTap: () => push(AppRoutes.levels),
+            ),
+            _HubCard(
+              item: MeHubItem.vip,
+              icon: Icons.workspace_premium_rounded,
+              hue: _Hues.gold,
+              label: l10n.meHubVip,
+              // D252: «شراء VIP» (tiers from the admin panel).
+              onTap: () => push(AppRoutes.vip),
+            ),
+            _HubCard(
+              item: MeHubItem.family,
+              icon: Icons.shield_rounded,
+              hue: _Hues.orange,
+              label: family?.name ?? l10n.liveUserFamily,
+              onTap: () => push(
+                family == null
+                    ? AppRoutes.families
+                    : AppRoutes.family(family.id),
+              ),
+            ),
+            // D267 (owner): «المتجر» takes the earn card's place; D270: built.
+            _HubCard(
+              item: MeHubItem.store,
+              icon: Icons.storefront_rounded,
+              hue: _Hues.blue,
+              label: l10n.meHubStore,
+              onTap: () => push(AppRoutes.store),
+            ),
+          ];
+
+    final teamRow = [
+      _HubRow(
+        rowKey: kabsoTeamKey,
+        icon: Icons.verified_user_rounded,
+        hue: KabsoTeamColors.end,
+        title: l10n.liveKabsoTeam,
+        value: l10n.staffMyLives,
+        onTap: () => push(AppRoutes.staff),
       ),
     ];
-
-    final groups = <List<Widget>>[
-      // v1.68-live (D273, owner: «المناوبة من الهاتف»): the staff's shift,
-      // «بثوثي» and the step-up — only for an account holding a watch role.
-      if (user?.kabsoTeam ?? false)
-        [
-          _HubRow(
-            rowKey: kabsoTeamKey,
-            icon: Icons.verified_user_rounded,
-            hue: KabsoTeamColors.end,
-            title: l10n.liveKabsoTeam,
-            value: l10n.staffMyLives,
-            onTap: () => push(AppRoutes.staff),
-          ),
-        ],
-      [
-        _HubRow(
-          item: MeHubItem.creatorCenter,
-          icon: Icons.insights_rounded,
-          hue: _Hues.teal,
-          title: l10n.meHubCreatorCenter,
-          onTap: () => push(AppRoutes.creatorCenter),
-        ),
-        // D179: host agencies (join by code; the agent's dashboard).
-        _HubRow(
-          item: MeHubItem.agency,
-          icon: Icons.groups_rounded,
-          hue: _Hues.pink,
-          title: l10n.meHubAgency,
-          onTap: () => push(AppRoutes.agency),
-        ),
-        // D185: recharge agents «وكيل الشحن» (apply, the agent's dashboard,
-        // the directory).
-        _HubRow(
-          item: MeHubItem.recharge,
-          icon: Icons.storefront_rounded,
-          hue: _Hues.pink,
-          title: l10n.rechargeTitle,
-          onTap: () => push(AppRoutes.recharge),
-        ),
-        _HubRow(
-          item: MeHubItem.eventCenter,
-          icon: Icons.campaign_rounded,
-          hue: _Hues.teal,
-          title: l10n.meHubEventCenter,
-          onTap: () => push(AppRoutes.eventCenter),
-        ),
-      ],
-      [
-        // D164: the wallet screen (balance and coin history); recharge
-        // stays "Soon" inside it (no purchases yet, B5).
-        _HubRow(
-          item: MeHubItem.wallet,
-          icon: Icons.account_balance_wallet_rounded,
-          hue: _Hues.pink,
-          title: l10n.meHubWallet,
-          value: coins == null ? null : KFormat.grouped(coins),
-          valueLabel: coins == null
-              ? null
-              : l10n.meHubCoins(KFormat.grouped(coins)),
-          valueArt: KabsoArt.coin,
-          onTap: () => push(AppRoutes.wallet),
-        ),
-        _HubRow(
-          item: MeHubItem.bag,
-          icon: Icons.backpack_rounded,
-          hue: _Hues.gold,
-          title: l10n.meHubItemBag,
-          onTap: () => push(AppRoutes.bag),
-        ),
-      ],
-      [
-        // D267 (owner): «اربح المال» in SVIP's place (SVIP is not needed).
-        _HubRow(
-          item: MeHubItem.earn,
-          icon: Icons.payments_rounded,
-          hue: _Hues.blue,
-          title: l10n.meHubEarn,
-          // D217 (owner): «اربح المال» opens «دعوة صديق»; the cherry wallet
-          // when the programme was found off (the invite page also gives way
-          // to it when it finds the programme off).
-          onTap: () => push(
-            ref.read(referralEnabledProvider) == false
-                ? AppRoutes.walletCherries
-                : AppRoutes.inviteFriends,
-          ),
-        ),
-        _HubRow(
-          item: MeHubItem.taskCenter,
-          icon: Icons.task_alt_rounded,
-          hue: _Hues.gold,
-          title: l10n.meHubTaskCenter,
-          onTap: () => push(AppRoutes.taskCenter),
-        ),
-        _HubRow(
-          item: MeHubItem.medals,
-          icon: Icons.emoji_events_rounded,
-          hue: _Hues.orange,
-          title: l10n.medalsTitle,
-          // Nothing until the catalogue is known (no "0 of 0").
-          value: medals == null || medals.total == 0
-              ? null
-              : l10n.medalsOwned(medals.owned, medals.total),
-          onTap: () => push(AppRoutes.medals),
-        ),
-        _HubRow(
-          item: MeHubItem.ranking,
-          icon: Icons.leaderboard_rounded,
-          hue: _Hues.teal,
-          title: l10n.meHubRanking,
-          onTap: () => unawaited(showLiveRankings(context)),
-        ),
-      ],
-      [
-        _HubRow(
-          item: MeHubItem.relationship,
-          icon: Icons.favorite_rounded,
-          hue: p.primary,
-          title: l10n.cpTitle,
-          value: cp == null
-              ? null
-              : (cp.partner.displayName.isEmpty
-                    ? cp.partner.username
-                    : cp.partner.displayName),
-          onTap: () => push(cp != null ? AppRoutes.cpSpace : AppRoutes.cp),
-        ),
-        _HubRow(
-          item: MeHubItem.premium,
-          icon: Icons.alternate_email_rounded,
-          hue: _Hues.blue,
-          title: l10n.premiumTitle,
-          onTap: () => push(AppRoutes.premium),
-        ),
-      ],
-    ];
+    final groups = staff != null
+        ? <List<Widget>>[
+            // D273's panel on the phone (watch roles; FINANCE has none).
+            if (user?.kabsoTeam ?? false) teamRow,
+            [
+              _HubRow(
+                rowKey: staffAnnouncementKey,
+                icon: Icons.campaign_rounded,
+                hue: p.primary,
+                title: l10n.meStaffAnnouncement,
+                onTap: () => context.go(AppRoutes.create),
+              ),
+              _HubRow(
+                rowKey: staffAnnouncementReelKey,
+                icon: Icons.movie_creation_rounded,
+                hue: p.primary,
+                title: l10n.meStaffAnnouncementReel,
+                onTap: () => push(AppRoutes.newReel),
+              ),
+            ],
+            [
+              _HubRow(
+                rowKey: staffSettingsKey,
+                icon: Icons.settings_rounded,
+                hue: _Hues.teal,
+                title: l10n.settingsTitle,
+                onTap: () => push(AppRoutes.settings),
+              ),
+            ],
+          ]
+        : <List<Widget>>[
+            // v1.68-live (D273, owner: «المناوبة من الهاتف»): the staff's
+            // shift, «بثوثي» and the step-up — only for an account holding a
+            // watch role.
+            if (user?.kabsoTeam ?? false) teamRow,
+            [
+              _HubRow(
+                item: MeHubItem.creatorCenter,
+                icon: Icons.insights_rounded,
+                hue: _Hues.teal,
+                title: l10n.meHubCreatorCenter,
+                onTap: () => push(AppRoutes.creatorCenter),
+              ),
+              // D179: host agencies (join by code; the agent's dashboard).
+              _HubRow(
+                item: MeHubItem.agency,
+                icon: Icons.groups_rounded,
+                hue: _Hues.pink,
+                title: l10n.meHubAgency,
+                onTap: () => push(AppRoutes.agency),
+              ),
+              // D185: recharge agents «وكيل الشحن» (apply, the agent's
+              // dashboard, the directory).
+              _HubRow(
+                item: MeHubItem.recharge,
+                icon: Icons.storefront_rounded,
+                hue: _Hues.pink,
+                title: l10n.rechargeTitle,
+                onTap: () => push(AppRoutes.recharge),
+              ),
+              _HubRow(
+                item: MeHubItem.eventCenter,
+                icon: Icons.campaign_rounded,
+                hue: _Hues.teal,
+                title: l10n.meHubEventCenter,
+                onTap: () => push(AppRoutes.eventCenter),
+              ),
+            ],
+            [
+              // D164: the wallet screen (balance and coin history); recharge
+              // stays "Soon" inside it (no purchases yet, B5).
+              _HubRow(
+                item: MeHubItem.wallet,
+                icon: Icons.account_balance_wallet_rounded,
+                hue: _Hues.pink,
+                title: l10n.meHubWallet,
+                value: coins == null ? null : KFormat.grouped(coins),
+                valueLabel: coins == null
+                    ? null
+                    : l10n.meHubCoins(KFormat.grouped(coins)),
+                valueArt: KabsoArt.coin,
+                onTap: () => push(AppRoutes.wallet),
+              ),
+              _HubRow(
+                item: MeHubItem.bag,
+                icon: Icons.backpack_rounded,
+                hue: _Hues.gold,
+                title: l10n.meHubItemBag,
+                onTap: () => push(AppRoutes.bag),
+              ),
+            ],
+            [
+              // D267 (owner): «اربح المال» in SVIP's place (SVIP is not
+              // needed).
+              _HubRow(
+                item: MeHubItem.earn,
+                icon: Icons.payments_rounded,
+                hue: _Hues.blue,
+                title: l10n.meHubEarn,
+                // D217 (owner): «اربح المال» opens «دعوة صديق»; the cherry
+                // wallet when the programme was found off (the invite page also
+                // gives way to it when it finds the programme off).
+                onTap: () => push(
+                  ref.read(referralEnabledProvider) == false
+                      ? AppRoutes.walletCherries
+                      : AppRoutes.inviteFriends,
+                ),
+              ),
+              _HubRow(
+                item: MeHubItem.taskCenter,
+                icon: Icons.task_alt_rounded,
+                hue: _Hues.gold,
+                title: l10n.meHubTaskCenter,
+                onTap: () => push(AppRoutes.taskCenter),
+              ),
+              _HubRow(
+                item: MeHubItem.medals,
+                icon: Icons.emoji_events_rounded,
+                hue: _Hues.orange,
+                title: l10n.medalsTitle,
+                // Nothing until the catalogue is known (no "0 of 0").
+                value: medals == null || medals.total == 0
+                    ? null
+                    : l10n.medalsOwned(medals.owned, medals.total),
+                onTap: () => push(AppRoutes.medals),
+              ),
+              _HubRow(
+                item: MeHubItem.ranking,
+                icon: Icons.leaderboard_rounded,
+                hue: _Hues.teal,
+                title: l10n.meHubRanking,
+                onTap: () => unawaited(showLiveRankings(context)),
+              ),
+            ],
+            [
+              _HubRow(
+                item: MeHubItem.relationship,
+                icon: Icons.favorite_rounded,
+                hue: p.primary,
+                title: l10n.cpTitle,
+                value: cp == null
+                    ? null
+                    : (cp.partner.displayName.isEmpty
+                          ? cp.partner.username
+                          : cp.partner.displayName),
+                onTap: () =>
+                    push(cp != null ? AppRoutes.cpSpace : AppRoutes.cp),
+              ),
+              _HubRow(
+                item: MeHubItem.premium,
+                icon: Icons.alternate_email_rounded,
+                hue: _Hues.blue,
+                title: l10n.premiumTitle,
+                onTap: () => push(AppRoutes.premium),
+              ),
+            ],
+          ];
 
     final top = MediaQuery.paddingOf(context).top;
     final header = DecoratedBox(
@@ -406,7 +454,10 @@ class MeHubScreen extends ConsumerWidget {
                     minHeight: KMeHub.avatarBox,
                   ),
                   child: Center(
-                    child: cpWearsSpecialFrame(cp)
+                    // D283: the team picture in the locked team frame.
+                    child: staff != null
+                        ? const KabsoTeamAvatar.boxed(box: KMeHub.avatarBox)
+                        : cpWearsSpecialFrame(cp)
                         ? CpSpecialFrameAvatar(
                             width: CpSpecialFrameAvatar.widthForAvatar(
                               KMeHub.framedAvatar,
@@ -462,14 +513,19 @@ class MeHubScreen extends ConsumerWidget {
                     ),
                   // D258: my VIP badge while my membership is active —
                   // D268 (owner): right after the name.
-                  if (myVip != null) VipNameBadge(vip: myVip, height: 22),
-                  // D163: the level badge beside the name.
-                  ProfileLevels(
-                    onOpen: () => push(AppRoutes.levels),
-                    padding: EdgeInsetsDirectional.zero,
-                  ),
+                  if (myVip != null && staff == null)
+                    VipNameBadge(vip: myVip, height: 22),
+                  // D283: the Kabso Team badge instead of levels.
+                  if (staff != null)
+                    const KabsoTeamBadge(height: 22)
+                  else
+                    // D163: the level badge beside the name.
+                    ProfileLevels(
+                      onOpen: () => push(AppRoutes.levels),
+                      padding: EdgeInsetsDirectional.zero,
+                    ),
                   // D187: the daily recharge badge beside it while it shows.
-                  if (rechargeBadgeShows(stats?.rechargeBadge))
+                  if (staff == null && rechargeBadgeShows(stats?.rechargeBadge))
                     RechargeTierBadge(
                       key: rechargeBadgeKey,
                       badge: stats?.rechargeBadge,
@@ -478,6 +534,21 @@ class MeHubScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            // D283: «مشرف للوطن العربي» / "Moderator — Arab World".
+            if (staff != null) ...[
+              const SizedBox(height: KSpacing.xs),
+              Text(
+                staff.line(l10n),
+                key: staffLineKey,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.body.copyWith(
+                  color: p.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: KMeHub.statsTop),
             Row(
               children: [
@@ -505,23 +576,25 @@ class MeHubScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: KMeHub.cardsTop),
-            Padding(
-              key: cardsKey,
-              padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-              // Equal heights when a large text size grows one card.
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final (i, card) in cards.indexed) ...[
-                      if (i > 0) const SizedBox(width: KMeHub.cardGap),
-                      Expanded(child: card),
+            if (cards.isNotEmpty) ...[
+              const SizedBox(height: KMeHub.cardsTop),
+              Padding(
+                key: cardsKey,
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                // Equal heights when a large text size grows one card.
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final (i, card) in cards.indexed) ...[
+                        if (i > 0) const SizedBox(width: KMeHub.cardGap),
+                        Expanded(child: card),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

@@ -35,6 +35,7 @@ import 'package:kabso_live/features/profile/profile_live_pill.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
+import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -309,6 +310,10 @@ class ProfileCoverHeader extends StatelessWidget {
   static const watchLiveKey = Key('profile.public.watchLive');
   static const handleKey = Key('profile.cover.handle');
   static const levelsKey = Key('profile.public.levels');
+
+  /// D283: a staff profile's team cover and its region line.
+  static const staffCoverKey = Key('profile.cover.staff');
+  static const staffLineKey = Key('profile.staff.line');
   static const nameRowKey = Key('profile.cover.nameRow');
   static const actionsKey = Key('profile.cover.actions');
   static const linksKey = Key('profile.cover.links');
@@ -332,6 +337,10 @@ class ProfileCoverHeader extends StatelessWidget {
       KPublicProfile.coverHeightFor(media.size.height),
       barBottom + slot.height + 2 * KPublicProfile.avatarMargin,
     );
+    // v1.71-live (D283, §10.96.10): a Kabso Team account's cover is its
+    // region's team cover, locked (no cover of its own, never changed here).
+    final staff = profile.staff;
+    final onCoverTap = staff == null ? this.onCoverTap : null;
     final cover = Stack(
       key: coverAreaKey,
       fit: StackFit.expand,
@@ -352,7 +361,15 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
           ),
         ),
-        if (profile.coverUrl == null && avatarUrl != null)
+        if (staff != null)
+          Image(
+            key: ProfileCoverHeader.staffCoverKey,
+            image: AssetImage(StaffCovers.assetFor(staff.primaryRegion)),
+            fit: BoxFit.cover,
+            alignment: StaffCovers.alignment,
+            excludeFromSemantics: true,
+          ),
+        if (staff == null && profile.coverUrl == null && avatarUrl != null)
           ImageFiltered(
             key: ProfileCoverHeader.coverAvatarKey,
             imageFilter: ImageFilter.blur(
@@ -369,7 +386,7 @@ class ProfileCoverHeader extends StatelessWidget {
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           ),
-        if (profile.coverUrl case final url?)
+        if (profile.coverUrl case final url? when staff == null)
           Image(
             key: ProfileCoverHeader.coverKey,
             image: profileCoverImageFor(url),
@@ -527,14 +544,16 @@ class ProfileCoverHeader extends StatelessWidget {
                 key: ProfileHeaderView.rechargeBadgeKey,
                 badge: profile.rechargeBadge,
               ),
-            ProfileLevels(
-              key: levelsKey,
-              username: profile.isSelf ? null : profile.username,
-              onOpen: profile.isSelf
-                  ? () => context.push(AppRoutes.levels)
-                  : null,
-              padding: EdgeInsetsDirectional.zero,
-            ),
+            // D283: a Kabso Team account shows no levels.
+            if (profile.staff == null)
+              ProfileLevels(
+                key: levelsKey,
+                username: profile.isSelf ? null : profile.username,
+                onOpen: profile.isSelf
+                    ? () => context.push(AppRoutes.levels)
+                    : null,
+                padding: EdgeInsetsDirectional.zero,
+              ),
           ],
         ),
         const SizedBox(height: KSpacing.xxs),
@@ -555,6 +574,21 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
           },
         ),
+        // D283 (owner: «مشرف للوطن العربي … مشرف لـ…»): the staff member's
+        // role and regions in the viewer's language.
+        if (profile.staff case final staff?) ...[
+          const SizedBox(height: KSpacing.xxs),
+          Text(
+            staff.line(l10n),
+            key: staffLineKey,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: t.body.copyWith(
+              color: p.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
         const SizedBox(height: KSpacing.md),
         _stats(context),
         const SizedBox(height: KSpacing.md),
@@ -597,35 +631,44 @@ class ProfileCoverHeader extends StatelessWidget {
         // D258: the VIP's animated frame, unless an agent or bag frame is
         // worn (those keep their own art). D265 (owner): the picture fills
         // the frame's whole opening.
-        child: Consumer(
-          builder: (context, ref, _) {
-            // While live the live ring and its badge win over every frame
-            // (ProfileAvatar): the VIP frame too.
-            final vip =
-                !live &&
-                    profile.rechargeAgentCode == null &&
-                    profile.hostAgentCode == null &&
-                    profile.avatarFrame == null
-                ? profile.vip
-                : null;
-            final framed = VipAvatarFrame.shows(ref, vip);
-            return VipAvatarFrame(
-              vip: vip,
-              size: KProfile.avatar,
-              child: ProfileAvatar(
-                displayName: profile.displayName,
-                avatarUrl: profile.avatarUrl,
-                live: live,
-                cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
-                agentCode: profile.rechargeAgentCode,
-                hostAgentCode: profile.hostAgentCode,
-                avatarFrame: profile.avatarFrame,
-                // A thin light ring sets the plain photo off the picture.
-                outline: framed ? null : KPalette.dark.textPrimary,
+        child: profile.staff != null || isTeamAvatarUrl(profile.avatarUrl)
+            // D283: the team picture in the locked team frame, filling the
+            // photo's slot (no VIP, bag or store frame ever).
+            ? KabsoTeamAvatar.boxed(
+                box: math.min(
+                  KPublicProfile.avatarSlot.width,
+                  KPublicProfile.avatarSlot.height,
+                ),
+              )
+            : Consumer(
+                builder: (context, ref, _) {
+                  // While live the live ring and its badge win over every frame
+                  // (ProfileAvatar): the VIP frame too.
+                  final vip =
+                      !live &&
+                          profile.rechargeAgentCode == null &&
+                          profile.hostAgentCode == null &&
+                          profile.avatarFrame == null
+                      ? profile.vip
+                      : null;
+                  final framed = VipAvatarFrame.shows(ref, vip);
+                  return VipAvatarFrame(
+                    vip: vip,
+                    size: KProfile.avatar,
+                    child: ProfileAvatar(
+                      displayName: profile.displayName,
+                      avatarUrl: profile.avatarUrl,
+                      live: live,
+                      cpFrame: cpFrame ?? cpWearsSpecialFrame(profile.cp),
+                      agentCode: profile.rechargeAgentCode,
+                      hostAgentCode: profile.hostAgentCode,
+                      avatarFrame: profile.avatarFrame,
+                      // A thin light ring sets the plain photo off the picture.
+                      outline: framed ? null : KPalette.dark.textPrimary,
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }

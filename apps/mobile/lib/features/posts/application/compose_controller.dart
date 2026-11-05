@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/posts/application/my_posts_controller.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
@@ -377,6 +378,8 @@ class ComposeController extends Notifier<ComposeState> {
             settings: state.settings,
             status: status,
             publishAt: status == 'SCHEDULED' ? publishAt : null,
+            // v1.71-live (D283): a Kabso Team account posts announcements only.
+            announcement: ref.read(currentUserProvider)?.staff != null,
           );
       if (!ref.mounted) return post;
       // A new draft starts clean; the feeds show the new post.

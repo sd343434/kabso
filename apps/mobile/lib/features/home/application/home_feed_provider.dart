@@ -257,5 +257,6 @@ FeedReelData feedReelOf(Post post) {
     shares: post.shareCount,
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
+    announcement: post.announcement,
   );
 }

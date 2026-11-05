@@ -42,7 +42,7 @@ String? authRedirect(
       // screen and every later one goes straight to login (D65).
       if (reason != null || welcomeSeen) return AppRoutes.login;
       return AppRoutes.welcome;
-    case Authenticated():
+    case Authenticated(:final user):
       // D198: a new version of the terms or the privacy policy waits to be
       // accepted — only the consent screen, the data export and the account
       // deletion are reachable until then.
@@ -52,6 +52,12 @@ String? authRedirect(
             : AppRoutes.legalConsent;
       }
       if (location == AppRoutes.legalConsent) return AppRoutes.home;
+      // v1.71-live (D283, §10.96.10): a Kabso Team account's Me tab has no
+      // user, host or agency features — their pages (and deep links to them)
+      // show a short note instead; the server refuses the actions anyway.
+      if (user.staff != null && AppRoutes.staffBlocked(location)) {
+        return AppRoutes.staffUnavailable;
+      }
       return isSplash || isPublicAuth ? AppRoutes.home : null;
   }
 }
