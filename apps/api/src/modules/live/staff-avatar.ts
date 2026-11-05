@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Prisma } from '../../generated/prisma/client.js';
 
 /**
- * v1.71-live (D283, CONVENTIONS §10.96.10; owner: «وهذه الصورة الشخصية الخاص بالادمن والمشرفين بحيث لا يمكن
+ * v1.72-live (D283, CONVENTIONS §10.96.10; owner: «وهذه الصورة الشخصية الخاص بالادمن والمشرفين بحيث لا يمكن
  * تغييرها»): a limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) has ONE fixed picture — the
  * owner's Kabi-in-a-suit art, served by the API at {@link TEAM_AVATAR_PATH}.
  *

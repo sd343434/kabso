@@ -140,7 +140,7 @@ export class PostInteractionsService {
     postId: string,
     reposted: boolean,
   ): Promise<{ reposted: boolean; repostCount: number }> {
-    // v1.71-live (D283, §10.96.10): a Kabso Team account's page shows its announcements only — no reposts (undoing
+    // v1.72-live (D283, §10.96.10): a Kabso Team account's page shows its announcements only — no reposts (undoing
     // an older one stays possible).
     if (reposted) await refuseLimitedStaff(this.prisma, userId, 'repost');
     return this.prisma.$transaction(async (tx) => {

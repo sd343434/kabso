@@ -133,7 +133,7 @@ class FeedPostData {
   /// Waiting for moderation: visible to its author only (CP-006 Q2).
   final bool pendingModeration;
 
-  /// v1.71-live (D283): an official announcement «إعلان رسمي — فريق كابسو».
+  /// v1.72-live (D283): an official announcement «إعلان رسمي — فريق كابسو».
   final bool announcement;
 
   /// The display name of who reposted it into the Following feed.

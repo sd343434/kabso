@@ -186,7 +186,7 @@ export class ProfileEditService {
    * the last 24 hours).
    */
   async setAvatar(userId: string, body: unknown, meta: ProfileEditMeta): Promise<AvatarDto> {
-    // v1.71-live (D283, §10.96.10): a Kabso Team account's picture is the team's, fixed.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account's picture is the team's, fixed.
     await refuseLimitedStaff(this.prisma, userId, 'avatar');
     await this.media.assertEnabled();
     const parsed = setAvatarSchema.safeParse(body ?? {});
@@ -226,7 +226,7 @@ export class ProfileEditService {
    * the same transaction, its objects after commit. Setting the current cover again changes nothing.
    */
   async setCover(userId: string, body: unknown, meta: ProfileEditMeta): Promise<CoverDto> {
-    // v1.71-live (D283, §10.96.10): a Kabso Team account's cover is its region's team cover (the app's), fixed.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account's cover is its region's team cover (the app's), fixed.
     await refuseLimitedStaff(this.prisma, userId, 'cover');
     await this.media.assertEnabled();
     const parsed = setAvatarSchema.safeParse(body ?? {});

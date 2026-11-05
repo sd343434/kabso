@@ -812,14 +812,14 @@ export class AdminV2Controller {
     return this.team.revoke(pathUuid(id), body, admin);
   }
 
-  /** v1.71-live (D283, §10.96.11): the regions and their countries. */
+  /** v1.72-live (D283, §10.96.11): the regions and their countries. */
   @Get('team/regions')
   @RequireCapability('team.manage')
   teamRegionCatalog() {
     return this.team.regionCatalog();
   }
 
-  /** v1.71-live (D283, §10.96.11): a MODERATION / SUPPORT staff member's regions (OWNER, code + reason, audited). */
+  /** v1.72-live (D283, §10.96.11): a MODERATION / SUPPORT staff member's regions (OWNER, code + reason, audited). */
   @Put('team/:userId/regions')
   @HttpCode(200)
   @TEAM_LIMIT

@@ -132,7 +132,7 @@ export async function refuseWatchStaff(
 }
 
 /**
- * v1.71-live (D283, CONVENTIONS §10.96.10; owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه
+ * v1.72-live (D283, CONVENTIONS §10.96.10; owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه
  * ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل
  * بوست اعلان فقط او ريلز اعلان»): the **limited** staff account — an ACTIVE ADMIN account holding MODERATION,
  * SUPPORT or FINANCE and **not** OWNER (the OWNER's account stays a normal one: lives, levels, any post). Read from the

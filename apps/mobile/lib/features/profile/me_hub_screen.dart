@@ -181,7 +181,7 @@ class MeHubScreen extends ConsumerWidget {
     final family = stats?.family;
     final cp = stats?.cp;
     final medals = stats?.medals;
-    // v1.71-live (D283, owner: «اجعل لوحة الادارة والمشرفين تكون في أنا بحيث
+    // v1.72-live (D283, owner: «اجعل لوحة الادارة والمشرفين تكون في أنا بحيث
     // ميزات المستخدمين والمضيفين والوكلاء لا يظهر للمشرفين والادارة»): a Kabso
     // Team account's Me tab is its profile header, «فريق كابسو», the
     // announcement composer and settings only.

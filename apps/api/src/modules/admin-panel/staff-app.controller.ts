@@ -49,7 +49,7 @@ const username = z
   .transform((u) => u.replace(/^@/, ''));
 const stepUpBody = z.strictObject({ code: z.string().regex(/^[0-9]{6}$/) });
 const shiftBody = z.strictObject({ onShift: z.boolean() });
-/** v1.71-live (D283, §10.96.11): «بثوثي» — the lives assigned to me (default) or every live in my regions. */
+/** v1.72-live (D283, §10.96.11): «بثوثي» — the lives assigned to me (default) or every live in my regions. */
 const livesScopeQuery = z.strictObject({ scope: z.enum(['assigned', 'regions']).optional() });
 const kickBody = z.strictObject({ username, reason });
 const muteBody = z.strictObject({ username, reason, muted: z.boolean().default(true) });
@@ -66,7 +66,7 @@ function meta(req: AppRequest) {
  * panel's rule functions run unchanged and audit `via: app`.
  */
 /**
- * v1.71-live (D283, §10.96.10): the Kabso Team's fixed picture (public, cached a day) — the `avatar_url` of every
+ * v1.72-live (D283, §10.96.10): the Kabso Team's fixed picture (public, cached a day) — the `avatar_url` of every
  * limited staff account.
  */
 @Public()

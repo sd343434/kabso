@@ -321,7 +321,7 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
    */
   async equip(callerId: string, body: EquipBody, lang: ContentLanguage): Promise<BagEquippedDto> {
     const { code } = body;
-    // v1.71-live (D283, §10.96.10; owner «لا يمكنه وضع اطار غيره ويبقى مثبت»): a Kabso Team account wears the team
+    // v1.72-live (D283, §10.96.10; owner «لا يمكنه وضع اطار غيره ويبقى مثبت»): a Kabso Team account wears the team
     // frame, locked — no other frame (taking one off is harmless and allowed).
     if (body.category === 'AVATAR_FRAME' && code !== null)
       await refuseLimitedStaff(this.prisma, callerId, 'frame');

@@ -102,7 +102,7 @@ export class AdminLivesService {
     },
     ctx: AdminContext,
   ) {
-    // v1.71-live (D283, §10.96.11): the region filter — the host's country in the region (or in my regions).
+    // v1.72-live (D283, §10.96.11): the region filter — the host's country in the region (or in my regions).
     const regionCountries = q.region ? await this.regionCountries(q.region, ctx.userId) : null;
     // v1.60-live (D250, §10.91.2): «لايفات مبلّغ عنها» — the lives with open reports (a filter, combinable with a mode).
     const reported = q.reported === true ? await openLiveReportsByRoom(this.prisma) : null;
@@ -188,7 +188,7 @@ export class AdminLivesService {
         displayName: r.host.profile?.displayName ?? '',
         avatarUrl: r.host.profile?.avatarUrl ?? null,
       },
-      // v1.71-live (D283): the host's country (ISO alpha-2) and its staff region, or null.
+      // v1.72-live (D283): the host's country (ISO alpha-2) and its staff region, or null.
       hostCountry: r.host.profile?.countryCode ?? null,
       region: regionOfCountry(r.host.profile?.countryCode),
       pk: pkOf(r),

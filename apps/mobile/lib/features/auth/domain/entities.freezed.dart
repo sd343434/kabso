@@ -32,7 +32,7 @@ mixin _$User {
  SpecialUsername? get specialUsername;/// v1.76-social (D218, §10.73.3): the profile cover, or null.
  String? get coverUrl;/// v1.68-live (D273, §10.96.6): «فريق كابسو» (OWNER, MODERATION or
 /// SUPPORT) — the Me tab's staff entry and the staff tools in lives.
- bool get kabsoTeam;/// v1.71-live (D283, §10.96.10): a limited Kabso Team account
+ bool get kabsoTeam;/// v1.72-live (D283, §10.96.10): a limited Kabso Team account
 /// (MODERATION / SUPPORT / FINANCE, not OWNER) — the staff-only Me tab,
 /// no go-live, levels, VIP, family, store, wallet or bag. Null otherwise.
  KabsoStaffIdentity? get staff;
@@ -312,7 +312,7 @@ class _User implements User {
 /// v1.68-live (D273, §10.96.6): «فريق كابسو» (OWNER, MODERATION or
 /// SUPPORT) — the Me tab's staff entry and the staff tools in lives.
 @override@JsonKey() final  bool kabsoTeam;
-/// v1.71-live (D283, §10.96.10): a limited Kabso Team account
+/// v1.72-live (D283, §10.96.10): a limited Kabso Team account
 /// (MODERATION / SUPPORT / FINANCE, not OWNER) — the staff-only Me tab,
 /// no go-live, levels, VIP, family, store, wallet or bag. Null otherwise.
 @override final  KabsoStaffIdentity? staff;

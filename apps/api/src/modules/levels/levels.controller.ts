@@ -104,7 +104,7 @@ export class UserLevelsController {
   ): Promise<{ data: PublicLevelDto[] }> {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
-    // v1.71-live (D283, §10.96.10): a Kabso Team account shows no levels anywhere — an empty list.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account shows no levels anywhere — an empty list.
     if (await isLimitedStaff(this.prisma, user.id)) return { data: [] };
     const lang =
       languageFromAcceptLanguage(req.headers['accept-language']) ?? (await this.users.getLocale(auth.userId));

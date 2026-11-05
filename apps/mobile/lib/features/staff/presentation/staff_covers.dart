@@ -1,7 +1,7 @@
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// v1.71-live (D283, §10.96.10; owner: «وهذا غلاف الادارة والمشرفين العرب» /
+/// v1.72-live (D283, §10.96.10; owner: «وهذا غلاف الادارة والمشرفين العرب» /
 /// «… الاجانب، لا يمكن تغييره»): the locked team cover of a staff profile,
 /// by its first region — the Arab World's own art; every other region (and
 /// none) the international art until the owner sends one for it: add the

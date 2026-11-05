@@ -702,7 +702,7 @@ export class TasksService {
    * band of the day — today's assignment's, else the band of their level now; 0 = not offered.
    */
   private async tasksFor(db: Tx | PrismaService, me: string, day: string): Promise<OfferedTask[]> {
-    // v1.71-live (D283, §10.96.10): a Kabso Team account has no tasks or targets (none listed, none claimable).
+    // v1.72-live (D283, §10.96.10): a Kabso Team account has no tasks or targets (none listed, none claimable).
     if (await isLimitedStaff(db, me)) return [];
     const defs = await this.definitionsFor(db, me);
     const byCode = new Map(defs.map((d) => [d.code, d]));

@@ -113,7 +113,7 @@ class EditProfileScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider) ?? me.value;
     final photo = ref.watch(profilePhotoControllerProvider);
     final cover = ref.watch(profileCoverControllerProvider);
-    // v1.71-live (D283): a Kabso Team account's picture and cover are the
+    // v1.72-live (D283): a Kabso Team account's picture and cover are the
     // team's, fixed — no «تغيير الصورة» / «الغلاف», a short note instead.
     final locked = user?.staff != null;
     Widget divider() => Divider(

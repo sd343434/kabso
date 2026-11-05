@@ -15,7 +15,7 @@ export interface PostDto {
   id: string;
   /** v1.41-social (D162): `REEL` — one vertical video (Moments). */
   format: 'POST' | 'REEL';
-  /** v1.71-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو». */
+  /** v1.72-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو». */
   announcement: boolean;
   author: UserSummaryDto;
   text: string;
@@ -94,7 +94,7 @@ export function userSummary(
   const wornFrame = wornAvatarFrameOf(user.bagItems, now);
   // A recharge agent (from approval on) never shows the daily recharge badge.
   const badge = activeRechargeBadge(user.rechargeBadge, now, (user.rechargeAgent ?? null) !== null);
-  // v1.71-live (D283, §10.96.10): the Kabso Team's fixed picture marks a limited staff account — it wears the team
+  // v1.72-live (D283, §10.96.10): the Kabso Team's fixed picture marks a limited staff account — it wears the team
   // frame (the app's) only: no bag / VIP / store frame or wear.
   const team = isTeamAvatarUrl(user.profile?.avatarUrl);
   const frame = team ? null : wornFrame;

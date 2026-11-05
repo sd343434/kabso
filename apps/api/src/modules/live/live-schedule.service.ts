@@ -136,7 +136,7 @@ export class LiveScheduleService {
    * checked under a per-host advisory lock so two requests cannot both take the last place.
    */
   async create(userId: string, body: unknown, meta: RequestMeta): Promise<LiveScheduleSlotDto> {
-    // v1.71-live (D283, §10.96.10): a Kabso Team account announces no live either.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account announces no live either.
     await refuseLimitedStaff(this.prisma, userId, 'live');
     await this.requireHost(userId);
     const parsed = createLiveScheduleSlotSchema.safeParse(body ?? {});

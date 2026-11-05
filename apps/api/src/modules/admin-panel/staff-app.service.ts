@@ -56,9 +56,9 @@ export interface StaffLiveDto {
   viewerCount: number;
   startedAt: string;
   openReports: number;
-  /** When it was assigned to the caller; null (v1.71-live, `scope=regions`) for a live in their regions held by another. */
+  /** When it was assigned to the caller; null (v1.72-live, `scope=regions`) for a live in their regions held by another. */
   assignedAt: string | null;
-  /** v1.71-live (D283): the host's country (ISO alpha-2) and its staff region, or null. */
+  /** v1.72-live (D283): the host's country (ISO alpha-2) and its staff region, or null. */
   hostCountry: string | null;
   region: StaffRegion | null;
 }
@@ -196,7 +196,7 @@ export class StaffAppService {
     scope: 'assigned' | 'regions' = 'assigned',
   ): Promise<{ data: StaffLiveDto[] }> {
     const room = STAFF_LIVE_ROOM;
-    // v1.71-live (D283, §10.96.11): `regions` — every live on air whose host's country is in my regions (assigned
+    // v1.72-live (D283, §10.96.11): `regions` — every live on air whose host's country is in my regions (assigned
     // to anyone; `assignedAt` null when not to me), at most 200, the reported first.
     const rows =
       scope === 'regions'

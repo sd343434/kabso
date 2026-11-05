@@ -106,7 +106,7 @@ export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
       .transform((v) => v === 'true'),
     // v1.64-live (D260, §10.96): «بثوثي» — only the lives assigned to the signed-in staff member.
     assigned: z.enum(['me']).optional(),
-    // v1.71-live (D283, §10.96.11): the lives whose host's country is in a region, or in the signed-in staff
+    // v1.72-live (D283, §10.96.11): the lives whose host's country is in a region, or in the signed-in staff
     // member's own regions (`mine`; none → no live).
     region: z.enum([...STAFF_REGION_CODES, 'mine'] as unknown as [string, ...string[]]).optional(),
   })
@@ -368,7 +368,7 @@ export const teamGrantBody = z
   });
 export const teamRevokeBody = z.strictObject({ role, reason, totpCode });
 export const teamResetBody = z.strictObject({ reason, totpCode });
-/** v1.71-live (D283, §10.96.11): the whole set of a MODERATION / SUPPORT staff member's regions (0 = none). */
+/** v1.72-live (D283, §10.96.11): the whole set of a MODERATION / SUPPORT staff member's regions (0 = none). */
 export const teamRegionsBody = z.strictObject({
   regions: z
     .array(z.enum(STAFF_REGION_CODES as [StaffRegion, ...StaffRegion[]]))

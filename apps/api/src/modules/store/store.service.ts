@@ -225,7 +225,7 @@ export class StoreService {
     const requestHash = storeRequestHash({ ...body, recipient: recipientName });
     const replay = await this.findReplay(buyerId, key, requestHash, lang);
     if (replay) return { replay: true, result: replay };
-    // v1.71-live (D283, §10.96.10): the store is not for the Kabso Team (its Me tab has no store; its look is fixed).
+    // v1.72-live (D283, §10.96.10): the store is not for the Kabso Team (its Me tab has no store; its look is fixed).
     await refuseLimitedStaff(this.prisma, buyerId, 'store');
     try {
       const done = await this.prisma.$transaction(async (tx) => {

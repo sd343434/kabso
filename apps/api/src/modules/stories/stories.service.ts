@@ -137,7 +137,7 @@ export class StoriesService {
     if (replay) return replay;
     // v1.72-social (D208, §10.67): the team's restriction of the caller, if any (403 ACCOUNT_RESTRICTED).
     await assertNotRestricted(this.prisma, authorId, 'NO_POSTING');
-    // v1.71-live (D283, §10.96.10): a Kabso Team account publishes announcement posts and reels only — no story.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account publishes announcement posts and reels only — no story.
     await refuseLimitedStaff(this.prisma, authorId, 'story');
     try {
       const id = await this.prisma.$transaction(async (tx) => {

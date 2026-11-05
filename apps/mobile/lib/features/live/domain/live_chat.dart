@@ -205,7 +205,7 @@ sealed class LiveChatEvent {
           gender: LiveJoinGender.tryParse(json['gender']),
         ),
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
-        // v1.71-live (D283): a Kabso Team account entered visibly.
+        // v1.72-live (D283): a Kabso Team account entered visibly.
         'staff-join' => LiveStaffJoined(
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
         ),
@@ -286,7 +286,7 @@ enum LiveJoinGender {
   };
 }
 
-/// v1.71-live (D283, §10.96.10): a limited Kabso Team account entered the
+/// v1.72-live (D283, §10.96.10): a limited Kabso Team account entered the
 /// live visibly as «فريق كابسو» (`staff-join`; never a hidden watch): the
 /// team's entry car plays once; no chat line (D273).
 final class LiveStaffJoined extends LiveChatEvent {

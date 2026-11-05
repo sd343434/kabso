@@ -173,7 +173,7 @@ class _NewReelScreenState extends ConsumerState<NewReelScreen> {
             text: text,
             mediaIds: [assetId],
             reel: true,
-            // v1.71-live (D283): a Kabso Team account's reel is an
+            // v1.72-live (D283): a Kabso Team account's reel is an
             // announcement.
             announcement: ref.read(currentUserProvider)?.staff != null,
           );

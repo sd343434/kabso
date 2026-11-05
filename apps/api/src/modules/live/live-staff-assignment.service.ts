@@ -23,12 +23,12 @@ interface StaffRow {
   canAct: boolean;
   load: number;
   lastAssignedAt: number;
-  /** v1.71-live (D283): the regions this MODERATION / SUPPORT staff member is responsible for. */
+  /** v1.72-live (D283): the regions this MODERATION / SUPPORT staff member is responsible for. */
   regions: ReadonlySet<StaffRegion>;
 }
 
 /**
- * v1.71-live (D283, CONVENTIONS §10.96.11): the staff a live goes to, from `pool` (already filtered by the D260 rules:
+ * v1.72-live (D283, CONVENTIONS §10.96.11): the staff a live goes to, from `pool` (already filtered by the D260 rules:
  * never one's own live, a reported live to someone who may act): those whose region covers the host's country first;
  * nobody there (or a country in no region) → the whole pool. Then the D260 load order (fewest lives, assigned least
  * recently, earliest shift). Exported for the unit tests.
@@ -209,7 +209,7 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
         const n = reports.get(live.id) ?? 0;
         // Never one's own live; a reported live to someone who may act when any is on shift.
         const pool = staff.filter((s) => s.id !== live.hostUserId && (n === 0 || !anyActor || s.canAct));
-        // v1.71-live (D283): the host's region first, then by load.
+        // v1.72-live (D283): the host's region first, then by load.
         const pick = pickStaffFor(pool, live.hostCountry);
         if (!pick) continue;
         // Distinct times so the round-robin order holds within one pass.

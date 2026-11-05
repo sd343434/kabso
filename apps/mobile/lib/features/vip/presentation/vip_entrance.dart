@@ -52,7 +52,7 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   static const nameKey = Key('live.vipEntrance.name');
   static const carKey = Key('live.vipEntrance.car');
 
-  /// v1.71-live (D283, owner: «سيارة دخولية للمشرفين والإدارة»): the Kabso
+  /// v1.72-live (D283, owner: «سيارة دخولية للمشرفين والإدارة»): the Kabso
   /// Team's own entry car (assets/staff/PROVENANCE.md), the only entrance a
   /// limited staff account ever has (no VIP or store car, banner or effect).
   static const teamCarAsset = 'assets/staff/kabso_team_entry.svga';
@@ -151,7 +151,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
       p != null && (p.still != null || p.animation != null);
 
   void _onChat(LiveChatState next) {
-    // v1.71-live (D283): a Kabso Team account's visible entry plays the
+    // v1.72-live (D283): a Kabso Team account's visible entry plays the
     // team's entry car — once per join, never again after minimize/restore.
     final staff = next.latestStaffJoin;
     if (staff != null && _plays.takeStaffJoin(widget.roomId, staff)) {

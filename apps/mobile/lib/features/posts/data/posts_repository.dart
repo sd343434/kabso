@@ -347,7 +347,7 @@ class PostsRepositoryImpl implements PostsRepository {
       '/posts',
       data: {
         if (reel) 'format': 'REEL',
-        // v1.71-live (D283): a Kabso Team account's announcement.
+        // v1.72-live (D283): a Kabso Team account's announcement.
         if (announcement) 'announcement': true,
         if (text != null && text.isNotEmpty) 'text': text,
         if (mediaIds.isNotEmpty) 'mediaIds': mediaIds,

@@ -1,5 +1,5 @@
 /**
- * D283 (owner 2026-11-05; contract v1.71-live, CONVENTIONS §10.96.10–11), end to end against PostgreSQL + Redis:
+ * D283 (owner 2026-11-05; contract v1.72-live, CONVENTIONS §10.96.10–11), end to end against PostgreSQL + Redis:
  *
  *  - a limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot go live (every mode, a scheduled
  *    live), posts announcements only (users cannot post one), has no levels (`getUserLevels` empty), wears the fixed
@@ -43,7 +43,7 @@ const D283_OPS = [
 ];
 
 describe('D283 contract coverage', () => {
-  it('openapi v1.71-live declares the regions and the team picture', () => {
+  it('openapi v1.72-live declares the regions and the team picture', () => {
     const ids = operations().map((o) => `${o.operationId} ${o.method.toUpperCase()} ${o.path}`);
     expect(ids).toEqual(expect.arrayContaining(D283_OPS));
   });

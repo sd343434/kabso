@@ -135,7 +135,7 @@ export class LiveChatBadgesService {
         LEFT JOIN family_members fm ON fm.user_id = a.id
         LEFT JOIN families f ON f.id = fm.family_id AND f.disbanded_at IS NULL`;
     for (const row of rows) {
-      // v1.71-live (D283, §10.96.10): a Kabso Team account shows no levels, family, medals or newcomer tag — only
+      // v1.72-live (D283, §10.96.10): a Kabso Team account shows no levels, family, medals or newcomer tag — only
       // the team badge.
       const badges: LiveChatAuthorBadgesDto = row.limited_staff
         ? NO_BADGES

@@ -557,7 +557,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
     body: unknown,
     meta: RequestMeta,
   ): Promise<{ created: boolean; result: CreateFamilyResultDto }> {
-    // v1.71-live (D283, §10.96.10): a Kabso Team account neither owns nor joins a family.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account neither owns nor joins a family.
     await refuseLimitedStaff(this.prisma, callerId, 'family');
     const parsed = createFamilySchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));

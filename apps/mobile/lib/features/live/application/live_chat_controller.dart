@@ -186,7 +186,7 @@ class LiveChatState {
   /// D119: the newest "X joined" (the join strip under the chat), or null.
   final LiveChatJoinLine? latestJoin;
 
-  /// v1.71-live (D283): the newest visible Kabso Team entry (the team's
+  /// v1.72-live (D283): the newest visible Kabso Team entry (the team's
   /// entry car; never a chat line), or null.
   final LiveChatJoinLine? latestStaffJoin;
 

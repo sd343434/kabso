@@ -378,7 +378,7 @@ class ComposeController extends Notifier<ComposeState> {
             settings: state.settings,
             status: status,
             publishAt: status == 'SCHEDULED' ? publishAt : null,
-            // v1.71-live (D283): a Kabso Team account posts announcements only.
+            // v1.72-live (D283): a Kabso Team account posts announcements only.
             announcement: ref.read(currentUserProvider)?.staff != null,
           );
       if (!ref.mounted) return post;

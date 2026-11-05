@@ -43,7 +43,7 @@ export interface PublicProfileDto {
    */
   kabsoTeam?: true;
   /**
-   * v1.71-live (D283, §10.96.10–11): a limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) — the
+   * v1.72-live (D283, §10.96.10–11): a limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) — the
    * role its profile line names and its regions; the app shows the team badge and frame, the line, and no levels.
    * Absent for everyone else (the OWNER too).
    */
@@ -268,7 +268,7 @@ export class PublicProfileService {
       tags: user.tags,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
-      // v1.71-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's
+      // v1.72-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's
       // team cover — no bag, VIP or store frame, no VIP / store wear, no cover of its own.
       avatarFrame: staff ? null : avatarFrame,
       ...(shown ? { rechargeBadge: shown } : {}),

@@ -117,7 +117,7 @@ export class LiveStaffAlertsService {
         },
         select: { id: true, staffRegions: { select: { region: true } } },
       });
-      // v1.71-live (D283, §10.96.11): those whose region covers the host's country, when any; else all of them.
+      // v1.72-live (D283, §10.96.11): those whose region covers the host's country, when any; else all of them.
       const withRegions = actors.filter((a) => (a.staffRegions?.length ?? 0) > 0);
       const host =
         withRegions.length === 0

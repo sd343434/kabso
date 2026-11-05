@@ -97,7 +97,7 @@ class KAvatar extends StatelessWidget {
     );
 
     final url = imageUrl;
-    // v1.71-live (D283, §10.96.10): a Kabso Team account's fixed picture —
+    // v1.72-live (D283, §10.96.10): a Kabso Team account's fixed picture —
     // the bundled art in the locked team frame (rings are not drawn).
     // (Also when given as a NetworkImage of that URL: the feeds' tiles.)
     final team = switch (image) {

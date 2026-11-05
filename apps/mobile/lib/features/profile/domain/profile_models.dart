@@ -162,7 +162,7 @@ abstract class PublicProfile with _$PublicProfile {
     /// seat); the server refuses them anyway (`STAFF_PROTECTED`).
     @Default(false) bool kabsoTeam,
 
-    /// v1.71-live (D283, §10.96.10–11): a limited Kabso Team account
+    /// v1.72-live (D283, §10.96.10–11): a limited Kabso Team account
     /// (MODERATION / SUPPORT / FINANCE, not OWNER): the team badge, the
     /// locked frame, picture and region cover, the region line, no levels.
     /// Null for everyone else (the OWNER too) and from older servers.

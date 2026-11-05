@@ -337,7 +337,7 @@ class ProfileCoverHeader extends StatelessWidget {
       KPublicProfile.coverHeightFor(media.size.height),
       barBottom + slot.height + 2 * KPublicProfile.avatarMargin,
     );
-    // v1.71-live (D283, §10.96.10): a Kabso Team account's cover is its
+    // v1.72-live (D283, §10.96.10): a Kabso Team account's cover is its
     // region's team cover, locked (no cover of its own, never changed here).
     final staff = profile.staff;
     final onCoverTap = staff == null ? this.onCoverTap : null;

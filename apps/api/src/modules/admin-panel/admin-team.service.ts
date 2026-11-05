@@ -70,7 +70,7 @@ export class AdminTeamService {
   ) {}
 
   /**
-   * v1.71-live (D283, §10.96.10): at the start, every limited staff account wears the team picture at this API's
+   * v1.72-live (D283, §10.96.10): at the start, every limited staff account wears the team picture at this API's
    * URL (a CLI grant, a changed `API_PUBLIC_URL`) and everyone else has their own photo. Best effort.
    */
   async onModuleInit(): Promise<void> {
@@ -195,19 +195,19 @@ export class AdminTeamService {
         lastSignInAt: u.adminSessions[0]?.createdAt.toISOString() ?? null,
         onShift: u.adminShift?.onShift ?? false,
         shiftSince: u.adminShift?.onShift ? u.adminShift.since.toISOString() : null,
-        // v1.71-live (D283, §10.96.11): the regions of a MODERATION / SUPPORT staff member (catalogue order).
+        // v1.72-live (D283, §10.96.11): the regions of a MODERATION / SUPPORT staff member (catalogue order).
         regions: sortRegions(u.staffRegions.map((r) => r.region).filter(isStaffRegion)),
       })),
     };
   }
 
-  /** v1.71-live (D283, §10.96.11): the regions and their countries (`AdminStaffRegionCatalog`). */
+  /** v1.72-live (D283, §10.96.11): the regions and their countries (`AdminStaffRegionCatalog`). */
   regionCatalog() {
     return staffRegionCatalog();
   }
 
   /**
-   * v1.71-live (D283, §10.96.11) `setAdminTeamRegions`: the OWNER sets the whole set of regions a MODERATION / SUPPORT
+   * v1.72-live (D283, §10.96.11) `setAdminTeamRegions`: the OWNER sets the whole set of regions a MODERATION / SUPPORT
    * staff member is responsible for (the OWNER's code again and a reason, like the other team changes). Refused for
    * anyone holding neither (`team_regions_role`). Audited `admin.team.regions` {before, regions, reason}. The next
    * assignment pass uses them (a live already assigned stays where it is).

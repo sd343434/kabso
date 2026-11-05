@@ -852,7 +852,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         data: [{ roomId, identity, adminId, joinedAt: this.clock.now() }],
         skipDuplicates: true,
       });
-      // v1.71-live (D283): a limited staff account's visible entry plays the team's entry car.
+      // v1.72-live (D283): a limited staff account's visible entry plays the team's entry car.
       if (added.count > 0) await this.chat.announceStaffJoin(roomId, adminId);
       return;
     }

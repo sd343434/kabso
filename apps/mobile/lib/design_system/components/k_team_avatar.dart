@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// v1.71-live (D283, CONVENTIONS §10.96.10): the Kabso Team's fixed look —
+/// v1.72-live (D283, CONVENTIONS §10.96.10): the Kabso Team's fixed look —
 /// the picture (the owner's Kabi in a suit) and the locked team frame
 /// (assets/staff/PROVENANCE.md; the region covers: `StaffCovers`). A limited staff account's
 /// `avatarUrl` IS the API's team picture URL ([isTeamAvatarUrl]); wherever

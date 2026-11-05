@@ -240,7 +240,7 @@ export class HostApplicationsService {
     body: unknown,
   ): Promise<{ created: boolean; result: MyHostingApplicationDto }> {
     const key = idempotencyKey(rawKey);
-    // v1.71-live (D283, §10.96.10): a Kabso Team account never goes live, so it never applies to host.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account never goes live, so it never applies to host.
     await refuseLimitedStaff(this.prisma, me, 'live');
     const parsed = hostingApplicationBodySchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));

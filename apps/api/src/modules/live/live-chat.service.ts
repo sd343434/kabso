@@ -105,7 +105,7 @@ export type LiveChatData =
     }
   | { readonly type: 'chat-state'; readonly enabled: boolean }
   /**
-   * v1.71-live (D283, §10.96.10): a limited Kabso Team account entered VISIBLY as «فريق كابسو» (never a hidden
+   * v1.72-live (D283, §10.96.10): a limited Kabso Team account entered VISIBLY as «فريق كابسو» (never a hidden
    * watch): the apps play the team's entry car once; no chat line (D273).
    */
   | { readonly type: 'staff-join'; readonly user: UserSummaryDto };
@@ -563,7 +563,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
    * media failure only drops the line.
    */
   /**
-   * v1.71-live (D283): a limited Kabso Team account's visible entry (its `team:` identity joined): one `staff-join`
+   * v1.72-live (D283): a limited Kabso Team account's visible entry (its `team:` identity joined): one `staff-join`
    * (the team entry car in the apps). Never for the OWNER or a hidden watch. Best effort.
    */
   async announceStaffJoin(roomId: string, userId: string): Promise<void> {

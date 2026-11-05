@@ -1,4 +1,4 @@
--- v1.71-live (D283, CONVENTIONS §10.96.10–11; owner 2026-11-05): the Kabso Team's accounts are limited (no live, no
+-- v1.72-live (D283, CONVENTIONS §10.96.10–11; owner 2026-11-05): the Kabso Team's accounts are limited (no live, no
 -- levels, announcements only) and each MODERATION / SUPPORT staff member is responsible for regions (fixed groups of
 -- countries). The runtime role gets DML through the default privileges (20261016130000_per_database_runtime_group): no
 -- GRANT here.

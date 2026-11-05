@@ -181,7 +181,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * v1.71-live (D283, §10.96.10): who may publish what. A limited staff account (MODERATION / SUPPORT / FINANCE, not
+   * v1.72-live (D283, §10.96.10): who may publish what. A limited staff account (MODERATION / SUPPORT / FINANCE, not
    * OWNER) publishes announcements only (403 STAFF_ACCOUNT_LIMITED `post_kind` otherwise); an announcement needs a
    * panel role (the OWNER too) — anyone else gets 403 STAFF_ACCOUNT_LIMITED `announcement`.
    */

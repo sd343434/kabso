@@ -250,7 +250,7 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
-    **D283 (DRAFT v1.71-live)** the Kabso Team's accounts are limited, and staff have regions (CONVENTIONS §10.96.10–11):
+    **D283 (DRAFT v1.72-live)** the Kabso Team's accounts are limited, and staff have regions (CONVENTIONS §10.96.10–11):
     an account holding MODERATION / SUPPORT / FINANCE and not OWNER cannot go live, join or own a family, buy VIP or
     store items, claim tasks, post anything but an announcement (`CreatePostRequest.announcement`, `Post.announcement`),
     post stories or reposts, or change its picture, cover or frame (403 `STAFF_ACCOUNT_LIMITED` with the issue); it shows
@@ -5331,7 +5331,7 @@ paths:
         points, ledger entries or history. Shown for private accounts too (a level is a badge,
         not content). The same 404 as `GET /users/{username}` for a malformed, unknown,
         SUSPENDED or DELETED username. Four items, in the order of `GET /levels/me` — or **none**
-        (v1.71-live, D283, §10.96.10) for a limited Kabso Team account, which shows no levels.
+        (v1.72-live, D283, §10.96.10) for a limited Kabso Team account, which shows no levels.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -13371,7 +13371,7 @@ paths:
       description: |
         (v1.68-live, D273) LIVE rooms assigned to the caller, the most reported first. Staff may enter ANY live from the
         usual lists too; the assignment decides who is responsible. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
-        (v1.71-live, D283, §10.96.11) `scope=regions`: every live on air whose host's country is in the caller's regions
+        (v1.72-live, D283, §10.96.11) `scope=regions`: every live on air whose host's country is in the caller's regions
         (at most 200; `assignedAt` null for one held by someone else); none without regions.
       parameters:
         - name: scope
@@ -13920,7 +13920,7 @@ paths:
       - name: region
         in: query
         required: false
-        description: (v1.71-live, D283, §10.96.11) Only the lives whose host's country is in this region, or in the signed-in staff member's own regions (`mine`; none → no live). Combinable with the others.
+        description: (v1.72-live, D283, §10.96.11) Only the lives whose host's country is in this region, or in the signed-in staff member's own regions (`mine`; none → no live). Combinable with the others.
         schema:
           type: string
           enum: [ARAB_WORLD, GREATER_CHINA, TURKEY, IRAN, SOUTH_ASIA, SOUTHEAST_ASIA, EAST_ASIA, EUROPE, NORTH_AMERICA, LATIN_AMERICA, SUB_SAHARAN_AFRICA, RUSSIA_CENTRAL_ASIA, OCEANIA, mine]
@@ -16483,7 +16483,7 @@ paths:
       - admin-panel
       operationId: listAdminStaffRegions
       summary: The staff regions and their countries (team.manage)
-      description: (v1.71-live, D283, §10.96.11) The 13 regions in their order, with Arabic and English names and their ISO 3166-1 alpha-2 countries.
+      description: (v1.72-live, D283, §10.96.11) The 13 regions in their order, with Arabic and English names and their ISO 3166-1 alpha-2 countries.
       security:
       - adminSession: []
       responses:
@@ -16504,7 +16504,7 @@ paths:
       operationId: setAdminTeamRegions
       summary: Sets a MODERATION / SUPPORT staff member's regions (code again; reason; audited) (team.manage)
       description: >-
-        (v1.71-live, D283, §10.96.11) The whole set (0–13 regions, no duplicates). Only for an account holding MODERATION
+        (v1.72-live, D283, §10.96.11) The whole set (0–13 regions, no duplicates). Only for an account holding MODERATION
         or SUPPORT (409 `ADMIN_ACTION_REFUSED`, issue `team_regions_role`). Audited `admin.team.regions` {before, regions,
         reason}. The next assignment pass uses them. 429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
       security:
@@ -16541,7 +16541,7 @@ paths:
       operationId: getKabsoTeamAvatar
       summary: The Kabso Team's fixed picture (public)
       description: |
-        (v1.71-live, D283, §10.96.10) The PNG every limited staff account's `avatarUrl` points to (the owner's art);
+        (v1.72-live, D283, §10.96.10) The PNG every limited staff account's `avatarUrl` points to (the owner's art);
         cached a day. No authentication.
       security: []
       responses:
@@ -18803,22 +18803,22 @@ components:
         assignedAt:
           type: [string, 'null']
           format: date-time
-          description: When it was assigned to the caller; (v1.71-live, D283) null with `scope=regions` for a live held by someone else.
-        hostCountry: { type: [string, 'null'], pattern: '^[A-Z]{2}$', description: "(v1.71-live, D283) The host's country (ISO alpha-2), or null. Absent from older servers." }
+          description: When it was assigned to the caller; (v1.72-live, D283) null with `scope=regions` for a live held by someone else.
+        hostCountry: { type: [string, 'null'], pattern: '^[A-Z]{2}$', description: "(v1.72-live, D283) The host's country (ISO alpha-2), or null. Absent from older servers." }
         region:
-          description: (v1.71-live, D283) The staff region of the host's country, or null. Absent from older servers.
+          description: (v1.72-live, D283) The staff region of the host's country, or null. Absent from older servers.
           oneOf:
             - $ref: '#/components/schemas/StaffRegion'
             - type: 'null'
     StaffRegion:
       type: string
-      description: (v1.71-live, D283, §10.96.11) A staff region — a fixed group of countries (`listAdminStaffRegions`).
+      description: (v1.72-live, D283, §10.96.11) A staff region — a fixed group of countries (`listAdminStaffRegions`).
       enum: [ARAB_WORLD, GREATER_CHINA, TURKEY, IRAN, SOUTH_ASIA, SOUTHEAST_ASIA, EAST_ASIA, EUROPE, NORTH_AMERICA, LATIN_AMERICA, SUB_SAHARAN_AFRICA, RUSSIA_CENTRAL_ASIA, OCEANIA]
     KabsoStaffIdentity:
       type: object
       additionalProperties: false
       description: |
-        (v1.71-live, D283, §10.96.10–11) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the
+        (v1.72-live, D283, §10.96.10–11) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the
         role its profile line names (MODERATION, else SUPPORT, else FINANCE) and its regions in catalogue order (none for
         FINANCE). The app shows the team badge, frame and cover and «مشرف للوطن العربي» / "Moderator — Arab World", and
         no levels.
@@ -20836,9 +20836,9 @@ components:
         hostCountry:
           type: [string, 'null']
           pattern: '^[A-Z]{2}$'
-          description: (v1.71-live, D283) The host's country (ISO alpha-2), or null.
+          description: (v1.72-live, D283) The host's country (ISO alpha-2), or null.
         region:
-          description: (v1.71-live, D283) The staff region of the host's country, or null.
+          description: (v1.72-live, D283) The staff region of the host's country, or null.
           oneOf:
           - $ref: '#/components/schemas/StaffRegion'
           - type: 'null'
@@ -22653,7 +22653,7 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/StaffRegion'
-                description: (v1.71-live, D283, §10.96.11) The regions this staff member is responsible for (catalogue order); set with `setAdminTeamRegions`.
+                description: (v1.72-live, D283, §10.96.11) The regions this staff member is responsible for (catalogue order); set with `setAdminTeamRegions`.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).
@@ -23991,7 +23991,7 @@ components:
         staff:
           $ref: '#/components/schemas/KabsoStaffIdentity'
           description: |
-            (v1.71-live, D283, §10.96.10) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the app
+            (v1.72-live, D283, §10.96.10) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the app
             shows the staff-only Me tab (profile header, «فريق كابسو», the announcement composer, settings) and hides
             going live, levels, VIP, family, store, wallet, bag and the rest. Absent for everyone else.
         id: { type: string, format: uuid }
@@ -24220,7 +24220,7 @@ components:
         staff:
           $ref: '#/components/schemas/KabsoStaffIdentity'
           description: |
-            (v1.71-live, D283, §10.96.10–11) A limited Kabso Team account: the team badge, frame and region cover, the
+            (v1.72-live, D283, §10.96.10–11) A limited Kabso Team account: the team badge, frame and region cover, the
             line «مشرف للوطن العربي» / "Moderator — Arab World", no levels. Its `coverUrl` and `avatarFrame` are then null
             and `vip` / `wear` absent. Absent for everyone else (the OWNER too).
         family:
@@ -26881,7 +26881,7 @@ components:
           type: boolean
           default: false
           description: |
-            (v1.71-live, D283, §10.96.10) An official announcement post or reel «إعلان رسمي — فريق كابسو». Only a panel
+            (v1.72-live, D283, §10.96.10) An official announcement post or reel «إعلان رسمي — فريق كابسو». Only a panel
             role may send `true` (else 403 `STAFF_ACCOUNT_LIMITED`, `field: announcement`); a limited staff account
             (MODERATION / SUPPORT / FINANCE, not OWNER) must (else 403 `STAFF_ACCOUNT_LIMITED`, issue `post_kind`).
     UpdatePostRequest:
@@ -26901,7 +26901,7 @@ components:
         id: { type: string, format: uuid }
         announcement:
           type: boolean
-          description: (v1.71-live, D283, §10.96.10) An official announcement of the Kabso Team — the feeds label it «إعلان رسمي — فريق كابسو» / "Official announcement — Kabso Team". Never changes.
+          description: (v1.72-live, D283, §10.96.10) An official announcement of the Kabso Team — the feeds label it «إعلان رسمي — فريق كابسو» / "Official announcement — Kabso Team". Never changes.
         format: { type: string, enum: [POST, REEL], description: "(v1.41-social, D162) `REEL`: a reel (one vertical video and a caption, listed by `listFeedReels`)." }
         author: { $ref: '#/components/schemas/UserSummary' }
         text: { type: string }

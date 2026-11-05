@@ -1,5 +1,5 @@
 /**
- * v1.71-live (D283, CONVENTIONS §10.96.11; owner: «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»): the
+ * v1.72-live (D283, CONVENTIONS §10.96.11; owner: «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»): the
  * regions a MODERATION / SUPPORT staff member is responsible for — fixed groups of countries (ISO 3166-1 alpha-2,
  * upper case), each country in at most one region. The OWNER assigns them in «الموظفون والصلاحيات»; the live
  * assignment (§10.96.2) and the report alerts (§10.96.8) prefer a staff member whose region covers the host's country

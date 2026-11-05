@@ -2817,7 +2817,7 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
-### 5.63 The Kabso Team's limited accounts and regions (migration `20270315090000_staff_limits_regions`; D283) — [IMPLEMENTED, draft contract v1.71-live; not deployed, not device-tested]
+### 5.63 The Kabso Team's limited accounts and regions (migration `20270316090000_staff_limits_regions`; D283) — [IMPLEMENTED, draft contract v1.72-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.10–11. The migration adds `posts.announcement` (`BOOLEAN NOT NULL DEFAULT false`),
 `user_profiles.staff_avatar` (`BOOLEAN NOT NULL DEFAULT false`) and `staff_saved_avatar_url` (CHECK

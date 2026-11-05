@@ -66,7 +66,7 @@ abstract class User with _$User {
     /// SUPPORT) — the Me tab's staff entry and the staff tools in lives.
     @Default(false) bool kabsoTeam,
 
-    /// v1.71-live (D283, §10.96.10): a limited Kabso Team account
+    /// v1.72-live (D283, §10.96.10): a limited Kabso Team account
     /// (MODERATION / SUPPORT / FINANCE, not OWNER) — the staff-only Me tab,
     /// no go-live, levels, VIP, family, store, wallet or bag. Null otherwise.
     KabsoStaffIdentity? staff,

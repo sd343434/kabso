@@ -64,7 +64,7 @@ mixin _$PublicProfile {
 @JsonKey(includeIfNull: false) int? get coinsSent;/// v1.68-live (D273, §10.96.7): the account holds a panel role — «فريق
 /// كابسو». The person card hides the actions against it (kick, mute,
 /// seat); the server refuses them anyway (`STAFF_PROTECTED`).
- bool get kabsoTeam;/// v1.71-live (D283, §10.96.10–11): a limited Kabso Team account
+ bool get kabsoTeam;/// v1.72-live (D283, §10.96.10–11): a limited Kabso Team account
 /// (MODERATION / SUPPORT / FINANCE, not OWNER): the team badge, the
 /// locked frame, picture and region cover, the region line, no levels.
 /// Null for everyone else (the OWNER too) and from older servers.
@@ -460,7 +460,7 @@ class _PublicProfile extends PublicProfile {
 /// كابسو». The person card hides the actions against it (kick, mute,
 /// seat); the server refuses them anyway (`STAFF_PROTECTED`).
 @override@JsonKey() final  bool kabsoTeam;
-/// v1.71-live (D283, §10.96.10–11): a limited Kabso Team account
+/// v1.72-live (D283, §10.96.10–11): a limited Kabso Team account
 /// (MODERATION / SUPPORT / FINANCE, not OWNER): the team badge, the
 /// locked frame, picture and region cover, the region line, no levels.
 /// Null for everyone else (the OWNER too) and from older servers.

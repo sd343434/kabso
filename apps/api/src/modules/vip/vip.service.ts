@@ -374,7 +374,7 @@ export class VipService {
       .digest('hex');
     const replay = await this.findReplay(userId, key, requestHash, lang);
     if (replay) return { replay: true, result: replay };
-    // v1.71-live (D283, §10.96.10): a Kabso Team account wears the team frame and badge, never VIP.
+    // v1.72-live (D283, §10.96.10): a Kabso Team account wears the team frame and badge, never VIP.
     await refuseLimitedStaff(this.prisma, userId, 'vip');
     try {
       const result = await this.prisma.$transaction(async (tx) => {

@@ -1,7 +1,7 @@
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// v1.71-live (D283, CONVENTIONS §10.96.11): a staff region — a fixed group
+/// v1.72-live (D283, CONVENTIONS §10.96.11): a staff region — a fixed group
 /// of countries (the server's `staff-regions.ts`), in the catalogue's order.
 enum StaffRegion {
   arabWorld('ARAB_WORLD'),
@@ -65,7 +65,7 @@ enum StaffLineRole {
   }
 }
 
-/// v1.71-live (D283, §10.96.10–11) `KabsoStaffIdentity`: a limited Kabso
+/// v1.72-live (D283, §10.96.10–11) `KabsoStaffIdentity`: a limited Kabso
 /// Team account (MODERATION / SUPPORT / FINANCE, not OWNER) — `Me.staff` /
 /// `PublicProfile.staff`. The app then shows the team badge, the locked team
 /// frame, picture and region cover, the region line and no levels, and the

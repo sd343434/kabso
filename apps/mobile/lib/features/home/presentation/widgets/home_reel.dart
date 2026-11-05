@@ -76,7 +76,7 @@ class FeedReelData {
   /// Waiting for moderation: visible to its author only (CP-006 Q2).
   final bool pendingModeration;
 
-  /// v1.71-live (D283): an official announcement reel of the Kabso Team.
+  /// v1.72-live (D283): an official announcement reel of the Kabso Team.
   final bool announcement;
 
   /// The author's username, the key of the follow API

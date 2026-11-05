@@ -105,7 +105,7 @@ class MeDto {
   @JsonKey(defaultValue: false)
   final bool kabsoTeam;
 
-  /// v1.71-live (D283, §10.96.10): a limited Kabso Team account — the
+  /// v1.72-live (D283, §10.96.10): a limited Kabso Team account — the
   /// staff-only Me tab; null for everyone else.
   @JsonKey(
     fromJson: staffIdentityFromJson,

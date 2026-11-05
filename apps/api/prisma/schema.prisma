@@ -75,7 +75,7 @@ model User {
   liveViews              LiveRoomViewer[]
   /// v1.64-live (D260): the panel staff member's shift, the lives assigned to them, their visible watches.
   adminShift             AdminShift?
-  /// v1.71-live (D283): the regions a MODERATION / SUPPORT staff member is responsible for.
+  /// v1.72-live (D283): the regions a MODERATION / SUPPORT staff member is responsible for.
   staffRegions           AdminStaffRegion[]
   liveAssignments        LiveRoomAssignment[]
   liveStaffWatches       LiveRoomStaffWatcher[]
@@ -318,7 +318,7 @@ model UserProfile {
   displayName   String               @map("display_name") @db.VarChar(100)
   bio           String?              @db.VarChar(300)
   avatarUrl     String?              @map("avatar_url") @db.VarChar(2048)
-  /// v1.71-live (D283, §10.96.10): `avatar_url` is the Kabso Team's fixed picture while the account is limited staff
+  /// v1.72-live (D283, §10.96.10): `avatar_url` is the Kabso Team's fixed picture while the account is limited staff
   /// (MODERATION / SUPPORT / FINANCE, not OWNER); the person's own photo URL waits in `staff_saved_avatar_url`.
   staffAvatar         Boolean @default(false) @map("staff_avatar")
   staffSavedAvatarUrl String? @map("staff_saved_avatar_url") @db.VarChar(2048)
@@ -1708,7 +1708,7 @@ model Post {
   text            String         @default("") @db.VarChar(2200)
   /// D162: `REEL` — one `REEL_VIDEO`, listed by the reels feed only.
   format          PostFormat     @default(POST)
-  /// v1.71-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو» — only the Kabso Team
+  /// v1.72-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو» — only the Kabso Team
   /// creates one, and a limited staff account (MODERATION / SUPPORT / FINANCE) creates nothing else. Never changes.
   announcement    Boolean        @default(false)
   location        String?        @db.VarChar(80)
@@ -6458,7 +6458,7 @@ model AdminShift {
   @@map("admin_shifts")
 }
 
-/// v1.71-live (D283, CONVENTIONS §10.96.11): a region (a fixed group of countries, `staff-regions.ts`) a MODERATION /
+/// v1.72-live (D283, CONVENTIONS §10.96.11): a region (a fixed group of countries, `staff-regions.ts`) a MODERATION /
 /// SUPPORT staff member is responsible for. Set by the OWNER in «الموظفون والصلاحيات» (audited `admin.team.regions`).
 /// The live assignment and report alerts prefer a staff member whose region covers the host's country. CHECK
 /// `admin_staff_regions_code` (the 13 codes).

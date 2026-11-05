@@ -3,7 +3,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// v1.71-live (D283, §10.96.10): the label of an official announcement post
+/// v1.72-live (D283, §10.96.10): the label of an official announcement post
 /// or reel «إعلان رسمي — فريق كابسو» in the feeds — a megaphone and the text
 /// on the Kabso Team's green and gold, so it never reads as a user's post.
 class AnnouncementLabel extends StatelessWidget {

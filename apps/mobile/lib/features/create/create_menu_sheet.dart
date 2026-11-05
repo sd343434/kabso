@@ -9,7 +9,7 @@ enum CreateChoice { post, reel, story, live }
 /// text), 🎬 Reel (a vertical short video for Moments), ⭕ Story (CP-008)
 /// and 🔴 Go live (CP-010). Returns the choice, or `null` when dismissed.
 ///
-/// v1.71-live (D283, §10.96.10): for a Kabso Team account ([staff]) only
+/// v1.72-live (D283, §10.96.10): for a Kabso Team account ([staff]) only
 /// «نشر إعلان» and «نشر ريلز إعلان» — no story and no go live.
 Future<CreateChoice?> showCreateMenu(
   BuildContext context, {

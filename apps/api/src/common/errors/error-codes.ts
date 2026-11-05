@@ -318,7 +318,7 @@ export enum ErrorCode {
   /** v1.68-live (DRAFT, D273): the staff member has not set up the panel authenticator yet (admin.<domain>). */
   STAFF_TOTP_NOT_ENROLLED = 'STAFF_TOTP_NOT_ENROLLED',
   /**
-   * v1.71-live (DRAFT, D283, §10.96.10): a Kabso Team account (MODERATION, SUPPORT or FINANCE, not OWNER) cannot do
+   * v1.72-live (DRAFT, D283, §10.96.10): a Kabso Team account (MODERATION, SUPPORT or FINANCE, not OWNER) cannot do
    * this — `details: [{field: 'staff', issue: 'live' | 'post_kind' | 'story' | 'repost' | 'family' | 'vip' | 'tasks' |
    * 'avatar' | 'cover' | 'frame' | 'store'}]`;
    * `announcement` when an account outside the team asks for an announcement post or reel.

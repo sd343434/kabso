@@ -52,7 +52,7 @@ String? authRedirect(
             : AppRoutes.legalConsent;
       }
       if (location == AppRoutes.legalConsent) return AppRoutes.home;
-      // v1.71-live (D283, §10.96.10): a Kabso Team account's Me tab has no
+      // v1.72-live (D283, §10.96.10): a Kabso Team account's Me tab has no
       // user, host or agency features — their pages (and deep links to them)
       // show a short note instead; the server refuses the actions anyway.
       if (user.staff != null && AppRoutes.staffBlocked(location)) {

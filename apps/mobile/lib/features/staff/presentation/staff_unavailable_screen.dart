@@ -3,7 +3,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// v1.71-live (D283, §10.96.10): what a Kabso Team account sees instead of a
+/// v1.72-live (D283, §10.96.10): what a Kabso Team account sees instead of a
 /// user, host or agency page (go live, levels, VIP, family, store, wallet,
 /// bag, …) — reached only by a deep link or an old entry, since its Me tab
 /// does not offer them.

@@ -204,7 +204,7 @@ class Post {
   /// D162: `format: REEL` — one vertical video, listed in Moments' reels.
   final bool isReel;
 
-  /// v1.71-live (D283, §10.96.10): an official announcement of the Kabso
+  /// v1.72-live (D283, §10.96.10): an official announcement of the Kabso
   /// Team — the feeds label it «إعلان رسمي — فريق كابسو». False from older
   /// servers.
   final bool announcement;
