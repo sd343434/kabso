@@ -184,6 +184,8 @@ void main() {
         );
         await tester.tap(find.text('open'));
         await tester.pumpAndSettle();
+        // D282: the Kabso Team badge's art painted.
+        await precacheImages(tester);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile(

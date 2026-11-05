@@ -45,6 +45,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -497,6 +498,33 @@ void main() {
       expect(find.byKey(ProfileCoverHeader.coverKey), findsNothing);
       expect(find.byKey(ProfileCoverHeader.coverAvatarKey), findsOneWidget);
     });
+
+    // D282: a staff account's profile wears the Kabso Team badge in the
+    // name row, the name in the phone's language.
+    for (final language in AppLanguage.values) {
+      testWidgets('a staff account wears the Kabso Team badge '
+          '(${language.name})', (tester) async {
+        final ar = language == AppLanguage.ar;
+        await pumpOther(
+          tester,
+          otherProfile(ar: ar).copyWith(kabsoTeam: true),
+          language: language,
+        );
+        final badge = find.descendant(
+          of: find.byKey(ProfileCoverHeader.nameRowKey),
+          matching: find.byKey(KabsoTeamBadge.badgeKey),
+        );
+        expect(badge, findsOneWidget);
+        expect(tester.getSize(badge).height, 20);
+        expect(
+          find.descendant(
+            of: badge,
+            matching: find.text(ar ? 'فريق كابسو' : 'Kabso Team'),
+          ),
+          findsOneWidget,
+        );
+      });
+    }
 
     testWidgets('the more button opens the sheet (copy username, mute, '
         'block, report)', (tester) async {

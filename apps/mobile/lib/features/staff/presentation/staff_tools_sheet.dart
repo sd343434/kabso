@@ -136,7 +136,8 @@ class StaffToolsSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const KabsoTeamShield(size: 36),
+              // D282: the Kabso Team badge heads the team's tools.
+              const KabsoTeamBadge(height: 36),
               const SizedBox(width: KSpacing.md),
               Expanded(
                 child: Column(

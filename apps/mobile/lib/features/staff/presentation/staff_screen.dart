@@ -92,7 +92,8 @@ class _Body extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const KabsoTeamShield(size: 48),
+              // D282: the Kabso Team badge heads the shift page.
+              const KabsoTeamBadge(height: 40),
               const SizedBox(width: KSpacing.md),
               Expanded(
                 child: Column(

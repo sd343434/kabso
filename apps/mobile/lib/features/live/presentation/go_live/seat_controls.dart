@@ -692,7 +692,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               context,
               key: SeatControlKeys.staffRow(i),
               name: s.displayName,
-              badge: const KabsoTeamBadge(),
+              // D282: the team's badge at the name's line height.
+              badge: const KabsoTeamBadge(height: 20),
               avatar: Stack(
                 clipBehavior: Clip.none,
                 children: [

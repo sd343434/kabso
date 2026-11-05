@@ -19,6 +19,7 @@ import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
@@ -712,6 +713,68 @@ void main() {
         find.text(en.safetyUnblocked(profile.displayName)),
         findsOneWidget,
       );
+    });
+  });
+
+  // D282: a staff account's card wears the Kabso Team badge after the name,
+  // the name in the phone's language; nothing overflows at 360 × 1.3.
+  group('D282 the Kabso Team badge', () {
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name} android ×1.3: a long staff name', (
+        tester,
+      ) async {
+        tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final ar = language == AppLanguage.ar;
+        await _card(
+          tester,
+          _profile(
+            ar: ar,
+            name: ar
+                ? 'سارة عبد الرحمن الهاشمية من الإسكندرية'
+                : 'Sara Abdulrahman Al-Hashimi of Alexandria',
+          ).copyWith(kabsoTeam: true),
+          language: language,
+          viewport: GoldenViewport.android,
+        );
+        expect(tester.takeException(), isNull);
+        final badge = find.byKey(KabsoTeamBadge.badgeKey);
+        expect(badge, findsOneWidget);
+        expect(tester.getSize(badge).height, 24);
+        final name = tester.getRect(find.byKey(LivePersonSheet.nameKey));
+        final b = tester.getRect(badge);
+        // After the name in the reading direction, inside the screen.
+        if (ar) {
+          expect(b.right, lessThanOrEqualTo(name.left));
+        } else {
+          expect(b.left, greaterThanOrEqualTo(name.right));
+        }
+        expect(b.left, greaterThanOrEqualTo(0));
+        expect(b.right, lessThanOrEqualTo(360));
+        expect(find.text(l10nFor(language).liveKabsoTeam), findsOneWidget);
+      });
+
+      testWidgets('live_person_card_staff (${language.name})', (tester) async {
+        await loadAppFonts();
+        await _card(
+          tester,
+          _profile(ar: language == AppLanguage.ar).copyWith(kabsoTeam: true),
+          language: language,
+        );
+        await precacheImages(tester);
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile(
+            '../../goldens/png/live_person_card_staff_d282.${language.name}'
+            '.phone.png',
+          ),
+        );
+      }, tags: goldenTag);
+    }
+
+    testWidgets('a viewer is not badged', (tester) async {
+      await _card(tester, _profile());
+      expect(find.byKey(KabsoTeamBadge.badgeKey), findsNothing);
     });
   });
 }

@@ -177,7 +177,7 @@ void main() {
     );
   });
 
-  testWidgets("a Kabso Team line (D273) opens with the team's blue tag", (
+  testWidgets("a Kabso Team line (D273) opens with the team's badge (D282)", (
     tester,
   ) async {
     await pumpGolden(
@@ -206,8 +206,20 @@ void main() {
         tester.getRect(find.byKey(LiveChatFlatLine.nameKey)).left,
       ),
     );
-    // Not a second time among the badges.
-    expect(find.byKey(KabsoTeamBadge.badgeKey), findsNothing);
+    // D282: the tag is the team's badge, at the line's emblem height —
+    // and not a second time among the badges.
+    expect(find.byKey(KabsoTeamBadge.badgeKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(LiveChatFlatLine.tagKey),
+        matching: find.byKey(KabsoTeamBadge.badgeKey),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getSize(find.byKey(KabsoTeamBadge.badgeKey)).height,
+      KFlatChat.tagHeight,
+    );
   });
 
   test('the tags keep their fixed colours', () {
@@ -216,7 +228,8 @@ void main() {
       LiveChatRoleTag.colorOf(LiveChatTagKind.moderator),
       LiveChatRoleTag.moderator,
     );
-    expect(LiveChatRoleTag.colorOf(LiveChatTagKind.team), LiveChatRoleTag.team);
+    // D282: the team wears its badge, not a coloured pill.
+    expect(LiveChatRoleTag.colorOf(LiveChatTagKind.team), isNull);
     expect(LiveChatTagKind.of(LiveChatRole.viewer), isNull);
   });
 }

@@ -20,6 +20,7 @@ import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
@@ -733,6 +734,12 @@ class _Body extends ConsumerWidget {
               const SizedBox(width: 6),
               // As tall as the name's line.
               VipNameBadge(vip: profile.vip, height: 24),
+            ],
+            // D282: a staff account wears the Kabso Team badge after the
+            // name, as tall as the name's line.
+            if (profile.kabsoTeam) ...[
+              const SizedBox(width: 6),
+              const KabsoTeamBadge(height: 24),
             ],
           ],
         ),

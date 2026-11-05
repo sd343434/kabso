@@ -556,6 +556,8 @@ void main() {
     for (final language in AppLanguage.values) {
       testWidgets('staff_tools_sheet (${language.name})', (tester) async {
         await _pumpSheet(tester, _status(), language: language, golden: true);
+        // D282: the Kabso Team badge's art painted.
+        await precacheImages(tester);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile(
@@ -573,6 +575,8 @@ void main() {
           language: language,
           golden: true,
         );
+        // D282: the Kabso Team badge's art painted.
+        await precacheImages(tester);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile(
@@ -628,6 +632,8 @@ void main() {
           brightness: Brightness.light,
         );
         await tester.pumpAndSettle();
+        // D282: the Kabso Team badge's art painted.
+        await precacheImages(tester);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile(
@@ -689,6 +695,8 @@ void main() {
         expect(find.text(l.liveViewersTab('1')), findsOneWidget);
         expect(find.byKey(KabsoTeamBadge.badgeKey), findsNWidgets(2));
         expect(find.byKey(SeatControlKeys.staffRow(1)), findsOneWidget);
+        // D282: the Kabso Team badge's art painted.
+        await precacheImages(tester);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile(

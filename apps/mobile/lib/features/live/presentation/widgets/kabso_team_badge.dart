@@ -11,46 +11,114 @@ abstract final class KabsoTeamColors {
   static const gradient = LinearGradient(colors: [start, end]);
 }
 
-/// D260: the «فريق كابسو» / «Kabso Team» pill after a staff member's name in
-/// the viewer list.
+/// D282 (owner: «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه
+/// عربي وانجليزي لمن هاتفه انجليزي»): THE «فريق كابسو» badge — the owner's
+/// crest and green banner ([asset]), the team's name written in the banner
+/// in the app's language («فريق كابسو» / "Kabso Team"). Drawn [height] tall
+/// at the art's own [aspectRatio] wherever the team is shown: before a staff
+/// line's name in every chat mode (D269's team tag), the viewer list's staff
+/// group (D260), the person card and profile of a staff account, the staff
+/// tools sheet and the shift page (D273).
+///
+/// Right-to-left: the art is NOT mirrored — the crest stays on the left as
+/// drawn (a mirrored crown and laurels would read as a different emblem) —
+/// and the Arabic name is centred in the banner like the English one.
 class KabsoTeamBadge extends StatelessWidget {
   const new({super.key, this.height = 18});
 
   static const badgeKey = Key('live.kabsoTeam.badge');
 
+  /// The team's name inside the banner.
+  static const labelKey = Key('live.kabsoTeam.badge.label');
+
+  /// The owner's art (assets/staff/PROVENANCE.md), trimmed to its bounds.
+  static const asset = 'assets/staff/kabso_team_badge.png';
+
+  /// The art's width ÷ height (600 × 258 px).
+  static const double aspectRatio = 600 / 258;
+
+  /// The banner's inner (green) area, as fractions of the art's width and
+  /// height, so the name scales with the badge.
+  static const banner = Rect.fromLTRB(0.540, 0.411, 0.883, 0.725);
+
+  /// The name's colour: a light gold, bold, over a soft shadow.
+  static const ink = Color(0xFFFFF4CF);
+
   final double height;
 
+  double get width => height * aspectRatio;
+
   @override
-  Widget build(BuildContext context) => Container(
-    key: badgeKey,
-    height: height,
-    padding: EdgeInsets.symmetric(horizontal: height * 0.4),
-    decoration: BoxDecoration(
-      gradient: KabsoTeamColors.gradient,
-      borderRadius: BorderRadius.circular(height / 2),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.verified_user_rounded,
-          size: height * 0.66,
-          color: const Color(0xFFFFFFFF),
-        ),
-        SizedBox(width: height * 0.18),
-        Text(
-          context.l10n.liveKabsoTeam,
-          maxLines: 1,
-          style: context.textStyles.caption.copyWith(
-            fontSize: height * 0.58,
-            height: 1,
-            color: const Color(0xFFFFFFFF),
-            fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    final w = width;
+    final bannerW = banner.width * w;
+    final bannerH = banner.height * height;
+    return Semantics(
+      label: context.l10n.liveKabsoTeam,
+      container: true,
+      child: ExcludeSemantics(
+        child: SizedBox(
+          key: badgeKey,
+          width: w,
+          height: height,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  asset,
+                  fit: BoxFit.fill,
+                  excludeFromSemantics: true,
+                ),
+              ),
+              // Absolute (never directional) offsets: the banner is where
+              // the art draws it, in either direction.
+              Positioned(
+                left: banner.left * w,
+                top: banner.top * height,
+                width: bannerW,
+                height: bannerH,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: bannerW * 0.06,
+                    vertical: bannerH * 0.08,
+                  ),
+                  child: Center(
+                    // Auto-fit: a long name (or a small badge) scales down,
+                    // never overflows the banner.
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        context.l10n.liveKabsoTeam,
+                        key: labelKey,
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                        textScaler: TextScaler.noScaling,
+                        style: context.textStyles.caption.copyWith(
+                          fontSize: bannerH * 0.62,
+                          height: 1.15,
+                          color: ink,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0,
+                          shadows: [
+                            Shadow(
+                              color: const Color(0xCC000000),
+                              offset: Offset(0, bannerH * 0.04),
+                              blurRadius: bannerH * 0.1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// D260: the team's shield by the top viewers while staff watch the live —

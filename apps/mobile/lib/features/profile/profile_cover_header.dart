@@ -27,6 +27,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
@@ -506,6 +507,8 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
             if (profile.vip?.member ?? false)
               VipNameBadge(vip: profile.vip, height: 20),
+            // D282: a staff account wears the Kabso Team badge.
+            if (profile.kabsoTeam) const KabsoTeamBadge(height: 20),
             if (agentCode case final code?)
               RechargeAgentBadge(
                 key: ProfileHeaderView.agentBadgeKey,

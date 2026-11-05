@@ -261,6 +261,7 @@ class LiveChatFlatLine extends ConsumerWidget {
               height: LiveChatBadgeRow.pillHeight(
                 LiveChatInlineRow.badgeHeight,
               ),
+              emblemHeight: LiveChatInlineRow.badgeHeight,
             ),
       nameBadge: VipNameBadge(vip: vip, height: vipEmblemHeight),
       name: GestureDetector(

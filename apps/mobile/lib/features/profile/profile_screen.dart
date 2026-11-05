@@ -126,6 +126,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       links: user.links,
       tags: user.tags,
       premiumTier: user.premiumTier,
+      kabsoTeam: user.kabsoTeam,
       rechargeAgentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,

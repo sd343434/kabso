@@ -1053,6 +1053,7 @@ class LiveChatAuthoredLine extends StatelessWidget {
                           key: LiveChatBadgeRow.roleKey,
                           kind: roleTag,
                           height: LiveChatBadgeRow.pillHeight(badgeRowHeight),
+                          emblemHeight: badgeRowHeight,
                         ),
                   nameBadge: liveChatVipBadge(
                     vip: cp ? null : vip,
@@ -1269,9 +1270,10 @@ class LiveChatBadgeRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // D273: «فريق كابسو» instead of every other badge (D269: before
-        // the name instead, as the line's tag, when [tagLed]).
+        // the name instead, as the line's tag, when [tagLed]). D282: the
+        // team's badge at the emblems' height.
         if (!tagLed && (badges?.kabsoTeam ?? false)) ...[
-          KabsoTeamBadge(height: pillH),
+          KabsoTeamBadge(height: h),
           const SizedBox(width: _space),
         ],
         // D185 (owner): the recharge agent's badge next to the name.
@@ -2211,6 +2213,7 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
                       height: LiveChatBadgeRow.pillHeight(
                         LiveChatInlineRow.badgeHeight,
                       ),
+                      emblemHeight: LiveChatInlineRow.badgeHeight,
                     ),
               nameBadge: liveChatVipBadge(
                 vip: w.cp || name == null ? null : w.vip,
