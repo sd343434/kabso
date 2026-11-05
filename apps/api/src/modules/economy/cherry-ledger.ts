@@ -423,7 +423,12 @@ export async function creditRecruitCommissionIn(
   reference: string,
   now: Date,
 ): Promise<void> {
-  await applyMovementsIn(tx, [{ userId, reason: 'STAFF_RECRUIT_COMMISSION', delta: cherries }], reference, now);
+  await applyMovementsIn(
+    tx,
+    [{ userId, reason: 'STAFF_RECRUIT_COMMISSION', delta: cherries }],
+    reference,
+    now,
+  );
 }
 
 /** The ledger reference of a host target's reward: one per host, level and day. */

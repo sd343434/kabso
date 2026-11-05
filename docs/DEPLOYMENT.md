@@ -2817,6 +2817,29 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.66 Recruitment by staff «الاستقطاب» and the role BD (migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`; D285) — [IMPLEMENTED, draft contract v1.75-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.13. Deploy the two migrations in order (the first only adds enum values: `admin_permission` BD and
+`cherry_ledger_reason` STAFF_RECRUIT_COMMISSION). The second adds `recruiter_user_id` to the agency, recharge and host
+applications, the creator programme (`creator_applications`, `creator_members`), `staff_recruitments`,
+`staff_recruit_settings` (one row, the owner's defaults **1 %** hosts / creators / agencies, **0.75 %** recharge agents)
+and `staff_recruit_commissions` (**append-only** for the runtime group; CHECK `staff_recruit_commissions_guard`), extends
+the ledger sign rule and lets `kabso_admin_panel_role` grant BD.
+
+- **Settings:** `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (default 3600 = hourly; it pays only finished days, each
+  once; **0 is refused in production**), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7, 1–60: how many past days a run still pays
+  after the API was down — older unpaid days are lost, so keep the API up or raise it before a long pause). The day is
+  `LIVE_RANKINGS_TIME_ZONE`'s. The money constants are D281's (`COIN_RETAIL_USD_PER_MILLION`, `CHERRY_PAYOUT_RATE`,
+  `CHERRIES_PER_COIN`, `GIFT_HOST_SHARE_PERCENTS`, the lucky RTP / share); a recharge top-up counts only in
+  `CHERRY_PAYOUT_CURRENCY`.
+- **Granting BD:** «الموظفون والصلاحيات» (OWNER, code + reason) or `pnpm admin:admin grant <email|@username|KabsoNN> BD`
+  (it gets the next staff ID). BD signs in to the panel (authenticator enrolment as every role) and sees only
+  «استقطاباتي». Set its regions on the same page for its line «تطوير الأعمال — الوطن العربي».
+- **The OWNER:** «الاستقطاب» (shares per type, per staff member, reassign a recruit — code + reason, audited) and «طلبات
+  صناع المحتوى» (OWNER, SUPPORT). Commissions are withdrawable cherries: staff withdrawals arrive in «السحوبات» like any.
+- **Checks after deploy:** `SELECT * FROM staff_recruit_settings;` shows 100 / 100 / 100 / 75; the log line
+  `Recruit commissions paid` appears once a day has finished with recruits.
+
 ### 5.65 The primary OWNER's staff ID «Kabso» (migration `20270318090000_staff_ids_owner`; D283d) — [IMPLEMENTED, draft contract v1.74-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.12. Runs right after §5.64's migration (deploy them together). It replaces the CHECK with

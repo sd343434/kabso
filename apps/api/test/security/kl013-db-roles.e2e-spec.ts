@@ -867,7 +867,9 @@ describe('D285 staff recruitment (staff_recruitments, staff_recruit_commissions,
       await scalar<number>(runtime, `SELECT count(*)::int AS v FROM staff_ids WHERE user_id = '${staff}'`),
     ).toBe(1);
     await expect(
-      runtime.$transaction((tx) => tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${staff}'::uuid, 'LIVE_HOSTS', true, NULL)`)),
+      runtime.$transaction((tx) =>
+        tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${staff}'::uuid, 'LIVE_HOSTS', true, NULL)`),
+      ),
     ).rejects.toThrow(/not a panel role/);
     // A recruitment: never self; the agency id only for AGENCY; one per (type, recruit); HOST / CREATOR exclusive.
     const insert = (id: string, type: string, rec: string, agency = 'NULL') =>
@@ -879,7 +881,9 @@ describe('D285 staff recruitment (staff_recruitments, staff_recruit_commissions,
     await expect(insert(randomUUID(), 'AGENCY', staff)).rejects.toThrow(/staff_recruitments_shape/);
     await insert(recruitment, 'HOST', staff);
     await expect(insert(randomUUID(), 'HOST', staff)).rejects.toThrow(/staff_recruitments_type_recruit_key/);
-    await expect(insert(randomUUID(), 'CREATOR', staff)).rejects.toThrow(/staff_recruitments_one_gift_recruit/);
+    await expect(insert(randomUUID(), 'CREATOR', staff)).rejects.toThrow(
+      /staff_recruitments_one_gift_recruit/,
+    );
     // Reassigning needs a reason.
     await expect(
       runtimeExec(`UPDATE staff_recruitments SET reassigned_at = now() WHERE id = '${recruitment}'`),

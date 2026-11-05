@@ -190,6 +190,8 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
   let moderator: Admin;
   let support: Admin;
   let finance: Admin;
+  // v1.75-live (D285): the recruitment-only role.
+  let bd: Admin;
 
   beforeAll(async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: clock });
@@ -243,11 +245,14 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
       ['users.delete', 'post', `${u}/deletion`],
       ['users.delete', 'post', `${u}/deletion/cancel`],
     ];
+    // v1.75-live (D285): BD signs in here (a fresh session for this test).
+    bd = await makeAdmin(['BD']);
     const byRole: Record<string, Admin> = {
       OWNER: owner,
       MODERATION: moderator,
       SUPPORT: support,
       FINANCE: finance,
+      BD: bd,
     };
     for (const role of PANEL_ROLES) {
       const a = byRole[role]!;

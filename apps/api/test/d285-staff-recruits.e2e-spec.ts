@@ -31,7 +31,12 @@ import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { MemoryObjectStorage } from './helpers/memory-storage.js';
 import { expectContract, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, withMigrationClient, type TestContext } from './helpers/test-app.js';
+import {
+  createTestApp,
+  registerVerified,
+  withMigrationClient,
+  type TestContext,
+} from './helpers/test-app.js';
 
 const COOKIE = '__Host-kabso_admin';
 
@@ -133,7 +138,9 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
   const makeAdmin = async (roles: string[]): Promise<Admin> => {
     const p = await signup();
     for (const role of roles) await grant(p, role);
-    const res = await ctx.http.post('/api/v1/admin/auth/login').send({ email: p.email, password: p.password });
+    const res = await ctx.http
+      .post('/api/v1/admin/auth/login')
+      .send({ email: p.email, password: p.password });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     const pending = cookieOf(res);
     const csrf = res.body.csrfToken as string;
@@ -161,7 +168,10 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     const res = await ctx.http.get('/api/v1/staff-recruiters/lookup').query({ q }).set(auth(u));
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expectContract(res, 'lookupStaffRecruiter');
-    return res.body as { found: boolean; recruiter: { staffId: string; role: string; displayName: string } | null };
+    return res.body as {
+      found: boolean;
+      recruiter: { staffId: string; role: string; displayName: string } | null;
+    };
   };
   const applyHost = async (u: TestUser, recruiter?: string) => {
     const pics = await pictures(u);
@@ -229,7 +239,11 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
   // ---- lives and gifts -----------------------------------------------------------------------------------------
   let giftCode = '';
   const join = async (roomId: string, u: TestUser) => {
-    const raw = JSON.stringify({ event: 'participant_joined', room: { name: roomId }, participant: { identity: u.id } });
+    const raw = JSON.stringify({
+      event: 'participant_joined',
+      room: { name: roomId },
+      participant: { identity: u.id },
+    });
     const res = await ctx.http
       .post('/internal/livekit/webhook')
       .set('Content-Type', 'application/webhook+json')
@@ -263,7 +277,9 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
   let fan: TestUser;
 
   beforeAll(async () => {
-    png = await sharp({ create: { width: 64, height: 64, channels: 3, background: { r: 30, g: 120, b: 200 } } })
+    png = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: { r: 30, g: 120, b: 200 } },
+    })
       .png()
       .toBuffer();
     vi.useFakeTimers({ toFake: ['Date'], now: clock });
@@ -352,7 +368,13 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     const session = await aget(bd, '/admin/auth/session');
     expect(session.status).toBe(200);
     expect(session.body.capabilities).toEqual(['recruits.mine']);
-    for (const path of ['/admin/moderation/reports', '/admin/lives', '/admin/recruits', '/admin/team', '/admin/users']) {
+    for (const path of [
+      '/admin/moderation/reports',
+      '/admin/lives',
+      '/admin/recruits',
+      '/admin/team',
+      '/admin/users',
+    ]) {
       expect((await aget(bd, path)).status, path).toBe(403);
     }
     expect((await aget(bd, '/admin/recruits/mine')).status).toBe(200);
@@ -369,17 +391,29 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
 
   it('the recruiter field: the live check finds only an ACTIVE MODERATION / BD staff member', async () => {
     const u = await signup();
-    for (const q of [bdStaffId, bdStaffId.toLowerCase(), `@${bdStaffId}`, `kabso${String(Number(bdStaffId.slice(5)))}`]) {
+    for (const q of [
+      bdStaffId,
+      bdStaffId.toLowerCase(),
+      `@${bdStaffId}`,
+      `kabso${String(Number(bdStaffId.slice(5)))}`,
+    ]) {
       const r = await lookup(u, q);
       expect(r.found, q).toBe(true);
       expect(r.recruiter).toMatchObject({ staffId: bdStaffId, role: 'BD' });
     }
     expect((await lookup(u, modStaffId)).recruiter?.role).toBe('MODERATION');
-    const modName = (await ctx.prisma.userProfile.findUniqueOrThrow({ where: { userId: moderator.id } })).username;
+    const modName = (await ctx.prisma.userProfile.findUniqueOrThrow({ where: { userId: moderator.id } }))
+      .username;
     expect((await lookup(u, `@${modName}`)).recruiter?.staffId).toBe(modStaffId);
     // SUPPORT, FINANCE, the OWNER, a normal user and nobody: «غير موجود» alike.
     const sup = await ctx.prisma.staffId.findUniqueOrThrow({ where: { userId: support.id } });
-    for (const q of [`Kabso${String(sup.number).padStart(2, '0')}`, 'Kabso', fan.username, 'Kabso99', 'nobody_here']) {
+    for (const q of [
+      `Kabso${String(sup.number).padStart(2, '0')}`,
+      'Kabso',
+      fan.username,
+      'Kabso99',
+      'nobody_here',
+    ]) {
       expect(await lookup(u, q), q).toEqual({ found: false, recruiter: null });
     }
     void financeStaff;
@@ -406,7 +440,12 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     expect(r).toMatchObject({ recruiterUserId: bd.id, applicationId: app.id });
     const audit = await audits('staff.recruit.attribute', r!.id);
     expect(audit).toHaveLength(1);
-    expect(audit[0]!.metadata).toMatchObject({ type: 'HOST', recruiter: bd.id, recruit: host.id, via: 'panel' });
+    expect(audit[0]!.metadata).toMatchObject({
+      type: 'HOST',
+      recruiter: bd.id,
+      recruit: host.id,
+      via: 'panel',
+    });
 
     // No field → no attribution.
     const plain = await signup();
@@ -458,27 +497,41 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     const list = await aget(support, '/admin/creator-applications?status=PENDING');
     expect(list.status).toBe(200);
     expectContract(list, 'listAdminCreatorApplications');
-    const row = (list.body.data as { id: string; user: { id: string } }[]).find((a) => a.user.id === creator.id)!;
+    const row = (list.body.data as { id: string; user: { id: string } }[]).find(
+      (a) => a.user.id === creator.id,
+    )!;
     expect((await apost(bd, `/admin/creator-applications/${row.id}/approve`)).status).toBe(403);
     const approve = await apost(support, `/admin/creator-applications/${row.id}/approve`);
     expect(approve.status, JSON.stringify(approve.body)).toBe(200);
     expect(approve.body.recruitmentId).toBeTruthy();
     expect(await recruitmentOf(creator, 'CREATOR')).toMatchObject({ recruiterUserId: bd.id });
     const member = await ctx.http.get('/api/v1/me/creator-application').set(auth(creator));
-    expect(member.body).toMatchObject({ member: { activatedAt: expect.any(String) }, rule: { refusal: 'MEMBER' } });
+    expect(member.body).toMatchObject({
+      member: { activatedAt: expect.any(String) },
+      rule: { refusal: 'MEMBER' },
+    });
 
     // A rejected one keeps the reason.
     const other = await signup();
     expect((await applyCreator(other)).status).toBe(201);
     const otherApp = await ctx.prisma.creatorApplication.findFirstOrThrow({ where: { userId: other.id } });
-    expect((await apost(support, `/admin/creator-applications/${otherApp.id}/reject`, { reason: 'روابط غير صالحة' })).status).toBe(200);
-    expect((await ctx.http.get('/api/v1/me/creator-application').set(auth(other))).body.application).toMatchObject({
+    expect(
+      (
+        await apost(support, `/admin/creator-applications/${otherApp.id}/reject`, {
+          reason: 'روابط غير صالحة',
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await ctx.http.get('/api/v1/me/creator-application').set(auth(other))).body.application,
+    ).toMatchObject({
       status: 'REJECTED',
       rejectReason: 'روابط غير صالحة',
     });
 
     // The host recruited by BD applies as a creator naming the moderator: the approval does not attribute again.
-    const host = (await ctx.prisma.staffRecruitment.findFirstOrThrow({ where: { type: 'HOST' } })).recruitUserId;
+    const host = (await ctx.prisma.staffRecruitment.findFirstOrThrow({ where: { type: 'HOST' } }))
+      .recruitUserId;
     const hostUser = await ctx.prisma.user.findUniqueOrThrow({ where: { id: host } });
     const hostApp = await ctx.prisma.creatorApplication.create({
       data: {
@@ -540,7 +593,11 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
         30_000_000n,
         36_000n,
         null,
-        { activationMinCoins: 30_000_000, priceTiers: [{ minCoins: 0, minorPerMillion: 1200 }], currency: 'USD' },
+        {
+          activationMinCoins: 30_000_000,
+          priceTiers: [{ minCoins: 0, minorPerMillion: 1200 }],
+          currency: 'USD',
+        },
         new Date(clock),
       ),
     );
@@ -570,7 +627,7 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     );
     const h = await row(hostR.id);
     expect(h).toMatchObject({ bps: 100, recruiterUserId: bd.id, skipped: null });
-    expect(BigInt(h.profitUnits.toString())).toBe(hostProfit);
+    expect(BigInt(h.profitUnits.toFixed(0))).toBe(hostProfit);
     expect(h.cherries).toBe(commissionCherries(hostProfit, 100, e));
     expect(h.cherries > 0n).toBe(true);
     // AGENCY: its host's gifts less the agency's commission.
@@ -585,12 +642,14 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
       },
       e,
     );
-    expect(BigInt(ag.profitUnits.toString())).toBe(agencyProfit);
+    expect(BigInt(ag.profitUnits.toFixed(0))).toBe(agencyProfit);
     expect(ag).toMatchObject({ bps: 100, recruiterUserId: moderator.id });
     expect(ag.cherries).toBe(commissionCherries(agencyProfit, 100, e));
     // RECHARGE_AGENT: $360 − 195 000 000 cherries at $1.10 per million = $145.50 → 0.75 % = 992 045 cherries.
     const rc = await row(agentR.id);
-    expect(BigInt(rc.profitUnits.toString())).toBe(topupProfitUnits({ paidMinor: 36_000n, coins: 30_000_000n }, e));
+    expect(BigInt(rc.profitUnits.toFixed(0))).toBe(
+      topupProfitUnits({ paidMinor: 36_000n, coins: 30_000_000n }, e),
+    );
     expect(rc).toMatchObject({ bps: 75, cherries: 992_045n });
     // The ledger: one credit each, withdrawable reason.
     const ledger = await ctx.prisma.cherryLedgerEntry.findMany({
@@ -604,11 +663,13 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     expect((await recruits().sweep()).days).toBe(0);
     const [a, b] = await Promise.all([recruits().sweep(), recruits().sweep()]);
     expect(a.days + b.days).toBe(0);
-    expect(
-      await ctx.prisma.cherryLedgerEntry.count({ where: { reason: 'STAFF_RECRUIT_COMMISSION' } }),
-    ).toBe(ledger.length + (ag.cherries > 0n ? 1 : 0));
+    expect(await ctx.prisma.cherryLedgerEntry.count({ where: { reason: 'STAFF_RECRUIT_COMMISSION' } })).toBe(
+      ledger.length + (ag.cherries > 0n ? 1 : 0),
+    );
     // A day paid directly again is refused (null), the ledger unchanged.
-    expect(await recruits().payDay(hostR.id, day, { HOST: 100, AGENCY: 100, RECHARGE_AGENT: 75, CREATOR: 100 })).toBeNull();
+    expect(
+      await recruits().payDay(hostR.id, day, { HOST: 100, AGENCY: 100, RECHARGE_AGENT: 75, CREATOR: 100 }),
+    ).toBeNull();
 
     // «أرباحي»: the balance, the breakdown and the history; withdrawable (not locked).
     const earnings = await ctx.http.get('/api/v1/me/staff/earnings').set(auth(bd));
@@ -627,7 +688,9 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
       .set('Idempotency-Key', randomUUID())
       .send({ amountMinor: 100, payoutDetails: 'Kabso staff payout' });
     expect(w.status, JSON.stringify(w.body)).toBe(201);
-    expect((await ctx.http.get('/api/v1/me/staff/earnings').set(auth(bd))).body.wallet.pendingWithdrawal).toBeTruthy();
+    expect(
+      (await ctx.http.get('/api/v1/me/staff/earnings').set(auth(bd))).body.wallet.pendingWithdrawal,
+    ).toBeTruthy();
     // Not a recruiter → 403.
     expect((await ctx.http.get('/api/v1/me/staff/earnings').set(auth(fan))).status).toBe(403);
     expect((await ctx.http.get('/api/v1/me/staff/recruits').set(auth(support))).status).toBe(403);
@@ -637,7 +700,13 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     const mineApp = await ctx.http.get('/api/v1/me/staff/recruits').set(auth(bd));
     expect(mineApp.status).toBe(200);
     expectContract(mineApp, 'getMyStaffRecruits');
-    expect(mineApp.body.counts).toMatchObject({ HOST: 1, RECHARGE_AGENT: 1, CREATOR: 1, AGENCY: 0, total: 3 });
+    expect(mineApp.body.counts).toMatchObject({
+      HOST: 1,
+      RECHARGE_AGENT: 1,
+      CREATOR: 1,
+      AGENCY: 0,
+      total: 3,
+    });
     const hostsOnly = await ctx.http.get('/api/v1/me/staff/recruits?type=HOST').set(auth(bd));
     expect(hostsOnly.body.data).toHaveLength(1);
     expect(hostsOnly.body.data[0]).toMatchObject({ type: 'HOST', status: 'ACTIVE' });
@@ -647,7 +716,9 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     const panelMine = await aget(bd, '/admin/recruits/mine');
     expectContract(panelMine, 'getAdminMyRecruits');
     expect((panelMine.body.data as { recruit: { id: string } }[]).length).toBe(3);
-    const modRecruit = await ctx.prisma.staffRecruitment.findFirstOrThrow({ where: { recruiterUserId: moderator.id } });
+    const modRecruit = await ctx.prisma.staffRecruitment.findFirstOrThrow({
+      where: { recruiterUserId: moderator.id },
+    });
     expect((await aget(bd, `/admin/recruits/mine/${modRecruit.id}/commissions`)).status).toBe(404);
     expect((await aget(moderator, `/admin/recruits/mine/${modRecruit.id}/commissions`)).status).toBe(200);
 
@@ -657,15 +728,22 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     expect(all.body.data.length).toBeGreaterThanOrEqual(4);
     const staff = await aget(owner, '/admin/recruits/staff');
     expectContract(staff, 'listAdminRecruitStaff');
-    const bdRow = (staff.body.data as { userId: string; roles: string[]; canRecruit: boolean; commissionCherries: number }[]).find(
-      (s) => s.userId === bd.id,
-    )!;
+    const bdRow = (
+      staff.body.data as {
+        userId: string;
+        roles: string[];
+        canRecruit: boolean;
+        commissionCherries: number;
+      }[]
+    ).find((s) => s.userId === bd.id)!;
     expect(bdRow).toMatchObject({ roles: ['BD'], canRecruit: true });
     expect(bdRow.commissionCherries).toBeGreaterThan(0);
     const team = await aget(owner, '/admin/team');
     expect(team.status).toBe(200);
     expectContract(team, 'listAdminTeam');
-    const bdTeam = (team.body.data as { id: string; roles: string[]; recruits: { total: number } }[]).find((t) => t.id === bd.id)!;
+    const bdTeam = (team.body.data as { id: string; roles: string[]; recruits: { total: number } }[]).find(
+      (t) => t.id === bd.id,
+    )!;
     expect(bdTeam.roles).toEqual(['BD']);
     expect(bdTeam.recruits.total).toBe(3);
     // MODERATION and SUPPORT cannot see the OWNER's views.
@@ -679,9 +757,17 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     expect(settings.body.bps).toEqual({ HOST: 100, AGENCY: 100, RECHARGE_AGENT: 75, CREATOR: 100 });
     expect(settings.body.defaults).toEqual({ HOST: 100, AGENCY: 100, RECHARGE_AGENT: 75, CREATOR: 100 });
     expect(
-      (await aput(owner, '/admin/recruits/settings', { host: 2001, reason: 'x', totpCode: nextCode(owner.secret) })).status,
+      (
+        await aput(owner, '/admin/recruits/settings', {
+          host: 2001,
+          reason: 'x',
+          totpCode: nextCode(owner.secret),
+        })
+      ).status,
     ).toBe(400);
-    expect((await aput(bd, '/admin/recruits/settings', { host: 150, reason: 'x', totpCode: '000000' })).status).toBe(403);
+    expect(
+      (await aput(bd, '/admin/recruits/settings', { host: 150, reason: 'x', totpCode: '000000' })).status,
+    ).toBe(403);
     const changed = await aput(owner, '/admin/recruits/settings', {
       host: 150,
       reason: 'حملة استقطاب',
@@ -690,9 +776,15 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     expect(changed.status, JSON.stringify(changed.body)).toBe(200);
     expect(changed.body.bps.HOST).toBe(150);
     const audit = await audits('staff.recruit.settings.update');
-    expect(audit.at(-1)!.metadata).toMatchObject({ before: { HOST: 100 }, after: { HOST: 150 }, reason: 'حملة استقطاب' });
+    expect(audit.at(-1)!.metadata).toMatchObject({
+      before: { HOST: 100 },
+      after: { HOST: 150 },
+      reason: 'حملة استقطاب',
+    });
 
-    const hostR = await ctx.prisma.staffRecruitment.findFirstOrThrow({ where: { type: 'HOST', recruiterUserId: bd.id } });
+    const hostR = await ctx.prisma.staffRecruitment.findFirstOrThrow({
+      where: { type: 'HOST', recruiterUserId: bd.id },
+    });
     // Refusals: not a recruiter, the same one; MODERATION cannot reassign.
     const notRecruiter = await apost(owner, `/admin/recruits/${hostR.id}/reassign`, {
       recruiter: fan.username,
@@ -708,8 +800,13 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     });
     expect(issueOf(same)).toEqual({ field: 'recruiter', issue: 'recruiter_same' });
     expect(
-      (await apost(moderator, `/admin/recruits/${hostR.id}/reassign`, { recruiter: modStaffId, reason: 'x', totpCode: '000000' }))
-        .status,
+      (
+        await apost(moderator, `/admin/recruits/${hostR.id}/reassign`, {
+          recruiter: modStaffId,
+          reason: 'x',
+          totpCode: '000000',
+        })
+      ).status,
     ).toBe(403);
     const ok = await apost(owner, `/admin/recruits/${hostR.id}/reassign`, {
       recruiter: modStaffId,
@@ -746,8 +843,9 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
     expect(day18.recruiterUserId).toBe(bd.id);
     // The commission rows are append-only for the runtime role.
     await expect(
-      ctx.prisma.$executeRawUnsafe(`UPDATE staff_recruit_commissions SET cherries = cherries + 1 WHERE recruitment_id = '${hostR.id}'`),
+      ctx.prisma.$executeRawUnsafe(
+        `UPDATE staff_recruit_commissions SET cherries = cherries + 1 WHERE recruitment_id = '${hostR.id}'`,
+      ),
     ).rejects.toThrow(/permission denied/);
   });
-
 });

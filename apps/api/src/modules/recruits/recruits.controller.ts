@@ -6,6 +6,7 @@ import type { AuthContext } from '../../common/http/request-context.js';
 import { byIp, byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { Clock } from '../../common/time/clock.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AdminAuthService, type AdminContext } from '../admin-panel/admin-auth.service.js';
 import { PANEL_ROLES } from '../admin-panel/admin-permissions.js';
@@ -105,7 +106,9 @@ const settingsBody = z
   .refine((v) => [v.host, v.agency, v.rechargeAgent, v.creator].some((x) => x !== undefined), {
     message: 'at least one share',
   });
-const statusQuery = z.strictObject({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional() });
+const statusQuery = z.strictObject({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
+});
 
 /**
  * The panel (v1.75-live, D285): «استقطاباتي» (`recruits.mine`: MODERATION, BD — the caller's own recruits only), the
@@ -185,7 +188,7 @@ export class AdminRecruitsController {
     const ids = people.map((p) => p.id);
     const counts = await recruitCountsOf(this.prisma, ids);
     const sums = ids.length
-      ? await this.prisma.$queryRaw<{ id: string; cherries: bigint; profit: unknown }[]>`
+      ? await this.prisma.$queryRaw<{ id: string; cherries: bigint; profit: Prisma.Decimal }[]>`
           SELECT r.recruiter_user_id::text AS id,
                  COALESCE((SELECT sum(c.cherries) FROM staff_recruit_commissions c
                             WHERE c.recruiter_user_id = r.recruiter_user_id), 0)::bigint AS cherries,
@@ -212,7 +215,7 @@ export class AdminRecruitsController {
           canRecruit: p.status === 'ACTIVE' && (roles.includes('MODERATION') || roles.includes('BD')),
           recruits: counts.get(p.id) ?? emptyRecruitCounts(),
           commissionCherries: Number(s?.cherries ?? 0n),
-          profitUsd: unitsToUsd(BigInt(String(s?.profit ?? '0')), e),
+          profitUsd: unitsToUsd(BigInt(s ? s.profit.toFixed(0) : '0'), e),
         };
       }),
     };

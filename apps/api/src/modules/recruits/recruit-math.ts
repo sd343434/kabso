@@ -67,7 +67,9 @@ export function giftProfitUnits(s: GiftSums, e: ProfitEconomy): bigint {
   const coin = coinUnits(e);
   const cherry = cherryUnits(e);
   return (
-    s.charged * coin - (s.cherries + s.commissions) * cherry - (s.luckyCoins * BigInt(e.luckyRtpBps) * coin) / 10_000n
+    s.charged * coin -
+    (s.cherries + s.commissions) * cherry -
+    (s.luckyCoins * BigInt(e.luckyRtpBps) * coin) / 10_000n
   );
 }
 

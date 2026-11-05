@@ -65,8 +65,7 @@ export async function findRecruiter(db: Db, raw: string): Promise<StaffRecruiter
   let userId: string | null = null;
   const number = parseStaffId(value);
   if (number !== null) {
-    userId =
-      (await db.staffId.findUnique({ where: { number }, select: { userId: true } }))?.userId ?? null;
+    userId = (await db.staffId.findUnique({ where: { number }, select: { userId: true } }))?.userId ?? null;
   }
   if (userId === null) {
     const username = value.replace(/^@/, '').toLowerCase();
@@ -187,7 +186,10 @@ export function emptyRecruitCounts(): RecruitCounts {
 }
 
 /** How many recruits each of `userIds` has, by type. */
-export async function recruitCountsOf(db: Db, userIds: readonly string[]): Promise<Map<string, RecruitCounts>> {
+export async function recruitCountsOf(
+  db: Db,
+  userIds: readonly string[],
+): Promise<Map<string, RecruitCounts>> {
   const out = new Map<string, RecruitCounts>();
   if (userIds.length === 0) return out;
   const rows = await db.staffRecruitment.groupBy({
@@ -197,7 +199,7 @@ export async function recruitCountsOf(db: Db, userIds: readonly string[]): Promi
   });
   for (const r of rows) {
     const c = out.get(r.recruiterUserId) ?? emptyRecruitCounts();
-    c[r.type as RecruitType] += r._count._all;
+    c[r.type] += r._count._all;
     c.total += r._count._all;
     out.set(r.recruiterUserId, c);
   }
@@ -207,7 +209,12 @@ export async function recruitCountsOf(db: Db, userIds: readonly string[]): Promi
 // ---- The profit a recruit generated in a window ------------------------------------------------------------------
 
 /** The gift sums of the sends matched by `filter` (on `gr` = live_gift_recipients, `g` = live_gifts) in [from, to). */
-async function giftSumsIn(db: Db, filter: Prisma.Sql, from: Date, to: Date): Promise<GiftSums & { sends: number }> {
+async function giftSumsIn(
+  db: Db,
+  filter: Prisma.Sql,
+  from: Date,
+  to: Date,
+): Promise<GiftSums & { sends: number }> {
   const [row] = await db.$queryRaw<
     { charged: bigint; lucky_coins: bigint; cherries: bigint; commissions: bigint; sends: number }[]
   >`
@@ -383,8 +390,10 @@ export async function reassignRecruitIn(
   if (!row) throw new RecruitError('No such recruit.', 'recruit_not_found');
   const next = await findRecruiter(tx, recruiterRaw);
   if (!next) throw new RecruitError('That person cannot recruit (MODERATION or BD).', 'recruiter_not_found');
-  if (next.userId === row.recruit) throw new RecruitError('A recruit cannot be their own recruiter.', 'recruiter_self');
-  if (next.userId === row.recruiter) throw new RecruitError('That is the current recruiter.', 'recruiter_same');
+  if (next.userId === row.recruit)
+    throw new RecruitError('A recruit cannot be their own recruiter.', 'recruiter_self');
+  if (next.userId === row.recruiter)
+    throw new RecruitError('That is the current recruiter.', 'recruiter_same');
   await tx.staffRecruitment.update({
     where: { id: recruitmentId },
     data: {
@@ -400,7 +409,14 @@ export async function reassignRecruitIn(
       action: AuditAction.STAFF_RECRUIT_REASSIGN,
       targetType: 'staff_recruitment',
       targetId: recruitmentId,
-      metadata: { type: row.type, recruit: row.recruit, before: row.recruiter, after: next.userId, reason, via: by.via },
+      metadata: {
+        type: row.type,
+        recruit: row.recruit,
+        before: row.recruiter,
+        after: next.userId,
+        reason,
+        via: by.via,
+      },
     },
   });
   return { before: row.recruiter, after: next.userId };

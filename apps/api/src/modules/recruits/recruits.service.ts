@@ -132,9 +132,7 @@ export class RecruitsService {
 
   /** `GET /staff-recruiters/lookup?q=`: who the recruiter field names (only a recruiter is ever found). */
   async lookup(raw: unknown): Promise<StaffRecruiterLookupDto> {
-    const q = z
-      .strictObject({ q: z.string().trim().min(1).max(64) })
-      .safeParse(raw);
+    const q = z.strictObject({ q: z.string().trim().min(1).max(64) }).safeParse(raw);
     if (!q.success) throw AppException.validation([{ field: 'q', issue: 'required' }]);
     const found = await findRecruiter(this.prisma, q.data.q);
     return { found: found !== null, recruiter: found ? publicRecruiter(found) : null };
@@ -144,7 +142,8 @@ export class RecruitsService {
 
   /** 403 AUTH_FORBIDDEN unless the caller can recruit now (MODERATION or BD). */
   async requireRecruiter(userId: string): Promise<void> {
-    if ((await recruiterRoleOf(this.prisma, userId)) === null) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+    if ((await recruiterRoleOf(this.prisma, userId)) === null)
+      throw new AppException(ErrorCode.AUTH_FORBIDDEN);
   }
 
   /** The recruits of `recruiterId` (or everyone's when null: the OWNER's view), newest first. */
@@ -178,14 +177,14 @@ export class RecruitsService {
       const s = byId.get(r.id);
       return {
         id: r.id,
-        type: r.type as RecruitType,
+        type: r.type,
         recruit: userSummary(r.recruit, now),
         recruiter: userSummary(r.recruiter, now),
         status: status.get(r.id) ?? 'INACTIVE',
         activatedAt: r.activatedAt.toISOString(),
         reassignedAt: r.reassignedAt?.toISOString() ?? null,
-        profitUsd: unitsToUsd(BigInt((s?.profit ?? 0).toString()), e),
-        profitUsd30d: unitsToUsd(BigInt((s?.profit30 ?? 0).toString()), e),
+        profitUsd: unitsToUsd(BigInt(s ? s.profit.toFixed(0) : '0'), e),
+        profitUsd30d: unitsToUsd(BigInt(s ? s.profit30.toFixed(0) : '0'), e),
         commissionCherries: Number(s?.cherries ?? 0n),
         lastDay: s?.last ? s.last.toISOString().slice(0, 10) : null,
       };
@@ -291,7 +290,7 @@ export class RecruitsService {
       .sort((a, b) => b.activatedAt.getTime() - a.activatedAt.getTime() || (a.id < b.id ? 1 : -1))
       .map((r) => ({
         recruitmentId: r.id,
-        type: r.type as RecruitType,
+        type: r.type,
         recruit: userSummary(r.recruit, now),
         cherries: Number(perBy.get(r.id) ?? 0n),
       }));
@@ -308,9 +307,9 @@ export class RecruitsService {
           {
             day: h.day.toISOString().slice(0, 10),
             recruitmentId: h.recruitmentId,
-            type: h.type as RecruitType,
+            type: h.type,
             recruit: userSummary(r.recruit, now),
-            profitUsd: unitsToUsd(BigInt(h.profitUnits.toString()), e),
+            profitUsd: unitsToUsd(BigInt(h.profitUnits.toFixed(0)), e),
             bps: h.bps,
             cherries: Number(h.cherries),
           },
@@ -373,13 +372,13 @@ export class RecruitsService {
     const from = r.activatedAt > w.start ? r.activatedAt : w.start;
     const profit = await recruitProfitIn(
       this.prisma,
-      { type: r.type as RecruitType, recruitUserId: r.recruitUserId, agencyId: r.agencyId },
+      { type: r.type, recruitUserId: r.recruitUserId, agencyId: r.agencyId },
       from,
       w.end,
       e,
       this.config.economy.currency,
     );
-    const share = bps[r.type as RecruitType];
+    const share = bps[r.type];
     try {
       return await this.prisma.$transaction(async (tx) => {
         // The recruiter of the moment (a reassignment waits for this day, or this day waits for it).
@@ -388,7 +387,8 @@ export class RecruitsService {
         if (!locked) return null;
         const active = (await recruiterRoleOf(tx, locked.recruiter)) !== null;
         const cherries = active ? commissionCherries(profit.units, share, e) : 0n;
-        if (!withinGuard(cherries, profit.units, share, e)) throw new Error('recruit commission above its share');
+        if (!withinGuard(cherries, profit.units, share, e))
+          throw new Error('recruit commission above its share');
         const inserted = await tx.$executeRaw`
           INSERT INTO staff_recruit_commissions (recruitment_id, day, type, recruiter_user_id, recruit_user_id,
                                                  profit_units, rate_cherries, rate_minor, bps, cherries, skipped,
@@ -430,7 +430,7 @@ export class RecruitsService {
     return rows.map((c) => ({
       day: c.day.toISOString().slice(0, 10),
       recruiter: userSummary(c.recruiter, now),
-      profitUsd: unitsToUsd(BigInt(c.profitUnits.toString()), e),
+      profitUsd: unitsToUsd(BigInt(c.profitUnits.toFixed(0)), e),
       bps: c.bps,
       cherries: Number(c.cherries),
       skipped: c.skipped,

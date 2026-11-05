@@ -331,7 +331,9 @@ export async function resetDatabase(): Promise<void> {
     // v1.74-social (D217): the referral settings' one row (its defaults), inserted by its migration.
     await client.$executeRawUnsafe(`INSERT INTO referral_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
     // v1.75-live (D285): the recruit shares' one row (the owner's defaults), inserted by its migration.
-    await client.$executeRawUnsafe(`INSERT INTO staff_recruit_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
+    await client.$executeRawUnsafe(
+      `INSERT INTO staff_recruit_settings (id) VALUES (1) ON CONFLICT DO NOTHING`,
+    );
     // v1.82-social (D252): VIP 1 and its six perks, as its migration seeds them (art URLs NULL — all
     // VIP art is hosted and uploaded from the admin panel; nothing is bundled). Put back after the
     // TRUNCATE so the e2e database matches a freshly migrated one. Two calls: $executeRawUnsafe runs

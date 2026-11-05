@@ -94,12 +94,18 @@ async function audit(
   });
 }
 
-async function lockPending(tx: Tx, id: string): Promise<{ id: string; user_id: string; recruiter: string | null }> {
-  const [app] = await tx.$queryRaw<{ id: string; user_id: string; status: string; recruiter: string | null }[]>`
+async function lockPending(
+  tx: Tx,
+  id: string,
+): Promise<{ id: string; user_id: string; recruiter: string | null }> {
+  const [app] = await tx.$queryRaw<
+    { id: string; user_id: string; status: string; recruiter: string | null }[]
+  >`
     SELECT id::text AS id, user_id::text AS user_id, status::text AS status, recruiter_user_id::text AS recruiter
       FROM creator_applications WHERE id = ${id}::uuid FOR UPDATE`;
   if (!app) throw new CreatorApplicationError(`No application ${id}.`);
-  if (app.status !== 'PENDING') throw new CreatorApplicationError(`The application is ${app.status}, not PENDING.`);
+  if (app.status !== 'PENDING')
+    throw new CreatorApplicationError(`The application is ${app.status}, not PENDING.`);
   return app;
 }
 
@@ -241,7 +247,9 @@ export class CreatorApplicationsService {
     const input = parsed.data;
     const recruiter = await recruiterOfForm(this.prisma, input.recruiter, me);
     const refused = (issue: CreatorApplyRefusal) =>
-      new AppException(ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED, undefined, [{ field: 'application', issue }]);
+      new AppException(ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED, undefined, [
+        { field: 'application', issue },
+      ]);
     const refusal = await this.refusal(me, await this.latest(me));
     if (refusal) throw refused(refusal);
     const id = uuidv7();

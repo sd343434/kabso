@@ -712,6 +712,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
 | v1.70-live (draft) | 2026-11-05 | **D279 (owner: a «في بث الآن» card on the profile under the cover while its owner is live — how long, viewers, score, «انضم»):** `PublicProfile.live` (`ProfileLive`: `roomId`, `title`, `mode`, `startedAt`, `viewerCount`, `score`; required, nullable) — the fresh LIVE room of `liveRoomId`, null when that is null and across a block either way. No migration. §10.5.1. | **Additive** (a new response field; an older app ignores it). |
 | v1.74-live (draft) | 2026-11-05 | **D283d (owner corrections to D283c / D283: «المالك… لا، kabso»; the region line only in the official bio):** the primary OWNER's staff ID is plain **«Kabso»** (number 0; the earliest OWNER grant; any other OWNER gets the next number; retired like the others); the staff numbering starts at `Kabso01` with the first other staff member; `StaffId` pattern `^Kabso(0[1-9]|[1-9][0-9]{1,8})?$`; `search` «Kabso» finds the primary OWNER first; `kabso` and its bare look-alikes (`kabs0`, `k4bso`) reserved too. The apps show the staff region line «مشرف للوطن العربي» only in the official bio card's header (not under the name / ID). Migration `20270318090000_staff_ids_owner` (CHECK `staff_ids_number_nonnegative`, `kabso_assign_staff_id(uuid, boolean)`, renumber). §10.96.10, §10.96.12. | **Additive** (a `staffId` may now be `Kabso`); the D283c numbers shift down by one (renumbered before any release). |
+| v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
@@ -6997,6 +6998,87 @@ END «إغلاق البث», NO_LIVE «منع من البث», SUSPEND «تعل�
   OWNER with the earliest OWNER grant gets 0, every other row 1, 2, … in its order.
 - **Migration** `20270317090000_staff_ids`: the table, the functions and a backfill of today's holders numbered in the
   order of their first panel grant (ties by user id).
+
+**10.96.13 Recruitment by staff «الاستقطاب» and the role BD *(v1.75-live, DRAFT — D285)*.** Owner: staff recruit
+agencies, recharge agents, hosts and content creators; each recruit is attributed to its recruiter for good and the
+recruiter earns an automatic share of the platform profit the recruit generates; a new role «للاستقطاب فقط».
+
+- **The recruiter field.** The four application forms — «افتح وكالة» (`openMyAgency`), «كن وكيل شحن»
+  (`applyForRechargeAgent`), «كن مضيفاً مع الإدارة» (`applyForHosting`) and the new creator programme «انضم كصانع محتوى»
+  (`applyForCreatorProgramme`) — take an optional `recruiter` (`RecruiterField`, ≤ 64): «إن كنت تابعاً لمشرف، ضع معرّفه
+  هنا» / "If a Kabso Team member referred you, enter their ID" — a staff ID in any form (`Kabso01`, `kabso1`,
+  `@Kabso01`) or the staff member's username (`@` optional). Empty = none. The apps check it live with
+  `lookupStaffRecruiter` (`GET /staff-recruiters/lookup?q=`, per-user default limit; 400 ms after the last keystroke):
+  the recruiter's name and «فريق كابسو» badge with the staff ID and role, or «غير موجود»; the form is not sent while the
+  text names nobody. The server checks it again: 400 `VALIDATION_FAILED` `{field: recruiter, issue: not_found | self}`.
+  Stored on the application (`recruiter_user_id`, FK `ON DELETE SET NULL`, CHECK `…_recruiter_not_self`).
+- **Who can recruit (decision).** An ACTIVE account (`users.role` ADMIN) holding **MODERATION** «مشرف» or **BD** «تطوير
+  الأعمال» now. Not SUPPORT, FINANCE nor the OWNER (the owner's suggestion: the people in the field; SUPPORT decides
+  applications and must not be judge and party). Anyone else is «غير موجود» exactly like an unknown ID (no role leak).
+- **Attribution at the ACTIVATION.** When the application is activated — host: approved (`approveAdminHostApplication`
+  / `host-admin approve`); recharge agent: approved (`approveAdminRechargeApplication` / `recharge-admin approve`; the
+  later first top-up is not needed); creator: approved in «طلبات صناع المحتوى»; **agency: at its opening** (a
+  self-opened agency has no approval, D206) — the recruit is attributed to the named recruiter for good: one
+  `staff_recruitments` row (type, recruiter, recruit, application, agency, `activated_at`), audited
+  `staff.recruit.attribute`. The recruiter is checked again in that transaction: a recruiter who lost the role meanwhile
+  attributes nothing (`staff.recruit.skip` `recruiter_inactive`). One recruitment per (type, recruit); **a person is a
+  HOST or a CREATOR recruit, not both** (partial unique `staff_recruitments_one_gift_recruit`: the same gifts are not
+  paid twice); a second attribution is skipped (`already_attributed`, audited); a reopened agency keeps its first one.
+  No field → nothing. The recruit's profile and person card do not show the recruiter.
+- **Changing it.** Only the OWNER, in the panel: `reassignAdminRecruit` (`recruits.manage`; the authenticator code and
+  a reason; audited `staff.recruit.reassign` {before, after, reason}; refusals `recruiter_not_found`,
+  `recruiter_self`, `recruiter_same` under 409 `ADMIN_ACTION_REFUSED`). Days already paid stay with the former recruiter;
+  the next days go to the new one.
+- **The commission (automatic).** A daily job (`RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS`, default 3600; 0 = off for
+  tests, refused in production) pays every finished programs' day (`LIVE_RANKINGS_TIME_ZONE`) not paid yet, from the
+  activation day (or `RECRUIT_COMMISSION_CATCH_UP_DAYS` = 7 back after a pause) to yesterday, one transaction per
+  (recruitment, day): `staff_recruit_commissions` (primary key = idempotency; append-only for the runtime role) and a
+  `cherry_ledger` credit `STAFF_RECRUIT_COMMISSION` (reference `SR:<recruitment>@<day>`, once). The profit is D281's
+  exact money units (`platformProfitUnits`: a coin = `COIN_RETAIL_USD_PER_MILLION`, a cherry = `CHERRY_PAYOUT_RATE`),
+  counted from `max(day start, activatedAt)`:
+  - **HOST / CREATOR**: the live gifts the recruit received (sender ACTIVE) — coins paid − the recruit's cherries (net
+    of reversals) − the agency and parent commissions paid on those sends − for a lucky gift the expected payout to the
+    sender (`LUCKY_GIFT_RTP_PERCENT` × the coin value);
+  - **AGENCY**: the same over the gifts received by its hosts while linked to it (its `agency_earnings` rows; its own
+    and its parent's commissions are costs);
+  - **RECHARGE_AGENT**: the wholesale top-ups recorded that day (the money actually paid, in `CHERRY_PAYOUT_CURRENCY`) −
+    the payout value of the cherries those coins become (coins × `CHERRIES_PER_COIN` × the highest normal host share).
+  `cherries = floor(profit × bps / 10 000 / cherry value)`; 0 for no or negative profit. **Owner defaults:** 1 % (100
+  bps) for hosts, content creators and host agencies, **0.75 % (75 bps)** for recharge agents; OWNER-editable
+  (`updateAdminRecruitSettings`, 0–2000 bps each, the code and a reason, audited `staff.recruit.settings.update`). **The
+  guard**: the cherries never exceed the share of the ACTUAL profit counted — in code and as CHECK
+  `staff_recruit_commissions_guard` (`cherries × rate_minor × 10⁶ × 10⁴ ≤ max(profit, 0) × bps`). A day whose recruiter
+  cannot recruit any more is written with 0 and `skipped = RECRUITER_INACTIVE` (the OWNER reassigns).
+  *Worked example* ($12.50 per 1 000 000 coins, 1 000 000 cherries = $1.10, 10 cherries per coin, 65 % host share): a
+  host receives 1 000 000 coins of normal gifts → 6 500 000 cherries ($7.15) → profit $5.35 → 1 % = $0.0535 = **48 636
+  cherries**; the same through an agency paying 15 % (975 000 cherries, $1.0725) → profit $4.2775 → 1 % = **38 886**; a
+  recharge agent's top-up of 30 000 000 coins paid $360 → 195 000 000 cherries owed ($214.50) → margin $145.50 → 0.75 %
+  = **992 045 cherries**.
+- **Withdrawable (decision).** `STAFF_RECRUIT_COMMISSION` is earnings, not a task reward: not in the task-cherry lock
+  (§10.46.1). The staff account's wallet stays hidden (D283); «أرباحي» is its way in and «سحب الأرباح» uses the existing
+  `requestCherryWithdrawal` (paid by FINANCE as any withdrawal).
+- **The role BD «تطوير الأعمال»** («دور جديد للاستقطاب فقط»): a panel role (`AdminPanelRole` BD), granted on «الموظفون
+  والصلاحيات» (`grantAdminTeamRole`) or `admin-admin grant … BD`, with its staff ID (§10.96.12). A **limited staff
+  account** like D283 (the team picture, frame and cover, no live, no levels, announcements only;
+  `KabsoStaffIdentity.role` BD); regions label it: «تطوير الأعمال — الوطن العربي» / "Business development — Arab
+  World" (no shift, so no live is ever assigned to it). **No moderation power**: its only capability is `recruits.mine`
+  — no lives, reports, users, hidden watch or shift; `getStaffStatus.isStaff` false (no staff tools in the app).
+- **«استقطاباتي» / «أرباحي».** App, staff Me tab (MODERATION / BD): `getMyStaffRecruits` (by type with status ACTIVE /
+  INACTIVE, the profit counted and the commissions; 403 `AUTH_FORBIDDEN` for anyone else) and `getMyStaffEarnings` (the
+  wallet, the totals, the shares, per recruit, the last 60 days). Panel: `getAdminMyRecruits` (`recruits.mine`: the
+  caller's own recruits only; `getAdminMyRecruitCommissions` 404 for anyone else's). The OWNER (`recruits.view`):
+  `listAdminRecruitStaff` (per staff member: recruits by type, profit, commissions), `listAdminRecruits` (each recruit with
+  its recruiter, status, profit, commissions), `getAdminRecruitCommissions` (the days paid); `AdminTeam` rows carry
+  `recruits` counts.
+- **The creator programme.** There was no creator application: `getMyCreatorApplication`, `applyForCreatorProgramme`
+  (country, category `VIDEO|PHOTO|MUSIC|GAMING|COMEDY|EDUCATION|LIFESTYLE|OTHER`, 1–5 http(s) links, bio ≤ 300, the
+  recruiter; 409 `CREATOR_APPLICATION_NOT_ALLOWED` `ACCOUNT_NOT_ACTIVE | MEMBER | STAFF | PENDING`; limit
+  `creator:apply`), `cancelMyCreatorApplication`; panel «طلبات صناع المحتوى» (`creators.applications` /
+  `creators.decide`: OWNER, SUPPORT) approves (`creator_members`) or rejects with a reason. Entry: the creator centre's
+  «برنامج صناع المحتوى».
+- **Migrations** `20270319090000_staff_recruits_enums` (`admin_permission` BD, `cherry_ledger_reason`
+  STAFF_RECRUIT_COMMISSION) and `20270319090100_staff_recruits` (the columns, tables, CHECKs, the ledger sign rule,
+  `kabso_admin_panel_role` accepting BD).
 
 ### 10.97 A VIP member's tier items in the bag — one worn item per kind *(v1.65-live, DRAFT — D264)*
 
