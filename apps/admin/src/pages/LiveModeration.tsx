@@ -13,9 +13,13 @@ import { Icon } from '../ui/icons';
  * v1.60-live (D250, CONVENTIONS §10.91.4): the actions on a live from «البث الآن» and the watch view — «إغلاق البث»,
  * «حظر مؤقت» («منع من البث» or «تعليق الحساب» for 1 h … 30 d or a custom end), «حظر جهاز» (with the authenticator code
  * again; for a while or for good) and «لا مخالفة». Every one needs a reason, which the host is told (except a dismissal).
+ * D273b (§10.96.10): «تحذير المضيف» — the same WARN as the staff tools in the app (`lives.moderate`, a written message
+ * required, audited); the live goes on and the host sees «تنبيه من فريق Kabso», never a staff name.
  */
 
-export type ModAction = 'END' | 'BAN' | 'DEVICE_BAN' | 'DISMISS';
+export type ModAction = 'END' | 'WARN' | 'BAN' | 'DEVICE_BAN' | 'DISMISS';
+/** What a row of a live's moderation history may be (`GET /admin/lives/{roomId}/moderations`). */
+export type ModKind = 'END' | 'WARN' | 'NO_LIVE' | 'SUSPEND' | 'DEVICE_BAN';
 export type BanScope = 'NO_LIVE' | 'SUSPEND';
 export type Duration = '1h' | '24h' | '3d' | '7d' | '30d' | 'custom' | 'permanent';
 
@@ -53,7 +57,8 @@ export function moderateRequest(roomId: string, f: ModForm): { path: string; bod
   const reason = f.reason.trim();
   if (!reason) return null;
   if (f.action === 'DISMISS') return { path: `/admin/lives/${roomId}/reports/dismiss`, body: { reason } };
-  if (f.action === 'END') return { path: `/admin/lives/${roomId}/moderate`, body: { action: 'END', reason } };
+  if (f.action === 'END' || f.action === 'WARN')
+    return { path: `/admin/lives/${roomId}/moderate`, body: { action: f.action, reason } };
   let timing: Record<string, unknown>;
   if (f.duration === 'permanent') {
     if (f.action !== 'DEVICE_BAN') return null;
@@ -77,12 +82,14 @@ export function moderateRequest(roomId: string, f: ModForm): { path: string; bod
 
 const TITLE: Record<ModAction, Key> = {
   END: 'modEnd',
+  WARN: 'modWarn',
   BAN: 'modBan',
   DEVICE_BAN: 'modDeviceBan',
   DISMISS: 'modDismissTitle',
 };
 const INTRO: Record<ModAction, Key> = {
   END: 'modEndIntro',
+  WARN: 'modWarnIntro',
   BAN: 'modBanIntro',
   DEVICE_BAN: 'modDeviceBanIntro',
   DISMISS: 'modDismissIntro',
@@ -190,7 +197,9 @@ export function ModerateDialog({
           </fieldset>
         )}
         <div className="field">
-          <label htmlFor="mod-reason">{action === 'DISMISS' ? t('modNote') : t('modReasonHost')}</label>
+          <label htmlFor="mod-reason">
+            {action === 'DISMISS' ? t('modNote') : action === 'WARN' ? t('modWarnMessage') : t('modReasonHost')}
+          </label>
           <textarea
             id="mod-reason"
             required
@@ -219,7 +228,7 @@ export function ModerateDialog({
           <button type="button" className="btn" onClick={onClose}>
             {t('cancel')}
           </button>
-          <button type="submit" className={`btn ${action === 'DISMISS' ? 'primary' : 'danger'}`} disabled={!req || busy}>
+          <button type="submit" className={`btn ${action === 'DISMISS' || action === 'WARN' ? 'primary' : 'danger'}`} disabled={!req || busy}>
             {t(action === 'DISMISS' ? 'modDismiss' : TITLE[action])}
           </button>
         </div>
@@ -232,19 +241,35 @@ export function ModerateDialog({
 export function liveActions(can: (c: never) => boolean, onAir: boolean, openReports: number): ModAction[] {
   const may = can as (c: string) => boolean;
   const out: ModAction[] = [];
-  if (may('lives.moderate') && onAir) out.push('END', 'BAN');
+  if (may('lives.moderate') && onAir) out.push('END', 'WARN', 'BAN');
   if (may('lives.moderate') && may('devices.ban') && onAir) out.push('DEVICE_BAN');
   if (may('lives.moderate') && openReports > 0) out.push('DISMISS');
   return out;
 }
 
-export const ACTION_ICON = { END: 'stop', BAN: 'clock', DEVICE_BAN: 'ban', DISMISS: 'check' } as const;
+export const ACTION_ICON = { END: 'stop', WARN: 'alert', BAN: 'clock', DEVICE_BAN: 'ban', DISMISS: 'check' } as const;
+/** The actions that change the host's standing (drawn red); a warning and a dismissal are not. */
+export const isDangerAction = (a: ModAction) => a !== 'DISMISS' && a !== 'WARN';
 export const ACTION_LABEL: Record<ModAction, Key> = {
   END: 'modEnd',
+  WARN: 'modWarn',
   BAN: 'modBan',
   DEVICE_BAN: 'modDeviceBan',
   DISMISS: 'modDismiss',
 };
+
+/** D273b: a history row's label («تحذير للمضيف» / "Host warned" …), never the raw kind; an unknown kind shows as is. */
+const KIND_LABEL: Record<ModKind, Key> = {
+  END: 'modKindEND',
+  WARN: 'modKindWARN',
+  NO_LIVE: 'modKindNO_LIVE',
+  SUSPEND: 'modKindSUSPEND',
+  DEVICE_BAN: 'modKindDEVICE_BAN',
+};
+export function moderationKindLabel(t: (k: Key) => string, kind: string): string {
+  const key = (KIND_LABEL as Record<string, Key | undefined>)[kind];
+  return key ? t(key) : kind;
+}
 
 export interface LiveReportsSummary {
   rooms: number;

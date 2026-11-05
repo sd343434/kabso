@@ -218,7 +218,17 @@ async function mockApi(page: Page): Promise<void> {
         return json(route, { ...l, topic: null, status: 'LIVE', endReason: null, peakViewers: l.viewers + 240, endedAt: null, roomNumber: 100200 + LIVES.indexOf(l), giftCoins: 125000, giftsSent: 312, seatsTaken: l.mode === 'MULTI' ? 3 : 0, moderators: 2, chatEnabled: true, allowGuests: true });
       if (sub === '/reports') return json(route, { open: l.openReports, data: REPORTS.slice(0, l.openReports) });
       if (sub === '/chat') return json(route, { data: url.searchParams.get('after') ? [] : CHAT });
-      if (sub === '/moderations') return json(route, { data: [] });
+      // D273b: the history is what this run sent to `/moderate` for the live, newest first.
+      if (sub === '/moderations')
+        return json(route, {
+          data: sent
+            .filter((x) => x.path === `/admin/lives/${roomId}/moderate`)
+            .map((x, i) => {
+              const b = x.body as { action: string; reason: string };
+              return { id: id(900 + i), kind: b.action, reason: b.reason, endsAt: null, createdAt: minutesAgo(1), actor: { id: id(700), username: 'mod.huda', displayName: 'هدى (مشرفة)', avatarUrl: null } };
+            })
+            .reverse(),
+        });
       if (sub === '/watch-token') {
         const purpose = (req.postDataJSON() as { purpose: 'PREVIEW' | 'WATCH' }).purpose;
         if (!media) return json(route, { error: { code: 'LIVE_HOSTING_UNAVAILABLE', message: 'no media', requestId: 'x' } }, 503);
@@ -312,6 +322,21 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByLabel('السبب (يصل للمضيف)').fill('ألفاظ مسيئة متكررة للمشاهدين رغم التنبيه');
     await capture(page, `06-dialog-end.${theme}`);
     await page.getByRole('dialog').getByRole('button', { name: 'إلغاء' }).click();
+
+    // D273b «تحذير المضيف»: a written message, the app's body, then «تحذير للمضيف» in the history; the live goes on.
+    await act('WARN');
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'تحذير المضيف' })).toBeDisabled();
+    await page.getByLabel('رسالة التحذير (تصل للمضيف)').fill('الرجاء الالتزام بالألفاظ اللائقة أمام المشاهدين');
+    await capture(page, `06b-dialog-warn.${theme}`);
+    await page.getByRole('dialog').getByRole('button', { name: 'تحذير المضيف' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(sent.at(-1)).toEqual({
+      path: `/admin/lives/${D250_ROOMS.solo}/moderate`,
+      body: { action: 'WARN', reason: 'الرجاء الالتزام بالألفاظ اللائقة أمام المشاهدين' },
+    });
+    await expect(page.locator('[data-mod-history] [data-mod-kind="WARN"]').first()).toHaveText('تحذير للمضيف');
+    await page.locator('[data-mod-history]').scrollIntoViewIfNeeded();
+    await capture(page, `06c-history-warn.${theme}`);
 
     await act('BAN');
     await page.getByRole('dialog').getByText('تعليق الحساب', { exact: true }).click();

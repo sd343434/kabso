@@ -9,7 +9,16 @@ import { navigate } from '../router';
 import type { PersonRef } from '../types';
 import { Icon } from '../ui/icons';
 import { onAir, type LiveRow } from './Lives';
-import { ACTION_ICON, ACTION_LABEL, liveActions, ModerateDialog, type ModAction } from './LiveModeration';
+import {
+  ACTION_ICON,
+  ACTION_LABEL,
+  isDangerAction,
+  liveActions,
+  ModerateDialog,
+  moderationKindLabel,
+  type ModAction,
+  type ModKind,
+} from './LiveModeration';
 
 /** `AdminLiveDetail` (D197 + D241 + D250). */
 export interface LiveDetail extends Omit<LiveRow, 'score' | 'openReports'> {
@@ -47,11 +56,33 @@ export interface LiveReport {
 
 export interface LiveModerationRow {
   id: string;
-  kind: ModAction | 'NO_LIVE' | 'SUSPEND';
+  kind: ModKind;
   reason: string;
   endsAt: string | null;
   createdAt: string;
   actor: PersonRef | null;
+}
+
+/** The team's actions on this live, newest first; each kind by its label (D273b: «تحذير للمضيف» / "Host warned"). */
+export function ModerationHistory({ rows }: { rows: LiveModerationRow[] }) {
+  const { t, lang } = useApp();
+  if (rows.length === 0) return null;
+  return (
+    <section className="card" data-mod-history>
+      <h3>{t('liveHistory')}</h3>
+      <ul className="report-list small">
+        {rows.map((h) => (
+          <li key={h.id}>
+            <div>
+              <b data-mod-kind={h.kind}>{moderationKindLabel(t, h.kind)}</b> · <span className="ltr">@{h.actor?.username ?? '—'}</span> ·{' '}
+              <time className="muted">{formatDate(h.createdAt, lang)}</time>
+            </div>
+            <p dir="auto">{h.reason}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /** A track drawn into a <video> (muted: the sound plays through the audio elements). */
@@ -367,7 +398,7 @@ export function LiveWatch({ id }: { id: string }) {
               <h3>{t('liveActions')}</h3>
               <div className="row wrap">
                 {actions.map((a) => (
-                  <button key={a} className={`btn ${a === 'DISMISS' ? '' : 'danger'}`} data-action={a} onClick={() => setDialog(a)}>
+                  <button key={a} className={`btn${isDangerAction(a) ? ' danger' : ''}`} data-action={a} onClick={() => setDialog(a)}>
                     <Icon name={ACTION_ICON[a]} size={16} />
                     {t(ACTION_LABEL[a])}
                   </button>
@@ -414,20 +445,7 @@ export function LiveWatch({ id }: { id: string }) {
           </section>
           {can('lives.watch') && <ChatFeed roomId={id} onAirNow={onAirNow} />}
           {can('lives.reports') && reports.data && <ReportsPanel reports={reports.data.data} open={reports.data.open} />}
-          {(history.data?.data.length ?? 0) > 0 && (
-            <section className="card">
-              <h3>{t('liveHistory')}</h3>
-              <ul className="report-list small">
-                {history.data!.data.map((h) => (
-                  <li key={h.id}>
-                    <b>{h.kind}</b> · <span className="ltr">@{h.actor?.username ?? '—'}</span> ·{' '}
-                    <time className="muted">{formatDate(h.createdAt, lang)}</time>
-                    <p dir="auto">{h.reason}</p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <ModerationHistory rows={history.data?.data ?? []} />
         </aside>
       </div>
       {dialog && (

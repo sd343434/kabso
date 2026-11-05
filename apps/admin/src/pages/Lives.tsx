@@ -8,7 +8,7 @@ import type { PersonRef } from '../types';
 import { DataTable, type TablePage } from '../ui/DataTable';
 import { Icon } from '../ui/icons';
 import { previewPool, startPreview, useOnScreenSlot, usePreviewSlot, type PreviewPool } from '../live-media';
-import { ACTION_ICON, ACTION_LABEL, liveActions, ModerateDialog, useLiveReportsSummary, type ModAction } from './LiveModeration';
+import { ACTION_ICON, ACTION_LABEL, isDangerAction, liveActions, ModerateDialog, useLiveReportsSummary, type ModAction } from './LiveModeration';
 import { MineTab, ShiftsPanel, ShiftSwitch, useShifts, type ShiftDto } from './StaffShifts';
 import './live-moderation.css';
 
@@ -229,14 +229,17 @@ export function LiveCard({
   onOpen,
   pool = previewPool,
   onAction,
+  menuOpen = false,
 }: {
   live: LiveRow;
   onOpen: () => void;
   pool?: PreviewPool;
   onAction?: (a: ModAction) => void;
+  /** Tests and captures: the ⋯ menu drawn open. */
+  menuOpen?: boolean;
 }) {
   const { t, lang, can } = useApp();
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState(menuOpen);
   const actions = onAction ? liveActions(can as never, true, l.openReports ?? 0) : [];
   return (
     <article className="live-card" data-live-pk={l.pk ? 'true' : undefined} data-reported={(l.openReports ?? 0) > 0 ? 'true' : undefined}>
@@ -298,7 +301,7 @@ export function LiveCard({
                 <button
                   key={a}
                   role="menuitem"
-                  className={`menu-row${a === 'DISMISS' ? '' : ' danger'}`}
+                  className={`menu-row${isDangerAction(a) ? ' danger' : ''}`}
                   data-action={a}
                   onClick={() => {
                     setMenu(false);

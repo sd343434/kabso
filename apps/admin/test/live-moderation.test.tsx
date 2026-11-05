@@ -250,8 +250,8 @@ describe('D250 action dialogs', () => {
 
   it('the actions follow the capabilities (OWNER, MODERATION: all; SUPPORT — watches only, D250b — and FINANCE: none)', () => {
     for (const role of ['OWNER', 'MODERATION'] as const) {
-      expect(liveActions(roleCan(role) as never, true, 2)).toEqual(['END', 'BAN', 'DEVICE_BAN', 'DISMISS']);
-      expect(liveActions(roleCan(role) as never, true, 0)).toEqual(['END', 'BAN', 'DEVICE_BAN']);
+      expect(liveActions(roleCan(role) as never, true, 2)).toEqual(['END', 'WARN', 'BAN', 'DEVICE_BAN', 'DISMISS']);
+      expect(liveActions(roleCan(role) as never, true, 0)).toEqual(['END', 'WARN', 'BAN', 'DEVICE_BAN']);
       expect(liveActions(roleCan(role) as never, false, 1)).toEqual(['DISMISS']);
     }
     for (const role of ['SUPPORT', 'FINANCE'] as const) expect(liveActions(roleCan(role) as never, true, 2)).toEqual([]);

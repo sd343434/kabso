@@ -6662,6 +6662,17 @@ OWNERs' fallback) the usual push rules apply. Audited `live.staff_report.alert` 
 `actors` | `owners`} and `live.staff_report.push` {recipientId, sent, onShift}. A tap (inbox or push) opens the live as staff
 with «أدوات فريق كابسو» on its reports (`/home/room/<id>?staff=reports`).
 
+**10.96.9 «تحذير المضيف» in the panel *(D273b — panel only, no contract change)*.** Owner-approved: the panel gets the
+D273 WARN the app's staff tools already have. On the live card's ⋯ menu («البث الآن») and the watch view's actions
+(`/lives/<id>`), next to «إغلاق البث», while the live is on air, for the roles with `lives.moderate` (OWNER, MODERATION —
+the capability `moderateAdminLive` requires; SUPPORT and FINANCE never see it). The dialog asks for a written message
+(«رسالة التحذير (تصل للمضيف)», required, up to 500) — no scope, duration or code — and sends
+`POST /admin/lives/{roomId}/moderate {action: WARN, reason}`, the same shared rule (`AdminLiveModerationService.moderate`)
+and body as `moderateStaffLive`: the live goes on, the open reports are ACTIONED, the host gets one `LIVE_MODERATED`
+(«تنبيه من فريق Kabso», never a staff name), audited `admin.live.moderate` {kind: WARN, via: panel}. The live's moderation
+history («إجراءات الفريق على هذا البث») names each kind instead of the raw value: WARN «تحذير للمضيف» / "Host warned",
+END «إغلاق البث», NO_LIVE «منع من البث», SUSPEND «تعليق الحساب», DEVICE_BAN «حظر جهاز» (an unknown kind shows as is).
+
 ### 10.97 A VIP member's tier items in the bag — one worn item per kind *(v1.65-live, DRAFT — D264)*
 
 Owner: «ويجب عند تفعيل في اي بي ان تظهر العناصر في الحقيبة حتى وان لم يرتديه الشخص المدة تنقضي وتعد» — once a VIP

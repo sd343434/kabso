@@ -618,6 +618,85 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
     });
   });
 
+  it('D273b WARN «تحذير المضيف» from the panel: a written message (required), the live goes on, reports ACTIONED, the host told by the team (no staff name), audited via panel, in the history', async () => {
+    const h = await host();
+    const roomId = await goLive(h);
+    const reporter = await signup();
+    expect(
+      (await report(reporter, { targetType: 'LIVE_ROOM', targetId: roomId, reason: 'VIOLENCE' })).status,
+    ).toBe(201);
+    for (const body of [
+      { action: 'WARN' },
+      { action: 'WARN', reason: '' },
+      { action: 'WARN', reason: '   ' },
+      { action: 'WARN', reason: 'x', hours: 1 },
+      { action: 'WARN', reason: 'x', permanent: true },
+      { action: 'WARN', reason: 'x', totpCode: '123456' },
+    ]) {
+      expectCode(await apost(moderator, `/admin/lives/${roomId}/moderate`, body), 400, 'VALIDATION_FAILED');
+    }
+    for (const a of [support, finance]) {
+      expectCode(
+        await apost(a, `/admin/lives/${roomId}/moderate`, { action: 'WARN', reason: 'x' }),
+        403,
+        'AUTH_FORBIDDEN',
+      );
+    }
+    const reason = 'Mind the language on camera';
+    const res = await apost(moderator, `/admin/lives/${roomId}/moderate`, { action: 'WARN', reason });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expectContract(res, 'moderateAdminLive');
+    expect(res.body).toMatchObject({
+      kind: 'WARN',
+      reason,
+      endsAt: null,
+      endedLive: false,
+      reportsClosed: 1,
+      devicesBanned: 0,
+    });
+    expect((await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: roomId } })).status).toBe('LIVE');
+    expect(media.closed).not.toContain(roomId);
+
+    const inbox = await ctx.http.get('/api/v1/notifications').set(auth(h));
+    expect(inbox.status).toBe(200);
+    const n = (
+      inbox.body.data as { type: string; actors: unknown[]; target: Record<string, unknown> }[]
+    ).find((x) => x.type === 'LIVE_MODERATED')!;
+    expect(n.target).toMatchObject({ type: 'LIVE_MODERATION', moderation: 'WARN', reason, roomId });
+    expect(n.actors).toEqual([]);
+    expect(JSON.stringify(n)).not.toContain(moderator.username);
+
+    const rows = await audits('admin.live.moderate', roomId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.actorUserId).toBe(moderator.id);
+    expect(rows[0]!.metadata).toMatchObject({
+      kind: 'WARN',
+      reason,
+      endedLive: false,
+      reportsClosed: 1,
+      before: 'LIVE',
+      after: 'LIVE',
+      via: 'panel',
+    });
+
+    const history = await aget(support, `/admin/lives/${roomId}/moderations`);
+    expect(history.status).toBe(200);
+    expectContract(history, 'listAdminLiveModerations');
+    expect((history.body.data as { kind: string; reason: string }[])[0]).toMatchObject({
+      kind: 'WARN',
+      reason,
+    });
+
+    // The live is still on air: the team may still end it.
+    const end = await apost(moderator, `/admin/lives/${roomId}/moderate`, { action: 'END', reason: 'Again' });
+    expect(end.status, JSON.stringify(end.body)).toBe(200);
+    expectCode(
+      await apost(moderator, `/admin/lives/${roomId}/moderate`, { action: 'WARN', reason: 'x' }),
+      409,
+      'ADMIN_ACTION_REFUSED',
+    );
+  });
+
   it('NO_LIVE «منع من البث» 24 h: go-live refused with the end and the reason; sign-in still works; allowed again after the end', async () => {
     const h = await host();
     const roomId = await goLive(h);
