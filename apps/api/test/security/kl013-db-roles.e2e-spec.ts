@@ -10,7 +10,7 @@
  * connection (KABSO_TEST_ADMIN_DATABASE_URL, plus `psql` on PATH); they are required in CI.
  */
 import 'reflect-metadata';
-import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
+import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -227,6 +227,8 @@ describe('KL-013 runtime role DML', () => {
         'wallet_ledger',
         'family_points_ledger',
         'cp_points_ledger',
+        // v1.75-live (D285): a recruiter's day is written once (migration 20270319090100_staff_recruits).
+        'staff_recruit_commissions',
       ].includes(row.table);
       // KL-058: admin permissions are granted by the migration role only. v1.73-live (D283c): the staff IDs are given
       // only by the SECURITY DEFINER `kabso_assign_staff_id` (through `kabso_admin_panel_role`).
@@ -802,6 +804,130 @@ describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
         m.$executeRawUnsafe(`INSERT INTO staff_ids (number, user_id) VALUES (-1, NULL)`),
       ).rejects.toThrow(/staff_ids_number_nonnegative/),
     );
+  });
+});
+
+describe('D285 staff recruitment (staff_recruitments, staff_recruit_commissions, …) under the KL-013 roles', () => {
+  const staff = '0192f1c2-0000-7000-8000-0000000d285a';
+  const recruit = '0192f1c2-0000-7000-8000-0000000d285b';
+  const recruitment = '0192f1c2-0000-7000-8000-0000000d285c';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM staff_ids WHERE user_id IN ('${staff}', '${recruit}')`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${staff}', '${recruit}')`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const tables = [
+      'creator_applications',
+      'creator_members',
+      'staff_recruit_commissions',
+      'staff_recruit_settings',
+      'staff_recruitments',
+    ];
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN (${tables.map((t) => `'${t}'`).join(', ')})
+       ORDER BY 1`);
+    expect(owners).toEqual(tables.map((t) => ({ t, owner: migrationUser })));
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('creator_applications_shape', 'staff_recruitments_shape',
+             'staff_recruit_settings_one', 'staff_recruit_settings_shape', 'staff_recruit_commissions_shape',
+             'staff_recruit_commissions_guard', 'agency_applications_recruiter_not_self',
+             'recharge_agent_applications_recruiter_not_self', 'host_applications_recruiter_not_self')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'agency_applications_recruiter_not_self',
+      'creator_applications_shape',
+      'host_applications_recruiter_not_self',
+      'recharge_agent_applications_recruiter_not_self',
+      'staff_recruit_commissions_guard',
+      'staff_recruit_commissions_shape',
+      'staff_recruit_settings_one',
+      'staff_recruit_settings_shape',
+      'staff_recruitments_shape',
+    ]);
+  });
+
+  it('the runtime role: DML on the recruitments; the commissions append-only with the guard; BD a panel role', async () => {
+    for (const id of [staff, recruit]) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'd285-${id.slice(-1)}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    // BD goes through the grant function (and gets a staff ID).
+    await runtime.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${staff}'::uuid, 'BD', true, NULL)`);
+    });
+    expect(
+      await scalar<number>(runtime, `SELECT count(*)::int AS v FROM staff_ids WHERE user_id = '${staff}'`),
+    ).toBe(1);
+    await expect(
+      runtime.$transaction((tx) => tx.$queryRawUnsafe(`SELECT kabso_admin_panel_role('${staff}'::uuid, 'LIVE_HOSTS', true, NULL)`)),
+    ).rejects.toThrow(/not a panel role/);
+    // A recruitment: never self; the agency id only for AGENCY; one per (type, recruit); HOST / CREATOR exclusive.
+    const insert = (id: string, type: string, rec: string, agency = 'NULL') =>
+      runtimeExec(
+        `INSERT INTO staff_recruitments (id, type, recruiter_user_id, recruit_user_id, application_id, agency_id, activated_at)
+         VALUES ('${id}', '${type}', '${rec}', '${recruit}', gen_random_uuid(), ${agency}, now())`,
+      );
+    await expect(insert(randomUUID(), 'HOST', recruit)).rejects.toThrow(/staff_recruitments_shape/);
+    await expect(insert(randomUUID(), 'AGENCY', staff)).rejects.toThrow(/staff_recruitments_shape/);
+    await insert(recruitment, 'HOST', staff);
+    await expect(insert(randomUUID(), 'HOST', staff)).rejects.toThrow(/staff_recruitments_type_recruit_key/);
+    await expect(insert(randomUUID(), 'CREATOR', staff)).rejects.toThrow(/staff_recruitments_one_gift_recruit/);
+    // Reassigning needs a reason.
+    await expect(
+      runtimeExec(`UPDATE staff_recruitments SET reassigned_at = now() WHERE id = '${recruitment}'`),
+    ).rejects.toThrow(/staff_recruitments_shape/);
+    // The commissions: the guard (1 % of $5.35 = 48 636 cherries at $1.10 per million, never 48 637).
+    const commission = (day: string, cherries: number, profit = '535000000000000') =>
+      runtimeExec(
+        `INSERT INTO staff_recruit_commissions (recruitment_id, day, type, recruiter_user_id, recruit_user_id,
+           profit_units, rate_cherries, rate_minor, bps, cherries)
+         VALUES ('${recruitment}', '${day}', 'HOST', '${staff}', '${recruit}', ${profit}, 1000000, 110, 100, ${cherries})`,
+      );
+    await expect(commission('2027-03-17', 48_637)).rejects.toThrow(/staff_recruit_commissions_guard/);
+    await expect(commission('2027-03-17', 1, '-5')).rejects.toThrow(/staff_recruit_commissions_guard/);
+    await commission('2027-03-17', 48_636);
+    await expect(commission('2027-03-17', 0)).rejects.toThrow(/staff_recruit_commissions_pkey/);
+    for (const sql of [
+      `UPDATE staff_recruit_commissions SET cherries = 1 WHERE recruitment_id = '${recruitment}'`,
+      `DELETE FROM staff_recruit_commissions WHERE recruitment_id = '${recruitment}'`,
+      'TRUNCATE TABLE staff_recruit_commissions',
+      'TRUNCATE TABLE staff_recruitments',
+      'ALTER TABLE staff_recruit_commissions DROP CONSTRAINT staff_recruit_commissions_guard',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    // The shares: one row, 0–20 %.
+    await expect(runtimeExec(`INSERT INTO staff_recruit_settings (id) VALUES (2)`)).rejects.toThrow(
+      /staff_recruit_settings_one|staff_recruit_settings_pkey/,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO staff_recruit_settings (id, host_bps) VALUES (1, 2001) ON CONFLICT (id) DO UPDATE SET host_bps = 2001`,
+      ),
+    ).rejects.toThrow(/staff_recruit_settings_shape/);
+    // The ledger's sign rule knows the new credit.
+    await expect(
+      runtimeExec(
+        `INSERT INTO cherry_ledger (id, user_id, delta, balance_after, reason, reference_id)
+         VALUES ('${randomUUID()}', '${staff}', -5, 0, 'STAFF_RECRUIT_COMMISSION', 'SR:x@2027-03-17')`,
+      ),
+    ).rejects.toThrow(/cherry_ledger_reason_sign/);
+    // A recruitment goes with the recruit (ON DELETE CASCADE, the commissions with it).
+    await withMigrationClient((m) => m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${recruit}'`));
+    expect(
+      await scalar<number>(
+        runtime,
+        `SELECT count(*)::int AS v FROM staff_recruit_commissions WHERE recruitment_id = '${recruitment}'`,
+      ),
+    ).toBe(0);
   });
 });
 
