@@ -250,6 +250,14 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D283 (DRAFT v1.71-live)** the Kabso Team's accounts are limited, and staff have regions (CONVENTIONS §10.96.10–11):
+    an account holding MODERATION / SUPPORT / FINANCE and not OWNER cannot go live, join or own a family, buy VIP or
+    store items, claim tasks, post anything but an announcement (`CreatePostRequest.announcement`, `Post.announcement`),
+    post stories or reposts, or change its picture, cover or frame (403 `STAFF_ACCOUNT_LIMITED` with the issue); it shows
+    no levels (`getUserLevels` empty, empty chat badges) and wears the team picture (`getKabsoTeamAvatar`; its
+    `avatarUrl`). `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`). Regions: `listAdminStaffRegions`,
+    `setAdminTeamRegions`, `AdminTeam` rows' `regions`, `listAdminLives` `region`, `listStaffLives` `scope`; the live
+    assignment prefers the host's region. Additive for apps; a behaviour change for those accounts only.
     **D279 (DRAFT v1.70-live)** the profile's «في بث الآن» card (CONVENTIONS §10.5.1): `PublicProfile.live`
     (`ProfileLive`: `roomId`, `title`, `mode`, `startedAt`, `viewerCount`, `score`), the fresh LIVE room of
     `liveRoomId` — null when `liveRoomId` is, and across a block either way. Additive; no migration.
@@ -1645,6 +1653,7 @@ paths:
               schema: { $ref: '#/components/schemas/Avatar' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
     delete:
@@ -1657,6 +1666,7 @@ paths:
       responses:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/me/cover:
@@ -1684,6 +1694,7 @@ paths:
               schema: { $ref: '#/components/schemas/ProfileCover' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
     delete:
@@ -1696,6 +1707,7 @@ paths:
       responses:
         '204': { description: Removed (or there was none). }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/me/account-deletion:
@@ -5318,7 +5330,8 @@ paths:
         Owner decision (CP-005 §9.1, 7): levels are public on the profile. Levels only — never
         points, ledger entries or history. Shown for private accounts too (a level is a badge,
         not content). The same 404 as `GET /users/{username}` for a malformed, unknown,
-        SUSPENDED or DELETED username. Always four items, in the order of `GET /levels/me`.
+        SUSPENDED or DELETED username. Four items, in the order of `GET /levels/me` — or **none**
+        (v1.71-live, D283, §10.96.10) for a limited Kabso Team account, which shows no levels.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -5332,7 +5345,7 @@ paths:
                 properties:
                   data:
                     type: array
-                    minItems: 4
+                    minItems: 0
                     maxItems: 4
                     items: { $ref: '#/components/schemas/PublicLevel' }
         '401': { $ref: '#/components/responses/Error' }
@@ -6304,6 +6317,7 @@ paths:
               schema: { $ref: '#/components/schemas/MyHostingApplication' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409':
           description: "`HOST_APPLICATION_NOT_ALLOWED` (with the reason) or `IDEMPOTENCY_CONFLICT`."
           content:
@@ -6879,6 +6893,7 @@ paths:
               schema: { $ref: '#/components/schemas/CreateFamilyResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409':
           description: "`ALREADY_IN_FAMILY`, `FAMILY_NAME_TAKEN`, `INSUFFICIENT_COINS` or `IDEMPOTENCY_CONFLICT`."
           content:
@@ -8130,6 +8145,7 @@ paths:
                   value: { category: PROFILE_CARD, equipped: null }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/bag/transfers:
@@ -8380,6 +8396,7 @@ paths:
               schema: { $ref: '#/components/schemas/Post' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/posts/{postId}:
@@ -8699,6 +8716,7 @@ paths:
               schema: { $ref: '#/components/schemas/RepostState' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
     delete:
@@ -9082,6 +9100,7 @@ paths:
               schema: { $ref: '#/components/schemas/Story' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/stories/{storyId}:
@@ -9818,6 +9837,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CheckInResult' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/tasks/{code}/claim:
     post:
@@ -9855,6 +9875,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TaskClaimResult' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -9991,6 +10012,7 @@ paths:
               schema: { $ref: '#/components/schemas/VipPurchaseResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -13349,6 +13371,13 @@ paths:
       description: |
         (v1.68-live, D273) LIVE rooms assigned to the caller, the most reported first. Staff may enter ANY live from the
         usual lists too; the assignment decides who is responsible. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+        (v1.71-live, D283, §10.96.11) `scope=regions`: every live on air whose host's country is in the caller's regions
+        (at most 200; `assignedAt` null for one held by someone else); none without regions.
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema: { type: string, enum: [assigned, regions], default: assigned }
       responses:
         '200':
           description: OK.
@@ -13888,6 +13917,13 @@ paths:
         schema:
           type: string
           enum: [me]
+      - name: region
+        in: query
+        required: false
+        description: (v1.71-live, D283, §10.96.11) Only the lives whose host's country is in this region, or in the signed-in staff member's own regions (`mine`; none → no live). Combinable with the others.
+        schema:
+          type: string
+          enum: [ARAB_WORLD, GREATER_CHINA, TURKEY, IRAN, SOUTH_ASIA, SOUTHEAST_ASIA, EAST_ASIA, EUROPE, NORTH_AMERICA, LATIN_AMERICA, SUB_SAHARAN_AFRICA, RUSSIA_CENTRAL_ASIA, OCEANIA, mine]
       responses:
         '200':
           description: OK.
@@ -16441,6 +16477,80 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/team/regions:
+    get:
+      tags:
+      - admin-panel
+      operationId: listAdminStaffRegions
+      summary: The staff regions and their countries (team.manage)
+      description: (v1.71-live, D283, §10.96.11) The 13 regions in their order, with Arabic and English names and their ISO 3166-1 alpha-2 countries.
+      security:
+      - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStaffRegionCatalog'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/team/{userId}/regions:
+    put:
+      tags:
+      - admin-panel
+      operationId: setAdminTeamRegions
+      summary: Sets a MODERATION / SUPPORT staff member's regions (code again; reason; audited) (team.manage)
+      description: >-
+        (v1.71-live, D283, §10.96.11) The whole set (0–13 regions, no duplicates). Only for an account holding MODERATION
+        or SUPPORT (409 `ADMIN_ACTION_REFUSED`, issue `team_regions_role`). Audited `admin.team.regions` {before, regions,
+        reason}. The next assignment pass uses them. 429 past `RATE_LIMIT_ADMIN_TEAM_IP`.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminUserIdPath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTeamRegionsRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeamRegionsResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/staff/team-avatar.png:
+    get:
+      tags: [staff]
+      operationId: getKabsoTeamAvatar
+      summary: The Kabso Team's fixed picture (public)
+      description: |
+        (v1.71-live, D283, §10.96.10) The PNG every limited staff account's `avatarUrl` points to (the owner's art);
+        cached a day. No authentication.
+      security: []
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        '404': { $ref: '#/components/responses/Error' }
   /api/v1/admin/programs/tasks:
     get:
       tags:
@@ -18690,7 +18800,75 @@ components:
         viewerCount: { type: integer, minimum: 0 }
         startedAt: { type: string, format: date-time }
         openReports: { type: integer, minimum: 0 }
-        assignedAt: { type: string, format: date-time }
+        assignedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When it was assigned to the caller; (v1.71-live, D283) null with `scope=regions` for a live held by someone else.
+        hostCountry: { type: [string, 'null'], pattern: '^[A-Z]{2}$', description: "(v1.71-live, D283) The host's country (ISO alpha-2), or null. Absent from older servers." }
+        region:
+          description: (v1.71-live, D283) The staff region of the host's country, or null. Absent from older servers.
+          oneOf:
+            - $ref: '#/components/schemas/StaffRegion'
+            - type: 'null'
+    StaffRegion:
+      type: string
+      description: (v1.71-live, D283, §10.96.11) A staff region — a fixed group of countries (`listAdminStaffRegions`).
+      enum: [ARAB_WORLD, GREATER_CHINA, TURKEY, IRAN, SOUTH_ASIA, SOUTHEAST_ASIA, EAST_ASIA, EUROPE, NORTH_AMERICA, LATIN_AMERICA, SUB_SAHARAN_AFRICA, RUSSIA_CENTRAL_ASIA, OCEANIA]
+    KabsoStaffIdentity:
+      type: object
+      additionalProperties: false
+      description: |
+        (v1.71-live, D283, §10.96.10–11) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the
+        role its profile line names (MODERATION, else SUPPORT, else FINANCE) and its regions in catalogue order (none for
+        FINANCE). The app shows the team badge, frame and cover and «مشرف للوطن العربي» / "Moderator — Arab World", and
+        no levels.
+      required: [role, regions]
+      properties:
+        role: { type: string, enum: [MODERATION, SUPPORT, FINANCE] }
+        regions:
+          type: array
+          maxItems: 13
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/StaffRegion' }
+    AdminStaffRegionCatalog:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [code, nameAr, nameEn, countries]
+            properties:
+              code: { $ref: '#/components/schemas/StaffRegion' }
+              nameAr: { type: string }
+              nameEn: { type: string }
+              countries:
+                type: array
+                items: { type: string, pattern: '^[A-Z]{2}$' }
+    AdminTeamRegionsRequest:
+      type: object
+      additionalProperties: false
+      required: [regions, reason, totpCode]
+      properties:
+        regions:
+          type: array
+          maxItems: 13
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/StaffRegion' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminTeamRegionsResult:
+      type: object
+      required: [userId, regions, before]
+      properties:
+        userId: { type: string, format: uuid }
+        regions:
+          type: array
+          items: { $ref: '#/components/schemas/StaffRegion' }
+        before:
+          type: array
+          items: { $ref: '#/components/schemas/StaffRegion' }
     StaffLiveList:
       type: object
       required: [data]
@@ -20655,6 +20833,15 @@ components:
           type: integer
           minimum: 0
           description: (v1.64-live, D260) staff watching it visibly now («فريق كابسو» in the live).
+        hostCountry:
+          type: [string, 'null']
+          pattern: '^[A-Z]{2}$'
+          description: (v1.71-live, D283) The host's country (ISO alpha-2), or null.
+        region:
+          description: (v1.71-live, D283) The staff region of the host's country, or null.
+          oneOf:
+          - $ref: '#/components/schemas/StaffRegion'
+          - type: 'null'
     AdminLiveAssignee:
       type: object
       required: [id, displayName]
@@ -22462,6 +22649,11 @@ components:
                 - 'null'
                 format: date-time
                 description: (v1.66-live, D271) When the current shift started; null when off shift.
+              regions:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffRegion'
+                description: (v1.71-live, D283, §10.96.11) The regions this staff member is responsible for (catalogue order); set with `setAdminTeamRegions`.
     AdminTeamGrantRequest:
       type: object
       description: (v1.66-live, D271) Exactly one of `account` and `email` (400 `VALIDATION_FAILED` otherwise).
@@ -23796,6 +23988,12 @@ components:
           description: |
             (v1.68-live, D273, §10.96.6) The account holds OWNER, MODERATION or SUPPORT now — «فريق كابسو» in every live
             and the Me tab's staff entry («في المناوبة», «بثوثي», the step-up). Absent for everyone else.
+        staff:
+          $ref: '#/components/schemas/KabsoStaffIdentity'
+          description: |
+            (v1.71-live, D283, §10.96.10) A limited Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER): the app
+            shows the staff-only Me tab (profile header, «فريق كابسو», the announcement composer, settings) and hides
+            going live, levels, VIP, family, store, wallet, bag and the rest. Absent for everyone else.
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         emailVerified: { type: boolean }
@@ -24019,6 +24217,12 @@ components:
           description: |
             (v1.68-live, D273, §10.96.7) The account holds a panel role — «فريق كابسو». The app hides the actions against
             it (kick, chat mute, seat, family); the server refuses them (403 `STAFF_PROTECTED`). Absent for everyone else.
+        staff:
+          $ref: '#/components/schemas/KabsoStaffIdentity'
+          description: |
+            (v1.71-live, D283, §10.96.10–11) A limited Kabso Team account: the team badge, frame and region cover, the
+            line «مشرف للوطن العربي» / "Moderator — Arab World", no levels. Its `coverUrl` and `avatarFrame` are then null
+            and `vip` / `wear` absent. Absent for everyone else (the OWNER too).
         family:
           description: "(v1.21-live, CP-018) The user's family and role, or null."
           oneOf:
@@ -26673,6 +26877,13 @@ components:
           enum: [POST, REEL]
           default: POST
           description: (v1.41-social, D162) `REEL` takes exactly one `REEL_VIDEO` in `mediaIds`; a `POST` takes 1–10 `POST_IMAGE` or exactly one `POST_VIDEO`.
+        announcement:
+          type: boolean
+          default: false
+          description: |
+            (v1.71-live, D283, §10.96.10) An official announcement post or reel «إعلان رسمي — فريق كابسو». Only a panel
+            role may send `true` (else 403 `STAFF_ACCOUNT_LIMITED`, `field: announcement`); a limited staff account
+            (MODERATION / SUPPORT / FINANCE, not OWNER) must (else 403 `STAFF_ACCOUNT_LIMITED`, issue `post_kind`).
     UpdatePostRequest:
       type: object
       additionalProperties: false
@@ -26685,9 +26896,12 @@ components:
         settings: { $ref: '#/components/schemas/PostSettingsPatch' }
     Post:
       type: object
-      required: [id, format, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, viewerFollowsAuthor, settings, moderation, repostedBy]
+      required: [id, format, announcement, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, viewerFollowsAuthor, settings, moderation, repostedBy]
       properties:
         id: { type: string, format: uuid }
+        announcement:
+          type: boolean
+          description: (v1.71-live, D283, §10.96.10) An official announcement of the Kabso Team — the feeds label it «إعلان رسمي — فريق كابسو» / "Official announcement — Kabso Team". Never changes.
         format: { type: string, enum: [POST, REEL], description: "(v1.41-social, D162) `REEL`: a reel (one vertical video and a caption, listed by `listFeedReels`)." }
         author: { $ref: '#/components/schemas/UserSummary' }
         text: { type: string }

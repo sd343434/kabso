@@ -75,7 +75,11 @@ export class AdminTeamService {
    */
   async onModuleInit(): Promise<void> {
     try {
-      await syncTeamAvatarsIn(this.prisma, null, teamAvatarUrl());
+      await syncTeamAvatarsIn(
+        this.prisma,
+        null,
+        teamAvatarUrl({ API_PUBLIC_URL: this.config.kyc.publicApiBaseUrl }),
+      );
     } catch (err) {
       this.logger.warn({ error: safeErrorLog(err) }, 'Could not sync the Kabso Team pictures');
     }
