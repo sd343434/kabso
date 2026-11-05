@@ -166,6 +166,11 @@ Future<void> _drain(WidgetTester tester) async {
 }
 
 void main() {
+  // The Host Tasks card shows the days left in the week: fix the date the
+  // goldens were made on (Wednesday 2026-11-04, «5 أيام»).
+  setUp(() => HostTasksCard.clock = () => DateTime(2026, 11, 4, 12));
+  tearDown(() => HostTasksCard.clock = DateTime.now);
+
   test('the level-ticker message parses; WIZARD / GAMING and malformed ones '
       'are ignored', () {
     final event = LiveChatEvent.parse(_json());

@@ -184,6 +184,11 @@ Future<FakeLiveMediaEngine> _pump(
 }
 
 void main() {
+  // The Host Tasks card shows the days left in the week: fix the date the
+  // goldens were made on (Wednesday 2026-11-04, «5 أيام»).
+  setUp(() => HostTasksCard.clock = () => DateTime(2026, 11, 4, 12));
+  tearDown(() => HostTasksCard.clock = DateTime.now);
+
   test('D256 the top supporters first, three places at most', () {
     LiveViewer v(String id) => LiveViewer(
       kind: LiveViewerKind.user,

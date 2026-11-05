@@ -180,6 +180,11 @@ class HostTasksCard extends ConsumerStatefulWidget {
   /// Tests fix the clock.
   final DateTime Function()? now;
 
+  /// The clock when [now] is not given — the host screen builds the card
+  /// without one, so screen tests (goldens) fix it here.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
   /// Ref: 82.6 × 114.6 pt.
   static const double width = 82.6;
   static const double height = 114.6;
@@ -217,7 +222,7 @@ class _HostTasksCardState extends ConsumerState<HostTasksCard> {
     if (tasks == null || task == null) return const SizedBox.shrink();
     final l10n = context.l10n;
     final level = tasks.band?.level;
-    final days = HostTasksCard.daysLeft((widget.now ?? DateTime.now)());
+    final days = HostTasksCard.daysLeft((widget.now ?? HostTasksCard.clock)());
     final progress = task.progress.clamp(0, task.target);
     final share = task.target <= 0 ? 0.0 : progress / task.target;
     const white = Color(0xFFFFFFFF);
