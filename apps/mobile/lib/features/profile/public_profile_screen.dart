@@ -376,7 +376,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   /// profile gets Edit profile.
   Widget _actions(PublicProfile profile) {
     final l10n = context.l10n;
-    const p = KPalette.dark;
+    final p = context.palette;
     final quiet = ProfileCoverButtons.quiet(context);
     final strong = ProfileCoverButtons.primary(context);
     if (profile.isSelf) {

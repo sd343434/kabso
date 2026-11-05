@@ -50,8 +50,11 @@ ImageProvider Function(String src) profileCoverImageFor = NetworkImage.new;
 /// D278: the cover from the very top, full-bleed. D278b (owner: «اجعل
 /// الغلاف اقل ارتفاع مثلاً ٤٢٪»): the picture is [coverShare] of the
 /// screen's height (≈ 358 dp on a 393 × 852 phone) and fades into the dark
-/// [base] block that carries the name, the numbers, the buttons, the tags
-/// and the links.
+/// block that carries the name, the numbers, the buttons, the tags and the
+/// links. D278c (owner: «نصفه السفلي لا تجعله تدرج لوني بدون لون، اجعله
+/// كالخلفية ان كانت دارك سوداء وان كانت لايت بيضاء»): that block is the
+/// page's own background (white in light, black in dark) in the theme's
+/// colours; the picture ends with only a short fade into it ([fadeShare]).
 abstract final class KPublicProfile {
   /// The box every profile photo is drawn in, frame or not: the frames'
   /// common box (`AvatarFrameBox.aroundAvatar`), the real extent of the
@@ -63,9 +66,6 @@ abstract final class KPublicProfile {
   /// The cover picture's share of the screen's height (D278b: 0.42; was
   /// 0.57).
   static const double coverShare = 0.42;
-
-  /// The dark block under the picture (the picture fades into it).
-  static const Color base = Color(0xFF16161A);
 
   /// How much of [avatarSlot]'s height rises into the picture (D278b:
   /// «رفعها للاعلى قليلاً»).
@@ -81,8 +81,9 @@ abstract final class KPublicProfile {
   /// From the screen's reading-start edge to [avatarSlot].
   static const double avatarStart = KSpacing.sm;
 
-  /// The share of the picture (from its bottom) that fades into [base].
-  static const double gradientShare = 0.55;
+  /// The share of the picture (from its bottom) that fades into the page
+  /// colour: a short fade, no seam (D278c).
+  static const double fadeShare = 0.1;
 
   /// The cover picture's height on a screen of [screenHeight].
   static double coverHeightFor(double screenHeight) =>
@@ -320,6 +321,7 @@ class ProfileCoverHeader extends StatelessWidget {
     final coverHeight = KPublicProfile.coverHeightFor(media.size.height);
     final slot = KPublicProfile.avatarSlot;
     final avatarUrl = profile.avatarUrl;
+    final page = context.palette.background;
     final cover = Stack(
       key: coverAreaKey,
       fit: StackFit.expand,
@@ -382,24 +384,19 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
           ),
         ),
-        // D278b: the cover fades into the dark block under it, so what is
-        // written there reads on any picture, light ones too.
-        const Align(
+        // D278c: the picture ends with a short fade into the page colour
+        // (no seam); what follows is on the page itself.
+        Align(
           alignment: Alignment.bottomCenter,
           child: FractionallySizedBox(
-            heightFactor: KPublicProfile.gradientShare,
+            heightFactor: KPublicProfile.fadeShare,
             widthFactor: 1,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: [0, 0.55, 1],
-                  colors: [
-                    Color(0x0016161A),
-                    Color(0x9916161A),
-                    KPublicProfile.base,
-                  ],
+                  colors: [page.withValues(alpha: 0), page],
                 ),
               ),
             ),
@@ -422,12 +419,6 @@ class ProfileCoverHeader extends StatelessWidget {
           ),
       ],
     );
-    // What is over the cover reads on the dark block in both themes: the
-    // dark palette (white text, the dark skeleton).
-    final dark = buildAppTheme(
-      brightness: Brightness.dark,
-      locale: Localizations.localeOf(context),
-    );
     // D278b (owner: «صورة شخصية نريد رفعها للاعلى قليلاً»): the photo rises
     // into the cover's lower part, never under the top buttons.
     final contentTop = math.max(
@@ -437,7 +428,7 @@ class ProfileCoverHeader extends StatelessWidget {
     return Stack(
       key: headerKey,
       children: [
-        const Positioned.fill(child: ColoredBox(color: KPublicProfile.base)),
+        Positioned.fill(child: ColoredBox(color: page)),
         Positioned(
           top: 0,
           left: 0,
@@ -447,35 +438,30 @@ class ProfileCoverHeader extends StatelessWidget {
         ),
         ConstrainedBox(
           constraints: BoxConstraints(minHeight: coverHeight),
-          child: Theme(
-            data: dark,
-            child: Builder(
-              builder: (context) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: contentTop),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      start: KPublicProfile.avatarStart,
-                    ),
-                    child: SizedBox(
-                      width: slot.width,
-                      height: slot.height,
-                      child: Center(child: _avatar(context)),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                      KProfile.inset,
-                      KSpacing.xs,
-                      KProfile.inset,
-                      KSpacing.lg,
-                    ),
-                    child: _details(context),
-                  ),
-                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: contentTop),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  start: KPublicProfile.avatarStart,
+                ),
+                child: SizedBox(
+                  width: slot.width,
+                  height: slot.height,
+                  child: Center(child: _avatar(context)),
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                  KProfile.inset,
+                  KSpacing.xs,
+                  KProfile.inset,
+                  KSpacing.lg,
+                ),
+                child: _details(context),
+              ),
+            ],
           ),
         ),
       ],
@@ -511,7 +497,6 @@ class ProfileCoverHeader extends StatelessWidget {
                 style: t.title.copyWith(
                   color: p.textPrimary,
                   fontSize: KPublicProfile.nameFont,
-                  shadows: KLiveColors.glassShadow,
                   // D258: the special colour at semi-bold (owner).
                   fontWeight: (profile.vip?.member ?? false)
                       ? FontWeight.w600
@@ -560,10 +545,7 @@ class ProfileCoverHeader extends StatelessWidget {
               textDirection: TextDirection.ltr,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: t.body.copyWith(
-                color: p.textSecondary,
-                shadows: KLiveColors.glassShadow,
-              ),
+              style: t.body.copyWith(color: p.textSecondary),
             ),
           },
         ),
@@ -587,7 +569,6 @@ class ProfileCoverHeader extends StatelessWidget {
             child: ProfileLinksRow(
               links: profile.links,
               reportable: !profile.isSelf,
-              color: p.textPrimary,
             ),
           ),
       ],
@@ -633,8 +614,9 @@ class ProfileCoverHeader extends StatelessWidget {
                 agentCode: profile.rechargeAgentCode,
                 hostAgentCode: profile.hostAgentCode,
                 avatarFrame: profile.avatarFrame,
-                // A thin light ring sets the plain photo off the cover.
-                outline: framed ? null : KPalette.dark.textPrimary,
+                // D218: a ring of the page's colour sets the plain photo
+                // off the cover.
+                outline: framed ? null : context.palette.background,
               ),
             );
           },
@@ -715,7 +697,6 @@ class ProfileCoverHeader extends StatelessWidget {
                                 fontSize: KPublicProfile.statNumber,
                                 fontWeight: FontWeight.w700,
                                 height: 1.15,
-                                shadows: KLiveColors.glassShadow,
                               ),
                             ),
                           ),
@@ -848,7 +829,8 @@ class ProfileTagChips extends StatelessWidget {
           excludeSemantics: label != null,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: p.textPrimary.withValues(alpha: 0.14),
+              // D278c: the theme's chip surface.
+              color: p.surfaceOverlay,
               borderRadius: BorderRadius.circular(KRadius.xs),
             ),
             child: Padding(
@@ -907,11 +889,12 @@ abstract final class ProfileCoverButtons {
   }
 
   static ButtonStyle quiet(BuildContext context) {
-    const p = KPalette.dark;
+    // D278c: on the page colour, the theme's outlined button.
+    final p = context.palette;
     return OutlinedButton.styleFrom(
       foregroundColor: p.textPrimary,
-      backgroundColor: KLiveColors.glass,
-      side: BorderSide(color: p.textPrimary.withValues(alpha: 0.55)),
+      backgroundColor: p.background,
+      side: BorderSide(color: p.borderStrong),
       padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KRadius.sm),

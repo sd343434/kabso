@@ -523,17 +523,19 @@ States: action buttons follow IconButton states; title never interactive.
 picture, `0.42 ×` the screen height (≈ 358 dp on 393 × 852), drawn from the very top under the
 status bar and the `transparent` TopBar — the page's own buttons (back, ⋯ / drafts, settings) on
 40 dp `live.glass` circles, white; the bar turns `background` with the @username once the cover has
-scrolled away, and the tabs pin under it. The picture's lower 55 % fades into a dark block
-(`#16161A`, the dark `surface`) that carries, top to bottom: the photo in the frames' common box
+scrolled away, and the tabs pin under it. D278c: the picture ends with a short fade (its last
+10 %) into the **page colour** (`background`: white in light, black in dark), and the block under it
+is the page itself, in the theme's colours. It carries, top to bottom: the photo in the frames' common box
 (frames unchanged) at the reading start, rising 80 % of its box into the picture; the **name row**
 (name 20 / 700, the VIP badge right after it, our badges, then the level badges, wrapping); the
 @username; the **numbers** — Followers, Following, «الكرز المستلم», «الكوينز المرسلة» (the person
 card's: short Latin numbers, equal columns, thin dividers; a hidden one is left out); the 44 dp
 action row — **Follow** in `brand.red500` (radius `sm`) with square chat (`inbox` icon) and ⋯
-(chevron) buttons on `live.glass` with a 55 % white outline, or «تعديل الملف» in the same quiet
-style; the **tags** «منشنات» as chips (white 14 % fill, radius `xs`, 12.5 / 600) on **at most two
-lines**, the rest as a «+n» chip; the **links** (white). Everything there uses the dark palette in
-both modes, so it reads on any picture, light ones too. No cover: the brand red gradient, with the
+(chevron) outlined buttons, or «تعديل الملف» in the same quiet
+style (the page's fill, `borderStrong` outline, `textPrimary`); the **tags** «منشنات» as chips
+(`surfaceOverlay` fill, radius `xs`, 12.5 / 600) on **at most two lines**, the rest as a «+n» chip;
+the **links** (`primary`, as elsewhere). Only the top buttons stay on `live.glass` circles over the
+picture; the VIP name colour and badges are unchanged. No cover: the brand red gradient, with the
 photo blurred (σ 24) over it when there is one.
 
 **Live now card (D279).** While the profile's owner is live, directly under the cover:

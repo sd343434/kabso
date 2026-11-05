@@ -158,18 +158,9 @@ abstract final class ProfileLinkKeys {
 /// ([openProfileLink]); a long press offers Copy and, on another person's
 /// profile, Report.
 class ProfileLinksRow extends ConsumerWidget {
-  const new({
-    required this.links,
-    required this.reportable,
-    super.key,
-    this.color,
-  });
+  const new({required this.links, required this.reportable, super.key});
 
   final List<ProfileLink> links;
-
-  /// D278b: the links' colour (on the profile cover's dark block, the
-  /// text colour); default the brand red.
-  final Color? color;
 
   /// Another person's profile: the links can be reported.
   final bool reportable;
@@ -180,7 +171,7 @@ class ProfileLinksRow extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final ink = color ?? p.primary;
+    final ink = p.primary;
     return Padding(
       padding: const EdgeInsets.only(top: KSpacing.xs),
       child: Wrap(

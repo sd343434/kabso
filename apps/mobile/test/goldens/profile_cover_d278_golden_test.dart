@@ -6,6 +6,8 @@
 //                        @username, the counts, «متابعة» / chat / more
 //   profile.cover.own    the own profile with a cover (dark): «تعديل الملف»,
 //                        back / drafts / settings
+//   profile.cover.other.dark / profile.cover.own.light  the other mode (D278c:
+//                        the block under the picture is the page colour)
 //
 // 393 × 852 with the status bar 59 and the home indicator 34. The cover is
 // a neutral sample picture (test/fixtures/profile/cover_sample.jpg).
@@ -52,6 +54,35 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('png/profile.cover.own.${language.name}.phone.png'),
+      );
+    });
+
+    // D278c: the block under the picture follows the theme — the other
+    // mode of each page too.
+    testWidgets('profile.cover.other.dark ${language.name}', (tester) async {
+      await pumpOther(
+        tester,
+        otherProfile(ar: ar),
+        language: language,
+        brightness: Brightness.dark,
+      );
+      await precacheImages(tester);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile(
+          'png/profile.cover.other.dark.${language.name}.phone.png',
+        ),
+      );
+    });
+
+    testWidgets('profile.cover.own.light ${language.name}', (tester) async {
+      await pumpOwn(tester, language: language);
+      await precacheImages(tester);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile(
+          'png/profile.cover.own.light.${language.name}.phone.png',
+        ),
       );
     });
   });

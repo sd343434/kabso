@@ -178,8 +178,8 @@ void main() {
   });
 
   for (final brightness in Brightness.values) {
-    testWidgets('${brightness.name}: the edit pill is neutral (D278: '
-        'translucent over the cover), never the brand colour', (tester) async {
+    testWidgets('${brightness.name}: the edit pill is neutral (D278c: '
+        'the page colours), never the brand colour', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
@@ -195,13 +195,16 @@ void main() {
         overrides: _overrides(),
       );
       await tester.pumpAndSettle();
-      // D278: over the cover in both themes — the translucent fill and
-      // white text, never the brand colour.
+      // D278c: on the page colour — the page's fill and text colour,
+      // never the brand colour.
+      final palette = brightness == Brightness.dark
+          ? KPalette.dark
+          : KPalette.light;
       final style = tester
           .widget<OutlinedButton>(find.byKey(ProfileScreen.editButtonKey))
           .style!;
-      expect(style.backgroundColor!.resolve({}), KLiveColors.glass);
-      expect(style.foregroundColor!.resolve({}), KPalette.dark.textPrimary);
+      expect(style.backgroundColor!.resolve({}), palette.background);
+      expect(style.foregroundColor!.resolve({}), palette.textPrimary);
       expect(tester.takeException(), isNull);
     });
   }

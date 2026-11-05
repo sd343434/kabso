@@ -22,6 +22,10 @@
 // one line; the @username; the four numbers; the buttons; the tags (two
 // lines at most, «+n»); the links.
 //
+// D278c (owner: «نصفه السفلي لا تجعله تدرج لوني بدون لون، اجعله كالخلفية
+// ان كانت دارك سوداء وان كانت لايت بيضاء»): that block is the page colour
+// in the theme's colours; the picture ends with a short fade.
+//
 // With D278_CAPTURE_DIR set, the capture group writes PNGs there (not
 // committed).
 
@@ -412,6 +416,46 @@ void main() {
           expect(
             levels.center.dy,
             moreOrLessEquals(name.center.dy, epsilon: 6),
+          );
+          // D278c: the block under the picture is the page itself (white
+          // in light, black in dark), in the theme's colours.
+          final palette = brightness == Brightness.dark
+              ? KPalette.dark
+              : KPalette.light;
+          final block = tester.widget<ColoredBox>(
+            find
+                .descendant(
+                  of: find.byKey(ProfileCoverHeader.headerKey),
+                  matching: find.byType(ColoredBox),
+                )
+                .first,
+          );
+          expect(block.color, palette.background);
+          final handleText = tester.widget<Text>(
+            find.descendant(
+              of: find.byKey(ProfileCoverHeader.handleKey),
+              matching: find.byType(Text),
+            ),
+          );
+          expect(handleText.style?.color, palette.textSecondary);
+          final chip = tester.widget<DecoratedBox>(
+            find
+                .descendant(
+                  of: find.byKey(ProfileTagChips.chipKey(0)),
+                  matching: find.byType(DecoratedBox),
+                )
+                .first,
+          );
+          expect(
+            (chip.decoration as BoxDecoration).color,
+            palette.surfaceOverlay,
+          );
+          final message = tester.widget<OutlinedButton>(
+            find.byKey(PublicProfileScreen.messageKey),
+          );
+          expect(
+            message.style!.foregroundColor!.resolve({}),
+            palette.textPrimary,
           );
           // D278b: the four numbers, the person card's (short Latin).
           for (final key in [
