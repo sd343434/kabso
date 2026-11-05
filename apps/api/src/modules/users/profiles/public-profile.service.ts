@@ -9,7 +9,7 @@ import { BagService, type ProfileCardDto } from '../../bag/bag.service.js';
 import { CouplesService, type ProfileCpDto } from '../../couples/couples.service.js';
 import { FamiliesService, type ProfileFamilyDto } from '../../families/families.service.js';
 import { MedalsService, type ProfileMedalsDto } from '../../medals/medals.service.js';
-import { LiveRoomsService } from '../../live/live-rooms.service.js';
+import { LiveRoomsService, type ProfileLiveDto } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
 import { type AccountCategory, type ProfileLinkDto } from '../profile-fields.js';
 import { activeRechargeBadge, type RechargeBadgeDto } from '../../recharge/recharge-badges.js';
@@ -42,6 +42,11 @@ export interface PublicProfileDto {
    */
   kabsoTeam?: true;
   liveRoomId: string | null;
+  /**
+   * v1.70-live (D279, §10.5.1): the «في بث الآن» card's facts while `liveRoomId` is set (null otherwise, and across a
+   * block either way, as the room itself).
+   */
+  live: ProfileLiveDto | null;
   /** v1.21-live (CP-018): the user's family and role, or null. */
   family: ProfileFamilyDto | null;
   /** v1.21-live (CP-018): the user's CP couple, or null. */
@@ -159,7 +164,7 @@ export class PublicProfileService {
       isFollowing,
       followRequested,
       isMuted,
-      liveRoomId,
+      { liveRoomId, live },
       family,
       cp,
       medals,
@@ -177,7 +182,7 @@ export class PublicProfileService {
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
       isSelf ? Promise.resolve(false) : this.follows.isRequested(callerId, user.id),
       isSelf ? Promise.resolve(false) : this.isMuted(callerId, user.id),
-      this.live.freshLiveRoomIdOf(user.id),
+      this.live.profileLiveOf(user.id, callerId),
       this.families.profileFamily(user.id),
       this.couples.profileCp(user.id, lang),
       this.medals.profileMedals(user.id, lang),
@@ -241,6 +246,7 @@ export class PublicProfileService {
       isSelf,
       ...((await isPanelStaff(this.prisma, user.id)) ? { kabsoTeam: true as const } : {}),
       liveRoomId,
+      live,
       family,
       cp,
       medals,

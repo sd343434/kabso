@@ -14466,4 +14466,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorAdminActionRefused => 'The action was refused';
+
+  @override
+  String get profileLiveNowTitle => 'Live now';
+
+  @override
+  String get profileLiveNowSelfTitle => 'You\'re live now';
+
+  @override
+  String profileLiveFor(String duration) {
+    return 'Live for $duration';
+  }
+
+  @override
+  String profileLiveHoursMinutes(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String profileLiveMinutes(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String get profileLiveJoin => 'Join';
+
+  @override
+  String get profileLiveReturn => 'Back to live';
+
+  @override
+  String get profileLiveVoice => 'Voice room';
+
+  @override
+  String profileLiveCardSemantics(
+    String title,
+    String duration,
+    String details,
+  ) {
+    return '$title, $duration, $details';
+  }
 }

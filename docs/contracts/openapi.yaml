@@ -250,6 +250,9 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D279 (DRAFT v1.70-live)** the profile's «في بث الآن» card (CONVENTIONS §10.5.1): `PublicProfile.live`
+    (`ProfileLive`: `roomId`, `title`, `mode`, `startedAt`, `viewerCount`, `score`), the fresh LIVE room of
+    `liveRoomId` — null when `liveRoomId` is, and across a block either way. Additive; no migration.
     **D273 (DRAFT v1.68-live)** «فريق كابسو» from the app (CONVENTIONS §10.96.6–§10.96.8): an account holding OWNER /
     MODERATION / SUPPORT enters EVERY live from the app as «فريق كابسو» — `LiveMediaAccess.staff` (`VISIBLE`: the D260
     `team:` identity, listed in `LiveViewerPage.staff`, never counted, no join line; `HIDDEN` with
@@ -1940,6 +1943,7 @@ paths:
                     isMuted: false
                     isSelf: false
                     liveRoomId: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
+                    live: { roomId: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011, title: سهرة الجمعة, mode: SOLO, startedAt: '2026-11-05T19:03:00.000Z', viewerCount: 93, score: 41900 }
                     family: { id: 0192f1d0-8888-7000-8000-000000000002, number: 48213907, name: عائلة النجوم, level: 3, emblemUrl: null, role: DEPUTY }
                     cp:
                       id: 0192f1d0-9999-7000-8000-000000000003
@@ -23703,9 +23707,21 @@ components:
           uniqueItems: true
           items: { type: string, enum: [AVATAR_FRAME, PROFILE_CARD, CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT, MIC_WAVE] }
           description: "(v1.65-live, D264, §10.97) The tier items the member does not wear: taken off in the bag, or a frame / profile card worn from the bag instead (one worn item per kind). The apps leave these perks out of the look. Absent when none."
+    ProfileLive:
+      type: object
+      description: v1.70-live (D279, CONVENTIONS §10.5.1). The profile's «في بث الآن» card.
+      additionalProperties: false
+      required: [roomId, title, mode, startedAt, viewerCount, score]
+      properties:
+        roomId: { type: string, format: uuid, description: "The same as `PublicProfile.liveRoomId` (open it with `getLiveRoom`)." }
+        title: { type: string, description: "The live's title." }
+        mode: { $ref: '#/components/schemas/LiveRoomMode' }
+        startedAt: { type: string, format: date-time, description: "When the live started; the app shows «مباشر منذ …» from it." }
+        viewerCount: { type: integer, minimum: 0, description: "Connected viewers now (as `LiveRoomSummary.viewerCount`)." }
+        score: { type: integer, minimum: 0, description: "The live's points (taps + support; as `LiveRoomSummary.score`)." }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -23744,6 +23760,14 @@ components:
           type: [string, 'null']
           format: uuid
           description: The user's LIVE room with a fresh heartbeat, else null.
+        live:
+          oneOf:
+            - $ref: '#/components/schemas/ProfileLive'
+            - type: 'null'
+          description: |
+            v1.70-live (D279, CONVENTIONS §10.5.1): the «في بث الآن» card — the facts of the `liveRoomId` room. Null
+            when `liveRoomId` is null, and when the caller and the user have a block either way (the room is hidden
+            then, CP-010). Sent by a v1.70-live server (older servers leave it out; clients treat that as null).
         kabsoTeam:
           type: boolean
           const: true

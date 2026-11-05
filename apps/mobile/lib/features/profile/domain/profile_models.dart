@@ -1,7 +1,8 @@
 // Public profile and follow models matching docs/contracts/openapi.yaml
 // v1.3 (`getPublicProfile`, `followUser`, `unfollowUser`; CONVENTIONS
 // §10.5–10.6), with the family, couple and medals of v1.21-live (CP-018,
-// §10.21), and the profile card of v1.22-live (CP-019, §10.22).
+// §10.21), the profile card of v1.22-live (CP-019, §10.22) and the
+// «في بث الآن» card of v1.70-live (D279, §10.5.1).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
@@ -10,6 +11,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 
 part 'profile_models.freezed.dart';
@@ -30,6 +32,11 @@ abstract class PublicProfile with _$PublicProfile {
     required bool isFollowing,
     required bool isSelf,
     required String? liveRoomId,
+
+    /// v1.70-live (D279, §10.5.1): the «في بث الآن» card — the facts of the
+    /// [liveRoomId] room; null when not live, across a block, and from
+    /// older servers.
+    ProfileLive? live,
 
     /// CP-007: the caller muted this user (never shown to them). Defaults
     /// to false for previews built without it.
@@ -167,6 +174,24 @@ abstract class PublicProfile with _$PublicProfile {
   /// v1.47-social (D175): a private account the caller may not see the
   /// posts, reels and stories of («هذا الحساب خاص»).
   bool get locked => isPrivate && !isFollowing && !isSelf;
+}
+
+/// v1.70-live (D279, §10.5.1): `ProfileLive` — the profile's «في بث الآن»
+/// card: the live's room, title, mode, start, viewers now and score.
+@freezed
+abstract class ProfileLive with _$ProfileLive {
+  const factory({
+    required String roomId,
+    required DateTime startedAt,
+    @Default('') String title,
+    @JsonKey(unknownEnumValue: LiveRoomMode.solo)
+    @Default(LiveRoomMode.solo)
+    LiveRoomMode mode,
+    @Default(0) int viewerCount,
+    @Default(0) int score,
+  }) = _ProfileLive;
+
+  factory fromJson(Map<String, dynamic> json) => _$ProfileLiveFromJson(json);
 }
 
 /// `FollowState`: the result of follow / unfollow.

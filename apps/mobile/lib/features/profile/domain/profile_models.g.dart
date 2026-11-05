@@ -19,6 +19,9 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       isFollowing: json['isFollowing'] as bool,
       isSelf: json['isSelf'] as bool,
       liveRoomId: json['liveRoomId'] as String?,
+      live: json['live'] == null
+          ? null
+          : ProfileLive.fromJson(json['live'] as Map<String, dynamic>),
       isMuted: json['isMuted'] as bool? ?? false,
       premiumTier: premiumTierFromJson(json['premiumTier']),
       family: json['family'] == null
@@ -66,6 +69,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'isFollowing': instance.isFollowing,
       'isSelf': instance.isSelf,
       'liveRoomId': instance.liveRoomId,
+      'live': instance.live,
       'isMuted': instance.isMuted,
       'premiumTier': premiumTierToJson(instance.premiumTier),
       'family': instance.family,
@@ -89,6 +93,40 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'coinsSent': ?instance.coinsSent,
       'kabsoTeam': instance.kabsoTeam,
     };
+
+_ProfileLive _$ProfileLiveFromJson(Map<String, dynamic> json) => _ProfileLive(
+  roomId: json['roomId'] as String,
+  startedAt: DateTime.parse(json['startedAt'] as String),
+  title: json['title'] as String? ?? '',
+  mode:
+      $enumDecodeNullable(
+        _$LiveRoomModeEnumMap,
+        json['mode'],
+        unknownValue: LiveRoomMode.solo,
+      ) ??
+      LiveRoomMode.solo,
+  viewerCount: (json['viewerCount'] as num?)?.toInt() ?? 0,
+  score: (json['score'] as num?)?.toInt() ?? 0,
+);
+
+Map<String, dynamic> _$ProfileLiveToJson(_ProfileLive instance) =>
+    <String, dynamic>{
+      'roomId': instance.roomId,
+      'startedAt': instance.startedAt.toIso8601String(),
+      'title': instance.title,
+      'mode': _$LiveRoomModeEnumMap[instance.mode]!,
+      'viewerCount': instance.viewerCount,
+      'score': instance.score,
+    };
+
+const _$LiveRoomModeEnumMap = {
+  LiveRoomMode.solo: 'SOLO',
+  LiveRoomMode.pk: 'PK',
+  LiveRoomMode.multi: 'MULTI',
+  LiveRoomMode.audio: 'AUDIO',
+  LiveRoomMode.podcast: 'PODCAST',
+  LiveRoomMode.streamer: 'STREAMER',
+};
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(
   isFollowing: json['isFollowing'] as bool,

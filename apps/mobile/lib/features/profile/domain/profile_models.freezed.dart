@@ -16,7 +16,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PublicProfile {
 
- String get id; String get username; String get displayName; String? get avatarUrl; String? get bio; bool get isPrivate; int get followerCount; int get followingCount; bool get isFollowing; bool get isSelf; String? get liveRoomId;/// CP-007: the caller muted this user (never shown to them). Defaults
+ String get id; String get username; String get displayName; String? get avatarUrl; String? get bio; bool get isPrivate; int get followerCount; int get followingCount; bool get isFollowing; bool get isSelf; String? get liveRoomId;/// v1.70-live (D279, §10.5.1): the «في بث الآن» card — the facts of the
+/// [liveRoomId] room; null when not live, across a block, and from
+/// older servers.
+ ProfileLive? get live;/// CP-007: the caller muted this user (never shown to them). Defaults
 /// to false for previews built without it.
  bool get isMuted;/// v1.28-live (D146): the tier of the user's premium username (the
 /// badge), or null for a regular username. Only the server decides it.
@@ -73,20 +76,20 @@ $PublicProfileCopyWith<PublicProfile> get copyWith => _$PublicProfileCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as PublicProfile;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PublicProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.isSelf, _this.isSelf) || other.isSelf == _this.isSelf)&&(identical(other.liveRoomId, _this.liveRoomId) || other.liveRoomId == _this.liveRoomId)&&(identical(other.isMuted, _this.isMuted) || other.isMuted == _this.isMuted)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.cp, _this.cp) || other.cp == _this.cp)&&(identical(other.medals, _this.medals) || other.medals == _this.medals)&&(identical(other.profileCard, _this.profileCard) || other.profileCard == _this.profileCard)&&(identical(other.followRequested, _this.followRequested) || other.followRequested == _this.followRequested)&&(identical(other.gender, _this.gender) || other.gender == _this.gender)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.links, _this.links)&&(identical(other.rechargeAgentCode, _this.rechargeAgentCode) || other.rechargeAgentCode == _this.rechargeAgentCode)&&(identical(other.hostAgentCode, _this.hostAgentCode) || other.hostAgentCode == _this.hostAgentCode)&&(identical(other.avatarFrame, _this.avatarFrame) || other.avatarFrame == _this.avatarFrame)&&(identical(other.rechargeBadge, _this.rechargeBadge) || other.rechargeBadge == _this.rechargeBadge)&&(identical(other.vip, _this.vip) || other.vip == _this.vip)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.country, _this.country) || other.country == _this.country)&&(identical(other.joinedMonth, _this.joinedMonth) || other.joinedMonth == _this.joinedMonth)&&(identical(other.blockedByMe, _this.blockedByMe) || other.blockedByMe == _this.blockedByMe)&&(identical(other.cherriesReceived, _this.cherriesReceived) || other.cherriesReceived == _this.cherriesReceived)&&(identical(other.coinsSent, _this.coinsSent) || other.coinsSent == _this.coinsSent)&&(identical(other.kabsoTeam, _this.kabsoTeam) || other.kabsoTeam == _this.kabsoTeam));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PublicProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.isSelf, _this.isSelf) || other.isSelf == _this.isSelf)&&(identical(other.liveRoomId, _this.liveRoomId) || other.liveRoomId == _this.liveRoomId)&&(identical(other.live, _this.live) || other.live == _this.live)&&(identical(other.isMuted, _this.isMuted) || other.isMuted == _this.isMuted)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier)&&(identical(other.family, _this.family) || other.family == _this.family)&&(identical(other.cp, _this.cp) || other.cp == _this.cp)&&(identical(other.medals, _this.medals) || other.medals == _this.medals)&&(identical(other.profileCard, _this.profileCard) || other.profileCard == _this.profileCard)&&(identical(other.followRequested, _this.followRequested) || other.followRequested == _this.followRequested)&&(identical(other.gender, _this.gender) || other.gender == _this.gender)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.links, _this.links)&&(identical(other.rechargeAgentCode, _this.rechargeAgentCode) || other.rechargeAgentCode == _this.rechargeAgentCode)&&(identical(other.hostAgentCode, _this.hostAgentCode) || other.hostAgentCode == _this.hostAgentCode)&&(identical(other.avatarFrame, _this.avatarFrame) || other.avatarFrame == _this.avatarFrame)&&(identical(other.rechargeBadge, _this.rechargeBadge) || other.rechargeBadge == _this.rechargeBadge)&&(identical(other.vip, _this.vip) || other.vip == _this.vip)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.country, _this.country) || other.country == _this.country)&&(identical(other.joinedMonth, _this.joinedMonth) || other.joinedMonth == _this.joinedMonth)&&(identical(other.blockedByMe, _this.blockedByMe) || other.blockedByMe == _this.blockedByMe)&&(identical(other.cherriesReceived, _this.cherriesReceived) || other.cherriesReceived == _this.cherriesReceived)&&(identical(other.coinsSent, _this.coinsSent) || other.coinsSent == _this.coinsSent)&&(identical(other.kabsoTeam, _this.kabsoTeam) || other.kabsoTeam == _this.kabsoTeam));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as PublicProfile;
-  return Object.hashAll([runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.bio,_this.isPrivate,_this.followerCount,_this.followingCount,_this.isFollowing,_this.isSelf,_this.liveRoomId,_this.isMuted,_this.premiumTier,_this.family,_this.cp,_this.medals,_this.profileCard,_this.followRequested,_this.gender,_this.category,const DeepCollectionEquality().hash(_this.links),_this.rechargeAgentCode,_this.hostAgentCode,_this.avatarFrame,_this.rechargeBadge,_this.vip,_this.coverUrl,_this.country,_this.joinedMonth,_this.blockedByMe,_this.cherriesReceived,_this.coinsSent,_this.kabsoTeam]);
+  return Object.hashAll([runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.bio,_this.isPrivate,_this.followerCount,_this.followingCount,_this.isFollowing,_this.isSelf,_this.liveRoomId,_this.live,_this.isMuted,_this.premiumTier,_this.family,_this.cp,_this.medals,_this.profileCard,_this.followRequested,_this.gender,_this.category,const DeepCollectionEquality().hash(_this.links),_this.rechargeAgentCode,_this.hostAgentCode,_this.avatarFrame,_this.rechargeBadge,_this.vip,_this.coverUrl,_this.country,_this.joinedMonth,_this.blockedByMe,_this.cherriesReceived,_this.coinsSent,_this.kabsoTeam]);
 }
 
 @override
 String toString() {
   final _this = this as PublicProfile;
-  return 'PublicProfile(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, bio: ${_this.bio}, isPrivate: ${_this.isPrivate}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, isFollowing: ${_this.isFollowing}, isSelf: ${_this.isSelf}, liveRoomId: ${_this.liveRoomId}, isMuted: ${_this.isMuted}, premiumTier: ${_this.premiumTier}, family: ${_this.family}, cp: ${_this.cp}, medals: ${_this.medals}, profileCard: ${_this.profileCard}, followRequested: ${_this.followRequested}, gender: ${_this.gender}, category: ${_this.category}, links: ${_this.links}, rechargeAgentCode: ${_this.rechargeAgentCode}, hostAgentCode: ${_this.hostAgentCode}, avatarFrame: ${_this.avatarFrame}, rechargeBadge: ${_this.rechargeBadge}, vip: ${_this.vip}, coverUrl: ${_this.coverUrl}, country: ${_this.country}, joinedMonth: ${_this.joinedMonth}, blockedByMe: ${_this.blockedByMe}, cherriesReceived: ${_this.cherriesReceived}, coinsSent: ${_this.coinsSent}, kabsoTeam: ${_this.kabsoTeam})';
+  return 'PublicProfile(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, bio: ${_this.bio}, isPrivate: ${_this.isPrivate}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, isFollowing: ${_this.isFollowing}, isSelf: ${_this.isSelf}, liveRoomId: ${_this.liveRoomId}, live: ${_this.live}, isMuted: ${_this.isMuted}, premiumTier: ${_this.premiumTier}, family: ${_this.family}, cp: ${_this.cp}, medals: ${_this.medals}, profileCard: ${_this.profileCard}, followRequested: ${_this.followRequested}, gender: ${_this.gender}, category: ${_this.category}, links: ${_this.links}, rechargeAgentCode: ${_this.rechargeAgentCode}, hostAgentCode: ${_this.hostAgentCode}, avatarFrame: ${_this.avatarFrame}, rechargeBadge: ${_this.rechargeBadge}, vip: ${_this.vip}, coverUrl: ${_this.coverUrl}, country: ${_this.country}, joinedMonth: ${_this.joinedMonth}, blockedByMe: ${_this.blockedByMe}, cherriesReceived: ${_this.cherriesReceived}, coinsSent: ${_this.coinsSent}, kabsoTeam: ${_this.kabsoTeam})';
 }
 
 
@@ -97,11 +100,11 @@ abstract mixin class $PublicProfileCopyWith<$Res>  {
   factory $PublicProfileCopyWith(PublicProfile value, $Res Function(PublicProfile) _then) = _$PublicProfileCopyWithImpl;
 @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard, bool followRequested,@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? category,@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> links,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame,@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? rechargeBadge,@JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson) UserVip? vip, String? coverUrl, String? country, String? joinedMonth, bool blockedByMe,@JsonKey(includeIfNull: false) int? cherriesReceived,@JsonKey(includeIfNull: false) int? coinsSent, bool kabsoTeam
+ String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, ProfileLive? live, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard, bool followRequested,@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? category,@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> links,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame,@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? rechargeBadge,@JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson) UserVip? vip, String? coverUrl, String? country, String? joinedMonth, bool blockedByMe,@JsonKey(includeIfNull: false) int? cherriesReceived,@JsonKey(includeIfNull: false) int? coinsSent, bool kabsoTeam
 });
 
 
-$ProfileFamilyCopyWith<$Res>? get family;$ProfileCpCopyWith<$Res>? get cp;$ProfileMedalsCopyWith<$Res> get medals;$ProfileCardCopyWith<$Res>? get profileCard;
+$ProfileLiveCopyWith<$Res>? get live;$ProfileFamilyCopyWith<$Res>? get family;$ProfileCpCopyWith<$Res>? get cp;$ProfileMedalsCopyWith<$Res> get medals;$ProfileCardCopyWith<$Res>? get profileCard;
 
 }
 /// @nodoc
@@ -114,7 +117,7 @@ class _$PublicProfileCopyWithImpl<$Res>
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,Object? followRequested = null,Object? gender = freezed,Object? category = freezed,Object? links = null,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,Object? rechargeBadge = freezed,Object? vip = freezed,Object? coverUrl = freezed,Object? country = freezed,Object? joinedMonth = freezed,Object? blockedByMe = null,Object? cherriesReceived = freezed,Object? coinsSent = freezed,Object? kabsoTeam = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? live = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,Object? followRequested = null,Object? gender = freezed,Object? category = freezed,Object? links = null,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,Object? rechargeBadge = freezed,Object? vip = freezed,Object? coverUrl = freezed,Object? country = freezed,Object? joinedMonth = freezed,Object? blockedByMe = null,Object? cherriesReceived = freezed,Object? coinsSent = freezed,Object? kabsoTeam = null,}) {
   return _then(PublicProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -127,7 +130,8 @@ as int,followingCount: null == followingCount ? _self.followingCount : following
 as int,isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,isSelf: null == isSelf ? _self.isSelf : isSelf // ignore: cast_nullable_to_non_nullable
 as bool,liveRoomId: freezed == liveRoomId ? _self.liveRoomId : liveRoomId // ignore: cast_nullable_to_non_nullable
-as String?,isMuted: null == isMuted ? _self.isMuted : isMuted // ignore: cast_nullable_to_non_nullable
+as String?,live: freezed == live ? _self.live : live // ignore: cast_nullable_to_non_nullable
+as ProfileLive?,isMuted: null == isMuted ? _self.isMuted : isMuted // ignore: cast_nullable_to_non_nullable
 as bool,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier // ignore: cast_nullable_to_non_nullable
 as PremiumTier?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
 as ProfileFamily?,cp: freezed == cp ? _self.cp : cp // ignore: cast_nullable_to_non_nullable
@@ -153,6 +157,18 @@ as bool,
   ));
 }
 /// Create a copy of PublicProfile
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ProfileLiveCopyWith<$Res>? get live {
+    if (_self.live == null) {
+    return null;
+  }
+
+  return $ProfileLiveCopyWith<$Res>(_self.live!, (value) {
+    return _then(_self.copyWith(live: value));
+  });
+}/// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
@@ -279,10 +295,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson)  UserVip? vip,  String? coverUrl,  String? country,  String? joinedMonth,  bool blockedByMe, @JsonKey(includeIfNull: false)  int? cherriesReceived, @JsonKey(includeIfNull: false)  int? coinsSent,  bool kabsoTeam)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  ProfileLive? live,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson)  UserVip? vip,  String? coverUrl,  String? country,  String? joinedMonth,  bool blockedByMe, @JsonKey(includeIfNull: false)  int? cherriesReceived, @JsonKey(includeIfNull: false)  int? coinsSent,  bool kabsoTeam)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PublicProfile() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge,_that.vip,_that.coverUrl,_that.country,_that.joinedMonth,_that.blockedByMe,_that.cherriesReceived,_that.coinsSent,_that.kabsoTeam);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.live,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge,_that.vip,_that.coverUrl,_that.country,_that.joinedMonth,_that.blockedByMe,_that.cherriesReceived,_that.coinsSent,_that.kabsoTeam);case _:
   return orElse();
 
 }
@@ -300,10 +316,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson)  UserVip? vip,  String? coverUrl,  String? country,  String? joinedMonth,  bool blockedByMe, @JsonKey(includeIfNull: false)  int? cherriesReceived, @JsonKey(includeIfNull: false)  int? coinsSent,  bool kabsoTeam)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  ProfileLive? live,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson)  UserVip? vip,  String? coverUrl,  String? country,  String? joinedMonth,  bool blockedByMe, @JsonKey(includeIfNull: false)  int? cherriesReceived, @JsonKey(includeIfNull: false)  int? coinsSent,  bool kabsoTeam)  $default,) {final _that = this;
 switch (_that) {
 case _PublicProfile():
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge,_that.vip,_that.coverUrl,_that.country,_that.joinedMonth,_that.blockedByMe,_that.cherriesReceived,_that.coinsSent,_that.kabsoTeam);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.live,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge,_that.vip,_that.coverUrl,_that.country,_that.joinedMonth,_that.blockedByMe,_that.cherriesReceived,_that.coinsSent,_that.kabsoTeam);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -320,10 +336,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson)  UserVip? vip,  String? coverUrl,  String? country,  String? joinedMonth,  bool blockedByMe, @JsonKey(includeIfNull: false)  int? cherriesReceived, @JsonKey(includeIfNull: false)  int? coinsSent,  bool kabsoTeam)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  ProfileLive? live,  bool isMuted, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier,  ProfileFamily? family,  ProfileCp? cp,  ProfileMedals medals,  ProfileCard? profileCard,  bool followRequested, @JsonKey(fromJson: genderFromJson, toJson: genderToJson)  Gender? gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson)  AccountCategory? category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links, @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson)  String? hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson)  AvatarFrame? avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson)  RechargeBadge? rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson)  UserVip? vip,  String? coverUrl,  String? country,  String? joinedMonth,  bool blockedByMe, @JsonKey(includeIfNull: false)  int? cherriesReceived, @JsonKey(includeIfNull: false)  int? coinsSent,  bool kabsoTeam)?  $default,) {final _that = this;
 switch (_that) {
 case _PublicProfile() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge,_that.vip,_that.coverUrl,_that.country,_that.joinedMonth,_that.blockedByMe,_that.cherriesReceived,_that.coinsSent,_that.kabsoTeam);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.live,_that.isMuted,_that.premiumTier,_that.family,_that.cp,_that.medals,_that.profileCard,_that.followRequested,_that.gender,_that.category,_that.links,_that.rechargeAgentCode,_that.hostAgentCode,_that.avatarFrame,_that.rechargeBadge,_that.vip,_that.coverUrl,_that.country,_that.joinedMonth,_that.blockedByMe,_that.cherriesReceived,_that.coinsSent,_that.kabsoTeam);case _:
   return null;
 
 }
@@ -335,7 +351,7 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 @JsonSerializable()
 
 class _PublicProfile extends PublicProfile {
-  const _PublicProfile({required this.id, required this.username, required this.displayName, required this.avatarUrl, required this.bio, required this.isPrivate, required this.followerCount, required this.followingCount, required this.isFollowing, required this.isSelf, required this.liveRoomId, this.isMuted = false, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier, this.family, this.cp, this.medals = const ProfileMedals(), this.profileCard, this.followRequested = false, @JsonKey(fromJson: genderFromJson, toJson: genderToJson) this.gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) this.category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links = const <ProfileLink>[], @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) this.avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) this.rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson) this.vip, this.coverUrl, this.country, this.joinedMonth, this.blockedByMe = false, @JsonKey(includeIfNull: false) this.cherriesReceived, @JsonKey(includeIfNull: false) this.coinsSent, this.kabsoTeam = false}): _links = links,super._();
+  const _PublicProfile({required this.id, required this.username, required this.displayName, required this.avatarUrl, required this.bio, required this.isPrivate, required this.followerCount, required this.followingCount, required this.isFollowing, required this.isSelf, required this.liveRoomId, this.live, this.isMuted = false, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier, this.family, this.cp, this.medals = const ProfileMedals(), this.profileCard, this.followRequested = false, @JsonKey(fromJson: genderFromJson, toJson: genderToJson) this.gender, @JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) this.category, @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)  List<ProfileLink> links = const <ProfileLink>[], @JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.rechargeAgentCode, @JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) this.hostAgentCode, @JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) this.avatarFrame, @JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) this.rechargeBadge, @JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson) this.vip, this.coverUrl, this.country, this.joinedMonth, this.blockedByMe = false, @JsonKey(includeIfNull: false) this.cherriesReceived, @JsonKey(includeIfNull: false) this.coinsSent, this.kabsoTeam = false}): _links = links,super._();
   factory _PublicProfile.fromJson(Map<String, dynamic> json) => _$PublicProfileFromJson(json);
 
 @override final  String id;
@@ -349,6 +365,10 @@ class _PublicProfile extends PublicProfile {
 @override final  bool isFollowing;
 @override final  bool isSelf;
 @override final  String? liveRoomId;
+/// v1.70-live (D279, §10.5.1): the «في بث الآن» card — the facts of the
+/// [liveRoomId] room; null when not live, across a block, and from
+/// older servers.
+@override final  ProfileLive? live;
 /// CP-007: the caller muted this user (never shown to them). Defaults
 /// to false for previews built without it.
 @override@JsonKey() final  bool isMuted;
@@ -435,18 +455,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PublicProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.isSelf, isSelf) || other.isSelf == isSelf)&&(identical(other.liveRoomId, liveRoomId) || other.liveRoomId == liveRoomId)&&(identical(other.isMuted, isMuted) || other.isMuted == isMuted)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.family, family) || other.family == family)&&(identical(other.cp, cp) || other.cp == cp)&&(identical(other.medals, medals) || other.medals == medals)&&(identical(other.profileCard, profileCard) || other.profileCard == profileCard)&&(identical(other.followRequested, followRequested) || other.followRequested == followRequested)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.links, _links)&&(identical(other.rechargeAgentCode, rechargeAgentCode) || other.rechargeAgentCode == rechargeAgentCode)&&(identical(other.hostAgentCode, hostAgentCode) || other.hostAgentCode == hostAgentCode)&&(identical(other.avatarFrame, avatarFrame) || other.avatarFrame == avatarFrame)&&(identical(other.rechargeBadge, rechargeBadge) || other.rechargeBadge == rechargeBadge)&&(identical(other.vip, vip) || other.vip == vip)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.country, country) || other.country == country)&&(identical(other.joinedMonth, joinedMonth) || other.joinedMonth == joinedMonth)&&(identical(other.blockedByMe, blockedByMe) || other.blockedByMe == blockedByMe)&&(identical(other.cherriesReceived, cherriesReceived) || other.cherriesReceived == cherriesReceived)&&(identical(other.coinsSent, coinsSent) || other.coinsSent == coinsSent)&&(identical(other.kabsoTeam, kabsoTeam) || other.kabsoTeam == kabsoTeam));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PublicProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.isSelf, isSelf) || other.isSelf == isSelf)&&(identical(other.liveRoomId, liveRoomId) || other.liveRoomId == liveRoomId)&&(identical(other.live, live) || other.live == live)&&(identical(other.isMuted, isMuted) || other.isMuted == isMuted)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier)&&(identical(other.family, family) || other.family == family)&&(identical(other.cp, cp) || other.cp == cp)&&(identical(other.medals, medals) || other.medals == medals)&&(identical(other.profileCard, profileCard) || other.profileCard == profileCard)&&(identical(other.followRequested, followRequested) || other.followRequested == followRequested)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.links, _links)&&(identical(other.rechargeAgentCode, rechargeAgentCode) || other.rechargeAgentCode == rechargeAgentCode)&&(identical(other.hostAgentCode, hostAgentCode) || other.hostAgentCode == hostAgentCode)&&(identical(other.avatarFrame, avatarFrame) || other.avatarFrame == avatarFrame)&&(identical(other.rechargeBadge, rechargeBadge) || other.rechargeBadge == rechargeBadge)&&(identical(other.vip, vip) || other.vip == vip)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.country, country) || other.country == country)&&(identical(other.joinedMonth, joinedMonth) || other.joinedMonth == joinedMonth)&&(identical(other.blockedByMe, blockedByMe) || other.blockedByMe == blockedByMe)&&(identical(other.cherriesReceived, cherriesReceived) || other.cherriesReceived == cherriesReceived)&&(identical(other.coinsSent, coinsSent) || other.coinsSent == coinsSent)&&(identical(other.kabsoTeam, kabsoTeam) || other.kabsoTeam == kabsoTeam));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hashAll([runtimeType,id,username,displayName,avatarUrl,bio,isPrivate,followerCount,followingCount,isFollowing,isSelf,liveRoomId,isMuted,premiumTier,family,cp,medals,profileCard,followRequested,gender,category,const DeepCollectionEquality().hash(_links),rechargeAgentCode,hostAgentCode,avatarFrame,rechargeBadge,vip,coverUrl,country,joinedMonth,blockedByMe,cherriesReceived,coinsSent,kabsoTeam]);
+    return Object.hashAll([runtimeType,id,username,displayName,avatarUrl,bio,isPrivate,followerCount,followingCount,isFollowing,isSelf,liveRoomId,live,isMuted,premiumTier,family,cp,medals,profileCard,followRequested,gender,category,const DeepCollectionEquality().hash(_links),rechargeAgentCode,hostAgentCode,avatarFrame,rechargeBadge,vip,coverUrl,country,joinedMonth,blockedByMe,cherriesReceived,coinsSent,kabsoTeam]);
 }
 
 @override
 String toString() {
-    return 'PublicProfile(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, isPrivate: $isPrivate, followerCount: $followerCount, followingCount: $followingCount, isFollowing: $isFollowing, isSelf: $isSelf, liveRoomId: $liveRoomId, isMuted: $isMuted, premiumTier: $premiumTier, family: $family, cp: $cp, medals: $medals, profileCard: $profileCard, followRequested: $followRequested, gender: $gender, category: $category, links: $links, rechargeAgentCode: $rechargeAgentCode, hostAgentCode: $hostAgentCode, avatarFrame: $avatarFrame, rechargeBadge: $rechargeBadge, vip: $vip, coverUrl: $coverUrl, country: $country, joinedMonth: $joinedMonth, blockedByMe: $blockedByMe, cherriesReceived: $cherriesReceived, coinsSent: $coinsSent, kabsoTeam: $kabsoTeam)';
+    return 'PublicProfile(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, isPrivate: $isPrivate, followerCount: $followerCount, followingCount: $followingCount, isFollowing: $isFollowing, isSelf: $isSelf, liveRoomId: $liveRoomId, live: $live, isMuted: $isMuted, premiumTier: $premiumTier, family: $family, cp: $cp, medals: $medals, profileCard: $profileCard, followRequested: $followRequested, gender: $gender, category: $category, links: $links, rechargeAgentCode: $rechargeAgentCode, hostAgentCode: $hostAgentCode, avatarFrame: $avatarFrame, rechargeBadge: $rechargeBadge, vip: $vip, coverUrl: $coverUrl, country: $country, joinedMonth: $joinedMonth, blockedByMe: $blockedByMe, cherriesReceived: $cherriesReceived, coinsSent: $coinsSent, kabsoTeam: $kabsoTeam)';
 }
 
 
@@ -457,11 +477,11 @@ abstract mixin class _$PublicProfileCopyWith<$Res> implements $PublicProfileCopy
   factory _$PublicProfileCopyWith(_PublicProfile value, $Res Function(_PublicProfile) _then) = __$PublicProfileCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard, bool followRequested,@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? category,@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> links,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame,@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? rechargeBadge,@JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson) UserVip? vip, String? coverUrl, String? country, String? joinedMonth, bool blockedByMe,@JsonKey(includeIfNull: false) int? cherriesReceived,@JsonKey(includeIfNull: false) int? coinsSent, bool kabsoTeam
+ String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, ProfileLive? live, bool isMuted,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier, ProfileFamily? family, ProfileCp? cp, ProfileMedals medals, ProfileCard? profileCard, bool followRequested,@JsonKey(fromJson: genderFromJson, toJson: genderToJson) Gender? gender,@JsonKey(fromJson: accountCategoryFromJson, toJson: accountCategoryToJson) AccountCategory? category,@JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson) List<ProfileLink> links,@JsonKey(name: 'rechargeAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? rechargeAgentCode,@JsonKey(name: 'hostAgent', includeIfNull: false, fromJson: rechargeAgentCodeFromJson, toJson: rechargeAgentCodeToJson) String? hostAgentCode,@JsonKey(includeIfNull: false, fromJson: avatarFrameFromJson, toJson: avatarFrameToJson) AvatarFrame? avatarFrame,@JsonKey(includeIfNull: false, fromJson: rechargeBadgeFromJson, toJson: rechargeBadgeToJson) RechargeBadge? rechargeBadge,@JsonKey(includeIfNull: false, readValue: userVipWithWear, fromJson: userVipFromJson, toJson: userVipToJson) UserVip? vip, String? coverUrl, String? country, String? joinedMonth, bool blockedByMe,@JsonKey(includeIfNull: false) int? cherriesReceived,@JsonKey(includeIfNull: false) int? coinsSent, bool kabsoTeam
 });
 
 
-@override $ProfileFamilyCopyWith<$Res>? get family;@override $ProfileCpCopyWith<$Res>? get cp;@override $ProfileMedalsCopyWith<$Res> get medals;@override $ProfileCardCopyWith<$Res>? get profileCard;
+@override $ProfileLiveCopyWith<$Res>? get live;@override $ProfileFamilyCopyWith<$Res>? get family;@override $ProfileCpCopyWith<$Res>? get cp;@override $ProfileMedalsCopyWith<$Res> get medals;@override $ProfileCardCopyWith<$Res>? get profileCard;
 
 }
 /// @nodoc
@@ -474,7 +494,7 @@ class __$PublicProfileCopyWithImpl<$Res>
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,Object? followRequested = null,Object? gender = freezed,Object? category = freezed,Object? links = null,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,Object? rechargeBadge = freezed,Object? vip = freezed,Object? coverUrl = freezed,Object? country = freezed,Object? joinedMonth = freezed,Object? blockedByMe = null,Object? cherriesReceived = freezed,Object? coinsSent = freezed,Object? kabsoTeam = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? live = freezed,Object? isMuted = null,Object? premiumTier = freezed,Object? family = freezed,Object? cp = freezed,Object? medals = null,Object? profileCard = freezed,Object? followRequested = null,Object? gender = freezed,Object? category = freezed,Object? links = null,Object? rechargeAgentCode = freezed,Object? hostAgentCode = freezed,Object? avatarFrame = freezed,Object? rechargeBadge = freezed,Object? vip = freezed,Object? coverUrl = freezed,Object? country = freezed,Object? joinedMonth = freezed,Object? blockedByMe = null,Object? cherriesReceived = freezed,Object? coinsSent = freezed,Object? kabsoTeam = null,}) {
   return _then(_PublicProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -487,7 +507,8 @@ as int,followingCount: null == followingCount ? _self.followingCount : following
 as int,isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,isSelf: null == isSelf ? _self.isSelf : isSelf // ignore: cast_nullable_to_non_nullable
 as bool,liveRoomId: freezed == liveRoomId ? _self.liveRoomId : liveRoomId // ignore: cast_nullable_to_non_nullable
-as String?,isMuted: null == isMuted ? _self.isMuted : isMuted // ignore: cast_nullable_to_non_nullable
+as String?,live: freezed == live ? _self.live : live // ignore: cast_nullable_to_non_nullable
+as ProfileLive?,isMuted: null == isMuted ? _self.isMuted : isMuted // ignore: cast_nullable_to_non_nullable
 as bool,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier // ignore: cast_nullable_to_non_nullable
 as PremiumTier?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
 as ProfileFamily?,cp: freezed == cp ? _self.cp : cp // ignore: cast_nullable_to_non_nullable
@@ -514,6 +535,18 @@ as bool,
 }
 
 /// Create a copy of PublicProfile
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ProfileLiveCopyWith<$Res>? get live {
+    if (_self.live == null) {
+    return null;
+  }
+
+  return $ProfileLiveCopyWith<$Res>(_self.live!, (value) {
+    return _then(_self.copyWith(live: value));
+  });
+}/// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
@@ -559,6 +592,291 @@ $ProfileCardCopyWith<$Res>? get profileCard {
     return _then(_self.copyWith(profileCard: value));
   });
 }
+}
+
+
+/// @nodoc
+mixin _$ProfileLive {
+
+ String get roomId; DateTime get startedAt; String get title;@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode get mode; int get viewerCount; int get score;
+/// Create a copy of ProfileLive
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ProfileLiveCopyWith<ProfileLive> get copyWith => _$ProfileLiveCopyWithImpl<ProfileLive>(this as ProfileLive, _$identity);
+
+  /// Serializes this ProfileLive to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as ProfileLive;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileLive&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.score, _this.score) || other.score == _this.score));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as ProfileLive;
+  return Object.hash(runtimeType,_this.roomId,_this.startedAt,_this.title,_this.mode,_this.viewerCount,_this.score);
+}
+
+@override
+String toString() {
+  final _this = this as ProfileLive;
+  return 'ProfileLive(roomId: ${_this.roomId}, startedAt: ${_this.startedAt}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, score: ${_this.score})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ProfileLiveCopyWith<$Res>  {
+  factory $ProfileLiveCopyWith(ProfileLive value, $Res Function(ProfileLive) _then) = _$ProfileLiveCopyWithImpl;
+@useResult
+$Res call({
+ String roomId, DateTime startedAt, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, int score
+});
+
+
+
+
+}
+/// @nodoc
+class _$ProfileLiveCopyWithImpl<$Res>
+    implements $ProfileLiveCopyWith<$Res> {
+  _$ProfileLiveCopyWithImpl(this._self, this._then);
+
+  final ProfileLive _self;
+  final $Res Function(ProfileLive) _then;
+
+/// Create a copy of ProfileLive
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? roomId = null,Object? startedAt = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? score = null,}) {
+  return _then(ProfileLive(
+roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String,startedAt: null == startedAt ? _self.startedAt : startedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
+as LiveRoomMode,viewerCount: null == viewerCount ? _self.viewerCount : viewerCount // ignore: cast_nullable_to_non_nullable
+as int,score: null == score ? _self.score : score // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [ProfileLive].
+extension ProfileLivePatterns on ProfileLive {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ProfileLive value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ProfileLive() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ProfileLive value)  $default,){
+final _that = this;
+switch (_that) {
+case _ProfileLive():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ProfileLive value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ProfileLive() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String roomId,  DateTime startedAt,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  int score)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ProfileLive() when $default != null:
+return $default(_that.roomId,_that.startedAt,_that.title,_that.mode,_that.viewerCount,_that.score);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String roomId,  DateTime startedAt,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  int score)  $default,) {final _that = this;
+switch (_that) {
+case _ProfileLive():
+return $default(_that.roomId,_that.startedAt,_that.title,_that.mode,_that.viewerCount,_that.score);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String roomId,  DateTime startedAt,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  int score)?  $default,) {final _that = this;
+switch (_that) {
+case _ProfileLive() when $default != null:
+return $default(_that.roomId,_that.startedAt,_that.title,_that.mode,_that.viewerCount,_that.score);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _ProfileLive implements ProfileLive {
+  const _ProfileLive({required this.roomId, required this.startedAt, this.title = '', @JsonKey(unknownEnumValue: LiveRoomMode.solo) this.mode = LiveRoomMode.solo, this.viewerCount = 0, this.score = 0});
+  factory _ProfileLive.fromJson(Map<String, dynamic> json) => _$ProfileLiveFromJson(json);
+
+@override final  String roomId;
+@override final  DateTime startedAt;
+@override@JsonKey() final  String title;
+@override@JsonKey(unknownEnumValue: LiveRoomMode.solo) final  LiveRoomMode mode;
+@override@JsonKey() final  int viewerCount;
+@override@JsonKey() final  int score;
+
+/// Create a copy of ProfileLive
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ProfileLiveCopyWith<_ProfileLive> get copyWith => __$ProfileLiveCopyWithImpl<_ProfileLive>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ProfileLiveToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileLive&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.score, score) || other.score == score));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,roomId,startedAt,title,mode,viewerCount,score);
+}
+
+@override
+String toString() {
+    return 'ProfileLive(roomId: $roomId, startedAt: $startedAt, title: $title, mode: $mode, viewerCount: $viewerCount, score: $score)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ProfileLiveCopyWith<$Res> implements $ProfileLiveCopyWith<$Res> {
+  factory _$ProfileLiveCopyWith(_ProfileLive value, $Res Function(_ProfileLive) _then) = __$ProfileLiveCopyWithImpl;
+@override @useResult
+$Res call({
+ String roomId, DateTime startedAt, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, int score
+});
+
+
+
+
+}
+/// @nodoc
+class __$ProfileLiveCopyWithImpl<$Res>
+    implements _$ProfileLiveCopyWith<$Res> {
+  __$ProfileLiveCopyWithImpl(this._self, this._then);
+
+  final _ProfileLive _self;
+  final $Res Function(_ProfileLive) _then;
+
+/// Create a copy of ProfileLive
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? roomId = null,Object? startedAt = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? score = null,}) {
+  return _then(_ProfileLive(
+roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String,startedAt: null == startedAt ? _self.startedAt : startedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
+as LiveRoomMode,viewerCount: null == viewerCount ? _self.viewerCount : viewerCount // ignore: cast_nullable_to_non_nullable
+as int,score: null == score ? _self.score : score // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
 }
 
 

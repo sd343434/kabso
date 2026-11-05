@@ -927,6 +927,7 @@ describe('KL-037 public profile and follow', () => {
       isMuted: false,
       isSelf: false,
       liveRoomId: null,
+      live: null,
       // v1.21-live (CP-018): no family or couple; the catalogue is empty in this database.
       family: null,
       cp: null,

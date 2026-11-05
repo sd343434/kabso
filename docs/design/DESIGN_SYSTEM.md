@@ -534,6 +534,16 @@ and buttons share a line on phones ≥ 340 dp at text scale ≤ 1.15, else stack
 cover is the dark palette with `live.glassShadow`, in both modes. No cover: the brand red
 gradient, with the photo blurred (σ 24) over it when there is one.
 
+**Live now card (D279).** While the profile's owner is live, directly under the cover:
+the section title «في بث الآن» (own: «أنت في بث الآن»; `title`), then one card (16 dp page
+margins, radius `md`, `surface` with `brand.red500` at 6 % — 14 % in dark — and a 28 %
+red outline): a 40 dp round mark in `brand.gradientLive` (the live icon; a microphone for
+voice rooms), «مباشر منذ 1س 17د» (`bodyStrong`), the viewers · score in `caption`
+`textSecondary` (`compactLatin`; the score left out while 0), the title (or «غرفة صوتية»)
+in `textTertiary`, and **Join** «انضم» (own: «عودة للبث») — `brand.red500`, radius `sm`,
+the play icon, at the reading end. The whole card and the button open the room (the live
+ring's route).
+
 ### 9.8 Tabs — `KTabs`
 
 Anatomy: row of tab labels (`label`) · 2 dp `primary` indicator under selected · bottom 1 dp

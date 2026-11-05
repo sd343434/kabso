@@ -24468,6 +24468,64 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رُفض الإجراء'**
   String get errorAdminActionRefused;
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'في بث الآن'**
+  String get profileLiveNowTitle;
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت في بث الآن'**
+  String get profileLiveNowSelfTitle;
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر منذ {duration}'**
+  String profileLiveFor(String duration);
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'{hours}س {minutes}د'**
+  String profileLiveHoursMinutes(int hours, int minutes);
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes}د'**
+  String profileLiveMinutes(int minutes);
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم'**
+  String get profileLiveJoin;
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'عودة للبث'**
+  String get profileLiveReturn;
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'غرفة صوتية'**
+  String get profileLiveVoice;
+
+  /// D279: the profile's «في بث الآن» card under the cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'{title}، {duration}، {details}'**
+  String profileLiveCardSemantics(
+    String title,
+    String duration,
+    String details,
+  );
 }
 
 class _AppLocalizationsDelegate

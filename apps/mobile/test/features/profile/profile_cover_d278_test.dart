@@ -157,6 +157,7 @@ Future<void> pumpOwn(
   Brightness brightness = Brightness.light,
   GoldenViewport viewport = GoldenViewport.phone,
   bool cover = true,
+  PublicProfile? stats,
 }) async {
   setViewport(tester, viewport);
   insets(tester);
@@ -171,6 +172,7 @@ Future<void> pumpOwn(
       meProvider.overrideWith((ref) => me(ar: ar, cover: cover)),
       profileStatsProvider.overrideWith(
         (ref, username) =>
+            stats ??
             otherProfile(ar: ar, self: true).copyWith(hostAgentCode: null),
       ),
       ..._common,

@@ -135,6 +135,19 @@ export interface UserSummaryDto {
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
+
+/**
+ * v1.70-live (D279, §10.5.1): `ProfileLive` — the profile's «في بث الآن» card: the live's room, title, mode, start,
+ * viewers now and score (the same numbers as the room's `LiveRoomSummary`).
+ */
+export interface ProfileLiveDto {
+  roomId: string;
+  title: string;
+  mode: LiveRoomMode;
+  startedAt: string;
+  viewerCount: number;
+  score: number;
+}
 export type LiveRoomEndReason =
   | 'HOST_ENDED'
   | 'HEARTBEAT_TIMEOUT'
@@ -1329,6 +1342,54 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (this.isFresh(room.lastHeartbeatAt, now)) return room.id;
     await this.endStaleOne(Prisma.sql`id = ${room.id}::uuid`, now);
     return null;
+  }
+
+  /**
+   * v1.70-live (D279, §10.5.1): `PublicProfile.liveRoomId` (as {@link freshLiveRoomIdOf}) and `PublicProfile.live`,
+   * the facts of the profile's «في بث الآن» card. `live` is null whenever `liveRoomId` is, and also across a block
+   * either way with [viewerId] (CP-010: the room itself is hidden then; «فريق كابسو» excepted, as for entering).
+   */
+  async profileLiveOf(
+    hostUserId: string,
+    viewerId: string,
+  ): Promise<{ liveRoomId: string | null; live: ProfileLiveDto | null }> {
+    const rows = await this.prisma.$queryRaw<
+      {
+        id: string;
+        title: string;
+        mode: LiveRoomMode;
+        started_at: Date;
+        last_heartbeat_at: Date;
+        viewer_count: number;
+        score: bigint;
+        visible: boolean;
+      }[]
+    >`
+      SELECT r.id, r.title, r.mode::text AS mode, r.started_at, r.last_heartbeat_at, r.viewer_count, r.score,
+             ${notBlockedSql(viewerId)} AS visible
+        FROM live_rooms r
+       WHERE r.host_user_id = ${hostUserId}::uuid AND r.status = 'LIVE'
+       LIMIT 1`;
+    const room = rows[0];
+    if (!room) return { liveRoomId: null, live: null };
+    const now = this.clock.now();
+    if (!this.isFresh(room.last_heartbeat_at, now)) {
+      await this.endStaleOne(Prisma.sql`id = ${room.id}::uuid`, now);
+      return { liveRoomId: null, live: null };
+    }
+    return {
+      liveRoomId: room.id,
+      live: room.visible
+        ? {
+            roomId: room.id,
+            title: room.title,
+            mode: room.mode,
+            startedAt: room.started_at.toISOString(),
+            viewerCount: room.viewer_count,
+            score: Number(room.score),
+          }
+        : null,
+    };
   }
 
   // ---- Host lifecycle --------------------------------------------------------------------------

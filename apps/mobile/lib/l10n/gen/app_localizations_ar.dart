@@ -14466,4 +14466,43 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorAdminActionRefused => 'رُفض الإجراء';
+
+  @override
+  String get profileLiveNowTitle => 'في بث الآن';
+
+  @override
+  String get profileLiveNowSelfTitle => 'أنت في بث الآن';
+
+  @override
+  String profileLiveFor(String duration) {
+    return 'مباشر منذ $duration';
+  }
+
+  @override
+  String profileLiveHoursMinutes(int hours, int minutes) {
+    return '$hoursس $minutesد';
+  }
+
+  @override
+  String profileLiveMinutes(int minutes) {
+    return '$minutesد';
+  }
+
+  @override
+  String get profileLiveJoin => 'انضم';
+
+  @override
+  String get profileLiveReturn => 'عودة للبث';
+
+  @override
+  String get profileLiveVoice => 'غرفة صوتية';
+
+  @override
+  String profileLiveCardSemantics(
+    String title,
+    String duration,
+    String details,
+  ) {
+    return '$title، $duration، $details';
+  }
 }

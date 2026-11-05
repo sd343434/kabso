@@ -26,6 +26,18 @@ abstract final class KFormat {
     return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
   }
 
+  /// D279: an elapsed time in hours and minutes, e.g. ar «1س 17د», en
+  /// "1h 17m"; under an hour only the minutes («17د», "17m"; 0 under a
+  /// minute). Negative values are 0.
+  static String hoursMinutes(Duration value, AppLocalizations l10n) {
+    final total = value.isNegative ? 0 : value.inMinutes;
+    final h = total ~/ 60;
+    final m = total % 60;
+    return h > 0
+        ? l10n.profileLiveHoursMinutes(h, m)
+        : l10n.profileLiveMinutes(m);
+  }
+
   /// Relative time for "last active" (PHASE1_SCREENS §9.3): `null` means
   /// "just now" (under a minute); minutes, hours and days up to 7 days; the
   /// absolute [date] beyond that.
