@@ -14,9 +14,7 @@ abstract final class StaffCovers {
 
   static String assetFor(StaffRegion? region) => byRegion[region] ?? fallback;
 
-  /// The art is 2:1 and the profile's 42 % box is about square, so the sides
-  /// are cropped: a slight bias to the right keeps the title «إدارة التطبيق
-  /// والمشرفون» / "App Administration & Moderation" whole and the mascot's
-  /// face in (the box shows the art's full height).
-  static const alignment = Alignment(0.12, 0);
+  /// The owner's cover-sized art (≈ 1.09 : 1) matches the profile's 42 % box
+  /// (≈ 1.1 : 1 on a 393 × 852 phone), so it is centred and little is cut.
+  static const Alignment alignment = Alignment.center;
 }
