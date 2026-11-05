@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/profile/profile_live_pill.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
@@ -453,6 +454,20 @@ class ProfileCoverHeader extends StatelessWidget {
             ],
           ),
         ),
+        // D279b: «مباشر» on the picture, at the bottom-end corner opposite
+        // the photo, level with its middle (the server sends no `live`
+        // across a block either way).
+        if (profile.live case final live? when !profile.blockedByMe)
+          PositionedDirectional(
+            top: contentTop,
+            height: slot.height,
+            end: KProfile.inset,
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              widthFactor: 1,
+              child: ProfileLivePill(live: live, self: profile.isSelf),
+            ),
+          ),
       ],
     );
   }
@@ -735,12 +750,25 @@ class ProfileTagChips extends StatelessWidget {
   static const double padH = KSpacing.sm;
   static const double padV = KSpacing.xs;
 
+  /// D279b: the tags' text on dark (a light Kabso pink).
+  static const Color tagInkDark = Color(0xFFFFA3A8);
+
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final t = context.textStyles;
+    // D279b (owner: «اجعل المستطيل بلون فاتح ليكون اجمل»): a soft Kabso-red
+    // tint with a hairline of the same hue and the text a deeper red (a
+    // light pink on dark).
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fill = dark
+        ? KBrandColors.red400.withValues(alpha: 0.14)
+        : KBrandColors.red500.withValues(alpha: 0.07);
+    final edge = dark
+        ? KBrandColors.red400.withValues(alpha: 0.28)
+        : KBrandColors.red500.withValues(alpha: 0.16);
+    final ink = dark ? tagInkDark : KBrandColors.red600;
     final style = t.caption.copyWith(
-      color: p.textPrimary,
+      color: ink,
       fontSize: 12.5,
       fontWeight: FontWeight.w600,
       height: 1.2,
@@ -819,8 +847,8 @@ class ProfileTagChips extends StatelessWidget {
           excludeSemantics: label != null,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              // D278c: the theme's chip surface.
-              color: p.surfaceOverlay,
+              color: fill,
+              border: Border.all(color: edge, width: 0.5),
               borderRadius: BorderRadius.circular(KRadius.xs),
             ),
             child: Padding(

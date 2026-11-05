@@ -19,7 +19,6 @@ import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
-import 'package:kabso_live/features/profile/profile_live_card.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
@@ -159,9 +158,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-      // D279: «أنت في بث الآن» (opens your room) while you are live.
-      if (profile.live case final live?)
-        SliverToBoxAdapter(child: ProfileLiveCard(live: live, self: true)),
       SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
     ];
   }

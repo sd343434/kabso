@@ -13,7 +13,6 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
-import 'package:kabso_live/features/profile/profile_live_card.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
@@ -590,12 +589,6 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                       ),
               ),
             ),
-            // D279: «في بث الآن» right under the cover while they are live
-            // (the server sends no `live` across a block either way).
-            if (profile.live case final live? when !profile.blockedByMe)
-              SliverToBoxAdapter(
-                child: ProfileLiveCard(live: live, self: profile.isSelf),
-              ),
             SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
             if (profile.blockedByMe)
               SliverToBoxAdapter(

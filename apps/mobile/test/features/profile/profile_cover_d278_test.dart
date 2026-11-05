@@ -450,10 +450,15 @@ void main() {
                 )
                 .first,
           );
+          // D279b: a soft Kabso-red tint with a hairline, deeper red text.
+          final dark = brightness == Brightness.dark;
           expect(
             (chip.decoration as BoxDecoration).color,
-            palette.surfaceOverlay,
+            dark
+                ? KBrandColors.red400.withValues(alpha: 0.14)
+                : KBrandColors.red500.withValues(alpha: 0.07),
           );
+          expect((chip.decoration as BoxDecoration).border, isNotNull);
           final message = tester.widget<OutlinedButton>(
             find.byKey(PublicProfileScreen.messageKey),
           );

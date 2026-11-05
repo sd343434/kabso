@@ -24502,24 +24502,6 @@ abstract class AppLocalizations {
   /// D279: the profile's «في بث الآن» card under the cover.
   ///
   /// In ar, this message translates to:
-  /// **'انضم'**
-  String get profileLiveJoin;
-
-  /// D279: the profile's «في بث الآن» card under the cover.
-  ///
-  /// In ar, this message translates to:
-  /// **'عودة للبث'**
-  String get profileLiveReturn;
-
-  /// D279: the profile's «في بث الآن» card under the cover.
-  ///
-  /// In ar, this message translates to:
-  /// **'غرفة صوتية'**
-  String get profileLiveVoice;
-
-  /// D279: the profile's «في بث الآن» card under the cover.
-  ///
-  /// In ar, this message translates to:
   /// **'{title}، {duration}، {details}'**
   String profileLiveCardSemantics(
     String title,

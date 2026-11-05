@@ -1,4 +1,4 @@
-// D279 (owner): the profile's «في بث الآن» card under the tall cover.
+// D279b (owner): the profile's small «مباشر» pill on the cover.
 //
 //   profile.live.other  someone else's profile while live (light): «في بث
 //                       الآن», «مباشر منذ 1س 17د», 93 viewers · 41.9K
@@ -18,12 +18,12 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
-import 'package:kabso_live/features/profile/profile_live_card.dart';
+import 'package:kabso_live/features/profile/profile_live_pill.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../features/profile/profile_cover_d278_test.dart'
     show coverBytes, pumpOther, pumpOwn;
-import '../features/profile/profile_live_card_d279_test.dart'
+import '../features/profile/profile_live_pill_d279_test.dart'
     show atNow, d279Other, d279Own;
 import '../helpers/golden.dart';
 
@@ -42,7 +42,7 @@ void main() {
       await atNow(() async {
         await pumpOther(tester, d279Other(ar: ar), language: language);
         await precacheImages(tester);
-        expect(find.byType(ProfileLiveCard), findsOneWidget);
+        expect(find.byType(ProfileLivePill), findsOneWidget);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile(
@@ -61,7 +61,7 @@ void main() {
           stats: d279Own(ar: ar),
         );
         await precacheImages(tester);
-        expect(find.byType(ProfileLiveCard), findsOneWidget);
+        expect(find.byType(ProfileLivePill), findsOneWidget);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('png/profile.live.own.${language.name}.phone.png'),

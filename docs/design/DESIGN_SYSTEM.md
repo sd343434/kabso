@@ -535,20 +535,20 @@ card's: short Latin numbers, equal columns, thin dividers; a hidden one is left 
 action row — **Follow** in `brand.red500` (radius `sm`) with square chat (`inbox` icon) and ⋯
 (chevron) outlined buttons, or «تعديل الملف» in the same quiet
 style (the page's fill, `borderStrong` outline, `textPrimary`); the **tags** «منشنات» as chips
-(`surfaceOverlay` fill, radius `xs`, 12.5 / 600) on **at most two lines**, the rest as a «+n» chip;
+(D279b: `brand.red500` at 7 % fill — `red400` at 14 % in dark — with a 0.5 dp hairline of the
+same hue, text `red600` — a light pink `#FFA3A8` in dark; radius `xs`, 12.5 / 600) on **at most two lines**, the rest as a «+n» chip;
 the **links** (`primary`, as elsewhere). Only the top buttons stay on `live.glass` circles over the
 picture; the VIP name colour and badges are unchanged. No cover: the brand red gradient, with the
 photo blurred (σ 24) over it when there is one.
 
-**Live now card (D279).** While the profile's owner is live, directly under the cover:
-the section title «في بث الآن» (own: «أنت في بث الآن»; `title`), then one card (16 dp page
-margins, radius `md`, `surface` with `brand.red500` at 6 % — 14 % in dark — and a 28 %
-red outline): a 40 dp round mark in `brand.gradientLive` (the live icon; a microphone for
-voice rooms), «مباشر منذ 1س 17د» (`bodyStrong`), the viewers · score in `caption`
-`textSecondary` (`compactLatin`; the score left out while 0), the title (or «غرفة صوتية»)
-in `textTertiary`, and **Join** «انضم» (own: «عودة للبث») — `brand.red500`, radius `sm`,
-the play icon, at the reading end. The whole card and the button open the room (the live
-ring's route).
+**Live now pill (D279b; replaces D279's card).** While the profile's owner is live (and not
+blocked), a small pill on the cover at the **bottom-end corner, opposite the photo**, level with
+the photo's middle, 16 dp from the edge: 28 dp tall (text scale clamped at 1.3), radius `pill`,
+`brand.red400 → red600` with a 1.5 dp white outline and a soft shadow; a white dot (pulses three
+times when shown; still with reduced motion), the live icon (a microphone for voice rooms),
+«مباشر» (`caption` 700), a thin divider, the viewers icon and the count (`compactLatin`). A
+48 dp touch area opens the room (the live ring's route; your own room on your own profile). The
+screen reader hears «في بث الآن» (own: «أنت في بث الآن»), «مباشر منذ 1س 17د», viewers · score.
 
 ### 9.8 Tabs — `KTabs`
 

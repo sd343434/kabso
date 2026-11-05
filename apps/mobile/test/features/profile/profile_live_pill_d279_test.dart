@@ -1,14 +1,16 @@
-// D279 (owner): a «في بث الآن» card under the profile's tall cover (D278)
-// while the profile's owner is live — «مباشر منذ 1س 17د», the viewers, the
-// score and «انضم» in Kabso red; a tap on the card or the button opens the
-// room (the live ring's route). The own profile: «أنت في بث الآن» (opens
-// your room). The facts come from `PublicProfile.live` (v1.70-live,
-// CONVENTIONS §10.5.1).
+// D279 / D279b (owner: «في بث الان هكذا ظاهرة بشكل كبير ومزعجة، ضعها في
+// الجهة الاخرى المقابلة للإطار ايقونة صغيرة»): while the profile's owner is
+// live, a small red «مباشر» pill (the viewers next to it) sits on the cover
+// at the bottom-end corner, opposite the photo; a tap opens the room (the
+// live ring's route), your own room on your own profile. D279's big card
+// under the cover is gone. The facts come from `PublicProfile.live`
+// (v1.70-live, CONVENTIONS §10.5.1).
 //
 // Checked: ar / en × light / dark at 393 × 852 with insets 59 / 34, 360 ×
-// 800 at 1.3 and 2.0 (no overflow), not live / blocked → no card, a voice
-// room, the taps, the live ending (gone on refresh). The clock is fixed
-// (`withClock`), so «مباشر منذ» never depends on today.
+// 800 at 1.3 and 2.0 (no overflow, the pill stays small), not live /
+// blocked → no pill, a voice room, the tap, reduced motion, the live
+// ending (gone on refresh). The clock is fixed (`withClock`), so the screen
+// reader's «مباشر منذ» never depends on today.
 //
 // With D279_CAPTURE_DIR set, the capture group writes PNGs there (not
 // committed).
@@ -23,6 +25,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -33,7 +36,8 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
-import 'package:kabso_live/features/profile/profile_live_card.dart';
+import 'package:kabso_live/features/profile/profile_live_pill.dart';
+import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
 import 'package:material_ui/material_ui.dart';
@@ -78,50 +82,44 @@ Future<void> atNow(Future<void> Function() body) =>
 
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
-/// The card directly under the cover, inside the screen, before the info
-/// block; «انضم» in Kabso red at the reading end.
-void expectCard(
+/// The pill on the cover at the reading end, opposite the photo and level
+/// with it; small (28 dp, a little more with large text).
+void expectPill(
   WidgetTester tester, {
   required double width,
   required bool ar,
-  bool exact = true,
+  double maxHeight = ProfileLivePill.height + 0.5,
 }) {
   expect(tester.takeException(), isNull);
-  final title = _rect(tester, ProfileLiveCard.titleKey);
-  final card = _rect(tester, ProfileLiveCard.cardKey);
-  final join = _rect(tester, ProfileLiveCard.joinKey);
-  // Directly under the cover (large text scrolls the cover away first).
-  if (exact) {
-    final header = _rect(tester, ProfileCoverHeader.headerKey);
-    expect(title.top, greaterThanOrEqualTo(header.bottom));
-    expect(title.top - header.bottom, lessThanOrEqualTo(KSpacing.md));
-  }
-  expect(card.top, greaterThan(title.bottom));
-  for (final r in [title, card, join]) {
-    expect(r.left, greaterThanOrEqualTo(0));
-    expect(r.right, lessThanOrEqualTo(width));
-  }
-  // The page's 16 dp margins (the card's 1 dp border inside them).
-  expect(card.left, moreOrLessEquals(16, epsilon: 1));
-  expect(card.right, moreOrLessEquals(width - 16, epsilon: 1));
-  expect(join.top, greaterThanOrEqualTo(card.top));
-  expect(join.bottom, lessThanOrEqualTo(card.bottom));
-  // «انضم» at the reading end (RTL mirrors it).
+  final pill = _rect(tester, ProfileLivePill.pillKey);
+  final cover = _rect(tester, ProfileCoverHeader.coverAreaKey);
+  final avatar = _rect(tester, ProfileHeaderView.avatarKey);
+  expect(pill.height, greaterThanOrEqualTo(ProfileLivePill.height - 0.5));
+  expect(pill.height, lessThanOrEqualTo(maxHeight));
+  expect(pill.width, lessThan(width / 2));
+  // On the picture, level with the photo.
+  expect(pill.top, greaterThanOrEqualTo(cover.top));
+  expect(pill.bottom, lessThanOrEqualTo(cover.bottom));
+  expect(pill.top, greaterThanOrEqualTo(avatar.top));
+  expect(pill.bottom, lessThanOrEqualTo(avatar.bottom));
+  expect(pill.center.dy, moreOrLessEquals(avatar.center.dy, epsilon: 1));
+  // The reading end, 16 dp in; the photo at the start (RTL mirrors it).
   if (ar) {
-    expect(join.left - card.left, lessThan(card.right - join.right));
+    expect(pill.left, moreOrLessEquals(16, epsilon: 0.5));
+    expect(pill.right, lessThan(avatar.left));
   } else {
-    expect(card.right - join.right, lessThan(join.left - card.left));
+    expect(pill.right, moreOrLessEquals(width - 16, epsilon: 0.5));
+    expect(pill.left, greaterThan(avatar.right));
   }
-  final button = tester.widget<FilledButton>(
-    find.byKey(ProfileLiveCard.joinKey),
-  );
-  expect(button.style!.backgroundColor!.resolve({}), KBrandColors.red500);
-  // What followed the cover now follows the card.
-  expect(
-    tester.getRect(find.byType(ProfileInfoBlock)).top,
-    greaterThanOrEqualTo(card.bottom),
-  );
+  final box = tester.widget<Container>(find.byKey(ProfileLivePill.pillKey));
+  final gradient =
+      (box.decoration! as BoxDecoration).gradient! as LinearGradient;
+  expect(gradient.colors, contains(KBrandColors.red400));
+  expect(_text(tester, ProfileLivePill.viewersKey), KFormat.compactLatin(93));
 }
+
+String _semantics(WidgetTester tester) =>
+    tester.getSemantics(find.byType(ProfileLivePill)).label;
 
 String _text(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key)).data!;
@@ -200,14 +198,13 @@ void main() {
     });
   });
 
-  group("D279 someone else's profile while live", () {
+  group("D279b someone else's profile while live", () {
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
       final l10n = l10nFor(language);
       for (final brightness in Brightness.values) {
-        testWidgets('${language.name} ${brightness.name}: «في بث الآن» under '
-            'the cover — live for 1h 17m, 93 viewers, 41.9K points, Join '
-            'in red', (tester) async {
+        testWidgets('${language.name} ${brightness.name}: a small «مباشر» '
+            'pill on the cover opposite the photo; no card', (tester) async {
           await atNow(() async {
             await pumpOther(
               tester,
@@ -215,59 +212,60 @@ void main() {
               language: language,
               brightness: brightness,
             );
-            expectCard(tester, width: 393, ar: ar);
+            expectPill(tester, width: 393, ar: ar);
             expect(
-              _text(tester, ProfileLiveCard.titleKey),
-              l10n.profileLiveNowTitle,
+              find.descendant(
+                of: find.byType(ProfileLivePill),
+                matching: find.text(l10n.liveBadge),
+              ),
+              findsOneWidget,
             );
+            expect(find.text(l10n.profileLiveNowTitle), findsNothing);
             expect(
-              _text(tester, ProfileLiveCard.durationKey),
-              ar ? 'مباشر منذ 1س 17د' : 'Live for 1h 17m',
+              _semantics(tester),
+              l10n.profileLiveCardSemantics(
+                l10n.profileLiveNowTitle,
+                ar ? 'مباشر منذ 1س 17د' : 'Live for 1h 17m',
+                '${l10n.liveViewers(93, KFormat.compactLatin(93))} · '
+                '${l10n.liveScore(41900, KFormat.compactLatin(41900))}',
+              ),
             );
-            expect(
-              _text(tester, ProfileLiveCard.detailsKey),
-              '${l10n.liveViewers(93, KFormat.compactLatin(93))} · '
-              '${l10n.liveScore(41900, KFormat.compactLatin(41900))}',
-            );
-            expect(
-              _text(tester, ProfileLiveCard.detailsKey),
-              contains('41.9K'),
-            );
-            expect(find.text(l10n.profileLiveJoin), findsOneWidget);
           });
         });
       }
     }
 
-    testWidgets('no score yet: the viewers only; a title shows under them', (
-      tester,
-    ) async {
+    testWidgets('no score yet: the viewers only', (tester) async {
       await atNow(() async {
         await pumpOther(
           tester,
-          d279Other(ar: false, live: d279Live(score: 0, title: 'Friday night')),
+          d279Other(ar: false, live: d279Live(score: 0, title: 'Friday')),
           language: AppLanguage.en,
         );
-        expect(
-          _text(tester, ProfileLiveCard.detailsKey),
-          '\u206693\u2069 viewers',
-        );
-        expect(find.textContaining('Friday night'), findsOneWidget);
+        expect(_semantics(tester), endsWith('\u206693\u2069 viewers'));
       });
     });
 
-    testWidgets('a voice room says so', (tester) async {
+    testWidgets('a voice room: the microphone mark', (tester) async {
       await atNow(() async {
         await pumpOther(
           tester,
           d279Other(ar: true, live: d279Live(mode: LiveRoomMode.audio)),
           language: AppLanguage.ar,
         );
-        expect(find.text('غرفة صوتية'), findsOneWidget);
+        final icon = tester.widget<AppIcon>(
+          find
+              .descendant(
+                of: find.byType(ProfileLivePill),
+                matching: find.byType(AppIcon),
+              )
+              .first,
+        );
+        expect(icon.asset, AppIcons.mic);
       });
     });
 
-    testWidgets('not live (or only the ring without the facts): no card', (
+    testWidgets('not live (or only the ring without the facts): no pill', (
       tester,
     ) async {
       await pumpOther(
@@ -275,18 +273,18 @@ void main() {
         otherProfile(ar: true, live: true),
         language: AppLanguage.ar,
       );
-      expect(find.byType(ProfileLiveCard), findsNothing);
+      expect(find.byType(ProfileLivePill), findsNothing);
       expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
     });
 
-    testWidgets('blocked by me: no card', (tester) async {
+    testWidgets('blocked by me: no pill', (tester) async {
       await atNow(() async {
         await pumpOther(
           tester,
           d279Other(ar: true).copyWith(blockedByMe: true),
           language: AppLanguage.ar,
         );
-        expect(find.byType(ProfileLiveCard), findsNothing);
+        expect(find.byType(ProfileLivePill), findsNothing);
       });
     });
 
@@ -295,7 +293,7 @@ void main() {
         for (final brightness in Brightness.values) {
           testWidgets(
             '360 × 800 at $scale (${language.name} ${brightness.name}): no '
-            'overflow',
+            'overflow; the pill stays small',
             (tester) async {
               tester.platformDispatcher.textScaleFactorTestValue = scale;
               addTearDown(
@@ -304,21 +302,16 @@ void main() {
               await atNow(() async {
                 await pumpOther(
                   tester,
-                  d279Other(
-                    ar: language == AppLanguage.ar,
-                    live: d279Live(title: 'سهرة الجمعة مع الأصدقاء'),
-                  ),
+                  d279Other(ar: language == AppLanguage.ar),
                   language: language,
                   brightness: brightness,
                   viewport: GoldenViewport.android,
                 );
-                await tester.ensureVisible(find.byKey(ProfileLiveCard.joinKey));
-                await tester.pumpAndSettle();
-                expectCard(
+                expectPill(
                   tester,
                   width: 360,
                   ar: language == AppLanguage.ar,
-                  exact: false,
+                  maxHeight: 34,
                 );
               });
             },
@@ -327,31 +320,37 @@ void main() {
       }
     }
 
-    testWidgets('a tap on the card or on Join opens the room (the live '
-        "ring's route)", (tester) async {
+    testWidgets("a tap on the pill opens the room (the live ring's route)", (
+      tester,
+    ) async {
       await atNow(() async {
         await pumpRouted(tester, profile: d279Other(ar: false));
-        await tester.tap(find.byKey(ProfileLiveCard.joinKey));
+        await tester.tap(find.byKey(ProfileLivePill.pillKey));
         await tester.pumpAndSettle();
         expect(find.text('room room-0'), findsOneWidget);
       });
     });
 
-    testWidgets('a tap on the card body opens the room too', (tester) async {
+    testWidgets('reduced motion: the dot does not pulse', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
       await atNow(() async {
-        await pumpRouted(tester, profile: d279Other(ar: false));
-        await tester.tap(find.byKey(ProfileLiveCard.durationKey));
-        await tester.pumpAndSettle();
-        expect(find.text('room room-0'), findsOneWidget);
+        await pumpOther(tester, d279Other(ar: false), language: AppLanguage.en);
+        expect(find.byType(ProfileLivePill), findsOneWidget);
+        await tester.pump();
+        expect(tester.hasRunningAnimations, isFalse);
       });
     });
 
-    testWidgets('the live ended: the card is gone after a refresh', (
+    testWidgets('the live ended: the pill is gone after a refresh', (
       tester,
     ) async {
       await atNow(() async {
         final repo = await pumpRouted(tester, profile: d279Other(ar: false));
-        expect(find.byType(ProfileLiveCard), findsOneWidget);
+        expect(find.byType(ProfileLivePill), findsOneWidget);
         repo.profile = repo.profile.copyWith(live: null, liveRoomId: null);
         await tester.fling(
           find.byType(CustomScrollView),
@@ -359,19 +358,19 @@ void main() {
           1500,
         );
         await tester.pumpAndSettle();
-        expect(find.byType(ProfileLiveCard), findsNothing);
+        expect(find.byType(ProfileLivePill), findsNothing);
         expect(find.byKey(PublicProfileScreen.watchLiveKey), findsNothing);
       });
     });
   });
 
-  group('D279 own profile while live', () {
+  group('D279b own profile while live', () {
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
       final l10n = l10nFor(language);
       for (final brightness in Brightness.values) {
-        testWidgets('${language.name} ${brightness.name}: «أنت في بث الآن» '
-            'with «عودة للبث»', (tester) async {
+        testWidgets('${language.name} ${brightness.name}: the same pill '
+            '(«أنت في بث الآن» to the screen reader)', (tester) async {
           await atNow(() async {
             await pumpOwn(
               tester,
@@ -379,15 +378,10 @@ void main() {
               brightness: brightness,
               stats: d279Own(ar: ar),
             );
-            expectCard(tester, width: 393, ar: ar);
+            expectPill(tester, width: 393, ar: ar);
             expect(
-              _text(tester, ProfileLiveCard.titleKey),
-              l10n.profileLiveNowSelfTitle,
-            );
-            expect(find.text(l10n.profileLiveReturn), findsOneWidget);
-            expect(
-              _text(tester, ProfileLiveCard.durationKey),
-              l10n.profileLiveFor(ar ? '1س 17د' : '1h 17m'),
+              _semantics(tester),
+              startsWith(l10n.profileLiveNowSelfTitle),
             );
           });
         });
@@ -404,16 +398,14 @@ void main() {
             viewport: GoldenViewport.android,
             stats: d279Own(ar: ar),
           );
-          await tester.ensureVisible(find.byKey(ProfileLiveCard.joinKey));
-          await tester.pumpAndSettle();
-          expectCard(tester, width: 360, ar: ar, exact: false);
+          expectPill(tester, width: 360, ar: ar, maxHeight: 34);
         });
       });
     }
 
-    testWidgets('not live: no card', (tester) async {
+    testWidgets('not live: no pill', (tester) async {
       await pumpOwn(tester, language: AppLanguage.en);
-      expect(find.byType(ProfileLiveCard), findsNothing);
+      expect(find.byType(ProfileLivePill), findsNothing);
     });
   });
 
@@ -465,18 +457,10 @@ void main() {
           await atNow(() async {
             await pumpOther(
               tester,
-              d279Other(
-                ar: ar,
-                live: d279Live(title: 'سهرة الجمعة مع الأصدقاء'),
-              ),
+              d279Other(ar: ar),
               language: language,
               viewport: GoldenViewport.android,
             );
-            await tester.drag(
-              find.byType(CustomScrollView),
-              const Offset(0, -300),
-            );
-            await tester.pumpAndSettle();
             await capture(tester, 'other.360x$scale.${language.name}');
           });
         });

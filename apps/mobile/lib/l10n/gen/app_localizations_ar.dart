@@ -14489,15 +14489,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get profileLiveJoin => 'انضم';
-
-  @override
-  String get profileLiveReturn => 'عودة للبث';
-
-  @override
-  String get profileLiveVoice => 'غرفة صوتية';
-
-  @override
   String profileLiveCardSemantics(
     String title,
     String duration,
