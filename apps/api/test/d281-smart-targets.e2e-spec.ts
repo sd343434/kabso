@@ -15,10 +15,12 @@ import type { LuckyRng } from '../src/modules/gifts/lucky-odds.js';
 import { LUCKY_RNG } from '../src/modules/gifts/lucky-rng.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import {
+  NEW_HOST_DEFAULTS,
   expectedProfitUnits,
   platformProfitUnits,
   rewardCherriesFor,
   targetCode,
+  trackOf,
   type TargetKind,
 } from '../src/modules/programs/host-target-engine.js';
 import { HostTargetsService } from '../src/modules/programs/host-targets.service.js';
@@ -71,6 +73,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
   let rose: string;
   let warrior: string;
   let lucky: string;
+  let bigLucky: string;
 
   const auth = (u: TestUser) => ({ Authorization: `Bearer ${u.token}` });
   const today = () => clock.now().toISOString().slice(0, 10);
@@ -169,12 +172,17 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     opts: { expectedCoins?: number; rewardCherries?: number; shareBps?: number } = {},
   ) => {
     const bps = level === 'EASY' ? 150 : level === 'MEDIUM' ? 250 : 400;
+    const track = trackOf(kind);
     const reward =
       opts.rewardCherries ??
       rewardCherriesFor(
-        expectedProfitUnits(kind, amount, opts.expectedCoins ?? 0, economy(), {
-          shareBps: opts.shareBps ?? 6_500,
-        }),
+        expectedProfitUnits(
+          kind,
+          amount,
+          opts.expectedCoins ?? 0,
+          economy(),
+          track === 'LUCKY' ? { lucky: true } : { shareBps: opts.shareBps ?? 6_500 },
+        ),
         bps,
         economy(),
       );
@@ -182,6 +190,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
       data: {
         userId: host.id,
         day: new Date(`${today()}T00:00:00.000Z`),
+        track,
         level,
         code: targetCode({ kind, subject, amount, window }),
         kind,
@@ -207,6 +216,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
       select: { delta: true, referenceId: true },
     });
   type Daily = {
+    track: string;
     level: string;
     kind: string;
     progress: number;
@@ -214,7 +224,9 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     rewardCherries: number;
     paidCherries: number | null;
   };
-  const byLevel = (body: { daily: Daily[] }) => Object.fromEntries(body.daily.map((t) => [t.level, t]));
+  /** D281b: the targets by `<track>:<level>` (GIFTS:EASY … LUCKY:HARD). */
+  const byLevel = (body: { daily: Daily[] }) =>
+    Object.fromEntries(body.daily.map((t) => [`${t.track}:${t.level}`, t]));
 
   beforeAll(async () => {
     ctx = await createTestApp(
@@ -249,6 +261,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     rose = await gift({ priceCoins: 100, nameAr: 'وردة', nameEn: 'Rose' });
     warrior = await gift({ category: 'FUN', priceCoins: 1_000, nameAr: 'المحارب', nameEn: 'Warrior' });
     lucky = await gift({ category: 'LUCKY', priceCoins: 10 });
+    bigLucky = await gift({ category: 'LUCKY', priceCoins: 10_000, nameAr: 'كنز', nameEn: 'Treasure' });
   });
   afterAll(async () => ctx?.close());
 
@@ -275,9 +288,26 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
       title: string;
       amount: number;
     })[];
-    expect(daily.map((t) => t.level)).toEqual(['EASY', 'MEDIUM', 'HARD']);
-    expect(daily.map((t) => t.rewardBps)).toEqual([150, 250, 400]);
-    expect(new Set(daily.map((t) => t.kind)).size).toBe(3);
+    // D281b: three gift targets, then three lucky targets.
+    expect(daily.map((t) => `${t.track}:${t.level}`)).toEqual([
+      'GIFTS:EASY',
+      'GIFTS:MEDIUM',
+      'GIFTS:HARD',
+      'LUCKY:EASY',
+      'LUCKY:MEDIUM',
+      'LUCKY:HARD',
+    ]);
+    expect(daily.map((t) => t.rewardBps)).toEqual([150, 250, 400, 150, 250, 400]);
+    expect(new Set(daily.slice(0, 3).map((t) => t.kind)).size).toBe(3);
+    // A new host on both tracks: the band defaults of each.
+    expect(daily.map((t) => t.kind)).toEqual([
+      'GIFT_SENDS',
+      'SUPPORTERS',
+      'GIFT_CHERRIES',
+      'LUCKY_SENDS',
+      'LUCKY_SUPPORTERS',
+      'LUCKY_CHERRIES',
+    ]);
     for (const t of daily) {
       expect(t.locked).toBe(true);
       expect(t.title.length).toBeGreaterThan(0);
@@ -286,7 +316,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     // Stable for the day; stored once.
     expect((await targets(hostA, fan1)).body.daily).toEqual(daily);
     const rows = await ctx.prisma.hostTargetAssignment.findMany({ where: { userId: hostA.id } });
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(6);
     for (const r of rows) expect((r.reason as { why: string }).why.length).toBeGreaterThan(0);
     // The fixed «هدف هدايا الحظ» task is no longer a Task Center task; the pool tasks are the smart ones.
     const tasks = await ctx.http.get('/api/v1/me/tasks').set(auth(hostA));
@@ -320,11 +350,11 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     const res = await targets(hostB);
     expectContract(res, 'getLiveHostTargets');
     const t = byLevel(res.body);
-    expect(t.EASY).toMatchObject({ kind: 'GIFT_COUNT', progress: 3, reached: true });
+    expect(t['GIFTS:EASY']).toMatchObject({ kind: 'GIFT_COUNT', progress: 3, reached: true });
     expect(res.body.daily[0].gift).toMatchObject({ code: rose, name: 'وردة' });
-    expect(t.MEDIUM).toMatchObject({ kind: 'CATEGORY_COUNT', progress: 5, reached: true });
+    expect(t['GIFTS:MEDIUM']).toMatchObject({ kind: 'CATEGORY_COUNT', progress: 5, reached: true });
     expect(res.body.daily[1].category).toEqual({ code: 'POPULAR', name: 'شائعة' });
-    expect(t.HARD).toMatchObject({ kind: 'GIFT_CHERRIES', progress: 1_000, reached: true });
+    expect(t['GIFTS:HARD']).toMatchObject({ kind: 'GIFT_CHERRIES', progress: 1_000, reached: true });
     expect(res.body.daily[2].window).toEqual({ from: '07:00', to: '08:00' });
     // The guard: the EASY reward shown is huge, the payment is 1.5 % of the profit of the five roses only.
     const e = economy();
@@ -332,11 +362,11 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
       [{ lucky: false, coins: 500n, chargedCoins: 500n, hostCherries: 3_250n }],
       e,
     );
-    expect(t.EASY!.paidCherries).toBe(rewardCherriesFor(roses, 150, e));
-    expect(t.EASY!.paidCherries).toBeLessThan(huge);
+    expect(t['GIFTS:EASY']!.paidCherries).toBe(rewardCherriesFor(roses, 150, e));
+    expect(t['GIFTS:EASY']!.paidCherries).toBeLessThan(huge);
     // The others reached their nominal: the reward shown.
-    expect(t.MEDIUM!.paidCherries).toBe(medium);
-    expect(t.HARD!.paidCherries).toBe(hard);
+    expect(t['GIFTS:MEDIUM']!.paidCherries).toBe(medium);
+    expect(t['GIFTS:HARD']!.paidCherries).toBe(hard);
     const rows = await ledger(hostB);
     expect(rows.map((r) => r.referenceId)).toEqual([
       'HT:EASY@2027-01-14',
@@ -344,7 +374,7 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
       'HT:MEDIUM@2027-01-14',
     ]);
     const paid = rows.reduce((a, r) => a + Number(r.delta), 0);
-    expect(paid).toBe(t.EASY!.paidCherries! + medium + hard);
+    expect(paid).toBe(t['GIFTS:EASY']!.paidCherries! + medium + hard);
     // Locked like task cherries (the wallet shows them as locked; the unlock rule has not passed).
     const wallet = await ctx.http.get('/api/v1/wallet/me/cherries').set(auth(hostB));
     expect(wallet.status).toBe(200);
@@ -362,26 +392,61 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     await send(fan1, hostC, rose, 1);
     expect(await ledger(hostC)).toHaveLength(0);
     await nextDay();
-    // 2027-01-15: hostB's lucky / supporters / gifts received.
+    // 2027-01-15: hostB's gifts track (supporters, gifts received) and its LUCKY track (D281b).
     await plant(hostB, 'EASY', 'SUPPORTERS', null, 2, undefined, { expectedCoins: 200 });
-    await plant(hostB, 'MEDIUM', 'GIFT_SENDS', null, 4, undefined, { expectedCoins: 400 });
-    await plant(hostB, 'HARD', 'LUCKY_CHERRIES', null, 1_000);
+    await plant(hostB, 'MEDIUM', 'GIFT_SENDS', null, 3, undefined, { expectedCoins: 300 });
+    await plant(hostB, 'HARD', 'GIFT_CHERRIES', null, 100_000);
+    const huge = 1_000_000_000;
+    await plant(hostB, 'EASY', 'LUCKY_SENDS', null, 4, undefined, {
+      expectedCoins: 40,
+      rewardCherries: huge,
+    });
+    const luckyMedium = await plant(hostB, 'MEDIUM', 'LUCKY_SUPPORTERS', null, 1, undefined, {
+      expectedCoins: 10,
+    });
+    await plant(hostB, 'HARD', 'LUCKY_CHERRIES', null, 50_000);
     await send(fan1, hostB, rose, 1);
     await send(fan2, hostB, rose, 2);
-    for (let i = 0; i < 4; i++) await send(fan1, hostB, lucky, 1);
+    for (let i = 0; i < 3; i++) await send(fan1, hostB, lucky, 1);
+    await send(fan1, hostB, bigLucky, 1);
     const res = await targets(hostB);
     expect(res.status).toBe(200);
+    expectContract(res, 'getLiveHostTargets');
     const t = byLevel(res.body);
-    expect(t.EASY).toMatchObject({ kind: 'SUPPORTERS', progress: 2, reached: true });
-    // «Gifts received» counts every gift from others: 3 roses + 4 lucky = 7 (capped at the target).
-    expect(t.MEDIUM).toMatchObject({ kind: 'GIFT_SENDS', progress: 4, reached: true });
-    // 4 lucky gifts × 10 coins × 10 % × 10 = 40 cherries of 1 000.
-    expect(t.HARD).toMatchObject({
+    expect(t['GIFTS:EASY']).toMatchObject({ kind: 'SUPPORTERS', progress: 2, reached: true });
+    // «Gifts received» counts gifts outside the lucky category only (D281b): the 3 roses.
+    expect(t['GIFTS:MEDIUM']).toMatchObject({ kind: 'GIFT_SENDS', progress: 3, reached: true });
+    expect(t['GIFTS:HARD']).toMatchObject({ kind: 'GIFT_CHERRIES', progress: 1_950, reached: false });
+    // The lucky track: 4 lucky gifts, one lucky supporter, 30 + 10 000 lucky cherries.
+    expect(t['LUCKY:EASY']).toMatchObject({ kind: 'LUCKY_SENDS', progress: 4, reached: true });
+    expect(t['LUCKY:MEDIUM']).toMatchObject({ kind: 'LUCKY_SUPPORTERS', progress: 1, reached: true });
+    expect(t['LUCKY:HARD']).toMatchObject({
       kind: 'LUCKY_CHERRIES',
-      progress: 40,
+      progress: 10_030,
       reached: false,
       paidCherries: null,
     });
+    // The guard on the LUCKY profit (after the expected payout): 1.5 % of what these four lucky sends left.
+    const e = economy();
+    const luckyProfit = platformProfitUnits(
+      [{ lucky: true, coins: 10_030n, chargedCoins: 10_030n, hostCherries: 10_030n }],
+      e,
+    );
+    expect(t['LUCKY:EASY']!.paidCherries).toBe(rewardCherriesFor(luckyProfit, 150, e));
+    expect(t['LUCKY:EASY']!.paidCherries).toBeLessThan(huge);
+    expect(t['LUCKY:MEDIUM']!.paidCherries).toBe(
+      Math.min(luckyMedium, rewardCherriesFor(luckyProfit, 250, e)),
+    );
+    const refs = (await ledger(hostB)).map((r) => r.referenceId);
+    expect(refs).toContain('HT:LUCKY:EASY@2027-01-15');
+    // A payment of 0 (the nominal's reward rounds to nothing) writes no ledger row.
+    expect(refs.includes('HT:LUCKY:MEDIUM@2027-01-15')).toBe(t['LUCKY:MEDIUM']!.paidCherries! > 0);
+    expect(t['LUCKY:EASY']!.paidCherries).toBeGreaterThan(0);
+    if (t['LUCKY:EASY']!.paidCherries! > 0) {
+      // Locked like task cherries.
+      const wallet = await ctx.http.get('/api/v1/wallet/me/cherries').set(auth(hostB));
+      expect(wallet.body.lockedTaskCherries).toBeGreaterThan(0);
+    }
     // hostC's read today settles yesterday's.
     const c = await targets(hostC);
     expect(c.status).toBe(200);
@@ -396,9 +461,9 @@ describe('D281 smart host targets and tasks', { timeout: 300_000 }, () => {
     await plant(hostB, 'HARD', 'GIFT_CHERRIES', null, 1_000, { from: 1200, to: 1260 });
     for (let i = 0; i < 3; i++) await send(fan1, hostB, warrior, 1);
     const t = byLevel((await targets(hostB)).body);
-    expect(t.EASY).toMatchObject({ kind: 'COMBO', progress: 3, reached: true });
-    expect(t.MEDIUM).toMatchObject({ kind: 'GIFT_COMBO', progress: 2, reached: true });
-    expect(t.HARD).toMatchObject({ progress: 0, reached: false, paidCherries: null });
+    expect(t['GIFTS:EASY']).toMatchObject({ kind: 'COMBO', progress: 3, reached: true });
+    expect(t['GIFTS:MEDIUM']).toMatchObject({ kind: 'GIFT_COMBO', progress: 2, reached: true });
+    expect(t['GIFTS:HARD']).toMatchObject({ progress: 0, reached: false, paidCherries: null });
   });
 
   it('Task Center: a chosen-gift task counts that gift (picture and name); a window outside now counts nothing', async () => {
@@ -571,6 +636,38 @@ describe('D281 the panel «الأهداف الذكية» (OWNER only)', { timeou
     expect((await P.send(owner, 'put', '/admin/host-targets/settings', { easyRewardBps: 100 })).status).toBe(
       400,
     );
+    // D281b (owner: today's gift prices are placeholders): the new-host defaults are OWNER-editable, audited;
+    // descending levels are refused; null goes back to the code's values.
+    expect(got.body.newHostDefaults).toEqual(NEW_HOST_DEFAULTS);
+    const raised = {
+      ...NEW_HOST_DEFAULTS,
+      GIFT_CHERRIES: NEW_HOST_DEFAULTS.GIFT_CHERRIES.map(([x, y, z]) => [x * 10, y * 10, z * 10]),
+    };
+    const setDefaults = await P.send(owner, 'put', '/admin/host-targets/settings', {
+      newHostDefaults: raised,
+      reason: 'real prices',
+    });
+    expect(setDefaults.status, JSON.stringify(setDefaults.body)).toBe(200);
+    expectContract(setDefaults, 'updateAdminHostTargetSettings');
+    expect(setDefaults.body.newHostDefaults.GIFT_CHERRIES[0]).toEqual([200_000, 600_000, 1_500_000]);
+    const bad = {
+      ...raised,
+      SUPPORTERS: [
+        [3, 2, 1],
+        [3, 5, 8],
+        [5, 8, 12],
+        [8, 12, 20],
+      ],
+    };
+    expect(
+      (await P.send(owner, 'put', '/admin/host-targets/settings', { newHostDefaults: bad, reason: 'x' }))
+        .status,
+    ).toBe(400);
+    const reset = await P.send(owner, 'put', '/admin/host-targets/settings', {
+      newHostDefaults: null,
+      reason: 'x',
+    });
+    expect(reset.body.newHostDefaults).toEqual(NEW_HOST_DEFAULTS);
     for (const who of [support, finance]) {
       expect((await P.send(who, 'get', '/admin/host-targets/settings')).status).toBe(403);
       expect((await P.send(who, 'get', '/admin/host-targets/catalogue')).status).toBe(403);
@@ -601,12 +698,19 @@ describe('D281 the panel «الأهداف الذكية» (OWNER only)', { timeou
     await smartTargetsEngineFrom(ctx.prisma, '2020-01-01');
     const read = await ctx.http.get(`/api/v1/live/hosts/${host.username}/targets`);
     expect(read.status, JSON.stringify(read.body)).toBe(200);
-    expect(read.body.daily).toHaveLength(3);
+    expect(read.body.daily).toHaveLength(6);
     const view = await P.send(owner, 'get', `/admin/host-targets/hosts/${host.username}`);
     expect(view.status, JSON.stringify(view.body)).toBe(200);
     expectContract(view, 'getAdminHostTargets');
     expect(view.body.host.id).toBe(host.id);
-    expect(view.body.targets.map((t: { level: string }) => t.level)).toEqual(['EASY', 'MEDIUM', 'HARD']);
+    expect(view.body.targets.map((t: { track: string; level: string }) => `${t.track}:${t.level}`)).toEqual([
+      'GIFTS:EASY',
+      'GIFTS:MEDIUM',
+      'GIFTS:HARD',
+      'LUCKY:EASY',
+      'LUCKY:MEDIUM',
+      'LUCKY:HARD',
+    ]);
     for (const t of view.body.targets as { reason: { newHost: boolean; whyAr: string } }[]) {
       // A new host: the band defaults, said so.
       expect(t.reason.newHost).toBe(true);

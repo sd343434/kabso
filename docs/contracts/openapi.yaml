@@ -17766,7 +17766,7 @@ components:
       type: object
       additionalProperties: false
       description: "v1.71-live (D281, §10.62.2): the smart targets' and tasks' knobs."
-      required: [easyPercentile, mediumPercentile, hardPercentile, easyRewardBps, mediumRewardBps, hardRewardBps, noRepeatDays, taskNoRepeatDays, historyDays, completionShift, engineFrom, updatedAt, updatedById]
+      required: [easyPercentile, mediumPercentile, hardPercentile, easyRewardBps, mediumRewardBps, hardRewardBps, noRepeatDays, taskNoRepeatDays, historyDays, completionShift, newHostDefaults, engineFrom, updatedAt, updatedById]
       properties:
         easyPercentile: { type: integer, minimum: 1, maximum: 97, description: "The percentile of the host's recent active days an EASY target aims at. Default 50." }
         mediumPercentile: { type: integer, minimum: 2, maximum: 98, description: Default 75. }
@@ -17778,6 +17778,7 @@ components:
         taskNoRepeatDays: { type: integer, minimum: 0, maximum: 60, description: "A generated task (the same variant) is not given again within this many days. Default 3." }
         historyDays: { type: integer, minimum: 7, maximum: 90, description: "The days of history the assignment reads. Default 30." }
         completionShift: { type: integer, minimum: 0, maximum: 30, description: "The most the recent completion rate moves the percentiles (points). Default 10." }
+        newHostDefaults: { $ref: '#/components/schemas/HostTargetNewHostDefaults' }
         engineFrom: { type: [string, 'null'], format: date, description: "The smart engine's first day (set by the API's first read to the next day); read-only." }
         updatedAt: { type: string, format: date-time }
         updatedById: { type: [string, 'null'], format: uuid }
@@ -17797,7 +17798,33 @@ components:
         taskNoRepeatDays: { type: integer, minimum: 0, maximum: 60 }
         historyDays: { type: integer, minimum: 7, maximum: 90 }
         completionShift: { type: integer, minimum: 0, maximum: 30 }
+        newHostDefaults:
+          description: "D281b: the new-host defaults (every kind, easy ≤ medium ≤ hard), or null for the code's."
+          oneOf:
+            - $ref: '#/components/schemas/HostTargetNewHostDefaults'
+            - type: 'null'
         reason: { type: string, minLength: 1, maxLength: 500 }
+    HostTargetNewHostDefaults:
+      type: object
+      additionalProperties: false
+      description: "D281b (owner: today's gift prices are placeholders): a new host's targets (fewer than 3 days on a track) per kind, per band 1…4: [easy, medium, hard]. OWNER-editable; the code's values when none were set."
+      required: [GIFT_SENDS, SUPPORTERS, GIFT_CHERRIES, LUCKY_SENDS, LUCKY_SUPPORTERS, LUCKY_CHERRIES]
+      properties:
+        GIFT_SENDS: { $ref: '#/components/schemas/HostTargetBandDefaults' }
+        SUPPORTERS: { $ref: '#/components/schemas/HostTargetBandDefaults' }
+        GIFT_CHERRIES: { $ref: '#/components/schemas/HostTargetBandDefaults' }
+        LUCKY_SENDS: { $ref: '#/components/schemas/HostTargetBandDefaults' }
+        LUCKY_SUPPORTERS: { $ref: '#/components/schemas/HostTargetBandDefaults' }
+        LUCKY_CHERRIES: { $ref: '#/components/schemas/HostTargetBandDefaults' }
+    HostTargetBandDefaults:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        type: array
+        minItems: 3
+        maxItems: 3
+        items: { type: integer, minimum: 1, maximum: 1000000000 }
     AdminTargetCatalogue:
       type: object
       description: "v1.71-live (D281): the generated catalogues' size now."
@@ -17805,12 +17832,14 @@ components:
       properties:
         targets:
           type: object
-          required: [version, total, windows, gifts, categories, byKind]
+          required: [version, total, windows, gifts, luckyGifts, categories, byKind, byTrack]
           properties:
             version: { type: string, description: "Changes when a gift is added, switched off or repriced." }
             total: { type: integer, minimum: 0 }
             windows: { type: integer, minimum: 1, description: "The time windows of the day (the whole day + every 1–8 h window)." }
-            gifts: { type: integer, minimum: 0, description: "Paid enabled gifts (each makes count and combo targets)." }
+            gifts: { type: integer, minimum: 0, description: "Paid enabled gifts outside the lucky category (each makes count and combo targets)." }
+            luckyGifts: { type: integer, minimum: 0, description: "D281b: paid enabled lucky gifts (each makes lucky count targets)." }
+            byTrack: { type: object, additionalProperties: { type: integer, minimum: 0 }, description: "D281b: GIFTS and LUCKY." }
             categories: { type: integer, minimum: 0 }
             byKind: { type: object, additionalProperties: { type: integer, minimum: 0 } }
         tasks:
@@ -17834,12 +17863,13 @@ components:
         day: { type: string, format: date }
         targets:
           type: array
-          maxItems: 3
+          maxItems: 6
           items: { $ref: '#/components/schemas/AdminHostTarget' }
     AdminHostTarget:
       type: object
-      required: [level, code, kind, subject, titleAr, titleEn, amount, progress, window, expectedCoins, rewardBps, rewardCherries, paidCherries, paidAt, profitUsd, catalogueVersion, reason]
+      required: [track, level, code, kind, subject, titleAr, titleEn, amount, progress, window, expectedCoins, rewardBps, rewardCherries, paidCherries, paidAt, profitUsd, catalogueVersion, reason]
       properties:
+        track: { type: string, enum: [GIFTS, LUCKY] }
         level: { type: string, enum: [EASY, MEDIUM, HARD] }
         code: { type: string }
         kind: { type: string }
@@ -25117,20 +25147,21 @@ components:
             - type: 'null'
         daily:
           type: array
-          maxItems: 3
-          description: "v1.71-live (D281, §10.62.2): the host's three smart targets of today — EASY, MEDIUM, HARD in that order — with their progress and reward; [] before the smart engine's first day (then `gifts` / `lucky` carry D277's two targets). From that day `gifts.target` / `lucky.target` are the whole-day «هدف الهدايا» / «هدف هدايا الحظ» among the three, else 0. Always sent by a v1.71-live server."
+          maxItems: 6
+          description: "v1.71-live (D281, §10.62.2; D281b: two tracks) the host's smart targets of today — the GIFTS track's EASY, MEDIUM, HARD, then the LUCKY track's (six; a host whose day was assigned before D281b may have only the three gift targets). Earlier: the host's three smart targets of today — EASY, MEDIUM, HARD in that order — with their progress and reward; [] before the smart engine's first day (then `gifts` / `lucky` carry D277's two targets). From that day `gifts.target` / `lucky.target` are the whole-day «هدف الهدايا» / «هدف هدايا الحظ» among the three, else 0. Always sent by a v1.71-live server."
           items: { $ref: '#/components/schemas/HostDailyTarget' }
     HostDailyTarget:
       type: object
       description: "v1.71-live (D281, CONVENTIONS §10.62.2): one of a host's three targets of today, fixed for the day at its first read. A reached target is paid at once (on the read that sees it): `paidCherries` is at most `rewardCherries` — never more than the level's share of the platform profit of the gifts the target actually counted."
-      required: [level, code, kind, title, amount, progress, reached, rewardCherries, rewardBps, paidCherries, locked, window, gift, category]
+      required: [track, level, code, kind, title, amount, progress, reached, rewardCherries, rewardBps, paidCherries, locked, window, gift, category]
       properties:
+        track: { type: string, enum: [GIFTS, LUCKY], description: "D281b: the sheet's tab — «الهدايا» (gifts outside the lucky category) or «هدايا الحظ» (lucky gifts)." }
         level: { type: string, enum: [EASY, MEDIUM, HARD], description: "«سهل» / «متوسط» / «صعب»." }
         code: { type: string, maxLength: 120, description: "The catalogue code `T.<kind>.<subject|*>.<amount>.<from>-<to>`." }
         kind:
           type: string
-          enum: [GIFT_CHERRIES, LUCKY_CHERRIES, GIFT_COUNT, CATEGORY_COUNT, SUPPORTERS, GIFT_SENDS, COMBO, GIFT_COMBO]
-          description: "What is counted (§10.62.2): cherries from gifts outside the lucky category from others; cherries from lucky gifts (self-sends too); how many of one gift; of one category; different supporters; gifts received; the biggest combo; the biggest combo of one gift. New kinds may appear later (a client shows the title and the gifts badge)."
+          enum: [GIFT_CHERRIES, LUCKY_CHERRIES, GIFT_COUNT, CATEGORY_COUNT, SUPPORTERS, GIFT_SENDS, COMBO, GIFT_COMBO, LUCKY_GIFT_COUNT, LUCKY_SENDS, LUCKY_SUPPORTERS, LUCKY_COMBO]
+          description: "What is counted (§10.62.2). GIFTS track (gifts outside the lucky category, from others): cherries; how many of one gift; of one category; different supporters; gifts received; the biggest combo; the biggest combo of one gift. LUCKY track (D281b; lucky gifts, the host's own sends included except as a supporter): cherries; how many of one lucky gift; lucky gifts received; different lucky supporters; the biggest lucky combo. New kinds may appear later (a client shows the title and its track's badge)."
         title: { type: string, description: "In the caller's language (`Accept-Language`, else Arabic), e.g. «استقبل 100 هدية من المحارب»." }
         amount: { type: integer, format: int64, minimum: 1, description: "The target (cherries for the cherry kinds, else a count)." }
         progress: { type: integer, format: int64, minimum: 0, description: "Today's (in the window), capped at `amount`." }
@@ -25149,7 +25180,7 @@ components:
                 to: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
             - type: 'null'
         gift:
-          description: "The gift of a GIFT_COUNT / GIFT_COMBO target (its picture and name), else null."
+          description: "The ONE gift a GIFT_COUNT / GIFT_COMBO / LUCKY_GIFT_COUNT target is about (its current hosted picture and name; the app shows that picture), else null."
           oneOf:
             - $ref: '#/components/schemas/TaskGift'
             - type: 'null'
@@ -29745,7 +29776,8 @@ components:
         `REFERRAL_REVERSAL` (debit): that reward taken back when the team voided the referral (reference: the same
         reward; the balance may go below 0). *(v1.84-social, D270)* `STORE_PURCHASE` (debit): a store item bought with
         cherries (reference: the purchase; §10.98). *(v1.71-live, D281)* `HOST_TARGET_REWARD` (credit): a smart host
-        target's profit-share reward (reference `HT:<level>@<day>`; locked like `TASK_REWARD`, §10.62.2).
+        target's profit-share reward (reference `HT:<level>@<day>`, D281b's lucky track `HT:LUCKY:<level>@<day>`; locked like
+        `TASK_REWARD`, §10.62.2).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
