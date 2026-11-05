@@ -24592,6 +24592,66 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'وصلت إلى 10 منشنات.'**
   String get profileEditTagsFull;
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'سهل'**
+  String get liveTargetLevelEasy;
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط'**
+  String get liveTargetLevelMedium;
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'صعب'**
+  String get liveTargetLevelHard;
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'+{amount} كرز مقفل'**
+  String liveTargetRewardLocked(String amount);
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم · +{amount} كرز مقفل'**
+  String liveTargetRewardPaid(String amount);
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'المكافأة نسبة من ربح المنصة الفعلي، تُصرف كرزاً مقفلاً مثل المهام عند إكمال الهدف.'**
+  String get liveTargetRewardHint;
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'{level}: {title}، {progress} من {amount}، المكافأة {reward} كرز'**
+  String liveTargetDailySemantics(
+    String level,
+    String title,
+    String progress,
+    String amount,
+    String reward,
+  );
+
+  /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
+  ///
+  /// In ar, this message translates to:
+  /// **'بين {from} و{to}'**
+  String tasksWindowLabel(String from, String to);
+
+  /// D281: a HOST_TARGET_REWARD row of the cherry history (a smart daily target reward, locked like task rewards).
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافأة هدف يومي'**
+  String get cherryReasonHostTarget;
 }
 
 class _AppLocalizationsDelegate

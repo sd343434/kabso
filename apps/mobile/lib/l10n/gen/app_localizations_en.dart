@@ -14548,4 +14548,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileEditTagsFull => 'You have 10 tags.';
+
+  @override
+  String get liveTargetLevelEasy => 'Easy';
+
+  @override
+  String get liveTargetLevelMedium => 'Medium';
+
+  @override
+  String get liveTargetLevelHard => 'Hard';
+
+  @override
+  String liveTargetRewardLocked(String amount) {
+    return '+$amount locked cherries';
+  }
+
+  @override
+  String liveTargetRewardPaid(String amount) {
+    return 'Done · +$amount locked cherries';
+  }
+
+  @override
+  String get liveTargetRewardHint =>
+      'The reward is a share of the platform\'s actual profit, paid as locked cherries like tasks when the target is reached.';
+
+  @override
+  String liveTargetDailySemantics(
+    String level,
+    String title,
+    String progress,
+    String amount,
+    String reward,
+  ) {
+    return '$level: $title, $progress of $amount, reward $reward cherries';
+  }
+
+  @override
+  String tasksWindowLabel(String from, String to) {
+    return 'between $from and $to';
+  }
+
+  @override
+  String get cherryReasonHostTarget => 'Daily target reward';
 }

@@ -85,6 +85,14 @@ class LiveHostTargetChip extends ConsumerStatefulWidget {
   static const maxWidth = 124.0;
   static const maxWidthBoth = 196.0;
 
+  /// D281: one smart target's face (level, progress, reward) and all three
+  /// compact (reduced motion).
+  static const maxWidthDaily = 176.0;
+  static const maxWidthDailyAll = 220.0;
+
+  /// D281: a smart target's face on the chip.
+  static Key dailyKey(TargetLevel level) => Key('target.daily.${level.name}');
+
   /// The data refreshes every this many turns (≈ a minute).
   static const refreshTurns = 15;
 
@@ -139,6 +147,8 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
   Widget build(BuildContext context) {
     final targets = ref.watch(liveHostTargetsProvider(widget.username)).value;
     if (targets == null) return const SizedBox.shrink();
+    // D281: the three smart targets when the server sends them.
+    if (targets.daily.isNotEmpty) return _daily(context, targets.daily);
     // D214: both faces always (0 received shows «0»).
     const kinds = _Kind.values;
     final l10n = context.l10n;
@@ -229,6 +239,177 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
                 child: ClipRect(child: Center(widthFactor: 1, child: content)),
               ),
       ),
+    );
+  }
+}
+
+extension on _LiveHostTargetChipState {
+  /// D281: the three smart targets — one face at a time (level, progress,
+  /// reward), turning like D199's two; under reduced motion (or `plain`)
+  /// all three side by side, compact (the mark and the progress).
+  Widget _daily(BuildContext context, List<HostDailyTarget> daily) {
+    final l10n = context.l10n;
+    final still = widget.plain || _LiveHostTargetChipState._still(context);
+    String label(HostDailyTarget t) => l10n.liveTargetDailySemantics(
+      targetLevelLabel(l10n, t.level),
+      t.title,
+      KFormat.grouped(t.progress),
+      KFormat.grouped(t.amount),
+      KFormat.grouped(t.shownReward),
+    );
+    final Widget content;
+    final bool glow;
+    if (still) {
+      glow = daily.any((t) => t.reached);
+      content = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (i, t) in daily.indexed) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Flexible(
+              child: _DailyFace(target: t, compact: true, plain: widget.plain),
+            ),
+          ],
+        ],
+      );
+    } else {
+      final t = daily[_turn % daily.length];
+      glow = t.reached;
+      content = AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0, 0.45),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        ),
+        child: _DailyFace(key: ValueKey(t.level), target: t),
+      );
+    }
+    return Semantics(
+      button: true,
+      label: '${l10n.liveTargetChip}: ${daily.map(label).join(' · ')}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: LiveHostTargetChip.chipKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: _open,
+        child: widget.plain
+            ? SizedBox(
+                height: KViewerRoom.chipHeight,
+                child: Center(widthFactor: 1, child: content),
+              )
+            : Container(
+                height: KViewerRoom.chipHeight,
+                constraints: BoxConstraints(
+                  maxWidth: still
+                      ? LiveHostTargetChip.maxWidthDailyAll
+                      : LiveHostTargetChip.maxWidthDaily,
+                ),
+                padding: const EdgeInsetsDirectional.only(start: 4, end: 8),
+                decoration: BoxDecoration(
+                  color: KLiveColors.glass,
+                  borderRadius: BorderRadius.circular(
+                    KViewerRoom.chipHeight / 2,
+                  ),
+                  border: glow
+                      ? Border.all(color: const Color(0xCCFFD36E), width: 0.8)
+                      : null,
+                  boxShadow: glow
+                      ? const [
+                          BoxShadow(color: Color(0x99FFC547), blurRadius: 8),
+                        ]
+                      : null,
+                ),
+                child: ClipRect(child: Center(widthFactor: 1, child: content)),
+              ),
+      ),
+    );
+  }
+}
+
+/// D281: one smart target on the chip — its mark (the gift's picture for a
+/// gift target), the level («سهل / متوسط / صعب» in its colour), the progress
+/// («1.2K/3M») and the reward («+89.7K» with a cherry); compact: the mark and
+/// the progress only. A reached target shows the check.
+class _DailyFace extends StatelessWidget {
+  const new({
+    required this.target,
+    super.key,
+    this.compact = false,
+    this.plain = false,
+  });
+
+  final HostDailyTarget target;
+  final bool compact;
+  final bool plain;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles.caption.copyWith(
+      fontSize: plain ? 13 : 11.5,
+      height: 1,
+      color: const Color(0xFFFFFFFF),
+      fontWeight: FontWeight.w700,
+      shadows: KLiveColors.glassShadow,
+    );
+    return Row(
+      key: LiveHostTargetChip.dailyKey(target.level),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KDailyTargetBadge(target, size: plain ? 12 : 16),
+        const SizedBox(width: 3),
+        if (!compact) ...[
+          Text(
+            targetLevelLabel(l10n, target.level),
+            maxLines: 1,
+            style: text.copyWith(color: targetLevelColor(target.level)),
+          ),
+          const SizedBox(width: 4),
+        ],
+        Flexible(
+          child: Text(
+            '${_short(target.progress)}/${_short(target.amount)}',
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text,
+          ),
+        ),
+        if (!compact && target.shownReward > 0) ...[
+          const SizedBox(width: 4),
+          Text(
+            '+${_short(target.shownReward)}',
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            style: text.copyWith(color: const Color(0xFFFFD36E)),
+          ),
+          const SizedBox(width: 1),
+          const KCherryIcon(size: 10),
+        ],
+        if (target.reached) ...[
+          const SizedBox(width: 3),
+          Container(
+            key: LiveHostTargetChip.reachedKey,
+            width: 12,
+            height: 12,
+            decoration: const BoxDecoration(
+              color: Color(0xFF34C759),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 10,
+              color: Color(0xFFFFFFFF),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

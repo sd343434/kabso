@@ -14547,4 +14547,46 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileEditTagsFull => 'وصلت إلى 10 منشنات.';
+
+  @override
+  String get liveTargetLevelEasy => 'سهل';
+
+  @override
+  String get liveTargetLevelMedium => 'متوسط';
+
+  @override
+  String get liveTargetLevelHard => 'صعب';
+
+  @override
+  String liveTargetRewardLocked(String amount) {
+    return '+$amount كرز مقفل';
+  }
+
+  @override
+  String liveTargetRewardPaid(String amount) {
+    return 'تم · +$amount كرز مقفل';
+  }
+
+  @override
+  String get liveTargetRewardHint =>
+      'المكافأة نسبة من ربح المنصة الفعلي، تُصرف كرزاً مقفلاً مثل المهام عند إكمال الهدف.';
+
+  @override
+  String liveTargetDailySemantics(
+    String level,
+    String title,
+    String progress,
+    String amount,
+    String reward,
+  ) {
+    return '$level: $title، $progress من $amount، المكافأة $reward كرز';
+  }
+
+  @override
+  String tasksWindowLabel(String from, String to) {
+    return 'بين $from و$to';
+  }
+
+  @override
+  String get cherryReasonHostTarget => 'مكافأة هدف يومي';
 }

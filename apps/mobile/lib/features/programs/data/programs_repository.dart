@@ -50,6 +50,16 @@ enum TaskMetric {
   // cherries (target in cherries).
   hostGiftCherries('HOST_GIFT_CHERRIES'),
   hostLuckyCherries('HOST_LUCKY_CHERRIES'),
+  // v1.85-social (D281): the generated catalogue's new actions — a chosen
+  // gift ([ProgramTask.gift]) or a category sent, different people gifted,
+  // joining a family, family chat, PK battles and wins (hosts).
+  giftCountSent('GIFT_COUNT_SENT'),
+  categoryGiftsSent('CATEGORY_GIFTS_SENT'),
+  giftedHosts('GIFTED_HOSTS'),
+  familyJoin('FAMILY_JOIN'),
+  familyChatMessages('FAMILY_CHAT_MESSAGES'),
+  pkBattles('PK_BATTLES'),
+  pkWins('PK_WINS'),
   other('');
 
   new(this.wire);
@@ -58,6 +68,29 @@ enum TaskMetric {
 
   static TaskMetric fromWire(Object? wire) =>
       values.where((m) => m.wire == wire && m != other).firstOrNull ?? other;
+}
+
+/// v1.85-social (D281) `TaskGift`: the gift a chosen-gift task names.
+@immutable
+final class TaskGift {
+  const new({
+    required this.code,
+    required this.name,
+    required this.assetKey,
+    this.imageUrl,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => TaskGift(
+    code: json['code']! as String,
+    name: json['name']! as String,
+    assetKey: (json['assetKey'] as String?) ?? '',
+    imageUrl: json['imageUrl'] as String?,
+  );
+
+  final String code;
+  final String name;
+  final String assetKey;
+  final String? imageUrl;
 }
 
 /// `ProgramTask`: one task with the progress the server computed.
@@ -78,9 +111,17 @@ final class ProgramTask {
     this.claimedCoins,
     this.claimedCherries,
     this.pooled = false,
+    this.gift,
+    this.windowFrom,
+    this.windowTo,
   });
 
   factory fromJson(Map<String, dynamic> json) => ProgramTask(
+    gift: json['gift'] is Map<String, dynamic>
+        ? TaskGift.fromJson(json['gift'] as Map<String, dynamic>)
+        : null,
+    windowFrom: (json['window'] as Map<String, dynamic>?)?['from'] as String?,
+    windowTo: (json['window'] as Map<String, dynamic>?)?['to'] as String?,
     code: json['code']! as String,
     pooled: json['pooled'] == true,
     weekly: json['period'] == 'WEEKLY',
@@ -132,6 +173,15 @@ final class ProgramTask {
 
   /// v1.50-social (D176): one of the caller's daily pool tasks of today.
   final bool pooled;
+
+  /// v1.85-social (D281): the gift a chosen-gift task names (its picture on
+  /// the row), else null.
+  final TaskGift? gift;
+
+  /// v1.85-social (D281): the task's hours of the day (`HH:MM`; the server's
+  /// name states them too), null for the whole day.
+  final String? windowFrom;
+  final String? windowTo;
 }
 
 /// `MyTasks.band` (v1.50-social, D176): the level band of today's tasks.

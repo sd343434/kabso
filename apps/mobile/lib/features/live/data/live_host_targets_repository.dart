@@ -48,6 +48,122 @@ final class HostTarget {
   double get progress => target <= 0 ? 0 : (received / target).clamp(0.0, 1.0);
 }
 
+/// D281 (v1.71-live): a smart target's level «سهل / متوسط / صعب».
+enum TargetLevel {
+  easy('EASY'),
+  medium('MEDIUM'),
+  hard('HARD');
+
+  new(this.wire);
+
+  final String wire;
+
+  static TargetLevel fromWire(Object? wire) =>
+      values.firstWhere((l) => l.wire == wire, orElse: () => easy);
+}
+
+/// D281: a gift a target names (its picture and name).
+@immutable
+final class TargetGift {
+  const new({
+    required this.code,
+    required this.name,
+    required this.assetKey,
+    this.imageUrl,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => TargetGift(
+    code: json['code']! as String,
+    name: json['name']! as String,
+    assetKey: (json['assetKey'] as String?) ?? '',
+    imageUrl: json['imageUrl'] as String?,
+  );
+
+  final String code;
+  final String name;
+  final String assetKey;
+  final String? imageUrl;
+}
+
+/// D281 `HostDailyTarget` (v1.71-live, CONVENTIONS §10.62.2): one of the
+/// host's three smart targets of today — its level, title (in the caller's
+/// language), progress and reward (locked task cherries: a share of the
+/// platform profit it produced; [paidCherries] once paid).
+@immutable
+final class HostDailyTarget {
+  const new({
+    required this.level,
+    required this.code,
+    required this.kind,
+    required this.title,
+    required this.amount,
+    required this.progress,
+    required this.reached,
+    required this.rewardCherries,
+    this.rewardBps = 0,
+    this.paidCherries,
+    this.windowFrom,
+    this.windowTo,
+    this.gift,
+    this.categoryName,
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    final window = json['window'];
+    final gift = json['gift'];
+    final category = json['category'];
+    return HostDailyTarget(
+      level: TargetLevel.fromWire(json['level']),
+      code: (json['code'] as String?) ?? '',
+      kind: (json['kind'] as String?) ?? '',
+      title: (json['title'] as String?) ?? '',
+      amount: _int(json['amount']),
+      progress: _int(json['progress']),
+      reached: json['reached'] == true,
+      rewardCherries: _int(json['rewardCherries']),
+      rewardBps: _int(json['rewardBps']),
+      paidCherries: (json['paidCherries'] as num?)?.toInt(),
+      windowFrom: window is Map<String, dynamic>
+          ? window['from'] as String?
+          : null,
+      windowTo: window is Map<String, dynamic> ? window['to'] as String? : null,
+      gift: gift is Map<String, dynamic> ? TargetGift.fromJson(gift) : null,
+      categoryName: category is Map<String, dynamic>
+          ? category['name'] as String?
+          : null,
+    );
+  }
+
+  final TargetLevel level;
+  final String code;
+
+  /// `GIFT_CHERRIES`, `LUCKY_CHERRIES`, `GIFT_COUNT`, … (an unknown kind is
+  /// shown with the gifts badge).
+  final String kind;
+  final String title;
+  final int amount;
+  final int progress;
+  final bool reached;
+  final int rewardCherries;
+  final int rewardBps;
+  final int? paidCherries;
+
+  /// The hours of the day (`HH:MM`), null for the whole day.
+  final String? windowFrom;
+  final String? windowTo;
+  final TargetGift? gift;
+  final String? categoryName;
+
+  bool get lucky => kind == 'LUCKY_CHERRIES';
+  bool get paid => paidCherries != null;
+
+  /// What the row shows: what was paid, else the reward offered.
+  int get shownReward => paidCherries ?? rewardCherries;
+
+  /// 0 … 1.
+  double get fraction => amount <= 0 ? 0 : (progress / amount).clamp(0.0, 1.0);
+}
+
 /// `HostSupporter`: a giver, the coin value of their gifts in the period
 /// and (D199b) the cherries the host got from them and their support level.
 @immutable
@@ -116,6 +232,7 @@ final class LiveHostTargets {
     this.luckySupporters = const [],
     this.meGifts,
     this.meLucky,
+    this.daily = const [],
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -140,6 +257,10 @@ final class LiveHostTargets {
       meLucky: me is Map<String, dynamic>
           ? HostSupporterRank.fromJson(me['lucky']! as Map<String, dynamic>)
           : null,
+      daily: [
+        for (final t in (json['daily'] as List<dynamic>?) ?? const <dynamic>[])
+          HostDailyTarget.fromJson(t as Map<String, dynamic>),
+      ],
     );
   }
 
@@ -165,6 +286,11 @@ final class LiveHostTargets {
   /// The signed-in caller's own place today (null for guests and the host).
   final HostSupporterRank? meGifts;
   final HostSupporterRank? meLucky;
+
+  /// D281 (v1.71-live): the host's three smart targets of today (easy,
+  /// medium, hard); empty before the smart engine's first day or from an
+  /// older server (then [gifts] / [lucky] are D277's two targets).
+  final List<HostDailyTarget> daily;
 }
 
 /// One bucket of the cherries series (an hour, a day or a month, local).

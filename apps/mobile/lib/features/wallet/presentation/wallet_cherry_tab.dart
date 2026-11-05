@@ -453,6 +453,7 @@ class _CherryTile extends StatelessWidget {
         CherryLedgerReason.referralReversal =>
           l10n.cherryReasonReferralReversal,
         CherryLedgerReason.storePurchase => l10n.walletReasonStorePurchase,
+        CherryLedgerReason.hostTargetReward => l10n.cherryReasonHostTarget,
         CherryLedgerReason.other => l10n.cherryReasonOther,
       };
 
@@ -469,6 +470,7 @@ class _CherryTile extends StatelessWidget {
     CherryLedgerReason.referralReward => Icons.group_add_rounded,
     CherryLedgerReason.referralReversal => Icons.group_remove_rounded,
     CherryLedgerReason.storePurchase => Icons.storefront_rounded,
+    CherryLedgerReason.hostTargetReward => Icons.flag_rounded,
     CherryLedgerReason.other => Icons.swap_vert_rounded,
   };
 

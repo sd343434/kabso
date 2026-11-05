@@ -11,6 +11,7 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
@@ -48,6 +49,9 @@ class TaskCenterScreen extends ConsumerStatefulWidget {
   static const bannerKey = Key('tasks.banner');
 
   static Key taskKey(String code) => Key('tasks.task.$code');
+
+  /// D281: a chosen-gift task's picture.
+  static Key giftKey(String code) => Key('tasks.gift.$code');
 
   /// D184: a task row's «+N» cherries.
   static Key rewardAmountKey(String code) => Key('tasks.reward.$code');
@@ -140,6 +144,11 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       TaskMetric.reels => AppRoutes.newReel,
       TaskMetric.stories => AppRoutes.newStory,
       TaskMetric.dmFriends || TaskMetric.dmVoiceMessages => AppRoutes.messages,
+      // D281: a family to join or chat in (the families hub).
+      TaskMetric.familyJoin ||
+      TaskMetric.familyChatMessages => AppRoutes.families,
+      TaskMetric.pkBattles ||
+      TaskMetric.pkWins ||
       TaskMetric.hostLiveMinutes ||
       TaskMetric.hostGiftCoins ||
       TaskMetric.hostGiftsReceived ||
@@ -152,6 +161,9 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       TaskMetric.liveTaps ||
       TaskMetric.giftSends ||
       TaskMetric.giftCoinsSent ||
+      TaskMetric.giftCountSent ||
+      TaskMetric.categoryGiftsSent ||
+      TaskMetric.giftedHosts ||
       TaskMetric.newHostGifts ||
       TaskMetric.other => null,
     };
@@ -840,6 +852,14 @@ class _TaskRow extends StatelessWidget {
     TaskMetric.hostGiftCherries => (Icons.card_giftcard_rounded, _amber),
     TaskMetric.hostLuckyCherries => (Icons.auto_awesome_rounded, _amber),
     TaskMetric.hostGuests => (Icons.event_seat_rounded, _blue),
+    // D281.
+    TaskMetric.giftCountSent ||
+    TaskMetric.categoryGiftsSent => (Icons.redeem_rounded, _amber),
+    TaskMetric.giftedHosts => (Icons.volunteer_activism_rounded, _pink),
+    TaskMetric.familyJoin => (Icons.groups_rounded, _teal),
+    TaskMetric.familyChatMessages => (Icons.forum_rounded, _blue),
+    TaskMetric.pkBattles => (Icons.sports_mma_rounded, KBrandColors.red500),
+    TaskMetric.pkWins => (Icons.emoji_events_rounded, _amber),
     TaskMetric.other => (Icons.task_alt_rounded, _teal),
   };
 
@@ -888,7 +908,17 @@ class _TaskRow extends StatelessWidget {
             ),
             child: SizedBox.square(
               dimension: TaskCenterScreen.iconTile,
-              child: Icon(icon, size: 21, color: hue),
+              // D281: a chosen-gift task shows the gift's picture.
+              child: task.gift == null
+                  ? Icon(icon, size: 21, color: hue)
+                  : Center(
+                      child: KGiftImage(
+                        task.gift!.assetKey,
+                        key: TaskCenterScreen.giftKey(task.code),
+                        imageUrl: task.gift!.imageUrl,
+                        size: 26,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 11),

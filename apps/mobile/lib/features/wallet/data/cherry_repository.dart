@@ -33,6 +33,10 @@ enum CherryLedgerReason {
 
   /// D270: a store item bought with cherries.
   storePurchase('STORE_PURCHASE'),
+
+  /// v1.71-live (D281): a smart daily target's profit-share reward (locked
+  /// like task rewards).
+  hostTargetReward('HOST_TARGET_REWARD'),
   other('');
 
   new(this.wire);

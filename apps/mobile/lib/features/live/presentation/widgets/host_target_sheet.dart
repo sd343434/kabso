@@ -64,6 +64,12 @@ class HostTargetSheet extends ConsumerStatefulWidget {
   static const chosenTabKey = Key('targetSheet.chosenTab');
   static const rangeKey = Key('targetSheet.range');
   static const targetsKey = Key('targetSheet.targets');
+
+  /// D281: a smart target's row and its reward.
+  static Key dailyKey(TargetLevel level) =>
+      Key('targetSheet.daily.${level.name}');
+  static Key rewardKey(TargetLevel level) =>
+      Key('targetSheet.reward.${level.name}');
   static const meKey = Key('targetSheet.me');
   static const taskCenterKey = Key('targetSheet.taskCenter');
   static const supportKey = Key('targetSheet.support');
@@ -305,7 +311,14 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
         // M: the first row's centre 140.5 pt under the sheet's top.
         padding: const EdgeInsets.only(top: 1.7),
         children: [
-          if (daily &&
+          // D281: the three smart targets (level, progress, reward).
+          if (daily && targets != null && targets.daily.isNotEmpty)
+            _DailyTargetsBlock(
+              key: HostTargetSheet.targetsKey,
+              targets: targets.daily,
+              ink: ink,
+            )
+          else if (daily &&
               targets != null &&
               (targets.gifts.hasTarget || targets.lucky.hasTarget))
             _TargetsBlock(
@@ -896,6 +909,156 @@ class _TargetsBlock extends StatelessWidget {
                 targets.lucky,
                 _Ink.magic,
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// D281: today's three smart targets — each with its mark (the gift's
+/// picture for a gift target), the level «سهل / متوسط / صعب», the title, a
+/// thin bar with «x / y», and the reward in locked cherries («+89,790 كرز
+/// مقفل»; once paid «تم ✓ …»); a line on what the reward is.
+class _DailyTargetsBlock extends StatelessWidget {
+  const new({required this.targets, required this.ink, super.key});
+
+  final List<HostDailyTarget> targets;
+  final _Ink ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final style = context.textStyles.caption.copyWith(
+      fontSize: _G.smallFont,
+      height: 1.25,
+      color: ink.soft,
+    );
+    Widget row(HostDailyTarget t) {
+      final colour = targetLevelColor(t.level);
+      final value =
+          '${KFormat.grouped(t.progress)} / ${KFormat.grouped(t.amount)}';
+      final reward = KFormat.grouped(t.shownReward);
+      return Semantics(
+        container: true,
+        label: l10n.liveTargetDailySemantics(
+          targetLevelLabel(l10n, t.level),
+          t.title,
+          KFormat.grouped(t.progress),
+          KFormat.grouped(t.amount),
+          reward,
+        ),
+        excludeSemantics: true,
+        child: Padding(
+          key: HostTargetSheet.dailyKey(t.level),
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              KDailyTargetBadge(t, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colour.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            targetLevelLabel(l10n, t.level),
+                            style: style.copyWith(
+                              color: colour,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            t.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: style.copyWith(color: ink.strong),
+                          ),
+                        ),
+                        if (t.reached) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 12,
+                            color: Color(0xFF34C759),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: t.fraction,
+                        minHeight: 3,
+                        backgroundColor: ink.track,
+                        color: t.reached ? _Ink.gold : colour,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Text(
+                          value,
+                          textDirection: TextDirection.ltr,
+                          style: style.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: t.reached ? _Ink.amount : ink.strong,
+                          ),
+                        ),
+                        const Spacer(),
+                        const KCherryIcon(size: 11),
+                        const SizedBox(width: 3),
+                        Text(
+                          t.paid
+                              ? l10n.liveTargetRewardPaid(reward)
+                              : l10n.liveTargetRewardLocked(reward),
+                          key: HostTargetSheet.rewardKey(t.level),
+                          style: style.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: _Ink.amount,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(14.5, 0, 21, 8),
+      child: Semantics(
+        label: l10n.liveTargetToday,
+        container: true,
+        explicitChildNodes: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final t in targets) row(t),
+            const SizedBox(height: 6),
+            Text(
+              l10n.liveTargetRewardHint,
+              style: style.copyWith(fontSize: _G.smallFont - 1),
+            ),
           ],
         ),
       ),
