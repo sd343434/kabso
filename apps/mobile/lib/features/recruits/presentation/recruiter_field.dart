@@ -156,7 +156,6 @@ class _RecruiterFieldState extends ConsumerState<RecruiterField> {
             const SizedBox(width: KSpacing.xs),
             _Badge(
               text: [
-                l10n.liveKabsoTeam,
                 ?r.staffId,
                 if (r.bd) l10n.staffRoleBd else l10n.staffRoleModeration,
               ].join(' · '),

@@ -349,12 +349,18 @@ class _EarningsBody extends ConsumerWidget {
                 style: t.label.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: KSpacing.xs),
-              Text(
-                '🍒 ${KFormat.grouped(w.cherries)}',
-                style: t.display.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+              Row(
+                children: [
+                  const Icon(Icons.savings_rounded, color: Colors.white),
+                  const SizedBox(width: KSpacing.sm),
+                  Text(
+                    KFormat.grouped(w.cherries),
+                    style: t.display.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: KSpacing.xs),
               Text(
