@@ -275,15 +275,18 @@ void expectCover(
   expect(_rect(tester, ProfileCoverHeader.coverFallbackKey), area);
   final bar = tester.getRect(find.byType(AppBar));
   final photo = _rect(tester, ProfileHeaderView.avatarKey);
-  // D278b: the photo rises into the picture, under the top bar.
+  // D278d: the photo and its frame wholly inside the picture, under the
+  // top bar, near its bottom edge; the name row starts under the picture.
   expect(photo.top, greaterThan(bar.bottom));
-  expect(photo.top, lessThan(area.bottom));
+  expect(photo.bottom, lessThanOrEqualTo(area.bottom));
+  expect(photo.bottom, greaterThan(area.bottom - 40));
   final name = _rect(tester, const Key('profile.displayName'));
   final nameRow = _rect(tester, ProfileCoverHeader.nameRowKey);
   final handle = _rect(tester, ProfileCoverHeader.handleKey);
   final stats = _rect(tester, ProfileScreen.statsKey);
   final actions = _rect(tester, ProfileCoverHeader.actionsKey);
   expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
+  expect(nameRow.top, greaterThanOrEqualTo(area.bottom));
   expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
   expect(stats.top, greaterThanOrEqualTo(handle.bottom));
   expect(actions.top, greaterThanOrEqualTo(stats.bottom));

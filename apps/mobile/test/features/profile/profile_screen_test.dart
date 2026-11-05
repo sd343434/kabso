@@ -117,10 +117,11 @@ void main() {
     // (with the level badges), the numbers and «Edit profile» on the dark
     // block; the bio after the header.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    expect(photo.top, lessThan(cover.bottom));
+    // D278d: wholly inside the picture; the name under it.
+    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
     final header = tester.getRect(find.byKey(ProfileCoverHeader.headerKey));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
-    expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
+    expect(name.top, greaterThanOrEqualTo(cover.bottom));
     final nameRow = tester.getRect(find.byKey(ProfileCoverHeader.nameRowKey));
     final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(nameRow.top - 0.5));

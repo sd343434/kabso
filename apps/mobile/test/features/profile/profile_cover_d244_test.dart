@@ -160,14 +160,9 @@ void _expectInside(
   expect(tester.takeException(), isNull);
   final cover = _cover(tester);
   final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
+  // D278d: wholly inside the picture again.
   expect(photo.top, greaterThanOrEqualTo(cover.top));
-  expect(photo.top, lessThan(cover.bottom));
-  expect(
-    photo.bottom,
-    lessThanOrEqualTo(
-      tester.getRect(find.byKey(ProfileCoverHeader.headerKey)).bottom,
-    ),
-  );
+  expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
   expect(photo.left, greaterThanOrEqualTo(0));
   expect(photo.right, lessThanOrEqualTo(width));
   // At the reading start.
@@ -178,8 +173,8 @@ void _expectInside(
   }
   final name = find.byKey(const Key('profile.displayName'));
   final nameRect = tester.getRect(name);
-  // D278b: the name under the photo and its frame (never covered).
-  expect(nameRect.top, greaterThanOrEqualTo(photo.bottom - 1));
+  // The name under the picture, so never under the photo or its frame.
+  expect(nameRect.top, greaterThanOrEqualTo(cover.bottom));
   expect(nameRect.overlaps(photo), isFalse);
 }
 

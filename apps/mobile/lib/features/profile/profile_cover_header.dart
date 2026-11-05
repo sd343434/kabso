@@ -55,7 +55,10 @@ ImageProvider Function(String src) profileCoverImageFor = NetworkImage.new;
 /// links. D278c (owner: «نصفه السفلي لا تجعله تدرج لوني بدون لون، اجعله
 /// كالخلفية ان كانت دارك سوداء وان كانت لايت بيضاء»): that block is the
 /// page's own background (white in light, black in dark) in the theme's
-/// colours; the picture ends with only a short fade into it ([fadeShare]).
+/// colours. D278d (owner: «ما هذا الظلال الابيض على الغلاف ازله واجعل
+/// الصورة داخل الغلاف»): no fade — the picture ends with a straight edge,
+/// and the photo with its frame sits wholly inside it, near its bottom at
+/// the reading start.
 abstract final class KPublicProfile {
   /// The box every profile photo is drawn in, frame or not: the frames'
   /// common box (`AvatarFrameBox.aroundAvatar`), the real extent of the
@@ -68,9 +71,9 @@ abstract final class KPublicProfile {
   /// 0.57).
   static const double coverShare = 0.42;
 
-  /// How much of [avatarSlot]'s height rises into the picture (D278b:
-  /// «رفعها للاعلى قليلاً»).
-  static const double avatarRise = 0.8;
+  /// D278d: the space between the photo's box and the picture's bottom
+  /// edge (the photo sits wholly inside the picture).
+  static const double avatarMargin = KSpacing.sm;
 
   /// At most this many tags (`PublicProfile.tags`, §10.99).
   static const int maxTags = 10;
@@ -81,10 +84,6 @@ abstract final class KPublicProfile {
 
   /// From the screen's reading-start edge to [avatarSlot].
   static const double avatarStart = KSpacing.sm;
-
-  /// The share of the picture (from its bottom) that fades into the page
-  /// colour: a short fade, no seam (D278c).
-  static const double fadeShare = 0.1;
 
   /// The cover picture's height on a screen of [screenHeight].
   static double coverHeightFor(double screenHeight) =>
@@ -319,10 +318,19 @@ class ProfileCoverHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final media = MediaQuery.of(context);
-    final coverHeight = KPublicProfile.coverHeightFor(media.size.height);
     final slot = KPublicProfile.avatarSlot;
     final avatarUrl = profile.avatarUrl;
     final page = context.palette.background;
+    // D278d (owner: «اجعل الصورة داخل الغلاف»): the photo and its frame sit
+    // wholly inside the picture, [KPublicProfile.avatarMargin] above its
+    // bottom edge and under the top buttons; the picture grows only when a
+    // short screen leaves no room for that.
+    final barBottom =
+        media.padding.top + KMetrics.statusBarGap + kToolbarHeight;
+    final coverHeight = math.max(
+      KPublicProfile.coverHeightFor(media.size.height),
+      barBottom + slot.height + 2 * KPublicProfile.avatarMargin,
+    );
     final cover = Stack(
       key: coverAreaKey,
       fit: StackFit.expand,
@@ -385,24 +393,6 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
           ),
         ),
-        // D278c: the picture ends with a short fade into the page colour
-        // (no seam); what follows is on the page itself.
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: FractionallySizedBox(
-            heightFactor: KPublicProfile.fadeShare,
-            widthFactor: 1,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [page.withValues(alpha: 0), page],
-                ),
-              ),
-            ),
-          ),
-        ),
         // The own profile: the cover is a button (change it) — under the
         // status bar and the top buttons, never in them.
         if (onCoverTap case final tap?)
@@ -420,12 +410,7 @@ class ProfileCoverHeader extends StatelessWidget {
           ),
       ],
     );
-    // D278b (owner: «صورة شخصية نريد رفعها للاعلى قليلاً»): the photo rises
-    // into the cover's lower part, never under the top buttons.
-    final contentTop = math.max(
-      media.padding.top + KSpacing.md,
-      coverHeight - slot.height * KPublicProfile.avatarRise,
-    );
+    final contentTop = coverHeight - KPublicProfile.avatarMargin - slot.height;
     return Stack(
       key: headerKey,
       children: [
@@ -453,10 +438,13 @@ class ProfileCoverHeader extends StatelessWidget {
                   child: Center(child: _avatar(context)),
                 ),
               ),
+              // The picture ends here, a clean straight edge (D278d: no
+              // fade); the rest is on the page.
+              const SizedBox(height: KPublicProfile.avatarMargin),
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(
                   KProfile.inset,
-                  KSpacing.xs,
+                  KSpacing.sm,
                   KProfile.inset,
                   KSpacing.lg,
                 ),
@@ -617,9 +605,8 @@ class ProfileCoverHeader extends StatelessWidget {
                 agentCode: profile.rechargeAgentCode,
                 hostAgentCode: profile.hostAgentCode,
                 avatarFrame: profile.avatarFrame,
-                // D218: a ring of the page's colour sets the plain photo
-                // off the cover.
-                outline: framed ? null : context.palette.background,
+                // A thin light ring sets the plain photo off the picture.
+                outline: framed ? null : KPalette.dark.textPrimary,
               ),
             );
           },

@@ -523,10 +523,12 @@ States: action buttons follow IconButton states; title never interactive.
 picture, `0.42 ×` the screen height (≈ 358 dp on 393 × 852), drawn from the very top under the
 status bar and the `transparent` TopBar — the page's own buttons (back, ⋯ / drafts, settings) on
 40 dp `live.glass` circles, white; the bar turns `background` with the @username once the cover has
-scrolled away, and the tabs pin under it. D278c: the picture ends with a short fade (its last
-10 %) into the **page colour** (`background`: white in light, black in dark), and the block under it
-is the page itself, in the theme's colours. It carries, top to bottom: the photo in the frames' common box
-(frames unchanged) at the reading start, rising 80 % of its box into the picture; the **name row**
+scrolled away, and the tabs pin under it. D278d: the picture ends with a **clean straight edge**
+(no fade, no scrim) and the photo with its frame sits **wholly inside it**, `sm` above its bottom
+edge at the reading start (a thin white ring around a plain photo; the picture grows only if a short
+screen leaves no room under the top buttons). D278c: under the picture is the **page itself**
+(`background`: white in light, black in dark), in the theme's colours. It carries, top to bottom: the photo in the frames' common box
+the **name row**
 (name 20 / 700, the VIP badge right after it, our badges, then the level badges, wrapping); the
 @username; the **numbers** — Followers, Following, «الكرز المستلم», «الكوينز المرسلة» (the person
 card's: short Latin numbers, equal columns, thin dividers; a hidden one is left out); the 44 dp

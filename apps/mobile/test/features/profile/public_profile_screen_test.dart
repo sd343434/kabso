@@ -119,8 +119,9 @@ void main() {
     // cover picture; the name under it.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, greaterThan(cover.top));
-    expect(photo.top, lessThan(cover.bottom));
-    expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
+    // D278d: wholly inside the picture; the name under it.
+    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(name.top, greaterThanOrEqualTo(cover.bottom));
     // The bio under the header block.
     expect(
       tester.getRect(find.text('Arabic music every evening')).top,
