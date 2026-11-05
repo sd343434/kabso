@@ -90,8 +90,15 @@ class LiveHostTargetChip extends ConsumerStatefulWidget {
   static const maxWidthDaily = 176.0;
   static const maxWidthDailyAll = 220.0;
 
-  /// D281: a smart target's face on the chip.
-  static Key dailyKey(TargetLevel level) => Key('target.daily.${level.name}');
+  /// D281: a smart target's face on the chip (D281b: per tab).
+  static Key dailyKey(
+    TargetLevel level, [
+    TargetTrack track = TargetTrack.gifts,
+  ]) => Key('target.daily.${track.name}.${level.name}');
+
+  /// D281b: a tab's compact face (reduced motion).
+  static Key summaryKey(TargetTrack track) =>
+      Key('target.daily.summary.${track.name}');
 
   /// The data refreshes every this many turns (≈ a minute).
   static const refreshTurns = 15;
@@ -244,9 +251,12 @@ class _LiveHostTargetChipState extends ConsumerState<LiveHostTargetChip> {
 }
 
 extension on _LiveHostTargetChipState {
-  /// D281: the three smart targets — one face at a time (level, progress,
-  /// reward), turning like D199's two; under reduced motion (or `plain`)
-  /// all three side by side, compact (the mark and the progress).
+  /// D281: the smart targets — one face at a time (level, progress, reward),
+  /// turning like D199's two. D281b: through all six, the three gift
+  /// targets then the three lucky ones (each face's mark says its tab), so
+  /// the host sees both tabs without opening the sheet. Under reduced motion
+  /// (or `plain`) one compact face per tab: its badge and how many of its
+  /// three are reached («1/3»).
   Widget _daily(BuildContext context, List<HostDailyTarget> daily) {
     final l10n = context.l10n;
     final still = widget.plain || _LiveHostTargetChipState._still(context);
@@ -261,13 +271,24 @@ extension on _LiveHostTargetChipState {
     final bool glow;
     if (still) {
       glow = daily.any((t) => t.reached);
+      final tracks = [
+        for (final track in TargetTrack.values)
+          if (daily.any((t) => t.track == track)) track,
+      ];
       content = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final (i, t) in daily.indexed) ...[
+          for (final (i, track) in tracks.indexed) ...[
             if (i > 0) const SizedBox(width: 6),
             Flexible(
-              child: _DailyFace(target: t, compact: true, plain: widget.plain),
+              child: _TrackSummary(
+                track: track,
+                targets: [
+                  for (final t in daily)
+                    if (t.track == track) t,
+                ],
+                plain: widget.plain,
+              ),
             ),
           ],
         ],
@@ -287,7 +308,10 @@ extension on _LiveHostTargetChipState {
             child: child,
           ),
         ),
-        child: _DailyFace(key: ValueKey(t.level), target: t),
+        child: _DailyFace(
+          key: ValueKey('${t.track.name}.${t.level.name}'),
+          target: t,
+        ),
       );
     }
     return Semantics(
@@ -334,37 +358,30 @@ extension on _LiveHostTargetChipState {
 
 /// D281: one smart target on the chip — its mark (the gift's picture for a
 /// gift target), the level («سهل / متوسط / صعب» in its colour), the progress
-/// («1.2K/3M») and the reward («+89.7K» with a cherry); compact: the mark and
-/// the progress only. A reached target shows the check.
+/// («1.2K/3M») and the reward («+89.7K» with a cherry). A reached target
+/// shows the check.
 class _DailyFace extends StatelessWidget {
-  const new({
-    required this.target,
-    super.key,
-    this.compact = false,
-    this.plain = false,
-  });
+  const new({required this.target, super.key});
 
   final HostDailyTarget target;
-  final bool compact;
-  final bool plain;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles.caption.copyWith(
-      fontSize: plain ? 13 : 11.5,
+      fontSize: 11.5,
       height: 1,
       color: const Color(0xFFFFFFFF),
       fontWeight: FontWeight.w700,
       shadows: KLiveColors.glassShadow,
     );
     return Row(
-      key: LiveHostTargetChip.dailyKey(target.level),
+      key: LiveHostTargetChip.dailyKey(target.level, target.track),
       mainAxisSize: MainAxisSize.min,
       children: [
-        KDailyTargetBadge(target, size: plain ? 12 : 16),
+        KDailyTargetBadge(target),
         const SizedBox(width: 3),
-        if (!compact) ...[
+        ...[
           Flexible(
             child: Text(
               targetLevelLabel(l10n, target.level),
@@ -379,10 +396,7 @@ class _DailyFace extends StatelessWidget {
         Flexible(
           flex: 2,
           child: Text(
-            // Compact (all three at once): the share done, «37%».
-            compact
-                ? '${(target.fraction * 100).floor()}%'
-                : '${_short(target.progress)}/${_short(target.amount)}',
+            '${_short(target.progress)}/${_short(target.amount)}',
             textDirection: TextDirection.ltr,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -390,7 +404,7 @@ class _DailyFace extends StatelessWidget {
             style: text,
           ),
         ),
-        if (!compact && target.shownReward > 0) ...[
+        if (target.shownReward > 0) ...[
           const SizedBox(width: 4),
           Flexible(
             child: Text(
@@ -422,6 +436,48 @@ class _DailyFace extends StatelessWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// D281b: one tab's three targets compact — its badge and «reached / 3».
+class _TrackSummary extends StatelessWidget {
+  const new({required this.track, required this.targets, this.plain = false});
+
+  final TargetTrack track;
+  final List<HostDailyTarget> targets;
+  final bool plain;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = targets.where((t) => t.reached).length;
+    return Row(
+      key: LiveHostTargetChip.summaryKey(track),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KHostTargetBadge(
+          track == TargetTrack.lucky
+              ? HostTargetKind.lucky
+              : HostTargetKind.gifts,
+          size: plain ? 12 : 16,
+        ),
+        const SizedBox(width: 3),
+        Flexible(
+          child: Text(
+            '$done/${targets.length}',
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.caption.copyWith(
+              fontSize: plain ? 13 : 11.5,
+              height: 1,
+              color: const Color(0xFFFFFFFF),
+              fontWeight: FontWeight.w700,
+              shadows: KLiveColors.glassShadow,
+            ),
+          ),
+        ),
       ],
     );
   }

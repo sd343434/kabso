@@ -6,9 +6,12 @@ import 'package:kabso_live/features/live/presentation/widgets/live_host_target_c
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D281: a smart target's mark — the gift's own picture for a gift target
-/// («استقبل 100 هدية من المحارب»), the lucky badge for a lucky target, the
-/// gift-box badge (`assets/host_targets/gifts_target.png`) for the others.
+/// D281: a smart target's mark. D281b (owner): a target about ONE gift
+/// («استقبل 100 هدية من المحارب», a combo of it; either tab) shows that gift's
+/// CURRENT hosted picture (`imageUrl`, the catalogue's art); every other
+/// target shows its tab's badge — the gift box
+/// (`assets/host_targets/gifts_target.png`) on «الهدايا», the lucky badge
+/// (`lucky_target.png`) on «هدايا الحظ».
 class KDailyTargetBadge extends StatelessWidget {
   const new(this.target, {super.key, this.size = 16});
 

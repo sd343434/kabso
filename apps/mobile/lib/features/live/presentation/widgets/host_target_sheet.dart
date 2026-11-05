@@ -269,6 +269,10 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
     return ref.read(liveHostTargetsProvider(widget.username!)).value?.endsAt;
   }
 
+  /// D281b: the targets track of a tab.
+  static TargetTrack _trackOf(TargetTab tab) =>
+      tab == TargetTab.lucky ? TargetTrack.lucky : TargetTrack.gifts;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -312,10 +316,16 @@ class _HostTargetSheetState extends ConsumerState<HostTargetSheet> {
         padding: const EdgeInsets.only(top: 1.7),
         children: [
           // D281: the three smart targets (level, progress, reward).
-          if (daily && targets != null && targets.daily.isNotEmpty)
+          // D281b: the active tab's three — «الهدايا» or «هدايا الحظ».
+          if (daily &&
+              targets != null &&
+              targets.daily.any((t) => t.track == _trackOf(_tab)))
             _DailyTargetsBlock(
               key: HostTargetSheet.targetsKey,
-              targets: targets.daily,
+              targets: [
+                for (final t in targets.daily)
+                  if (t.track == _trackOf(_tab)) t,
+              ],
               ink: ink,
             )
           else if (daily &&

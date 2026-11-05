@@ -62,6 +62,20 @@ enum TargetLevel {
       values.firstWhere((l) => l.wire == wire, orElse: () => easy);
 }
 
+/// D281b: the sheet's two tabs — «الهدايا» and «هدايا الحظ» (three targets
+/// each).
+enum TargetTrack {
+  gifts('GIFTS'),
+  lucky('LUCKY');
+
+  new(this.wire);
+
+  final String wire;
+
+  static TargetTrack fromWire(Object? wire) =>
+      values.firstWhere((t) => t.wire == wire, orElse: () => gifts);
+}
+
 /// D281: a gift a target names (its picture and name).
 @immutable
 final class TargetGift {
@@ -100,6 +114,7 @@ final class HostDailyTarget {
     required this.progress,
     required this.reached,
     required this.rewardCherries,
+    this.track = TargetTrack.gifts,
     this.rewardBps = 0,
     this.paidCherries,
     this.windowFrom,
@@ -113,6 +128,8 @@ final class HostDailyTarget {
     final gift = json['gift'];
     final category = json['category'];
     return HostDailyTarget(
+      // D281b: a server before it sends gift targets only.
+      track: TargetTrack.fromWire(json['track']),
       level: TargetLevel.fromWire(json['level']),
       code: (json['code'] as String?) ?? '',
       kind: (json['kind'] as String?) ?? '',
@@ -134,6 +151,8 @@ final class HostDailyTarget {
     );
   }
 
+  /// D281b: the tab the target belongs to.
+  final TargetTrack track;
   final TargetLevel level;
   final String code;
 
@@ -154,7 +173,7 @@ final class HostDailyTarget {
   final TargetGift? gift;
   final String? categoryName;
 
-  bool get lucky => kind == 'LUCKY_CHERRIES';
+  bool get lucky => track == TargetTrack.lucky;
   bool get paid => paidCherries != null;
 
   /// What the row shows: what was paid, else the reward offered.
