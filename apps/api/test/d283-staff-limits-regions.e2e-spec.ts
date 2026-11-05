@@ -341,6 +341,23 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
       expect(issue(res)).toBe(path.endsWith('avatar') ? 'avatar' : 'cover');
       expectContract(res, op);
     }
+    // D283b: the bio is the app's fixed official text — never edited, even with another field.
+    const before = await ctx.prisma.userProfile.findUniqueOrThrow({ where: { userId: support.id } });
+    for (const body of [{ bio: 'hi' }, { bio: null }, { bio: 'x', country: 'SA' }]) {
+      const res = await ctx.http.patch('/api/v1/me').set(auth(support)).send(body);
+      expect(res.status, JSON.stringify(res.body)).toBe(403);
+      expect(code(res)).toBe('STAFF_ACCOUNT_LIMITED');
+      expect(issue(res)).toBe('bio');
+      expectContract(res, 'updateMe');
+    }
+    const after = await ctx.prisma.userProfile.findUniqueOrThrow({ where: { userId: support.id } });
+    expect(after.bio).toBe(before.bio);
+    expect(after.countryCode).toBe(before.countryCode);
+    const otherFields = await ctx.http.patch('/api/v1/me').set(auth(support)).send({ locale: 'ar' });
+    expect(otherFields.status, JSON.stringify(otherFields.body)).toBe(200);
+    const ownerBio = await ctx.http.patch('/api/v1/me').set(auth(owner)).send({ bio: 'Kabso Live' });
+    expect(ownerBio.status).toBe(200);
+    expect(ownerBio.body.bio).toBe('Kabso Live');
     const frame = await ctx.http
       .put('/api/v1/me/bag/equipped')
       .set(auth(support))

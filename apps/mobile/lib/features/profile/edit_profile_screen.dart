@@ -259,13 +259,22 @@ class EditProfileScreen extends ConsumerWidget {
                             hasCover: user.coverUrl != null,
                           ),
                   ),
-                _Row(
-                  key: bioKey,
-                  label: l10n.profileEditBio,
-                  value: user.bio ?? '',
-                  placeholder: l10n.profileEditBioPlaceholder,
-                  onTap: () => _edit(context, _ProfileField.bio, user),
-                ),
+                // D283b: a Kabso Team account's bio is the official text,
+                // locked (the API refuses it: 403 `bio`).
+                if (locked)
+                  _Row(
+                    key: bioKey,
+                    label: l10n.profileEditBio,
+                    value: l10n.staffBioLocked,
+                  )
+                else
+                  _Row(
+                    key: bioKey,
+                    label: l10n.profileEditBio,
+                    value: user.bio ?? '',
+                    placeholder: l10n.profileEditBioPlaceholder,
+                    onTap: () => _edit(context, _ProfileField.bio, user),
+                  ),
                 // D175 (owner): links, gender and category work.
                 _Row(
                   key: linksKey,

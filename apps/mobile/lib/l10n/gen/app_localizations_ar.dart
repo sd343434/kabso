@@ -14666,6 +14666,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get staffCoverLocked => 'غلاف فريق كابسو ثابت ولا يمكن تغييره.';
 
   @override
+  String get staffOfficialBioTitle => 'الحساب الرسمي';
+
+  @override
+  String get staffOfficialBio =>
+      'الحساب الرسمي لفريق إدارة Kabso Live. نعمل على مدار الساعة لتبقى تجربتك آمنة وممتعة للجميع. للدعم أو للإبلاغ عن أي مخالفة، راسلنا مباشرة.';
+
+  @override
+  String get staffBioLocked => 'نبذة رسمية ثابتة لا يمكن تعديلها';
+
+  @override
   String get staffFrameLocked => 'إطار فريق كابسو مثبّت ولا يمكن تغييره.';
 
   @override

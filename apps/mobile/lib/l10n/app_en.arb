@@ -4582,6 +4582,9 @@
   "staffFeatureUnavailable": "Not available for Kabso Team accounts.",
   "staffPictureLocked": "The Kabso Team picture is fixed and cannot be changed.",
   "staffCoverLocked": "The Kabso Team cover is fixed and cannot be changed.",
+  "staffOfficialBioTitle": "Official account",
+  "staffOfficialBio": "The official account of the Kabso Live Team. We work around the clock to keep Kabso Live safe and fun for everyone. For support or to report a problem, message us directly.",
+  "staffBioLocked": "Official bio, fixed and not editable",
   "staffFrameLocked": "The Kabso Team frame is locked.",
   "staffTeamPicture": "Kabso Team picture"
 }

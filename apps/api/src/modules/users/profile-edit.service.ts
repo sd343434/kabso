@@ -81,6 +81,8 @@ export class ProfileEditService {
     ) {
       throw AppException.validation([{ field: 'displayName', issue: 'reserved_term' }]);
     }
+    // v1.72-live (D283b, §10.96.10): a Kabso Team account's bio is the app's fixed official text — 403 `bio`.
+    if (input.bio !== undefined) await refuseLimitedStaff(this.prisma, userId, 'bio');
     const found = await this.prisma.$transaction(async (tx) => {
       const [before] = await tx.$queryRaw<
         {

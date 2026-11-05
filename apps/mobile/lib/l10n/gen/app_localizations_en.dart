@@ -14670,6 +14670,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'The Kabso Team cover is fixed and cannot be changed.';
 
   @override
+  String get staffOfficialBioTitle => 'Official account';
+
+  @override
+  String get staffOfficialBio =>
+      'The official account of the Kabso Live Team. We work around the clock to keep Kabso Live safe and fun for everyone. For support or to report a problem, message us directly.';
+
+  @override
+  String get staffBioLocked => 'Official bio, fixed and not editable';
+
+  @override
   String get staffFrameLocked => 'The Kabso Team frame is locked.';
 
   @override

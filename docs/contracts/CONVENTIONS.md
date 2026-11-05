@@ -220,7 +220,7 @@ All non-2xx responses use one envelope:
 | 403 | `LIVE_STAFF_REFUSED` | *(v1.68-live, DRAFT, D273)* A Kabso staff member (OWNER, MODERATION, SUPPORT) in a live does not send gifts, tap, send bullets or take a seat; a hidden observer does not chat — `details: [{field: "staff", issue: "gifts" \| "taps" \| "bullets" \| "seat" \| "hidden_chat"}]`. Nothing charged or sent. §10.96.6. |
 | 403 | `STAFF_STEP_UP_REQUIRED` | *(v1.68-live, DRAFT, D273)* A staff tool in the app without a valid step-up grant (none, expired, or ended by sign-out, a revoked role, a lockout or a reset authenticator): the app asks for the panel authenticator code (`createStaffStepUp`). §10.96.6. |
 | 409 | `STAFF_TOTP_NOT_ENROLLED` | *(v1.68-live, DRAFT, D273)* `createStaffStepUp`: the staff member has not set up the panel authenticator yet; the app sends them to admin.<domain>. §10.96.6. |
-| 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `frame` (wear another avatar frame), `store`; or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
+| 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `bio` (`updateMe` with `bio`, D283b), `frame` (wear another avatar frame), `store`; or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -6892,7 +6892,8 @@ END «إغلاق البث», NO_LIVE «منع من البث», SUSPEND «تعل�
   grant and at its start, and gives the person's own photo back (`staff_saved_avatar_url`) when the last limited role
   goes or OWNER is granted — so every surface (profiles, chat, viewers, seats, DMs, comments, posts, the panel; older apps
   too) shows it with no other change. `setMyAvatar` / `removeMyAvatar` → 403 `avatar`; `setMyCover` / `removeMyCover` →
-  403 `cover`; equipping an `AVATAR_FRAME` from the bag → 403 `frame`. `PublicProfile.coverUrl` and `avatarFrame` are null
+  403 `cover`; `updateMe` with `bio` → 403 `bio` (D283b: «اجعل بايو ملفت واجمل»; the other fields of the same request
+  are not applied either); equipping an `AVATAR_FRAME` from the bag → 403 `frame`. `PublicProfile.coverUrl` and `avatarFrame` are null
   and `vip` / `wear` absent for them; a `UserSummary` carrying the team picture has no `avatarFrame`, `vip` or `wear`.
   The app draws the team frame (`assets/staff/kabso_team_frame.png`, its photo window measured from the art) around the
   picture everywhere, and the region's team cover (`assets/staff/covers/`: `ARAB_WORLD` → `arab_world.webp`, any other
@@ -6914,7 +6915,10 @@ END «إغلاق البث», NO_LIVE «منع من البث», SUSPEND «تعل�
 - **The app.** For `Me.staff` the Me tab shows only the profile header (team badge, frame, region line), «فريق كابسو»
   (D273's shift, «بثوثي», tools), the announcement composer and settings; go live, levels, VIP, family, earn money, store,
   wallet, bag, agency, recharge agent, creator / event / task centres, medals, rankings and CP are hidden, and their
-  routes show a short «غير متاح لحسابات فريق كابسو» note.
+  routes show a short «غير متاح لحسابات فريق كابسو» note. **The official bio (D283b, owner: «اجعل بايو ملفت واجمل لانه
+  هذه شركة بالعربي والانجليزي»):** a staff profile and the staff Me tab never show the stored `bio`; the app shows a
+  fixed card «الحساب الرسمي» / "Official account" (red-to-dark gradient, thin gold border, shield, the region line)
+  with the company's text in the viewer's language; edit profile shows the bio row locked.
 
 **10.96.11 Regions «تجزئة الإشراف» *(v1.72-live, DRAFT — D283)*.** Owner: «ان كان مشرف عربي يكتب في صفحته مشرف للوطن
 العربي، وان كان صيني يكتب كذلك، وان كان اجنبي يكتب مشرف لـ…. قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب».

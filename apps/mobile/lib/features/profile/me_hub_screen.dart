@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
+import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -576,6 +577,14 @@ class MeHubScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            // D283b: the official bio card under the stats.
+            if (staff != null) ...[
+              const SizedBox(height: KMeHub.cardsTop),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                child: StaffOfficialBio(staff: staff),
+              ),
+            ],
             if (cards.isNotEmpty) ...[
               const SizedBox(height: KMeHub.cardsTop),
               Padding(

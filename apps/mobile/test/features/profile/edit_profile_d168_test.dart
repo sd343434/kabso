@@ -38,6 +38,7 @@ import 'package:kabso_live/features/profile/avatar_crop_screen.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -532,6 +533,35 @@ void main() {
   });
 
   group('5. edit profile', () {
+    // D283b: a Kabso Team account's bio is the official text — the row is
+    // locked with a short note, opens nothing and sends nothing.
+    for (final language in AppLanguage.values) {
+      testWidgets('a staff account: the bio row is locked '
+          '(${language.name})', (tester) async {
+        final l10n = l10nFor(language);
+        final edit = await _pumpEdit(
+          tester,
+          language: language,
+          user: _user().copyWith(
+            staff: const KabsoStaffIdentity(role: StaffLineRole.support),
+          ),
+        );
+        expect(_inRow(EditProfileScreen.bioKey, l10n.staffBioLocked), findsOne);
+        expect(find.text('Music every evening'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byKey(EditProfileScreen.bioKey),
+            matching: find.byType(InkWell),
+          ),
+          findsNothing,
+        );
+        await tester.tap(find.byKey(EditProfileScreen.bioKey));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.profileEditTitle), findsOneWidget);
+        expect(edit.repo.calls, isEmpty);
+      });
+    }
+
     for (final language in AppLanguage.values) {
       // D175: the owner answered the D168 questions — links, gender and
       // category are editors now, the grid row is the pin hint and Privacy

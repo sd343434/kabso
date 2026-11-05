@@ -36,6 +36,7 @@ import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
+import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -366,7 +367,6 @@ class ProfileCoverHeader extends StatelessWidget {
             key: ProfileCoverHeader.staffCoverKey,
             image: AssetImage(StaffCovers.assetFor(staff.primaryRegion)),
             fit: BoxFit.cover,
-            alignment: StaffCovers.alignment,
             excludeFromSemantics: true,
           ),
         if (staff == null && profile.coverUrl == null && avatarUrl != null)
@@ -1044,7 +1044,12 @@ class ProfileInfoBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ProfileFieldsLine(category: profile.category, gender: profile.gender),
-          if (bio != null && bio.isNotEmpty) ...[
+          // D283b: a Kabso Team account shows the company's official bio
+          // card, never its typed bio.
+          if (profile.staff case final staff?) ...[
+            const SizedBox(height: KSpacing.sm),
+            StaffOfficialBio(staff: staff),
+          ] else if (bio != null && bio.isNotEmpty) ...[
             const SizedBox(height: KSpacing.xs),
             Text(bio, style: t.body.copyWith(color: p.textPrimary)),
           ],

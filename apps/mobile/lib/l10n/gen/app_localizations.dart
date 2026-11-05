@@ -24785,6 +24785,24 @@ abstract class AppLocalizations {
   /// **'غلاف فريق كابسو ثابت ولا يمكن تغييره.'**
   String get staffCoverLocked;
 
+  /// D283b: the title of the official bio card on a staff profile (owner: «اجعل بايو ملفت واجمل لانه هذه شركة بالعربي والانجليزي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'الحساب الرسمي'**
+  String get staffOfficialBioTitle;
+
+  /// D283b: the fixed official bio of every Kabso Team account, in place of the typed bio.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحساب الرسمي لفريق إدارة Kabso Live. نعمل على مدار الساعة لتبقى تجربتك آمنة وممتعة للجميع. للدعم أو للإبلاغ عن أي مخالفة، راسلنا مباشرة.'**
+  String get staffOfficialBio;
+
+  /// D283b: edit profile, the bio row of a staff account (locked).
+  ///
+  /// In ar, this message translates to:
+  /// **'نبذة رسمية ثابتة لا يمكن تعديلها'**
+  String get staffBioLocked;
+
   /// D283: the bag's frames for a staff account.
   ///
   /// In ar, this message translates to:

@@ -201,6 +201,7 @@ export type LimitedStaffIssue =
   | 'tasks'
   | 'avatar'
   | 'cover'
+  | 'bio'
   | 'frame'
   | 'store';
 

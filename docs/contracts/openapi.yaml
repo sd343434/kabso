@@ -253,7 +253,7 @@ info:
     **D283 (DRAFT v1.72-live)** the Kabso Team's accounts are limited, and staff have regions (CONVENTIONS §10.96.10–11):
     an account holding MODERATION / SUPPORT / FINANCE and not OWNER cannot go live, join or own a family, buy VIP or
     store items, claim tasks, post anything but an announcement (`CreatePostRequest.announcement`, `Post.announcement`),
-    post stories or reposts, or change its picture, cover or frame (403 `STAFF_ACCOUNT_LIMITED` with the issue); it shows
+    post stories or reposts, or change its picture, cover, bio or frame (403 `STAFF_ACCOUNT_LIMITED` with the issue); it shows
     no levels (`getUserLevels` empty, empty chat badges) and wears the team picture (`getKabsoTeamAvatar`; its
     `avatarUrl`). `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`). Regions: `listAdminStaffRegions`,
     `setAdminTeamRegions`, `AdminTeam` rows' `regions`, `listAdminLives` `region`, `listStaffLives` `scope`; the live
@@ -1261,7 +1261,9 @@ paths:
                     v1.45-social (D168, CONVENTIONS §10.42). After normalisation (CRLF → LF, NFC, trimmed,
                     trailing spaces of each line removed) at most 300 code points and 4 line breaks, the
                     free-text hygiene of §6 on each line (`too_long`, `invalid_format` on field `bio`). An
-                    empty value or null clears it (`Me.bio` null).
+                    empty value or null clears it (`Me.bio` null). v1.72-live (D283b, CONVENTIONS §10.96.10): a
+                    limited Kabso Team account cannot send it (403 `STAFF_ACCOUNT_LIMITED`, issue `bio`; nothing
+                    changed) — the apps show the fixed official bio for it instead.
                 gender:
                   allOf: [{ $ref: '#/components/schemas/Gender' }]
                   description: v1.47-social (D175). Cannot be cleared once chosen (`UNDISCLOSED` is «أفضّل عدم الذكر»).
@@ -1299,6 +1301,7 @@ paths:
               schema: { $ref: '#/components/schemas/Me' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/me/username:
