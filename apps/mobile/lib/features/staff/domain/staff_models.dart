@@ -34,7 +34,6 @@ class StaffStatus {
     required this.authenticatorEnrolled,
     required this.onShift,
     this.lockedUntil,
-    this.stepUpUntil,
   });
 
   factory fromJson(Map<String, dynamic> json) => StaffStatus(
@@ -49,10 +48,7 @@ class StaffStatus {
       final String at => DateTime.parse(at),
       _ => null,
     },
-    stepUpUntil: switch (json['stepUp']) {
-      {'expiresAt': final String at} => DateTime.parse(at),
-      _ => null,
-    },
+    // D286 (v1.76-live): `stepUp` is deprecated — the tools need no code.
   );
 
   static const none = StaffStatus(
@@ -70,22 +66,15 @@ class StaffStatus {
   final bool onShift;
   final DateTime? lockedUntil;
 
-  /// This app session's step-up, while valid; null → the tools ask for the
-  /// authenticator code.
-  final DateTime? stepUpUntil;
-
   bool can(String capability) => capabilities.contains(capability);
 
-  bool get unlocked => stepUpUntil != null;
-
-  StaffStatus copyWith({bool? onShift, DateTime? stepUpUntil}) => StaffStatus(
+  StaffStatus copyWith({bool? onShift}) => StaffStatus(
     isStaff: isStaff,
     roles: roles,
     capabilities: capabilities,
     authenticatorEnrolled: authenticatorEnrolled,
     onShift: onShift ?? this.onShift,
     lockedUntil: lockedUntil,
-    stepUpUntil: stepUpUntil ?? this.stepUpUntil,
   );
 }
 

@@ -250,6 +250,17 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
+    §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
+    tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
+    enough; `createStaffStepUp` / `endStaffStepUp` are deprecated (kept for older apps; `StaffStatus.stepUp` is always set
+    for watch staff, so they never ask) and `STAFF_STEP_UP_REQUIRED` is no longer returned. The code stays for the device
+    ban, the team's grant / revoke / reset / regions, money (top-ups, withdrawals, refunds, balance adjustments, recharge
+    disputes, agencies, referrals), the settings, the permanent account ban and content deletion, and the panel sign-in.
+    Staff work — entering a live as staff (visible or hidden, app or panel `WATCH`), a staff tool, «بثوثي»
+    (`listStaffLives`, `listAdminLives?assigned=me` unless `background=true`) — switches «في المناوبة» on (audited
+    `admin.shift.on` {via: auto, trigger, from}); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (2 h)
+    without staff work. Additive (one new optional query parameter); migration `20270320090000_staff_auto_shift`.
     **D285 (DRAFT v1.75-live)** recruitment by staff «الاستقطاب» (CONVENTIONS §10.96.13): the agency, recharge-agent,
     host and new creator-programme forms take an optional `recruiter` (`RecruiterField`: a staff ID or username of an
     ACTIVE MODERATION or BD staff member; live check `lookupStaffRecruiter`); at the activation (approval; an agency
@@ -850,7 +861,7 @@ tags:
   - name: admin-moderation
     description: "The report queue (admin permission MODERATION; v1.5-social DRAFT)."
   - name: staff
-    description: "(v1.68-live DRAFT, D273) «أدوات فريق كابسو» — the panel staff's live moderation from their own app account, behind the step-up with the panel authenticator code (CONVENTIONS §10.96.6)."
+    description: "(v1.68-live DRAFT, D273) «أدوات فريق كابسو» — the panel staff's live moderation from their own app account, — since v1.76-live (D286) with no step-up code, the role is enough; staff work switches the shift on (CONVENTIONS §10.96.6)."
   - name: admin-panel
     description: "(v1.60-social DRAFT, D191) The admin panel «لوحة الإدارة» at admin.<domain>: its own cookie session with a mandatory authenticator (TOTP) second factor, roles OWNER / MODERATION / SUPPORT / FINANCE (CONVENTIONS §10.54)."
   - name: site
@@ -13629,8 +13640,9 @@ paths:
       operationId: getStaffStatus
       summary: "The caller's «فريق كابسو» state (any signed-in account)"
       description: |
-        (v1.68-live, D273, §10.96.6) Roles, the staff tools' capabilities, the authenticator, the lockout, this session's
-        step-up and the shift. No step-up needed; another account reads `isStaff` false.
+        (v1.68-live, D273, §10.96.6) Roles, the staff tools' capabilities, the authenticator, the lockout and the shift;
+        another account reads `isStaff` false. v1.76-live (D286): `stepUp` is deprecated and always set for watch staff.
+        Not staff work (never switches the shift on).
       responses:
         '200':
           description: OK.
@@ -13644,9 +13656,11 @@ paths:
     post:
       tags: [staff]
       operationId: createStaffStepUp
-      summary: "Unlocks the staff tools with the panel authenticator code"
+      deprecated: true
+      summary: "DEPRECATED (D286) — the staff tools need no code any more"
       description: |
-        (v1.68-live, D273, §10.96.6) OWNER / MODERATION / SUPPORT only (403). The panel's rule: the code's 30-second step
+        (v1.68-live, D273, §10.96.6) **Deprecated in v1.76-live (D286):** no staff tool needs it; kept for the apps before
+        D286, which never call it since `StaffStatus.stepUp` is always set. It still checks the code as below. OWNER / MODERATION / SUPPORT only (403). The panel's rule: the code's 30-second step
         is consumed (a code works once); a wrong one is 403 `ADMIN_TOTP_INVALID` and counts towards the panel lockout — at
         `ADMIN_LOCKOUT_ATTEMPTS` the account locks (429 `ADMIN_LOCKED`), every panel session and every app grant ends. 409
         `STAFF_TOTP_NOT_ENROLLED` before the panel enrolment. The grant is bound to this app session and replaces its
@@ -13670,9 +13684,10 @@ paths:
     delete:
       tags: [staff]
       operationId: endStaffStepUp
-      summary: "«إنهاء» — ends this session's step-up"
+      deprecated: true
+      summary: "DEPRECATED (D286) — ends this session's step-up (no effect on the tools)"
       description: |
-        (v1.68-live, D273) Idempotent; audited `admin.app.step_up_end` when one ended.
+        (v1.68-live, D273) **Deprecated in v1.76-live (D286).** Idempotent; audited `admin.app.step_up_end` when one ended.
       responses:
         '204': { description: Done. }
         '401': { $ref: '#/components/responses/Error' }
@@ -13684,7 +13699,8 @@ paths:
       operationId: getStaffShift
       summary: "The caller's shift «في المناوبة» (lives.watch)"
       description: |
-        (v1.68-live, D273) The panel's `getAdminMyShift` from the app. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+        (v1.68-live, D273) The panel's `getAdminMyShift` from the app. Needs `lives.watch`. Not staff work (v1.76-live,
+        D286): reading the shift never switches it on.
       responses:
         '200':
           description: OK.
@@ -13699,7 +13715,9 @@ paths:
       operationId: setStaffShift
       summary: "Goes on or off shift from the app (lives.watch; audited via app)"
       description: |
-        (v1.68-live, D273) The panel's `setAdminMyShift` (same rule, same assignment pass), audited `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+        (v1.68-live, D273) The panel's `setAdminMyShift` (same rule, same assignment pass), audited `via: app`. Needs `lives.watch`.
+        v1.76-live (D286, §10.96.14): turning OFF stays by hand here (or on role loss / the 2 h idle off of an automatic
+        shift); turning ON by hand makes an automatic shift a manual one (never idle-off).
       requestBody:
         required: true
         content:
@@ -13722,7 +13740,7 @@ paths:
       summary: "«بثوثي» — the lives assigned to the caller (lives.watch)"
       description: |
         (v1.68-live, D273) LIVE rooms assigned to the caller, the most reported first. Staff may enter ANY live from the
-        usual lists too; the assignment decides who is responsible. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.watch`.
+        usual lists too; the assignment decides who is responsible. Needs `lives.watch`.
         (v1.72-live, D283, §10.96.11) `scope=regions`: every live on air whose host's country is in the caller's regions
         (at most 200; `assignedAt` null for one held by someone else); none without regions.
       parameters:
@@ -13745,7 +13763,7 @@ paths:
       operationId: listStaffLiveReports
       summary: "A live's reports (lives.reports)"
       description: |
-        (v1.68-live, D273) The panel's `listAdminLiveReports`: the live, its host, its chat and users reported inside it. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.reports`.
+        (v1.68-live, D273) The panel's `listAdminLiveReports`: the live, its host, its chat and users reported inside it. Needs `lives.reports`.
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -13765,7 +13783,7 @@ paths:
       operationId: listStaffLiveModerations
       summary: "What the team did on a live (lives.reports)"
       description: |
-        (v1.68-live, D273) The panel's `listAdminLiveModerations`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.reports`.
+        (v1.68-live, D273) The panel's `listAdminLiveModerations`. Needs `lives.reports`.
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -13786,8 +13804,7 @@ paths:
       summary: "END / WARN / NO_LIVE / SUSPEND / DEVICE_BAN from the app (lives.moderate)"
       description: |
         (v1.68-live, D273) The panel's `moderateAdminLive` rule unchanged (a reason the host is told as «فريق Kabso», a
-        DEVICE_BAN also needs `devices.ban` and the code again), audited `admin.live.moderate` with `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and
-        `lives.moderate` (OWNER, MODERATION; SUPPORT 403).
+        DEVICE_BAN also needs `devices.ban` and the code again), audited `admin.live.moderate` with `via: app`. Needs `lives.moderate` (OWNER, MODERATION; SUPPORT 403).
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -13813,7 +13830,7 @@ paths:
       operationId: dismissStaffLiveReports
       summary: "«تمت المراجعة — لا مخالفة» from the app (lives.moderate)"
       description: |
-        (v1.68-live, D273) The panel's `dismissAdminLiveReports`, audited `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.moderate`.
+        (v1.68-live, D273) The panel's `dismissAdminLiveReports`, audited `via: app`. Needs `lives.moderate`.
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -13841,8 +13858,7 @@ paths:
       description: |
         (v1.68-live, D273) The room's kick rule with «فريق كابسو» as the actor (the kick data message has `by` null and
         `byTeam` true — never a staff member's name); never the host or a panel account (403 `STAFF_PROTECTED`). Their open
-        reports made inside this live close as ACTIONED. Audited `live.kick` with `staff`, `reason`, `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and
-        `lives.moderate`.
+        reports made inside this live close as ACTIONED. Audited `live.kick` with `staff`, `reason`, `via: app`. Needs `lives.moderate`.
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -13869,7 +13885,7 @@ paths:
       summary: "Mutes (or unmutes) someone in the live's chat (lives.moderate)"
       description: |
         (v1.68-live, D273) Never the host (409) nor a panel account (403 `STAFF_PROTECTED`). Audited `admin.live.chat_mute`
-        `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.moderate`.
+        `via: app`. Needs `lives.moderate`.
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -13896,7 +13912,7 @@ paths:
       summary: "Removes a chat message (lives.moderate)"
       description: |
         (v1.68-live, D273) Any message of the live but one of a panel account (403 `STAFF_PROTECTED`); its open reports close
-        as ACTIONED. Audited `admin.live.chat_remove` `via: app`. Needs the step-up of this app session (403 `STAFF_STEP_UP_REQUIRED`) and `lives.moderate`.
+        as ACTIONED. Audited `admin.live.chat_remove` `via: app`. Needs `lives.moderate`.
       parameters:
         - { name: roomId, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -13983,7 +13999,7 @@ paths:
       operationId: createAdminLiveWatchToken
       summary: "An observer's media token for a live — visible «فريق كابسو» or hidden (lives.watch: OWNER, MODERATION, SUPPORT; HIDDEN WATCH also lives.watch.hidden; audited)"
       description: |
-        (v1.64-live, D260, §10.96) `visibility`: a WATCH is VISIBLE by default — identity `team:<adminId>:<nonce>`,
+        (v1.76-live, D286, §10.96.14: a WATCH — not a PREVIEW — is staff work and switches the shift on.) (v1.64-live, D260, §10.96) `visibility`: a WATCH is VISIBLE by default — identity `team:<adminId>:<nonce>`,
         subscribe-only but NOT hidden, listed in the live's viewers (`LiveViewerPage.staff`) with the «فريق كابسو»
         badge and never counted in `viewerCount`. HIDDEN (the D250 observer below) needs `lives.watch.hidden` (OWNER,
         MODERATION; SUPPORT → 403 `AUTH_FORBIDDEN`). A PREVIEW and the PK `opponent` room are always hidden. The audit
@@ -14092,7 +14108,7 @@ paths:
       operationId: moderateAdminLive
       summary: "Ends the live, with a ban from going live, a suspension or a device ban; a reason the host is told (lives.moderate; DEVICE_BAN also devices.ban and the code again)"
       description: |
-        (v1.60-live, D250, §10.91.4) `END` ends the live (409 `ADMIN_ACTION_REFUSED` when it is not on air);
+        (v1.76-live, D286, §10.96.14: no code except for DEVICE_BAN; staff work — switches the shift on.) (v1.60-live, D250, §10.91.4) `END` ends the live (409 `ADMIN_ACTION_REFUSED` when it is not on air);
         `NO_LIVE` «منع من البث» and `SUSPEND` «تعليق الحساب» also set D208's NO_LIVE / LOCK restriction until `hours`
         from now or `until` (≤ 365 days; it ends by itself: the clock is read on every check) — a suspension ends every
         session and refuses sign-in with the end and the reason (403 `ACCOUNT_LOCKED`), a ban from going live refuses
@@ -14265,10 +14281,17 @@ paths:
       - name: assigned
         in: query
         required: false
-        description: (v1.64-live, D260, §10.96) «بثوثي» — `me` lists only the lives assigned to the signed-in staff member; combinable with the others.
+        description: (v1.64-live, D260, §10.96) «بثوثي» — `me` lists only the lives assigned to the signed-in staff member; combinable with the others. v1.76-live (D286, §10.96.14) — staff work, switches the shift on unless `background=true`.
         schema:
           type: string
           enum: [me]
+      - name: background
+        in: query
+        required: false
+        description: (v1.76-live, D286, §10.96.14) `true` — the panel's own periodic refresh of «بثوثي», not staff work (never switches the shift on, so a shift turned off by hand stays off). Ignored without `assigned=me`.
+        schema:
+          type: string
+          enum: ['true', 'false']
       - name: region
         in: query
         required: false
@@ -19122,7 +19145,10 @@ components:
         authenticatorEnrolled: { type: boolean, description: "False: the app says to set it up at admin.<domain> first." }
         lockedUntil: { type: [string, 'null'], format: date-time, description: "Locked after wrong codes (the panel's lockout)." }
         stepUp:
-          description: The step-up of THIS app session while valid; null → the tools ask for the code.
+          deprecated: true
+          description: >-
+            DEPRECATED (v1.76-live, D286): the tools need no code. Always set for watch staff (a rolling
+            `STAFF_APP_GRANT_SECONDS` ahead, bound to nothing) so an app before D286 never asks; null for anyone else.
           oneOf:
             - $ref: '#/components/schemas/StaffStepUp'
             - type: 'null'
@@ -19137,7 +19163,7 @@ components:
       type: object
       required: [expiresAt]
       properties:
-        expiresAt: { type: string, format: date-time, description: "STAFF_APP_GRANT_SECONDS (12 h) after the code; ends earlier on sign-out, a revoked role, a lockout or a reset authenticator." }
+        expiresAt: { type: string, format: date-time, description: "STAFF_APP_GRANT_SECONDS (12 h) after the code (deprecated D286: in `StaffStatus` a rolling value with no meaning for the tools)." }
     StaffLive:
       type: object
       required: [roomId, title, host, viewerCount, startedAt, openReports, assignedAt]
@@ -25538,8 +25564,9 @@ components:
           enum: [VISIBLE, HIDDEN]
           description: |
             (v1.68-live, D273, §10.96.6) «فريق كابسو» only: VISIBLE (default) or HIDDEN «مراقبة خفية» — the D250 observer
-            (not listed, not counted, no chat). HIDDEN needs `lives.watch.hidden` (OWNER, MODERATION) and the step-up of
-            this app session (403 `AUTH_FORBIDDEN` / `STAFF_STEP_UP_REQUIRED`); from any other account 403.
+            (not listed, not counted, no chat). HIDDEN needs `lives.watch.hidden` (OWNER, MODERATION; 403
+            `AUTH_FORBIDDEN`) — no code since v1.76-live (D286); from any other account 403. Either is staff work: the
+            shift goes on (§10.96.14).
     LiveMediaAccess:
       type: object
       required: [url, token, expiresAt, role, identity, guestNumber]

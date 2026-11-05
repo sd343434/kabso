@@ -10,7 +10,6 @@ import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
 import 'package:kabso_live/features/staff/data/staff_repository.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
-import 'package:kabso_live/features/staff/presentation/staff_step_up_dialog.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,7 +17,8 @@ import 'package:material_ui/material_ui.dart';
 /// «أدوات فريق كابسو» inside a live — the panel's moderation of a live from
 /// the phone, each action limited by the staff member's role exactly as in
 /// the panel (SUPPORT reads the reports; MODERATION and OWNER act), each
-/// with a reason (audited `via: app`). Locked until the step-up.
+/// with a reason (audited `via: app`). D286 (owner: «ازله لتسهيل العملية»):
+/// open at once — no authenticator code; using them switches the shift on.
 Future<void> showStaffTools(
   BuildContext context, {
   required String roomId,
@@ -85,8 +85,7 @@ class StaffToolsSheet extends ConsumerWidget {
     this.onSwitchMode,
   });
 
-  static const unlockKey = Key('staff.tools.unlock');
-  static const lockKey = Key('staff.tools.lock');
+  static const shiftKey = Key('staff.tools.shift');
   static const switchKey = Key('staff.tools.switchMode');
   static const personKey = Key('staff.tools.person');
   static Key action(StaffLiveAction a) => Key('staff.tools.action.${a.name}');
@@ -115,8 +114,6 @@ class StaffToolsSheet extends ConsumerWidget {
         padding: EdgeInsets.all(KSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       );
-    } else if (!status.unlocked) {
-      body = _Locked(enrolled: status.authenticatorEnrolled);
     } else {
       body = _Tools(roomId: roomId, hostName: hostName, status: status);
     }
@@ -195,39 +192,6 @@ class StaffToolsSheet extends ConsumerWidget {
   }
 }
 
-class _Locked extends ConsumerWidget {
-  const new({required this.enrolled});
-
-  final bool enrolled;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: KSpacing.lg),
-        Icon(Icons.lock_rounded, size: 40, color: p.textTertiary),
-        const SizedBox(height: KSpacing.sm),
-        Text(
-          enrolled ? l10n.staffLockedTools : l10n.staffStepUpEnrol,
-          textAlign: TextAlign.center,
-          style: context.textStyles.body.copyWith(color: p.textSecondary),
-        ),
-        const SizedBox(height: KSpacing.lg),
-        if (enrolled)
-          KButton(
-            key: StaffToolsSheet.unlockKey,
-            label: l10n.staffUnlock,
-            icon: Icons.key_rounded,
-            onPressed: () => unawaited(showStaffStepUp(context)),
-          ),
-      ],
-    );
-  }
-}
-
 class _Tools extends ConsumerWidget {
   const new({
     required this.roomId,
@@ -246,13 +210,15 @@ class _Tools extends ConsumerWidget {
   ) async {
     try {
       await call(ref.read(staffRepositoryProvider));
+      // D286: a staff tool is staff work — the shift is on now.
+      ref.read(staffStatusProvider.notifier).staffWorked();
       ref.invalidate(staffReportsProvider(roomId));
       if (context.mounted) KSnack.success(context, context.l10n.staffDone);
     } on Object catch (e) {
       if (context.mounted) {
         KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
       }
-      // The step-up ended (role, lockout, sign-out): show the lock again.
+      // The role may have gone: read the status again.
       ref.invalidate(staffStatusProvider);
     }
   }
@@ -310,9 +276,15 @@ class _Tools extends ConsumerWidget {
     final reports = status.can(StaffCapability.reports)
         ? ref.watch(staffReportsProvider(roomId))
         : null;
-    final until = status.stepUpUntil!.toLocal();
-    final time = MaterialLocalizations.of(context)
-        .formatTimeOfDay(TimeOfDay.fromDateTime(until));
+    // D286 (§10.96.14): reading the live's reports is staff work too — the
+    // server switched the shift on.
+    if (reports != null) {
+      ref.listen(staffReportsProvider(roomId), (_, next) {
+        if (next.hasValue) ref.read(staffStatusProvider.notifier).staffWorked();
+      });
+    }
+    final onShift =
+        ref.watch(staffStatusProvider).value?.onShift ?? status.onShift;
 
     Widget section(String title) => Padding(
       padding: const EdgeInsets.only(top: KSpacing.lg, bottom: KSpacing.sm),
@@ -322,21 +294,23 @@ class _Tools extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // D286: the shift as it is now (on by itself with staff work).
         Row(
+          key: StaffToolsSheet.shiftKey,
           children: [
-            Icon(Icons.lock_open_rounded, size: 18, color: p.success),
+            Icon(
+              onShift
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: 18,
+              color: onShift ? p.success : p.textTertiary,
+            ),
             const SizedBox(width: KSpacing.xs),
             Expanded(
               child: Text(
-                l10n.staffUnlocked(time),
+                onShift ? l10n.staffShift : l10n.staffShiftOff,
                 style: text.caption.copyWith(color: p.textSecondary),
               ),
-            ),
-            TextButton(
-              key: StaffToolsSheet.lockKey,
-              onPressed: () =>
-                  unawaited(ref.read(staffStatusProvider.notifier).endStepUp()),
-              child: Text(l10n.staffLock),
             ),
           ],
         ),

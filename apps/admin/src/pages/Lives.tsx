@@ -401,6 +401,27 @@ export function ReportedTab({ rooms, pressed, onClick }: { rooms: number; presse
 }
 
 /**
+ * The `listAdminLives` query of «البث الآن». D286 (§10.96.14): «بثوثي» (`assigned=me`) opened by the staff member is
+ * staff work and switches their shift on; the page's own 15 s refresh sends `background=true`, which never does.
+ */
+export function livesListParams(
+  page: number,
+  mode: LiveModeChip | 'REPORTED' | 'MINE',
+  region: RegionFilterValue,
+  background: boolean,
+): Record<string, string | number> {
+  return {
+    page,
+    pageSize: 24,
+    sort: 'viewers',
+    order: 'desc',
+    ...(mode === 'REPORTED' ? { reported: 'true' } : mode === 'MINE' ? { assigned: 'me' } : mode ? { mode } : {}),
+    ...(mode === 'MINE' && background ? { background: 'true' } : {}),
+    ...(region ? { region } : {}),
+  };
+}
+
+/**
  * «البث الآن» (D197): every live on air as a card grid (most viewers first); details and END LIVE with a reason. D250: the
  * cards play muted live previews; the «لايفات مبلّغ عنها» chip (a red dot and the count) lists the reported lives; the list
  * refreshes every 15 s; a card opens the watch view and its ⋯ menu holds the actions.
@@ -418,26 +439,36 @@ export function Lives({ pool = previewPool }: { pool?: PreviewPool } = {}) {
   // D283: the region filter (combinable with the chips).
   const [region, setRegion] = useState<RegionFilterValue>('');
   const summary = useLiveReportsSummary(can('lives.reports'));
-  const { data, error, loading } = useAsync(
-    () =>
-      api.get<TablePage<LiveRow>>('/admin/lives', {
-        page,
-        pageSize: 24,
-        sort: 'viewers',
-        order: 'desc',
-        ...(mode === 'REPORTED' ? { reported: 'true' } : mode === 'MINE' ? { assigned: 'me' } : mode ? { mode } : {}),
-        ...(region ? { region } : {}),
-      }),
-    [page, bump, mode, region],
-  );
+  // D286 (§10.96.14): opening «بثوثي» is staff work (the API switches the shift on); the 15 s refresh is not — it
+  // says `background`, so a shift turned off by hand stays off while the page is open.
+  const polled = useRef(false);
+  const [workedMine, setWorkedMine] = useState(0);
+  const { data, error, loading } = useAsync(async () => {
+    const background = polled.current;
+    polled.current = false;
+    const res = await api.get<TablePage<LiveRow>>('/admin/lives', livesListParams(page, mode, region, background));
+    if (mode === 'MINE' && !background) setWorkedMine((n) => n + 1);
+    return res;
+  }, [page, bump, mode, region]);
   useEffect(() => {
-    const h = window.setInterval(() => setBump((b) => b + 1), 15_000);
+    const h = window.setInterval(() => {
+      polled.current = true;
+      setBump((b) => b + 1);
+    }, 15_000);
     return () => window.clearInterval(h);
   }, []);
   useEffect(() => () => pool.clear(), [pool]);
   const shifts = useShifts(bump);
   const [myShift, setMyShift] = useState<ShiftDto | null>(null);
   const shift = myShift ?? shifts.mine.data;
+  // D286: after «بثوثي» was opened the shift is on — the switch shows it at once.
+  useEffect(() => {
+    if (workedMine === 0) return;
+    setMyShift((now) => {
+      const base = now ?? shifts.mine.data;
+      return base && !base.onShift ? { ...base, onShift: true, since: new Date().toISOString() } : now;
+    });
+  }, [workedMine]);
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const openLive = (id: string) => (can('lives.watch') ? navigate(`/lives/${id}`) : setOpen(id));
   return (

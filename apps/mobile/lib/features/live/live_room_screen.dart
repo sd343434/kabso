@@ -92,7 +92,6 @@ import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
 import 'package:kabso_live/features/staff/presentation/staff_entry_dialog.dart';
-import 'package:kabso_live/features/staff/presentation/staff_step_up_dialog.dart';
 import 'package:kabso_live/features/staff/presentation/staff_tools_sheet.dart';
 import 'package:kabso_live/features/vip/application/vip_entrance_plays.dart';
 import 'package:kabso_live/features/vip/presentation/vip_entrance.dart';
@@ -444,7 +443,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
   /// v1.68-live (D273, §10.96.6): how a Kabso staff member enters — asked
   /// once per app run («دخول ظاهر» / «مراقبة خفية»), hidden only with
-  /// `lives.watch.hidden` and the step-up. Null for everyone else.
+  /// `lives.watch.hidden` (D286: no code). Null for everyone else.
   Future<StaffVisibility?> _staffEntry() async {
     final me = ref.read(currentUserProvider);
     if (me == null || !me.kabsoTeam || me.id == widget.room.host.id) {
@@ -465,11 +464,6 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       mode ??= StaffVisibility.visible;
       ref.read(staffWatchModeProvider.notifier).choose(mode);
     }
-    if (mode == StaffVisibility.hidden && !(status?.unlocked ?? false)) {
-      // The hidden watch needs the step-up first; without it, visible.
-      final ok = mounted && await showStaffStepUp(context);
-      if (!ok) mode = StaffVisibility.visible;
-    }
     if (mode == StaffVisibility.hidden && !canHidden) {
       mode = StaffVisibility.visible;
     }
@@ -488,12 +482,6 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       hostName: widget.room.host.displayName,
       visibility: visibility,
       onSwitchMode: (mode) async {
-        if (mode == StaffVisibility.hidden) {
-          final status = await ref.read(staffStatusProvider.future);
-          final unlocked =
-              status.unlocked || (mounted && await showStaffStepUp(context));
-          if (!unlocked) return;
-        }
         ref.read(staffWatchModeProvider.notifier).choose(mode);
         await _session.rejoinAsStaff(_room, mode.wire);
       },
@@ -519,10 +507,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               staffVisibility: staff?.wire,
             )
             .then((_) {
+              if (!mounted) return;
+              final asStaff =
+                  ref.read(liveRoomSessionProvider(room.id)).staff != null;
+              // D286 (§10.96.14): entering as staff is staff work — the
+              // server switched the shift on; the switch shows it at once.
+              if (asStaff) ref.read(staffStatusProvider.notifier).staffWorked();
               // D273: a staff alert opens the live on its reports.
-              if (mounted &&
-                  widget.openStaffReports &&
-                  ref.read(liveRoomSessionProvider(room.id)).staff != null) {
+              if (widget.openStaffReports && asStaff) {
                 unawaited(_staffTools());
               }
             }),

@@ -6474,15 +6474,22 @@ model ProfileVisit {
 /// v1.64-live (D260, CONVENTIONS §10.96): a panel staff member's shift «في المناوبة». Lives are assigned only to
 /// staff on shift; going off shift hands their lives to the others.
 model AdminShift {
-  userId    String   @id @map("user_id") @db.Uuid
-  onShift   Boolean  @default(false) @map("on_shift")
+  userId         String    @id @map("user_id") @db.Uuid
+  onShift        Boolean   @default(false) @map("on_shift")
   /// When the shift last changed (on or off).
-  since     DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  since          DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// v1.76-live (D286, §10.96.14): `panel` | `app` (switched by hand) | `auto` (staff work); CHECK
+  /// admin_shifts_started_via_values.
+  startedVia     String    @default("panel") @map("started_via") @db.VarChar(8)
+  /// v1.76-live (D286): the last staff work seen (at most once a minute); an `auto` shift goes off after
+  /// STAFF_SHIFT_IDLE_OFF_SECONDS without any.
+  lastActivityAt DateTime? @map("last_activity_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([onShift], map: "admin_shifts_on_idx", where: raw("on_shift"))
+  @@index([lastActivityAt], map: "admin_shifts_auto_idx", where: raw("on_shift AND started_via = 'auto'"))
   @@map("admin_shifts")
 }
 

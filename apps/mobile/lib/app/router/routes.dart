@@ -35,7 +35,7 @@ abstract final class AppRoutes {
   static String liveRoomStaffReports(String roomId) =>
       '${liveRoom(roomId)}?staff=reports';
 
-  /// v1.68-live (D273): «فريق كابسو» — the shift, «بثوثي» and the step-up
+  /// v1.68-live (D273): «فريق كابسو» — the shift and «بثوثي» (D286: no code)
   /// (the Me tab, staff accounts only).
   static const staff = '/me/staff';
 

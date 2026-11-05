@@ -6,19 +6,13 @@ import 'package:kabso_live/features/staff/domain/staff_models.dart';
 
 /// v1.68-live (D273, CONVENTIONS §10.96.6): «أدوات فريق كابسو» — the staff
 /// member's own app account doing the panel's live moderation (tag `staff`).
-/// Every tool needs the step-up (the panel authenticator code); the server
-/// checks the role, the capability and the step-up on every request. Throws
-/// an `AppFailure`.
+/// The server checks the role and the capability on every request; D286
+/// (v1.76-live): no authenticator code any more (the deprecated step-up is not
+/// used), and staff work switches the shift on (§10.96.14). Throws an
+/// `AppFailure`.
 abstract interface class StaffRepository {
   /// `GET /staff/me` (any signed-in account; `isStaff` false otherwise).
   Future<StaffStatus> status();
-
-  /// `POST /staff/step-up`: the authenticator's current code; returns when
-  /// the step-up ends.
-  Future<DateTime> stepUp(String code);
-
-  /// `DELETE /staff/step-up` («إنهاء»).
-  Future<void> endStepUp();
 
   /// `PUT /staff/shift`; returns the shift now.
   Future<bool> setShift({required bool onShift});
@@ -74,19 +68,6 @@ class StaffRepositoryImpl implements StaffRepository {
     final res = await _dio.get<Map<String, dynamic>>('/staff/me');
     return StaffStatus.fromJson(res.data!);
   });
-
-  @override
-  Future<DateTime> stepUp(String code) => guardApiCall(() async {
-    final res = await _dio.post<Map<String, dynamic>>(
-      '/staff/step-up',
-      data: {'code': code},
-    );
-    return DateTime.parse(res.data!['expiresAt']! as String);
-  });
-
-  @override
-  Future<void> endStepUp() =>
-      guardApiCall(() => _dio.delete<void>('/staff/step-up'));
 
   @override
   Future<bool> setShift({required bool onShift}) => guardApiCall(() async {

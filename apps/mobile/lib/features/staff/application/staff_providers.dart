@@ -4,9 +4,10 @@ import 'package:kabso_live/features/staff/data/staff_repository.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
 
 /// v1.68-live (D273, §10.96.6): the caller's «فريق كابسو» state — the roles,
-/// the tools' capabilities, the authenticator, this session's step-up and
-/// the shift. Read when a staff surface opens (the Me tab's «فريق كابسو», a
-/// live's «أدوات فريق كابسو»); never for other accounts.
+/// the tools' capabilities, the authenticator and the shift. Read when a
+/// staff surface opens (the Me tab's «فريق كابسو», a live's «أدوات فريق
+/// كابسو»); never for other accounts. D286 (v1.76-live): no step-up any more —
+/// the tools open as soon as the role is held.
 class StaffStatusController extends AsyncNotifier<StaffStatus> {
   StaffRepository get _repo => ref.read(staffRepositoryProvider);
 
@@ -17,19 +18,14 @@ class StaffStatusController extends AsyncNotifier<StaffStatus> {
     state = await AsyncValue.guard(_repo.status);
   }
 
-  /// The step-up with the authenticator [code]; throws the server's refusal
-  /// (a wrong code counts towards the panel lockout).
-  Future<void> stepUp(String code) async {
-    final until = await _repo.stepUp(code);
+  /// D286 (§10.96.14; owner: «عندما يقوم المشرف بالعمل يتم تفعيل زر
+  /// مناوبة»): the server switched the shift on for staff work (entering a
+  /// live as staff, a staff tool, «بثوثي») — the switch shows it at once.
+  void staffWorked() {
     final now = state.value;
-    if (now != null) state = AsyncData(now.copyWith(stepUpUntil: until));
-    await refresh();
-  }
-
-  /// «إنهاء»: this session's step-up ends.
-  Future<void> endStepUp() async {
-    await _repo.endStepUp();
-    await refresh();
+    if (now != null && now.isStaff && !now.onShift) {
+      state = AsyncData(now.copyWith(onShift: true));
+    }
   }
 
   Future<void> setShift({required bool onShift}) async {

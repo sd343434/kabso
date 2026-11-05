@@ -14254,8 +14254,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffShift => 'On shift';
 
   @override
-  String get staffShiftHint =>
-      'Lives are assigned to you and their reports reach your phone';
+  String get staffShiftAutoHint =>
+      'Turns on by itself when you enter a live, use the team tools or open «My lives»; lives are assigned to you and their reports reach your phone. You turn it off';
+
+  @override
+  String get staffShiftOff => 'Off shift';
 
   @override
   String get staffMyLives => 'My lives';
@@ -14279,42 +14282,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String staffViewersCount(String count) {
     return '$count watching';
   }
-
-  @override
-  String get staffStepUpTitle => 'Confirm it’s you';
-
-  @override
-  String get staffStepUpBody =>
-      'Enter the code from the authenticator you use for the admin panel.';
-
-  @override
-  String get staffStepUpCode => 'Code (6 digits)';
-
-  @override
-  String get staffStepUpConfirm => 'Unlock tools';
-
-  @override
-  String get staffStepUpEnrol =>
-      'Set up the authenticator in the admin panel first: admin.kabsolive.com';
-
-  @override
-  String get staffStepUpLockedHint =>
-      'Repeated wrong codes also lock your panel account.';
-
-  @override
-  String staffUnlocked(String time) {
-    return 'Tools unlocked until $time';
-  }
-
-  @override
-  String get staffLockedTools =>
-      'Tools locked — the authenticator code is needed';
-
-  @override
-  String get staffUnlock => 'Unlock team tools';
-
-  @override
-  String get staffLock => 'Lock';
 
   @override
   String get staffEnterTitle => 'How do you enter this live?';

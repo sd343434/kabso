@@ -2817,6 +2817,23 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for
+the existing rows) and `admin_shifts.last_activity_at` (with a partial index of the automatic shifts on), and replaces
+the CHECK `account_restrictions_shape` so it accepts `via = 'app'` (a fix: the app's timed NO_LIVE / SUSPEND failed).
+Deploy with the API: an older API never writes `auto`.
+
+- **Settings:** `STAFF_SHIFT_IDLE_OFF_SECONDS` (default 7200 = 2 h; 0 = never; ≤ 86 400) — an automatic shift goes off
+  after this long without staff work (checked at `LIVE_SWEEP_INTERVAL_SECONDS`). `STAFF_APP_GRANT_SECONDS` and
+  `RATE_LIMIT_STAFF_STEP_UP_USER` now only serve the deprecated step-up route.
+- **Tell the team:** the app's staff tools no longer ask for the authenticator code; entering a live as staff, using a
+  tool or opening «بثوثي» (app or panel) turns «في المناوبة» on — turn it off by hand when the shift ends (else it goes
+  off after 2 h without staff work, unless it was switched on by hand). The code is still asked for the panel sign-in,
+  device bans, the team's roles / regions / authenticator resets, every money action and the settings.
+- **Checks after deploy:** `SELECT started_via, count(*) FROM admin_shifts WHERE on_shift GROUP BY 1;` and the audit
+  rows `admin.shift.on` / `admin.shift.off` with `"via": "auto"`.
+
 ### 5.66 Recruitment by staff «الاستقطاب» and the role BD (migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`; D285) — [IMPLEMENTED, draft contract v1.75-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.13. Deploy the two migrations in order (the first only adds enum values: `admin_permission` BD and

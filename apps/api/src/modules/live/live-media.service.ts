@@ -27,7 +27,8 @@ import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LivePkService } from './live-pk.service.js';
 import { PK_IDENTITY_PREFIX } from './live-pk.js';
-import { activeStaffGrant, staffRolesOf, WATCH_STAFF_ROLES, watchStaffAmong } from './live-staff.js';
+import { staffRolesOf, WATCH_STAFF_ROLES, watchStaffAmong } from './live-staff.js';
+import { LiveStaffAssignmentService } from './live-staff-assignment.service.js';
 import { LiveToolsService, SECOND_CAMERA_PREFIX } from './live-tools.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
@@ -144,6 +145,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly metadata: LiveRoomMetadataService,
     private readonly pk: LivePkService,
     private readonly tools: LiveToolsService,
+    private readonly staffShift: LiveStaffAssignmentService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
@@ -188,8 +190,9 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
    * `POST /live/rooms/{roomId}/media-token`; `callerId` null is a guest. v1.68-live (D273, §10.96.6): a caller who
    * holds a watch role (OWNER, MODERATION, SUPPORT) and is not the host always joins as «فريق كابسو» — the D260
    * `team:` identity (listed with the badge, never counted, no join line) or, with `staffVisibility: HIDDEN`, the D250
-   * `staff:` observer (`lives.watch.hidden` and the step-up grant of this app session required; 403 otherwise). Both
-   * are subscribe-only and audited `admin.live.watch` with `via: app`.
+   * `staff:` observer (`lives.watch.hidden`: OWNER, MODERATION; 403 otherwise — v1.76-live, D286: no step-up code any
+   * more). Both are subscribe-only and audited `admin.live.watch` with `via: app`, and both are staff work: the shift
+   * goes on (§10.96.14).
    */
   async mediaToken(
     callerId: string | null,
@@ -277,13 +280,9 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
   ): Promise<LiveMediaAccessDto> {
     const hidden = input.staffVisibility === 'HIDDEN';
     if (hidden) {
-      // The panel's rule: `lives.watch.hidden` (OWNER, MODERATION), and the step-up of this app session.
+      // The panel's rule: `lives.watch.hidden` (OWNER, MODERATION). v1.76-live (D286): no step-up code any more.
       if (!roles.includes('OWNER') && !roles.includes('MODERATION'))
         throw new AppException(ErrorCode.AUTH_FORBIDDEN);
-      const grant = auth
-        ? await activeStaffGrant(this.prisma, userId, auth.sessionId, this.clock.now())
-        : null;
-      if (!grant) throw new AppException(ErrorCode.STAFF_STEP_UP_REQUIRED);
     }
     const nonce = randomBytes(6).toString('hex');
     const identity = `${hidden ? STAFF_IDENTITY_PREFIX : TEAM_IDENTITY_PREFIX}${userId}:${nonce}`;
@@ -307,6 +306,11 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         hostUserId,
         via: 'app',
       },
+      ip: auth?.meta.ip ?? null,
+      requestId: auth?.meta.requestId ?? null,
+    });
+    // v1.76-live (D286, §10.96.14): entering a live as staff is staff work — the shift goes on (best effort).
+    await this.staffShift.staffWorkBestEffort(userId, 'live_join', 'app', {
       ip: auth?.meta.ip ?? null,
       requestId: auth?.meta.requestId ?? null,
     });

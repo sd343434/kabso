@@ -106,6 +106,9 @@ export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
       .transform((v) => v === 'true'),
     // v1.64-live (D260, §10.96): «بثوثي» — only the lives assigned to the signed-in staff member.
     assigned: z.enum(['me']).optional(),
+    // v1.76-live (D286, §10.96.14): the panel's own background refresh of «بثوثي» — not staff work (never switches
+    // the shift on, so a shift turned off by hand stays off while the page is open).
+    background: z.enum(['true', 'false']).optional(),
     // v1.72-live (D283, §10.96.11): the lives whose host's country is in a region, or in the signed-in staff
     // member's own regions (`mine`; none → no live).
     region: z.enum([...STAFF_REGION_CODES, 'mine'] as unknown as [string, ...string[]]).optional(),

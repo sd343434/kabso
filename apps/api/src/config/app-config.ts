@@ -397,6 +397,8 @@ export interface AppConfig {
     readonly lockoutSeconds: number;
     /** v1.68-live (D273): the staff tools' step-up in the app lasts this long (STAFF_APP_GRANT_SECONDS). */
     readonly staffAppGrantSeconds: number;
+    /** v1.76-live (D286): an automatic shift goes off after this long without staff work (0 = never). */
+    readonly staffShiftIdleOffSeconds: number;
     /** IANA zone of the dashboard's «today» (default Asia/Riyadh). */
     readonly dashboardTimeZone: string;
     /** v1.65-social (D197): the report's estimated card fees (basis points + fixed cents per order). */
@@ -879,6 +881,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       lockoutAttempts: e.ADMIN_LOCKOUT_ATTEMPTS,
       lockoutSeconds: e.ADMIN_LOCKOUT_SECONDS,
       staffAppGrantSeconds: e.STAFF_APP_GRANT_SECONDS,
+      staffShiftIdleOffSeconds: e.STAFF_SHIFT_IDLE_OFF_SECONDS,
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
       reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
       adjustDailyCap: { coins: e.ADMIN_ADJUST_DAILY_CAP_COINS, cherries: e.ADMIN_ADJUST_DAILY_CAP_CHERRIES },

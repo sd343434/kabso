@@ -14259,7 +14259,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get staffShift => 'في المناوبة';
 
   @override
-  String get staffShiftHint => 'تُوزَّع عليك البثوث وتصلك بلاغاتها على هاتفك';
+  String get staffShiftAutoHint =>
+      'يعمل تلقائياً عند دخولك بثاً أو استخدام أدوات الفريق أو فتح «بثوثي»؛ تُوزَّع عليك البثوث وتصلك بلاغاتها، وتوقفه أنت';
+
+  @override
+  String get staffShiftOff => 'خارج المناوبة';
 
   @override
   String get staffMyLives => 'بثوثي';
@@ -14282,41 +14286,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String staffViewersCount(String count) {
     return '$count مشاهد';
   }
-
-  @override
-  String get staffStepUpTitle => 'تأكيد هويتك';
-
-  @override
-  String get staffStepUpBody =>
-      'أدخل الرمز من تطبيق المصادقة الذي تستخدمه للوحة الإدارة.';
-
-  @override
-  String get staffStepUpCode => 'الرمز (6 أرقام)';
-
-  @override
-  String get staffStepUpConfirm => 'فتح الأدوات';
-
-  @override
-  String get staffStepUpEnrol =>
-      'فعّل تطبيق المصادقة أولاً من لوحة الإدارة: admin.kabsolive.com';
-
-  @override
-  String get staffStepUpLockedHint =>
-      'الأخطاء المتكررة تقفل حسابك في اللوحة أيضاً.';
-
-  @override
-  String staffUnlocked(String time) {
-    return 'الأدوات مفتوحة حتى $time';
-  }
-
-  @override
-  String get staffLockedTools => 'الأدوات مقفلة — تحتاج رمز المصادقة';
-
-  @override
-  String get staffUnlock => 'فتح أدوات الفريق';
-
-  @override
-  String get staffLock => 'إنهاء';
 
   @override
   String get staffEnterTitle => 'كيف تدخل البث؟';

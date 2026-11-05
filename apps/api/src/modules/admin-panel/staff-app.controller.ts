@@ -27,7 +27,7 @@ import { moderateBody, reasonBody } from './admin-live-moderation.controller.js'
 import { AdminLiveModerationService, type ModerateBody } from './admin-live-moderation.service.js';
 import { pathUuid } from './admin-panel.schemas.js';
 import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
-import { CurrentStaff, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
+import { CurrentStaff, NotStaffWork, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
 import { teamAvatarPng } from '../live/staff-avatar.js';
 import { Public } from '../auth/public.decorator.js';
@@ -60,10 +60,10 @@ function meta(req: AppRequest) {
 
 /**
  * v1.68-live (D273, CONVENTIONS §10.96.6; owner: «بعض الموظفين ليس لديهم لابتوب»): «أدوات فريق كابسو» — the panel's live
- * moderation from the phone, for the staff's own app account. The app session is a normal user session (bearer), so
- * every tool also needs the step-up: the panel authenticator code (`POST /staff/step-up`), bound to this app session.
- * Each route names the panel's capability and the guard checks role, capability and step-up on every request; the
- * panel's rule functions run unchanged and audit `via: app`.
+ * moderation from the phone, for the staff's own app account (a normal user session, bearer). Each route names the
+ * panel's capability and the guard checks role and capability on every request; the panel's rule functions run
+ * unchanged and audit `via: app`. v1.76-live (D286): no step-up code any more (only the permanent device ban still
+ * asks for the authenticator code, in its body), and staff work switches the shift on (§10.96.14).
  */
 /**
  * v1.72-live (D283, §10.96.10): the Kabso Team's fixed picture (public, cached a day) — the `avatar_url` of every
@@ -98,6 +98,10 @@ export class StaffAppController {
     return this.staff.status(auth.userId, auth.sessionId);
   }
 
+  /**
+   * DEPRECATED v1.76-live (D286): the tools no longer need a step-up. Kept for the apps before D286 (they read
+   * `StaffStatus.stepUp`, which is now always set for watch staff, so they never ask); still checks the code.
+   */
   @Post('step-up')
   @HttpCode(200)
   @RateLimit(STAFF_LIMIT, { bucket: 'staff-step-up:user', rule: 'staffStepUpUser', key: byUserId })
@@ -122,6 +126,7 @@ export class StaffAppController {
   @RateLimit(STAFF_LIMIT)
   @UseGuards(StaffAppGuard)
   @StaffCapability('lives.watch')
+  @NotStaffWork()
   shift(@CurrentStaff() ctx: AdminContext) {
     return this.shifts.mine(ctx);
   }
@@ -130,6 +135,7 @@ export class StaffAppController {
   @RateLimit(STAFF_LIMIT)
   @UseGuards(StaffAppGuard)
   @StaffCapability('lives.watch')
+  @NotStaffWork()
   setShift(
     @CurrentStaff() ctx: AdminContext,
     @Body(new ZodValidationPipe(shiftBody)) body: z.infer<typeof shiftBody>,

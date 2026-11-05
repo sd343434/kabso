@@ -4,13 +4,13 @@
  *
  *  - an account holding OWNER / MODERATION / SUPPORT enters any live from the app as «فريق كابسو» (VISIBLE: listed in
  *    `LiveViewerPage.staff`, never counted, no join line; its chat lines carry `authorStaff`, no badges); it sends no
- *    gifts, taps or bullets; HIDDEN «مراقبة خفية» needs `lives.watch.hidden` (SUPPORT 403) and the step-up, and is
- *    neither listed nor counted nor able to chat; every staff token audited `admin.live.watch` `via: app`;
- *  - the step-up: the panel authenticator code, bound to this app session; not enrolled → 409; wrong codes count
- *    towards the panel lockout (locks, ends the panel sessions and the grant); a replayed code refused;
- *  - every staff route checks role, capability and step-up per request (SUPPORT reads, MODERATION acts, FINANCE none);
+ *    gifts, taps or bullets; HIDDEN «مراقبة خفية» needs `lives.watch.hidden` (SUPPORT 403) — no code since D286 — and
+ *    is neither listed nor counted nor able to chat; every staff token audited `admin.live.watch` `via: app`;
+ *  - D286 (v1.76-live): no step-up any more — the tools work as soon as the role is held; the deprecated step-up route
+ *    still checks the code (not enrolled → 409; wrong codes count towards the panel lockout; a replay refused);
+ *  - every staff route checks role and capability per request (SUPPORT reads, MODERATION acts, FINANCE none);
  *    each action audited with `via: app` and the reason; the host told «فريق Kabso», never a name;
- *  - revocation: a revoked role ends the grant, the tools and the badge at once; sign-out ends it; «إنهاء» ends it;
+ *  - revocation: a revoked role ends the tools and the badge at once; a re-grant works at once; sign-out ends it;
  *  - reports reach the responsible staff member's phone: the assigned staff member on shift, else after a pass the
  *    OWNER / MODERATION on shift, else the OWNERs; one unread row per live; the push names the host only; audited;
  *  - panel accounts are untouchable from the app: kick, chat mute, message removal, family kick / mute → 403
@@ -286,8 +286,9 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
       protected: true,
       roles: ['SUPPORT'],
       authenticatorEnrolled: true,
-      stepUp: null,
     });
+    // D286: always «unlocked» (older apps read `stepUp` and never ask for a code).
+    expect(new Date(s.body.stepUp.expiresAt as string).getTime()).toBeGreaterThan(clock);
     expect(s.body.capabilities).toEqual(['lives.watch', 'lives.reports']);
     const m = await sget(mod, '/staff/me');
     expect(m.body.capabilities).toEqual(
@@ -391,19 +392,16 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     expect((await viewers(h, roomId)).body.staff).toEqual([]);
   });
 
-  it('hidden from the app: OWNER / MODERATION after the step-up; SUPPORT refused; never listed, counted or chatting', async () => {
+  it('hidden from the app: OWNER / MODERATION with no code (D286); SUPPORT refused; never listed, counted or chatting', async () => {
     const h = await host();
     const roomId = await goLive(h);
     const sup = await mediaToken(support, roomId, { staffVisibility: 'HIDDEN' });
     expect(sup.status).toBe(403);
     expect(sup.body.error.code).toBe('AUTH_FORBIDDEN');
-    const noGrant = await mediaToken(mod, roomId, { staffVisibility: 'HIDDEN' });
-    expect(noGrant.status).toBe(403);
-    expect(noGrant.body.error.code).toBe('STAFF_STEP_UP_REQUIRED');
     const someone = await signup();
     expect((await mediaToken(someone, roomId, { staffVisibility: 'HIDDEN' })).status).toBe(403);
 
-    await stepUp(mod);
+    // D286: no step-up — the role is enough.
     const access = await enter(mod, roomId, { staffVisibility: 'HIDDEN' });
     expect(access.staff).toBe('HIDDEN');
     expect(access.identity.startsWith(`staff:${mod.id}:`)).toBe(true);
@@ -425,21 +423,23 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     expect(reports.status).toBe(200);
   });
 
-  it('the step-up: wrong codes count towards the panel lockout, which ends the panel sessions and the grant', async () => {
+  it('D286: no code for the tools; the deprecated step-up still checks the code and the panel lockout', async () => {
     const s = await makeStaff(['MODERATION']);
-    expect((await sget(s, '/staff/lives')).body.error.code).toBe('STAFF_STEP_UP_REQUIRED');
+    const lives = await sget(s, '/staff/lives');
+    expect(lives.status, JSON.stringify(lives.body)).toBe(200);
+    expect(new Date((await sget(s, '/staff/me')).body.stepUp.expiresAt as string).getTime()).toBe(
+      clock + 12 * 3600 * 1000,
+    );
     const bad = await ssend(s, 'post', '/staff/step-up', { code: 'abc' });
     expect(bad.status).toBe(400);
     const ok = await stepUp(s);
     expect(new Date(ok.expiresAt).getTime() - clock).toBe(12 * 3600 * 1000);
-    expect((await sget(s, '/staff/me')).body.stepUp).toEqual({ expiresAt: ok.expiresAt });
-    expect((await sget(s, '/staff/lives')).status).toBe(200);
     // A code works once.
     const code = totpCode(s.secret, clock);
     const replay = await ssend(s, 'post', '/staff/step-up', { code });
     expect(replay.status).toBe(403);
     expect(replay.body.error.code).toBe('ADMIN_TOTP_INVALID');
-    // Wrong codes: 403 until the limit (5, counting the replay), then 429 and everything ends.
+    // Wrong codes: 403 until the limit (5, counting the replay), then 429 and the panel sessions end.
     for (let i = 0; i < 3; i += 1) {
       const wrong = await ssend(s, 'post', '/staff/step-up', { code: '000000' });
       expect(wrong.status).toBe(403);
@@ -447,20 +447,17 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     const locked = await ssend(s, 'post', '/staff/step-up', { code: '000000' });
     expect(locked.status).toBe(429);
     expect(locked.body.error.code).toBe('ADMIN_LOCKED');
-    expect((await sget(s, '/staff/lives')).body.error.code).toBe('STAFF_STEP_UP_REQUIRED');
     expect((await ctx.http.get('/api/v1/admin/auth/session').set('Cookie', s.cookie)).status).toBe(401);
-    expect((await ssend(s, 'post', '/staff/step-up', { code: nextCode(s.secret) })).status).toBe(429);
-    const grants = await ctx.prisma.adminAppGrant.findMany({ where: { userId: s.id } });
-    expect(grants).toHaveLength(1);
-    expect(grants[0]!.revokedReason).toBe('LOCKED');
     expect((await sget(s, '/staff/me')).body.lockedUntil).not.toBeNull();
-    expect((await audits('admin.app.step_up')).filter((r) => r.actorUserId === s.id)).toHaveLength(1);
+    // The role, not the code, opens the tools (D286): they keep working.
+    expect((await sget(s, '/staff/lives')).status).toBe(200);
+    expect((await ctx.prisma.adminAppGrant.findMany({ where: { userId: s.id } }))[0]!.revokedReason).toBe(
+      'LOCKED',
+    );
   });
 
   it('per role: SUPPORT reads and keeps a shift; MODERATION acts (with reasons, audited via app); FINANCE nothing', async () => {
     await endAllLives();
-    await stepUp(support);
-    await stepUp(owner);
     const h = await host();
     const roomId = await goLive(h);
     const viewer = await signup();
@@ -497,7 +494,7 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     expect((await sget(finance, '/staff/shift')).status).toBe(403);
     expect((await sget(finance, `/staff/lives/${roomId}/reports`)).status).toBe(403);
 
-    // MODERATION: every action with a reason, audited via app; the host is told by «فريق Kabso».
+    // MODERATION: every action with a reason and no code (D286), audited via app; the host is told by «فريق Kabso».
     expect((await ssend(mod, 'post', `/staff/lives/${roomId}/moderate`, { action: 'WARN' })).status).toBe(
       400,
     );
@@ -570,9 +567,8 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     await shift(support, false);
   });
 
-  it('revocation: a revoked role ends the grant, the tools and the badge at once; sign-out and «إنهاء» end it', async () => {
+  it('revocation: a revoked role ends the tools and the badge at once; a re-grant works at once; sign-out ends it', async () => {
     const s = await makeStaff(['MODERATION']);
-    await stepUp(s);
     const h = await host();
     const roomId = await goLive(h);
     const access = await enter(s, roomId);
@@ -587,23 +583,14 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     expect((await sget(s, '/staff/me')).body.isStaff).toBe(false);
     expect((await viewers(h, roomId)).body.staff).toEqual([]);
     expect(media.removed).toEqual(expect.arrayContaining([{ room: roomId, identity: access.identity }]));
-    const g = await ctx.prisma.adminAppGrant.findMany({ where: { userId: s.id } });
-    expect(g.map((x) => x.revokedReason)).toEqual(['ROLE_REVOKED']);
     // An ordinary viewer again.
     const plain = await mediaToken(s, roomId);
     expect(plain.body.staff).toBeUndefined();
     expect(plain.body.identity).toBe(s.id);
-    // Granted again: the old step-up does not come back.
+    // Granted again: the tools work at once (D286: no code).
     await grant(s, ['MODERATION']);
-    expect((await sget(s, '/staff/lives')).body.error.code).toBe('STAFF_STEP_UP_REQUIRED');
-
-    // «إنهاء».
-    await stepUp(s);
-    expect((await ssend(s, 'delete', '/staff/step-up')).status).toBe(204);
-    expect((await sget(s, '/staff/lives')).body.error.code).toBe('STAFF_STEP_UP_REQUIRED');
-    expect((await audits('admin.app.step_up_end')).filter((r) => r.actorUserId === s.id)).toHaveLength(1);
-    // Sign-out: the session (and with it the grant) ends.
-    await stepUp(s);
+    expect((await sget(s, '/staff/lives')).status).toBe(200);
+    // Sign-out: the session ends, and the tools with it.
     expect((await ctx.http.post('/api/v1/auth/logout').set(auth(s)).send({})).status).toBe(204);
     expect((await sget(s, '/staff/lives')).status).toBe(401);
   });
@@ -621,7 +608,6 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
           .send({ token: phone, platform: 'ANDROID', appVersion: '0.1.0' })
       ).status,
     ).toBe(204);
-    await stepUp(mod);
     await shift(mod, true);
     const h = await host();
     const roomId = await goLive(h);

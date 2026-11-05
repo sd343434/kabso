@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/router/routes.dart';
-import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -13,7 +12,6 @@ import 'package:kabso_live/features/staff/data/staff_repository.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
 import 'package:kabso_live/features/staff/presentation/staff_entry_dialog.dart';
 import 'package:kabso_live/features/staff/presentation/staff_screen.dart';
-import 'package:kabso_live/features/staff/presentation/staff_step_up_dialog.dart';
 import 'package:kabso_live/features/staff/presentation/staff_tools_sheet.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -22,16 +20,13 @@ import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
 /// v1.68-live (D273, CONVENTIONS §10.96.6–§10.96.8): «فريق كابسو» from the
-/// app — the step-up with the panel authenticator code, «أدوات فريق كابسو»
-/// limited by role (SUPPORT reads, MODERATION acts), the shift and «بثوثي»,
-/// the visible / hidden entry, the team's chat tag, and the staff alert's
-/// route to the live's reports.
-
-final _until = DateTime.utc(2026, 11, 4, 22, 30);
+/// app — «أدوات فريق كابسو» limited by role (SUPPORT reads, MODERATION acts),
+/// the shift and «بثوثي», the visible / hidden entry, the team's chat tag, and
+/// the staff alert's route to the live's reports. D286: no step-up dialog any
+/// more, and staff work shows the shift on at once.
 
 StaffStatus _status({
   List<String> roles = const ['MODERATION'],
-  bool unlocked = true,
   bool enrolled = true,
   bool onShift = true,
 }) => StaffStatus(
@@ -48,7 +43,6 @@ StaffStatus _status({
   ],
   authenticatorEnrolled: enrolled,
   onShift: onShift,
-  stepUpUntil: unlocked ? _until : null,
 );
 
 final _reports = [
@@ -99,24 +93,9 @@ class FakeStaffRepository implements StaffRepository {
 
   StaffStatus state;
   final calls = <String>[];
-  AppFailure? stepUpFailure;
 
   @override
   Future<StaffStatus> status() async => state;
-
-  @override
-  Future<DateTime> stepUp(String code) async {
-    calls.add('stepUp:$code');
-    if (stepUpFailure case final f?) throw f;
-    state = _status(roles: state.roles);
-    return _until;
-  }
-
-  @override
-  Future<void> endStepUp() async {
-    calls.add('end');
-    state = _status(roles: state.roles, unlocked: false);
-  }
 
   @override
   Future<bool> setShift({required bool onShift}) async {
@@ -163,9 +142,6 @@ class FakeStaffRepository implements StaffRepository {
     required String reason,
   }) async => calls.add('remove:$messageId:$reason');
 }
-
-ServerFailure _failure(ErrorCode code) =>
-    ServerFailure(code: code, rawCode: code.wire, debugMessage: 'x');
 
 /// A phone with the notch and home bar (insets 59 / 34).
 void _phone(WidgetTester tester) {
@@ -222,7 +198,7 @@ Future<FakeStaffRepository> _pumpSheet(
 
 void main() {
   group('models', () {
-    test('StaffStatus reads the server; no step-up → locked', () {
+    test('StaffStatus reads the server (the deprecated stepUp ignored)', () {
       final s = StaffStatus.fromJson(const {
         'isStaff': true,
         'protected': true,
@@ -233,10 +209,10 @@ void main() {
         'stepUp': {'expiresAt': '2026-11-04T22:30:00.000Z'},
         'onShift': true,
       });
-      expect(s.unlocked, isTrue);
       expect(s.can(StaffCapability.moderate), isFalse);
-      expect(s.stepUpUntil, _until);
-      expect(StaffStatus.fromJson(const {'isStaff': false}).unlocked, isFalse);
+      expect(s.can(StaffCapability.reports), isTrue);
+      expect(s.onShift, isTrue);
+      expect(StaffStatus.fromJson(const {'isStaff': false}).isStaff, isFalse);
     });
 
     test('a report of a chat message names its author and text', () {
@@ -315,88 +291,64 @@ void main() {
     });
   });
 
-  group('the step-up', () {
-    testWidgets('a wrong code says so and stays; the right one unlocks', (
+  group('D286: no code, the shift on by itself', () {
+    testWidgets('the tools open at once — no step-up dialog, no lock', (
+      tester,
+    ) async {
+      await _pumpSheet(tester, _status(onShift: false));
+      expect(
+        find.byKey(StaffToolsSheet.action(StaffLiveAction.end)),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.lock_rounded), findsNothing);
+      expect(find.byIcon(Icons.key_rounded), findsNothing);
+    });
+
+    testWidgets('reading the reports (staff work) shows the shift on', (
       tester,
     ) async {
       final l = l10nFor(AppLanguage.en);
-      final repo = FakeStaffRepository(_status(unlocked: false))
-        ..stepUpFailure = _failure(ErrorCode.adminTotpInvalid);
-      bool? result;
-      await pumpScreen(
-        tester,
-        Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () async => result = await showStaffStepUp(context),
-              child: const Text('go'),
-            ),
-          ),
-        ),
-        overrides: [staffRepositoryProvider.overrideWithValue(repo)],
+      final repo = await _pumpSheet(tester, _status(onShift: false));
+      final shift = find.byKey(StaffToolsSheet.shiftKey);
+      expect(
+        find.descendant(of: shift, matching: find.text(l.staffShift)),
+        findsOneWidget,
       );
-      await tester.tap(find.text('go'));
-      await tester.pumpAndSettle();
-      expect(find.text(l.staffStepUpBody), findsOneWidget);
-      await tester.enterText(find.byKey(StaffStepUpDialog.codeKey), '000000');
-      await tester.pumpAndSettle();
-      expect(find.text(l.errorAdminTotpInvalid), findsOneWidget);
-      expect(result, isNull);
-      repo.stepUpFailure = null;
-      await tester.enterText(find.byKey(StaffStepUpDialog.codeKey), '123456');
-      await tester.pumpAndSettle();
-      expect(result, isTrue);
-      expect(repo.calls, ['stepUp:000000', 'stepUp:123456']);
+      expect(repo.calls, isEmpty);
     });
 
-    testWidgets('locked after wrong codes; not enrolled → the panel first', (
+    testWidgets('SUPPORT: off shift stays off until staff work is done', (
       tester,
     ) async {
-      final l = l10nFor(AppLanguage.ar);
-      final repo = FakeStaffRepository(_status(unlocked: false))
-        ..stepUpFailure = _failure(ErrorCode.adminLocked);
+      final l = l10nFor(AppLanguage.en);
+      // No reports capability → nothing loaded → the shift as the server said.
+      final repo = FakeStaffRepository(
+        const StaffStatus(
+          isStaff: true,
+          roles: ['SUPPORT'],
+          capabilities: [StaffCapability.watch],
+          authenticatorEnrolled: false,
+          onShift: false,
+        ),
+      );
       await pumpScreen(
         tester,
-        Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => showStaffStepUp(context),
-              child: const Text('go'),
-            ),
-          ),
-        ),
+        Scaffold(body: _sheetOpener()),
         overrides: [staffRepositoryProvider.overrideWithValue(repo)],
-        language: AppLanguage.ar,
       );
-      await tester.tap(find.text('go'));
+      await tester.tap(find.text('tools'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(StaffStepUpDialog.codeKey), '111111');
-      await tester.pumpAndSettle();
-      expect(find.text(l.errorAdminLocked), findsOneWidget);
-      repo.stepUpFailure = _failure(ErrorCode.staffTotpNotEnrolled);
-      await tester.enterText(find.byKey(StaffStepUpDialog.codeKey), '222222');
-      await tester.pumpAndSettle();
-      expect(find.text(l.staffStepUpEnrol), findsOneWidget);
-      expect(find.byKey(StaffStepUpDialog.confirmKey), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(StaffToolsSheet.shiftKey),
+          matching: find.text(l.staffShiftOff),
+        ),
+        findsOneWidget,
+      );
     });
   });
 
   group('«أدوات فريق كابسو»', () {
-    testWidgets('locked until the step-up; unlock opens the code', (
-      tester,
-    ) async {
-      final l = l10nFor(AppLanguage.en);
-      await _pumpSheet(tester, _status(unlocked: false));
-      expect(find.text(l.staffLockedTools), findsOneWidget);
-      expect(
-        find.byKey(StaffToolsSheet.action(StaffLiveAction.end)),
-        findsNothing,
-      );
-      await tester.tap(find.byKey(StaffToolsSheet.unlockKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(StaffStepUpDialog.codeKey), findsOneWidget);
-    });
-
     testWidgets('SUPPORT reads the reports and takes no action', (
       tester,
     ) async {
@@ -496,20 +448,18 @@ void main() {
       expect(find.byKey(StaffScreen.live('room-1')), findsOneWidget);
       expect(find.byKey(StaffScreen.live('room-2')), findsOneWidget);
       expect(find.text(l.staffReportsCount('2')), findsOneWidget);
-      await tester.tap(find.byKey(StaffScreen.shiftKey));
+      expect(find.text(l.staffShiftAutoHint), findsOneWidget);
+      // D286: opening «بثوثي» is staff work — the switch is on at once, with
+      // no call of its own (the server switched it).
+      final shift = find.byKey(StaffScreen.shiftKey);
+      expect(tester.widget<SwitchListTile>(shift).value, isTrue);
+      expect(tester.widget<SwitchListTile>(shift).onChanged, isNotNull);
+      expect(repo.calls, isEmpty);
+      // Off stays by hand.
+      await tester.tap(shift);
       await tester.pumpAndSettle();
-      expect(repo.calls, ['shift:true']);
-      await tester.tap(find.byKey(StaffScreen.lockKey));
-      await tester.pumpAndSettle();
-      expect(repo.calls.last, 'end');
-      // Locked: the shift waits for the code; the lives are hidden.
-      expect(
-        tester
-            .widget<SwitchListTile>(find.byKey(StaffScreen.shiftKey))
-            .onChanged,
-        isNull,
-      );
-      expect(find.byKey(StaffScreen.unlockKey), findsOneWidget);
+      expect(repo.calls, ['shift:false']);
+      expect(tester.widget<SwitchListTile>(shift).value, isFalse);
     });
   });
 
@@ -582,37 +532,6 @@ void main() {
           matchesGoldenFile(
             '../../goldens/png/staff_tools_sheet_support.${language.name}'
             '.phone.png',
-          ),
-        );
-      }, tags: goldenTag);
-
-      testWidgets('staff_step_up (${language.name})', (tester) async {
-        await loadAppFonts();
-        _phone(tester);
-        await pumpScreen(
-          tester,
-          Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => showStaffStepUp(context),
-                child: const Text('go'),
-              ),
-            ),
-          ),
-          overrides: [
-            staffRepositoryProvider.overrideWithValue(
-              FakeStaffRepository(_status(unlocked: false)),
-            ),
-          ],
-          language: language,
-          brightness: Brightness.light,
-        );
-        await tester.tap(find.text('go'));
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byType(MaterialApp),
-          matchesGoldenFile(
-            '../../goldens/png/staff_step_up.${language.name}.phone.png',
           ),
         );
       }, tags: goldenTag);

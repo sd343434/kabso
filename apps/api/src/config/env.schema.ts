@@ -1264,6 +1264,11 @@ export const envSchema = z
     ADMIN_LOCKOUT_SECONDS: intSetting(900, 60, 86_400),
     /** v1.68-live (D273, §10.96.6): how long the staff tools' step-up in the app lasts (default 12 h). */
     STAFF_APP_GRANT_SECONDS: intSetting(43_200, 300, 86_400),
+    /**
+     * v1.76-live (D286, §10.96.14): a shift switched on automatically by staff work goes off after this long without
+     * staff work (default 2 h; 0 = never). A shift switched on by hand never goes off by itself.
+     */
+    STAFF_SHIFT_IDLE_OFF_SECONDS: intSetting(7_200, 0, 86_400),
     /** The zone of the panel dashboard's «today» (owner 2026-10-31: the Asia/Riyadh day, like the recharge badges). */
     ADMIN_DASHBOARD_TIME_ZONE: ianaTimeZone('Asia/Riyadh'),
     /**

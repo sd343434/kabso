@@ -10,22 +10,19 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
-import 'package:kabso_live/features/staff/presentation/staff_step_up_dialog.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// v1.68-live (D273, §10.96.6; owner: «المناوبة من الهاتف»): «فريق كابسو» in
-/// the Me tab (staff accounts only) — the roles, the step-up («فتح أدوات
-/// الفريق» / «إنهاء»), the shift «في المناوبة» and «بثوثي» (the lives
-/// assigned to the staff member, the most reported first), each opening the
-/// live straight away as staff. Staff may enter any other live from the live
-/// lists too.
+/// the Me tab (staff accounts only) — the roles, the shift «في المناوبة» and
+/// «بثوثي» (the lives assigned to the staff member, the most reported first),
+/// each opening the live straight away as staff. Staff may enter any other
+/// live from the live lists too. D286 (v1.76-live): no authenticator code any
+/// more, and opening this page (staff work) switches the shift on.
 class StaffScreen extends ConsumerWidget {
   const new({super.key});
 
   static const shiftKey = Key('staff.shift');
-  static const unlockKey = Key('staff.unlock');
-  static const lockKey = Key('staff.lock');
   static Key live(String roomId) => Key('staff.live.$roomId');
 
   @override
@@ -69,8 +66,12 @@ class _Body extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final text = context.textStyles;
-    final unlocked = status.unlocked;
-    final lives = unlocked ? ref.watch(staffLivesProvider) : null;
+    final lives = ref.watch(staffLivesProvider);
+    // D286 (§10.96.14): opening «بثوثي» is staff work — the server switched
+    // the shift on; the switch shows it at once.
+    ref.listen(staffLivesProvider, (_, next) {
+      if (next.hasValue) ref.read(staffStatusProvider.notifier).staffWorked();
+    });
 
     Future<void> guard(Future<void> Function() call) async {
       try {
@@ -82,7 +83,6 @@ class _Body extends ConsumerWidget {
       }
     }
 
-    final until = status.stepUpUntil?.toLocal();
     return RefreshIndicator(
       onRefresh: () async {
         await ref.read(staffStatusProvider.notifier).refresh();
@@ -122,87 +122,48 @@ class _Body extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: KSpacing.md),
-          // The step-up: everything below needs it.
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: p.surfaceRaised,
-              borderRadius: BorderRadius.circular(KRadius.md),
-            ),
-            child: ListTile(
-              leading: Icon(
-                unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                color: unlocked ? p.success : p.textTertiary,
-              ),
-              title: Text(
-                until != null
-                    ? l10n.staffUnlocked(
-                        MaterialLocalizations.of(context)
-                            .formatTimeOfDay(TimeOfDay.fromDateTime(until)),
-                      )
-                    : status.authenticatorEnrolled
-                    ? l10n.staffLockedTools
-                    : l10n.staffStepUpEnrol,
-              ),
-              trailing: unlocked
-                  ? TextButton(
-                      key: StaffScreen.lockKey,
-                      onPressed: () => unawaited(
-                        guard(ref.read(staffStatusProvider.notifier).endStepUp),
-                      ),
-                      child: Text(l10n.staffLock),
-                    )
-                  : status.authenticatorEnrolled
-                  ? FilledButton(
-                      key: StaffScreen.unlockKey,
-                      onPressed: () => unawaited(showStaffStepUp(context)),
-                      child: Text(l10n.staffStepUpConfirm),
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: KSpacing.md),
+          // D286: no code — the shift goes on by itself with staff work and
+          // off by hand.
           SwitchListTile(
             key: StaffScreen.shiftKey,
             contentPadding: EdgeInsets.zero,
             title: Text(l10n.staffShift, style: text.bodyStrong),
-            subtitle: Text(l10n.staffShiftHint),
+            subtitle: Text(l10n.staffShiftAutoHint),
             value: status.onShift,
-            onChanged: !unlocked
-                ? null
-                : (on) => unawaited(
-                    guard(() async {
-                      await ref
-                          .read(staffStatusProvider.notifier)
-                          .setShift(onShift: on);
-                      ref.invalidate(staffLivesProvider);
-                    }),
-                  ),
+            onChanged: (on) => unawaited(
+              guard(() async {
+                await ref
+                    .read(staffStatusProvider.notifier)
+                    .setShift(onShift: on);
+                // Only when on: reading «بثوثي» is staff work and would
+                // switch an «off by hand» back on (D286).
+                if (on) ref.invalidate(staffLivesProvider);
+              }),
+            ),
           ),
           const Divider(),
           Text(l10n.staffMyLives, style: text.title),
           const SizedBox(height: KSpacing.sm),
-          if (lives == null)
-            Text(
-              l10n.staffLockedTools,
+          switch (lives) {
+            // D286: turned off by hand here — no lives (they were handed on),
+            // and no new «بثوثي» read that would switch the shift on again.
+            AsyncData() when !status.onShift => Text(
+              l10n.staffMyLivesOffShift,
               style: text.body.copyWith(color: p.textTertiary),
-            )
-          else
-            switch (lives) {
-              AsyncData(:final value) when value.isEmpty => Text(
-                status.onShift
-                    ? l10n.staffMyLivesEmpty
-                    : l10n.staffMyLivesOffShift,
-                style: text.body.copyWith(color: p.textTertiary),
-              ),
-              AsyncData(:final value) => Column(
-                children: [for (final l in value) _LiveTile(live: l)],
-              ),
-              AsyncError(:final error) => Text(
-                failureMessage(l10n, toAppFailure(error)),
-                style: text.body.copyWith(color: p.error),
-              ),
-              _ => const Center(child: CircularProgressIndicator()),
-            },
+            ),
+            AsyncData(:final value) when value.isEmpty => Text(
+              l10n.staffMyLivesEmpty,
+              style: text.body.copyWith(color: p.textTertiary),
+            ),
+            AsyncData(:final value) => Column(
+              children: [for (final l in value) _LiveTile(live: l)],
+            ),
+            AsyncError(:final error) => Text(
+              failureMessage(l10n, toAppFailure(error)),
+              style: text.body.copyWith(color: p.error),
+            ),
+            _ => const Center(child: CircularProgressIndicator()),
+          },
           const SizedBox(height: KSpacing.lg),
           Text(
             l10n.staffAnyLive,

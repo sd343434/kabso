@@ -296,7 +296,7 @@ class MeHubScreen extends ConsumerWidget {
           ]
         : <List<Widget>>[
             // v1.68-live (D273, owner: «المناوبة من الهاتف»): the staff's
-            // shift, «بثوثي» and the step-up — only for an account holding a
+            // shift and «بثوثي» (D286: no code) — only for an account holding a
             // watch role.
             if (user?.kabsoTeam ?? false) teamRow,
             [

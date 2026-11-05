@@ -86,7 +86,12 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
   /** The sweeper's cadence: newly reported lives move to a staff member who may act, ended lives are released. */
   private schedule(): void {
     this.timer = setTimeout(() => {
-      this.inFlight = this.assignPending('sweep')
+      // v1.76-live (D286): idle automatic shifts go off first, so the sweep hands their lives on.
+      this.inFlight = this.offIdle()
+        .catch((err: unknown) => {
+          this.logger.warn({ error: safeErrorLog(err) }, 'Automatic shift switch-off failed');
+        })
+        .then(() => this.assignPending('sweep'))
         .catch((err: unknown) => {
           this.logger.warn({ error: safeErrorLog(err) }, 'Live staff assignment failed');
         })
@@ -241,4 +246,132 @@ export class LiveStaffAssignmentService implements OnModuleInit, OnModuleDestroy
       return result;
     });
   }
+
+  // ---- v1.76-live (D286, §10.96.14): the automatic shift ----------------------------------------------------------
+
+  /**
+   * Staff work by `userId` (owner: «عندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): entering a live as staff (visible
+   * or hidden, app or panel), a staff tool, or «بثوثي». A watch staff member (OWNER / MODERATION / SUPPORT — never
+   * FINANCE or BD) who is off shift goes ON shift (`started_via = auto`), an assignment pass runs at once (reason
+   * `shift_on`, as by hand) and it is audited `admin.shift.on` {assigned, via: auto, trigger, from}. On shift
+   * already: only the activity time moves (at most once a minute). Returns whether the shift was switched on.
+   * Idempotent under concurrency (a conditional write: one caller wins, one audit row).
+   */
+  async staffWork(
+    userId: string,
+    trigger: StaffWorkTrigger,
+    from: 'app' | 'panel',
+    meta: { ip?: string | null | undefined; requestId?: string | null | undefined } = {},
+  ): Promise<boolean> {
+    const now = this.clock.now();
+    const switched = await this.prisma.$transaction(async (tx) => {
+      const watch = await tx.userAdminPermission.count({
+        where: {
+          userId,
+          permission: { in: [...WATCH_ROLES] },
+          user: { role: 'ADMIN', status: 'ACTIVE' },
+        },
+      });
+      if (watch === 0) return false;
+      const row = await tx.adminShift.findUnique({
+        where: { userId },
+        select: { onShift: true, lastActivityAt: true },
+      });
+      if (row?.onShift) {
+        const last = row.lastActivityAt?.getTime() ?? 0;
+        if (now.getTime() - last >= ACTIVITY_WRITE_EVERY_MS) {
+          await tx.adminShift.updateMany({ where: { userId, onShift: true }, data: { lastActivityAt: now } });
+        }
+        return false;
+      }
+      if (row) {
+        const won = await tx.adminShift.updateMany({
+          where: { userId, onShift: false },
+          data: { onShift: true, since: now, startedVia: 'auto', lastActivityAt: now },
+        });
+        return won.count === 1;
+      }
+      const created = await tx.$executeRaw`
+        INSERT INTO admin_shifts (user_id, on_shift, since, updated_at, started_via, last_activity_at)
+        VALUES (${userId}::uuid, true, ${now}, ${now}, 'auto', ${now})
+        ON CONFLICT (user_id) DO NOTHING`;
+      return created === 1;
+    });
+    if (!switched) return false;
+    const pass = await this.assignPending('shift_on');
+    await this.audit.record({
+      action: AuditAction.ADMIN_SHIFT_ON,
+      actorUserId: userId,
+      targetType: 'user',
+      targetId: userId,
+      metadata: {
+        assigned: pass.assigned.filter((a) => a.adminId === userId).length,
+        via: 'auto',
+        trigger,
+        from,
+      },
+      ip: meta.ip ?? null,
+      requestId: meta.requestId ?? null,
+    });
+    return true;
+  }
+
+  /** {@link staffWork} that never fails its caller (a live join must not fail on the shift). */
+  async staffWorkBestEffort(
+    userId: string,
+    trigger: StaffWorkTrigger,
+    from: 'app' | 'panel',
+    meta: { ip?: string | null | undefined; requestId?: string | null | undefined } = {},
+  ): Promise<void> {
+    try {
+      await this.staffWork(userId, trigger, from, meta);
+    } catch (err) {
+      this.logger.warn({ error: safeErrorLog(err) }, 'Could not record staff work for the automatic shift');
+    }
+  }
+
+  /**
+   * The idle switch-off (at the sweeper's cadence): a shift switched on AUTOMATICALLY goes off after
+   * `STAFF_SHIFT_IDLE_OFF_SECONDS` (2 h) without staff work, unless the person is in a live as visible staff right now
+   * (a `live_room_staff_watchers` row). Audited `admin.shift.off` {released, via: auto, reason: idle, idleSeconds};
+   * their lives are handed on by an assignment pass (reason `shift_off`). A shift switched on by hand (`panel` /
+   * `app`) never goes off by itself. Returns the ids switched off.
+   */
+  async offIdle(): Promise<string[]> {
+    const idle = this.config.adminPanel.staffShiftIdleOffSeconds;
+    if (idle <= 0) return [];
+    const now = this.clock.now();
+    const cutoff = new Date(now.getTime() - idle * 1000);
+    const rows = await this.prisma.$queryRaw<{ user_id: string; released: number }[]>`
+      WITH off AS (
+        UPDATE admin_shifts s SET on_shift = false, since = ${now}, updated_at = ${now}
+         WHERE s.on_shift AND s.started_via = 'auto'
+           AND COALESCE(s.last_activity_at, s.since) < ${cutoff}
+           AND NOT EXISTS (SELECT 1 FROM live_room_staff_watchers w WHERE w.admin_id = s.user_id)
+        RETURNING s.user_id)
+      SELECT off.user_id::text AS user_id,
+             (SELECT COUNT(*)::int FROM live_room_assignments a WHERE a.admin_id = off.user_id) AS released
+        FROM off`;
+    if (rows.length === 0) return [];
+    await this.assignPending('shift_off');
+    await this.prisma.$transaction(async (tx) =>
+      this.audit.recordManyIn(
+        tx,
+        rows.map((r) => ({
+          action: AuditAction.ADMIN_SHIFT_OFF,
+          actorUserId: r.user_id,
+          targetType: 'user',
+          targetId: r.user_id,
+          metadata: { released: r.released, via: 'auto', reason: 'idle', idleSeconds: idle },
+        })),
+      ),
+    );
+    return rows.map((r) => r.user_id);
+  }
 }
+
+/** v1.76-live (D286): what counted as staff work (audit metadata `trigger`). */
+export type StaffWorkTrigger = 'live_join' | 'staff_tool' | 'my_lives';
+
+/** The activity time is written at most this often for someone already on shift. */
+const ACTIVITY_WRITE_EVERY_MS = 60_000;

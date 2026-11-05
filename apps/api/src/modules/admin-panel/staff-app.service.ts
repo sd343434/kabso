@@ -7,7 +7,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveKicksService } from '../live/live-kicks.service.js';
-import { activeStaffGrant, WATCH_STAFF_ROLES } from '../live/live-staff.js';
+import { WATCH_STAFF_ROLES } from '../live/live-staff.js';
 import { openLiveReportsByRoom } from '../live/live-reports.js';
 import { AdminAuthService, type AdminContext, type AdminMeta } from './admin-auth.service.js';
 import { capabilitiesOf, type Capability } from './admin-permissions.js';
@@ -43,7 +43,7 @@ export interface StaffStatusDto {
   authenticatorEnrolled: boolean;
   /** The admin account is locked after wrong codes until then (null: not locked). */
   lockedUntil: string | null;
-  /** The step-up of THIS app session, while valid. */
+  /** DEPRECATED v1.76-live (D286): always set for watch staff (no step-up any more); older apps read it as unlocked. */
   stepUp: { expiresAt: string } | null;
   onShift: boolean;
 }
@@ -79,7 +79,7 @@ const STAFF_LIVE_ROOM = {
 
 /**
  * v1.68-live (D273, CONVENTIONS §10.96.6; owner: «نفس صلاحيات اللوحة من الهاتف»): the staff tools in the app — the
- * status, the step-up with the panel authenticator code (one grant per app session, 12 h by default), and the live
+ * status, the (deprecated, D286) step-up with the panel authenticator code, and the live
  * actions that are not the panel's own rule functions (removing a chat message, a chat mute, a kick: the room's rules
  * run with the staff member as «فريق كابسو»). The panel's rules (moderate, dismiss, reports, the shift) are called by
  * the controller with an `AdminContext` of `via: app`.
@@ -116,11 +116,14 @@ export class StaffAppService {
     );
     const isStaff = roles.some((r) => (WATCH_STAFF_ROLES as readonly string[]).includes(r));
     const now = this.clock.now();
-    const [second, grant, shift] = await Promise.all([
+    const [second, shift] = await Promise.all([
       this.adminAuth.secondFactorState(userId),
-      activeStaffGrant(this.prisma, userId, sessionId, now),
       this.prisma.adminShift.findUnique({ where: { userId }, select: { onShift: true } }),
     ]);
+    // DEPRECATED v1.76-live (D286): the tools need no step-up — `stepUp` is always set for watch staff (a rolling
+    // `STAFF_APP_GRANT_SECONDS` ahead, bound to nothing), so an app before D286 shows its tools without asking.
+    void sessionId;
+    const standing = new Date(now.getTime() + this.config.adminPanel.staffAppGrantSeconds * 1000);
     return {
       isStaff,
       protected: true,
@@ -128,7 +131,7 @@ export class StaffAppService {
       capabilities: caps,
       authenticatorEnrolled: second.enrolled,
       lockedUntil: second.lockedUntil?.toISOString() ?? null,
-      stepUp: isStaff && grant ? { expiresAt: grant.expiresAt.toISOString() } : null,
+      stepUp: isStaff ? { expiresAt: standing.toISOString() } : null,
       onShift: isStaff && shift?.onShift === true,
     };
   }

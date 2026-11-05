@@ -33,6 +33,7 @@ import { AdminSessionGuard, CurrentAdmin, RequireCapability } from './admin-sess
 import { AdminStatsService } from './admin-stats.service.js';
 import { sendTable, type TableQuery } from './admin-tables.js';
 import { AdminTeamService, type AuditQuery, type TeamGrantBody } from './admin-team.service.js';
+import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
 import {
   agenciesQuery,
   agencyProbationExtendBody,
@@ -131,6 +132,7 @@ export class AdminV2Controller {
     private readonly money: AdminMoneyService,
     private readonly team: AdminTeamService,
     private readonly programs: AdminProgramsService,
+    private readonly shifts: AdminStaffShiftsService,
   ) {}
 
   // ---- statistics and search (§10.60.1) -------------------------------------------------------------------------
@@ -401,6 +403,9 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
     @Res({ passthrough: true }) res: Response,
   ) {
+    // v1.76-live (D286, §10.96.14): opening «بثوثي» is staff work — the shift goes on first, so it lists the lives.
+    const mine = q as { assigned?: string; background?: string };
+    if (mine.assigned === 'me' && mine.background !== 'true') await this.shifts.work(admin, 'my_lives');
     return sendTable(res, await this.lives.now(q, admin));
   }
 
@@ -413,11 +418,12 @@ export class AdminV2Controller {
   @Post('lives/:roomId/end')
   @HttpCode(200)
   @RequireCapability('lives.manage')
-  endLive(
+  async endLive(
     @Param('roomId') id: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
     @CurrentAdmin() admin: AdminContext,
   ) {
+    await this.shifts.work(admin, 'staff_tool');
     return this.lives.end(pathUuid(id), body.reason, admin);
   }
 

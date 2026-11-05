@@ -11,7 +11,7 @@ import {
 } from '../live/live-staff.js';
 import { LiveStaffAlertsService } from '../live/live-staff-alerts.service.js';
 import { notificationBody } from '../push/push-texts.js';
-import { StaffAppGuard, StaffCapability } from './staff-app.guard.js';
+import { NotStaffWork, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
 
 /** v1.68-live (D273, §10.96.6–§10.96.8): «فريق كابسو» from the app — the pure and mocked parts. */
 
@@ -31,12 +31,17 @@ async function rejection(p: Promise<unknown>): Promise<unknown> {
   throw new Error('expected a rejection');
 }
 
-describe('D273 the staff guard (role, capability and step-up on every request)', () => {
+describe('D273 / D286 the staff guard (role and capability on every request; no step-up; staff work)', () => {
   class Handler {
     @StaffCapability('lives.moderate')
     moderate() {}
     @StaffCapability('lives.reports')
     reports() {}
+    @StaffCapability('lives.watch')
+    lives() {}
+    @StaffCapability('lives.watch')
+    @NotStaffWork()
+    shift() {}
     nothing() {}
   }
   const ctxFor = (handler: keyof Handler, req: object) =>
@@ -45,56 +50,72 @@ describe('D273 the staff guard (role, capability and step-up on every request)',
       getHandler: () => Handler.prototype[handler],
       getClass: () => Handler,
     }) as unknown as ExecutionContext;
-  const guard = (roles: string[], grant: { id: string; expiresAt: Date } | null) => {
+  const guard = (roles: string[]) => {
     const auth = { requireOn: vi.fn(), rolesOf: vi.fn(async () => roles) };
-    const prisma = { adminAppGrant: { findFirst: vi.fn(async () => grant) } };
-    const clock = { now: () => new Date('2026-11-04T12:00:00Z') };
+    const assignments = { staffWorkBestEffort: vi.fn(async () => undefined) };
     return {
-      guard: new StaffAppGuard(new Reflector(), auth as never, prisma as never, clock),
-      prisma,
+      guard: new StaffAppGuard(new Reflector(), auth as never, assignments as never),
+      assignments,
     };
   };
   const req = () => ({ auth: { userId: USER, sessionId: SESSION }, headers: {}, ip: '203.0.113.9' });
-  const grant = { id: 'g1', expiresAt: new Date('2026-11-05T00:00:00Z') };
 
-  it('lets MODERATION act with a step-up of this session; the context says via app', async () => {
-    const { guard: g, prisma } = guard(['MODERATION'], grant);
+  it('lets MODERATION act with no code at all; the context says via app and carries the app session', async () => {
+    const { guard: g, assignments } = guard(['MODERATION']);
     const r = req();
     expect(await g.canActivate(ctxFor('moderate', r))).toBe(true);
-    expect(prisma.adminAppGrant.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: USER, sessionId: SESSION, revokedAt: null }),
-      }),
-    );
-    expect((r as { staff?: { via: string; roles: string[] } }).staff).toMatchObject({
+    expect((r as { staff?: { via: string; roles: string[]; sessionId: string } }).staff).toMatchObject({
       via: 'app',
       roles: ['MODERATION'],
       userId: USER,
+      sessionId: SESSION,
     });
-  });
-
-  it('SUPPORT reads but may not act; FINANCE and a plain account get nothing; no capability → refused', async () => {
-    expect(await guard(['SUPPORT'], grant).guard.canActivate(ctxFor('reports', req()))).toBe(true);
-    expect(
-      codeOf(await rejection(guard(['SUPPORT'], grant).guard.canActivate(ctxFor('moderate', req())))),
-    ).toBe('AUTH_FORBIDDEN');
-    expect(
-      codeOf(await rejection(guard(['FINANCE'], grant).guard.canActivate(ctxFor('reports', req())))),
-    ).toBe('AUTH_FORBIDDEN');
-    expect(codeOf(await rejection(guard([], grant).guard.canActivate(ctxFor('reports', req()))))).toBe(
-      'AUTH_FORBIDDEN',
-    );
-    expect(codeOf(await rejection(guard(['OWNER'], grant).guard.canActivate(ctxFor('nothing', req()))))).toBe(
-      'AUTH_FORBIDDEN',
+    expect(assignments.staffWorkBestEffort).toHaveBeenCalledWith(
+      USER,
+      'staff_tool',
+      'app',
+      expect.objectContaining({ ip: expect.any(String) }),
     );
   });
 
-  it('without a step-up of this session → STAFF_STEP_UP_REQUIRED; without a session → 401', async () => {
-    expect(codeOf(await rejection(guard(['OWNER'], null).guard.canActivate(ctxFor('moderate', req()))))).toBe(
-      'STAFF_STEP_UP_REQUIRED',
+  it('«بثوثي» is staff work (my_lives); reading or switching the shift is not', async () => {
+    const a = guard(['SUPPORT']);
+    expect(await a.guard.canActivate(ctxFor('lives', req()))).toBe(true);
+    expect(a.assignments.staffWorkBestEffort).toHaveBeenCalledWith(
+      USER,
+      'my_lives',
+      'app',
+      expect.anything(),
     );
+    const b = guard(['SUPPORT']);
+    expect(await b.guard.canActivate(ctxFor('shift', req()))).toBe(true);
+    expect(b.assignments.staffWorkBestEffort).not.toHaveBeenCalled();
+  });
+
+  it('SUPPORT reads but may not act; FINANCE, BD and a plain account get nothing; no capability → refused', async () => {
+    expect(await guard(['SUPPORT']).guard.canActivate(ctxFor('reports', req()))).toBe(true);
+    const support = guard(['SUPPORT']);
+    expect(codeOf(await rejection(support.guard.canActivate(ctxFor('moderate', req()))))).toBe(
+      'AUTH_FORBIDDEN',
+    );
+    expect(support.assignments.staffWorkBestEffort).not.toHaveBeenCalled();
+    expect(codeOf(await rejection(guard(['FINANCE']).guard.canActivate(ctxFor('reports', req()))))).toBe(
+      'AUTH_FORBIDDEN',
+    );
+    expect(codeOf(await rejection(guard(['BD']).guard.canActivate(ctxFor('lives', req()))))).toBe(
+      'AUTH_FORBIDDEN',
+    );
+    expect(codeOf(await rejection(guard([]).guard.canActivate(ctxFor('reports', req()))))).toBe(
+      'AUTH_FORBIDDEN',
+    );
+    expect(codeOf(await rejection(guard(['OWNER']).guard.canActivate(ctxFor('nothing', req()))))).toBe(
+      'AUTH_FORBIDDEN',
+    );
+  });
+
+  it('without a session → 401', async () => {
     expect(
-      codeOf(await rejection(guard(['OWNER'], grant).guard.canActivate(ctxFor('moderate', { headers: {} })))),
+      codeOf(await rejection(guard(['OWNER']).guard.canActivate(ctxFor('moderate', { headers: {} })))),
     ).toBe('AUTH_UNAUTHENTICATED');
   });
 });

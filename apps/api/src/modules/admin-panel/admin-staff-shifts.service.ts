@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { LiveStaffAssignmentService, WATCH_ROLES } from '../live/live-staff-assignment.service.js';
+import {
+  LiveStaffAssignmentService,
+  WATCH_ROLES,
+  type StaffWorkTrigger,
+} from '../live/live-staff-assignment.service.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { isPanelRole } from './admin-permissions.js';
 
@@ -45,12 +49,22 @@ export class AdminStaffShiftsService {
   /** `PUT /admin/me/shift`: idempotent; a change is audited and runs an assignment pass. */
   async set(onShift: boolean, ctx: AdminContext): Promise<AdminShiftDto> {
     const before = await this.prisma.adminShift.findUnique({ where: { userId: ctx.userId } });
+    // v1.76-live (D286, §10.96.14): a switch by hand is `panel` / `app` (never goes off by itself); turning ON by hand
+    // a shift that staff work had switched on makes it a manual one (no audit: the shift itself does not change).
+    const via = ctx.via ?? 'panel';
+    if (before?.onShift === true && onShift && before.startedVia === 'auto') {
+      await this.prisma.adminShift.updateMany({
+        where: { userId: ctx.userId, onShift: true },
+        data: { startedVia: via, lastActivityAt: this.clock.now() },
+      });
+    }
     if ((before?.onShift ?? false) !== onShift) {
       const held = await this.prisma.liveRoomAssignment.count({ where: { adminId: ctx.userId } });
+      const now = this.clock.now();
       await this.prisma.adminShift.upsert({
         where: { userId: ctx.userId },
-        create: { userId: ctx.userId, onShift, since: this.clock.now() },
-        update: { onShift, since: this.clock.now() },
+        create: { userId: ctx.userId, onShift, since: now, startedVia: via, lastActivityAt: now },
+        update: { onShift, since: now, startedVia: via, lastActivityAt: now },
       });
       const pass = await this.assignments.assignPending(onShift ? 'shift_on' : 'shift_off');
       await this.audit.record({
@@ -69,6 +83,18 @@ export class AdminStaffShiftsService {
       });
     }
     return this.mine(ctx);
+  }
+
+  /**
+   * v1.76-live (D286, §10.96.14): staff work in the panel — a visible or hidden WATCH of a live, «بثوثي»
+   * (`listAdminLives?assigned=me`), a live's reports, an action on a live (moderate, dismiss, end) — switches the
+   * shift on like the app's (best effort; never fails the request). Audited `admin.shift.on` {via: auto, from: panel}.
+   */
+  async work(ctx: AdminContext, trigger: StaffWorkTrigger): Promise<void> {
+    await this.assignments.staffWorkBestEffort(ctx.userId, trigger, ctx.via === 'app' ? 'app' : 'panel', {
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
   }
 
   /** `GET /admin/shifts` (OWNER): every watch staff member, on shift first, with their load. */

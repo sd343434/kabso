@@ -30,7 +30,7 @@ export const AR_D271 = {
   staffNextEnrolled:
     "تطبيق المصادقة مُعدّ لهذا الحساب مسبقاً؛ يدخل بالرمز مباشرة.",
   staffNextShift:
-    "يفتح «البث الآن» ويشغّل «في المناوبة» لتُسند إليه البثوث، ويظهر فيها بشارة «فريق كابسو».",
+    "تعمل «في المناوبة» تلقائياً عند دخوله بثاً أو استخدامه أدوات الفريق أو فتح «بثوثي» (من التطبيق أو اللوحة)، فتُسند إليه البثوث ويظهر فيها بشارة «فريق كابسو»؛ يوقفها بنفسه. لا يُطلب رمز المصادقة لأعمال الإشراف.",
   staffNextFinance: "دور المالية لا مناوبة له؛ يجد أقسام المال في القائمة.",
   staffNextDone: "تم",
   teamErrNoAccount: "لا يوجد حساب بهذا البريد أو اسم المستخدم.",
@@ -70,7 +70,7 @@ export const EN_D271: Record<keyof typeof AR_D271, string> = {
   staffNextEnrolled:
     "The authenticator is already set up for this account; sign in with its code.",
   staffNextShift:
-    "Open «Live now» and turn on «On shift» to be assigned lives, shown in them with the «Kabso Team» badge.",
+    "«On shift» turns on by itself when they enter a live, use the team tools or open «My lives» (app or panel): lives are assigned to them, shown with the «Kabso Team» badge; they turn it off. Moderation needs no authenticator code.",
   staffNextFinance: "Finance has no shift; the money sections are in the menu.",
   staffNextDone: "Done",
   teamErrNoAccount: "No account with this email or username.",

@@ -188,7 +188,7 @@ abstract interface class LiveRepository {
   /// account.
   ///
   /// v1.68-live (D273): [staffVisibility] `HIDDEN` asks for «مراقبة خفية» (a
-  /// staff member with the step-up); the server decides
+  /// staff member with `lives.watch.hidden`; D286: no code); the server decides
   /// `LiveMediaAccess.staff`.
   Future<LiveMediaAccess> mediaToken(
     String roomId, {

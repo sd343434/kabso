@@ -147,12 +147,15 @@ export class AdminLiveModerationController {
   @Post('lives/:roomId/watch-token')
   @HttpCode(200)
   @RequireCapability('lives.watch')
-  watchToken(
+  async watchToken(
     @Param('roomId') id: string,
     @Body(new ZodValidationPipe(watchBody)) body: z.infer<typeof watchBody>,
     @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.moderation.watchToken(pathUuid(id), body.purpose, admin, body.visibility);
+    const out = await this.moderation.watchToken(pathUuid(id), body.purpose, admin, body.visibility);
+    // v1.76-live (D286, §10.96.14): watching a live (not the cards' muted previews) is staff work.
+    if (body.purpose === 'WATCH') await this.shifts.work(admin, 'live_join');
+    return out;
   }
 
   @Get('lives/:roomId/chat')
@@ -163,8 +166,10 @@ export class AdminLiveModerationController {
 
   @Get('lives/:roomId/reports')
   @RequireCapability('lives.reports')
-  reports(@Param('roomId') id: string) {
-    return this.moderation.reports(pathUuid(id));
+  async reports(@Param('roomId') id: string, @CurrentAdmin() admin: AdminContext) {
+    const out = await this.moderation.reports(pathUuid(id));
+    await this.shifts.work(admin, 'staff_tool');
+    return out;
   }
 
   @Get('lives/:roomId/moderations')
@@ -176,22 +181,24 @@ export class AdminLiveModerationController {
   @Post('lives/:roomId/moderate')
   @HttpCode(200)
   @RequireCapability('lives.moderate')
-  moderate(
+  async moderate(
     @Param('roomId') id: string,
     @Body(new ZodValidationPipe(moderateBody)) body: ModerateBody,
     @CurrentAdmin() admin: AdminContext,
   ) {
+    await this.shifts.work(admin, 'staff_tool');
     return this.moderation.moderate(pathUuid(id), body, admin);
   }
 
   @Post('lives/:roomId/reports/dismiss')
   @HttpCode(200)
   @RequireCapability('lives.moderate')
-  dismiss(
+  async dismiss(
     @Param('roomId') id: string,
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
     @CurrentAdmin() admin: AdminContext,
   ) {
+    await this.shifts.work(admin, 'staff_tool');
     return this.moderation.dismiss(pathUuid(id), body.reason, admin);
   }
 
