@@ -164,6 +164,7 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
   const assignee = async (roomId: string) =>
     (await ctx.prisma.liveRoomAssignment.findUnique({ where: { roomId } }))?.adminId ?? null;
 
+  const media = new MemoryLiveMedia();
   let owner: Admin;
   let moderator: Admin;
   let support: Admin;
@@ -184,7 +185,7 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
         RATE_LIMIT_ADMIN_TEAM_IP: '1000/900',
         API_PUBLIC_URL: 'https://api.test.example',
       },
-      [{ token: LIVE_MEDIA_PROVIDER, value: new MemoryLiveMedia() }],
+      [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
     await resetLives();
     owner = await makeAdmin(['OWNER']);
@@ -418,6 +419,62 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
     const row = (team.body.data as { id: string; regions: string[] }[]).find((r) => r.id === support.id);
     expect(row?.regions).toEqual(['GREATER_CHINA']);
     expectContract(team, 'listAdminTeam');
+  });
+
+  it('a visible staff entry sends `staff-join` (the team entry car); a hidden watch and the OWNER do not', async () => {
+    await resetLives();
+    const roomId = await goLive(await host('SA'));
+    const hook = (identity: string) => {
+      const raw = JSON.stringify({
+        event: 'participant_joined',
+        room: { name: roomId },
+        participant: { identity },
+      });
+      return ctx.http
+        .post('/internal/livekit/webhook')
+        .set('Content-Type', 'application/webhook+json')
+        .set('Authorization', MemoryLiveMedia.sign(raw))
+        .send(raw);
+    };
+    const staffJoins = () =>
+      media.broadcasts.filter(
+        (b) => b.room === roomId && b.topic === 'chat' && b.payload.includes('"type":"staff-join"'),
+      );
+    // MODERATION, visible (the default from the app).
+    const visible = await ctx.http
+      .post(`/api/v1/live/rooms/${roomId}/media-token`)
+      .set(auth(moderator))
+      .send({});
+    expect(visible.status, JSON.stringify(visible.body)).toBe(200);
+    expect(visible.body.staff).toBe('VISIBLE');
+    expect((await hook(visible.body.identity as string)).status).toBe(200);
+    const sent = staffJoins();
+    expect(sent).toHaveLength(1);
+    const payload = JSON.parse(sent[0]!.payload) as { user: { id: string; avatarUrl: string } };
+    expect(payload.user.id).toBe(moderator.id);
+    expect(isTeamAvatarUrl(payload.user.avatarUrl)).toBe(true);
+    // The same identity again (a reconnect report): nothing more.
+    expect((await hook(visible.body.identity as string)).status).toBe(200);
+    expect(staffJoins()).toHaveLength(1);
+    // Hidden «مراقبة خفية» (the step-up first): no staff-join.
+    const step = await ctx.http
+      .post('/api/v1/staff/step-up')
+      .set(auth(moderator))
+      .send({ code: nextCode(moderator.secret) });
+    expect(step.status, JSON.stringify(step.body)).toBe(200);
+    const hidden = await ctx.http
+      .post(`/api/v1/live/rooms/${roomId}/media-token`)
+      .set(auth(moderator))
+      .send({ staffVisibility: 'HIDDEN' });
+    expect(hidden.status, JSON.stringify(hidden.body)).toBe(200);
+    expect(hidden.body.staff).toBe('HIDDEN');
+    expect((await hook(hidden.body.identity as string)).status).toBe(200);
+    // The OWNER visible: no team entry car (a normal account).
+    const own = await ctx.http.post(`/api/v1/live/rooms/${roomId}/media-token`).set(auth(owner)).send({});
+    expect(own.body.staff).toBe('VISIBLE');
+    expect((await hook(own.body.identity as string)).status).toBe(200);
+    expect(staffJoins()).toHaveLength(1);
+    await resetLives();
   });
 
   it('assignment: the host’s region first, else by load; the panel and «بثوثي» filter by region', async () => {
