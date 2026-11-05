@@ -101,6 +101,9 @@ class EditProfileScreen extends ConsumerWidget {
   static const coverCameraKey = Key('profile.edit.cover.camera');
   static const coverRemoveKey = Key('profile.edit.cover.remove');
 
+  /// D283: the note that a Kabso Team account's picture and cover are fixed.
+  static const staffLockedKey = Key('profile.edit.staffLocked');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -110,6 +113,9 @@ class EditProfileScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider) ?? me.value;
     final photo = ref.watch(profilePhotoControllerProvider);
     final cover = ref.watch(profileCoverControllerProvider);
+    // v1.71-live (D283): a Kabso Team account's picture and cover are the
+    // team's, fixed — no «تغيير الصورة» / «الغلاف», a short note instead.
+    final locked = user?.staff != null;
     Widget divider() => Divider(
       height: KMetrics.hairline,
       thickness: KMetrics.hairline,
@@ -141,7 +147,7 @@ class EditProfileScreen extends ConsumerWidget {
                     excludeSemantics: true,
                     child: GestureDetector(
                       key: avatarKey,
-                      onTap: photo.busy
+                      onTap: photo.busy || locked
                           ? null
                           : () => _changePhoto(
                               context,
@@ -182,23 +188,41 @@ class EditProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                Center(
-                  child: TextButton(
-                    key: photoKey,
-                    onPressed: photo.busy
-                        ? null
-                        : () => _changePhoto(
-                            context,
-                            ref,
-                            hasPhoto: user.avatarUrl != null,
-                          ),
+                if (locked)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      KSpacing.lg,
+                      KSpacing.sm,
+                      KSpacing.lg,
+                      0,
+                    ),
                     child: Text(
-                      photo.busy
-                          ? l10n.profileEditPhotoUploading
-                          : l10n.profileEditPhoto,
+                      '${l10n.staffPictureLocked} ${l10n.staffCoverLocked}',
+                      key: staffLockedKey,
+                      textAlign: TextAlign.center,
+                      style: context.textStyles.caption.copyWith(
+                        color: p.textSecondary,
+                      ),
+                    ),
+                  )
+                else
+                  Center(
+                    child: TextButton(
+                      key: photoKey,
+                      onPressed: photo.busy
+                          ? null
+                          : () => _changePhoto(
+                              context,
+                              ref,
+                              hasPhoto: user.avatarUrl != null,
+                            ),
+                      child: Text(
+                        photo.busy
+                            ? l10n.profileEditPhotoUploading
+                            : l10n.profileEditPhoto,
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: KSpacing.sm),
                 divider(),
                 _Row(
@@ -217,23 +241,24 @@ class EditProfileScreen extends ConsumerWidget {
                       GoRouter.maybeOf(context)?.push(AppRoutes.changeUsername),
                 ),
                 // D218: the cover across the top of the profile.
-                _Row(
-                  key: coverKey,
-                  label: l10n.profileEditCover,
-                  value: cover.busy
-                      ? l10n.profileEditPhotoUploading
-                      : user.coverUrl != null
-                      ? l10n.profileEditCoverSet
-                      : '',
-                  placeholder: l10n.profileEditNotSet,
-                  onTap: cover.busy
-                      ? null
-                      : () => changeProfileCover(
-                          context,
-                          ref,
-                          hasCover: user.coverUrl != null,
-                        ),
-                ),
+                if (!locked)
+                  _Row(
+                    key: coverKey,
+                    label: l10n.profileEditCover,
+                    value: cover.busy
+                        ? l10n.profileEditPhotoUploading
+                        : user.coverUrl != null
+                        ? l10n.profileEditCoverSet
+                        : '',
+                    placeholder: l10n.profileEditNotSet,
+                    onTap: cover.busy
+                        ? null
+                        : () => changeProfileCover(
+                            context,
+                            ref,
+                            hasCover: user.coverUrl != null,
+                          ),
+                  ),
                 _Row(
                   key: bioKey,
                   label: l10n.profileEditBio,
