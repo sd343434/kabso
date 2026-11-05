@@ -2817,3 +2817,29 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.63 The Kabso Team's limited accounts and regions (migration `20270315090000_staff_limits_regions`; D283) — [IMPLEMENTED, draft contract v1.71-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.10–11. The migration adds `posts.announcement` (`BOOLEAN NOT NULL DEFAULT false`),
+`user_profiles.staff_avatar` (`BOOLEAN NOT NULL DEFAULT false`) and `staff_saved_avatar_url` (CHECK
+`user_profiles_staff_saved_avatar`: only while `staff_avatar`), and the table `admin_staff_regions` (`user_id`, `region`,
+`assigned_at`; CHECK `admin_staff_regions_code` with the 13 region codes; FK cascade to `users`). Constant defaults:
+metadata-only, no rewrite; the runtime role gets DML through the default privileges (KL-013 test added). No env setting
+(the team picture's URL uses `API_PUBLIC_URL`, default `https://api.kabsolive.com`).
+
+- **At the API's start** every MODERATION / SUPPORT / FINANCE account without OWNER gets the team picture as its
+  `avatar_url` (its own photo URL kept in `staff_saved_avatar_url`), and an account no longer such gets its photo back —
+  so the first start after the deploy applies it to the existing staff. Grants and revokes (panel and `admin-admin` CLI)
+  apply it at once; a CLI grant uses the CLI process's `API_PUBLIC_URL` and the next API start corrects a different one.
+  The picture is served by the API at `GET /api/v1/staff/team-avatar.png` (public; the file
+  `apps/api/assets/staff/kabso_team_avatar.png` is copied into the image — the Dockerfile copies `apps/api/assets`).
+- **Behaviour change for those accounts only** (tell the staff): no going live (every mode), no hosting application or
+  scheduled live, posts and reels only as an official announcement «إعلان رسمي — فريق كابسو» (no stories, no reposts), no
+  family (create / join), no VIP or store purchase, no tasks / check-in, the picture, cover and frame cannot be changed,
+  no levels anywhere (their points still accrue). The OWNER's account is unchanged. Older apps: staff see their usual
+  menus but the server refuses with 403 `STAFF_ACCOUNT_LIMITED`; the team picture shows (it is their `avatarUrl`).
+- **Regions:** the OWNER assigns them in «الموظفون والصلاحيات» → the member's «المناطق» (the code again and a reason;
+  audited `admin.team.regions`). Until then nobody has a region and the assignment is by load, as before.
+- **Order:** API (with its migration) first, then the panel, then the app. **Rollback:** an older API ignores the new
+  columns and table, but the staff's `avatar_url` stays the team picture's URL (served only by this version) — before
+  rolling back run `UPDATE user_profiles SET avatar_url = staff_saved_avatar_url, staff_saved_avatar_url = NULL,
+  staff_avatar = false WHERE staff_avatar;`.

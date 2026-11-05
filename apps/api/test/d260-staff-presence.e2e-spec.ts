@@ -286,8 +286,8 @@ describe('D260 staff presence in lives', { timeout: 900_000 }, () => {
       const row = rows.find((r) => r.targetId === roomId)!;
       expect(row.metadata).toMatchObject({ reason: 'live_start', reports: 0 });
     }
-    // A staff member who goes live is never assigned their own live.
-    const self = await makeAdmin(['MODERATION']);
+    // A staff member who goes live is never assigned their own live (D283: only an OWNER account goes live).
+    const self = await makeAdmin(['OWNER']);
     await ctx.prisma.liveHost.create({ data: { userId: self.id, source: 'ADMIN' } });
     await shift(self, true);
     const own = await goLive(self);

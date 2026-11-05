@@ -683,6 +683,57 @@ describe('D281 smart targets tables (host_target_assignments, host_target_settin
   });
 });
 
+describe('D283 staff regions and the team picture (admin_staff_regions, user_profiles.staff_*) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d283';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('is owned by the migration role and has its CHECK constraints', async () => {
+    expect(
+      await scalar<string>(
+        runtime,
+        `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = 'admin_staff_regions'`,
+      ),
+    ).toBe(migrationUser);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conname IN ('admin_staff_regions_code', 'user_profiles_staff_saved_avatar')
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual(['admin_staff_regions_code', 'user_profiles_staff_saved_avatar']);
+  });
+
+  it('the runtime role has DML; the CHECKs hold; DDL and TRUNCATE are refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd283-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(`INSERT INTO admin_staff_regions (user_id, region) VALUES ('${user}', 'ARAB_WORLD')`);
+    await expect(
+      runtimeExec(`INSERT INTO admin_staff_regions (user_id, region) VALUES ('${user}', 'MARS')`),
+    ).rejects.toThrow(/admin_staff_regions_code/);
+    expect(await runtimeExec(`DELETE FROM admin_staff_regions WHERE user_id = '${user}'`)).toBe(1);
+    await runtimeExec(
+      `INSERT INTO user_profiles (user_id, username, display_name, updated_at) VALUES ('${user}', 'd283_${suffix}', 'D283', now())`,
+    );
+    await expect(
+      runtimeExec(
+        `UPDATE user_profiles SET staff_avatar = false, staff_saved_avatar_url = 'https://x.example/a.jpg' WHERE user_id = '${user}'`,
+      ),
+    ).rejects.toThrow(/user_profiles_staff_saved_avatar/);
+    for (const sql of [
+      'TRUNCATE TABLE admin_staff_regions',
+      'ALTER TABLE admin_staff_regions DROP CONSTRAINT admin_staff_regions_code',
+      'ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_staff_saved_avatar',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+  });
+});
+
 describe('KL-013 boot-time guard (PrismaService)', () => {
   function service(databaseUrl: string, isProduction: boolean): PrismaService {
     return new PrismaService({ ...buildTestConfig({ LOG_LEVEL: 'silent' }), databaseUrl, isProduction });

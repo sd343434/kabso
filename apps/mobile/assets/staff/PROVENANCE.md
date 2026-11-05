@@ -1,4 +1,4 @@
-# The Kabso Team badge «فريق كابسو» (D282, D282c)
+# The Kabso Team art: the badge (D282, D282c), the frame, picture, covers and entry car (D283)
 
 Owner (D282, 2026-11-05): «اجعلها شارة فريق كابسو بحيث سوف تضع الاسم بالعربي لمن هاتفه عربي وانجليزي لمن هاتفه انجليزي».
 Owner (D282c, 2026-11-05): new art that replaces the Kabso Team badge everywhere, for all staff roles
@@ -18,3 +18,30 @@ re-measure it there.
 
 The art is never mirrored in right-to-left layouts (the crest stays on the left, as drawn); only the text follows the
 language. The largest drawn size is 40 pt tall (the shift page), so 328 px covers @3x (≈ 8×).
+
+## D283: the team frame, picture and covers (owner-supplied 2026-11-05)
+
+Owner: «فقط سوف يكون له ايقونة التي وضعناها وإطار»; «وهذه الصورة الشخصية الخاص بالادمن والمشرفين بحيث لا يمكن تغييرها»;
+«وهذا غلاف الادارة والمشرفين العرب»; «وهذا غلاف الادارة والمشرفين الاجانب، لا يمكن تغييره». A limited Kabso Team
+account (MODERATION / SUPPORT / FINANCE, not OWNER) always wears them; none can be changed (CONVENTIONS §10.96.10).
+
+| File | What | Source |
+| ---- | ---- | ------ |
+| `kabso_team_frame.png` | The locked team avatar frame: a red ring with a gold border, a gold crown with a red gem, stars, red diamond gems, gold laurel wings, the Kabi mascot (headset, suit, thumbs-up) at the lower left and a red shield with a crown and a gear at the bottom; transparent outside and in the round photo window | Owner-supplied on 2026-11-05 (1254×1254 RGBA WebP). Pixels with alpha below 16 cleared, trimmed to the bounds (1248×1248 from x 3, y 0), Lanczos to 768×768 (≥ 3× the largest drawn size, the 160 pt staff Me tab and profile slot, ≈ 4.8×) |
+| `kabso_team_avatar.png` | The fixed team picture: the Kabi mascot in a black suit with a red cape, a headset and a tablet | Owner-supplied on 2026-11-05 (1278×1230 RGBA WebP). Alpha below 16 cleared, trimmed (1155×1191 from x 69, y 12), Lanczos to 497×512. The same file is served by the API (`apps/api/assets/staff/kabso_team_avatar.png`, `GET /api/v1/staff/team-avatar.png`) |
+| `covers/arab_world.webp` | The cover of the Arab World's staff: the mascot at a desk, «إدارة التطبيق والمشرفون», four feature tiles | Owner-supplied on 2026-11-05 (1774×887, the second version without the top Kabso Live logo), Lanczos to 1500×750, WebP q86 |
+| `covers/international.webp` | The cover of every other region (and staff with no region): the same scene, "App Administration & Moderation", English tiles | Owner-supplied on 2026-11-05 (1774×887), Lanczos to 1500×750, WebP q86 |
+
+**The frame's photo window** is measured from the art itself (`KabsoTeamFrameWindow`, as D265's `VipSvgaClip.window`:
+the smallest circle around the transparent opening, rays from the canvas centre to the first pixel with alpha ≥ 40). The
+measurement of this file — centre (0.496, 0.500), diameter 0.714 of the art — is also kept as the constants used until
+the device's own measurement is ready, and a widget test checks they agree; a new art dropped in at the same path needs
+no code change (only the test's constants, if its window differs).
+
+**The picture** is drawn in the window on a red radial background (Kabso red to a deep wine), cropped to the head and
+shoulders: a square of 0.68 of the art's width from (0.16, 0.14) (`KabsoTeamLook.picture*`).
+
+**The covers** go by the staff member's first region (`StaffCovers.byRegion`: `ARAB_WORLD` → `arab_world.webp`; any
+other region or none → `international.webp`, until the owner sends a region's own cover — add it to the map). They are
+2:1 and the 42 % cover box is about square, so the sides are cropped (`StaffCovers.alignment`, slightly to the title's
+side: the title stays whole, the mascot's face mostly in); the photo sits at the bottom-start over the tiles.

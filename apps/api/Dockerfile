@@ -35,6 +35,8 @@ COPY --from=build --chown=node:node /src/apps/api/node_modules apps/api/node_mod
 COPY --from=build --chown=node:node /src/apps/api/package.json /src/apps/api/prisma.config.ts apps/api/
 COPY --from=build --chown=node:node /src/apps/api/prisma apps/api/prisma
 COPY --from=build --chown=node:node /src/apps/api/dist apps/api/dist
+# D283: the Kabso Team's fixed picture (GET /api/v1/staff/team-avatar.png).
+COPY --from=build --chown=node:node /src/apps/api/assets apps/api/assets
 COPY --chown=node:node infra/postgres/scram-verifier.mjs infra/postgres/scram-verifier.mjs
 WORKDIR /app/apps/api
 USER node

@@ -776,7 +776,8 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     const discover = await ctx.http.get(`/api/v1/live/rooms/${roomId}`).set(auth(support));
     expect(discover.status).toBe(200);
 
-    // Family: the leader cannot remove or mute a staff member.
+    // Family: the leader cannot remove or mute a staff member. (D283: only an OWNER account may join a family —
+    // MODERATION / SUPPORT / FINANCE are refused — so the member is the OWNER.)
     const leader = await signup();
     await ctx.prisma.$transaction((tx) =>
       creditIn(tx, leader.id, BigInt(FAMILY_CREATE_COST_COINS), 'ADMIN_GRANT', uuidv7()),
@@ -787,7 +788,7 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
       .send({ name: `Fam${Date.now() % 100000}`, clientId: randomUUID() });
     expect(fam.status, JSON.stringify(fam.body)).toBe(201);
     const familyId = fam.body.family.id as string;
-    const asked = await ctx.http.post(`/api/v1/families/${familyId}/join-requests`).set(auth(support));
+    const asked = await ctx.http.post(`/api/v1/families/${familyId}/join-requests`).set(auth(owner));
     expect(asked.status, JSON.stringify(asked.body)).toBe(201);
     expect(
       (
@@ -797,12 +798,12 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
       ).status,
     ).toBe(200);
     const fmute = await ctx.http
-      .put(`/api/v1/families/${familyId}/chat/mutes/${support.username}`)
+      .put(`/api/v1/families/${familyId}/chat/mutes/${owner.username}`)
       .set(auth(leader));
     expect(fmute.status).toBe(403);
     expect(fmute.body.error.code).toBe('STAFF_PROTECTED');
     const fkick = await ctx.http
-      .delete(`/api/v1/families/${familyId}/members/${support.username}`)
+      .delete(`/api/v1/families/${familyId}/members/${owner.username}`)
       .set(auth(leader));
     expect(fkick.status).toBe(403);
     expect(fkick.body.error.code).toBe('STAFF_PROTECTED');

@@ -986,15 +986,17 @@ describe('D250 live moderation from the panel', { timeout: 900_000 }, () => {
   });
 
   it('permissions: never one’s own live; a team member’s live only by an OWNER', async () => {
-    // A moderator who is also a host.
-    await ctx.prisma.liveHost.create({ data: { userId: moderator.id, source: 'ADMIN' } });
-    const modLogin = await ctx.http
+    // A team member who is also a host — since D283 (§10.96.10) only an OWNER account goes live (a moderator's
+    // go-live is refused), so the team member's live is a second OWNER's.
+    const hostOwner = await makeAdmin(['OWNER']);
+    await ctx.prisma.liveHost.create({ data: { userId: hostOwner.id, source: 'ADMIN' } });
+    const ownerLogin = await ctx.http
       .post('/api/v1/auth/login')
-      .send({ identifier: moderator.email, password: moderator.password });
-    expect(modLogin.status, JSON.stringify(modLogin.body)).toBe(200);
-    const roomId = await goLive({ ...moderator, token: modLogin.body.tokens.accessToken as string });
+      .send({ identifier: hostOwner.email, password: hostOwner.password });
+    expect(ownerLogin.status, JSON.stringify(ownerLogin.body)).toBe(200);
+    const roomId = await goLive({ ...hostOwner, token: ownerLogin.body.tokens.accessToken as string });
     expectCode(
-      await apost(moderator, `/admin/lives/${roomId}/moderate`, { action: 'END', reason: 'x' }),
+      await apost(hostOwner, `/admin/lives/${roomId}/moderate`, { action: 'END', reason: 'x' }),
       409,
       'ADMIN_ACTION_REFUSED',
     );
