@@ -596,6 +596,93 @@ describe('CP-013 chat tables (live_chat_messages, live_chat_mutes) under the KL-
   });
 });
 
+describe('D281 smart targets tables (host_target_assignments, host_target_settings) under the KL-013 roles', () => {
+  const user = '0192f1c2-0000-7000-8000-00000000d281';
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${user}'`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('host_target_assignments', 'host_target_settings')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'host_target_assignments', owner: migrationUser },
+      { t: 'host_target_settings', owner: migrationUser },
+    ]);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c'
+         AND conrelid IN ('host_target_assignments'::regclass, 'host_target_settings'::regclass,
+                          'task_assignments'::regclass)
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual(
+      expect.arrayContaining([
+        'host_target_assignments_shape',
+        'host_target_settings_one',
+        'host_target_settings_shape',
+        'task_assignments_variant_shape',
+      ]),
+    );
+  });
+
+  it('the runtime role has DML; the CHECKs hold (levels, kinds, a paid row, the knobs’ order); DDL is refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${user}', 'd281-${suffix}@example.com', 'x', now())`,
+    );
+    const insert = (level: string, kind: string, subject: string | null, extra = '') =>
+      runtimeExec(
+        `INSERT INTO host_target_assignments (user_id, day, level, code, kind, subject, amount, window_from, window_to,
+           expected_coins, reward_bps, reward_cherries, title_ar, title_en, reason, catalogue_version${extra ? ', paid_cherries, paid_at' : ''})
+         VALUES ('${user}', '2027-01-14', '${level}', 'T.${kind}.${subject ?? '*'}.3.0-1440', '${kind}',
+           ${subject === null ? 'NULL' : `'${subject}'`}, 3, 0, 1440, 300, 150, 10, 'ع', 'e', '{}'::jsonb, 'v'${extra})`,
+      );
+    await insert('EASY', 'GIFT_COUNT', 'rose');
+    await expect(insert('NOPE', 'GIFT_SENDS', null)).rejects.toThrow(/host_target_assignments_shape/);
+    // A gift count needs its gift; a cherries target has none.
+    await expect(insert('MEDIUM', 'GIFT_COUNT', null)).rejects.toThrow(/host_target_assignments_shape/);
+    await expect(insert('MEDIUM', 'GIFT_CHERRIES', 'rose')).rejects.toThrow(/host_target_assignments_shape/);
+    // A payment never above the reward shown, and only with a completion.
+    await expect(insert('HARD', 'GIFT_SENDS', null, ', 11, now()')).rejects.toThrow(
+      /host_target_assignments_shape/,
+    );
+    expect(
+      await runtimeExec(
+        `UPDATE host_target_assignments SET completed_at = now(), paid_cherries = 10, paid_at = now() WHERE user_id = '${user}'`,
+      ),
+    ).toBe(1);
+    // The knobs: one row, the order of the levels.
+    await expect(runtimeExec(`INSERT INTO host_target_settings (id) VALUES (2)`)).rejects.toThrow(
+      /host_target_settings_one|host_target_settings_pkey/,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO host_target_settings (id, easy_percentile) VALUES (1, 80) ON CONFLICT (id) DO UPDATE SET easy_percentile = 80`,
+      ),
+    ).rejects.toThrow(/host_target_settings_shape/);
+    // The ledger's sign rule knows the new credit.
+    await expect(
+      runtimeExec(
+        `INSERT INTO cherry_ledger (id, user_id, delta, balance_after, reason, reference_id)
+         VALUES ('0192f1c2-0000-7000-8000-00000000d282', '${user}', -5, 0, 'HOST_TARGET_REWARD', 'HT:EASY@2027-01-14')`,
+      ),
+    ).rejects.toThrow(/cherry_ledger_reason_sign/);
+    for (const sql of [
+      'TRUNCATE TABLE host_target_assignments',
+      'ALTER TABLE host_target_assignments DROP CONSTRAINT host_target_assignments_shape',
+      'DROP TABLE host_target_settings',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    expect(await runtimeExec(`DELETE FROM host_target_assignments WHERE user_id = '${user}'`)).toBe(1);
+  });
+});
+
 describe('KL-013 boot-time guard (PrismaService)', () => {
   function service(databaseUrl: string, isProduction: boolean): PrismaService {
     return new PrismaService({ ...buildTestConfig({ LOG_LEVEL: 'silent' }), databaseUrl, isProduction });

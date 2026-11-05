@@ -220,14 +220,16 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
     const rows = await ctx.prisma.taskDefinition.findMany({ where: { pool: true, enabled: true } });
     return assignDailyTasks(
       // D281: its templates belong to the smart engine only.
-      rows.filter((t) => !D281_POOL_TASKS.includes(t.code)).map((t) => ({
-        code: t.code,
-        group: t.poolGroup!,
-        audience: t.audience,
-        bandTargets: t.bandTargets,
-        bandRewards: t.bandRewards,
-        sortOrder: t.sortOrder,
-      })),
+      rows
+        .filter((t) => !D281_POOL_TASKS.includes(t.code))
+        .map((t) => ({
+          code: t.code,
+          group: t.poolGroup!,
+          audience: t.audience,
+          bandTargets: t.bandTargets,
+          bandRewards: t.bandRewards,
+          sortOrder: t.sortOrder,
+        })),
       DEFAULT_TASK_POOL_BANDS[band - 1]!,
       host,
       seedOf(`${u.id}:${day}`),

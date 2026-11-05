@@ -89,7 +89,10 @@ describe('the default pool and bands (D176)', () => {
     ).replace(/\s+/g, ' ');
     const engine = readFileSync(
       fileURLToPath(
-        new URL('../../../prisma/migrations/20270314090100_host_target_engine/migration.sql', import.meta.url),
+        new URL(
+          '../../../prisma/migrations/20270314090100_host_target_engine/migration.sql',
+          import.meta.url,
+        ),
       ),
       'utf8',
     ).replace(/\s+/g, ' ');

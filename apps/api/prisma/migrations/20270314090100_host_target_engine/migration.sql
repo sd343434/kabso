@@ -17,6 +17,21 @@
 --
 -- New tables get their runtime grants from the default privileges (KL-013, migration 20261016130000).
 
+-- The cherry ledger's sign rule: HOST_TARGET_REWARD is a credit. Extended in place (read from the catalogue, not
+-- restated), as 20270310090100_store did, so a branch that changed the list before keeps its change.
+DO $$
+DECLARE
+  def text;
+BEGIN
+  SELECT pg_get_constraintdef(c.oid) INTO STRICT def
+    FROM pg_constraint c
+   WHERE c.conrelid = 'cherry_ledger'::regclass AND c.conname = 'cherry_ledger_reason_sign';
+  ALTER TABLE "cherry_ledger" DROP CONSTRAINT "cherry_ledger_reason_sign";
+  EXECUTE format('ALTER TABLE cherry_ledger ADD CONSTRAINT cherry_ledger_reason_sign CHECK ((%s) OR (reason::text = %L AND delta > 0))',
+                 substring(def FROM '^CHECK \((.*)\)$'), 'HOST_TARGET_REWARD');
+END
+$$;
+
 -- The new task metrics.
 ALTER TABLE "task_definitions" DROP CONSTRAINT "task_definitions_shape";
 ALTER TABLE "task_definitions" ADD CONSTRAINT "task_definitions_shape" CHECK (

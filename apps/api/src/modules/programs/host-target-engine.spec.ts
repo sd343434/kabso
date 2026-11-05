@@ -39,9 +39,30 @@ const ECONOMY: ProfitEconomy = {
 
 /** A realistic enabled catalogue: 20 paid gifts in 4 categories (+ a free quip, never a count target). */
 const GIFTS: CatalogueGift[] = [
-  ...Array.from({ length: 8 }, (_, i) => ({ code: `rose_${String(i)}`, category: 'POPULAR', priceCoins: 10 * (i + 1), nameAr: `وردة ${String(i)}`, nameEn: `Rose ${String(i)}`, lucky: false })),
-  ...Array.from({ length: 5 }, (_, i) => ({ code: `car_${String(i)}`, category: 'EVENT', priceCoins: 5_000 * (i + 1), nameAr: `سيارة ${String(i)}`, nameEn: `Car ${String(i)}`, lucky: false })),
-  ...Array.from({ length: 4 }, (_, i) => ({ code: `luck_${String(i)}`, category: 'LUCKY', priceCoins: 10 * (i + 1), nameAr: `حظ ${String(i)}`, nameEn: `Luck ${String(i)}`, lucky: true })),
+  ...Array.from({ length: 8 }, (_, i) => ({
+    code: `rose_${String(i)}`,
+    category: 'POPULAR',
+    priceCoins: 10 * (i + 1),
+    nameAr: `وردة ${String(i)}`,
+    nameEn: `Rose ${String(i)}`,
+    lucky: false,
+  })),
+  ...Array.from({ length: 5 }, (_, i) => ({
+    code: `car_${String(i)}`,
+    category: 'EVENT',
+    priceCoins: 5_000 * (i + 1),
+    nameAr: `سيارة ${String(i)}`,
+    nameEn: `Car ${String(i)}`,
+    lucky: false,
+  })),
+  ...Array.from({ length: 4 }, (_, i) => ({
+    code: `luck_${String(i)}`,
+    category: 'LUCKY',
+    priceCoins: 10 * (i + 1),
+    nameAr: `حظ ${String(i)}`,
+    nameEn: `Luck ${String(i)}`,
+    lucky: true,
+  })),
   { code: 'warrior', category: 'FUN', priceCoins: 1_000, nameAr: 'المحارب', nameEn: 'Warrior', lucky: false },
   { code: 'quip_a', category: 'QUIPS', priceCoins: 1, nameAr: 'قفشة', nameEn: 'Quip', lucky: false },
   { code: 'quip_free', category: 'QUIPS', priceCoins: 0, nameAr: 'مجانية', nameEn: 'Free', lucky: false },
@@ -116,14 +137,22 @@ describe('D281 the target catalogue', () => {
 
   it('follows the gift catalogue: a gift added or switched off adds or removes its targets', () => {
     const base = catalogueStats(GIFTS);
-    const more = catalogueStats([...GIFTS, { code: 'lion', category: 'FUN', priceCoins: 30_000, nameAr: 'أسد', nameEn: 'Lion', lucky: false }]);
+    const more = catalogueStats([
+      ...GIFTS,
+      { code: 'lion', category: 'FUN', priceCoins: 30_000, nameAr: 'أسد', nameEn: 'Lion', lucky: false },
+    ]);
     expect(more.total - base.total).toBe((40 + 20) * 147);
     expect(catalogueVersion(GIFTS)).not.toBe(catalogueVersion(GIFTS.slice(1)));
     expect(catalogueVersion(GIFTS)).toBe(catalogueVersion([...GIFTS].reverse()));
   });
 
   it('codes round-trip; windows cover the day', () => {
-    const t = { kind: 'GIFT_COUNT' as const, subject: 'warrior', amount: 100, window: { from: 1200, to: 1440 } };
+    const t = {
+      kind: 'GIFT_COUNT' as const,
+      subject: 'warrior',
+      amount: 100,
+      window: { from: 1200, to: 1440 },
+    };
     expect(targetCode(t)).toBe('T.GIFT_COUNT.warrior.100.1200-1440');
     expect(parseTargetCode(targetCode(t))).toEqual(t);
     expect(parseTargetCode('T.NOPE.*.1.0-1440')).toBeNull();
@@ -155,7 +184,9 @@ describe('D281 platform profit and the reward', () => {
     );
     expect(unitsUsd(units, ECONOMY)).toBeCloseTo(2.025, 6);
     // A bag gift earned nothing now: a loss.
-    expect(platformProfitUnits([{ lucky: false, coins: 100n, chargedCoins: 0n, hostCherries: 650n }], ECONOMY)).toBeLessThan(0n);
+    expect(
+      platformProfitUnits([{ lucky: false, coins: 100n, chargedCoins: 0n, hostCherries: 650n }], ECONOMY),
+    ).toBeLessThan(0n);
   });
 
   it('the worked example: a hard target of 3 000 000 cherries from normal gifts → 4 % → 89 790 cherries', () => {
@@ -184,9 +215,15 @@ describe('D281 platform profit and the reward', () => {
   });
 
   it('the guard: never more than the share of the ACTUAL profit counted', () => {
-    const shown = rewardCherriesFor(expectedProfitUnits('GIFT_CHERRIES', 3_000_000, 0, ECONOMY), 400, ECONOMY);
+    const shown = rewardCherriesFor(
+      expectedProfitUnits('GIFT_CHERRIES', 3_000_000, 0, ECONOMY),
+      400,
+      ECONOMY,
+    );
     const halfProfit = expectedProfitUnits('GIFT_CHERRIES', 1_500_000, 0, ECONOMY);
-    expect(cappedTargetReward(shown, halfProfit, 400, ECONOMY)).toBe(rewardCherriesFor(halfProfit, 400, ECONOMY));
+    expect(cappedTargetReward(shown, halfProfit, 400, ECONOMY)).toBe(
+      rewardCherriesFor(halfProfit, 400, ECONOMY),
+    );
     expect(cappedTargetReward(shown, halfProfit, 400, ECONOMY)).toBeLessThan(shown);
     // More profit than the nominal: still the reward shown.
     const more = expectedProfitUnits('GIFT_CHERRIES', 9_000_000, 0, ECONOMY);
@@ -217,14 +254,24 @@ describe('D281 the smart assignment', () => {
     expect(assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, seed)).toEqual(a);
     // Another day may differ but is equally stable.
     const b = assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, targetSeed('host-1', '2027-02-01'));
-    expect(assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, targetSeed('host-1', '2027-02-01'))).toEqual(b);
+    expect(
+      assignHostTargets(p, GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, targetSeed('host-1', '2027-02-01')),
+    ).toEqual(b);
     // The reward is the level's share of the nominal profit; 1.5 % < 2.5 % < 4 %.
     expect(a.map((x) => x.rewardBps)).toEqual([150, 250, 400]);
     for (const x of a) expect(x.rewardCherries).toBeGreaterThanOrEqual(0);
   });
 
   it('the amounts sit on the percentiles of the host’s own days (easy ≈ p50, hard ≈ p90)', () => {
-    const days = richHost().map((d) => ({ ...d, luckyCherries: 0, sends: 0, supporters: 0, maxCombo: 0, giftQty: {}, hourCherries: new Array<number>(24).fill(1) }));
+    const days = richHost().map((d) => ({
+      ...d,
+      luckyCherries: 0,
+      sends: 0,
+      supporters: 0,
+      maxCombo: 0,
+      giftQty: {},
+      hourCherries: new Array<number>(24).fill(1),
+    }));
     // Only all-day gift cherries is supported → every level is that kind, growing.
     const a = assignHostTargets(profile(days), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 7);
     expect(a.every((x) => x.target.kind === 'GIFT_CHERRIES')).toBe(true);
@@ -236,9 +283,29 @@ describe('D281 the smart assignment', () => {
   });
 
   it('raises the levels for a host who always finishes and lowers them for one who never does', () => {
-    const days = richHost().map((d) => ({ ...d, luckyCherries: 0, sends: 0, supporters: 0, maxCombo: 0, giftQty: {}, hourCherries: new Array<number>(24).fill(1) }));
-    const always = assignHostTargets(profile(days, { recentAssigned: 21, recentCompleted: 21 }), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 7);
-    const never = assignHostTargets(profile(days, { recentAssigned: 21, recentCompleted: 0 }), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 7);
+    const days = richHost().map((d) => ({
+      ...d,
+      luckyCherries: 0,
+      sends: 0,
+      supporters: 0,
+      maxCombo: 0,
+      giftQty: {},
+      hourCherries: new Array<number>(24).fill(1),
+    }));
+    const always = assignHostTargets(
+      profile(days, { recentAssigned: 21, recentCompleted: 21 }),
+      GIFTS,
+      ECONOMY,
+      DEFAULT_TARGET_TUNING,
+      7,
+    );
+    const never = assignHostTargets(
+      profile(days, { recentAssigned: 21, recentCompleted: 0 }),
+      GIFTS,
+      ECONOMY,
+      DEFAULT_TARGET_TUNING,
+      7,
+    );
     const plain = assignHostTargets(profile(days), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 7);
     expect(always[0]!.reason.percentile).toBe(60);
     expect(never[0]!.reason.percentile).toBe(40);
@@ -250,16 +317,36 @@ describe('D281 the smart assignment', () => {
   });
 
   it('never repeats a target given in the last N days', () => {
-    const days = richHost().map((d) => ({ ...d, luckyCherries: 0, sends: 0, supporters: 0, maxCombo: 0, giftQty: {}, hourCherries: new Array<number>(24).fill(1) }));
+    const days = richHost().map((d) => ({
+      ...d,
+      luckyCherries: 0,
+      sends: 0,
+      supporters: 0,
+      maxCombo: 0,
+      giftQty: {},
+      hourCherries: new Array<number>(24).fill(1),
+    }));
     const first = assignHostTargets(profile(days), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 7);
-    const again = assignHostTargets(profile(days, { recentCodes: first.map((x) => x.target.code) }), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 7);
+    const again = assignHostTargets(
+      profile(days, { recentCodes: first.map((x) => x.target.code) }),
+      GIFTS,
+      ECONOMY,
+      DEFAULT_TARGET_TUNING,
+      7,
+    );
     for (const x of again) expect(first.map((f) => f.target.code)).not.toContain(x.target.code);
     expect(new Set(again.map((x) => x.target.code)).size).toBe(3);
   });
 
   it('new hosts get the band defaults', () => {
     for (const band of [1, 2, 3, 4]) {
-      const a = assignHostTargets(profile([day(0, { giftCherries: 5 })], { band }), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, 1);
+      const a = assignHostTargets(
+        profile([day(0, { giftCherries: 5 })], { band }),
+        GIFTS,
+        ECONOMY,
+        DEFAULT_TARGET_TUNING,
+        1,
+      );
       expect(a.map((x) => x.target.kind)).toEqual(['GIFT_SENDS', 'SUPPORTERS', 'GIFT_CHERRIES']);
       expect(a.every((x) => x.reason.newHost)).toBe(true);
       expect(a[2]!.target.amount).toBe(NEW_HOST_DEFAULTS.GIFT_CHERRIES[band - 1]![2]);
@@ -274,9 +361,20 @@ describe('D281 the smart assignment', () => {
       for (const x of assignHostTargets(profile(richHost()), GIFTS, ECONOMY, DEFAULT_TARGET_TUNING, s)) {
         seen.add(x.target.kind);
         if (x.target.kind === 'GIFT_COUNT') expect(['warrior', 'rose_0']).toContain(x.target.subject);
-        if (x.target.kind === 'GIFT_CHERRIES' && x.target.window.from !== 0) expect(x.target.window).toEqual({ from: 1260, to: 1380 });
+        if (x.target.kind === 'GIFT_CHERRIES' && x.target.window.from !== 0)
+          expect(x.target.window).toEqual({ from: 1260, to: 1380 });
       }
     }
-    expect(seen).toEqual(new Set(['GIFT_CHERRIES', 'LUCKY_CHERRIES', 'GIFT_COUNT', 'CATEGORY_COUNT', 'SUPPORTERS', 'GIFT_SENDS', 'COMBO']));
+    expect(seen).toEqual(
+      new Set([
+        'GIFT_CHERRIES',
+        'LUCKY_CHERRIES',
+        'GIFT_COUNT',
+        'CATEGORY_COUNT',
+        'SUPPORTERS',
+        'GIFT_SENDS',
+        'COMBO',
+      ]),
+    );
   });
 });

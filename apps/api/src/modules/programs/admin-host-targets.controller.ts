@@ -39,7 +39,12 @@ export const settingsBody = z
   } as { [K in Knob]: z.ZodOptional<(typeof knobs)[K]> } & { reason: z.ZodString })
   .refine((v) => Object.keys(v).length > 1, { message: 'at least one change' });
 
-const dayQuery = z.strictObject({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() });
+const dayQuery = z.strictObject({
+  day: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
 
 /**
  * «الأهداف الذكية» in the admin panel (v1.71-live, D281, CONVENTIONS §10.62.2) — OWNER only: the tuning knobs (the
@@ -77,13 +82,13 @@ export class AdminHostTargetsController {
       const before = settingsDto(await this.targets.settings(tx));
       const merged = { ...before, ...patch };
       if (
-        !(merged.easyPercentile < merged.mediumPercentile && merged.mediumPercentile < merged.hardPercentile) ||
+        !(
+          merged.easyPercentile < merged.mediumPercentile && merged.mediumPercentile < merged.hardPercentile
+        ) ||
         !(merged.easyRewardBps <= merged.mediumRewardBps && merged.mediumRewardBps <= merged.hardRewardBps)
       ) {
         // The order must hold: easy < medium < hard percentiles, easy ≤ medium ≤ hard shares.
-        throw AppException.validation([
-          { field: 'body', issue: 'invalid' },
-        ]);
+        throw AppException.validation([{ field: 'body', issue: 'invalid' }]);
       }
       const after = await tx.hostTargetSettings.update({
         where: { id: 1 },
@@ -125,7 +130,9 @@ export class AdminHostTargetsController {
       select: { id: true, profile: { select: { username: true, displayName: true } } },
     });
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
-    const day = q.day ?? (await programWindowsIn(this.prisma, this.clock.now(), this.config.live.rankingsTimeZone)).day.date;
+    const day =
+      q.day ??
+      (await programWindowsIn(this.prisma, this.clock.now(), this.config.live.rankingsTimeZone)).day.date;
     const targets = await this.targets.forPanel(user.id, day);
     await this.prisma.auditLog.create({
       data: {
@@ -139,7 +146,11 @@ export class AdminHostTargetsController {
       },
     });
     return {
-      host: { id: user.id, username: user.profile?.username ?? '', displayName: user.profile?.displayName ?? '' },
+      host: {
+        id: user.id,
+        username: user.profile?.username ?? '',
+        displayName: user.profile?.displayName ?? '',
+      },
       day,
       targets,
     };

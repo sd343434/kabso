@@ -165,7 +165,8 @@ export class HostTargetsService {
     const e = this.config.economy;
     return {
       cherriesPerCoin: e.cherriesPerCoin,
-      coinCentsPerMillion: topupMinorPerMillion(e.coinRetailUsdPerMillion) ?? Math.round(e.coinRetailUsdPerMillion * 100),
+      coinCentsPerMillion:
+        topupMinorPerMillion(e.coinRetailUsdPerMillion) ?? Math.round(e.coinRetailUsdPerMillion * 100),
       rateCherries: e.rateCherries,
       rateMinor: e.rateMinor,
       luckyRtpBps: this.config.lucky.table.rtpBps,
@@ -290,9 +291,14 @@ export class HostTargetsService {
   }
 
   /** The sends one target counts (its kind, subject and window). */
-  private counted(a: Pick<HostTargetAssignment, 'kind' | 'subject' | 'windowFrom' | 'windowTo'>, sends: readonly SendRow[]) {
+  private counted(
+    a: Pick<HostTargetAssignment, 'kind' | 'subject' | 'windowFrom' | 'windowTo'>,
+    sends: readonly SendRow[],
+  ) {
     const kind = a.kind as TargetKind;
-    return sends.filter((s) => s.minute >= a.windowFrom && s.minute < a.windowTo && counts(kind, a.subject, s));
+    return sends.filter(
+      (s) => s.minute >= a.windowFrom && s.minute < a.windowTo && counts(kind, a.subject, s),
+    );
   }
 
   /**
@@ -301,12 +307,28 @@ export class HostTargetsService {
    * per hour, gifts by code; their usual live hours, viewers per live, the completion of their recent targets and the
    * codes of the last `noRepeatDays` days.
    */
-  async profileOf(db: Db, host: string, day: string, dayStart: Date, tuning: TargetTuning): Promise<HostProfile> {
+  async profileOf(
+    db: Db,
+    host: string,
+    day: string,
+    dayStart: Date,
+    tuning: TargetTuning,
+  ): Promise<HostProfile> {
     const from = new Date(dayStart.getTime() - tuning.historyDays * 86_400_000);
     const zone = this.zone;
     const [sendRows, supporters, rooms, viewers, recent, codes, band] = await Promise.all([
       db.$queryRaw<
-        { d: string; h: number; gift_code: string; lucky: boolean; self: boolean; qty: bigint; coins: bigint; cherries: bigint; combo: bigint }[]
+        {
+          d: string;
+          h: number;
+          gift_code: string;
+          lucky: boolean;
+          self: boolean;
+          qty: bigint;
+          coins: bigint;
+          cherries: bigint;
+          combo: bigint;
+        }[]
       >`
         SELECT to_char((g.created_at AT TIME ZONE ${zone})::date, 'YYYY-MM-DD') AS d,
                extract(hour FROM g.created_at AT TIME ZONE ${zone})::int AS h,
@@ -350,17 +372,45 @@ export class HostTargetsService {
          WHERE user_id = ${host}::uuid AND day < ${day}::date
            AND day >= ${addDays(day, -Math.max(1, Math.floor(tuning.historyDays / 2)))}::date`,
       db.hostTargetAssignment.findMany({
-        where: { userId: host, day: { gte: dateValue(addDays(day, -tuning.noRepeatDays)), lt: dateValue(day) } },
+        where: {
+          userId: host,
+          day: { gte: dateValue(addDays(day, -tuning.noRepeatDays)), lt: dateValue(day) },
+        },
         select: { code: true },
       }),
       this.bandOf(db, host),
     ]);
     // Bucket everything by the host's day.
-    const byDay = new Map<string, { gc: number; lc: number; gco: number; lco: number; sends: number; combo: number; hour: number[]; qty: Record<string, number>; minutes: number; hourMinutes: number[] }>();
+    const byDay = new Map<
+      string,
+      {
+        gc: number;
+        lc: number;
+        gco: number;
+        lco: number;
+        sends: number;
+        combo: number;
+        hour: number[];
+        qty: Record<string, number>;
+        minutes: number;
+        hourMinutes: number[];
+      }
+    >();
     const at = (d: string) => {
       let v = byDay.get(d);
       if (!v) {
-        v = { gc: 0, lc: 0, gco: 0, lco: 0, sends: 0, combo: 0, hour: new Array<number>(24).fill(0), qty: {}, minutes: 0, hourMinutes: new Array<number>(24).fill(0) };
+        v = {
+          gc: 0,
+          lc: 0,
+          gco: 0,
+          lco: 0,
+          sends: 0,
+          combo: 0,
+          hour: new Array<number>(24).fill(0),
+          qty: {},
+          minutes: 0,
+          hourMinutes: new Array<number>(24).fill(0),
+        };
         byDay.set(d, v);
       }
       return v;
@@ -384,9 +434,16 @@ export class HostTargetsService {
     }
     // Live minutes by day and hour of the host's zone (rooms split into minutes; Riyadh has no daylight saving).
     const liveHourMinutes = new Array<number>(24).fill(0);
-    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' });
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    });
     for (const r of rooms) {
-      for (let t = r.start.getTime(); t < r.end.getTime(); ) {
+      for (let t = r.start.getTime(); t < r.end.getTime();) {
         const parts = Object.fromEntries(fmt.formatToParts(new Date(t)).map((p) => [p.type, p.value]));
         const d = `${parts.year!}-${parts.month!}-${parts.day!}`;
         const h = Number(parts.hour) % 24;
@@ -434,7 +491,10 @@ export class HostTargetsService {
   async assignmentsFor(db: Db, host: string, day: string, dayStart: Date): Promise<HostTargetAssignment[]> {
     const where = { userId: host, day: dateValue(day) };
     const order = (rows: HostTargetAssignment[]) =>
-      [...rows].sort((a, b) => TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel));
+      [...rows].sort(
+        (a, b) =>
+          TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel),
+      );
     const existing = await db.hostTargetAssignment.findMany({ where });
     if (existing.length > 0) return order(existing);
     const settings = await this.settings(db);
@@ -525,7 +585,13 @@ export class HostTargetsService {
           },
         });
         if (pay > 0) {
-          await creditHostTargetCherriesIn(tx, a.userId, BigInt(pay), hostTargetRewardReference(a.level, day), now);
+          await creditHostTargetCherriesIn(
+            tx,
+            a.userId,
+            BigInt(pay),
+            hostTargetRewardReference(a.level, day),
+            now,
+          );
         }
         await tx.auditLog.create({
           data: {
@@ -656,11 +722,17 @@ export class HostTargetsService {
    * not assign (a day nobody read has none).
    */
   async forPanel(host: string, day: string) {
-    const rows = await this.prisma.hostTargetAssignment.findMany({ where: { userId: host, day: dateValue(day) } });
+    const rows = await this.prisma.hostTargetAssignment.findMany({
+      where: { userId: host, day: dateValue(day) },
+    });
     const windows = await programWindowsIn(this.prisma, new Date(`${day}T12:00:00.000Z`), this.zone);
-    const sends = rows.length > 0 ? await this.sendsIn(this.prisma, host, windows.day.start, windows.day.end) : [];
+    const sends =
+      rows.length > 0 ? await this.sendsIn(this.prisma, host, windows.day.start, windows.day.end) : [];
     return rows
-      .sort((a, b) => TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel))
+      .sort(
+        (a, b) =>
+          TARGET_LEVELS.indexOf(a.level as TargetLevel) - TARGET_LEVELS.indexOf(b.level as TargetLevel),
+      )
       .map((a) => {
         const counted = this.counted(a, sends);
         return {

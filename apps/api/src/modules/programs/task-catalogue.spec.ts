@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CatalogueGift } from './host-target-engine.js';
-import { DEFAULT_POOL_TASKS, DEFAULT_TASK_POOL_BANDS, type TaskMetric } from './programs-rules.js';
+import { DEFAULT_POOL_TASKS, DEFAULT_TASK_POOL_BANDS } from './programs-rules.js';
 import {
   assignSmartTasks,
   enumerateTasks,
@@ -98,7 +98,9 @@ describe('D281 the smart task assignment', () => {
     expect(new Set(a.map((x) => x.template)).size).toBe(a.length);
     expect(a.some((x) => TEMPLATES.find((t) => t.code === x.template)!.audience === 'HOSTS')).toBe(false);
     const host = assignSmartTasks(TEMPLATES, profile({ isHost: true }), GIFTS, 3);
-    expect(host.slice(0, 2).every((x) => TEMPLATES.find((t) => t.code === x.template)!.audience === 'HOSTS')).toBe(true);
+    expect(
+      host.slice(0, 2).every((x) => TEMPLATES.find((t) => t.code === x.template)!.audience === 'HOSTS'),
+    ).toBe(true);
     for (const x of a) {
       expect(x.rewardCherries).toBeGreaterThan(0);
       expect(x.target).toBe(x.variant.amount);
@@ -110,9 +112,12 @@ describe('D281 the smart task assignment', () => {
     let picked = 0;
     const amounts: number[] = [];
     for (let s = 0; s < 200; s++) {
-      const x = assignSmartTasks(TEMPLATES, profile({ dailyAverage: { LIVE_CHAT_MESSAGES: 40 } }), GIFTS, s).find(
-        (y) => y.template === 'P_LIVE_COMMENTS',
-      );
+      const x = assignSmartTasks(
+        TEMPLATES,
+        profile({ dailyAverage: { LIVE_CHAT_MESSAGES: 40 } }),
+        GIFTS,
+        s,
+      ).find((y) => y.template === 'P_LIVE_COMMENTS');
       if (x) {
         picked += 1;
         if (x.variant.window.from === 0 && x.variant.window.to === 1440) amounts.push(x.target);
@@ -120,7 +125,8 @@ describe('D281 the smart task assignment', () => {
     }
     let baseline = 0;
     for (let s = 0; s < 200; s++) {
-      if (assignSmartTasks(TEMPLATES, profile(), GIFTS, s).some((y) => y.template === 'P_LIVE_COMMENTS')) baseline += 1;
+      if (assignSmartTasks(TEMPLATES, profile(), GIFTS, s).some((y) => y.template === 'P_LIVE_COMMENTS'))
+        baseline += 1;
     }
     expect(picked).toBeGreaterThan(baseline);
     // 40 a day, capped at 3 × the band's target (5) = 15.
@@ -144,14 +150,23 @@ describe('D281 the smart task assignment', () => {
 
   it('no repeat within N days; family tasks by membership; a gift task names their favourite gift', () => {
     const a = assignSmartTasks(TEMPLATES, profile(), GIFTS, 5);
-    const b = assignSmartTasks(TEMPLATES, profile({ recentVariants: a.map((x) => x.variant.code) }), GIFTS, 5);
+    const b = assignSmartTasks(
+      TEMPLATES,
+      profile({ recentVariants: a.map((x) => x.variant.code) }),
+      GIFTS,
+      5,
+    );
     for (const x of b) expect(a.map((y) => y.variant.code)).not.toContain(x.variant.code);
     for (let s = 0; s < 100; s++) {
-      const inFamily = assignSmartTasks(TEMPLATES, profile({ inFamily: true }), GIFTS, s).map((x) => x.template);
+      const inFamily = assignSmartTasks(TEMPLATES, profile({ inFamily: true }), GIFTS, s).map(
+        (x) => x.template,
+      );
       expect(inFamily).not.toContain('P_FAMILY_JOIN');
       const outside = assignSmartTasks(TEMPLATES, profile(), GIFTS, s).map((x) => x.template);
       expect(outside).not.toContain('P_FAMILY_CHAT');
-      const fav = assignSmartTasks(TEMPLATES, profile({ favouriteGifts: ['warrior'] }), GIFTS, s).find((x) => x.template === 'P_SEND_GIFT_OF');
+      const fav = assignSmartTasks(TEMPLATES, profile({ favouriteGifts: ['warrior'] }), GIFTS, s).find(
+        (x) => x.template === 'P_SEND_GIFT_OF',
+      );
       if (fav) {
         expect(fav.variant.subject).toBe('warrior');
         // Band 2: 10 000 coins = 10 warriors.
@@ -159,10 +174,13 @@ describe('D281 the smart task assignment', () => {
       }
     }
     const name = variantName(
-      { metric: 'GIFT_COUNT_SENT' as TaskMetric, nameAr: 'x', nameEn: 'x' },
+      { metric: 'GIFT_COUNT_SENT', nameAr: 'x', nameEn: 'x' },
       { amount: 10, subject: 'warrior', window: { from: 1200, to: 1380 } },
       { ar: 'المحارب', en: 'Warrior' },
     );
-    expect(name).toEqual({ ar: 'أرسل 10 من المحارب بين 20:00–23:00', en: 'Send 10 × Warrior between 20:00–23:00' });
+    expect(name).toEqual({
+      ar: 'أرسل 10 من المحارب بين 20:00–23:00',
+      en: 'Send 10 × Warrior between 20:00–23:00',
+    });
   });
 });

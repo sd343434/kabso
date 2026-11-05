@@ -31,7 +31,13 @@ const personDto = (u: Person) => ({
 type PeriodRow = { period: string; a: bigint | number | null; b: bigint | number | null };
 
 /** Cherry reasons that create cherries (gross issuance) and those that take them back (D179, D184). */
-const ISSUE_REASONS = ['GIFT_RECEIVED', 'AGENCY_COMMISSION', 'PARENT_COMMISSION', 'TASK_REWARD', 'HOST_TARGET_REWARD'];
+const ISSUE_REASONS = [
+  'GIFT_RECEIVED',
+  'AGENCY_COMMISSION',
+  'PARENT_COMMISSION',
+  'TASK_REWARD',
+  'HOST_TARGET_REWARD',
+];
 const REVERSAL_REASONS = ['GIFT_REVERSAL', 'AGENCY_COMMISSION_REVERSAL', 'PARENT_COMMISSION_REVERSAL'];
 
 export interface ReportRow {

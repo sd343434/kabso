@@ -84,7 +84,11 @@ export class ProgramsController {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
     // D281: the targets' titles in the caller's language (`Accept-Language`, else Arabic).
-    return this.tasks.hostTargets(user.id, caller, languageFromAcceptLanguage(req.headers['accept-language']) ?? 'ar');
+    return this.tasks.hostTargets(
+      user.id,
+      caller,
+      languageFromAcceptLanguage(req.headers['accept-language']) ?? 'ar',
+    );
   }
 
   /** v1.44-live (D199) `GET /me/host-gift-stats?period=DAY|WEEK|MONTH|ALL`: the caller's own. */

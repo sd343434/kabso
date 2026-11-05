@@ -564,7 +564,9 @@ export class TasksService {
     now: Date,
     subject: string | null = null,
   ): Promise<number> {
-    const rows = await db.$queryRaw<{ n: bigint | number | null }[]>(progressSql(me, metric, w, now, subject));
+    const rows = await db.$queryRaw<{ n: bigint | number | null }[]>(
+      progressSql(me, metric, w, now, subject),
+    );
     return Number(rows[0]?.n ?? 0);
   }
 
@@ -712,7 +714,8 @@ export class TasksService {
           rewardCherries: r.rewardCherries,
           pooled: true,
           subject: r.subject,
-          window: r.windowFrom !== null && r.windowTo !== null ? { from: r.windowFrom, to: r.windowTo } : null,
+          window:
+            r.windowFrom !== null && r.windowTo !== null ? { from: r.windowFrom, to: r.windowTo } : null,
           nameAr: r.nameAr,
           nameEn: r.nameEn,
         });
@@ -736,7 +739,8 @@ export class TasksService {
       }
       const target = def.bandTargets[band! - 1] ?? 0;
       const rewardCherries = def.bandRewards[band! - 1] ?? 0;
-      if (target > 0 && rewardCherries > 0) fixed.push({ def, target, rewardCherries, pooled: false, ...PLAIN });
+      if (target > 0 && rewardCherries > 0)
+        fixed.push({ def, target, rewardCherries, pooled: false, ...PLAIN });
     }
     return [...pooled, ...fixed];
   }
@@ -756,7 +760,11 @@ export class TasksService {
     noRepeatDays: number,
   ): Promise<TaskProfile> {
     const now = this.clock.now();
-    const week: ProgramWindow = { date: day, start: new Date(dayStart.getTime() - 7 * 86_400_000), end: dayStart };
+    const week: ProgramWindow = {
+      date: day,
+      start: new Date(dayStart.getTime() - 7 * 86_400_000),
+      end: dayStart,
+    };
     const month = new Date(dayStart.getTime() - 30 * 86_400_000);
     const [favourites, hours, family, recent, claimed, host, level, bands] = await Promise.all([
       db.$queryRaw<{ code: string }[]>`
@@ -773,7 +781,10 @@ export class TasksService {
       db.$queryRaw<{ inside: boolean }[]>`
         SELECT EXISTS (SELECT 1 FROM family_members WHERE user_id = ${me}::uuid) AS inside`,
       db.taskAssignment.findMany({
-        where: { userId: me, day: { gte: dateValue(addDays(day, -Math.max(7, noRepeatDays))), lt: dateValue(day) } },
+        where: {
+          userId: me,
+          day: { gte: dateValue(addDays(day, -Math.max(7, noRepeatDays))), lt: dateValue(day) },
+        },
         select: { day: true, taskCode: true, variant: true },
       }),
       db.$queryRaw<{ n: number }[]>`
@@ -808,7 +819,9 @@ export class TasksService {
       recentVariants: recent
         .filter((r) => r.variant !== null && r.day.toISOString().slice(0, 10) >= sinceRepeat)
         .map((r) => r.variant!),
-      yesterdayTemplates: recent.filter((r) => r.day.toISOString().slice(0, 10) === yesterday).map((r) => r.taskCode),
+      yesterdayTemplates: recent
+        .filter((r) => r.day.toISOString().slice(0, 10) === yesterday)
+        .map((r) => r.taskCode),
       inFamily: family[0]?.inside ?? false,
       favouriteGifts,
       activeHours,
@@ -840,11 +853,21 @@ export class TasksService {
     if (templates.length === 0) return;
     const settings = await this.targets.settings(db);
     const gifts = await this.targets.catalogueGifts(db);
-    const profile = await this.taskProfile(db, me, day, dayStart, catalogueTemplates(templates), settings.taskNoRepeatDays);
+    const profile = await this.taskProfile(
+      db,
+      me,
+      day,
+      dayStart,
+      catalogueTemplates(templates),
+      settings.taskNoRepeatDays,
+    );
     const picks = assignSmartTasks(templates, profile, gifts, taskSeed(me, day));
     const giftBy = new Map(gifts.map((g) => [g.code, g]));
     const cats = new Map(
-      (await db.giftCategory.findMany({ select: { code: true, nameAr: true, nameEn: true } })).map((c) => [c.code, c]),
+      (await db.giftCategory.findMany({ select: { code: true, nameAr: true, nameEn: true } })).map((c) => [
+        c.code,
+        c,
+      ]),
     );
     const byCode = new Map(templates.map((t) => [t.code, t]));
     await db.taskAssignment.createMany({
@@ -870,7 +893,7 @@ export class TasksService {
           windowTo: whole ? null : p.variant.window.to,
           nameAr: s !== null || !whole ? names.ar.slice(0, 160) : null,
           nameEn: s !== null || !whole ? names.en.slice(0, 160) : null,
-          reason: p.reason as unknown as Prisma.InputJsonValue,
+          reason: p.reason,
         };
       }),
       skipDuplicates: true,
@@ -943,7 +966,8 @@ export class TasksService {
     gift: ProgramTaskDto['gift'] = null,
   ): ProgramTaskDto {
     const { def, target } = task;
-    const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    const hm = (m: number) =>
+      `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     return {
       code: def.code,
       pooled: task.pooled,
@@ -1400,7 +1424,9 @@ export class TasksService {
       this.hostCherries(host, day.start, day.end, true),
       this.supporters(host, day.start, day.end, false, HOST_SUPPORTERS_LIMIT, me),
       this.supporters(host, day.start, day.end, true, HOST_SUPPORTERS_LIMIT, me),
-      this.levelOf(this.prisma, host).then(async (level) => bandForLevel(level, await this.bands(this.prisma))),
+      this.levelOf(this.prisma, host).then(async (level) =>
+        bandForLevel(level, await this.bands(this.prisma)),
+      ),
     ]);
     const wholeDay = (kind: string) => daily.find((t) => t.kind === kind && t.window === null)?.amount ?? 0;
     const target = (received: number, t: number): HostTargetDto => ({
@@ -1419,7 +1445,8 @@ export class TasksService {
       lucky: target(luckyCherries, wholeDay('LUCKY_CHERRIES')),
       topSupporters: top.list,
       luckySupporters: luckyTop.list,
-      me: me !== null && top.me && luckyTop.me ? { gifts: top.me, cherries: top.me, lucky: luckyTop.me } : null,
+      me:
+        me !== null && top.me && luckyTop.me ? { gifts: top.me, cherries: top.me, lucky: luckyTop.me } : null,
       daily,
     };
   }
@@ -1453,7 +1480,11 @@ export class TasksService {
    * cherries side is «هدف الهدايا»'s — gifts outside the lucky category from other people (the series
    * too); lucky adds the cherries of lucky gifts (self-sends included).
    */
-  async hostGiftStats(me: string, period: HostStatsPeriod, lang: ContentLanguage = 'ar'): Promise<HostGiftStatsDto> {
+  async hostGiftStats(
+    me: string,
+    period: HostStatsPeriod,
+    lang: ContentLanguage = 'ar',
+  ): Promise<HostGiftStatsDto> {
     const now = this.clock.now();
     const windows = await programWindowsIn(this.prisma, now, this.zone);
     const w =

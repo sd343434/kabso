@@ -65,7 +65,8 @@ export function isAllDay(w: TargetWindow): boolean {
 
 /** `20:00–24:00`. */
 export function windowLabel(w: TargetWindow): string {
-  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  const hm = (m: number) =>
+    `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   return `${hm(w.from)}–${hm(w.to)}`;
 }
 
@@ -82,8 +83,8 @@ export const CHERRY_LADDER: readonly number[] = (() => {
 
 /** Gift counts (one gift, a category, all gifts): 40 steps from 1 to 10 000. */
 export const COUNT_LADDER: readonly number[] = [
-  1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 75, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600,
-  750, 800, 1_000, 1_200, 1_500, 2_000, 2_500, 3_000, 4_000, 5_000, 6_000, 7_500, 10_000,
+  1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 75, 80, 100, 120, 150, 200, 250, 300, 400, 500,
+  600, 750, 800, 1_000, 1_200, 1_500, 2_000, 2_500, 3_000, 4_000, 5_000, 6_000, 7_500, 10_000,
 ];
 
 /** Different supporters: 20 steps. */
@@ -362,7 +363,12 @@ export function rewardCherriesFor(profitUnits: bigint, pctBps: number, e: Profit
  * What a completed target pays (owner's guard): the reward shown (from the nominal amount) but never more than
  * `pctBps` of the profit ACTUALLY counted by the target (its gifts of the day, in its window).
  */
-export function cappedTargetReward(shownReward: number, actualProfitUnits: bigint, pctBps: number, e: ProfitEconomy): number {
+export function cappedTargetReward(
+  shownReward: number,
+  actualProfitUnits: bigint,
+  pctBps: number,
+  e: ProfitEconomy,
+): number {
   return Math.max(0, Math.min(shownReward, rewardCherriesFor(actualProfitUnits, pctBps, e)));
 }
 
@@ -548,7 +554,10 @@ const avg = (xs: readonly number[]) => (xs.length === 0 ? 0 : xs.reduce((a, b) =
 /**
  * The window of `hours` hours with the most of `perHour` (ties: the earliest), with its share of the total.
  */
-export function busiestWindow(perHour: readonly number[], hours: number): { window: TargetWindow; share: number } {
+export function busiestWindow(
+  perHour: readonly number[],
+  hours: number,
+): { window: TargetWindow; share: number } {
   const total = perHour.reduce((a, b) => a + b, 0);
   let best = 0;
   let bestSum = -1;
@@ -602,7 +611,9 @@ function candidatesOf(p: HostProfile, gifts: readonly CatalogueGift[], e: Profit
     });
   }
   // The usual time of day: when most of the cherries come within ≤ 4 hours, a windowed value target.
-  const hourTotals = Array.from({ length: 24 }, (_, h) => days.reduce((a, d) => a + (d.hourCherries[h] ?? 0), 0));
+  const hourTotals = Array.from({ length: 24 }, (_, h) =>
+    days.reduce((a, d) => a + (d.hourCherries[h] ?? 0), 0),
+  );
   for (const hours of [2, 3, 4]) {
     const { window, share } = busiestWindow(hourTotals, hours);
     if (share >= 0.6 && totalGift > 0) {
@@ -684,9 +695,13 @@ function candidatesOf(p: HostProfile, gifts: readonly CatalogueGift[], e: Profit
   // The gifts the host usually receives (on ≥ 30 % of active days): a count target of one of them.
   const byCode = new Map(gifts.map((g) => [g.code, g]));
   const usual = new Map<string, number>();
-  for (const d of days) for (const [code, q] of Object.entries(d.giftQty)) if (q > 0) usual.set(code, (usual.get(code) ?? 0) + 1);
+  for (const d of days)
+    for (const [code, q] of Object.entries(d.giftQty)) if (q > 0) usual.set(code, (usual.get(code) ?? 0) + 1);
   const usualGifts = [...usual.entries()]
-    .filter(([code, k]) => byCode.has(code) && byCode.get(code)!.priceCoins > 0 && k >= Math.max(1, Math.ceil(n * 0.3)))
+    .filter(
+      ([code, k]) =>
+        byCode.has(code) && byCode.get(code)!.priceCoins > 0 && k >= Math.max(1, Math.ceil(n * 0.3)),
+    )
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
     .slice(0, 5);
   for (const [code, k] of usualGifts) {
@@ -738,7 +753,11 @@ function candidatesOf(p: HostProfile, gifts: readonly CatalogueGift[], e: Profit
 }
 
 /** The coins behind `amount` of a candidate (value kinds: the cherries' coins at the candidate's share). */
-function expectedCoinsOf(c: { kind: TargetKind; unitCoins: number; shareBps: number }, amount: number, e: ProfitEconomy): number {
+function expectedCoinsOf(
+  c: { kind: TargetKind; unitCoins: number; shareBps: number },
+  amount: number,
+  e: ProfitEconomy,
+): number {
   if (c.kind === 'GIFT_CHERRIES' || c.kind === 'LUCKY_CHERRIES') {
     return c.shareBps > 0 ? Math.floor((amount * 10_000) / (e.cherriesPerCoin * c.shareBps)) : 0;
   }
@@ -783,7 +802,10 @@ export function assignHostTargets(
 
   const finish = (
     level: TargetLevel,
-    c: Pick<Candidate, 'kind' | 'subject' | 'window' | 'unitCoins' | 'lucky' | 'shareBps' | 'label' | 'labelAr'>,
+    c: Pick<
+      Candidate,
+      'kind' | 'subject' | 'window' | 'unitCoins' | 'lucky' | 'shareBps' | 'label' | 'labelAr'
+    >,
     basis: number,
     values: readonly number[],
     pct: number,
@@ -816,7 +838,10 @@ export function assignHostTargets(
     used.add(target.code);
     const expectedCoins = expectedCoinsOf(c, amount, e);
     const rewardBps = rewardBpsOf(level, tuning);
-    const profit = expectedProfitUnits(c.kind, amount, expectedCoins, e, { lucky: c.lucky, shareBps: c.shareBps });
+    const profit = expectedProfitUnits(c.kind, amount, expectedCoins, e, {
+      lucky: c.lucky,
+      shareBps: c.shareBps,
+    });
     const r = (x: number) => Math.round(x);
     const last7 = values.slice(0, 7);
     const reason: TargetReason = {
@@ -835,16 +860,27 @@ export function assignHostTargets(
         ? `New host (${String(n)} active days): band ${String(profile.band)} default for ${level.toLowerCase()} — ${c.label}.`
         : `${c.label}: ${level.toLowerCase()} = the ${String(pct)}th percentile of ${String(n)} active days (${String(r(basis))}); ` +
           `7-day average ${String(r(avg(last7)))}, best ${String(values.length > 0 ? Math.max(...values) : 0)}` +
-          (adjustment !== 0 ? `; completion ${String(Math.round((rate ?? 0) * 100))}% → ${adjustment > 0 ? '+' : ''}${String(adjustment)} points` : '') +
+          (adjustment !== 0
+            ? `; completion ${String(Math.round((rate ?? 0) * 100))}% → ${adjustment > 0 ? '+' : ''}${String(adjustment)} points`
+            : '') +
           '.',
       whyAr: newHost
         ? `مضيف جديد (${String(n)} أيام نشطة): القيمة الافتراضية للشريحة ${String(profile.band)} — ${c.labelAr}.`
         : `${c.labelAr}: المستوى = المئين ${String(pct)} من ${String(n)} يوماً نشطاً (${String(r(basis))})؛ ` +
           `متوسط 7 أيام ${String(r(avg(last7)))}، الأفضل ${String(values.length > 0 ? Math.max(...values) : 0)}` +
-          (adjustment !== 0 ? `؛ نسبة الإنجاز ${String(Math.round((rate ?? 0) * 100))}% ← ${adjustment > 0 ? '+' : ''}${String(adjustment)}` : '') +
+          (adjustment !== 0
+            ? `؛ نسبة الإنجاز ${String(Math.round((rate ?? 0) * 100))}% ← ${adjustment > 0 ? '+' : ''}${String(adjustment)}`
+            : '') +
           '.',
     };
-    return { level, target, expectedCoins, rewardBps, rewardCherries: rewardCherriesFor(profit, rewardBps, e), reason };
+    return {
+      level,
+      target,
+      expectedCoins,
+      rewardBps,
+      rewardCherries: rewardCherriesFor(profit, rewardBps, e),
+      reason,
+    };
   };
 
   if (newHost) {
@@ -866,8 +902,17 @@ export function assignHostTargets(
             lucky: false,
             shareBps: normalShare,
             label:
-              kind === 'GIFT_SENDS' ? 'gifts received' : kind === 'SUPPORTERS' ? 'different supporters' : 'cherries from gifts',
-            labelAr: kind === 'GIFT_SENDS' ? 'الهدايا المستلمة' : kind === 'SUPPORTERS' ? 'داعمون مختلفون' : 'كرز الهدايا',
+              kind === 'GIFT_SENDS'
+                ? 'gifts received'
+                : kind === 'SUPPORTERS'
+                  ? 'different supporters'
+                  : 'cherries from gifts',
+            labelAr:
+              kind === 'GIFT_SENDS'
+                ? 'الهدايا المستلمة'
+                : kind === 'SUPPORTERS'
+                  ? 'داعمون مختلفون'
+                  : 'كرز الهدايا',
           },
           basis,
           [],
@@ -890,7 +935,9 @@ export function assignHostTargets(
   }
   const drawn: Candidate[] = [];
   const take = (pool: Candidate[]): Candidate | null => {
-    const free = pool.filter((c) => !drawn.includes(c) && !drawn.some((d) => d.kind === c.kind && d.subject === c.subject));
+    const free = pool.filter(
+      (c) => !drawn.includes(c) && !drawn.some((d) => d.kind === c.kind && d.subject === c.subject),
+    );
     if (free.length === 0) return null;
     const total = free.reduce((a, c) => a + c.weight, 0);
     let x = random() * total;

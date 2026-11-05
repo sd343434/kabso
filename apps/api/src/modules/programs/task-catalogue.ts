@@ -6,7 +6,14 @@
  * about 1 % of their coin value; the daily and monthly caps); they are separate from the host targets'
  * profit-share rewards (host-target-engine.ts). Pure rules only; unit-tested in task-catalogue.spec.ts.
  */
-import { catalogueWindows, isAllDay, windowLabel, type CatalogueGift, type TargetWindow, ALL_DAY } from './host-target-engine.js';
+import {
+  catalogueWindows,
+  isAllDay,
+  windowLabel,
+  type CatalogueGift,
+  type TargetWindow,
+  ALL_DAY,
+} from './host-target-engine.js';
 import { seedOf, type TaskMetric, type TaskPoolBand } from './programs-rules.js';
 
 /** D281: the task metrics that take a gift (`subject` = a gift code) or a category (`subject` = its code). */
@@ -30,8 +37,8 @@ export const TARGET_METRICS: readonly TaskMetric[] = ['HOST_GIFT_CHERRIES', 'HOS
 
 /** Counts (actions): 40 steps. */
 export const TASK_COUNT_LADDER: readonly number[] = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 18, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80, 90, 100, 120, 150, 200,
-  250, 300, 400, 500, 600, 750, 800, 900, 1_000,
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 18, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80, 90, 100, 120,
+  150, 200, 250, 300, 400, 500, 600, 750, 800, 900, 1_000,
 ];
 /** Minutes: 24 steps. */
 export const TASK_MINUTES_LADDER: readonly number[] = [
@@ -39,8 +46,8 @@ export const TASK_MINUTES_LADDER: readonly number[] = [
 ];
 /** Hearts: 25 steps. */
 export const TASK_TAPS_LADDER: readonly number[] = [
-  10, 20, 30, 40, 50, 60, 75, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 800, 1_000, 1_200, 1_500, 2_000,
-  2_500, 3_000,
+  10, 20, 30, 40, 50, 60, 75, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 750, 800, 1_000, 1_200, 1_500,
+  2_000, 2_500, 3_000,
 ];
 /** Coin values: 15 «round» steps per decade from 100 to 9 000 000 (75 steps). */
 export const TASK_COIN_LADDER: readonly number[] = (() => {
@@ -111,7 +118,10 @@ function subjectsOf(metric: TaskMetric, gifts: readonly CatalogueGift[]): (strin
 }
 
 /** Every task of the catalogue (deterministic order). */
-export function* enumerateTasks(templates: readonly TaskTemplate[], gifts: readonly CatalogueGift[]): Generator<TaskVariant> {
+export function* enumerateTasks(
+  templates: readonly TaskTemplate[],
+  gifts: readonly CatalogueGift[],
+): Generator<TaskVariant> {
   const windows = catalogueWindows();
   for (const t of [...catalogueTemplates(templates)].sort((a, b) => (a.code < b.code ? -1 : 1))) {
     for (const subject of subjectsOf(t.metric, gifts)) {
@@ -145,9 +155,11 @@ export function taskCatalogueStats(
 /** The template's target and reward in `band` (1…4); the first band that offers it when this one does not. */
 function bandValues(t: TaskTemplate, band: number): { target: number; reward: number } {
   const i = band - 1;
-  if ((t.bandTargets[i] ?? 0) > 0 && (t.bandRewards[i] ?? 0) > 0) return { target: t.bandTargets[i]!, reward: t.bandRewards[i]! };
+  if ((t.bandTargets[i] ?? 0) > 0 && (t.bandRewards[i] ?? 0) > 0)
+    return { target: t.bandTargets[i]!, reward: t.bandRewards[i]! };
   for (let k = 0; k < t.bandTargets.length; k++) {
-    if ((t.bandTargets[k] ?? 0) > 0 && (t.bandRewards[k] ?? 0) > 0) return { target: t.bandTargets[k]!, reward: t.bandRewards[k]! };
+    if ((t.bandTargets[k] ?? 0) > 0 && (t.bandRewards[k] ?? 0) > 0)
+      return { target: t.bandTargets[k]!, reward: t.bandRewards[k]! };
   }
   return { target: 0, reward: 0 };
 }
@@ -265,7 +277,9 @@ export function assignSmartTasks(
 ): TaskVariantPick[] {
   const random = generator(seed);
   const band = profile.band;
-  const paidGifts = gifts.filter((g) => g.priceCoins > 0 && !g.lucky).sort((a, b) => (a.code < b.code ? -1 : 1));
+  const paidGifts = gifts
+    .filter((g) => g.priceCoins > 0 && !g.lucky)
+    .sort((a, b) => (a.code < b.code ? -1 : 1));
   const offered = catalogueTemplates(templates)
     .filter((t) => bandValues(t, band.band).target > 0 && (t.bandTargets[band.band - 1] ?? 0) > 0)
     .filter((t) => t.audience === 'EVERYONE' || profile.isHost)
@@ -306,7 +320,10 @@ export function assignSmartTasks(
   take(everyone, band.dailyCount, Number.MAX_SAFE_INTEGER);
 
   const factor = taskCompletionFactor(profile.recentClaimed, profile.recentAssigned);
-  const rate = profile.recentAssigned > 0 ? Math.round((profile.recentClaimed / profile.recentAssigned) * 100) / 100 : null;
+  const rate =
+    profile.recentAssigned > 0
+      ? Math.round((profile.recentClaimed / profile.recentAssigned) * 100) / 100
+      : null;
   const recent = new Set(profile.recentVariants);
   const usual = usualWindow(profile.activeHours);
   let windowUsed = false;
@@ -349,7 +366,13 @@ export function assignSmartTasks(
       }
     }
     const amount = ladder[i]!;
-    const variant: TaskVariant = { code: variantCode({ template: t.code, subject, amount, window }), template: t.code, subject, amount, window };
+    const variant: TaskVariant = {
+      code: variantCode({ template: t.code, subject, amount, window }),
+      template: t.code,
+      subject,
+      amount,
+      window,
+    };
     const coinValue = subjectCoins ? amount * unitPrice : amount;
     const rewardCherries = variantReward(t, band.band, amount, coinValue);
     const why =
@@ -392,7 +415,10 @@ export function variantName(
   const winAr = isAllDay(v.window) ? '' : ` بين ${windowLabel(v.window)}`;
   const winEn = isAllDay(v.window) ? '' : ` between ${windowLabel(v.window)}`;
   if (GIFT_SUBJECT_METRICS.includes(t.metric)) {
-    return { ar: `أرسل ${a} من ${names.ar ?? v.subject ?? ''}${winAr}`, en: `Send ${a} × ${names.en ?? v.subject ?? ''}${winEn}` };
+    return {
+      ar: `أرسل ${a} من ${names.ar ?? v.subject ?? ''}${winAr}`,
+      en: `Send ${a} × ${names.en ?? v.subject ?? ''}${winEn}`,
+    };
   }
   if (CATEGORY_SUBJECT_METRICS.includes(t.metric)) {
     return {
