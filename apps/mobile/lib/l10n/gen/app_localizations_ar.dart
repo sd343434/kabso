@@ -14505,4 +14505,46 @@ class AppLocalizationsAr extends AppLocalizations {
   ) {
     return '$title، $duration، $details';
   }
+
+  @override
+  String profileTagsMore(int count) {
+    return '$count منشنات أخرى';
+  }
+
+  @override
+  String get profileEditTags => 'المنشنات';
+
+  @override
+  String profileEditTagsValue(int count) {
+    return '$count من 10';
+  }
+
+  @override
+  String get profileEditTagsHint =>
+      'حتى 10 منشنات قصيرة تظهر على غلاف ملفك، حتى 24 حرفاً لكل منها.';
+
+  @override
+  String get profileEditTagField => 'منشن جديد';
+
+  @override
+  String get profileEditTagAdd => 'إضافة';
+
+  @override
+  String profileEditTagRemove(String tag) {
+    return 'حذف $tag';
+  }
+
+  @override
+  String profileEditTagTooLong(int max) {
+    return '$max حرفاً على الأكثر.';
+  }
+
+  @override
+  String get profileEditTagDuplicate => 'هذا المنشن مضاف بالفعل.';
+
+  @override
+  String get profileEditTagInvalid => 'يحتوي على رموز غير مسموح بها.';
+
+  @override
+  String get profileEditTagsFull => 'وصلت إلى 10 منشنات.';
 }

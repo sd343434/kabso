@@ -42,6 +42,9 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       links: json['links'] == null
           ? const <ProfileLink>[]
           : profileLinksFromJson(json['links']),
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+          const <String>[],
       rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
       hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
       avatarFrame: avatarFrameFromJson(json['avatarFrame']),
@@ -80,6 +83,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'gender': genderToJson(instance.gender),
       'category': accountCategoryToJson(instance.category),
       'links': profileLinksToJson(instance.links),
+      'tags': instance.tags,
       'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
       'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
       'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),

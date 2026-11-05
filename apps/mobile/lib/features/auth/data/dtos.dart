@@ -32,6 +32,7 @@ class MeDto {
     this.showGender = false,
     this.category,
     this.links = const [],
+    this.tags = const [],
     this.specialUsername,
     this.coverUrl,
     this.kabsoTeam = false,
@@ -82,6 +83,9 @@ class MeDto {
   @JsonKey(fromJson: profileLinksFromJson, toJson: profileLinksToJson)
   final List<ProfileLink> links;
 
+  /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order.
+  final List<String> tags;
+
   /// v1.54-social (D185, §10.48.1): the caller's active special username
   /// (with the base username — only ever in the caller's own `Me`).
   @JsonKey(
@@ -121,6 +125,7 @@ class MeDto {
     showGender: showGender,
     category: category,
     links: links,
+    tags: tags,
     specialUsername: specialUsername,
     coverUrl: coverUrl,
     kabsoTeam: kabsoTeam,

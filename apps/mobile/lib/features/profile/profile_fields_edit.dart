@@ -28,6 +28,10 @@ abstract final class EditProfileFieldsKeys {
   static Key linkRemove(int i) => Key('profile.edit.link.$i.remove');
   static const linkAdd = Key('profile.edit.link.add');
   static const linksSave = Key('profile.edit.links.save');
+  static const tagField = Key('profile.edit.tag.field');
+  static const tagAdd = Key('profile.edit.tag.add');
+  static Key tagChip(int i) => Key('profile.edit.tag.$i');
+  static const tagsSave = Key('profile.edit.tags.save');
 }
 
 Future<void> _save(
@@ -467,6 +471,195 @@ class _EditLinksScreenState extends ConsumerState<EditLinksScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// D278b (owner: «منشنات يضعها الشخص معاه لغاية ١٠», §10.99): the tags
+/// editor — up to 10 short tags (one line, 24 characters each, no
+/// duplicates ignoring case), shown as chips on the profile cover. Save
+/// sends the whole set (`PATCH /me {tags}`).
+class EditTagsScreen extends ConsumerStatefulWidget {
+  const new({required this.initial, super.key});
+
+  final List<String> initial;
+
+  static const int maxTags = 10;
+  static const int maxLength = 24;
+
+  @override
+  ConsumerState<EditTagsScreen> createState() => _EditTagsScreenState();
+}
+
+class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
+  late final List<String> _tags = [...widget.initial];
+  final _field = TextEditingController();
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _field.dispose();
+    super.dispose();
+  }
+
+  bool get _dirty =>
+      _tags.length != widget.initial.length ||
+      _tags.indexed.any((e) => e.$2 != widget.initial[e.$1]);
+
+  /// The app's copy of the server's rule (§10.99); null when [tag] is fine.
+  String? _issue(AppLocalizations l10n, String tag) {
+    if (tag.runes.length > EditTagsScreen.maxLength) {
+      return l10n.profileEditTagTooLong(EditTagsScreen.maxLength);
+    }
+    if (RegExp(r'[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]')
+        .hasMatch(tag)) {
+      return l10n.profileEditTagInvalid;
+    }
+    final key = tag.toLowerCase();
+    if (_tags.any((t) => t.toLowerCase() == key)) {
+      return l10n.profileEditTagDuplicate;
+    }
+    return null;
+  }
+
+  void _add() {
+    final l10n = context.l10n;
+    final tag = _field.text.trim();
+    if (tag.isEmpty || _tags.length >= EditTagsScreen.maxTags) return;
+    final issue = _issue(l10n, tag);
+    setState(() {
+      _error = issue;
+      if (issue == null) {
+        _tags.add(tag);
+        _field.clear();
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    final l10n = context.l10n;
+    if (_saving || !_dirty) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(saveProfileFieldsProvider)(
+        ProfileFieldsChange(tags: [..._tags]),
+      );
+      if (!mounted) return;
+      KSnack.success(context, l10n.profileEditSaved);
+      Navigator.of(context).pop();
+    } on Object catch (e) {
+      if (!mounted) return;
+      final failure = toAppFailure(e);
+      String? shown;
+      if (failure is ServerFailure) {
+        for (final d in failure.details) {
+          if (!d.field.startsWith('tags')) continue;
+          shown = switch (d.issue) {
+            'too_long' => l10n.profileEditTagTooLong(EditTagsScreen.maxLength),
+            'invalid_value' => l10n.profileEditTagDuplicate,
+            'too_many' => l10n.profileEditTagsFull,
+            _ => l10n.profileEditTagInvalid,
+          };
+          break;
+        }
+      }
+      setState(() {
+        _saving = false;
+        _error = shown;
+      });
+      if (shown == null) KSnack.error(context, failureMessage(l10n, failure));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final full = _tags.length >= EditTagsScreen.maxTags;
+    return Scaffold(
+      backgroundColor: p.background,
+      appBar: KAppBar(
+        backgroundColor: p.background,
+        centerTitle: true,
+        title: Text(l10n.profileEditTags),
+        actions: [
+          TextButton(
+            key: EditProfileFieldsKeys.tagsSave,
+            onPressed: !_saving && _dirty ? _save : null,
+            child: _saving
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.profileEditSave),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(KSpacing.lg),
+        children: [
+          Text(
+            l10n.profileEditTagsHint,
+            style: t.caption.copyWith(color: p.textSecondary),
+          ),
+          const SizedBox(height: KSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  key: EditProfileFieldsKeys.tagField,
+                  controller: _field,
+                  enabled: !_saving && !full,
+                  maxLength: EditTagsScreen.maxLength,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  onSubmitted: (_) => _add(),
+                  decoration: InputDecoration(
+                    labelText: l10n.profileEditTagField,
+                    errorText:
+                        _error ?? (full ? l10n.profileEditTagsFull : null),
+                    errorMaxLines: 2,
+                    counterText: '',
+                  ),
+                ),
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.only(top: KSpacing.xs),
+                child: FilledButton(
+                  key: EditProfileFieldsKeys.tagAdd,
+                  onPressed: _saving || full ? null : _add,
+                  child: Text(l10n.profileEditTagAdd),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.lg),
+          Wrap(
+            spacing: KSpacing.sm,
+            runSpacing: KSpacing.sm,
+            children: [
+              for (final (i, tag) in _tags.indexed)
+                InputChip(
+                  key: EditProfileFieldsKeys.tagChip(i),
+                  label: Text(tag),
+                  deleteButtonTooltipMessage: l10n.profileEditTagRemove(tag),
+                  onDeleted: _saving
+                      ? null
+                      : () => setState(() {
+                          _tags.removeAt(i);
+                          _error = null;
+                        }),
+                ),
+            ],
+          ),
         ],
       ),
     );

@@ -113,23 +113,27 @@ void main() {
     expect(cover.top, 0);
     expect(cover.width, 393);
     expect(cover.height, KPublicProfile.coverHeightFor(852));
+    // D278b: the photo rises into the picture; under it the name row
+    // (with the level badges), the numbers and «Edit profile» on the dark
+    // block; the bio after the header.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    expect(photo.top, greaterThanOrEqualTo(cover.top));
-    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(photo.top, lessThan(cover.bottom));
+    final header = tester.getRect(find.byKey(ProfileCoverHeader.headerKey));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
-    expect(name.bottom, lessThanOrEqualTo(cover.bottom));
-    expect(name.overlaps(photo), isFalse);
+    expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
+    final nameRow = tester.getRect(find.byKey(ProfileCoverHeader.nameRowKey));
     final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
-    expect(levels.top, greaterThanOrEqualTo(name.bottom));
+    expect(levels.top, greaterThanOrEqualTo(nameRow.top - 0.5));
+    expect(levels.bottom, lessThanOrEqualTo(nameRow.bottom + 0.5));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
-    expect(stats.top, greaterThanOrEqualTo(levels.bottom));
-    expect(stats.bottom, lessThanOrEqualTo(cover.bottom));
-    expect(find.textContaining('5,600'), findsOneWidget);
-    expect(find.textContaining(_en.profileFollowerWord), findsOneWidget);
+    expect(stats.top, greaterThanOrEqualTo(nameRow.bottom));
+    expect(stats.bottom, lessThanOrEqualTo(header.bottom));
+    expect(find.textContaining('5.6K'), findsOneWidget);
+    expect(find.text(_en.liveCardFollowers), findsOneWidget);
     expect(find.text('Music every evening'), findsOneWidget);
     expect(
       tester.getRect(find.text('Music every evening')).top,
-      greaterThanOrEqualTo(cover.bottom),
+      greaterThanOrEqualTo(header.bottom),
     );
     final edit = find.byKey(ProfileScreen.editButtonKey);
     expect(
@@ -137,7 +141,7 @@ void main() {
       findsOneWidget,
     );
     expect(tester.getSize(edit).height, KPublicProfile.buttonHeight);
-    expect(tester.getRect(edit).bottom, lessThanOrEqualTo(cover.bottom));
+    expect(tester.getRect(edit).top, greaterThanOrEqualTo(stats.bottom));
     expect(find.byType(LivePkRecordLine), findsNothing);
   });
 

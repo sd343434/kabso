@@ -13,6 +13,15 @@
 // at 1.3 and 2.0; the bar turns solid (the @username) once the cover has
 // scrolled away and the tabs pin under it.
 //
+// D278b (owner, comparing with the reference: «صورة شخصية نريد رفعها
+// للاعلى قليلاً، الاسم يظهر بجانبه الليفيلات، باسفله اليوزر، بالاسفل
+// المتابعون والمتابعهم والكرز المستلم والكوينز المرسل، ثم منشنات … لغاية ١٠
+// بسطرين فقط، والاسفل روابط … واجعل الغلاف اقل ارتفاع مثلاً ٤٢٪»): the
+// picture is 42 % of the screen and fades into a dark block; the photo
+// rises into the picture; the name, the VIP badge and the level badges on
+// one line; the @username; the four numbers; the buttons; the tags (two
+// lines at most, «+n»); the links.
+//
 // With D278_CAPTURE_DIR set, the capture group writes PNGs there (not
 // committed).
 
@@ -22,6 +31,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
@@ -29,6 +39,8 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/levels/application/levels_providers.dart';
+import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -38,6 +50,7 @@ import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/levels/levels_api_fixtures.dart';
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
@@ -64,7 +77,44 @@ PublicProfile otherProfile({
   followerCount: 47200,
   followingCount: 1782,
   hostAgentCode: 'H-1001',
+  cherriesReceived: 1250000,
+  coinsSent: 86400,
+  tags: sampleTags(ar: ar),
+  links: const [
+    ProfileLink(
+      id: 'l1',
+      url: 'https://www.instagram.com/nabb',
+      platform: ProfileLinkPlatform.instagram,
+    ),
+  ],
 );
+
+/// Ten tags: more than two lines on a phone, so the «+n» chip shows.
+List<String> sampleTags({required bool ar}) => ar
+    ? [
+        'صانع محتوى',
+        'السعودية',
+        'البقاء للأقوى',
+        'Top 10',
+        'مطرب',
+        'ألعاب',
+        'جيش النمر',
+        'موسيقى',
+        'سهرات',
+        'شعر',
+      ]
+    : [
+        'Content creator',
+        'Saudi Arabia',
+        'Survival of the fittest',
+        'Top 10',
+        'Singer',
+        'Gamer',
+        'Tiger army',
+        'Music',
+        'Late nights',
+        'Poetry',
+      ];
 
 User me({required bool ar, bool cover = true}) => User(
   id: 'user-0',
@@ -78,10 +128,26 @@ User me({required bool ar, bool cover = true}) => User(
   createdAt: DateTime.utc(2026, 10),
   bio: ar ? 'موسيقى عربية كل مساء' : 'Arabic music every evening',
   coverUrl: cover ? coverUrl : null,
+  tags: sampleTags(ar: ar).take(4).toList(),
 );
 
 final List<Override> _common = [
   secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+  // D278b: the level badges beside the name.
+  profileLevelsProvider.overrideWith(
+    (ref, _) async => [
+      PublicLevel(
+        category: LevelCategory.attractiveness,
+        name: 'Charm',
+        level: LevelBrief.fromJson(levelBriefJson(37)),
+      ),
+      PublicLevel(
+        category: LevelCategory.support,
+        name: 'Support',
+        level: LevelBrief.fromJson(levelBriefJson(12)),
+      ),
+    ],
+  ),
   profileGridProvider.overrideWith(
     (ref, _) =>
         FeedItems([for (var i = 0; i < 30; i++) const ProfileGridItem()]),
@@ -183,43 +249,44 @@ Future<void> pumpOwn(
 
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
-/// The cover from the very top, full width, ≈ 57 % of the screen (or
-/// taller with large text); the name, the handle, the counts and the
-/// buttons over its lower part.
+/// The cover picture from the very top, full width, 42 % of the screen;
+/// the photo rising into it; the name row, the handle, the numbers and the
+/// buttons over the dark block it fades into; nothing outside the screen.
 void expectCover(
   WidgetTester tester, {
   required Size screen,
   required bool own,
-  bool exact = true,
 }) {
   expect(tester.takeException(), isNull);
   final header = _rect(tester, ProfileCoverHeader.headerKey);
   expect(header.top, 0);
   expect(header.left, 0);
   expect(header.width, screen.width);
-  if (exact) {
-    expect(header.height, moreOrLessEquals(screen.height * 0.57, epsilon: 1));
-  } else {
-    expect(header.height, greaterThanOrEqualTo(screen.height * 0.57 - 1));
-  }
-  final fallback = _rect(tester, ProfileCoverHeader.coverFallbackKey);
-  expect(fallback, header);
+  final area = _rect(tester, ProfileCoverHeader.coverAreaKey);
+  expect(area.top, 0);
+  expect(area.width, screen.width);
+  expect(area.height, KPublicProfile.coverHeightFor(screen.height));
+  expect(area.height, moreOrLessEquals(screen.height * 0.42, epsilon: 1));
+  expect(_rect(tester, ProfileCoverHeader.coverFallbackKey), area);
   final bar = tester.getRect(find.byType(AppBar));
+  final photo = _rect(tester, ProfileHeaderView.avatarKey);
+  // D278b: the photo rises into the picture, under the top bar.
+  expect(photo.top, greaterThan(bar.bottom));
+  expect(photo.top, lessThan(area.bottom));
   final name = _rect(tester, const Key('profile.displayName'));
+  final nameRow = _rect(tester, ProfileCoverHeader.nameRowKey);
   final handle = _rect(tester, ProfileCoverHeader.handleKey);
   final stats = _rect(tester, ProfileScreen.statsKey);
-  // Over the cover, under the bar, in the lower part.
-  for (final r in [name, handle, stats]) {
-    expect(r.top, greaterThan(bar.bottom));
+  final actions = _rect(tester, ProfileCoverHeader.actionsKey);
+  expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
+  expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
+  expect(stats.top, greaterThanOrEqualTo(handle.bottom));
+  expect(actions.top, greaterThanOrEqualTo(stats.bottom));
+  for (final r in [name, nameRow, handle, stats, actions]) {
     expect(r.bottom, lessThanOrEqualTo(header.bottom));
     expect(r.left, greaterThanOrEqualTo(0));
     expect(r.right, lessThanOrEqualTo(screen.width));
   }
-  if (exact) expect(name.top, greaterThan(header.top + header.height * 0.4));
-  expect(handle.top, greaterThanOrEqualTo(name.bottom - 1));
-  final photo = _rect(tester, ProfileHeaderView.avatarKey);
-  expect(photo.top, greaterThan(bar.bottom));
-  expect(photo.bottom, lessThanOrEqualTo(header.bottom));
   final buttons = own
       ? [ProfileScreen.editButtonKey]
       : [
@@ -229,14 +296,36 @@ void expectCover(
         ];
   for (final key in buttons) {
     final r = _rect(tester, key);
-    expect(r.top, greaterThanOrEqualTo(stats.top - 1));
-    expect(r.bottom, lessThanOrEqualTo(header.bottom));
+    expect(r.top, greaterThanOrEqualTo(actions.top - 0.5));
+    expect(r.bottom, lessThanOrEqualTo(actions.bottom + 0.5));
     expect(r.left, greaterThanOrEqualTo(0));
     expect(r.right, lessThanOrEqualTo(screen.width));
   }
-  // What follows starts under the cover.
+  // The tags: two lines at most, under the buttons.
+  final tags = find.byKey(ProfileTagChips.wrapKey);
+  if (tags.evaluate().isNotEmpty) {
+    final t = tester.getRect(tags);
+    expect(t.top, greaterThanOrEqualTo(actions.bottom));
+    expect(t.bottom, lessThanOrEqualTo(header.bottom));
+    final chips = find.descendant(
+      of: tags,
+      matching: find.byWidgetPredicate(
+        (w) => w is DecoratedBox && w.decoration is BoxDecoration,
+      ),
+    );
+    final tops = {
+      for (final e in chips.evaluate())
+        tester.getRect(find.byWidget(e.widget)).top.round(),
+    };
+    expect(tops.length, lessThanOrEqualTo(ProfileTagChips.maxLines));
+  }
+  // What follows starts under the header.
+  // (With very large text the header can fill the screen: the rest is
+  // not built yet.)
   final under = find.byType(ProfileInfoBlock);
-  expect(tester.getRect(under).top, header.bottom);
+  if (under.evaluate().isNotEmpty) {
+    expect(tester.getRect(under).top, greaterThanOrEqualTo(header.bottom));
+  }
 }
 
 void main() {
@@ -248,8 +337,10 @@ void main() {
     profileCoverImageFor = NetworkImage.new;
   });
 
-  test('the cover is 57 % of the screen (≈ 486 dp on 393 × 852)', () {
-    expect(KPublicProfile.coverHeightFor(852), 486);
+  test('D278b: the cover picture is 42 % of the screen (≈ 358 dp on '
+      '393 × 852)', () {
+    expect(KPublicProfile.coverHeightFor(852), 358);
+    expect(KPublicProfile.coverHeightFor(800), 336);
   });
 
   group("D278 someone else's profile", () {
@@ -306,14 +397,44 @@ void main() {
             expect(f.right, lessThan(m.left));
             expect(m.right, lessThan(d.left));
           }
-          // D268: the VIP badge right after the name.
+          // D268: the VIP badge right after the name; D278b: the level
+          // badges on the same line, after it.
           final name = _rect(tester, const Key('profile.displayName'));
           final badge = tester.getRect(find.byType(VipNameBadge));
+          final levels = _rect(tester, ProfileInfoBlock.levelsKey);
           if (ar) {
             expect(badge.right, lessThanOrEqualTo(name.left));
+            expect(levels.right, lessThanOrEqualTo(badge.left));
           } else {
             expect(badge.left, greaterThanOrEqualTo(name.right));
+            expect(levels.left, greaterThanOrEqualTo(badge.right));
           }
+          expect(
+            levels.center.dy,
+            moreOrLessEquals(name.center.dy, epsilon: 6),
+          );
+          // D278b: the four numbers, the person card's (short Latin).
+          for (final key in [
+            ProfileHeaderView.followersKey,
+            ProfileHeaderView.followingKey,
+            ProfileCoverHeader.cherriesKey,
+            ProfileCoverHeader.coinsKey,
+          ]) {
+            expect(find.byKey(key), findsOneWidget);
+          }
+          for (final n in ['47.2K', '1.7K', '86.4K']) {
+            expect(find.textContaining(n), findsOneWidget, reason: n);
+          }
+          // The tags as chips, at most two lines (checked above).
+          expect(find.byKey(ProfileTagChips.chipKey(0)), findsOneWidget);
+          // The link, on the dark block, after the tags.
+          final links = _rect(tester, ProfileCoverHeader.linksKey);
+          expect(
+            links.top,
+            greaterThanOrEqualTo(
+              tester.getRect(find.byKey(ProfileTagChips.wrapKey)).bottom,
+            ),
+          );
         });
       }
     }
@@ -408,12 +529,7 @@ void main() {
                 brightness: Brightness.dark,
                 viewport: GoldenViewport.android,
               );
-              expectCover(
-                tester,
-                screen: const Size(360, 800),
-                own: false,
-                exact: false,
-              );
+              expectCover(tester, screen: const Size(360, 800), own: false);
             },
           );
         }
@@ -457,12 +573,7 @@ void main() {
           viewport: GoldenViewport.android,
           cover: false,
         );
-        expectCover(
-          tester,
-          screen: const Size(360, 800),
-          own: true,
-          exact: false,
-        );
+        expectCover(tester, screen: const Size(360, 800), own: true);
       });
     }
   });
@@ -525,5 +636,79 @@ void main() {
         await capture(tester, 'other.scrolled.${language.name}');
       });
     }
+  });
+
+  group('D278b tags', () {
+    Future<void> pumpTags(
+      WidgetTester tester,
+      List<String> tags, {
+      double width = 361,
+      double scale = 1,
+    }) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pumpGolden(
+        tester,
+        Center(
+          child: SizedBox(
+            width: width,
+            child: ProfileTagChips(tags: tags),
+          ),
+        ),
+        language: AppLanguage.en,
+      );
+    }
+
+    List<double> lines(WidgetTester tester) => {
+      for (final e
+          in find
+              .descendant(
+                of: find.byKey(ProfileTagChips.wrapKey),
+                matching: find.byType(Text),
+              )
+              .evaluate())
+        tester.getRect(find.byWidget(e.widget)).top.roundToDouble(),
+    }.toList();
+
+    testWidgets('a few short tags: all shown, one line, no «+n»', (
+      tester,
+    ) async {
+      await pumpTags(tester, ['A', 'B', 'C']);
+      expect(find.byKey(ProfileTagChips.chipKey(2)), findsOneWidget);
+      expect(find.byKey(ProfileTagChips.moreKey), findsNothing);
+      expect(lines(tester), hasLength(1));
+    });
+
+    for (final scale in [1.0, 1.3, 2.0]) {
+      testWidgets('ten long tags at $scale: two lines, the rest as «+n» '
+          '(shown + hidden = 10)', (tester) async {
+        await pumpTags(tester, sampleTags(ar: false), width: 328, scale: scale);
+        expect(tester.takeException(), isNull);
+        expect(lines(tester).length, lessThanOrEqualTo(2));
+        var shown = 0;
+        while (find
+            .byKey(ProfileTagChips.chipKey(shown))
+            .evaluate()
+            .isNotEmpty) {
+          shown++;
+        }
+        final more = tester.widget<Text>(
+          find.descendant(
+            of: find.byKey(ProfileTagChips.moreKey),
+            matching: find.byType(Text),
+          ),
+        );
+        expect(shown + int.parse(more.data!.substring(1)), 10);
+      });
+    }
+
+    testWidgets('one tag wider than the line is cut with an ellipsis', (
+      tester,
+    ) async {
+      await pumpTags(tester, ['W' * 24], width: 120);
+      expect(tester.takeException(), isNull);
+      final chip = tester.getRect(find.byKey(ProfileTagChips.chipKey(0)));
+      expect(chip.width, lessThanOrEqualTo(120));
+    });
   });
 }

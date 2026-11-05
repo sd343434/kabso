@@ -2763,3 +2763,11 @@ the lucky target. The new app on an older server falls back to `cherries`. The b
 (`apps/mobile/assets/host_targets/`, PROVENANCE): to swap in the owner's art, replace the file. No code change is needed.
 Rollback: an older API does not know the two new metrics, so it hides both tasks (`isTaskMetric`); re-run the
 inverse (÷ 6.5 / ÷ 1, metric back) with `task-admin` if needed.
+
+
+### 5.61 Profile tags «منشنات» (migration `20270314090000_profile_tags`; D278b) — [IMPLEMENTED, draft contract v1.85-social; not deployed, not device-tested]
+
+CONVENTIONS §10.99. Adds `user_profiles.tags` (`VARCHAR(24)[] NOT NULL DEFAULT '{}'`) and the CHECK
+`user_profiles_tags_count` (at most 10). Every existing profile gets an empty set; nothing to backfill, no env setting.
+The column add with a constant default is metadata-only on PostgreSQL ≥ 11 (no table rewrite). Order: API (with its
+migration) first, then the app; an older app ignores `tags`, and an older API leaves it out (the app shows no chips).

@@ -14505,4 +14505,47 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return '$title, $duration, $details';
   }
+
+  @override
+  String profileTagsMore(int count) {
+    return '$count more tags';
+  }
+
+  @override
+  String get profileEditTags => 'Tags';
+
+  @override
+  String profileEditTagsValue(int count) {
+    return '$count of 10';
+  }
+
+  @override
+  String get profileEditTagsHint =>
+      'Up to 10 short tags shown on your profile cover, up to 24 characters each.';
+
+  @override
+  String get profileEditTagField => 'New tag';
+
+  @override
+  String get profileEditTagAdd => 'Add';
+
+  @override
+  String profileEditTagRemove(String tag) {
+    return 'Remove $tag';
+  }
+
+  @override
+  String profileEditTagTooLong(int max) {
+    return 'At most $max characters.';
+  }
+
+  @override
+  String get profileEditTagDuplicate => 'This tag is already added.';
+
+  @override
+  String get profileEditTagInvalid =>
+      'Contains characters that aren\'t allowed.';
+
+  @override
+  String get profileEditTagsFull => 'You have 10 tags.';
 }

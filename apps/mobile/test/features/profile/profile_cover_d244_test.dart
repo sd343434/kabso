@@ -149,8 +149,9 @@ Rect _cover(WidgetTester tester) {
   );
 }
 
-/// The photo and its frame inside the cover, at the reading start; the
-/// name fully under the cover, never under the photo.
+/// D278b: the photo and its frame rise into the cover picture from the
+/// dark block under it, at the reading start; the name under the photo,
+/// never under its frame.
 void _expectInside(
   WidgetTester tester, {
   required bool rtl,
@@ -160,7 +161,13 @@ void _expectInside(
   final cover = _cover(tester);
   final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
   expect(photo.top, greaterThanOrEqualTo(cover.top));
-  expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+  expect(photo.top, lessThan(cover.bottom));
+  expect(
+    photo.bottom,
+    lessThanOrEqualTo(
+      tester.getRect(find.byKey(ProfileCoverHeader.headerKey)).bottom,
+    ),
+  );
   expect(photo.left, greaterThanOrEqualTo(0));
   expect(photo.right, lessThanOrEqualTo(width));
   // At the reading start.
@@ -171,23 +178,20 @@ void _expectInside(
   }
   final name = find.byKey(const Key('profile.displayName'));
   final nameRect = tester.getRect(name);
-  // D278: the name over the cover's lower part, beside the photo (never
-  // under it or its frame).
-  expect(nameRect.bottom, lessThanOrEqualTo(cover.bottom));
+  // D278b: the name under the photo and its frame (never covered).
+  expect(nameRect.top, greaterThanOrEqualTo(photo.bottom - 1));
   expect(nameRect.overlaps(photo), isFalse);
-  final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
-  expect(levels.top, greaterThanOrEqualTo(nameRect.bottom - 1));
 }
 
 void main() {
   setUpAll(loadAppFonts);
 
-  test("the photo slot is the frames' common box; D278: the cover is 57 % "
-      'of the screen, far taller than the slot', () {
+  test("the photo slot is the frames' common box; D278b: the cover picture "
+      'is 42 % of the screen, well taller than the slot', () {
     final slot = KPublicProfile.avatarSlot;
     expect(slot.width, closeTo(1.6 * KProfile.avatar, 0.01));
     expect(slot.height, greaterThanOrEqualTo(1.4 * KProfile.avatar));
-    expect(KPublicProfile.coverHeightFor(852), greaterThan(3 * slot.height));
+    expect(KPublicProfile.coverHeightFor(852), greaterThan(2 * slot.height));
   });
 
   group(

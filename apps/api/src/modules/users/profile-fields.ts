@@ -182,3 +182,52 @@ export const PROFILE_LINKS_SELECT = {
 export function publicGender(gender: Gender | null, show: boolean): 'MALE' | 'FEMALE' | null {
   return show && (gender === 'MALE' || gender === 'FEMALE') ? gender : null;
 }
+
+/**
+ * v1.85-social (D278b, owner 2026-11-05: «منشنات يضعها الشخص معاه لغاية ١٠», CONVENTIONS §10.99): the
+ * profile tags shown as chips on the profile. At most 10, in the person's order.
+ */
+export const MAX_PROFILE_TAGS = 10;
+/** A tag: one line, 1–24 code points after normalisation, §6 hygiene. */
+export const PROFILE_TAG_MAX = 24;
+const TAG_LIMITS: ContentTextLimits = { maxCodePoints: PROFILE_TAG_MAX, maxLineBreaks: 0, allowEmpty: false };
+
+const profileTagSchema = z
+  .string()
+  .max(240)
+  .transform((raw, ctx) => {
+    const result = normalizeContentText(raw, TAG_LIMITS);
+    if ('issue' in result) {
+      ctx.addIssue({ code: 'custom', message: `tag ${result.issue}`, params: { issue: result.issue } });
+      return z.NEVER;
+    }
+    return result.value;
+  });
+
+/**
+ * `UpdateMeRequest.tags`: 0–10 tags, the whole set in order (an empty array clears them); the same tag
+ * twice (ignoring case) → `tags.<i>` / `invalid_value`.
+ */
+export const profileTagsSchema = z
+  .array(profileTagSchema)
+  .max(MAX_PROFILE_TAGS)
+  .superRefine((tags, ctx) => {
+    const seen = new Set<string>();
+    tags.forEach((tag, i) => {
+      const key = tag.toLocaleLowerCase('en');
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [i],
+          message: 'duplicate tag',
+          params: { issue: 'invalid_value' },
+        });
+      }
+      seen.add(key);
+    });
+  });
+
+/** The tags as read: the stored order, at most {@link MAX_PROFILE_TAGS} (the CHECK keeps them so). */
+export function profileTagsOf(tags: readonly string[] | null | undefined): string[] {
+  return (tags ?? []).slice(0, MAX_PROFILE_TAGS);
+}

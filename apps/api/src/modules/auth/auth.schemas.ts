@@ -6,7 +6,12 @@ import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../u
 import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
 import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
 import { passwordPolicyIssue } from './password-policy.js';
-import { ACCOUNT_CATEGORIES, GENDERS, profileLinksSchema } from '../users/profile-fields.js';
+import {
+  ACCOUNT_CATEGORIES,
+  GENDERS,
+  profileLinksSchema,
+  profileTagsSchema,
+} from '../users/profile-fields.js';
 import { installIdSchema, referralCodeInput } from '../referrals/referral-rules.js';
 import { deviceKeySchema } from './device-signups.js';
 
@@ -195,7 +200,7 @@ export const bioSchema = z
  * `PATCH /me`: v1.2 `locale`; v1.27.1-live (D133) `country` (ISO 3166-1 alpha-2, any case,
  * stored upper case; null clears it); v1.45-social (D168) `displayName` (the §6 registration rules;
  * reserved terms are checked by the service) and `bio` (null or empty clears it); v1.47-social (D175)
- * `gender`, `showGender`, `category` and `links`. At least one.
+ * `gender`, `showGender`, `category` and `links`; v1.85-social (D278b) `tags`. At least one.
  */
 export const updateMeSchema = z
   .strictObject({
@@ -214,6 +219,8 @@ export const updateMeSchema = z
     showGender: z.boolean().optional(),
     category: z.enum(ACCOUNT_CATEGORIES).nullable().optional(),
     links: profileLinksSchema.optional(),
+    // v1.85-social (D278b, §10.99): the profile tags «منشنات» (the whole set; [] clears them).
+    tags: profileTagsSchema.optional(),
   })
   .superRefine((body, ctx) => {
     if (Object.values(body).every((v) => v === undefined)) {

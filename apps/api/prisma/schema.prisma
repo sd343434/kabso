@@ -334,6 +334,9 @@ model UserProfile {
   showGender    Boolean              @default(false) @map("show_gender")
   /// v1.47-social (D175): the account category shown under the name; optional.
   category      AccountCategory?     @map("account_category")
+  /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order; 0–10 (CHECK
+  /// `user_profiles_tags_count`), each 1–24 code points (the app's `PATCH /me` rules).
+  tags          String[]             @default([]) @db.VarChar(24)
   createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 

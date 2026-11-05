@@ -65,6 +65,8 @@ export interface PublicProfileDto {
   category: AccountCategory | null;
   /** v1.47-social (D175): the profile links (0–3), also on a private account's profile. */
   links: ProfileLinkDto[];
+  /** v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10), also on a private account's profile. */
+  tags: string[];
   /** v1.54-social (D185, §10.48): the user is an ACTIVE recharge agent (the frame, badge and entrance). */
   rechargeAgent: { code: string } | null;
   /** v1.58-social (D189, §10.52): the host agent's code while not suspended (frame, badge), else null. */
@@ -254,6 +256,7 @@ export class PublicProfileService {
       gender: user.gender,
       category: user.category,
       links: user.links,
+      tags: user.tags,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       avatarFrame,

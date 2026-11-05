@@ -81,11 +81,16 @@ void main() {
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
     final handle = tester.getRect(find.byKey(ProfileCoverHeader.handleKey));
     expect(handle.top, greaterThanOrEqualTo(name.bottom));
+    // D278b: the level badges on the name's line, above the @username.
+    final nameRow = tester.getRect(find.byKey(ProfileCoverHeader.nameRowKey));
     final levels = tester.getRect(find.byKey(PublicProfileScreen.levelsKey));
-    expect(levels.top, greaterThanOrEqualTo(handle.bottom));
+    expect(levels.top, greaterThanOrEqualTo(nameRow.top - 0.5));
+    expect(levels.bottom, lessThanOrEqualTo(nameRow.bottom + 0.5));
+    expect(handle.top, greaterThanOrEqualTo(nameRow.bottom));
     expect(find.byType(LivePkRecordLine), findsNothing);
     expect(find.text('Arabic music every evening'), findsOneWidget);
-    expect(find.textContaining('1,234'), findsOneWidget);
+    // D278b: the person card's short numbers.
+    expect(find.textContaining('1.2K'), findsOneWidget);
     expect(find.textContaining('40'), findsWidgets);
     final avatar = tester.widget<KAvatar>(find.byType(KAvatar).first);
     expect(avatar.ring, KAvatarRing.live);
@@ -110,17 +115,18 @@ void main() {
     expect(cover.top, 0);
     expect(cover.width, 393);
     expect(cover.height, KPublicProfile.coverHeightFor(852));
-    // The photo (here with the live ring and badge) wholly inside the
-    // cover (D244), and the name beside it.
+    // D278b: the photo (here with the live ring and badge) rises into the
+    // cover picture; the name under it.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    expect(photo.top, greaterThanOrEqualTo(cover.top));
-    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
-    expect(name.bottom, lessThanOrEqualTo(cover.bottom));
-    expect(name.overlaps(photo), isFalse);
-    // The bio under the cover.
+    expect(photo.top, greaterThan(cover.top));
+    expect(photo.top, lessThan(cover.bottom));
+    expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
+    // The bio under the header block.
     expect(
       tester.getRect(find.text('Arabic music every evening')).top,
-      greaterThanOrEqualTo(cover.bottom),
+      greaterThanOrEqualTo(
+        tester.getRect(find.byKey(ProfileCoverHeader.headerKey)).bottom,
+      ),
     );
     expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
@@ -134,7 +140,12 @@ void main() {
     expect(follow.width, greaterThan(2 * message.width));
     expect(follow.right, lessThan(message.left));
     expect(message.right, lessThan(more.left));
-    expect(follow.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(
+      follow.bottom,
+      lessThanOrEqualTo(
+        tester.getRect(find.byKey(ProfileCoverHeader.headerKey)).bottom,
+      ),
+    );
     // The words «Posts | Reels | Reposts» (no subscribers tab, no Saved).
     expect(find.text(_en.profileTabPostsWord), findsOneWidget);
     expect(find.text(_en.profileTabRepostsWord), findsOneWidget);
@@ -157,7 +168,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.textContaining('1,235'), findsOneWidget);
+    expect(find.textContaining('1.2K'), findsOneWidget);
     await tester.tap(find.byKey(PublicProfileScreen.followKey));
     await tester.pumpAndSettle();
     expect(find.text(_en.profileUnfollowConfirm('Sara')), findsOneWidget);

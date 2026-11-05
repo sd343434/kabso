@@ -47,9 +47,11 @@ ImageProvider Function(String src) profileCoverImageFor = NetworkImage.new;
 /// D244: the photo and any frame sit in [avatarSlot] (the frames' common
 /// box, 1.6 × the photo wide), so a worn frame never covers the name.
 ///
-/// D278: the cover is [coverShare] of the screen's height (≈ 486 dp on a
-/// 393 × 852 phone, the owner's reference), from the very top; it grows
-/// when its contents need more (large text).
+/// D278: the cover from the very top, full-bleed. D278b (owner: «اجعل
+/// الغلاف اقل ارتفاع مثلاً ٤٢٪»): the picture is [coverShare] of the
+/// screen's height (≈ 358 dp on a 393 × 852 phone) and fades into the dark
+/// [base] block that carries the name, the numbers, the buttons, the tags
+/// and the links.
 abstract final class KPublicProfile {
   /// The box every profile photo is drawn in, frame or not: the frames'
   /// common box (`AvatarFrameBox.aroundAvatar`), the real extent of the
@@ -58,17 +60,31 @@ abstract final class KPublicProfile {
     KProfile.avatar,
   );
 
-  /// The cover's share of the screen's height (D278, ≈ 0.57).
-  static const double coverShare = 0.57;
+  /// The cover picture's share of the screen's height (D278b: 0.42; was
+  /// 0.57).
+  static const double coverShare = 0.42;
+
+  /// The dark block under the picture (the picture fades into it).
+  static const Color base = Color(0xFF16161A);
+
+  /// How much of [avatarSlot]'s height rises into the picture (D278b:
+  /// «رفعها للاعلى قليلاً»).
+  static const double avatarRise = 0.8;
+
+  /// At most this many tags (`PublicProfile.tags`, §10.99).
+  static const int maxTags = 10;
+
+  /// The numbers row (the person card's, D220).
+  static const double statNumber = 16;
+  static const double statDivider = 22;
 
   /// From the screen's reading-start edge to [avatarSlot].
   static const double avatarStart = KSpacing.sm;
 
-  /// The share of the cover (from its bottom) under the dark gradient.
-  static const double gradientShare = 0.62;
+  /// The share of the picture (from its bottom) that fades into [base].
+  static const double gradientShare = 0.55;
 
-  /// The cover's height on a screen of [screenHeight] (its minimum: it
-  /// grows with its contents).
+  /// The cover picture's height on a screen of [screenHeight].
   static double coverHeightFor(double screenHeight) =>
       (screenHeight * coverShare).roundToDouble();
 
@@ -241,9 +257,10 @@ class RenderProfileCoverBarSpace extends RenderSliver {
   }
 }
 
-/// D278: the full-bleed cover with the photo, the name, the badges, the
-/// @username, the level badges, the counts and [actions] over its lower
-/// part. The own profile passes [onCoverTap] (change the cover).
+/// D278 / D278b: the full-bleed cover and, over its lower part and the dark
+/// block it fades into, the photo, the name with its badges and level
+/// badges, the @username, the four numbers, [actions], the tags and the
+/// links. The own profile passes [onCoverTap] (change the cover).
 class ProfileCoverHeader extends StatelessWidget {
   const new({
     required this.profile,
@@ -282,6 +299,7 @@ class ProfileCoverHeader extends StatelessWidget {
   final bool countsFailed;
 
   static const headerKey = Key('profile.cover.header');
+  static const coverAreaKey = Key('profile.cover.area');
   static const coverKey = Key('profile.public.cover');
   static const coverFallbackKey = Key('profile.public.cover.gradient');
   static const coverAvatarKey = Key('profile.public.cover.avatar');
@@ -289,14 +307,21 @@ class ProfileCoverHeader extends StatelessWidget {
   static const watchLiveKey = Key('profile.public.watchLive');
   static const handleKey = Key('profile.cover.handle');
   static const levelsKey = Key('profile.public.levels');
+  static const nameRowKey = Key('profile.cover.nameRow');
+  static const actionsKey = Key('profile.cover.actions');
+  static const linksKey = Key('profile.cover.links');
+  static const cherriesKey = Key('profile.stat.cherries');
+  static const coinsKey = Key('profile.stat.coins');
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final media = MediaQuery.of(context);
-    final minHeight = KPublicProfile.coverHeightFor(media.size.height);
+    final coverHeight = KPublicProfile.coverHeightFor(media.size.height);
+    final slot = KPublicProfile.avatarSlot;
     final avatarUrl = profile.avatarUrl;
     final cover = Stack(
+      key: coverAreaKey,
       fit: StackFit.expand,
       children: [
         // The fallback: the Kabso gradient, with the photo blurred over it
@@ -344,7 +369,7 @@ class ProfileCoverHeader extends StatelessWidget {
         const Align(
           alignment: Alignment.topCenter,
           child: FractionallySizedBox(
-            heightFactor: 0.22,
+            heightFactor: 0.3,
             widthFactor: 1,
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -357,7 +382,8 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
           ),
         ),
-        // D278: the soft dark gradient under the name and the buttons.
+        // D278b: the cover fades into the dark block under it, so what is
+        // written there reads on any picture, light ones too.
         const Align(
           alignment: Alignment.bottomCenter,
           child: FractionallySizedBox(
@@ -368,11 +394,11 @@ class ProfileCoverHeader extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: [0, 0.45, 1],
+                  stops: [0, 0.55, 1],
                   colors: [
-                    Color(0x00000000),
-                    Color(0x73000000),
-                    Color(0xD9000000),
+                    Color(0x0016161A),
+                    Color(0x9916161A),
+                    KPublicProfile.base,
                   ],
                 ),
               ),
@@ -396,36 +422,56 @@ class ProfileCoverHeader extends StatelessWidget {
           ),
       ],
     );
-    // What is over the cover reads on the dark gradient in both themes:
-    // the dark palette (white text, the dark skeleton).
+    // What is over the cover reads on the dark block in both themes: the
+    // dark palette (white text, the dark skeleton).
     final dark = buildAppTheme(
       brightness: Brightness.dark,
       locale: Localizations.localeOf(context),
     );
+    // D278b (owner: «صورة شخصية نريد رفعها للاعلى قليلاً»): the photo rises
+    // into the cover's lower part, never under the top buttons.
+    final contentTop = math.max(
+      media.padding.top + KSpacing.md,
+      coverHeight - slot.height * KPublicProfile.avatarRise,
+    );
     return Stack(
       key: headerKey,
       children: [
-        Positioned.fill(child: cover),
+        const Positioned.fill(child: ColoredBox(color: KPublicProfile.base)),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: coverHeight,
+          child: cover,
+        ),
         ConstrainedBox(
-          constraints: BoxConstraints(minHeight: minHeight),
+          constraints: BoxConstraints(minHeight: coverHeight),
           child: Theme(
             data: dark,
             child: Builder(
               builder: (context) => Column(
-                mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Never under the status bar and the buttons.
-                  SizedBox(height: media.padding.top + KSpacing.md),
-                  _identity(context),
+                  SizedBox(height: contentTop),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: KPublicProfile.avatarStart,
+                    ),
+                    child: SizedBox(
+                      width: slot.width,
+                      height: slot.height,
+                      child: Center(child: _avatar(context)),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsetsDirectional.fromSTEB(
                       KProfile.inset,
-                      KSpacing.sm,
+                      KSpacing.xs,
                       KProfile.inset,
                       KSpacing.lg,
                     ),
-                    child: _countsAndActions(context),
+                    child: _details(context),
                   ),
                 ],
               ),
@@ -436,112 +482,115 @@ class ProfileCoverHeader extends StatelessWidget {
     );
   }
 
-  /// The photo at the reading start, the name with its badges, the
-  /// @username and the level badges beside it.
-  Widget _identity(BuildContext context) {
+  /// The name with its badges and the level badges on one line (they
+  /// wrap), the @username, the numbers, the buttons, the tags, the links.
+  Widget _details(BuildContext context) {
+    final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final slot = KPublicProfile.avatarSlot;
     final agentCode = profile.rechargeAgentCode;
     final hostCode = profile.hostAgentCode;
     final tier = profile.premiumTier;
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(
-        start: KPublicProfile.avatarStart,
-        end: KProfile.inset,
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: slot.width,
-            height: slot.height,
-            child: Center(child: _avatar(context)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // D278b (owner: «الاسم يظهر بجانبه الليفيلات»): the name, the VIP
+        // badge right after it (D268), our badges, then the level badges.
+        Wrap(
+          key: nameRowKey,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: KSpacing.sm,
+          runSpacing: KSpacing.xs,
+          children: [
+            // D258: the VIP name's gold (CHAT_NAME_COLOR).
+            VipNameShimmer(
+              vip: profile.vip,
+              child: Text(
+                profile.displayName,
+                key: const Key('profile.displayName'),
+                style: t.title.copyWith(
+                  color: p.textPrimary,
+                  fontSize: KPublicProfile.nameFont,
+                  shadows: KLiveColors.glassShadow,
+                  // D258: the special colour at semi-bold (owner).
+                  fontWeight: (profile.vip?.member ?? false)
+                      ? FontWeight.w600
+                      : FontWeight.w700,
+                ),
+              ),
+            ),
+            if (profile.vip?.member ?? false)
+              VipNameBadge(vip: profile.vip, height: 20),
+            if (agentCode case final code?)
+              RechargeAgentBadge(
+                key: ProfileHeaderView.agentBadgeKey,
+                code: code,
+              ),
+            if (hostCode case final code?)
+              HostAgentBadge(
+                key: ProfileHeaderView.hostAgentBadgeKey,
+                code: code,
+              ),
+            if (rechargeBadgeShows(profile.rechargeBadge))
+              RechargeTierBadge(
+                key: ProfileHeaderView.rechargeBadgeKey,
+                badge: profile.rechargeBadge,
+              ),
+            ProfileLevels(
+              key: levelsKey,
+              username: profile.isSelf ? null : profile.username,
+              onOpen: profile.isSelf
+                  ? () => context.push(AppRoutes.levels)
+                  : null,
+              padding: EdgeInsetsDirectional.zero,
+            ),
+          ],
+        ),
+        const SizedBox(height: KSpacing.xxs),
+        // The @username (a premium one with its badge, D146) under it.
+        KeyedSubtree(
+          key: handleKey,
+          child: switch (tier) {
+            final tier? => KSpecialUsername(
+              username: profile.username,
+              tier: tier,
+            ),
+            null => Text(
+              l10n.profileUsername(profile.username),
+              textDirection: TextDirection.ltr,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.body.copyWith(
+                color: p.textSecondary,
+                shadows: KLiveColors.glassShadow,
+              ),
+            ),
+          },
+        ),
+        const SizedBox(height: KSpacing.md),
+        _stats(context),
+        const SizedBox(height: KSpacing.md),
+        SizedBox(
+          key: actionsKey,
+          height: KPublicProfile.buttonHeight,
+          child: actions,
+        ),
+        // D278b: «منشنات» (up to 10, two lines at most), then the links.
+        if (profile.tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: KSpacing.md),
+            child: ProfileTagChips(tags: profile.tags),
           ),
-          const SizedBox(width: KSpacing.xs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // The name and our badges on one line (they wrap); D268:
-                // the VIP badge right after the name.
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: KSpacing.sm,
-                  runSpacing: KSpacing.xxs,
-                  children: [
-                    // D258: the VIP name's gold (CHAT_NAME_COLOR).
-                    VipNameShimmer(
-                      vip: profile.vip,
-                      child: Text(
-                        profile.displayName,
-                        key: const Key('profile.displayName'),
-                        style: t.title.copyWith(
-                          color: p.textPrimary,
-                          fontSize: KPublicProfile.nameFont,
-                          shadows: KLiveColors.glassShadow,
-                          // D258: the special colour at semi-bold (owner).
-                          fontWeight: (profile.vip?.member ?? false)
-                              ? FontWeight.w600
-                              : FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (profile.vip?.member ?? false)
-                      VipNameBadge(vip: profile.vip, height: 20),
-                    if (agentCode case final code?)
-                      RechargeAgentBadge(
-                        key: ProfileHeaderView.agentBadgeKey,
-                        code: code,
-                      ),
-                    if (hostCode case final code?)
-                      HostAgentBadge(
-                        key: ProfileHeaderView.hostAgentBadgeKey,
-                        code: code,
-                      ),
-                    if (rechargeBadgeShows(profile.rechargeBadge))
-                      RechargeTierBadge(
-                        key: ProfileHeaderView.rechargeBadgeKey,
-                        badge: profile.rechargeBadge,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: KSpacing.xxs),
-                // D278: the @username (a premium one with its badge, D146)
-                // under the name.
-                KeyedSubtree(
-                  key: handleKey,
-                  child: switch (tier) {
-                    final tier? => KSpecialUsername(
-                      username: profile.username,
-                      tier: tier,
-                    ),
-                    null => Text(
-                      context.l10n.profileUsername(profile.username),
-                      textDirection: TextDirection.ltr,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.body.copyWith(
-                        color: p.textSecondary,
-                        shadows: KLiveColors.glassShadow,
-                      ),
-                    ),
-                  },
-                ),
-                // Owner (after D218): the level badges under the name.
-                ProfileLevels(
-                  key: levelsKey,
-                  username: profile.isSelf ? null : profile.username,
-                  onOpen: profile.isSelf
-                      ? () => context.push(AppRoutes.levels)
-                      : null,
-                  padding: const EdgeInsetsDirectional.only(top: KSpacing.xs),
-                ),
-              ],
+        if (profile.links.isNotEmpty)
+          KeyedSubtree(
+            key: linksKey,
+            child: ProfileLinksRow(
+              links: profile.links,
+              reportable: !profile.isSelf,
+              color: p.textPrimary,
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -594,103 +643,243 @@ class ProfileCoverHeader extends StatelessWidget {
     );
   }
 
-  /// The Following / Followers counts and the action row: one line on a
-  /// phone; the counts above the buttons with large text or a narrow
-  /// screen.
-  Widget _countsAndActions(BuildContext context) {
+  /// D278b: Followers, Following, «الكرز المستلم» and «الكوينز المرسلة» —
+  /// the person card's numbers and format (D220: short Latin numbers, equal
+  /// columns, a thin line between two; a number the person hides is left
+  /// out by the server and the others share the row).
+  Widget _stats(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    Widget count(int value, String label, VoidCallback? onTap, Key key) =>
-        Semantics(
-          key: key,
-          button: onTap != null,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(KRadius.sm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: KSpacing.xxs,
-                horizontal: KSpacing.xxs,
+    final stats = <(Key, int, String, VoidCallback?)>[
+      (
+        ProfileHeaderView.followersKey,
+        profile.followerCount,
+        l10n.liveCardFollowers,
+        onOpenFollowers,
+      ),
+      (
+        ProfileHeaderView.followingKey,
+        profile.followingCount,
+        l10n.liveCardFollowing,
+        onOpenFollowing,
+      ),
+      if (profile.cherriesReceived case final n?)
+        (cherriesKey, n, l10n.liveCardCherries, null),
+      if (profile.coinsSent case final n?)
+        (coinsKey, n, l10n.liveCardCoinsSent, null),
+    ];
+    final pending = !countsKnown && !countsFailed;
+    String number(int v) => countsFailed ? '\u2013' : KFormat.compactLatin(v);
+    return IntrinsicHeight(
+      child: Row(
+        key: ProfileScreen.statsKey,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, (key, value, label, onTap)) in stats.indexed) ...[
+            if (i > 0)
+              Center(
+                child: Container(
+                  width: 1,
+                  height: KPublicProfile.statDivider,
+                  color: p.textPrimary.withValues(alpha: 0.18),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!countsKnown && !countsFailed)
-                    const KSkeleton(width: KSpacing.xl)
-                  else
-                    Text(
-                      countsFailed ? '–' : KFormat.compact(value, l10n),
-                      maxLines: 1,
-                      style: t.bodyStrong.copyWith(
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        shadows: KLiveColors.glassShadow,
-                      ),
+            Expanded(
+              child: Semantics(
+                key: key,
+                button: onTap != null,
+                label: pending ? label : '$label ${number(value)}',
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(KRadius.sm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: KSpacing.xxs,
+                      horizontal: KSpacing.xxs,
                     ),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.caption.copyWith(
-                      color: p.textSecondary,
-                      shadows: KLiveColors.glassShadow,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (pending)
+                          const KSkeleton(width: KSpacing.xl)
+                        else
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              number(value),
+                              maxLines: 1,
+                              style: t.title.copyWith(
+                                color: p.textPrimary,
+                                fontSize: KPublicProfile.statNumber,
+                                fontWeight: FontWeight.w700,
+                                height: 1.15,
+                                shadows: KLiveColors.glassShadow,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 1),
+                        // A long label shrinks a little to stay whole.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            style: t.caption.copyWith(
+                              color: p.textSecondary,
+                              fontSize: 12,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// D278b (owner: «منشنات يضعها الشخص معاه لغاية ١٠ بسطرين فقط»): the
+/// person's tags as chips, at most two lines; what does not fit shows as a
+/// «+n» chip at the end of the second line.
+class ProfileTagChips extends StatelessWidget {
+  const new({required this.tags, super.key});
+
+  final List<String> tags;
+
+  static const wrapKey = Key('profile.tags');
+  static const moreKey = Key('profile.tags.more');
+  static Key chipKey(int i) => Key('profile.tags.$i');
+
+  static const int maxLines = 2;
+  static const double spacing = KSpacing.xs + 2;
+  static const double padH = KSpacing.sm;
+  static const double padV = KSpacing.xs;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final style = t.caption.copyWith(
+      color: p.textPrimary,
+      fontSize: 12.5,
+      fontWeight: FontWeight.w600,
+      height: 1.2,
+    );
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    // Measured as the chips' Text lays out (the inherited style merged).
+    final measured = DefaultTextStyle.of(context).style.merge(style);
+    final locale = Localizations.maybeLocaleOf(context);
+    final shown = tags.take(KPublicProfile.maxTags).toList();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final max = constraints.maxWidth;
+        double widthOf(String text) {
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: measured),
+            textDirection: direction,
+            textScaler: scaler,
+            locale: locale,
+            maxLines: 1,
+          )..layout();
+          // Rounded up (and a hair more) so a measured line never wraps.
+          final w = painter.width.ceilToDouble() + 1 + 2 * padH;
+          painter.dispose();
+          return math.min(w, max);
+        }
+
+        final widths = [for (final tag in shown) widthOf(tag)];
+        // Greedy lines; when the tags overflow two lines, the last line
+        // keeps room for «+n».
+        var line = 1;
+        var x = 0.0;
+        var count = 0;
+        final lineOf = <int>[];
+        for (final w in widths) {
+          final next = x == 0 ? w : x + spacing + w;
+          if (next <= max) {
+            x = next;
+          } else {
+            line++;
+            if (line > maxLines) break;
+            x = w;
+          }
+          lineOf.add(line);
+          count++;
+        }
+        var hidden = shown.length - count;
+        if (hidden > 0) {
+          // Make room for «+n» on the last line.
+          double lastLineWidth() {
+            var w = 0.0;
+            for (var i = 0; i < count; i++) {
+              if (lineOf[i] != maxLines) continue;
+              w = w == 0 ? widths[i] : w + spacing + widths[i];
+            }
+            return w;
+          }
+
+          while (count > 0) {
+            final more = widthOf('+$hidden');
+            final last = lastLineWidth();
+            if ((last == 0 ? more : last + spacing + more) <= max) break;
+            count--;
+            lineOf.removeLast();
+            hidden++;
+          }
+        }
+        Widget chip(
+          Key key,
+          String text, {
+          String? label,
+          TextDirection? dir,
+        }) => Semantics(
+          key: key,
+          label: label,
+          excludeSemantics: label != null,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: p.textPrimary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(KRadius.xs),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: padH,
+                vertical: padV,
+              ),
+              child: Text(
+                text,
+                textDirection: dir,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
               ),
             ),
           ),
         );
-    final counts = Row(
-      key: ProfileScreen.statsKey,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: count(
-            profile.followingCount,
-            l10n.profileFollowingWord,
-            onOpenFollowing,
-            ProfileHeaderView.followingKey,
-          ),
-        ),
-        const SizedBox(width: KSpacing.lg),
-        Flexible(
-          child: count(
-            profile.followerCount,
-            l10n.profileFollowerWord,
-            onOpenFollowers,
-            ProfileHeaderView.followersKey,
-          ),
-        ),
-      ],
-    );
-    final row = SizedBox(height: KPublicProfile.buttonHeight, child: actions);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scale = MediaQuery.textScalerOf(context).scale(1);
-        final oneLine = constraints.maxWidth >= 340 && scale <= 1.15;
-        if (oneLine) {
-          return Row(
-            children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: constraints.maxWidth * 0.42,
-                ),
-                child: counts,
-              ),
-              const SizedBox(width: KSpacing.md),
-              Expanded(child: row),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Wrap(
+          key: wrapKey,
+          spacing: spacing,
+          runSpacing: spacing,
           children: [
-            counts,
-            const SizedBox(height: KSpacing.sm),
-            row,
+            for (var i = 0; i < count; i++) chip(chipKey(i), shown[i]),
+            if (hidden > 0)
+              chip(
+                moreKey,
+                '+$hidden',
+                label: context.l10n.profileTagsMore(hidden),
+                // «+3», never «3+» in Arabic.
+                dir: TextDirection.ltr,
+              ),
           ],
         );
       },
@@ -838,8 +1027,6 @@ class ProfileInfoBlock extends StatelessWidget {
               ],
             ),
           ],
-          // D175: the links — on a private profile too (§10.47).
-          ProfileLinksRow(links: profile.links, reportable: !profile.isSelf),
           // Our features (D218): the medals shown, the family,
           // relationship and medals tiles (no PK record pill).
           Padding(

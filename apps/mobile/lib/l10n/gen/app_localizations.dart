@@ -24526,6 +24526,72 @@ abstract class AppLocalizations {
     String duration,
     String details,
   );
+
+  /// D278b: the «+n» chip after the profile tags that do not fit two lines (screen reader).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} منشنات أخرى'**
+  String profileTagsMore(int count);
+
+  /// D278b: the edit profile row and screen title for the profile tags «منشنات».
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشنات'**
+  String get profileEditTags;
+
+  /// D278b: the tags row value (how many tags are set).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} من 10'**
+  String profileEditTagsValue(int count);
+
+  /// D278b: the tags editor explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى 10 منشنات قصيرة تظهر على غلاف ملفك، حتى 24 حرفاً لكل منها.'**
+  String get profileEditTagsHint;
+
+  /// D278b: the tags editor's text field.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشن جديد'**
+  String get profileEditTagField;
+
+  /// D278b: adds the typed tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة'**
+  String get profileEditTagAdd;
+
+  /// D278b: removes one tag (chip delete button).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف {tag}'**
+  String profileEditTagRemove(String tag);
+
+  /// D278b: a tag is too long.
+  ///
+  /// In ar, this message translates to:
+  /// **'{max} حرفاً على الأكثر.'**
+  String profileEditTagTooLong(int max);
+
+  /// D278b: the same tag twice (ignoring case).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المنشن مضاف بالفعل.'**
+  String get profileEditTagDuplicate;
+
+  /// D278b: a tag refused (invalid_format).
+  ///
+  /// In ar, this message translates to:
+  /// **'يحتوي على رموز غير مسموح بها.'**
+  String get profileEditTagInvalid;
+
+  /// D278b: no more tags can be added.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى 10 منشنات.'**
+  String get profileEditTagsFull;
 }
 
 class _AppLocalizationsDelegate

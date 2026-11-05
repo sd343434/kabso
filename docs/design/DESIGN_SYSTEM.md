@@ -519,20 +519,22 @@ Anatomy: height 56 + top inset · leading slot (back IconButton — flips — or
 
 States: action buttons follow IconButton states; title never interactive.
 
-**Profile cover (D278).** The own and the public profile open on a full-bleed cover,
-`0.57 ×` the screen height (≈ 486 dp on 393 × 852; it grows only when large text needs
-it), drawn from the very top under the status bar and the `transparent` TopBar — the
-page's own buttons (back, ⋯ / drafts, settings) on 40 dp `live.glass` circles, white;
-the bar turns `background` with the @username once the cover has scrolled away, and the
-tabs pin under it. Over the cover's lower 62 %: a black 0 → 45 % → 85 % gradient, then
-the photo in the frames' common box (frames unchanged) at the reading start with the
-name (20 / 700, VIP badge right after it), the @username and the level badges beside it;
-then Following / Followers and the 44 dp action row — **Follow** in `brand.red500`
-(radius `sm`), square chat (`inbox` icon) and ⋯ (chevron) buttons on `live.glass` with a
-55 % white outline; the own profile shows «تعديل الملف» in the same quiet style. Counts
-and buttons share a line on phones ≥ 340 dp at text scale ≤ 1.15, else stack. Text on the
-cover is the dark palette with `live.glassShadow`, in both modes. No cover: the brand red
-gradient, with the photo blurred (σ 24) over it when there is one.
+**Profile cover (D278, D278b).** The own and the public profile open on a full-bleed cover
+picture, `0.42 ×` the screen height (≈ 358 dp on 393 × 852), drawn from the very top under the
+status bar and the `transparent` TopBar — the page's own buttons (back, ⋯ / drafts, settings) on
+40 dp `live.glass` circles, white; the bar turns `background` with the @username once the cover has
+scrolled away, and the tabs pin under it. The picture's lower 55 % fades into a dark block
+(`#16161A`, the dark `surface`) that carries, top to bottom: the photo in the frames' common box
+(frames unchanged) at the reading start, rising 80 % of its box into the picture; the **name row**
+(name 20 / 700, the VIP badge right after it, our badges, then the level badges, wrapping); the
+@username; the **numbers** — Followers, Following, «الكرز المستلم», «الكوينز المرسلة» (the person
+card's: short Latin numbers, equal columns, thin dividers; a hidden one is left out); the 44 dp
+action row — **Follow** in `brand.red500` (radius `sm`) with square chat (`inbox` icon) and ⋯
+(chevron) buttons on `live.glass` with a 55 % white outline, or «تعديل الملف» in the same quiet
+style; the **tags** «منشنات» as chips (white 14 % fill, radius `xs`, 12.5 / 600) on **at most two
+lines**, the rest as a «+n» chip; the **links** (white). Everything there uses the dark palette in
+both modes, so it reads on any picture, light ones too. No cover: the brand red gradient, with the
+photo blurred (σ 24) over it when there is one.
 
 **Live now card (D279).** While the profile's owner is live, directly under the cover:
 the section title «في بث الآن» (own: «أنت في بث الآن»; `title`), then one card (16 dp page

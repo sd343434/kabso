@@ -88,6 +88,7 @@ class _FakeEdit implements ProfileEditRepository {
     if (change.showGender case final s?) next = next.copyWith(showGender: s);
     if (change.clearCategory) next = next.copyWith(category: null);
     if (change.category case final c?) next = next.copyWith(category: c);
+    if (change.tags case final tags?) next = next.copyWith(tags: tags);
     if (change.links case final links?) {
       next = next.copyWith(
         links: [
@@ -620,6 +621,13 @@ void main() {
           language: language,
           viewport: GoldenViewport.android,
         );
+        expect(find.byKey(ProfileLinkKeys.chip(0)), findsOneWidget);
+        // D278b: the taller header; the private state follows under it.
+        await tester.dragUntilVisible(
+          find.text(l10n.profilePrivateTitle),
+          find.byType(CustomScrollView),
+          const Offset(0, -200),
+        );
         expect(find.text(l10n.profilePrivateTitle), findsOneWidget);
         expect(find.byType(SliverGrid), findsNothing);
         expect(find.byKey(ProfileLinkKeys.chip(0)), findsOneWidget);
@@ -833,5 +841,83 @@ void main() {
         'too_long',
       );
     });
+  });
+
+  // D278b (§10.99): the tags «منشنات» editor.
+  testWidgets('tags: add (trimmed), refuse a duplicate and an over-long one, '
+      'remove, save the whole set; full at 10; a server field error shows', (
+    tester,
+  ) async {
+    final l10n = l10nFor(AppLanguage.en);
+    final repo = await _pumpEdit(tester);
+    final row = find.byKey(EditProfileScreen.tagsKey);
+    await tester.scrollUntilVisible(
+      row,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      _inRow(EditProfileScreen.tagsKey, l10n.profileEditNotSet),
+      findsOneWidget,
+    );
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    Future<void> add(String text) async {
+      await tester.enterText(find.byKey(EditProfileFieldsKeys.tagField), text);
+      await tester.tap(find.byKey(EditProfileFieldsKeys.tagAdd));
+      await tester.pump();
+    }
+
+    await add('  Gamer ');
+    expect(find.byKey(EditProfileFieldsKeys.tagChip(0)), findsOneWidget);
+    expect(find.text('Gamer'), findsOneWidget);
+    await add('GAMER');
+    expect(find.text(l10n.profileEditTagDuplicate), findsOneWidget);
+    expect(find.byKey(EditProfileFieldsKeys.tagChip(1)), findsNothing);
+    // The field takes at most 24 characters.
+    await add('x' * 30);
+    expect(find.text('x' * 24), findsOneWidget);
+    await add('Poet');
+    expect(find.byKey(EditProfileFieldsKeys.tagChip(2)), findsOneWidget);
+    // Remove the long one.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(EditProfileFieldsKeys.tagChip(1)),
+        matching: find.byTooltip(l10n.profileEditTagRemove('x' * 24)),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('x' * 24), findsNothing);
+    // A server field error stays on the screen.
+    repo.failWith = const ServerFailure(
+      code: ErrorCode.validationFailed,
+      rawCode: 'VALIDATION_FAILED',
+      debugMessage: 'x',
+      statusCode: 400,
+      details: [FieldIssue(field: 'tags.1', issue: 'invalid_format')],
+    );
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagsSave));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.profileEditTagInvalid), findsOneWidget);
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagsSave));
+    await tester.pumpAndSettle();
+    expect(repo.changes.last, {
+      'tags': ['Gamer', 'Poet'],
+    });
+    expect(
+      _inRow(EditProfileScreen.tagsKey, l10n.profileEditTagsValue(2)),
+      findsOneWidget,
+    );
+    // Ten: the field closes.
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 8; i++) {
+      await add('t$i');
+    }
+    expect(find.text(l10n.profileEditTagsFull), findsOneWidget);
+    final field = tester.widget<TextField>(
+      find.byKey(EditProfileFieldsKeys.tagField),
+    );
+    expect(field.enabled, isFalse);
   });
 }

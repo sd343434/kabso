@@ -32,6 +32,8 @@ export interface UpdateMeInput {
   readonly showGender?: boolean | undefined;
   readonly category?: AccountCategory | null | undefined;
   readonly links?: readonly ProfileLinkInput[] | undefined;
+  /** v1.85-social (D278b, §10.99). */
+  readonly tags?: readonly string[] | undefined;
 }
 
 /** `SetAvatarRequest` (v1.45-social): strict (unknown fields → `unknown_field`). */
@@ -86,9 +88,11 @@ export class ProfileEditService {
           gender: string | null;
           show_gender: boolean;
           account_category: string | null;
+          tags: string[];
         }[]
       >`
-        SELECT display_name, bio, gender::text AS gender, show_gender, account_category::text AS account_category
+        SELECT display_name, bio, gender::text AS gender, show_gender, account_category::text AS account_category,
+               tags
           FROM user_profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
       if (!before) return false;
       await tx.userProfile.update({
@@ -101,6 +105,7 @@ export class ProfileEditService {
           ...(input.gender !== undefined ? { gender: input.gender } : {}),
           ...(input.showGender !== undefined ? { showGender: input.showGender } : {}),
           ...(input.category !== undefined ? { category: input.category } : {}),
+          ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
         },
       });
       const fields: string[] = [];
@@ -121,6 +126,11 @@ export class ProfileEditService {
       if (input.showGender !== undefined && input.showGender !== before.show_gender)
         fields.push('showGender');
       if (input.category !== undefined && input.category !== before.account_category) fields.push('category');
+      if (
+        input.tags !== undefined &&
+        (input.tags.length !== before.tags.length || input.tags.some((t, i) => t !== before.tags[i]))
+      )
+        fields.push('tags');
       if (input.links !== undefined && (await this.replaceLinksIn(tx, userId, input.links)))
         fields.push('links');
       if (fields.length > 0) {

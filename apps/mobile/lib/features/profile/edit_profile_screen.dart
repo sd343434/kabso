@@ -85,6 +85,7 @@ class EditProfileScreen extends ConsumerWidget {
   static const usernameKey = Key('profile.edit.username');
   static const bioKey = Key('profile.edit.bio');
   static const linksKey = Key('profile.edit.links');
+  static const tagsKey = Key('profile.edit.tags');
   static const genderKey = Key('profile.edit.gender');
   static const categoryKey = Key('profile.edit.category');
   static const gridKey = Key('profile.edit.grid');
@@ -251,6 +252,20 @@ class EditProfileScreen extends ConsumerWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => EditLinksScreen(initial: user.links),
+                    ),
+                  ),
+                ),
+                // D278b: the tags «منشنات» on the profile cover.
+                _Row(
+                  key: tagsKey,
+                  label: l10n.profileEditTags,
+                  value: user.tags.isEmpty
+                      ? ''
+                      : l10n.profileEditTagsValue(user.tags.length),
+                  placeholder: l10n.profileEditNotSet,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => EditTagsScreen(initial: user.tags),
                     ),
                   ),
                 ),

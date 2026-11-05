@@ -103,6 +103,7 @@ class ProfileFieldsChange {
     this.category,
     this.clearCategory = false,
     this.links,
+    this.tags,
   });
 
   final Gender? gender;
@@ -112,6 +113,9 @@ class ProfileFieldsChange {
 
   /// The whole set, in order (empty clears them).
   final List<ProfileLinkInput>? links;
+
+  /// D278b: the tags, the whole set in order (empty clears them).
+  final List<String>? tags;
 
   Map<String, Object?> toJson() => {
     'gender': ?gender?.wire,
@@ -125,6 +129,7 @@ class ProfileFieldsChange {
             if (l.label case final label? when label.isNotEmpty) 'label': label,
           },
       ],
+    'tags': ?tags,
   };
 }
 

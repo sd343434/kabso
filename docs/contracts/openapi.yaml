@@ -732,6 +732,9 @@ info:
     `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`catalog.view` / `catalog.manage`, reason,
     audited `vip.tier.*`). Ledger reason `VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). A perk the
     app does not do yet is `available: false`. Additive (CONVENTIONS §10.93).
+    **D278b (DRAFT v1.85-social)**: the profile tags «منشنات» — `UpdateMeRequest.tags` (0–10, each 1–24 code points,
+    one line, §6 hygiene, no duplicates ignoring case), `Me.tags` and `PublicProfile.tags` (also on a private account's
+    profile). Migration `20270314090000_profile_tags`. Additive (CONVENTIONS §10.99).
     **D270 (DRAFT v1.84-social)**: «المتجر» — timed bag items the OWNER manages in the admin panel (kind: avatar frame,
     profile card, chat bubble, entry banner, entry car / effect; names ar/en; a still + an SVGA or MP4 animation; a
     price per duration — 7 / 14 / 30 days — per currency, coins and / or cherries; order; «جديد»; on / off), bought for
@@ -1261,6 +1264,16 @@ paths:
                     them); more than 3 → `links` / `too_many`; the same link twice → `links.<i>.url` /
                     `invalid_value`; each link's issues on `links.<i>.url` / `links.<i>.label`.
                   items: { $ref: '#/components/schemas/ProfileLinkInput' }
+                tags:
+                  type: array
+                  maxItems: 10
+                  description: |
+                    v1.85-social (D278b, CONVENTIONS §10.99). The profile tags «منشنات» shown as chips on the
+                    profile — the whole set, in order (an empty array clears them). Each is trimmed and NFC,
+                    one line of 1–24 code points with the §6 text hygiene (`tags.<i>` / `too_short`,
+                    `too_long`, `invalid_format`); the same tag twice ignoring case → `tags.<i>` /
+                    `invalid_value`; more than 10 → `tags` / `too_many`.
+                  items: { type: string, maxLength: 240 }
       responses:
         '200':
           description: Updated user.
@@ -1966,6 +1979,7 @@ paths:
                     category: SINGER
                     links:
                       - { id: 0192f1d0-7777-7000-8000-000000000009, url: 'https://www.instagram.com/layla.k', label: Instagram, platform: INSTAGRAM }
+                    tags: [مطربة, صانعة محتوى, '10👑']
                     rechargeAgent: { code: coin0001 }
                     hostAgent: null
                     avatarFrame: { code: host_frame_pink, assetKey: host_frame_pink }
@@ -23548,7 +23562,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, coverUrl]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl]
       properties:
         kabsoTeam:
           type: boolean
@@ -23600,6 +23614,11 @@ components:
           maxItems: 3
           description: v1.47-social (D175). The profile links, in order.
           items: { $ref: '#/components/schemas/ProfileLink' }
+        tags:
+          type: array
+          maxItems: 10
+          description: "v1.85-social (D278b, §10.99). The profile tags «منشنات», in order (`PATCH /me` `tags`)."
+          items: { type: string, minLength: 1, maxLength: 24 }
         coverUrl:
           type: [string, 'null']
           format: uri
@@ -23721,7 +23740,7 @@ components:
         score: { type: integer, minimum: 0, description: "The live's points (taps + support; as `LiveRoomSummary.score`)." }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -23804,6 +23823,11 @@ components:
           maxItems: 3
           description: v1.47-social (D175). The profile links, in order (also on a private account's profile).
           items: { $ref: '#/components/schemas/ProfileLink' }
+        tags:
+          type: array
+          maxItems: 10
+          description: "v1.85-social (D278b, §10.99). The profile tags «منشنات», in order (also on a private account's profile); the app shows them as chips on the profile cover, at most two lines (the rest as «+n»)."
+          items: { type: string, minLength: 1, maxLength: 24 }
         rechargeAgent:
           description: "v1.54-social (D185, §10.48). The user is an ACTIVE recharge agent: their code (the app draws the agent frame with the code, the badge and the entrance); else null."
           oneOf:

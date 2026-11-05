@@ -76,6 +76,10 @@ abstract class PublicProfile with _$PublicProfile {
     @Default(<ProfileLink>[])
     List<ProfileLink> links,
 
+    /// v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10, in
+    /// order; also on a private profile), chips on the cover.
+    @Default(<String>[]) List<String> tags,
+
     /// v1.54-social (D185, §10.48): the user's code while they are an
     /// ACTIVE recharge agent — the agent frame (with the code in its
     /// plate) and the badge. Null otherwise (also on older servers).

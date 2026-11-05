@@ -51,6 +51,9 @@ abstract class User with _$User {
     /// v1.47-social (D175): up to 3 profile links, in order.
     @Default(<ProfileLink>[]) List<ProfileLink> links,
 
+    /// v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10).
+    @Default(<String>[]) List<String> tags,
+
     /// v1.54-social (D185, §10.48.1): the active special username (the
     /// shown [username] while set) and the person's own base username.
     SpecialUsername? specialUsername,

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { linkPlatform, normalizeProfileLink, profileLinksSchema, publicGender } from './profile-fields.js';
+import { updateMeSchema } from '../auth/auth.schemas.js';
+import {
+  linkPlatform,
+  MAX_PROFILE_TAGS,
+  normalizeProfileLink,
+  profileLinksSchema,
+  profileTagsOf,
+  profileTagsSchema,
+  publicGender,
+} from './profile-fields.js';
 
 describe('profile links (v1.47-social, D175, §10.47)', () => {
   it('normalises https links: lower-case host, punycode, no fragment, percent-encoding', () => {
@@ -99,5 +108,58 @@ describe('the gender others see', () => {
     expect(publicGender('UNDISCLOSED', true)).toBeNull();
     expect(publicGender('MALE', false)).toBeNull();
     expect(publicGender(null, true)).toBeNull();
+  });
+});
+
+describe('profile tags «منشنات» (v1.85-social, D278b, §10.99)', () => {
+  it('keeps the order, trims and NFC-normalises each tag', () => {
+    expect(profileTagsSchema.parse(['  صانع محتوى ', 'Gamer', '10👑'])).toEqual([
+      'صانع محتوى',
+      'Gamer',
+      '10👑',
+    ]);
+    expect(profileTagsSchema.parse(['Cafe\u0301'])).toEqual(['Café']);
+    expect(profileTagsSchema.parse([])).toEqual([]);
+  });
+
+  it('allows 10, refuses 11 (too_many via the pipe: zod too_big on the array)', () => {
+    const ten = Array.from({ length: MAX_PROFILE_TAGS }, (_, i) => `tag${i}`);
+    expect(profileTagsSchema.parse(ten)).toHaveLength(10);
+    const r = profileTagsSchema.safeParse([...ten, 'tag10']);
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.code).toBe('too_big');
+  });
+
+  it.each([
+    ['', 'too_short'],
+    ['   ', 'too_short'],
+    ['a'.repeat(25), 'too_long'],
+    ['two\nlines', 'too_long'],
+    ['bad\u202Eturn', 'invalid_format'],
+    ['zero\u200Bwidth', 'invalid_format'],
+  ])('refuses %j (%s)', (raw, issue) => {
+    const r = profileTagsSchema.safeParse([raw]);
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.path).toEqual([0]);
+    expect((r.error?.issues[0] as { params?: { issue?: string } }).params?.issue).toBe(issue);
+  });
+
+  it('accepts 24 code points; the same tag twice (ignoring case) is invalid_value on the second', () => {
+    expect(profileTagsSchema.parse(['ع'.repeat(24)])).toHaveLength(1);
+    const r = profileTagsSchema.safeParse(['Gamer', 'music', 'GAMER']);
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.path).toEqual([2]);
+    expect((r.error?.issues[0] as { params?: { issue?: string } }).params?.issue).toBe('invalid_value');
+  });
+
+  it('PATCH /me takes `tags` alone (the whole set; [] clears)', () => {
+    expect(updateMeSchema.parse({ tags: ['Gamer'] })).toEqual({ tags: ['Gamer'] });
+    expect(updateMeSchema.parse({ tags: [] })).toEqual({ tags: [] });
+  });
+
+  it('reads at most 10, in order; none when absent', () => {
+    expect(profileTagsOf(undefined)).toEqual([]);
+    expect(profileTagsOf(null)).toEqual([]);
+    expect(profileTagsOf(Array.from({ length: 12 }, (_, i) => `${i}`))).toHaveLength(10);
   });
 });
