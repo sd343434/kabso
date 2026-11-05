@@ -21,6 +21,7 @@ import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_directory_screen.dart'
     show rechargeCountries, rechargeCountryName;
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
+import 'package:kabso_live/features/recruits/presentation/recruiter_field.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -65,6 +66,8 @@ class _AgencyOpenScreenState extends ConsumerState<AgencyOpenScreen> {
   Uint8List? _selfie;
   bool _busy = false;
   bool _tried = false;
+  // v1.75-live (D285): the optional recruiter field and its live check.
+  RecruiterCheck _recruiter = RecruiterCheck.empty;
   String? _error;
 
   /// One key per filled-in form: a retry after a lost answer is the same
@@ -148,6 +151,7 @@ class _AgencyOpenScreenState extends ConsumerState<AgencyOpenScreen> {
         country == null ||
         expected == null ||
         !picturesOk ||
+        !_recruiter.ok ||
         !kycReady(kyc, KycPurpose.agencyOpen, allowPending: false)) {
       return;
     }
@@ -172,6 +176,7 @@ class _AgencyOpenScreenState extends ConsumerState<AgencyOpenScreen> {
                   ? null
                   : sniffImageType(selfie),
               idempotencyKey: _key,
+              recruiter: _recruiter.value,
             ),
           );
       if (!mounted) return;
@@ -371,6 +376,11 @@ class _AgencyOpenScreenState extends ConsumerState<AgencyOpenScreen> {
                   maxLength: 300,
                   keyboardType: TextInputType.multiline,
                   onChanged: (_) => _changed(),
+                ),
+                const SizedBox(height: KSpacing.sm),
+                RecruiterField(
+                  showError: _tried,
+                  onChanged: (c) => setState(() => _recruiter = c),
                 ),
               ],
             ),

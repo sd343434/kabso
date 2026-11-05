@@ -93,6 +93,8 @@ import 'package:kabso_live/features/recharge/presentation/recharge_hub_screen.da
 import 'package:kabso_live/features/recharge/presentation/recharge_order_new_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_order_screen.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_orders_screen.dart';
+import 'package:kabso_live/features/recruits/presentation/creator_apply_screen.dart';
+import 'package:kabso_live/features/recruits/presentation/staff_recruits_screen.dart';
 import 'package:kabso_live/features/referrals/presentation/invite_friends_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/account_deletion/account_deletion_screen.dart';
@@ -528,6 +530,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.store, builder: (_, _) => const StoreScreen()),
       // D273: «فريق كابسو» (staff accounts; the server checks every tool).
       GoRoute(path: AppRoutes.staff, builder: (_, _) => const StaffScreen()),
+      // v1.75-live (D285): «استقطاباتي», «أرباحي», «انضم كصانع محتوى».
+      GoRoute(
+        path: AppRoutes.staffRecruits,
+        builder: (_, _) => const StaffRecruitsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.staffEarnings,
+        builder: (_, _) => const StaffEarningsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.creatorApply,
+        builder: (_, _) => const CreatorApplyScreen(),
+      ),
       GoRoute(
         path: AppRoutes.staffUnavailable,
         builder: (_, _) => const StaffUnavailableScreen(),

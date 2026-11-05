@@ -51,7 +51,10 @@ enum StaffRegion {
 enum StaffLineRole {
   moderation('MODERATION'),
   support('SUPPORT'),
-  finance('FINANCE');
+  finance('FINANCE'),
+
+  /// v1.75-live (D285): «تطوير الأعمال» — recruitment only.
+  bd('BD');
 
   new(this.wire);
 
@@ -89,9 +92,11 @@ class KabsoStaffIdentity {
     final ar = l10n.localeName.startsWith('ar');
     final String places;
     if (names.isEmpty) {
-      return role == StaffLineRole.moderation
-          ? l10n.staffRoleModeration
-          : l10n.staffRoleSupport;
+      return switch (role) {
+        StaffLineRole.moderation => l10n.staffRoleModeration,
+        StaffLineRole.bd => l10n.staffRoleBd,
+        _ => l10n.staffRoleSupport,
+      };
     } else if (names.length == 1) {
       places = names.first;
     } else if (names.length == 2) {
@@ -104,6 +109,8 @@ class KabsoStaffIdentity {
       if (ar) return 'مشرف ${_arabicFor(places)}';
       return l10n.staffLineModeration(places);
     }
+    // v1.75-live (D285): «تطوير الأعمال — الوطن العربي».
+    if (role == StaffLineRole.bd) return l10n.staffLineBd(places);
     return l10n.staffLineSupport(places);
   }
 

@@ -180,7 +180,12 @@ final class HostingDraft {
     this.idCardType,
     this.selfie,
     this.selfieType,
+    this.recruiter,
   });
+
+  /// v1.75-live (D285): «إن كنت تابعاً لمشرف، ضع معرّفه هنا» — a staff ID or
+  /// username, checked live (null: none).
+  final String? recruiter;
 
   final String displayName;
 

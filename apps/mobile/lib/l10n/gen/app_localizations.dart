@@ -24826,6 +24826,347 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رقم موظف رسمي في فريق كابسو'**
   String get profileStaffIdHint;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'تطوير الأعمال'**
+  String get staffRoleBd;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'تطوير الأعمال — {regions}'**
+  String staffLineBd(String regions);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'إن كنت تابعاً لمشرف، ضع معرّفه هنا'**
+  String get recruiterFieldLabel;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختياري — ID الموظف مثل Kabso01 أو اسم المستخدم'**
+  String get recruiterFieldHint;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التحقق…'**
+  String get recruiterChecking;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'غير موجود'**
+  String get recruiterNotFound;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'صحّح معرّف المشرف أو اتركه فارغاً'**
+  String get recruiterFixError;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'المستقطِب: {name}'**
+  String recruiterFoundSemantics(String name);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'استقطاباتي'**
+  String get staffMyRecruits;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'أرباحي'**
+  String get staffMyEarnings;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'من سجّلوا عن طريقك. تحصل تلقائياً على نسبة من ربح المنصة من كل واحد منهم، تُحسب يومياً.'**
+  String get staffRecruitsIntro;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مستقطَبون بعد. شارك معرّفك ليكتبه المتقدمون في طلباتهم.'**
+  String get staffRecruitsEmpty;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get recruitTypeAll;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'مضيف'**
+  String get recruitTypeHost;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'وكالة'**
+  String get recruitTypeAgency;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن'**
+  String get recruitTypeRechargeAgent;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى'**
+  String get recruitTypeCreator;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط'**
+  String get recruitStatusActive;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'غير نشط'**
+  String get recruitStatusInactive;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {date}'**
+  String recruitSince(String date);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرز'**
+  String recruitCherries(String cherries);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد الكرز'**
+  String get staffEarningsBalance;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'قابل للسحب: {cherries} ≈ {amount}'**
+  String staffEarningsWithdrawable(String cherries, String amount);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'مجموع العمولات'**
+  String get staffEarningsTotal;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر 30 يوماً'**
+  String get staffEarnings30;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب الأرباح'**
+  String get staffEarningsWithdraw;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب سحب قيد الدفع'**
+  String get staffEarningsPending;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'حسب المستقطَب'**
+  String get staffEarningsByRecruit;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'السجل اليومي'**
+  String get staffEarningsHistory;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا عمولات بعد — تُحسب كل يوم من ربح المنصة الفعلي.'**
+  String get staffEarningsEmpty;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'نسبتك: {host} مضيفون · {creator} صناع محتوى · {agency} وكالات · {recharge} وكلاء شحن'**
+  String staffEarningsShares(
+    String host,
+    String creator,
+    String agency,
+    String recharge,
+  );
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح المنصة {profit} × {pct}'**
+  String staffEarningsDayLine(String profit, String pct);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'برنامج صناع المحتوى'**
+  String get creatorProgrammeEntry;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم كصانع محتوى'**
+  String get creatorProgrammeTitle;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'قدّم طلبك ليراجعه فريق كابسو. بعد الموافقة تصبح صانع محتوى في كابسو.'**
+  String get creatorProgrammeIntro;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'الدولة'**
+  String get creatorProgrammeCountry;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع المحتوى'**
+  String get creatorProgrammeCategory;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'روابط أعمالك (1 إلى 5)'**
+  String get creatorProgrammeLinks;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط يبدأ بـ https://'**
+  String get creatorProgrammeLinkError;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة رابط'**
+  String get creatorProgrammeAddLink;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'نبذة (اختياري)'**
+  String get creatorProgrammeBio;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get creatorProgrammeSubmit;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلبك'**
+  String get creatorProgrammeSent;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك قيد المراجعة'**
+  String get creatorProgrammePending;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت صانع محتوى في كابسو'**
+  String get creatorProgrammeMember;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفض طلبك: {reason}'**
+  String creatorProgrammeRejected(String reason);
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'سحب الطلب'**
+  String get creatorProgrammeCancel;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا تتقدم لبرنامج صناع المحتوى.'**
+  String get creatorProgrammeStaff;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get creatorCatVideo;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'صور'**
+  String get creatorCatPhoto;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'موسيقى'**
+  String get creatorCatMusic;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'ألعاب'**
+  String get creatorCatGaming;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'كوميديا'**
+  String get creatorCatComedy;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم'**
+  String get creatorCatEducation;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'أسلوب حياة'**
+  String get creatorCatLifestyle;
+
+  /// D285: recruitment by staff «الاستقطاب».
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get creatorCatOther;
 }
 
 class _AppLocalizationsDelegate

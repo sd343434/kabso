@@ -55,6 +55,7 @@ String staffRoleLabel(AppLocalizations l10n, String role) => switch (role) {
   'OWNER' => l10n.staffRoleOwner,
   'MODERATION' => l10n.staffRoleModeration,
   'SUPPORT' => l10n.staffRoleSupport,
+  'BD' => l10n.staffRoleBd,
   _ => l10n.staffRoleFinance,
 };
 

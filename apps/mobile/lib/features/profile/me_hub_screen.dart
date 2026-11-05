@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
+import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
@@ -137,6 +138,10 @@ class MeHubScreen extends ConsumerWidget {
   static const staffAnnouncementKey = Key('meHub.staff.announcement');
   static const staffAnnouncementReelKey = Key('meHub.staff.announcementReel');
   static const staffSettingsKey = Key('meHub.staff.settings');
+
+  /// v1.75-live (D285): «استقطاباتي» and «أرباحي» (MODERATION / BD).
+  static const staffRecruitsKey = Key('meHub.staff.recruits');
+  static const staffEarningsKey = Key('meHub.staff.earnings');
   static const soonKey = Key('meHub.soon');
 
   /// D283c: the official staff ID «ID: Kabso01» under the name.
@@ -244,6 +249,25 @@ class MeHubScreen extends ConsumerWidget {
         ? <List<Widget>>[
             // D273's panel on the phone (watch roles; FINANCE has none).
             if (user?.kabsoTeam ?? false) teamRow,
+            // v1.75-live (D285): the recruiters' own recruits and earnings.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.bd)
+              [
+                _HubRow(
+                  rowKey: staffRecruitsKey,
+                  icon: Icons.handshake_rounded,
+                  hue: _Hues.teal,
+                  title: l10n.staffMyRecruits,
+                  onTap: () => push(AppRoutes.staffRecruits),
+                ),
+                _HubRow(
+                  rowKey: staffEarningsKey,
+                  icon: Icons.savings_rounded,
+                  hue: _Hues.gold,
+                  title: l10n.staffMyEarnings,
+                  onTap: () => push(AppRoutes.staffEarnings),
+                ),
+              ],
             [
               _HubRow(
                 rowKey: staffAnnouncementKey,

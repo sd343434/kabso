@@ -14688,4 +14688,199 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileStaffIdHint => 'رقم موظف رسمي في فريق كابسو';
+
+  @override
+  String get staffRoleBd => 'تطوير الأعمال';
+
+  @override
+  String staffLineBd(String regions) {
+    return 'تطوير الأعمال — $regions';
+  }
+
+  @override
+  String get recruiterFieldLabel => 'إن كنت تابعاً لمشرف، ضع معرّفه هنا';
+
+  @override
+  String get recruiterFieldHint =>
+      'اختياري — ID الموظف مثل Kabso01 أو اسم المستخدم';
+
+  @override
+  String get recruiterChecking => 'جارٍ التحقق…';
+
+  @override
+  String get recruiterNotFound => 'غير موجود';
+
+  @override
+  String get recruiterFixError => 'صحّح معرّف المشرف أو اتركه فارغاً';
+
+  @override
+  String recruiterFoundSemantics(String name) {
+    return 'المستقطِب: $name';
+  }
+
+  @override
+  String get staffMyRecruits => 'استقطاباتي';
+
+  @override
+  String get staffMyEarnings => 'أرباحي';
+
+  @override
+  String get staffRecruitsIntro =>
+      'من سجّلوا عن طريقك. تحصل تلقائياً على نسبة من ربح المنصة من كل واحد منهم، تُحسب يومياً.';
+
+  @override
+  String get staffRecruitsEmpty =>
+      'لا يوجد مستقطَبون بعد. شارك معرّفك ليكتبه المتقدمون في طلباتهم.';
+
+  @override
+  String get recruitTypeAll => 'الكل';
+
+  @override
+  String get recruitTypeHost => 'مضيف';
+
+  @override
+  String get recruitTypeAgency => 'وكالة';
+
+  @override
+  String get recruitTypeRechargeAgent => 'وكيل شحن';
+
+  @override
+  String get recruitTypeCreator => 'صانع محتوى';
+
+  @override
+  String get recruitStatusActive => 'نشط';
+
+  @override
+  String get recruitStatusInactive => 'غير نشط';
+
+  @override
+  String recruitSince(String date) {
+    return 'منذ $date';
+  }
+
+  @override
+  String recruitCherries(String cherries) {
+    return '$cherries كرز';
+  }
+
+  @override
+  String get staffEarningsBalance => 'رصيد الكرز';
+
+  @override
+  String staffEarningsWithdrawable(String cherries, String amount) {
+    return 'قابل للسحب: $cherries ≈ $amount';
+  }
+
+  @override
+  String get staffEarningsTotal => 'مجموع العمولات';
+
+  @override
+  String get staffEarnings30 => 'آخر 30 يوماً';
+
+  @override
+  String get staffEarningsWithdraw => 'سحب الأرباح';
+
+  @override
+  String get staffEarningsPending => 'طلب سحب قيد الدفع';
+
+  @override
+  String get staffEarningsByRecruit => 'حسب المستقطَب';
+
+  @override
+  String get staffEarningsHistory => 'السجل اليومي';
+
+  @override
+  String get staffEarningsEmpty =>
+      'لا عمولات بعد — تُحسب كل يوم من ربح المنصة الفعلي.';
+
+  @override
+  String staffEarningsShares(
+    String host,
+    String creator,
+    String agency,
+    String recharge,
+  ) {
+    return 'نسبتك: $host مضيفون · $creator صناع محتوى · $agency وكالات · $recharge وكلاء شحن';
+  }
+
+  @override
+  String staffEarningsDayLine(String profit, String pct) {
+    return 'ربح المنصة $profit × $pct';
+  }
+
+  @override
+  String get creatorProgrammeEntry => 'برنامج صناع المحتوى';
+
+  @override
+  String get creatorProgrammeTitle => 'انضم كصانع محتوى';
+
+  @override
+  String get creatorProgrammeIntro =>
+      'قدّم طلبك ليراجعه فريق كابسو. بعد الموافقة تصبح صانع محتوى في كابسو.';
+
+  @override
+  String get creatorProgrammeCountry => 'الدولة';
+
+  @override
+  String get creatorProgrammeCategory => 'نوع المحتوى';
+
+  @override
+  String get creatorProgrammeLinks => 'روابط أعمالك (1 إلى 5)';
+
+  @override
+  String get creatorProgrammeLinkError => 'رابط يبدأ بـ https://';
+
+  @override
+  String get creatorProgrammeAddLink => 'إضافة رابط';
+
+  @override
+  String get creatorProgrammeBio => 'نبذة (اختياري)';
+
+  @override
+  String get creatorProgrammeSubmit => 'إرسال الطلب';
+
+  @override
+  String get creatorProgrammeSent => 'تم إرسال طلبك';
+
+  @override
+  String get creatorProgrammePending => 'طلبك قيد المراجعة';
+
+  @override
+  String get creatorProgrammeMember => 'أنت صانع محتوى في كابسو';
+
+  @override
+  String creatorProgrammeRejected(String reason) {
+    return 'رُفض طلبك: $reason';
+  }
+
+  @override
+  String get creatorProgrammeCancel => 'سحب الطلب';
+
+  @override
+  String get creatorProgrammeStaff =>
+      'حسابات فريق كابسو لا تتقدم لبرنامج صناع المحتوى.';
+
+  @override
+  String get creatorCatVideo => 'فيديو';
+
+  @override
+  String get creatorCatPhoto => 'صور';
+
+  @override
+  String get creatorCatMusic => 'موسيقى';
+
+  @override
+  String get creatorCatGaming => 'ألعاب';
+
+  @override
+  String get creatorCatComedy => 'كوميديا';
+
+  @override
+  String get creatorCatEducation => 'تعليم';
+
+  @override
+  String get creatorCatLifestyle => 'أسلوب حياة';
+
+  @override
+  String get creatorCatOther => 'أخرى';
 }

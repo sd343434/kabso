@@ -43,6 +43,14 @@ abstract final class AppRoutes {
   /// cannot use.
   static const staffUnavailable = '/me/staff/unavailable';
 
+  /// v1.75-live (D285): «استقطاباتي» and «أرباحي» in the staff Me tab
+  /// (MODERATION / BD).
+  static const staffRecruits = '/me/staff/recruits';
+  static const staffEarnings = '/me/staff/earnings';
+
+  /// v1.75-live (D285): «انضم كصانع محتوى» (from the creator centre).
+  static const creatorApply = '/creator/apply';
+
   /// v1.72-live (D283, §10.96.10): the pages a Kabso Team account (MODERATION
   /// / SUPPORT / FINANCE, not OWNER) cannot use: going live and announcing a
   /// live, levels, VIP, family, store, wallet / recharge, bag, agency,

@@ -500,7 +500,12 @@ final class RechargeApplicationDraft {
     this.photoType,
     this.selfie,
     this.selfieType,
+    this.recruiter,
   });
+
+  /// v1.75-live (D285): «إن كنت تابعاً لمشرف، ضع معرّفه هنا» — a staff ID or
+  /// username, checked live (null: none).
+  final String? recruiter;
 
   final String fullName;
   final String phone;
@@ -636,6 +641,7 @@ class RechargeRepositoryImpl implements RechargeRepository {
             for (final p in d.paymentMethods)
               {'country': p.country, 'type': p.type.wire, 'details': p.details},
           ],
+          'recruiter': ?d.recruiter,
         },
       );
       return RechargeAgentMe.fromJson(res.data!);

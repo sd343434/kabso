@@ -438,7 +438,12 @@ final class AgencyOpenDraft {
     this.idCardType,
     this.selfie,
     this.selfieType,
+    this.recruiter,
   });
+
+  /// v1.75-live (D285): «إن كنت تابعاً لمشرف، ضع معرّفه هنا» — a staff ID or
+  /// username, checked live (null: none).
+  final String? recruiter;
 
   final String name;
 
@@ -636,6 +641,7 @@ class AgencyRepositoryImpl implements AgencyRepository {
         if (d.bio.isNotEmpty) 'bio': d.bio,
         'photoUploadId': ?idCard,
         'selfieUploadId': ?selfie,
+        'recruiter': ?d.recruiter,
       },
       options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
     );
@@ -677,6 +683,7 @@ class AgencyRepositoryImpl implements AgencyRepository {
             'acceptRules': true,
             'photoUploadId': ?idCard,
             'selfieUploadId': ?selfie,
+            'recruiter': ?d.recruiter,
           },
           options: Options(headers: {'Idempotency-Key': d.idempotencyKey}),
         );

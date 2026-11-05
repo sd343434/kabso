@@ -89,7 +89,10 @@ enum CreatorService {
   academy,
   support,
   identity,
-  fans;
+  fans,
+
+  /// v1.75-live (D285): «برنامج صناع المحتوى» — «انضم كصانع محتوى».
+  programme;
 
   Key get key => Key('creator.service.$name');
 }
@@ -167,6 +170,7 @@ class _CreatorCenterScreenState extends ConsumerState<CreatorCenterScreen> {
       context.l10n.creatorTrafficHint,
     ),
     CreatorService.fans => () => _push(AppRoutes.creatorStats),
+    CreatorService.programme => () => _push(AppRoutes.creatorApply),
     // Not built: no self-view of moderation, no academy, no support
     // contact, no identity check (owner decisions pending).
     CreatorService.violations ||
@@ -686,6 +690,7 @@ class _Services extends StatelessWidget {
       CreatorService.support: l10n.creatorSvcSupport,
       CreatorService.identity: l10n.creatorSvcIdentity,
       CreatorService.fans: l10n.creatorSvcFans,
+      CreatorService.programme: l10n.creatorProgrammeEntry,
     };
     const icons = {
       CreatorService.preview: Icons.play_circle_outline_rounded,
@@ -698,6 +703,7 @@ class _Services extends StatelessWidget {
       CreatorService.support: Icons.headset_mic_outlined,
       CreatorService.identity: Icons.badge_outlined,
       CreatorService.fans: Icons.favorite_border_rounded,
+      CreatorService.programme: Icons.auto_awesome_rounded,
     };
     const services = CreatorService.values;
     final rows = <Widget>[];
@@ -718,7 +724,11 @@ class _Services extends StatelessWidget {
             children: [
               tile(services[i]),
               const SizedBox(width: KCreator.tileGap),
-              tile(services[i + 1]),
+              // D285: an odd last tile keeps its half width.
+              if (i + 1 < services.length)
+                tile(services[i + 1])
+              else
+                const Expanded(child: SizedBox.shrink()),
             ],
           ),
         ),

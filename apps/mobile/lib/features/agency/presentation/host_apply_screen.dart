@@ -25,6 +25,7 @@ import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_directory_screen.dart'
     show rechargeCountries, rechargeCountryName;
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
+import 'package:kabso_live/features/recruits/presentation/recruiter_field.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -86,6 +87,8 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
   Uint8List? _idCard;
   Uint8List? _selfie;
   bool _accepted = false;
+  // v1.75-live (D285): the optional recruiter field and its live check.
+  RecruiterCheck _recruiter = RecruiterCheck.empty;
   bool _busy = false;
   bool _tried = false;
   String? _error;
@@ -220,6 +223,7 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
         !_links.every((c) => _linkOk(c.text)) ||
         !picturesOk ||
         !kycReady(kyc, KycPurpose.hostApplication) ||
+        !_recruiter.ok ||
         !_accepted) {
       return;
     }
@@ -245,6 +249,7 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
                   ? null
                   : sniffImageType(selfie),
               idempotencyKey: _key,
+              recruiter: _recruiter.value,
             ),
           );
       if (!mounted) return;
@@ -488,6 +493,11 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
                       label: Text(l10n.hostApplyAddLink),
                     ),
                   ),
+                const SizedBox(height: KSpacing.sm),
+                RecruiterField(
+                  showError: _tried,
+                  onChanged: (c) => setState(() => _recruiter = c),
+                ),
               ],
             ),
           ),

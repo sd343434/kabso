@@ -14692,4 +14692,200 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileStaffIdHint => 'Official Kabso Team staff ID';
+
+  @override
+  String get staffRoleBd => 'Business development';
+
+  @override
+  String staffLineBd(String regions) {
+    return 'Business development — $regions';
+  }
+
+  @override
+  String get recruiterFieldLabel =>
+      'If a Kabso Team member referred you, enter their ID';
+
+  @override
+  String get recruiterFieldHint =>
+      'Optional — their staff ID like Kabso01 or their username';
+
+  @override
+  String get recruiterChecking => 'Checking…';
+
+  @override
+  String get recruiterNotFound => 'Not found';
+
+  @override
+  String get recruiterFixError => 'Fix the team member\'s ID or leave it empty';
+
+  @override
+  String recruiterFoundSemantics(String name) {
+    return 'Recruiter: $name';
+  }
+
+  @override
+  String get staffMyRecruits => 'My recruits';
+
+  @override
+  String get staffMyEarnings => 'My earnings';
+
+  @override
+  String get staffRecruitsIntro =>
+      'People who joined through you. You automatically earn a share of the platform profit from each of them, computed daily.';
+
+  @override
+  String get staffRecruitsEmpty =>
+      'No recruits yet. Share your ID so applicants enter it in their forms.';
+
+  @override
+  String get recruitTypeAll => 'All';
+
+  @override
+  String get recruitTypeHost => 'Host';
+
+  @override
+  String get recruitTypeAgency => 'Agency';
+
+  @override
+  String get recruitTypeRechargeAgent => 'Recharge agent';
+
+  @override
+  String get recruitTypeCreator => 'Creator';
+
+  @override
+  String get recruitStatusActive => 'Active';
+
+  @override
+  String get recruitStatusInactive => 'Inactive';
+
+  @override
+  String recruitSince(String date) {
+    return 'Since $date';
+  }
+
+  @override
+  String recruitCherries(String cherries) {
+    return '$cherries cherries';
+  }
+
+  @override
+  String get staffEarningsBalance => 'Cherry balance';
+
+  @override
+  String staffEarningsWithdrawable(String cherries, String amount) {
+    return 'Withdrawable: $cherries ≈ $amount';
+  }
+
+  @override
+  String get staffEarningsTotal => 'Total commissions';
+
+  @override
+  String get staffEarnings30 => 'Last 30 days';
+
+  @override
+  String get staffEarningsWithdraw => 'Withdraw earnings';
+
+  @override
+  String get staffEarningsPending => 'A withdrawal is being paid';
+
+  @override
+  String get staffEarningsByRecruit => 'By recruit';
+
+  @override
+  String get staffEarningsHistory => 'Daily history';
+
+  @override
+  String get staffEarningsEmpty =>
+      'No commissions yet — they are computed every day from the actual platform profit.';
+
+  @override
+  String staffEarningsShares(
+    String host,
+    String creator,
+    String agency,
+    String recharge,
+  ) {
+    return 'Your share: $host hosts · $creator creators · $agency agencies · $recharge recharge agents';
+  }
+
+  @override
+  String staffEarningsDayLine(String profit, String pct) {
+    return 'Platform profit $profit × $pct';
+  }
+
+  @override
+  String get creatorProgrammeEntry => 'Creator programme';
+
+  @override
+  String get creatorProgrammeTitle => 'Join as a content creator';
+
+  @override
+  String get creatorProgrammeIntro =>
+      'Apply and the Kabso team will review it. Once approved you are a Kabso content creator.';
+
+  @override
+  String get creatorProgrammeCountry => 'Country';
+
+  @override
+  String get creatorProgrammeCategory => 'Content type';
+
+  @override
+  String get creatorProgrammeLinks => 'Links to your work (1 to 5)';
+
+  @override
+  String get creatorProgrammeLinkError => 'A link starting with https://';
+
+  @override
+  String get creatorProgrammeAddLink => 'Add a link';
+
+  @override
+  String get creatorProgrammeBio => 'About you (optional)';
+
+  @override
+  String get creatorProgrammeSubmit => 'Send the application';
+
+  @override
+  String get creatorProgrammeSent => 'Your application was sent';
+
+  @override
+  String get creatorProgrammePending => 'Your application is under review';
+
+  @override
+  String get creatorProgrammeMember => 'You are a Kabso content creator';
+
+  @override
+  String creatorProgrammeRejected(String reason) {
+    return 'Your application was declined: $reason';
+  }
+
+  @override
+  String get creatorProgrammeCancel => 'Withdraw the application';
+
+  @override
+  String get creatorProgrammeStaff =>
+      'Kabso Team accounts do not apply to the creator programme.';
+
+  @override
+  String get creatorCatVideo => 'Video';
+
+  @override
+  String get creatorCatPhoto => 'Photos';
+
+  @override
+  String get creatorCatMusic => 'Music';
+
+  @override
+  String get creatorCatGaming => 'Gaming';
+
+  @override
+  String get creatorCatComedy => 'Comedy';
+
+  @override
+  String get creatorCatEducation => 'Education';
+
+  @override
+  String get creatorCatLifestyle => 'Lifestyle';
+
+  @override
+  String get creatorCatOther => 'Other';
 }

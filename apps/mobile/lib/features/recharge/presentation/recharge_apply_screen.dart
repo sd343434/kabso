@@ -18,6 +18,7 @@ import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_directory_screen.dart'
     show rechargeCountries, rechargeCountryName;
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
+import 'package:kabso_live/features/recruits/presentation/recruiter_field.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -77,6 +78,8 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
   Uint8List? _selfie;
   bool _busy = false;
   bool _tried = false;
+  // v1.75-live (D285): the optional recruiter field and its live check.
+  RecruiterCheck _recruiter = RecruiterCheck.empty;
 
   /// A failure of the request itself (shown above the submit bar).
   String? _error;
@@ -161,6 +164,7 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
         !paymentsOk ||
         !photosOk ||
         !kycReady(kyc, KycPurpose.rechargeAgent) ||
+        !_recruiter.ok ||
         _nameError(l10n) != null ||
         _phoneError(l10n) != null) {
       return;
@@ -181,6 +185,7 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
               selfieType: selfieType,
               locations: locations,
               paymentMethods: payments,
+              recruiter: _recruiter.value,
             ),
           );
       if (!mounted) return;
@@ -303,6 +308,11 @@ class _RechargeApplyScreenState extends ConsumerState<RechargeApplyScreen> {
                   ],
                   errorText: _tried ? _phoneError(l10n) : null,
                   onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: KSpacing.sm),
+                RecruiterField(
+                  showError: _tried,
+                  onChanged: (c) => setState(() => _recruiter = c),
                 ),
               ],
             ),
