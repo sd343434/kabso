@@ -1,6 +1,7 @@
 /**
  * D283c (owner 2026-11-05, «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»; contract v1.73-live, CONVENTIONS
- * §10.96.12), end to end against PostgreSQL + Redis:
+ * §10.96.12) and D283d (owner: «المالك… لا، kabso»; v1.74-live: the primary OWNER is plain «Kabso»), end to end against
+ * PostgreSQL + Redis:
  *
  *  - a panel grant gives the next staff ID («Kabso01», «Kabso02», …) in its transaction — the OWNER too; another role
  *    keeps it; concurrent grants never duplicate nor skip a number;
@@ -25,6 +26,10 @@ import { createTestApp, newUser, withMigrationClient, type TestContext } from '.
 
 const COOKIE = '__Host-kabso_admin';
 const MIGRATION = new URL('../prisma/migrations/20270317090000_staff_ids/migration.sql', import.meta.url);
+const RENUMBER = new URL(
+  '../prisma/migrations/20270318090000_staff_ids_owner/migration.sql',
+  import.meta.url,
+);
 
 interface TestUser {
   readonly id: string;
@@ -173,37 +178,37 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
     await ctx?.close();
   });
 
-  it('grants number sequentially from Kabso01 (the OWNER too); another role keeps the number', async () => {
-    expect((await grant(owner, 'OWNER')).staffId).toBe('Kabso01');
-    expect((await grant(sara, 'SUPPORT')).staffId).toBe('Kabso02');
-    expect((await grant(omar, 'MODERATION')).staffId).toBe('Kabso03');
+  it('the primary OWNER is «Kabso»; the staff number from Kabso01; another role keeps the number', async () => {
+    expect((await grant(owner, 'OWNER')).staffId).toBe('Kabso');
+    expect((await grant(sara, 'SUPPORT')).staffId).toBe('Kabso01');
+    expect((await grant(omar, 'MODERATION')).staffId).toBe('Kabso02');
     const again = await grant(sara, 'FINANCE');
-    expect(again.staffId).toBe('Kabso02');
+    expect(again.staffId).toBe('Kabso01');
     expect(await numbers()).toEqual([
-      { number: 1, user_id: owner.id },
-      { number: 2, user_id: sara.id },
-      { number: 3, user_id: omar.id },
+      { number: 0, user_id: owner.id },
+      { number: 1, user_id: sara.id },
+      { number: 2, user_id: omar.id },
     ]);
     // The audit row names it.
     const audit = await ctx.prisma.auditLog.findFirst({
       where: { action: 'admin.role.grant', targetId: omar.id },
       select: { metadata: true },
     });
-    expect(audit?.metadata).toMatchObject({ role: 'MODERATION', staffId: 'Kabso03' });
+    expect(audit?.metadata).toMatchObject({ role: 'MODERATION', staffId: 'Kabso02' });
   });
 
   it('Me, the public profile and summaries carry it; the username stays the login name', async () => {
     const mine = await me(sara);
-    expect(mine.staffId).toBe('Kabso02');
-    expect(mine.staff?.staffId).toBe('Kabso02');
+    expect(mine.staffId).toBe('Kabso01');
+    expect(mine.staff?.staffId).toBe('Kabso01');
     expect(mine.username).toBe(sara.username);
     // The OWNER stays a normal account (no `staff`), but shows the staff ID.
     const own = await me(owner);
-    expect(own.staffId).toBe('Kabso01');
+    expect(own.staffId).toBe('Kabso');
     expect(own.staff).toBeUndefined();
     const p = await profile(viewer, omar);
-    expect(p.staffId).toBe('Kabso03');
-    expect(p.staff?.staffId).toBe('Kabso03');
+    expect(p.staffId).toBe('Kabso02');
+    expect(p.staff?.staffId).toBe('Kabso02');
     expect(p.username).toBe(omar.username);
     // A normal account has none.
     expect((await me(viewer)).staffId).toBeUndefined();
@@ -220,17 +225,17 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
     expect(login.status, JSON.stringify(login.body)).toBe(200);
   });
 
-  it('search «Kabso02» (any case) finds the staff member first, with the staff ID on the summary', async () => {
-    for (const q of ['Kabso02', 'kabso02', 'KABSO2', '@Kabso02']) {
+  it('search «Kabso01» (any case) finds the staff member first, with the staff ID on the summary', async () => {
+    for (const q of ['Kabso01', 'kabso01', 'KABSO1', '@Kabso01']) {
       const hits = await searchUsers(viewer, q);
       expect(hits[0]?.id, q).toBe(sara.id);
-      expect(hits[0]?.staffId).toBe('Kabso02');
+      expect(hits[0]?.staffId).toBe('Kabso01');
       expect(hits[0]?.username).toBe(sara.username);
     }
-    expect(await searchUsers(viewer, 'Kabso77')).toEqual([]);
+    expect(await searchUsers(viewer, 'Kabso76')).toEqual([]);
     // Found by the username too, still with the staff ID.
     const byName = await searchUsers(viewer, omar.username);
-    expect(byName.find((h) => h.id === omar.id)?.staffId).toBe('Kabso03');
+    expect(byName.find((h) => h.id === omar.id)?.staffId).toBe('Kabso02');
   });
 
   it('concurrent grants never duplicate nor skip a number (the panel path, the runtime role)', async () => {
@@ -241,6 +246,7 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
     const given = results.map((r) => r.staffId).sort();
     expect(new Set(given).size).toBe(8);
     expect(given).toEqual([
+      'Kabso03',
       'Kabso04',
       'Kabso05',
       'Kabso06',
@@ -248,9 +254,8 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
       'Kabso08',
       'Kabso09',
       'Kabso10',
-      'Kabso11',
     ]);
-    expect((await numbers()).map((r) => r.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect((await numbers()).map((r) => r.number)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     // Two grants of the same new person at once: one number.
     const twice = await signup();
     const both = await Promise.all(
@@ -258,8 +263,8 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
         ctx.prisma.$transaction((tx) => grantRoleIn(tx, twice.email, role as never)),
       ),
     );
-    expect(both[0]!.staffId).toBe('Kabso12');
-    expect(both[1]!.staffId).toBe('Kabso12');
+    expect(both[0]!.staffId).toBe('Kabso11');
+    expect(both[1]!.staffId).toBe('Kabso11');
     // A refused grant (a banned account) gives nothing away.
     const banned = await signup();
     await withMigrationClient((db) =>
@@ -271,26 +276,40 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
 
   it('a revoke hides it (kept, never reused); a re-grant gives the same one back; a newcomer gets the next', async () => {
     await revoke(sara, 'SUPPORT');
-    expect((await me(sara)).staffId).toBe('Kabso02'); // FINANCE still held
+    expect((await me(sara)).staffId).toBe('Kabso01'); // FINANCE still held
     await revoke(sara, 'FINANCE');
     const after = await me(sara);
     expect(after.staffId).toBeUndefined();
     expect(after.staff).toBeUndefined();
     expect((await profile(viewer, sara)).staffId).toBeUndefined();
-    expect(await searchUsers(viewer, 'Kabso02')).toEqual([]);
-    expect((await numbers()).find((r) => r.number === 2)?.user_id).toBe(sara.id);
+    expect(await searchUsers(viewer, 'Kabso01')).toEqual([]);
+    expect((await numbers()).find((r) => r.number === 1)?.user_id).toBe(sara.id);
     const newcomer = await signup();
-    expect((await grant(newcomer, 'SUPPORT')).staffId).toBe('Kabso13');
-    expect((await grant(sara, 'MODERATION')).staffId).toBe('Kabso02');
-    expect((await me(sara)).staffId).toBe('Kabso02');
+    expect((await grant(newcomer, 'SUPPORT')).staffId).toBe('Kabso12');
+    expect((await grant(sara, 'MODERATION')).staffId).toBe('Kabso01');
+    expect((await me(sara)).staffId).toBe('Kabso01');
     // A suspended staff account does not show it.
     await withMigrationClient((db) =>
       db.$executeRawUnsafe(`UPDATE users SET status = 'SUSPENDED' WHERE id = '${newcomer.id}'`),
     );
-    expect(await searchUsers(viewer, 'Kabso13')).toEqual([]);
+    expect(await searchUsers(viewer, 'Kabso12')).toEqual([]);
     await withMigrationClient((db) =>
       db.$executeRawUnsafe(`UPDATE users SET status = 'ACTIVE' WHERE id = '${newcomer.id}'`),
     );
+  });
+
+  it('D283d: a second OWNER gets the next number, never «Kabso»; «Kabso» finds the primary OWNER first', async () => {
+    const second = await signup({ displayName: 'Second Owner' });
+    expect((await grant(second, 'OWNER')).staffId).toBe('Kabso13');
+    expect((await me(second)).staffId).toBe('Kabso13');
+    const hits = await searchUsers(viewer, 'Kabso');
+    expect(hits[0]?.id).toBe(owner.id);
+    expect(hits[0]?.staffId).toBe('Kabso');
+    expect((await searchUsers(viewer, '@kabso'))[0]?.id).toBe(owner.id);
+    // Numbers are kept: a revoke and a re-grant give the second OWNER the same number back, never «Kabso».
+    await revoke(second, 'OWNER');
+    expect((await grant(second, 'OWNER')).staffId).toBe('Kabso13');
+    await revoke(second, 'OWNER');
   });
 
   it('the panel: the team list shows it, the user search and a grant find a person by it', async () => {
@@ -299,22 +318,22 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
     expect(team.status, JSON.stringify(team.body)).toBe(200);
     expectContract(team, 'listAdminTeam');
     const rows = team.body.data as { id: string; staffId: string | null }[];
-    expect(rows.find((r) => r.id === owner.id)?.staffId).toBe('Kabso01');
-    expect(rows.find((r) => r.id === omar.id)?.staffId).toBe('Kabso03');
-    const found = await aget(ownerAdmin, '/admin/users?q=kabso03');
+    expect(rows.find((r) => r.id === owner.id)?.staffId).toBe('Kabso');
+    expect(rows.find((r) => r.id === omar.id)?.staffId).toBe('Kabso02');
+    const found = await aget(ownerAdmin, '/admin/users?q=kabso02');
     expect(found.status, JSON.stringify(found.body)).toBe(200);
     expect((found.body.data as { id: string }[])[0]?.id).toBe(omar.id);
     // Revoke OMAR's role, then grant it back from the panel by his staff ID.
     await revoke(omar, 'MODERATION');
     const back = await apost(ownerAdmin, '/admin/team/grant', {
-      account: 'Kabso03',
+      account: 'Kabso02',
       role: 'SUPPORT',
       reason: 'back from leave',
       totpCode: nextCode(ownerAdmin.secret),
     });
     expect(back.status, JSON.stringify(back.body)).toBe(200);
     expectContract(back, 'grantAdminTeamRole');
-    expect(back.body).toMatchObject({ userId: omar.id, staffId: 'Kabso03' });
+    expect(back.body).toMatchObject({ userId: omar.id, staffId: 'Kabso02' });
   });
 
   it('live viewers and other summaries carry it', async () => {
@@ -353,9 +372,16 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
       expect(res.status, `${username} ${JSON.stringify(res.body)}`).toBe(409);
       expect(res.body.error.code).toBe('USERNAME_TAKEN');
     }
+    // D283d: «kabso» itself and its look-alikes (shorter than a new regular name, so registration refuses them anyway;
+    // reserved for premium names and the panel's username change too — the unit tests cover isReservedUsername).
+    for (const username of ['kabso', 'kabs0', 'k4b5o', 'ka.bs0']) {
+      const avail = await ctx.http.get('/api/v1/users/username-availability').query({ username });
+      expect(avail.status, JSON.stringify(avail.body)).toBe(200);
+      expect(avail.body.available, username).toBe(false);
+    }
   });
 
-  it('the runtime role cannot write staff_ids; the migration backfill numbers holders by first grant', async () => {
+  it('the runtime role cannot write staff_ids; the backfill and the D283d renumber: primary OWNER «Kabso», then by first grant', async () => {
     await expect(
       ctx.prisma.$executeRawUnsafe(`INSERT INTO staff_ids (number, user_id) VALUES (999, '${viewer.id}')`),
     ).rejects.toThrow(/permission denied|42501/i);
@@ -363,7 +389,7 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
       /permission denied|42501/i,
     );
     await expect(
-      ctx.prisma.$executeRawUnsafe(`SELECT kabso_assign_staff_id('${viewer.id}'::uuid)`),
+      ctx.prisma.$executeRawUnsafe(`SELECT kabso_assign_staff_id('${viewer.id}'::uuid, true)`),
     ).rejects.toThrow(/permission denied|42501/i);
     // The backfill statement of the migration, on a database whose holders predate it.
     const sql = readFileSync(MIGRATION, 'utf8');
@@ -372,6 +398,13 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
         sql,
       )?.[0];
     expect(backfill).toBeDefined();
+    // D283d's renumber (the primary OWNER 0, the rest 1, 2, … in their order), statement by statement.
+    const renumber = /CREATE TEMP TABLE staff_ids_renumber[\s\S]*?DROP TABLE staff_ids_renumber;/
+      .exec(readFileSync(RENUMBER, 'utf8'))?.[0]
+      .split(/;\s*\n/)
+      .map((q) => q.trim().replace(/;$/, ''))
+      .filter((q) => q.length > 0);
+    expect(renumber).toHaveLength(4);
     const [a, b, c] = [await signup(), await signup(), await signup()];
     await withMigrationClient(async (db) => {
       await db.$executeRawUnsafe('DELETE FROM staff_ids');
@@ -396,7 +429,20 @@ describe('D283c the official staff IDs «Kabso01»', { timeout: 900_000 }, () =>
       { number: 2, user_id: a.id },
       { number: 3, user_id: b.id },
     ]);
-    // The next grant continues after the backfill.
-    expect((await grant(viewer, 'SUPPORT')).staffId).toBe('Kabso04');
+    // One connection (the temporary table), as the migration runs.
+    await withMigrationClient((db) =>
+      db.$transaction(async (tx) => {
+        for (const q of renumber!) await tx.$executeRawUnsafe(q);
+      }),
+    );
+    expect(await numbers()).toEqual([
+      { number: 0, user_id: a.id },
+      { number: 1, user_id: c.id },
+      { number: 2, user_id: b.id },
+    ]);
+    // The next grant continues after it; another OWNER gets a number.
+    expect((await grant(viewer, 'SUPPORT')).staffId).toBe('Kabso03');
+    const d = await signup();
+    expect((await grant(d, 'OWNER')).staffId).toBe('Kabso04');
   });
 });

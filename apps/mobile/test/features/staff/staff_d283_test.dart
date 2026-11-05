@@ -42,6 +42,7 @@ import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
+import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -94,6 +95,13 @@ User staffUser({
       staff: staff,
       staffId: staffId,
     );
+
+/// D283d: the official bio card's header — the only place of the region
+/// line «مشرف للوطن العربي».
+String staffBioTitle(WidgetTester tester) => tester
+    .widget<Text>(find.byKey(StaffOfficialBio.titleKey))
+    .textSpan!
+    .toPlainText();
 
 class _Coins extends LiveCoinsController {
   @override
@@ -326,10 +334,9 @@ void main() {
     expect(find.byKey(ProfileCoverHeader.levelsKey), findsNothing);
     expect(find.byKey(KabsoTeamAvatar.frameKey), findsOneWidget);
     expect(find.byType(KabsoTeamBadge), findsWidgets);
-    expect(
-      tester.widget<Text>(find.byKey(ProfileCoverHeader.staffLineKey)).data,
-      'مشرف للوطن العربي',
-    );
+    // D283d: the region line only in the official bio card's header.
+    expect(staffBioTitle(tester), contains('مشرف للوطن العربي'));
+    expect(find.text('مشرف للوطن العربي'), findsNothing);
     // The photo sits at the cover's bottom-start, under the title.
     final photo = tester.getRect(find.byKey(KabsoTeamAvatar.frameKey));
     final area = tester.getRect(find.byKey(ProfileCoverHeader.coverAreaKey));
@@ -351,10 +358,8 @@ void main() {
       (cover.image as AssetImage).assetName,
       'assets/staff/covers/international.webp',
     );
-    expect(
-      tester.widget<Text>(find.byKey(ProfileCoverHeader.staffLineKey)).data,
-      'Support — Europe',
-    );
+    expect(staffBioTitle(tester), contains('Support — Europe'));
+    expect(find.text('Support — Europe'), findsNothing);
   });
 
   testWidgets('the staff-only Me tab: the header (team picture, badge, line), '
@@ -365,10 +370,9 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byKey(KabsoTeamAvatar.frameKey), findsOneWidget);
     expect(find.byType(KabsoTeamBadge), findsWidgets);
-    expect(
-      tester.widget<Text>(find.byKey(MeHubScreen.staffLineKey)).data,
-      'مشرف للوطن العربي',
-    );
+    // D283d: the region line only in the official bio card's header.
+    expect(staffBioTitle(tester), contains('مشرف للوطن العربي'));
+    expect(find.text('مشرف للوطن العربي'), findsNothing);
     expect(find.byKey(MeHubScreen.kabsoTeamKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffAnnouncementKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffAnnouncementReelKey), findsOneWidget);
@@ -391,11 +395,8 @@ void main() {
       staff: const KabsoStaffIdentity(role: StaffLineRole.finance),
     );
     // The user is kabsoTeam in this fixture; a FINANCE account is not (D273).
-    expect(find.byKey(MeHubScreen.staffLineKey), findsOneWidget);
-    expect(
-      tester.widget<Text>(find.byKey(MeHubScreen.staffLineKey)).data,
-      'Finance',
-    );
+    expect(staffBioTitle(tester), contains('Finance'));
+    expect(find.text('Finance'), findsNothing);
   });
 
   testWidgets('the ➕ menu of a staff account: announcement post and reel, no '

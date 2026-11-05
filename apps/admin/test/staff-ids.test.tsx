@@ -69,6 +69,13 @@ describe("D283c the staff ID on the cards", () => {
     ).toContain("رقم الموظف الرسمي");
   });
 
+  it("D283d: the primary OWNER's plain «ID: Kabso»", () => {
+    const owner = member({ roles: ["OWNER"], staffId: "Kabso", username: "kabso.owner" });
+    const out = html("ar", <MemberCard m={owner} selfId={SELF} activeOwners={1} onRevoke={noop} onReset={noop} />);
+    expect(out).toContain('data-staff-id="Kabso"');
+    expect(out).toContain("ID: Kabso<");
+  });
+
   it("an older API (no staffId) or a null one shows no badge", () => {
     for (const staffId of [undefined, null]) {
       const out = html("en", <MemberCard m={member({ staffId })} selfId={SELF} activeOwners={1} onRevoke={noop} onReset={noop} />);
@@ -112,6 +119,12 @@ describe("D283c the staff list search", () => {
     expect(matchesStaffQuery(omar, "100")).toBe(true);
     expect(matchesStaffQuery(sara, "Kabso03")).toBe(false);
     expect(matchesStaffQuery(omar, "Kabso02")).toBe(false);
+    // D283d: «Kabso» is the primary OWNER's own ID (and the prefix of every staff ID).
+    const owner = member({ roles: ["OWNER"], staffId: "Kabso", username: "kabso.owner" });
+    expect(matchesStaffQuery(owner, "Kabso")).toBe(true);
+    expect(matchesStaffQuery(owner, "@kabso")).toBe(true);
+    expect(matchesStaffQuery(owner, "Kabso01")).toBe(false);
+    expect(matchesStaffQuery(owner, "1")).toBe(false);
   });
 
   it("finds by name, username (@ optional) or email; an empty query shows everyone", () => {

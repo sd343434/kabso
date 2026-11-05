@@ -9,7 +9,8 @@ export const AR_D283C = {
   staffSearch: "ابحث بـ ID الموظف أو الاسم أو البريد",
   staffSearchNone: "لا يوجد موظف يطابق «{q}».",
   staffNextId: "رقم الموظف: {id} — يظهر في التطبيق مكان اسم المستخدم.",
-  staffIdNote: "لكل موظف رقم رسمي (Kabso01، Kabso02، …) يُعطى مع أول صلاحية ويبقى له، ولا يُعطى لغيره أبدًا.",
+  staffIdNote:
+    "لكل موظف رقم رسمي (Kabso01، Kabso02، …) يُعطى مع أول صلاحية ويبقى له، ولا يُعطى لغيره أبدًا. المالك الأساسي: Kabso.",
 };
 
 export const EN_D283C: typeof AR_D283C = {
@@ -19,5 +20,5 @@ export const EN_D283C: typeof AR_D283C = {
   staffSearchNone: "No staff member matches “{q}”.",
   staffNextId: "Staff ID: {id} — shown in the app instead of the username.",
   staffIdNote:
-    "Each staff member has an official ID (Kabso01, Kabso02, …) given with their first role; it stays theirs and is never given to anyone else.",
+    "Each staff member has an official ID (Kabso01, Kabso02, …) given with their first role; it stays theirs and is never given to anyone else. The primary owner is Kabso.",
 };

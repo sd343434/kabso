@@ -760,7 +760,7 @@ describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
       SELECT conname::text AS name FROM pg_constraint
        WHERE conrelid = 'public.staff_ids'::regclass ORDER BY 1`);
     expect(constraints.map((c) => c.name)).toEqual([
-      'staff_ids_number_positive',
+      'staff_ids_number_nonnegative',
       'staff_ids_pkey',
       'staff_ids_user_id_fkey',
     ]);
@@ -780,9 +780,9 @@ describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
       `INSERT INTO staff_ids (number, user_id) VALUES (99999, '${user}')`,
       `UPDATE staff_ids SET number = number + 1000`,
       `DELETE FROM staff_ids`,
-      `SELECT kabso_assign_staff_id('${user}'::uuid)`,
+      `SELECT kabso_assign_staff_id('${user}'::uuid, false)`,
       'TRUNCATE TABLE staff_ids',
-      'ALTER TABLE staff_ids DROP CONSTRAINT staff_ids_number_positive',
+      'ALTER TABLE staff_ids DROP CONSTRAINT staff_ids_number_nonnegative',
     ]) {
       await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
     }
@@ -798,9 +798,9 @@ describe('D283c staff IDs (staff_ids) under the KL-013 roles', () => {
     );
     expect(rows).toEqual([{ number: (max ?? 0) + 1 }]);
     await withMigrationClient((m) =>
-      expect(m.$executeRawUnsafe(`INSERT INTO staff_ids (number, user_id) VALUES (0, NULL)`)).rejects.toThrow(
-        /staff_ids_number_positive/,
-      ),
+      expect(
+        m.$executeRawUnsafe(`INSERT INTO staff_ids (number, user_id) VALUES (-1, NULL)`),
+      ).rejects.toThrow(/staff_ids_number_nonnegative/),
     );
   });
 });

@@ -137,7 +137,6 @@ class MeHubScreen extends ConsumerWidget {
   static const staffAnnouncementKey = Key('meHub.staff.announcement');
   static const staffAnnouncementReelKey = Key('meHub.staff.announcementReel');
   static const staffSettingsKey = Key('meHub.staff.settings');
-  static const staffLineKey = Key('meHub.staff.line');
   static const soonKey = Key('meHub.soon');
 
   /// D283c: the official staff ID «ID: Kabso01» under the name.
@@ -559,21 +558,8 @@ class MeHubScreen extends ConsumerWidget {
                 ),
               ),
             ],
-            // D283: «مشرف للوطن العربي» / "Moderator — Arab World".
-            if (staff != null) ...[
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                staff.line(l10n),
-                key: staffLineKey,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.textStyles.body.copyWith(
-                  color: p.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            // D283d (owner): «مشرف للوطن العربي» only in the official bio
+            // card's header (D283b), not under the name / ID.
             const SizedBox(height: KMeHub.statsTop),
             Row(
               children: [

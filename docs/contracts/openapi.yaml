@@ -8946,7 +8946,7 @@ paths:
       tags: [search]
       operationId: search
       summary: "Prefix search for users, hashtags or posts (caption words)"
-      description: CONVENTIONS §11.6. `q` is 1–64 characters after NFC and trim; a leading `@` or `#` is ignored. (v1.73-live, D283c, §10.96.12) For `type=users`, a staff ID («Kabso01», any case) also finds the account that shows it, first.
+      description: CONVENTIONS §11.6. `q` is 1–64 characters after NFC and trim; a leading `@` or `#` is ignored. (v1.73-live, D283c, §10.96.12) For `type=users`, a staff ID («Kabso01», any case) also finds the account that shows it, first; (v1.74-live, D283d) «Kabso» finds the primary OWNER first.
       parameters:
         - name: q
           in: query
@@ -18839,14 +18839,15 @@ components:
           description: (v1.73-live, D283c, §10.96.12) The account's official staff ID (the same as the top-level `staffId`).
     StaffId:
       type: string
-      pattern: '^Kabso(0[1-9]|[1-9][0-9]{1,8})$'
+      pattern: '^Kabso(0[1-9]|[1-9][0-9]{1,8})?$'
       description: |
         (v1.73-live, D283c, §10.96.12) The official staff ID of an account holding a panel role (OWNER, MODERATION,
         SUPPORT, FINANCE): «Kabso01», «Kabso02», … (two digits, then «Kabso100»), given in grant order with the first
-        role, kept for life and never reused (a re-grant shows the same one). The apps show it where they show the
+        role, kept for life and never reused (a re-grant shows the same one). (v1.74-live, D283d) The primary OWNER (the
+        first OWNER grant) is plain «Kabso»; any other OWNER gets the next number. The apps show it where they show the
         @username (profile «ID: Kabso01», person card, live viewers, chat, search, Me tab); the username stays for login
         and links. `search` finds the account by it. No account can take a username that looks like one.
-      examples: [Kabso01]
+      examples: [Kabso, Kabso01]
     AdminStaffRegionCatalog:
       type: object
       required: [data]

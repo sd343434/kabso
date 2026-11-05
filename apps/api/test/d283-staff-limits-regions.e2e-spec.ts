@@ -311,7 +311,7 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
     expect(prof.body.staff).toEqual({
       role: 'MODERATION',
       regions: ['ARAB_WORLD', 'TURKEY'],
-      staffId: 'Kabso02',
+      staffId: 'Kabso01',
     });
     expect(prof.body.kabsoTeam).toBe(true);
     expect(prof.body.coverUrl).toBeNull();
@@ -319,12 +319,12 @@ describe('D283 the Kabso Team accounts and regions', { timeout: 900_000 }, () =>
     expect(isTeamAvatarUrl(prof.body.avatarUrl as string)).toBe(true);
     expectContract(prof, 'getPublicProfile');
     const fin = await ctx.http.get(`/api/v1/users/${finance.username}`).set(auth(viewer));
-    expect(fin.body.staff).toEqual({ role: 'FINANCE', regions: [], staffId: 'Kabso04' });
+    expect(fin.body.staff).toEqual({ role: 'FINANCE', regions: [], staffId: 'Kabso03' });
     const ownerProf = await ctx.http.get(`/api/v1/users/${owner.username}`).set(auth(viewer));
     expect(ownerProf.body.staff).toBeUndefined();
     expect(ownerProf.body.avatarUrl).toBeNull();
     const me = await ctx.http.get('/api/v1/me').set(auth(support));
-    expect(me.body.staff).toEqual({ role: 'SUPPORT', regions: [], staffId: 'Kabso03' });
+    expect(me.body.staff).toEqual({ role: 'SUPPORT', regions: [], staffId: 'Kabso02' });
     expectContract(me, 'getMe');
     const userMe = await ctx.http.get('/api/v1/me').set(auth(viewer));
     expect(userMe.body.staff).toBeUndefined();

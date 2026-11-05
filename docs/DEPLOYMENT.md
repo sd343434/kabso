@@ -2817,6 +2817,16 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.65 The primary OWNER's staff ID «Kabso» (migration `20270318090000_staff_ids_owner`; D283d) — [IMPLEMENTED, draft contract v1.74-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.12. Runs right after §5.64's migration (deploy them together). It replaces the CHECK with
+`staff_ids_number_nonnegative` (`>= 0`), replaces `kabso_assign_staff_id(uuid)` with `kabso_assign_staff_id(uuid,
+boolean)` (no runtime EXECUTE) and `kabso_admin_panel_role`, then **renumbers** `staff_ids`: the account holding OWNER
+with the earliest OWNER grant becomes number 0 — shown as plain **«Kabso»** — and every other row 1, 2, 3, … in its
+order (so the first staff member is `Kabso01`). Safe only because no staff ID has been released yet; never renumber
+after release. Check with `pnpm admin:admin list` (the primary OWNER's line starts with `Kabso`). Any later OWNER gets the
+next number. No env setting. The app shows the staff region line only in the official bio card (no server change).
+
 ### 5.64 The official staff ID «Kabso01» (migration `20270317090000_staff_ids`; D283c) — [IMPLEMENTED, draft contract v1.73-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.12. The migration creates `staff_ids` (`number` PK with CHECK `staff_ids_number_positive`, `user_id`
@@ -2824,8 +2834,8 @@ UNIQUE with FK `ON DELETE SET NULL`, `assigned_at`) and **revokes INSERT / UPDAT
 group** (read-only, like `user_admin_permissions`; KL-013 test updated); adds the SECURITY DEFINER function
 `kabso_assign_staff_id(uuid)` (no runtime EXECUTE) and replaces `kabso_admin_panel_role` so that every grant gives the
 person their number in the same transaction (advisory lock `kabso:staff-id`, MAX + 1). It then **backfills** the current
-holders of OWNER / MODERATION / SUPPORT / FINANCE in the order of their first grant — normally the bootstrapped OWNER is
-`Kabso01`. Check after the deploy with `pnpm admin:admin list` (each line now starts with the staff ID). No env setting.
+holders of OWNER / MODERATION / SUPPORT / FINANCE in the order of their first grant — (D283d, §5.65, then makes the
+primary OWNER «Kabso» and the staff Kabso01, …). Check after the deploy with `pnpm admin:admin list` (each line now starts with the staff ID). No env setting.
 
 - **Numbers are retired, never reused:** a revoke keeps the number for the person (hidden while they hold no role) and
   a re-grant shows it again; never delete rows from `staff_ids` by hand.

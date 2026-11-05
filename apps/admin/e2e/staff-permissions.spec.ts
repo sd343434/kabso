@@ -20,7 +20,7 @@ const TEAM = [
   { id: id(3), email: 'omar@kabsolive.com', username: 'help.omar', displayName: 'عمر', roles: ['SUPPORT'], totpEnrolled: true, lastSignInAt: ago(60 * 20), onShift: false, shiftSince: null },
   { id: id(4), email: 'lina@kabsolive.com', username: 'fin.lina', displayName: 'لينا', roles: ['FINANCE'], totpEnrolled: true, lastSignInAt: ago(60 * 26), onShift: false, shiftSince: null },
   { id: id(5), email: 'sami@kabsolive.com', username: 'sami.new', displayName: 'سامي', roles: ['SUPPORT', 'MODERATION'], totpEnrolled: false, lastSignInAt: null, onShift: false, shiftSince: null },
-].map((m, i) => ({ avatarUrl: null, status: 'ACTIVE', lockedUntil: null, staffId: `Kabso0${i + 1}`, ...m }));
+].map((m, i) => ({ avatarUrl: null, status: 'ACTIVE', lockedUntil: null, staffId: i === 0 ? 'Kabso' : `Kabso0${i}`, ...m }));
 
 const CAPS = ['dashboard.view', 'users.view', 'lives.watch', 'audit.view', 'team.manage', 'staff.shifts'];
 const sent: { path: string; body: unknown }[] = [];
@@ -99,8 +99,10 @@ for (const [lang, theme, width, height] of [
     await expect(page.locator('.member[data-on-shift="true"]')).toHaveCount(2);
     await expect(page.getByText('@mod.huda')).toBeVisible();
     // D283c: the official staff ID on each card, and the list searched by it.
-    await expect(page.locator('.member [data-staff-id="Kabso02"]')).toHaveText('ID: Kabso02');
-    await page.locator('[data-staff-search]').fill('kabso3');
+    // D283d: the OWNER's plain «Kabso», the staff from Kabso01.
+    await expect(page.locator('.member [data-staff-id="Kabso"]')).toHaveText('ID: Kabso');
+    await expect(page.locator('.member [data-staff-id="Kabso01"]')).toHaveText('ID: Kabso01');
+    await page.locator('[data-staff-search]').fill('kabso2');
     await expect(page.locator('.member')).toHaveCount(1);
     await expect(page.getByText('@help.omar')).toBeVisible();
     await page.locator('[data-staff-search]').fill('');

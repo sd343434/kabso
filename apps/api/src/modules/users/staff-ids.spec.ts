@@ -9,6 +9,7 @@ import { isReservedUsername } from './username.js';
  */
 describe('staff IDs (D283c)', () => {
   it('formats two digits, growing to three and more after 99', () => {
+    expect(formatStaffId(0)).toBe('Kabso');
     expect(formatStaffId(1)).toBe('Kabso01');
     expect(formatStaffId(9)).toBe('Kabso09');
     expect(formatStaffId(10)).toBe('Kabso10');
@@ -22,7 +23,10 @@ describe('staff IDs (D283c)', () => {
     expect(parseStaffId('kabso1')).toBe(1);
     expect(parseStaffId(' @KABSO012 ')).toBe(12);
     expect(parseStaffId('Kabso100')).toBe(100);
-    for (const no of ['Kabso', 'Kabso00', 'kabso01x', 'kabs01', 'support', '01', 'kabso-01']) {
+    // D283d: «Kabso» alone is the primary OWNER (0).
+    expect(parseStaffId('Kabso')).toBe(0);
+    expect(parseStaffId('@kabso')).toBe(0);
+    for (const no of ['Kabso00', 'Kabso0', 'kabso01x', 'kabs01', 'support', '01', 'kabso-01']) {
       expect(parseStaffId(no), no).toBeNull();
     }
   });
@@ -42,6 +46,12 @@ describe('staff IDs (D283c)', () => {
       'kabsoo1',
       'kabso0l',
       'KABSO01',
+      'kabso',
+      'KABSO',
+      'kabs0',
+      'k4bso',
+      'k4b5o',
+      'ka8s0',
     ]) {
       expect(isStaffIdLike(name), name).toBe(true);
       expect(isReservedUsername(name.toLowerCase()), name).toBe(true);
@@ -67,6 +77,11 @@ describe('staff IDs (D283c)', () => {
     expect(userSummary(base).staffId).toBe('Kabso01');
     expect(userSummary(base).username).toBe('sara.staff');
     expect(userSummary({ ...base, adminPermissions: [{ permission: 'OWNER' }] }).staffId).toBe('Kabso01');
+    // D283d: the primary OWNER's number 0 is plain «Kabso».
+    expect(
+      userSummary({ ...base, staffNumber: { number: 0 }, adminPermissions: [{ permission: 'OWNER' }] })
+        .staffId,
+    ).toBe('Kabso');
     // Revoked (the number is kept, not shown), suspended, demoted, never staff, an older select.
     expect(userSummary({ ...base, adminPermissions: [] }).staffId).toBeUndefined();
     expect(userSummary({ ...base, status: 'SUSPENDED' }).staffId).toBeUndefined();

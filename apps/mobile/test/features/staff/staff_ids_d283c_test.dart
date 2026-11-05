@@ -33,10 +33,10 @@ import 'staff_d283_test.dart';
 PublicProfile staffIdProfile({required bool ar}) =>
     staffProfile(ar: ar).copyWith(staffId: 'Kabso01');
 
-/// The OWNER (a normal account that hosts lives) with its staff ID: the
-/// person card over a live.
+/// The primary OWNER (a normal account that hosts lives) with its plain
+/// staff ID «Kabso» (D283d): the person card over a live.
 PublicProfile ownerCardProfile({required bool ar}) =>
-    personCardProfile(ar: ar).copyWith(kabsoTeam: true, staffId: 'Kabso01');
+    personCardProfile(ar: ar).copyWith(kabsoTeam: true, staffId: 'Kabso');
 
 void main() {
   group('KHandle', () {
@@ -103,9 +103,9 @@ void main() {
         'role': 'ADMIN',
         'isPrivate': false,
         'createdAt': '2026-01-01T00:00:00.000Z',
-        'staffId': 'Kabso01',
+        'staffId': 'Kabso',
       }).toEntity();
-      expect(me.staffId, 'Kabso01');
+      expect(me.staffId, 'Kabso');
       expect(me.username, 'the.owner');
     });
   });
@@ -128,8 +128,12 @@ void main() {
         find.text(l10nFor(language).profileUsername('host0')),
         findsNothing,
       );
-      // The region line stays.
-      expect(find.byKey(ProfileCoverHeader.staffLineKey), findsOneWidget);
+      // D283d: the region line only in the official bio card's header.
+      expect(staffBioTitle(tester), isNotEmpty);
+      expect(
+        find.text(ar ? 'مشرف للوطن العربي' : 'Moderator — Arab World'),
+        findsNothing,
+      );
     });
 
     testWidgets('the staff-only Me tab shows «ID: Kabso01» under the name '
@@ -142,7 +146,7 @@ void main() {
       );
     });
 
-    testWidgets('the person card shows «ID: Kabso01» '
+    testWidgets('the person card shows the primary OWNER «ID: Kabso» '
         '($name)', (tester) async {
       await pumpPersonCardRoom(
         tester,
@@ -154,10 +158,7 @@ void main() {
       // The card's ID line (the room's own host pill is not the card).
       bool idLine(Widget w, String v) =>
           w is Text && (w.data ?? '').startsWith('ID:') && w.data!.contains(v);
-      expect(
-        find.byWidgetPredicate((w) => idLine(w, 'Kabso01')),
-        findsOneWidget,
-      );
+      expect(find.byWidgetPredicate((w) => idLine(w, 'Kabso')), findsOneWidget);
       expect(find.byWidgetPredicate((w) => idLine(w, 'host0')), findsNothing);
     });
   }

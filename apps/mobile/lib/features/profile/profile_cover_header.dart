@@ -315,9 +315,9 @@ class ProfileCoverHeader extends StatelessWidget {
   static const staffIdKey = Key('profile.cover.staffId');
   static const levelsKey = Key('profile.public.levels');
 
-  /// D283: a staff profile's team cover and its region line.
+  /// D283: a staff profile's team cover (D283d: its region line is only in
+  /// the official bio card).
   static const staffCoverKey = Key('profile.cover.staff');
-  static const staffLineKey = Key('profile.staff.line');
   static const nameRowKey = Key('profile.cover.nameRow');
   static const actionsKey = Key('profile.cover.actions');
   static const linksKey = Key('profile.cover.links');
@@ -593,21 +593,8 @@ class ProfileCoverHeader extends StatelessWidget {
             ),
           },
         ),
-        // D283 (owner: «مشرف للوطن العربي … مشرف لـ…»): the staff member's
-        // role and regions in the viewer's language.
-        if (profile.staff case final staff?) ...[
-          const SizedBox(height: KSpacing.xxs),
-          Text(
-            staff.line(l10n),
-            key: staffLineKey,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: t.body.copyWith(
-              color: p.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+        // D283d (owner): the staff member's region line «مشرف للوطن العربي»
+        // shows only in the official bio card's header (D283b), not here.
         const SizedBox(height: KSpacing.md),
         _stats(context),
         const SizedBox(height: KSpacing.md),

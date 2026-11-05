@@ -13,25 +13,35 @@ import { PANEL_STAFF_ROLES, panelStaffSql } from '../live/live-staff.js';
 
 export const STAFF_ID_PREFIX = 'Kabso';
 
-/** 1 → «Kabso01», 7 → «Kabso07», 100 → «Kabso100». */
+/**
+ * v1.74-live (D283d; owner: «المالك… لا، kabso»): number 0 is the primary OWNER's plain «Kabso» (no digits), given by
+ * the first OWNER grant while nobody ever held it; any other OWNER gets the next number like the staff.
+ */
+export const OWNER_STAFF_NUMBER = 0;
+
+/** 0 → «Kabso» (the primary OWNER), 1 → «Kabso01», 7 → «Kabso07», 100 → «Kabso100». */
 export function formatStaffId(n: number): string {
-  return `${STAFF_ID_PREFIX}${String(n).padStart(2, '0')}`;
+  return n === OWNER_STAFF_NUMBER ? STAFF_ID_PREFIX : `${STAFF_ID_PREFIX}${String(n).padStart(2, '0')}`;
 }
 
-/** «Kabso01», «kabso1», «@KABSO01» → 1; anything else → null (search by staff ID). */
+/** «Kabso01», «kabso1», «@KABSO01» → 1; «Kabso» → 0 (the primary OWNER); anything else → null (search by staff ID). */
 export function parseStaffId(raw: string): number | null {
-  const m = /^@?kabso0*([1-9][0-9]{0,8})$/i.exec(raw.trim());
-  return m ? Number(m[1]) : null;
+  const m = /^@?kabso(?:0*([1-9][0-9]{0,8}))?$/i.exec(raw.trim());
+  if (!m) return null;
+  return m[1] === undefined ? OWNER_STAFF_NUMBER : Number(m[1]);
 }
 
 /**
- * A username that looks like a staff ID, reserved for everyone (any case; `.` / `_` / `-` ignored): «kabso» followed
- * by digits, and its ASCII look-alikes — `4` for `a`, `8` for `b`, `5` for `s`, `0` for `o` («kabs0», «k4bso»), with
- * `o` / `i` / `l` among the digits («kabsoO1», «kabso0l») — as long as some digit is there.
+ * A username that looks like a staff ID, reserved for everyone (any case; `.` / `_` / `-` ignored): «kabso» itself and
+ * «kabso» followed by digits, with the ASCII look-alikes — `4` for `a`, `8` for `b`, `5` for `s`, `0` for `o` («kabs0»,
+ * «k4bso»), and `o` / `i` / `l` among the digits («kabsoO1», «kabso0l») as long as some digit is there. v1.74-live
+ * (D283d): the bare look-alikes of «Kabso» too («kabs0», «k4b5o»).
  */
 export function isStaffIdLike(name: string): boolean {
   const bare = name.toLowerCase().replace(/[._-]/g, '');
-  return /^k[a4][b8][s5][o0][0-9oil]+$/.test(bare) && /[0-9]/.test(bare);
+  const m = /^k[a4][b8][s5][o0]([0-9oil]*)$/.exec(bare);
+  if (!m) return false;
+  return m[1] === '' || /[0-9]/.test(bare);
 }
 
 type Db = Pick<PrismaService, '$queryRaw'> | Prisma.TransactionClient;
