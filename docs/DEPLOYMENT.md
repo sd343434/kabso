@@ -2817,6 +2817,29 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.68 Recharge-agent employees act for the agent: cherry purchases and the orders inbox (migration `20270321090000_recharge_employee_acts`; D287) — [IMPLEMENTED, draft contract v1.87-social; not deployed, not device-tested]
+
+CONVENTIONS §10.100. Additive: `recharge_employees.can_buy_cherries` / `receives_orders` (BOOLEAN NOT NULL DEFAULT
+true — every existing employee keeps both ON, as the owner asked), `recharge_cherry_requests.acted_by` / `decided_by`
+and `recharge_orders.claimed_by` / `claimed_at` (nullable UUID / timestamp), two partial indexes; the cherry request's shape CHECK is replaced (it now also allows `created_by` = `acted_by`, an
+employee who created it for the agent — re-adding it scans `recharge_cherry_requests` once). Adding a column with
+a constant default is a metadata-only change in PostgreSQL ≥ 11 (no table rewrite). No new setting, no new role
+grant (the columns inherit the tables' grants). «On shift» is the employee's weekly hours (§10.48), not the staff
+«في المناوبة» of D286 (`admin_shifts`). The port of the local-only D252 work (numbered §5.52 there).
+
+Order: API (with the migration) first, then the panel, then the app. An older app keeps working: it ignores the new
+fields; an employee on an older app still gets 403 / 409 with a message when the server refuses, and the employee's
+hub shows «بيع كرز» (the host flow) until the app is updated. Rollback: the columns can stay (nothing reads them in
+older code).
+
+**Check after deploying:** as an agent add (or open) an employee — «الموظفون» shows the two switches ON; with the
+employee's phone on shift, «شراء كرز» → a host's username → the host confirms → the agent's stock grows by
+floor(cherries × 93 220 / 1 000 000) and the employee's «شراء الكرز» count moves; off shift the employee reads the
+requests with «خارج ساعات عملك». A buyer's order notifies the agent and the on-shift employee; once one of them sends
+the payment details the other sees «تم استلامه بواسطة موظف آخر». Adding a Kabso Team account (MODERATION, SUPPORT,
+FINANCE or BD) as an employee is refused with «هذا الحساب من فريق كابسو…»; an employee given such a role reads only
+until the role is taken away (owner's decision; no migration — the roles are read live).
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

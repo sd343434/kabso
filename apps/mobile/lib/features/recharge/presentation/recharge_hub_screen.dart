@@ -34,7 +34,8 @@ import 'package:material_ui/material_ui.dart';
 ///   purchases from hosts. Suspended: the same, with selling off and the
 ///   reason to contact the team.
 /// - An employee: the agent they work for, their hours and «بيع عملات»
-///   while on shift.
+///   while on shift; v1.87-social (D287): «يعمل لصالح …» with the agent's
+///   orders inbox and «شراء كرز للوكيل» when the agent allows them.
 ///
 /// Everyone also reaches the directory «وكلاء الشحن» and the cherry sales.
 class RechargeHubScreen extends ConsumerWidget {
@@ -47,6 +48,10 @@ class RechargeHubScreen extends ConsumerWidget {
   static const dashboardKey = Key('recharge.dashboard');
   static const stockKey = Key('recharge.stock');
   static const sellKey = Key('recharge.sell');
+
+  /// D287: why an employee cannot sell now (off shift, or a Kabso Team
+  /// account).
+  static const employeeBlockKey = Key('recharge.employee.block');
   static const employeesKey = Key('recharge.employees');
   static const availabilityKey = Key('recharge.availability');
   static const cherriesKey = Key('recharge.cherries');
@@ -54,6 +59,9 @@ class RechargeHubScreen extends ConsumerWidget {
   static const ordersKey = Key('recharge.orders');
   static const employmentKey = Key('recharge.employment');
   static const cherryTodayKey = Key('recharge.cherryToday');
+  static const forAgentKey = Key('recharge.forAgent');
+  static const agentOrdersKey = Key('recharge.forAgent.orders');
+  static const agentCherriesKey = Key('recharge.forAgent.cherries');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -102,7 +110,10 @@ class RechargeHubScreen extends ConsumerWidget {
     final job = me.employment;
     // D204: the orders (as buyer; an agent's or employee's incoming ones).
     final ordersOn = me.rules.ordersEnabled && !ref.watch(storeBuildProvider);
-    final serves = agent != null || job != null;
+    // D287: an employee reaches the agent's inbox only with «يستقبل طلبات
+    // الشراء»; it is in the «يعمل لصالح …» group, so this row is their own.
+    final serves = agent != null;
+    final buysForAgent = job != null && job.canBuyCherries;
     Widget linkRows({required bool inGroup}) => RechargeNavGroup(
       children: [
         if (ordersOn)
@@ -111,7 +122,7 @@ class RechargeHubScreen extends ConsumerWidget {
             inGroup: inGroup,
             icon: Icons.receipt_long_rounded,
             title: l10n.rechargeOrdersTitle,
-            subtitle: serves && agent != null
+            subtitle: serves
                 ? l10n.rechargeOrdersIncomingHint(
                     KFormat.bidiIsolate(KFormat.grouped(agent.openOrders)),
                     KFormat.bidiIsolate(KFormat.grouped(agent.heldCoins)),
@@ -131,19 +142,20 @@ class RechargeHubScreen extends ConsumerWidget {
           subtitle: l10n.rechargeDirectoryHint,
           onTap: () => context.push(AppRoutes.rechargeAgents),
         ),
-        RechargeNavRow(
-          key: cherriesKey,
-          inGroup: inGroup,
-          icon: Icons.swap_horiz_rounded,
-          title: agent?.status == RechargeAgentStatus.active
-              ? l10n.rechargeCherryBuyTitle
-              : l10n.rechargeCherrySellTitle,
-          subtitle: l10n.rechargeCherryRate(
-            KFormat.grouped(me.rules.cherryUnit),
-            KFormat.grouped(me.rules.coinsPerCherryUnit),
+        if (!buysForAgent)
+          RechargeNavRow(
+            key: cherriesKey,
+            inGroup: inGroup,
+            icon: Icons.swap_horiz_rounded,
+            title: agent?.status == RechargeAgentStatus.active
+                ? l10n.rechargeCherryBuyTitle
+                : l10n.rechargeCherrySellTitle,
+            subtitle: l10n.rechargeCherryRate(
+              KFormat.grouped(me.rules.cherryUnit),
+              KFormat.grouped(me.rules.coinsPerCherryUnit),
+            ),
+            onTap: () => context.push(AppRoutes.rechargeCherries),
           ),
-          onTap: () => context.push(AppRoutes.rechargeCherries),
-        ),
       ],
     );
     final links = [MeSectionTitle(l10n.rechargeMore), linkRows(inGroup: true)];
@@ -199,7 +211,46 @@ class RechargeHubScreen extends ConsumerWidget {
       ];
     }
     if (job != null) {
-      return [_EmploymentCard(job: job), ...links];
+      final name = KFormat.bidiIsolate(job.agent.displayName);
+      final forAgent = [
+        if (ordersOn && job.receivesOrders)
+          RechargeNavRow(
+            key: agentOrdersKey,
+            inGroup: true,
+            icon: Icons.move_to_inbox_rounded,
+            title: l10n.rechargeOrdersIncoming,
+            subtitle: job.kabsoTeam
+                ? l10n.rechargeBlockStaff
+                : job.onShiftNow
+                ? l10n.rechargeOrdersForAgentHint(name)
+                : l10n.rechargeBlockOffShift,
+            onTap: () => context.push('${AppRoutes.rechargeOrders}?incoming=1'),
+          ),
+        if (buysForAgent)
+          RechargeNavRow(
+            key: agentCherriesKey,
+            inGroup: true,
+            icon: Icons.swap_horiz_rounded,
+            title: l10n.rechargeCherryBuyForAgentTitle,
+            subtitle: job.kabsoTeam
+                ? l10n.rechargeBlockStaff
+                : job.onShiftNow
+                ? l10n.rechargeCherryRate(
+                    KFormat.grouped(me.rules.cherryUnit),
+                    KFormat.grouped(me.rules.coinsPerCherryUnit),
+                  )
+                : l10n.rechargeBlockOffShift,
+            onTap: () => context.push(AppRoutes.rechargeCherries),
+          ),
+      ];
+      return [
+        _EmploymentCard(job: job),
+        if (forAgent.isNotEmpty) ...[
+          MeSectionTitle(l10n.rechargeWorksFor(name), key: forAgentKey),
+          RechargeNavGroup(children: forAgent),
+        ],
+        ...links,
+      ];
     }
     return [
       switch (me.status) {
@@ -676,14 +727,18 @@ class _EmploymentCard extends ConsumerWidget {
             key: RechargeHubScreen.sellKey,
             label: l10n.rechargeSell,
             icon: Icons.send_rounded,
-            onPressed: job.onShiftNow
+            onPressed: job.mayAct
                 ? () => unawaited(showRechargeSellSheet(context, ref))
                 : null,
           ),
-          if (!job.onShiftNow) ...[
+          if (!job.mayAct) ...[
             const SizedBox(height: KSpacing.xs),
             Text(
-              l10n.errorRechargeOffShift,
+              // D287 (owner): a Kabso Team account reads only.
+              job.kabsoTeam
+                  ? l10n.rechargeBlockStaff
+                  : l10n.errorRechargeOffShift,
+              key: RechargeHubScreen.employeeBlockKey,
               textAlign: TextAlign.center,
               style: t.caption.copyWith(color: p.textSecondary),
             ),

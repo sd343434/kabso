@@ -16,7 +16,8 @@ import {
   suspendIn,
   topUpIn,
 } from '../recharge/recharge-core.js';
-import { parseMoneyMinor } from '../recharge/recharge-rules.js';
+import { employeeStatsIn } from '../recharge/recharge-employee-stats.js';
+import { onShift, parseMoneyMinor, type WeeklySlot } from '../recharge/recharge-rules.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { decodeCursor, pageOf, type Page } from './admin-panel.schemas.js';
 import { refused, viaOf } from './admin-users.service.js';
@@ -243,6 +244,45 @@ export class AdminFinanceService {
       }),
     );
     return { ...page, pricing: this.pricing() };
+  }
+
+  /**
+   * v1.87-social (D287, §10.100): an agent's employees — the current ones and those removed in the last 30 days — with
+   * their permissions, hours and what each did for the agent (the agent's own employees screen's stats). 404 when not
+   * an agent.
+   */
+  async agentEmployees(agentUserId: string) {
+    const agent = await this.prisma.rechargeAgent.findUnique({
+      where: { userId: agentUserId },
+      select: { userId: true },
+    });
+    if (!agent) throw new AppException(ErrorCode.NOT_FOUND);
+    const now = new Date();
+    const since = new Date(now.getTime() - 30 * 86_400_000);
+    const rows = await this.prisma.rechargeEmployee.findMany({
+      where: { agentUserId, OR: [{ removedAt: null }, { removedAt: { gte: since } }] },
+      orderBy: { createdAt: 'asc' },
+      take: 100,
+      include: { employee: { select: { profile: { select: { username: true, displayName: true } } } } },
+    });
+    const zone = this.config.live.rankingsTimeZone;
+    const data = await Promise.all(
+      rows.map(async (r) => ({
+        userId: r.employeeUserId,
+        username: r.employee.profile?.username ?? '',
+        displayName: r.employee.profile?.displayName ?? '',
+        timeZone: r.timeZone,
+        onShiftNow:
+          r.removedAt === null &&
+          onShift({ timeZone: r.timeZone, schedule: r.schedule as unknown as WeeklySlot[] }, now),
+        canBuyCherries: r.canBuyCherries,
+        receivesOrders: r.receivesOrders,
+        addedAt: r.createdAt.toISOString(),
+        removedAt: r.removedAt?.toISOString() ?? null,
+        ...(await employeeStatsIn(this.prisma, agentUserId, r.employeeUserId, now, zone)),
+      })),
+    );
+    return { data };
   }
 
   /** `recharge-admin topup` with the owner's tier price; needs the authenticator code again. */

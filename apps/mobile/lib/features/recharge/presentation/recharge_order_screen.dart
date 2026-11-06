@@ -10,6 +10,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
@@ -52,6 +53,43 @@ Color rechargeOrderStatusColor(KPalette p, RechargeOrderStatus s) =>
     };
 
 /// `$12.50 · ≈ 631.25 EGP` — USD always, the local amount when there is one.
+/// v1.87-social (D287, §10.100): who of the agent's side handles the order,
+/// for the agent's side (never the buyer): «تم استلامه بواسطة موظف آخر»,
+/// off shift / not allowed (read only), «أنت تتولى هذا الطلب», «يتولاه …».
+/// Null when nobody took it and the viewer may act.
+({String text, bool blocked})? rechargeOrderClaimText(
+  AppLocalizations l10n,
+  RechargeOrder o,
+  String? meId,
+) {
+  if (o.isBuyer) return null;
+  final by = o.claimedBy;
+  final block = o.viewerBlock;
+  if (block == null) {
+    if (by == null) return null;
+    return by.id == meId
+        ? (text: l10n.rechargeOrderClaimedByYou, blocked: false)
+        : (
+            text: l10n.rechargeOrderClaimedBy(
+              KFormat.bidiIsolate(by.displayName),
+            ),
+            blocked: false,
+          );
+  }
+  return (
+    text: switch (block) {
+      RechargeAgentSideBlock.claimed =>
+        by != null && by.id == o.agent.id
+            ? l10n.rechargeOrderClaimedByAgent
+            : l10n.rechargeOrderClaimedByOther,
+      RechargeAgentSideBlock.offShift => l10n.rechargeBlockOffShift,
+      RechargeAgentSideBlock.notPermitted => l10n.rechargeBlockNotPermitted,
+      RechargeAgentSideBlock.staff => l10n.rechargeBlockStaff,
+    },
+    blocked: true,
+  );
+}
+
 String rechargePriceText(AppLocalizations l10n, RechargePrice price) {
   final usd = l10n.rechargeOrderUsd(KFormat.bidiIsolate(price.usd));
   final local = price.local;
@@ -107,6 +145,7 @@ class RechargeOrderScreen extends ConsumerStatefulWidget {
   static const chatKey = Key('recharge.order.chat');
   static const closedKey = Key('recharge.order.closed');
   static const sendKey = Key('recharge.order.send');
+  static const claimKey = Key('recharge.order.claim');
 
   /// How often an open order is read again.
   static const refreshEvery = Duration(seconds: 6);
@@ -325,6 +364,24 @@ class _RechargeOrderScreenState extends ConsumerState<RechargeOrderScreen> {
           ),
           child: _OrderSummary(order: o),
         ),
+        if (rechargeOrderClaimText(l10n, o, ref.watch(currentUserProvider)?.id)
+            case final claim?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KSpacing.lg,
+              KSpacing.sm,
+              KSpacing.lg,
+              0,
+            ),
+            child: RechargeNotice(
+              key: RechargeOrderScreen.claimKey,
+              icon: claim.blocked
+                  ? Icons.lock_outline_rounded
+                  : Icons.badge_rounded,
+              text: claim.text,
+              warning: claim.blocked,
+            ),
+          ),
         if (_banner(context, o, now) case final banner?)
           Padding(
             padding: const EdgeInsets.fromLTRB(

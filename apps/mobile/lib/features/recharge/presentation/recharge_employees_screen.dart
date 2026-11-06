@@ -17,13 +17,25 @@ import 'package:material_ui/material_ui.dart';
 /// each with their weekly hours in their time zone, on shift now or not,
 /// and their sales today, in 7 and in 30 days (count and coins). The agent
 /// adds an existing user, changes the hours or removes them (they stop
-/// selling at once).
+/// selling at once). v1.87-social (D287, §10.100): per employee «يمكنه شراء
+/// الكرز» and «يستقبل طلبات الشراء» (ON when added) and what they did for
+/// the agent today (cherry purchases, orders done).
 class RechargeEmployeesScreen extends ConsumerWidget {
   const new({super.key});
 
   static const addKey = Key('recharge.employees.add');
   static const emptyKey = Key('recharge.employees.empty');
   static Key rowKey(String username) => Key('recharge.employee.$username');
+  static Key buyKey(String username) =>
+      Key('recharge.employee.$username.canBuyCherries');
+  static Key ordersKey(String username) =>
+      Key('recharge.employee.$username.receivesOrders');
+  static Key actsKey(String username) =>
+      Key('recharge.employee.$username.acts');
+
+  /// D287 (owner): the employee became a Kabso Team account.
+  static Key staffKey(String username) =>
+      Key('recharge.employee.$username.staff');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -97,6 +109,32 @@ class _EmployeeCard extends ConsumerWidget {
   const new({required this.employee});
 
   final RechargeEmployee employee;
+
+  /// D287: one permission switched (the hours are sent as they are).
+  Future<void> _permit(
+    BuildContext context,
+    WidgetRef ref, {
+    bool? canBuyCherries,
+    bool? receivesOrders,
+  }) async {
+    final l10n = context.l10n;
+    try {
+      await ref
+          .read(rechargeRepositoryProvider)
+          .updateEmployee(
+            employee.user.username,
+            employee.timeZone,
+            employee.schedule,
+            canBuyCherries: canBuyCherries,
+            receivesOrders: receivesOrders,
+          );
+      ref.invalidate(rechargeEmployeesProvider);
+    } on Object catch (e) {
+      if (context.mounted) {
+        KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+      }
+    }
+  }
 
   Future<void> _remove(BuildContext context, WidgetRef ref) async {
     final l10n = context.l10n;
@@ -201,6 +239,43 @@ class _EmployeeCard extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.rechargeEmployeeActsToday(
+                employee.cherryPurchases.today.count,
+                employee.orders.today.count,
+              ),
+              key: RechargeEmployeesScreen.actsKey(u.username),
+              style: t.caption.copyWith(color: p.textSecondary),
+            ),
+            if (employee.kabsoTeam) ...[
+              const SizedBox(height: KSpacing.xs),
+              RechargeNotice(
+                key: RechargeEmployeesScreen.staffKey(u.username),
+                icon: Icons.verified_user_rounded,
+                text: l10n.rechargeEmployeeIsStaffNote,
+                warning: true,
+              ),
+            ],
+            const Divider(height: KSpacing.lg),
+            _PermissionRow(
+              key: RechargeEmployeesScreen.buyKey(u.username),
+              icon: Icons.swap_horiz_rounded,
+              title: l10n.rechargePermBuyCherries,
+              hint: l10n.rechargePermBuyCherriesHint,
+              value: employee.canBuyCherries,
+              onChanged: (v) =>
+                  unawaited(_permit(context, ref, canBuyCherries: v)),
+            ),
+            _PermissionRow(
+              key: RechargeEmployeesScreen.ordersKey(u.username),
+              icon: Icons.move_to_inbox_rounded,
+              title: l10n.rechargePermReceivesOrders,
+              hint: l10n.rechargePermReceivesOrdersHint,
+              value: employee.receivesOrders,
+              onChanged: (v) =>
+                  unawaited(_permit(context, ref, receivesOrders: v)),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -219,6 +294,57 @@ class _EmployeeCard extends ConsumerWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// D287: a permission with its hint and a switch (the whole row is one
+/// control for screen readers, at least the touch target high).
+class _PermissionRow extends StatelessWidget {
+  const new({
+    required this.icon,
+    required this.title,
+    required this.hint,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String hint;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    return MergeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: p.textSecondary),
+            const SizedBox(width: KSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: t.bodyStrong.copyWith(color: p.textPrimary),
+                  ),
+                  Text(hint, style: t.caption.copyWith(color: p.textSecondary)),
+                ],
+              ),
+            ),
+            const SizedBox(width: KSpacing.xs),
+            Switch(value: value, onChanged: onChanged),
           ],
         ),
       ),

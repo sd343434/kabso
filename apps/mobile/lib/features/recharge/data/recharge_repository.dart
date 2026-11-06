@@ -113,8 +113,16 @@ typedef SalesStats = ({
   SalesTotals last30Days,
 });
 
+/// No sales (also what a missing statistics block reads as: an older server).
+const SalesStats noSalesStats = (
+  today: (count: 0, coins: 0),
+  last7Days: (count: 0, coins: 0),
+  last30Days: (count: 0, coins: 0),
+);
+
 SalesStats salesStatsFromJson(Object? json) {
-  final m = json! as Map<String, dynamic>;
+  if (json == null) return noSalesStats;
+  final m = json as Map<String, dynamic>;
   return (
     today: _totals(m['today']),
     last7Days: _totals(m['last7Days']),
@@ -177,6 +185,9 @@ final class RechargeEmployment {
     required this.schedule,
     required this.onShiftNow,
     this.agentCode,
+    this.canBuyCherries = false,
+    this.receivesOrders = false,
+    this.kabsoTeam = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => RechargeEmployment(
@@ -188,6 +199,9 @@ final class RechargeEmployment {
         WeeklySlot.fromJson(s as Map<String, dynamic>),
     ],
     onShiftNow: json['onShiftNow'] == true,
+    canBuyCherries: json['canBuyCherries'] == true,
+    receivesOrders: json['receivesOrders'] == true,
+    kabsoTeam: json['kabsoTeam'] == true,
   );
 
   final String? agentCode;
@@ -195,6 +209,36 @@ final class RechargeEmployment {
   final String timeZone;
   final List<WeeklySlot> schedule;
   final bool onShiftNow;
+
+  /// v1.87-social (D287): the agent lets them buy hosts' cherries for the
+  /// agent «يمكنه شراء الكرز» and sends them the coin orders «يستقبل طلبات
+  /// الشراء» (an older server sends neither: both off).
+  final bool canBuyCherries;
+  final bool receivesOrders;
+
+  /// D287 (owner): the caller is a Kabso Team account now (D283) — they
+  /// read the agent's requests and orders but never act as an employee.
+  final bool kabsoTeam;
+
+  /// Whether they may act for the agent now (sell, buy cherries, orders).
+  bool get mayAct => onShiftNow && !kabsoTeam;
+}
+
+/// v1.87-social (D287, §10.100): why a person of the agent's side may read
+/// but not act now (`RechargeAgentSideBlock`).
+enum RechargeAgentSideBlock {
+  /// D287 (owner): the employee is a Kabso Team account now.
+  staff('STAFF'),
+  notPermitted('NOT_PERMITTED'),
+  claimed('CLAIMED'),
+  offShift('OFF_SHIFT');
+
+  new(this.wire);
+
+  final String wire;
+
+  static RechargeAgentSideBlock? fromWire(Object? wire) =>
+      values.where((b) => b.wire == wire).firstOrNull;
 }
 
 /// `RechargeRules`.
@@ -350,6 +394,11 @@ final class RechargeEmployee {
     required this.onShiftNow,
     required this.addedAt,
     required this.sales,
+    this.canBuyCherries = true,
+    this.receivesOrders = true,
+    this.cherryPurchases = noSalesStats,
+    this.orders = noSalesStats,
+    this.kabsoTeam = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => RechargeEmployee(
@@ -362,6 +411,11 @@ final class RechargeEmployee {
     onShiftNow: json['onShiftNow'] == true,
     addedAt: DateTime.parse(json['addedAt']! as String),
     sales: salesStatsFromJson(json['sales']),
+    canBuyCherries: json['canBuyCherries'] != false,
+    receivesOrders: json['receivesOrders'] != false,
+    cherryPurchases: salesStatsFromJson(json['cherryPurchases']),
+    orders: salesStatsFromJson(json['orders']),
+    kabsoTeam: json['kabsoTeam'] == true,
   );
 
   final UserSummary user;
@@ -370,6 +424,18 @@ final class RechargeEmployee {
   final bool onShiftNow;
   final DateTime addedAt;
   final SalesStats sales;
+
+  /// v1.87-social (D287): the two permissions and what they did for the
+  /// agent (confirmed cherry purchases: coins into the stock; completed
+  /// orders: coins to buyers).
+  final bool canBuyCherries;
+  final bool receivesOrders;
+  final SalesStats cherryPurchases;
+  final SalesStats orders;
+
+  /// D287 (owner): became a Kabso Team account after being added (D283);
+  /// cannot work for the agent any more — the agent sees why.
+  final bool kabsoTeam;
 }
 
 /// `RechargeLocation`.
@@ -455,6 +521,10 @@ final class RechargeCherryRequest {
     required this.byHost,
     required this.createdAt,
     required this.expiresAt,
+    this.viewerIsHost,
+    this.actions,
+    this.viewerBlock,
+    this.actedBy,
   });
 
   factory fromJson(Map<String, dynamic> json) => RechargeCherryRequest(
@@ -470,6 +540,20 @@ final class RechargeCherryRequest {
     byHost: json['initiatedBy'] == 'HOST',
     createdAt: DateTime.parse(json['createdAt']! as String),
     expiresAt: DateTime.parse(json['expiresAt']! as String),
+    viewerIsHost: switch (json['viewerSide']) {
+      'HOST' => true,
+      'AGENT' => false,
+      _ => null,
+    },
+    actions: switch (json['actions']) {
+      final List<dynamic> a => [for (final x in a) x as String],
+      _ => null,
+    },
+    viewerBlock: RechargeAgentSideBlock.fromWire(json['viewerBlock']),
+    actedBy: switch (json['actedBy']) {
+      final Map<String, dynamic> u => UserSummary.fromJson(u),
+      _ => null,
+    },
   );
 
   final String id;
@@ -482,10 +566,20 @@ final class RechargeCherryRequest {
   final UserSummary agent;
   final UserSummary host;
 
-  /// Created by the host (else by the agent).
+  /// Created by the host (else by the agent's side).
   final bool byHost;
   final DateTime createdAt;
   final DateTime expiresAt;
+
+  /// v1.87-social (D287): the caller's side (an employee is the agent's
+  /// side), what they may do now (`confirm`, `decline`, `cancel`), why not
+  /// (an employee off shift or without «يمكنه شراء الكرز») and the agent's
+  /// employee who acted on it. Null side / actions: an older server (the
+  /// app then works them out as before).
+  final bool? viewerIsHost;
+  final List<String>? actions;
+  final RechargeAgentSideBlock? viewerBlock;
+  final UserSummary? actedBy;
 }
 
 /// What the application form sends (the two pictures are uploaded first).
@@ -565,11 +659,15 @@ abstract interface class RechargeRepository {
     String timeZone,
     List<WeeklySlot> schedule,
   );
+
+  /// v1.87-social (D287): a permission left null is unchanged.
   Future<RechargeEmployee> updateEmployee(
     String username,
     String timeZone,
-    List<WeeklySlot> schedule,
-  );
+    List<WeeklySlot> schedule, {
+    bool? canBuyCherries,
+    bool? receivesOrders,
+  });
   Future<void> removeEmployee(String username);
   Future<WalletPage<RechargeAgentListing>> directory(
     String country, {
@@ -734,13 +832,17 @@ class RechargeRepositoryImpl implements RechargeRepository {
   Future<RechargeEmployee> updateEmployee(
     String username,
     String timeZone,
-    List<WeeklySlot> schedule,
-  ) => guardApiCall(() async {
+    List<WeeklySlot> schedule, {
+    bool? canBuyCherries,
+    bool? receivesOrders,
+  }) => guardApiCall(() async {
     final res = await _dio.put<Map<String, dynamic>>(
       '/me/recharge-agent/employees/${pathSegment(username)}',
       data: {
         'timeZone': timeZone,
         'schedule': [for (final s in schedule) s.toJson()],
+        'canBuyCherries': ?canBuyCherries,
+        'receivesOrders': ?receivesOrders,
       },
     );
     return RechargeEmployee.fromJson(res.data!);

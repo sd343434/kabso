@@ -22,13 +22,23 @@ import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec, type SocialPosition } from '../posts/social-cursor.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
 import { recordRechargeIn } from './recharge-badges.js';
+import { employeeStatsIn, type SalesStatsDto } from './recharge-employee-stats.js';
 import { referralRechargeIn } from '../referrals/referral-core.js';
-import { RechargeOrdersService } from './recharge-orders.service.js';
+import { blockError, RechargeOrdersService } from './recharge-orders.service.js';
 import { moveStockIn, privateKeyOf, purgeApplications } from './recharge-core.js';
 import { recruiterOfForm } from '../recruits/recruit-core.js';
+import { isLimitedStaff, limitedStaffAmong } from '../live/live-staff.js';
 import {
+  agentSideBlock,
   applicationSchema,
   availabilitySchema,
+  cherryActionFits,
+  cherryActions,
+  onShift,
+  type AgentSideBlock,
+  type CherryAction,
+  type CherrySide,
+  type EmployeeJob,
   cherriesPayoutMinor,
   cherriesToCoins,
   dayStart,
@@ -42,15 +52,6 @@ import {
 
 type Status = 'NONE' | 'PENDING' | 'REJECTED' | 'APPROVED' | 'ACTIVE' | 'SUSPENDED';
 
-interface Totals {
-  count: number;
-  coins: number;
-}
-export interface SalesStatsDto {
-  today: Totals;
-  last7Days: Totals;
-  last30Days: Totals;
-}
 export interface AvailabilityDto {
   timeZone: string;
   slots: AvailabilitySlot[];
@@ -83,6 +84,11 @@ export interface RechargeAgentMeDto {
     timeZone: string;
     schedule: WeeklySlot[];
     onShiftNow: boolean;
+    /** v1.87-social (D287): what the agent allows this employee to do for them. */
+    canBuyCherries: boolean;
+    receivesOrders: boolean;
+    /** D287 (owner): a Kabso Team account now (D283) — reads, cannot act as an employee. */
+    kabsoTeam: boolean;
   } | null;
   rules: {
     activationMinCoins: number;
@@ -124,7 +130,14 @@ export interface RechargeEmployeeDto {
   schedule: WeeklySlot[];
   onShiftNow: boolean;
   addedAt: string;
+  /** D185 sales; v1.87-social (D287): the permissions and what the employee did for the agent (count and coins). */
   sales: SalesStatsDto;
+  canBuyCherries: boolean;
+  receivesOrders: boolean;
+  cherryPurchases: SalesStatsDto;
+  orders: SalesStatsDto;
+  /** D287 (owner): a Kabso Team account now (D283) — the agent sees why they cannot act. */
+  kabsoTeam: boolean;
 }
 export interface RechargeAgentListingDto {
   code: string;
@@ -147,13 +160,30 @@ export interface RechargeCherryRequestDto {
   createdAt: string;
   expiresAt: string;
   decidedAt: string | null;
+  /**
+   * v1.87-social (D287): the viewer's side, what they may do now, why not (an employee off shift or without
+   * «يمكنه شراء الكرز»), and the agent's employee who acted on it (null = the agent or the host).
+   */
+  viewerSide: CherrySide;
+  actions: CherryAction[];
+  viewerBlock: AgentSideBlock | null;
+  actedBy: UserSummaryDto | null;
 }
 
 const saleBodySchema = z.strictObject({
   buyer: z.string().trim().min(1).max(64),
   coins: z.number().int().min(1).max(1_000_000_000_000),
 });
-const employeeAddSchema = employeeHoursSchema.extend({ username: z.string().trim().min(1).max(64) });
+/** D287: the employee's permissions (both ON when not given: the agent added them to sell). */
+const employeePermissions = {
+  canBuyCherries: z.boolean().optional(),
+  receivesOrders: z.boolean().optional(),
+};
+const employeeAddSchema = employeeHoursSchema.extend({
+  username: z.string().trim().min(1).max(64),
+  ...employeePermissions,
+});
+const employeeUpdateSchema = employeeHoursSchema.extend(employeePermissions);
 const cherryCreateSchema = z
   .strictObject({
     cherries: z.number().int().min(1).max(1_000_000_000_000),
@@ -373,6 +403,26 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /** D287: an employment row as the rules' job (with whether the employee is a Kabso Team account now). */
+  private async jobOf(
+    row: {
+      employeeUserId: string;
+      timeZone: string;
+      schedule: unknown;
+      canBuyCherries: boolean;
+      receivesOrders: boolean;
+    },
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<EmployeeJob> {
+    return {
+      timeZone: row.timeZone,
+      schedule: row.schedule as WeeklySlot[],
+      canBuyCherries: row.canBuyCherries,
+      receivesOrders: row.receivesOrders,
+      kabsoTeam: await isLimitedStaff(db, row.employeeUserId),
+    };
+  }
+
   // ---- The caller ------------------------------------------------------------------------------------
 
   /** `GET /me/recharge-agent`. */
@@ -420,6 +470,9 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
         timeZone: job.timeZone,
         schedule,
         onShiftNow: slotAt(schedule, job.timeZone, this.clock.now()) !== null,
+        canBuyCherries: job.canBuyCherries,
+        receivesOrders: job.receivesOrders,
+        kabsoTeam: await isLimitedStaff(this.prisma, userId),
       };
     }
     return {
@@ -590,6 +643,8 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
       throw new AppException(ErrorCode.RECHARGE_AGENT_NOT_ACTIVE);
     }
     const now = this.clock.now();
+    // D287 (owner): an employee who is a Kabso Team account now sells nothing for the agent.
+    if (role.employee && (await isLimitedStaff(this.prisma, userId))) throw blockError('STAFF');
     if (role.employee && slotAt(role.employee.schedule, role.employee.timeZone, now) === null) {
       throw new AppException(ErrorCode.RECHARGE_OFF_SHIFT);
     }
@@ -711,18 +766,28 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     timeZone: string;
     schedule: unknown;
     createdAt: Date;
+    canBuyCherries: boolean;
+    receivesOrders: boolean;
   }): Promise<RechargeEmployeeDto> {
     const users = await this.summaries([row.employeeUserId]);
     const schedule = row.schedule as WeeklySlot[];
+    const acts = await employeeStatsIn(
+      this.prisma,
+      row.agentUserId,
+      row.employeeUserId,
+      this.clock.now(),
+      this.zone,
+    );
     return {
       user: users.get(row.employeeUserId)!,
       timeZone: row.timeZone,
       schedule,
       onShiftNow: slotAt(schedule, row.timeZone, this.clock.now()) !== null,
       addedAt: row.createdAt.toISOString(),
-      sales: await this.salesStats(
-        Prisma.sql`agent_user_id = ${row.agentUserId}::uuid AND seller_user_id = ${row.employeeUserId}::uuid`,
-      ),
+      canBuyCherries: row.canBuyCherries,
+      receivesOrders: row.receivesOrders,
+      ...acts,
+      kabsoTeam: await isLimitedStaff(this.prisma, row.employeeUserId),
     };
   }
 
@@ -772,6 +837,9 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     ) {
       throw new AppException(ErrorCode.RECHARGE_EMPLOYEE_NOT_ALLOWED);
     }
+    // D287 (owner): a Kabso Team account (D283's limited staff) is never a recharge agent's employee.
+    if (await isLimitedStaff(this.prisma, user.id))
+      throw new AppException(ErrorCode.RECHARGE_EMPLOYEE_IS_STAFF);
     const now = this.clock.now();
     try {
       const row = await this.prisma.$transaction(async (tx) => {
@@ -782,6 +850,8 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
             employeeUserId: user.id,
             timeZone: input.timeZone,
             schedule: input.schedule,
+            canBuyCherries: input.canBuyCherries ?? true,
+            receivesOrders: input.receivesOrders ?? true,
             createdAt: now,
           },
         });
@@ -791,7 +861,13 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
             action: AuditAction.RECHARGE_EMPLOYEE_ADD,
             targetType: 'recharge_employee',
             targetId: created.id,
-            metadata: { employee: user.id, timeZone: input.timeZone, slots: input.schedule.length },
+            metadata: {
+              employee: user.id,
+              timeZone: input.timeZone,
+              slots: input.schedule.length,
+              canBuyCherries: created.canBuyCherries,
+              receivesOrders: created.receivesOrders,
+            },
           },
         });
         return created;
@@ -807,11 +883,16 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
   async updateEmployee(userId: string, username: string, body: unknown): Promise<RechargeEmployeeDto> {
     await this.requireAgent(userId);
     const row = await this.employeeByUsername(userId, username);
-    const input = parse(employeeHoursSchema, body);
+    const input = parse(employeeUpdateSchema, body);
     const updated = await this.prisma.$transaction(async (tx) => {
       const r = await tx.rechargeEmployee.update({
         where: { id: row.id },
-        data: { timeZone: input.timeZone, schedule: input.schedule },
+        data: {
+          timeZone: input.timeZone,
+          schedule: input.schedule,
+          ...(input.canBuyCherries === undefined ? {} : { canBuyCherries: input.canBuyCherries }),
+          ...(input.receivesOrders === undefined ? {} : { receivesOrders: input.receivesOrders }),
+        },
       });
       await tx.auditLog.create({
         data: {
@@ -819,7 +900,13 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
           action: AuditAction.RECHARGE_EMPLOYEE_UPDATE,
           targetType: 'recharge_employee',
           targetId: row.id,
-          metadata: { timeZone: input.timeZone, slots: input.schedule.length },
+          metadata: {
+            timeZone: input.timeZone,
+            slots: input.schedule.length,
+            canBuyCherries: r.canBuyCherries,
+            receivesOrders: r.receivesOrders,
+            before: { canBuyCherries: row.canBuyCherries, receivesOrders: row.receivesOrders },
+          },
         },
       });
       return r;
@@ -932,30 +1019,98 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Cherry sales from hosts -----------------------------------------------------------------------
 
-  private async requestDtos(rows: readonly RechargeCherryRequest[]): Promise<RechargeCherryRequestDto[]> {
-    const users = await this.summaries(rows.flatMap((r) => [r.agentUserId, r.hostUserId]));
+  /**
+   * The viewer's side of a cherry request (v1.87-social, D287): the host, the agent, or — for the agent's side — an
+   * active employee of the agent (`job`), or null when the viewer has nothing to do with it.
+   */
+  private async cherrySideOf(
+    userId: string,
+    row: { agentUserId: string; hostUserId: string },
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<{ side: CherrySide; job: EmployeeJob | null } | null> {
+    if (row.hostUserId === userId) return { side: 'HOST', job: null };
+    if (row.agentUserId === userId) return { side: 'AGENT', job: null };
+    const job = await db.rechargeEmployee.findFirst({
+      where: { employeeUserId: userId, agentUserId: row.agentUserId, removedAt: null },
+    });
+    return job ? { side: 'AGENT', job: await this.jobOf(job, db) } : null;
+  }
+
+  private async requestDtos(
+    rows: readonly RechargeCherryRequest[],
+    viewer: string,
+  ): Promise<RechargeCherryRequestDto[]> {
+    const users = await this.summaries(
+      rows.flatMap((r) => [r.agentUserId, r.hostUserId, ...(r.actedBy === null ? [] : [r.actedBy])]),
+    );
     const agents = await this.prisma.rechargeAgent.findMany({
       where: { userId: { in: [...new Set(rows.map((r) => r.agentUserId))] } },
       select: { userId: true, code: true },
     });
     const codes = new Map(agents.map((a) => [a.userId, a.code ?? '']));
-    const now = this.clock.now().getTime();
+    // D287: the viewer's job for the requests of an agent they work for (at most one active employment).
+    const employer = rows.find((r) => r.hostUserId !== viewer && r.agentUserId !== viewer)?.agentUserId;
+    const job =
+      employer === undefined
+        ? null
+        : ((await this.cherrySideOf(viewer, { agentUserId: employer, hostUserId: '' }))?.job ?? null);
+    const nowDate = this.clock.now();
+    const now = nowDate.getTime();
     const blank = (id: string): UserSummaryDto => ({ id, username: '', displayName: '', avatarUrl: null });
-    return rows.map((r) => ({
-      id: r.id,
-      status: r.status === 'PENDING' && r.expiresAt.getTime() <= now ? 'EXPIRED' : r.status,
-      cherries: Number(r.cherries),
-      coins: Number(r.coins),
-      payoutMinor: Number(r.payoutMinor),
-      currency: r.currency,
-      agentCode: codes.get(r.agentUserId) ?? '',
-      agent: users.get(r.agentUserId) ?? blank(r.agentUserId),
-      host: users.get(r.hostUserId) ?? blank(r.hostUserId),
-      initiatedBy: r.createdBy === r.hostUserId ? 'HOST' : 'AGENT',
-      createdAt: r.createdAt.toISOString(),
-      expiresAt: r.expiresAt.toISOString(),
-      decidedAt: r.decidedAt?.toISOString() ?? null,
-    }));
+    return rows.map((r) => {
+      const status = r.status === 'PENDING' && r.expiresAt.getTime() <= now ? 'EXPIRED' : r.status;
+      const initiatedBy: CherrySide = r.createdBy === r.hostUserId ? 'HOST' : 'AGENT';
+      const viewerSide: CherrySide = r.hostUserId === viewer ? 'HOST' : 'AGENT';
+      const employee = viewerSide === 'AGENT' && r.agentUserId !== viewer;
+      const block: AgentSideBlock | null = employee
+        ? job === null
+          ? 'NOT_PERMITTED'
+          : agentSideBlock(viewer, job, 'BUY_CHERRIES', nowDate)
+        : null;
+      return {
+        id: r.id,
+        status,
+        cherries: Number(r.cherries),
+        coins: Number(r.coins),
+        payoutMinor: Number(r.payoutMinor),
+        currency: r.currency,
+        agentCode: codes.get(r.agentUserId) ?? '',
+        agent: users.get(r.agentUserId) ?? blank(r.agentUserId),
+        host: users.get(r.hostUserId) ?? blank(r.hostUserId),
+        initiatedBy,
+        createdAt: r.createdAt.toISOString(),
+        expiresAt: r.expiresAt.toISOString(),
+        decidedAt: r.decidedAt?.toISOString() ?? null,
+        viewerSide,
+        actions: cherryActions(viewerSide, initiatedBy, status === 'PENDING', block),
+        viewerBlock: block,
+        actedBy: r.actedBy === null ? null : (users.get(r.actedBy) ?? blank(r.actedBy)),
+      };
+    });
+  }
+
+  /**
+   * D287: the agent's side people a host's cherry offer goes to — the agent and every employee allowed to buy
+   * cherries («يمكنه شراء الكرز») who is on shift now.
+   */
+  private async cherryDeskIn(
+    tx: Prisma.TransactionClient,
+    agentUserId: string,
+    now: Date,
+  ): Promise<string[]> {
+    const rows = await tx.rechargeEmployee.findMany({
+      where: { agentUserId, removedAt: null, canBuyCherries: true },
+      select: { employeeUserId: true, timeZone: true, schedule: true },
+    });
+    const desk = rows.filter((r) =>
+      onShift({ timeZone: r.timeZone, schedule: r.schedule as unknown as WeeklySlot[] }, now),
+    );
+    // D287 (owner): an employee who is a Kabso Team account now cannot act, so is not told.
+    const staff = await limitedStaffAmong(
+      tx,
+      desk.map((r) => r.employeeUserId),
+    );
+    return [agentUserId, ...desk.map((r) => r.employeeUserId).filter((id) => !staff.has(id))];
   }
 
   /** Withdrawable cherries of `hostId` now: the balance less the locked task cherries (D184). */
@@ -967,7 +1122,10 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     return (wallet?.cherries ?? 0n) - lock.lockedCherries;
   }
 
-  /** `POST /recharge-cherry-requests` (Idempotency-Key). */
+  /**
+   * `POST /recharge-cherry-requests` (Idempotency-Key). D287: an employee (with «يمكنه شراء الكرز», on shift) asks a
+   * host for the agent — the request is the agent's (stock, caps, money), `actedBy` the employee.
+   */
   async createCherryRequest(
     userId: string,
     rawKey: string | undefined,
@@ -977,6 +1135,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     const input = parse(cherryCreateSchema, body);
     let agentUserId: string;
     let hostUserId: string;
+    let job: EmployeeJob | null = null;
     if (input.agentCode !== undefined) {
       const code = normalizeAgentCode(input.agentCode);
       const agent = code === null ? null : await this.prisma.rechargeAgent.findUnique({ where: { code } });
@@ -986,15 +1145,25 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
       hostUserId = userId;
     } else {
       const own = await this.prisma.rechargeAgent.findUnique({ where: { userId }, select: { userId: true } });
-      if (!own) throw new AppException(ErrorCode.NOT_FOUND);
+      if (own) agentUserId = userId;
+      else {
+        const employment = await this.activeEmployment(userId);
+        if (!employment) throw new AppException(ErrorCode.NOT_FOUND);
+        agentUserId = employment.agentUserId;
+        job = await this.jobOf(employment);
+      }
       const host = await this.activeUser(input.host!.startsWith('@') ? input.host! : `@${input.host!}`);
       if (!host) throw new AppException(ErrorCode.NOT_FOUND);
-      agentUserId = userId;
       hostUserId = host.id;
     }
-    if (agentUserId === hostUserId)
+    if (agentUserId === hostUserId || (job !== null && hostUserId === userId))
       throw AppException.validation([{ field: 'host', issue: 'invalid_value' }]);
-    if (await this.blocked(agentUserId, hostUserId)) throw new AppException(ErrorCode.NOT_FOUND);
+    if (
+      (await this.blocked(agentUserId, hostUserId)) ||
+      (job !== null && (await this.blocked(userId, hostUserId)))
+    ) {
+      throw new AppException(ErrorCode.NOT_FOUND);
+    }
     const r = this.config.recharge;
     const cherries = BigInt(input.cherries);
     if (!validCherryAmount(cherries, r.cherryMin, r.cherryStep)) {
@@ -1008,7 +1177,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
       if (row.cherries !== cherries || row.agentUserId !== agentUserId || row.hostUserId !== hostUserId) {
         throw new AppException(ErrorCode.IDEMPOTENCY_CONFLICT);
       }
-      const [dto] = await this.requestDtos([row]);
+      const [dto] = await this.requestDtos([row], userId);
       return { created: false, result: dto! };
     };
     const earlier = await replay();
@@ -1016,6 +1185,8 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     const agent = await this.prisma.rechargeAgent.findUniqueOrThrow({ where: { userId: agentUserId } });
     if (agent.status !== 'ACTIVE') throw new AppException(ErrorCode.RECHARGE_AGENT_NOT_ACTIVE);
     const now = this.clock.now();
+    const block = agentSideBlock(userId, job, 'BUY_CHERRIES', now);
+    if (block !== null) throw blockError(block);
     await this.prisma.rechargeCherryRequest.updateMany({
       where: { agentUserId, hostUserId, status: 'PENDING', expiresAt: { lte: now } },
       data: { status: 'EXPIRED', decidedAt: now },
@@ -1047,6 +1218,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
             currency: e.currency,
             createdAt: now,
             expiresAt: new Date(now.getTime() + r.requestTtlMinutes * 60_000),
+            actedBy: job === null ? null : userId,
           },
         });
         await tx.auditLog.create({
@@ -1055,17 +1227,31 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
             action: AuditAction.RECHARGE_CHERRY_REQUEST,
             targetType: 'recharge_cherry_request',
             targetId: id,
-            metadata: { agent: agentUserId, host: hostUserId, cherries: Number(cherries) },
+            metadata: {
+              agent: agentUserId,
+              host: hostUserId,
+              cherries: Number(cherries),
+              byEmployee: job !== null,
+              ...(job === null ? {} : { actedBy: userId }),
+            },
           },
         });
-        await this.notifier.notify(tx, {
-          type: 'RECHARGE_CHERRY_REQUEST',
-          recipientId: userId === hostUserId ? agentUserId : hostUserId,
-          actorId: userId,
-        });
+        if (userId === hostUserId) {
+          // D287: the agent and every allowed employee on shift; the first of them to answer decides.
+          for (const recipientId of await this.cherryDeskIn(tx, agentUserId, now)) {
+            await this.notifier.notify(tx, { type: 'RECHARGE_CHERRY_REQUEST', recipientId, actorId: userId });
+          }
+        } else {
+          // The host sees the agent (an employee acts in the agent's name).
+          await this.notifier.notify(tx, {
+            type: 'RECHARGE_CHERRY_REQUEST',
+            recipientId: hostUserId,
+            actorId: agentUserId,
+          });
+        }
         return created;
       });
-      const [dto] = await this.requestDtos([row]);
+      const [dto] = await this.requestDtos([row], userId);
       return { created: true, result: dto! };
     } catch (err) {
       if (isUniqueViolation(err)) {
@@ -1080,10 +1266,21 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
   async cherryRequests(userId: string, query: PageQuery): Promise<PageDto<RechargeCherryRequestDto>> {
     const scope = `recharge-cherry:${userId}`;
     const after = this.after(query.cursor, scope);
+    // D287: an employee allowed to buy cherries also sees the agent's requests (off shift: to read).
+    const job = await this.prisma.rechargeEmployee.findFirst({
+      where: { employeeUserId: userId, removedAt: null, canBuyCherries: true },
+      select: { agentUserId: true },
+    });
     const rows = await this.prisma.rechargeCherryRequest.findMany({
       where: {
         AND: [
-          { OR: [{ hostUserId: userId }, { agentUserId: userId }] },
+          {
+            OR: [
+              { hostUserId: userId },
+              { agentUserId: userId },
+              ...(job ? [{ agentUserId: job.agentUserId }] : []),
+            ],
+          },
           after
             ? { OR: [{ createdAt: { lt: after.at } }, { createdAt: after.at, id: { lt: after.id } }] }
             : {},
@@ -1096,7 +1293,7 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     const page = rows.slice(0, query.limit);
     const last = page[page.length - 1];
     return {
-      data: await this.requestDtos(page),
+      data: await this.requestDtos(page, userId),
       page: {
         hasMore,
         nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.createdAt, id: last.id }) : null,
@@ -1104,7 +1301,11 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /** `POST /recharge-cherry-requests/{id}/{confirm|decline|cancel}`. */
+  /**
+   * `POST /recharge-cherry-requests/{id}/{confirm|decline|cancel}`. The creator's side cancels, the other side
+   * confirms or declines. D287: the agent's side is the agent or an employee allowed to buy cherries and on shift;
+   * the first to answer wins (the row lock), the others get 409 `RECHARGE_CHERRY_REQUEST_CLOSED`.
+   */
   async answerCherryRequest(
     userId: string,
     requestId: string,
@@ -1113,14 +1314,15 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
     if (!UUID.test(requestId)) throw new AppException(ErrorCode.NOT_FOUND);
     const id = requestId.toLowerCase();
     const found = await this.prisma.rechargeCherryRequest.findUnique({ where: { id } });
-    if (!found || (found.hostUserId !== userId && found.agentUserId !== userId)) {
-      throw new AppException(ErrorCode.NOT_FOUND);
-    }
-    const creator = found.createdBy === userId;
-    if (!['confirm', 'decline', 'cancel'].includes(action) || (action === 'cancel') !== creator) {
+    const viewer = found ? await this.cherrySideOf(userId, found) : null;
+    if (!found || !viewer) throw new AppException(ErrorCode.NOT_FOUND);
+    const initiatedBy: CherrySide = found.createdBy === found.hostUserId ? 'HOST' : 'AGENT';
+    if (!cherryActionFits(action, viewer.side, initiatedBy)) {
       throw AppException.validation([{ field: 'action', issue: 'invalid_value' }]);
     }
     const now = this.clock.now();
+    const block = agentSideBlock(userId, viewer.job, 'BUY_CHERRIES', now);
+    if (block !== null) throw blockError(block);
     if (found.status === 'PENDING' && found.expiresAt.getTime() <= now.getTime()) {
       await this.prisma.rechargeCherryRequest.updateMany({
         where: { id, status: 'PENDING' },
@@ -1128,11 +1330,19 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
       });
       throw new AppException(ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED);
     }
+    const byEmployee = viewer.job !== null;
     const row = await this.prisma.$transaction(async (tx) => {
       const [locked] = await tx.$queryRaw<{ status: string; expires_at: Date }[]>`
         SELECT status::text AS status, expires_at FROM recharge_cherry_requests WHERE id = ${id}::uuid FOR UPDATE`;
       if (locked?.status !== 'PENDING' || locked.expires_at.getTime() <= now.getTime()) {
         throw new AppException(ErrorCode.RECHARGE_CHERRY_REQUEST_CLOSED);
+      }
+      if (byEmployee) {
+        // Removed (or the permission switched off) since the first look: refused.
+        const again = await this.cherrySideOf(userId, found, tx);
+        if (!again?.job) throw new AppException(ErrorCode.NOT_FOUND);
+        const now2 = agentSideBlock(userId, again.job, 'BUY_CHERRIES', now);
+        if (now2 !== null) throw blockError(now2);
       }
       if (action === 'confirm') {
         const [agent] = await tx.$queryRaw<{ status: string; cap: bigint | null; user_status: string }[]>`
@@ -1162,9 +1372,10 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
           await moveStockIn(tx, found.agentUserId, found.coins, 'CHERRY_PURCHASE', id, now);
       }
       const status = action === 'confirm' ? 'CONFIRMED' : action === 'decline' ? 'DECLINED' : 'CANCELLED';
+      const actedBy = byEmployee ? userId : found.actedBy;
       const updated = await tx.rechargeCherryRequest.update({
         where: { id },
-        data: { status, decidedAt: now },
+        data: { status, decidedAt: now, decidedBy: userId, actedBy },
       });
       await tx.auditLog.create({
         data: {
@@ -1182,12 +1393,15 @@ export class RechargeService implements OnModuleInit, OnModuleDestroy {
             host: found.hostUserId,
             cherries: Number(found.cherries),
             coins: Number(found.coins),
+            side: viewer.side,
+            byEmployee,
+            ...(actedBy === null ? {} : { actedBy }),
           },
         },
       });
       return updated;
     });
-    const [dto] = await this.requestDtos([row]);
+    const [dto] = await this.requestDtos([row], userId);
     return dto!;
   }
 }

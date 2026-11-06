@@ -24,6 +24,11 @@ import 'package:material_ui/material_ui.dart';
 /// changed hands outside the app (the agent pays $1.10 per 1 000 000), or
 /// declines; the creator may cancel; a request expires after 30 minutes.
 /// Locked task cherries are never sold; the agent has a daily cap.
+///
+/// v1.87-social (D287, §10.100): an employee with «يمكنه شراء الكرز» works
+/// here for the agent — «تعمل لصالح …», the agent's requests, asking a host
+/// and answering on shift (off shift or not allowed: read only, with the
+/// reason). The server says what the caller may do (`actions`).
 class RechargeCherryScreen extends ConsumerWidget {
   const new({super.key});
 
@@ -33,15 +38,25 @@ class RechargeCherryScreen extends ConsumerWidget {
   static Key confirmKey(String id) => Key('recharge.cherry.$id.confirm');
   static Key declineKey(String id) => Key('recharge.cherry.$id.decline');
   static Key cancelKey(String id) => Key('recharge.cherry.$id.cancel');
+  static Key blockKey(String id) => Key('recharge.cherry.$id.block');
+  static const forAgentKey = Key('recharge.cherry.forAgent');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final me = ref.watch(myRechargeAgentProvider).value;
-    final isAgent = me?.agent?.status == RechargeAgentStatus.active;
+    final job = switch (me?.employment) {
+      final j? when j.canBuyCherries => j,
+      _ => null,
+    };
+    final forAgent = job != null;
+    final isAgent = me?.agent?.status == RechargeAgentStatus.active || forAgent;
+    final canAsk = job?.mayAct ?? true;
     final load = ref.watch(rechargeCherryRequestsProvider);
     return MePage(
-      title: isAgent
+      title: forAgent
+          ? l10n.rechargeCherryBuyForAgentTitle
+          : isAgent
           ? l10n.rechargeCherryBuyTitle
           : l10n.rechargeCherrySellTitle,
       onRefresh: () async {
@@ -53,6 +68,24 @@ class RechargeCherryScreen extends ConsumerWidget {
         }
       },
       children: [
+        if (job != null) ...[
+          RechargeNotice(
+            key: forAgentKey,
+            icon: Icons.badge_rounded,
+            text: [
+              l10n.rechargeWorksFor(KFormat.bidiIsolate(job.agent.displayName)),
+              l10n.rechargeCherryForAgentNote(
+                KFormat.bidiIsolate(job.agent.displayName),
+              ),
+              if (job.kabsoTeam)
+                l10n.rechargeBlockStaff
+              else if (!job.onShiftNow)
+                l10n.rechargeBlockOffShift,
+            ].join('\n'),
+            warning: !job.mayAct,
+          ),
+          const SizedBox(height: KSpacing.sm),
+        ],
         if (me != null)
           RechargeNotice(
             icon: Icons.info_outline_rounded,
@@ -73,7 +106,7 @@ class RechargeCherryScreen extends ConsumerWidget {
           key: newKey,
           label: isAgent ? l10n.rechargeCherryAsk : l10n.rechargeCherryOffer,
           icon: Icons.add_rounded,
-          onPressed: me == null
+          onPressed: me == null || !canAsk
               ? null
               : () => showModalBottomSheet<void>(
                   context: context,
@@ -167,9 +200,29 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
     final t = context.textStyles;
     final r = widget.request;
     final me = ref.watch(currentUserProvider)?.id;
-    final mine = (r.byHost ? r.host.id : r.agent.id) == me;
-    final other = r.host.id == me ? r.agent : r.host;
+    // D287: the server's side and actions (an employee is the agent's side);
+    // an older server sends neither — then as before (the agent or the host).
+    final asHost = r.viewerIsHost ?? r.host.id == me;
+    final legacyMine = (r.byHost ? r.host.id : r.agent.id) == me;
+    final actions =
+        r.actions ??
+        [
+          if (r.status == RechargeCherryStatus.pending)
+            ...(legacyMine ? ['cancel'] : ['confirm', 'decline']),
+        ];
+    final mine = actions.contains('cancel');
+    final other = asHost ? r.agent : r.host;
     final pending = r.status == RechargeCherryStatus.pending;
+    final block = switch (r.viewerBlock) {
+      RechargeAgentSideBlock.offShift => l10n.rechargeBlockOffShift,
+      RechargeAgentSideBlock.notPermitted => l10n.rechargeBlockNotPermitted,
+      RechargeAgentSideBlock.staff => l10n.rechargeBlockStaff,
+      _ => null,
+    };
+    final actedBy = switch (r.actedBy) {
+      final u? when !asHost => u.id == me ? null : u,
+      _ => null,
+    };
     final money = l10n.rechargeMoney(
       KFormat.bidiIsolate(
         '${(r.payoutMinor / 100).toStringAsFixed(2)} ${r.currency}',
@@ -232,7 +285,19 @@ class _RequestCardState extends ConsumerState<_RequestCard> {
               style: t.body.copyWith(color: p.textPrimary),
             ),
             Text(money, style: t.caption.copyWith(color: p.textSecondary)),
-            if (pending) ...[
+            if (actedBy != null)
+              Text(
+                l10n.rechargeActedBy(KFormat.bidiIsolate(actedBy.displayName)),
+                style: t.caption.copyWith(color: p.textTertiary),
+              ),
+            if (pending && block != null) ...[
+              const SizedBox(height: KSpacing.xs),
+              Text(
+                block,
+                key: RechargeCherryScreen.blockKey(r.id),
+                style: t.caption.copyWith(color: p.error),
+              ),
+            ] else if (pending && actions.isNotEmpty) ...[
               const SizedBox(height: KSpacing.xs),
               if (mine)
                 Row(

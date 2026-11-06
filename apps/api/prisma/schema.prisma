@@ -4487,6 +4487,10 @@ model RechargeEmployee {
   schedule       Json
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   removedAt      DateTime? @map("removed_at") @db.Timestamptz(3)
+  /// D287: may buy hosts' cherries for the agent («يمكنه شراء الكرز»).
+  canBuyCherries Boolean   @default(true) @map("can_buy_cherries")
+  /// D287: receives the agent's coin orders and cherry offers («يستقبل طلبات الشراء»).
+  receivesOrders Boolean   @default(true) @map("receives_orders")
 
   agent    RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
   employee User          @relation(fields: [employeeUserId], references: [id], onDelete: Cascade)
@@ -4511,6 +4515,10 @@ model RechargeCherryRequest {
   createdAt   DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
   expiresAt   DateTime                    @map("expires_at") @db.Timestamptz(3)
   decidedAt   DateTime?                   @map("decided_at") @db.Timestamptz(3)
+  /// D287: the employee who last acted for the agent (created or answered it); null = the agent or the host.
+  actedBy     String?                     @map("acted_by") @db.Uuid
+  /// D287: who confirmed, declined or cancelled it (null while open or expired).
+  decidedBy   String?                     @map("decided_by") @db.Uuid
 
   agent RechargeAgent @relation(fields: [agentUserId], references: [userId], onDelete: Cascade)
   host  User          @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
@@ -4519,6 +4527,7 @@ model RechargeCherryRequest {
   @@index([agentUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_cherry_requests_agent_idx")
   @@index([hostUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_cherry_requests_host_idx")
   @@index([agentUserId, hostUserId, status], map: "recharge_cherry_requests_pair_idx")
+  @@index([actedBy, decidedAt], map: "recharge_cherry_requests_acted_by_idx", where: raw("acted_by IS NOT NULL"))
   @@map("recharge_cherry_requests")
 }
 
@@ -4655,6 +4664,9 @@ model RechargeOrder {
   closedAt       DateTime?           @map("closed_at") @db.Timestamptz(3)
   closedBy       String?             @map("closed_by") @db.Uuid
   closeReason    String?             @map("close_reason") @db.VarChar(500)
+  /// D287: the agent's side person who acted first and owns the order (the agent or an employee).
+  claimedBy      String?             @map("claimed_by") @db.Uuid
+  claimedAt      DateTime?           @map("claimed_at") @db.Timestamptz(3)
   /// When REQUESTED or AWAITING_PAYMENT ends by itself (the sweeper; null afterwards).
   expiresAt      DateTime?           @map("expires_at") @db.Timestamptz(3)
   createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -4671,6 +4683,7 @@ model RechargeOrder {
   @@index([agentUserId, createdAt(sort: Desc), id(sort: Desc)], map: "recharge_orders_agent_idx")
   @@index([status, updatedAt], map: "recharge_orders_status_idx")
   @@index([expiresAt], map: "recharge_orders_expiry_idx", where: raw("expires_at IS NOT NULL"))
+  @@index([claimedBy, closedAt], map: "recharge_orders_claimed_by_idx", where: raw("claimed_by IS NOT NULL"))
   @@map("recharge_orders")
 }
 

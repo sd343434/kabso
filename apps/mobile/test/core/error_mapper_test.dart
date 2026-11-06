@@ -126,6 +126,12 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rechargeOrderStateChanged: 409,
   ErrorCode.rechargeOrderNoticeRequired: 409,
   ErrorCode.rechargeOrderDisputeTooEarly: 409,
+  // v1.87-social (D287).
+  ErrorCode.rechargeEmployeeNotPermitted: 403,
+  ErrorCode.rechargeOrderClaimed: 409,
+  // D287 (owner): the Kabso Team is never a recharge employee.
+  ErrorCode.rechargeEmployeeIsStaff: 403,
+  ErrorCode.staffAccountLimited: 403,
   // v1.72-social (D208).
   ErrorCode.accountLocked: 403,
   ErrorCode.accountRestricted: 403,
@@ -299,6 +305,12 @@ void main() {
           'RECHARGE_ORDER_STATE_CHANGED',
           'RECHARGE_ORDER_NOTICE_REQUIRED',
           'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
+          // v1.87-social (D287).
+          'RECHARGE_EMPLOYEE_NOT_PERMITTED',
+          'RECHARGE_ORDER_CLAIMED',
+          // D287 (owner).
+          'RECHARGE_EMPLOYEE_IS_STAFF',
+          'STAFF_ACCOUNT_LIMITED',
           // v1.72-social (D208).
           'ACCOUNT_LOCKED',
           'ACCOUNT_RESTRICTED',

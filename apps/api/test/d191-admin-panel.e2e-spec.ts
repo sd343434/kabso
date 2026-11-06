@@ -60,13 +60,15 @@ describe('D191 contract coverage', () => {
       // v1.72-social (D208): the account controls are covered by d208-admin-control.
       // v1.76-social (D218): the cover removal is covered by d218-social-redesign.
       // v1.78-social (D223): the accounts made on a device are covered by d223-device-limit.
+      // v1.87-social (D287): an agent's employees are covered by d287-recharge-employees.
       .filter((o) => {
         const d = typeof o.spec.description === 'string' ? o.spec.description : '';
         return (
           !d.startsWith('(v1.65-social, D197)') &&
           !d.startsWith('(v1.72-social, D208') &&
           !d.startsWith('(v1.76-social, D218)') &&
-          !d.startsWith('(v1.78-social, D223')
+          !d.startsWith('(v1.78-social, D223') &&
+          !d.startsWith('(v1.87-social, D287')
         );
       })
       .map((o) => o.operationId)

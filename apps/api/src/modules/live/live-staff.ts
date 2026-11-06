@@ -214,7 +214,9 @@ export type LimitedStaffIssue =
   | 'cover'
   | 'bio'
   | 'frame'
-  | 'store';
+  | 'store'
+  // v1.87-social (D287, owner): acting as a recharge agent's employee (selling, cherries, orders).
+  | 'recharge_employee';
 
 /** 403 STAFF_ACCOUNT_LIMITED (`details[0].issue`) when the caller is a limited staff account (§10.96.10). */
 export async function refuseLimitedStaff(db: Db, callerId: string, issue: LimitedStaffIssue): Promise<void> {

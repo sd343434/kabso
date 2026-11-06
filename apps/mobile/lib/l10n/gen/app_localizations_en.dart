@@ -14855,4 +14855,90 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'Other';
+
+  @override
+  String get rechargeCherryBuyForAgentTitle => 'Buy cherries for the agent';
+
+  @override
+  String rechargeWorksFor(String name) {
+    return 'Working for $name';
+  }
+
+  @override
+  String rechargeCherryForAgentNote(String name) {
+    return 'You buy for $name: the coins go to the agent\'s stock and the agent pays the host.';
+  }
+
+  @override
+  String get rechargeBlockOffShift => 'Off shift: you can only look.';
+
+  @override
+  String get rechargeBlockNotPermitted =>
+      'The agent has not allowed you to do this.';
+
+  @override
+  String get rechargeOrderClaimedByOther => 'Taken by another employee';
+
+  @override
+  String get rechargeOrderClaimedByAgent => 'The agent is handling it';
+
+  @override
+  String rechargeOrderClaimedBy(String name) {
+    return 'Handled by $name';
+  }
+
+  @override
+  String get rechargeOrderClaimedByYou => 'You are handling this order';
+
+  @override
+  String rechargeActedBy(String name) {
+    return 'By $name';
+  }
+
+  @override
+  String get rechargePermBuyCherries => 'Can buy cherries';
+
+  @override
+  String get rechargePermBuyCherriesHint =>
+      'Buys hosts’ cherries for you during their shift';
+
+  @override
+  String get rechargePermReceivesOrders => 'Receives purchase orders';
+
+  @override
+  String get rechargePermReceivesOrdersHint =>
+      'Gets buyers’ orders and handles them during their shift';
+
+  @override
+  String rechargeEmployeeActsToday(int cherries, int orders) {
+    return 'Today: $cherries cherry purchases · $orders orders done';
+  }
+
+  @override
+  String get errorRechargeEmployeeNotPermitted =>
+      'The agent has not allowed you to do this.';
+
+  @override
+  String get errorRechargeOrderClaimed =>
+      'Another employee already took this order.';
+
+  @override
+  String rechargeOrdersForAgentHint(String name) {
+    return 'Buyers\' orders for $name; whoever takes one first owns it';
+  }
+
+  @override
+  String get rechargeBlockStaff =>
+      'You are on the Kabso Team now: you can’t work as a recharge employee, only look.';
+
+  @override
+  String get rechargeEmployeeIsStaffNote =>
+      'On the Kabso Team now: can’t work for you. You can remove them.';
+
+  @override
+  String get errorRechargeEmployeeIsStaff =>
+      'This is a Kabso Team account; it can’t be added as a recharge employee.';
+
+  @override
+  String get errorStaffAccountLimited => 'A Kabso Team account can’t do this.';
 }

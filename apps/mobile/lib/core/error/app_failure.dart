@@ -321,6 +321,20 @@ enum ErrorCode {
   rechargeOrderNoticeRequired('RECHARGE_ORDER_NOTICE_REQUIRED'),
   rechargeOrderDisputeTooEarly('RECHARGE_ORDER_DISPUTE_TOO_EARLY'),
 
+  /// v1.87-social (D287, §10.100): an employee acting for the agent — the
+  /// agent switched the permission off (403), or another person of the
+  /// agent's side already took the order (409).
+  rechargeEmployeeNotPermitted('RECHARGE_EMPLOYEE_NOT_PERMITTED'),
+  rechargeOrderClaimed('RECHARGE_ORDER_CLAIMED'),
+
+  /// D287 (owner, 403): the account to add as an employee is a Kabso Team
+  /// account (D283).
+  rechargeEmployeeIsStaff('RECHARGE_EMPLOYEE_IS_STAFF'),
+
+  /// v1.72-live (D283, 403): a Kabso Team account cannot do this (D287:
+  /// `details` issue `recharge_employee` — acting as a recharge employee).
+  staffAccountLimited('STAFF_ACCOUNT_LIMITED'),
+
   /// v1.72-social (D208): sign-in to an account the team locked for a while
   /// (403; `details` `lockedUntil` and `reason`, shown on the sign-in screen).
   accountLocked('ACCOUNT_LOCKED'),

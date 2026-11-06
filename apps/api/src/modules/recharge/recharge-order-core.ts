@@ -13,6 +13,8 @@ import { recordRechargeIn, type RechargeCreditRules } from './recharge-badges.js
 import { referralRechargeIn } from '../referrals/referral-core.js';
 import { moveStockIn, RechargeAdminError } from './recharge-core.js';
 import type { DisputeOutcome, OrderStatus } from './recharge-order-rules.js';
+import { limitedStaffAmong } from '../live/live-staff.js';
+import { onShift, type WeeklySlot } from './recharge-rules.js';
 
 /**
  * Recharge orders with escrow «طلبات الشحن» (v1.69-social, D204, CONVENTIONS §10.64): the coin movements and the
@@ -81,15 +83,38 @@ export function systemLineIn(
 }
 
 /**
- * The people who serve the agent's orders: the agent and the employees on shift now are notified; every active
- * employee may read the order (only on shift may they act).
+ * The people of the agent's side an order event goes to (v1.87-social, D287, §10.100): the agent always; when a person
+ * of the agent's side owns the order (`claimedBy`), that person too (an employee only while still employed); else
+ * every employee who receives orders («يستقبل طلبات الشراء») and is on shift `now`. (D204 wrote «on shift» but
+ * notified every employee; an employee off shift still reads the inbox.)
  */
-export async function agentSideIn(tx: Tx | PrismaClient, agentUserId: string): Promise<string[]> {
+export async function agentSideIn(
+  tx: Tx | PrismaClient,
+  agentUserId: string,
+  now: Date = new Date(),
+  claimedBy: string | null = null,
+): Promise<string[]> {
+  if (claimedBy === agentUserId) return [agentUserId];
   const rows = await tx.rechargeEmployee.findMany({
-    where: { agentUserId, removedAt: null },
-    select: { employeeUserId: true },
+    where: {
+      agentUserId,
+      removedAt: null,
+      ...(claimedBy === null ? { receivesOrders: true } : { employeeUserId: claimedBy }),
+    },
+    select: { employeeUserId: true, timeZone: true, schedule: true },
   });
-  return [agentUserId, ...rows.map((r) => r.employeeUserId)];
+  const desk =
+    claimedBy === null
+      ? rows.filter((r) =>
+          onShift({ timeZone: r.timeZone, schedule: r.schedule as unknown as WeeklySlot[] }, now),
+        )
+      : rows;
+  // D287 (owner): an employee who is a Kabso Team account now cannot act, so is not told.
+  const staff = await limitedStaffAmong(
+    tx,
+    desk.map((r) => r.employeeUserId),
+  );
+  return [agentUserId, ...desk.map((r) => r.employeeUserId).filter((id) => !staff.has(id))];
 }
 
 /**
@@ -134,8 +159,12 @@ export async function notifyOrderIn(
 }
 
 /** Every person of the order (the buyer and the agent's side). */
-export async function partiesIn(tx: Tx, order: Pick<RechargeOrder, 'buyerUserId' | 'agentUserId'>) {
-  return [order.buyerUserId, ...(await agentSideIn(tx, order.agentUserId))];
+export async function partiesIn(
+  tx: Tx,
+  order: Pick<RechargeOrder, 'buyerUserId' | 'agentUserId'> & { claimedBy?: string | null },
+  now: Date = new Date(),
+) {
+  return [order.buyerUserId, ...(await agentSideIn(tx, order.agentUserId, now, order.claimedBy ?? null))];
 }
 
 /** Releases the frozen coins back to the agent's stock (ORDER_RELEASE, once per order). */
@@ -195,7 +224,7 @@ export async function expireIfDueIn(tx: Tx, order: RechargeOrder, now: Date): Pr
       },
     },
   });
-  await notifyOrderIn(tx, order.id, await partiesIn(tx, order), 'EXPIRED', now);
+  await notifyOrderIn(tx, order.id, await partiesIn(tx, order, now), 'EXPIRED', now);
   return true;
 }
 
@@ -263,7 +292,7 @@ export async function confirmIn(
       },
     },
   });
-  await notifyOrderIn(tx, order.id, await partiesIn(tx, order), 'COMPLETED', now);
+  await notifyOrderIn(tx, order.id, await partiesIn(tx, order, now), 'COMPLETED', now);
   return true;
 }
 
@@ -314,7 +343,7 @@ export async function cancelIn(
       },
     },
   });
-  await notifyOrderIn(tx, order.id, await partiesIn(tx, order), 'CANCELLED', now);
+  await notifyOrderIn(tx, order.id, await partiesIn(tx, order, now), 'CANCELLED', now);
 }
 
 /**
@@ -379,7 +408,7 @@ export async function resolveDisputeIn(
       },
     },
   });
-  await notifyOrderIn(tx, order.id, await partiesIn(tx, order), target, now);
+  await notifyOrderIn(tx, order.id, await partiesIn(tx, order, now), target, now);
   return { status: target, changed: true };
 }
 

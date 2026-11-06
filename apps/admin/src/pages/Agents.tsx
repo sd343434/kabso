@@ -6,6 +6,7 @@ import { formatMoney, formatNumber } from '../format';
 import { expectedMinor, minorToUsd, parseUsd, tierFor } from '../price';
 import type { AgentPage, AgentRow, Pricing, TopUpResult } from '../types';
 import { StatusTabs } from './Applications';
+import { AgentEmployeesDialog } from './AgentEmployees';
 
 const STATUSES = ['', 'ACTIVE', 'APPROVED', 'SUSPENDED'] as const;
 
@@ -118,7 +119,7 @@ export function TopUpDialog({ agent, pricing, onClose, onDone }: { agent: AgentR
   );
 }
 
-type Act = { kind: 'topup' | 'suspend' | 'reinstate' | 'cap'; agent: AgentRow } | null;
+type Act = { kind: 'topup' | 'suspend' | 'reinstate' | 'cap' | 'employees'; agent: AgentRow } | null;
 
 export function Agents() {
   const { t, lang, can, toast } = useApp();
@@ -157,6 +158,7 @@ export function Agents() {
                 <th>{t('stock')}</th>
                 <th>{t('dailyCap')}</th>
                 <th>{t('colCountries')}</th>
+                <th>{t('agentEmployees')}</th>
                 {anyAction && <th>{t('actions')}</th>}
               </tr>
             </thead>
@@ -173,6 +175,9 @@ export function Agents() {
                   <td className="num">{formatNumber(a.stockCoins, lang)}</td>
                   <td className="num">{capText(a)}</td>
                   <td className="mono small">{a.countries.join(', ')}</td>
+                  <td>
+                    <AgentEmployeesButton agent={a} onAct={setAct} />
+                  </td>
                   {anyAction && (
                     <td>
                       <div className="row">
@@ -187,6 +192,7 @@ export function Agents() {
         </div>
       )}
       <Pager page={data?.page} index={pages.index} onNext={() => data && pages.next(data.page)} onPrev={pages.prev} />
+      {act?.kind === 'employees' && <AgentEmployeesDialog agent={act.agent} onClose={() => setAct(null)} />}
       {act?.kind === 'topup' && data && (
         <TopUpDialog
           agent={act.agent}
@@ -256,5 +262,20 @@ export function AgentActions({ agent: a, onAct }: { agent: AgentRow; onAct: (act
         </button>
       )}
     </>
+  );
+}
+
+/**
+ * D287 (§10.100): «الموظفون» — what each of the agent's employees did for the agent. Read only, behind
+ * `recharge.agents` like the list itself (and the API's `listAdminRechargeAgentEmployees`), so the moderator «مشرف»
+ * (D275, no action buttons) reads it too.
+ */
+export function AgentEmployeesButton({ agent: a, onAct }: { agent: AgentRow; onAct: (act: Act) => void }) {
+  const { t, can } = useApp();
+  if (!can('recharge.agents')) return null;
+  return (
+    <button className="btn small" onClick={() => onAct({ kind: 'employees', agent: a })}>
+      {t('agentEmployees')}
+    </button>
   );
 }

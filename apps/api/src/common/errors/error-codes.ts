@@ -159,7 +159,7 @@ export enum ErrorCode {
   RECHARGE_APPLICATION_NOT_ALLOWED = 'RECHARGE_APPLICATION_NOT_ALLOWED',
   /** v1.54-social (DRAFT, D185): The recharge agent is not ACTIVE (waiting for the first top-up, or suspended). */
   RECHARGE_AGENT_NOT_ACTIVE = 'RECHARGE_AGENT_NOT_ACTIVE',
-  /** v1.54-social (DRAFT, D185): An employee tried to sell outside their working hours. */
+  /** v1.54-social (DRAFT, D185): An employee tried to sell (v1.87-social, D287: or act for the agent) outside their hours. */
   RECHARGE_OFF_SHIFT = 'RECHARGE_OFF_SHIFT',
   /** v1.54-social (DRAFT, D185): The agent's coin stock does not cover the sale. */
   RECHARGE_STOCK_INSUFFICIENT = 'RECHARGE_STOCK_INSUFFICIENT',
@@ -253,6 +253,12 @@ export enum ErrorCode {
   RECHARGE_ORDER_NOTICE_REQUIRED = 'RECHARGE_ORDER_NOTICE_REQUIRED',
   /** v1.69-social (DRAFT, D204): the buyer can open a dispute only after the wait (15 minutes after «قمت بالإرسال»). */
   RECHARGE_ORDER_DISPUTE_TOO_EARLY = 'RECHARGE_ORDER_DISPUTE_TOO_EARLY',
+  /** v1.87-social (DRAFT, D287): the agent switched this permission off for the employee (buy cherries / orders). */
+  RECHARGE_EMPLOYEE_NOT_PERMITTED = 'RECHARGE_EMPLOYEE_NOT_PERMITTED',
+  /** v1.87-social (DRAFT, D287): another person of the agent's side already took the order. */
+  RECHARGE_ORDER_CLAIMED = 'RECHARGE_ORDER_CLAIMED',
+  /** v1.87-social (D287, owner): the account to add as a recharge agent's employee is a Kabso Team account (D283). */
+  RECHARGE_EMPLOYEE_IS_STAFF = 'RECHARGE_EMPLOYEE_IS_STAFF',
   /**
    * v1.72-social (DRAFT, D208): sign-in to an account the team locked for a while (only after the right password);
    * `details: [{field: 'lockedUntil', issue: <ISO time>}, {field: 'reason', issue: <the team's reason>}]`.
@@ -462,6 +468,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 409,
   [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 409,
   [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 409,
+  [ErrorCode.RECHARGE_EMPLOYEE_NOT_PERMITTED]: 403,
+  [ErrorCode.RECHARGE_ORDER_CLAIMED]: 409,
+  [ErrorCode.RECHARGE_EMPLOYEE_IS_STAFF]: 403,
   [ErrorCode.ACCOUNT_LOCKED]: 403,
   [ErrorCode.ACCOUNT_RESTRICTED]: 403,
   [ErrorCode.PASSWORD_CHANGE_REQUIRED]: 403,
@@ -573,7 +582,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.WITHDRAWAL_PENDING]: 'You already have a withdrawal waiting to be paid.',
   [ErrorCode.RECHARGE_APPLICATION_NOT_ALLOWED]: 'You cannot apply to be a recharge agent now.',
   [ErrorCode.RECHARGE_AGENT_NOT_ACTIVE]: 'This recharge agent is not active.',
-  [ErrorCode.RECHARGE_OFF_SHIFT]: 'You can sell only during your working hours.',
+  [ErrorCode.RECHARGE_OFF_SHIFT]: 'You can act for the agent only during your working hours.',
   [ErrorCode.RECHARGE_STOCK_INSUFFICIENT]: 'Not enough coins in the stock.',
   [ErrorCode.RECHARGE_EMPLOYEE_NOT_ALLOWED]: 'This person cannot be added as an employee.',
   [ErrorCode.RECHARGE_CHERRY_REQUEST_PENDING]: 'There is already an open request between you.',
@@ -615,6 +624,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.RECHARGE_ORDER_STATE_CHANGED]: 'This order has changed. Refresh it.',
   [ErrorCode.RECHARGE_ORDER_NOTICE_REQUIRED]: 'Read and acknowledge the protection notice first.',
   [ErrorCode.RECHARGE_ORDER_DISPUTE_TOO_EARLY]: 'You can open a dispute when the wait is over.',
+  [ErrorCode.RECHARGE_EMPLOYEE_NOT_PERMITTED]: 'The agent has not allowed you to do this.',
+  [ErrorCode.RECHARGE_ORDER_CLAIMED]: 'Another person of the agent already took this order.',
+  [ErrorCode.RECHARGE_EMPLOYEE_IS_STAFF]: "A Kabso Team account cannot be a recharge agent's employee.",
   [ErrorCode.ACCOUNT_LOCKED]: 'This account is locked for a while.',
   [ErrorCode.ACCOUNT_RESTRICTED]: 'This is switched off for your account for a while.',
   [ErrorCode.PASSWORD_CHANGE_REQUIRED]: 'Choose a new password to continue.',

@@ -137,6 +137,11 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
       l10n.errorRechargeOrderNoticeRequired,
     ErrorCode.rechargeOrderDisputeTooEarly =>
       l10n.errorRechargeOrderDisputeTooEarly,
+    ErrorCode.rechargeEmployeeNotPermitted =>
+      l10n.errorRechargeEmployeeNotPermitted,
+    ErrorCode.rechargeOrderClaimed => l10n.errorRechargeOrderClaimed,
+    ErrorCode.rechargeEmployeeIsStaff => l10n.errorRechargeEmployeeIsStaff,
+    ErrorCode.staffAccountLimited => l10n.errorStaffAccountLimited,
     ErrorCode.accountLocked => l10n.errorAccountLocked,
     ErrorCode.accountRestricted => l10n.errorAccountRestricted,
     ErrorCode.passwordChangeRequired => l10n.errorPasswordChangeRequired,

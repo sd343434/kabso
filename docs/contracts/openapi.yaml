@@ -250,6 +250,20 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D287 (DRAFT v1.87-social)**: a recharge agent's employees act FOR the agent within their shift. An employee with
+    «يمكنه شراء الكرز» (`canBuyCherries`) creates, confirms, declines or cancels cherry purchases with hosts on the
+    agent's behalf — the agent's stock, daily cap and money, `RechargeCherryRequest.actedBy` = the employee; an
+    employee with «يستقبل طلبات الشراء» (`receivesOrders`) gets the agent's coin orders. Both default ON
+    (`RechargeEmployeeRequest` / `RechargeEmployeeUpdate`, `RechargeEmployee`, `RechargeEmployment`). A host's offer
+    and a buyer's order notify the agent and every allowed employee on shift; the first person of the agent's side to
+    act on an order owns it (`RechargeOrder.claimedBy`); the others read it as taken. `viewerBlock`
+    (`RechargeAgentSideBlock`: STAFF, NOT_PERMITTED, CLAIMED, OFF_SHIFT) says why the viewer may read but not act
+    (`actions` is then empty). Owner's decision: a Kabso Team account (D283's limited staff) is never an employee — adding
+    one is 403 `RECHARGE_EMPLOYEE_IS_STAFF`; an employee who became one is refused with 403 `STAFF_ACCOUNT_LIMITED` (issue
+    `recharge_employee`) and `kabsoTeam` on `RechargeEmployee` / `RechargeEmployment` says so. Codes
+    `RECHARGE_EMPLOYEE_NOT_PERMITTED` (403), `RECHARGE_ORDER_CLAIMED` (409), `RECHARGE_EMPLOYEE_IS_STAFF` (403);
+    per-employee `cherryPurchases` / `orders` statistics; panel `listAdminRechargeAgentEmployees` (`recharge.agents`). Additive
+    (CONVENTIONS §10.100).
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -6867,6 +6881,9 @@ paths:
         (unknown, not active, or a block either way with the seller or the agent) → 400 `buyer` `invalid_value`
         (the seller or the agent themselves) → 409 `RECHARGE_STOCK_INSUFFICIENT` (nothing changed) → 201.
         120 / hour per user (`recharge:sell`).
+
+        v1.87-social (D287, owner's decision, §10.100): before `RECHARGE_OFF_SHIFT`, 403 `STAFF_ACCOUNT_LIMITED`
+        (`details: [{field: staff, issue: recharge_employee}]`) when the employee is a Kabso Team account now.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -6887,6 +6904,11 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeSale' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403':
+          description: "v1.87-social (D287): `STAFF_ACCOUNT_LIMITED` (issue `recharge_employee`)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '404': { $ref: '#/components/responses/Error' }
         '409':
           description: "`RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_OFF_SHIFT`, `RECHARGE_STOCK_INSUFFICIENT` or `IDEMPOTENCY_CONFLICT`."
@@ -6918,6 +6940,10 @@ paths:
         `username` (unknown, not active, or a block either way) → 409 `RECHARGE_EMPLOYEE_NOT_ALLOWED` (the
         caller, an agent or applicant, an employee of an agent, or the agent already has 20) → 201. 60 / hour
         per user (`recharge:write`).
+
+        v1.87-social (D287, owner's decision, §10.100): after the 409, 403 `RECHARGE_EMPLOYEE_IS_STAFF` when the user
+        is a Kabso Team account (MODERATION, SUPPORT, FINANCE or BD and not OWNER — D283's limited staff). Nothing is
+        stored.
       requestBody:
         required: true
         content:
@@ -6932,6 +6958,11 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '403':
+          description: "v1.87-social (D287): `RECHARGE_EMPLOYEE_IS_STAFF`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '409':
           description: "`RECHARGE_EMPLOYEE_NOT_ALLOWED`."
           content:
@@ -6947,13 +6978,13 @@ paths:
     put:
       tags: [recharge]
       operationId: updateMyRechargeEmployee
-      summary: "Change an employee's hours (D185)"
-      description: "v1.54-social, CONVENTIONS §10.48. Checks: 401; 404 (not an agent, or not one of the caller's employees); 400 body; 60 / hour (`recharge:write`)."
+      summary: "Change an employee's hours and permissions (D185, D287)"
+      description: "v1.54-social, CONVENTIONS §10.48. v1.87-social (D287, §10.100): also «يمكنه شراء الكرز» (`canBuyCherries`) and «يستقبل طلبات الشراء» (`receivesOrders`), each left out = unchanged; audited with before / after. Checks: 401; 404 (not an agent, or not one of the caller's employees); 400 body; 60 / hour (`recharge:write`)."
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RechargeEmployeeHours' }
+            schema: { $ref: '#/components/schemas/RechargeEmployeeUpdate' }
       responses:
         '200':
           description: Saved.
@@ -7026,7 +7057,7 @@ paths:
       tags: [recharge]
       operationId: listMyRechargeCherryRequests
       summary: "Cherry sales between hosts and agents the caller is part of (D185)"
-      description: "v1.54-social, CONVENTIONS §10.48. Newest first; a PENDING request past `expiresAt` reads EXPIRED. Checks: 401; 400 `cursor` / `limit`."
+      description: "v1.54-social, CONVENTIONS §10.48. Newest first; a PENDING request past `expiresAt` reads EXPIRED. v1.87-social (D287): an employee with «يمكنه شراء الكرز» also sees the agent's requests (off shift: `viewerBlock` OFF_SHIFT, no `actions`). Checks: 401; 400 `cursor` / `limit`."
       parameters:
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
@@ -7056,6 +7087,13 @@ paths:
         `INSUFFICIENT_CHERRIES` (the host's withdrawable cherries — the balance less locked task cherries — do not
         cover it) → 409 `RECHARGE_CHERRY_CAP_REACHED` (the agent's cherries today plus this exceed the agent's
         daily cap) → 201. 60 / hour per user (`recharge:write`).
+
+        v1.87-social (D287, §10.100): an agent's employee may send `host` too — the request is the agent's (stock,
+        daily cap counted across the agent and every employee, money), `actedBy` = the employee, the host is notified
+        with the agent as the actor. After `RECHARGE_AGENT_NOT_ACTIVE`: 403 `RECHARGE_EMPLOYEE_NOT_PERMITTED` (no
+        «يمكنه شراء الكرز») → 409 `RECHARGE_OFF_SHIFT`. The employee themselves cannot be the host (400 `host`); a block
+        between the employee and the host is 404. A host's offer (`agentCode`) notifies the agent and every allowed
+        employee on shift.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -7077,8 +7115,13 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '403':
+          description: "v1.87-social (D287): `RECHARGE_EMPLOYEE_NOT_PERMITTED`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '409':
-          description: "`RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_CHERRY_REQUEST_PENDING`, `INSUFFICIENT_CHERRIES`, `RECHARGE_CHERRY_CAP_REACHED` or `IDEMPOTENCY_CONFLICT`."
+          description: "`RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_OFF_SHIFT` (D287), `RECHARGE_CHERRY_REQUEST_PENDING`, `INSUFFICIENT_CHERRIES`, `RECHARGE_CHERRY_CAP_REACHED` or `IDEMPOTENCY_CONFLICT`."
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -7097,6 +7140,11 @@ paths:
         → 409 `RECHARGE_CHERRY_REQUEST_CLOSED` (no longer PENDING, or expired — it then reads EXPIRED) → for
         `confirm`: 409 `RECHARGE_AGENT_NOT_ACTIVE` → 409 `RECHARGE_CHERRY_CAP_REACHED` → 409
         `INSUFFICIENT_CHERRIES` (nothing changed) → 200. 60 / hour per user (`recharge:write`).
+
+        v1.87-social (D287, §10.100): the agent's side is the agent or an active employee of the agent (else 404; a
+        removed employee is 404). After the side check: 403 `RECHARGE_EMPLOYEE_NOT_PERMITTED` → 409
+        `RECHARGE_OFF_SHIFT`; the agent always acts. The first answer wins under the row lock; a second one (another
+        employee, the agent) gets 409 `RECHARGE_CHERRY_REQUEST_CLOSED`. An employee's answer sets `actedBy`.
       parameters:
         - name: requestId
           in: path
@@ -7114,9 +7162,10 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeCherryRequest' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409':
-          description: "`RECHARGE_CHERRY_REQUEST_CLOSED`, `RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_CHERRY_CAP_REACHED` or `INSUFFICIENT_CHERRIES`."
+          description: "`RECHARGE_CHERRY_REQUEST_CLOSED`, `RECHARGE_OFF_SHIFT` (D287), `RECHARGE_AGENT_NOT_ACTIVE`, `RECHARGE_CHERRY_CAP_REACHED` or `INSUFFICIENT_CHERRIES`."
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -11122,6 +11171,27 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recharge/agents/{agentUserId}/employees:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminRechargeAgentEmployees
+      summary: "An agent's employees and what each did for the agent (recharge.agents, D287)"
+      description: "(v1.87-social, D287) CONVENTIONS §10.100. The current employees and those removed in the last 30 days (oldest first, at most 100), with the two permissions, whether on shift now, and per employee the sales, the confirmed cherry purchases they acted on and the completed coin orders they owned — today (LIVE_RANKINGS_TIME_ZONE), 7 and 30 days. 404 when the user is not an agent."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: agentUserId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The employees.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminRechargeAgentEmployeeList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /api/v1/admin/recharge/agents/{agentUserId}/topup:
     post:
       tags: [admin-panel]
@@ -17108,7 +17178,8 @@ paths:
       description: |
         v1.69-social, CONVENTIONS §10.64. Newest first. `role=agent`: the agent's orders (an employee sees their
         agent's). `state` open (REQUESTED, AWAITING_PAYMENT, PAID, DISPUTED) / closed / all. 404 `role=agent` for a
-        person who is neither an agent nor an employee.
+        person who is neither an agent nor an employee. v1.87-social (D287): 403 `RECHARGE_EMPLOYEE_NOT_PERMITTED` for an
+        employee without «يستقبل طلبات الشراء»; each order carries `claimedBy` and the viewer's `viewerBlock`.
       parameters:
         - { name: role, in: query, required: false, schema: { type: string, enum: [buyer, agent], default: buyer } }
         - { name: state, in: query, required: false, schema: { type: string, enum: [open, closed, all], default: all } }
@@ -17122,6 +17193,7 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeOrderPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
     post:
@@ -17229,6 +17301,7 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeOrderMessage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -17262,7 +17335,11 @@ paths:
         from the stock (`recharge_stock_ledger` `ORDER_HOLD`) and the order becomes AWAITING_PAYMENT (`expiresAt` =
         now + `RECHARGE_ORDER_PAYMENT_TTL_MINUTES`). The buyer gets a `RECHARGE_ORDER_UPDATE`. 404 (not the agent's side);
         409 `RECHARGE_OFF_SHIFT`, `RECHARGE_ORDER_STATE_CHANGED` (not REQUESTED), `RECHARGE_AGENT_NOT_ACTIVE`,
-        `RECHARGE_STOCK_INSUFFICIENT` (nothing changed); 400 `method`.
+        `RECHARGE_STOCK_INSUFFICIENT` (nothing changed); 400 `method`. v1.87-social (D287, §10.100): the first person of
+        the agent's side to act on an order (details, a message, «استلمت», «نزاع», cancel) owns it (`claimedBy`, under
+        the order's row lock); another employee then gets 409 `RECHARGE_ORDER_CLAIMED` (the agent always acts); an
+        employee without «يستقبل طلبات الشراء» 403 `RECHARGE_EMPLOYEE_NOT_PERMITTED`. The same holds for
+        `postRechargeOrderMessage`, `confirmRechargeOrder`, `disputeRechargeOrder` and `cancelRechargeOrder`.
       parameters:
         - $ref: '#/components/parameters/RechargeOrderIdPath'
       requestBody:
@@ -17278,6 +17355,7 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeOrder' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -17353,6 +17431,7 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeOrder' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -17381,6 +17460,7 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeOrder' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -17407,6 +17487,7 @@ paths:
               schema: { $ref: '#/components/schemas/RechargeOrder' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -19855,6 +19936,28 @@ components:
         data: { type: array, items: { $ref: '#/components/schemas/AdminRechargeAgentRow' } }
         page: { $ref: '#/components/schemas/PageInfo' }
         pricing: { $ref: '#/components/schemas/AdminRechargePricing' }
+    AdminRechargeAgentEmployee:
+      description: "v1.87-social (D287): one of an agent's employees with what they did for the agent."
+      type: object
+      required: [userId, username, displayName, timeZone, onShiftNow, canBuyCherries, receivesOrders, addedAt, removedAt, sales, cherryPurchases, orders]
+      properties:
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        timeZone: { type: string }
+        onShiftNow: { type: boolean }
+        canBuyCherries: { type: boolean }
+        receivesOrders: { type: boolean }
+        addedAt: { type: string, format: date-time }
+        removedAt: { type: [string, 'null'], format: date-time }
+        sales: { $ref: '#/components/schemas/RechargeSalesStats' }
+        cherryPurchases: { $ref: '#/components/schemas/RechargeSalesStats' }
+        orders: { $ref: '#/components/schemas/RechargeSalesStats' }
+    AdminRechargeAgentEmployeeList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/AdminRechargeAgentEmployee' } }
     AdminTopUpRequest:
       type: object
       additionalProperties: false
@@ -31198,7 +31301,7 @@ components:
         sales: { $ref: '#/components/schemas/RechargeSalesStats' }
     RechargeEmployment:
       type: object
-      required: [agentCode, agent, timeZone, schedule, onShiftNow]
+      required: [agentCode, agent, timeZone, schedule, onShiftNow, canBuyCherries, receivesOrders, kabsoTeam]
       properties:
         agentCode:
           oneOf:
@@ -31210,6 +31313,9 @@ components:
           type: array
           items: { $ref: '#/components/schemas/WeeklySlot' }
         onShiftNow: { type: boolean }
+        canBuyCherries: { type: boolean, description: "v1.87-social (D287): the agent lets them buy hosts' cherries for the agent «يمكنه شراء الكرز»." }
+        receivesOrders: { type: boolean, description: "v1.87-social (D287): the agent's coin orders and cherry offers reach them «يستقبل طلبات الشراء»." }
+        kabsoTeam: { type: boolean, description: "v1.87-social (D287, owner): the caller is a Kabso Team account now (D283); they read the agent's requests and orders but cannot act as an employee (403 `STAFF_ACCOUNT_LIMITED`, issue `recharge_employee`)." }
     RechargeRules:
       type: object
       required: [activationMinCoins, cherryUnit, coinsPerCherryUnit, minCherries, stepCherries, requestTtlMinutes, payout, orders]
@@ -31285,9 +31391,34 @@ components:
           required: [username]
           properties:
             username: { type: string, maxLength: 64 }
+            canBuyCherries: { type: boolean, default: true, description: "v1.87-social (D287)." }
+            receivesOrders: { type: boolean, default: true, description: "v1.87-social (D287)." }
+    RechargeEmployeeUpdate:
+      description: "v1.87-social (D287): the hours, and optionally the two permissions (left out = unchanged)."
+      type: object
+      additionalProperties: false
+      required: [timeZone, schedule]
+      properties:
+        timeZone: { type: string, maxLength: 64 }
+        schedule:
+          type: array
+          minItems: 1
+          maxItems: 28
+          items: { $ref: '#/components/schemas/WeeklySlot' }
+        canBuyCherries: { type: boolean }
+        receivesOrders: { type: boolean }
+    RechargeAgentSideBlock:
+      description: |
+        v1.87-social (D287, CONVENTIONS §10.100): why a person of the agent's side may read but not act now —
+        STAFF (the employee is a Kabso Team account now — D283's limited staff; owner's D287 decision: acting answers 403
+        `STAFF_ACCOUNT_LIMITED` with issue `recharge_employee`), NOT_PERMITTED (the agent switched the permission off),
+        CLAIMED (another person of the agent's side owns the order), OFF_SHIFT (outside the employee's weekly hours).
+        Never for the agent or the buyer / host.
+      type: string
+      enum: [STAFF, NOT_PERMITTED, CLAIMED, OFF_SHIFT]
     RechargeEmployee:
       type: object
-      required: [user, timeZone, schedule, onShiftNow, addedAt, sales]
+      required: [user, timeZone, schedule, onShiftNow, addedAt, sales, canBuyCherries, receivesOrders, cherryPurchases, orders, kabsoTeam]
       properties:
         user: { $ref: '#/components/schemas/UserSummary' }
         timeZone: { type: string }
@@ -31297,6 +31428,15 @@ components:
         onShiftNow: { type: boolean }
         addedAt: { type: string, format: date-time }
         sales: { $ref: '#/components/schemas/RechargeSalesStats' }
+        canBuyCherries: { type: boolean, description: "v1.87-social (D287)." }
+        receivesOrders: { type: boolean, description: "v1.87-social (D287)." }
+        cherryPurchases:
+          description: "v1.87-social (D287): confirmed cherry purchases they acted on for the agent (`coins` = what went into the stock)."
+          allOf: [{ $ref: '#/components/schemas/RechargeSalesStats' }]
+        orders:
+          description: "v1.87-social (D287): completed coin orders they owned (`coins` = what went to the buyers)."
+          allOf: [{ $ref: '#/components/schemas/RechargeSalesStats' }]
+        kabsoTeam: { type: boolean, description: "v1.87-social (D287, owner): the employee became a Kabso Team account (D283) after being added; they can no longer act for the agent, and the agent sees why." }
     RechargeEmployeeList:
       type: object
       required: [data]
@@ -31340,7 +31480,7 @@ components:
         host: { type: string, maxLength: 64, description: "Sent by an ACTIVE agent: the host (username) to buy from." }
     RechargeCherryRequest:
       type: object
-      required: [id, status, cherries, coins, payoutMinor, currency, agentCode, agent, host, initiatedBy, createdAt, expiresAt, decidedAt]
+      required: [id, status, cherries, coins, payoutMinor, currency, agentCode, agent, host, initiatedBy, createdAt, expiresAt, decidedAt, viewerSide, actions, viewerBlock, actedBy]
       properties:
         id: { type: string, format: uuid }
         status: { type: string, enum: [PENDING, CONFIRMED, DECLINED, CANCELLED, EXPIRED] }
@@ -31355,6 +31495,21 @@ components:
         createdAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
         decidedAt: { type: [string, 'null'], format: date-time }
+        viewerSide: { type: string, enum: [HOST, AGENT], description: "v1.87-social (D287): the caller's side (an employee is the agent's side)." }
+        actions:
+          description: "v1.87-social (D287): what the caller may do now (the creator's side cancels; the other side confirms or declines); empty when closed or blocked."
+          type: array
+          items: { type: string, enum: [confirm, decline, cancel] }
+        viewerBlock:
+          description: "v1.87-social (D287): an employee who may read but not act (STAFF, NOT_PERMITTED or OFF_SHIFT); null otherwise."
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAgentSideBlock'
+            - type: 'null'
+        actedBy:
+          description: "v1.87-social (D287): the agent's employee who last acted on it for the agent (created or answered); null = the agent or the host. The host is shown the agent."
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
     RechargeCherryRequestPage:
       type: object
       required: [data, page]
@@ -31414,7 +31569,7 @@ components:
         paymentType: { $ref: '#/components/schemas/RechargePaymentMethodType' }
     RechargeOrder:
       type: object
-      required: [id, status, viewerRole, buyer, agent, agentCode, country, coins, price, paymentType, heldCoins, noticeAcknowledged, detailsAt, paidAt, disputeOpensAt, disputedAt, disputedBy, closedAt, closeReason, expiresAt, actions, createdAt, updatedAt]
+      required: [id, status, viewerRole, buyer, agent, agentCode, country, coins, price, paymentType, heldCoins, noticeAcknowledged, detailsAt, paidAt, disputeOpensAt, disputedAt, disputedBy, closedAt, closeReason, expiresAt, actions, claimedBy, claimedAt, viewerBlock, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/RechargeOrderStatus' }
@@ -31437,8 +31592,20 @@ components:
         closeReason: { type: [string, 'null'], maxLength: 500 }
         expiresAt: { type: [string, 'null'], format: date-time, description: "When a REQUESTED / AWAITING_PAYMENT order ends by itself." }
         actions:
+          description: "What the viewer may do now. v1.87-social (D287): empty while `viewerBlock` is set."
           type: array
           items: { $ref: '#/components/schemas/RechargeOrderAction' }
+        claimedBy:
+          description: "v1.87-social (D287): the person of the agent's side who acted first and owns the order (the agent or an employee); null until then."
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        claimedAt: { type: [string, 'null'], format: date-time }
+        viewerBlock:
+          description: "v1.87-social (D287): why an employee viewing it may read but not act (STAFF, NOT_PERMITTED, CLAIMED — «تم استلامه بواسطة موظف آخر», OFF_SHIFT); null for the agent, the buyer and an employee who may act."
+          oneOf:
+            - $ref: '#/components/schemas/RechargeAgentSideBlock'
+            - type: 'null'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     RechargeOrderPage:

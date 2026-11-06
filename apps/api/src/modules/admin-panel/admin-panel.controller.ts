@@ -338,6 +338,13 @@ export class AdminFinanceController {
     return this.finance.agents(query);
   }
 
+  /** v1.87-social (D287, §10.100): the agent's employees with what each did for the agent (sales, cherries, orders). */
+  @Get('recharge/agents/:agentUserId/employees')
+  @RequireCapability('recharge.agents')
+  agentEmployees(@Param('agentUserId') id: string) {
+    return this.finance.agentEmployees(pathUuid(id));
+  }
+
   @Post('recharge/agents/:agentUserId/topup')
   @HttpCode(200)
   @RequireCapability('recharge.topup')
