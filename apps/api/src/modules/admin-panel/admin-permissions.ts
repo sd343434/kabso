@@ -48,8 +48,18 @@ export const CAPABILITIES = {
   'recharge.cap': ['OWNER', 'FINANCE'],
   'withdrawals.view': ['OWNER', 'FINANCE'],
   'withdrawals.decide': ['OWNER', 'FINANCE'],
-  'reports.view': ['OWNER', 'MODERATION'],
+  /**
+   * v1.78-live (D288, CONVENTIONS §10.101; owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله»): the
+   * shared report queue — every report is seen by the moderators and the support (SUPPORT added), the counter, and the
+   * app's «بلاغات».
+   */
+  'reports.view': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** The actions on a report's target (dismiss, remove, warn, ban the author): the moderators only (unchanged). */
   'reports.act': ['OWNER', 'MODERATION'],
+  /** D288: «تم حله» — mark a report resolved for everyone (with an optional note), from the panel or the app. */
+  'reports.resolve': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /** D288: reopen a resolved report (owner, option B: the moderators — OWNER and MODERATION; never SUPPORT). */
+  'reports.reopen': ['OWNER', 'MODERATION'],
   'site.settings': ['OWNER'],
   /**
    * v1.69-social (D204): «نزاعات الشحن» — read a disputed order with its chat and pictures (audited) and post as
@@ -134,11 +144,11 @@ export const CAPABILITIES = {
   'users.email': ['OWNER', 'SUPPORT'],
   /** Edit the display name, username, bio, country, gender. */
   'users.profile_edit': ['OWNER', 'MODERATION', 'SUPPORT'],
-  /** Hide / restore a post, reel, story; remove a comment; delete a post or story for good (code again). */
+  /** Hide / restore a post, reel, story; remove a comment; delete a post or story for good (no code since D288). */
   'users.content': ['OWNER', 'MODERATION'],
   /** Coin and cherry adjustments (code again, daily cap). */
   'users.balance_adjust': ['OWNER', 'FINANCE'],
-  /** Start the account's deletion (D193 grace period, code again) and cancel it. */
+  /** Start the account's deletion (D193 grace period; no code since D288) and cancel it. */
   'users.delete': ['OWNER'],
   // ---- v1.74-social (D217, CONVENTIONS §10.71): «الدعوات» -----------------------------------------------------------
   /** The referrals, their rewards and the settings (read; a referral's detail is audited). */

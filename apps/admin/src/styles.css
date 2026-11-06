@@ -2528,3 +2528,26 @@ fieldset.plain {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+/* v1.78-live (D288): the unresolved reports on «البلاغات» (the logical end of the row, RTL and LTR). */
+.nav-count {
+  margin-inline-start: auto;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--red-500);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+.report-card .resolved-by {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+  border-inline-start: 3px solid var(--green-500, #16a34a);
+}

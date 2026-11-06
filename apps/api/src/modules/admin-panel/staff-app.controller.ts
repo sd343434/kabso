@@ -26,7 +26,13 @@ import type { AdminContext } from './admin-auth.service.js';
 import { moderateBody, reasonBody } from './admin-live-moderation.controller.js';
 import { AdminLiveModerationService, type ModerateBody } from './admin-live-moderation.service.js';
 import { pathUuid } from './admin-panel.schemas.js';
+import { AdminModerationService } from './admin-moderation.service.js';
 import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
+import {
+  resolveReportSchema,
+  sharedReportsQuerySchema,
+  type SharedReportsQuery,
+} from '../safety/safety.schemas.js';
 import { CurrentStaff, NotStaffWork, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
 import { teamAvatarPng } from '../live/staff-avatar.js';
@@ -88,6 +94,7 @@ export class StaffAppController {
     private readonly staff: StaffAppService,
     private readonly moderation: AdminLiveModerationService,
     private readonly shifts: AdminStaffShiftsService,
+    private readonly reportsQueue: AdminModerationService,
   ) {}
 
   // ---- status and step-up (no step-up needed) -------------------------------------------------
@@ -152,6 +159,41 @@ export class StaffAppController {
     @Query(new ZodValidationPipe(livesScopeQuery)) q: z.infer<typeof livesScopeQuery>,
   ) {
     return this.staff.myLives(ctx, q.scope ?? 'assigned');
+  }
+
+  // ---- «بلاغات»: the shared report queue (v1.78-live, D288, §10.101) ---------------------------
+
+  /** The panel's queue from the phone (OWNER, MODERATION, SUPPORT): OPEN or RESOLVED, with who resolved each. */
+  @Get('reports')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('reports.view')
+  sharedReports(@Query(new ZodValidationPipe(sharedReportsQuerySchema)) q: SharedReportsQuery) {
+    return this.reportsQueue.list(q);
+  }
+
+  /** The «بلاغات» row's badge (not staff work: the Me tab reads it in the background). */
+  @Get('reports/summary')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('reports.view')
+  @NotStaffWork()
+  sharedReportsSummary() {
+    return this.reportsQueue.summary();
+  }
+
+  /** «تم حله» from the phone — the panel's rule (`via: app`); a second press → 409 `REPORT_ALREADY_RESOLVED`. */
+  @Post('reports/:reportId/resolve')
+  @HttpCode(200)
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('reports.resolve')
+  resolveReport(
+    @Param('reportId') id: string,
+    @Body(new ZodValidationPipe(resolveReportSchema)) body: { note?: string | undefined },
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    return this.reportsQueue.resolve(pathUuid(id), body.note, ctx);
   }
 
   // ---- one live -------------------------------------------------------------------------------

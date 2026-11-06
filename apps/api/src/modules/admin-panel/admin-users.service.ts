@@ -21,7 +21,7 @@ import {
 } from '../users/special-usernames.js';
 import { parseStaffId } from '../users/staff-ids.js';
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
-import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
+import type { AdminContext } from './admin-auth.service.js';
 import { can, isPanelRole } from './admin-permissions.js';
 
 export function viaOf(ctx: AdminContext): AdminVia {
@@ -104,7 +104,6 @@ export class AdminUsersService {
     private readonly lifecycle: AccountLifecycleService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
-    private readonly adminAuth: AdminAuthService,
   ) {}
 
   async dashboard(now = new Date()) {
@@ -361,15 +360,10 @@ export class AdminUsersService {
   }
 
   /** Ban «حظر»: ACTIVE → SUSPENDED with every side effect of AccountLifecycleService (live ended, seats freed …). */
-  async ban(
-    id: string,
-    reason: string,
-    ctx: AdminContext,
-    totpCode: string,
-  ): Promise<{ status: 'SUSPENDED' }> {
+  async ban(id: string, reason: string, ctx: AdminContext): Promise<{ status: 'SUSPENDED' }> {
     await this.target(id, ctx);
-    // v1.72-social (D208, owner 2026-10-31): the authenticator code again, like every destructive action.
-    await this.adminAuth.reauthenticate(ctx, totpCode);
+    // v1.72-social (D208) asked for the authenticator code again; v1.78-live (D288, owner «يلغي»): no code — the role
+    // and capability (`users.ban`, read on every request), the panel's rate limit and this audit row protect it.
     await this.prisma.$transaction(async (tx) => {
       if (!(await this.lifecycle.suspendIn(tx, id))) throw refused('The account is not ACTIVE.');
       await this.audit.recordIn(tx, {

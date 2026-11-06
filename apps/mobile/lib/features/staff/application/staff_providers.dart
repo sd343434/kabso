@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/features/staff/data/staff_repository.dart';
@@ -67,4 +69,43 @@ final FutureProvider<List<StaffLive>> staffLivesProvider =
 final FutureProviderFamily<List<StaffReport>, String> staffReportsProvider =
     FutureProvider.autoDispose.family<List<StaffReport>, String>(
       (ref, roomId) => ref.watch(staffRepositoryProvider).reports(roomId),
+    );
+
+/// v1.78-live (D288, §10.101): the «بلاغات» row's unresolved count — read when
+/// the Me tab shows the row, every [refreshEvery] while it is on screen,
+/// after «تم حله», and when a `STAFF_REPORT_NEW` push arrives. Never throws
+/// to the row: an error reads as no badge.
+class StaffOpenReportsController extends AsyncNotifier<int> {
+  static const refreshEvery = Duration(seconds: 60);
+
+  Timer? _timer;
+
+  @override
+  Future<int> build() {
+    _timer?.cancel();
+    _timer = Timer.periodic(refreshEvery, (_) => unawaited(refresh()));
+    ref.onDispose(() => _timer?.cancel());
+    return ref.watch(staffRepositoryProvider).openReportsCount();
+  }
+
+  Future<void> refresh() async {
+    final next = await AsyncValue.guard(
+      ref.read(staffRepositoryProvider).openReportsCount,
+    );
+    // A failed read (offline) keeps the last count: no flicker.
+    if (next.hasValue || !state.hasValue) state = next;
+  }
+}
+
+final AsyncNotifierProvider<StaffOpenReportsController, int>
+staffOpenReportsProvider =
+    AsyncNotifierProvider.autoDispose<StaffOpenReportsController, int>(
+      StaffOpenReportsController.new,
+    );
+
+/// D288: «بلاغات» — the first page of one tab of the shared queue.
+final FutureProviderFamily<SharedReportPage, SharedReportTab>
+staffSharedReportsProvider = FutureProvider.autoDispose
+    .family<SharedReportPage, SharedReportTab>(
+      (ref, tab) => ref.watch(staffRepositoryProvider).sharedReports(tab),
     );

@@ -54,6 +54,16 @@ abstract interface class StaffRepository {
     String messageId, {
     required String reason,
   });
+
+  /// v1.78-live (D288): `GET /staff/reports` — «بلاغات», the shared queue.
+  Future<SharedReportPage> sharedReports(SharedReportTab tab, {String? cursor});
+
+  /// D288: `GET /staff/reports/summary` — the unresolved count.
+  Future<int> openReportsCount();
+
+  /// D288: `POST /staff/reports/{reportId}/resolve` «تم حله» (a second press
+  /// throws the `REPORT_ALREADY_RESOLVED` failure).
+  Future<SharedReport> resolveReport(String reportId, {String? note});
 }
 
 class StaffRepositoryImpl implements StaffRepository {
@@ -143,6 +153,42 @@ class StaffRepositoryImpl implements StaffRepository {
       data: {'username': username, 'reason': reason, 'muted': true},
     ),
   );
+
+  @override
+  Future<SharedReportPage> sharedReports(
+    SharedReportTab tab, {
+    String? cursor,
+  }) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/staff/reports',
+      queryParameters: {'status': tab.wire, 'cursor': ?cursor},
+    );
+    final page = res.data!['page'] as Map<String, dynamic>? ?? const {};
+    return SharedReportPage(
+      items: [
+        for (final r in res.data!['data']! as List<dynamic>)
+          SharedReport.fromJson(r as Map<String, dynamic>),
+      ],
+      nextCursor: page['nextCursor'] as String?,
+    );
+  });
+
+  @override
+  Future<int> openReportsCount() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/staff/reports/summary');
+    return (res.data!['open'] as num?)?.toInt() ?? 0;
+  });
+
+  @override
+  Future<SharedReport> resolveReport(String reportId, {String? note}) =>
+      guardApiCall(() async {
+        final trimmed = note?.trim();
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/staff/reports/${pathSegment(reportId)}/resolve',
+          data: {if (trimmed != null && trimmed.isNotEmpty) 'note': trimmed},
+        );
+        return SharedReport.fromJson(res.data!);
+      });
 
   @override
   Future<void> removeMessage(

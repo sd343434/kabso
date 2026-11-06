@@ -14852,4 +14852,119 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'أخرى';
+
+  @override
+  String get staffSharedReports => 'بلاغات';
+
+  @override
+  String get staffSharedReportsTitle => 'البلاغات';
+
+  @override
+  String staffSharedReportsBadge(int count) {
+    return '$count بلاغ غير محلول';
+  }
+
+  @override
+  String get staffSharedReportsHint =>
+      'البلاغات مشتركة بين المشرفين والدعم: من يحل البلاغ يضغط «تم حله».';
+
+  @override
+  String get staffSharedTabOpen => 'غير محلولة';
+
+  @override
+  String get staffSharedTabResolved => 'تم حلها';
+
+  @override
+  String get staffSharedEmptyOpen => 'لا بلاغات بانتظار الحل';
+
+  @override
+  String get staffSharedEmptyResolved => 'لا بلاغات محلولة بعد';
+
+  @override
+  String get staffSharedResolve => 'تم حله';
+
+  @override
+  String get staffSharedResolveTitle => 'تم حل البلاغ';
+
+  @override
+  String get staffSharedResolveIntro =>
+      'يصبح البلاغ محلولاً لكل فريق الإشراف والدعم، ويظهر اسمك ووقت الحل.';
+
+  @override
+  String get staffSharedResolveNote => 'ملاحظة (اختيارية)';
+
+  @override
+  String staffSharedResolvedBy(String name, String when) {
+    return 'حلّه $name · $when';
+  }
+
+  @override
+  String staffSharedResolvedAt(String when) {
+    return 'تم الحل · $when';
+  }
+
+  @override
+  String staffSharedResolutionNote(String note) {
+    return 'ملاحظة الحل: $note';
+  }
+
+  @override
+  String get staffSharedAlreadyResolved => 'تم حله بالفعل من عضو آخر في الفريق';
+
+  @override
+  String get staffSharedDone => 'تم حل البلاغ';
+
+  @override
+  String staffSharedReportedBy(String name) {
+    return 'أبلغ: $name';
+  }
+
+  @override
+  String staffSharedAuthor(String name) {
+    return 'صاحب المحتوى: $name';
+  }
+
+  @override
+  String staffSharedReporterNote(String note) {
+    return 'ملاحظة المبلّغ: $note';
+  }
+
+  @override
+  String get staffSharedGone => 'المحتوى محذوف أو مخفي';
+
+  @override
+  String get staffSharedOutcomeDismissed => 'مرفوض';
+
+  @override
+  String get staffReportTypePost => 'منشور';
+
+  @override
+  String get staffReportTypeComment => 'تعليق';
+
+  @override
+  String get staffReportTypeStory => 'قصة';
+
+  @override
+  String get staffReportTypeUser => 'حساب';
+
+  @override
+  String get staffReportTypeLive => 'بث';
+
+  @override
+  String get staffReportTypeLiveChat => 'رسالة في بث';
+
+  @override
+  String get staffReportTypeConfession => 'اعتراف CP';
+
+  @override
+  String get staffReportTypeFamilyChat => 'رسالة عائلة';
+
+  @override
+  String get staffReportTypeDm => 'رسالة خاصة';
+
+  @override
+  String get staffReportTypeLink => 'رابط في الملف';
+
+  @override
+  String get notifStaffReportNew => 'بلاغ جديد بانتظار الحل';
 }

@@ -29,6 +29,9 @@ export const STAFF_APP_CAPABILITIES = [
   'lives.reports',
   'lives.moderate',
   'devices.ban',
+  // v1.78-live (D288, §10.101): «بلاغات» — the shared report queue and «تم حله».
+  'reports.view',
+  'reports.resolve',
 ] as const satisfies readonly Capability[];
 
 /** `StaffStatus` (v1.68-live, D273). */

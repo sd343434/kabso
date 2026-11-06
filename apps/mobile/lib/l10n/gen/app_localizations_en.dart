@@ -14855,4 +14855,120 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'Other';
+
+  @override
+  String get staffSharedReports => 'Reports';
+
+  @override
+  String get staffSharedReportsTitle => 'Reports';
+
+  @override
+  String staffSharedReportsBadge(int count) {
+    return '$count unresolved reports';
+  }
+
+  @override
+  String get staffSharedReportsHint =>
+      'Reports are shared by the moderators and the support: whoever resolves one presses «Mark resolved».';
+
+  @override
+  String get staffSharedTabOpen => 'Unresolved';
+
+  @override
+  String get staffSharedTabResolved => 'Resolved';
+
+  @override
+  String get staffSharedEmptyOpen => 'No reports waiting';
+
+  @override
+  String get staffSharedEmptyResolved => 'No resolved reports yet';
+
+  @override
+  String get staffSharedResolve => 'Mark resolved';
+
+  @override
+  String get staffSharedResolveTitle => 'Mark the report resolved';
+
+  @override
+  String get staffSharedResolveIntro =>
+      'The report becomes resolved for every moderator and support member, with your name and the time.';
+
+  @override
+  String get staffSharedResolveNote => 'Note (optional)';
+
+  @override
+  String staffSharedResolvedBy(String name, String when) {
+    return 'Resolved by $name · $when';
+  }
+
+  @override
+  String staffSharedResolvedAt(String when) {
+    return 'Resolved · $when';
+  }
+
+  @override
+  String staffSharedResolutionNote(String note) {
+    return 'Resolution note: $note';
+  }
+
+  @override
+  String get staffSharedAlreadyResolved =>
+      'Another team member already resolved it';
+
+  @override
+  String get staffSharedDone => 'Report resolved';
+
+  @override
+  String staffSharedReportedBy(String name) {
+    return 'Reported by $name';
+  }
+
+  @override
+  String staffSharedAuthor(String name) {
+    return 'Author: $name';
+  }
+
+  @override
+  String staffSharedReporterNote(String note) {
+    return 'Reporter’s note: $note';
+  }
+
+  @override
+  String get staffSharedGone => 'The content is gone or hidden';
+
+  @override
+  String get staffSharedOutcomeDismissed => 'Dismissed';
+
+  @override
+  String get staffReportTypePost => 'Post';
+
+  @override
+  String get staffReportTypeComment => 'Comment';
+
+  @override
+  String get staffReportTypeStory => 'Story';
+
+  @override
+  String get staffReportTypeUser => 'Account';
+
+  @override
+  String get staffReportTypeLive => 'Live';
+
+  @override
+  String get staffReportTypeLiveChat => 'Live chat message';
+
+  @override
+  String get staffReportTypeConfession => 'CP confession';
+
+  @override
+  String get staffReportTypeFamilyChat => 'Family chat message';
+
+  @override
+  String get staffReportTypeDm => 'Direct message';
+
+  @override
+  String get staffReportTypeLink => 'Profile link';
+
+  @override
+  String get notifStaffReportNew => 'A new report is waiting to be resolved';
 }

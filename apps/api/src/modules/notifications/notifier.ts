@@ -66,6 +66,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'LIVE_MODERATED',
   // v1.68-live (D273): a report on a live the staff member looks after (target the live).
   'LIVE_STAFF_REPORT',
+  // v1.78-live (D288): a new report in the shared queue (target the report).
+  'STAFF_REPORT_NEW',
 ];
 
 /** Types that join one unread row per target (owner, D92). */

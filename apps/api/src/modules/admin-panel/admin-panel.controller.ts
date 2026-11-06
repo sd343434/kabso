@@ -5,7 +5,12 @@ import { clientIp } from '../../common/http/request-context.js';
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { Public } from '../auth/public.decorator.js';
-import { adminReportsQuerySchema, type AdminReportsQuery } from '../safety/safety.schemas.js';
+import {
+  reopenReportSchema,
+  resolveReportSchema,
+  sharedReportsQuerySchema,
+  type SharedReportsQuery,
+} from '../safety/safety.schemas.js';
 import {
   ADMIN_COOKIE,
   AdminAuthService,
@@ -199,10 +204,11 @@ export class AdminUsersController {
   @RequireCapability('users.ban')
   ban(
     @Param('userId') userId: string,
-    @Body(new ZodValidationPipe(banSchema)) body: { reason: string; totpCode: string },
+    @Body(new ZodValidationPipe(banSchema)) body: { reason: string; totpCode?: string | undefined },
     @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.users.ban(pathUuid(userId), body.reason, admin, body.totpCode);
+    // v1.78-live (D288): no authenticator code (a code sent by an older panel is ignored).
+    return this.users.ban(pathUuid(userId), body.reason, admin);
   }
 
   @Post('users/:userId/unban')
@@ -428,10 +434,42 @@ export class AdminFinanceController {
 export class AdminModerationController {
   constructor(private readonly moderation: AdminModerationService) {}
 
+  /** v1.78-live (D288, §10.101): the shared queue — OWNER, MODERATION and SUPPORT see every report. */
   @Get('reports')
   @RequireCapability('reports.view')
-  list(@Query(new ZodValidationPipe(adminReportsQuerySchema)) query: AdminReportsQuery) {
+  list(@Query(new ZodValidationPipe(sharedReportsQuerySchema)) query: SharedReportsQuery) {
     return this.moderation.list(query);
+  }
+
+  /** D288: the unresolved counter (the nav badge). */
+  @Get('reports/summary')
+  @RequireCapability('reports.view')
+  summary() {
+    return this.moderation.summary();
+  }
+
+  /** D288 «تم حله»: resolved for everyone; a second press → 409 `REPORT_ALREADY_RESOLVED`. */
+  @Post('reports/:reportId/resolve')
+  @HttpCode(200)
+  @RequireCapability('reports.resolve')
+  resolve(
+    @Param('reportId') id: string,
+    @Body(new ZodValidationPipe(resolveReportSchema)) body: { note?: string | undefined },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.moderation.resolve(pathUuid(id), body.note, admin);
+  }
+
+  /** D288: reopen a resolved report (OWNER, MODERATION), with a reason. */
+  @Post('reports/:reportId/reopen')
+  @HttpCode(200)
+  @RequireCapability('reports.reopen')
+  reopen(
+    @Param('reportId') id: string,
+    @Body(new ZodValidationPipe(reopenReportSchema)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.moderation.reopen(pathUuid(id), body.reason, admin);
   }
 
   @Post('reports/:reportId/actions')

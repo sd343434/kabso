@@ -289,7 +289,8 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     });
     // D286: always «unlocked» (older apps read `stepUp` and never ask for a code).
     expect(new Date(s.body.stepUp.expiresAt as string).getTime()).toBeGreaterThan(clock);
-    expect(s.body.capabilities).toEqual(['lives.watch', 'lives.reports']);
+    // v1.78-live (D288): and the shared report queue «بلاغات» (read + «تم حله»), in the table's order.
+    expect(s.body.capabilities).toEqual(['reports.view', 'reports.resolve', 'lives.watch', 'lives.reports']);
     const m = await sget(mod, '/staff/me');
     expect(m.body.capabilities).toEqual(
       expect.arrayContaining([

@@ -40,6 +40,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
+import 'package:kabso_live/features/staff/application/staff_providers.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
 import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
@@ -116,6 +117,8 @@ Future<void> pumpStaffHub(
   KabsoStaffIdentity staff = arabModerator,
   // D283c: the official staff ID «Kabso01» (none in the D283 goldens).
   String? staffId,
+  // D288: the unresolved reports on the «بلاغات» row (MODERATION / SUPPORT).
+  int openReports = 0,
 }) async {
   final ar = language == AppLanguage.ar;
   final user = staffUser(ar: ar, staff: staff, staffId: staffId);
@@ -128,6 +131,7 @@ Future<void> pumpStaffHub(
         AppRoutes.settings,
         AppRoutes.notifications,
         AppRoutes.staff,
+        AppRoutes.staffReports,
         AppRoutes.newReel,
         AppRoutes.create,
       ])
@@ -159,6 +163,9 @@ Future<void> pumpStaffHub(
           ),
           profileLevelsProvider.overrideWith((ref, _) => const []),
           liveCoinsProvider.overrideWith(_Coins.new),
+          staffOpenReportsProvider.overrideWith(
+            () => FixedOpenReports(openReports),
+          ),
           profileGridProvider.overrideWith(
             (ref, _) => const FeedItems<ProfileGridItem>([]),
           ),
@@ -180,6 +187,19 @@ Future<void> pumpStaffHub(
     );
     await tester.pumpAndSettle();
   });
+}
+
+/// D288: a fixed «بلاغات» count (no network, no periodic read).
+class FixedOpenReports extends StaffOpenReportsController {
+  new(this.count);
+
+  final int count;
+
+  @override
+  Future<int> build() async => count;
+
+  @override
+  Future<void> refresh() async {}
 }
 
 void main() {
@@ -375,12 +395,27 @@ void main() {
     expect(find.text('مشرف للوطن العربي'), findsNothing);
     expect(find.byKey(MeHubScreen.kabsoTeamKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffAnnouncementKey), findsOneWidget);
+    // v1.78-live (D288): and «بلاغات», the shared report queue.
+    expect(find.byKey(MeHubScreen.staffReportsKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffAnnouncementReelKey), findsOneWidget);
-    expect(find.byKey(MeHubScreen.staffSettingsKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.cardsKey), findsNothing);
     for (final item in MeHubItem.values) {
       expect(find.byKey(item.key), findsNothing, reason: item.name);
     }
+    // D288's row moved settings below the first screen of the list.
+    await tester.scrollUntilVisible(
+      find.byKey(MeHubScreen.staffSettingsKey),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byKey(MeHubScreen.staffSettingsKey), findsOneWidget);
+    for (final item in MeHubItem.values) {
+      expect(find.byKey(item.key), findsNothing, reason: item.name);
+    }
+    await tester.ensureVisible(
+      find.byKey(MeHubScreen.staffAnnouncementReelKey),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(MeHubScreen.staffAnnouncementReelKey));
     await tester.pumpAndSettle();
     expect(find.text('page ${AppRoutes.newReel}'), findsOneWidget);

@@ -2817,6 +2817,25 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.69 The shared report queue «البلاغات المشتركة», and no code for the ban and content deletion (migration `20270322090000_shared_reports`; D288) — [IMPLEMENTED, draft contract v1.78-live; not deployed, not device-tested]
+
+CONVENTIONS §10.101. (§5.68 is left free for another branch.) The migration adds the `notification_type` value
+`STAFF_REPORT_NEW`, `notifications.report_id` (FK to `reports`, cascade, partial index) and `reports_resolved_idx`
+(the resolved tab). The value is only written by the new API, so deploy the migration with (or before) the API. No new
+server setting.
+
+- **Tell the team:** the ban «حظر», deleting a post or story for good and starting an account's deletion no longer ask
+  for the authenticator code (the temporary password, the e-mail change, money, roles, device bans, the settings and
+  the panel sign-in still do).
+  SUPPORT now sees every report in the panel and in the app («أنا» › «بلاغات»); every new report notifies every
+  moderator and support member; whoever handles it presses «تم حله» (with an optional note) and it is resolved for
+  everyone. The OWNER and the moderators can reopen (not the support).
+- **The app's channel:** the D288 app creates the Android channel `kabso_staff` («بلاغات فريق كابسو»); older apps show
+  these pushes on the default channel. It plays the general sound (owner: no separate sound).
+- **Checks after deploy:** a test report from a normal account shows on the panel's «البلاغات» badge and in each
+  staff phone's inbox; `SELECT count(*) FROM notifications WHERE type = 'STAFF_REPORT_NEW' AND read_at IS NULL;`; the
+  audit rows `moderation.report.alert`, `moderation.report.resolve`, `admin.user.ban` and `account.deletion.requested`.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

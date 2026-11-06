@@ -20,7 +20,6 @@ import {
   TempPasswordDialog,
   type ControlAction,
 } from './UserControl';
-import { codeField } from '../components';
 import { UserDevice } from './UserDevice';
 import type { UserControl } from '../types';
 
@@ -479,14 +478,14 @@ export function UserDetail({ id }: { id: string }) {
         <Sessions id={id} bump={bump} onRevoke={(sid) => setRevokeOne(sid)} />
       )}
       {tab === 'device' && <UserDevice id={id} />}
-      {/* D208 (owner 2026-10-31): the permanent ban asks for the authenticator code again. */}
+      {/* D208 asked for the authenticator code again; D288 (owner «يلغي»): the reason only — audited. */}
       {action === 'ban' && (
         <FormDialog
           title={t('ban')}
-          fields={[reasonField(t), { ...codeField(t), hint: t('ctCodeHint') }]}
+          fields={[reasonField(t)]}
           confirmLabel={t('ban')}
           danger
-          submit={(v) => api.post(`/admin/users/${id}/ban`, { reason: v.reason, totpCode: v.totpCode })}
+          submit={(v) => api.post(`/admin/users/${id}/ban`, { reason: v.reason })}
           onClose={() => setAction(null)}
           onDone={done}
         />
@@ -509,10 +508,11 @@ export function UserDetail({ id }: { id: string }) {
         <FormDialog
           title={t('ctDelete')}
           intro={<p className="muted small">{t('ctDeleteIntro', { days: 30 })}</p>}
-          fields={[reasonField(t), { ...codeField(t), hint: t('ctCodeHint') }]}
+          // D288 (owner): starting the deletion needs the reason only (no authenticator code); audited.
+          fields={[reasonField(t)]}
           confirmLabel={t('ctDelete')}
           danger
-          submit={(v) => api.post(`/admin/users/${id}/deletion`, v)}
+          submit={(v) => api.post(`/admin/users/${id}/deletion`, { reason: v.reason })}
           onClose={() => setAction(null)}
           onDone={done}
         />

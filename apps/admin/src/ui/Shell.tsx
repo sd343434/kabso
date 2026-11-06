@@ -10,6 +10,19 @@ import { navigate } from '../router';
 import type { Attention, AttentionKind, SearchResult } from '../types';
 import { Icon } from './icons';
 import { useLiveReportsSummary } from '../pages/LiveModeration';
+import { badgeText, useOpenReports } from '../pages/Reports';
+
+/** v1.78-live (D288): the number on «البلاغات» — the unresolved reports (hidden at 0, «99+» above 99). */
+export function NavCount({ count }: { count: number | null }) {
+  const { t } = useApp();
+  const text = badgeText(count ?? 0);
+  if (text === null) return null;
+  return (
+    <span className="nav-count" data-nav-count={count ?? 0} aria-label={t('navReportsOpen', { count: count ?? 0 })}>
+      {text}
+    </span>
+  );
+}
 
 /** v1.60-live (D250): the sidebar's red dots — «البث الآن» while reported lives are on air. */
 export function navDots(reported: { rooms: number } | null): Record<string, number> {
@@ -246,6 +259,8 @@ export function Shell({
   // v1.60-live (D250): a red dot on «البث الآن» while a live on air has open reports.
   const reported = useLiveReportsSummary(can('lives.reports'));
   const dots = navDots(reported);
+  // v1.78-live (D288): the unresolved reports on «البلاغات».
+  const openReports = useOpenReports(can('reports.view'), path);
   return (
     <div className="shell">
       <aside className={`side${menuOpen ? ' open' : ''}`} aria-label={t('appName')}>
@@ -278,6 +293,7 @@ export function Shell({
                 >
                   <Icon name={n.icon} />
                   <span>{t(n.key)}</span>
+                  {n.to === '/reports' && <NavCount count={openReports} />}
                   {(dots[n.to] ?? 0) > 0 && (
                     <span className="nav-dot" data-nav-dot={dots[n.to]} aria-label={t('liveReported')}>
                       <span className="red-dot" aria-hidden="true" />

@@ -141,6 +141,20 @@ class FakeStaffRepository implements StaffRepository {
     String messageId, {
     required String reason,
   }) async => calls.add('remove:$messageId:$reason');
+
+  // v1.78-live (D288): the shared queue (not used by the D273 tests).
+  @override
+  Future<SharedReportPage> sharedReports(
+    SharedReportTab tab, {
+    String? cursor,
+  }) async => const SharedReportPage(items: []);
+
+  @override
+  Future<int> openReportsCount() async => 0;
+
+  @override
+  Future<SharedReport> resolveReport(String reportId, {String? note}) =>
+      throw UnimplementedError();
 }
 
 /// A phone with the notch and home bar (insets 59 / 34).

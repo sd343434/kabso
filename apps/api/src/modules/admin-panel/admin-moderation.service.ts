@@ -6,7 +6,8 @@ import type { Prisma, Report } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MediaService } from '../media/media.service.js';
 import { Notifier } from '../notifications/notifier.js';
-import type { AdminReportsQuery } from '../safety/safety.schemas.js';
+import { violatedUniqueIndex } from '../users/users.service.js';
+import type { SharedReportsQuery } from '../safety/safety.schemas.js';
 import {
   reportTargetId,
   reportTargetWhere,
@@ -26,9 +27,34 @@ export interface ReportPreviewDto {
   gone: boolean;
 }
 
-export type PanelReportDto = ReportDto & { preview: ReportPreviewDto };
+/** v1.78-live (D288): who closed a report («تم حله» or an action) — a staff account, by its panel name. */
+export interface ReportResolverDto {
+  id: string;
+  username: string;
+  displayName: string;
+}
+
+export type PanelReportDto = ReportDto & {
+  preview: ReportPreviewDto;
+  /** v1.78-live (D288, §10.101): who resolved it (null while OPEN, or the account is gone) and their note. */
+  resolvedBy: ReportResolverDto | null;
+  resolutionNote: string | null;
+};
 
 type Tx = Prisma.TransactionClient;
+
+const RESOLVER_SELECT = {
+  id: true,
+  profile: { select: { username: true, displayName: true } },
+} satisfies Prisma.UserSelect;
+
+function resolverDto(
+  u: { id: string; profile: { username: string; displayName: string } | null } | null,
+): ReportResolverDto | null {
+  return u
+    ? { id: u.id, username: u.profile?.username ?? '', displayName: u.profile?.displayName ?? '' }
+    : null;
+}
 type Db = Pick<
   PrismaService,
   'post' | 'comment' | 'story' | 'liveRoom' | 'liveChatMessage' | 'cpConfession' | 'familyChatMessage'
@@ -53,9 +79,17 @@ export class AdminModerationService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(query: AdminReportsQuery) {
+  /**
+   * The shared queue (v1.78-live, D288, §10.101): every role with `reports.view` (OWNER, MODERATION, SUPPORT) sees the
+   * same reports — `OPEN` oldest first, `RESOLVED` newest resolution first — with who resolved each and their note.
+   * The panel (`listAdminModerationReports`) and the app's «بلاغات» (`listStaffReports`) read this.
+   */
+  async list(query: SharedReportsQuery) {
     const page = await this.safety.adminList(query);
-    const rows = await this.prisma.report.findMany({ where: { id: { in: page.data.map((r) => r.id) } } });
+    const rows = await this.prisma.report.findMany({
+      where: { id: { in: page.data.map((r) => r.id) } },
+      include: { resolvedBy: { select: RESOLVER_SELECT } },
+    });
     const byId = new Map(rows.map((r) => [r.id, r]));
     const data: PanelReportDto[] = [];
     for (const dto of page.data) {
@@ -63,9 +97,114 @@ export class AdminModerationService {
       data.push({
         ...dto,
         preview: row ? await this.preview(row) : { text: null, mediaUrl: null, author: null, gone: true },
+        resolvedBy: resolverDto(row?.resolvedBy ?? null),
+        resolutionNote: row?.resolutionNote ?? null,
       });
     }
     return { data, page: page.page };
+  }
+
+  /** One report as the shared queue shows it. */
+  async one(reportId: string): Promise<PanelReportDto> {
+    const dto = await this.safety.adminGet(reportId);
+    const row = await this.prisma.report.findUniqueOrThrow({
+      where: { id: reportId },
+      include: { resolvedBy: { select: RESOLVER_SELECT } },
+    });
+    return {
+      ...dto,
+      preview: await this.preview(row),
+      resolvedBy: resolverDto(row.resolvedBy),
+      resolutionNote: row.resolutionNote,
+    };
+  }
+
+  /** D288: the unresolved counter (the panel's nav badge and the app's «بلاغات» row). */
+  async summary(): Promise<{ open: number }> {
+    return { open: await this.prisma.report.count({ where: { status: 'OPEN' } }) };
+  }
+
+  /**
+   * D288 «تم حله»: the report is resolved for everyone (ACTIONED, `resolvedAt`, `resolvedById`, the optional note). The
+   * row is locked, so of two people pressing at once the first wins and the second gets 409 `REPORT_ALREADY_RESOLVED`
+   * (the app and the panel then show who resolved it). Only this report closes (another person's report on the same
+   * target stays in the queue). Audited `moderation.report.resolve` {reportId, note, via}.
+   */
+  async resolve(reportId: string, note: string | undefined, ctx: AdminContext): Promise<PanelReportDto> {
+    await this.prisma.$transaction(async (tx: Tx) => {
+      const locked = await tx.$queryRaw<
+        { status: string }[]
+      >`SELECT status::text AS status FROM reports WHERE id = ${reportId}::uuid FOR UPDATE`;
+      if (locked.length === 0) throw new AppException(ErrorCode.NOT_FOUND);
+      if (locked[0]!.status !== 'OPEN') throw new AppException(ErrorCode.REPORT_ALREADY_RESOLVED);
+      const report = await tx.report.update({
+        where: { id: reportId },
+        data: {
+          status: 'ACTIONED',
+          resolvedAt: new Date(),
+          resolvedById: ctx.userId,
+          resolutionNote: note ?? null,
+        },
+      });
+      // The staff's alert about this report is read for everyone now (the inbox would only send them to a closed one).
+      await tx.notification.updateMany({
+        where: { type: 'STAFF_REPORT_NEW', reportId, readAt: null },
+        data: { readAt: new Date() },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.MODERATION_REPORT_RESOLVE,
+        actorUserId: ctx.userId,
+        targetType: report.targetType.toLowerCase(),
+        targetId: reportTargetId(report),
+        metadata: { reportId, note: note ?? null, via: ctx.via ?? 'panel' },
+        ip: ctx.ip,
+        requestId: ctx.requestId,
+      });
+    });
+    return this.one(reportId);
+  }
+
+  /**
+   * D288: reopen a resolved report (`reports.reopen`: OWNER, MODERATION) with a reason: back to OPEN, the resolution cleared (the
+   * audit keeps it). An OPEN report → 409 `ADMIN_ACTION_REFUSED` `report_open`; the same person already has another
+   * open report on the same target → 409 `report_duplicate`. Nothing done to the target is undone. Audited
+   * `moderation.report.reopen` {reportId, reason, before, resolvedById}.
+   */
+  async reopen(reportId: string, reason: string, ctx: AdminContext): Promise<PanelReportDto> {
+    try {
+      await this.prisma.$transaction(async (tx: Tx) => {
+        const locked = await tx.$queryRaw<
+          { id: string }[]
+        >`SELECT id::text AS id FROM reports WHERE id = ${reportId}::uuid FOR UPDATE`;
+        if (locked.length === 0) throw new AppException(ErrorCode.NOT_FOUND);
+        const before = await tx.report.findUniqueOrThrow({ where: { id: reportId } });
+        if (before.status === 'OPEN') throw refused('The report is open.', 'report_open', 'rule');
+        await tx.report.update({
+          where: { id: reportId },
+          data: { status: 'OPEN', resolvedAt: null, resolvedById: null, resolutionNote: null },
+        });
+        await this.audit.recordIn(tx, {
+          action: AuditAction.MODERATION_REPORT_REOPEN,
+          actorUserId: ctx.userId,
+          targetType: before.targetType.toLowerCase(),
+          targetId: reportTargetId(before),
+          metadata: {
+            reportId,
+            reason,
+            before: before.status,
+            resolvedById: before.resolvedById,
+            via: ctx.via ?? 'panel',
+          },
+          ip: ctx.ip,
+          requestId: ctx.requestId,
+        });
+      });
+    } catch (err) {
+      if (violatedUniqueIndex(err) !== null)
+        throw refused('The same person has another open report on this target.', 'report_duplicate', 'rule');
+      throw err;
+    }
+    return this.one(reportId);
   }
 
   /** The author (or the reported user) of a report's target, and what it says. */

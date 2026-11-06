@@ -33,6 +33,16 @@ export const liftBody = z.strictObject({ kind: z.enum(['LOCK', ...RESTRICTION_KI
 
 export const reasonOnlyBody = z.strictObject({ reason });
 export const reasonCodeBody = z.strictObject({ reason, totpCode });
+/**
+ * v1.78-live (D288, owner «يلغي»): deleting a post or a story for good no longer needs the authenticator code;
+ * `totpCode` is still accepted (and ignored) so a panel built before D288 keeps working.
+ */
+export const contentDeleteBody = z.strictObject({ reason, totpCode: totpCode.optional() });
+/**
+ * v1.78-live (D288, owner: «نعم» — the code goes from account deletion too): starting an account's deletion needs the
+ * reason only; `totpCode` is still accepted (and ignored) so a panel built before D288 keeps working.
+ */
+export const deletionRequestBody = contentDeleteBody;
 
 export const requireChangeBody = z.strictObject({
   reason,

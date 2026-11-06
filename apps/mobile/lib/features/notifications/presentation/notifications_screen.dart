@@ -337,6 +337,8 @@ class NotificationRow extends StatelessWidget {
       NotificationTargetType.liveRoom => AppRoutes.liveRoomStaffReports(
         target.id,
       ),
+      // D288: «بلاغات» on that report.
+      NotificationTargetType.report => AppRoutes.staffReportsFor(target.id),
     };
   }
 
@@ -457,6 +459,8 @@ class NotificationRow extends StatelessWidget {
       NotificationType.liveStaffReport => l10n.notifLiveStaffReport(
         KFormat.bidiIsolate(item.target?.text ?? ''),
       ),
+      // D288: never the reporter, the reason or the target.
+      NotificationType.staffReportNew => l10n.notifStaffReportNew,
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);

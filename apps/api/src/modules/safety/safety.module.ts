@@ -6,6 +6,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PostsModule } from '../posts/posts.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AdminReportsController, SafetyController } from './safety.controller.js';
+import { ReportStaffAlertsService } from './report-staff-alerts.service.js';
 import { SafetyService } from './safety.service.js';
 
 /**
@@ -15,7 +16,7 @@ import { SafetyService } from './safety.service.js';
 @Module({
   imports: [LiveModule, MediaModule, NotificationsModule, PostsModule, UsersModule],
   controllers: [SafetyController, AdminReportsController],
-  providers: [SafetyService, AdminGuard, AdminPermissions],
+  providers: [SafetyService, ReportStaffAlertsService, AdminGuard, AdminPermissions],
   // v1.60-social (D191): the admin panel's report queue.
   exports: [SafetyService],
 })

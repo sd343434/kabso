@@ -5,4 +5,6 @@
     <string name="notification_channel_general_description">Likes, comments, follows and other activity</string>
     <string name="notification_channel_messages">Messages</string>
     <string name="notification_channel_messages_description">New messages in your chats</string>
+    <string name="notification_channel_staff">Kabso Team reports</string>
+    <string name="notification_channel_staff_description">New reports waiting for the moderators and the support</string>
 </resources>

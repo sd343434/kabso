@@ -121,6 +121,15 @@ class MainActivity : FlutterActivity() {
                     R.string.notification_channel_messages_description,
                     "kabso_message",
                 ),
+                // v1.78-live (D288, CONVENTIONS §10.101): the staff's report alerts (STAFF_REPORT_NEW)
+                // on their own channel, so a staff member can give them their own sound / priority.
+                // It starts with the general sound (no separate sound file was supplied).
+                channel(
+                    "kabso_staff",
+                    R.string.notification_channel_staff,
+                    R.string.notification_channel_staff_description,
+                    "kabi_voice_a",
+                ),
             ),
         )
     }

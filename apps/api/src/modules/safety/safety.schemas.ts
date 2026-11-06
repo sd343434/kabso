@@ -92,3 +92,23 @@ export const adminReportsQuerySchema = z.strictObject({
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });
 export type AdminReportsQuery = z.output<typeof adminReportsQuerySchema>;
+
+/**
+ * v1.78-live (D288, §10.101): the shared queue (`listAdminModerationReports`, `listStaffReports`) — `RESOLVED` is every
+ * closed report (ACTIONED or DISMISSED, «تم حله» included), newest resolution first.
+ */
+export const sharedReportsQuerySchema = z.strictObject({
+  status: z
+    .string()
+    .pipe(z.enum(['OPEN', 'RESOLVED', 'ACTIONED', 'DISMISSED']))
+    .optional()
+    .transform((v) => v ?? 'OPEN'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type SharedReportsQuery = z.output<typeof sharedReportsQuerySchema>;
+
+/** D288: «تم حله» with an optional note (shown to the team). */
+export const resolveReportSchema = z.strictObject({ note: z.string().trim().min(1).max(500).optional() });
+/** D288: reopening a resolved report needs a reason (audited). */
+export const reopenReportSchema = z.strictObject({ reason: z.string().trim().min(1).max(500) });

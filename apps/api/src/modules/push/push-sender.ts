@@ -5,12 +5,18 @@
  */
 
 /** The Android notification channel (created by the app with the owner's sound). */
-export type PushChannel = 'general' | 'messages';
+export type PushChannel = 'general' | 'messages' | 'staff';
 
 /** The app's Android channel id for each push channel (CONVENTIONS §11.12). */
 export const ANDROID_CHANNEL_ID: Readonly<Record<PushChannel, string>> = {
   general: 'kabso_general',
   messages: 'kabso_messages',
+  /**
+   * v1.78-live (D288, §10.101): the staff's report alerts (STAFF_REPORT_NEW) on their own channel, so a staff member
+   * can set its sound and priority apart. An app before D288 has no such channel: Android shows the push on the
+   * manifest's default channel (`kabso_general`).
+   */
+  staff: 'kabso_staff',
 };
 
 export interface PushMessage {

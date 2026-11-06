@@ -9,6 +9,8 @@ const MAX_KEY_BYTES = 64 * 1024;
 const TTL_MS: Readonly<Record<PushMessage['channel'], number>> = {
   general: 6 * 3600_000,
   messages: 24 * 3600_000,
+  // v1.78-live (D288): a report alert is useless once someone resolved it; six hours like the general channel.
+  staff: 6 * 3600_000,
 };
 
 /** The parts of a Firebase service-account key the Admin SDK needs. */

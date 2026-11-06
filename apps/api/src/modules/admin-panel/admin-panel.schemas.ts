@@ -23,8 +23,12 @@ export const adminSecondFactorSchema = z.union([
 ]);
 
 export const reasonSchema = z.strictObject({ reason });
-/** v1.72-social (D208, owner 2026-10-31): a ban needs the authenticator code again. */
-export const banSchema = z.strictObject({ reason, totpCode });
+/**
+ * The ban «حظر». v1.72-social (D208) asked for the authenticator code again; v1.78-live (D288, owner «يلغي»): no code —
+ * the role and the capability on every request, the panel's rate limit and the audit protect it. `totpCode` is still
+ * accepted (and ignored) so a panel built before D288 keeps working.
+ */
+export const banSchema = z.strictObject({ reason, totpCode: totpCode.optional() });
 
 export const pageQuerySchema = z.strictObject({
   cursor: z.string().max(200).optional(),

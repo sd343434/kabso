@@ -22,8 +22,10 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
+import 'package:kabso_live/features/staff/application/staff_providers.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
+import 'package:kabso_live/features/staff/presentation/staff_reports_screen.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -142,6 +144,10 @@ class MeHubScreen extends ConsumerWidget {
   /// v1.75-live (D285): «استقطاباتي» and «أرباحي» (MODERATION / BD).
   static const staffRecruitsKey = Key('meHub.staff.recruits');
   static const staffEarningsKey = Key('meHub.staff.earnings');
+
+  /// v1.78-live (D288): «بلاغات» — the shared report queue (MODERATION /
+  /// SUPPORT), with the unresolved count at the row's end.
+  static const staffReportsKey = Key('meHub.staff.reports');
   static const soonKey = Key('meHub.soon');
 
   /// D283c: the official staff ID «ID: Kabso01» under the name.
@@ -249,6 +255,11 @@ class MeHubScreen extends ConsumerWidget {
         ? <List<Widget>>[
             // D273's panel on the phone (watch roles; FINANCE has none).
             if (user?.kabsoTeam ?? false) teamRow,
+            // v1.78-live (D288, owner: «ان البلاغ يصل كل المشرفين والدعم»):
+            // «بلاغات», the shared queue, for the moderators and the support.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.support)
+              [_StaffReportsRow(onTap: () => push(AppRoutes.staffReports))],
             // v1.75-live (D285): the recruiters' own recruits and earnings.
             if (staff.role == StaffLineRole.moderation ||
                 staff.role == StaffLineRole.bd)
@@ -930,9 +941,14 @@ class _HubRow extends StatelessWidget {
     this.valueLabel,
     this.valueArt,
     this.onTap,
+    this.trailing,
   });
 
   final MeHubItem? item;
+
+  /// D288: a widget at the row's end, before the chevron (the «بلاغات»
+  /// count).
+  final Widget? trailing;
 
   /// D273: a row that is not a [MeHubItem] (the staff entry).
   final Key? rowKey;
@@ -1027,6 +1043,10 @@ class _HubRow extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (trailing case final w?) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  w,
+                ],
                 const SizedBox(width: KSpacing.xs),
                 if (soon)
                   const MeHubSoonTag()
@@ -1041,6 +1061,31 @@ class _HubRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// v1.78-live (D288, §10.101): the staff Me tab's «بلاغات» row — the shared
+/// report queue, with the unresolved count at its end (hidden at 0, «99+»),
+/// read while the row is on screen (and refreshed every minute, after «تم
+/// حله» and when a `STAFF_REPORT_NEW` push arrives).
+class _StaffReportsRow extends ConsumerWidget {
+  const new({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final count = ref.watch(staffOpenReportsProvider).value ?? 0;
+    return _HubRow(
+      rowKey: MeHubScreen.staffReportsKey,
+      icon: Icons.flag_rounded,
+      hue: KBrandColors.red600,
+      title: l10n.staffSharedReports,
+      valueLabel: count > 0 ? l10n.staffSharedReportsBadge(count) : null,
+      trailing: StaffReportsCountBadge(count: count),
+      onTap: onTap,
     );
   }
 }

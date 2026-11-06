@@ -339,7 +339,6 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
       (
         await post(owner, `/admin/users/${p.id}/ban`, {
           reason: 'ban test',
-          totpCode: nextCode(owner.secret),
         })
       ).status,
     ).toBe(200);
@@ -684,12 +683,10 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
     });
     expect(restore.body.state).toBe('VISIBLE');
     expect((await ctx.http.get(`/api/v1/posts/${postId}`).set(bearer(reader))).status).toBe(200);
-    expect((await post(moderator, `/admin/content/post/${postId}/delete`, { reason: 'x' })).status).toBe(400);
-    const del = await post(moderator, `/admin/content/post/${postId}/delete`, {
-      reason: 'Repeated spam',
-      totpCode: nextCode(moderator.secret),
-    });
-    expect(del.status).toBe(200);
+    // v1.78-live (D288, owner «يلغي»): deleting for good needs no authenticator code (a reason still: 400 without).
+    expect((await post(moderator, `/admin/content/post/${postId}/delete`, {})).status).toBe(400);
+    const del = await post(moderator, `/admin/content/post/${postId}/delete`, { reason: 'Repeated spam' });
+    expect(del.status, JSON.stringify(del.body)).toBe(200);
     expect(del.body.state).toBe('DELETED');
     expect((await post(moderator, `/admin/content/post/${postId}/restore`, { reason: 'x' })).status).toBe(
       409,
@@ -818,15 +815,14 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
     expect(wrong.status).toBe(403);
   });
 
-  it('deletion: the D193 grace period started by an OWNER (code again) and cancelled', async () => {
+  it('deletion: the D193 grace period started by an OWNER (D288: no code) and cancelled', async () => {
     const p = await signup();
     expect(
       (await post(support, `/admin/users/${p.id}/deletion`, { reason: 'x', totpCode: '000000' })).status,
     ).toBe(403);
-    const del = await post(owner, `/admin/users/${p.id}/deletion`, {
-      reason: 'Written request verified',
-      totpCode: nextCode(owner.secret),
-    });
+    // v1.78-live (D288, owner): the reason only — no authenticator code (still 400 without a reason).
+    expect((await post(owner, `/admin/users/${p.id}/deletion`, {})).status).toBe(400);
+    const del = await post(owner, `/admin/users/${p.id}/deletion`, { reason: 'Written request verified' });
     expect(del.status, JSON.stringify(del.body)).toBe(200);
     expectContract(del, 'requestAdminUserDeletion');
     const row = await lastAudit('account.deletion.requested', p.id);
@@ -834,10 +830,7 @@ describe('D208 admin account controls', { timeout: 900_000 }, () => {
     expect((row.metadata as Record<string, unknown>).via).toBe('panel');
     expect((await appLogin(p.email, p.password)).body.error.code).toBe('ACCOUNT_DELETION_PENDING');
     expect((await get(owner, `/admin/users/${p.id}/control`)).body.deletion).not.toBeNull();
-    const again = await post(owner, `/admin/users/${p.id}/deletion`, {
-      reason: 'x',
-      totpCode: nextCode(owner.secret),
-    });
+    const again = await post(owner, `/admin/users/${p.id}/deletion`, { reason: 'x' });
     expect(again.status).toBe(409);
     const cancel = await post(owner, `/admin/users/${p.id}/deletion/cancel`, {
       reason: 'Changed their mind',
