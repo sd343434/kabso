@@ -14855,4 +14855,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'Other';
+
+  @override
+  String get itemBadgeLimited => 'Limited time';
+
+  @override
+  String get itemBadgeNew => 'New';
+
+  @override
+  String get itemBadgeSeasonal => 'Seasonal';
+
+  @override
+  String get itemBadgeExclusive => 'Exclusive';
+
+  @override
+  String get itemBadgeMostWanted => 'Most wanted';
+
+  @override
+  String get itemBadgeFeatured => 'Featured';
+
+  @override
+  String get itemBadgeFullscreen => 'Full screen';
+
+  @override
+  String get itemBadgeSound => 'With sound';
+
+  @override
+  String get itemBadgeNoSound => 'No sound';
+
+  @override
+  String itemBadgeDaysLeft(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n days left',
+      one: '$n day left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemBadgeEndsToday => 'Ends today';
+
+  @override
+  String get itemBadgesTitle => 'Badges';
+
+  @override
+  String get giftDetailsHint => 'Long press for details';
+
+  @override
+  String get giftDetailsLucky => 'Lucky gift';
 }

@@ -65,6 +65,9 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
     json['badge'],
     unknownValue: GiftBadge.none,
   ),
+  badges: json['badges'] == null
+      ? const <ItemBadge>[]
+      : itemBadgesFromJson(json['badges']),
   tag: json['tag'] == null
       ? null
       : GiftTag.fromJson(json['tag'] as Map<String, dynamic>),
@@ -99,6 +102,7 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'animationKey': instance.animationKey,
   'sortOrder': instance.sortOrder,
   'badge': _$GiftBadgeEnumMap[instance.badge]!,
+  'badges': itemBadgesToJson(instance.badges),
   'tag': instance.tag,
   'imageUrl': instance.imageUrl,
   'animationUrl': instance.animationUrl,

@@ -14,6 +14,7 @@ import { EVENT_METRICS, EVENT_TONES } from '../programs/event-admin-rules.js';
 import { PANEL_ROLES } from './admin-permissions.js';
 import { dayRange, tableQuery } from './admin-tables.js';
 import { STAFF_REGION_CODES, type StaffRegion } from '../live/staff-regions.js';
+import { itemBadgesInput } from '../gifts/item-badges.schemas.js';
 
 /** Request bodies and queries of the panel v2 (v1.65-social, D197, CONVENTIONS §10.60; openapi tag `admin-panel`). */
 
@@ -149,29 +150,37 @@ const giftFields = {
   audioObjectKey: z.string().regex(GIFT_AUDIO_OBJECT_KEY_PATTERN).nullable(),
 };
 
-export const createGiftBody = z.strictObject({
-  code: z.string().regex(GIFT_CODE_PATTERN),
-  category: giftFields.category,
-  nameAr: giftFields.nameAr,
-  nameEn: giftFields.nameEn,
-  priceCoins: giftFields.priceCoins,
-  // v1.71-social (D207): the bundled image key is optional now (default: the gift's code); «صورة الهدية» is required.
-  assetKey: giftFields.assetKey.optional(),
-  imageObjectKey: giftFields.imageObjectKey.unwrap(),
-  animationObjectKey: giftFields.animationObjectKey.optional(),
-  animationAlpha: giftFields.animationAlpha.optional(),
-  audioObjectKey: giftFields.audioObjectKey.optional(),
-  animationKey: giftFields.animationKey.optional(),
-  sortOrder: giftFields.sortOrder.optional(),
-  badge: giftFields.badge.optional(),
-  tagCode: giftFields.tagCode.optional(),
-  tagNameAr: giftFields.tagNameAr.optional(),
-  tagNameEn: giftFields.tagNameEn.optional(),
-  soundKey: giftFields.soundKey.optional(),
-  soundMs: giftFields.soundMs.optional(),
-  quipText: giftFields.quipText.optional(),
-  reason,
-});
+export const createGiftBody = z
+  .strictObject({
+    code: z.string().regex(GIFT_CODE_PATTERN),
+    category: giftFields.category,
+    nameAr: giftFields.nameAr,
+    nameEn: giftFields.nameEn,
+    priceCoins: giftFields.priceCoins,
+    // v1.71-social (D207): the bundled image key is optional now (default: the gift's code); «صورة الهدية» is required.
+    assetKey: giftFields.assetKey.optional(),
+    imageObjectKey: giftFields.imageObjectKey.unwrap(),
+    animationObjectKey: giftFields.animationObjectKey.optional(),
+    animationAlpha: giftFields.animationAlpha.optional(),
+    audioObjectKey: giftFields.audioObjectKey.optional(),
+    animationKey: giftFields.animationKey.optional(),
+    sortOrder: giftFields.sortOrder.optional(),
+    badge: giftFields.badge.optional(),
+    // v1.79-live (D289): the badge set (`badge` is the deprecated single value; not both).
+    badges: itemBadgesInput.optional(),
+    tagCode: giftFields.tagCode.optional(),
+    tagNameAr: giftFields.tagNameAr.optional(),
+    tagNameEn: giftFields.tagNameEn.optional(),
+    soundKey: giftFields.soundKey.optional(),
+    soundMs: giftFields.soundMs.optional(),
+    quipText: giftFields.quipText.optional(),
+    reason,
+  })
+  .refine((v) => v.badge === undefined || v.badges === undefined, {
+    message: 'badge and badges together',
+    path: ['badge'],
+    params: { issue: 'conflict' },
+  });
 
 export const updateGiftBody = z
   .strictObject({
@@ -183,6 +192,8 @@ export const updateGiftBody = z
     animationKey: giftFields.animationKey.optional(),
     sortOrder: giftFields.sortOrder.optional(),
     badge: giftFields.badge.optional(),
+    // v1.79-live (D289): the badge set (`badge` is the deprecated single value; not both).
+    badges: itemBadgesInput.optional(),
     tagCode: giftFields.tagCode.optional(),
     tagNameAr: giftFields.tagNameAr.optional(),
     tagNameEn: giftFields.tagNameEn.optional(),
@@ -195,7 +206,12 @@ export const updateGiftBody = z
     audioObjectKey: giftFields.audioObjectKey.optional(),
     reason,
   })
-  .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] });
+  .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] })
+  .refine((v) => v.badge === undefined || v.badges === undefined, {
+    message: 'badge and badges together',
+    path: ['badge'],
+    params: { issue: 'conflict' },
+  });
 
 // ---- v1.71-social (D207, CONVENTIONS §10.66): gift categories and uploads -------------------------------------
 

@@ -10,8 +10,10 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -134,6 +136,12 @@ Future<_Harness> _pump(
   return h;
 }
 
+/// D289: the badge pills of [code] on screen.
+int _pills(WidgetTester tester, ItemBadgeCode code) => tester
+    .widgetList<KItemBadgePill>(find.byType(KItemBadgePill))
+    .where((p) => p.code == code)
+    .length;
+
 Finder _cell(String code, {bool bag = false}) =>
     find.byKey(KLiveGiftSheet.cellKey(code, bag: bag));
 
@@ -223,7 +231,8 @@ void main() {
     // Prices with the coin (digits as in the reference, D117), NEW badges.
     expect(find.text('5000'), findsOneWidget);
     expect(find.text('299'), findsOneWidget);
-    expect(find.text(en.liveGiftBadgeNew.toUpperCase()), findsNWidgets(2));
+    // D289: the badge set as pills (an older API's NEW → «جديد»).
+    expect(_pills(tester, ItemBadgeCode.isNew), 2);
     // Four in a row.
     final y = tester.getCenter(_cell('rose')).dy;
     for (final code in ['heart_balloon', 'crown', 'sports_car']) {
@@ -233,7 +242,8 @@ void main() {
     await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('EVENT')));
     expect(_cell('lantern'), findsOneWidget);
     expect(_cell('cake'), findsOneWidget);
-    expect(find.text(en.liveGiftBadgeEvent), findsNWidgets(2));
+    // D289: an older API's EVENT → «موسمي».
+    expect(_pills(tester, ItemBadgeCode.seasonal), 2);
     expect(_cell('rose'), findsNothing);
 
     await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('FUN')));

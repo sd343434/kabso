@@ -3,6 +3,7 @@
 // hosted art v1.26.2-live, D126; CONVENTIONS §10.23).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_pk.dart';
 
@@ -95,6 +96,8 @@ enum GiftVideoAlpha {
 }
 
 /// `GiftBadge`: the corner badge of a gift; unknown values show as [none].
+/// Deprecated v1.79-live (D289): [Gift.badges] carries the set; this single
+/// value stays for a lucky gift's tile, which keeps its earlier mark.
 enum GiftBadge {
   @JsonValue('NONE')
   none,
@@ -150,6 +153,12 @@ abstract class Gift with _$Gift {
     required int sortOrder,
     @JsonKey(unknownEnumValue: GiftBadge.none) required GiftBadge badge,
 
+    /// v1.79-live (D289, §10.102): the running badges in display priority
+    /// (none from an older API). A tile shows two, the details all.
+    @JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson)
+    @Default(<ItemBadge>[])
+    List<ItemBadge> badges,
+
     /// The sub-category (v1.24.3-live), or null: none, or an older API.
     GiftTag? tag,
 
@@ -183,6 +192,19 @@ abstract class Gift with _$Gift {
   }) = _Gift;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
+}
+
+/// D289: the badges to show — [Gift.badges], or (an older API without the
+/// field) the single `badge`: NEW as «جديد», EVENT as «موسمي». The new API
+/// derives `badge` from the set, so both agree.
+extension GiftBadges on Gift {
+  List<ItemBadge> get shownBadges => badges.isNotEmpty
+      ? badges
+      : switch (badge) {
+          GiftBadge.isNew => const [ItemBadge(ItemBadgeCode.isNew)],
+          GiftBadge.event => const [ItemBadge(ItemBadgeCode.seasonal)],
+          GiftBadge.none => const <ItemBadge>[],
+        };
 }
 
 /// `GiftCatalogue` (`GET /gifts/catalogue`): the enabled gifts by tab.

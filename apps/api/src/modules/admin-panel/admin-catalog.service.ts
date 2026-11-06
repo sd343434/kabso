@@ -49,6 +49,8 @@ import {
   storeBannerImage,
   type StoredBannerImage,
 } from '../home/home-banners.js';
+import { adminItemBadges, looksFullscreen, type ItemBadgeInput } from '../gifts/item-badges.js';
+import { panelBadges } from '../gifts/item-badges.schemas.js';
 import { MAX_IMAGE_BYTES } from '../media/media-image.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import {
@@ -88,6 +90,8 @@ export interface GiftInput {
   animationKey?: string | null | undefined;
   sortOrder?: number | undefined;
   badge?: GiftBadge | undefined;
+  /** v1.79-live (D289): the whole badge set (checked by `resolveItemBadges`). */
+  badges?: readonly ItemBadgeInput[] | undefined;
   tagCode?: string | null | undefined;
   tagNameAr?: string | null | undefined;
   tagNameEn?: string | null | undefined;
@@ -118,6 +122,7 @@ function given(input: GiftInput): Partial<GiftFields> {
     animationObjectKey: _a,
     animationAlpha: _al,
     audioObjectKey: _s,
+    badges: _b,
     ...rest
   } = input;
   return Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
@@ -164,6 +169,7 @@ export class AdminCatalogService {
     const storage = await this.storageSettings.resolved();
     const base = storage.publicBaseUrl;
     const order = tabs.map((t) => t.code);
+    const now = new Date();
     return {
       coinRetailUsdPerMillion: this.config.economy.coinRetailUsdPerMillion,
       // v1.71-social (D207): the categories (for the form's choice), in tab order.
@@ -204,6 +210,8 @@ export class AdminCatalogService {
           audioMs: g.audioMs,
           sortOrder: g.sortOrder,
           badge: g.badge,
+          // v1.79-live (D289): every stored badge, its end and whether it still shows.
+          badges: adminItemBadges(g, now),
           lucky: g.category === 'LUCKY',
           tagCode: g.tagCode,
           tagNameAr: g.tagNameAr,
@@ -335,6 +343,8 @@ export class AdminCatalogService {
             bytes: file.size,
             contentType: file.contentType,
             durationMs: file.durationMs,
+            // v1.79-live (D289): a sound file — the panel pre-selects «بمؤثرات صوتية».
+            hasAudio: true,
           };
         }
         case 'animation': {
@@ -352,6 +362,13 @@ export class AdminCatalogService {
               height: file.height,
               durationMs: file.durationMs,
               detectedAlpha: file.detectedAlpha,
+              // v1.79-live (D289): what the panel pre-selects — an audio track, and a full-screen frame (the picture's
+              // size: half the width of a side-by-side file).
+              hasAudio: file.hasAudio,
+              fullscreen: looksFullscreen(
+                file.detectedAlpha === 'SIDE_BY_SIDE' ? Math.round(file.width / 2) : file.width,
+                file.height,
+              ),
             };
           }
           const file = giftAnimationFile(code, body);
@@ -363,6 +380,11 @@ export class AdminCatalogService {
             bytes: file.size,
             contentType: file.contentType,
             format: 'SVGA' as const,
+            // v1.79-live (D289): the SVGA's frame (`params.viewBox`) and whether it carries audio (`audios`).
+            width: file.width,
+            height: file.height,
+            hasAudio: file.hasAudio,
+            fullscreen: looksFullscreen(file.width, file.height),
           };
         }
       }
@@ -467,6 +489,8 @@ export class AdminCatalogService {
 
   async createGift(code: string, input: GiftInput & { reason: string }, ctx: AdminContext) {
     const { reason, ...rest } = input;
+    const now = new Date();
+    const badges = panelBadges(rest.badges, now);
     const fields: GiftFields = {
       category: rest.category!,
       nameAr: rest.nameAr!,
@@ -477,6 +501,7 @@ export class AdminCatalogService {
       animationKey: rest.animationKey ?? null,
       sortOrder: rest.sortOrder ?? 0,
       badge: rest.badge ?? 'NONE',
+      ...(badges !== undefined ? { badges } : {}),
       tagCode: rest.tagCode ?? null,
       tagNameAr: rest.tagNameAr ?? null,
       tagNameEn: rest.tagNameEn ?? null,
@@ -489,7 +514,7 @@ export class AdminCatalogService {
     if (!rest.imageObjectKey) throw refused('The gift needs its picture «صورة الهدية».');
     Object.assign(fields, await rule(() => this.mediaFields(code, rest)));
     const created = await rule(() =>
-      this.prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields, viaOf(ctx), reason)),
+      this.prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields, viaOf(ctx), reason, now)),
     );
     if (!created) throw refused(`A gift ${code} exists already.`);
     return { code, created: true };
@@ -497,14 +522,16 @@ export class AdminCatalogService {
 
   async updateGift(code: string, input: GiftInput & { reason: string }, ctx: AdminContext) {
     const { reason, ...rest } = input;
-    const fields = given(rest);
+    const now = new Date();
+    const badges = panelBadges(rest.badges, now);
+    const fields: Partial<GiftFields> = { ...given(rest), ...(badges !== undefined ? { badges } : {}) };
     const problems = giftFieldProblems(fields);
     if (problems.length > 0) throw refused(problems.join('; '));
     if (rest.imageObjectKey === null)
       throw refused('The gift needs its picture «صورة الهدية»; replace it instead.');
     Object.assign(fields, await rule(() => this.mediaFields(code, rest)));
     const changed = await rule(() =>
-      this.prisma.$transaction((tx) => updateGiftByAdminIn(tx, code, fields, viaOf(ctx), reason)),
+      this.prisma.$transaction((tx) => updateGiftByAdminIn(tx, code, fields, viaOf(ctx), reason, now)),
     );
     if (changed === null) throw new AppException(ErrorCode.NOT_FOUND);
     return { code, changed };
@@ -522,7 +549,11 @@ export class AdminCatalogService {
 
   async bagItems() {
     const [items, holders] = await Promise.all([
-      this.prisma.bagItem.findMany({ orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }] }),
+      // v1.79-live (D289b): a store item taken out of the store is not offered (its owners keep it).
+      this.prisma.bagItem.findMany({
+        where: { NOT: { storeItem: { is: { hiddenAt: { not: null } } } } },
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
+      }),
       this.prisma.userBagItem.groupBy({ by: ['itemCode'], _count: true }),
     ]);
     const count = new Map(holders.map((h) => [h.itemCode, h._count]));

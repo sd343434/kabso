@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -7,6 +7,16 @@ import { Clock } from '../../common/time/clock.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { giftArtUrl, uploadGiftArt } from '../gifts/gift-art.js';
+import {
+  adminItemBadges,
+  applyLegacyIsNew,
+  badgeColumns,
+  badgeSettingsOf,
+  badgeText,
+  type AdminItemBadgeDto,
+  type ItemBadgeSetting,
+} from '../gifts/item-badges.js';
+import { panelBadges } from '../gifts/item-badges.schemas.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
@@ -48,8 +58,13 @@ export interface AdminStoreItemDto {
   artHeight: number | null;
   prices: AdminStorePriceDto[];
   sortOrder: number;
+  /** Deprecated v1.79-live (D289): «جديد» is in `badges` (running or not). */
   isNew: boolean;
+  /** v1.79-live (D289): every stored badge, its end and whether it still shows. */
+  badges: AdminItemBadgeDto[];
   enabled: boolean;
+  /** v1.79-live (D289b): when it was taken out of the store (hidden; still working for its owners), else null. */
+  hiddenAt: string | null;
   /** People holding it now (not expired). */
   owners: number;
   /** Purchases of it, ever. */
@@ -79,6 +94,25 @@ export interface AdminStoreUploadDto {
   /** An MP4's suggested transparency (null otherwise). */
   detectedAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
   durationMs: number | null;
+  /** v1.79-live (D289): an animation with sound / framed for the full screen (null for a still). */
+  hasAudio: boolean | null;
+  fullscreen: boolean | null;
+}
+
+/**
+ * v1.79-live (D289b) `AdminStoreItemDeleted`: what «حذف» did — DELETED (nobody bought or holds it: the row, its bag
+ * catalogue row and its unused art are gone) or HIDDEN (bought or held: out of the store, kept for its owners).
+ */
+export interface AdminStoreItemDeletedDto {
+  result: 'DELETED' | 'HIDDEN';
+  id: string;
+  code: string;
+  /** People holding it now (not expired). */
+  owners: number;
+  /** Purchases of it, ever. */
+  purchases: number;
+  /** The item now (HIDDEN), null once deleted. */
+  item: AdminStoreItemDto | null;
 }
 
 /** `AdminStoreSale`. */
@@ -127,8 +161,29 @@ function snapshot(i: ItemRow): Prisma.InputJsonObject {
     })),
     sortOrder: i.sortOrder,
     isNew: i.isNew,
+    badges: badgeText(badgeSettingsOf(i)),
     enabled: i.enabled,
+    hiddenAt: i.hiddenAt?.toISOString() ?? null,
   };
+}
+
+/** The object key of a store art URL the panel uploaded (`…/media/store/<32 hex>.<ext>`), else null. */
+export function storeArtKey(url: string | null): string | null {
+  const m = url ? /(media\/store\/[0-9a-f]{32}\.(?:png|webp|svga|mp4))$/.exec(url) : null;
+  return m ? m[1]! : null;
+}
+
+/** v1.79-live (D289): the badge columns of a write (with `isNew` in step), or {} when neither field is given. */
+function badgeWrite(
+  body: { badges?: CreateStoreItemBody['badges']; isNew?: boolean | undefined },
+  current: readonly ItemBadgeSetting[],
+  now: Date,
+) {
+  const set = panelBadges(body.badges, now);
+  const settings = set ?? (body.isNew !== undefined ? applyLegacyIsNew(current, body.isNew, now) : undefined);
+  if (settings === undefined) return {};
+  const columns = badgeColumns(settings);
+  return { ...columns, isNew: columns.badges.includes('NEW') };
 }
 
 /** The art columns of a body: the format follows the animation (from the URL when not given); MP4 needs an alpha. */
@@ -167,6 +222,8 @@ function artOf(
  */
 @Injectable()
 export class StoreAdminService {
+  private readonly logger = new Logger(StoreAdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
@@ -209,6 +266,8 @@ export class StoreAdminService {
       height: file.height,
       detectedAlpha: file.detectedAlpha,
       durationMs: file.durationMs,
+      hasAudio: file.hasAudio,
+      fullscreen: file.fullscreen,
     };
   }
 
@@ -231,6 +290,8 @@ export class StoreAdminService {
   }
 
   async create(body: CreateStoreItemBody, by: AdminVia): Promise<AdminStoreItemDto> {
+    const now = this.clock.now();
+    const badges = badgeWrite({ ...body, isNew: body.isNew ?? (body.badges ? undefined : false) }, [], now);
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:store-items'))`;
       if ((await tx.storeItem.count()) >= STORE_MAX_ITEMS)
@@ -266,7 +327,7 @@ export class StoreAdminService {
           artWidth: (art.artWidth as number | null | undefined) ?? null,
           artHeight: (art.artHeight as number | null | undefined) ?? null,
           sortOrder,
-          isNew: body.isNew ?? false,
+          ...badges,
           enabled: body.enabled ?? false,
         },
       });
@@ -286,6 +347,9 @@ export class StoreAdminService {
   }
 
   async update(id: string, body: UpdateStoreItemBody, by: AdminVia): Promise<AdminStoreItemDto> {
+    const now = this.clock.now();
+    // Checked before the transaction: a broken rule is a 400 with nothing locked.
+    panelBadges(body.badges, now);
     return this.prisma.$transaction(async (tx) => {
       const before = await this.lockItem(tx, id);
       await tx.storeItem.update({
@@ -294,7 +358,7 @@ export class StoreAdminService {
           ...(body.nameAr !== undefined ? { nameAr: body.nameAr } : {}),
           ...(body.nameEn !== undefined ? { nameEn: body.nameEn } : {}),
           ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
-          ...(body.isNew !== undefined ? { isNew: body.isNew } : {}),
+          ...badgeWrite(body, badgeSettingsOf(before), now),
           ...artOf(body, before),
         },
       });
@@ -328,6 +392,9 @@ export class StoreAdminService {
   async setEnabled(id: string, enabled: boolean, reason: string, by: AdminVia): Promise<AdminStoreItemDto> {
     return this.prisma.$transaction(async (tx) => {
       const before = await this.lockItem(tx, id);
+      if (enabled && before.hiddenAt !== null) {
+        throw refused('The item was taken out of the store; put it back with «إرجاع للمتجر» first.');
+      }
       if (before.enabled !== enabled) {
         await tx.storeItem.update({ where: { id }, data: { enabled } });
         await tx.auditLog.create({
@@ -348,6 +415,106 @@ export class StoreAdminService {
       }
       return this.dto(await this.load(tx, id), (await this.stats(tx, [id])).get(id));
     });
+  }
+
+  /**
+   * v1.79-live (D289b, §10.102.5) «حذف»: an item nobody bought (no `store_purchases`) and nobody holds now (no unexpired
+   * bag row) is deleted for real — the store row and its prices, the bag catalogue row (expired bag rows go with it) and,
+   * after the commit, its art when no other store item uses the same file; audited `store.item.delete`. Otherwise it is
+   * hidden: out of the store and every listing, never sold (`enabled` false, `hidden_at` set), still working for its
+   * owners until their items end; audited `store.item.hide`. Hidden already: 200 HIDDEN, nothing written.
+   */
+  async remove(id: string, reason: string | undefined, by: AdminVia): Promise<AdminStoreItemDeletedDto> {
+    const now = this.clock.now();
+    const done = await this.prisma.$transaction(async (tx) => {
+      const before = await this.lockItem(tx, id);
+      const purchases = await tx.storePurchase.count({ where: { itemId: id } });
+      const owners = await tx.userBagItem.count({
+        where: { itemCode: before.bagCode, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      });
+      const meta = { code: before.bagCode, owners, purchases, ...(reason ? { reason } : {}), via: by.via };
+      if (purchases === 0 && owners === 0) {
+        await tx.storeItem.delete({ where: { id } });
+        await tx.bagItem.delete({ where: { code: before.bagCode } });
+        await tx.auditLog.create({
+          data: {
+            ...auditBy(by),
+            action: AuditAction.STORE_ITEM_DELETE,
+            targetType: 'store_item',
+            targetId: id,
+            metadata: { ...meta, case: 'deleted', before: snapshot(before) },
+          },
+        });
+        return { result: 'DELETED' as const, before, owners, purchases, item: null };
+      }
+      if (before.hiddenAt === null) {
+        await tx.storeItem.update({ where: { id }, data: { hiddenAt: now, enabled: false } });
+        await tx.auditLog.create({
+          data: {
+            ...auditBy(by),
+            action: AuditAction.STORE_ITEM_HIDE,
+            targetType: 'store_item',
+            targetId: id,
+            metadata: { ...meta, case: 'hidden', wasEnabled: before.enabled },
+          },
+        });
+      }
+      const after = await this.load(tx, id);
+      return {
+        result: 'HIDDEN' as const,
+        before,
+        owners,
+        purchases,
+        item: this.dto(after, (await this.stats(tx, [id])).get(id)),
+      };
+    });
+    if (done.result === 'DELETED') await this.removeUnusedArt([done.before.still, done.before.animation]);
+    return {
+      result: done.result,
+      id,
+      code: done.before.bagCode,
+      owners: done.owners,
+      purchases: done.purchases,
+      item: done.item,
+    };
+  }
+
+  /** v1.79-live (D289b) «إرجاع للمتجر»: a hidden item back in the store (listed and sold again); audited. */
+  async restore(id: string, reason: string | undefined, by: AdminVia): Promise<AdminStoreItemDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const before = await this.lockItem(tx, id);
+      if (before.hiddenAt !== null) {
+        await tx.storeItem.update({ where: { id }, data: { hiddenAt: null, enabled: true } });
+        await tx.auditLog.create({
+          data: {
+            ...auditBy(by),
+            action: AuditAction.STORE_ITEM_RESTORE,
+            targetType: 'store_item',
+            targetId: id,
+            metadata: { code: before.bagCode, ...(reason ? { reason } : {}), via: by.via },
+          },
+        });
+      }
+      return this.dto(await this.load(tx, id), (await this.stats(tx, [id])).get(id));
+    });
+  }
+
+  /** Deletes the uploaded art files no store item uses any more (a failure is logged; the item is gone already). */
+  private async removeUnusedArt(urls: readonly (string | null)[]): Promise<void> {
+    const keys = [...new Set(urls.map(storeArtKey).filter((k): k is string => k !== null))];
+    if (keys.length === 0) return;
+    const used = await this.prisma.storeItem.findMany({
+      where: { OR: keys.flatMap((k) => [{ still: { endsWith: k } }, { animation: { endsWith: k } }]) },
+      select: { still: true, animation: true },
+    });
+    const kept = new Set(used.flatMap((u) => [storeArtKey(u.still), storeArtKey(u.animation)]));
+    const unused = keys.filter((k) => !kept.has(k));
+    if (unused.length === 0) return;
+    try {
+      await this.storage.delete(unused);
+    } catch (err) {
+      this.logger.warn(`store art not deleted (${unused.join(', ')}): ${String(err)}`);
+    }
   }
 
   /** The latest sales (newest first, ≤ [limit]) and the totals of the filter (one item, or all). */
@@ -458,7 +625,9 @@ export class StoreAdminService {
       })),
       sortOrder: i.sortOrder,
       isNew: i.isNew,
+      badges: adminItemBadges(i, this.clock.now()),
       enabled: i.enabled,
+      hiddenAt: i.hiddenAt?.toISOString() ?? null,
       owners: stats?.owners ?? 0,
       sold: stats?.sold ?? 0,
       createdAt: i.createdAt.toISOString(),

@@ -116,6 +116,13 @@ export enum AuditAction {
   STORE_ITEM_UPDATE = 'store.item.update',
   STORE_ITEM_ENABLE = 'store.item.enable',
   STORE_ITEM_DISABLE = 'store.item.disable',
+  /**
+   * v1.79-live (D289b, §10.102.5): «حذف» in the panel — an item nobody bought or holds deleted for real (`delete`), one
+   * bought or held hidden from the store (`hide`), a hidden one put back (`restore`).
+   */
+  STORE_ITEM_DELETE = 'store.item.delete',
+  STORE_ITEM_HIDE = 'store.item.hide',
+  STORE_ITEM_RESTORE = 'store.item.restore',
   /** D270 (§10.98): a person bought a store item for themselves or as a gift (coins or cherries). */
   STORE_PURCHASE = 'store.purchase',
   // v1.43-live (D195, §10.58): PK 1 v 1 — a match starts, its battle ends (with the reason), a

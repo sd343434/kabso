@@ -2528,3 +2528,88 @@ fieldset.plain {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+/* ---- v1.79-live (D289, CONVENTIONS §10.102): gift and store badges ------------------------------------------- */
+.item-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px 1px 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.item-badge.icon-only {
+  padding: 2px;
+  margin-inline-start: 2px;
+}
+.item-badge.ended {
+  opacity: 0.45;
+}
+.item-badge .badge-icon {
+  flex: none;
+}
+.badge-stack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 70%;
+}
+.badge-picker {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.badge-picker legend {
+  font-weight: 700;
+  padding: 0 4px;
+}
+.badge-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px 14px;
+  margin: 6px 0;
+}
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+.badge-row label {
+  cursor: pointer;
+}
+.badge-row.sound {
+  background: color-mix(in srgb, var(--border) 25%, transparent);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+.badge-until {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.badge-until input[type='date'] {
+  min-width: 140px;
+}
+.badge-picker .hint.warn {
+  color: var(--warning, #955c00);
+  font-weight: 600;
+}
+.badge-picker .hint.error {
+  color: var(--error, #c4242d);
+}
+.seasonal-no-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}

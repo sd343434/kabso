@@ -846,7 +846,9 @@ as String?,
 /// @nodoc
 mixin _$Gift {
 
- String get code; String get category; String get name; int get priceCoins; String get assetKey; String? get animationKey; int get sortOrder;@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge get badge;/// The sub-category (v1.24.3-live), or null: none, or an older API.
+ String get code; String get category; String get name; int get priceCoins; String get assetKey; String? get animationKey; int get sortOrder;@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge get badge;/// v1.79-live (D289, §10.102): the running badges in display priority
+/// (none from an older API). A tile shows two, the details all.
+@JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson) List<ItemBadge> get badges;/// The sub-category (v1.24.3-live), or null: none, or an older API.
  GiftTag? get tag;/// The hosted static image (v1.26.2-live), or null: the bundled one.
  String? get imageUrl;/// The hosted SVGA effect (v1.26.2-live), or null: the bundled one.
  String? get animationUrl;/// [animationUrl]'s size in bytes (whether to prefetch it), or null.
@@ -870,20 +872,20 @@ $GiftCopyWith<Gift> get copyWith => _$GiftCopyWithImpl<Gift>(this as Gift, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as Gift;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Gift&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder)&&(identical(other.badge, _this.badge) || other.badge == _this.badge)&&(identical(other.tag, _this.tag) || other.tag == _this.tag)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.animationUrl, _this.animationUrl) || other.animationUrl == _this.animationUrl)&&(identical(other.animationBytes, _this.animationBytes) || other.animationBytes == _this.animationBytes)&&(identical(other.animationFormat, _this.animationFormat) || other.animationFormat == _this.animationFormat)&&(identical(other.animationAlpha, _this.animationAlpha) || other.animationAlpha == _this.animationAlpha)&&(identical(other.audioUrl, _this.audioUrl) || other.audioUrl == _this.audioUrl)&&(identical(other.audioBytes, _this.audioBytes) || other.audioBytes == _this.audioBytes)&&(identical(other.audioDurationMs, _this.audioDurationMs) || other.audioDurationMs == _this.audioDurationMs)&&(identical(other.quip, _this.quip) || other.quip == _this.quip)&&(identical(other.pkBooster, _this.pkBooster) || other.pkBooster == _this.pkBooster));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Gift&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder)&&(identical(other.badge, _this.badge) || other.badge == _this.badge)&&const DeepCollectionEquality().equals(other.badges, _this.badges)&&(identical(other.tag, _this.tag) || other.tag == _this.tag)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.animationUrl, _this.animationUrl) || other.animationUrl == _this.animationUrl)&&(identical(other.animationBytes, _this.animationBytes) || other.animationBytes == _this.animationBytes)&&(identical(other.animationFormat, _this.animationFormat) || other.animationFormat == _this.animationFormat)&&(identical(other.animationAlpha, _this.animationAlpha) || other.animationAlpha == _this.animationAlpha)&&(identical(other.audioUrl, _this.audioUrl) || other.audioUrl == _this.audioUrl)&&(identical(other.audioBytes, _this.audioBytes) || other.audioBytes == _this.audioBytes)&&(identical(other.audioDurationMs, _this.audioDurationMs) || other.audioDurationMs == _this.audioDurationMs)&&(identical(other.quip, _this.quip) || other.quip == _this.quip)&&(identical(other.pkBooster, _this.pkBooster) || other.pkBooster == _this.pkBooster));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Gift;
-  return Object.hashAll([runtimeType,_this.code,_this.category,_this.name,_this.priceCoins,_this.assetKey,_this.animationKey,_this.sortOrder,_this.badge,_this.tag,_this.imageUrl,_this.animationUrl,_this.animationBytes,_this.animationFormat,_this.animationAlpha,_this.audioUrl,_this.audioBytes,_this.audioDurationMs,_this.quip,_this.pkBooster]);
+  return Object.hashAll([runtimeType,_this.code,_this.category,_this.name,_this.priceCoins,_this.assetKey,_this.animationKey,_this.sortOrder,_this.badge,const DeepCollectionEquality().hash(_this.badges),_this.tag,_this.imageUrl,_this.animationUrl,_this.animationBytes,_this.animationFormat,_this.animationAlpha,_this.audioUrl,_this.audioBytes,_this.audioDurationMs,_this.quip,_this.pkBooster]);
 }
 
 @override
 String toString() {
   final _this = this as Gift;
-  return 'Gift(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, sortOrder: ${_this.sortOrder}, badge: ${_this.badge}, tag: ${_this.tag}, imageUrl: ${_this.imageUrl}, animationUrl: ${_this.animationUrl}, animationBytes: ${_this.animationBytes}, animationFormat: ${_this.animationFormat}, animationAlpha: ${_this.animationAlpha}, audioUrl: ${_this.audioUrl}, audioBytes: ${_this.audioBytes}, audioDurationMs: ${_this.audioDurationMs}, quip: ${_this.quip}, pkBooster: ${_this.pkBooster})';
+  return 'Gift(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, sortOrder: ${_this.sortOrder}, badge: ${_this.badge}, badges: ${_this.badges}, tag: ${_this.tag}, imageUrl: ${_this.imageUrl}, animationUrl: ${_this.animationUrl}, animationBytes: ${_this.animationBytes}, animationFormat: ${_this.animationFormat}, animationAlpha: ${_this.animationAlpha}, audioUrl: ${_this.audioUrl}, audioBytes: ${_this.audioBytes}, audioDurationMs: ${_this.audioDurationMs}, quip: ${_this.quip}, pkBooster: ${_this.pkBooster})';
 }
 
 
@@ -894,7 +896,7 @@ abstract mixin class $GiftCopyWith<$Res>  {
   factory $GiftCopyWith(Gift value, $Res Function(Gift) _then) = _$GiftCopyWithImpl;
 @useResult
 $Res call({
- String code, String category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes,@JsonKey(unknownEnumValue: GiftAnimationFormat.unknown) GiftAnimationFormat? animationFormat,@JsonKey(unknownEnumValue: GiftVideoAlpha.none) GiftVideoAlpha? animationAlpha, String? audioUrl, int? audioBytes, int? audioDurationMs, GiftQuip? quip,@JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson) PkBoosterKind? pkBooster
+ String code, String category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge,@JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson) List<ItemBadge> badges, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes,@JsonKey(unknownEnumValue: GiftAnimationFormat.unknown) GiftAnimationFormat? animationFormat,@JsonKey(unknownEnumValue: GiftVideoAlpha.none) GiftVideoAlpha? animationAlpha, String? audioUrl, int? audioBytes, int? audioDurationMs, GiftQuip? quip,@JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson) PkBoosterKind? pkBooster
 });
 
 
@@ -911,7 +913,7 @@ class _$GiftCopyWithImpl<$Res>
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,Object? animationFormat = freezed,Object? animationAlpha = freezed,Object? audioUrl = freezed,Object? audioBytes = freezed,Object? audioDurationMs = freezed,Object? quip = freezed,Object? pkBooster = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? badges = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,Object? animationFormat = freezed,Object? animationAlpha = freezed,Object? audioUrl = freezed,Object? audioBytes = freezed,Object? audioDurationMs = freezed,Object? quip = freezed,Object? pkBooster = freezed,}) {
   return _then(Gift(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -921,7 +923,8 @@ as int,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nu
 as String,animationKey: freezed == animationKey ? _self.animationKey : animationKey // ignore: cast_nullable_to_non_nullable
 as String?,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
 as int,badge: null == badge ? _self.badge : badge // ignore: cast_nullable_to_non_nullable
-as GiftBadge,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
+as GiftBadge,badges: null == badges ? _self.badges : badges // ignore: cast_nullable_to_non_nullable
+as List<ItemBadge>,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
 as GiftTag?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
@@ -1041,10 +1044,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  String category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)  GiftAnimationFormat? animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none)  GiftVideoAlpha? animationAlpha,  String? audioUrl,  int? audioBytes,  int? audioDurationMs,  GiftQuip? quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)  PkBoosterKind? pkBooster)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  String category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge, @JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson)  List<ItemBadge> badges,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)  GiftAnimationFormat? animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none)  GiftVideoAlpha? animationAlpha,  String? audioUrl,  int? audioBytes,  int? audioDurationMs,  GiftQuip? quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)  PkBoosterKind? pkBooster)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Gift() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.animationFormat,_that.animationAlpha,_that.audioUrl,_that.audioBytes,_that.audioDurationMs,_that.quip,_that.pkBooster);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.badges,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.animationFormat,_that.animationAlpha,_that.audioUrl,_that.audioBytes,_that.audioDurationMs,_that.quip,_that.pkBooster);case _:
   return orElse();
 
 }
@@ -1062,10 +1065,10 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  String category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)  GiftAnimationFormat? animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none)  GiftVideoAlpha? animationAlpha,  String? audioUrl,  int? audioBytes,  int? audioDurationMs,  GiftQuip? quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)  PkBoosterKind? pkBooster)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  String category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge, @JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson)  List<ItemBadge> badges,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)  GiftAnimationFormat? animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none)  GiftVideoAlpha? animationAlpha,  String? audioUrl,  int? audioBytes,  int? audioDurationMs,  GiftQuip? quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)  PkBoosterKind? pkBooster)  $default,) {final _that = this;
 switch (_that) {
 case _Gift():
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.animationFormat,_that.animationAlpha,_that.audioUrl,_that.audioBytes,_that.audioDurationMs,_that.quip,_that.pkBooster);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.badges,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.animationFormat,_that.animationAlpha,_that.audioUrl,_that.audioBytes,_that.audioDurationMs,_that.quip,_that.pkBooster);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1082,10 +1085,10 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  String category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)  GiftAnimationFormat? animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none)  GiftVideoAlpha? animationAlpha,  String? audioUrl,  int? audioBytes,  int? audioDurationMs,  GiftQuip? quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)  PkBoosterKind? pkBooster)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  String category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge, @JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson)  List<ItemBadge> badges,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown)  GiftAnimationFormat? animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none)  GiftVideoAlpha? animationAlpha,  String? audioUrl,  int? audioBytes,  int? audioDurationMs,  GiftQuip? quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)  PkBoosterKind? pkBooster)?  $default,) {final _that = this;
 switch (_that) {
 case _Gift() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.animationFormat,_that.animationAlpha,_that.audioUrl,_that.audioBytes,_that.audioDurationMs,_that.quip,_that.pkBooster);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.badges,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes,_that.animationFormat,_that.animationAlpha,_that.audioUrl,_that.audioBytes,_that.audioDurationMs,_that.quip,_that.pkBooster);case _:
   return null;
 
 }
@@ -1097,7 +1100,7 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 @JsonSerializable()
 
 class _Gift implements Gift {
-  const _Gift({required this.code, required this.category, required this.name, required this.priceCoins, required this.assetKey, required this.animationKey, required this.sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none) required this.badge, this.tag, this.imageUrl, this.animationUrl, this.animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown) this.animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none) this.animationAlpha, this.audioUrl, this.audioBytes, this.audioDurationMs, this.quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson) this.pkBooster});
+  const _Gift({required this.code, required this.category, required this.name, required this.priceCoins, required this.assetKey, required this.animationKey, required this.sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none) required this.badge, @JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson)  List<ItemBadge> badges = const <ItemBadge>[], this.tag, this.imageUrl, this.animationUrl, this.animationBytes, @JsonKey(unknownEnumValue: GiftAnimationFormat.unknown) this.animationFormat, @JsonKey(unknownEnumValue: GiftVideoAlpha.none) this.animationAlpha, this.audioUrl, this.audioBytes, this.audioDurationMs, this.quip, @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson) this.pkBooster}): _badges = badges;
   factory _Gift.fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
 
 @override final  String code;
@@ -1108,6 +1111,17 @@ class _Gift implements Gift {
 @override final  String? animationKey;
 @override final  int sortOrder;
 @override@JsonKey(unknownEnumValue: GiftBadge.none) final  GiftBadge badge;
+/// v1.79-live (D289, §10.102): the running badges in display priority
+/// (none from an older API). A tile shows two, the details all.
+ final  List<ItemBadge> _badges;
+/// v1.79-live (D289, §10.102): the running badges in display priority
+/// (none from an older API). A tile shows two, the details all.
+@override@JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson) List<ItemBadge> get badges {
+  if (_badges is EqualUnmodifiableListView) return _badges;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_badges);
+}
+
 /// The sub-category (v1.24.3-live), or null: none, or an older API.
 @override final  GiftTag? tag;
 /// The hosted static image (v1.26.2-live), or null: the bundled one.
@@ -1143,18 +1157,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Gift&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.badge, badge) || other.badge == badge)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.animationUrl, animationUrl) || other.animationUrl == animationUrl)&&(identical(other.animationBytes, animationBytes) || other.animationBytes == animationBytes)&&(identical(other.animationFormat, animationFormat) || other.animationFormat == animationFormat)&&(identical(other.animationAlpha, animationAlpha) || other.animationAlpha == animationAlpha)&&(identical(other.audioUrl, audioUrl) || other.audioUrl == audioUrl)&&(identical(other.audioBytes, audioBytes) || other.audioBytes == audioBytes)&&(identical(other.audioDurationMs, audioDurationMs) || other.audioDurationMs == audioDurationMs)&&(identical(other.quip, quip) || other.quip == quip)&&(identical(other.pkBooster, pkBooster) || other.pkBooster == pkBooster));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Gift&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.badge, badge) || other.badge == badge)&&const DeepCollectionEquality().equals(other.badges, _badges)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.animationUrl, animationUrl) || other.animationUrl == animationUrl)&&(identical(other.animationBytes, animationBytes) || other.animationBytes == animationBytes)&&(identical(other.animationFormat, animationFormat) || other.animationFormat == animationFormat)&&(identical(other.animationAlpha, animationAlpha) || other.animationAlpha == animationAlpha)&&(identical(other.audioUrl, audioUrl) || other.audioUrl == audioUrl)&&(identical(other.audioBytes, audioBytes) || other.audioBytes == audioBytes)&&(identical(other.audioDurationMs, audioDurationMs) || other.audioDurationMs == audioDurationMs)&&(identical(other.quip, quip) || other.quip == quip)&&(identical(other.pkBooster, pkBooster) || other.pkBooster == pkBooster));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hashAll([runtimeType,code,category,name,priceCoins,assetKey,animationKey,sortOrder,badge,tag,imageUrl,animationUrl,animationBytes,animationFormat,animationAlpha,audioUrl,audioBytes,audioDurationMs,quip,pkBooster]);
+    return Object.hashAll([runtimeType,code,category,name,priceCoins,assetKey,animationKey,sortOrder,badge,const DeepCollectionEquality().hash(_badges),tag,imageUrl,animationUrl,animationBytes,animationFormat,animationAlpha,audioUrl,audioBytes,audioDurationMs,quip,pkBooster]);
 }
 
 @override
 String toString() {
-    return 'Gift(code: $code, category: $category, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, animationKey: $animationKey, sortOrder: $sortOrder, badge: $badge, tag: $tag, imageUrl: $imageUrl, animationUrl: $animationUrl, animationBytes: $animationBytes, animationFormat: $animationFormat, animationAlpha: $animationAlpha, audioUrl: $audioUrl, audioBytes: $audioBytes, audioDurationMs: $audioDurationMs, quip: $quip, pkBooster: $pkBooster)';
+    return 'Gift(code: $code, category: $category, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, animationKey: $animationKey, sortOrder: $sortOrder, badge: $badge, badges: $badges, tag: $tag, imageUrl: $imageUrl, animationUrl: $animationUrl, animationBytes: $animationBytes, animationFormat: $animationFormat, animationAlpha: $animationAlpha, audioUrl: $audioUrl, audioBytes: $audioBytes, audioDurationMs: $audioDurationMs, quip: $quip, pkBooster: $pkBooster)';
 }
 
 
@@ -1165,7 +1179,7 @@ abstract mixin class _$GiftCopyWith<$Res> implements $GiftCopyWith<$Res> {
   factory _$GiftCopyWith(_Gift value, $Res Function(_Gift) _then) = __$GiftCopyWithImpl;
 @override @useResult
 $Res call({
- String code, String category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes,@JsonKey(unknownEnumValue: GiftAnimationFormat.unknown) GiftAnimationFormat? animationFormat,@JsonKey(unknownEnumValue: GiftVideoAlpha.none) GiftVideoAlpha? animationAlpha, String? audioUrl, int? audioBytes, int? audioDurationMs, GiftQuip? quip,@JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson) PkBoosterKind? pkBooster
+ String code, String category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge,@JsonKey(fromJson: itemBadgesFromJson, toJson: itemBadgesToJson) List<ItemBadge> badges, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes,@JsonKey(unknownEnumValue: GiftAnimationFormat.unknown) GiftAnimationFormat? animationFormat,@JsonKey(unknownEnumValue: GiftVideoAlpha.none) GiftVideoAlpha? animationAlpha, String? audioUrl, int? audioBytes, int? audioDurationMs, GiftQuip? quip,@JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson) PkBoosterKind? pkBooster
 });
 
 
@@ -1182,7 +1196,7 @@ class __$GiftCopyWithImpl<$Res>
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,Object? animationFormat = freezed,Object? animationAlpha = freezed,Object? audioUrl = freezed,Object? audioBytes = freezed,Object? audioDurationMs = freezed,Object? quip = freezed,Object? pkBooster = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? badges = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,Object? animationFormat = freezed,Object? animationAlpha = freezed,Object? audioUrl = freezed,Object? audioBytes = freezed,Object? audioDurationMs = freezed,Object? quip = freezed,Object? pkBooster = freezed,}) {
   return _then(_Gift(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -1192,7 +1206,8 @@ as int,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nu
 as String,animationKey: freezed == animationKey ? _self.animationKey : animationKey // ignore: cast_nullable_to_non_nullable
 as String?,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
 as int,badge: null == badge ? _self.badge : badge // ignore: cast_nullable_to_non_nullable
-as GiftBadge,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
+as GiftBadge,badges: null == badges ? _self._badges : badges // ignore: cast_nullable_to_non_nullable
+as List<ItemBadge>,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
 as GiftTag?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
 as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable

@@ -4643,5 +4643,19 @@
   "creatorCatComedy": "Comedy",
   "creatorCatEducation": "Education",
   "creatorCatLifestyle": "Lifestyle",
-  "creatorCatOther": "Other"
+  "creatorCatOther": "Other",
+  "itemBadgeLimited": "Limited time",
+  "itemBadgeNew": "New",
+  "itemBadgeSeasonal": "Seasonal",
+  "itemBadgeExclusive": "Exclusive",
+  "itemBadgeMostWanted": "Most wanted",
+  "itemBadgeFeatured": "Featured",
+  "itemBadgeFullscreen": "Full screen",
+  "itemBadgeSound": "With sound",
+  "itemBadgeNoSound": "No sound",
+  "itemBadgeDaysLeft": "{n, plural, =1{{n} day left} other{{n} days left}}",
+  "itemBadgeEndsToday": "Ends today",
+  "itemBadgesTitle": "Badges",
+  "giftDetailsHint": "Long press for details",
+  "giftDetailsLucky": "Lucky gift"
 }

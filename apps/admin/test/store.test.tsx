@@ -58,6 +58,8 @@ const item = (extra: Partial<AdminStoreItem> = {}): AdminStoreItem => ({
   ],
   sortOrder: 10,
   isNew: true,
+  badges: [{ code: "NEW", until: "2099-01-01T00:00:00.000Z", active: true }],
+  hiddenAt: null,
   enabled: true,
   owners: 3,
   sold: 7,

@@ -2,6 +2,7 @@ import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { addGiftIn, setGiftEnabledIn, updateGiftIn, type GiftFields } from './gift-catalogue.js';
+import { badgeSettingsOf, badgeText } from './item-badges.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -11,6 +12,12 @@ type Tx = Prisma.TransactionClient;
  * in the caller's transaction with `via` and the actor. A field problem throws `GiftFieldsError` (nothing changes).
  */
 
+/** A gift's fields for an audit row; v1.79-live (D289): the badges as text (`CODE@end`, priority order). */
+export function giftAuditFields(fields: Partial<GiftFields>): Prisma.InputJsonObject {
+  const { badges, ...plain } = fields;
+  return { ...plain, ...(badges !== undefined ? { badges: badgeText(badges) } : {}) };
+}
+
 /** Adds a gift; false when the code exists (nothing changes, no audit row). */
 export async function addGiftByAdminIn(
   tx: Tx,
@@ -18,8 +25,9 @@ export async function addGiftByAdminIn(
   fields: GiftFields,
   by: AdminVia = CLI_VIA,
   reason: string | null = null,
+  now = new Date(),
 ): Promise<boolean> {
-  const created = await addGiftIn(tx, code, fields);
+  const created = await addGiftIn(tx, code, fields, now);
   if (created) {
     await tx.auditLog.create({
       data: {
@@ -27,7 +35,7 @@ export async function addGiftByAdminIn(
         action: AuditAction.GIFT_ADD,
         targetType: 'gift',
         targetId: code,
-        metadata: { ...fields, ...(reason ? { reason } : {}), via: by.via },
+        metadata: { ...giftAuditFields(fields), ...(reason ? { reason } : {}), via: by.via },
       },
     });
   }
@@ -41,13 +49,24 @@ export async function updateGiftByAdminIn(
   fields: Partial<GiftFields>,
   by: AdminVia = CLI_VIA,
   reason: string | null = null,
+  now = new Date(),
 ): Promise<string[] | null> {
-  const result = await updateGiftIn(tx, code, fields);
+  const result = await updateGiftIn(tx, code, fields, now);
   if (!result) return null;
   const changes: Record<string, { from: string | number | null; to: string | number | null }> = {};
   for (const key of Object.keys(fields) as (keyof GiftFields)[]) {
+    if (key === 'badges') continue;
     if (result.before[key] !== result.after[key]) {
       changes[key] = { from: result.before[key], to: result.after[key] };
+    }
+  }
+  // v1.79-live (D289): the set compared as text; the legacy `badge` flag may change it too.
+  if (fields.badges !== undefined || fields.badge !== undefined) {
+    const from = badgeText(badgeSettingsOf(result.before));
+    const to = badgeText(badgeSettingsOf(result.after));
+    if (from !== to) changes.badges = { from, to };
+    if (result.before.badge !== result.after.badge) {
+      changes.badge = { from: result.before.badge, to: result.after.badge };
     }
   }
   if (Object.keys(changes).length > 0) {

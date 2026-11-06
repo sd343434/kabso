@@ -106,6 +106,7 @@ import {
 } from '../modules/gifts/gift-catalogue.js';
 import {
   addGiftByAdminIn,
+  giftAuditFields,
   setGiftEnabledByAdminIn,
   updateGiftByAdminIn,
 } from '../modules/gifts/gift-admin-rules.js';
@@ -563,7 +564,7 @@ async function quipsSeed(): Promise<void> {
             action: AuditAction.GIFT_ADD,
             targetType: 'gift',
             targetId: code,
-            metadata: { ...fields, via: 'cli', pack: 'quips' },
+            metadata: { ...giftAuditFields(fields), via: 'cli', pack: 'quips' },
           },
         });
       }
@@ -592,7 +593,7 @@ async function pkBoostersSeed(): Promise<void> {
             action: AuditAction.GIFT_ADD,
             targetType: 'gift',
             targetId: code,
-            metadata: { ...fields, via: 'cli', pack: 'pk-boosters' },
+            metadata: { ...giftAuditFields(fields), via: 'cli', pack: 'pk-boosters' },
           },
         });
       }

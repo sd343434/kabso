@@ -1,4 +1,16 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import type { z } from 'zod';
 import { byIp, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
@@ -6,6 +18,7 @@ import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.j
 import { Public } from '../auth/public.decorator.js';
 import {
   StoreAdminService,
+  type AdminStoreItemDeletedDto,
   type AdminStoreItemDto,
   type AdminStoreItemListDto,
   type AdminStoreSalesDto,
@@ -13,6 +26,7 @@ import {
 } from '../store/store-admin.service.js';
 import {
   createStoreItemBody,
+  storeOptionalReasonBody,
   storeReasonBody,
   storeSalesQuery,
   storeUploadQuery,
@@ -100,6 +114,33 @@ export class AdminStoreController {
     @CurrentAdmin() admin: AdminContext,
   ): Promise<AdminStoreItemDto> {
     return this.store.setEnabled(pathUuid(itemId), false, body.reason, viaOf(admin));
+  }
+
+  /**
+   * v1.79-live (D289b, §10.102.5) «حذف»: deleted for real when nobody bought or holds it, else hidden from the store
+   * (kept for its owners). The reason is optional; no authenticator code (not a money action).
+   */
+  @Delete('items/:itemId')
+  @HttpCode(200)
+  @RequireCapability('catalog.manage')
+  remove(
+    @Param('itemId') itemId: string,
+    @Body(new ZodValidationPipe(storeOptionalReasonBody)) body: z.output<typeof storeOptionalReasonBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ): Promise<AdminStoreItemDeletedDto> {
+    return this.store.remove(pathUuid(itemId), body.reason, viaOf(admin));
+  }
+
+  /** v1.79-live (D289b) «إرجاع للمتجر»: a hidden item back in the store. */
+  @Post('items/:itemId/restore')
+  @HttpCode(200)
+  @RequireCapability('catalog.manage')
+  restore(
+    @Param('itemId') itemId: string,
+    @Body(new ZodValidationPipe(storeOptionalReasonBody)) body: z.output<typeof storeOptionalReasonBody>,
+    @CurrentAdmin() admin: AdminContext,
+  ): Promise<AdminStoreItemDto> {
+    return this.store.restore(pathUuid(itemId), body.reason, viaOf(admin));
   }
 
   /** The latest sales (≤ `limit`, 50 by default) and the totals, of one item or all. */

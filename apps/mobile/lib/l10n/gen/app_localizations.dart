@@ -25113,6 +25113,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أخرى'**
   String get creatorCatOther;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'لفترة محدودة'**
+  String get itemBadgeLimited;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get itemBadgeNew;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'موسمي'**
+  String get itemBadgeSeasonal;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حصري'**
+  String get itemBadgeExclusive;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر طلباً'**
+  String get itemBadgeMostWanted;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مميز'**
+  String get itemBadgeFeatured;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاشة كاملة'**
+  String get itemBadgeFullscreen;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بمؤثرات صوتية'**
+  String get itemBadgeSound;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون مؤثرات صوتية'**
+  String get itemBadgeNoSound;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'{n, plural, =1{باقٍ يوم} =2{باقٍ يومان} few{باقٍ {n} أيام} many{باقٍ {n} يوماً} other{باقٍ {n} يوم}}'**
+  String itemBadgeDaysLeft(int n);
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي اليوم'**
+  String get itemBadgeEndsToday;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'الشارات'**
+  String get itemBadgesTitle;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط مطولاً لعرض التفاصيل'**
+  String get giftDetailsHint;
+
+  /// D289: gift and store badges «شارات الهدايا والمتجر» (CONVENTIONS §10.102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية حظ'**
+  String get giftDetailsLucky;
 }
 
 class _AppLocalizationsDelegate

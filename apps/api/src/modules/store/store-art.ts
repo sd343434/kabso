@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { GiftArtError, giftAnimationFile, giftVideoFile, type GiftArtFile } from '../gifts/gift-art.js';
+import { looksFullscreen } from '../gifts/item-badges.js';
 import { vipStillFile } from '../vip/vip-art.js';
 
 /**
@@ -16,6 +17,10 @@ export interface StoreArtFile extends GiftArtFile {
   /** An MP4's suggested transparency (the panel may change it); null otherwise. */
   readonly detectedAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
   readonly durationMs: number | null;
+  /** v1.79-live (D289): an animation with sound (MP4 audio track, SVGA `audios`); null for a still. */
+  readonly hasAudio: boolean | null;
+  /** v1.79-live (D289): an animation framed for the full screen (portrait ≥ 1.5 : 1); null for a still. */
+  readonly fullscreen: boolean | null;
 }
 
 function storeKey(body: Buffer, ext: string): string {
@@ -32,6 +37,7 @@ export function looksLikeMp4(body: Buffer): boolean {
 export async function storeAnimationFile(body: Buffer): Promise<StoreArtFile> {
   if (looksLikeMp4(body)) {
     const video = await giftVideoFile('store', body);
+    const width = video.detectedAlpha === 'SIDE_BY_SIDE' ? Math.round(video.width / 2) : video.width;
     return {
       key: storeKey(body, 'mp4'),
       contentType: video.contentType,
@@ -39,10 +45,12 @@ export async function storeAnimationFile(body: Buffer): Promise<StoreArtFile> {
       size: video.size,
       format: 'MP4',
       // A side-by-side video's picture is half its width.
-      width: video.detectedAlpha === 'SIDE_BY_SIDE' ? Math.round(video.width / 2) : video.width,
+      width,
       height: video.height,
       detectedAlpha: video.detectedAlpha,
       durationMs: video.durationMs,
+      hasAudio: video.hasAudio,
+      fullscreen: looksFullscreen(width, video.height),
     };
   }
   const svga = giftAnimationFile('store', body);
@@ -56,6 +64,8 @@ export async function storeAnimationFile(body: Buffer): Promise<StoreArtFile> {
     height: null,
     detectedAlpha: null,
     durationMs: null,
+    hasAudio: svga.hasAudio,
+    fullscreen: looksFullscreen(svga.width, svga.height),
   };
 }
 
@@ -73,6 +83,8 @@ export async function storeStillFile(body: Buffer): Promise<StoreArtFile> {
     height: still.height ?? null,
     detectedAlpha: null,
     durationMs: null,
+    hasAudio: null,
+    fullscreen: null,
   };
 }
 

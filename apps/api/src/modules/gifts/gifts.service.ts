@@ -14,6 +14,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { giftArtUrl } from './gift-art.js';
 import { catalogueVersion, QUIPS_CATEGORY, type GiftCategoryCode } from './gift-catalogue.js';
+import { activeItemBadges, legacyGiftBadge, type ItemBadgeDto } from './item-badges.js';
 
 /**
  * A send within this many seconds of the sender's previous send of the same gift to the same
@@ -71,7 +72,10 @@ export interface GiftDto extends GiftArtDto {
   assetKey: string;
   animationKey: string | null;
   sortOrder: number;
+  /** Deprecated v1.79-live (D289): an older app's single badge, from the running `badges`. */
   badge: GiftBadge;
+  /** v1.79-live (D289, §10.102): the badges running now, in display priority. */
+  badges: ItemBadgeDto[];
   tag: GiftTagDto | null;
   /** v1.32-live (D154): set exactly for a QUIPS gift. */
   quip: GiftQuipDto | null;
@@ -154,7 +158,13 @@ export function giftCategoryTabDto(
   };
 }
 
-export function giftDto(gift: Gift, lang: ContentLanguage, publicBaseUrl: string | undefined): GiftDto {
+export function giftDto(
+  gift: Gift,
+  lang: ContentLanguage,
+  publicBaseUrl: string | undefined,
+  now = new Date(),
+): GiftDto {
+  const badges = activeItemBadges(gift, now);
   return {
     code: gift.code,
     category: gift.category,
@@ -164,7 +174,8 @@ export function giftDto(gift: Gift, lang: ContentLanguage, publicBaseUrl: string
     animationKey: gift.animationKey,
     ...giftArtDto(gift, publicBaseUrl),
     sortOrder: gift.sortOrder,
-    badge: gift.badge,
+    badge: legacyGiftBadge(badges.map((b) => b.code)),
+    badges,
     tag: giftTagDto(gift, lang),
     quip:
       gift.soundKey === null || gift.soundMs === null
@@ -226,14 +237,15 @@ export class GiftsService {
       orderBy: [...CATALOGUE_ORDER],
     });
     const quantities = [...this.quantities];
+    const now = new Date();
     return {
-      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS, tabs),
+      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS, tabs, now),
       categories,
       tabs: tabs.map((t) => giftCategoryTabDto(t, lang, this.publicBaseUrl)),
       quantities,
       maxRecipients: LIVE_GIFT_MAX_RECIPIENTS,
       comboWindowSeconds: LIVE_GIFT_COMBO_WINDOW_SECONDS,
-      data: gifts.map((g) => giftDto(g, lang, this.publicBaseUrl)),
+      data: gifts.map((g) => giftDto(g, lang, this.publicBaseUrl, now)),
     };
   }
 

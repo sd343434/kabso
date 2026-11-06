@@ -41,7 +41,7 @@ export function withQuery(path: string, query: Query = {}): string {
 }
 
 export async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
   opts: { auth?: boolean } = {},
@@ -83,6 +83,8 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  /** v1.79-live (D289b): DELETE with an optional JSON body (the reason). */
+  del: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body ?? {}),
 };
 
 /** The file name of a `Content-Disposition: attachment; filename="…"` header, or the fallback. */
@@ -134,6 +136,10 @@ export interface GiftUpload {
   height?: number;
   durationMs?: number;
   detectedAlpha?: 'NONE' | 'SIDE_BY_SIDE';
+  /** v1.79-live (D289): the effect has sound (an MP3: true); the panel pre-selects «بمؤثرات صوتية». */
+  hasAudio?: boolean;
+  /** v1.79-live (D289): a portrait full-screen frame; the panel pre-selects «شاشة كاملة». */
+  fullscreen?: boolean;
 }
 
 /**
@@ -203,6 +209,9 @@ export interface StoreUpload {
   height: number | null;
   detectedAlpha: 'NONE' | 'SIDE_BY_SIDE' | null;
   durationMs: number | null;
+  /** v1.79-live (D289): an animation with sound / framed for the full screen (null for a still). */
+  hasAudio?: boolean | null;
+  fullscreen?: boolean | null;
 }
 
 /** D270: uploads one store item art file (a PNG / WebP still, or an SVGA / MP4 animation). */

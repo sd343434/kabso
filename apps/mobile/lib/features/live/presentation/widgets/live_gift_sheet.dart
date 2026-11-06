@@ -6,6 +6,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/ids/client_id.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -194,6 +195,11 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   /// D154: the quips tab's local mute chip.
   static const quipsMuteKey = Key('gift.quips.mute');
 
+  /// D289: a tile's badges and the gift's details (long press on a tile).
+  static Key badgesKey(String code) => Key('gift.badges.$code');
+  static const detailsKey = Key('gift.details');
+  static Key priceKey(String code) => Key('gift.price.$code');
+
   @override
   ConsumerState<KLiveGiftSheet> createState() => _KLiveGiftSheetState();
 }
@@ -251,6 +257,10 @@ abstract final class _Sheet {
   /// 112 pt tall; the panel grows by the two rows' difference so two rows
   /// still show.
   static const double edge = 5.1;
+
+  /// D289: a tile's badge pills (12 pt: under a quarter of the 70 pt
+  /// picture, far above the name and price).
+  static const double badgeHeight = 12;
   static const double refCellHeight = 91.5;
   static const double cellHeight = 112;
   static const double giftImage = 70;
@@ -1072,6 +1082,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             key: KLiveGiftSheet.cellKey(cell.gift.code, bag: isBag),
             cell: cell,
             selected: cell.gift.code == selected?.gift.code,
+            onLongPress: () => unawaited(showGiftDetails(context, cell.gift)),
             onTap: () {
               _prefetchEffect(cell.gift.code);
               setState(() {
@@ -1966,17 +1977,26 @@ class _TagChips extends StatelessWidget {
 /// edge, ≈ 6 pt corners); the art (54 pt), the name (8.5 sp, `#AFAEB1`,
 /// white when selected) and the price (coin and number, 9 sp `#878988`)
 /// centred; the badge in the top end corner.
+///
+/// D289 (§10.102.4): up to two running badges (priority order) as 12 pt
+/// pills in the top end corner, each with its name while the names fit the
+/// tile's width, else the icon alone; the row stays above the picture's
+/// middle, so the name and the price are never covered. A lucky gift's tile
+/// keeps the single mark it had (`Gift.badge`). A long press opens the
+/// gift's details with all its badges.
 class _GiftTile extends StatelessWidget {
   const new({
     required this.cell,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
     super.key,
   });
 
   final _Cell cell;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -1986,31 +2006,41 @@ class _GiftTile extends StatelessWidget {
     // Digits without separators, as in the reference (D117).
     final price = gift.priceCoins.toString();
     final bagQuantity = cell.bagQuantity;
-    final badge = switch (gift.badge) {
-      GiftBadge.isNew => (
-        l10n.liveGiftBadgeNew.toUpperCase(),
-        _Sheet.newBadge,
-        _Sheet.newText,
-      ),
-      GiftBadge.event => (
-        l10n.liveGiftBadgeEvent,
-        _Sheet.eventBadge,
-        _Sheet.white,
-      ),
-      GiftBadge.none => null,
-    };
+    final lucky = gift.category == GiftCategory.lucky;
+    // A lucky gift keeps its mark unchanged (D289).
+    final badge = !lucky
+        ? null
+        : switch (gift.badge) {
+            GiftBadge.isNew => (
+              l10n.liveGiftBadgeNew.toUpperCase(),
+              _Sheet.newBadge,
+              _Sheet.newText,
+            ),
+            GiftBadge.event => (
+              l10n.liveGiftBadgeEvent,
+              _Sheet.eventBadge,
+              _Sheet.white,
+            ),
+            GiftBadge.none => null,
+          };
+    final badges = lucky
+        ? const <ItemBadge>[]
+        : runningBadges(gift.shownBadges, DateTime.now());
     return Semantics(
       button: true,
       selected: selected,
       label: [
         l10n.giftCellSemantics(gift.name, price),
         if (badge != null) badge.$1,
+        for (final b in badges) itemBadgeLabel(l10n, b.code),
         if (bagQuantity != null)
           l10n.liveGiftBagCount(KFormat.grouped(bagQuantity)),
       ].join(', '),
+      hint: onLongPress == null ? null : l10n.giftDetailsHint,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: KMotion.of(context, KMotion.fast),
@@ -2054,6 +2084,7 @@ class _GiftTile extends StatelessWidget {
                       // A long price shrinks instead of overflowing.
                       Flexible(
                         child: FittedBox(
+                          key: KLiveGiftSheet.priceKey(gift.code),
                           fit: BoxFit.scaleDown,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -2085,6 +2116,21 @@ class _GiftTile extends StatelessWidget {
                     label: badge.$1,
                     color: badge.$2,
                     textColor: badge.$3,
+                  ),
+                ),
+              if (badges.isNotEmpty)
+                PositionedDirectional(
+                  top: 3,
+                  end: 3,
+                  // The start side keeps room for the bag count.
+                  start: bagQuantity != null ? 26 : 3,
+                  child: Align(
+                    alignment: AlignmentDirectional.topEnd,
+                    child: KItemBadgeRow(
+                      key: KLiveGiftSheet.badgesKey(gift.code),
+                      badges: badges,
+                      height: _Sheet.badgeHeight,
+                    ),
                   ),
                 ),
               if (bagQuantity != null)
@@ -2685,6 +2731,107 @@ class _QuantityOption extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D289 (§10.102.4): a gift's details from a long press on its tile — the
+/// picture, the name, the price, a lucky gift's mark and **all** its running
+/// badges with icon and name, and the days left of a timed one.
+Future<void> showGiftDetails(BuildContext context, Gift gift) =>
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _Sheet.top,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(_Sheet.radius),
+        ),
+      ),
+      builder: (_) => KGiftDetails(gift: gift),
+    );
+
+/// The body of [showGiftDetails] (public for the goldens).
+class KGiftDetails extends StatelessWidget {
+  const new({required this.gift, super.key, this.now});
+
+  final Gift gift;
+
+  /// The time the badges' ends are compared with (tests); null: now.
+  final DateTime? now;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final t = context.textStyles;
+    final at = now ?? DateTime.now();
+    final badges = runningBadges(gift.shownBadges, at);
+    final lucky = gift.category == GiftCategory.lucky;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        key: KLiveGiftSheet.detailsKey,
+        padding: const EdgeInsets.fromLTRB(
+          KSpacing.lg,
+          KSpacing.lg,
+          KSpacing.lg,
+          KSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                KGiftImage(gift.assetKey, imageUrl: gift.imageUrl, size: 72),
+                const SizedBox(width: KSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        gift.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.title.copyWith(color: _Sheet.white),
+                      ),
+                      const SizedBox(height: KSpacing.xs),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const KabsoArtIcon(KabsoArt.coin, size: 16),
+                          const SizedBox(width: KSpacing.xs),
+                          Text(
+                            KFormat.grouped(gift.priceCoins),
+                            style: t.bodyStrong.copyWith(
+                              color: _Sheet.priceText,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (lucky) ...[
+                        const SizedBox(height: KSpacing.xs),
+                        Text(
+                          l10n.giftDetailsLucky,
+                          style: t.caption.copyWith(color: _Sheet.name),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (badges.isNotEmpty) ...[
+              const SizedBox(height: KSpacing.lg),
+              Text(
+                l10n.itemBadgesTitle,
+                style: t.label.copyWith(color: _Sheet.name),
+              ),
+              const SizedBox(height: KSpacing.sm),
+              KItemBadgeList(badges: badges, now: at, mutedColor: _Sheet.name),
+            ],
+          ],
         ),
       ),
     );
