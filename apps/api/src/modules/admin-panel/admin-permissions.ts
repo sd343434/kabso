@@ -191,6 +191,17 @@ export const CAPABILITIES = {
   'creators.applications': ['OWNER', 'SUPPORT'],
   /** Approve or reject a creator application (approving activates the creator and attributes a named recruiter). */
   'creators.decide': ['OWNER', 'SUPPORT'],
+  // ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests «طلب رفع ليفيل» ---------------------------------
+  /**
+   * Make a request for a supporter recruited from another app (app «أنا» and the panel), see one's own requests and
+   * the source-app list. The staff who handle supporters: MODERATION and SUPPORT (OWNER holds every capability).
+   */
+  'levels.raise.request': ['OWNER', 'MODERATION', 'SUPPORT'],
+  /**
+   * Every request with the proposal and its reasoning; approve (≤ the proposal, ≤ 40, ≥ the current level) or reject;
+   * the source-app data and the weights. OWNER only («الإدارة العليا»).
+   */
+  'levels.raise.decide': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

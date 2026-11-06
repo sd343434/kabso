@@ -65,6 +65,9 @@ export function errorKey(err: unknown): { key: Key; vars?: Record<string, number
       return { key: 'errValidation' };
     case 'NOT_FOUND':
       return { key: 'errNotFound' };
+    // D290: a level-raise request for a source account already PENDING / APPROVED (the dialog words the details).
+    case 'LEVEL_RAISE_DUPLICATE':
+      return { key: 'lrDuplicateShort' };
     case 'RATE_LIMITED':
       return { key: 'errRateLimited' };
     case 'SERVICE_UNAVAILABLE':

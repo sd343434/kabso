@@ -76,6 +76,11 @@ class PushPayload {
     if (type is String && type.startsWith('KYC_')) return AppRoutes.agency;
     // D217: a referral's cherries taken back.
     if (type == 'REFERRAL_REWARD_REVERSED') return AppRoutes.walletCherries;
+    // D290: a level-raise request's result (the supporter: their levels).
+    if (type == 'LEVEL_RAISED') return AppRoutes.levels;
+    if (type == 'LEVEL_RAISE_APPROVED' || type == 'LEVEL_RAISE_REJECTED') {
+      return AppRoutes.staffLevelRaises;
+    }
     if (id == null || id.isEmpty) return null;
     // D273: a staff alert — the live, as staff, on its reports.
     if (type == 'LIVE_STAFF_REPORT') return AppRoutes.liveRoomStaffReports(id);

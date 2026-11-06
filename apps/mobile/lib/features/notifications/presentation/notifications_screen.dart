@@ -302,6 +302,10 @@ class NotificationRow extends StatelessWidget {
     if (item.type == NotificationType.rechargeCherryRequest) {
       return AppRoutes.rechargeCherries;
     }
+    // D290: the staff member's request decided → their requests; the
+    // supporter's level raised → the levels page.
+    if (item.type == NotificationType.levelRaised) return AppRoutes.levels;
+    if (item.type.isLevelRaise) return AppRoutes.staffLevelRaises;
     final target = item.target;
     if (target == null || item.type == NotificationType.contentRemoved) {
       return null;
@@ -337,6 +341,7 @@ class NotificationRow extends StatelessWidget {
       NotificationTargetType.liveRoom => AppRoutes.liveRoomStaffReports(
         target.id,
       ),
+      NotificationTargetType.levelRaise => AppRoutes.staffLevelRaises,
     };
   }
 
@@ -456,6 +461,17 @@ class NotificationRow extends StatelessWidget {
       // D273: the host's name only (never the reporter or the reason).
       NotificationType.liveStaffReport => l10n.notifLiveStaffReport(
         KFormat.bidiIsolate(item.target?.text ?? ''),
+      ),
+      // D290: a level-raise request's result.
+      NotificationType.levelRaiseApproved => l10n.notifLevelRaiseApproved(
+        KFormat.bidiIsolate('@${item.target?.text ?? ''}'),
+        KFormat.bidiIsolate('${item.target?.level ?? ''}'),
+      ),
+      NotificationType.levelRaiseRejected => l10n.notifLevelRaiseRejected(
+        KFormat.bidiIsolate('@${item.target?.text ?? ''}'),
+      ),
+      NotificationType.levelRaised => l10n.notifLevelRaised(
+        KFormat.bidiIsolate('${item.target?.level ?? ''}'),
       ),
       NotificationType.unknown => '',
     };

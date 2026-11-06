@@ -14855,4 +14855,171 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'Other';
+
+  @override
+  String get lrTitle => 'Level-raise requests';
+
+  @override
+  String get lrMeRow => 'Level-raise request';
+
+  @override
+  String get lrIntro =>
+      'A new supporter from another app? Send the owner a request with a video of their account there; the owner sets the right support level.';
+
+  @override
+  String get lrNew => 'New request';
+
+  @override
+  String get lrEmpty => 'You haven’t sent a request yet.';
+
+  @override
+  String get lrStatusPending => 'Pending';
+
+  @override
+  String get lrStatusApproved => 'Approved';
+
+  @override
+  String get lrStatusRejected => 'Rejected';
+
+  @override
+  String lrApprovedLevel(String level) {
+    return 'Raised to level $level';
+  }
+
+  @override
+  String lrRejectReason(String reason) {
+    return 'Reason: $reason';
+  }
+
+  @override
+  String lrSourceLine(String app, String level, String id) {
+    return '$app · level $level · ID $id';
+  }
+
+  @override
+  String get lrFormTitle => 'Level-raise request';
+
+  @override
+  String get lrUsername => 'Kabso username';
+
+  @override
+  String get lrCheck => 'Check';
+
+  @override
+  String get lrNotFound => 'No account with this username';
+
+  @override
+  String get lrStaffAccount => 'A Kabso Team account: it has no levels';
+
+  @override
+  String get lrOpenExists => 'This supporter already has a pending request';
+
+  @override
+  String lrTotalRecharge(String coins) {
+    return 'Total recharge: $coins';
+  }
+
+  @override
+  String lrFirstDaysRecharge(String days, String coins) {
+    return 'First $days days: $coins';
+  }
+
+  @override
+  String lrLevels(String support, String charm) {
+    return 'Support level $support · charm $charm';
+  }
+
+  @override
+  String lrNotEligible(String min) {
+    return 'You can send it now, but it can’t be approved before $min coins are recharged';
+  }
+
+  @override
+  String get lrEligible => 'The recharge is enough for approval';
+
+  @override
+  String get lrSourceApp => 'App';
+
+  @override
+  String get lrConfirmed => 'Confirmed';
+
+  @override
+  String get lrEstimate => 'Estimate';
+
+  @override
+  String get lrOtherName => 'App name';
+
+  @override
+  String get lrAccountId => 'ID in the app';
+
+  @override
+  String get lrSourceLevel => 'Level in the app';
+
+  @override
+  String get lrVideo => 'Account video';
+
+  @override
+  String get lrVideoHint =>
+      'Record the account page in the app showing the level and the ID (up to 90 seconds).';
+
+  @override
+  String get lrVideoPick => 'Choose the video';
+
+  @override
+  String lrVideoChosen(String seconds) {
+    return '$seconds s video';
+  }
+
+  @override
+  String lrVideoUploading(String percent) {
+    return 'Uploading… $percent%';
+  }
+
+  @override
+  String get lrNote => 'Note (optional)';
+
+  @override
+  String get lrSend => 'Send the request';
+
+  @override
+  String get lrSent => 'The request was sent to the owner';
+
+  @override
+  String get lrRequired => 'Required';
+
+  @override
+  String get lrLevelRange => 'From 1 to 999';
+
+  @override
+  String notifLevelRaiseApproved(String user, String level) {
+    return 'Level raise for $user approved: level $level';
+  }
+
+  @override
+  String notifLevelRaiseRejected(String user) {
+    return 'Level raise for $user not approved';
+  }
+
+  @override
+  String notifLevelRaised(String level) {
+    return 'Your support level was raised to level $level';
+  }
+
+  @override
+  String lrDidYouMean(String name) {
+    return 'Did you mean: $name?';
+  }
+
+  @override
+  String lrDuplicate(String status, String date, String name) {
+    return 'This account in this app already has a request ($status) since $date, sent by $name';
+  }
+
+  @override
+  String get lrDuplicateShort =>
+      'This account in this app already has a request';
+
+  @override
+  String get lrPreviouslyRejected =>
+      'A request for this account was rejected before';
 }

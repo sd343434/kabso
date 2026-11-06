@@ -105,6 +105,9 @@ export const MEDIA_KINDS = [
   // v1.69-social (D204, §10.64): a picture of a recharge order's chat or the transfer's screenshot; private like the
   // two above (consumed into `private/recharge-orders/<order>/`, shown only to the order's people and to admins).
   'RECHARGE_ORDER_IMAGE',
+  // v1.89-social (D290, §10.103): the video of a level-raise request «طلب رفع ليفيل» (a staff member records the
+  // supporter's profile in the source app); a video like a post video, attached only by the request.
+  'LEVEL_RAISE_VIDEO',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -592,6 +595,69 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     return asset;
   }
 
+  /**
+   * v1.89-social (D290, §10.103): a video sent as raw bytes by the admin panel (`POST /admin/level-raise-videos`; the
+   * panel has no presigned upload). Checked like an uploaded video of `kind` (the container: brand, length, codec,
+   * size), stored unchanged at `media/{id}/video.mp4|.mov` without a poster (the panel plays it), unattached (the
+   * request attaches it; unattached assets are swept after 24 h like any upload). 400 `MEDIA_INVALID` otherwise.
+   */
+  async storeRawVideo(userId: string, bytes: Buffer, kind: VideoKind): Promise<MediaAsset> {
+    await this.assertEnabled();
+    const limits = VIDEO_LIMITS[kind];
+    if (bytes.length === 0 || bytes.length > limits.maxBytes) throw new AppException(ErrorCode.MEDIA_INVALID);
+    const brand = bytes.length >= 12 ? bytes.toString('latin1', 4, 12) : '';
+    if (!brand.startsWith('ftyp')) throw new AppException(ErrorCode.MEDIA_INVALID);
+    const contentType: VideoContentType = brand.slice(4) === 'qt  ' ? 'video/quicktime' : 'video/mp4';
+    let info: VideoInfo;
+    try {
+      info = await inspectVideo(
+        (offset, length) => Promise.resolve(bytes.subarray(offset, Math.min(offset + length, bytes.length))),
+        bytes.length,
+        contentType,
+        kind,
+      );
+    } catch (err) {
+      if (err instanceof InvalidVideoError) {
+        this.logger.warn({ reason: err.message }, 'Raw video rejected');
+        throw new AppException(ErrorCode.MEDIA_INVALID);
+      }
+      throw err;
+    }
+    const id = uuidv7();
+    const key = `media/${id}/video.${contentType === 'video/quicktime' ? 'mov' : 'mp4'}`;
+    await this.storage.put(key, bytes, contentType, IMMUTABLE_CACHE);
+    try {
+      return await this.prisma.mediaAsset.create({
+        data: {
+          id,
+          ownerId: userId,
+          kind,
+          width: info.width,
+          height: info.height,
+          durationMs: info.durationMs,
+          blurhash: null,
+          largeKey: key,
+          thumbKey: key,
+          posterKey: null,
+          byteSize: bytes.length,
+        },
+      });
+    } catch (err) {
+      await this.storage.delete([key]).catch(() => undefined);
+      throw err;
+    }
+  }
+
+  /** v1.89-social (D290): the size and type of a stored object (the panel's video proxy), or null. */
+  headObject(key: string) {
+    return this.storage.head(key);
+  }
+
+  /** v1.89-social (D290): `length` bytes of a stored object from `offset` (the panel's video proxy), or null. */
+  readRange(key: string, offset: number, length: number): Promise<Buffer | null> {
+    return this.storage.getRange(key, offset, length);
+  }
+
   /** `GET /media/{mediaId}`: the caller's own assets only (else 404). */
   async getMedia(userId: string, mediaId: string): Promise<MediaAssetDto> {
     if (!isUuid(mediaId)) throw new AppException(ErrorCode.NOT_FOUND);
@@ -636,6 +702,8 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   private scheduleSweep(): void {
     this.sweepTimer = setTimeout(() => {
       this.sweepInFlight = this.sweep()
+        // D290: decided level-raise videos left over (a storage failure at the decision).
+        .then(() => this.purgeLevelRaiseVideos())
         .then(() => undefined)
         .catch((err: unknown) => {
           this.logger.error({ error: safeErrorLog(err) }, 'Media sweep failed');
@@ -653,6 +721,41 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
    * within 24 hours (objects then rows). Bounded batches; safe to run concurrently with requests
    * because claims lock the asset rows and only unattached rows are deleted.
    */
+  /**
+   * v1.89-social (D290, §10.103.5): deletes the videos of decided level-raise requests (`video_deleted_at` set at the
+   * decision) — the objects first, then the asset rows (the request's `video_media_id` becomes NULL; its evidence
+   * columns stay). Called right after a decision for that request and by every media sweep for any left over. Never
+   * throws: a storage failure is logged and the rows stay, so the next sweep retries (idempotent: deleting a missing
+   * object succeeds, and a deleted row is not found again). Returns the number of videos deleted.
+   */
+  async purgeLevelRaiseVideos(requestIds?: readonly string[]): Promise<number> {
+    try {
+      const rows = await this.prisma.$queryRaw<
+        { id: string; large_key: string; thumb_key: string; poster_key: string | null }[]
+      >`
+        SELECT a.id, a.large_key, a.thumb_key, a.poster_key
+          FROM level_raise_requests r JOIN media_assets a ON a.id = r.video_media_id
+         WHERE r.video_deleted_at IS NOT NULL
+           AND (${requestIds === undefined}::boolean OR r.id = ANY(${[...(requestIds ?? [])]}::uuid[]))
+         ORDER BY r.video_deleted_at
+         LIMIT ${SWEEP_BATCH}`;
+      if (rows.length === 0) return 0;
+      await this.storage.delete([
+        ...new Set(rows.flatMap((a) => [a.large_key, a.thumb_key, ...(a.poster_key ? [a.poster_key] : [])])),
+      ]);
+      const deleted = await this.prisma.mediaAsset.deleteMany({
+        where: { id: { in: rows.map((r) => r.id) } },
+      });
+      return deleted.count;
+    } catch (err) {
+      this.logger.warn(
+        { error: safeErrorLog(err) },
+        'Level-raise videos not deleted yet (retried by the sweep)',
+      );
+      return 0;
+    }
+  }
+
   async sweep(): Promise<{ slots: number; assets: number }> {
     const slots = await this.prisma.mediaUpload.findMany({
       where: { status: 'PENDING', expiresAt: { lt: new Date(Date.now() - SLOT_GRACE_MS) } },

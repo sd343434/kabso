@@ -2,6 +2,7 @@ import { LIVE_MEDIA_PROVIDER } from '../../src/modules/live/media/live-media.pro
 import { MemoryLiveMedia } from './memory-live-media.js';
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -340,7 +341,24 @@ export async function resetDatabase(): Promise<void> {
     // one statement per call (the query protocol rejects several commands in one prepared statement).
     await client.$executeRawUnsafe(SEED_VIP_TIER_SQL);
     await client.$executeRawUnsafe(SEED_VIP_PERKS_SQL);
+    // v1.89-social (D290): the level-raise weights' one row and the source apps, as their migration seeds them.
+    await client.$executeRawUnsafe(`INSERT INTO level_raise_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
+    await client.$executeRawUnsafe(seedLevelRaiseAppsSql());
   });
+}
+
+/**
+ * v1.89-social (D290): the source apps' INSERT of migration `20270324090100_level_raise`, read from the migration
+ * itself so the e2e database matches a freshly migrated one without a second copy of the data.
+ */
+export function seedLevelRaiseAppsSql(): string {
+  const sql = readFileSync(
+    new URL('../../prisma/migrations/20270324090100_level_raise/migration.sql', import.meta.url),
+    'utf8',
+  );
+  const start = sql.indexOf('INSERT INTO "level_raise_source_apps"');
+  if (start < 0) throw new Error('level_raise_source_apps seed not found in its migration');
+  return sql.slice(start, sql.indexOf(';\n', start) + 1);
 }
 
 /**

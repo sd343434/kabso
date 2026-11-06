@@ -2817,6 +2817,30 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.71 Level-raise requests «طلب رفع ليفيل» (migrations `20270324090000_level_raise_enums`, `20270324090100_level_raise`; D290) — [IMPLEMENTED, draft contract v1.89-social; not deployed, not device-tested]
+
+CONVENTIONS §10.103. The migrations add `level_raise_requests`, `level_raise_source_apps` (seeded: Zafa CONFIRMED by
+the owner, twelve ESTIMATE apps and OTHER, all FACTOR × 0.5 except Zafa), `level_raise_settings` (one row, the
+defaults), `notifications.level_raise_request_id`, three `notification_type` values and the media kind
+`LEVEL_RAISE_VIDEO` (the `media_assets` kind / duration / poster CHECKs are replaced). Runtime grants come from the
+default privileges. Deploy with the API (an older API never writes the new kind).
+
+- **No new environment variables.** The panel's video upload is a raw body of at most 100 MiB on
+  `/api/v1/admin/level-raise-videos` only: Caddy's `request_body` limit for the admin site (if one is set) must allow
+  it; the API holds the bytes in memory once per upload.
+- **Before use (PP-49):** the OWNER reviews the weights («طلبات رفع الليفيل» → «الإعدادات») and the source-app table
+  (every row but Zafa is an estimate), and the team is told who may send requests (MODERATION, SUPPORT).
+- **The video is deleted after the decision** (owner): the decision sets `level_raise_requests.video_deleted_at`; the
+  API then deletes the objects (video, poster, thumb) and the `media_assets` row at once, and the media sweep
+  (`MEDIA_SWEEP_INTERVAL_SECONDS`, default as today) retries any left over after a storage failure — never set it to 0
+  in production. The evidence stays (asset id, length, size, display size; the audit rows `level.raise.approve` /
+  `.reject` carry `video.deletedAt`). Leftovers: `SELECT count(*) FROM level_raise_requests WHERE video_deleted_at IS NOT
+  NULL AND video_media_id IS NOT NULL;` should be 0 after a sweep.
+- **Duplicates:** the unique partial index `level_raise_requests_source_once` (one PENDING / APPROVED request per source
+  app + account ID) is created by the same migration (empty table: no backfill).
+- **Checks after deploy:** `SELECT code, mode, confidence, aliases FROM level_raise_source_apps ORDER BY sort;` (14 rows) and
+  `SELECT * FROM level_raise_settings;` (one row: 1000000, 7, 1000000, 20, 15, 40, 1, 2, 1, 2, 30).
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

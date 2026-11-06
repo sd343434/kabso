@@ -96,9 +96,12 @@ abstract interface class MediaRepository {
   /// (`POST_VIDEO`) or, with [reel], a reel's (`REEL_VIDEO`). The poster
   /// goes first (`VIDEO_POSTER`), then the file is streamed to its slot and
   /// completed with `{posterId}`; [onProgress] gets 0–1 of the file.
+  /// v1.89-social (D290): [kind] overrides the kind (`LEVEL_RAISE_VIDEO`, a
+  /// level-raise request's video, limited like a post video).
   Future<MediaAsset> uploadVideo(
     PickedVideo video, {
     required bool reel,
+    String? kind,
     void Function(double progress)? onProgress,
   });
 }
@@ -183,6 +186,7 @@ class MediaRepositoryImpl implements MediaRepository {
   Future<MediaAsset> uploadVideo(
     PickedVideo video, {
     required bool reel,
+    String? kind,
     void Function(double progress)? onProgress,
   }) async {
     final poster = await _upload(
@@ -194,7 +198,7 @@ class MediaRepositoryImpl implements MediaRepository {
       final slot = (await _api.post<Map<String, dynamic>>(
         '/media/uploads',
         data: {
-          'kind': reel ? 'REEL_VIDEO' : 'POST_VIDEO',
+          'kind': kind ?? (reel ? 'REEL_VIDEO' : 'POST_VIDEO'),
           'contentType': video.contentType,
           'byteSize': video.byteSize,
         },

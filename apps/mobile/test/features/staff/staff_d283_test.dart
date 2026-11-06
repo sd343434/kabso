@@ -376,11 +376,22 @@ void main() {
     expect(find.byKey(MeHubScreen.kabsoTeamKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffAnnouncementKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffAnnouncementReelKey), findsOneWidget);
+    // D290: the moderator's «طلب رفع ليفيل» row pushes Settings below the
+    // phone's fold (the list builds what is visible).
+    await tester.scrollUntilVisible(
+      find.byKey(MeHubScreen.staffSettingsKey),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.byKey(MeHubScreen.staffSettingsKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.cardsKey), findsNothing);
     for (final item in MeHubItem.values) {
       expect(find.byKey(item.key), findsNothing, reason: item.name);
     }
+    await tester.ensureVisible(
+      find.byKey(MeHubScreen.staffAnnouncementReelKey),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(MeHubScreen.staffAnnouncementReelKey));
     await tester.pumpAndSettle();
     expect(find.text('page ${AppRoutes.newReel}'), findsOneWidget);

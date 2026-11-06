@@ -70,6 +70,11 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'myRecruits', pattern: '/my-recruits' },
   { name: 'recruits', pattern: '/recruits' },
   { name: 'creatorApplications', pattern: '/creator-applications' },
+  // v1.89-social (D290): «طلب رفع ليفيل».
+  { name: 'levelRaises', pattern: '/level-raises' },
+  { name: 'levelRaise', pattern: '/level-raises/:id' },
+  { name: 'levelRaiseApps', pattern: '/level-raise/apps' },
+  { name: 'levelRaiseSettings', pattern: '/level-raise/settings' },
 ];
 
 export function matchPath(path: string): Match | null {

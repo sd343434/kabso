@@ -56,6 +56,7 @@ import { HomeModule } from './modules/home/home.module.js';
 import { HostApplicationsModule } from './modules/host-applications/host-applications.module.js';
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
 import { RecruitsModule } from './modules/recruits/recruits.controller.js';
+import { LevelRaiseModule } from './modules/level-raise/level-raise.controller.js';
 import { PkDaresAdminModule } from './modules/live/pk-dares/pk-dares-admin.module.js';
 import { ProgramsAdminModule } from './modules/programs/admin-host-targets.controller.js';
 import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
@@ -134,6 +135,8 @@ export class AppModule {
         // v1.74-social (D217): «دعوة الأصدقاء».
         ReferralsModule,
         RecruitsModule,
+        // v1.89-social (D290, §10.103): level-raise requests «طلب رفع ليفيل».
+        LevelRaiseModule,
         // v1.50-live (D229): «أحكام PK».
         PkDaresAdminModule,
         // v1.71-live (D281): «الأهداف الذكية» (OWNER only).

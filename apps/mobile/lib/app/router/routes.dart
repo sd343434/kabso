@@ -48,6 +48,11 @@ abstract final class AppRoutes {
   static const staffRecruits = '/me/staff/recruits';
   static const staffEarnings = '/me/staff/earnings';
 
+  /// v1.89-social (D290): «طلبات رفع الليفيل» and «طلب جديد» in the staff Me
+  /// tab (MODERATION / SUPPORT).
+  static const staffLevelRaises = '/me/staff/level-raises';
+  static const staffLevelRaiseNew = '/me/staff/level-raises/new';
+
   /// v1.75-live (D285): «انضم كصانع محتوى» (from the creator centre).
   static const creatorApply = '/creator/apply';
 

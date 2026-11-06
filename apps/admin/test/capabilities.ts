@@ -85,4 +85,7 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'recruits.manage': ['OWNER'],
   'creators.applications': ['OWNER', 'SUPPORT'],
   'creators.decide': ['OWNER', 'SUPPORT'],
+  // D290.
+  'levels.raise.request': ['OWNER', 'MODERATION', 'SUPPORT'],
+  'levels.raise.decide': ['OWNER'],
 };

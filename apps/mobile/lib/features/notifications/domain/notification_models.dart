@@ -114,6 +114,14 @@ enum NotificationType {
   /// staff member looks after — opens the live as «فريق كابسو» on its
   /// reports.
   liveStaffReport('LIVE_STAFF_REPORT'),
+
+  /// v1.89-social (D290, system; target LEVEL_RAISE): the owner approved /
+  /// rejected the staff member's level-raise request (`text` the supporter's
+  /// username, `level` the approved level) — opens «طلبات رفع الليفيل»; the
+  /// supporter's own support level was raised (`level`) — opens the levels.
+  levelRaiseApproved('LEVEL_RAISE_APPROVED'),
+  levelRaiseRejected('LEVEL_RAISE_REJECTED'),
+  levelRaised('LEVEL_RAISED'),
   unknown('');
 
   new(this.wire);
@@ -141,7 +149,14 @@ enum NotificationType {
       isKyc ||
       this == liveModerated ||
       this == liveStaffReport ||
+      isLevelRaise ||
       this == referralRewardReversed;
+
+  /// v1.89-social (D290): a level-raise request's result.
+  bool get isLevelRaise =>
+      this == levelRaiseApproved ||
+      this == levelRaiseRejected ||
+      this == levelRaised;
 
   /// v1.80-kyc (D227): the identity check's result.
   bool get isKyc =>
@@ -194,7 +209,11 @@ enum NotificationTargetType {
   liveModeration('LIVE_MODERATION'),
 
   /// v1.68-live (D273): a live (its id; `text` the host's name).
-  liveRoom('LIVE_ROOM');
+  liveRoom('LIVE_ROOM'),
+
+  /// v1.89-social (D290): a level-raise request (its id; `text` the
+  /// supporter's username for the staff member; `level` the approved level).
+  levelRaise('LEVEL_RAISE');
 
   new(this.wire);
 
@@ -226,6 +245,7 @@ class NotificationTarget {
     this.moderation,
     this.reason,
     this.permanent = false,
+    this.level,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -250,7 +270,12 @@ class NotificationTarget {
     moderation: json['moderation'] as String?,
     reason: json['reason'] as String?,
     permanent: json['permanent'] as bool? ?? false,
+    level: (json['level'] as num?)?.toInt(),
   );
+
+  /// v1.89-social (D290) [NotificationTargetType.levelRaise]: the support
+  /// level approved.
+  final int? level;
 
   final NotificationTargetType type;
 

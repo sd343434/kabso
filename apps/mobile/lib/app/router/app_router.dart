@@ -54,6 +54,7 @@ import 'package:kabso_live/features/follows/presentation/follow_lists_screen.dar
 import 'package:kabso_live/features/follows/presentation/follow_requests_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
+import 'package:kabso_live/features/level_raise/presentation/level_raise_screens.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_detail_screen.dart';
 import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
@@ -538,6 +539,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.staffEarnings,
         builder: (_, _) => const StaffEarningsScreen(),
+      ),
+      // v1.89-social (D290): «طلب رفع ليفيل».
+      GoRoute(
+        path: AppRoutes.staffLevelRaises,
+        builder: (_, _) => const StaffLevelRaisesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.staffLevelRaiseNew,
+        builder: (_, _) => const LevelRaiseFormScreen(),
       ),
       GoRoute(
         path: AppRoutes.creatorApply,

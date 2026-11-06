@@ -25113,6 +25113,276 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أخرى'**
   String get creatorCatOther;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات رفع الليفيل'**
+  String get lrTitle;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب رفع ليفيل'**
+  String get lrMeRow;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'داعم جديد من تطبيق آخر؟ أرسل طلباً للإدارة مع فيديو لحسابه هناك، وتقترح الإدارة ليفيل الدعم المناسب.'**
+  String get lrIntro;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب جديد'**
+  String get lrNew;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم ترسل أي طلب بعد.'**
+  String get lrEmpty;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد المراجعة'**
+  String get lrStatusPending;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة'**
+  String get lrStatusApproved;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'مرفوض'**
+  String get lrStatusRejected;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفع إلى المستوى {level}'**
+  String lrApprovedLevel(String level);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب: {reason}'**
+  String lrRejectReason(String reason);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'{app} · المستوى {level} · ID {id}'**
+  String lrSourceLine(String app, String level, String id);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب رفع ليفيل'**
+  String get lrFormTitle;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم في Kabso'**
+  String get lrUsername;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق'**
+  String get lrCheck;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد حساب بهذا الاسم'**
+  String get lrNotFound;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب في فريق كابسو: لا ليفيلات له'**
+  String get lrStaffAccount;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'لدى هذا الداعم طلب قيد المراجعة'**
+  String get lrOpenExists;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي الشحن: {coins}'**
+  String lrTotalRecharge(String coins);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن أول {days} أيام: {coins}'**
+  String lrFirstDaysRecharge(String days, String coins);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'ليفيل الدعم {support} · الجاذبية {charm}'**
+  String lrLevels(String support, String charm);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك الإرسال الآن، لكن لا تتم الموافقة قبل شحن {min} عملة'**
+  String lrNotEligible(String min);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'الشحن كافٍ للموافقة'**
+  String get lrEligible;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'التطبيق'**
+  String get lrSourceApp;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤكد'**
+  String get lrConfirmed;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدير'**
+  String get lrEstimate;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم التطبيق'**
+  String get lrOtherName;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'الآيدي في التطبيق'**
+  String get lrAccountId;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى في التطبيق'**
+  String get lrSourceLevel;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو الحساب'**
+  String get lrVideo;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل فيديو لصفحة الحساب في التطبيق يظهر فيه المستوى والآيدي (حتى 90 ثانية).'**
+  String get lrVideoHint;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الفيديو'**
+  String get lrVideoPick;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو {seconds} ث'**
+  String lrVideoChosen(String seconds);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ الرفع… {percent}%'**
+  String lrVideoUploading(String percent);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة (اختياري)'**
+  String get lrNote;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الطلب'**
+  String get lrSend;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسل الطلب إلى الإدارة'**
+  String get lrSent;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'مطلوب'**
+  String get lrRequired;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'من 1 إلى 999'**
+  String get lrLevelRange;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة على طلب رفع ليفيل {user} إلى المستوى {level}'**
+  String notifLevelRaiseApproved(String user, String level);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتم الموافقة على طلب رفع ليفيل {user}'**
+  String notifLevelRaiseRejected(String user);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفع ليفيل الدعم الخاص بك إلى المستوى {level}'**
+  String notifLevelRaised(String level);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تقصد: {name}؟'**
+  String lrDidYouMean(String name);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'يوجد طلب لنفس الحساب في نفس التطبيق ({status}) منذ {date}، أرسله {name}'**
+  String lrDuplicate(String status, String date, String name);
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'يوجد طلب لنفس الحساب في نفس التطبيق'**
+  String get lrDuplicateShort;
+
+  /// D290: level-raise requests «طلب رفع ليفيل».
+  ///
+  /// In ar, this message translates to:
+  /// **'سبق رفض طلب بنفس الحساب'**
+  String get lrPreviouslyRejected;
 }
 
 class _AppLocalizationsDelegate

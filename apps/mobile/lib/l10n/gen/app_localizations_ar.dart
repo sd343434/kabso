@@ -14852,4 +14852,169 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'أخرى';
+
+  @override
+  String get lrTitle => 'طلبات رفع الليفيل';
+
+  @override
+  String get lrMeRow => 'طلب رفع ليفيل';
+
+  @override
+  String get lrIntro =>
+      'داعم جديد من تطبيق آخر؟ أرسل طلباً للإدارة مع فيديو لحسابه هناك، وتقترح الإدارة ليفيل الدعم المناسب.';
+
+  @override
+  String get lrNew => 'طلب جديد';
+
+  @override
+  String get lrEmpty => 'لم ترسل أي طلب بعد.';
+
+  @override
+  String get lrStatusPending => 'قيد المراجعة';
+
+  @override
+  String get lrStatusApproved => 'تمت الموافقة';
+
+  @override
+  String get lrStatusRejected => 'مرفوض';
+
+  @override
+  String lrApprovedLevel(String level) {
+    return 'رُفع إلى المستوى $level';
+  }
+
+  @override
+  String lrRejectReason(String reason) {
+    return 'السبب: $reason';
+  }
+
+  @override
+  String lrSourceLine(String app, String level, String id) {
+    return '$app · المستوى $level · ID $id';
+  }
+
+  @override
+  String get lrFormTitle => 'طلب رفع ليفيل';
+
+  @override
+  String get lrUsername => 'اسم المستخدم في Kabso';
+
+  @override
+  String get lrCheck => 'تحقّق';
+
+  @override
+  String get lrNotFound => 'لا يوجد حساب بهذا الاسم';
+
+  @override
+  String get lrStaffAccount => 'حساب في فريق كابسو: لا ليفيلات له';
+
+  @override
+  String get lrOpenExists => 'لدى هذا الداعم طلب قيد المراجعة';
+
+  @override
+  String lrTotalRecharge(String coins) {
+    return 'إجمالي الشحن: $coins';
+  }
+
+  @override
+  String lrFirstDaysRecharge(String days, String coins) {
+    return 'شحن أول $days أيام: $coins';
+  }
+
+  @override
+  String lrLevels(String support, String charm) {
+    return 'ليفيل الدعم $support · الجاذبية $charm';
+  }
+
+  @override
+  String lrNotEligible(String min) {
+    return 'يمكنك الإرسال الآن، لكن لا تتم الموافقة قبل شحن $min عملة';
+  }
+
+  @override
+  String get lrEligible => 'الشحن كافٍ للموافقة';
+
+  @override
+  String get lrSourceApp => 'التطبيق';
+
+  @override
+  String get lrConfirmed => 'مؤكد';
+
+  @override
+  String get lrEstimate => 'تقدير';
+
+  @override
+  String get lrOtherName => 'اسم التطبيق';
+
+  @override
+  String get lrAccountId => 'الآيدي في التطبيق';
+
+  @override
+  String get lrSourceLevel => 'المستوى في التطبيق';
+
+  @override
+  String get lrVideo => 'فيديو الحساب';
+
+  @override
+  String get lrVideoHint =>
+      'سجّل فيديو لصفحة الحساب في التطبيق يظهر فيه المستوى والآيدي (حتى 90 ثانية).';
+
+  @override
+  String get lrVideoPick => 'اختر الفيديو';
+
+  @override
+  String lrVideoChosen(String seconds) {
+    return 'فيديو $seconds ث';
+  }
+
+  @override
+  String lrVideoUploading(String percent) {
+    return 'جارٍ الرفع… $percent%';
+  }
+
+  @override
+  String get lrNote => 'ملاحظة (اختياري)';
+
+  @override
+  String get lrSend => 'إرسال الطلب';
+
+  @override
+  String get lrSent => 'أُرسل الطلب إلى الإدارة';
+
+  @override
+  String get lrRequired => 'مطلوب';
+
+  @override
+  String get lrLevelRange => 'من 1 إلى 999';
+
+  @override
+  String notifLevelRaiseApproved(String user, String level) {
+    return 'تمت الموافقة على طلب رفع ليفيل $user إلى المستوى $level';
+  }
+
+  @override
+  String notifLevelRaiseRejected(String user) {
+    return 'لم تتم الموافقة على طلب رفع ليفيل $user';
+  }
+
+  @override
+  String notifLevelRaised(String level) {
+    return 'تم رفع ليفيل الدعم الخاص بك إلى المستوى $level';
+  }
+
+  @override
+  String lrDidYouMean(String name) {
+    return 'هل تقصد: $name؟';
+  }
+
+  @override
+  String lrDuplicate(String status, String date, String name) {
+    return 'يوجد طلب لنفس الحساب في نفس التطبيق ($status) منذ $date، أرسله $name';
+  }
+
+  @override
+  String get lrDuplicateShort => 'يوجد طلب لنفس الحساب في نفس التطبيق';
+
+  @override
+  String get lrPreviouslyRejected => 'سبق رفض طلب بنفس الحساب';
 }

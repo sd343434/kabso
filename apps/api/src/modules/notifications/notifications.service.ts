@@ -32,7 +32,8 @@ export interface NotificationTargetDto {
     | 'ACCOUNT_RESTRICTION'
     | 'BALANCE_ADJUSTMENT'
     | 'LIVE_MODERATION'
-    | 'LIVE_ROOM';
+    | 'LIVE_ROOM'
+    | 'LEVEL_RAISE';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -66,6 +67,11 @@ export interface NotificationTargetDto {
   roomId?: string;
   /** v1.68-live (D273) LIVE_ROOM only (LIVE_STAFF_REPORT): the live is still on air (`text` is the host's name). */
   live?: boolean;
+  /**
+   * v1.89-social (D290) LEVEL_RAISE only: the support level approved (APPROVED / LEVEL_RAISED; absent on a rejection);
+   * `text` is the supporter's username (to the staff member) or null (to the supporter).
+   */
+  level?: number;
 }
 
 /** `Notification`. */
@@ -199,6 +205,11 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'LIVE_MODERATED', liveModerationId: { not: null } },
       // v1.68-live (D273): a report on a live the caller looks after as «فريق كابسو» (system; the live is the target).
       { type: 'LIVE_STAFF_REPORT', liveRoomId: { not: null } },
+      // v1.89-social (D290): a level-raise request decided (to its staff member) or the supporter's raised level.
+      {
+        type: { in: ['LEVEL_RAISE_APPROVED', 'LEVEL_RAISE_REJECTED', 'LEVEL_RAISED'] },
+        levelRaiseRequestId: { not: null },
+      },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -248,6 +259,13 @@ function include(me: string) {
         id: true,
         status: true,
         host: { select: { profile: { select: { displayName: true, avatarUrl: true } } } },
+      },
+    },
+    levelRaiseRequest: {
+      select: {
+        id: true,
+        approvedLevel: true,
+        supporter: { select: { profile: { select: { username: true } } } },
       },
     },
   } satisfies Prisma.NotificationInclude;
@@ -433,6 +451,20 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         text: excerpt(row.accountRestriction.reason),
         restriction: row.accountRestriction.kind,
         endsAt: row.accountRestriction.endsAt.toISOString(),
+      };
+    }
+    // v1.89-social (D290): a level-raise request — the level approved; the supporter's username for the staff member.
+    if (row.levelRaiseRequestId !== null && row.levelRaiseRequest) {
+      const r = row.levelRaiseRequest;
+      return {
+        type: 'LEVEL_RAISE',
+        id: r.id,
+        postId: null,
+        thumbUrl: null,
+        text: row.type === 'LEVEL_RAISED' ? null : (r.supporter.profile?.username ?? null),
+        ...(r.approvedLevel !== null && row.type !== 'LEVEL_RAISE_REJECTED'
+          ? { level: r.approvedLevel }
+          : {}),
       };
     }
     // v1.68-live (D273): the live a staff member is alerted about — the host's name and picture only.

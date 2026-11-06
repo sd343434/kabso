@@ -376,6 +376,11 @@ enum ErrorCode {
   /// v1.60-social (D191; app since D273, 409): a panel rule refused it.
   adminActionRefused('ADMIN_ACTION_REFUSED'),
 
+  /// v1.89-social (D290, 409): a level-raise request for a source account
+  /// that already has one PENDING / APPROVED (`details`: `status`,
+  /// `createdAt`, `requestedBy`).
+  levelRaiseDuplicate('LEVEL_RAISE_DUPLICATE'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

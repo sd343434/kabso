@@ -21,6 +21,8 @@ export interface NotificationText {
   readonly probationDays?: number | null;
   /** v1.68-live (D273): LIVE_MODERATED — what the team did (WARN reads as a warning). */
   readonly moderation?: string | null;
+  /** v1.89-social (D290): LEVEL_RAISE targets — the support level approved. */
+  readonly level?: number | null;
 }
 
 export type PushLocale = 'ar' | 'en';
@@ -203,6 +205,25 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       const host = n.targetText ? clip(n.targetText, 40) : null;
       if (ar) return host ? `بلاغ جديد على بث ${host}` : 'بلاغ جديد على بث';
       return host ? `New report on ${host}'s live` : 'New report on a live';
+    }
+    // v1.89-social (D290, §10.103): a level-raise request's result (the reason of a rejection is in the app).
+    case 'LEVEL_RAISE_APPROVED': {
+      const who = n.targetText ? `@${clip(n.targetText, 40)}` : null;
+      const lv = n.level ?? null;
+      if (ar)
+        return `تمت الموافقة على طلب رفع ليفيل${who ? ` ${who}` : ''}${lv !== null ? ` إلى المستوى ${lv}` : ''}`;
+      return `Level raise approved${who ? ` for ${who}` : ''}${lv !== null ? ` to level ${lv}` : ''}`;
+    }
+    case 'LEVEL_RAISE_REJECTED': {
+      const who = n.targetText ? `@${clip(n.targetText, 40)}` : null;
+      if (ar) return `لم تتم الموافقة على طلب رفع ليفيل${who ? ` ${who}` : ''}. افتح الطلب لمعرفة السبب`;
+      return `Level raise not approved${who ? ` for ${who}` : ''}. Open the request to see why`;
+    }
+    case 'LEVEL_RAISED': {
+      const lv = n.level ?? null;
+      if (ar)
+        return lv !== null ? `تم رفع ليفيل الدعم الخاص بك إلى المستوى ${lv}` : 'تم رفع ليفيل الدعم الخاص بك';
+      return lv !== null ? `Your support level was raised to level ${lv}` : 'Your support level was raised';
     }
     default:
       return null;

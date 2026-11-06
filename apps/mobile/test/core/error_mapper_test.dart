@@ -144,6 +144,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.adminTotpInvalid: 403,
   ErrorCode.adminLocked: 429,
   ErrorCode.adminActionRefused: 409,
+  ErrorCode.levelRaiseDuplicate: 409,
 };
 
 DioException _badResponse(
@@ -316,6 +317,8 @@ void main() {
           'ADMIN_TOTP_INVALID',
           'ADMIN_LOCKED',
           'ADMIN_ACTION_REFUSED',
+          // v1.89-social (D290): a level-raise request's source account taken.
+          'LEVEL_RAISE_DUPLICATE',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

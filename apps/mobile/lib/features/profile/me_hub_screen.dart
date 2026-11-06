@@ -142,6 +142,9 @@ class MeHubScreen extends ConsumerWidget {
   /// v1.75-live (D285): «استقطاباتي» and «أرباحي» (MODERATION / BD).
   static const staffRecruitsKey = Key('meHub.staff.recruits');
   static const staffEarningsKey = Key('meHub.staff.earnings');
+
+  /// v1.89-social (D290): «طلب رفع ليفيل» (MODERATION / SUPPORT).
+  static const staffLevelRaiseKey = Key('meHub.staff.levelRaise');
   static const soonKey = Key('meHub.soon');
 
   /// D283c: the official staff ID «ID: Kabso01» under the name.
@@ -266,6 +269,19 @@ class MeHubScreen extends ConsumerWidget {
                   hue: _Hues.gold,
                   title: l10n.staffMyEarnings,
                   onTap: () => push(AppRoutes.staffEarnings),
+                ),
+              ],
+            // v1.89-social (D290): level-raise requests for supporters
+            // recruited from other apps.
+            if (staff.role == StaffLineRole.moderation ||
+                staff.role == StaffLineRole.support)
+              [
+                _HubRow(
+                  rowKey: staffLevelRaiseKey,
+                  icon: Icons.trending_up_rounded,
+                  hue: _Hues.orange,
+                  title: l10n.lrMeRow,
+                  onTap: () => push(AppRoutes.staffLevelRaises),
                 ),
               ],
             [

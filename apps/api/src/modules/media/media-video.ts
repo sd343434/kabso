@@ -10,7 +10,8 @@
 export const VIDEO_CONTENT_TYPES = ['video/mp4', 'video/quicktime'] as const;
 export type VideoContentType = (typeof VIDEO_CONTENT_TYPES)[number];
 
-export type VideoKind = 'POST_VIDEO' | 'REEL_VIDEO';
+/** v1.89-social (D290, §10.103): `LEVEL_RAISE_VIDEO` — the source-app profile video of a level-raise request. */
+export type VideoKind = 'POST_VIDEO' | 'REEL_VIDEO' | 'LEVEL_RAISE_VIDEO';
 
 /**
  * Server-enforced limits per kind (owner D162: reels 100 MiB / 60 s, post videos 200 MiB; owner D168:
@@ -19,6 +20,8 @@ export type VideoKind = 'POST_VIDEO' | 'REEL_VIDEO';
 export const VIDEO_LIMITS: Readonly<Record<VideoKind, { maxBytes: number; maxDurationMs: number }>> = {
   POST_VIDEO: { maxBytes: 200 * 1024 * 1024, maxDurationMs: 90_000 },
   REEL_VIDEO: { maxBytes: 100 * 1024 * 1024, maxDurationMs: 60_000 },
+  // v1.89-social (D290): like a post video (a recording of the source app's profile: level and ID on screen).
+  LEVEL_RAISE_VIDEO: { maxBytes: 200 * 1024 * 1024, maxDurationMs: 90_000 },
 };
 /** The largest upload of any kind (`CreateMediaUploadRequest.byteSize` maximum). */
 export const MAX_VIDEO_BYTES = VIDEO_LIMITS.POST_VIDEO.maxBytes;
@@ -37,7 +40,7 @@ const MAX_TOP_LEVEL_BOXES = 64;
 export class InvalidVideoError extends Error {}
 
 export function isVideoKind(kind: string): kind is VideoKind {
-  return kind === 'POST_VIDEO' || kind === 'REEL_VIDEO';
+  return kind === 'POST_VIDEO' || kind === 'REEL_VIDEO' || kind === 'LEVEL_RAISE_VIDEO';
 }
 
 /** Reads `length` bytes at `offset` of the stored object (fewer at its end; null when missing). */
