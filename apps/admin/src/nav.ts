@@ -89,6 +89,16 @@ export const NAV: NavGroup[] = [
       { to: '/creator-applications', key: 'navCreatorApplications', icon: 'inbox', cap: 'creators.applications', match: ['creatorApplications'] },
     ],
   },
+  {
+    // v1.89-social (D290): «طلب رفع ليفيل» — the requests (MODERATION, SUPPORT: their own; OWNER: all), the source-app
+    // data and the weights (OWNER).
+    key: 'navGroupLevelRaise',
+    items: [
+      { to: '/level-raises', key: 'navLevelRaises', icon: 'arrowUp', cap: 'levels.raise.request', match: ['levelRaises', 'levelRaise'] },
+      { to: '/level-raise/apps', key: 'navLevelRaiseApps', icon: 'list', cap: 'levels.raise.decide', match: ['levelRaiseApps'] },
+      { to: '/level-raise/settings', key: 'navLevelRaiseSettings', icon: 'money', cap: 'levels.raise.decide', match: ['levelRaiseSettings'] },
+    ],
+  },
   { key: 'navGroupContent', items: [{ to: '/reports', key: 'navReports', icon: 'flag', cap: 'reports.view', match: ['reports'] }] },
   {
     key: 'navGroupPrograms',

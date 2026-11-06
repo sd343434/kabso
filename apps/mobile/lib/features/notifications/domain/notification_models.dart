@@ -118,6 +118,14 @@ enum NotificationType {
   /// v1.78-live (D288, system; target REPORT): a new report in the shared
   /// queue — every moderator and support member; opens «بلاغات» on it.
   staffReportNew('STAFF_REPORT_NEW'),
+
+  /// v1.89-social (D290, system; target LEVEL_RAISE): the owner approved /
+  /// rejected the staff member's level-raise request (`text` the supporter's
+  /// username, `level` the approved level) — opens «طلبات رفع الليفيل»; the
+  /// supporter's own support level was raised (`level`) — opens the levels.
+  levelRaiseApproved('LEVEL_RAISE_APPROVED'),
+  levelRaiseRejected('LEVEL_RAISE_REJECTED'),
+  levelRaised('LEVEL_RAISED'),
   unknown('');
 
   new(this.wire);
@@ -146,7 +154,14 @@ enum NotificationType {
       this == liveModerated ||
       this == liveStaffReport ||
       this == staffReportNew ||
+      isLevelRaise ||
       this == referralRewardReversed;
+
+  /// v1.89-social (D290): a level-raise request's result.
+  bool get isLevelRaise =>
+      this == levelRaiseApproved ||
+      this == levelRaiseRejected ||
+      this == levelRaised;
 
   /// v1.80-kyc (D227): the identity check's result.
   bool get isKyc =>
@@ -202,7 +217,11 @@ enum NotificationTargetType {
   liveRoom('LIVE_ROOM'),
 
   /// v1.78-live (D288): a report of the shared queue (its id; no text).
-  report('REPORT');
+  report('REPORT'),
+
+  /// v1.89-social (D290): a level-raise request (its id; `text` the
+  /// supporter's username for the staff member; `level` the approved level).
+  levelRaise('LEVEL_RAISE');
 
   new(this.wire);
 
@@ -234,6 +253,7 @@ class NotificationTarget {
     this.moderation,
     this.reason,
     this.permanent = false,
+    this.level,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -258,7 +278,12 @@ class NotificationTarget {
     moderation: json['moderation'] as String?,
     reason: json['reason'] as String?,
     permanent: json['permanent'] as bool? ?? false,
+    level: (json['level'] as num?)?.toInt(),
   );
+
+  /// v1.89-social (D290) [NotificationTargetType.levelRaise]: the support
+  /// level approved.
+  final int? level;
 
   final NotificationTargetType type;
 

@@ -68,6 +68,10 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'LIVE_STAFF_REPORT',
   // v1.78-live (D288): a new report in the shared queue (target the report).
   'STAFF_REPORT_NEW',
+  // v1.89-social (D290): a level-raise request decided (to the staff member) / the supporter's level raised.
+  'LEVEL_RAISE_APPROVED',
+  'LEVEL_RAISE_REJECTED',
+  'LEVEL_RAISED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -240,6 +244,32 @@ export class Notifier {
    * v1.70-social (D206): an agency's system notification (no actor) to its owner or to a released host, with the
    * probation's numbers when there are some. Only to an ACTIVE account.
    */
+  /**
+   * v1.89-social (D290, §10.103): a level-raise request's result — LEVEL_RAISE_APPROVED / LEVEL_RAISE_REJECTED to the
+   * staff member who made it, LEVEL_RAISED to the supporter (approval only). Only to an ACTIVE account.
+   */
+  async levelRaise(
+    tx: Tx,
+    input: {
+      type: 'LEVEL_RAISE_APPROVED' | 'LEVEL_RAISE_REJECTED' | 'LEVEL_RAISED';
+      recipientId: string;
+      requestId: string;
+    },
+  ): Promise<void> {
+    const active = await tx.user.count({ where: { id: input.recipientId, status: 'ACTIVE' } });
+    if (active === 0) return;
+    const now = new Date();
+    await tx.notification.create({
+      data: {
+        recipientId: input.recipientId,
+        type: input.type,
+        levelRaiseRequestId: input.requestId,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+
   async agency(
     tx: Tx,
     input: {

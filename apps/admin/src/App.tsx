@@ -15,6 +15,7 @@ import { LiveWatch } from './pages/LiveWatch';
 import { HostApplicationDetail, HostApplications } from './pages/HostApplications';
 import { PkDares } from './pages/PkDares';
 import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
+import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage } from './pages/LevelRaises';
 import { HostTargets } from './pages/HostTargets';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
@@ -233,6 +234,19 @@ export function App() {
           break;
         case 'creatorApplications':
           page = <CreatorApplications />;
+          break;
+        // v1.89-social (D290).
+        case 'levelRaises':
+          page = <LevelRaises />;
+          break;
+        case 'levelRaise':
+          page = <LevelRaiseDetail id={match.params.id!} />;
+          break;
+        case 'levelRaiseApps':
+          page = <LevelRaiseApps />;
+          break;
+        case 'levelRaiseSettings':
+          page = <LevelRaiseSettingsPage />;
           break;
         case 'gifts':
           page = <Gifts />;

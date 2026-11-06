@@ -175,6 +175,7 @@ class FakeMediaRepository implements MediaRepository {
   Future<MediaAsset> uploadVideo(
     PickedVideo video, {
     required bool reel,
+    String? kind,
     void Function(double progress)? onProgress,
   }) async {
     for (final p in const [0.0, 0.5, 1.0]) {
@@ -187,7 +188,8 @@ class FakeMediaRepository implements MediaRepository {
       throw e;
     }
     videoUploads.add(
-      '${reel ? 'reel' : 'post'}:${video.contentType}:${video.byteSize}'
+      '${kind ?? (reel ? 'reel' : 'post')}:${video.contentType}'
+      ':${video.byteSize}'
       ':poster:${video.posterType}',
     );
     final id = 'v${videoUploads.length}';

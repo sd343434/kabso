@@ -402,7 +402,8 @@ void main() {
     for (final item in MeHubItem.values) {
       expect(find.byKey(item.key), findsNothing, reason: item.name);
     }
-    // D288's row moved settings below the first screen of the list.
+    // D288's «بلاغات» and D290's «طلب رفع ليفيل» rows moved settings below the
+    // first screen of the list (the list builds what is visible).
     await tester.scrollUntilVisible(
       find.byKey(MeHubScreen.staffSettingsKey),
       200,

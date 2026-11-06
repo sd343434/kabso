@@ -286,6 +286,17 @@ info:
     **D289b (DRAFT v1.79-live)** «حذف» of a store item in the panel: `deleteAdminStoreItem` (deleted for real when nobody
     bought or holds it, else hidden from the store and kept for its owners; `AdminStoreItemDeleted`), `restoreAdminStoreItem`
     and `AdminStoreItem.hiddenAt` (CONVENTIONS §10.102.5).
+    **D290 (DRAFT v1.89-social)** level-raise requests «طلب رفع ليفيل» (CONVENTIONS §10.103): MODERATION / SUPPORT
+    (`levels.raise.request`, the staff Me tab and the panel) send a supporter recruited from another app — the Kabso
+    username, the source app (or "other" with its name), the account ID and level there, a `LEVEL_RAISE_VIDEO` of that
+    profile and a note; the OWNER (`levels.raise.decide`) sees the recharge (total and the first 7 days), the current
+    support and charm levels and the proposed level with its full reasoning (the owner's money method: source level →
+    XP → coins → USD → Kabso coins → support points → level, capped by the recharge, clamped to [current, 40]),
+    approves at the proposal or lower (the support level is raised through the levels engine) or rejects; nothing is
+    approved before 1 000 000 coins recharged. The owner's follow-up: the video is deleted after the decision (evidence
+    kept); «هل تقصد: …؟» name suggestions (`suggest…LevelRaiseSourceApps`, aliases); one PENDING / APPROVED request per
+    source account (409 `LEVEL_RAISE_DUPLICATE`; after a rejection allowed and flagged). The source-app data (confidence CONFIRMED / ESTIMATE) and the weights are
+    OWNER-editable. Notifications `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED` (target LEVEL_RAISE).
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -17899,6 +17910,445 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests «طلب رفع ليفيل» ---------------------------------
+  /api/v1/staff/level-raises/source-apps:
+    get:
+      tags: [staff]
+      operationId: listStaffLevelRaiseSourceApps
+      summary: "The source apps for the request form (levels.raise.request: MODERATION, SUPPORT)"
+      description: "(v1.89-social, D290) The enabled apps, the \"other\" app (`isOther`) last, each with its confidence label (CONFIRMED / ESTIMATE). Not staff work."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSourceAppOptionList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/level-raises/source-apps/suggest:
+    get:
+      tags: [staff]
+      operationId: suggestStaffLevelRaiseSourceApps
+      summary: "«هل تقصد: …؟» — the app names matching a typed name (levels.raise.request)"
+      description: "(v1.89-social, D290, CONVENTIONS §10.103.8) While the staff member types an \"other\" app's name: the listed apps (by their names, code or aliases) and the names typed for \"other\" apps in earlier requests (the first spelling of each), matching the text ignoring case, spaces, punctuation, Latin diacritics and Arabic tashkeel / tatweel / alef-hamza, ة/ه and ى/ي forms; best first, at most 5. The staff rate limit (300 / 15 min per user). Not staff work."
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, maxLength: 60 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSuggestions' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/level-raises/check:
+    get:
+      tags: [staff]
+      operationId: checkStaffLevelRaise
+      summary: "The form's live check of a supporter (levels.raise.request)"
+      description: "(v1.89-social, D290) Who the username is (ACTIVE accounts only; `@` allowed), their recharge (total and the first days after the account's creation), their support and charm levels, whether they have an open request and whether they are a Kabso Team account (no levels, D283). `found` false otherwise. Not staff work."
+      parameters:
+        - { name: username, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 40 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseCheck' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/level-raises:
+    get:
+      tags: [staff]
+      operationId: listMyStaffLevelRaises
+      summary: "The caller's own level-raise requests with their status (levels.raise.request)"
+      description: "(v1.89-social, D290) Newest first, at most 200. Not staff work."
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/LevelRaiseStatus' } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequestList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [staff]
+      operationId: createStaffLevelRaise
+      summary: "Asks the OWNER to raise a supporter's support level (levels.raise.request; audited via app)"
+      description: |
+        (v1.89-social, D290, CONVENTIONS §10.103.2) `videoId` is the caller's own `LEVEL_RAISE_VIDEO` (uploaded with
+        `createMediaUpload` / `completeMediaUpload`, with a poster; MP4 / QuickTime, ≤ 200 MiB, 1–90 s), unattached and
+        younger than 24 h; it is attached to this request only. Allowed before the supporter reaches the recharge
+        threshold (the OWNER cannot approve until then). 400 `VALIDATION_FAILED`: `username` `not_found`, `sourceApp`
+        `invalid_value` (unknown or disabled), `sourceAppName` `required` (the "other" app), `videoId` `invalid_value`.
+        **First of all** the source account (the canonical app — a listed app, also when typed as "other" by one of its
+        spellings, else the typed name's key — and the account ID trimmed, case-insensitive) is checked across all
+        supporters: one PENDING or APPROVED request already → 409 `LEVEL_RAISE_DUPLICATE` with `details`
+        `[{field: status, issue: PENDING|APPROVED}, {field: createdAt, issue: <ISO time>}, {field: requestedBy,
+        issue: <the staff member's display name>}]` (a unique partial index makes concurrent requests safe); only
+        REJECTED ones → allowed, with `previousRejection` set («سبق رفض طلب بنفس الحساب»).
+        409 `ADMIN_ACTION_REFUSED` with `details[0] = {field: rule, issue}`: `level_raise_open_exists` (one PENDING
+        request per supporter), `level_raise_staff_account` (a Kabso Team account has no levels), `level_raise_self`.
+        Audited `level.raise.request`. Staff work (D286).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLevelRaiseRequest' }
+      responses:
+        '201':
+          description: Created (PENDING).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminLevelRaises
+      summary: "Level-raise requests (levels.raise.request: one's own; levels.raise.decide: everyone's)"
+      description: "(v1.89-social, D290) Newest first (at most 500 for the OWNER, 200 for one's own)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/LevelRaiseStatus' } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequestList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminLevelRaise
+      summary: "Makes a request from the panel (levels.raise.request; audited via panel)"
+      description: "(v1.89-social, D290) As `createStaffLevelRaise` (the same duplicate check: 409 `LEVEL_RAISE_DUPLICATE`); `videoId` comes from `uploadAdminLevelRaiseVideo` (or the caller's app upload)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLevelRaiseRequest' }
+      responses:
+        '201':
+          description: Created (PENDING).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/check:
+    get:
+      tags: [admin-panel]
+      operationId: checkAdminLevelRaise
+      summary: "The panel form's live check of a supporter (levels.raise.request)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: username, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 40 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseCheck' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/source-apps/suggest:
+    get:
+      tags: [admin-panel]
+      operationId: suggestAdminLevelRaiseSourceApps
+      summary: "«هل تقصد: …؟» — the app names matching a typed name (levels.raise.request)"
+      description: "(v1.89-social, D290, CONVENTIONS §10.103.8) While the staff member types an \"other\" app's name: the listed apps (by their names, code or aliases) and the names typed for \"other\" apps in earlier requests (the first spelling of each), matching the text ignoring case, spaces, punctuation, Latin diacritics and Arabic tashkeel / tatweel / alef-hamza, ة/ه and ى/ي forms; best first, at most 5. The panel's rate limit."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, maxLength: 60 } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSuggestions' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/source-apps:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminLevelRaiseSourceAppOptions
+      summary: "The source apps for the panel form (levels.raise.request)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSourceAppOptionList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raise-videos:
+    post:
+      tags: [admin-panel]
+      operationId: uploadAdminLevelRaiseVideo
+      summary: "Uploads a request's video from the panel as raw bytes (levels.raise.request)"
+      description: "(v1.89-social, D290) `application/octet-stream`, MP4 / QuickTime, ≤ 100 MiB (held in memory once), 1–90 s, H.264 / HEVC; checked like an uploaded video and stored without a poster (the panel plays it). 422 `MEDIA_INVALID` when it is not such a video; 400 `VALIDATION_FAILED` `body` `too_big`; 503 `MEDIA_UPLOADS_UNAVAILABLE` when the storage is off. Unattached videos are swept after 24 h."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Stored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseVideoUpload' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/{requestId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLevelRaise
+      summary: "A request with the evidence and the proposal with its full reasoning (levels.raise.decide; OWNER)"
+      description: "(v1.89-social, D290, CONVENTIONS §10.103.3) PENDING: the evidence and the proposal computed now (live recharge, levels, weights and app data); decided: the proposal as it was at the decision."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequestDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/{requestId}/video:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLevelRaiseVideo
+      summary: "The request's video through the API, with byte ranges (levels.raise.decide; OWNER)"
+      description: "(v1.89-social, D290) 404 once the request is decided (the video is deleted after the decision). The panel's CSP allows no storage origin, so the video is served from here: `Range: bytes=a-b` → 206 with `Content-Range` (at most 2 MiB a response); without a range the first 2 MiB (206 when the file is larger). 416 outside the file."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Range, in: header, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: The whole video (≤ 2 MiB).
+          content:
+            video/mp4: { schema: { type: string, format: binary } }
+            video/quicktime: { schema: { type: string, format: binary } }
+        '206':
+          description: A range of the video.
+          content:
+            video/mp4: { schema: { type: string, format: binary } }
+            video/quicktime: { schema: { type: string, format: binary } }
+        '416':
+          description: The range is outside the file.
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/{requestId}/approve:
+    post:
+      tags: [admin-panel]
+      operationId: approveAdminLevelRaise
+      summary: "Approves at the proposal or lower and raises the support level (levels.raise.decide; OWNER; audited)"
+      description: |
+        (v1.89-social, D290, CONVENTIONS §10.103.5) `level`: ≥ the supporter's current support level and ≤ the
+        proposal and ≤ 40 — or exactly the current level (nothing changes). The SUPPORT level is raised through the
+        levels engine: one ADJUSTMENT ledger entry (`sourceType` ADMIN, idempotency key `level-raise:<id>`) bringing the
+        level points to the approved level's threshold (the support frames of the tiers reached come with it, D169).
+        409 `ADMIN_ACTION_REFUSED` with `details[0]`: `{field: rule, issue: level_raise_not_pending}`,
+        `level_raise_not_eligible` (the recharge threshold is not reached), `level_raise_levels_unavailable`;
+        `{field: level, issue}`: `level_raise_above_proposal`, `level_raise_below_current`, `level_raise_above_max`.
+        Notifies the staff member (`LEVEL_RAISE_APPROVED`) and, when the level rose, the supporter (`LEVEL_RAISED`).
+        Audited `level.raise.approve` (with the video's evidence). The video is deleted after the decision (owner):
+        `video.deletedAt` is set, the objects and the asset go (retried by the media sweep when the storage fails).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: requestId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveLevelRaiseRequest' }
+      responses:
+        '200':
+          description: Approved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequestDetail' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raises/{requestId}/reject:
+    post:
+      tags: [admin-panel]
+      operationId: rejectAdminLevelRaise
+      summary: "Rejects with a reason (levels.raise.decide; OWNER; audited)"
+      description: "(v1.89-social, D290) The staff member is notified (`LEVEL_RAISE_REJECTED`); the supporter is not (owner default). 409 `level_raise_not_pending`. Audited `level.raise.reject` (with the video's evidence). The video is deleted after the decision, as on approval."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: requestId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectLevelRaiseRequest' }
+      responses:
+        '200':
+          description: Rejected.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseRequestDetail' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raise/apps:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminLevelRaiseApps
+      summary: "The source-app data with sources and confidence labels (levels.raise.decide; OWNER)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSourceAppList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminLevelRaiseApp
+      summary: "Adds a source app (levels.raise.decide; OWNER; a reason; audited)"
+      description: "(v1.89-social, D290, §10.103.4) MONEY needs `usdPerMillion`, `coinsPerXp` and at least one `xpTable` point; FACTOR needs `factor` (0.001–2). CONFIRMED needs `sourceNote` (who or which page, and when). 400 `code` `taken`. Audited `level.raise.app.create`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLevelRaiseSourceAppRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSourceApp' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raise/apps/{appId}:
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminLevelRaiseApp
+      summary: "Changes a source app (levels.raise.decide; OWNER; a reason; audited)"
+      description: "(v1.89-social, D290) The whole row (as create, without `code`). The \"other\" app stays an enabled FACTOR (409 `level_raise_other_app`). Pending requests use the new data at once. Audited `level.raise.app.update` {before, after, reason}."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: appId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLevelRaiseSourceAppRequest' }
+      responses:
+        '200':
+          description: Changed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSourceApp' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/level-raise/settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminLevelRaiseSettings
+      summary: "The proposal's weights and their defaults (levels.raise.decide; OWNER)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSettingsView' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminLevelRaiseSettings
+      summary: "Changes the weights (levels.raise.decide; OWNER; a reason; audited)"
+      description: "(v1.89-social, D290) Any subset (at least one) and a reason. Audited `level.raise.settings.update` {before, after, reason}. Pending requests use the new weights at once."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLevelRaiseSettingsRequest' }
+      responses:
+        '200':
+          description: The weights now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelRaiseSettingsView' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -18286,6 +18736,310 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
+    # ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests ------------------------------------------------
+    LevelRaiseStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+    LevelRaiseConfidence:
+      type: string
+      enum: [CONFIRMED, ESTIMATE]
+      description: "(v1.89-social, D290) CONFIRMED only with a cited source (the owner, or a page and its date); everything else is an ESTIMATE and the panel says so."
+    LevelRaisePerson:
+      type: object
+      required: [id, username, displayName, avatarUrl]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'], format: uri }
+    LevelRaiseSourceAppOption:
+      type: object
+      required: [code, nameAr, nameEn, confidence, isOther]
+      properties:
+        code: { type: string, pattern: '^[A-Z0-9_]{2,32}$' }
+        nameAr: { type: string }
+        nameEn: { type: string }
+        confidence: { $ref: '#/components/schemas/LevelRaiseConfidence' }
+        isOther: { type: boolean, description: "The default for an app not in the list (the staff member types its name)." }
+    LevelRaiseSourceAppOptionList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/LevelRaiseSourceAppOption' } }
+    LevelRaiseXpPoint:
+      type: object
+      additionalProperties: false
+      required: [level, xp, confidence]
+      properties:
+        level: { type: integer, minimum: 1, maximum: 999 }
+        xp: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000 }
+        confidence: { $ref: '#/components/schemas/LevelRaiseConfidence' }
+    LevelRaiseSourceApp:
+      type: object
+      required: [id, code, nameAr, nameEn, mode, usdPerMillion, coinsPerXp, xpTable, factor, confidence, sourceNote, sourceUrl, sourceDate, enabled, isOther, sort, aliases, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z0-9_]{2,32}$' }
+        nameAr: { type: string, maxLength: 60 }
+        nameEn: { type: string, maxLength: 60 }
+        mode: { type: string, enum: [MONEY, FACTOR], description: "MONEY: price × coins per XP × the XP table (the owner's method); FACTOR: `floor(source level × factor)` (an app without a usable table)." }
+        usdPerMillion: { type: [number, 'null'], description: "USD for 1 000 000 of the app's coins (2 decimals). Informational in FACTOR mode." }
+        coinsPerXp: { type: [number, 'null'], description: "The app's coins per XP point (3 decimals)." }
+        xpTable: { type: array, items: { $ref: '#/components/schemas/LevelRaiseXpPoint' }, description: "The known points of the app's level table (by level)." }
+        factor: { type: [number, 'null'], description: "FACTOR mode (3 decimals, 0.001–2)." }
+        confidence: { $ref: '#/components/schemas/LevelRaiseConfidence' }
+        sourceNote: { type: string, maxLength: 1000 }
+        sourceUrl: { type: [string, 'null'], format: uri }
+        sourceDate: { type: [string, 'null'], format: date }
+        enabled: { type: boolean }
+        isOther: { type: boolean }
+        sort: { type: integer }
+        aliases: { type: array, items: { type: string }, description: "Other spellings matched by the name suggestion (Zafa / زفة / Zafa Live …)." }
+        updatedAt: { type: string, format: date-time }
+    LevelRaiseSourceAppList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/LevelRaiseSourceApp' } }
+    UpdateLevelRaiseSourceAppRequest:
+      type: object
+      additionalProperties: false
+      required: [nameAr, nameEn, mode, confidence, reason]
+      properties:
+        nameAr: { type: string, minLength: 1, maxLength: 60 }
+        nameEn: { type: string, minLength: 1, maxLength: 60 }
+        mode: { type: string, enum: [MONEY, FACTOR] }
+        usdPerMillion: { type: [number, 'null'], exclusiveMinimum: 0, maximum: 1000000 }
+        coinsPerXp: { type: [number, 'null'], exclusiveMinimum: 0, maximum: 1000000 }
+        xpTable: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/LevelRaiseXpPoint' } }
+        factor: { type: [number, 'null'], exclusiveMinimum: 0, maximum: 2 }
+        confidence: { $ref: '#/components/schemas/LevelRaiseConfidence' }
+        sourceNote: { type: string, maxLength: 1000 }
+        sourceUrl: { type: [string, 'null'], format: uri, maxLength: 500 }
+        sourceDate: { type: [string, 'null'], format: date }
+        enabled: { type: boolean }
+        sort: { type: integer, minimum: 0, maximum: 10000 }
+        aliases: { type: array, maxItems: 20, items: { type: string, minLength: 1, maxLength: 60 } }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    CreateLevelRaiseSourceAppRequest:
+      allOf:
+        - $ref: '#/components/schemas/UpdateLevelRaiseSourceAppRequest'
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, pattern: '^[A-Z0-9_]{2,32}$' }
+    LevelRaiseSettings:
+      type: object
+      required: [minRechargeCoins, firstDays, anchorCoins, firstDaysBaseLevel, totalBaseLevel, levelsPerDoubling, supportBonusPer10Levels, supportBonusMax, charmBonusPer10Levels, charmBonusMax, belowTableExponent, maxLevel, kabsoUsdPerMillion]
+      properties:
+        minRechargeCoins: { type: integer, format: int64, minimum: 0, description: "The recharge needed before approval (default 1 000 000)." }
+        firstDays: { type: integer, minimum: 1, maximum: 90, description: "The window after the account's creation (default 7)." }
+        anchorCoins: { type: integer, format: int64, minimum: 1, description: "The recharge that gives the base levels (default 1 000 000)." }
+        firstDaysBaseLevel: { type: integer, minimum: 0, maximum: 40, description: "The cap at `anchorCoins` recharged in the first days (default 20)." }
+        totalBaseLevel: { type: integer, minimum: 0, maximum: 40, description: "The cap at `anchorCoins` recharged in total (default 15)." }
+        levelsPerDoubling: { type: number, minimum: 0, maximum: 20, description: "Levels added to a cap per doubling of the recharge (default 4)." }
+        supportBonusPer10Levels: { type: integer, minimum: 0, maximum: 10 }
+        supportBonusMax: { type: integer, minimum: 0, maximum: 10 }
+        charmBonusPer10Levels: { type: integer, minimum: 0, maximum: 10 }
+        charmBonusMax: { type: integer, minimum: 0, maximum: 10 }
+        belowTableExponent: { type: number, minimum: 1, maximum: 10, description: "Below a table's lowest point: xp₀ × (level / level₀)^exponent (default 3)." }
+        maxLevel: { type: integer, const: 40, description: "The owner's cap (not editable)." }
+        kabsoUsdPerMillion: { type: number, description: "Kabso's retail price of 1 000 000 coins (12.5, D188 / D194; not editable here)." }
+    LevelRaiseSettingsView:
+      type: object
+      required: [settings, defaults, updatedAt]
+      properties:
+        settings: { $ref: '#/components/schemas/LevelRaiseSettings' }
+        defaults: { $ref: '#/components/schemas/LevelRaiseSettings' }
+        updatedAt: { type: string, format: date-time }
+    UpdateLevelRaiseSettingsRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        minRechargeCoins: { type: integer, minimum: 0, maximum: 1000000000000 }
+        firstDays: { type: integer, minimum: 1, maximum: 90 }
+        anchorCoins: { type: integer, minimum: 1, maximum: 1000000000000 }
+        firstDaysBaseLevel: { type: integer, minimum: 0, maximum: 40 }
+        totalBaseLevel: { type: integer, minimum: 0, maximum: 40 }
+        levelsPerDoubling: { type: number, minimum: 0, maximum: 20 }
+        supportBonusPer10Levels: { type: integer, minimum: 0, maximum: 10 }
+        supportBonusMax: { type: integer, minimum: 0, maximum: 10 }
+        charmBonusPer10Levels: { type: integer, minimum: 0, maximum: 10 }
+        charmBonusMax: { type: integer, minimum: 0, maximum: 10 }
+        belowTableExponent: { type: number, minimum: 1, maximum: 10 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    LevelRaiseEvidence:
+      type: object
+      required: [totalRechargeCoins, firstDaysRechargeCoins, firstDays, accountCreatedAt, firstDaysEndAt, supportLevel, charmLevel, minRechargeCoins, eligible]
+      properties:
+        totalRechargeCoins: { type: integer, format: int64, minimum: 0, description: "Net coins recharged (card top-ups minus reversals, agent sales, recharge orders)." }
+        firstDaysRechargeCoins: { type: integer, format: int64, minimum: 0, description: "The same before `firstDaysEndAt`." }
+        firstDays: { type: integer }
+        accountCreatedAt: { type: string, format: date-time }
+        firstDaysEndAt: { type: string, format: date-time }
+        supportLevel: { type: integer, minimum: 0, description: "0 = no level yet." }
+        charmLevel: { type: integer, minimum: 0 }
+        minRechargeCoins: { type: integer, format: int64 }
+        eligible: { type: boolean, description: "totalRechargeCoins ≥ minRechargeCoins." }
+    LevelRaiseCheck:
+      type: object
+      required: [found, supporter, evidence, openRequest, staffAccount]
+      properties:
+        found: { type: boolean }
+        supporter: { oneOf: [{ $ref: '#/components/schemas/LevelRaisePerson' }, { type: 'null' }] }
+        evidence: { oneOf: [{ $ref: '#/components/schemas/LevelRaiseEvidence' }, { type: 'null' }] }
+        openRequest: { type: boolean }
+        staffAccount: { type: boolean, description: "A Kabso Team account (D283): no levels, a request is refused." }
+    LevelRaiseVideo:
+      type: object
+      description: "(v1.89-social, D290) The video's evidence; kept after the video itself is deleted at the decision."
+      required: [id, durationMs, width, height, byteSize, posterUrl, deletedAt]
+      properties:
+        id: { type: string, format: uuid, description: "The media asset id (kept after its deletion)." }
+        durationMs: { type: [integer, 'null'] }
+        width: { type: integer }
+        height: { type: integer }
+        byteSize: { type: integer }
+        posterUrl: { type: [string, 'null'], description: "The app upload's poster (1 080 px); null for a panel upload and once deleted." }
+        deletedAt: { type: [string, 'null'], format: date-time, description: "When the video was deleted (the decision); the panel shows «حُذف الفيديو بعد القرار»." }
+    LevelRaisePreviousRejection:
+      type: object
+      required: [id, createdAt, decidedAt, rejectReason, requestedBy]
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        rejectReason: { type: [string, 'null'] }
+        requestedBy: { $ref: '#/components/schemas/LevelRaisePerson' }
+    LevelRaiseSuggestion:
+      type: object
+      required: [kind, app, name, count]
+      properties:
+        kind: { type: string, enum: [APP, NAME], description: "APP: a listed app (select it); NAME: the first spelling of a name typed for \"other\" apps in earlier requests (use it)." }
+        app: { oneOf: [{ $ref: '#/components/schemas/LevelRaiseSourceAppOption' }, { type: 'null' }] }
+        name: { type: [string, 'null'] }
+        count: { type: [integer, 'null'], description: "NAME: how many earlier requests used it." }
+    LevelRaiseSuggestions:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/LevelRaiseSuggestion' } }
+    LevelRaiseVideoUpload:
+      type: object
+      required: [videoId, durationMs, width, height]
+      properties:
+        videoId: { type: string, format: uuid }
+        durationMs: { type: integer, minimum: 1, maximum: 90000 }
+        width: { type: integer }
+        height: { type: integer }
+    CreateLevelRaiseRequest:
+      type: object
+      additionalProperties: false
+      required: [username, sourceApp, sourceAccountId, sourceLevel, videoId]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 40, description: "The supporter's Kabso username (`@` allowed)." }
+        sourceApp: { type: string, pattern: '^[A-Z0-9_]{2,32}$', description: "A source app's `code` (OTHER for an app not in the list)." }
+        sourceAppName: { type: string, minLength: 1, maxLength: 60, description: "Required with the \"other\" app: the app's name." }
+        sourceAccountId: { type: string, minLength: 1, maxLength: 64, description: "The account ID in that app (as in the video)." }
+        sourceLevel: { type: integer, minimum: 1, maximum: 999 }
+        videoId: { type: string, format: uuid, description: "The caller's `LEVEL_RAISE_VIDEO`." }
+        note: { type: string, maxLength: 500 }
+    LevelRaiseRequest:
+      type: object
+      required: [id, status, via, supporter, requestedBy, sourceApp, sourceAppName, sourceAccountId, sourceLevel, note, video, previousRejection, createdAt, decidedAt, decidedBy, rejectReason, proposedLevel, approvedLevel, levelBefore, levelAfter]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/LevelRaiseStatus' }
+        via: { type: string, enum: [app, panel] }
+        supporter: { $ref: '#/components/schemas/LevelRaisePerson' }
+        requestedBy: { $ref: '#/components/schemas/LevelRaisePerson' }
+        sourceApp: { oneOf: [{ $ref: '#/components/schemas/LevelRaiseSourceAppOption' }, { type: 'null' }] }
+        sourceAppName: { type: string, description: "The app's English name, or the name typed for the \"other\" app." }
+        sourceAccountId: { type: string }
+        sourceLevel: { type: integer }
+        note: { type: [string, 'null'] }
+        video: { $ref: '#/components/schemas/LevelRaiseVideo' }
+        previousRejection:
+          description: "«سبق رفض طلب بنفس الحساب»: the latest REJECTED request for the same source account when this one was made, or null."
+          oneOf: [{ $ref: '#/components/schemas/LevelRaisePreviousRejection' }, { type: 'null' }]
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        decidedBy: { oneOf: [{ $ref: '#/components/schemas/LevelRaisePerson' }, { type: 'null' }] }
+        rejectReason: { type: [string, 'null'] }
+        proposedLevel: { type: [integer, 'null'], description: "The proposal when decided." }
+        approvedLevel: { type: [integer, 'null'] }
+        levelBefore: { type: [integer, 'null'] }
+        levelAfter: { type: [integer, 'null'] }
+    LevelRaiseRequestList:
+      type: object
+      required: [data]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/LevelRaiseRequest' } }
+    LevelRaiseProposal:
+      type: object
+      description: "(v1.89-social, D290, CONVENTIONS §10.103.3) The proposed support level and every number of its reasoning; the panel words each step."
+      required: [proposedLevel, limitedBy, eligible, maxLevel, app, sourceLevel, source, firstDaysCap, totalCap, rechargeCap, supportBonus, charmBonus, beforeClamp, evidence, settings]
+      properties:
+        proposedLevel: { type: integer, minimum: 0 }
+        limitedBy: { type: string, enum: [SOURCE, RECHARGE, MAX_LEVEL, CURRENT_LEVEL], description: "What decided the result: the source-equivalent level (+ bonuses), the recharge cap, the 40 cap, or the current level (the floor)." }
+        eligible: { type: boolean }
+        maxLevel: { type: integer, const: 40 }
+        app:
+          type: object
+          required: [code, name, mode, confidence]
+          properties:
+            code: { type: [string, 'null'] }
+            name: { type: string }
+            mode: { type: string, enum: [MONEY, FACTOR] }
+            confidence: { $ref: '#/components/schemas/LevelRaiseConfidence' }
+        sourceLevel: { type: integer }
+        source:
+          type: object
+          required: [mode, level]
+          description: "Steps 1–3. MONEY: xp (`xpMethod` TABLE / INTERPOLATED / BELOW_TABLE / ABOVE_TABLE_CLAMPED from `xpFrom`), sourceCoins = xp × coinsPerXp, usd = sourceCoins × usdPerMillion / 1 000 000, kabsoCoins = usd × 1 000 000 / kabsoUsdPerMillion, kabsoPoints = kabsoCoins × the SUPPORT multiplier, level on the SUPPORT ladder. FACTOR: floor(source level × factor). NONE: the app's data cannot convert (level 0)."
+          properties:
+            mode: { type: string, enum: [MONEY, FACTOR, NONE] }
+            level: { type: integer, minimum: 0 }
+            xp: { type: integer, format: int64 }
+            xpMethod: { type: string, enum: [TABLE, INTERPOLATED, BELOW_TABLE, ABOVE_TABLE_CLAMPED] }
+            xpFrom: { type: array, items: { $ref: '#/components/schemas/LevelRaiseXpPoint' } }
+            sourceCoins: { type: integer, format: int64 }
+            usd: { type: number }
+            usdPerMillion: { type: number }
+            coinsPerXp: { type: number }
+            kabsoCoins: { type: integer, format: int64 }
+            kabsoPoints: { type: integer, format: int64 }
+            kabsoUsdPerMillion: { type: number }
+            factor: { type: number }
+        firstDaysCap: { type: integer, minimum: 0, maximum: 40 }
+        totalCap: { type: integer, minimum: 0, maximum: 40 }
+        rechargeCap: { type: integer, minimum: 0, maximum: 40, description: "max(firstDaysCap, totalCap)." }
+        supportBonus: { type: integer, minimum: 0 }
+        charmBonus: { type: integer, minimum: 0 }
+        beforeClamp: { type: integer, description: "min(source level + bonuses, rechargeCap)." }
+        evidence: { $ref: '#/components/schemas/LevelRaiseEvidence' }
+        settings: { $ref: '#/components/schemas/LevelRaiseSettings' }
+    LevelRaiseRequestDetail:
+      type: object
+      required: [request, proposal, evidence]
+      properties:
+        request: { $ref: '#/components/schemas/LevelRaiseRequest' }
+        proposal: { oneOf: [{ $ref: '#/components/schemas/LevelRaiseProposal' }, { type: 'null' }] }
+        evidence: { $ref: '#/components/schemas/LevelRaiseEvidence' }
+    ApproveLevelRaiseRequest:
+      type: object
+      additionalProperties: false
+      required: [level]
+      properties:
+        level: { type: integer, minimum: 1, maximum: 100, description: "≥ the current level, ≤ the proposal, ≤ 40 (or exactly the current level)." }
+        reason: { type: string, maxLength: 500 }
+    RejectLevelRaiseRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
     # ---- v1.74-social (DRAFT, D217, CONVENTIONS §10.71): «دعوة الأصدقاء» --------------------------------------------
     ReferralStatus:
       type: string
@@ -27709,7 +28463,7 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -28243,13 +28997,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT], description: "(v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT, LEVEL_RAISE], description: "(v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.89-social, D290) LEVEL_RAISE: a level-raise request (`id`). (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -28272,6 +29026,7 @@ components:
         live: { type: boolean, description: "LIVE_ROOM only (v1.68-live, D273): the live is still on air (the app opens it as staff)." }
         reportTargetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK], description: "REPORT only (v1.78-live, D288): what the report is about." }
         reportOpen: { type: boolean, description: "REPORT only (v1.78-live, D288): the report is still unresolved." }
+        level: { type: integer, minimum: 1, description: "LEVEL_RAISE only (v1.89-social, D290): the support level approved (absent on a rejection)." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]

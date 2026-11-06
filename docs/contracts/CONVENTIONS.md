@@ -155,6 +155,7 @@ All non-2xx responses use one envelope:
 | 409 | `AGENCY_OPEN_NOT_ALLOWED` | *(v1.70-social, DRAFT, D206)* `openAgency` refused — `details[0] = {field: agency, issue}`: `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY`, `REOPEN_COOLDOWN` (§10.65). *(v1.80-kyc, D227)* `KYC_REQUIRED`: Didit is on and the person has no approved identity check for «افتح وكالة» (§10.77). |
 | 409 | `HOST_APPLICATION_NOT_ALLOWED` | *(v1.73-social, DRAFT, D209)* `applyForHosting` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_HOST` (any hosting permission), `HOST_OF_AGENCY`, `OWNS_AGENCY` (an open agency), `PENDING` (one open application per user), `REAPPLY_COOLDOWN` (rejected less than `HOST_APPLICATION_REAPPLY_DAYS` ago), `UNDER_MIN_AGE` (§10.68). Nothing was kept. |
 | 409 | `CREATOR_APPLICATION_NOT_ALLOWED` | *(v1.75-live, DRAFT, D285)* `applyForCreatorProgramme` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `MEMBER` (already a creator), `STAFF` (a Kabso Team account), `PENDING` (one open application per user) (§10.96.13). Nothing was kept. |
+| 409 | `LEVEL_RAISE_DUPLICATE` | *(v1.89-social, DRAFT, D290)* `createStaffLevelRaise` / `createAdminLevelRaise`: the source account (canonical app + account ID, trimmed, case-insensitive) already has a PENDING or APPROVED level-raise request — `details`: `{field: status, issue: PENDING\|APPROVED}`, `{field: createdAt, issue: <ISO time>}`, `{field: requestedBy, issue: <the staff member's display name>}` (§10.103.8). Nothing was kept. |
 | 409 | `KYC_NOT_ALLOWED` | *(v1.80-kyc, DRAFT, D227)* `startKycSession` refused — `details[0] = {field: purpose, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED` (an approved check counts for the purpose), `IN_REVIEW` (wait for the review), `DAILY_LIMIT` (the OWNER's sessions per 24 h, default 3; §10.77). Nothing was started. |
 | 503 | `KYC_UNAVAILABLE` | *(v1.80-kyc, DRAFT, D227)* Identity verification (Didit) is off or not configured in the admin panel «التحقق من الهوية (Didit)» — `startKycSession`, `syncKycCheck`; the webhook when no webhook secret is saved (Didit retries); the panel's image fetch without an API key. No `Retry-After`. |
 | 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
@@ -643,6 +644,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | `docs/design/**` | Design | CTO review |
 | `.github/**`, `infra/**`, `docker-compose.yml` | DevOps | CTO review |
 | Root `package.json`, `pnpm-workspace.yaml` | Backend (Phase 1) | CTO review |
+| *(v1.89-social)* Tables `level_raise_requests`, `level_raise_source_apps`, `level_raise_settings`; column `notifications.level_raise_request_id`; media kind `LEVEL_RAISE_VIDEO` | Backend — `level-raise` module (the level is raised only through the `levels` module's `LevelProgressService`) | CTO; the OWNER approves the weights and the source-app data (D290) |
 
 ## 9. Contract change log
 
@@ -724,6 +726,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.89-social (draft) | 2026-11-06 | **D290 (owner: «طلب رفع ليفيل» — staff send a supporter recruited from another app with a video of the source profile; the OWNER approves the proposed level, never above 40, never below the current level, after 1 000 000 coins recharged):** tag `staff`: `listStaffLevelRaiseSourceApps`, `checkStaffLevelRaise`, `listMyStaffLevelRaises`, `createStaffLevelRaise`; panel `listAdminLevelRaises` / `createAdminLevelRaise`, `checkAdminLevelRaise`, `listAdminLevelRaiseSourceAppOptions`, `uploadAdminLevelRaiseVideo` (raw bytes), `getAdminLevelRaise`, `getAdminLevelRaiseVideo` (ranges), `approveAdminLevelRaise`, `rejectAdminLevelRaise`, `listAdminLevelRaiseApps` / `createAdminLevelRaiseApp` / `updateAdminLevelRaiseApp`, `getAdminLevelRaiseSettings` / `updateAdminLevelRaiseSettings`; schemas `LevelRaise*`, `CreateLevelRaiseRequest`, `ApproveLevelRaiseRequest`, `RejectLevelRaiseRequest`, `(Create|Update)LevelRaiseSourceAppRequest`, `UpdateLevelRaiseSettingsRequest`; `MediaKind` `LEVEL_RAISE_VIDEO`; `NotificationType` `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED`; `NotificationTarget.type` `LEVEL_RAISE` + `level`; capabilities `levels.raise.request` (OWNER, MODERATION, SUPPORT), `levels.raise.decide` (OWNER); refusal issues under `ADMIN_ACTION_REFUSED`; owner follow-up (same day): code `LEVEL_RAISE_DUPLICATE` (409), `suggestStaffLevelRaiseSourceApps` / `suggestAdminLevelRaiseSourceApps` (`LevelRaiseSuggestions`), `LevelRaiseSourceApp.aliases`, `LevelRaiseVideo.byteSize` / `deletedAt`, `LevelRaiseRequest.previousRejection`; the video deleted after the decision; migrations `20270324090000_level_raise_enums`, `20270324090100_level_raise`. §4, §10.103. | **Additive** (new operations, schemas and enum values; clients ignore notification types they do not know). |
 | v1.86-social (draft) | 2026-11-05 | **D281 (owner: more than 100 000 generated Task Center tasks, assigned from each person's data):** `ProgramTask.gift`, `ProgramTask.window`; metrics `GIFT_COUNT_SENT`, `CATEGORY_GIFTS_SENT`, `GIFTED_HOSTS`, `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES`, `PK_WINS`. §10.41.4. | **Additive** (an older app shows an unknown metric with the generic icon). |
 | v1.69-live (draft) | 2026-11-04 | **D277 (owner: the lucky target «هدف هدايا الحظ» counts only lucky gifts, including the host's own sends to themself, in cherries; the cherries target becomes «هدف الهدايا», gifts outside the lucky category in cherries; new badges to come):** `LiveHostTargets.gifts`, `me.gifts`, `HostGiftStats.lucky.cherries`, `ProgramTask.metric` `HOST_GIFT_CHERRIES` / `HOST_LUCKY_CHERRIES`, `AdminTasks` `targetUnit`. `LiveHostTargets.cherries` / `me.cherries` are deprecated (now the same as `gifts`). `lucky` is in cherries, and `HostGiftStats.cherries` is «هدف الهدايا»'s. Migration `20270313090000_host_targets_cherries` stores both targets in cherries. §10.62.1. | **Additive** (new fields and enum values; `lucky`'s unit is cherries, the same number at the default 10 % except for self-sends). |
 | v1.68-live (draft) | 2026-11-04 | **D273 (owner: «فريق كابسو» from the app — always visible, the panel's powers on the phone, the shift, free roaming, «مراقبة خفية», report pushes, untouchable):** tag `staff`: `getStaffStatus`, `createStaffStepUp` / `endStaffStepUp`, `getStaffShift` / `setStaffShift`, `listStaffLives`, `listStaffLiveReports`, `listStaffLiveModerations`, `moderateStaffLive`, `dismissStaffLiveReports`, `kickFromStaffLive`, `muteInStaffLive`, `removeStaffLiveMessage` (`StaffStatus`, `StaffStepUp(Request)`, `StaffLive(List)`, `StaffKick*`, `StaffChatMute*`, `StaffMessageRemoveResult`); `Me.kabsoTeam`, `PublicProfile.kabsoTeam`; `LiveMediaTokenRequest.staffVisibility`, `LiveMediaAccess.staff` (identity up to 80); `LiveChatMessage.authorStaff`; `AdminLiveModerateRequest.action` / results / history gain `WARN`; `AdminLiveReport.targetType` `LIVE_CHAT_MESSAGE` and `target`; `CreateReportRequest.liveRoomId`; notification `LIVE_STAFF_REPORT` (target `LIVE_ROOM`, `live`); `LIVE_MODERATION.moderation` `WARN`; codes `STAFF_PROTECTED`, `LIVE_STAFF_REFUSED`, `STAFF_STEP_UP_REQUIRED` (403), `STAFF_TOTP_NOT_ENROLLED` (409); `STAFF_APP_GRANT_SECONDS`, `RATE_LIMIT_STAFF_APP_USER`, `RATE_LIMIT_STAFF_STEP_UP_USER`. Migration `20270312090000_staff_app_tools` (`admin_app_grants`, `notifications.live_room_id`, `reports.context_live_room_id`, enum values `WARN`, `LIVE_STAFF_REPORT`). §4, §7, §10.96.6–§10.96.8. | **Additive for apps** (new optional fields; an older app ignores `staff`, `authorStaff`, `kabsoTeam` and the new notification). **Behaviour change:** a staff account entering from the app is listed as «فريق كابسو» instead of a viewer and can no longer send gifts / taps / bullets or take a seat there; users can no longer kick / mute / remove panel accounts (403). |
@@ -7573,6 +7576,133 @@ a date in the panel; the panel asks for one at the next save); the CHECKs above.
 **Compatibility.** Additive for the apps (`badges` is a new required response field; `badge` / `isNew` keep their
 meaning while «جديد» runs, so an older app stops showing «جديد» after 14 days instead of never). The panel's request
 fields are additive (`badges`); the old ones still work.
+
+### 10.103 «طلب رفع ليفيل» — level-raise requests for supporters from other apps *(v1.89-social, DRAFT — D290)*
+
+Owner (2026-11-06, spec Q2): «المشرفون والدعم يستقطبون داعماً جديداً من تطبيق آخر ويرسلون طلباً للإدارة العليا لرفع ليفيل
+حسابه» — with a video of the source profile, the source app, the account ID there; the supporter must have recharged
+≥ 1 000 000 coins in Kabso; on approval the level is raised automatically by a formula of the 7-day recharge, the support
+level, the charm level and the source level; **never above 40, never below the current level; the owner may lower the
+proposal before approving**. The conversion is **by money** (owner's choice), with data prepared for every app and the
+panel proposing the level with its reasoning. The label is in the social series because the levels are (D194,
+v1.63-social); the staff side reuses the live series' staff tools (D273 / D286) without changing them.
+
+**10.103.1 Who.** Capabilities (`admin-permissions.ts`): `levels.raise.request` — OWNER, MODERATION, SUPPORT (make a
+request in the app's staff Me tab «أنا» or the panel, see one's own, the source-app list); `levels.raise.decide` — OWNER
+only (every request, the proposal, approve / reject, the source-app data, the weights). The app routes (`/staff/level-raises…`)
+go through the D273 staff guard (role + capability on every request; creating is staff work, D286; reading is not). A
+Kabso Team account (any panel role but OWNER, D283: no levels) cannot be the supporter (`level_raise_staff_account`), nor
+the staff member themself (`level_raise_self`). Recruitment D285 is separate: a level raise pays no commission and
+needs no recruiter attribution.
+
+**10.103.2 The request.** `{username, sourceApp (a code; OTHER + sourceAppName for an app not in the list),
+sourceAccountId (≤ 64), sourceLevel (1–999), videoId, note? (≤ 500)}`. One PENDING request per supporter (partial unique
+index; `level_raise_open_exists`). **The video** is required: media kind `LEVEL_RAISE_VIDEO` — MP4 / QuickTime, H.264 /
+HEVC, **1–90 s, ≤ 200 MiB** with the app's presigned upload (a poster like any video, §11.14), **≤ 100 MiB** with the
+panel's raw upload (`POST /admin/level-raise-videos`, held in memory once; stored without a poster). It is the caller's
+own unattached asset younger than 24 h and is attached to one request only (unique `video_media_id`); an unattached
+video is swept after 24 h like any upload. The OWNER plays it through the API (`getAdminLevelRaiseVideo`, byte ranges ≤
+2 MiB a response: the panel's CSP allows no storage origin). **Choice (documented): a request may be created before
+the supporter reaches the recharge threshold; it cannot be approved until then** (`level_raise_not_eligible`) — the
+staff member can send the request as soon as the supporter joins.
+
+**10.103.3 The evidence.** Read live at every view of a PENDING request (and frozen into `proposal` at the decision):
+`totalRechargeCoins` = Σ `wallet_ledger.delta` of the recharge reasons `CARD_TOPUP`, `CARD_TOPUP_REVERSAL`,
+`CARD_TOPUP_RESTORE`, `RECHARGE_PURCHASE`, `RECHARGE_ORDER` (net, ≥ 0); `firstDaysRechargeCoins` = the same with
+`created_at` < the account's `created_at` + `firstDays` days (default 7; **"activation" = the account's creation**:
+accounts are ACTIVE from sign-up — owner question); the current SUPPORT and ATTRACTIVENESS («الجاذبية» / charm) levels
+(`user_level_states.current_level`, 0 = none). Eligible ⇔ `totalRechargeCoins ≥ minRechargeCoins` (default 1 000 000).
+
+**10.103.4 The proposal (exact formula, `level-raise-math.ts`).** Integers throughout except the two logarithms.
+
+1. *Source level → XP* from the app's known table points (`xp_table`): on a point, that point; between two points
+   geometric interpolation `xp = xpₐ × (xp_b / xpₐ)^((L − a) / (b − a))` (linear when xpₐ = 0), floored; below the lowest
+   point `xp = xp₀ × (L / L₀)^belowTableExponent` (default 3); **above the highest point the highest point's XP (never
+   extrapolated upwards)**. A FACTOR app skips steps 1–3: `S = floor(L × factor)`.
+2. *XP → money*: `sourceCoins = floor(xp × coinsPerXp)`; `usd = sourceCoins × usdPerMillion / 1 000 000`.
+3. *Money → Kabso*: `kabsoCoins = floor(sourceCoins × usdPerMillionCents × 80 000 / 10⁸)` (Kabso's retail price
+   1 000 000 coins = $12.50, D188 / D194, i.e. 80 000 coins per $), `kabsoPoints = floor(kabsoCoins × the published
+   SUPPORT multiplier)` (0.1 = 1 point per 10 coins), **S = the level those points reach on the published SUPPORT
+   ladder** ("source-equivalent level").
+4. *Kabso evidence*: `cap(c, base) = clamp(floor(base + levelsPerDoubling × log₂(c / anchorCoins)), 0, 40)` (0 when
+   c = 0); `firstDaysCap = cap(firstDaysRechargeCoins, firstDaysBaseLevel)`, `totalCap = cap(totalRechargeCoins,
+   totalBaseLevel)`, **`rechargeCap = max(firstDaysCap, totalCap)`**. Bonuses `supportBonus = min(floor(support / 10) ×
+   supportBonusPer10Levels, supportBonusMax)`, `charmBonus` the same with the charm level. **`beforeClamp = min(S +
+   supportBonus + charmBonus, rechargeCap)`** — the recharge cap is the result's ceiling, so a big source level with
+   little Kabso recharge cannot reach 40.
+5. *Clamp*: `proposed = min(beforeClamp, 40)`, then `max(proposed, current support level)`. `limitedBy` says which
+   bound decided: SOURCE, RECHARGE, MAX_LEVEL or CURRENT_LEVEL.
+
+**Defaults (conservative; reproduce the owner's examples; all OWNER-editable in `level_raise_settings`, audited):**
+`minRechargeCoins` 1 000 000, `firstDays` 7, `anchorCoins` 1 000 000, `firstDaysBaseLevel` 20, `totalBaseLevel` 15,
+`levelsPerDoubling` 4, support and charm bonus +1 per 10 levels, at most +2 each, `belowTableExponent` 3. Then 1 000 000
+recharged in the first week → 20 and later → 15 (owner: «≈ 15–25»); 2 000 000 → 24; 32 000 000 in the first week → 40
+(owner: 40); the 40 cap is fixed. **Worked Zafa example, checked against the published D194 ladder:** level 32 =
+27 742 536 XP × 10 = 277 425 360 coins = **$5 548.5072** (shown floored to the cent, $5 548.50; the spec's "≈ $5 550") → 443 880 576 Kabso coins → 44 388 057
+points → **Kabso level 58** (level 58 starts at 41 440 500 points, 59 at 44 640 500), the spec's "≈ 58" confirmed; with
+1 000 000 recharged in the first week the proposal is **20** (limited by the recharge), with 32 000 000 it is **40**.
+
+**10.103.5 Deciding.** `approveAdminLevelRaise {level, reason?}`: refused unless PENDING, eligible, and `current ≤
+level ≤ min(proposed, 40)` — or `level = current` (nothing changes; also the only approval for someone already above
+40). Issues: `level_raise_not_pending`, `level_raise_not_eligible`, `level_raise_levels_unavailable` (field `rule`);
+`level_raise_above_proposal`, `level_raise_below_current`, `level_raise_above_max` (field `level`); all 409
+`ADMIN_ACTION_REFUSED`. **The raise goes through the levels engine (D72 / D169 / D194):** one `points_ledger` ADJUSTMENT
+(`sourceType` ADMIN, `created_by_id` the OWNER, idempotency key `level-raise:<request>`, reason «D290 level raise …»)
+of `required(level) − (total + carried)` points, applied by `LevelProgressService.apply` in the decision's transaction
+— the level, the history row (ADJUSTED), the support frames of the tiers reached (D169) and the never-down rule follow
+from the engine; nothing writes `current_level` directly. The DB CHECK `level_raise_requests_approved_level` repeats the
+rule. Not announced on the D254 ticker (like panel adjustments). `rejectAdminLevelRaise {reason}`. Audited
+`level.raise.request`, `level.raise.approve` {approvedLevel, proposedLevel, before, after, ledgerEntry, the two
+recharges, reason}, `level.raise.reject`, `level.raise.app.create` / `.update` {before, after, reason},
+`level.raise.settings.update` {before, after, reason}. **The video is deleted after the decision** (owner 2026-11-06,
+approve or reject): the decision's transaction sets `video_deleted_at`; right after it, and on every media sweep for
+any left over (`MEDIA_SWEEP_INTERVAL_SECONDS`; a storage failure never undoes the decision), `purgeLevelRaiseVideos`
+deletes the objects (video, poster, thumb) and then the asset row (`video_media_id` → NULL; idempotent). The evidence
+stays on the request (`video_asset_id`, length, size, display size) and in the decision's audit row
+(`video: {mediaId, durationMs, byteSize, width, height, sha256: null, deletedAt}` — the media module keeps no checksum
+of an upload, the bytes go straight to storage). `getAdminLevelRaiseVideo` answers 404 from the decision on; the review
+page shows «حُذف الفيديو بعد القرار». **Notifications** (system, target `LEVEL_RAISE`): the staff
+member gets `LEVEL_RAISE_APPROVED` (with `level`) or `LEVEL_RAISE_REJECTED`; the supporter gets `LEVEL_RAISED` (with
+`level`) **only on approval and only when the level rose** (owner default «tell them only on approval»; owner question).
+
+**10.103.6 Source-app data** (`level_raise_source_apps`, OWNER-editable from the panel, audited; new apps addable
+there). MONEY: `usdPerMillion`, `coinsPerXp`, `xpTable` (points with their own confidence); FACTOR: `factor`.
+`confidence` CONFIRMED only with a cited source (`sourceNote` required; the owner or a page and its date), else
+ESTIMATE; the panel shows the label everywhere. Seeded 2026-11-06: **Zafa (زفة) CONFIRMED by the owner** (1M = $20,
+10 coins = 1 XP, level 32 = 27 742 536 XP — the only known point; other Zafa levels are derived and the reasoning says
+so); Bigo Live, MICO, Yalla, Ahlan, Tango, Poppo Live, SoulChill, Jaco, Lami, Hala, Yoho, Sugo: **ESTIMATE, FACTOR
+× 0.5** — no level table could be cited (web search 2026-11-06 found only reseller pages and app-store snippets for
+coin prices; those snippets are kept in the note, never used); **OTHER** (exactly one, `is_other`, always an enabled
+FACTOR): × 0.5. Pending requests use edits at once.
+
+**10.103.7 Tables.** `level_raise_requests` (one PENDING per supporter; `proposal` JSON as decided),
+`level_raise_source_apps`, `level_raise_settings` (one row), `notifications.level_raise_request_id`, enum
+`level_raise_status`, `notification_type` +3, media kind `LEVEL_RAISE_VIDEO`, `level_raise_source_apps.aliases`,
+the request's video evidence columns and source keys with `level_raise_requests_source_once` (migrations
+`20270324090000_level_raise_enums`, `20270324090100_level_raise`).
+
+**10.103.8 Source names and duplicates** (owner follow-up, 2026-11-06). *Canonical source:* a listed app is
+`APP:<code>`; "other" is `NAME:<key>` of the typed name — unless the key is a listed app's code, name or alias, then
+that app (typing «زفه» as "other" files it under Zafa). *Name key* (`level-raise-names.ts`): lower case, no Latin
+diacritics (NFKD), no Arabic tashkeel / superscript alef / tatweel, أ إ آ ٱ → ا, ى → ي, ة → ه, ؤ → و, ئ → ي, Arabic-Indic
+digits as Latin, no spaces or punctuation. *Suggestion «هل تقصد: …؟»* (`suggest…LevelRaiseSourceApps?q=`, app and
+panel, the staff / panel rate limits): the listed apps by any spelling and the first spelling of each name typed for
+"other" in earlier requests; equal (3) > prefix (2) > contained (1, two letters or more), apps first, at most 5;
+tapping one selects that app or that name. Aliases are seeded for every app (e.g. Zafa: زافا, زفه, Zafa Live, زفة لايف)
+and edited with the app in the panel. *Duplicate check — before anything else:* the same canonical source and account
+ID (`source_account_key` = trimmed, lower case) with a PENDING or APPROVED request, across all supporters → 409
+`LEVEL_RAISE_DUPLICATE` (status, date, the staff member's display name; the app and the panel word it). Concurrent
+requests: unique partial index `level_raise_requests_source_once (source_app_key, source_account_key) WHERE status IN
+(PENDING, APPROVED)` — the loser of the race gets the same 409. Only REJECTED ones → allowed; the new request points at
+the latest (`previous_rejected_id`, `previousRejection`) and is flagged «سبق رفض طلب بنفس الحساب»; the review page
+shows that rejection's date and reason. **Owner decision (2026-11-06):** a new request is allowed when the only earlier
+matches were REJECTED (flagged, the rejection shown); PENDING or APPROVED stays 409 `LEVEL_RAISE_DUPLICATE`. The one-PENDING-per-supporter rule
+stays.
+
+**10.103.9 Owner answers (2026-11-06).** (1) the weights approved as built; (2) the 7 days count from the account's
+creation; (3) the supporter is told only on approval when the level rose; (4) no app data given: ×0.5 for apps without
+data stays; (5) the unguessable-link storage is fine, and the video is deleted after the decision (§10.103.5); (6) no
+authenticator code for approval; (7) no level-ticker announcement.
 
 ### 11.1 Media upload
 

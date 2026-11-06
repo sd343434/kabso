@@ -147,6 +147,11 @@ export enum ErrorCode {
   HOST_APPLICATION_NOT_ALLOWED = 'HOST_APPLICATION_NOT_ALLOWED',
   /** v1.75-live (D285): the creator programme application «انضم كصانع محتوى» is not possible now (`details[0].issue`). */
   CREATOR_APPLICATION_NOT_ALLOWED = 'CREATOR_APPLICATION_NOT_ALLOWED',
+  /**
+   * v1.89-social (D290, §10.103.2): a level-raise request for a source account (canonical app + account ID) that is
+   * already PENDING or APPROVED — `details`: `status`, `createdAt`, `requestedBy` (the staff member's display name).
+   */
+  LEVEL_RAISE_DUPLICATE = 'LEVEL_RAISE_DUPLICATE',
   /** v1.80-kyc (D227): an identity check cannot be started now (`details[0].issue`, CONVENTIONS §10.77). */
   KYC_NOT_ALLOWED = 'KYC_NOT_ALLOWED',
   /** v1.80-kyc (D227): identity verification (Didit) is off or not configured. */
@@ -426,6 +431,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 409,
   [ErrorCode.HOST_APPLICATION_NOT_ALLOWED]: 409,
   [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 409,
+  [ErrorCode.LEVEL_RAISE_DUPLICATE]: 409,
   [ErrorCode.KYC_NOT_ALLOWED]: 409,
   [ErrorCode.KYC_UNAVAILABLE]: 503,
   [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
@@ -583,6 +589,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 'You cannot open an agency now.',
   [ErrorCode.HOST_APPLICATION_NOT_ALLOWED]: 'You cannot apply to host with the Kabso team now.',
   [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 'You cannot apply to the creator programme now.',
+  [ErrorCode.LEVEL_RAISE_DUPLICATE]:
+    'This source account already has a pending or approved level-raise request.',
   [ErrorCode.KYC_NOT_ALLOWED]: 'An identity check cannot be started now.',
   [ErrorCode.KYC_UNAVAILABLE]: 'Identity verification is not available right now.',
   [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',

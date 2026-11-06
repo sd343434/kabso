@@ -175,6 +175,15 @@ export enum AuditAction {
   CREATOR_APPLICATION_APPROVE = 'creator.application.approve',
   CREATOR_APPLICATION_REJECT = 'creator.application.reject',
   CREATOR_APPLICATION_CANCEL = 'creator.application.cancel',
+  // v1.89-social (D290, §10.103): level-raise requests — a request made {supporter, app, level, via}, approved
+  // {approvedLevel, proposedLevel, before, after, ledgerEntry}, rejected {reason}; a source app created / changed
+  // {before, after, reason}; the weights changed {before, after, reason}.
+  LEVEL_RAISE_REQUEST = 'level.raise.request',
+  LEVEL_RAISE_APPROVE = 'level.raise.approve',
+  LEVEL_RAISE_REJECT = 'level.raise.reject',
+  LEVEL_RAISE_APP_CREATE = 'level.raise.app.create',
+  LEVEL_RAISE_APP_UPDATE = 'level.raise.app.update',
+  LEVEL_RAISE_SETTINGS_UPDATE = 'level.raise.settings.update',
   // v1.45-live (D201, §10.63): the host's live tools — a second-camera pairing code created, redeemed
   // (or refused, with the reason, never the code), the second camera ended, the main feed chosen; the
   // one-time music-rights notice accepted; a clip recording started or stopped (viewers are told).

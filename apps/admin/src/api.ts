@@ -223,6 +223,22 @@ export function uploadStoreArt(
   return uploadRaw<StoreUpload>(withQuery('/admin/store/uploads', { kind }), file, onProgress);
 }
 
+/** v1.89-social (D290): what `POST /admin/level-raise-videos` answers for a stored video. */
+export interface LevelRaiseVideoUpload {
+  videoId: string;
+  durationMs: number;
+  width: number;
+  height: number;
+}
+
+/** D290 (CONVENTIONS §10.103.2): uploads a level-raise request's video (MP4 / MOV, ≤ 100 MiB, ≤ 90 s) as raw bytes. */
+export function uploadLevelRaiseVideo(
+  file: Blob,
+  onProgress: (fraction: number) => void = () => undefined,
+): Promise<LevelRaiseVideoUpload> {
+  return uploadRaw<LevelRaiseVideoUpload>('/admin/level-raise-videos', file, onProgress);
+}
+
 /** A raw `application/octet-stream` POST with the CSRF token and upload progress (XMLHttpRequest: `fetch` has none). */
 function uploadRaw<T>(path: string, file: Blob, onProgress: (fraction: number) => void): Promise<T> {
   return new Promise((resolve, reject) => {

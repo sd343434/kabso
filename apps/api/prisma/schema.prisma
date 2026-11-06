@@ -253,6 +253,11 @@ model User {
   creatorAppsDecided     CreatorApplication[]       @relation("CreatorApplicationDecider")
   creatorMember          CreatorMember?
   recruitsMade           StaffRecruitment[]         @relation("StaffRecruiter")
+  /// v1.89-social (D290): level-raise requests «طلب رفع ليفيل» about this supporter, made by this staff member, decided
+  /// by this OWNER.
+  levelRaisesAbout       LevelRaiseRequest[]        @relation("LevelRaiseSupporter")
+  levelRaisesRequested   LevelRaiseRequest[]        @relation("LevelRaiseRequester")
+  levelRaisesDecided     LevelRaiseRequest[]        @relation("LevelRaiseDecider")
   recruitedAs            StaffRecruitment[]         @relation("StaffRecruit")
   recruitCommissions     StaffRecruitCommission[]
   /// v1.74-social (D217): the person's invite code, whom they invited, who invited them, their rewards.
@@ -1712,6 +1717,8 @@ model MediaAsset {
   profileAvatar UserProfile?     @relation("ProfileAvatar")
   /// D218: a profile cover.
   profileCover  UserProfile?     @relation("ProfileCover")
+  /// v1.89-social (D290): the video of a level-raise request.
+  levelRaise    LevelRaiseRequest?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -2236,6 +2243,11 @@ enum NotificationType {
   /// v1.78-live (D288, §10.101): a new report in the shared queue — to every MODERATION / SUPPORT account (one unread
   /// row per staff member, moved to the newest report).
   STAFF_REPORT_NEW
+  /// v1.89-social (D290, system; target LEVEL_RAISE): the OWNER approved / rejected a level-raise request — to the
+  /// staff member who made it; LEVEL_RAISED to the supporter (approval only).
+  LEVEL_RAISE_APPROVED
+  LEVEL_RAISE_REJECTED
+  LEVEL_RAISED
 
   @@map("notification_type")
 }
@@ -2293,6 +2305,9 @@ model Notification {
   /// v1.78-live (D288, §10.101): STAFF_REPORT_NEW — the newest report the row stands for (deleted with it).
   reportId             String?                 @map("report_id") @db.Uuid
   report               Report?                 @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  /// v1.89-social (D290): LEVEL_RAISE_APPROVED / LEVEL_RAISE_REJECTED / LEVEL_RAISED.
+  levelRaiseRequestId  String?                 @map("level_raise_request_id") @db.Uuid
+  levelRaiseRequest    LevelRaiseRequest?      @relation(fields: [levelRaiseRequestId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2313,6 +2328,7 @@ model Notification {
   @@index([liveModerationId], map: "notifications_live_moderation_idx", where: raw("live_moderation_id IS NOT NULL"))
   @@index([liveRoomId], map: "notifications_live_room_idx", where: raw("live_room_id IS NOT NULL"))
   @@index([reportId], map: "notifications_report_idx", where: raw("report_id IS NOT NULL"))
+  @@index([levelRaiseRequestId], map: "notifications_level_raise_idx", where: raw("level_raise_request_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
@@ -6818,4 +6834,125 @@ model StaffRecruitCommission {
   @@index([recruiterUserId, day(sort: Desc)], map: "staff_recruit_commissions_recruiter_idx")
   @@index([day], map: "staff_recruit_commissions_day_idx")
   @@map("staff_recruit_commissions")
+}
+
+// ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests «طلب رفع ليفيل» ------------------------------------
+
+enum LevelRaiseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("level_raise_status")
+}
+
+/// v1.89-social (D290): a source app's data for the proposal (admin-editable, OWNER). MONEY: price of 1 000 000 coins
+/// (USD cents), coins per XP (× 1 000) and the known XP-table points (`xp_table`: [{level, xp, confidence}]). FACTOR:
+/// a conservative `factor_milli` (500 = × 0.5). `confidence` CONFIRMED only with a source (owner or a cited page).
+/// Exactly one row is the default for an app not in the list (`is_other`).
+model LevelRaiseSourceApp {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  code               String   @unique @db.VarChar(32)
+  nameAr             String   @map("name_ar") @db.VarChar(60)
+  nameEn             String   @map("name_en") @db.VarChar(60)
+  mode               String   @db.VarChar(8)
+  usdPerMillionCents BigInt?  @map("usd_per_million_cents")
+  coinsPerXpMilli    BigInt?  @map("coins_per_xp_milli")
+  xpTable            Json     @default("[]") @map("xp_table")
+  factorMilli        Int?     @map("factor_milli")
+  confidence         String   @db.VarChar(10)
+  /// v1.89-social (D290): other spellings matched by the name suggestion (Zafa / زفة / Zafa Live …).
+  aliases            String[] @default([]) @db.VarChar(60)
+  sourceNote         String   @default("") @map("source_note") @db.VarChar(1000)
+  sourceUrl          String?  @map("source_url") @db.VarChar(500)
+  sourceDate         DateTime? @map("source_date") @db.Date
+  enabled            Boolean  @default(true)
+  isOther            Boolean  @default(false) @map("is_other")
+  sort               Int      @default(100)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById        String?  @map("updated_by_id") @db.Uuid
+
+  requests LevelRaiseRequest[]
+
+  @@map("level_raise_source_apps")
+}
+
+/// v1.89-social (D290): the proposal's weights (one row, id 1; OWNER-editable, audited).
+model LevelRaiseSettings {
+  id                       Int      @id @default(1) @db.SmallInt
+  minRechargeCoins         BigInt   @default(1000000) @map("min_recharge_coins")
+  firstDays                Int      @default(7) @map("first_days")
+  anchorCoins              BigInt   @default(1000000) @map("anchor_coins")
+  firstDaysBaseLevel       Int      @default(20) @map("first_days_base_level")
+  totalBaseLevel           Int      @default(15) @map("total_base_level")
+  levelsPerDoublingTenths  Int      @default(40) @map("levels_per_doubling_tenths")
+  supportBonusPer10        Int      @default(1) @map("support_bonus_per_10")
+  supportBonusMax          Int      @default(2) @map("support_bonus_max")
+  charmBonusPer10          Int      @default(1) @map("charm_bonus_per_10")
+  charmBonusMax            Int      @default(2) @map("charm_bonus_max")
+  belowTableExponentTenths Int      @default(30) @map("below_table_exponent_tenths")
+  updatedAt                DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById              String?  @map("updated_by_id") @db.Uuid
+
+  @@map("level_raise_settings")
+}
+
+/// v1.89-social (D290): a staff member's (MODERATION / SUPPORT, app or panel) request to raise a supporter's support
+/// level, with the source app's video; the OWNER approves (≤ the proposal, ≤ 40, ≥ the current level) or rejects it.
+/// One PENDING per supporter. On approval the level is raised through the levels engine (an ADJUSTMENT ledger entry,
+/// `ledger_entry_id`); `proposal` keeps the proposal and its inputs as decided.
+model LevelRaiseRequest {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  supporterUserId String           @map("supporter_user_id") @db.Uuid
+  requestedById   String           @map("requested_by_id") @db.Uuid
+  via             String           @db.VarChar(8)
+  sourceAppId     String?          @map("source_app_id") @db.Uuid
+  sourceAppName   String           @map("source_app_name") @db.VarChar(60)
+  sourceAccountId String           @map("source_account_id") @db.VarChar(64)
+  sourceLevel     Int              @map("source_level")
+  /// The video's asset while it exists; NULL once deleted after the decision (owner: the video goes, the evidence stays).
+  videoMediaId    String?          @unique @map("video_media_id") @db.Uuid
+  /// The video's evidence, kept after its deletion: the asset id, length, size and display size.
+  videoAssetId    String           @map("video_asset_id") @db.Uuid
+  videoDurationMs Int?             @map("video_duration_ms")
+  videoByteSize   Int              @map("video_byte_size")
+  videoWidth      Int              @map("video_width")
+  videoHeight     Int              @map("video_height")
+  /// Set at the decision; the media sweeper deletes the objects and the asset row (retried until it succeeds).
+  videoDeletedAt  DateTime?        @map("video_deleted_at") @db.Timestamptz(3)
+  /// The canonical source app (`APP:<code>`, or `NAME:<normalized name>` for an app not in the list) and the account ID
+  /// trimmed and lower-cased: unique among PENDING / APPROVED requests (`level_raise_requests_source_once`).
+  sourceAppKey     String          @map("source_app_key") @db.VarChar(80)
+  sourceAccountKey String          @map("source_account_key") @db.VarChar(64)
+  /// The latest REJECTED request for the same source account when this one was made («سبق رفض طلب بنفس الحساب»).
+  previousRejectedId String?       @map("previous_rejected_id") @db.Uuid
+  note            String?          @db.VarChar(500)
+  status          LevelRaiseStatus @default(PENDING)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt       DateTime?        @map("decided_at") @db.Timestamptz(3)
+  decidedById     String?          @map("decided_by_id") @db.Uuid
+  rejectReason    String?          @map("reject_reason") @db.VarChar(500)
+  proposedLevel   Int?             @map("proposed_level")
+  approvedLevel   Int?             @map("approved_level")
+  levelBefore     Int?             @map("level_before")
+  levelAfter      Int?             @map("level_after")
+  ledgerEntryId   String?          @map("ledger_entry_id") @db.Uuid
+  proposal        Json?
+
+  supporter     User                 @relation("LevelRaiseSupporter", fields: [supporterUserId], references: [id], onDelete: Cascade)
+  requestedBy   User                 @relation("LevelRaiseRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  decidedBy     User?                @relation("LevelRaiseDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  sourceApp     LevelRaiseSourceApp? @relation(fields: [sourceAppId], references: [id], onDelete: SetNull)
+  video         MediaAsset?          @relation(fields: [videoMediaId], references: [id], onDelete: SetNull)
+  previousRejected LevelRaiseRequest? @relation("LevelRaisePreviousRejection", fields: [previousRejectedId], references: [id], onDelete: SetNull)
+  laterRequests    LevelRaiseRequest[] @relation("LevelRaisePreviousRejection")
+  notifications Notification[]
+
+  @@index([status, createdAt(sort: Desc)], map: "level_raise_requests_status_idx")
+  @@index([requestedById, createdAt(sort: Desc)], map: "level_raise_requests_requester_idx")
+  @@index([supporterUserId, createdAt(sort: Desc)], map: "level_raise_requests_supporter_idx")
+  @@index([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_idx")
+  @@unique([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_once", where: raw("status IN ('PENDING'::level_raise_status, 'APPROVED'::level_raise_status)"))
+  @@map("level_raise_requests")
 }

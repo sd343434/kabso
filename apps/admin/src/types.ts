@@ -98,7 +98,10 @@ export type Capability =
   | 'recruits.view'
   | 'recruits.manage'
   | 'creators.applications'
-  | 'creators.decide';
+  | 'creators.decide'
+  // v1.89-social (D290): level-raise requests «طلب رفع ليفيل».
+  | 'levels.raise.request'
+  | 'levels.raise.decide';
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
