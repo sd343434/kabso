@@ -397,9 +397,20 @@ class NotificationRow extends StatelessWidget {
       NotificationType.familyJoinDeclined => l10n.notifFamilyJoinDeclined(
         _familyName(l10n),
       ),
-      NotificationType.medalAwarded => switch (medalName) {
-        final name? => l10n.notifMedalAwarded(KFormat.bidiIsolate(name)),
-        null => l10n.notifMedalAwardedUnnamed,
+      // v1.81-live (D291): above level 1 the medal levelled up.
+      NotificationType.medalAwarded => switch ((
+        medalName,
+        item.target?.medalLevel,
+      )) {
+        (final name?, final level?) when level > 1 => l10n.notifMedalLevelUp(
+          KFormat.bidiIsolate(name),
+          level,
+        ),
+        (null, final level?) when level > 1 => l10n.notifMedalLevelUpUnnamed(
+          level,
+        ),
+        (final name?, _) => l10n.notifMedalAwarded(KFormat.bidiIsolate(name)),
+        (null, _) => l10n.notifMedalAwardedUnnamed,
       },
       NotificationType.premiumUsernameExpiring =>
         l10n.notificationPremiumExpiring(

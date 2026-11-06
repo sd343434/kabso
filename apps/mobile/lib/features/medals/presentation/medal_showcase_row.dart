@@ -4,8 +4,9 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The medals a user chose to show (`PublicProfile.medals.showcase`, owner
-/// D106 amendment): up to six icons in one row, in their order. Nothing at
-/// all when the showcase is empty: no placeholders, no auto-fill.
+/// D106 amendment): up to five icons (D269) in one row, in their order, each
+/// with its level in the row's label (D291; no number on the art). Nothing
+/// at all when the showcase is empty: no placeholders, no auto-fill.
 class MedalShowcaseRow extends StatelessWidget {
   const new({
     required this.medals,
@@ -28,8 +29,9 @@ class MedalShowcaseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final shown = medals.take(maxShowcaseMedals).toList();
     if (shown.isEmpty) return const SizedBox.shrink();
-    final label = context.l10n.medalsRowLabel(
-      shown.map((m) => m.name).join('، '),
+    final l10n = context.l10n;
+    final label = l10n.medalsRowLabel(
+      shown.map((m) => '${m.name} ${l10n.medalsLevel(m.level)}').join('، '),
     );
     final row = FittedBox(
       fit: BoxFit.scaleDown,
@@ -39,7 +41,13 @@ class MedalShowcaseRow extends StatelessWidget {
         children: [
           for (final (i, m) in shown.indexed) ...[
             if (i > 0) const SizedBox(width: 6),
-            MedalIcon(key: medalKey(m.code), iconKey: m.iconKey, size: size),
+            MedalIcon(
+              key: medalKey(m.code),
+              iconKey: m.iconKey,
+              size: size,
+              iconUrl: m.iconUrl,
+              iconAsset: m.iconAsset,
+            ),
           ],
         ],
       ),

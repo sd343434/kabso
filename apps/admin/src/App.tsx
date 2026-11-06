@@ -7,6 +7,7 @@ import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
 import { GiftCategories } from './pages/GiftCategories';
 import { LiveBoostPrices } from './pages/LiveBoostPrices';
+import { Medals } from './pages/Medals';
 import { Vip } from './pages/Vip';
 import { Store } from './pages/Store';
 import { Hosts, Lives } from './pages/Lives';
@@ -262,6 +263,9 @@ export function App() {
           break;
         case 'boostPrices':
           page = <LiveBoostPrices />;
+          break;
+        case 'medals':
+          page = <Medals />;
           break;
         case 'vip':
           page = <Vip />;

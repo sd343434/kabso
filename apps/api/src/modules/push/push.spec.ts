@@ -283,6 +283,16 @@ describe('push texts', () => {
     expect(notificationBody(n({ type: 'MEDAL_AWARDED', actorName: null }), 'ar')).toBe(
       'حصلت على ميدالية جديدة',
     );
+    // v1.81-live (D291): a level above 1 is a level-up.
+    expect(notificationBody(n({ type: 'MEDAL_AWARDED', actorName: null, medalLevel: 1 }), 'en')).toBe(
+      'You earned a new medal',
+    );
+    expect(notificationBody(n({ type: 'MEDAL_AWARDED', actorName: null, medalLevel: 3 }), 'ar')).toBe(
+      'ارتقت ميداليتك إلى المستوى 3',
+    );
+    expect(notificationBody(n({ type: 'MEDAL_AWARDED', actorName: null, medalLevel: 3 }), 'en')).toBe(
+      'Your medal reached level 3',
+    );
     // v1.48-social (D171).
     expect(notificationBody(n({ type: 'BAG_ITEM_RECEIVED', targetType: 'BAG_ITEM' }), 'ar')).toBe(
       'أرسل لك Sara عنصراً إلى حقيبتك',

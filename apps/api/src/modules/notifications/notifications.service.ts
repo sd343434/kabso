@@ -79,6 +79,8 @@ export interface NotificationTargetDto {
    * `text` is the supporter's username (to the staff member) or null (to the supporter).
    */
   level?: number;
+  /** v1.81-live (D291) MEDAL only: the level announced (1 = earned; more = a level-up); absent on older rows. */
+  medalLevel?: number;
 }
 
 /** `Notification`. */
@@ -530,7 +532,14 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       };
     }
     if (row.medalCode !== null) {
-      return { type: 'MEDAL', id: row.medalCode, postId: null, thumbUrl: null, text: null };
+      return {
+        type: 'MEDAL',
+        id: row.medalCode,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        ...(row.medalLevel !== null ? { medalLevel: row.medalLevel } : {}),
+      };
     }
     const follower = actors[0];
     return USER_TARGET_TYPES.has(row.type) && follower

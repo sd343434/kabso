@@ -66,6 +66,16 @@ void main() {
       'FakeCpRepository',
       'FakeMedalsRepository',
       'testMedals(',
+      // D291 (test/fixtures/medals/medals_d291_fixtures.dart).
+      'd291Medals(',
+      'd291MedalJson(',
+      'd291WealthCode',
+      'd291WealthThresholds',
+      'wealthValue(',
+      'd291LuckyCode',
+      'd291LuckyThresholds',
+      'luckyValue(',
+      'd291NothingEarned(',
       // CP-021 (the CP space fixtures).
       'cpTasksJson(',
       'cpPrivilegesJson(',

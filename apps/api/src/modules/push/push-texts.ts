@@ -23,6 +23,8 @@ export interface NotificationText {
   readonly moderation?: string | null;
   /** v1.89-social (D290): LEVEL_RAISE targets — the support level approved. */
   readonly level?: number | null;
+  /** v1.81-live (D291): MEDAL_AWARDED — the level announced (above 1: a level-up). */
+  readonly medalLevel?: number | null;
 }
 
 export type PushLocale = 'ar' | 'en';
@@ -108,6 +110,10 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
     case 'FAMILY_JOIN_DECLINED':
       return ar ? `تم رفض طلبك للانضمام إلى ${family}` : `Your request to join ${family} was declined`;
     case 'MEDAL_AWARDED':
+      if ((n.medalLevel ?? 1) > 1) {
+        const level = String(n.medalLevel);
+        return ar ? `ارتقت ميداليتك إلى المستوى ${level}` : `Your medal reached level ${level}`;
+      }
       return ar ? 'حصلت على ميدالية جديدة' : 'You earned a new medal';
     case 'PREMIUM_USERNAME_EXPIRING':
       return ar

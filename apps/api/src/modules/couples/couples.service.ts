@@ -11,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { creditFamilyForSpendIn } from '../families/family-points.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
-import { awardMedalsIn } from '../medals/medal-awards.js';
+import { addGiftsSentIn, awardCoupleMedalsIn } from '../medals/medal-awards.js';
 import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
@@ -443,8 +443,7 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         });
         if (ledger) await creditFamilyForSpendIn(tx, request.sender_id, ledger.id, BigInt(request.cost));
         await this.closeOthersIn(tx, [a, b], request.id);
-        await awardMedalsIn(tx, a, ['FIRST_CP'], { at: now });
-        await awardMedalsIn(tx, b, ['FIRST_CP'], { at: now });
+        await awardCoupleMedalsIn(tx, [a, b], now);
         // v1.23.3-live (D111): rooms where both sit now show the pair joined (§10.9).
         await bumpRoomsSeatingBothIn(tx, a, b);
         await this.notifier.notify(tx, {
@@ -599,6 +598,8 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         });
         const charged = await this.wallet.debitIn(tx, callerId, amount, 'CP_GIFT', gift.id);
         if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+        // D291 «ملوك الثروة»: a CP gift is a gift sent to a user too; once per send (this transaction).
+        await addGiftsSentIn(tx, callerId, BigInt(amount), now);
         const points = couple.points + BigInt(amount);
         const level = cpLevelFor(points);
         await tx.cpCouple.update({

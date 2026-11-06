@@ -25797,6 +25797,174 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'سبق رفض طلب بنفس الحساب'**
   String get lrPreviouslyRejected;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'الميداليات التي أرتديها'**
+  String get medalsStageTitle;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مرتدية'**
+  String get medalsNotWorn;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا ترتدي أي ميدالية'**
+  String get medalsNoneWorn;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتدي {count} من {max}'**
+  String medalsWornCount(int count, int max);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإنجازات'**
+  String get medalsTabAchievements;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'النشاط'**
+  String get medalsTabActivity;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ميداليات في هذا التبويب'**
+  String get medalsTabEmpty;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُحصَّل'**
+  String get medalsNotObtained;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى {level}'**
+  String medalsLevel(int level);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرتدية'**
+  String get medalsWorn;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى مستوى'**
+  String get medalsTopLevel;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'{value} / {next}'**
+  String medalsProgress(String value, String next);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستويات'**
+  String get medalsLevelsTitle;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارتداء'**
+  String get medalsWear;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'خلع'**
+  String get medalsTakeOff;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث ميدالياتك المرتدية'**
+  String get medalsWearSaved;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{بث واحد} =2{بثّان} few{{count} بثوث} many{{count} بثاً} other{{count} بث}}'**
+  String medalsThresholdLives(int count);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{ساعة بث واحدة} =2{ساعتا بث} few{{count} ساعات بث} many{{count} ساعة بث} other{{count} ساعة بث}}'**
+  String medalsThresholdHours(int count);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية {count}'**
+  String medalsThresholdCharm(int count);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{رسالة عامة واحدة} =2{رسالتان عامتان} few{{count} رسائل عامة} many{{count} رسالة عامة} other{{count} رسالة عامة}}'**
+  String medalsThresholdBullets(int count);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرة واحدة'**
+  String get medalsThresholdOnce;
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'{level}، تم بلوغه'**
+  String medalsLevelReachedLabel(String level);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، {status}'**
+  String medalsCardLabel(String name, String status);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارتقت ميداليتك {name} إلى المستوى {level}'**
+  String notifMedalLevelUp(String name, int level);
+
+  /// D291: medal levels and the medals page.
+  ///
+  /// In ar, this message translates to:
+  /// **'ارتقت ميداليتك إلى المستوى {level}'**
+  String notifMedalLevelUpUnnamed(int level);
+
+  /// D291: the medals the profile shows, under the one-medal stage.
+  ///
+  /// In ar, this message translates to:
+  /// **'على ملفك: {count} من {max}'**
+  String medalsProfileWornCount(int count, int max);
+
+  /// D291: a Wealth Kings level threshold (coins of gifts sent, lucky excluded).
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} كوينز من الهدايا'**
+  String medalsThresholdGiftCoins(String amount);
+
+  /// D291: a Lucky Master level threshold (coins of lucky gifts sent).
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} كوينز من هدايا الحظ'**
+  String medalsThresholdLuckyCoins(String amount);
 }
 
 class _AppLocalizationsDelegate

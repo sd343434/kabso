@@ -15274,4 +15274,134 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get lrPreviouslyRejected =>
       'A request for this account was rejected before';
+
+  @override
+  String get medalsStageTitle => 'The medals I wear';
+
+  @override
+  String get medalsNotWorn => 'Not worn';
+
+  @override
+  String get medalsNoneWorn => 'You don\'t wear any medal';
+
+  @override
+  String medalsWornCount(int count, int max) {
+    return 'Wearing $count of $max';
+  }
+
+  @override
+  String get medalsTabAchievements => 'Achievements';
+
+  @override
+  String get medalsTabActivity => 'Activity';
+
+  @override
+  String get medalsTabEmpty => 'No medals in this tab';
+
+  @override
+  String get medalsNotObtained => 'Not obtained';
+
+  @override
+  String medalsLevel(int level) {
+    return 'Level $level';
+  }
+
+  @override
+  String get medalsWorn => 'Worn';
+
+  @override
+  String get medalsTopLevel => 'Top level';
+
+  @override
+  String medalsProgress(String value, String next) {
+    return '$value / $next';
+  }
+
+  @override
+  String get medalsLevelsTitle => 'Levels';
+
+  @override
+  String get medalsWear => 'Wear';
+
+  @override
+  String get medalsTakeOff => 'Take off';
+
+  @override
+  String get medalsWearSaved => 'Your worn medals were updated';
+
+  @override
+  String medalsThresholdLives(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count lives',
+      one: '$count live',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medalsThresholdHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count live hours',
+      one: '$count live hour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medalsThresholdCharm(int count) {
+    return 'Charm level $count';
+  }
+
+  @override
+  String medalsThresholdBullets(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bullet messages',
+      one: '$count bullet message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get medalsThresholdOnce => 'Once';
+
+  @override
+  String medalsLevelReachedLabel(String level) {
+    return '$level, reached';
+  }
+
+  @override
+  String medalsCardLabel(String name, String status) {
+    return '$name, $status';
+  }
+
+  @override
+  String notifMedalLevelUp(String name, int level) {
+    return 'Your medal $name reached level $level';
+  }
+
+  @override
+  String notifMedalLevelUpUnnamed(int level) {
+    return 'Your medal reached level $level';
+  }
+
+  @override
+  String medalsProfileWornCount(int count, int max) {
+    return 'On your profile: $count of $max';
+  }
+
+  @override
+  String medalsThresholdGiftCoins(String amount) {
+    return '$amount coins of gifts';
+  }
+
+  @override
+  String medalsThresholdLuckyCoins(String amount) {
+    return '$amount coins of lucky gifts';
+  }
 }

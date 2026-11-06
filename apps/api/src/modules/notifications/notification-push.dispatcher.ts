@@ -137,6 +137,7 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
             probationDays: this.config.economy.probationDays,
             moderation: dto.target?.moderation ?? null,
             level: dto.target?.level ?? null,
+            medalLevel: dto.target?.medalLevel ?? null,
           },
           locale,
         );

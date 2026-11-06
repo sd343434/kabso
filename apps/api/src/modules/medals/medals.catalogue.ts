@@ -7,6 +7,10 @@
  */
 export interface MedalDef {
   readonly code: MedalCode;
+  /** v1.81-live (D291): the medals page's tab. */
+  readonly category: MedalCategoryCode;
+  /** v1.81-live (D291): what the medal's levels count. */
+  readonly metric: MedalMetricCode;
   readonly nameAr: string;
   readonly nameEn: string;
   readonly descriptionAr: string;
@@ -14,6 +18,23 @@ export interface MedalDef {
   readonly iconKey: string;
   readonly sortOrder: number;
 }
+
+/** v1.81-live (D291, §10.104): the medals page's tabs «الإنجازات» / «النشاط». */
+export type MedalCategoryCode = 'ACHIEVEMENT' | 'ACTIVITY';
+
+/** v1.81-live (D291, §10.104): what a medal's level thresholds compare with. */
+export type MedalMetricCode =
+  | 'LIVES_HOSTED'
+  | 'LIVE_HOURS'
+  | 'CHARM_LEVEL'
+  | 'FAMILY_JOINED'
+  | 'CP_FORMED'
+  | 'BULLETS_SENT'
+  | 'GIFTS_SENT_COINS'
+  | 'LUCKY_GIFTS_SENT_COINS';
+
+/** Metrics that are 0 or 1 (a medal on them has exactly one level, threshold 1). */
+export const BINARY_MEDAL_METRICS: ReadonlySet<MedalMetricCode> = new Set(['FAMILY_JOINED', 'CP_FORMED']);
 
 export type MedalCode =
   | 'FIRST_LIVE'
@@ -24,11 +45,15 @@ export type MedalCode =
   | 'CHARM_100'
   | 'FIRST_FAMILY'
   | 'FIRST_CP'
-  | 'BULLET_FIRST';
+  | 'BULLET_FIRST'
+  | 'WEALTH_KINGS'
+  | 'LUCKY_MASTER';
 
 export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   {
     code: 'FIRST_LIVE',
+    category: 'ACTIVITY',
+    metric: 'LIVES_HOSTED',
     nameAr: 'أول لايف',
     nameEn: 'First live',
     descriptionAr: 'استضفت أول بث مباشر لك.',
@@ -38,6 +63,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'LIVE_HOURS_10',
+    category: 'ACTIVITY',
+    metric: 'LIVE_HOURS',
     nameAr: '10 ساعات بث',
     nameEn: '10 live hours',
     descriptionAr: 'استضفت 10 ساعات من البث المباشر.',
@@ -47,6 +74,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'LIVE_HOURS_100',
+    category: 'ACTIVITY',
+    metric: 'LIVE_HOURS',
     nameAr: '100 ساعة بث',
     nameEn: '100 live hours',
     descriptionAr: 'استضفت 100 ساعة من البث المباشر.',
@@ -56,6 +85,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'CHARM_10',
+    category: 'ACHIEVEMENT',
+    metric: 'CHARM_LEVEL',
     nameAr: 'جاذبية 10',
     nameEn: 'Charm 10',
     descriptionAr: 'بلغت مستوى الجاذبية 10.',
@@ -65,6 +96,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'CHARM_50',
+    category: 'ACHIEVEMENT',
+    metric: 'CHARM_LEVEL',
     nameAr: 'جاذبية 50',
     nameEn: 'Charm 50',
     descriptionAr: 'بلغت مستوى الجاذبية 50.',
@@ -74,6 +107,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'CHARM_100',
+    category: 'ACHIEVEMENT',
+    metric: 'CHARM_LEVEL',
     nameAr: 'جاذبية 100',
     nameEn: 'Charm 100',
     descriptionAr: 'بلغت مستوى الجاذبية 100.',
@@ -83,6 +118,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'FIRST_FAMILY',
+    category: 'ACHIEVEMENT',
+    metric: 'FAMILY_JOINED',
     nameAr: 'أول عائلة',
     nameEn: 'First family',
     descriptionAr: 'انضممت إلى عائلة أو أنشأت واحدة.',
@@ -92,6 +129,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'FIRST_CP',
+    category: 'ACHIEVEMENT',
+    metric: 'CP_FORMED',
     nameAr: 'أول ثنائي',
     nameEn: 'First couple',
     descriptionAr: 'كوّنت أول ثنائي (CP).',
@@ -101,6 +140,8 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   },
   {
     code: 'BULLET_FIRST',
+    category: 'ACTIVITY',
+    metric: 'BULLETS_SENT',
     nameAr: 'أول رسالة عامة',
     nameEn: 'First bullet message',
     descriptionAr: 'أرسلت أول رسالة عامة.',
@@ -108,28 +149,107 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
     iconKey: 'medal_bullet_first',
     sortOrder: 90,
   },
+  // D291 (owner 2026-11-06): the first real levelled medal, seeded by 20270325090200_medal_wealth_kings.
+  {
+    code: 'WEALTH_KINGS',
+    category: 'ACHIEVEMENT',
+    metric: 'GIFTS_SENT_COINS',
+    nameAr: 'ملوك الثروة',
+    nameEn: 'Wealth Kings',
+    descriptionAr: 'مجموع قيمة الهدايا التي أرسلتها لأي مستخدم، عدا هدايا الحظ.',
+    descriptionEn: 'Total value of gifts you sent to anyone, except lucky gifts.',
+    iconKey: 'medal_wealth_kings',
+    sortOrder: 100,
+  },
+  // D291 (owner 2026-11-06): the second real levelled medal, seeded by 20270325090500_medal_lucky_master.
+  {
+    code: 'LUCKY_MASTER',
+    category: 'ACHIEVEMENT',
+    metric: 'LUCKY_GIFTS_SENT_COINS',
+    nameAr: 'سيد الحظ',
+    nameEn: 'Lucky Master',
+    descriptionAr: 'مجموع قيمة هدايا الحظ التي أرسلتها.',
+    descriptionEn: 'Total value of lucky gifts you sent.',
+    iconKey: 'medal_lucky_master',
+    sortOrder: 110,
+  },
 ];
 
-/** Hours of hosted lives (ended rooms, `ended_at − started_at`) that give a medal. */
-export const LIVE_HOURS_MEDALS: readonly { readonly hours: number; readonly code: MedalCode }[] = [
-  { hours: 10, code: 'LIVE_HOURS_10' },
-  { hours: 100, code: 'LIVE_HOURS_100' },
-];
+/**
+ * v1.81-live (D291, §10.104): the default level thresholds the migration `20270325090000_medal_levels` seeds — level 1
+ * is each medal's original award rule (CP-018), the others are CTO proposals the owner may change in the panel. Values
+ * are in the medal's metric: lives, hours, the charm level, 0/1, bullet messages.
+ */
+export const MEDAL_DEFAULT_LEVELS: Readonly<Record<MedalCode, readonly number[]>> = {
+  FIRST_LIVE: [1, 10, 50, 100, 500],
+  LIVE_HOURS_10: [10, 25, 50],
+  LIVE_HOURS_100: [100, 500, 1000],
+  CHARM_10: [10, 20, 30, 40],
+  CHARM_50: [50, 60, 70, 80, 90],
+  CHARM_100: [100],
+  FIRST_FAMILY: [1],
+  FIRST_CP: [1],
+  BULLET_FIRST: [1, 10, 100, 1000],
+  // The owner's thresholds (coins of gifts sent to anyone, lucky gifts excluded) — not provisional.
+  WEALTH_KINGS: [50_000_000, 150_000_000, 300_000_000, 500_000_000, 1_000_000_000, 3_000_000_000],
+  // The owner's thresholds (coins of lucky gifts sent) — not provisional; 10 B is above 2^32 by design.
+  LUCKY_MASTER: [500_000_000, 1_500_000_000, 3_000_000_000, 10_000_000_000],
+};
 
-/** Charm (`ATTRACTIVENESS`, CP-005) levels that give a medal. */
-export const CHARM_MEDALS: readonly { readonly level: number; readonly code: MedalCode }[] = [
-  { level: 10, code: 'CHARM_10' },
-  { level: 50, code: 'CHARM_50' },
-  { level: 100, code: 'CHARM_100' },
-];
+/** D291: each level's art bundled in the app (`medal_levels.icon_asset`), by medal, level 1 first. */
+export const MEDAL_LEVEL_ASSETS: Readonly<Partial<Record<MedalCode, readonly string[]>>> = {
+  WEALTH_KINGS: [
+    'medal_wealth_l1',
+    'medal_wealth_l2',
+    'medal_wealth_l3',
+    'medal_wealth_l4',
+    'medal_wealth_l5',
+    'medal_wealth_l6',
+  ],
+  LUCKY_MASTER: ['medal_lucky_l1', 'medal_lucky_l2', 'medal_lucky_l3', 'medal_lucky_l4'],
+};
 
-/** The charm medals of `level` (every threshold at or below it). */
-export function charmMedalsFor(level: number | null): MedalCode[] {
-  if (level === null) return [];
-  return CHARM_MEDALS.filter((m) => level >= m.level).map((m) => m.code);
-}
+/** The medals of CP-018 (seeded by 20261110100000_families_cp_medals); WEALTH_KINGS has its own migration. */
+export const CP018_MEDAL_CODES: ReadonlySet<MedalCode> = new Set<MedalCode>([
+  'FIRST_LIVE',
+  'LIVE_HOURS_10',
+  'LIVE_HOURS_100',
+  'CHARM_10',
+  'CHARM_50',
+  'CHARM_100',
+  'FIRST_FAMILY',
+  'FIRST_CP',
+  'BULLET_FIRST',
+]);
 
-/** The live-hours medals of `hours` hosted. */
-export function liveHoursMedalsFor(hours: number): MedalCode[] {
-  return LIVE_HOURS_MEDALS.filter((m) => hours >= m.hours).map((m) => m.code);
+/**
+ * D291 (owner: «هذه بالأصل ليست ميدالية يمكن ارتداؤها، فقط تكون أيقونة بجانب الاسم»): the charm and live-hours codes
+ * are name-side icons, not wearable medals — `medals.retired` (migration 20270325090300_medal_retire_name_icons).
+ */
+export const RETIRED_MEDAL_CODES: ReadonlySet<MedalCode> = new Set<MedalCode>([
+  'LIVE_HOURS_10',
+  'LIVE_HOURS_100',
+  'CHARM_10',
+  'CHARM_50',
+  'CHARM_100',
+]);
+
+/** The most levels a medal can have (the panel's limit). */
+export const MEDAL_MAX_LEVELS = 20;
+
+/** The highest threshold the panel accepts (coins-sized metrics later fit; well inside a JS number). */
+export const MEDAL_MAX_THRESHOLD = 1_000_000_000_000;
+
+/**
+ * The level [value] reaches on [thresholds] (strictly rising): how many thresholds are at or below it; 0 = not
+ * earned. A value that falls later (a charm level can drop) never lowers a level already held — callers keep the
+ * higher of the two.
+ */
+export function medalLevelFor(thresholds: readonly number[], value: number): number {
+  let level = 0;
+  for (const t of thresholds) {
+    if (value >= t) level += 1;
+    else break;
+  }
+  return level;
 }

@@ -4,9 +4,27 @@ import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.j
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
-import type { Medal } from '../../generated/prisma/client.js';
+import type { Medal, MedalLevel, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
+
+/** `MedalLevel` (v1.81-live, D291): one level of a medal — reached when the medal's metric is at least `threshold`. */
+export interface MedalLevelDto {
+  level: number;
+  threshold: number;
+  /** This level's own name in the caller's language, or null (the medal's name with the numeral). */
+  name: string | null;
+  /** This level's own hosted art, or null. */
+  iconUrl: string | null;
+  /** D291: this level's art bundled in the app (an asset key), or null (the medal's art). */
+  iconAsset: string | null;
+}
+
+/** `MedalProgress` (v1.81-live, D291): the caller's metric now and the next level's threshold (null at the top). */
+export interface MedalProgressDto {
+  value: number;
+  next: number | null;
+}
 
 /** `Medal`: a catalogue entry with the caller's award time (null when not earned). */
 export interface MedalDto {
@@ -16,6 +34,23 @@ export interface MedalDto {
   iconKey: string;
   sortOrder: number;
   awardedAt: string | null;
+  /** v1.81-live (D291): the page's tab. */
+  category: 'ACHIEVEMENT' | 'ACTIVITY';
+  /** v1.81-live (D291): what the levels count (the app words the thresholds with it); null = no levels. */
+  metric: string | null;
+  /** v1.81-live (D291): the caller's level, 0 when not earned. */
+  level: number;
+  /** v1.81-live (D291): how many levels the medal has (≥ 1). */
+  maxLevel: number;
+  /** v1.81-live (D291): every level, lowest first (empty for a medal without levels: one implied level). */
+  levels: MedalLevelDto[];
+  progress: MedalProgressDto;
+  /** v1.81-live (D291): the art of the level shown (the caller's, else level 1), or null (the app's art). */
+  iconUrl: string | null;
+  /** D291: the bundled art key of the level shown, or null (the app draws `iconKey`). */
+  iconAsset: string | null;
+  /** v1.81-live (D291): 1 … 5 when the caller wears it (the showcase, in order), else null. */
+  showcasePosition: number | null;
 }
 
 /** `MedalCatalogue`. */
@@ -32,6 +67,12 @@ export interface UserMedalDto {
   description: string;
   iconKey: string;
   awardedAt: string;
+  /** v1.81-live (D291). */
+  category: 'ACHIEVEMENT' | 'ACTIVITY';
+  level: number;
+  maxLevel: number;
+  iconUrl: string | null;
+  iconAsset: string | null;
 }
 
 /** `UserMedalList`. */
@@ -46,6 +87,12 @@ export interface ProfileMedalDto {
   code: string;
   name: string;
   iconKey: string;
+  /** v1.81-live (D291): the holder's level (≥ 1); the app draws the numeral on the art. */
+  level: number;
+  /** v1.81-live (D291): that level's own art, or null. */
+  iconUrl: string | null;
+  /** D291: that level's bundled art key, or null. */
+  iconAsset: string | null;
 }
 
 /** `ProfileMedals`: on the public profile (§10.5, §10.21). */
@@ -95,6 +142,91 @@ function localized(medal: Medal, lang: ContentLanguage): { name: string; descrip
     : { name: medal.nameEn, description: medal.descriptionEn };
 }
 
+type MedalWithLevels = Medal & { levels: MedalLevel[] };
+
+function profileMedalOf(
+  row: { medalCode: string; level: number; medal: MedalWithLevels },
+  lang: ContentLanguage,
+): ProfileMedalDto {
+  return {
+    code: row.medalCode,
+    name: localized(row.medal, lang).name,
+    iconKey: row.medal.iconKey,
+    level: Math.max(1, row.level),
+    iconUrl: iconUrlOf(row.medal, row.level),
+    iconAsset: iconAssetOf(row.medal, row.level),
+  };
+}
+
+const WITH_LEVELS = { levels: { orderBy: { level: 'asc' } } } as const satisfies Prisma.MedalInclude;
+
+function levelsOf(medal: MedalWithLevels, lang: ContentLanguage): MedalLevelDto[] {
+  return medal.levels.map((l) => ({
+    level: l.level,
+    threshold: Number(l.threshold),
+    name: (lang === 'ar' ? l.nameAr : l.nameEn) ?? null,
+    iconUrl: l.iconUrl,
+    iconAsset: l.iconAsset,
+  }));
+}
+
+/** The art URL of `level` (level 1's for 0), or null. */
+function iconUrlOf(medal: MedalWithLevels, level: number): string | null {
+  const shown = Math.max(1, level);
+  return medal.levels.find((l) => l.level === shown)?.iconUrl ?? null;
+}
+
+/** D291: the bundled art key of `level` (level 1's for 0), or null. */
+function iconAssetOf(medal: MedalWithLevels, level: number): string | null {
+  const shown = Math.max(1, level);
+  return medal.levels.find((l) => l.level === shown)?.iconAsset ?? null;
+}
+
+/** A medal without level rows has one implied level. */
+function maxLevelOf(medal: MedalWithLevels): number {
+  return Math.max(1, medal.levels.length);
+}
+
+/** Each metric's value for one person now (the medals page's progress, D291). */
+async function metricValuesOf(db: PrismaService, userId: string): Promise<Record<string, number>> {
+  const [row] = await db.$queryRaw<
+    {
+      lives: number;
+      hours: number;
+      charm: number | null;
+      family: boolean;
+      cp: boolean;
+      bullets: number;
+      gifts: bigint | null;
+      lucky: bigint | null;
+    }[]
+  >`
+    SELECT
+      (SELECT count(*)::int FROM live_rooms
+        WHERE host_user_id = ${userId}::uuid AND status = 'ENDED' AND ended_at IS NOT NULL) AS lives,
+      (SELECT coalesce(sum(extract(epoch FROM (ended_at - started_at))) / 3600, 0)::float8 FROM live_rooms
+        WHERE host_user_id = ${userId}::uuid AND status = 'ENDED' AND ended_at IS NOT NULL) AS hours,
+      (SELECT s.current_level FROM user_level_states s JOIN level_categories c ON c.id = s.category_id
+        WHERE s.user_id = ${userId}::uuid AND c.code = 'ATTRACTIVENESS') AS charm,
+      EXISTS (SELECT 1 FROM family_members WHERE user_id = ${userId}::uuid) AS family,
+      EXISTS (SELECT 1 FROM cp_couples WHERE user_a_id = ${userId}::uuid OR user_b_id = ${userId}::uuid) AS cp,
+      (SELECT count(*)::int FROM live_bullets WHERE user_id = ${userId}::uuid) AS bullets,
+      (SELECT value FROM medal_metric_totals
+        WHERE user_id = ${userId}::uuid AND metric = 'GIFTS_SENT_COINS') AS gifts,
+      (SELECT value FROM medal_metric_totals
+        WHERE user_id = ${userId}::uuid AND metric = 'LUCKY_GIFTS_SENT_COINS') AS lucky`;
+  return {
+    LIVES_HOSTED: row?.lives ?? 0,
+    LIVE_HOURS: Math.floor(row?.hours ?? 0),
+    CHARM_LEVEL: row?.charm ?? 0,
+    FAMILY_JOINED: row?.family ? 1 : 0,
+    CP_FORMED: row?.cp ? 1 : 0,
+    BULLETS_SENT: row?.bullets ?? 0,
+    GIFTS_SENT_COINS: Number(row?.gifts ?? 0n),
+    LUCKY_GIFTS_SENT_COINS: Number(row?.lucky ?? 0n),
+  };
+}
+
 /**
  * Medals (الميداليات, CP-018, owner D106, CONVENTIONS §10.21): the catalogue and who earned what.
  * Awarding happens where the events happen (medal-awards.ts); this service only reads. The
@@ -109,22 +241,49 @@ export class MedalsService {
 
   /** `GET /medals`: every medal in catalogue order, with the caller's award times. */
   async catalogue(callerId: string, lang: ContentLanguage): Promise<MedalCatalogueDto> {
-    const [medals, mine] = await Promise.all([
-      this.prisma.medal.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
-      this.prisma.userMedal.findMany({
-        where: { userId: callerId },
-        select: { medalCode: true, awardedAt: true },
+    const [medals, mine, values] = await Promise.all([
+      this.prisma.medal.findMany({
+        where: { retired: false },
+        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+        include: WITH_LEVELS,
       }),
+      this.prisma.userMedal.findMany({
+        where: { userId: callerId, medal: { retired: false } },
+        select: { medalCode: true, awardedAt: true, level: true, showcasePosition: true },
+      }),
+      metricValuesOf(this.prisma, callerId),
     ]);
-    const owned = new Map(mine.map((m) => [m.medalCode, m.awardedAt]));
+    const owned = new Map(mine.map((m) => [m.medalCode, m]));
+    // The worn ones as the showcase reads them (its first 5, in order; D269).
+    const worn = mine
+      .filter((m) => m.showcasePosition !== null)
+      .sort((a, b) => a.showcasePosition! - b.showcasePosition!)
+      .slice(0, MEDAL_SHOWCASE_MAX)
+      .map((m) => m.medalCode);
     return {
-      data: medals.map((m) => ({
-        code: m.code,
-        ...localized(m, lang),
-        iconKey: m.iconKey,
-        sortOrder: m.sortOrder,
-        awardedAt: owned.get(m.code)?.toISOString() ?? null,
-      })),
+      data: medals.map((m) => {
+        const held = owned.get(m.code);
+        const level = held ? Math.max(1, held.level) : 0;
+        const levels = levelsOf(m, lang);
+        const value = m.metric ? (values[m.metric] ?? 0) : held ? 1 : 0;
+        const position = worn.indexOf(m.code);
+        return {
+          code: m.code,
+          ...localized(m, lang),
+          iconKey: m.iconKey,
+          sortOrder: m.sortOrder,
+          awardedAt: held?.awardedAt.toISOString() ?? null,
+          category: m.category,
+          metric: m.metric,
+          level,
+          maxLevel: maxLevelOf(m),
+          levels,
+          progress: { value, next: levels.find((l) => l.level === level + 1)?.threshold ?? null },
+          iconUrl: iconUrlOf(m, level),
+          iconAsset: iconAssetOf(m, level),
+          showcasePosition: position < 0 ? null : position + 1,
+        };
+      }),
       total: medals.length,
       owned: owned.size,
     };
@@ -136,11 +295,11 @@ export class MedalsService {
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const [rows, total] = await Promise.all([
       this.prisma.userMedal.findMany({
-        where: { userId: user.id },
+        where: { userId: user.id, medal: { retired: false } },
         orderBy: [{ awardedAt: 'desc' }, { medal: { sortOrder: 'desc' } }],
-        include: { medal: true },
+        include: { medal: { include: WITH_LEVELS } },
       }),
-      this.prisma.medal.count(),
+      this.prisma.medal.count({ where: { retired: false } }),
     ]);
     return {
       data: rows.map((r) => ({
@@ -148,6 +307,11 @@ export class MedalsService {
         ...localized(r.medal, lang),
         iconKey: r.medal.iconKey,
         awardedAt: r.awardedAt.toISOString(),
+        category: r.medal.category,
+        level: Math.max(1, r.level),
+        maxLevel: maxLevelOf(r.medal),
+        iconUrl: iconUrlOf(r.medal, r.level),
+        iconAsset: iconAssetOf(r.medal, r.level),
       })),
       owned: rows.length,
       total,
@@ -157,40 +321,32 @@ export class MedalsService {
   /** The medal summary of a public profile. */
   async profileMedals(userId: string, lang: ContentLanguage): Promise<ProfileMedalsDto> {
     const [owned, total, latest, showcase] = await Promise.all([
-      this.prisma.userMedal.count({ where: { userId } }),
-      this.prisma.medal.count(),
+      this.prisma.userMedal.count({ where: { userId, medal: { retired: false } } }),
+      this.prisma.medal.count({ where: { retired: false } }),
       this.prisma.userMedal.findMany({
-        where: { userId },
+        where: { userId, medal: { retired: false } },
         orderBy: [{ awardedAt: 'desc' }, { medal: { sortOrder: 'desc' } }],
         take: PROFILE_LATEST_MEDALS,
-        include: { medal: true },
+        include: { medal: { include: WITH_LEVELS } },
       }),
       this.showcaseOf(userId, lang),
     ]);
     return {
       owned,
       total,
-      latest: latest.map((r) => ({
-        code: r.medalCode,
-        name: localized(r.medal, lang).name,
-        iconKey: r.medal.iconKey,
-      })),
+      latest: latest.map((r) => profileMedalOf(r, lang)),
       showcase,
     };
   }
 
   private async showcaseOf(userId: string, lang: ContentLanguage): Promise<ProfileMedalDto[]> {
     const rows = await this.prisma.userMedal.findMany({
-      where: { userId, showcasePosition: { not: null } },
+      where: { userId, showcasePosition: { not: null }, medal: { retired: false } },
       orderBy: { showcasePosition: 'asc' },
-      include: { medal: true },
+      include: { medal: { include: WITH_LEVELS } },
       take: MEDAL_SHOWCASE_MAX,
     });
-    return rows.map((r) => ({
-      code: r.medalCode,
-      name: localized(r.medal, lang).name,
-      iconKey: r.medal.iconKey,
-    }));
+    return rows.map((r) => profileMedalOf(r, lang));
   }
 
   /** `GET /me/medals/showcase`. */
@@ -208,6 +364,11 @@ export class MedalsService {
     const parsed = setMedalShowcaseSchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const codes = parsed.data.medalCodes;
+    // D291: a retired code (a name-side icon, not a wearable medal) → 400 `medalCodes` / `invalid_value`.
+    if (codes.length > 0) {
+      const retired = await this.prisma.medal.count({ where: { code: { in: codes }, retired: true } });
+      if (retired > 0) throw AppException.validation([{ field: 'medalCodes', issue: 'invalid_value' }]);
+    }
     await this.prisma.$transaction(async (tx) => {
       const owned = await tx.$queryRaw<{ medal_code: string }[]>`
         SELECT medal_code FROM user_medals WHERE user_id = ${callerId}::uuid FOR UPDATE`;

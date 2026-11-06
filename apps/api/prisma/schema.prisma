@@ -166,6 +166,8 @@ model User {
   cpConfessionsGot       CpConfession[]             @relation("CpConfessionRecipient")
   cpConfessionsDel       CpConfession[]             @relation("CpConfessionDeleter")
   medals                 UserMedal[]
+  /// D291: running medal metric totals (GIFTS_SENT_COINS).
+  medalMetricTotals      MedalMetricTotal[]
   // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
   bagItems               UserBagItem[]              @relation("BagItemOwner")
   /// v1.48-social (D171): bag items this user sent (as the latest giver) and the transfer ledger.
@@ -2269,6 +2271,8 @@ model Notification {
   familyId           String?          @map("family_id") @db.Uuid
   /// CP-018: the medal of MEDAL_AWARDED.
   medalCode          String?          @map("medal_code") @db.VarChar(40)
+  /// v1.81-live (D291): the level MEDAL_AWARDED announces (1 = earned; more = a level-up); null on older rows.
+  medalLevel         Int?             @map("medal_level") @db.SmallInt
   /// D146: the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED.
   premiumLeaseId     String?          @map("premium_lease_id") @db.Uuid
   /// v1.48-social (D171): the bag item of BAG_ITEM_RECEIVED.
@@ -2755,21 +2759,94 @@ model CpConfession {
   @@map("cp_confessions")
 }
 
+/// v1.81-live (D291, CONVENTIONS §10.104): the medals page's tabs «الإنجازات» / «النشاط».
+enum MedalCategory {
+  ACHIEVEMENT
+  ACTIVITY
+}
+
+/// v1.81-live (D291, §10.104): what a medal's levels count — the number the thresholds of `medal_levels` compare with.
+enum MedalMetric {
+  /// Ended lives hosted.
+  LIVES_HOSTED
+  /// Hours of all ended lives hosted (`ended_at − started_at`).
+  LIVE_HOURS
+  /// The charm (CP-005 `ATTRACTIVENESS`) level reached.
+  CHARM_LEVEL
+  /// 1 once the user created or joined a family (one level only).
+  FAMILY_JOINED
+  /// 1 once the user formed a couple (one level only).
+  CP_FORMED
+  /// Bullet messages sent.
+  BULLETS_SENT
+  /// D291 (owner «ملوك الثروة»): the coin value of every gift sent to anyone — live (host, seat guests), direct
+  /// conversation, CP — lucky gifts excluded (kept in `medal_metric_totals`, added in each send's transaction).
+  GIFTS_SENT_COINS
+  /// D291 (owner «سيد الحظ»: «يتم احتساب من مجموع هدايا الحظ التي قام بإرسالها»): the coin value of the LUCKY gifts sent
+  /// (any path, any recipient; never the winnings), in `medal_metric_totals`, added in each send's transaction.
+  LUCKY_GIFTS_SENT_COINS
+}
+
+/// D291: a running total of a medal metric that is not cheap to recount on every event (GIFTS_SENT_COINS), added to in
+/// the event's own transaction (once per send) and recomputed from history by `medals-admin backfill`.
+model MedalMetricTotal {
+  userId    String      @map("user_id") @db.Uuid
+  metric    MedalMetric
+  value     BigInt      @default(0)
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, metric], map: "medal_metric_totals_pkey")
+  @@map("medal_metric_totals")
+}
+
 /// The medal catalogue (الميداليات), seeded by migration 20261110100000_families_cp_medals.
 model Medal {
-  code          String   @id @db.VarChar(40)
-  nameAr        String   @map("name_ar") @db.VarChar(60)
-  nameEn        String   @map("name_en") @db.VarChar(60)
-  descriptionAr String   @map("description_ar") @db.VarChar(200)
-  descriptionEn String   @map("description_en") @db.VarChar(200)
-  iconKey       String   @map("icon_key") @db.VarChar(60)
-  sortOrder     Int      @map("sort_order")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  code          String        @id @db.VarChar(40)
+  nameAr        String        @map("name_ar") @db.VarChar(60)
+  nameEn        String        @map("name_en") @db.VarChar(60)
+  descriptionAr String        @map("description_ar") @db.VarChar(200)
+  descriptionEn String        @map("description_en") @db.VarChar(200)
+  iconKey       String        @map("icon_key") @db.VarChar(60)
+  sortOrder     Int           @map("sort_order")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// v1.81-live (D291): the medals page's tab.
+  category      MedalCategory @default(ACHIEVEMENT)
+  /// v1.81-live (D291): what the levels count; null = a medal without levels (awarded by code at level 1 only).
+  metric        MedalMetric?
+  /// D291 (owner: «هذه بالأصل ليست ميدالية يمكن ارتداؤها، فقط تكون أيقونة بجانب الاسم»): not a wearable medal any
+  /// more — left out of the medals page, the showcase, the lists and the chat line, never awarded again; the rows of
+  /// `user_medals` are kept as history.
+  retired       Boolean       @default(false)
 
   awards        UserMedal[]
   notifications Notification[]
+  levels        MedalLevel[]
 
   @@map("medals")
+}
+
+/// v1.81-live (D291, §10.104): a medal's level — reached when the medal's metric is at least `threshold`. Level 1 is
+/// the medal's original award rule; the panel edits the list (thresholds strictly rising).
+model MedalLevel {
+  medalCode String   @map("medal_code") @db.VarChar(40)
+  level     Int      @db.SmallInt
+  threshold BigInt
+  /// Optional names for this level (null = the medal's name; the app adds the numeral).
+  nameAr    String?  @map("name_ar") @db.VarChar(60)
+  nameEn    String?  @map("name_en") @db.VarChar(60)
+  /// Optional hosted art for this level (https); null = the medal's art.
+  iconUrl   String?  @map("icon_url") @db.VarChar(500)
+  /// D291: optional art bundled in the app for this level (its asset key, e.g. `medal_wealth_l1`); the app falls
+  /// back to the medal's art for a key it does not have. `iconUrl` wins when both are set.
+  iconAsset String?  @map("icon_asset") @db.VarChar(60)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  medal Medal @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+
+  @@id([medalCode, level], map: "medal_levels_pkey")
+  @@map("medal_levels")
 }
 
 /// A medal a user earned (once per user and medal).
@@ -2779,6 +2856,10 @@ model UserMedal {
   awardedAt        DateTime @default(now()) @map("awarded_at") @db.Timestamptz(3)
   /// Owner D106 amendment: 1 … 6 when shown on the profile (in this order), else null.
   showcasePosition Int?     @map("showcase_position") @db.SmallInt
+  /// v1.81-live (D291): the level reached (1 = the original award); never goes down.
+  level            Int      @default(1) @db.SmallInt
+  /// v1.81-live (D291): when `level` was reached (the award time for level 1).
+  levelReachedAt   DateTime @default(now()) @map("level_reached_at") @db.Timestamptz(3)
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   medal Medal @relation(fields: [medalCode], references: [code], onDelete: Cascade)

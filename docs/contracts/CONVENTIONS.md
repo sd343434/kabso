@@ -600,6 +600,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.21-live)* Tables `cp_requests`, `cp_couples`, `cp_partners`, `cp_gifts` | Backend — `couples` module | CTO; Security (coin paths) |
 | *(v1.24-live)* Tables `cp_points_ledger`, `cp_check_ins`, `cp_task_claims`, `cp_confessions` | Backend — `cp-space` module (`cp_points_ledger` is also written by the `couples` module's CP gift path through `couples/cp-points.ts`, in the gift's transaction) | CTO |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
+| *(v1.81-live, D291)* Table `medal_levels`; columns `medals.category`, `medals.metric`, `user_medals.level`, `user_medals.level_reached_at`, `notifications.medal_level`; types `MedalCategory`, `MedalMetric` | Backend — `medals` module (levels raised through `medal-awards.ts` `raiseMedalLevelsIn` in the events' transactions; `medal_levels` edited by the panel through `MedalsAdminService`) | CTO |
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
 | *(v1.48-social)* Table `bag_transfers`; columns `user_bag_items.expires_at`, `user_bag_items.gifted_by_user_id`, `notifications.bag_item_code`; `bag_item_source` value `GIFT`, `notification_type` value `BAG_ITEM_RECEIVED` | Backend — `bag` module (the notification through the notifications module's `Notifier`) | CTO |
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
@@ -721,6 +722,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.74-live (draft) | 2026-11-05 | **D283d (owner corrections to D283c / D283: «المالك… لا، kabso»; the region line only in the official bio):** the primary OWNER's staff ID is plain **«Kabso»** (number 0; the earliest OWNER grant; any other OWNER gets the next number; retired like the others); the staff numbering starts at `Kabso01` with the first other staff member; `StaffId` pattern `^Kabso(0[1-9]|[1-9][0-9]{1,8})?$`; `search` «Kabso» finds the primary OWNER first; `kabso` and its bare look-alikes (`kabs0`, `k4bso`) reserved too. The apps show the staff region line «مشرف للوطن العربي» only in the official bio card's header (not under the name / ID). Migration `20270318090000_staff_ids_owner` (CHECK `staff_ids_number_nonnegative`, `kabso_assign_staff_id(uuid, boolean)`, renumber). §10.96.10, §10.96.12. | **Additive** (a `staffId` may now be `Kabso`); the D283c numbers shift down by one (renumbered before any release). |
 | v1.78-live (draft) | 2026-11-06 | **D288 (owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله», and «يلغي» for the code on the permanent ban and content deletion): the shared report queue «البلاغات المشتركة», and two actions without a code** — `banAdminUser`, `moderateAdminContent` `delete` and `requestAdminUserDeletion` need no authenticator code (`totpCode` deprecated, accepted and ignored). `reports.view` gains SUPPORT; new capabilities `reports.resolve` (OWNER, MODERATION, SUPPORT) and `reports.reopen` (OWNER, MODERATION). `listAdminPanelReports` `status=RESOLVED`, `AdminPanelReport.resolvedBy` / `resolutionNote`; `resolveAdminPanelReport`, `reopenAdminPanelReport`, `getAdminPanelReportsSummary`; the app's «بلاغات» `listStaffReports`, `getStaffReportsSummary`, `resolveStaffReport`; `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Notification `STAFF_REPORT_NEW` (target `REPORT`: `reportTargetType`, `reportOpen`), push channel `staff` (Android `kabso_staff`). Migration `20270322090000_shared_reports` (`notification_type` value, `notifications.report_id`, `reports_resolved_idx`). §10.101; §10.96.14's table. | **Additive** (new operations, enum values, optional fields; the deprecated `totpCode` still accepted). **Behaviour change:** no code for the ban, content deletion and account deletion; SUPPORT sees every report; a new report notifies every moderator and support member. |
 | v1.79-live (draft) | 2026-11-06 | **D289 (owner: «كل شارة لها أيقونة خاصة في النظام كاملاً» — gift and store badges as a set, one icon each; «بمؤثرات صوتية» / «بدون مؤثرات صوتية» exclusive; «جديد» 14 days or the owner's date; «لفترة محدودة» / «موسمي» with an end; auto-detection in the panel; one or two on a gift-box tile, never over the price; all of them in the details; lucky gifts unchanged):** `ItemBadgeCode` (SOUND, NO_SOUND, NEW, MOST_WANTED, FEATURED, LIMITED, FULLSCREEN, EXCLUSIVE, SEASONAL), `ItemBadge` `{code, until}`, `AdminItemBadge` (+ `active`), `ItemBadgeInput` `{code, until?}`; `Gift.badges` and `StoreItem.badges` (required, the running ones in display priority); `Gift.badge` and `StoreItem.isNew` deprecated (derived); the panel's gift rows and `AdminStoreItem` gain `badges`; `createAdminGift` / `updateAdminGift` / `createAdminStoreItem` / `updateAdminStoreItem` accept `badges` (the old `badge` / `isNew` still accepted, not with it); `uploadAdminGiftFile` and `uploadAdminStoreArt` answer `hasAudio` / `fullscreen` (and an SVGA's `width` / `height` for gifts); code `ITEM_BADGES_INVALID` (400). Migration `20270323090000_item_badges`. **D289b (owner: «… لا يمكن حذفه، فاريد منك اضافة زر الحذف»):** `deleteAdminStoreItem` (`DELETE /admin/store/items/{itemId}`: DELETED when nobody bought or holds the item, else HIDDEN — out of the store, kept for its owners; `AdminStoreItemDeleted`, `AdminOptionalReasonRequest`), `restoreAdminStoreItem`, `AdminStoreItem.hiddenAt`; audit `store.item.delete \| hide \| restore`; migration `20270323090100_store_item_delete`. §4, §10.102. | **Additive** (a new required response field; deprecated fields keep their meaning while «جديد» runs; new optional request fields). |
+| v1.81-live (draft) | 2026-11-06 | **D291 (owner: «ما رأيك ان نصمم صفحة التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات. حاول ان تأخذ الفكرة»): medal levels and the medals page** — a medal has 1 … 20 levels (`medal_levels`), each reached when the medal's metric (`MedalMetric`) is at least its threshold; level 1 is the medal's original rule; a level never goes down. `Medal` + `category` (`MedalCategory`), `metric` (`MedalMetric`), `level`, `maxLevel`, `levels` (`MedalLevel`), `progress` (`MedalProgress`), `iconUrl`, `showcasePosition`; `UserMedal` + `category`, `level`, `maxLevel`, `iconUrl`; `ProfileMedal` + `level`, `iconUrl` (so `ProfileMedals`, `MedalShowcase`); `NotificationTarget.medalLevel` (MEDAL_AWARDED above 1 = a level-up); «ملوك الثروة» (§10.104.7): `MedalMetric` `GIFTS_SENT_COINS`, `iconAsset` on `MedalLevel` / `Medal` / `UserMedal` / `ProfileMedal` / `AdminMedalLevel` / the panel input, migrations `20270325090100_medal_wealth_metric` + `20270325090200_medal_wealth_kings`; the charm and live-hours codes retired as name-side icons (§10.104.8, `AdminMedal.retired`, migration `20270325090300_medal_retire_name_icons`; wearing one → 400 `invalid_value`); «سيد الحظ» (§10.104.9): `MedalMetric` `LUCKY_GIFTS_SENT_COINS`, migrations `20270325090400_medal_lucky_metric` + `20270325090500_medal_lucky_master`. Panel: `listAdminMedals`, `updateAdminMedal` (`catalog.view` / `catalog.manage` + the code; audited `medals.levels.update`). Level changes above 1 audited `medals.level_up`. Migration `20270325090000_medal_levels` (every held medal stays level 1) and `medals-admin backfill` (raises them; DEPLOYMENT §5.72, PP-50). §10.104. | **Additive** (new response fields and operations; an older app ignores levels and reads a level-up as «you earned a new medal»). |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
@@ -1763,6 +1765,7 @@ in place of the `Idempotency-Key` header, the ledger append-only.
 - `GET /medals` → `{data, total, owned}` (catalogue order, each with the caller's `awardedAt` or
   null); `GET /users/{username}/medals` → `{data, owned, total}` (newest first, `awardedAt`; 404
   like the profile).
+- *(v1.81-live, D291)* Medals have **levels** and the page has tabs: §10.104.
 
 **Not in v1.21-live:** buying coins (B5), family chat or family live rooms *(v1.25-live: a family
 chat arrived, §10.25)*, family tasks or rankings beyond `GET /families` *(v1.25-live: the family
@@ -7703,6 +7706,127 @@ stays.
 creation; (3) the supporter is told only on approval when the level rose; (4) no app data given: ×0.5 for apps without
 data stays; (5) the unguessable-link storage is fine, and the video is deleted after the decision (§10.103.5); (6) no
 authenticator code for approval; (7) no level-ticker announcement.
+
+### 10.104 Medal levels and the medals page *(v1.81-live, DRAFT — D291)*
+
+Owner (2026-11-06): «ما رأيك ان نصمم صفحة التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات. حاول ان تأخذ
+الفكرة», with a screenshot of **another app's** medals page. The screenshot is a third-party reference for the layout idea
+only (a stage with the worn medal, two tabs, a two-column grid of medal cards with the level numeral); it stays out of git
+(D40) and none of its art, ornaments or medal artwork is used — Kabso's tokens and its own medal art.
+
+**10.104.1 The level model.**
+- Each medal has a **metric** (`medals.metric`, `MedalMetric`): `LIVES_HOSTED` (ended lives hosted), `LIVE_HOURS`
+  (hours of all ended lives hosted, `ended_at − started_at`), `CHARM_LEVEL` (CP-005 `ATTRACTIVENESS` level reached),
+  `FAMILY_JOINED` (0/1), `CP_FORMED` (0/1), `BULLETS_SENT` (bullet messages sent). Null = a medal without levels.
+- Its **levels** (`medal_levels`, 1 … 20 per medal): level *k* is reached when the metric is at least its `threshold`
+  (whole numbers 1 … 10¹², strictly rising). **Level 1 is the medal's original award rule** (CP-018), so nothing earned
+  before changes meaning. A 0/1 metric (and a medal without a metric) has exactly one level at 1.
+- A person's level (`user_medals.level`, `level_reached_at`) is the highest level their metric reaches **at an event**
+  — every path that ends a live (lives and hours), a charm level change, a family created or joined, a couple formed, a
+  bullet message — in that event's transaction (`raiseMedalLevelsIn`, one set-based statement for a batch). **A level
+  never goes down**: a lower value (the charm level can drop), a raised threshold or a repeated event changes nothing.
+  Several levels can be reached at once (straight to the level the value reaches).
+- Every change gets a `MEDAL_AWARDED` notification with `NotificationTarget.medalLevel` (1 = earned, more = a level-up;
+  the push says «ارتقت ميداليتك إلى المستوى n» / "Your medal reached level n"), and every level above 1 an audit row
+  `medals.level_up` (system; target the user; `{medalCode, from, to, metric, value, via: event | backfill}`).
+- **Art.** Optional per-level hosted art (`medal_levels.icon_url`, https) and names (`name_ar`, `name_en`). Without
+  them the app draws the medal's own art (`iconKey`) and writes the level as text next to it (owner 2026-11-06: «لا تضع رقم
+  تحت الميداليات» — no number on the art), so the owner can add levels
+  without new art.
+
+**10.104.2 Default thresholds** (CTO proposals, **provisional** — owner 2026-11-06: «سيكون لكل ميدالية عدة أشكال وكيفية احتساب، لنؤجل ذلك لمرة أخرى»: per-level shapes and each medal's own way of counting come later; editable in the panel): FIRST_LIVE lives 1 / 10 /
+50 / 100 / 500; LIVE_HOURS_10 hours 10 / 25 / 50; LIVE_HOURS_100 hours 100 / 500 / 1000 (together the owner's example
+10 / 100 / 500 / 1000 runs across the two live-hours medals, which stay separate so nobody's medal disappears);
+CHARM_10 charm 10 / 20 / 30 / 40; CHARM_50 charm 50 / 60 / 70 / 80 / 90; CHARM_100 charm 100 (the top of the charm
+scale); FIRST_FAMILY 1; FIRST_CP 1; BULLET_FIRST bullet messages 1 / 10 / 100 / 1000. **Tabs** (owner decision):
+«النشاط» ACTIVITY — FIRST_LIVE, LIVE_HOURS_10, LIVE_HOURS_100, BULLET_FIRST; «الإنجازات» ACHIEVEMENT — the charm
+medals, FIRST_FAMILY, FIRST_CP.
+
+**10.104.3 The wire.** `GET /medals` (`Medal`) adds `category`, `metric` (the app words the thresholds with it), `level` (0 = not earned), `maxLevel` (1 when `levels`
+is empty), `levels` (`MedalLevel` `{level, threshold, name, iconUrl}`, lowest first; `name` in the request's language
+or null), `progress` (`{value, next}`: the caller's metric now — whole numbers, hours rounded down — and the next
+level's threshold, null at the top), `iconUrl` (the shown level's art or null) and `showcasePosition` (1 … 5 when worn,
+in the showcase's order, else null). `UserMedal` adds `category`, `level`, `maxLevel`, `iconUrl`; `ProfileMedal`
+(profile `latest` / `showcase`, `MedalShowcase`) adds `level` and `iconUrl`. Apps read a missing `level` as 1. The live
+chat line's medals (§10.82) are unchanged.
+
+**10.104.4 The panel «الميداليات».** `GET /admin/medals` (`catalog.view`: OWNER, SUPPORT, FINANCE) → every medal in
+catalogue order with its tab, metric, levels and holders (in total and per level). `PUT /admin/medals/{code}`
+(`catalog.manage`: OWNER; a reason and the authenticator code again; CSRF) replaces the tab and the whole levels list,
+lowest first. 400 `levels` `invalid_value`: thresholds not rising or out of range, a 0/1 medal with anything but one
+level at 1, or a list shorter than the highest level somebody holds (levels are never taken away); an art URL that is
+not https is a 400 too; 404 unknown medal. Audited `medals.levels.update` (`{before, after, reason, via}`). A new
+threshold applies from each person's next event; `medals-admin backfill` applies it to past activity.
+
+**10.104.5 Migration and backfill.** `20270325090000_medal_levels` adds the types, columns and table, sets the tabs and
+metrics of the nine medals and seeds the defaults; every medal held before stays **level 1** (correct: level 1 is the
+old rule) with `level_reached_at = awarded_at`. `medals-admin backfill [--notify]` (DEPLOYMENT §5.72, PP-50) then raises
+each holder to the level their current totals reach (and awards any medal an event missed), in chunks of 200 people per
+transaction; idempotent, never lowers; prints `Awarded n medals.` and `Raised n medal levels.`; one `medals.backfill`
+audit row with `{awarded, levelUps}`. Without `--notify` it sends nothing.
+
+**10.104.6 The medals page (app).** `/medals` uses **the owner's own art** (2026-11-06, «استخدم هذول في صفحة الميداليات
+للدارك مود ولايت مود»; `apps/mobile/assets/medals/PROVENANCE.md`) and follows the app theme: the owner's light or dark
+page background (cover, top-aligned, fixed behind the scroll; text colours ≥ 4.5:1 on both). The stage «الميداليات التي
+أرتديها» is the owner's pedestal (the dark one in the dark theme, the owner's gold-and-white one in the light theme),
+scaled to the width, with **exactly one earned medal** on its top surface (owner: «عرض الميدالية يكون للميداليات التي تم
+فتحها وتعرض على المنصة ميدالية واحدة فقط»), large, with its level chip and its name and level under it: by default the
+first worn medal, else the highest-level earned one. **Tapping an earned card puts it on the stage** (a short scale-in;
+the page scrolls back to the stage); tapping the stage's medal, tapping an earned card that is already on the stage, or a
+long press on any card opens its sheet; tapping a locked card opens its sheet with the requirement only (locked medals
+never go on the stage). The choice is page-local (no API, not saved). With no earned medal: a dashed hexagon on the
+pedestal, the pill «غير مرتدية» and «لا ترتدي أي ميدالية». The line under it counts what the profile shows: «على ملفك: x من 5»
+(the separate wear / take off of the sheet).
+Under it the tabs «الإنجازات» / «النشاط» and a two-column grid of cards in the owner's frame (its own 3:4 aspect): the art
+(no number on it), the name (the level's own name when set) and the status — «لم تُحصَّل» (art greyscale, frame
+desaturated), «المستوى n» with a thin bar and «x / y» toward the next level, or «مرتدية»; the card's text scale stops at
+× 1.3 and its content scales down rather than overflow. A card opens a sheet with every level and its threshold, the
+progress and «ارتداء» / «خلع» for an earned medal (owned only, at most 5; the 6th asks to take one off first). Other
+people's profiles and medal lists show their worn medals as before, the level in the row's spoken label and in
+the list's «المستوى n».
+
+**10.104.7 «ملوك الثروة» / Wealth Kings — the first real levelled medal** (owner 2026-11-06). One medal
+(`WEALTH_KINGS`, tab ACHIEVEMENT), metric `GIFTS_SENT_COINS`: the coin value of **every gift the person sent to anyone,
+except the lucky-gift category** (owner: «اي هدية مرسلة لاي مستخدم الا هدايا فئة الحظ») — gifts in a live (video or
+audio; to the host or seat guests), gifts in a direct conversation, and CP gifts; there is no other gift path (posts and
+profiles have none). A send counts at its `total_coins` (unit price × quantity × recipients; a BAG send at its coin value
+too), **once**, in the send's own transaction (`medal_metric_totals`, `addGiftsSentIn`): a failed send rolls back, a retry
+with the same `clientId` never reaches it, gifts are never refunded. Six levels with the **owner's thresholds (not
+provisional)**: 50 M / 150 M / 300 M / 500 M / 1 B / 3 B coins, each with the owner's own art bundled in the app
+(`medal_levels.icon_asset` `medal_wealth_l1` … `_l6`: lion, silver wolf, violet wolf, gold-violet lion, eagle, dragon;
+`apps/mobile/assets/medals/PROVENANCE.md`). The app shows the **current level's art** on the stage, the card, the profile
+row and the picker; the sheet's ladder shows each level's art, unreached ones greyed. `MedalLevel.iconAsset` (and
+`iconAsset` on `Medal`, `UserMedal`, `ProfileMedal`, `AdminMedalLevel`, the panel input): a bundled art key
+(`^[a-z0-9_]{1,60}$`); `iconUrl` wins when both are set; an app without the key draws the medal's `iconKey`. Migrations
+`20270325090100_medal_wealth_metric` (the enum value, alone) and `20270325090200_medal_wealth_kings` (the column, the totals
+table, the medal and its levels); `medals-admin backfill` sets the totals from `live_gifts` (lucky excluded) plus
+`cp_gifts` and raises the levels. Description: «مجموع قيمة الهدايا التي أرسلتها لأي مستخدم، عدا هدايا الحظ.» / "Total
+value of gifts you sent to anyone, except lucky gifts." The other medals' thresholds stay provisional.
+
+**10.104.8 The charm and live-hours codes are name-side icons, not medals** (owner 2026-11-06: «هذه بالأصل ليست
+ميدالية يمكن ارتداؤها، فقط تكون أيقونة بجانب الاسم»). `CHARM_10`, `CHARM_50`, `CHARM_100`, `LIVE_HOURS_10` and
+`LIVE_HOURS_100` are retired (`medals.retired`, migration `20270325090300_medal_retire_name_icons`): left out of `GET
+/medals` (and its `total` / `owned`), `GET /users/{username}/medals`, `PublicProfile.medals` (owned, total, latest,
+showcase), `GET /me/medals/showcase` and the live chat line's medals; never awarded again and no `MEDAL_AWARDED` for them
+(the charm and live-end events still raise FIRST_LIVE and the other medals); `PUT /me/medals/showcase` with one → 400
+`medalCodes` / `invalid_value`; the panel lists them with `retired: true`, read-only (`updateAdminMedal` → 409
+`ADMIN_ACTION_REFUSED`). Their `user_medals` rows are kept as history; the migration clears their showcase positions and
+renumbers each affected person's remaining worn medals 1, 2, … in order. The name-side icon for charm is the existing
+charm level badge (CP-005, from `user_level_states`, not from medals) — unchanged. **No name-side icon for live hours**
+— decided by the owner: the charm icon is enough («تكفي»). Their default levels (§10.104.2) are moot.
+
+**10.104.9 «سيد الحظ» / Lucky Master** (owner 2026-11-06). One medal (`LUCKY_MASTER`, tab ACHIEVEMENT, sort 110),
+metric `LUCKY_GIFTS_SENT_COINS`: the coin value of the **lucky-category gifts the person sent** — what was sent, **not**
+what was won back (winnings are not counted). The exact complement of `GIFTS_SENT_COINS` (§10.104.7) on the live and
+direct-message paths: every gift send counts for exactly one of the two medals (CP gifts have no lucky category). A send
+counts at its `total_coins`, **once**, in the send's own transaction (`addLuckyGiftsSentIn`, `medal_metric_totals`), with
+the same rules as §10.104.7. Four levels with the **owner's thresholds (not provisional)**: 500 M / 1.5 B / 3 B / 10 B
+coins, each with the owner's own art bundled in the app (`medal_lucky_l1` … `_l4`: blue gift in a silver frame, violet /
+lilac, red / gold, crystal-opal / gold; `PROVENANCE.md`). Totals and thresholds are BIGINT end to end (10 B is above
+2^32; JSON numbers stay exact below 2^53; the app parses them as 64-bit `int`). Migrations
+`20270325090400_medal_lucky_metric` (the enum value, alone) and `20270325090500_medal_lucky_master` (the medal and its
+levels); `medals-admin backfill` sets the totals from `live_gifts` of the LUCKY category. Description: «مجموع قيمة هدايا
+الحظ التي أرسلتها.» / "Total value of lucky gifts you sent."
 
 ### 11.1 Media upload
 

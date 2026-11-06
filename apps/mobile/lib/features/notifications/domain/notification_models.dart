@@ -254,6 +254,7 @@ class NotificationTarget {
     this.reason,
     this.permanent = false,
     this.level,
+    this.medalLevel,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -279,6 +280,7 @@ class NotificationTarget {
     reason: json['reason'] as String?,
     permanent: json['permanent'] as bool? ?? false,
     level: (json['level'] as num?)?.toInt(),
+    medalLevel: (json['medalLevel'] as num?)?.toInt(),
   );
 
   /// v1.89-social (D290) [NotificationTargetType.levelRaise]: the support
@@ -329,6 +331,10 @@ class NotificationTarget {
   final String? moderation;
   final String? reason;
   final bool permanent;
+
+  /// MEDAL only (v1.81-live, D291): the level announced — 1 = earned,
+  /// more = a level-up; null on older servers.
+  final int? medalLevel;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread

@@ -59,6 +59,7 @@ import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
 import { LivePkService, type PkGiftCredit } from './live-pk.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import { assertNotRestricted } from '../users/account-control.js';
+import { addGiftsSentIn, addLuckyGiftsSentIn } from '../medals/medal-awards.js';
 
 // ---- Response shapes (openapi v1.23-live, CP-020) ----------------------------------------------
 
@@ -598,6 +599,16 @@ export class LiveGiftsService {
             throw new AppException(ErrorCode.INSUFFICIENT_COINS);
           // v1.32-live (D154): the sender's free quip of this live was already used → nothing is kept.
           if (freeQuip && written?.free_quips !== 1) throw new AppException(ErrorCode.QUIP_FREE_USED);
+          // D291 «ملوك الثروة» (owner: «اي هدية مرسلة لاي مستخدم الا هدايا فئة الحظ»): the coin value of a gift sent
+          // in a live (video or audio; to the host or seat guests) counts toward the sender's Wealth Kings medal
+          // (lucky gifts excluded); in this transaction, so once per send.
+          if (!isLucky && amounts.totalCoins > 0) {
+            await addGiftsSentIn(tx, callerId, BigInt(amounts.totalCoins), now);
+          }
+          // D291 «سيد الحظ»: a lucky send counts toward Lucky Master instead (its coin value, never the winnings).
+          if (isLucky && amounts.totalCoins > 0) {
+            await addLuckyGiftsSentIn(tx, callerId, BigInt(amounts.totalCoins), now);
+          }
           let coins: number | null = charged ? Number(written!.coins) : null;
           if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
             // D200: the stored level is a floor (a family never drops a level).
@@ -953,6 +964,15 @@ export class LiveGiftsService {
                  (SELECT count(*) FROM recipients) + (SELECT count(*) FROM family_member) AS rows`;
         if (isCoins && (written?.coins ?? null) === null)
           throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+        // D291 «ملوك الثروة» (owner: «اي هدية مرسلة لاي مستخدم الا هدايا فئة الحظ»): a gift sent in a direct
+        // conversation counts too (lucky gifts excluded); in this transaction, so once per send.
+        if (!isLucky && amounts.totalCoins > 0) {
+          await addGiftsSentIn(tx, callerId, BigInt(amounts.totalCoins), now);
+        }
+        // D291 «سيد الحظ»: a lucky gift in a direct conversation counts toward Lucky Master.
+        if (isLucky && amounts.totalCoins > 0) {
+          await addLuckyGiftsSentIn(tx, callerId, BigInt(amounts.totalCoins), now);
+        }
         let coins: number | null = isCoins ? Number(written!.coins) : null;
         if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
           // D200: the stored level is a floor (a family never drops a level).
