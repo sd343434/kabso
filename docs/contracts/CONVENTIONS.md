@@ -203,6 +203,9 @@ All non-2xx responses use one envelope:
 | 409 | `RECHARGE_ORDER_STATE_CHANGED` | *(v1.69-social, DRAFT, D204)* The order's status no longer allows this action (another action, an expiry or a dispute came first, §10.64); nothing changed — read the order again. |
 | 409 | `RECHARGE_ORDER_NOTICE_REQUIRED` | *(v1.69-social, DRAFT, D204)* «قمت بالإرسال» before the buyer acknowledged the protection notice. |
 | 409 | `RECHARGE_ORDER_DISPUTE_TOO_EARLY` | *(v1.69-social, DRAFT, D204)* The buyer opened a dispute before the wait after «قمت بالإرسال» (`RECHARGE_ORDER_DISPUTE_AFTER_MINUTES`, owner 15) ended. |
+| 403 | `RECHARGE_EMPLOYEE_NOT_PERMITTED` | *(v1.87-social, DRAFT, D287)* A recharge agent's employee tried to act for the agent with a permission the agent switched off — «يمكنه شراء الكرز» (cherry purchases) or «يستقبل طلبات الشراء» (coin orders). Nothing changed. §10.100. |
+| 409 | `RECHARGE_ORDER_CLAIMED` | *(v1.87-social, DRAFT, D287)* Another person of the agent's side (an employee or the agent) already acted on this order and owns it; an employee may read it but not act («تم استلامه بواسطة موظف آخر»). Nothing changed. §10.100. |
+| 403 | `RECHARGE_EMPLOYEE_IS_STAFF` | *(v1.87-social, DRAFT, D287 — owner's decision)* `addMyRechargeEmployee` named a Kabso Team account (MODERATION, SUPPORT, FINANCE or BD, not OWNER — D283's limited staff): the team is never a recharge agent's employee. Nothing stored. §10.100. |
 | 403 | `ACCOUNT_LOCKED` | *(v1.72-social, DRAFT, D208)* `login` with the right password to an account the team locked for a while; `details: [{field: "lockedUntil", issue: <ISO 8601 time>}, {field: "reason", issue: <the team's reason>}]` (values, like `purgeAfter`). The wrong password still answers 401. §10.67. |
 | 403 | `ACCOUNT_RESTRICTED` | *(v1.72-social, DRAFT, D208)* The team switched the action off for the caller for a while (live chat, bullets, comments and direct messages: `CHAT_MUTE`; going live: `NO_LIVE`; live, direct and bag gifts: `NO_GIFTS`; posts, reels and stories: `NO_POSTING`); `details: [{field: "restriction", issue: <kind>}, {field: "until", issue: <ISO 8601 time>}]` — v1.60-live (D250) adds `{field: "reason", issue: <the team's reason>}`. Nothing was stored or charged. §10.67. |
 | 403 | `PASSWORD_CHANGE_REQUIRED` | *(v1.72-social, DRAFT, D208)* `login` with the right password while the team requires a new one (a temporary password, or «فرض تغيير كلمة المرور»); the same request with `newPassword` sets it and signs in. §10.67. |
@@ -221,7 +224,7 @@ All non-2xx responses use one envelope:
 | 403 | `LIVE_STAFF_REFUSED` | *(v1.68-live, DRAFT, D273)* A Kabso staff member (OWNER, MODERATION, SUPPORT) in a live does not send gifts, tap, send bullets or take a seat; a hidden observer does not chat — `details: [{field: "staff", issue: "gifts" \| "taps" \| "bullets" \| "seat" \| "hidden_chat"}]`. Nothing charged or sent. §10.96.6. |
 | 403 | `STAFF_STEP_UP_REQUIRED` | **Deprecated v1.76-live (D286): no longer returned — the tools need no code.** *(v1.68-live, DRAFT, D273)* A staff tool in the app without a valid step-up grant (none, expired, or ended by sign-out, a revoked role, a lockout or a reset authenticator): the app asks for the panel authenticator code (`createStaffStepUp`). §10.96.6. |
 | 409 | `STAFF_TOTP_NOT_ENROLLED` | *(v1.68-live, DRAFT, D273)* `createStaffStepUp`: the staff member has not set up the panel authenticator yet; the app sends them to admin.<domain>. §10.96.6. |
-| 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `bio` (`updateMe` with `bio`, D283b), `frame` (wear another avatar frame), `store`; or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
+| 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `bio` (`updateMe` with `bio`, D283b), `frame` (wear another avatar frame), `store`, `recharge_employee` (*v1.87-social, D287*: an employee of a recharge agent who became a Kabso Team account sells, buys cherries or acts on an order — §10.100); or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -671,6 +674,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.87-social (draft) | 2026-11-06 | **D287 (owner: «موظف وكيل الشحن لا يمكنه شراء كرز ولا تصله طلبات الشراء، يرجى تفعيل شراء الكرزات من خلال الموظف إلى حساب الوكيل»):** an agent's employee acts FOR the agent within their shift — `createRechargeCherryRequest` with `host` and `answerRechargeCherryRequest` for the agent's requests (the agent's stock, cap and money); `RechargeCherryRequest.viewerSide` / `actions` / `viewerBlock` / `actedBy`; `RechargeOrder.claimedBy` / `claimedAt` / `viewerBlock` (the first person of the agent's side to act owns the order; `actions` empty while blocked); `RechargeAgentSideBlock`; employee permissions `canBuyCherries` / `receivesOrders` (default ON) on `RechargeEmployeeRequest`, the new `RechargeEmployeeUpdate` (PUT body), `RechargeEmployee` (+ `cherryPurchases`, `orders` statistics) and `RechargeEmployment`; tag `admin-panel` `listAdminRechargeAgentEmployees` (`recharge.agents`); codes `RECHARGE_EMPLOYEE_NOT_PERMITTED` (403), `RECHARGE_ORDER_CLAIMED` (409); `RECHARGE_OFF_SHIFT` now also covers acting for the agent; order and cherry-offer notifications go to the agent and the allowed employees on shift (the order's owner once claimed); owner's decision: a Kabso Team account (D283's limited staff) is never an employee — `RECHARGE_EMPLOYEE_IS_STAFF` (403) on adding, `STAFF_ACCOUNT_LIMITED` issue `recharge_employee` when an employee who became one acts, `RechargeAgentSideBlock` `STAFF`, `RechargeEmployee.kabsoTeam` / `RechargeEmployment.kabsoTeam`; migration `20270321090000_recharge_employee_acts`. §4, §10.100. | **Additive** (new optional request fields, new response fields — required in the responses, so strict clients update their models in the same change set — and a new operation; an existing employee keeps both permissions ON). |
 | v1.85-social (draft) | 2026-11-05 | **D278b (owner: «منشنات يضعها الشخص معاه لغاية ١٠ بسطرين فقط»):** the profile tags — `UpdateMeRequest.tags` (the whole set, 0–10; each 1–24 code points, one line, §6 hygiene; a duplicate ignoring case → `tags.<i>` / `invalid_value`; 11 → `tags` / `too_many`), `Me.tags`, `PublicProfile.tags` (also on a private account's profile). Column `user_profiles.tags` (`varchar(24)[]`, CHECK `user_profiles_tags_count` ≤ 10), migration `20270314090000_profile_tags`; `PATCH /me` audits `tags` among the changed fields (never the values). §10.99. | **Additive.** An older app ignores `tags`. |
 | v1.84-social (draft) | 2026-11-04 | **D269 (owner: «اجعل الميداليات حدها ٥ وفي اسطر اسفل الاسم وثم سطر اسفله لتكست» and «واقترح ان نجعل حجم الخط اقل»):** the medal cap back to 5 — `SetMedalShowcaseRequest.medalCodes`, `ProfileMedals.showcase`, `MedalShowcase.showcase` and `LiveChatAuthorBadges.medals` `maxItems` 5 (3 in v1.83-social; `MedalShowcase` said 6); `setMyMedalShowcase` 400 `too_big` beyond 5; a longer showcase reads as its first 5. No migration. App: chat line 1 role tag (host red / moderator orange / Kabso Team blue) → name → VIP badge → tags → levels, line 2 up to 5 medals, line 3 the message; one chat text size (`KChat`) in every live type. §10.82, §10.94.10. | **Relaxing** (a request of 4–5 codes was 400, now 200). |
 | v1.84-social (draft) | 2026-11-04 | **D270 (owner: «المتجر» — frames, profile cards, chat bubbles, entry banners and entry cars, for coins and cherries, 7 / 14 / 30 days, for oneself or as a gift; set in the panel):** tag `store`: `listStoreItems` (`GET /store/items`, `StoreItemList`, `StoreItem`, `StorePrice`, `StoreBalances`, `StoreArt`, `StoreKind`, `StoreCurrency`), `buyStoreItem` (`POST /me/store/purchases`, `Idempotency-Key`, `BuyStoreItemRequest`, `StorePurchaseResult`); the panel's `uploadAdminStoreArt` (`POST /admin/store/uploads`, SVGA / MP4 / still, `AdminStoreUpload`), `listAdminStoreItems`, `createAdminStoreItem`, `updateAdminStoreItem`, `enableAdminStoreItem`, `disableAdminStoreItem` (`/admin/store/items…`, `AdminStoreItem`, `AdminStoreItemList`, `AdminStoreItemCreateRequest`, `AdminStoreItemUpdateRequest`, `AdminStorePriceInput`, parameter `AdminStoreItemIdPath`), `listAdminStoreSales` (`AdminStoreSales`, `AdminStoreSale`); `catalog.view` / `catalog.manage`, reason; audit `store.item.add \| update \| enable \| disable`, `store.purchase`. `BagCategory` CHAT_BUBBLE / ENTRY_BANNER / ENTRY_EFFECT are stored categories now (only MIC_WAVE stays VIP-only); `BagItemSource.STORE`; `BagItem.art`, `BagCatalogueItem.art`, `BagEquippedItem.art`; `UserSummary.wear`, `PublicProfile.wear` (`StoreWear`, `StoreWornItem`); `WalletLedgerReason.STORE_PURCHASE`, `CherryLedgerReason.STORE_PURCHASE`; codes `STORE_UNAVAILABLE`, `STORE_PRICE_CHANGED` (409). Migrations `20270310090000_store_enums`, `20270310090100_store`. §4, §7, §10.98. | **Additive.** Nothing is on sale until the OWNER adds items. An older app ignores `wear` (a store item worn shows nothing there) and lists store items in the bag with a plain tile; clients show an unknown ledger reason as a generic change. |
@@ -3485,7 +3489,8 @@ the row lock serializes concurrent sales), the stock ledger row, `recharge_sales
 employee; at most 20) with a weekly schedule (`WeeklySlot`: ISO days, `HH:MM` start inclusive, end exclusive,
 `24:00` allowed; a night shift is two slots) in an IANA time zone, changes it or removes them (they stop at
 once). An employee sells from the agent's stock only while «now», in their zone, is inside a slot (409
-`RECHARGE_OFF_SHIFT`). The agent sees per employee (and for themselves on the dashboard) the sales count and
+`RECHARGE_OFF_SHIFT`). *(v1.87-social, D287)* Employees also buy hosts' cherries for the agent and receive the
+agent's coin orders, within their shift and per permission — §10.100. The agent sees per employee (and for themselves on the dashboard) the sales count and
 coins today (LIVE_RANKINGS_TIME_ZONE), in the last 7 and 30 days.
 
 **Availability and the directory:** the agent sets weekly slots each with a WhatsApp number and a payment
@@ -4947,7 +4952,8 @@ order's state), pushed through the outbox (§11.12).
 
 #### 10.64.4 The payment details freeze the coins
 
-The agent, or an employee **on shift** (§10.48: else 409 `RECHARGE_OFF_SHIFT`; employees read at any time), sends
+The agent, or an employee **on shift** (§10.48: else 409 `RECHARGE_OFF_SHIFT`; employees read at any time; *v1.87-social,
+D287*: the first person of the agent's side to act owns the order — §10.100), sends
 `method` (one of the agent's types there) and `details`. In one transaction on the locked order: the order's coins
 leave the stock (`recharge_stock_ledger` `ORDER_HOLD`, conditional UPDATE: 409 `RECHARGE_STOCK_INSUFFICIENT` and
 nothing changes when the stock is short), `held_coins` = coins, AWAITING_PAYMENT, `expiresAt` = now +
@@ -7281,6 +7287,71 @@ numbers and the buttons.
   bio's moderation: reported with the account (`reportUser`); no separate queue.
 - **App**: chips on the profile cover, wrapping to **at most two lines**; what does not fit shows as a «+n» chip.
   Edited in «تعديل الملف الشخصي» (add, remove).
+
+### 10.100 Employees act for the agent: cherry purchases and the orders inbox *(v1.87-social, DRAFT — D287)*
+
+Owner (staging, 2026-11-02): «موظف وكيل الشحن لا يمكنه شراء كرز ولا تصله طلبات الشراء، يرجى تفعيل شراء الكرزات من خلال
+الموظف إلى حساب الوكيل». Extends §10.48 (employees, cherry sales) and §10.64 (orders); nothing else changes.
+
+- **Who is the agent's side.** The agent, and each **active** employee of the agent (`removed_at` null). A removed
+  employee is nobody's side (404). An employee always acts **for the agent**: stock, money, caps and the agent's name
+  are the agent's; the employee is recorded as the one who acted.
+- **Never a Kabso Team account** *(owner's decision, 2026-11-06)*. The team here is D283's limited staff account
+  (an ACTIVE `ADMIN` user holding MODERATION, SUPPORT, FINANCE or BD, and not OWNER — `limitedStaffSql`). Adding one
+  (`addMyRechargeEmployee`) is 403 `RECHARGE_EMPLOYEE_IS_STAFF`, after the D185 checks (409
+  `RECHARGE_EMPLOYEE_NOT_ALLOWED`); nothing is stored. An employee who **becomes** one stays in the agent's list but
+  cannot act for the agent: selling (`sellRechargeCoins`, before `RECHARGE_OFF_SHIFT`), the cherry purchases and every
+  order action answer 403 `STAFF_ACCOUNT_LIMITED` with `details: [{field: staff, issue: recharge_employee}]` (D283's
+  code: the caller is a Kabso Team account), before the permission, the claim and the hours; they still read, with
+  `viewerBlock` `STAFF` and `RechargeEmployment.kabsoTeam` true, and are not notified of offers or orders. The agent
+  sees `RechargeEmployee.kabsoTeam` on «الموظفون» and may remove them. Losing the role gives the ability back. The
+  OWNER's account stays a normal one (D283), so an OWNER is not refused.
+- **«On shift» is the employee's weekly hours** (§10.48: `recharge_employees.schedule` in its `time_zone`), unchanged.
+  It is not the Kabso Team's «في المناوبة» (`admin_shifts`, §10.96: D260, and since v1.76-live D286 switched on by
+  staff work): a recharge agent's employee is an ordinary app user added by the agent, not a panel staff member, and
+  the automatic staff shift neither starts nor ends their hours. *(This section is the port onto `staging` of the
+  earlier local-only branch `claude/kl-252-agent-employees`, numbered D252 / v1.82-social / §10.92 there.)*
+- **Permissions** (per employee, set by the agent on «الموظفون»; both **ON** by default — for every employee that
+  existed before, who were all added to sell): «يمكنه شراء الكرز» (`canBuyCherries`) and «يستقبل طلبات الشراء»
+  (`receivesOrders`). `addMyRechargeEmployee` and `updateMyRechargeEmployee` (`RechargeEmployeeUpdate`; a permission
+  left out is unchanged) take them; `recharge.employee.add` / `.update` audit them (before / after). Direct selling
+  (§10.48) is not a permission: it stays as it was.
+- **Acting** needs, in this order: the permission (403 `RECHARGE_EMPLOYEE_NOT_PERMITTED`), for an order that nobody
+  else of the agent's side owns (409 `RECHARGE_ORDER_CLAIMED`), and «now» inside the employee's weekly slots (409
+  `RECHARGE_OFF_SHIFT`). The agent is never refused for these. A person who may not act still **reads**: the
+  responses carry `viewerBlock` (`RechargeAgentSideBlock`: `STAFF`, `NOT_PERMITTED`, `CLAIMED`, `OFF_SHIFT`) and an empty
+  `actions`, so the app shows the honest reason instead of buttons that fail.
+- **Cherry purchases «شراء كرز».** An employee with the permission creates a request with a host's username
+  (`createRechargeCherryRequest` `host`) and confirms, declines or cancels the agent's requests
+  (`answerRechargeCherryRequest`) exactly as the agent: the request's `agent` is the agent; the same minimum, step, TTL,
+  one open request per host and agent, withdrawable-cherries check and **daily cap** — the agent's day counts every
+  confirmed request of the agent, whoever acted — and a confirmation moves the host's cherries and adds the coins to
+  the **agent's** stock (`CHERRY_PURCHASE`). `actedBy` (column `acted_by`) is the employee who last acted for the agent
+  (created it or answered it; null when the agent or the host did), `decided_by` who answered; the audit rows carry the
+  employee as the actor with `byEmployee` and `actedBy`. The employee cannot be the host of the request themselves
+  (400 `host`); a block between the employee and the host is 404. The host is notified with the **agent** as the
+  actor and always sees the agent (no «عبر …» line: the orders have no such pattern). The creator's side cancels, the
+  other side confirms or declines (`actions`); of two answers at once the row lock lets exactly one win, the other gets
+  409 `RECHARGE_CHERRY_REQUEST_CLOSED`. `listMyRechargeCherryRequests` also lists the agent's requests to an employee
+  with the permission (off shift: read only).
+- **Who is told.** A host's offer to the agent (`RECHARGE_CHERRY_REQUEST`) and a buyer's new order
+  (`RECHARGE_ORDER_UPDATE` `CREATED`) go to the agent and every employee with the matching permission who is **on
+  shift now**; an employee off shift sees them in the inbox later. Once a person of the agent's side owns an order,
+  its later events go to the agent and that person only (D204 notified every employee for every event).
+- **The orders inbox «طلبات الشراء».** `listMyRechargeOrders?role=agent` for an employee without «يستقبل طلبات
+  الشراء» is 403. The **first person of the agent's side to act** on an order — the payment details, a chat message,
+  «استلمت», «نزاع», a cancel — **owns it**: `claimedBy` / `claimedAt` (columns `claimed_by`, `claimed_at`) are set under
+  the order's row lock (`FOR UPDATE`), so of two employees acting at once exactly one wins and the other gets 409
+  `RECHARGE_ORDER_CLAIMED` (or `RECHARGE_ORDER_STATE_CHANGED` when the status moved). The others read it as taken
+  («تم استلامه بواسطة موظف آخر»); the agent can always act on it.
+- **Statistics.** Per employee, next to the sales: `cherryPurchases` (confirmed requests they acted on; coins into the
+  stock, by the decision time) and `orders` (COMPLETED / COMPLETED_BY_ADMIN orders they owned; coins to buyers, by the
+  closing time) — today (LIVE_RANKINGS_TIME_ZONE), 7 and 30 days, on the agent's «الموظفون» and in the panel
+  (`listAdminRechargeAgentEmployees`, capability `recharge.agents`: the current employees and those removed in the last
+  30 days).
+- Migration `20270321090000_recharge_employee_acts` (additive columns with defaults, two partial indexes, and the
+  request's shape CHECK now also allows `created_by` = `acted_by`: an employee who created it for the agent).
+  DEPLOYMENT §5.68.
 
 ### 11.1 Media upload
 

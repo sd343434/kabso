@@ -141,6 +141,8 @@ final class RechargeOrder {
     this.disputedBy,
     this.closeReason,
     this.expiresAt,
+    this.claimedBy,
+    this.viewerBlock,
   });
 
   factory fromJson(Map<String, dynamic> json) => RechargeOrder(
@@ -166,6 +168,11 @@ final class RechargeOrder {
         ?RechargeOrderAction.fromWire(a),
     },
     createdAt: DateTime.parse(json['createdAt']! as String),
+    claimedBy: switch (json['claimedBy']) {
+      final Map<String, dynamic> u => UserSummary.fromJson(u),
+      _ => null,
+    },
+    viewerBlock: RechargeAgentSideBlock.fromWire(json['viewerBlock']),
   );
 
   final String id;
@@ -191,6 +198,12 @@ final class RechargeOrder {
   final DateTime? expiresAt;
   final Set<RechargeOrderAction> actions;
   final DateTime createdAt;
+
+  /// v1.87-social (D287): the person of the agent's side who acted first
+  /// and owns the order, and why the viewer (an employee) may read but not
+  /// act now («تم استلامه بواسطة موظف آخر», off shift, not allowed).
+  final UserSummary? claimedBy;
+  final RechargeAgentSideBlock? viewerBlock;
 
   bool get isBuyer => viewerRole == 'BUYER';
 

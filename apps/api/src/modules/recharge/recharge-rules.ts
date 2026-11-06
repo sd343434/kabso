@@ -261,3 +261,74 @@ export const employeeHoursSchema = z.strictObject({
   timeZone: timeZoneSchema,
   schedule: z.array(weeklySlotSchema).min(1).max(28),
 });
+
+// ---- D287: employees act for the agent ------------------------------------------------------------------
+
+/** What an agent's employee may do for the agent (v1.87-social, CONVENTIONS §10.100). */
+export type EmployeePermission = 'BUY_CHERRIES' | 'RECEIVE_ORDERS';
+
+/**
+ * Why the agent's side person cannot act now, or null: `STAFF` (the employee is a Kabso Team account now, D283 —
+ * owner's D287 decision), `NOT_PERMITTED` (the agent switched the permission off), `CLAIMED` (another person of the
+ * agent's side owns the order), `OFF_SHIFT` (outside the employee's weekly hours).
+ */
+export type AgentSideBlock = 'STAFF' | 'NOT_PERMITTED' | 'CLAIMED' | 'OFF_SHIFT';
+
+export interface EmployeeJob {
+  readonly timeZone: string;
+  readonly schedule: readonly WeeklySlot[];
+  readonly canBuyCherries: boolean;
+  readonly receivesOrders: boolean;
+  /** D287 (owner): the employee holds a limited Kabso Team role now (D283) — reads, never acts. */
+  readonly kabsoTeam?: boolean;
+}
+
+export function employeeMay(job: EmployeeJob, permission: EmployeePermission): boolean {
+  return permission === 'BUY_CHERRIES' ? job.canBuyCherries : job.receivesOrders;
+}
+
+export function onShift(job: Pick<EmployeeJob, 'timeZone' | 'schedule'>, now: Date): boolean {
+  return slotAt(job.schedule, job.timeZone, now) !== null;
+}
+
+/**
+ * The block of the agent's side person `actor` (the agent: `job` null — never blocked) for `permission`, with
+ * `claimedBy` the order's owner (null for a cherry request or an unclaimed order). The permission first, then
+ * another person's claim, then the hours (a Kabso Team account before all) — the most useful reason is the one shown.
+ */
+export function agentSideBlock(
+  actor: string,
+  job: EmployeeJob | null,
+  permission: EmployeePermission,
+  now: Date,
+  claimedBy: string | null = null,
+): AgentSideBlock | null {
+  if (job === null) return null;
+  if (job.kabsoTeam === true) return 'STAFF';
+  if (!employeeMay(job, permission)) return 'NOT_PERMITTED';
+  if (claimedBy !== null && claimedBy !== actor) return 'CLAIMED';
+  if (!onShift(job, now)) return 'OFF_SHIFT';
+  return null;
+}
+
+export type CherrySide = 'HOST' | 'AGENT';
+export type CherryAction = 'confirm' | 'decline' | 'cancel';
+
+/**
+ * What the viewer of a cherry request may do: the creator's side cancels, the other side confirms or declines —
+ * only while it is open and the viewer is not blocked (an employee off shift or without the permission reads only).
+ */
+export function cherryActions(
+  viewer: CherrySide,
+  initiatedBy: CherrySide,
+  open: boolean,
+  block: AgentSideBlock | null,
+): CherryAction[] {
+  if (!open || block !== null) return [];
+  return viewer === initiatedBy ? ['cancel'] : ['confirm', 'decline'];
+}
+
+/** Whether `action` is one the viewer's side may take on a request created by `initiatedBy`. */
+export function cherryActionFits(action: string, viewer: CherrySide, initiatedBy: CherrySide): boolean {
+  return cherryActions(viewer, initiatedBy, true, null).includes(action as CherryAction);
+}

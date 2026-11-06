@@ -49,8 +49,15 @@ import {
   type OrderStatus,
   type Side,
 } from './recharge-order-rules.js';
+import { limitedStaffAmong } from '../live/live-staff.js';
 import { moveStockIn } from './recharge-core.js';
-import { normalizeAgentCode, slotAt, type WeeklySlot } from './recharge-rules.js';
+import {
+  agentSideBlock,
+  normalizeAgentCode,
+  type AgentSideBlock,
+  type EmployeeJob,
+  type WeeklySlot,
+} from './recharge-rules.js';
 
 export type OrderViewerRole = 'BUYER' | 'AGENT' | 'EMPLOYEE';
 
@@ -91,6 +98,13 @@ export interface RechargeOrderDto {
   closeReason: string | null;
   expiresAt: string | null;
   actions: OrderAction[];
+  /**
+   * v1.87-social (D287): the agent's side person who acted first and owns the order (the agent or an employee), and
+   * why the viewer of the agent's side cannot act now (`actions` is then empty; null = they can, or the buyer).
+   */
+  claimedBy: UserSummaryDto | null;
+  claimedAt: string | null;
+  viewerBlock: AgentSideBlock | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,6 +119,23 @@ export interface RechargeOrderMessageDto {
   event: string | null;
   hasImage: boolean;
   createdAt: string;
+}
+
+/** D287: the refusal of an agent's side person who may read but not act. */
+export function blockError(block: AgentSideBlock): AppException {
+  // D287 (owner): an employee who is a Kabso Team account now — D283's code, the issue names what was refused.
+  if (block === 'STAFF') {
+    return new AppException(ErrorCode.STAFF_ACCOUNT_LIMITED, undefined, [
+      { field: 'staff', issue: 'recharge_employee' },
+    ]);
+  }
+  return new AppException(
+    block === 'NOT_PERMITTED'
+      ? ErrorCode.RECHARGE_EMPLOYEE_NOT_PERMITTED
+      : block === 'CLAIMED'
+        ? ErrorCode.RECHARGE_ORDER_CLAIMED
+        : ErrorCode.RECHARGE_OFF_SHIFT,
+  );
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -161,8 +192,10 @@ interface Access {
   readonly order: RechargeOrder;
   readonly role: OrderViewerRole;
   readonly side: Side;
-  /** An employee off shift may read but not act. */
-  readonly canAct: boolean;
+  /** The employee's job (null for the buyer and the agent). */
+  readonly job: EmployeeJob | null;
+  /** D287: an employee off shift, without «يستقبل طلبات الشراء» or not the order's owner reads but does not act. */
+  readonly block: AgentSideBlock | null;
 }
 
 /**
@@ -300,27 +333,58 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Access and DTOs ---------------------------------------------------------------------------------------
 
-  private async employment(userId: string, agentUserId: string) {
-    return this.prisma.rechargeEmployee.findFirst({
+  private async employment(
+    userId: string,
+    agentUserId: string,
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<EmployeeJob | null> {
+    const row = await db.rechargeEmployee.findFirst({
       where: { employeeUserId: userId, agentUserId, removedAt: null },
-      select: { timeZone: true, schedule: true },
+      select: { timeZone: true, schedule: true, canBuyCherries: true, receivesOrders: true },
     });
+    if (!row) return null;
+    const kabsoTeam = (await limitedStaffAmong(db, [userId])).has(userId);
+    return { ...row, schedule: row.schedule as unknown as WeeklySlot[], kabsoTeam };
   }
 
   private async access(userId: string, rawId: string): Promise<Access> {
     const id = pathId(rawId);
     const order = await this.prisma.rechargeOrder.findUnique({ where: { id } });
     if (!order) throw new AppException(ErrorCode.NOT_FOUND);
-    if (order.buyerUserId === userId) return { order, role: 'BUYER', side: 'BUYER', canAct: true };
-    if (order.agentUserId === userId) return { order, role: 'AGENT', side: 'AGENT', canAct: true };
+    if (order.buyerUserId === userId) return { order, role: 'BUYER', side: 'BUYER', job: null, block: null };
+    if (order.agentUserId === userId) return { order, role: 'AGENT', side: 'AGENT', job: null, block: null };
     const job = await this.employment(userId, order.agentUserId);
     if (!job) throw new AppException(ErrorCode.NOT_FOUND);
-    const onShift = slotAt(job.schedule as unknown as WeeklySlot[], job.timeZone, this.clock.now()) !== null;
-    return { order, role: 'EMPLOYEE', side: 'AGENT', canAct: onShift };
+    const block = agentSideBlock(userId, job, 'RECEIVE_ORDERS', this.clock.now(), order.claimedBy);
+    return { order, role: 'EMPLOYEE', side: 'AGENT', job, block };
   }
 
   private requireAct(a: Access): void {
-    if (!a.canAct) throw new AppException(ErrorCode.RECHARGE_OFF_SHIFT);
+    if (a.block !== null) throw blockError(a.block);
+  }
+
+  /**
+   * D287 (§10.100): on the locked order, the agent's side person who acts first owns it (`claimedBy`); another
+   * employee is refused with 409 `RECHARGE_ORDER_CLAIMED` (the agent always acts). An employee removed meanwhile is
+   * 404. Returns the order as it is now (with the claim).
+   */
+  private async claimIn(
+    tx: Prisma.TransactionClient,
+    o: RechargeOrder,
+    a: Access,
+    userId: string,
+    now: Date,
+  ): Promise<RechargeOrder> {
+    if (a.side !== 'AGENT') return o;
+    if (a.role === 'EMPLOYEE') {
+      const job = await this.employment(userId, o.agentUserId, tx);
+      if (!job) throw new AppException(ErrorCode.NOT_FOUND);
+      const block = agentSideBlock(userId, job, 'RECEIVE_ORDERS', now, o.claimedBy);
+      if (block !== null) throw blockError(block);
+    }
+    if (o.claimedBy !== null) return o;
+    await tx.rechargeOrder.update({ where: { id: o.id }, data: { claimedBy: userId, claimedAt: now } });
+    return { ...o, claimedBy: userId, claimedAt: now };
   }
 
   private async summaries(ids: readonly string[]): Promise<Map<string, UserSummaryDto>> {
@@ -333,7 +397,12 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
 
   private async orderDtos(rows: readonly RechargeOrder[], viewer: string): Promise<RechargeOrderDto[]> {
     if (rows.length === 0) return [];
-    const users = await this.summaries(rows.flatMap((r) => [r.buyerUserId, r.agentUserId]));
+    const users = await this.summaries(
+      rows.flatMap((r) => [r.buyerUserId, r.agentUserId, ...(r.claimedBy === null ? [] : [r.claimedBy])]),
+    );
+    // D287: the viewer's job for the orders of an agent they work for (at most one active employment).
+    const employer = rows.find((r) => r.buyerUserId !== viewer && r.agentUserId !== viewer)?.agentUserId;
+    const job = employer === undefined ? null : await this.employment(viewer, employer);
     const agents = await this.prisma.rechargeAgent.findMany({
       where: { userId: { in: [...new Set(rows.map((r) => r.agentUserId))] } },
       select: { userId: true, code: true },
@@ -345,6 +414,12 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
       const role: OrderViewerRole =
         o.buyerUserId === viewer ? 'BUYER' : o.agentUserId === viewer ? 'AGENT' : 'EMPLOYEE';
       const side: Side = role === 'BUYER' ? 'BUYER' : 'AGENT';
+      const block =
+        role === 'EMPLOYEE'
+          ? job === null
+            ? 'NOT_PERMITTED'
+            : agentSideBlock(viewer, job, 'RECEIVE_ORDERS', now, o.claimedBy)
+          : null;
       return {
         id: o.id,
         status: o.status,
@@ -368,7 +443,10 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
         closedAt: o.closedAt?.toISOString() ?? null,
         closeReason: o.closeReason,
         expiresAt: o.expiresAt?.toISOString() ?? null,
-        actions: allowedActions(o, side, now, this.rules),
+        actions: block === null ? allowedActions(o, side, now, this.rules) : [],
+        claimedBy: o.claimedBy === null ? null : (users.get(o.claimedBy) ?? blank(o.claimedBy)),
+        claimedAt: o.claimedAt?.toISOString() ?? null,
+        viewerBlock: block,
         createdAt: o.createdAt.toISOString(),
         updatedAt: o.updatedAt.toISOString(),
       };
@@ -518,7 +596,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
             },
           },
         });
-        await notifyOrderIn(tx, id, await agentSideIn(tx, agent.userId), 'CREATED', now);
+        await notifyOrderIn(tx, id, await agentSideIn(tx, agent.userId, now), 'CREATED', now);
         return created;
       });
       return { created: true, result: await this.orderDto(row, buyerId) };
@@ -544,9 +622,11 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
       else {
         const job = await this.prisma.rechargeEmployee.findFirst({
           where: { employeeUserId: userId, removedAt: null },
-          select: { agentUserId: true },
+          select: { agentUserId: true, receivesOrders: true },
         });
         if (!job) throw new AppException(ErrorCode.NOT_FOUND);
+        // D287: «يستقبل طلبات الشراء» off → the agent's inbox is not theirs.
+        if (!job.receivesOrders) throw new AppException(ErrorCode.RECHARGE_EMPLOYEE_NOT_PERMITTED);
         agentUserId = job.agentUserId;
       }
     }
@@ -679,9 +759,10 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
         ? await this.consumeImage(userId, a.order.id, input.imageUploadId, 'imageUploadId')
         : null;
     try {
-      const id = await this.onLocked(a.order.id, async (tx, o) => {
-        if (o.status === 'CANCELLED' || o.status === 'EXPIRED') throw this.stateChanged();
+      const id = await this.onLocked(a.order.id, async (tx, locked) => {
+        if (locked.status === 'CANCELLED' || locked.status === 'EXPIRED') throw this.stateChanged();
         const now = this.clock.now();
+        const o = await this.claimIn(tx, locked, a, userId, now);
         const mid = await messageIn(tx, {
           id: image?.messageId,
           orderId: o.id,
@@ -693,7 +774,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
           now,
         });
         await tx.rechargeOrder.update({ where: { id: o.id }, data: { updatedAt: now } });
-        const parties = await partiesIn(tx, o);
+        const parties = await partiesIn(tx, o, now);
         await notifyOrderIn(
           tx,
           o.id,
@@ -723,8 +804,9 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     if (a.side !== 'AGENT') throw new AppException(ErrorCode.NOT_FOUND);
     this.requireAct(a);
     const input = parse(paymentDetailsSchema, body);
-    const row = await this.onLocked(a.order.id, async (tx, o) => {
-      if (o.status !== 'REQUESTED') throw this.stateChanged();
+    const row = await this.onLocked(a.order.id, async (tx, locked) => {
+      if (locked.status !== 'REQUESTED') throw this.stateChanged();
+      const o = await this.claimIn(tx, locked, a, userId, this.clock.now());
       const [agent] = await tx.$queryRaw<{ status: string; user_status: string; types: unknown }[]>`
         SELECT a.status::text AS status, u.status::text AS user_status, a.payment_types AS types
           FROM recharge_agents a JOIN users u ON u.id = a.user_id
@@ -772,6 +854,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
             stockAfter: Number(stock),
             method: input.method,
             byEmployee: a.role === 'EMPLOYEE',
+            claimedBy: o.claimedBy,
           },
         },
       });
@@ -846,7 +929,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
             metadata: { before: 'AWAITING_PAYMENT', after: 'PAID', proof: image.messageId },
           },
         });
-        await notifyOrderIn(tx, o.id, await agentSideIn(tx, o.agentUserId), 'PAID', now);
+        await notifyOrderIn(tx, o.id, await agentSideIn(tx, o.agentUserId, now, o.claimedBy), 'PAID', now);
         return updated;
       });
       return await this.orderDto(row, userId);
@@ -863,8 +946,10 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     const a = await this.access(userId, rawId);
     if (a.side !== 'AGENT') throw new AppException(ErrorCode.NOT_FOUND);
     this.requireAct(a);
-    const row = await this.onLocked(a.order.id, async (tx, o) => {
-      await confirmIn(tx, o, userId, this.clock.now(), {
+    const row = await this.onLocked(a.order.id, async (tx, locked) => {
+      const now = this.clock.now();
+      const o = locked.status === 'COMPLETED' ? locked : await this.claimIn(tx, locked, a, userId, now);
+      await confirmIn(tx, o, userId, now, {
         ...this.config.recharge.badges,
         cherriesPerCoin: this.config.economy.cherriesPerCoin,
       });
@@ -883,10 +968,11 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     const a = await this.access(userId, rawId);
     this.requireAct(a);
     const input = parse(reasonBodySchema, body);
-    const row = await this.onLocked(a.order.id, async (tx, o) => {
-      if (o.status === 'DISPUTED') return o;
-      if (o.status !== 'PAID') throw this.stateChanged();
+    const row = await this.onLocked(a.order.id, async (tx, locked) => {
+      if (locked.status === 'DISPUTED') return locked;
+      if (locked.status !== 'PAID') throw this.stateChanged();
       const now = this.clock.now();
+      const o = await this.claimIn(tx, locked, a, userId, now);
       if (
         a.side === 'BUYER' &&
         now.getTime() < disputeOpensAt(o.paidAt!, this.rules.disputeAfterMinutes).getTime()
@@ -917,7 +1003,7 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
           metadata: { before: 'PAID', after: 'DISPUTED', side: a.side, held: Number(o.heldCoins) },
         },
       });
-      const parties = await partiesIn(tx, o);
+      const parties = await partiesIn(tx, o, now);
       await notifyOrderIn(
         tx,
         o.id,
@@ -937,8 +1023,10 @@ export class RechargeOrdersService implements OnModuleInit, OnModuleDestroy {
     const a = await this.access(userId, rawId);
     this.requireAct(a);
     const input = parse(reasonBodySchema, body);
-    const row = await this.onLocked(a.order.id, async (tx, o) => {
-      await cancelIn(tx, o, { userId, side: a.side }, input.reason ?? null, this.clock.now());
+    const row = await this.onLocked(a.order.id, async (tx, locked) => {
+      const now = this.clock.now();
+      const o = await this.claimIn(tx, locked, a, userId, now);
+      await cancelIn(tx, o, { userId, side: a.side }, input.reason ?? null, now);
       return tx.rechargeOrder.findUniqueOrThrow({ where: { id: o.id } });
     });
     return this.orderDto(row, userId);

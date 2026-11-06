@@ -25113,6 +25113,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أخرى'**
   String get creatorCatOther;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء كرز للوكيل'**
+  String get rechargeCherryBuyForAgentTitle;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'يعمل لصالح {name}'**
+  String rechargeWorksFor(String name);
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'تشتري لحساب {name}: العملات تُضاف إلى مخزون الوكيل والدفع للمضيف من الوكيل.'**
+  String rechargeCherryForAgentNote(String name);
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'خارج ساعات عملك: يمكنك الاطلاع فقط.'**
+  String get rechargeBlockOffShift;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يسمح لك الوكيل بهذا.'**
+  String get rechargeBlockNotPermitted;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استلامه بواسطة موظف آخر'**
+  String get rechargeOrderClaimedByOther;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'يتولاه الوكيل'**
+  String get rechargeOrderClaimedByAgent;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'يتولاه {name}'**
+  String rechargeOrderClaimedBy(String name);
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت تتولى هذا الطلب'**
+  String get rechargeOrderClaimedByYou;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'بواسطة {name}'**
+  String rechargeActedBy(String name);
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنه شراء الكرز'**
+  String get rechargePermBuyCherries;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'يشتري كرز المضيفين لحسابك أثناء دوامه'**
+  String get rechargePermBuyCherriesHint;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'يستقبل طلبات الشراء'**
+  String get rechargePermReceivesOrders;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'تصله طلبات المشترين ويتولاها أثناء دوامه'**
+  String get rechargePermReceivesOrdersHint;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم: {cherries} شراء كرز · {orders} طلب منجز'**
+  String rechargeEmployeeActsToday(int cherries, int orders);
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يسمح لك الوكيل بهذا الإجراء.'**
+  String get errorRechargeEmployeeNotPermitted;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استلام هذا الطلب بواسطة موظف آخر.'**
+  String get errorRechargeOrderClaimed;
+
+  /// D287 recharge employees act for the agent
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المشترين لـ {name}، أول من يتولى الطلب يملكه'**
+  String rechargeOrdersForAgentHint(String name);
+
+  /// D287 recharge employees act for the agent (owner: never a Kabso Team account)
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت الآن ضمن فريق كابسو: لا يمكنك العمل كموظف شحن، يمكنك الاطلاع فقط.'**
+  String get rechargeBlockStaff;
+
+  /// D287 recharge employees act for the agent (owner: never a Kabso Team account)
+  ///
+  /// In ar, this message translates to:
+  /// **'ضمن فريق كابسو الآن: لا يمكنه العمل لصالحك. يمكنك إزالته.'**
+  String get rechargeEmployeeIsStaffNote;
+
+  /// D287 recharge employees act for the agent (owner: never a Kabso Team account)
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحساب من فريق كابسو، ولا يمكن إضافته موظفاً للشحن.'**
+  String get errorRechargeEmployeeIsStaff;
+
+  /// D287 recharge employees act for the agent (owner: never a Kabso Team account)
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات فريق كابسو لا يمكنها القيام بهذا.'**
+  String get errorStaffAccountLimited;
 }
 
 class _AppLocalizationsDelegate

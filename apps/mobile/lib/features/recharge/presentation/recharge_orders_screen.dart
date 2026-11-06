@@ -6,11 +6,16 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/recharge/application/recharge_orders_providers.dart';
 import 'package:kabso_live/features/recharge/application/recharge_providers.dart';
 import 'package:kabso_live/features/recharge/data/recharge_orders_repository.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_order_screen.dart'
-    show rechargeOrderStatusColor, rechargeOrderStatusText, rechargePriceText;
+    show
+        rechargeOrderClaimText,
+        rechargeOrderStatusColor,
+        rechargeOrderStatusText,
+        rechargePriceText;
 import 'package:kabso_live/features/wallet/presentation/me_page_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -28,6 +33,7 @@ class RechargeOrdersScreen extends ConsumerStatefulWidget {
   static const mineKey = Key('recharge.orders.mine');
   static const incomingKey = Key('recharge.orders.incoming');
   static Key rowKey(String id) => Key('recharge.orders.$id');
+  static Key claimKey(String id) => Key('recharge.orders.$id.claim');
 
   @override
   ConsumerState<RechargeOrdersScreen> createState() =>
@@ -41,7 +47,9 @@ class _RechargeOrdersScreenState extends ConsumerState<RechargeOrdersScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final me = ref.watch(myRechargeAgentProvider).value;
-    final serves = me?.agent != null || me?.employment != null;
+    // D287: an employee sees the agent's inbox only with «يستقبل طلبات الشراء».
+    final serves =
+        me?.agent != null || (me?.employment?.receivesOrders ?? false);
     final asAgent = serves && _incoming;
     final load = ref.watch(rechargeOrdersProvider(asAgent));
     return MePage(
@@ -125,14 +133,19 @@ class _RechargeOrdersScreenState extends ConsumerState<RechargeOrdersScreen> {
   }
 }
 
-class _OrderRow extends StatelessWidget {
+class _OrderRow extends ConsumerWidget {
   const new({required this.order});
 
   final RechargeOrder order;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final claim = rechargeOrderClaimText(
+      l10n,
+      order,
+      ref.watch(currentUserProvider)?.id,
+    );
     final p = context.palette;
     final t = context.textStyles;
     final o = order;
@@ -185,6 +198,16 @@ class _OrderRow extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      if (claim != null)
+                        Text(
+                          claim.text,
+                          key: RechargeOrdersScreen.claimKey(o.id),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.caption.copyWith(
+                            color: claim.blocked ? p.error : p.textTertiary,
+                          ),
+                        ),
                     ],
                   ),
                 ),

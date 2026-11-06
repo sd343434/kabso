@@ -239,6 +239,30 @@ export interface AgentRow {
 export interface AgentPage extends Page<AgentRow> {
   pricing: Pricing;
 }
+/** v1.87-social (D287): `AdminRechargeAgentEmployee`. */
+export interface EmployeeTotals {
+  count: number;
+  coins: number;
+}
+export interface EmployeeStats {
+  today: EmployeeTotals;
+  last7Days: EmployeeTotals;
+  last30Days: EmployeeTotals;
+}
+export interface AgentEmployee {
+  userId: string;
+  username: string;
+  displayName: string;
+  timeZone: string;
+  onShiftNow: boolean;
+  canBuyCherries: boolean;
+  receivesOrders: boolean;
+  addedAt: string;
+  removedAt: string | null;
+  sales: EmployeeStats;
+  cherryPurchases: EmployeeStats;
+  orders: EmployeeStats;
+}
 
 export interface TopUpResult {
   topupId: string;

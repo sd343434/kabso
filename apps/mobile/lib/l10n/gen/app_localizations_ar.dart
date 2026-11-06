@@ -14852,4 +14852,90 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'أخرى';
+
+  @override
+  String get rechargeCherryBuyForAgentTitle => 'شراء كرز للوكيل';
+
+  @override
+  String rechargeWorksFor(String name) {
+    return 'يعمل لصالح $name';
+  }
+
+  @override
+  String rechargeCherryForAgentNote(String name) {
+    return 'تشتري لحساب $name: العملات تُضاف إلى مخزون الوكيل والدفع للمضيف من الوكيل.';
+  }
+
+  @override
+  String get rechargeBlockOffShift => 'خارج ساعات عملك: يمكنك الاطلاع فقط.';
+
+  @override
+  String get rechargeBlockNotPermitted => 'لم يسمح لك الوكيل بهذا.';
+
+  @override
+  String get rechargeOrderClaimedByOther => 'تم استلامه بواسطة موظف آخر';
+
+  @override
+  String get rechargeOrderClaimedByAgent => 'يتولاه الوكيل';
+
+  @override
+  String rechargeOrderClaimedBy(String name) {
+    return 'يتولاه $name';
+  }
+
+  @override
+  String get rechargeOrderClaimedByYou => 'أنت تتولى هذا الطلب';
+
+  @override
+  String rechargeActedBy(String name) {
+    return 'بواسطة $name';
+  }
+
+  @override
+  String get rechargePermBuyCherries => 'يمكنه شراء الكرز';
+
+  @override
+  String get rechargePermBuyCherriesHint =>
+      'يشتري كرز المضيفين لحسابك أثناء دوامه';
+
+  @override
+  String get rechargePermReceivesOrders => 'يستقبل طلبات الشراء';
+
+  @override
+  String get rechargePermReceivesOrdersHint =>
+      'تصله طلبات المشترين ويتولاها أثناء دوامه';
+
+  @override
+  String rechargeEmployeeActsToday(int cherries, int orders) {
+    return 'اليوم: $cherries شراء كرز · $orders طلب منجز';
+  }
+
+  @override
+  String get errorRechargeEmployeeNotPermitted =>
+      'لم يسمح لك الوكيل بهذا الإجراء.';
+
+  @override
+  String get errorRechargeOrderClaimed =>
+      'تم استلام هذا الطلب بواسطة موظف آخر.';
+
+  @override
+  String rechargeOrdersForAgentHint(String name) {
+    return 'طلبات المشترين لـ $name، أول من يتولى الطلب يملكه';
+  }
+
+  @override
+  String get rechargeBlockStaff =>
+      'أنت الآن ضمن فريق كابسو: لا يمكنك العمل كموظف شحن، يمكنك الاطلاع فقط.';
+
+  @override
+  String get rechargeEmployeeIsStaffNote =>
+      'ضمن فريق كابسو الآن: لا يمكنه العمل لصالحك. يمكنك إزالته.';
+
+  @override
+  String get errorRechargeEmployeeIsStaff =>
+      'هذا الحساب من فريق كابسو، ولا يمكن إضافته موظفاً للشحن.';
+
+  @override
+  String get errorStaffAccountLimited =>
+      'حسابات فريق كابسو لا يمكنها القيام بهذا.';
 }

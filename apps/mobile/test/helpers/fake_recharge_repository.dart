@@ -109,9 +109,14 @@ class FakeRechargeRepository implements RechargeRepository {
   final answered = <(String, String)>[];
   final created = <({int cherries, String? agentCode, String? host})>[];
   final removed = <String>[];
+  final permits =
+      <({String username, bool? canBuyCherries, bool? receivesOrders})>[];
   RechargeAvailability? savedAvailability;
   String? lastCountry;
   Exception? sellError;
+
+  /// D287: what `addEmployee` throws (e.g. 403 RECHARGE_EMPLOYEE_IS_STAFF).
+  Exception? addEmployeeError;
 
   @override
   Future<RechargeAgentMe> me() async => mine;
@@ -163,6 +168,7 @@ class FakeRechargeRepository implements RechargeRepository {
     String timeZone,
     List<WeeklySlot> schedule,
   ) async {
+    if (addEmployeeError case final err?) throw err;
     final e = RechargeEmployee(
       user: UserSummary(
         id: 'u-$username',
@@ -184,8 +190,31 @@ class FakeRechargeRepository implements RechargeRepository {
   Future<RechargeEmployee> updateEmployee(
     String username,
     String timeZone,
-    List<WeeklySlot> schedule,
-  ) async => staff.firstWhere((e) => e.user.username == username);
+    List<WeeklySlot> schedule, {
+    bool? canBuyCherries,
+    bool? receivesOrders,
+  }) async {
+    permits.add((
+      username: username,
+      canBuyCherries: canBuyCherries,
+      receivesOrders: receivesOrders,
+    ));
+    final i = staff.indexWhere((e) => e.user.username == username);
+    final e = staff[i];
+    return staff[i] = RechargeEmployee(
+      user: e.user,
+      timeZone: timeZone,
+      schedule: schedule,
+      onShiftNow: e.onShiftNow,
+      addedAt: e.addedAt,
+      sales: e.sales,
+      canBuyCherries: canBuyCherries ?? e.canBuyCherries,
+      receivesOrders: receivesOrders ?? e.receivesOrders,
+      cherryPurchases: e.cherryPurchases,
+      orders: e.orders,
+      kabsoTeam: e.kabsoTeam,
+    );
+  }
 
   @override
   Future<void> removeEmployee(String username) async {
