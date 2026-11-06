@@ -366,6 +366,9 @@ model UserProfile {
   /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order; 0–10 (CHECK
   /// `user_profiles_tags_count`), each 1–24 code points (the app's `PATCH /me` rules).
   tags                String[]             @default([]) @db.VarChar(24)
+  /// v1.91-social (D292, §10.106): the icon of each tag (a closed set, or `flag:<country>`); empty (rows before
+  /// v1.91-social) or one per tag (CHECK `user_profiles_tag_icons_len`).
+  tagIcons            String[]             @default([]) @map("tag_icons") @db.VarChar(24)
   createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 

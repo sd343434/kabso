@@ -9,6 +9,7 @@ import { regularUsernameIssue } from '../premium-usernames/premium-username-rule
 import {
   PROFILE_LINKS_SELECT,
   profileLinkDto,
+  profileTagIconsOf,
   profileTagsOf,
   publicGender,
   type AccountCategory,
@@ -49,6 +50,8 @@ export interface MeDto {
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags «منشنات», in order (0–10). */
   tags: string[];
+  /** v1.91-social (D292, §10.106): the icon of each tag, one per tag (`default` when none was chosen). */
+  tagIcons: string[];
   /** v1.54-social (D185): the caller's active special username; absent when none. */
   specialUsername?: MeSpecialUsernameDto;
   /** v1.76-social (D218, §10.73.3): the caller's profile cover (1 080 px), or null (the Kabso gradient). */
@@ -71,6 +74,8 @@ export interface PublicUser {
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags, in order (also on a private account's profile). */
   tags: string[];
+  /** v1.91-social (D292, §10.106): the icon of each tag, one per tag. */
+  tagIcons: string[];
   /** v1.76-social (D218, §10.73.3): the cover, the country the user chose (D133) and the month they joined. */
   coverUrl: string | null;
   country: string | null;
@@ -139,6 +144,7 @@ export interface UserWithProfile {
     coverUrl?: string | null;
     /** v1.85-social (D278b). Absent in older selects: none. */
     tags?: string[];
+    tagIcons?: string[];
   } | null;
   /** v1.47-social (D175): `ME_INCLUDE` reads them. */
   profileLinks?: { id: string; url: string; label: string | null }[];
@@ -179,6 +185,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     category: user.profile.category ?? null,
     links: (user.profileLinks ?? []).map(profileLinkDto),
     tags: profileTagsOf(user.profile.tags),
+    tagIcons: profileTagIconsOf(user.profile.tags, user.profile.tagIcons),
     ...specialOf(user),
     coverUrl: user.profile.coverUrl ?? null,
   };
@@ -442,6 +449,7 @@ export class UsersService {
         showGender: true,
         category: true,
         tags: true,
+        tagIcons: true,
         coverUrl: true,
         countryCode: true,
         user: {
@@ -466,6 +474,7 @@ export class UsersService {
       category: profile.category,
       links: profile.user.profileLinks.map(profileLinkDto),
       tags: profileTagsOf(profile.tags),
+      tagIcons: profileTagIconsOf(profile.tags, profile.tagIcons),
       coverUrl: profile.coverUrl,
       country: profile.countryCode,
       // D218: the month only («انضم في <شهر سنة>»), never the exact time (UTC).

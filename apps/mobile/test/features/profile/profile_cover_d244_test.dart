@@ -149,9 +149,9 @@ Rect _cover(WidgetTester tester) {
   );
 }
 
-/// D278b: the photo and its frame rise into the cover picture from the
-/// dark block under it, at the reading start; the name under the photo,
-/// never under its frame.
+/// D292: the photo and its frame half on the cover picture, half on the
+/// page, at the reading start; the name under the photo, never under its
+/// frame.
 void _expectInside(
   WidgetTester tester, {
   required bool rtl,
@@ -160,9 +160,10 @@ void _expectInside(
   expect(tester.takeException(), isNull);
   final cover = _cover(tester);
   final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-  // D278d: wholly inside the picture again.
+  // D292: half on the picture, half on the page (its centre on the
+  // picture's bottom edge).
   expect(photo.top, greaterThanOrEqualTo(cover.top));
-  expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+  expect(photo.center.dy, moreOrLessEquals(cover.bottom, epsilon: 0.5));
   expect(photo.left, greaterThanOrEqualTo(0));
   expect(photo.right, lessThanOrEqualTo(width));
   // At the reading start.
@@ -173,20 +174,28 @@ void _expectInside(
   }
   final name = find.byKey(const Key('profile.displayName'));
   final nameRect = tester.getRect(name);
-  // The name under the picture, so never under the photo or its frame.
+  // The name under the photo, so never under the photo or its frame.
   expect(nameRect.top, greaterThanOrEqualTo(cover.bottom));
+  expect(nameRect.top, greaterThanOrEqualTo(photo.bottom));
   expect(nameRect.overlaps(photo), isFalse);
 }
 
 void main() {
   setUpAll(loadAppFonts);
 
-  test("the photo slot is the frames' common box; D278b: the cover picture "
-      'is 42 % of the screen, well taller than the slot', () {
+  test("the photo slot is the frames' common box; the cover picture "
+      'ends at the slot middle (D292)', () {
     final slot = KPublicProfile.avatarSlot;
     expect(slot.width, closeTo(1.6 * KProfile.avatar, 0.01));
     expect(slot.height, greaterThanOrEqualTo(1.4 * KProfile.avatar));
-    expect(KPublicProfile.coverHeightFor(852), greaterThan(2 * slot.height));
+    // D292: the cover ends at the slot's middle, under the bar.
+    expect(
+      KPublicProfile.coverHeightFor(125),
+      moreOrLessEquals(
+        125 + KPublicProfile.avatarTopGap + slot.height / 2,
+        epsilon: 0.5,
+      ),
+    );
   });
 
   group(

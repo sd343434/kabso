@@ -299,7 +299,10 @@ class EditProfileScreen extends ConsumerWidget {
                   placeholder: l10n.profileEditNotSet,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => EditTagsScreen(initial: user.tags),
+                      builder: (_) => EditTagsScreen(
+                        initial: user.tags,
+                        initialIcons: user.tagIcons,
+                      ),
                     ),
                   ),
                 ),

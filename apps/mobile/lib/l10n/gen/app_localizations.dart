@@ -24521,6 +24521,138 @@ abstract class AppLocalizations {
   /// **'وصلت إلى 10 منشنات.'**
   String get profileEditTagsFull;
 
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون أيقونة'**
+  String get profileTagIconDefault;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'تاج'**
+  String get profileTagIconCrown;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'علم دولة'**
+  String get profileTagIconFlag;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'نار'**
+  String get profileTagIconFire;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'كأس'**
+  String get profileTagIconTrophy;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'ألعاب'**
+  String get profileTagIconGamepad;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'موسيقى'**
+  String get profileTagIconMusic;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'ميكروفون'**
+  String get profileTagIconMic;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلال'**
+  String get profileTagIconMoon;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب'**
+  String get profileTagIconHeart;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'نجمة'**
+  String get profileTagIconStar;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'جوهرة'**
+  String get profileTagIconGem;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'كاميرا'**
+  String get profileTagIconCamera;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتاب'**
+  String get profileTagIconBook;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'رياضة'**
+  String get profileTagIconSport;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'فن'**
+  String get profileTagIconPalette;
+
+  /// D292 (§10.106): a profile tag icon's name (the icon picker and screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'العالم'**
+  String get profileTagIconGlobe;
+
+  /// D292: a tag's flag icon with its country (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'علم {country}'**
+  String profileTagIconFlagOf(String country);
+
+  /// D292: the icon picker sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أيقونة الوسم'**
+  String get profileTagIconPick;
+
+  /// D292: a tag chip in the editor opens the icon picker (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير أيقونة {tag}'**
+  String profileTagIconChange(String tag);
+
+  /// D292: the button beside the new-tag field that picks its icon.
+  ///
+  /// In ar, this message translates to:
+  /// **'أيقونة الوسم الجديد: {icon}'**
+  String profileTagIconNew(String icon);
+
+  /// D292: the tags editor's hint about icons.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط على أي منشن لاختيار أيقونته.'**
+  String get profileEditTagsIconHint;
+
   /// D281: the smart targets «الأهداف الذكية» (chip, sheet) and the generated Task Center.
   ///
   /// In ar, this message translates to:

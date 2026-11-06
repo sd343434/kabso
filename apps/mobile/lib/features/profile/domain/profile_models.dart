@@ -81,6 +81,10 @@ abstract class PublicProfile with _$PublicProfile {
     /// order; also on a private profile), chips on the cover.
     @Default(<String>[]) List<String> tags,
 
+    /// v1.91-social (D292, §10.106): the icon of each tag (`ProfileTagIcon`
+    /// keys, one per tag; empty from an older server — read as `default`).
+    @Default(<String>[]) List<String> tagIcons,
+
     /// v1.54-social (D185, §10.48): the user's code while they are an
     /// ACTIVE recharge agent — the agent frame (with the code in its
     /// plate) and the badge. Null otherwise (also on older servers).

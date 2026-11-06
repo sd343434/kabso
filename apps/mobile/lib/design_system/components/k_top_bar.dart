@@ -52,6 +52,7 @@ class KAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.scrolledUnderElevation,
     this.systemOverlayStyle,
     this.toolbarHeight,
+    this.leadingWidth,
   });
 
   final Widget? leading;
@@ -68,6 +69,9 @@ class KAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double? scrolledUnderElevation;
   final SystemUiOverlayStyle? systemOverlayStyle;
   final double? toolbarHeight;
+
+  /// D292: room for several buttons in [leading] (the profile bar).
+  final double? leadingWidth;
 
   /// The bar's own height (toolbar + [bottom]) plus the gap; the scaffold
   /// adds the status bar inset on top.
@@ -104,6 +108,7 @@ class KAppBar extends StatelessWidget implements PreferredSizeWidget {
         scrolledUnderElevation: scrolledUnderElevation,
         systemOverlayStyle: systemOverlayStyle,
         toolbarHeight: toolbarHeight,
+        leadingWidth: leadingWidth,
       ),
     );
   }

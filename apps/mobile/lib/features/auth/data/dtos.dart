@@ -34,6 +34,7 @@ class MeDto {
     this.category,
     this.links = const [],
     this.tags = const [],
+    this.tagIcons = const [],
     this.specialUsername,
     this.coverUrl,
     this.kabsoTeam = false,
@@ -88,6 +89,10 @@ class MeDto {
 
   /// v1.85-social (D278b, §10.99): the profile tags «منشنات», in order.
   final List<String> tags;
+
+  /// v1.91-social (D292, §10.106): the icon of each tag (`ProfileTagIcon`
+  /// keys, one per tag; empty from an older server).
+  final List<String> tagIcons;
 
   /// v1.54-social (D185, §10.48.1): the caller's active special username
   /// (with the base username — only ever in the caller's own `Me`).
@@ -144,6 +149,7 @@ class MeDto {
     category: category,
     links: links,
     tags: tags,
+    tagIcons: tagIcons,
     specialUsername: specialUsername,
     coverUrl: coverUrl,
     kabsoTeam: kabsoTeam,

@@ -112,13 +112,15 @@ void main() {
     );
     expect(cover.top, 0);
     expect(cover.width, 393);
-    expect(cover.height, KPublicProfile.coverHeightFor(852));
-    // D278b: the photo rises into the picture; under it the name row
-    // (with the level badges), the numbers and «Edit profile» on the dark
-    // block; the bio after the header.
+    expect(
+      cover.height,
+      KPublicProfile.coverHeightFor(tester.getRect(find.byType(AppBar)).bottom),
+    );
+    // D278b: under the photo the name row (with the level badges), the
+    // numbers and «Edit profile»; the bio after the header.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    // D278d: wholly inside the picture; the name under it.
-    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    // D292: half on the picture, half on the page; the name under it.
+    expect(photo.center.dy, moreOrLessEquals(cover.bottom, epsilon: 0.5));
     final header = tester.getRect(find.byKey(ProfileCoverHeader.headerKey));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
     expect(name.top, greaterThanOrEqualTo(cover.bottom));

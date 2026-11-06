@@ -819,6 +819,10 @@ info:
     `enableAdminVipTier`, `disableAdminVipTier`, `reorderAdminVipTiers` (`catalog.view` / `catalog.manage`, reason,
     audited `vip.tier.*`). Ledger reason `VIP_PURCHASE`; codes `VIP_UNAVAILABLE`, `VIP_PRICE_CHANGED` (409). A perk the
     app does not do yet is `available: false`. Additive (CONVENTIONS §10.93).
+    **D292 (DRAFT v1.91-social)**: an icon per profile tag (owner: the person picks it) — `UpdateMeRequest.tagIcons`
+    (one per tag, sent with `tags`; null = `default`; omitted, each tag keeps its icon by its text), `Me.tagIcons` and
+    `PublicProfile.tagIcons` (`ProfileTagIcon`: a closed set the apps draw with their own icons, or `flag:<country>`).
+    Migration `20270327090000_profile_tag_icons`. Additive (CONVENTIONS §10.106).
     **D278b (DRAFT v1.85-social)**: the profile tags «منشنات» — `UpdateMeRequest.tags` (0–10, each 1–24 code points,
     one line, §6 hygiene, no duplicates ignoring case), `Me.tags` and `PublicProfile.tags` (also on a private account's
     profile). Migration `20270314090000_profile_tags`. Additive (CONVENTIONS §10.99).
@@ -1372,6 +1376,17 @@ paths:
                     `too_long`, `invalid_format`); the same tag twice ignoring case → `tags.<i>` /
                     `invalid_value`; more than 10 → `tags` / `too_many`.
                   items: { type: string, maxLength: 240 }
+                tagIcons:
+                  type: array
+                  maxItems: 10
+                  description: |
+                    v1.91-social (D292, CONVENTIONS §10.106). The icon of each tag of `tags`, in the same order —
+                    only together with `tags` and exactly as many (else `tagIcons` / `invalid_value`). Each is a
+                    `ProfileTagIcon` (`flag:<country>` with an ISO 3166-1 alpha-2 code, any case, stored upper case;
+                    a bare `flag` is not allowed) or null for `default`; anything else → `tagIcons.<i>` /
+                    `invalid_value`. When `tags` is sent without `tagIcons` (an app before v1.91-social), each tag
+                    keeps the icon it had (the same text, ignoring case) and a new tag gets `default`.
+                  items: { type: [string, 'null'], maxLength: 24 }
       responses:
         '200':
           description: Updated user.
@@ -25995,6 +26010,11 @@ components:
           maxItems: 10
           description: "v1.85-social (D278b, §10.99). The profile tags «منشنات», in order (`PATCH /me` `tags`)."
           items: { type: string, minLength: 1, maxLength: 24 }
+        tagIcons:
+          type: array
+          maxItems: 10
+          description: "v1.91-social (D292, §10.106). The icon of each tag, one per tag in the same order (`default` where none was chosen). Always sent from v1.91-social."
+          items: { $ref: '#/components/schemas/ProfileTagIcon' }
         coverUrl:
           type: [string, 'null']
           format: uri
@@ -26218,6 +26238,11 @@ components:
           maxItems: 10
           description: "v1.85-social (D278b, §10.99). The profile tags «منشنات», in order (also on a private account's profile); the app shows them as chips on the profile cover, at most two lines (the rest as «+n»)."
           items: { type: string, minLength: 1, maxLength: 24 }
+        tagIcons:
+          type: array
+          maxItems: 10
+          description: "v1.91-social (D292, §10.106). The icon of each tag, one per tag in the same order (`default` where none was chosen). Always sent from v1.91-social."
+          items: { $ref: '#/components/schemas/ProfileTagIcon' }
         rechargeAgent:
           description: "v1.54-social (D185, §10.48). The user is an ACTIVE recharge agent: their code (the app draws the agent frame with the code, the badge and the entrance); else null."
           oneOf:
@@ -26331,6 +26356,16 @@ components:
         facebook.com / fb.com, x.com / twitter.com or any subdomain of them; OTHER for every other host
         (the app warns «أنت تغادر Kabso» with the full URL before opening it). Clients treat values they
         do not know as OTHER.
+    ProfileTagIcon:
+      type: string
+      maxLength: 24
+      pattern: '^(default|crown|fire|trophy|gamepad|music|mic|moon|heart|star|gem|camera|book|sport|palette|globe|flag:[A-Z]{2})$'
+      description: |
+        v1.91-social (D292, CONVENTIONS §10.106). The icon of a profile tag, chosen by the person: one of a closed set
+        the apps draw with their own icons (never emoji) — `default` (the plain chip), `crown`, `fire`, `trophy`,
+        `gamepad`, `music`, `mic`, `moon`, `heart`, `star`, `gem`, `camera`, `book`, `sport`, `palette`, `globe` —
+        or `flag:<ISO 3166-1 alpha-2>` (upper case; the app's bundled flag art). Apps draw an icon they do not know
+        as `default`.
     ProfileLink:
       type: object
       required: [id, url, label, platform]

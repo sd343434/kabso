@@ -531,10 +531,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               AsyncValue(:final value?) => () => _openMore(value),
               _ => null,
             },
-            icon: AppIcon(
-              AppIcons.moreHoriz,
-              size: KMetrics.iconMd,
-              color: solid ? p.textPrimary : KPalette.dark.textPrimary,
+            // D292: a plain glyph with a soft shadow over the cover.
+            icon: ProfileCoverBar.glyph(
+              solid: solid,
+              child: AppIcon(
+                AppIcons.moreHoriz,
+                size: KMetrics.iconMd,
+                color: solid ? p.textPrimary : KPalette.dark.textPrimary,
+              ),
             ),
           ),
         ],

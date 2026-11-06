@@ -77,6 +77,8 @@ export interface PublicProfileDto {
   links: ProfileLinkDto[];
   /** v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10), also on a private account's profile. */
   tags: string[];
+  /** v1.91-social (D292, §10.106): the icon of each tag, one per tag. */
+  tagIcons: string[];
   /** v1.54-social (D185, §10.48): the user is an ACTIVE recharge agent (the frame, badge and entrance). */
   rechargeAgent: { code: string } | null;
   /** v1.58-social (D189, §10.52): the host agent's code while not suspended (frame, badge), else null. */
@@ -272,6 +274,7 @@ export class PublicProfileService {
       category: user.category,
       links: user.links,
       tags: user.tags,
+      tagIcons: user.tagIcons,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
       // v1.72-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's

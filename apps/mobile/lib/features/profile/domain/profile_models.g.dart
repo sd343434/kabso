@@ -45,6 +45,11 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
           const <String>[],
+      tagIcons:
+          (json['tagIcons'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       rechargeAgentCode: rechargeAgentCodeFromJson(json['rechargeAgent']),
       hostAgentCode: rechargeAgentCodeFromJson(json['hostAgent']),
       avatarFrame: avatarFrameFromJson(json['avatarFrame']),
@@ -86,6 +91,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'category': accountCategoryToJson(instance.category),
       'links': profileLinksToJson(instance.links),
       'tags': instance.tags,
+      'tagIcons': instance.tagIcons,
       'rechargeAgent': ?rechargeAgentCodeToJson(instance.rechargeAgentCode),
       'hostAgent': ?rechargeAgentCodeToJson(instance.hostAgentCode),
       'avatarFrame': ?avatarFrameToJson(instance.avatarFrame),

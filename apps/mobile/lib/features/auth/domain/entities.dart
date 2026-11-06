@@ -55,6 +55,10 @@ abstract class User with _$User {
     /// v1.85-social (D278b, §10.99): the profile tags «منشنات» (0–10).
     @Default(<String>[]) List<String> tags,
 
+    /// v1.91-social (D292, §10.106): the icon of each tag (`ProfileTagIcon`
+    /// keys, one per tag; empty from an older server — read as `default`).
+    @Default(<String>[]) List<String> tagIcons,
+
     /// v1.54-social (D185, §10.48.1): the active special username (the
     /// shown [username] while set) and the person's own base username.
     SpecialUsername? specialUsername,

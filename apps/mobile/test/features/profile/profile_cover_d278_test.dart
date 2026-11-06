@@ -85,6 +85,7 @@ PublicProfile otherProfile({
   cherriesReceived: 1250000,
   coinsSent: 86400,
   tags: sampleTags(ar: ar),
+  tagIcons: sampleTagIcons,
   links: const [
     ProfileLink(
       id: 'l1',
@@ -94,7 +95,21 @@ PublicProfile otherProfile({
   ],
 );
 
-/// Ten tags: more than two lines on a phone, so the «+n» chip shows.
+/// D292: the icon each sample tag's owner chose (one `default`).
+const List<String> sampleTagIcons = [
+  'crown',
+  'flag:SA',
+  'fire',
+  'trophy',
+  'mic',
+  'gamepad',
+  'default',
+  'music',
+  'moon',
+  'book',
+];
+
+/// Ten tags: more than one line on a phone, so the «+n» chip shows.
 List<String> sampleTags({required bool ar}) => ar
     ? [
         'صانع محتوى',
@@ -134,6 +149,7 @@ User me({required bool ar, bool cover = true}) => User(
   bio: ar ? 'موسيقى عربية كل مساء' : 'Arabic music every evening',
   coverUrl: cover ? coverUrl : null,
   tags: sampleTags(ar: ar).take(4).toList(),
+  tagIcons: sampleTagIcons.take(4).toList(),
 );
 
 final List<Override> _common = [
@@ -268,18 +284,19 @@ void expectCover(
   expect(header.left, 0);
   expect(header.width, screen.width);
   final area = _rect(tester, ProfileCoverHeader.coverAreaKey);
+  final bar = tester.getRect(find.byType(AppBar));
   expect(area.top, 0);
   expect(area.width, screen.width);
-  expect(area.height, KPublicProfile.coverHeightFor(screen.height));
-  expect(area.height, moreOrLessEquals(screen.height * 0.42, epsilon: 1));
+  // D292: shorter — the bar, a gap and the photo box's top half.
+  expect(area.height, KPublicProfile.coverHeightFor(bar.bottom));
+  expect(area.height, lessThan(screen.height * 0.3));
   expect(_rect(tester, ProfileCoverHeader.coverFallbackKey), area);
-  final bar = tester.getRect(find.byType(AppBar));
   final photo = _rect(tester, ProfileHeaderView.avatarKey);
-  // D278d: the photo and its frame wholly inside the picture, under the
-  // top bar, near its bottom edge; the name row starts under the picture.
+  // D292 (owner: «نصفها داخل الغلاف ونصفها خارج الغلاف»): the photo's
+  // centre on the picture's bottom edge, under the top bar, at the reading
+  // start; the name row starts under the photo.
   expect(photo.top, greaterThan(bar.bottom));
-  expect(photo.bottom, lessThanOrEqualTo(area.bottom));
-  expect(photo.bottom, greaterThan(area.bottom - 40));
+  expect(photo.center.dy, moreOrLessEquals(area.bottom, epsilon: 0.5));
   final name = _rect(tester, const Key('profile.displayName'));
   final nameRow = _rect(tester, ProfileCoverHeader.nameRowKey);
   final handle = _rect(tester, ProfileCoverHeader.handleKey);
@@ -287,6 +304,8 @@ void expectCover(
   final actions = _rect(tester, ProfileCoverHeader.actionsKey);
   expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
   expect(nameRow.top, greaterThanOrEqualTo(area.bottom));
+  // The @username under the name row (D292: back there, owner: «ارجع
+  // اليوزر أسفل الاسم»), then the numbers.
   expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
   expect(stats.top, greaterThanOrEqualTo(handle.bottom));
   expect(actions.top, greaterThanOrEqualTo(stats.bottom));
@@ -309,7 +328,7 @@ void expectCover(
     expect(r.left, greaterThanOrEqualTo(0));
     expect(r.right, lessThanOrEqualTo(screen.width));
   }
-  // The tags: two lines at most, under the buttons.
+  // The tags: one line (D292; was two), under the buttons.
   final tags = find.byKey(ProfileTagChips.wrapKey);
   if (tags.evaluate().isNotEmpty) {
     final t = tester.getRect(tags);
@@ -345,10 +364,14 @@ void main() {
     profileCoverImageFor = NetworkImage.new;
   });
 
-  test('D278b: the cover picture is 42 % of the screen (≈ 358 dp on '
-      '393 × 852)', () {
-    expect(KPublicProfile.coverHeightFor(852), 358);
-    expect(KPublicProfile.coverHeightFor(800), 336);
+  test("D292: the cover ends at the photo box's middle (≈ 213 dp under a "
+      '125 dp bar; was 42 % of the screen, 358 dp)', () {
+    final half = KPublicProfile.avatarSlot.height / 2;
+    expect(
+      KPublicProfile.coverHeightFor(125),
+      (125 + KPublicProfile.avatarTopGap + half).roundToDouble(),
+    );
+    expect(KPublicProfile.coverHeightFor(125), 213);
   });
 
   group("D278 someone else's profile", () {
@@ -366,7 +389,9 @@ void main() {
           );
           expectCover(tester, screen: const Size(393, 852), own: false);
           expect(find.byKey(ProfileCoverHeader.coverKey), findsOneWidget);
-          // The bar: no background, our buttons (back, the dots), no title.
+          // The bar: no background, our buttons (back, the dots), no title
+          // over the cover; D292: back then the dots side by side at the
+          // reading start, plain glyphs (no circles).
           final bar = tester.widget<AppBar>(find.byType(AppBar));
           expect(bar.backgroundColor, Colors.transparent);
           expect(find.byType(BackButton), findsOneWidget);
@@ -378,6 +403,36 @@ void main() {
             ),
           );
           expect(title.opacity, 0);
+          final back = tester.getRect(find.byType(BackButton));
+          final more = _rect(tester, PublicProfileScreen.moreKey);
+          if (ar) {
+            // Back at the right edge, the dots just left of it.
+            expect(back.right, greaterThan(393 - 16));
+            expect(more.right, lessThanOrEqualTo(back.left + 4));
+            expect(back.left - more.right, lessThan(8));
+          } else {
+            expect(back.left, lessThan(16));
+            expect(more.left, greaterThanOrEqualTo(back.right - 4));
+            expect(more.left - back.right, lessThan(8));
+          }
+          expect(back.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
+          expect(more.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
+          // No circle behind the buttons.
+          expect(
+            find.descendant(
+              of: find.byType(AppBar),
+              matching: find.byWidgetPredicate(
+                (w) =>
+                    w is DecoratedBox &&
+                    w.decoration is ShapeDecoration &&
+                    ((w.decoration as ShapeDecoration).shape is CircleBorder ||
+                        (w.decoration as ShapeDecoration).shape
+                            is StadiumBorder),
+              ),
+            ),
+            findsNothing,
+          );
+          expect((back.center.dy - more.center.dy).abs(), lessThan(2));
           // The bar's buttons sit under the status bar (59).
           expect(
             _rect(tester, PublicProfileScreen.moreKey).top,
@@ -450,15 +505,20 @@ void main() {
                 )
                 .first,
           );
-          // D279b: a soft Kabso-red tint with a hairline, deeper red text.
+          // D292 (owner: «بإطار مفرّغ»): a hollow pill — no fill, a thin
+          // Kabso-red outline (the text a deeper red, D279b).
           final dark = brightness == Brightness.dark;
+          final shape = chip.decoration as ShapeDecoration;
+          expect(shape.color, isNull);
           expect(
-            (chip.decoration as BoxDecoration).color,
+            (shape.shape as StadiumBorder).side.color,
+            // D292: white (the theme's text colour) in dark, red in light.
             dark
-                ? KBrandColors.red400.withValues(alpha: 0.14)
-                : KBrandColors.red500.withValues(alpha: 0.07),
+                ? KPalette.dark.textPrimary.withValues(alpha: 0.85)
+                : KBrandColors.red500.withValues(alpha: 0.6),
           );
-          expect((chip.decoration as BoxDecoration).border, isNotNull);
+          final chipBox = _rect(tester, ProfileTagChips.chipKey(0));
+          expect(chipBox.height, inInclusiveRange(22, 27));
           final message = tester.widget<OutlinedButton>(
             find.byKey(PublicProfileScreen.messageKey),
           );
@@ -478,7 +538,7 @@ void main() {
           for (final n in ['47.2K', '1.7K', '86.4K']) {
             expect(find.textContaining(n), findsOneWidget, reason: n);
           }
-          // The tags as chips, at most two lines (checked above).
+          // The tags as chips, on one line (checked above).
           expect(find.byKey(ProfileTagChips.chipKey(0)), findsOneWidget);
           // The link, on the dark block, after the tags.
           final links = _rect(tester, ProfileCoverHeader.linksKey);
@@ -523,7 +583,8 @@ void main() {
           matching: find.byKey(KabsoTeamBadge.badgeKey),
         );
         expect(badge, findsOneWidget);
-        expect(tester.getSize(badge).height, 20);
+        // D292: large enough for its name to read.
+        expect(tester.getSize(badge).height, KabsoTeamBadge.profileHeight);
         expect(
           find.descendant(
             of: badge,
@@ -767,11 +828,11 @@ void main() {
     });
 
     for (final scale in [1.0, 1.3, 2.0]) {
-      testWidgets('ten long tags at $scale: two lines, the rest as «+n» '
-          '(shown + hidden = 10)', (tester) async {
+      testWidgets('ten long tags at $scale: one line (D292), the rest as '
+          '«+n» (shown + hidden = 10)', (tester) async {
         await pumpTags(tester, sampleTags(ar: false), width: 328, scale: scale);
         expect(tester.takeException(), isNull);
-        expect(lines(tester).length, lessThanOrEqualTo(2));
+        expect(lines(tester), hasLength(1));
         var shown = 0;
         while (find
             .byKey(ProfileTagChips.chipKey(shown))

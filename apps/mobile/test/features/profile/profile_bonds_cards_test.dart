@@ -90,9 +90,12 @@ void main() {
     ProfileBondsRow.medalsKey,
   ];
   const medals = [
-    'assets/profile/bonds/family_medal.webp',
-    'assets/profile/bonds/couple_medal.webp',
-    'assets/profile/bonds/medals_medal.webp',
+    // D292: the owner's family shield (2026-11-06).
+    'assets/profile/bonds/family_shield.webp',
+    // D292: the owner's couple shield (2026-11-06).
+    'assets/profile/bonds/couple_shield.webp',
+    // D292: the owner's medals shield (2026-11-06).
+    'assets/profile/bonds/medals_shield.webp',
   ];
   for (final language in AppLanguage.values) {
     for (final brightness in Brightness.values) {
@@ -144,12 +147,11 @@ void main() {
                     as BoxDecoration;
             expect(body.borderRadius, BorderRadius.circular(12));
             final art = BondArt.values[i];
-            expect((body.gradient! as LinearGradient).colors, [
-              art.top,
-              art.middle,
-              art.middle,
-              art.bottom,
-            ]);
+            // D292 (owner, «أ»): outline-only — no fill, a thin border in
+            // the bond's accent.
+            expect(body.gradient, isNull);
+            expect(body.color, isNull);
+            expect((body.border! as Border).top.color, art.rimDark);
             // The owner's medallion, unmirrored, at the reading start.
             final medal = find.descendant(
               of: find.byKey(tile),
@@ -164,16 +166,59 @@ void main() {
               findsNothing,
             );
             final m = tester.getRect(medal);
-            expect(m.width, moreOrLessEquals(m.height));
+            // The art's own proportions (D292: the owner's shields).
+            expect(m.width, moreOrLessEquals(m.height * art.aspect));
+            // D292: each owner's shield carries the bond's name on its
+            // ribbon («العائلة» / «العلاقة» / «الميداليات»), inside the art.
+            final ribbon = find.descendant(
+              of: find.byKey(tile),
+              matching: find.byKey(ProfileBondsRow.ribbonKey),
+            );
+            final bondNames = rtl
+                ? const ['العائلة', 'العلاقة', 'الميداليات']
+                : const ['Family', 'Couple', 'Medals'];
+            if (art.ribbon == null) {
+              expect(ribbon, findsNothing);
+            } else {
+              expect(
+                find.descendant(of: ribbon, matching: find.text(bondNames[i])),
+                findsOneWidget,
+              );
+              final r = tester.getRect(ribbon);
+              expect(r.left, greaterThanOrEqualTo(m.left));
+              expect(r.right, lessThanOrEqualTo(m.right));
+              expect(r.top, greaterThan(m.center.dy));
+              expect(r.bottom, lessThanOrEqualTo(m.bottom));
+            }
             if (rtl) {
               expect(box.right - m.right, lessThan(8));
             } else {
               expect(m.left - box.left, lessThan(8));
             }
+            // D292: the family shield's ribbon carries its name, so the
+            // tile shows only the value; the others keep their title.
             final title = find.descendant(
               of: find.byKey(tile),
-              matching: find.byKey(ProfileBondsRow.titleKey),
+              matching: find.byKey(
+                art.ribbon == null
+                    ? ProfileBondsRow.titleKey
+                    : ProfileBondsRow.valueKey,
+              ),
             );
+            if (art.ribbon != null) {
+              expect(
+                find.descendant(
+                  of: find.byKey(tile),
+                  matching: find.byKey(ProfileBondsRow.titleKey),
+                ),
+                findsNothing,
+              );
+              // The screen reader still says the bond's name.
+              expect(
+                tester.getSemantics(find.byKey(tile)).label,
+                startsWith(bondNames[i]),
+              );
+            }
             final paragraph = tester.renderObject<RenderParagraph>(
               find.descendant(of: title, matching: find.byType(RichText)),
             );

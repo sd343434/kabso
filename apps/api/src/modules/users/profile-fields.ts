@@ -1,6 +1,7 @@
 import { isIP } from 'node:net';
 import { z } from 'zod';
 import { normalizeContentText, type ContentTextLimits } from '../posts/content-text.js';
+import { isCountryCode } from './country.js';
 
 /**
  * v1.47-social (D175, owner 2026-10-30, CONVENTIONS §10.47): the profile fields gender, account
@@ -230,4 +231,80 @@ export const profileTagsSchema = z
 /** The tags as read: the stored order, at most {@link MAX_PROFILE_TAGS} (the CHECK keeps them so). */
 export function profileTagsOf(tags: readonly string[] | null | undefined): string[] {
   return (tags ?? []).slice(0, MAX_PROFILE_TAGS);
+}
+
+/**
+ * v1.91-social (D292, owner 2026-11-06, CONVENTIONS §10.106): the icon the person chose for each tag, from a closed
+ * set the app draws with its own icons (never emoji). `flag` carries a country: `flag:SA` (ISO 3166-1 alpha-2,
+ * stored upper case; the app draws its bundled flag art). `default` is the plain chip.
+ */
+export const PROFILE_TAG_ICONS = [
+  'default',
+  'crown',
+  'flag',
+  'fire',
+  'trophy',
+  'gamepad',
+  'music',
+  'mic',
+  'moon',
+  'heart',
+  'star',
+  'gem',
+  'camera',
+  'book',
+  'sport',
+  'palette',
+  'globe',
+] as const;
+export const DEFAULT_PROFILE_TAG_ICON = 'default';
+const FLAG_ICON = /^flag:([A-Za-z]{2})$/;
+
+/**
+ * One `UpdateMeRequest.tagIcons` entry: a key of {@link PROFILE_TAG_ICONS} other than `flag`, or `flag:<country>`;
+ * null means `default`. Anything else → `tagIcons.<i>` / `invalid_value`.
+ */
+const profileTagIconSchema = z
+  .string()
+  .max(24)
+  .nullable()
+  .transform((raw, ctx) => {
+    if (raw === null) return DEFAULT_PROFILE_TAG_ICON;
+    const flag = FLAG_ICON.exec(raw);
+    if (flag) {
+      const code = flag[1]!.toUpperCase();
+      if (isCountryCode(code)) return `flag:${code}`;
+    } else if (raw !== 'flag' && (PROFILE_TAG_ICONS as readonly string[]).includes(raw)) {
+      return raw;
+    }
+    ctx.addIssue({ code: 'custom', message: 'unknown tag icon', params: { issue: 'invalid_value' } });
+    return z.NEVER;
+  });
+
+/** `UpdateMeRequest.tagIcons`: one entry per tag of `tags` (the same length; checked with `tags`). */
+export const profileTagIconsSchema = z.array(profileTagIconSchema).max(MAX_PROFILE_TAGS);
+
+/** The icon of each tag as read: one per tag, `default` where none was chosen (rows before v1.91-social). */
+export function profileTagIconsOf(
+  tags: readonly string[] | null | undefined,
+  icons: readonly string[] | null | undefined,
+): string[] {
+  return profileTagsOf(tags).map((_, i) => icons?.[i] ?? DEFAULT_PROFILE_TAG_ICON);
+}
+
+/**
+ * The icons to store with `tags` when a request sets `tags` without `tagIcons` (an app before v1.91-social): each
+ * tag keeps the icon it had (the same text, ignoring case), a new one is `default`.
+ */
+export function keptProfileTagIcons(
+  tags: readonly string[],
+  beforeTags: readonly string[],
+  beforeIcons: readonly string[],
+): string[] {
+  const byText = new Map<string, string>();
+  beforeTags.forEach((tag, i) => {
+    const key = tag.toLocaleLowerCase('en');
+    if (!byText.has(key)) byText.set(key, beforeIcons[i] ?? DEFAULT_PROFILE_TAG_ICON);
+  });
+  return tags.map((tag) => byText.get(tag.toLocaleLowerCase('en')) ?? DEFAULT_PROFILE_TAG_ICON);
 }

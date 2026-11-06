@@ -575,7 +575,8 @@ class MeHubScreen extends ConsumerWidget {
                     VipNameBadge(vip: myVip, height: 22),
                   // D283: the Kabso Team badge instead of levels.
                   if (staff != null)
-                    const KabsoTeamBadge(height: 22)
+                    // D292: large enough for its name to read.
+                    const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight)
                   else
                     // D163: the level badge beside the name.
                     ProfileLevels(

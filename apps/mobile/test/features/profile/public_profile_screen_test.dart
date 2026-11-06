@@ -114,13 +114,15 @@ void main() {
     );
     expect(cover.top, 0);
     expect(cover.width, 393);
-    expect(cover.height, KPublicProfile.coverHeightFor(852));
-    // D278b: the photo (here with the live ring and badge) rises into the
-    // cover picture; the name under it.
+    expect(
+      cover.height,
+      KPublicProfile.coverHeightFor(tester.getRect(bar).bottom),
+    );
+    // D292: the photo (here with the live ring and badge) half on the
+    // picture, half on the page; the name under it.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, greaterThan(cover.top));
-    // D278d: wholly inside the picture; the name under it.
-    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(photo.center.dy, moreOrLessEquals(cover.bottom, epsilon: 0.5));
     expect(name.top, greaterThanOrEqualTo(cover.bottom));
     // The bio under the header block.
     expect(

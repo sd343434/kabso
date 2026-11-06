@@ -171,7 +171,11 @@ class ProfileLinksRow extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final ink = p.primary;
+    // D292 (owner: «… وأيضاً الرابط»): white (the theme's text colour) on
+    // dark; the brand colour on light.
+    final ink = Theme.of(context).brightness == Brightness.dark
+        ? p.textPrimary
+        : p.primary;
     return Padding(
       padding: const EdgeInsets.only(top: KSpacing.xs),
       child: Wrap(
