@@ -397,18 +397,21 @@ void main() {
     expect(find.byKey(MeHubScreen.staffAnnouncementKey), findsOneWidget);
     // v1.78-live (D288): and «بلاغات», the shared report queue.
     expect(find.byKey(MeHubScreen.staffReportsKey), findsOneWidget);
-    expect(find.byKey(MeHubScreen.staffAnnouncementReelKey), findsOneWidget);
+    // v1.89-social (D290): and «طلب رفع ليفيل».
+    expect(find.byKey(MeHubScreen.staffLevelRaiseKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.cardsKey), findsNothing);
     for (final item in MeHubItem.values) {
       expect(find.byKey(item.key), findsNothing, reason: item.name);
     }
-    // D288's «بلاغات» and D290's «طلب رفع ليفيل» rows moved settings below the
-    // first screen of the list (the list builds what is visible).
+    // D288's «بلاغات» and D290's «طلب رفع ليفيل» rows moved the announcement
+    // reel and settings below the first screen of the list (the list builds
+    // what is visible).
     await tester.scrollUntilVisible(
       find.byKey(MeHubScreen.staffSettingsKey),
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    expect(find.byKey(MeHubScreen.staffAnnouncementReelKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.staffSettingsKey), findsOneWidget);
     for (final item in MeHubItem.values) {
       expect(find.byKey(item.key), findsNothing, reason: item.name);
