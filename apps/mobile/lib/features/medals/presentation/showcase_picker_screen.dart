@@ -238,6 +238,9 @@ class _ShowcasePickerState extends ConsumerState<ShowcasePicker> {
                                       children: [
                                         MedalIcon(
                                           iconKey: _medal(code).iconKey,
+                                          iconUrl: _medal(code).shownIconUrl,
+                                          iconAsset: _medal(code)
+                                              .shownIconAsset,
                                           size: 44,
                                         ),
                                         PositionedDirectional(
@@ -268,7 +271,11 @@ class _ShowcasePickerState extends ConsumerState<ShowcasePicker> {
                       key: ShowcasePicker.optionKey(m.code),
                       value: _chosen.contains(m.code),
                       onChanged: (_) => _toggle(m.code),
-                      secondary: MedalIcon(iconKey: m.iconKey),
+                      secondary: MedalIcon(
+                        iconKey: m.iconKey,
+                        iconUrl: m.shownIconUrl,
+                        iconAsset: m.shownIconAsset,
+                      ),
                       title: Text(m.name),
                       subtitle: Text(
                         m.description,

@@ -7,6 +7,7 @@ import { MediaModule } from '../media/media.module.js';
 import { RechargeModule } from '../recharge/recharge.module.js';
 import { VipModule } from '../vip/vip.module.js';
 import { StoreModule } from '../store/store.module.js';
+import { MedalsModule } from '../medals/medals.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
 import { PublicProfileModule } from '../users/profiles/public-profile.module.js';
 import { AdminAuthService } from './admin-auth.service.js';
@@ -43,6 +44,7 @@ import { AdminDeviceSignupsController } from './admin-device-signups.controller.
 import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
 import { AdminVipController } from './admin-vip.controller.js';
 import { AdminStoreController } from './admin-store.controller.js';
+import { AdminMedalsController } from './admin-medals.controller.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -72,6 +74,8 @@ import { StaffAppService } from './staff-app.service.js';
     // v1.82-social (D252): «VIP».
     VipModule,
     StoreModule,
+    // v1.81-live (D291): the medals' levels.
+    MedalsModule,
   ],
   controllers: [
     AdminAuthController,
@@ -93,6 +97,7 @@ import { StaffAppService } from './staff-app.service.js';
     // v1.82-social (D252, §10.93.4): «VIP».
     AdminVipController,
     AdminStoreController,
+    AdminMedalsController,
     // v1.68-live (D273, §10.96.6): «أدوات فريق كابسو» in the app.
     StaffTeamAvatarController,
     StaffAppController,

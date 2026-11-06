@@ -6,6 +6,32 @@ part of 'medal_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_MedalLevel _$MedalLevelFromJson(Map<String, dynamic> json) => _MedalLevel(
+  level: (json['level'] as num).toInt(),
+  threshold: (json['threshold'] as num).toInt(),
+  name: json['name'] as String?,
+  iconUrl: json['iconUrl'] as String?,
+  iconAsset: json['iconAsset'] as String?,
+);
+
+Map<String, dynamic> _$MedalLevelToJson(_MedalLevel instance) =>
+    <String, dynamic>{
+      'level': instance.level,
+      'threshold': instance.threshold,
+      'name': instance.name,
+      'iconUrl': instance.iconUrl,
+      'iconAsset': instance.iconAsset,
+    };
+
+_MedalProgress _$MedalProgressFromJson(Map<String, dynamic> json) =>
+    _MedalProgress(
+      value: (json['value'] as num?)?.toInt() ?? 0,
+      next: (json['next'] as num?)?.toInt(),
+    );
+
+Map<String, dynamic> _$MedalProgressToJson(_MedalProgress instance) =>
+    <String, dynamic>{'value': instance.value, 'next': instance.next};
+
 _Medal _$MedalFromJson(Map<String, dynamic> json) => _Medal(
   code: json['code'] as String,
   name: json['name'] as String,
@@ -15,6 +41,27 @@ _Medal _$MedalFromJson(Map<String, dynamic> json) => _Medal(
   awardedAt: json['awardedAt'] == null
       ? null
       : DateTime.parse(json['awardedAt'] as String),
+  category:
+      $enumDecodeNullable(
+        _$MedalCategoryEnumMap,
+        json['category'],
+        unknownValue: MedalCategory.achievement,
+      ) ??
+      MedalCategory.achievement,
+  metric: json['metric'] as String?,
+  level: (json['level'] as num?)?.toInt(),
+  maxLevel: (json['maxLevel'] as num?)?.toInt() ?? 1,
+  levels:
+      (json['levels'] as List<dynamic>?)
+          ?.map((e) => MedalLevel.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <MedalLevel>[],
+  progress: json['progress'] == null
+      ? const MedalProgress()
+      : MedalProgress.fromJson(json['progress'] as Map<String, dynamic>),
+  iconUrl: json['iconUrl'] as String?,
+  iconAsset: json['iconAsset'] as String?,
+  showcasePosition: (json['showcasePosition'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$MedalToJson(_Medal instance) => <String, dynamic>{
@@ -24,6 +71,20 @@ Map<String, dynamic> _$MedalToJson(_Medal instance) => <String, dynamic>{
   'iconKey': instance.iconKey,
   'sortOrder': instance.sortOrder,
   'awardedAt': instance.awardedAt?.toIso8601String(),
+  'category': _$MedalCategoryEnumMap[instance.category]!,
+  'metric': instance.metric,
+  'level': instance.level,
+  'maxLevel': instance.maxLevel,
+  'levels': instance.levels,
+  'progress': instance.progress,
+  'iconUrl': instance.iconUrl,
+  'iconAsset': instance.iconAsset,
+  'showcasePosition': instance.showcasePosition,
+};
+
+const _$MedalCategoryEnumMap = {
+  MedalCategory.achievement: 'ACHIEVEMENT',
+  MedalCategory.activity: 'ACTIVITY',
 };
 
 _MedalCatalogue _$MedalCatalogueFromJson(Map<String, dynamic> json) =>
@@ -48,6 +109,17 @@ _UserMedal _$UserMedalFromJson(Map<String, dynamic> json) => _UserMedal(
   description: json['description'] as String,
   iconKey: json['iconKey'] as String,
   awardedAt: DateTime.parse(json['awardedAt'] as String),
+  category:
+      $enumDecodeNullable(
+        _$MedalCategoryEnumMap,
+        json['category'],
+        unknownValue: MedalCategory.achievement,
+      ) ??
+      MedalCategory.achievement,
+  level: (json['level'] as num?)?.toInt() ?? 1,
+  maxLevel: (json['maxLevel'] as num?)?.toInt() ?? 1,
+  iconUrl: json['iconUrl'] as String?,
+  iconAsset: json['iconAsset'] as String?,
 );
 
 Map<String, dynamic> _$UserMedalToJson(_UserMedal instance) =>
@@ -57,6 +129,11 @@ Map<String, dynamic> _$UserMedalToJson(_UserMedal instance) =>
       'description': instance.description,
       'iconKey': instance.iconKey,
       'awardedAt': instance.awardedAt.toIso8601String(),
+      'category': _$MedalCategoryEnumMap[instance.category]!,
+      'level': instance.level,
+      'maxLevel': instance.maxLevel,
+      'iconUrl': instance.iconUrl,
+      'iconAsset': instance.iconAsset,
     };
 
 _UserMedalList _$UserMedalListFromJson(Map<String, dynamic> json) =>
@@ -80,6 +157,9 @@ _ProfileMedal _$ProfileMedalFromJson(Map<String, dynamic> json) =>
       code: json['code'] as String,
       name: json['name'] as String,
       iconKey: json['iconKey'] as String,
+      level: (json['level'] as num?)?.toInt() ?? 1,
+      iconUrl: json['iconUrl'] as String?,
+      iconAsset: json['iconAsset'] as String?,
     );
 
 Map<String, dynamic> _$ProfileMedalToJson(_ProfileMedal instance) =>
@@ -87,6 +167,9 @@ Map<String, dynamic> _$ProfileMedalToJson(_ProfileMedal instance) =>
       'code': instance.code,
       'name': instance.name,
       'iconKey': instance.iconKey,
+      'level': instance.level,
+      'iconUrl': instance.iconUrl,
+      'iconAsset': instance.iconAsset,
     };
 
 _ProfileMedals _$ProfileMedalsFromJson(Map<String, dynamic> json) =>

@@ -12,7 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
 import { MediaService } from '../media/media.service.js';
-import { awardMedalsIn } from '../medals/medal-awards.js';
+import { awardFamilyMedalsIn } from '../medals/medal-awards.js';
 import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
@@ -650,7 +650,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
       family.id,
     );
     if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
-    await awardMedalsIn(tx, callerId, ['FIRST_FAMILY'], { at: now });
+    await awardFamilyMedalsIn(tx, [callerId], now);
     await this.audit.recordIn(tx, {
       action: AuditAction.FAMILY_CREATE,
       actorUserId: callerId,
@@ -1109,7 +1109,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
         where: { id: request.id },
         data: { status: 'ACCEPTED', handledAt: now, handledById: callerId },
       });
-      await awardMedalsIn(tx, request.user_id, ['FIRST_FAMILY'], { at: now });
+      await awardFamilyMedalsIn(tx, [request.user_id], now);
       await this.notifier.notify(tx, {
         type: 'FAMILY_JOIN_ACCEPTED',
         recipientId: request.user_id,

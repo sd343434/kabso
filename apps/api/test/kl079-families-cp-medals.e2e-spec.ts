@@ -5,7 +5,7 @@
  *
  * Coins are granted straight through the ledger (`creditIn`, as `wallet-admin` does; KL-077 runs the
  * CLI itself). Time comes from a FakeClock (7-day expiry, the bullet and tap rules). The medal
- * catalogue is re-seeded from `MEDAL_CATALOGUE` (the test database is truncated per suite).
+ * catalogue is re-seeded from `MEDAL_CATALOGUE` with its D291 default levels (the test database is truncated per suite).
  * `medals-admin backfill` runs as on the server: a child process with the migration role.
  */
 import { execFileSync } from 'node:child_process';
@@ -18,8 +18,12 @@ import { FAMILY_CREATE_COST_COINS as COST } from '../src/modules/families/famili
 import { FamiliesService } from '../src/modules/families/families.service.js';
 import { uuidv7 } from '../src/modules/levels/uuidv7.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
-import { MEDAL_CATALOGUE } from '../src/modules/medals/medals.catalogue.js';
+import { MEDAL_CATALOGUE, RETIRED_MEDAL_CODES } from '../src/modules/medals/medals.catalogue.js';
+
+/** D291: the wearable medals (the retired name-side icons are left out of every list). */
+const WEARABLE = MEDAL_CATALOGUE.length - RETIRED_MEDAL_CODES.size;
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { seedMedalCatalogue } from './helpers/medals.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, settle, type TestContext } from './helpers/test-app.js';
@@ -190,7 +194,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       { token: Clock, value: clock },
       { token: LIVE_MEDIA_PROVIDER, value: media },
     ]);
-    await ctx.prisma.medal.createMany({ data: MEDAL_CATALOGUE.map((m) => ({ ...m })) });
+    await seedMedalCatalogue(ctx.prisma);
   });
   afterAll(async () => ctx?.close());
 
@@ -747,7 +751,8 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       return u;
     };
 
-    it('ending a live awards FIRST_LIVE and live hours once; catalogue and user lists', async () => {
+    // D291 (owner): the live-hours and charm codes are name-side icons now, not medals — never awarded or listed.
+    it('ending a live awards FIRST_LIVE once (live hours retired, D291); catalogue and user lists', async () => {
       const h = await host();
       const first = await goLive(h);
       await ctx.prisma.liveRoom.update({
@@ -755,25 +760,25 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         data: { startedAt: new Date(clock.now().getTime() - 11 * 3600_000) },
       });
       await ctx.http.post(`/api/v1/live/rooms/${first}/end`).set(auth(h)).expect(200);
-      expect(await medalsOf(h)).toEqual(['FIRST_LIVE', 'LIVE_HOURS_10']);
+      expect(await medalsOf(h)).toEqual(['FIRST_LIVE']);
       const second = await goLive(h);
       await ctx.http.post(`/api/v1/live/rooms/${second}/end`).set(auth(h)).expect(200);
-      expect(await medalsOf(h)).toEqual(['FIRST_LIVE', 'LIVE_HOURS_10']);
+      expect(await medalsOf(h)).toEqual(['FIRST_LIVE']);
       const awarded = (await notifications(h)).filter((n) => n.type === 'MEDAL_AWARDED');
-      expect(awarded.map((n) => n.target?.id).sort()).toEqual(['FIRST_LIVE', 'LIVE_HOURS_10']);
+      expect(awarded.map((n) => n.target?.id).sort()).toEqual(['FIRST_LIVE']);
 
       const catalogue = await ctx.http.get('/api/v1/medals').set(auth(h)).set('Accept-Language', 'ar');
       expect(catalogue.status).toBe(200);
       expectContract(catalogue, 'listMedals');
-      expect(catalogue.body.total).toBe(MEDAL_CATALOGUE.length);
-      expect(catalogue.body.owned).toBe(2);
+      expect(catalogue.body.total).toBe(WEARABLE);
+      expect(catalogue.body.owned).toBe(1);
       expect(catalogue.body.data[0]).toMatchObject({
         code: 'FIRST_LIVE',
         name: 'أول لايف',
         iconKey: 'medal_first_live',
       });
       expect(catalogue.body.data[0].awardedAt).not.toBeNull();
-      expect(catalogue.body.data[3].awardedAt).toBeNull();
+      expect(catalogue.body.data[1].awardedAt).toBeNull();
 
       const reader = await signup();
       const list = await ctx.http
@@ -782,15 +787,15 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         .set('Accept-Language', 'en');
       expect(list.status).toBe(200);
       expectContract(list, 'listUserMedals');
-      expect(list.body).toMatchObject({ owned: 2, total: MEDAL_CATALOGUE.length });
+      expect(list.body).toMatchObject({ owned: 1, total: WEARABLE });
       expect(list.body.data[0].name).toBeDefined();
       expect((await ctx.http.get('/api/v1/users/nobody.here.x/medals').set(auth(reader))).status).toBe(404);
       const p = await profile(reader, h);
-      expect(p.medals).toMatchObject({ owned: 2, total: MEDAL_CATALOGUE.length, showcase: [] });
-      expect(p.medals.latest.map((m) => m.code).sort()).toEqual(['FIRST_LIVE', 'LIVE_HOURS_10']);
+      expect(p.medals).toMatchObject({ owned: 1, total: WEARABLE, showcase: [] });
+      expect(p.medals.latest.map((m) => m.code).sort()).toEqual(['FIRST_LIVE']);
     });
 
-    it('reaching charm level 10 awards CHARM_10', async () => {
+    it('reaching charm level 10 awards nothing any more (CHARM_10 retired, D291)', async () => {
       const category = await ctx.prisma.levelCategory.create({
         data: {
           code: 'ATTRACTIVENESS',
@@ -832,26 +837,18 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
           .send({ count: 10 })
           .expect(200);
       }
-      expect(await medalsOf(h)).toEqual(['CHARM_10']);
+      expect(await medalsOf(h)).toEqual([]);
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
     });
 
     it('the profile showcase: up to 5 unlocked medals (D269), in order; an older longer one reads as its first 5', async () => {
       const u = await signup();
       const reader = await signup();
+      // The five wearable medals, plus CHARM_10 held from before its retirement (D291: a name-side icon).
       await ctx.prisma.userMedal.createMany({
-        data: [
-          'FIRST_LIVE',
-          'FIRST_CP',
-          'FIRST_FAMILY',
-          'BULLET_FIRST',
-          'CHARM_10',
-          'CHARM_50',
-          'CHARM_100',
-        ].map((medalCode) => ({
-          userId: u.id,
-          medalCode,
-        })),
+        data: ['FIRST_LIVE', 'FIRST_CP', 'FIRST_FAMILY', 'BULLET_FIRST', 'WEALTH_KINGS', 'CHARM_10'].map(
+          (medalCode) => ({ userId: u.id, medalCode }),
+        ),
       });
       const put = (medalCodes: unknown) =>
         ctx.http
@@ -865,48 +862,51 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         'FIRST_CP',
         'FIRST_FAMILY',
         'BULLET_FIRST',
+        'WEALTH_KINGS',
         'CHARM_10',
-        'CHARM_50',
       ]);
       expect(tooMany.status).toBe(400);
       expectContract(tooMany, 'setMyMedalShowcase');
       expect(tooMany.body.error.details).toEqual([{ field: 'medalCodes', issue: 'too_big' }]);
       expect((await put(['FIRST_CP', 'FIRST_CP'])).status).toBe(400);
-      const locked = await put(['FIRST_CP', 'LIVE_HOURS_100']);
+      // D291: a retired code is not wearable → 400 invalid_value (even though it is held).
+      const retired = await put(['FIRST_CP', 'CHARM_10']);
+      expect(retired.status).toBe(400);
+      expect(retired.body.error.details).toEqual([{ field: 'medalCodes', issue: 'invalid_value' }]);
+      const locked = await put(['FIRST_CP', 'NO_SUCH_MEDAL']);
       expect(locked.status).toBe(409);
       expect(locked.body.error.code).toBe('MEDAL_NOT_UNLOCKED');
-      expect((await put(['NO_SUCH_MEDAL'])).body.error.code).toBe('MEDAL_NOT_UNLOCKED');
 
-      const ok = await put(['CHARM_100', 'FIRST_CP', 'FIRST_LIVE']);
+      const ok = await put(['BULLET_FIRST', 'FIRST_CP', 'FIRST_LIVE']);
       expect(ok.status).toBe(200);
       expectContract(ok, 'setMyMedalShowcase');
       expect(ok.body.showcase.map((m: { code: string }) => m.code)).toEqual([
-        'CHARM_100',
+        'BULLET_FIRST',
         'FIRST_CP',
         'FIRST_LIVE',
       ]);
       expect((await profile(reader, u)).medals.showcase.map((m) => m.code)).toEqual([
-        'CHARM_100',
+        'BULLET_FIRST',
         'FIRST_CP',
         'FIRST_LIVE',
       ]);
       // A refused change keeps the old showcase; a new order replaces it.
-      await put(['FIRST_CP', 'LIVE_HOURS_100']);
-      const reordered = await put(['FIRST_LIVE', 'CHARM_100']);
+      await put(['FIRST_CP', 'CHARM_10']);
+      const reordered = await put(['FIRST_LIVE', 'BULLET_FIRST']);
       expect(reordered.body.showcase.map((m: { code: string }) => m.code)).toEqual([
         'FIRST_LIVE',
-        'CHARM_100',
+        'BULLET_FIRST',
       ]);
       const mine = await ctx.http.get('/api/v1/me/medals/showcase').set(auth(u));
       expectContract(mine, 'getMyMedalShowcase');
-      expect(mine.body.showcase.map((m: { code: string }) => m.code)).toEqual(['FIRST_LIVE', 'CHARM_100']);
-      // A showcase of 6 saved before D258: read as its first 5 (trimmed on read).
+      expect(mine.body.showcase.map((m: { code: string }) => m.code)).toEqual(['FIRST_LIVE', 'BULLET_FIRST']);
+      // A showcase of 6 saved before D258 (one of them now retired): read as its first 5 wearable ones.
       await ctx.prisma.userMedal.updateMany({ where: { userId: u.id }, data: { showcasePosition: null } });
       for (const [i, code] of [
-        'CHARM_50',
+        'WEALTH_KINGS',
         'FIRST_FAMILY',
-        'BULLET_FIRST',
         'CHARM_10',
+        'BULLET_FIRST',
         'FIRST_CP',
         'FIRST_LIVE',
       ].entries()) {
@@ -916,11 +916,11 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
         });
       }
       expect((await profile(reader, u)).medals.showcase.map((m) => m.code)).toEqual([
-        'CHARM_50',
+        'WEALTH_KINGS',
         'FIRST_FAMILY',
         'BULLET_FIRST',
-        'CHARM_10',
         'FIRST_CP',
+        'FIRST_LIVE',
       ]);
       const cleared = await put([]);
       expect(cleared.body).toEqual({ showcase: [] });
@@ -939,14 +939,14 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       // Medals earned by events come back (the showcase test's hand-made rows are not events).
       for (const m of restored) expect(usersWithMedals.map(key)).toContain(key(m));
       expect(restored.some((m) => m.medalCode === 'FIRST_LIVE')).toBe(true);
-      expect(restored.some((m) => m.medalCode === 'LIVE_HOURS_10')).toBe(true);
       expect(restored.some((m) => m.medalCode === 'FIRST_FAMILY')).toBe(true);
       expect(restored.some((m) => m.medalCode === 'FIRST_CP')).toBe(true);
       expect(restored.some((m) => m.medalCode === 'BULLET_FIRST')).toBe(true);
-      expect(restored.some((m) => m.medalCode === 'CHARM_10')).toBe(true);
+      // D291: the retired name-side icons are never awarded again.
+      expect(restored.filter((m) => RETIRED_MEDAL_CODES.has(m.medalCode as never))).toEqual([]);
       expect(run.out).toMatch(/^Awarded \d+ medals/);
       const again = medalsAdmin('backfill');
-      expect(again).toEqual({ status: 0, out: 'Awarded 0 medals.\n' });
+      expect(again).toEqual({ status: 0, out: 'Awarded 0 medals.\nRaised 0 medal levels.\n' });
       expect(await ctx.prisma.auditLog.count({ where: { action: 'medals.backfill' } })).toBe(2);
       expect(medalsAdmin('nope').status).toBe(1);
     });

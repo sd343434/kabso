@@ -839,6 +839,52 @@ export interface AdminLiveBoostPrices {
   stages: AdminLiveBoostStage[];
 }
 
+/** `MedalCategory` (v1.81-live, D291): the app's medals page tabs. */
+export type MedalCategory = 'ACHIEVEMENT' | 'ACTIVITY';
+
+/** `MedalMetric` (v1.81-live, D291): what a medal's levels count. */
+export type MedalMetric =
+  | 'LIVES_HOSTED'
+  | 'LIVE_HOURS'
+  | 'CHARM_LEVEL'
+  | 'FAMILY_JOINED'
+  | 'CP_FORMED'
+  | 'BULLETS_SENT'
+  | 'GIFTS_SENT_COINS'
+  | 'LUCKY_GIFTS_SENT_COINS';
+
+/** `AdminMedalLevel` (v1.81-live, D291). */
+export interface AdminMedalLevel {
+  level: number;
+  threshold: number;
+  nameAr: string | null;
+  nameEn: string | null;
+  iconUrl: string | null;
+  /** D291: the level's art bundled in the app (asset key), or null. */
+  iconAsset: string | null;
+  holders: number;
+}
+
+/** `AdminMedal` (v1.81-live, D291). */
+export interface AdminMedal {
+  code: string;
+  nameAr: string;
+  nameEn: string;
+  iconKey: string;
+  sortOrder: number;
+  category: MedalCategory;
+  metric: MedalMetric | null;
+  /** D291: a name-side icon, not a wearable medal (read-only). */
+  retired: boolean;
+  holders: number;
+  levels: AdminMedalLevel[];
+}
+
+/** `AdminMedalList` (v1.81-live, D291). */
+export interface AdminMedalList {
+  data: AdminMedal[];
+}
+
 /** `AdminReferralSettings` */
 export interface ReferralSettings {
   enabled: boolean;

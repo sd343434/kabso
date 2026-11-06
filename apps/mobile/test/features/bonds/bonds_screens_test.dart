@@ -437,12 +437,26 @@ void main() {
     final fakes = BondFakes();
     fakes.medals.medals = testMedals(owned: 2, total: 4);
     await pumpBonds(tester, const MedalsScreen(), fakes: fakes);
-    expect(find.text(en.medalsOwned(2, 4)), findsOneWidget);
-    expect(find.bySemanticsLabel('Medal 0'), findsOneWidget);
+    // D291: the cards say the level or «Not obtained» (the owned count gave
+    // way to the stage, §10.104.6).
+    // Medal 0 is in the grid and, as the only kind of earned medal at the
+    // top level, on the one-medal stage too.
     expect(
-      find.bySemanticsLabel('Medal 3, ${en.medalsLocked}'),
+      find.bySemanticsLabel(en.medalsCardLabel('Medal 0', en.medalsLevel(1))),
+      findsNWidgets(2),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(MedalsScreen.medalKey('M3')),
+      200,
+    );
+    expect(
+      find.bySemanticsLabel(
+        en.medalsCardLabel('Medal 3', en.medalsNotObtained),
+      ),
       findsOneWidget,
     );
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 2000));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(MedalsScreen.chooseKey));
     await tester.pumpAndSettle();
     expect(fakes.visited, ['/medals/showcase']);

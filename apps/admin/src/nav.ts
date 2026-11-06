@@ -60,6 +60,8 @@ export const NAV: NavGroup[] = [
       { to: '/promo', key: 'navPromo', icon: 'calendar', cap: 'catalog.view', match: ['promo'] },
       // v1.51-live (D233): the rocket stages' prices.
       { to: '/live-boost-prices', key: 'navBoostPrices', icon: 'coins', cap: 'catalog.view', match: ['boostPrices'] },
+      // v1.81-live (D291): the medals and their levels.
+      { to: '/medals', key: 'navMedals', icon: 'shield', cap: 'catalog.view', match: ['medals'] },
     ],
   },
   {

@@ -181,6 +181,23 @@ flutter:
     - assets/card_boxes/
     # D113 CP seat frames per CP level, cut from the owner's art
     # (assets/live_cp_seats/PROVENANCE.md; source/ is not bundled).
+    # D291: the owner's medals-page art (assets/medals/PROVENANCE.md): the
+    # stage pedestal, the card frame and the light / dark page backgrounds.
+    - assets/medals/medals_stage_pedestal.webp
+    - assets/medals/medals_stage_pedestal_light.webp
+    - assets/medals/medal_wealth_l1.webp
+    - assets/medals/medal_wealth_l2.webp
+    - assets/medals/medal_wealth_l3.webp
+    - assets/medals/medal_wealth_l4.webp
+    - assets/medals/medal_wealth_l5.webp
+    - assets/medals/medal_wealth_l6.webp
+    - assets/medals/medal_lucky_l1.webp
+    - assets/medals/medal_lucky_l2.webp
+    - assets/medals/medal_lucky_l3.webp
+    - assets/medals/medal_lucky_l4.webp
+    - assets/medals/medal_card_frame.webp
+    - assets/medals/medals_bg_light.webp
+    - assets/medals/medals_bg_dark.webp
     - assets/live_cp_seats/
     - assets/live_cp_seats/fx/
     # CP-021 CP space art (owner-supplied; assets/cp_space/PROVENANCE.md).

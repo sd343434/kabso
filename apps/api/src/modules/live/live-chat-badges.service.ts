@@ -127,7 +127,7 @@ export class LiveChatBadgesService {
              (SELECT COALESCE(json_agg(json_build_object('code', s.code, 'iconKey', s.icon_key) ORDER BY s.pos), '[]'::json)
                 FROM (SELECT um.medal_code AS code, md.icon_key, um.showcase_position AS pos
                         FROM user_medals um
-                        JOIN medals md ON md.code = um.medal_code
+                        JOIN medals md ON md.code = um.medal_code AND NOT md.retired
                        WHERE um.user_id = a.id AND um.showcase_position IS NOT NULL
                        ORDER BY um.showcase_position
                        LIMIT ${LIVE_CHAT_MEDALS_MAX}) s) AS medals

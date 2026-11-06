@@ -14,7 +14,7 @@ import { programWindowsIn } from '../programs/programs-time.js';
 import { vipPerkAmountIn } from '../vip/vip-perks.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
-import { awardMedalsIn } from '../medals/medal-awards.js';
+import { awardBulletMedalsIn } from '../medals/medal-awards.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { maskBlockedWords } from './live-blocked-words.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
@@ -191,8 +191,8 @@ export class LiveBulletsService {
           ? { coins: BigInt((await this.wallet.mine(callerId)).coins) }
           : await this.wallet.debitIn(tx, callerId, LIVE_BULLET_COST_COINS, 'BULLET_MESSAGE', bullet.id);
         if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
-        // v1.21-live (CP-018, §10.21): the first bullet message earns a medal.
-        await awardMedalsIn(tx, callerId, ['BULLET_FIRST'], { at: now });
+        // v1.21-live (CP-018, §10.21): the first bullet message earns a medal; v1.81-live (D291): more raise its level.
+        await awardBulletMedalsIn(tx, callerId, now);
         return { bullet, coins: charged.coins };
       });
     } catch (err) {

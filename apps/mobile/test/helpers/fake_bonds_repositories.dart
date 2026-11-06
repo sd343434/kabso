@@ -574,12 +574,22 @@ class FakeMedalsRepository with _Recorder implements MedalsRepository {
   @override
   Future<List<ProfileMedal>> setShowcase(List<String> medalCodes) async {
     record('setShowcase:${medalCodes.join(',')}');
+    // D291: the catalogue reads the worn positions back.
+    medals = [
+      for (final m in medals)
+        m.copyWith(
+          showcasePosition: medalCodes.contains(m.code)
+              ? medalCodes.indexOf(m.code) + 1
+              : null,
+        ),
+    ];
     return chosen = [
       for (final code in medalCodes)
         ProfileMedal(
           code: code,
           name: code,
           iconKey: medals.firstWhere((m) => m.code == code).iconKey,
+          level: medals.firstWhere((m) => m.code == code).shownLevel,
         ),
     ];
   }

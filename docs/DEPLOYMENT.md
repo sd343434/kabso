@@ -2817,6 +2817,43 @@ primary key `(user_id, day, track, level)`, the kinds CHECK with the lucky kinds
 (JSONB, NULL = the code's values). Six targets a day per host (three gifts, three lucky). **When the real gift prices are
 set,** raise the new-host defaults in the panel «الأهداف الذكية» (OWNER); everything else follows the hosts' history and
 the current prices by itself.
+### 5.72 Medal levels (migration `20270325090000_medal_levels`; D291) — [IMPLEMENTED, draft contract v1.81-live; not deployed, not device-tested]
+
+CONVENTIONS §10.104. The migration adds the types `MedalCategory` / `MedalMetric`, `medals.category` / `.metric` (the
+nine medals' tabs and metrics are set), the table `medal_levels` (seeded with the default thresholds, §10.104.2),
+`user_medals.level` (default 1) / `.level_reached_at` (= `awarded_at` for existing rows) and `notifications.medal_level`.
+The runtime role gets DML through the default privileges (no GRANT). Every medal held before stays **level 1** until the
+backfill — which is correct (level 1 is the old rule), so the API can be deployed first and the backfill run after.
+
+- **Backfill, once after the deploy** (from then on levels rise with each event): without `--notify` so old activity
+  does not flood inboxes. From `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/medals-admin.js backfill
+  ```
+
+  It prints `Awarded n medals.` and `Raised n medal levels.`; idempotent (a second run prints 0 and 0); never lowers a
+  level; one `medals.backfill` audit row with `{awarded, levelUps}` plus `medals.level_up` per level above 1
+  (`via: backfill`). Run it again whenever the panel lowers a threshold, so past activity reaches the new level.
+- **Checks after deploy:** `SELECT medal_code, count(*), max(threshold) FROM medal_levels GROUP BY 1;` (9 medals, 27
+  levels) and `SELECT medal_code, level, count(*) FROM user_medals GROUP BY 1, 2 ORDER BY 1, 2;` after the backfill.
+- **«ملوك الثروة» (§10.104.7):** two more migrations in order — `20270325090100_medal_wealth_metric` (only the enum value
+  `GIFTS_SENT_COINS`; it must commit before the next one uses it) and `20270325090200_medal_wealth_kings`
+  (`medal_levels.icon_asset`, `medal_metric_totals`, the medal and its six levels). Deploy the API with them (an older API
+  never adds to the totals). The same one-off `medals-admin backfill` then sets every sender's total from history
+  (`live_gifts` without lucky gifts, plus `cp_gifts`) and raises their level. Check:
+  `SELECT count(*), max(value) FROM medal_metric_totals WHERE metric = 'GIFTS_SENT_COINS';` and
+  `SELECT level, count(*) FROM user_medals WHERE medal_code = 'WEALTH_KINGS' GROUP BY 1;`.
+- **Retiring the charm / live-hours codes (§10.104.8):** `20270325090300_medal_retire_name_icons` sets `medals.retired`
+  for CHARM_10/50/100 and LIVE_HOURS_10/100, clears them from showcases and renumbers the rest; their `user_medals` rows
+  stay. Check: the query in PP-50 returns 0.
+- **«سيد الحظ» (§10.104.9):** two more migrations in order — `20270325090400_medal_lucky_metric` (only the enum value
+  `LUCKY_GIFTS_SENT_COINS`) and `20270325090500_medal_lucky_master` (the medal and its four levels, 500 M … 10 B). The
+  same backfill sets the totals from the LUCKY `live_gifts`. Check:
+  `SELECT count(*), max(value) FROM medal_metric_totals WHERE metric = 'LUCKY_GIFTS_SENT_COINS';` and
+  `SELECT level, count(*) FROM user_medals WHERE medal_code = 'LUCKY_MASTER' GROUP BY 1;`.
+- **Panel:** «الميداليات» (`catalog.view` reads, the OWNER edits with the code; retired codes read-only). No new settings.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

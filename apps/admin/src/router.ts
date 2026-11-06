@@ -49,6 +49,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'promo', pattern: '/promo' },
   // v1.51-live (D233): «صواريخ الزيارات».
   { name: 'boostPrices', pattern: '/live-boost-prices' },
+  // v1.81-live (D291): «الميداليات».
+  { name: 'medals', pattern: '/medals' },
   { name: 'report', pattern: '/finance/report' },
   { name: 'topups', pattern: '/finance/topups' },
   { name: 'cards', pattern: '/finance/cards' },

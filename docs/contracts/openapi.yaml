@@ -250,6 +250,15 @@ info:
     (the code again). Never `recharge.topup`, `recharge.cap`, `recharge.status`, `recharge.rates`, `withdrawals.*`,
     `finance.view` / `finance.refund` or `payments.settings`: a dispute decision is the only coin movement a moderator
     can cause. No shape changes.
+    **D291 (DRAFT v1.81-live)** medal levels and the medals page (CONVENTIONS §10.104; owner: «ما رأيك ان نصمم صفحة
+    التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات»): a medal has 1 … 20 levels, each reached when the
+    medal's metric (`MedalMetric`: lives, live hours, the charm level, family, couple, bullet messages) is at least its
+    threshold; level 1 is the old award rule, a level never goes down. `Medal` gains `category` (`MedalCategory`, the
+    page's tabs), `metric`, `level`, `maxLevel`, `levels` (`MedalLevel`), `progress` (`MedalProgress`), `iconUrl` and
+    `showcasePosition`; `UserMedal` gains `category`, `level`, `maxLevel`, `iconUrl`; `ProfileMedal` gains `level` and
+    `iconUrl`; `NotificationTarget.medalLevel` (a MEDAL_AWARDED above level 1 is a level-up). Panel:
+    `listAdminMedals`, `updateAdminMedal` (the levels list; audited `medals.levels.update`). Additive; migration
+    `20270325090000_medal_levels`, then `medals-admin backfill` raises held medals to their level (DEPLOYMENT §5.72).
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -2017,10 +2026,10 @@ paths:
                       owned: 2
                       total: 9
                       latest:
-                        - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp }
-                        - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
+                        - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp, level: 1, iconUrl: null, iconAsset: null }
+                        - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live, level: 2, iconUrl: null, iconAsset: null }
                       showcase:
-                        - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
+                        - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live, level: 2, iconUrl: null, iconAsset: null }
                     profileCard: { code: bunny_royal, assetKey: header_bunny_royal }
                     gender: FEMALE
                     category: SINGER
@@ -8327,8 +8336,8 @@ paths:
     get:
       tags: [medals]
       operationId: listMedals
-      summary: "The medal catalogue (CP-018)"
-      description: Every medal in catalogue order with the caller's award time (null when not earned). Names follow `Accept-Language`.
+      summary: "The medal catalogue (CP-018) with the caller's levels and progress (v1.81-live, D291)"
+      description: "Every medal in catalogue order with the caller's award time (null when not earned). Names follow `Accept-Language`. v1.81-live (D291, CONVENTIONS §10.104): each medal's tab (`category`), its levels (`levels`, lowest first), the caller's `level` (0 = not earned), `progress` toward the next level and `showcasePosition` (worn, 1 … 5) — the medals page draws its stage, tabs, grid and detail sheet from this one response."
       responses:
         '200':
           description: The catalogue.
@@ -8359,7 +8368,8 @@ paths:
         empty list shows none. 400 `VALIDATION_FAILED`: more than 5 (`medalCodes` / `too_big`; v1.84-social,
         D269 — 3 in D258, 6 before) or a
         code twice (`medalCodes` / `invalid_value`); 409 `MEDAL_NOT_UNLOCKED`: a code the caller
-        has not earned (an unknown code too); nothing changes then.
+        has not earned (an unknown code too); nothing changes then. D291 (§10.104.8): a retired code (the charm
+        and live-hours name-side icons) → 400 `medalCodes` / `invalid_value`.
       requestBody:
         required: true
         content:
@@ -8374,8 +8384,8 @@ paths:
               schema: { $ref: '#/components/schemas/MedalShowcase' }
               example:
                 showcase:
-                  - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp }
-                  - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
+                  - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp, level: 1, iconUrl: null, iconAsset: null }
+                  - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live, level: 2, iconUrl: null, iconAsset: null }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
@@ -8396,7 +8406,7 @@ paths:
               schema: { $ref: '#/components/schemas/UserMedalList' }
               example:
                 data:
-                  - { code: FIRST_LIVE, name: أول لايف, description: استضفت أول بث مباشر لك., iconKey: medal_first_live, awardedAt: '2026-10-26T18:30:00.000Z' }
+                  - { code: FIRST_LIVE, name: أول لايف, description: استضفت أول بث مباشر لك., iconKey: medal_first_live, awardedAt: '2026-10-26T18:30:00.000Z', category: ACTIVITY, level: 2, maxLevel: 5, iconUrl: null, iconAsset: null }
                 owned: 1
                 total: 9
         '401': { $ref: '#/components/responses/Error' }
@@ -14670,6 +14680,58 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.81-live (DRAFT, D291, CONVENTIONS §10.104.4): «الميداليات» — the medals' levels in the panel ---------------------
+  /api/v1/admin/medals:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminMedals
+      summary: "«الميداليات»: every medal with its tab, metric, levels and how many people hold each level (catalog.view)"
+      description: "(v1.81-live, D291, §10.104.4) Catalogue order. `holders` on the medal counts everyone who holds it; each level's `holders` those whose level is exactly that one."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The medals.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMedalList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/medals/{code}:
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminMedal
+      summary: "Replaces a medal's tab and levels (catalog.manage: OWNER; the code again; audited)"
+      description: "(v1.81-live, D291, §10.104.4) A retired code (§10.104.8) → 409 `ADMIN_ACTION_REFUSED`. The whole levels list, lowest first: 1 … 20 levels, thresholds 1 … 10^12 and strictly rising (else 400 `levels` `invalid_value`), optional names and hosted art per level. 400 `levels` `invalid_value` too when a 0/1 medal (FIRST_FAMILY, FIRST_CP, or a medal without a metric) gets anything but one level at 1, or when the list is shorter than the highest level somebody holds (levels are never taken away). 404 unknown medal. With a reason and the authenticator code again (a wrong code answers like every re-authentication). Audited `medals.levels.update` (before, after, reason). A new threshold applies from the next event that moves the metric; `medals-admin backfill` applies it to past activity. Nobody's level goes down."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - name: code
+          in: path
+          required: true
+          schema: { type: string, maxLength: 40 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminMedalRequest' }
+            example:
+              category: ACTIVITY
+              levels: [{ threshold: 10 }, { threshold: 100 }, { threshold: 500, nameAr: نجم البث, nameEn: Live star }, { threshold: 1000 }]
+              reason: "Owner D291 thresholds"
+              totpCode: '123456'
+      responses:
+        '200':
+          description: The medal now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminMedal' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   # ---- v1.82-social (DRAFT, D252, CONVENTIONS §10.93.4): «VIP» in the panel ------------------------------------------------
   /api/v1/admin/vip/tiers:
     get:
@@ -18521,6 +18583,72 @@ components:
           maxItems: 4
           description: Stage 1 first; each more than the one before.
           items: { type: integer, format: int64, minimum: 1, maximum: 1000000000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    # ---- v1.81-live (DRAFT, D291, CONVENTIONS §10.104.4): the medals' levels in the panel ---------------------------------
+    AdminMedalLevel:
+      type: object
+      additionalProperties: false
+      required: [level, threshold, nameAr, nameEn, iconUrl, iconAsset, holders]
+      properties:
+        level: { type: integer, minimum: 1, maximum: 20 }
+        threshold: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        nameAr: { type: [string, 'null'], maxLength: 60 }
+        nameEn: { type: [string, 'null'], maxLength: 60 }
+        iconUrl: { type: [string, 'null'], format: uri, maxLength: 500 }
+        iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$' }
+        holders: { type: integer, minimum: 0, description: People whose level is exactly this one. }
+    AdminMedal:
+      type: object
+      additionalProperties: false
+      required: [code, nameAr, nameEn, iconKey, sortOrder, category, metric, retired, holders, levels]
+      properties:
+        code: { type: string, maxLength: 40 }
+        nameAr: { type: string }
+        nameEn: { type: string }
+        iconKey: { type: string }
+        sortOrder: { type: integer }
+        category: { $ref: '#/components/schemas/MedalCategory' }
+        metric:
+          oneOf:
+            - { $ref: '#/components/schemas/MedalMetric' }
+            - { type: 'null' }
+          description: Null for a medal without levels (earned once).
+        retired: { type: boolean, description: "(D291, §10.104.8) A name-side icon, not a wearable medal (the charm and live-hours codes): shown read-only; `updateAdminMedal` answers 409 `ADMIN_ACTION_REFUSED`." }
+        holders: { type: integer, minimum: 0, description: People who hold the medal at any level. }
+        levels:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/AdminMedalLevel' }
+    AdminMedalList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminMedal' }
+    UpdateAdminMedalRequest:
+      type: object
+      additionalProperties: false
+      required: [category, levels, reason, totpCode]
+      properties:
+        category: { $ref: '#/components/schemas/MedalCategory' }
+        levels:
+          type: array
+          minItems: 1
+          maxItems: 20
+          description: Level 1 first; each threshold more than the one before.
+          items:
+            type: object
+            additionalProperties: false
+            required: [threshold]
+            properties:
+              threshold: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+              nameAr: { type: [string, 'null'], minLength: 1, maxLength: 60 }
+              nameEn: { type: [string, 'null'], minLength: 1, maxLength: 60 }
+              iconUrl: { type: [string, 'null'], format: uri, maxLength: 500, pattern: '^https://' }
+              iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) A level's art bundled in the app." }
         reason: { type: string, minLength: 1, maxLength: 500 }
         totpCode: { type: string, pattern: '^[0-9]{6}$' }
     AdminReferralSettings:
@@ -27886,6 +28014,7 @@ components:
         permanent: { type: boolean, const: true, description: "LIVE_MODERATION only (v1.60-live, D250): a DEVICE_BAN with no end (then no `endsAt`)." }
         roomId: { type: string, format: uuid, description: "LIVE_MODERATION only (v1.60-live, D250): the live; LIVE_ROOM (v1.68-live, D273) too." }
         live: { type: boolean, description: "LIVE_ROOM only (v1.68-live, D273): the live is still on air (the app opens it as staff)." }
+        medalLevel: { type: integer, minimum: 1, maximum: 20, description: "MEDAL only (v1.81-live, D291): the level this MEDAL_AWARDED announces — 1 = the medal was earned, more = it reached that level. Absent on rows from before." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -28630,9 +28759,34 @@ components:
           type: array
           items: { $ref: '#/components/schemas/CpConfession' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    MedalCategory:
+      type: string
+      enum: [ACHIEVEMENT, ACTIVITY]
+      description: "(v1.81-live, D291, §10.104) The medals page's tab: «الإنجازات» / «النشاط». Clients show a category they do not know under ACHIEVEMENT."
+    MedalMetric:
+      type: string
+      enum: [LIVES_HOSTED, LIVE_HOURS, CHARM_LEVEL, FAMILY_JOINED, CP_FORMED, BULLETS_SENT, GIFTS_SENT_COINS, LUCKY_GIFTS_SENT_COINS]
+      description: "(v1.81-live, D291, §10.104) What a medal's levels count: ended lives hosted, hours of ended lives hosted, the charm level reached, 0/1 created or joined a family, 0/1 formed a couple, bullet messages sent; GIFTS_SENT_COINS (owner «ملوك الثروة», §10.104.7: «اي هدية مرسلة لاي مستخدم الا هدايا فئة الحظ»): the coin value of every gift sent to anyone — in a live (host, seat guests), a direct conversation or as a CP gift — lucky gifts excluded; LUCKY_GIFTS_SENT_COINS (owner «سيد الحظ», §10.104.9: «يتم احتساب من مجموع هدايا الحظ التي قام بإرسالها»): the coin value of the lucky gifts sent (any path, any recipient; never the winnings). Values reach 10^10 (above 2^32): int64. Clients treat an unknown value as none."
+    MedalLevel:
+      type: object
+      description: "(v1.81-live, D291, §10.104) One level of a medal: reached when the medal's metric is at least `threshold` (level 1 is the medal's original rule)."
+      required: [level, threshold, name, iconUrl, iconAsset]
+      properties:
+        level: { type: integer, minimum: 1, maximum: 20 }
+        threshold: { type: integer, format: int64, minimum: 1 }
+        name: { type: [string, 'null'], description: "This level's own name in the request's language, or null (the medal's name; the app shows the level as text)." }
+        iconUrl: { type: [string, 'null'], format: uri, description: "This level's own hosted art, or null (the medal's art; the app writes the level as text)." }
+        iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291, §10.104.7) This level's art bundled in the app (an asset key, e.g. `medal_wealth_l1`), or null. `iconUrl` wins when both are set; an app without that asset draws the medal's `iconKey`." }
+    MedalProgress:
+      type: object
+      description: "(v1.81-live, D291) The caller's value of the medal's metric now (whole numbers; hours rounded down) and the next level's threshold (null at the top level)."
+      required: [value, next]
+      properties:
+        value: { type: integer, format: int64, minimum: 0 }
+        next: { type: [integer, 'null'], format: int64, minimum: 1 }
     Medal:
       type: object
-      required: [code, name, description, iconKey, sortOrder, awardedAt]
+      required: [code, name, description, iconKey, sortOrder, awardedAt, category, metric, level, maxLevel, levels, progress, iconUrl, iconAsset, showcasePosition]
       properties:
         code: { type: string, maxLength: 40 }
         name: { type: string }
@@ -28640,6 +28794,23 @@ components:
         iconKey: { type: string, description: The app's icon for the medal. }
         sortOrder: { type: integer }
         awardedAt: { type: [string, 'null'], format: date-time, description: "When the caller earned it, or null." }
+        category: { $ref: '#/components/schemas/MedalCategory' }
+        metric:
+          oneOf:
+            - { $ref: '#/components/schemas/MedalMetric' }
+            - { type: 'null' }
+          description: "(v1.81-live, D291) What the levels count — the app words the thresholds with it («10 ساعات بث»); null for a medal without levels. Clients treat an unknown value as null."
+        level: { type: integer, minimum: 0, maximum: 20, description: "(v1.81-live, D291) The caller's level; 0 when not earned. Never goes down." }
+        maxLevel: { type: integer, minimum: 1, maximum: 20, description: "(v1.81-live, D291) How many levels the medal has (1 when `levels` is empty)." }
+        levels:
+          type: array
+          maxItems: 20
+          description: "(v1.81-live, D291) Every level, lowest first; empty for a medal without levels (one implied level)."
+          items: { $ref: '#/components/schemas/MedalLevel' }
+        progress: { $ref: '#/components/schemas/MedalProgress' }
+        iconUrl: { type: [string, 'null'], format: uri, description: "(v1.81-live, D291) The hosted art of the level shown (the caller's, else level 1), or null (the app draws `iconKey`)." }
+        iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) The bundled art key of the level shown, or null." }
+        showcasePosition: { type: [integer, 'null'], minimum: 1, maximum: 5, description: "(v1.81-live, D291) 1 … 5 when the caller wears it (`PUT /me/medals/showcase`, in that order), else null." }
     MedalCatalogue:
       type: object
       required: [data, total, owned]
@@ -28651,13 +28822,18 @@ components:
         owned: { type: integer, minimum: 0, description: Medals the caller earned. }
     UserMedal:
       type: object
-      required: [code, name, description, iconKey, awardedAt]
+      required: [code, name, description, iconKey, awardedAt, category, level, maxLevel, iconUrl, iconAsset]
       properties:
         code: { type: string, maxLength: 40 }
         name: { type: string }
         description: { type: string }
         iconKey: { type: string }
         awardedAt: { type: string, format: date-time }
+        category: { $ref: '#/components/schemas/MedalCategory' }
+        level: { type: integer, minimum: 1, maximum: 20, description: "(v1.81-live, D291) The user's level of the medal." }
+        maxLevel: { type: integer, minimum: 1, maximum: 20 }
+        iconUrl: { type: [string, 'null'], format: uri, description: "(v1.81-live, D291) That level's own art, or null." }
+        iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) That level's bundled art key, or null." }
     UserMedalList:
       type: object
       required: [data, owned, total]
@@ -28669,11 +28845,14 @@ components:
         total: { type: integer, minimum: 0 }
     ProfileMedal:
       type: object
-      required: [code, name, iconKey]
+      required: [code, name, iconKey, level, iconUrl, iconAsset]
       properties:
         code: { type: string, maxLength: 40 }
         name: { type: string }
         iconKey: { type: string }
+        level: { type: integer, minimum: 1, maximum: 20, description: "(v1.81-live, D291) The holder's level, shown as text (apps read a missing field as 1)." }
+        iconUrl: { type: [string, 'null'], format: uri, description: "(v1.81-live, D291) That level's own hosted art, or null." }
+        iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) That level's bundled art key, or null." }
     ProfileMedals:
       type: object
       description: "(v1.21-live, CP-018) Medals on the public profile: owned, the catalogue size, the newest three and the user's chosen showcase."

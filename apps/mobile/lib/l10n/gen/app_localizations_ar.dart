@@ -14852,4 +14852,143 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creatorCatOther => 'أخرى';
+
+  @override
+  String get medalsStageTitle => 'الميداليات التي أرتديها';
+
+  @override
+  String get medalsNotWorn => 'غير مرتدية';
+
+  @override
+  String get medalsNoneWorn => 'لا ترتدي أي ميدالية';
+
+  @override
+  String medalsWornCount(int count, int max) {
+    return 'ترتدي $count من $max';
+  }
+
+  @override
+  String get medalsTabAchievements => 'الإنجازات';
+
+  @override
+  String get medalsTabActivity => 'النشاط';
+
+  @override
+  String get medalsTabEmpty => 'لا توجد ميداليات في هذا التبويب';
+
+  @override
+  String get medalsNotObtained => 'لم تُحصَّل';
+
+  @override
+  String medalsLevel(int level) {
+    return 'المستوى $level';
+  }
+
+  @override
+  String get medalsWorn => 'مرتدية';
+
+  @override
+  String get medalsTopLevel => 'أعلى مستوى';
+
+  @override
+  String medalsProgress(String value, String next) {
+    return '$value / $next';
+  }
+
+  @override
+  String get medalsLevelsTitle => 'المستويات';
+
+  @override
+  String get medalsWear => 'ارتداء';
+
+  @override
+  String get medalsTakeOff => 'خلع';
+
+  @override
+  String get medalsWearSaved => 'تم تحديث ميدالياتك المرتدية';
+
+  @override
+  String medalsThresholdLives(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count بث',
+      many: '$count بثاً',
+      few: '$count بثوث',
+      two: 'بثّان',
+      one: 'بث واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medalsThresholdHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ساعة بث',
+      many: '$count ساعة بث',
+      few: '$count ساعات بث',
+      two: 'ساعتا بث',
+      one: 'ساعة بث واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medalsThresholdCharm(int count) {
+    return 'مستوى الجاذبية $count';
+  }
+
+  @override
+  String medalsThresholdBullets(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count رسالة عامة',
+      many: '$count رسالة عامة',
+      few: '$count رسائل عامة',
+      two: 'رسالتان عامتان',
+      one: 'رسالة عامة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get medalsThresholdOnce => 'مرة واحدة';
+
+  @override
+  String medalsLevelReachedLabel(String level) {
+    return '$level، تم بلوغه';
+  }
+
+  @override
+  String medalsCardLabel(String name, String status) {
+    return '$name، $status';
+  }
+
+  @override
+  String notifMedalLevelUp(String name, int level) {
+    return 'ارتقت ميداليتك $name إلى المستوى $level';
+  }
+
+  @override
+  String notifMedalLevelUpUnnamed(int level) {
+    return 'ارتقت ميداليتك إلى المستوى $level';
+  }
+
+  @override
+  String medalsProfileWornCount(int count, int max) {
+    return 'على ملفك: $count من $max';
+  }
+
+  @override
+  String medalsThresholdGiftCoins(String amount) {
+    return '$amount كوينز من الهدايا';
+  }
+
+  @override
+  String medalsThresholdLuckyCoins(String amount) {
+    return '$amount كوينز من هدايا الحظ';
+  }
 }
