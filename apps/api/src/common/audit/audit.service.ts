@@ -64,6 +64,14 @@ export enum AuditAction {
   LEVELS_PERMISSION_REVOKE = 'levels.permission.revoke',
   // v1.5-social (CP-006 M1): moderation of reports (CONVENTIONS §11.7).
   MODERATION_REPORT_ACTION = 'moderation.report.action',
+  /** v1.78-live (D288, §10.101): «تم حله» — a report marked resolved for everyone (panel or app). */
+  MODERATION_REPORT_RESOLVE = 'moderation.report.resolve',
+  /** v1.78-live (D288): a resolved report reopened (OWNER, with a reason). */
+  MODERATION_REPORT_REOPEN = 'moderation.report.reopen',
+  /** v1.78-live (D288): who was told about a new report (STAFF_REPORT_NEW; no actor — the service decides). */
+  MODERATION_REPORT_ALERT = 'moderation.report.alert',
+  /** v1.78-live (D288): a STAFF_REPORT_NEW push (recipient, sent, onShift). */
+  MODERATION_REPORT_PUSH = 'moderation.report.push',
   // v1.19-live (DRAFT, CP-017): coins granted or taken back by an admin (`wallet-admin`).
   WALLET_GRANT = 'wallet.grant',
   WALLET_REVOKE = 'wallet.revoke',

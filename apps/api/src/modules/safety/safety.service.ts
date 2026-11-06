@@ -18,6 +18,7 @@ import {
 } from '../messages/dm-reports.js';
 import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveStaffAlertsService } from '../live/live-staff-alerts.service.js';
+import { ReportStaffAlertsService } from './report-staff-alerts.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { LiveSeatsService } from '../live/live-seats.service.js';
@@ -181,6 +182,7 @@ export class SafetyService {
     private readonly liveChat: LiveChatService,
     private readonly media: MediaService,
     private readonly staffAlerts: LiveStaffAlertsService,
+    private readonly reportAlerts: ReportStaffAlertsService,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -397,8 +399,9 @@ export class SafetyService {
         },
         include: REPORT_INCLUDE,
       });
-      // v1.68-live (D273, §10.96.8): a report on a live alerts its staff member (best effort, never fails the report).
-      await this.staffAlerts.afterReport(row.id, reporterId);
+      // v1.68-live (D273, §10.96.8): a report on a live alerts its staff member; v1.78-live (D288, §10.101): every new
+      // report alerts the moderators and the support (best effort, never fails the report).
+      await this.reportAlerts.afterNewReport(row.id, reporterId);
       return { report: this.toDto(row, false), created: true };
     } catch (err) {
       // A concurrent identical report won (partial unique index): return it.
@@ -533,30 +536,49 @@ export class SafetyService {
     return { targetCommentId: comment.id };
   }
 
-  /** `GET /admin/reports`: oldest first (MODERATION; checked by the guard). */
-  async adminList(query: AdminReportsQuery): Promise<PageDto<ReportDto>> {
+  /**
+   * `GET /admin/reports`: oldest first (MODERATION; checked by the guard). v1.78-live (D288): the shared queue's
+   * `RESOLVED` — every closed report, newest resolution first.
+   */
+  async adminList(
+    query: Omit<AdminReportsQuery, 'status'> & { status: AdminReportsQuery['status'] | 'RESOLVED' },
+  ): Promise<PageDto<ReportDto>> {
     const scope = `admin-reports:${query.status}`;
     const after = this.posts.decode(query.cursor, scope);
-    const rows = await this.prisma.report.findMany({
-      where: {
-        status: query.status,
-        ...(after
-          ? { OR: [{ createdAt: { gt: after.at } }, { createdAt: after.at, id: { gt: after.id } }] }
-          : {}),
-      },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: query.limit + 1,
-      include: REPORT_INCLUDE,
-    });
+    const resolved = query.status === 'RESOLVED';
+    const rows = resolved
+      ? await this.prisma.report.findMany({
+          where: {
+            status: { not: 'OPEN' },
+            resolvedAt: { not: null },
+            ...(after
+              ? { OR: [{ resolvedAt: { lt: after.at } }, { resolvedAt: after.at, id: { lt: after.id } }] }
+              : {}),
+          },
+          orderBy: [{ resolvedAt: 'desc' }, { id: 'desc' }],
+          take: query.limit + 1,
+          include: REPORT_INCLUDE,
+        })
+      : await this.prisma.report.findMany({
+          where: {
+            status: query.status as AdminReportsQuery['status'],
+            ...(after
+              ? { OR: [{ createdAt: { gt: after.at } }, { createdAt: after.at, id: { gt: after.id } }] }
+              : {}),
+          },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: query.limit + 1,
+          include: REPORT_INCLUDE,
+        });
     const hasMore = rows.length > query.limit;
     const pageRows = rows.slice(0, query.limit);
     const last = pageRows[pageRows.length - 1];
+    const at = last ? (resolved ? (last.resolvedAt ?? last.createdAt) : last.createdAt) : null;
     return {
       data: pageRows.map((r) => this.toDto(r, true)),
       page: {
         hasMore,
-        nextCursor:
-          hasMore && last ? this.posts.cursors.encode(scope, { at: last.createdAt, id: last.id }) : null,
+        nextCursor: hasMore && last && at ? this.posts.cursors.encode(scope, { at, id: last.id }) : null,
       },
     };
   }

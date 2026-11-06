@@ -16,6 +16,7 @@ import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_tokens_repository.dart';
+import 'package:kabso_live/features/staff/application/staff_providers.dart';
 
 /// D152 (CONVENTIONS §11.12): ties pushes to the session and the screen.
 ///
@@ -137,6 +138,10 @@ class PushController {
       return;
     }
     if (push.kind == PushPayload.kindNotification) {
+      // D288: the «بلاغات» badge reads the count again at once.
+      if (push.isStaffReport && _ref.exists(staffOpenReportsProvider)) {
+        unawaited(_ref.read(staffOpenReportsProvider.notifier).refresh());
+      }
       _ref.read(notificationSoundsProvider).general();
       if (_ref.exists(unreadNotificationsProvider)) {
         unawaited(_ref.read(unreadNotificationsProvider.notifier).refresh());

@@ -264,6 +264,20 @@ info:
     `RECHARGE_EMPLOYEE_NOT_PERMITTED` (403), `RECHARGE_ORDER_CLAIMED` (409), `RECHARGE_EMPLOYEE_IS_STAFF` (403);
     per-employee `cherryPurchases` / `orders` statistics; panel `listAdminRechargeAgentEmployees` (`recharge.agents`). Additive
     (CONVENTIONS §10.100).
+    **D288 (DRAFT v1.78-live)** the shared report queue «البلاغات المشتركة», and no code for the permanent ban or
+    content deletion (CONVENTIONS §10.101; owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله»,
+    and «يلغي» / «نعم» for the code). `banAdminUser`, `moderateAdminContent` `delete` and `requestAdminUserDeletion`
+    no longer take the authenticator code
+    (`totpCode` deprecated: accepted and ignored); the role, the capability, the rate limit and the audit stay. Every
+    report is visible to OWNER, MODERATION and SUPPORT (`reports.view` gains SUPPORT): `listAdminPanelReports`
+    `status=RESOLVED` (every closed report, newest resolution first), `AdminPanelReport.resolvedBy` /
+    `resolutionNote`; «تم حله» `resolveAdminPanelReport` / `resolveStaffReport` (`reports.resolve`: OWNER,
+    MODERATION, SUPPORT; a second press 409 `REPORT_ALREADY_RESOLVED`), `reopenAdminPanelReport` (`reports.reopen`:
+    OWNER, MODERATION); the counters `getAdminPanelReportsSummary` / `getStaffReportsSummary`; the app's «بلاغات»
+    `listStaffReports`. A new report notifies every MODERATION and SUPPORT account: notification `STAFF_REPORT_NEW`
+    (target `REPORT`, one unread row per staff member, pushed on the Android channel `kabso_staff`).
+    `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Additive (new operations, enum values and
+    fields; the deprecated `totpCode` still accepted); migration `20270322090000_shared_reports`.
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -10894,7 +10908,7 @@ paths:
       tags: [admin-panel]
       operationId: banAdminUser
       summary: "Ban «حظر»: ACTIVE → SUSPENDED with the account-lifecycle side effects (users.ban; reason required; audited)"
-      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403). v1.72-social (D208, owner 2026-10-31): the authenticator code again (`totpCode`; 403 `ADMIN_TOTP_INVALID`) — the ban is permanent; a temporary lock is `lockAdminUser`. `unbanAdminUser` keeps the reason only."
+      description: "409 `ADMIN_ACTION_REFUSED` when the account is not ACTIVE or it is the caller's own; an account holding a panel role needs OWNER (403). The ban is permanent; a temporary lock is `lockAdminUser`. v1.72-social (D208) asked for the authenticator code again; **v1.78-live (D288, §10.101, owner «يلغي»): no code** — `users.ban` read on every request, the panel's `admin:ip` limit and the audit `admin.user.ban` {reason, before, after, via} protect it; a `totpCode` sent by an older panel is accepted and ignored. `unbanAdminUser` keeps the reason only."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminUserIdPath'
@@ -10903,7 +10917,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+            schema: { $ref: '#/components/schemas/AdminBanRequest' }
       responses:
         '200':
           description: Banned.
@@ -11373,14 +11387,14 @@ paths:
     get:
       tags: [admin-panel]
       operationId: listAdminPanelReports
-      summary: "The report queue with a preview of each target (reports.view)"
-      description: "Same order and cursor as `listAdminReports` (oldest first); every kind of target."
+      summary: "The shared report queue with a preview of each target (reports.view: OWNER, MODERATION, SUPPORT)"
+      description: "Same order and cursor as `listAdminReports` (oldest first); every kind of target. (v1.78-live, D288, §10.101) The shared queue: SUPPORT reads it too; `RESOLVED` is every closed report (ACTIONED or DISMISSED, «تم حله» included), newest resolution first; each row says who resolved it and their note."
       security: [{ adminSession: [] }]
       parameters:
         - name: status
           in: query
           required: false
-          schema: { type: string, enum: [OPEN, ACTIONED, DISMISSED], default: OPEN }
+          schema: { type: string, enum: [OPEN, RESOLVED, ACTIONED, DISMISSED], default: OPEN }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -11392,6 +11406,79 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/moderation/reports/summary:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminPanelReportsSummary
+      summary: "(v1.78-live, D288) The unresolved reports counter — the nav badge (reports.view)"
+      description: "(v1.78-live, D288, §10.101) Every OPEN report (the shared queue's counter; the panel reads it every 30 s)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportsSummary' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/moderation/reports/{reportId}/resolve:
+    post:
+      tags: [admin-panel]
+      operationId: resolveAdminPanelReport
+      summary: "(v1.78-live, D288) «تم حله» — resolved for everyone (reports.resolve: OWNER, MODERATION, SUPPORT; audited)"
+      description: "(v1.78-live, D288, §10.101) The report becomes ACTIONED with `resolvedAt`, `resolvedBy` (the caller) and the optional `note`; only this report closes. The row is locked: of two presses the first wins, the second gets 409 `REPORT_ALREADY_RESOLVED` (the client reloads and shows who resolved it). The staff's `STAFF_REPORT_NEW` rows pointing at it are marked read. Audited `moderation.report.resolve` {reportId, note, via}. Nothing is done to the target (that is `actOnAdminPanelReport`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveReportRequest' }
+      responses:
+        '200':
+          description: The report, resolved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPanelReport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/moderation/reports/{reportId}/reopen:
+    post:
+      tags: [admin-panel]
+      operationId: reopenAdminPanelReport
+      summary: "(v1.78-live, D288) Reopen a resolved report (reports.reopen: OWNER, MODERATION; reason; audited)"
+      description: "(v1.78-live, D288, §10.101) Back to OPEN; the resolution is cleared (the audit keeps it); nothing done to the target is undone. 409 `ADMIN_ACTION_REFUSED` `report_open` (it is open) or `report_duplicate` (the same reporter has another open report on the same target). Audited `moderation.report.reopen` {reportId, reason, before, resolvedById, via}."
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReopenReportRequest' }
+      responses:
+        '200':
+          description: The report, open again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPanelReport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
   /api/v1/admin/moderation/reports/{reportId}/actions:
     post:
       tags: [admin-panel]
@@ -13037,11 +13124,13 @@ paths:
     post:
       tags: [admin-panel]
       operationId: requestAdminUserDeletion
-      summary: "Start the account’s deletion (D193 grace period) (users.delete, code again)"
+      summary: "Start the account’s deletion (D193 grace period) (users.delete; reason; no code since v1.78-live)"
       description: |
         (v1.72-social, D208) As `account-admin request`: PENDING_DELETION, every session ends, the live ends, purge after
         ACCOUNT_DELETION_GRACE_DAYS. 409 `ACCOUNT_DELETION_BLOCKED` with the blockers. Audited
-        `account.deletion.requested` (`via: panel`).
+        `account.deletion.requested` (`via: panel`). (v1.78-live, D288, §10.101.1, owner «نعم») No authenticator code
+        any more — `users.delete` (OWNER) on every request, the reason, `admin:ip` and the audit; a `totpCode` sent by
+        an older panel is accepted and ignored (`AdminBanRequest`, the same body).
       security:
       - adminSession: []
       parameters:
@@ -13051,7 +13140,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AdminReasonCodeRequest' }
+            schema: { $ref: '#/components/schemas/AdminBanRequest' }
       responses:
         '200':
           description: OK.
@@ -13101,7 +13190,8 @@ paths:
       description: |
         (v1.72-social, D208, §10.67) `hide`: a post / reel (moderation REMOVED) or story leaves every list and can be
         restored; a comment is removed (with its replies; comments cannot be restored). `restore`: a hidden post or
-        story back. `delete`: a post or story for good (as the author's own delete) — the authenticator code again.
+        story back. `delete`: a post or story for good (as the author's own delete) — v1.78-live (D288, §10.101): no
+        authenticator code any more (`totpCode` deprecated: accepted and ignored; it was required since D208).
         Hide and delete close the item's OPEN reports (ACTIONED) and tell the author (`CONTENT_REMOVED`). A panel
         admin's content only by an OWNER. Audited `admin.content.hide|restore|delete`.
       security:
@@ -13826,6 +13916,74 @@ paths:
               schema: { $ref: '#/components/schemas/StaffLiveList' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/reports:
+    get:
+      tags: [staff]
+      operationId: listStaffReports
+      summary: "(v1.78-live, D288) «بلاغات» — the shared report queue from the app (reports.view)"
+      description: |
+        (v1.78-live, D288, §10.101) The panel's `listAdminPanelReports` for the staff's own app account (OWNER,
+        MODERATION, SUPPORT): `OPEN` oldest first, `RESOLVED` newest resolution first, with the preview, the reporter,
+        who resolved it and their note. Staff work (§10.96.14). Needs `reports.view`.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [OPEN, RESOLVED, ACTIONED, DISMISSED], default: OPEN }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPanelReportPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/reports/summary:
+    get:
+      tags: [staff]
+      operationId: getStaffReportsSummary
+      summary: "(v1.78-live, D288) The «بلاغات» row's unresolved counter (reports.view; not staff work)"
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportsSummary' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/reports/{reportId}/resolve:
+    post:
+      tags: [staff]
+      operationId: resolveStaffReport
+      summary: "(v1.78-live, D288) «تم حله» from the app (reports.resolve)"
+      description: "The panel's `resolveAdminPanelReport` rule, audited `via: app`; a second press → 409 `REPORT_ALREADY_RESOLVED`."
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveReportRequest' }
+      responses:
+        '200':
+          description: The report, resolved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPanelReport' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/staff/lives/{roomId}/reports:
     get:
@@ -19221,8 +19379,8 @@ components:
           items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
         capabilities:
           type: array
-          description: The panel capabilities the staff tools use, for the caller's roles (the app shows only these).
-          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban] }
+          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue)."
+          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve] }
         authenticatorEnrolled: { type: boolean, description: "False: the app says to set it up at admin.<domain> first." }
         lockedUntil: { type: [string, 'null'], format: date-time, description: "Locked after wrong codes (the panel's lockout)." }
         stepUp:
@@ -20051,9 +20209,41 @@ components:
       allOf:
         - $ref: '#/components/schemas/Report'
         - type: object
-          required: [preview]
+          required: [preview, resolvedBy, resolutionNote]
           properties:
             preview: { $ref: '#/components/schemas/AdminReportPreview' }
+            resolvedBy:
+              description: (v1.78-live, D288) Who closed the report («تم حله» or an action); null while OPEN or when the account is gone.
+              oneOf:
+                - $ref: '#/components/schemas/ReportResolver'
+                - type: 'null'
+            resolutionNote: { type: [string, 'null'], maxLength: 500, description: "(v1.78-live, D288) The resolver's note (or the action's reason)." }
+    ReportResolver:
+      type: object
+      required: [id, username, displayName]
+      description: (v1.78-live, D288) A staff account as the shared queue names it.
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+    ReportsSummary:
+      type: object
+      required: [open]
+      description: (v1.78-live, D288) The shared queue's counter.
+      properties:
+        open: { type: integer, minimum: 0, description: The OPEN reports (the badge shows 99+ above 99 and hides at 0). }
+    ResolveReportRequest:
+      type: object
+      additionalProperties: false
+      description: (v1.78-live, D288) «تم حله».
+      properties:
+        note: { type: string, minLength: 1, maxLength: 500, description: Optional; shown to the team as the resolution note. }
+    ReopenReportRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
     AdminPanelReportPage:
       type: object
       required: [data, page]
@@ -20774,6 +20964,14 @@ components:
       properties:
         reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
         totpCode: { type: string, pattern: '^[0-9]{6}$', description: The authenticator code again. }
+    AdminBanRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: (v1.78-live, D288) The body of the ban and of starting an account's deletion — the reason only; no authenticator code any more.
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', deprecated: true, description: "DEPRECATED (v1.78-live, D288): accepted and ignored (required from D208 to D286)." }
     AdminLockRequest:
       type: object
       additionalProperties: false
@@ -20896,7 +21094,7 @@ components:
       required: [reason]
       properties:
         reason: { type: string, minLength: 1, maxLength: 500, description: Required; kept in the audit log. }
-        totpCode: { type: string, pattern: '^[0-9]{6}$', description: Required for `delete`. }
+        totpCode: { type: string, pattern: '^[0-9]{6}$', deprecated: true, description: "DEPRECATED (v1.78-live, D288): accepted and ignored; `delete` needs no code any more (it did since D208)." }
     AdminContentActionResult:
       type: object
       required: [state, reportsClosed]
@@ -27962,13 +28160,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM], description: "(v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT], description: "(v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -27989,6 +28187,8 @@ components:
         permanent: { type: boolean, const: true, description: "LIVE_MODERATION only (v1.60-live, D250): a DEVICE_BAN with no end (then no `endsAt`)." }
         roomId: { type: string, format: uuid, description: "LIVE_MODERATION only (v1.60-live, D250): the live; LIVE_ROOM (v1.68-live, D273) too." }
         live: { type: boolean, description: "LIVE_ROOM only (v1.68-live, D273): the live is still on air (the app opens it as staff)." }
+        reportTargetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK], description: "REPORT only (v1.78-live, D288): what the report is about." }
+        reportOpen: { type: boolean, description: "REPORT only (v1.78-live, D288): the report is still unresolved." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]

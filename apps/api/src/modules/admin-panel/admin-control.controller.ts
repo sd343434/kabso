@@ -15,6 +15,8 @@ import {
   liftBody,
   lockBody,
   profileEditBody,
+  contentDeleteBody,
+  deletionRequestBody,
   reasonCodeBody,
   reasonOnlyBody,
   requireChangeBody,
@@ -78,10 +80,11 @@ export class AdminControlController {
   @RequireCapability('users.delete')
   requestDeletion(
     @Param('userId') id: string,
-    @Body(new ZodValidationPipe(reasonCodeBody)) body: { reason: string; totpCode: string },
+    // v1.78-live (D288): no authenticator code (an older panel's code is accepted and ignored).
+    @Body(new ZodValidationPipe(deletionRequestBody)) body: { reason: string; totpCode?: string | undefined },
     @CurrentAdmin() admin: AdminContext,
   ) {
-    return this.control.requestDeletion(pathUuid(id), body, admin);
+    return this.control.requestDeletion(pathUuid(id), { reason: body.reason }, admin);
   }
 
   @Post('users/:userId/deletion/cancel')
@@ -226,8 +229,9 @@ export class AdminControlController {
   ) {
     if (!(CONTENT_TYPES as readonly string[]).includes(type)) throw new AppException(ErrorCode.NOT_FOUND);
     if (op !== 'hide' && op !== 'restore' && op !== 'delete') throw new AppException(ErrorCode.NOT_FOUND);
-    const schema = op === 'delete' ? reasonCodeBody : reasonOnlyBody;
-    const body = new ZodValidationPipe(schema).transform(raw) as { reason: string; totpCode?: string };
+    // v1.78-live (D288): `delete` needs no authenticator code any more (an older panel's code is accepted and ignored).
+    const schema = op === 'delete' ? contentDeleteBody : reasonOnlyBody;
+    const body: { reason: string } = new ZodValidationPipe(schema).transform(raw);
     return this.control.content(type as ContentType, pathUuid(contentId), op, body, admin);
   }
 

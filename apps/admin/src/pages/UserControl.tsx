@@ -800,7 +800,8 @@ export function ContentModeration({ userId }: { userId: string }) {
       {op && (
         <FormDialog
           title={label}
-          fields={op.op === 'delete' ? [reasonField(t), { ...codeField(t), hint: t('ctCodeHint') }] : [reasonField(t)]}
+          // D288 (owner «يلغي»): deleting for good needs the reason only (no authenticator code); audited.
+          fields={[reasonField(t)]}
           confirmLabel={label}
           danger={op.op !== 'restore'}
           submit={(v) => api.post(`/admin/content/${op.type}/${op.id}/${op.op}`, v)}

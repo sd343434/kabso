@@ -33,6 +33,10 @@ class PushPayload {
 
   bool get isMessage => kind == kindFamilyChat || kind == kindDm;
 
+  /// v1.78-live (D288): a new report in the shared queue (channel `staff`).
+  bool get isStaffReport =>
+      kind == kindNotification && data['type'] == 'STAFF_REPORT_NEW';
+
   /// Where a tap goes: the family chat, or the notification's target as the
   /// inbox would open it (`NotificationRow.routeTo`), else the inbox. `null`
   /// for a push this app does not know.
@@ -79,6 +83,8 @@ class PushPayload {
     if (id == null || id.isEmpty) return null;
     // D273: a staff alert — the live, as staff, on its reports.
     if (type == 'LIVE_STAFF_REPORT') return AppRoutes.liveRoomStaffReports(id);
+    // D288: a new report in the shared queue — «بلاغات» on it.
+    if (type == 'STAFF_REPORT_NEW') return AppRoutes.staffReportsFor(id);
     // D204: a recharge order's chat.
     if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);
     final postId = data['targetPostId'];

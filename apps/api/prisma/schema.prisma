@@ -2054,6 +2054,8 @@ model Report {
   targetFamilyChatMessage FamilyChatMessage? @relation(fields: [targetFamilyChatMessageId], references: [id], onDelete: Cascade)
   resolvedBy              User?              @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
   legalHold               LegalHold?         @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+  /// v1.78-live (D288): the staff's STAFF_REPORT_NEW notifications pointing at this report.
+  staffNotifications      Notification[]
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
   @@unique([reporterId, targetCommentId], map: "reports_open_comment_once", where: raw("status = 'OPEN'::report_status AND target_comment_id IS NOT NULL"))
@@ -2078,6 +2080,7 @@ model Report {
   @@index([targetProfileLinkId], map: "reports_target_profile_link_idx")
   @@index([legalHoldId], map: "reports_legal_hold_idx")
   @@index([contextLiveRoomId], map: "reports_context_live_room_idx", where: raw("context_live_room_id IS NOT NULL"))
+  @@index([resolvedAt(sort: Desc), id(sort: Desc)], map: "reports_resolved_idx", where: raw("status <> 'OPEN'::report_status"))
   @@map("reports")
 }
 
@@ -2230,6 +2233,9 @@ enum NotificationType {
   LIVE_MODERATED
   /// v1.68-live (D273): a report on a live the staff member is responsible for (or, nobody on it, the actors / OWNERs).
   LIVE_STAFF_REPORT
+  /// v1.78-live (D288, §10.101): a new report in the shared queue — to every MODERATION / SUPPORT account (one unread
+  /// row per staff member, moved to the newest report).
+  STAFF_REPORT_NEW
 
   @@map("notification_type")
 }
@@ -2284,6 +2290,9 @@ model Notification {
   /// v1.68-live (D273): LIVE_STAFF_REPORT — the live a staff member is alerted about (one unread row per live).
   liveRoomId           String?                 @map("live_room_id") @db.Uuid
   liveRoom             LiveRoom?               @relation(fields: [liveRoomId], references: [id], onDelete: Cascade)
+  /// v1.78-live (D288, §10.101): STAFF_REPORT_NEW — the newest report the row stands for (deleted with it).
+  reportId             String?                 @map("report_id") @db.Uuid
+  report               Report?                 @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2303,6 +2312,7 @@ model Notification {
   @@index([agencyId], map: "notifications_agency_idx", where: raw("agency_id IS NOT NULL"))
   @@index([liveModerationId], map: "notifications_live_moderation_idx", where: raw("live_moderation_id IS NOT NULL"))
   @@index([liveRoomId], map: "notifications_live_room_idx", where: raw("live_room_id IS NOT NULL"))
+  @@index([reportId], map: "notifications_report_idx", where: raw("report_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))

@@ -19,6 +19,9 @@ export type Capability =
   | 'withdrawals.decide'
   | 'reports.view'
   | 'reports.act'
+  // v1.78-live (D288): the shared queue's «تم حله» and the OWNER's reopen
+  | 'reports.resolve'
+  | 'reports.reopen'
   | 'site.settings'
   | 'payments.settings'
   // v1.75-social (D222)
@@ -297,6 +300,9 @@ export interface PanelReport {
   status: 'OPEN' | 'ACTIONED' | 'DISMISSED';
   createdAt: string;
   resolvedAt: string | null;
+  /** v1.78-live (D288): who resolved it and their note (null while OPEN). */
+  resolvedBy: { id: string; username: string; displayName: string } | null;
+  resolutionNote: string | null;
   reporter?: { id: string; username: string; displayName: string; avatarUrl: string | null };
   dmSnapshot?: { text: string | null; sender: string | null; mediaUrl: string | null };
   linkSnapshot?: { username: string; url: string; label: string | null };

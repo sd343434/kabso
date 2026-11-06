@@ -32,7 +32,8 @@ export interface NotificationTargetDto {
     | 'ACCOUNT_RESTRICTION'
     | 'BALANCE_ADJUSTMENT'
     | 'LIVE_MODERATION'
-    | 'LIVE_ROOM';
+    | 'LIVE_ROOM'
+    | 'REPORT';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -66,6 +67,12 @@ export interface NotificationTargetDto {
   roomId?: string;
   /** v1.68-live (D273) LIVE_ROOM only (LIVE_STAFF_REPORT): the live is still on air (`text` is the host's name). */
   live?: boolean;
+  /**
+   * v1.78-live (D288) REPORT only (STAFF_REPORT_NEW): what the newest report is about (POST, USER, LIVE_ROOM …) and
+   * whether it is still open. Never the reporter, the reason or the note.
+   */
+  reportTargetType?: string;
+  reportOpen?: boolean;
 }
 
 /** `Notification`. */
@@ -199,6 +206,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'LIVE_MODERATED', liveModerationId: { not: null } },
       // v1.68-live (D273): a report on a live the caller looks after as «فريق كابسو» (system; the live is the target).
       { type: 'LIVE_STAFF_REPORT', liveRoomId: { not: null } },
+      // v1.78-live (D288): a new report in the shared queue (system; the newest report is the target).
+      { type: 'STAFF_REPORT_NEW', reportId: { not: null } },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -250,6 +259,7 @@ function include(me: string) {
         host: { select: { profile: { select: { displayName: true, avatarUrl: true } } } },
       },
     },
+    report: { select: { id: true, targetType: true, status: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -433,6 +443,18 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         text: excerpt(row.accountRestriction.reason),
         restriction: row.accountRestriction.kind,
         endsAt: row.accountRestriction.endsAt.toISOString(),
+      };
+    }
+    // v1.78-live (D288): the newest report of the shared queue — its kind and whether it is open, nothing else.
+    if (row.reportId !== null && row.report) {
+      return {
+        type: 'REPORT',
+        id: row.report.id,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        reportTargetType: row.report.targetType,
+        reportOpen: row.report.status === 'OPEN',
       };
     }
     // v1.68-live (D273): the live a staff member is alerted about — the host's name and picture only.

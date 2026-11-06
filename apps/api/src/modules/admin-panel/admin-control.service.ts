@@ -694,19 +694,18 @@ export class AdminControlService {
   /**
    * `hide` (posts, reels, stories: hidden from everyone, restorable; a comment is removed — comments cannot be
    * restored), `restore` (a hidden post or story back), `delete` (a post or story for good: the author's own delete;
-   * the code again). Hiding and deleting close the item's open reports (ACTIONED) and tell the author
+   * v1.78-live, D288: no authenticator code any more — the capability, the rate limit and the audit). Hiding and deleting close the item's open reports (ACTIONED) and tell the author
    * (CONTENT_REMOVED).
    */
   async content(
     type: ContentType,
     contentId: string,
     op: 'hide' | 'restore' | 'delete',
-    body: { reason: string; totpCode?: string | undefined },
+    body: { reason: string },
     ctx: AdminContext,
   ) {
     if (type === 'comment' && op !== 'hide') throw refused('A comment can only be removed.');
     const authorId = await this.contentAuthor(type, contentId, ctx);
-    if (op === 'delete') await this.adminAuth.reauthenticate(ctx, body.totpCode);
     const now = new Date();
     const result = await this.prisma.$transaction(async (tx) => {
       let before: string;
@@ -860,10 +859,13 @@ export class AdminControlService {
 
   // ---- deletion (D193) -------------------------------------------------------------------------------------------
 
-  /** Starts the D193 grace period for the account (as `account-admin request`), the code again; ends a live. */
-  async requestDeletion(id: string, body: { reason: string; totpCode: string }, ctx: AdminContext) {
+  /**
+   * Starts the D193 grace period for the account (as `account-admin request`); ends a live. v1.78-live (D288, owner):
+   * no authenticator code any more — `users.delete` (OWNER) on every request, the reason, `admin:ip` and the audit
+   * `account.deletion.requested` {reason, via} protect it (the grace period still lets it be cancelled).
+   */
+  async requestDeletion(id: string, body: { reason: string }, ctx: AdminContext) {
     await this.target(id, ctx);
-    await this.adminAuth.reauthenticate(ctx, body.totpCode);
     const now = new Date();
     let rooms: string[] = [];
     const out = await this.prisma.$transaction(async (tx) => {

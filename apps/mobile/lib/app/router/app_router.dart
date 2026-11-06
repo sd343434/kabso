@@ -101,6 +101,7 @@ import 'package:kabso_live/features/settings/account_deletion/account_deletion_s
 import 'package:kabso_live/features/settings/account_deletion/deletion_pending_screen.dart';
 import 'package:kabso_live/features/settings/sessions/sessions_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
+import 'package:kabso_live/features/staff/presentation/staff_reports_screen.dart';
 import 'package:kabso_live/features/staff/presentation/staff_screen.dart';
 import 'package:kabso_live/features/staff/presentation/staff_unavailable_screen.dart';
 import 'package:kabso_live/features/store/presentation/store_screen.dart';
@@ -538,6 +539,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.staffEarnings,
         builder: (_, _) => const StaffEarningsScreen(),
+      ),
+      // v1.78-live (D288): «بلاغات» — the shared report queue.
+      GoRoute(
+        path: AppRoutes.staffReports,
+        builder: (_, state) => StaffReportsScreen(
+          focusReportId: state.uri.queryParameters['report'],
+        ),
       ),
       GoRoute(
         path: AppRoutes.creatorApply,

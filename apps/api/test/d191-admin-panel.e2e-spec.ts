@@ -61,6 +61,7 @@ describe('D191 contract coverage', () => {
       // v1.76-social (D218): the cover removal is covered by d218-social-redesign.
       // v1.78-social (D223): the accounts made on a device are covered by d223-device-limit.
       // v1.87-social (D287): an agent's employees are covered by d287-recharge-employees.
+      // v1.78-live (D288): the shared queue's resolve / reopen / counter are covered by d288-shared-reports.
       .filter((o) => {
         const d = typeof o.spec.description === 'string' ? o.spec.description : '';
         return (
@@ -68,7 +69,8 @@ describe('D191 contract coverage', () => {
           !d.startsWith('(v1.72-social, D208') &&
           !d.startsWith('(v1.76-social, D218)') &&
           !d.startsWith('(v1.78-social, D223') &&
-          !d.startsWith('(v1.87-social, D287')
+          !d.startsWith('(v1.87-social, D287') &&
+          !d.startsWith('(v1.78-live, D288')
         );
       })
       .map((o) => o.operationId)
@@ -565,22 +567,11 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         [finance.id, moderator.id].sort(),
       );
 
-      // v1.72-social (D208, owner 2026-10-31): a ban needs the authenticator code again.
-      expect((await post(moderator, `/admin/users/${u.id}/ban`, { reason: 'spam account' })).status).toBe(
-        400,
-      );
-      const wrongCode = await post(moderator, `/admin/users/${u.id}/ban`, {
-        reason: 'spam account',
-        totpCode: '000000',
-      });
-      expect(wrongCode.status).toBe(403);
-      expect(wrongCode.body.error.code).toBe('ADMIN_TOTP_INVALID');
+      // v1.72-social (D208) asked for the authenticator code again; v1.78-live (D288, owner «يلغي»): no code — the
+      // role and capability, the rate limit and the audit protect the ban.
       expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: u.id } })).status).toBe('ACTIVE');
-      const ban = await post(moderator, `/admin/users/${u.id}/ban`, {
-        reason: 'spam account',
-        totpCode: nextCode(moderator.secret),
-      });
-      expect(ban.status).toBe(200);
+      const ban = await post(moderator, `/admin/users/${u.id}/ban`, { reason: 'spam account' });
+      expect(ban.status, JSON.stringify(ban.body)).toBe(200);
       expectContract(ban, 'banAdminUser');
       // The app session dies at once.
       expect([401, 403]).toContain(
@@ -590,7 +581,6 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
         (
           await post(moderator, `/admin/users/${u.id}/ban`, {
             reason: 'again',
-            totpCode: nextCode(moderator.secret),
           })
         ).body.error.code,
       ).toBe('ADMIN_ACTION_REFUSED');

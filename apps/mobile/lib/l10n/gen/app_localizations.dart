@@ -25245,6 +25245,204 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حسابات فريق كابسو لا يمكنها القيام بهذا.'**
   String get errorStaffAccountLimited;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغات'**
+  String get staffSharedReports;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'البلاغات'**
+  String get staffSharedReportsTitle;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} بلاغ غير محلول'**
+  String staffSharedReportsBadge(int count);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'البلاغات مشتركة بين المشرفين والدعم: من يحل البلاغ يضغط «تم حله».'**
+  String get staffSharedReportsHint;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير محلولة'**
+  String get staffSharedTabOpen;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حلها'**
+  String get staffSharedTabResolved;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بلاغات بانتظار الحل'**
+  String get staffSharedEmptyOpen;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بلاغات محلولة بعد'**
+  String get staffSharedEmptyResolved;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حله'**
+  String get staffSharedResolve;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حل البلاغ'**
+  String get staffSharedResolveTitle;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'يصبح البلاغ محلولاً لكل فريق الإشراف والدعم، ويظهر اسمك ووقت الحل.'**
+  String get staffSharedResolveIntro;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة (اختيارية)'**
+  String get staffSharedResolveNote;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'حلّه {name} · {when}'**
+  String staffSharedResolvedBy(String name, String when);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحل · {when}'**
+  String staffSharedResolvedAt(String when);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة الحل: {note}'**
+  String staffSharedResolutionNote(String note);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حله بالفعل من عضو آخر في الفريق'**
+  String get staffSharedAlreadyResolved;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حل البلاغ'**
+  String get staffSharedDone;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'أبلغ: {name}'**
+  String staffSharedReportedBy(String name);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'صاحب المحتوى: {name}'**
+  String staffSharedAuthor(String name);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملاحظة المبلّغ: {note}'**
+  String staffSharedReporterNote(String note);
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'المحتوى محذوف أو مخفي'**
+  String get staffSharedGone;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'مرفوض'**
+  String get staffSharedOutcomeDismissed;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'منشور'**
+  String get staffReportTypePost;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليق'**
+  String get staffReportTypeComment;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'قصة'**
+  String get staffReportTypeStory;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب'**
+  String get staffReportTypeUser;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث'**
+  String get staffReportTypeLive;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة في بث'**
+  String get staffReportTypeLiveChat;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتراف CP'**
+  String get staffReportTypeConfession;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عائلة'**
+  String get staffReportTypeFamilyChat;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة خاصة'**
+  String get staffReportTypeDm;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'رابط في الملف'**
+  String get staffReportTypeLink;
+
+  /// D288: «بلاغات» — the shared report queue (§10.101).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغ جديد بانتظار الحل'**
+  String get notifStaffReportNew;
 }
 
 class _AppLocalizationsDelegate

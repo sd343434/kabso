@@ -114,6 +114,10 @@ enum NotificationType {
   /// staff member looks after — opens the live as «فريق كابسو» on its
   /// reports.
   liveStaffReport('LIVE_STAFF_REPORT'),
+
+  /// v1.78-live (D288, system; target REPORT): a new report in the shared
+  /// queue — every moderator and support member; opens «بلاغات» on it.
+  staffReportNew('STAFF_REPORT_NEW'),
   unknown('');
 
   new(this.wire);
@@ -141,6 +145,7 @@ enum NotificationType {
       isKyc ||
       this == liveModerated ||
       this == liveStaffReport ||
+      this == staffReportNew ||
       this == referralRewardReversed;
 
   /// v1.80-kyc (D227): the identity check's result.
@@ -194,7 +199,10 @@ enum NotificationTargetType {
   liveModeration('LIVE_MODERATION'),
 
   /// v1.68-live (D273): a live (its id; `text` the host's name).
-  liveRoom('LIVE_ROOM');
+  liveRoom('LIVE_ROOM'),
+
+  /// v1.78-live (D288): a report of the shared queue (its id; no text).
+  report('REPORT');
 
   new(this.wire);
 

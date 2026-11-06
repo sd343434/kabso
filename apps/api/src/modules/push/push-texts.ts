@@ -26,6 +26,11 @@ export interface NotificationText {
 export type PushLocale = 'ar' | 'en';
 
 export const PUSH_TITLE: Readonly<Record<PushLocale, string>> = { ar: 'Kabso Live', en: 'Kabso Live' };
+/** v1.78-live (D288, §10.101): the title of a STAFF_REPORT_NEW push (the staff channel). */
+export const STAFF_REPORT_PUSH_TITLE: Readonly<Record<PushLocale, string>> = {
+  ar: 'بلاغات فريق كابسو',
+  en: 'Kabso Team reports',
+};
 
 /** At most this many code points of a chat message in its push. */
 export const PUSH_BODY_MAX = 100;
@@ -204,6 +209,9 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       if (ar) return host ? `بلاغ جديد على بث ${host}` : 'بلاغ جديد على بث';
       return host ? `New report on ${host}'s live` : 'New report on a live';
     }
+    // v1.78-live (D288, §10.101): a new report in the shared queue — never the reporter, the reason or the target.
+    case 'STAFF_REPORT_NEW':
+      return ar ? 'بلاغ جديد بانتظار الحل' : 'A new report is waiting to be resolved';
     default:
       return null;
   }

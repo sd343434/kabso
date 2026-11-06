@@ -96,6 +96,18 @@ describe('panel roles', () => {
     expect(can(['FINANCE'], 'withdrawals.decide')).toBe(true);
     expect(can(['FINANCE'], 'recharge.applications')).toBe(false);
     expect(can(['FINANCE', 'MODERATION'], 'reports.view')).toBe(true);
+    // v1.78-live (D288): the shared queue — SUPPORT reads and resolves, never acts on the target; reopen is OWNER's.
+    expect(can(['SUPPORT'], 'reports.view')).toBe(true);
+    expect(can(['SUPPORT'], 'reports.resolve')).toBe(true);
+    expect(can(['MODERATION'], 'reports.resolve')).toBe(true);
+    expect(can(['SUPPORT'], 'reports.act')).toBe(false);
+    // Owner (option B): the moderators reopen too; SUPPORT never.
+    expect(can(['MODERATION'], 'reports.reopen')).toBe(true);
+    for (const role of ['SUPPORT', 'FINANCE', 'BD']) expect(can([role], 'reports.reopen')).toBe(false);
+    for (const role of ['FINANCE', 'BD']) {
+      expect(can([role], 'reports.view')).toBe(false);
+      expect(can([role], 'reports.resolve')).toBe(false);
+    }
     for (const role of ['MODERATION', 'SUPPORT', 'FINANCE']) expect(can([role], 'site.settings')).toBe(false);
     expect(capabilitiesOf([])).toEqual([]);
     expect(capabilitiesOf(['LEVELS_VIEW'])).toEqual([]);

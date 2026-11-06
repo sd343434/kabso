@@ -107,7 +107,7 @@ All non-2xx responses use one envelope:
 | 503 | `MEDIA_UPLOADS_UNAVAILABLE` | *(v1.5-social, DRAFT, CP-006)* Uploads are disabled by server config `MEDIA_UPLOADS_ENABLED=false` (no storage credentials yet, B12). *(v1.75-social, D222)* — or, more precisely, no storage is on: neither the OWNER's «التخزين (R2 / S3)» in the panel (§10.72) nor `MEDIA_UPLOADS_ENABLED` with `S3_*`; the apps say «التخزين غير مفعّل» / their per-feature «unavailable» text. Not transient: no `Retry-After`. |
 | 422 | `MEDIA_INVALID` | *(v1.5-social, DRAFT)* The uploaded object is missing, does not match the declared type or size, or is not a decodable image within the limits (§11.1). |
 | 409 | `PIN_LIMIT_REACHED` | *(v1.5-social, DRAFT)* The caller already has 3 pinned posts. |
-| 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. |
+| 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. *(v1.78-live, D288, §10.101)* Also the second «تم حله» on the same report (the first press won; the client reloads and shows who resolved it). |
 | 409 | `LIVE_SCHEDULE_FULL` | *(v1.14-live, DRAFT, CP-016 C)* The host already has 10 upcoming scheduled lives. |
 | 409 | `INSUFFICIENT_COINS` | *(v1.19-live, DRAFT, CP-017)* The caller's coin balance does not cover the price (a bullet message costs 15 coins, §10.19). Nothing was charged or sent. The app shows the balance (`GET /wallet/me`). |
 | 403 | `LIVE_KICKED` | *(v1.20-live, DRAFT, D105)* The host or a moderator kicked the caller out of this live (§10.20): no media token, chat, bullet, taps or seat request in it until it ends. The app leaves the room and says so; a later live of the same host is fine. |
@@ -716,6 +716,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.47-social (draft) | 2026-10-30 | **D175 (owner, Arabic, answering D168's questions a–g; CP-025; v1.46-social left free for another branch):** profile fields, private accounts and follow requests. `Gender` (`MALE`, `FEMALE`, `UNDISCLOSED`) is **required** by `register` (`RegisterRequest.gender`) and editable with `updateMe` together with `showGender` (default false), `category` (`AccountCategory`: 11 values) and `links` (0–3 `ProfileLinkInput`, https only, normalised); `Me` gains `gender`, `showGender`, `category`, `links`; `PublicProfile` gains `gender` (only when shown), `category`, `links` (`ProfileLink` with `ProfileLinkPlatform`) and `followRequested`; `FollowState.isRequested`; `FollowListItem.requestedByMe`; `PrivacySettings.isPrivate` / `UpdatePrivacyRequest.isPrivate` (switching to public accepts every pending request); a new follow of a private account is a **follow request** (was 403); `listFollowRequests` (`GET /me/follow-requests`, `FollowRequestPage`, `FollowRequest`), `acceptFollowRequest` / `declineFollowRequest` (`POST /me/follow-requests/{username}/accept` → `FollowRequestAccepted`, `…/decline` → 204); `NotificationType` `FOLLOW_REQUEST`, `FOLLOW_REQUEST_ACCEPTED`, `AVATAR_REMOVED`; report `targetType: PROFILE_LINK` (`Report.linkSnapshot`, `ProfileLinkSnapshot`); code `FOLLOW_REQUEST_NOT_PENDING` (409); server config `RATE_LIMIT_FOLLOW_REQUEST_ANSWER_USER`; CLI `profile-admin remove-avatar`; audit `user.privacy.private`, `admin.avatar.remove`; migrations `20261215090000_profile_fields_enums`, `20261215100000_profile_fields_private_accounts`. §4, §7, §10.5, §10.6, §10.42, §10.47, §11.7, §11.10. | **Breaking for registration** (`gender` is required: an app without the gender step gets 400 `gender` / `required`; app and API ship together). **Behaviour change** for a new follow of a private account (200 with `isRequested: true` instead of 403; no app could make an account private before). Otherwise **additive** (new required response fields: strict clients update their models in the same change set; clients ignore unknown notification types and treat an unknown `ProfileLinkPlatform` as `OTHER`). |
 | v1.70-live (draft) | 2026-11-05 | **D279 (owner: a «في بث الآن» card on the profile under the cover while its owner is live — how long, viewers, score, «انضم»):** `PublicProfile.live` (`ProfileLive`: `roomId`, `title`, `mode`, `startedAt`, `viewerCount`, `score`; required, nullable) — the fresh LIVE room of `liveRoomId`, null when that is null and across a block either way. No migration. §10.5.1. | **Additive** (a new response field; an older app ignores it). |
 | v1.74-live (draft) | 2026-11-05 | **D283d (owner corrections to D283c / D283: «المالك… لا، kabso»; the region line only in the official bio):** the primary OWNER's staff ID is plain **«Kabso»** (number 0; the earliest OWNER grant; any other OWNER gets the next number; retired like the others); the staff numbering starts at `Kabso01` with the first other staff member; `StaffId` pattern `^Kabso(0[1-9]|[1-9][0-9]{1,8})?$`; `search` «Kabso» finds the primary OWNER first; `kabso` and its bare look-alikes (`kabs0`, `k4bso`) reserved too. The apps show the staff region line «مشرف للوطن العربي» only in the official bio card's header (not under the name / ID). Migration `20270318090000_staff_ids_owner` (CHECK `staff_ids_number_nonnegative`, `kabso_assign_staff_id(uuid, boolean)`, renumber). §10.96.10, §10.96.12. | **Additive** (a `staffId` may now be `Kabso`); the D283c numbers shift down by one (renumbered before any release). |
+| v1.78-live (draft) | 2026-11-06 | **D288 (owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله», and «يلغي» for the code on the permanent ban and content deletion): the shared report queue «البلاغات المشتركة», and two actions without a code** — `banAdminUser`, `moderateAdminContent` `delete` and `requestAdminUserDeletion` need no authenticator code (`totpCode` deprecated, accepted and ignored). `reports.view` gains SUPPORT; new capabilities `reports.resolve` (OWNER, MODERATION, SUPPORT) and `reports.reopen` (OWNER, MODERATION). `listAdminPanelReports` `status=RESOLVED`, `AdminPanelReport.resolvedBy` / `resolutionNote`; `resolveAdminPanelReport`, `reopenAdminPanelReport`, `getAdminPanelReportsSummary`; the app's «بلاغات» `listStaffReports`, `getStaffReportsSummary`, `resolveStaffReport`; `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Notification `STAFF_REPORT_NEW` (target `REPORT`: `reportTargetType`, `reportOpen`), push channel `staff` (Android `kabso_staff`). Migration `20270322090000_shared_reports` (`notification_type` value, `notifications.report_id`, `reports_resolved_idx`). §10.101; §10.96.14's table. | **Additive** (new operations, enum values, optional fields; the deprecated `totpCode` still accepted). **Behaviour change:** no code for the ban, content deletion and account deletion; SUPPORT sees every report; a new report notifies every moderator and support member. |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
@@ -7114,7 +7115,11 @@ recruiter earns an automatic share of the platform profit the recruit generates;
   | Recharge dispute resolution (`resolveAdminRechargeDispute`), top-ups to agents, withdrawals paid / rejected, refunds, balance adjustments | coin / cherry movement |
   | Agencies (extend probation, close, reopen), referrals (approve, void, settings), live boost prices | money |
   | Payment, FX, KYC and storage settings (update / clear keys) | secrets and money |
-  | Permanent account ban (`banAdminUser`), account deletion, permanent content deletion, temporary password, e-mail change | permanent or account-takeover risk (a timed SUSPEND / NO_LIVE, hiding content and the live actions need none) |
+  | ~~Permanent account ban (`banAdminUser`)~~, ~~account deletion~~, ~~permanent content deletion~~, temporary password, e-mail change | permanent or account-takeover risk (a timed SUSPEND / NO_LIVE, hiding content and the live actions need none) |
+
+  *(v1.78-live, D288, §10.101.1)* Owner «يلغي» then «نعم»: the **permanent account ban**, the **permanent content
+  deletion** and **starting an account's deletion** no longer need the code. The temporary password and the e-mail
+  change keep it, as does everything else in the table.
 
 - **The automatic shift.** Staff work by a watch staff member (OWNER, MODERATION, SUPPORT — never FINANCE or BD)
   switches «في المناوبة» on when it is off: **entering a live as staff** (the app's `createLiveMediaToken`, visible or
@@ -7353,6 +7358,97 @@ Owner (staging, 2026-11-02): «موظف وكيل الشحن لا يمكنه شر
   request's shape CHECK now also allows `created_by` = `acted_by`: an employee who created it for the agent).
   DEPLOYMENT §5.68.
 
+### 10.101 «البلاغات المشتركة» — the shared report queue, and no code for the ban and content deletion *(v1.78-live, DRAFT — D288)*
+
+Owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله» — a report reaches every moderator and support
+member, and whoever resolves it presses «تم حله». And, asked whether the code should also go from the permanent ban and
+the permanent content deletion: «يلغي». (§10.100 is left free for another branch.)
+
+#### 10.101.1 No authenticator code for the permanent ban and the permanent content deletion
+
+- `banAdminUser` (`POST /admin/users/{userId}/ban`), `moderateAdminContent` with `op = delete` (a post, reel or story
+  for good; a comment is only ever removed) and `requestAdminUserDeletion` no longer call the step-up. `totpCode` is **deprecated**: still
+  accepted (6 digits) and ignored, so a panel built before D288 keeps working; it is never checked, never counted
+  towards the lockout. The report queue's `BAN` (`actOnAdminPanelReport`) never asked for it.
+- Kept on every request: the session, the capability (`users.ban` OWNER / MODERATION; `users.content` OWNER /
+  MODERATION), the target rules (an account holding a panel role only by an OWNER, never one's own), the reason (400
+  without), the panel's `admin:ip` limit, and the full audit (`admin.user.ban` {reason, before, after, via};
+  `admin.content.delete` {reason, authorId, before, after, reportsClosed, via}, with the actor, IP and request id).
+- **Account deletion too (owner, asked separately because D286 listed it apart: «نعم»).** `requestAdminUserDeletion`
+  needs no code: `users.delete` (OWNER) on every request, the reason (400 without), `admin:ip` and the audit
+  `account.deletion.requested` {reason, via}; `totpCode` deprecated the same way; the D193 grace period still lets it be
+  cancelled. The code stays for the panel sign-in, the team's roles / regions / 2FA resets, the device ban, every money
+  action, the settings, the temporary password and the e-mail change (§10.96.14's table).
+- The app's staff tools have no permanent ban or content deletion (§10.96.6); nothing changes there.
+
+#### 10.101.2 Every report reaches the moderators and the support
+
+- **Who sees the queue.** `reports.view` is OWNER, MODERATION **and SUPPORT** (SUPPORT was not in it): the panel's
+  «البلاغات» (`listAdminPanelReports`) and, in the app, the Me tab's «بلاغات» (`listStaffReports`) — the same list, the
+  same preview, the reporter, the DM / link snapshots. The actions on a target (`actOnAdminPanelReport`: dismiss,
+  remove, warn, ban — `reports.act`) stay OWNER / MODERATION; SUPPORT reads and resolves.
+- **Lists.** `status=OPEN` (default) oldest first, as before; `status=RESOLVED` every closed report (ACTIONED or
+  DISMISSED, «تم حله» included) **newest resolution first** (cursor on `resolved_at`, index `reports_resolved_idx`);
+  ACTIONED / DISMISSED alone still work. Each `AdminPanelReport` carries `resolvedBy` (`ReportResolver` {id, username,
+  displayName}; null while OPEN) and `resolutionNote`.
+- **The counter.** `getAdminPanelReportsSummary` / `getStaffReportsSummary` → `{open}` (every OPEN report). The panel
+  shows it on the «البلاغات» nav item (read every 30 s and after each change; hidden at 0; «99+» above 99); the app on the
+  «بلاغات» row (read when the Me tab shows, after «تم حله», when a `STAFF_REPORT_NEW` arrives, and every 60 s while the
+  tab is on screen). The staff summary is not staff work (§10.96.14): the badge never switches the shift on; the list
+  and «تم حله» are staff work.
+
+#### 10.101.3 The alert `STAFF_REPORT_NEW`
+
+- **When.** Every new report (`createReport` that stores a row; a repeat of one's own open report does not).
+- **Who (decided).** Every ACTIVE ADMIN account holding **MODERATION or SUPPORT** now, **on shift or not** — reports are
+  not assigned like lives, so the shift does not filter; it only lets the push skip the general gap (as D273). If there
+  is none, every OWNER. Never the reporter or the reported user. Every report type goes to all of them (every one of
+  them can resolve any report). *Confirmed by the owner.* SUPPORT seeing every report, DM and link snapshots included, is
+  **accepted by the owner**. A report on a live first runs the D273 alert (§10.96.8, the live's responsible staff
+  member gets `LIVE_STAFF_REPORT`); those recipients are not told twice.
+- **The row.** System type (always on; there is no per-type switch in the notification settings — system types are not
+  listed there), target `REPORT` (`id` the report, `reportTargetType`, `reportOpen`; no text, no picture). **One unread
+  row per staff member** (`group_key = STAFF_REPORT_NEW`): a newer report moves it up and points it at the newest report,
+  and the dispatcher pushes it again. Resolving a report marks the rows pointing at it read for everyone. Stored in
+  `notifications.report_id` (cascade with the report).
+- **The push.** Its own Android channel **`kabso_staff`** («بلاغات فريق كابسو» / "Kabso Team reports", created by the app;
+  the staff can set its sound apart — owner: **no separate sound**, it plays the general one), title «بلاغات فريق كابسو» / "Kabso Team reports",
+  body «بلاغ جديد بانتظار الحل» / "A new report is waiting to be resolved" — never the reporter, the reason, the note or
+  the target. An app before D288 has no such channel: Android shows it on the manifest's default channel. On shift →
+  sent even within the general gap; off shift → the usual push rules. Audited `moderation.report.alert` {reportId,
+  recipients, route `staff` | `owners`, liveRecipients} and `moderation.report.push` {recipientId, notificationId, sent,
+  onShift}.
+- **The tap** (inbox or push) opens «بلاغات» on that report (`/me/staff/reports?report=<id>`).
+
+#### 10.101.4 «تم حله»
+
+- `resolveAdminPanelReport` (panel) / `resolveStaffReport` (app, `via: app`) — `reports.resolve`: OWNER, MODERATION,
+  SUPPORT. Body `{note?}` (1–500). The report becomes **ACTIONED** with `resolved_at`, `resolved_by_id` (the caller) and
+  `resolution_note` — the existing columns, no migration for them. Only this report closes (another person's report on
+  the same target stays in the queue; the actions of §11.7 still close them all). Nothing is done to the target.
+- **For everyone.** The report leaves «غير محلولة» for every staff member and shows under «تم حلها» with «حلّه
+  <displayName> · <time>» and the note.
+- **Concurrency.** The row is locked (`FOR UPDATE`): of two presses the first wins; the second gets **409
+  `REPORT_ALREADY_RESOLVED`**; the panel and the app then reload and show «تم حله بالفعل» with who resolved it.
+- **Decided (owner):** «تم حله» closes **only the pressed report**; the reporters' other open reports on the same target
+  stay in the queue.
+- **Audit.** `moderation.report.resolve` {reportId, note, via} with the actor, IP and request id.
+
+#### 10.101.5 Reopen
+
+- `reopenAdminPanelReport` `{reason}` — **`reports.reopen`: OWNER and MODERATION** (owner's answer, option B: the
+  moderators; SUPPORT cannot reopen). Back to OPEN; the resolution is cleared (the audit keeps it); nothing done
+  to the target is undone. An OPEN report → 409 `ADMIN_ACTION_REFUSED` `report_open`; the same reporter already has
+  another open report on the same target (one open report per reporter and target, §11.7) → 409 `report_duplicate`.
+  Audited `moderation.report.reopen` {reportId, reason, before, resolvedById, via}. Panel only.
+
+#### 10.101.6 Compatibility
+
+Additive. Older panels: the ban and delete dialogs still send a code (ignored). Older apps: `STAFF_REPORT_NEW` is a type
+they do not know (skipped in the inbox; the push shows on the default channel and opens the inbox); `StaffStatus`'s two
+new capabilities are ignored. Migration `20270322090000_shared_reports`: `notification_type` gains `STAFF_REPORT_NEW`,
+`notifications.report_id` (FK, cascade, partial index), `reports_resolved_idx`. No server setting.
+
 ### 11.1 Media upload
 
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
@@ -7502,7 +7598,8 @@ count is eventually consistent (≤ 1 min).
   messages are deleted after 24 h, §11.13) — *v1.47-social:* or a profile link (`targetType: PROFILE_LINK`,
   kept as a snapshot, §10.47) — or, for a user, records the decision only (suspension stays a separate
   admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
-  report → 409 `REPORT_ALREADY_RESOLVED`.
+  report → 409 `REPORT_ALREADY_RESOLVED`. *(v1.78-live, D288, §10.101)* The panel's queue is shared by OWNER,
+  MODERATION and SUPPORT; «تم حله» closes one report for everyone; a new report alerts them (`STAFF_REPORT_NEW`).
 - **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user
   follows; `NOBODY`) and `defaultWhoCanComment` (`EVERYONE` default) for new posts;
   *(v1.25-live, CP-022)* `showActivityStatus` (default true): whether family members may see when

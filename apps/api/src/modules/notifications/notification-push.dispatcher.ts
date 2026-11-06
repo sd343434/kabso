@@ -5,7 +5,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
-import { notificationBody, PUSH_TITLE } from '../push/push-texts.js';
+import { notificationBody, PUSH_TITLE, STAFF_REPORT_PUSH_TITLE } from '../push/push-texts.js';
 import { PushThrottle } from '../push/push-throttle.js';
 import { NotificationsService, type NotificationDto } from './notifications.service.js';
 
@@ -29,7 +29,8 @@ interface Claimed {
 export function notificationPushData(dto: NotificationDto): Record<string, string> {
   const data: Record<string, string> = {
     kind: 'notification',
-    channel: 'general',
+    // v1.78-live (D288): the shared queue's alerts go on the staff channel.
+    channel: dto.type === 'STAFF_REPORT_NEW' ? 'staff' : 'general',
     notificationId: dto.id,
     type: dto.type,
   };
@@ -109,7 +110,9 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
     if (!dto || dto.read) return false;
     // v1.68-live (D273, §10.96.8): a report alert to a staff member on shift always goes out (never held back by the
     // general gap between pushes); off shift (the OWNERs' fallback) it follows the usual rules.
-    const staffAlert = dto.type === 'LIVE_STAFF_REPORT';
+    // v1.78-live (D288, §10.101): the same for the shared queue's STAFF_REPORT_NEW.
+    const sharedAlert = dto.type === 'STAFF_REPORT_NEW';
+    const staffAlert = dto.type === 'LIVE_STAFF_REPORT' || sharedAlert;
     const onShift = staffAlert && (await this.onShift(row.recipient_id));
     if (!onShift && !(await this.throttle.allow(`n:${row.id}`, PUSH_PER_NOTIFICATION_SECONDS))) return false;
     if (!onShift && !(await this.throttle.allow(`g:${row.recipient_id}`, this.config.push.generalGapSeconds)))
@@ -117,7 +120,7 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
     const actor = dto.actors[0];
     const sent = await this.push.deliver({
       userIds: [row.recipient_id],
-      channel: 'general',
+      channel: sharedAlert ? 'staff' : 'general',
       tag: `n:${dto.id}`,
       data: notificationPushData(dto),
       text: (locale) => {
@@ -136,14 +139,16 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
           },
           locale,
         );
-        return body === null ? null : { title: PUSH_TITLE[locale], body };
+        return body === null
+          ? null
+          : { title: (sharedAlert ? STAFF_REPORT_PUSH_TITLE : PUSH_TITLE)[locale], body };
       },
     });
     if (staffAlert) {
       await this.audit.record({
-        action: AuditAction.LIVE_STAFF_REPORT_PUSH,
+        action: sharedAlert ? AuditAction.MODERATION_REPORT_PUSH : AuditAction.LIVE_STAFF_REPORT_PUSH,
         actorUserId: null,
-        targetType: 'live_room',
+        targetType: sharedAlert ? 'report' : 'live_room',
         targetId: dto.target?.id,
         metadata: { recipientId: row.recipient_id, notificationId: row.id, sent, onShift },
       });

@@ -46,6 +46,13 @@ abstract final class AppRoutes {
   /// v1.75-live (D285): «استقطاباتي» and «أرباحي» in the staff Me tab
   /// (MODERATION / BD).
   static const staffRecruits = '/me/staff/recruits';
+
+  /// v1.78-live (D288, §10.101): «بلاغات» — the shared report queue (the
+  /// staff Me tab, MODERATION / SUPPORT); [staffReportsFor] opens it on one
+  /// report (a `STAFF_REPORT_NEW` tap).
+  static const staffReports = '/me/staff/reports';
+  static String staffReportsFor(String reportId) =>
+      '$staffReports?report=${Uri.encodeQueryComponent(reportId)}';
   static const staffEarnings = '/me/staff/earnings';
 
   /// v1.75-live (D285): «انضم كصانع محتوى» (from the creator centre).
