@@ -332,6 +332,12 @@ export enum ErrorCode {
    * `announcement` when an account outside the team asks for an announcement post or reel.
    */
   STAFF_ACCOUNT_LIMITED = 'STAFF_ACCOUNT_LIMITED',
+  /**
+   * v1.79-live (DRAFT, D289, §10.102): the badges of a gift or a store item in the panel break a rule — `details:
+   * [{field: 'badges', issue: 'sound_exclusive' | 'duplicate_value'}]` or `[{field: 'badges[i].until', issue:
+   * 'until_required' | 'until_not_allowed' | 'until_past' | 'until_too_far' | 'invalid_format'}]`. Nothing changed.
+   */
+  ITEM_BADGES_INVALID = 'ITEM_BADGES_INVALID',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -488,6 +494,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 403,
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 409,
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 403,
+  [ErrorCode.ITEM_BADGES_INVALID]: 400,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -645,6 +652,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.STAFF_STEP_UP_REQUIRED]: 'Enter your authenticator code to use the staff tools.',
   [ErrorCode.STAFF_TOTP_NOT_ENROLLED]: 'Set up the authenticator in the admin panel first.',
   [ErrorCode.STAFF_ACCOUNT_LIMITED]: 'A Kabso Team account cannot do this.',
+  [ErrorCode.ITEM_BADGES_INVALID]: 'These badges cannot be set together.',
 };
 
 export interface ErrorDetail {

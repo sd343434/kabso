@@ -225,6 +225,7 @@ All non-2xx responses use one envelope:
 | 403 | `STAFF_STEP_UP_REQUIRED` | **Deprecated v1.76-live (D286): no longer returned — the tools need no code.** *(v1.68-live, DRAFT, D273)* A staff tool in the app without a valid step-up grant (none, expired, or ended by sign-out, a revoked role, a lockout or a reset authenticator): the app asks for the panel authenticator code (`createStaffStepUp`). §10.96.6. |
 | 409 | `STAFF_TOTP_NOT_ENROLLED` | *(v1.68-live, DRAFT, D273)* `createStaffStepUp`: the staff member has not set up the panel authenticator yet; the app sends them to admin.<domain>. §10.96.6. |
 | 403 | `STAFF_ACCOUNT_LIMITED` | *(v1.72-live, DRAFT, D283)* a Kabso Team account (MODERATION / SUPPORT / FINANCE, not OWNER) cannot do this: `details[0] = {field: staff, issue}` with `live` (go live, schedule a live, apply to host), `post_kind` (a post or reel that is not an announcement), `story`, `repost`, `family`, `vip`, `tasks`, `avatar`, `cover`, `bio` (`updateMe` with `bio`, D283b), `frame` (wear another avatar frame), `store`, `recharge_employee` (*v1.87-social, D287*: an employee of a recharge agent who became a Kabso Team account sells, buys cherries or acts on an order — §10.100); or `{field: announcement, issue: announcement}` — an account outside the team asked for an announcement. Nothing changed. §10.96.10. |
+| 400 | `ITEM_BADGES_INVALID` | *(v1.79-live, DRAFT, D289)* The panel's badges for a gift or a store item break a rule: `details: [{field: badges, issue: sound_exclusive \| duplicate_value}]` («بمؤثرات صوتية» with «بدون مؤثرات صوتية», a badge twice) or `[{field: "badges[i].until", issue: until_required \| until_not_allowed \| until_past \| until_too_far \| invalid_format}]`. Nothing changed. §10.102. |
 | 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
@@ -717,6 +718,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.70-live (draft) | 2026-11-05 | **D279 (owner: a «في بث الآن» card on the profile under the cover while its owner is live — how long, viewers, score, «انضم»):** `PublicProfile.live` (`ProfileLive`: `roomId`, `title`, `mode`, `startedAt`, `viewerCount`, `score`; required, nullable) — the fresh LIVE room of `liveRoomId`, null when that is null and across a block either way. No migration. §10.5.1. | **Additive** (a new response field; an older app ignores it). |
 | v1.74-live (draft) | 2026-11-05 | **D283d (owner corrections to D283c / D283: «المالك… لا، kabso»; the region line only in the official bio):** the primary OWNER's staff ID is plain **«Kabso»** (number 0; the earliest OWNER grant; any other OWNER gets the next number; retired like the others); the staff numbering starts at `Kabso01` with the first other staff member; `StaffId` pattern `^Kabso(0[1-9]|[1-9][0-9]{1,8})?$`; `search` «Kabso» finds the primary OWNER first; `kabso` and its bare look-alikes (`kabs0`, `k4bso`) reserved too. The apps show the staff region line «مشرف للوطن العربي» only in the official bio card's header (not under the name / ID). Migration `20270318090000_staff_ids_owner` (CHECK `staff_ids_number_nonnegative`, `kabso_assign_staff_id(uuid, boolean)`, renumber). §10.96.10, §10.96.12. | **Additive** (a `staffId` may now be `Kabso`); the D283c numbers shift down by one (renumbered before any release). |
 | v1.78-live (draft) | 2026-11-06 | **D288 (owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله», and «يلغي» for the code on the permanent ban and content deletion): the shared report queue «البلاغات المشتركة», and two actions without a code** — `banAdminUser`, `moderateAdminContent` `delete` and `requestAdminUserDeletion` need no authenticator code (`totpCode` deprecated, accepted and ignored). `reports.view` gains SUPPORT; new capabilities `reports.resolve` (OWNER, MODERATION, SUPPORT) and `reports.reopen` (OWNER, MODERATION). `listAdminPanelReports` `status=RESOLVED`, `AdminPanelReport.resolvedBy` / `resolutionNote`; `resolveAdminPanelReport`, `reopenAdminPanelReport`, `getAdminPanelReportsSummary`; the app's «بلاغات» `listStaffReports`, `getStaffReportsSummary`, `resolveStaffReport`; `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Notification `STAFF_REPORT_NEW` (target `REPORT`: `reportTargetType`, `reportOpen`), push channel `staff` (Android `kabso_staff`). Migration `20270322090000_shared_reports` (`notification_type` value, `notifications.report_id`, `reports_resolved_idx`). §10.101; §10.96.14's table. | **Additive** (new operations, enum values, optional fields; the deprecated `totpCode` still accepted). **Behaviour change:** no code for the ban, content deletion and account deletion; SUPPORT sees every report; a new report notifies every moderator and support member. |
+| v1.79-live (draft) | 2026-11-06 | **D289 (owner: «كل شارة لها أيقونة خاصة في النظام كاملاً» — gift and store badges as a set, one icon each; «بمؤثرات صوتية» / «بدون مؤثرات صوتية» exclusive; «جديد» 14 days or the owner's date; «لفترة محدودة» / «موسمي» with an end; auto-detection in the panel; one or two on a gift-box tile, never over the price; all of them in the details; lucky gifts unchanged):** `ItemBadgeCode` (SOUND, NO_SOUND, NEW, MOST_WANTED, FEATURED, LIMITED, FULLSCREEN, EXCLUSIVE, SEASONAL), `ItemBadge` `{code, until}`, `AdminItemBadge` (+ `active`), `ItemBadgeInput` `{code, until?}`; `Gift.badges` and `StoreItem.badges` (required, the running ones in display priority); `Gift.badge` and `StoreItem.isNew` deprecated (derived); the panel's gift rows and `AdminStoreItem` gain `badges`; `createAdminGift` / `updateAdminGift` / `createAdminStoreItem` / `updateAdminStoreItem` accept `badges` (the old `badge` / `isNew` still accepted, not with it); `uploadAdminGiftFile` and `uploadAdminStoreArt` answer `hasAudio` / `fullscreen` (and an SVGA's `width` / `height` for gifts); code `ITEM_BADGES_INVALID` (400). Migration `20270323090000_item_badges`. **D289b (owner: «… لا يمكن حذفه، فاريد منك اضافة زر الحذف»):** `deleteAdminStoreItem` (`DELETE /admin/store/items/{itemId}`: DELETED when nobody bought or holds the item, else HIDDEN — out of the store, kept for its owners; `AdminStoreItemDeleted`, `AdminOptionalReasonRequest`), `restoreAdminStoreItem`, `AdminStoreItem.hiddenAt`; audit `store.item.delete \| hide \| restore`; migration `20270323090100_store_item_delete`. §4, §10.102. | **Additive** (a new required response field; deprecated fields keep their meaning while «جديد» runs; new optional request fields). |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
@@ -7448,6 +7450,129 @@ Additive. Older panels: the ban and delete dialogs still send a code (ignored). 
 they do not know (skipped in the inbox; the push shows on the default channel and opens the inbox); `StaffStatus`'s two
 new capabilities are ignored. Migration `20270322090000_shared_reports`: `notification_type` gains `STAFF_REPORT_NEW`,
 `notifications.report_id` (FK, cascade, partial index), `reports_resolved_idx`. No server setting.
+
+### 10.102 Gift and store badges «شارات الهدايا والمتجر» *(v1.79-live, DRAFT — D289)*
+
+Owner (2026-11-06): «كل شارة لها أيقونة خاصة في النظام كاملاً» — a gift or a store item carries a **set** of badges
+(it was one value: `GiftBadge` NONE / NEW / EVENT on gifts, `isNew` on store items), each with **one icon used
+everywhere** (the gift box, the store, the item's details, the panel). «بمؤثرات صوتية» and «بدون مؤثرات صوتية» cannot both
+be chosen; the panel pre-selects the sound badge and «شاشة كاملة» when the uploaded file shows it, and the owner can always
+change the choice; a small gift-box tile shows one or two badges (the icon alone when the label does not fit) and never
+covers the price; opening the gift or item shows all of them with their names; lucky gifts keep their current mark. From
+the store message: «جديد» goes away by itself after 14 days (or on another date the owner sets), «عرض لفترة محدودة» has
+an end date after which only the badge goes and the item stays on sale; colours: offer red, new green, most wanted gold,
+sound blue with a speaker; at most two badges on the item's image corner; the item's sheet shows all of them and the days
+left of an offer.
+
+#### 10.102.1 The badges
+
+| `ItemBadgeCode` | Arabic | English | Icon (one glyph everywhere) | Colour | End |
+| --------------- | ------ | ------- | --------------------------- | ------ | --- |
+| `LIMITED` | لفترة محدودة | Limited time | hourglass | red `#E50914` = `brand.red500` (owner: offer red), white text | required |
+| `NEW` | جديد | New | sparkle | green `#137A43` = `light.success` (owner), white text | optional: 14 days from when it is set |
+| `SEASONAL` | موسمي | Seasonal | calendar | amber `#F5A623` = `dark.warning`, ink `#0B0B0D` text | required (see migration) |
+| `EXCLUSIVE` | حصري | Exclusive | crown | ink `#0B0B0D` with gold `#F5C451` (`brand.gold`) text and edge | — |
+| `MOST_WANTED` | الأكثر طلباً | Most wanted | flame | gold `#F5C451` = `brand.gold` (owner), ink text | — |
+| `FEATURED` | مميز | Featured | diamond | violet `#7B4DFF`, white text | — |
+| `FULLSCREEN` | شاشة كاملة | Full screen | expand (four corners) | teal `#00796B`, white text | — |
+| `SOUND` | بمؤثرات صوتية | With sound | speaker | blue `#1A64BF` = `light.info` (owner), white text | — |
+| `NO_SOUND` | بدون مؤثرات صوتية | No sound | muted speaker | grey `#666671` = `light.textTertiary`, white text | — |
+
+- The colours and the order were approved by the owner (D289-Q5).
+- The table's order is the **display priority** (time-limited and fresh first, the file's properties last): a tile shows
+  the first one or two **running** badges in it, the details all of them. The API lists `badges` in this order.
+- The owner's four colours and most others are design tokens (`design-tokens.json`); violet and teal are the only new
+  hues, picked to stay apart from the owner's four. One fill per badge in light and dark (a pill on the art, not on the
+  page), so it reads the same in the dark gift box and the light store; the label is bold on a fill with ≥ 4.5 : 1
+  contrast (gold and amber take the ink text).
+- The icons are drawn for Kabso (24-unit, round strokes, the app's icon style); the same SVG paths are in the app
+  (`assets/icons/badges/`) and the panel (`ui/badge-icons.tsx`). No third-party art.
+
+#### 10.102.2 Rules (server)
+
+- The panel sends the whole set: `badges: [{code, until?}]` (an empty list takes every badge off) — 400
+  `VALIDATION_FAILED` for the shape (an unknown code, more than nine, a bad date), then 400 **`ITEM_BADGES_INVALID`**:
+  `badges` `sound_exclusive` (SOUND with NO_SOUND), `duplicate_value`; `badges[i].until` `until_required` (LIMITED or
+  SEASONAL without a date), `until_not_allowed` (a date on a badge without an end), `until_past`, `until_too_far` (more
+  than 366 days ahead). Nothing changes. The database holds the same rules (CHECKs `gifts_badges_sound`,
+  `store_items_badges_sound`, `*_badge_new_until`, `*_badge_limited_until`, `*_badge_seasonal_until`).
+- **Ends.** NEW without `until` ends 14 days after the save that set it (the panel shows and may change the date); a later
+  save keeps the date the panel sends back. LIMITED and SEASONAL end on the owner's date. **At the end only the badge
+  stops showing**: the gift stays in the catalogue, the store item stays on sale (a seasonal item too — the owner hides it
+  with «إيقاف» if wanted). The end is compared **when the list is read** (no sweeper): `Gift.badges` / `StoreItem.badges`
+  carry the running ones; the stored set (with ended ones, `active: false`) is the panel's. `GiftCatalogue.version`
+  includes the running badges, so it changes when one ends and the app reloads. The apps also hide a badge whose `until`
+  has passed by the device clock.
+- **Lucky gifts** may carry badges (the panel and the details sheet show them); their gift-box tile keeps the mark it had
+  before D289 (§10.102.4). (Owner, D289-Q3.)
+- **«موسمي» is always time-bound** (owner, D289-Q2: «نضعها محددة بوقت وتختفي عند الانتهاء»): a new or changed SEASONAL needs
+  its date (`until_required`). The only SEASONAL without an end is one migrated from EVENT; it shows until the owner sets
+  a date, and the panel's gift and store lists mark it «حدد تاريخ الانتهاء» (with the count and a «عرضها فقط» filter). The
+  form does not save the item again until that date is set.
+- **Older clients.** `Gift.badge` (deprecated) is the single value an older app reads: NEW while «جديد» runs, else EVENT
+  while «موسمي» runs, else NONE. `StoreItem.isNew` (deprecated) is true while «جديد» runs. The panel's and the CLI's old
+  inputs still work: `badge` (gift) NONE / NEW / EVENT and `isNew` (store) set or take off «جديد» / «موسمي» only (NEW gets
+  14 days; EVENT a «موسمي» without an end), never both with `badges` (400 `VALIDATION_FAILED` `conflict`). The columns
+  `gifts.badge` and `store_items.is_new` are written in step for a rollback and dropped in a later release.
+- Audit: `gift.add` / `gift.update` and `store.item.add` / `store.item.update` record the set as text (`CODE@end`, in
+  priority order) in before / after.
+
+#### 10.102.3 Detection in the panel
+
+- `uploadAdminGiftFile` (`kind=animation`) and `uploadAdminStoreArt` (`kind=animation`) answer what the file says:
+  `hasAudio` (an MP4 with an audio track — `hdlr` `soun` in `moov`, read with the D162 box parser; an SVGA whose
+  `MovieEntity` has `audios`) and `fullscreen` (the effect's picture — an MP4's display size, half the width of a
+  side-by-side one; an SVGA's `params.viewBox` — is portrait at least 1.5 : 1, a phone screen's shape). The gift upload
+  also answers an SVGA's `width` / `height`; `kind=sound` answers `hasAudio: true`. WebM is not an accepted format (gift
+  and store effects are SVGA or MP4), so it is not probed.
+- The panel then **pre-selects** (owner, D289-Q4: both): SOUND when the effect has audio or the gift has its MP3 sound;
+  NO_SOUND when there is an effect without either; FULLSCREEN when `fullscreen`. Pre-selected badges are marked «تلقائي» and can be changed; the
+  two sound badges are one choice (choosing one clears the other), so the panel never sends both. Editing a gift does not
+  re-run the detection until a new file is uploaded.
+
+#### 10.102.4 The apps
+
+- **Gift box** (the live and conversation gift sheet): up to **two** running badges per tile, in the priority order, in
+  the tile's top end corner, as small pills (icon + label); a pill whose label does not fit its share of the tile shows its
+  icon alone; the corner area stops above the name and the price row, so the price is never covered (checked at 360 × 800,
+  text scale 1.3, Arabic and English). A **lucky** gift's tile is unchanged (its earlier single corner chip, from
+  `Gift.badge`). A long press on a tile opens the gift's details: its picture, name, price and **all** its badges with
+  icon and name, and the days left of a timed one.
+- **Store**: up to two badge pills on the image's top start corner (the «تملكه» chip keeps the top end); the item's sheet
+  lists all the badges with icon and name, and the days left of LIMITED / NEW / SEASONAL.
+
+#### 10.102.5 «حذف» a store item in the panel *(D289b)*
+
+Owner (2026-11-06): «عند اضافة عنصر الى متجر من لوحة الادمن لا يمكن حذفه، فاريد منك اضافة زر الحذف». Before this, an item
+could only be switched off (§10.98.5); nothing removed it, because purchases and bag rows point at it.
+
+- `deleteAdminStoreItem` (`DELETE /admin/store/items/{itemId}`, `catalog.manage`, CSRF; the reason optional; no
+  authenticator code — not a money action) decides on one rule, in the item's transaction:
+  - **nobody ever bought it** (no `store_purchases` row) **and nobody holds it now** (no unexpired `user_bag_items` row):
+    **DELETED** — the store row and its prices, its bag catalogue row (expired bag rows and bag notifications of it go
+    with it; `bag_transfers` keep the code as history) and, after the commit, its uploaded art when no other store item
+    uses the same file. Audited `store.item.delete` (`case: deleted`, the item before).
+  - otherwise **HIDDEN** — `hidden_at` set and `enabled` false (CHECK `store_items_hidden_off`): gone from
+    `listStoreItems`, the bag catalogue and the panel's grant list, never sold (409 `STORE_UNAVAILABLE` `item_off`), and
+    still working for the people who hold it — listed in their bags, worn, shown in `wear`, sendable — until their items
+    end; its sales stay. Audited `store.item.hide` (`case: hidden`, owners, purchases, whether it was on). Hidden already:
+    200 HIDDEN, nothing written.
+  The answer `AdminStoreItemDeleted` says which (`result`, `owners`, `purchases`, the item now or null).
+- `restoreAdminStoreItem` («إرجاع للمتجر»): `hidden_at` cleared and the item switched on; audited `store.item.restore`.
+  `enableAdminStoreItem` refuses a hidden item (409 `ADMIN_ACTION_REFUSED`). `AdminStoreItem.hiddenAt` is the state.
+- The panel: «حذف» on each item row and in the item's form; one confirm dialog that says which case applies («سيُحذف
+  نهائياً» or «سيُخفى من المتجر؛ يبقى عند N مستخدمين يملكونه»), from `sold` and `owners`; a «مخفية (N)» filter in the list with
+  «إرجاع للمتجر». The apps need no change: hidden items are simply not listed, and owned ones keep their art.
+- Migration `20270323090100_store_item_delete` (the column and the CHECK).
+
+**Migration** `20270323090000_item_badges` (expand only): the `item_badge` type; `badges item_badge[]` and three
+`badge_*_until` columns on `gifts` and `store_items`; backfill — a gift's NEW and a store item's `is_new` become «جديد»
+**ending 14 days after the migration** (owner, D289-Q1), a gift's EVENT becomes «موسمي» **without an end** (it shows until the owner sets
+a date in the panel; the panel asks for one at the next save); the CHECKs above.
+
+**Compatibility.** Additive for the apps (`badges` is a new required response field; `badge` / `isNew` keep their
+meaning while «جديد» runs, so an older app stops showing «جديد» after 14 days instead of never). The panel's request
+fields are additive (`badges`); the old ones still work.
 
 ### 11.1 Media upload
 

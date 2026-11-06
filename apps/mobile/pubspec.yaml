@@ -93,6 +93,8 @@ flutter:
     - assets/icons/
     - assets/icons/nav/
     - assets/icons/brand/
+    # v1.79-live (D289): the nine gift / store badge icons (drawn for Kabso; the panel has the same paths).
+    - assets/icons/badges/
     # D72 level emblems (owner-supplied kabso_levels pack, 4 × 11 tiers).
     - assets/levels/
     - assets/levels/support/

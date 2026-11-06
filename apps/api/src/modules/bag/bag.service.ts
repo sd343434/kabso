@@ -221,7 +221,8 @@ export class BagService implements OnModuleInit, OnModuleDestroy {
     if (query.category && isVipOnlyBagCategory(query.category)) return { data: [] };
     const category = query.category;
     const items = await this.prisma.bagItem.findMany({
-      where: category ? { category } : {},
+      // v1.79-live (D289b): a store item taken out of the store is not listed (its owners keep it in their bags).
+      where: { ...(category ? { category } : {}), NOT: { storeItem: { is: { hiddenAt: { not: null } } } } },
       include: { storeItem: { select: STORE_ART_SELECT } },
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { code: 'asc' }],
     });

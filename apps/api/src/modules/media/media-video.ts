@@ -48,6 +48,8 @@ export interface VideoInfo {
   readonly height: number;
   readonly durationMs: number;
   readonly codec: string;
+  /** v1.79-live (D289): the file has a sound track (`hdlr` `soun`), whatever its codec. */
+  readonly hasAudio: boolean;
 }
 
 interface Box {
@@ -138,15 +140,24 @@ function sampleEntry(bytes: Buffer, mdia: Box): string | undefined {
   return bytes.toString('latin1', stsd.start + 12, stsd.start + 16);
 }
 
+/** A track's handler type (`mdia/hdlr`: `vide`, `soun`, …), or undefined. */
+function handlerOf(bytes: Buffer, trak: Box): string | undefined {
+  const mdia = child(bytes, trak, 'mdia');
+  const hdlr = mdia ? child(bytes, mdia, 'hdlr') : undefined;
+  if (!hdlr || hdlr.end - hdlr.start < 12) return undefined;
+  return bytes.toString('latin1', hdlr.start + 8, hdlr.start + 12);
+}
+
 /**
- * Parses a `moov` payload (the whole box, header included): the length and the first video
- * track's codec and display size. Exported for unit tests.
+ * Parses a `moov` payload (the whole box, header included): the length, the first video
+ * track's codec and display size, and (v1.79-live, D289) whether a sound track is there. Exported for unit tests.
  */
 export function parseMoov(moovBox: Buffer): {
   durationMs: number;
   width: number;
   height: number;
   codec: string;
+  hasAudio: boolean;
 } {
   const [moov] = boxes(moovBox, 0, moovBox.length);
   if (moov?.type !== 'moov') throw new InvalidVideoError('not a moov box');
@@ -154,7 +165,9 @@ export function parseMoov(moovBox: Buffer): {
   const mvhd = inside.find((b) => b.type === 'mvhd');
   if (!mvhd) throw new InvalidVideoError('no mvhd');
   const durationMs = movieDurationMs(moovBox, mvhd);
-  for (const trak of inside.filter((b) => b.type === 'trak')) {
+  const traks = inside.filter((b) => b.type === 'trak');
+  const hasAudio = traks.some((t) => handlerOf(moovBox, t) === 'soun');
+  for (const trak of traks) {
     const mdia = child(moovBox, trak, 'mdia');
     const hdlr = mdia ? child(moovBox, mdia, 'hdlr') : undefined;
     if (!mdia || !hdlr || hdlr.end - hdlr.start < 12) continue;
@@ -165,7 +178,7 @@ export function parseMoov(moovBox: Buffer): {
     if (!codec || !(VIDEO_CODECS as readonly string[]).includes(codec)) {
       throw new InvalidVideoError(`video codec ${String(codec)}`);
     }
-    return { durationMs, codec, ...displaySize(moovBox, tkhd) };
+    return { durationMs, codec, hasAudio, ...displaySize(moovBox, tkhd) };
   }
   throw new InvalidVideoError('no video track');
 }
@@ -236,5 +249,6 @@ export async function inspectVideo(
     height: parsed.height,
     durationMs: Math.min(parsed.durationMs, limits.maxDurationMs),
     codec: parsed.codec,
+    hasAudio: parsed.hasAudio,
   };
 }

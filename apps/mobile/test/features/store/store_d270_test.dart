@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -79,6 +80,7 @@ StoreItem _item(
     StorePrice(currency: StoreCurrency.cherries, days: 7, amount: 400000),
   ],
   bool isNew = false,
+  List<ItemBadge> badges = const [],
   DateTime? ownedUntil,
   ArtVideo? video,
 }) => StoreItem(
@@ -94,8 +96,26 @@ StoreItem _item(
   ),
   prices: prices,
   isNew: isNew,
+  badges: badges,
   ownedUntil: ownedUntil,
 );
+
+/// D289: the first item's badges (ends relative to now: the days left stay).
+List<ItemBadge> _offerBadges() {
+  final now = DateTime.now();
+  return [
+    ItemBadge(
+      ItemBadgeCode.limited,
+      until: now.add(const Duration(days: 3, hours: 1)),
+    ),
+    ItemBadge(
+      ItemBadgeCode.isNew,
+      until: now.add(const Duration(days: 13, hours: 1)),
+    ),
+    const ItemBadge(ItemBadgeCode.mostWanted),
+    const ItemBadge(ItemBadgeCode.sound),
+  ];
+}
 
 StoreItemList _list({
   required bool ar,
@@ -116,6 +136,7 @@ StoreItemList _list({
       ar ? 'إطار الوردة' : 'Rose frame',
       art: 'frame',
       isNew: true,
+      badges: _offerBadges(),
     ),
     _item(
       'store_000000000002',
@@ -251,13 +272,14 @@ class _FakeFollows implements FollowListsRepository {
 Future<(_FakeStore, FakeBagRepository)> _pump(
   WidgetTester tester, {
   AppLanguage language = AppLanguage.en,
+  GoldenViewport viewport = GoldenViewport.phone,
   int coins = 120000,
   int cherries = 0,
   int locked = 0,
   Brightness brightness = Brightness.dark,
 }) async {
   await loadAppFonts();
-  setViewport(tester, GoldenViewport.phone);
+  setViewport(tester, viewport);
   final store = _FakeStore(
     _list(
       ar: language == AppLanguage.ar,
@@ -649,8 +671,115 @@ void main() {
     );
   });
 
+  group('D289 badges', () {
+    testWidgets('the tile: at most two on the image corner (owned at the '
+        'other); the sheet: all of them with the days left', (tester) async {
+      await _pump(tester);
+      final row = find.byKey(StoreScreen.badgesKey('store_000000000001'));
+      expect(row, findsOneWidget);
+      final pills = tester
+          .widgetList<KItemBadgePill>(
+            find.descendant(of: row, matching: find.byType(KItemBadgePill)),
+          )
+          .map((p) => p.code);
+      expect(pills, [ItemBadgeCode.limited, ItemBadgeCode.isNew]);
+      // An older API's `isNew` alone still shows «جديد».
+      expect(
+        _item(
+          'store_000000000007',
+          StoreKind.entryEffect,
+          'Crown car',
+          art: 'car',
+          isNew: true,
+        ).shownBadges.map((b) => b.code),
+        [ItemBadgeCode.isNew],
+      );
+      await _open(tester, 'store_000000000001');
+      final list = find.byKey(StoreItemSheet.badgesKey);
+      expect(list, findsOneWidget);
+      for (final code in [
+        ItemBadgeCode.limited,
+        ItemBadgeCode.isNew,
+        ItemBadgeCode.mostWanted,
+        ItemBadgeCode.sound,
+      ]) {
+        expect(
+          find.descendant(
+            of: list,
+            matching: find.byKey(KItemBadgePill.keyOf(code)),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.descendant(of: list, matching: find.text('4 days left')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: list, matching: find.text('14 days left')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('360 × 800, text scale 1.3, both languages: no overflow, '
+        'the badges stay on the image', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      for (final language in AppLanguage.values) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await _pump(
+          tester,
+          language: language,
+          viewport: GoldenViewport.android,
+        );
+        expect(tester.takeException(), isNull, reason: language.name);
+        final tile = tester.getRect(
+          find.byKey(StoreScreen.itemKey('store_000000000001')),
+        );
+        final row = tester.getRect(
+          find.byKey(StoreScreen.badgesKey('store_000000000001')),
+        );
+        final price = tester.getRect(
+          find.byKey(
+            StoreScreen.priceKey('store_000000000001', StoreCurrency.coins),
+          ),
+        );
+        expect(row.left >= tile.left && row.right <= tile.right, isTrue);
+        expect(row.bottom <= price.top, isTrue);
+      }
+    });
+  });
+
   group('goldens', () {
+    setUp(() => WidgetsApp.debugAllowBannerOverride = false);
+    tearDown(() => WidgetsApp.debugAllowBannerOverride = true);
     for (final language in AppLanguage.values) {
+      for (final brightness in Brightness.values) {
+        testWidgets('D289 store_badges (${language.name}, ${brightness.name}, '
+            '360×800 ×1.3)', (tester) async {
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await _pump(
+            tester,
+            language: language,
+            brightness: brightness,
+            viewport: GoldenViewport.android,
+          );
+          await expectLater(
+            find.byType(MaterialApp),
+            matchesGoldenFile(
+              '../../goldens/png/store_badges.${language.name}.${brightness.name}.android.png',
+            ),
+          );
+          await _open(tester, 'store_000000000001');
+          await expectLater(
+            find.byType(MaterialApp),
+            matchesGoldenFile(
+              '../../goldens/png/store_badges_sheet.${language.name}.${brightness.name}.android.png',
+            ),
+          );
+        }, tags: goldenTag);
+      }
       testWidgets('store_grid (${language.name})', (tester) async {
         await _pump(tester, language: language);
         await expectLater(

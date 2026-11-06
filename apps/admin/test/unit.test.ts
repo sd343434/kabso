@@ -227,6 +227,7 @@ describe('gift form', () => {
     audioMs: null,
     sortOrder: 0,
     badge: 'NONE',
+    badges: [],
     lucky: false,
     tagCode: null,
     tagNameAr: null,
@@ -244,14 +245,16 @@ describe('gift form', () => {
   });
   it('an edit sends only what changed, null for a cleared optional field', () => {
     expect(giftBody(form({}), before)).toEqual({});
-    expect(giftBody(form({ priceCoins: '25', badge: 'NEW' }), before)).toEqual({ priceCoins: 25, badge: 'NEW' });
+    // D289: the single `badge` is no longer a form field (the badge set goes as `badges`, badgesPart — badges-d289.test).
+    expect(giftBody(form({ priceCoins: '25', badge: 'NEW' }), before)).toEqual({ priceCoins: 25 });
     expect(giftBody(form({ animationKey: 'fx/rose' }), { ...before })).toEqual({ animationKey: 'fx/rose' });
     expect(giftBody(form({ animationKey: '' }), { ...before, animationKey: 'fx/rose' })).toEqual({ animationKey: null });
   });
   it('a new gift sends every field that is set', () => {
     expect(
       giftBody({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: '500', assetKey: 'gifts/star', badge: 'NONE', sortOrder: '0' }, null),
-    ).toEqual({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: 500, assetKey: 'gifts/star', sortOrder: 0, badge: 'NONE' });
+      // D289: no single `badge` any more; the set goes as `badges` when one is ticked (badges-d289.test).
+    ).toEqual({ category: 'LUCKY', nameAr: 'نجمة', nameEn: 'Star', priceCoins: 500, assetKey: 'gifts/star', sortOrder: 0 });
   });
 });
 

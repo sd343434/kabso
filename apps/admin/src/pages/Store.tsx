@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api, uploadStoreArt } from "../api";
 import {
   Dialog,
@@ -10,7 +10,18 @@ import {
 import { useApp } from "../context";
 import { formatDate, formatNumber } from "../format";
 import type { Key } from "../i18n";
+import {
+  applyDetection,
+  badgeProblems,
+  badgesPart,
+  badgeState,
+  seasonalWithoutEnd,
+  type AdminItemBadge,
+  type BadgeState,
+  type ItemBadgeCode,
+} from "../badges";
 import { Icon } from "../ui/icons";
+import { BadgeChip, BadgePicker, SeasonalNoEndHint, SeasonalNoEndNote } from "./BadgePicker";
 import { SvgaPreview, VideoPreview } from "./GiftFiles";
 import "./store.css";
 
@@ -50,8 +61,13 @@ export interface AdminStoreItem {
   artHeight: number | null;
   prices: AdminStorePrice[];
   sortOrder: number;
+  /** Deprecated v1.79-live (D289): «جديد» is in `badges`. */
   isNew: boolean;
+  /** v1.79-live (D289): every stored badge, its end and whether it still shows. */
+  badges: AdminItemBadge[];
   enabled: boolean;
+  /** v1.79-live (D289b): taken out of the store by «حذف» (someone bought or holds it), else null. */
+  hiddenAt: string | null;
   owners: number;
   sold: number;
   createdAt: string;
@@ -102,7 +118,8 @@ export interface ItemDraft {
   /** `COINS:7` → "50000". */
   prices: Record<string, string>;
   sortOrder: string;
-  isNew: boolean;
+  /** v1.79-live (D289): the badge choice (replaces the «جديد» switch). */
+  badges: BadgeState;
   enabled: boolean;
 }
 
@@ -129,7 +146,7 @@ export function draftOf(item: AdminStoreItem | null, kind: StoreKind = "AVATAR_F
     artHeight: item && item.artHeight !== null ? String(item.artHeight) : "",
     prices,
     sortOrder: item ? String(item.sortOrder) : "",
-    isNew: item?.isNew ?? false,
+    badges: badgeState(item?.badges ?? []),
     enabled: item?.enabled ?? false,
   };
 }
@@ -141,7 +158,7 @@ function priceOk(v: string): boolean {
 }
 
 /** The same rules as the server (it checks them again). */
-export function draftValid(d: ItemDraft): boolean {
+export function draftValid(d: ItemDraft, now: Date = new Date()): boolean {
   const art = (v: string) => v.trim() === "" || ART.test(v.trim());
   const size = (v: string) => v.trim() === "" || (/^\d+$/.test(v.trim()) && Number(v) >= 1 && Number(v) <= 8192);
   return (
@@ -154,7 +171,8 @@ export function draftValid(d: ItemDraft): boolean {
     size(d.artWidth) &&
     size(d.artHeight) &&
     (d.sortOrder.trim() === "" || /^\d{1,6}$/.test(d.sortOrder.trim())) &&
-    Object.values(d.prices).every(priceOk)
+    Object.values(d.prices).every(priceOk) &&
+    badgeProblems(d.badges, now).length === 0
   );
 }
 
@@ -190,12 +208,11 @@ export function itemBody(d: ItemDraft, before: AdminStoreItem | null): Record<st
     animationAlpha: format === "MP4" ? d.animationAlpha : null,
     artWidth: d.artWidth.trim() === "" ? null : Number(d.artWidth),
     artHeight: d.artHeight.trim() === "" ? null : Number(d.artHeight),
-    isNew: d.isNew,
     ...(d.sortOrder.trim() === "" ? {} : { sortOrder: Number(d.sortOrder) }),
   };
   const prices = pricesOf(d);
   if (before === null) {
-    return { kind: d.kind, ...fields, prices, enabled: d.enabled };
+    return { kind: d.kind, ...fields, prices, ...badgesPart(d.badges, null), enabled: d.enabled };
   }
   const out: Record<string, unknown> = Object.fromEntries(
     Object.entries(fields).filter(
@@ -203,7 +220,31 @@ export function itemBody(d: ItemDraft, before: AdminStoreItem | null): Record<st
     ),
   );
   if (JSON.stringify(pricesOf(draftOf(before))) !== JSON.stringify(prices)) out.prices = prices;
+  Object.assign(out, badgesPart(d.badges, before));
   return out;
+}
+
+/**
+ * v1.79-live (D289b, §10.102.5): what «حذف» will do — `delete` (nobody bought or holds it: gone for good) or `hide`
+ * (out of the store; kept for the people who hold it). The server decides again on the same rule.
+ */
+export function storeDeleteCase(item: Pick<AdminStoreItem, "owners" | "sold">): "delete" | "hide" {
+  return item.sold === 0 && item.owners === 0 ? "delete" : "hide";
+}
+
+/** The confirm dialog's sentence for [item]. */
+export function StoreDeleteIntro({ item }: { item: AdminStoreItem }) {
+  const { t, lang } = useApp();
+  const which = storeDeleteCase(item);
+  return (
+    <p className={`alert ${which === "delete" ? "error" : "warn"}`} data-store-delete-case={which}>
+      {which === "delete"
+        ? t("storeDeleteForever")
+        : item.owners > 0
+          ? t("storeDeleteHide", { n: formatNumber(item.owners, lang) })
+          : t("storeDeleteHideSold", { n: formatNumber(item.sold, lang) })}
+    </p>
+  );
 }
 
 /** «🪙 50,000 · 7 days». */
@@ -217,10 +258,15 @@ export function StoreItemsTable({
   items,
   onEdit,
   onToggle,
+  onDelete = () => undefined,
+  onRestore = () => undefined,
 }: {
   items: AdminStoreItem[];
   onEdit: (i: AdminStoreItem) => void;
   onToggle: (i: AdminStoreItem) => void;
+  /** v1.79-live (D289b): «حذف» and «إرجاع للمتجر». */
+  onDelete?: (i: AdminStoreItem) => void;
+  onRestore?: (i: AdminStoreItem) => void;
 }) {
   const { t, lang, can } = useApp();
   const manage = can("catalog.manage");
@@ -251,7 +297,12 @@ export function StoreItemsTable({
                   )}
                   <span>
                     <strong>{lang === "ar" ? item.nameAr : item.nameEn}</strong>
-                    {item.isNew && <span className="badge ok">{t("storeNewBadge")}</span>}
+                    {item.badges
+                      .filter((b) => b.active)
+                      .map((b) => (
+                        <BadgeChip key={b.code} code={b.code} iconOnly />
+                      ))}
+                    {seasonalWithoutEnd(item.badges) && <SeasonalNoEndHint />}
                     <br />
                     <span className="mono small ltr muted">
                       {item.code}
@@ -278,9 +329,15 @@ export function StoreItemsTable({
               <td className="num">{formatNumber(item.owners, lang)}</td>
               <td className="num">{formatNumber(item.sold, lang)}</td>
               <td>
-                <span className={`badge ${item.enabled ? "ok" : ""}`}>
-                  {item.enabled ? t("enabled") : t("disabled")}
-                </span>
+                {item.hiddenAt ? (
+                  <span className="badge warn" data-store-hidden={item.code}>
+                    {t("storeHidden")}
+                  </span>
+                ) : (
+                  <span className={`badge ${item.enabled ? "ok" : ""}`}>
+                    {item.enabled ? t("enabled") : t("disabled")}
+                  </span>
+                )}
               </td>
               {manage && (
                 <td>
@@ -288,13 +345,24 @@ export function StoreItemsTable({
                     <button className="btn small" onClick={() => onEdit(item)} data-store-edit={item.code}>
                       {t("edit")}
                     </button>
-                    <button
-                      className={`btn small ${item.enabled ? "" : "primary"}`}
-                      onClick={() => onToggle(item)}
-                      data-store-toggle={item.code}
-                    >
-                      {item.enabled ? t("disable") : t("enable")}
-                    </button>
+                    {item.hiddenAt ? (
+                      <button className="btn small primary" onClick={() => onRestore(item)} data-store-restore={item.code}>
+                        {t("storeRestore")}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className={`btn small ${item.enabled ? "" : "primary"}`}
+                          onClick={() => onToggle(item)}
+                          data-store-toggle={item.code}
+                        >
+                          {item.enabled ? t("disable") : t("enable")}
+                        </button>
+                        <button className="btn small danger" onClick={() => onDelete(item)} data-store-delete={item.code}>
+                          {t("storeDelete")}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               )}
@@ -416,11 +484,14 @@ function ItemForm({
   kind,
   onClose,
   onDone,
+  onDelete,
 }: {
   item: AdminStoreItem | null;
   kind: StoreKind;
   onClose: () => void;
   onDone: () => void;
+  /** v1.79-live (D289b): «حذف» from the form (an existing item, not hidden). */
+  onDelete?: () => void;
 }) {
   const { t } = useApp();
   const [draft, setDraft] = useState<ItemDraft>(() => draftOf(item, kind));
@@ -453,6 +524,12 @@ function ItemForm({
               animation: up.url,
               animationFormat: up.format ?? "",
               animationAlpha: up.detectedAlpha ?? "NONE",
+              // D289: what the file shows is pre-selected (marked «تلقائي»).
+              badges: applyDetection(d.badges, {
+                hasEffect: true,
+                hasAudio: !!up.hasAudio,
+                ...(typeof up.fullscreen === "boolean" ? { fullscreen: up.fullscreen } : {}),
+              }),
             },
       );
     } catch (e) {
@@ -560,10 +637,11 @@ function ItemForm({
         {uploadError && <div className="span-2 alert error">{uploadError}</div>}
         <p className="span-2 muted small">{t("storeArtHint")}</p>
         <PriceGrid prices={draft.prices} onChange={(prices) => setDraft((d) => ({ ...d, prices }))} />
-        <label className="check">
-          <input type="checkbox" checked={draft.isNew} onChange={(e) => setDraft((d) => ({ ...d, isNew: e.target.checked }))} />
-          {t("storeNew")}
-        </label>
+        <BadgePicker
+          value={draft.badges}
+          onChange={(badges) => setDraft((d) => ({ ...d, badges }))}
+          detected={(Object.keys(draft.badges) as ItemBadgeCode[]).filter((c) => draft.badges[c].auto && draft.badges[c].on)}
+        />
         {!item && (
           <label className="check">
             <input
@@ -582,6 +660,11 @@ function ItemForm({
           <span className="hint">{t("reasonHint")}</span>
         </div>
         <div className="actions span-2">
+          {item && !item.hiddenAt && onDelete && (
+            <button type="button" className="btn danger" onClick={onDelete} data-store-form-delete>
+              {t("storeDelete")}
+            </button>
+          )}
           <button type="button" className="btn" onClick={onClose}>
             {t("cancel")}
           </button>
@@ -602,14 +685,33 @@ export function Store() {
   const [tab, setTab] = useState<StoreKind | "ALL">("ALL");
   const [edit, setEdit] = useState<AdminStoreItem | "new" | null>(null);
   const [toggle, setToggle] = useState<AdminStoreItem | null>(null);
-  const done = () => {
+  // v1.79-live (D289b): «حذف», «إرجاع للمتجر» and the «مخفية» filter.
+  const [del, setDel] = useState<AdminStoreItem | null>(null);
+  const [back, setBack] = useState<AdminStoreItem | null>(null);
+  const [hiddenOnly, setHiddenOnly] = useState(false);
+  const lastDelete = useRef<"DELETED" | "HIDDEN">("HIDDEN");
+  const setLastDelete = (r: "DELETED" | "HIDDEN") => {
+    lastDelete.current = r;
+  };
+  const done = (message: string = t("done")) => {
     setEdit(null);
     setToggle(null);
-    toast(t("done"));
+    setDel(null);
+    setBack(null);
+    toast(message);
     items.reload();
     sales.reload();
   };
-  const shown = (items.data?.data ?? []).filter((i) => tab === "ALL" || i.kind === tab);
+  // D289 (owner Q2): the items whose «موسمي» has no end yet, and the filter to show only them.
+  const [noEndOnly, setNoEndOnly] = useState(false);
+  const noEnd = (items.data?.data ?? []).filter((i) => seasonalWithoutEnd(i.badges)).length;
+  const hiddenCount = (items.data?.data ?? []).filter((i) => i.hiddenAt !== null).length;
+  const shown = (items.data?.data ?? []).filter(
+    (i) =>
+      (tab === "ALL" || i.kind === tab) &&
+      (!noEndOnly || seasonalWithoutEnd(i.badges)) &&
+      (i.hiddenAt !== null) === hiddenOnly,
+  );
   return (
     <>
       <div className="page-head">
@@ -625,6 +727,7 @@ export function Store() {
         )}
       </div>
       <ErrorAlert error={items.error} />
+      <SeasonalNoEndNote count={noEnd} only={noEndOnly} onOnly={setNoEndOnly} />
       <div className="card">
         <div className="store-tabs" role="tablist">
           {(["ALL", ...STORE_KINDS] as const).map((k) => (
@@ -639,9 +742,27 @@ export function Store() {
               {k === "ALL" ? t("storeAll") : t(kindLabel(k))}
             </button>
           ))}
+          <button
+            role="tab"
+            aria-selected={hiddenOnly}
+            className={`btn small ${hiddenOnly ? "active" : ""}`}
+            onClick={() => setHiddenOnly((h) => !h)}
+            data-store-hidden-filter={hiddenOnly ? "on" : "off"}
+          >
+            {t("storeHiddenFilter", { n: hiddenCount })}
+          </button>
         </div>
         {items.loading && !items.data && <p className="muted state">{t("loading")}</p>}
-        {items.data && <StoreItemsTable items={shown} onEdit={(i) => setEdit(i)} onToggle={(i) => setToggle(i)} />}
+        {items.data && (
+          <StoreItemsTable
+            items={shown}
+            onEdit={(i) => setEdit(i)}
+            onToggle={(i) => setToggle(i)}
+            onDelete={(i) => setDel(i)}
+            onRestore={(i) => setBack(i)}
+          />
+        )}
+        {hiddenOnly && <p className="muted small">{t("storeHiddenNote")}</p>}
         <p className="muted small">{t("storeOffNote")}</p>
       </div>
       <div className="card">
@@ -654,7 +775,44 @@ export function Store() {
           item={edit === "new" ? null : edit}
           kind={tab === "ALL" ? "AVATAR_FRAME" : tab}
           onClose={() => setEdit(null)}
-          onDone={done}
+          onDone={() => done()}
+          onDelete={
+            edit === "new"
+              ? undefined
+              : () => {
+                  setDel(edit);
+                  setEdit(null);
+                }
+          }
+        />
+      )}
+      {del && (
+        <FormDialog
+          title={`${t("storeDelete")} · ${del.nameAr}`}
+          intro={<StoreDeleteIntro item={del} />}
+          fields={[{ ...reasonField(t), required: false }]}
+          confirmLabel={storeDeleteCase(del) === "delete" ? t("storeDeleteConfirm") : t("storeHideConfirm")}
+          danger
+          submit={async (v) => {
+            const r = await api.del<{ result: "DELETED" | "HIDDEN" }>(
+              `/admin/store/items/${del.id}`,
+              v.reason ? { reason: v.reason } : {},
+            );
+            setLastDelete(r.result);
+          }}
+          onClose={() => setDel(null)}
+          onDone={() => done(lastDelete.current === "DELETED" ? t("storeDeletedToast") : t("storeHiddenToast"))}
+        />
+      )}
+      {back && (
+        <FormDialog
+          title={`${t("storeRestore")} · ${back.nameAr}`}
+          intro={<p className="muted small">{t("storeRestoreNote")}</p>}
+          fields={[{ ...reasonField(t), required: false }]}
+          confirmLabel={t("storeRestore")}
+          submit={(v) => api.post(`/admin/store/items/${back.id}/restore`, v.reason ? { reason: v.reason } : {})}
+          onClose={() => setBack(null)}
+          onDone={() => done()}
         />
       )}
       {toggle && (
@@ -668,7 +826,7 @@ export function Store() {
             api.post(`/admin/store/items/${toggle.id}/${toggle.enabled ? "disable" : "enable"}`, { reason: v.reason })
           }
           onClose={() => setToggle(null)}
-          onDone={done}
+          onDone={() => done()}
         />
       )}
     </>

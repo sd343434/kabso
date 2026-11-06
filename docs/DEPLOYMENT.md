@@ -2859,6 +2859,27 @@ server setting.
   staff phone's inbox; `SELECT count(*) FROM notifications WHERE type = 'STAFF_REPORT_NEW' AND read_at IS NULL;`; the
   audit rows `moderation.report.alert`, `moderation.report.resolve`, `admin.user.ban` and `account.deletion.requested`.
 
+### 5.70 Gift and store badges «شارات الهدايا والمتجر» (migration `20270323090000_item_badges`; D289) — [IMPLEMENTED, draft contract v1.79-live; not deployed, not device-tested]
+
+CONVENTIONS §10.102. Expand only: the migration adds the `item_badge` type, `badges item_badge[]` and three
+`badge_*_until` columns to `gifts` and `store_items`, backfills (a gift's NEW and a store item's `is_new` → «جديد» ending
+14 days after the migration; a gift's EVENT → «موسمي» without an end) and adds the CHECKs. `gifts.badge` and
+`store_items.is_new` stay and are written in step by the API, so a rollback to the previous API keeps working (it shows
+«جديد» without an end again). Both tables are the panel's catalogue (small): the UPDATEs take row locks for milliseconds.
+Deploy the panel with the API (the panel's form sends `badges`; the old panel's `badge` / `isNew` are still accepted).
+
+- **D289b «حذف»:** migration `20270323090100_store_item_delete` adds `store_items.hidden_at` and the CHECK
+  `store_items_hidden_off` (hidden ⇒ off); deploy it with the API and the panel. A real delete removes the item's art
+  from the bucket when no other item uses it (best effort, logged on failure); nothing else touches storage.
+- **Settings:** none. Ends are compared at read time (no sweeper, no cron).
+- **Tell the owner:** the gift and store forms now have «الشارات»; uploading an effect pre-selects the sound badge and
+  «شاشة كاملة» (marked «تلقائي»); every «موسمي» migrated from «فعالية» has no end until a date is set — the gift and
+  store lists mark them «حدد تاريخ الانتهاء» and count them (owner D289-Q2: set a date on each); every «جديد» ends
+  14 days after the deploy unless a date is set.
+- **Checks after deploy:** `SELECT badges, count(*) FROM gifts GROUP BY 1;` and the same for `store_items`;
+  `SELECT count(*) FROM gifts WHERE 'SEASONAL' = ANY(badges) AND badge_seasonal_until IS NULL;` (the migrated ones);
+  `GET /api/v1/gifts/catalogue` lists `badges`.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

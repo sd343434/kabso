@@ -278,6 +278,14 @@ info:
     (target `REPORT`, one unread row per staff member, pushed on the Android channel `kabso_staff`).
     `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Additive (new operations, enum values and
     fields; the deprecated `totpCode` still accepted); migration `20270322090000_shared_reports`.
+    **D289 (DRAFT v1.79-live)** gift and store badges as a set «شارات الهدايا والمتجر» (CONVENTIONS §10.102):
+    `ItemBadgeCode` (nine badges, one icon each), `Gift.badges` and `StoreItem.badges` (the running ones, in display
+    priority; `Gift.badge` and `StoreItem.isNew` deprecated), the panel's `badges` on gifts and store items with their
+    ends (NEW 14 days by default; LIMITED and SEASONAL on the owner's date) and 400 `ITEM_BADGES_INVALID` (SOUND with
+    NO_SOUND, a missing or past end), and the uploads' `hasAudio` / `fullscreen` the panel pre-selects from.
+    **D289b (DRAFT v1.79-live)** «حذف» of a store item in the panel: `deleteAdminStoreItem` (deleted for real when nobody
+    bought or holds it, else hidden from the store and kept for its owners; `AdminStoreItemDeleted`), `restoreAdminStoreItem`
+    and `AdminStoreItem.hiddenAt` (CONVENTIONS §10.102.5).
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -8658,10 +8666,10 @@ paths:
                 maxRecipients: 25
                 comboWindowSeconds: 5
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, pkBooster: null }
-                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: 'https://media.kabso.example/media/gifts/sports_car/4b1e0c9a7d2f35e8a6c1b0f9e2d3c4a5.mp4', animationBytes: 2483112, animationFormat: MP4, animationAlpha: SIDE_BY_SIDE, audioUrl: 'https://media.kabso.example/media/gifts/sports_car/9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a49.mp3', audioBytes: 96211, audioDurationMs: 6000, sortOrder: 20, badge: NEW, tag: null, quip: null, pkBooster: null }
-                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, animationFormat: SVGA, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة }, quip: null, pkBooster: null }
-                  - { code: quip_ghazal_01, category: QUIPS, name: غزل ١, priceCoins: 99, assetKey: quips/ghazal, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 101, badge: NONE, tag: { code: ghazal, name: غزل }, quip: { soundKey: kabi/ghazal_01, durationMs: 4362, text: 'إيه الجمال ده! تحفة بجد!' }, pkBooster: null }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NONE, badges: [], tag: { code: love, name: حب }, quip: null, pkBooster: null }
+                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: 'https://media.kabso.example/media/gifts/sports_car/4b1e0c9a7d2f35e8a6c1b0f9e2d3c4a5.mp4', animationBytes: 2483112, animationFormat: MP4, animationAlpha: SIDE_BY_SIDE, audioUrl: 'https://media.kabso.example/media/gifts/sports_car/9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a49.mp3', audioBytes: 96211, audioDurationMs: 6000, sortOrder: 20, badge: NEW, badges: [{ code: NEW, until: '2027-03-30T09:00:00.000Z' }, { code: SOUND, until: null }], tag: null, quip: null, pkBooster: null }
+                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, animationFormat: SVGA, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NEW, badges: [{ code: NEW, until: '2027-03-30T09:00:00.000Z' }, { code: FULLSCREEN, until: null }], tag: { code: luxury, name: فخامة }, quip: null, pkBooster: null }
+                  - { code: quip_ghazal_01, category: QUIPS, name: غزل ١, priceCoins: 99, assetKey: quips/ghazal, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 101, badge: NONE, badges: [], tag: { code: ghazal, name: غزل }, quip: { soundKey: kabi/ghazal_01, durationMs: 4362, text: 'إيه الجمال ده! تحفة بجد!' }, pkBooster: null }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/lucky-gifts/age-confirmation:
@@ -8708,7 +8716,7 @@ paths:
               schema: { $ref: '#/components/schemas/GiftBag' }
               example:
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, quantity: 99, pkBooster: null }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, animationFormat: null, animationAlpha: null, audioUrl: null, audioBytes: null, audioDurationMs: null, sortOrder: 10, badge: NONE, badges: [], tag: { code: love, name: حب }, quip: null, quantity: 99, pkBooster: null }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
@@ -15138,7 +15146,7 @@ paths:
         (v1.84-social, D270, §10.98.5) A new bag catalogue item (`code` `store_<12 hex>`, of `kind`) with its store row:
         names, art, prices (at most one per currency and duration; none = not listed), the order (default: last of its
         kind), the «جديد» badge; off unless `enabled: true`. 409 `ADMIN_ACTION_REFUSED` past 500 items. Audited
-        `store.item.add`.
+        `store.item.add`. v1.79-live (D289): `badges` (the set, §10.102.2; 400 `ITEM_BADGES_INVALID` on a broken rule).
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -15163,7 +15171,7 @@ paths:
       tags: [admin-panel]
       operationId: updateAdminStoreItem
       summary: "Changes a store item (catalog.manage: OWNER; reason; audited)"
-      description: "(v1.84-social, D270, §10.98.5) Any of the names, the art, the whole price list, the order, the «جديد» badge; the kind never changes. A new price applies to purchases from then on. Audited `store.item.update` with before / after."
+      description: "(v1.84-social, D270, §10.98.5) Any of the names, the art, the whole price list, the order, the «جديد» badge; the kind never changes. A new price applies to purchases from then on. Audited `store.item.update` with before / after. v1.79-live (D289): `badges` replaces the badge set (400 `ITEM_BADGES_INVALID` on a broken rule, §10.102.2)."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminStoreItemIdPath'
@@ -15173,6 +15181,65 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/AdminStoreItemUpdateRequest' }
+      responses:
+        '200':
+          description: The item now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItem' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-panel]
+      operationId: deleteAdminStoreItem
+      summary: "Deletes a store item, or takes it out of the store when someone bought or holds it (catalog.manage: OWNER; optional reason; audited)"
+      description: |
+        (v1.79-live, D289b, §10.102.5) Owner: «عند اضافة عنصر الى متجر من لوحة الادمن لا يمكن حذفه، فاريد منك اضافة زر الحذف».
+        Nobody ever bought it and nobody holds it now: **DELETED** — the store row, its prices, its bag catalogue row and
+        (after the commit) its uploaded art when no other item uses the same file; audited `store.item.delete`. Otherwise
+        **HIDDEN** — gone from `listStoreItems`, the bag catalogue and the panel's grant list, never sold (409
+        `STORE_UNAVAILABLE` `item_off`), `enabled` false and `hiddenAt` set, still working for the people who hold it until
+        their items end; audited `store.item.hide` with the owners and purchases. Hidden already: 200 HIDDEN, nothing
+        written. The reason is optional; no authenticator code (not a money action). `enableAdminStoreItem` refuses a hidden
+        item (409 `ADMIN_ACTION_REFUSED`): `restoreAdminStoreItem` puts it back.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminStoreItemIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminOptionalReasonRequest' }
+      responses:
+        '200':
+          description: What was done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreItemDeleted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store/items/{itemId}/restore:
+    post:
+      tags: [admin-panel]
+      operationId: restoreAdminStoreItem
+      summary: "Puts a hidden store item back in the store (catalog.manage: OWNER; optional reason; audited)"
+      description: "(v1.79-live, D289b, §10.102.5) «إرجاع للمتجر»: `hiddenAt` cleared and the item switched on (listed and sold again). Not hidden: 200, nothing written. Audited `store.item.restore`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminStoreItemIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminOptionalReasonRequest' }
       responses:
         '200':
           description: The item now.
@@ -15755,7 +15822,7 @@ paths:
       - admin-panel
       operationId: createAdminGift
       summary: Adds a gift — the `gift-admin add` rule (reason; audited) (catalog.manage)
-      description: '(v1.65-social, D197) '
+      description: '(v1.65-social, D197) v1.79-live (D289): `badges` sets the badge set (400 `ITEM_BADGES_INVALID` on a broken rule, §10.102.2).'
       security:
       - adminSession: []
       parameters:
@@ -15789,7 +15856,7 @@ paths:
       - admin-panel
       operationId: updateAdminGift
       summary: Changes a gift — the `gift-admin update` rule (reason; audited with before/after) (catalog.manage)
-      description: '(v1.65-social, D197) '
+      description: '(v1.65-social, D197) v1.79-live (D289): `badges` replaces the whole badge set (400 `ITEM_BADGES_INVALID` on a broken rule, §10.102.2).'
       security:
       - adminSession: []
       parameters:
@@ -16138,7 +16205,7 @@ paths:
         `image` «صورة الهدية» PNG/WebP, square, at least 128 px, at most 512 KB; `animation` «ملف العرض» an SVGA 2.x
         (at most 25 MB, as `gift-admin --animation-file`) or an MP4 (H.264 in an MPEG-4 file, 1 … 15 s, at most 8 MB;
         read from its boxes, not decoded), answering `detectedAlpha` (SIDE_BY_SIDE when the width is ≥ 1.8 × the
-        height, else NONE); `sound` an MP3 (MPEG audio Layer III, 0.1 … 15 s, at most 1 MB); `icon` a category's icon
+        height, else NONE) — v1.79-live (D289): and `hasAudio` / `fullscreen` (§10.102.3); `sound` an MP3 (MPEG audio Layer III, 0.1 … 15 s, at most 1 MB); `icon` a category's icon
         (PNG/WebP, square, 32 … 512 px, at most 256 KB). The file is stored at a content-addressed, immutable key under
         `media/gifts/<code>/` (`media/gift-categories/<code>/` for an icon) in the media bucket; the gift / category
         change that names the key is the audited step. 409 `ADMIN_ACTION_REFUSED` with the reason for a refused file
@@ -22303,6 +22370,7 @@ components:
       - audioMs
       - sortOrder
       - badge
+      - badges
       - lucky
       - tagCode
       - tagNameAr
@@ -22390,10 +22458,17 @@ components:
           type: integer
         badge:
           type: string
+          description: Deprecated v1.79-live (D289) — kept in step with `badges`.
           enum:
           - NONE
           - NEW
           - EVENT
+        badges:
+          type: array
+          maxItems: 9
+          description: (v1.79-live, D289) every stored badge, its end and whether it still shows.
+          items:
+            $ref: '#/components/schemas/AdminItemBadge'
         lucky:
           type: boolean
           description: category LUCKY.
@@ -22525,10 +22600,13 @@ components:
           type: integer
         badge:
           type: string
+          description: Deprecated v1.79-live (D289) — sets or takes off «جديد» / «موسمي» only (NEW 14 days). Not with `badges`.
           enum:
           - NONE
           - NEW
           - EVENT
+        badges:
+          $ref: '#/components/schemas/ItemBadgeInputList'
         tagCode:
           type:
           - string
@@ -22622,10 +22700,13 @@ components:
           type: integer
         badge:
           type: string
+          description: Deprecated v1.79-live (D289) — sets or takes off «جديد» / «موسمي» only (NEW 14 days). Not with `badges`.
           enum:
           - NONE
           - NEW
           - EVENT
+        badges:
+          $ref: '#/components/schemas/ItemBadgeInputList'
         tagCode:
           type:
           - string
@@ -22797,10 +22878,12 @@ components:
         bytes: { type: integer, minimum: 1 }
         contentType: { type: string }
         format: { type: string, enum: [SVGA, MP4], description: Kind animation. }
-        width: { type: integer, description: 'Images, icons and MP4.' }
+        width: { type: integer, description: 'Images, icons and MP4; v1.79-live (D289) an SVGA''s viewBox when it has one.' }
         height: { type: integer }
         durationMs: { type: integer, description: MP4 and MP3. }
         detectedAlpha: { type: string, enum: [NONE, SIDE_BY_SIDE], description: MP4 — the suggested «الشفافية» (the admin may override it). }
+        hasAudio: { type: boolean, description: "v1.79-live (D289): kind animation — the effect has sound (an MP4 audio track, an SVGA's `audios`); kind sound — true. The panel pre-selects «بمؤثرات صوتية» (or «بدون مؤثرات صوتية» for an effect without sound and no MP3)." }
+        fullscreen: { type: boolean, description: "v1.79-live (D289): kind animation — the effect's picture (an MP4's, half a side-by-side one's width; an SVGA's viewBox) is portrait ≥ 1.5 : 1; the panel pre-selects «شاشة كاملة»." }
     AdminBagCatalog:
       type: object
       required:
@@ -29075,14 +29158,19 @@ components:
     StoreItem:
       type: object
       additionalProperties: false
-      required: [id, code, kind, name, art, isNew, prices, fromCoins, fromCherries, ownedUntil]
+      required: [id, code, kind, name, art, isNew, badges, prices, fromCoins, fromCherries, ownedUntil]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^store_[0-9a-f]{12}$', description: "The bag code it has once bought (`BagItem.code`)." }
         kind: { $ref: '#/components/schemas/StoreKind' }
         name: { type: string, description: "In the reader's language." }
         art: { $ref: '#/components/schemas/StoreArt' }
-        isNew: { type: boolean, description: "The «جديد» badge (set in the panel)." }
+        isNew: { type: boolean, description: "The «جديد» badge (set in the panel). **Deprecated v1.79-live (D289):** true while «جديد» runs (in `badges`)." }
+        badges:
+          type: array
+          maxItems: 9
+          description: "v1.79-live (D289, §10.102): the badges showing now, in the display priority — at most two on the image's corner in the grid, all of them (with the days left of a timed one) in the item's sheet."
+          items: { $ref: '#/components/schemas/ItemBadge' }
         prices:
           type: array
           minItems: 1
@@ -29146,7 +29234,7 @@ components:
     AdminStoreItem:
       type: object
       additionalProperties: false
-      required: [id, code, kind, nameAr, nameEn, still, animation, animationFormat, animationAlpha, artWidth, artHeight, prices, sortOrder, isNew, enabled, owners, sold, createdAt, updatedAt]
+      required: [id, code, kind, nameAr, nameEn, still, animation, animationFormat, animationAlpha, artWidth, artHeight, prices, sortOrder, isNew, badges, enabled, hiddenAt, owners, sold, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         code: { type: string, pattern: '^store_[0-9a-f]{12}$' }
@@ -29164,12 +29252,43 @@ components:
           maxItems: 6
           items: { $ref: '#/components/schemas/StorePrice' }
         sortOrder: { type: integer, minimum: 0 }
-        isNew: { type: boolean }
+        isNew: { type: boolean, description: "Deprecated v1.79-live (D289): «جديد» is in `badges` (running or not)." }
+        badges:
+          type: array
+          maxItems: 9
+          description: "v1.79-live (D289): every stored badge, its end and whether it still shows."
+          items: { $ref: '#/components/schemas/AdminItemBadge' }
         enabled: { type: boolean }
+        hiddenAt:
+          type: [string, 'null']
+          format: date-time
+          description: "v1.79-live (D289b): when «حذف» took it out of the store because someone bought or holds it (the panel's «مخفية» filter); null: in the store."
         owners: { type: integer, minimum: 0, description: "People holding it now." }
         sold: { type: integer, minimum: 0, description: "Purchases of it, ever." }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    AdminOptionalReasonRequest:
+      type: object
+      additionalProperties: false
+      description: v1.79-live (D289b). An optional reason (audited when given).
+      properties:
+        reason: { type: string, maxLength: 500 }
+    AdminStoreItemDeleted:
+      type: object
+      additionalProperties: false
+      required: [result, id, code, owners, purchases, item]
+      description: "v1.79-live (D289b, §10.102.5). What «حذف» did: DELETED (gone for good) or HIDDEN (out of the store, kept for its owners)."
+      properties:
+        result: { type: string, enum: [DELETED, HIDDEN] }
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^store_[0-9a-f]{12}$' }
+        owners: { type: integer, minimum: 0, description: "People holding it now." }
+        purchases: { type: integer, minimum: 0, description: "Purchases of it, ever." }
+        item:
+          description: The item now (HIDDEN); null once deleted.
+          oneOf:
+            - $ref: '#/components/schemas/AdminStoreItem'
+            - type: 'null'
     AdminStoreItemList:
       type: object
       additionalProperties: false
@@ -29216,7 +29335,8 @@ components:
           description: "At most one per currency and duration (else 400 `duplicate_value`)."
           items: { $ref: '#/components/schemas/AdminStorePriceInput' }
         sortOrder: { type: integer, minimum: 0, maximum: 100000 }
-        isNew: { type: boolean }
+        isNew: { type: boolean, description: "Deprecated v1.79-live (D289): true sets «جديد» for 14 days, false takes it off. Not with `badges`." }
+        badges: { $ref: '#/components/schemas/ItemBadgeInputList' }
         enabled: { type: boolean }
         reason: { type: string, minLength: 1, maxLength: 500 }
     AdminStoreItemUpdateRequest:
@@ -29238,12 +29358,13 @@ components:
           maxItems: 6
           items: { $ref: '#/components/schemas/AdminStorePriceInput' }
         sortOrder: { type: integer, minimum: 0, maximum: 100000 }
-        isNew: { type: boolean }
+        isNew: { type: boolean, description: "Deprecated v1.79-live (D289): sets or takes off «جديد» only. Not with `badges`." }
+        badges: { $ref: '#/components/schemas/ItemBadgeInputList' }
         reason: { type: string, minLength: 1, maxLength: 500 }
     AdminStoreUpload:
       type: object
       additionalProperties: false
-      required: [kind, url, bytes, contentType, format, width, height, detectedAlpha, durationMs]
+      required: [kind, url, bytes, contentType, format, width, height, detectedAlpha, durationMs, hasAudio, fullscreen]
       properties:
         kind: { type: string, enum: [animation, still] }
         url: { type: string, format: uri }
@@ -29254,6 +29375,8 @@ components:
         height: { type: [integer, 'null'] }
         detectedAlpha: { type: [string, 'null'], enum: [NONE, SIDE_BY_SIDE, null] }
         durationMs: { type: [integer, 'null'] }
+        hasAudio: { type: [boolean, 'null'], description: "v1.79-live (D289): the animation has sound (an MP4 audio track, an SVGA's `audios`) — the panel pre-selects SOUND, else NO_SOUND; null for a still." }
+        fullscreen: { type: [boolean, 'null'], description: "v1.79-live (D289): the animation's picture is portrait ≥ 1.5 : 1 (a phone screen) — the panel pre-selects FULLSCREEN; null for a still." }
     AdminStoreSale:
       type: object
       additionalProperties: false
@@ -29529,10 +29652,57 @@ components:
     GiftBadge:
       type: string
       enum: [NONE, NEW, EVENT]
-      description: The corner badge of a gift in the panel; unknown values show as NONE.
+      description: |
+        The corner badge of a gift in the panel; unknown values show as NONE. **Deprecated v1.79-live (D289):** use
+        `Gift.badges`. Still sent, from the running badges: NEW while «جديد» runs, else EVENT while «موسمي» runs, else NONE.
+    ItemBadgeCode:
+      type: string
+      enum: [LIMITED, NEW, SEASONAL, EXCLUSIVE, MOST_WANTED, FEATURED, FULLSCREEN, SOUND, NO_SOUND]
+      description: |
+        v1.79-live (D289, CONVENTIONS §10.102): a badge of a gift or a store item, listed here in the display priority —
+        LIMITED «لفترة محدودة» (hourglass), NEW «جديد» (sparkle), SEASONAL «موسمي» (calendar), EXCLUSIVE «حصري» (crown),
+        MOST_WANTED «الأكثر طلباً» (flame), FEATURED «مميز» (diamond), FULLSCREEN «شاشة كاملة» (expand), SOUND «بمؤثرات
+        صوتية» (speaker), NO_SOUND «بدون مؤثرات صوتية» (muted speaker). One icon and colour each, everywhere. Apps ignore
+        a code they do not know.
+    ItemBadge:
+      type: object
+      additionalProperties: false
+      required: [code, until]
+      description: "v1.79-live (D289). A badge that is showing now, and its end (NEW, LIMITED, SEASONAL), else null."
+      properties:
+        code: { $ref: '#/components/schemas/ItemBadgeCode' }
+        until:
+          type: [string, 'null']
+          format: date-time
+          description: "The end: after it the badge is no longer listed (the item stays). The apps show the days left. Null: no end (a SEASONAL migrated from EVENT has none until the owner sets one)."
+    AdminItemBadge:
+      type: object
+      additionalProperties: false
+      required: [code, until, active]
+      description: "v1.79-live (D289). A stored badge in the panel: its end and whether it still shows (`active: false` once ended)."
+      properties:
+        code: { $ref: '#/components/schemas/ItemBadgeCode' }
+        until: { type: [string, 'null'], format: date-time }
+        active: { type: boolean }
+    ItemBadgeInput:
+      type: object
+      additionalProperties: false
+      required: [code]
+      description: |
+        v1.79-live (D289, §10.102.2). One badge of the set the panel sends. `until`: NEW optional (default 14 days from
+        the save), LIMITED and SEASONAL required, the others never; in the future and at most 366 days ahead. SOUND and
+        NO_SOUND never together. A broken rule: 400 `ITEM_BADGES_INVALID`.
+      properties:
+        code: { $ref: '#/components/schemas/ItemBadgeCode' }
+        until: { type: [string, 'null'], format: date-time }
+    ItemBadgeInputList:
+      type: array
+      maxItems: 9
+      description: "v1.79-live (D289). The whole badge set (an empty list takes every badge off). Not with the deprecated `badge` / `isNew` (400 `VALIDATION_FAILED` `conflict`)."
+      items: { $ref: '#/components/schemas/ItemBadgeInput' }
     Gift:
       type: object
-      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, animationFormat, animationAlpha, audioUrl, audioBytes, audioDurationMs, sortOrder, badge, tag, quip, pkBooster]
+      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, animationFormat, animationAlpha, audioUrl, audioBytes, audioDurationMs, sortOrder, badge, badges, tag, quip, pkBooster]
       properties:
         code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: rose }
         category: { $ref: '#/components/schemas/GiftCategory' }
@@ -29597,6 +29767,14 @@ components:
           description: v1.46-live (D207). The sound's length (null exactly when `audioUrl` is).
         sortOrder: { type: integer, minimum: 0 }
         badge: { $ref: '#/components/schemas/GiftBadge' }
+        badges:
+          type: array
+          maxItems: 9
+          description: |
+            v1.79-live (D289, CONVENTIONS §10.102): the badges showing now (ended ones are not listed), in the display
+            priority. The gift box shows the first two on a tile (a lucky gift's tile keeps its earlier mark), the
+            gift's details all of them. Always present; older apps ignore it.
+          items: { $ref: '#/components/schemas/ItemBadge' }
         tag:
           description: |
             v1.24.3-live (CP-020, D117): the gift's optional sub-category, shown as a chip under the panel's

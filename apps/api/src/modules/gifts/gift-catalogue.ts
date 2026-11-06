@@ -8,6 +8,15 @@ import type {
   PkBoosterKind,
   Prisma,
 } from '../../generated/prisma/client.js';
+import {
+  activeItemBadges,
+  applyLegacyGiftBadge,
+  badgeColumns,
+  badgeSettingsOf,
+  legacyGiftBadge,
+  type ItemBadgeColumns,
+  type ItemBadgeSetting,
+} from './item-badges.js';
 
 /**
  * The gift catalogue and the gift bag (CP-020, D108, CONVENTIONS §10.23), shared by the API and
@@ -75,7 +84,13 @@ export interface GiftFields {
   readonly assetKey: string;
   readonly animationKey: string | null;
   readonly sortOrder: number;
-  readonly badge: GiftBadge;
+  /**
+   * Deprecated v1.79-live (D289): the single value of an older client (`gift-admin --badge`, tests); applied to the set
+   * with {@link applyLegacyGiftBadge} when `badges` is absent. Absent: NONE on add, unchanged on update.
+   */
+  readonly badge?: GiftBadge;
+  /** v1.79-live (D289, §10.102): the badges with their ends (checked by `resolveItemBadges`). Absent: unchanged. */
+  readonly badges?: readonly ItemBadgeSetting[];
   /**
    * The optional sub-category (v1.24.3-live: the panel's chips under the tabs). The three are all
    * null (none) or all set (`gifts_tag_complete`).
@@ -310,8 +325,30 @@ export function giftFieldProblems(fields: Partial<GiftFields>): string[] {
 
 type Tx = Prisma.TransactionClient;
 
+/**
+ * v1.79-live (D289): the badge columns a write sets — from `badges`, else from the legacy `badge` applied to the current
+ * set — with the deprecated `badge` kept in step; null when neither is given (unchanged).
+ */
+export function giftBadgeWrite(
+  fields: Pick<GiftFields, 'badge' | 'badges'>,
+  current: readonly ItemBadgeSetting[],
+  now: Date,
+): (ItemBadgeColumns & { badge: GiftBadge }) | null {
+  let settings: readonly ItemBadgeSetting[];
+  if (fields.badges !== undefined) settings = fields.badges;
+  else if (fields.badge !== undefined) settings = applyLegacyGiftBadge(current, fields.badge, now);
+  else return null;
+  const columns = badgeColumns(settings);
+  return { ...columns, badge: legacyGiftBadge(columns.badges) };
+}
+
 /** Adds a gift (enabled). Returns false when the code exists (nothing changes). */
-export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promise<boolean> {
+export async function addGiftIn(
+  tx: Tx,
+  code: string,
+  fields: GiftFields,
+  now = new Date(),
+): Promise<boolean> {
   const tagProblem =
     giftTagProblem(fields) ??
     giftQuipProblem(fields) ??
@@ -330,7 +367,7 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
         assetKey: fields.assetKey,
         animationKey: fields.animationKey,
         sortOrder: fields.sortOrder,
-        badge: fields.badge,
+        ...(giftBadgeWrite({ ...fields, badge: fields.badge ?? 'NONE' }, [], now) ?? {}),
         tagCode: fields.tagCode,
         tagNameAr: fields.tagNameAr?.trim() ?? null,
         tagNameEn: fields.tagNameEn?.trim() ?? null,
@@ -361,6 +398,7 @@ export async function updateGiftIn(
   tx: Tx,
   code: string,
   fields: Partial<GiftFields>,
+  now = new Date(),
 ): Promise<{ before: Gift; after: Gift } | null> {
   const before = await tx.gift.findUnique({ where: { code } });
   if (!before) return null;
@@ -398,10 +436,12 @@ export async function updateGiftIn(
   if (fields.category !== undefined && fields.category !== before.category) {
     await assertCategoryExistsIn(tx, fields.category);
   }
+  const { badge: _legacy, badges: _set, ...plain } = fields;
   const after = await tx.gift.update({
     where: { code },
     data: {
-      ...fields,
+      ...plain,
+      ...(giftBadgeWrite(fields, badgeSettingsOf(before), now) ?? {}),
       ...(fields.nameAr !== undefined ? { nameAr: fields.nameAr.trim() } : {}),
       ...(fields.nameEn !== undefined ? { nameEn: fields.nameEn.trim() } : {}),
       ...(typeof fields.tagNameAr === 'string' ? { tagNameAr: fields.tagNameAr.trim() } : {}),
@@ -522,7 +562,8 @@ export function catalogueVersion(
     | 'soundMs'
     | 'quipText'
   > &
-    Partial<Pick<Gift, 'animationFormat' | 'animationAlpha' | 'audioObjectKey'>>)[],
+    Partial<Pick<Gift, 'animationFormat' | 'animationAlpha' | 'audioObjectKey'>> &
+    Partial<ItemBadgeColumns>)[],
   quantities: readonly number[],
   comboWindowSeconds: number,
   tabs?: readonly {
@@ -531,7 +572,22 @@ export function catalogueVersion(
     readonly nameEn: string;
     readonly iconObjectKey: string | null;
   }[],
+  now = new Date(),
 ): string {
+  // v1.79-live (D289): the badges running at `now` (a badge's end changes the version, so the app reloads the
+  // catalogue); a gift without badges keeps its old hash part ('NONE' where the single badge was).
+  const running = (g: Partial<ItemBadgeColumns> & Pick<Gift, 'badge'>) =>
+    g.badges === undefined
+      ? null
+      : activeItemBadges(
+          {
+            badges: g.badges,
+            badgeNewUntil: g.badgeNewUntil ?? null,
+            badgeLimitedUntil: g.badgeLimitedUntil ?? null,
+            badgeSeasonalUntil: g.badgeSeasonalUntil ?? null,
+          },
+          now,
+        );
   const canonical = JSON.stringify({
     q: quantities,
     c: comboWindowSeconds,
@@ -546,7 +602,12 @@ export function catalogueVersion(
       g.assetKey,
       g.animationKey,
       g.sortOrder,
-      g.badge,
+      ...((b) =>
+        b === null
+          ? [g.badge]
+          : b.length === 0
+            ? ['NONE']
+            : ['badges', ...b.map((x) => `${x.code}@${x.until ?? ''}`)])(running(g)),
       // v1.24.3-live: the sub-category (appended, so a gift without one keeps its old hash part).
       ...(g.tagCode === null ? [] : [g.tagCode, g.tagNameAr, g.tagNameEn]),
       // v1.26.2-live: the hosted art (appended only when set, so other gifts keep their hash part).

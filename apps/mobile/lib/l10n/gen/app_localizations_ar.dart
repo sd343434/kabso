@@ -15053,4 +15053,57 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifStaffReportNew => 'بلاغ جديد بانتظار الحل';
+
+  @override
+  String get itemBadgeLimited => 'لفترة محدودة';
+
+  @override
+  String get itemBadgeNew => 'جديد';
+
+  @override
+  String get itemBadgeSeasonal => 'موسمي';
+
+  @override
+  String get itemBadgeExclusive => 'حصري';
+
+  @override
+  String get itemBadgeMostWanted => 'الأكثر طلباً';
+
+  @override
+  String get itemBadgeFeatured => 'مميز';
+
+  @override
+  String get itemBadgeFullscreen => 'شاشة كاملة';
+
+  @override
+  String get itemBadgeSound => 'بمؤثرات صوتية';
+
+  @override
+  String get itemBadgeNoSound => 'بدون مؤثرات صوتية';
+
+  @override
+  String itemBadgeDaysLeft(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'باقٍ $n يوم',
+      many: 'باقٍ $n يوماً',
+      few: 'باقٍ $n أيام',
+      two: 'باقٍ يومان',
+      one: 'باقٍ يوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get itemBadgeEndsToday => 'ينتهي اليوم';
+
+  @override
+  String get itemBadgesTitle => 'الشارات';
+
+  @override
+  String get giftDetailsHint => 'اضغط مطولاً لعرض التفاصيل';
+
+  @override
+  String get giftDetailsLucky => 'هدية حظ';
 }

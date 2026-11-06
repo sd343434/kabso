@@ -41,7 +41,10 @@ describe('videos (v1.41-social, D162, CONVENTIONS §11.14)', () => {
       height: 1920,
       durationMs: 12_345,
       codec: 'avc1',
+      // v1.79-live (D289): the helper's file has a sound track.
+      hasAudio: true,
     });
+    expect((await inspect(mp4({ durationMs: 2_000, sound: false }))).info.hasAudio).toBe(false);
     const v1 = await inspect(mp4({ durationMs: 59_000, mvhdVersion: 1, codec: 'hvc1' }));
     expect(v1.info).toMatchObject({ durationMs: 59_000, codec: 'hvc1' });
   });

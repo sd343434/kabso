@@ -133,12 +133,93 @@ export async function giftImageFile(code: string, body: Buffer): Promise<GiftArt
   return { key: contentKey(code, body, kind.ext), contentType: kind.contentType, body, size: body.length };
 }
 
+/** v1.79-live (D289): what an SVGA movie says of itself — its frame (`params.viewBox`) and its sounds (`audios`). */
+export interface SvgaMovieInfo {
+  /** The frame in points, or null when `params` gives none. */
+  readonly width: number | null;
+  readonly height: number | null;
+  /** At least one `audios` entry (field 5 of `MovieEntity`). */
+  readonly hasAudio: boolean;
+}
+
+/** A checked SVGA effect and what it says of itself. */
+export interface GiftAnimationFile extends GiftArtFile, SvgaMovieInfo {}
+
+/** A protobuf varint at `at`: its value (safe for lengths) and the next offset, or null past the end. */
+function varint(bytes: Buffer, at: number): { value: number; next: number } | null {
+  let value = 0;
+  let scale = 1;
+  for (let i = at; i < bytes.length && i < at + 10; i += 1) {
+    const b = bytes[i]!;
+    value += (b & 0x7f) * scale;
+    scale *= 128;
+    if ((b & 0x80) === 0) return { value, next: i + 1 };
+  }
+  return null;
+}
+
+/** The top-level fields of a protobuf message: number, wire type and (length-delimited) payload. */
+function* protoFields(
+  bytes: Buffer,
+): Generator<{ field: number; wire: number; start: number; end: number }, void, undefined> {
+  let at = 0;
+  while (at < bytes.length) {
+    const key = varint(bytes, at);
+    if (!key) return;
+    const field = Math.floor(key.value / 8);
+    const wire = key.value % 8;
+    at = key.next;
+    if (wire === 0) {
+      const v = varint(bytes, at);
+      if (!v) return;
+      yield { field, wire, start: at, end: v.next };
+      at = v.next;
+    } else if (wire === 1) {
+      yield { field, wire, start: at, end: at + 8 };
+      at += 8;
+    } else if (wire === 2) {
+      const len = varint(bytes, at);
+      if (!len || len.next + len.value > bytes.length) return;
+      yield { field, wire, start: len.next, end: len.next + len.value };
+      at = len.next + len.value;
+    } else if (wire === 5) {
+      yield { field, wire, start: at, end: at + 4 };
+      at += 4;
+    } else {
+      return;
+    }
+  }
+}
+
+/**
+ * v1.79-live (D289): reads an inflated SVGA 2.x `MovieEntity` (version 1, params 2 {viewBoxWidth 1, viewBoxHeight 2:
+ * floats}, images 3, sprites 4, audios 5) without decoding the art. A movie it cannot walk reads as unknown / silent.
+ */
+export function svgaMovieInfo(movie: Buffer): SvgaMovieInfo {
+  let width: number | null = null;
+  let height: number | null = null;
+  let hasAudio = false;
+  for (const f of protoFields(movie)) {
+    if (f.field === 5 && f.wire === 2) hasAudio = true;
+    if (f.field === 2 && f.wire === 2) {
+      for (const p of protoFields(movie.subarray(f.start, f.end))) {
+        if (p.wire !== 5) continue;
+        const value = movie.readFloatLE(f.start + p.start);
+        if (!Number.isFinite(value) || value <= 0) continue;
+        if (p.field === 1) width = Math.round(value);
+        if (p.field === 2) height = Math.round(value);
+      }
+    }
+  }
+  return { width, height, hasAudio };
+}
+
 /**
  * Checks a gift's SVGA effect: SVGA 2.x (a zlib stream of the protobuf `MovieEntity`, which the
  * app's player reads), at most 25 MiB. SVGA 1.x (a zip archive) is refused: the app cannot play
- * it. Throws {@link GiftArtError}.
+ * it. Throws {@link GiftArtError}. v1.79-live (D289): also answers the frame and whether it has sounds.
  */
-export function giftAnimationFile(code: string, body: Buffer): GiftArtFile {
+export function giftAnimationFile(code: string, body: Buffer): GiftAnimationFile {
   if (body.length === 0) throw new GiftArtError('The animation file is empty.');
   if (body.length > GIFT_ANIMATION_MAX_BYTES) {
     throw new GiftArtError(
@@ -165,7 +246,13 @@ export function giftAnimationFile(code: string, body: Buffer): GiftArtFile {
   if (inflated[0] !== 0x0a && inflated[0] !== 0x12) {
     throw new GiftArtError('The animation is not an SVGA movie.');
   }
-  return { key: contentKey(code, body, 'svga'), contentType: SVGA_CONTENT_TYPE, body, size: body.length };
+  return {
+    key: contentKey(code, body, 'svga'),
+    contentType: SVGA_CONTENT_TYPE,
+    body,
+    size: body.length,
+    ...svgaMovieInfo(inflated),
+  };
 }
 
 /** A checked image's size (shared by the panel's image and the category icon). */
@@ -257,6 +344,8 @@ export interface GiftVideoFile extends GiftArtFile {
   readonly codec: string;
   /** SIDE_BY_SIDE when width ≥ 1.8 × height (the admin may override it), else NONE. */
   readonly detectedAlpha: GiftVideoAlphaKind;
+  /** v1.79-live (D289): an audio track is in the file (the panel pre-selects «بمؤثرات صوتية»). */
+  readonly hasAudio: boolean;
 }
 
 /**
@@ -270,7 +359,7 @@ export async function giftVideoFile(code: string, body: Buffer): Promise<GiftVid
   if (body.length > GIFT_VIDEO_MAX_BYTES) {
     throw new GiftArtError(`The video is ${String(body.length)} bytes; at most 8 MB.`);
   }
-  let info: { width: number; height: number; durationMs: number; codec: string };
+  let info: { width: number; height: number; durationMs: number; codec: string; hasAudio: boolean };
   try {
     info = await inspectVideo(
       (offset, length) => Promise.resolve(body.subarray(offset, offset + length)),
@@ -308,6 +397,7 @@ export async function giftVideoFile(code: string, body: Buffer): Promise<GiftVid
     durationMs: Math.min(info.durationMs, GIFT_VIDEO_MAX_DURATION_MS),
     codec: info.codec,
     detectedAlpha: info.width >= info.height * GIFT_VIDEO_SIDE_BY_SIDE_RATIO ? 'SIDE_BY_SIDE' : 'NONE',
+    hasAudio: info.hasAudio,
   };
 }
 

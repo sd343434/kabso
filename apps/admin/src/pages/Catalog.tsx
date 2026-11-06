@@ -1,9 +1,20 @@
 import { useState } from 'react';
 import { api } from '../api';
+import {
+  applyDetection,
+  badgeProblems,
+  badgesPart,
+  badgeState,
+  seasonalWithoutEnd,
+  type AdminItemBadge,
+  type BadgeState,
+  type ItemBadgeCode,
+} from '../badges';
 import { Dialog, ErrorAlert, FormDialog, reasonField, useAsync } from '../components';
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
 import { Icon } from '../ui/icons';
+import { BadgeChip, BadgePicker, SeasonalNoEndHint, SeasonalNoEndNote } from './BadgePicker';
 import { BannerForm, placementLabelKey } from './BannerForm';
 import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
@@ -29,7 +40,10 @@ export interface GiftDto {
   audioUrl: string | null;
   audioMs: number | null;
   sortOrder: number;
+  /** Deprecated v1.79-live (D289): the single value, kept in step by the server. */
   badge: string;
+  /** v1.79-live (D289): every stored badge, its end and whether it still shows. */
+  badges: AdminItemBadge[];
   lucky: boolean;
   tagCode: string | null;
   tagNameAr: string | null;
@@ -99,7 +113,20 @@ export function filesBody(files: GiftFilesState, before: GiftDto | null): Record
   return out;
 }
 
-const BADGES = ['NONE', 'NEW', 'EVENT'] as const;
+/** v1.79-live (D289): what the form's files show, for the pre-selection. */
+export function detectFromFiles(files: GiftFilesState): { hasEffect: boolean; hasAudio: boolean; fullscreen?: boolean } {
+  const info = files.animation.info;
+  return {
+    hasEffect: !!files.animation.key,
+    hasAudio: !!files.sound.key || !!info?.hasAudio,
+    ...(info?.fullscreen !== undefined ? { fullscreen: info.fullscreen } : {}),
+  };
+}
+
+/** The badges a detection turned on (for the «اختير تلقائياً» note). */
+export function autoOn(state: BadgeState): ItemBadgeCode[] {
+  return (Object.keys(state) as ItemBadgeCode[]).filter((c) => state[c].auto && state[c].on);
+}
 
 /** The gift form's fields → the request body: only what changed on an edit, nulls for cleared optional fields. */
 export function giftBody(form: Record<string, string>, before: GiftDto | null): Record<string, unknown> {
@@ -115,7 +142,6 @@ export function giftBody(form: Record<string, string>, before: GiftDto | null): 
     ['assetKey', text('assetKey') === '' && before === null ? null : text('assetKey')],
     ['animationKey', opt('animationKey')],
     ['sortOrder', Number(text('sortOrder') || '0')],
-    ['badge', text('badge') || 'NONE'],
     ['tagCode', opt('tagCode')],
     ['tagNameAr', opt('tagNameAr')],
     ['tagNameEn', opt('tagNameEn')],
@@ -146,18 +172,27 @@ function GiftForm({
 }) {
   const { t, lang } = useApp();
   const [files, setFiles] = useState<GiftFilesState>(() => filesOf(gift));
+  const [badges, setBadges] = useState<BadgeState>(() => badgeState(gift?.badges ?? []));
+  const now = new Date();
+  /** A new file: what it shows is pre-selected (marked «تلقائي»); the owner can change it. */
+  const onFiles = (patch: Partial<GiftFilesState>, fresh: boolean) => {
+    setFiles((f) => ({ ...f, ...patch }));
+    if (fresh) setBadges((b) => applyDetection(b, detectFromFiles({ ...files, ...patch })));
+  };
   const [form, setForm] = useState<Record<string, string>>(() =>
     gift
       ? Object.fromEntries(Object.entries(gift).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)]))
-      : { category: 'POPULAR', badge: 'NONE', sortOrder: '0' },
+      : { category: 'POPULAR', sortOrder: '0' },
   );
   const [reason, setReason] = useState('');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const body = { ...giftBody(form, gift), ...filesBody(files, gift) };
+  const body = { ...giftBody(form, gift), ...filesBody(files, gift), ...badgesPart(badges, gift) };
+  const badgesOk = badgeProblems(badges, now).length === 0;
   const code = gift?.code ?? (/^[a-z0-9][a-z0-9_]{0,39}$/.test((form.code ?? '').trim()) ? (form.code ?? '').trim() : '');
   const ok =
+    badgesOk &&
     reason.trim() !== '' &&
     (gift
       ? Object.keys(body).length > 0
@@ -201,16 +236,6 @@ function GiftForm({
         {input('nameAr', 'giftNameAr', { maxLength: 60, dir: 'rtl' })}
         {input('nameEn', 'giftNameEn', { maxLength: 60, dir: 'ltr' })}
         {input('priceCoins', 'giftPrice', { type: 'number', min: 0, max: 1000000, className: 'num' })}
-        <div className="field">
-          <label htmlFor="gf-badge">{t('giftBadge')}</label>
-          <select id="gf-badge" value={form.badge} onChange={set('badge')}>
-            {BADGES.map((b) => (
-              <option key={b} value={b}>
-                {t(`giftBadge${b}` as never)}
-              </option>
-            ))}
-          </select>
-        </div>
         {input('assetKey', 'giftAssetKey', { className: 'ltr mono', maxLength: 80 })}
         {input('animationKey', 'giftAnimationKey', { className: 'ltr mono', maxLength: 80 })}
         {input('sortOrder', 'giftSort', { type: 'number' })}
@@ -245,7 +270,7 @@ function GiftForm({
             value={files.animation}
             alpha={files.alpha}
             onAlpha={(alpha) => setFiles((f) => ({ ...f, alpha }))}
-            onChange={(animation) => setFiles((f) => ({ ...f, animation }))}
+            onChange={(animation) => onFiles({ animation }, !!animation.info)}
           />
           {form.category !== 'QUIPS' && (
             <FileSlot
@@ -254,10 +279,11 @@ function GiftForm({
               label={t('giftSoundFile')}
               hint={t('giftSoundHint')}
               value={files.sound}
-              onChange={(sound) => setFiles((f) => ({ ...f, sound }))}
+              onChange={(sound) => onFiles({ sound }, !!sound.info)}
             />
           )}
         </fieldset>
+        <BadgePicker value={badges} onChange={setBadges} now={now} detected={autoOn(badges)} />
         <div className="field span-2">
           <label htmlFor="gf-reason">{t('reason')}</label>
           <textarea id="gf-reason" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -283,7 +309,11 @@ export function Gifts() {
   const [cat, setCat] = useState<string>('');
   const [edit, setEdit] = useState<GiftDto | 'new' | null>(null);
   const [toggle, setToggle] = useState<GiftDto | null>(null);
-  const shown = data?.data.filter((g) => !cat || g.category === cat) ?? [];
+  // D289 (owner Q2): the gifts whose «موسمي» has no end yet, and the filter to show only them.
+  const [noEndOnly, setNoEndOnly] = useState(false);
+  const noEnd = data?.data.filter((g) => seasonalWithoutEnd(g.badges)).length ?? 0;
+  const shown =
+    data?.data.filter((g) => (!cat || g.category === cat) && (!noEndOnly || seasonalWithoutEnd(g.badges))) ?? [];
   return (
     <>
       <div className="page-head">
@@ -310,6 +340,7 @@ export function Gifts() {
         ))}
       </div>
       <ErrorAlert error={error} />
+      <SeasonalNoEndNote count={noEnd} only={noEndOnly} onOnly={setNoEndOnly} />
       {loading && !data && <div className="gift-grid">{Array.from({ length: 8 }, (_, i) => <div key={i} className="gift-card skeleton-card" />)}</div>}
       {data && shown.length === 0 && (
         <div className="card state empty-state">
@@ -327,7 +358,16 @@ export function Gifts() {
               ) : (
                 <Icon name="gift" size={36} />
               )}
-              {g.badge !== 'NONE' && <span className="badge warn corner">{t(`giftBadge${g.badge}` as never)}</span>}
+              {/* D289: the running badges as icons (all of them, the panel's card is wide); the lucky mark unchanged. */}
+              {g.badges.some((b) => b.active) && (
+                <span className="corner badge-stack" data-gift-badges={g.code}>
+                  {g.badges
+                    .filter((b) => b.active)
+                    .map((b) => (
+                      <BadgeChip key={b.code} code={b.code} iconOnly />
+                    ))}
+                </span>
+              )}
               {g.lucky && <span className="badge info corner2">{t('giftCatLUCKY')}</span>}
               {g.animationFormat && <span className="badge corner3 ltr">{g.animationFormat}{g.animationAlpha === 'SIDE_BY_SIDE' ? ' α' : ''}</span>}
               {g.audioObjectKey && <span className="badge corner4 ltr">MP3</span>}
@@ -340,6 +380,7 @@ export function Gifts() {
               <span className="muted small ltr">${g.priceUsd}</span>
             </div>
             <div className="muted small">{t('giftUse', { n: formatNumber(g.sends, lang) })}</div>
+            {seasonalWithoutEnd(g.badges) && <SeasonalNoEndHint />}
             {can('catalog.manage') && (
               <div className="row gift-actions">
                 <button className="btn small" onClick={() => setEdit(g)}>

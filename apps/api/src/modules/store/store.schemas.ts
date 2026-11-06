@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { itemBadgesInput } from '../gifts/item-badges.schemas.js';
 import { STORE_CURRENCIES, STORE_DAYS, STORE_KINDS, STORE_MAX_PRICE } from './store-rules.js';
 
 /** D270 (CONVENTIONS §10.98): request bodies of «المتجر» and its panel page. */
@@ -53,17 +54,28 @@ const art = {
   artHeight: artSize.nullable().optional(),
 };
 
-export const createStoreItemBody = z.strictObject({
-  kind,
-  nameAr: itemName,
-  nameEn: itemName,
-  ...art,
-  prices,
-  sortOrder: z.number().int().min(0).max(100_000).optional(),
-  isNew: z.boolean().optional(),
-  enabled: z.boolean().optional(),
-  reason,
-});
+/** v1.79-live (D289): `badges` (the set) or the deprecated `isNew` switch, not both. */
+const badgesOrIsNew = {
+  message: 'isNew and badges together',
+  path: ['isNew'],
+  params: { issue: 'conflict' },
+};
+
+export const createStoreItemBody = z
+  .strictObject({
+    kind,
+    nameAr: itemName,
+    nameEn: itemName,
+    ...art,
+    prices,
+    sortOrder: z.number().int().min(0).max(100_000).optional(),
+    /** Deprecated v1.79-live (D289): true sets «جديد» (14 days), false takes it off. */
+    isNew: z.boolean().optional(),
+    badges: itemBadgesInput.optional(),
+    enabled: z.boolean().optional(),
+    reason,
+  })
+  .refine((v) => v.isNew === undefined || v.badges === undefined, badgesOrIsNew);
 export type CreateStoreItemBody = z.output<typeof createStoreItemBody>;
 
 /** The kind never changes (owners' bag rows are of that kind). */
@@ -75,12 +87,20 @@ export const updateStoreItemBody = z
     prices: prices.optional(),
     sortOrder: z.number().int().min(0).max(100_000).optional(),
     isNew: z.boolean().optional(),
+    badges: itemBadgesInput.optional(),
     reason,
   })
-  .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] });
+  .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] })
+  .refine((v) => v.isNew === undefined || v.badges === undefined, badgesOrIsNew);
 export type UpdateStoreItemBody = z.output<typeof updateStoreItemBody>;
 
 export const storeReasonBody = z.strictObject({ reason });
+
+/** v1.79-live (D289b): `DELETE /admin/store/items/{id}` and `…/restore` — the reason is optional (not a money action). */
+export const storeOptionalReasonBody = z
+  .strictObject({ reason: z.string().trim().max(500).optional() })
+  .default({});
+export type StoreOptionalReasonBody = z.output<typeof storeOptionalReasonBody>;
 
 /** `POST /admin/store/uploads?kind=animation|still` (an animation is an SVGA 2.x or an MP4, told by its bytes). */
 export const storeUploadQuery = z.strictObject({ kind: z.enum(['animation', 'still']) });

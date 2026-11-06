@@ -33,6 +33,7 @@ import {
 } from './store-rules.js';
 import type { BuyStoreItemBody, StoreItemsQuery } from './store.schemas.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
+import { activeItemBadges, type ItemBadgeDto } from '../gifts/item-badges.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -51,7 +52,10 @@ export interface StoreItemDto {
   kind: StoreKind;
   name: string;
   art: StoreArtDto;
+  /** Deprecated v1.79-live (D289): «جديد» is running (in `badges`). */
   isNew: boolean;
+  /** v1.79-live (D289, §10.102): the badges running now, in display priority. */
+  badges: ItemBadgeDto[];
   /** Every price set (coins first, then cherries; shorter first). A duration not here is not offered. */
   prices: StorePriceDto[];
   /** The lowest price per currency (the grid's «from»), null when the item has none in it. */
@@ -186,6 +190,7 @@ export class StoreService {
   }
 
   private itemDto(row: ItemWithPrices, lang: ContentLanguage, owned: Date | null | undefined): StoreItemDto {
+    const badges = activeItemBadges(row, this.clock.now());
     const low = (c: StoreCurrency) => {
       const v = lowestPrice(row.prices, c);
       return v === null ? null : Number(v);
@@ -196,7 +201,8 @@ export class StoreService {
       kind: row.kind,
       name: nameOf(lang, row),
       art: storeArtDto(row),
-      isNew: row.isNew,
+      isNew: badges.some((b) => b.code === 'NEW'),
+      badges,
       prices: pricesOf(row),
       fromCoins: low('COINS'),
       fromCherries: low('CHERRIES'),

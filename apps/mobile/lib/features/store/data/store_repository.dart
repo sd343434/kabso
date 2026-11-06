@@ -5,6 +5,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
@@ -63,6 +64,7 @@ final class StoreItem {
     required this.art,
     required this.prices,
     this.isNew = false,
+    this.badges = const [],
     this.ownedUntil,
   });
 
@@ -95,6 +97,7 @@ final class StoreItem {
       art: StoreArt.fromJson(json['art']) ?? const StoreArt(),
       prices: prices,
       isNew: json['isNew'] == true,
+      badges: itemBadgesFromJson(json['badges']),
       ownedUntil: owned is String ? DateTime.tryParse(owned) : null,
     );
   }
@@ -109,7 +112,18 @@ final class StoreItem {
 
   /// Coins first, then cherries; shorter first (as the server lists them).
   final List<StorePrice> prices;
+
+  /// Deprecated v1.79-live (D289): «جديد» runs (in [badges]).
   final bool isNew;
+
+  /// v1.79-live (D289, §10.102): the running badges in display priority.
+  final List<ItemBadge> badges;
+
+  /// The badges to show: [badges], or «جديد» alone from an older API that
+  /// sends only `isNew`.
+  List<ItemBadge> get shownBadges => badges.isNotEmpty
+      ? badges
+      : (isNew ? const [ItemBadge(ItemBadgeCode.isNew)] : const []);
 
   /// The caller holds it until then (a purchase adds the days), else null.
   final DateTime? ownedUntil;

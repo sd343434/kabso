@@ -63,6 +63,9 @@ export function errorKey(err: unknown): { key: Key; vars?: Record<string, number
       return { key: 'errUnavailable' };
     case 'VALIDATION_FAILED':
       return { key: 'errValidation' };
+    // v1.79-live (D289).
+    case 'ITEM_BADGES_INVALID':
+      return { key: 'errItemBadges' };
     case 'NOT_FOUND':
       return { key: 'errNotFound' };
     case 'RATE_LIMITED':

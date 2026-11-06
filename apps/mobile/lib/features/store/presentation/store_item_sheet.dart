@@ -45,10 +45,13 @@ Future<void> showStoreItemSheet(
 /// cherries → why (they are earned from gifts). After buying for oneself:
 /// «ارتدِ الآن».
 class StoreItemSheet extends ConsumerStatefulWidget {
-  const new({required this.item, required this.balances, super.key});
+  const new({required this.item, required this.balances, super.key, this.now});
 
   final StoreItem item;
   final StoreBalances balances;
+
+  /// D289: the time the badges' ends are compared with (tests); null: now.
+  final DateTime? now;
 
   static const buyKey = Key('store.sheet.buy');
   static const giftKey = Key('store.sheet.gift');
@@ -56,6 +59,9 @@ class StoreItemSheet extends ConsumerStatefulWidget {
   static const shortKey = Key('store.sheet.short');
   static const lockedKey = Key('store.sheet.locked');
   static const priceKey = Key('store.sheet.price');
+
+  /// D289: the item's badges (all of them, the days left of a timed one).
+  static const badgesKey = Key('store.sheet.badges');
   static const balanceKey = Key('store.sheet.balance');
   static const ownedKey = Key('store.sheet.owned');
   static const wearKey = Key('store.sheet.wear');
@@ -254,30 +260,22 @@ class _StoreItemSheetState extends ConsumerState<StoreItemSheet> {
                   style: t.title.copyWith(color: p.textPrimary),
                 ),
               ),
-              if (_item.isNew)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: KSpacing.sm,
-                    vertical: KSpacing.xxs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: p.primary,
-                    borderRadius: BorderRadius.circular(KRadius.pill),
-                  ),
-                  child: Text(
-                    l10n.storeNew,
-                    style: t.caption.copyWith(
-                      color: p.onPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
             ],
           ),
           Text(
             storeKindLabel(l10n, _item.kind),
             style: t.caption.copyWith(color: p.textSecondary),
           ),
+          // D289: every badge with its icon and name, and the days left of
+          // an offer, «جديد» or a season.
+          if (_item.shownBadges.isNotEmpty) ...[
+            const SizedBox(height: KSpacing.sm),
+            KItemBadgeList(
+              key: StoreItemSheet.badgesKey,
+              badges: _item.shownBadges,
+              now: widget.now,
+            ),
+          ],
           if (owned != null) ...[
             const SizedBox(height: KSpacing.xs),
             Text(

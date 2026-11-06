@@ -26,7 +26,12 @@ function key(tier: string, body: Buffer, ext: string): string {
 /** Checks an SVGA 2.x upload (as a gift's effect) and keys it under the tier. Throws {@link GiftArtError}. */
 export function vipAnimationFile(tier: string, body: Buffer): VipArtFile {
   const checked = giftAnimationFile(tier, body);
-  return { ...checked, key: key(tier, body, 'svga') };
+  return {
+    contentType: checked.contentType,
+    body: checked.body,
+    size: checked.size,
+    key: key(tier, body, 'svga'),
+  };
 }
 
 /** Checks a still (PNG / WebP by its bytes) and reads its size. Throws {@link GiftArtError}. */

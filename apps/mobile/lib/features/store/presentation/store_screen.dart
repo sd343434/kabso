@@ -6,6 +6,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -38,6 +39,9 @@ class StoreScreen extends ConsumerStatefulWidget {
   static const cherriesKey = Key('store.balance.cherries');
   static Key itemKey(String code) => Key('store.item.$code');
   static Key newKey(String code) => Key('store.item.$code.new');
+
+  /// D289: a tile's badge row (at most two on the image's corner).
+  static Key badgesKey(String code) => Key('store.item.$code.badges');
   static Key ownedKey(String code) => Key('store.item.$code.owned');
   static Key priceKey(String code, StoreCurrency currency) =>
       Key('store.item.$code.price.${currency.wire}');
@@ -190,8 +194,9 @@ class _Balances extends StatelessWidget {
   }
 }
 
-/// One item of the grid: the art on a soft tile, «جديد» at the top start,
-/// «تملكه» at the top end, the name and the lowest price.
+/// One item of the grid: the art on a soft tile, its badges at the top start
+/// (D289: at most two, priority order, the icon alone when the names do not
+/// fit), «تملكه» at the top end, the name and the lowest price.
 class StoreItemTile extends StatelessWidget {
   const new({required this.item, required this.onTap, super.key});
 
@@ -227,15 +232,18 @@ class StoreItemTile extends StatelessWidget {
                           child: StoreArtView(art: item.art, kind: item.kind),
                         ),
                       ),
-                      if (item.isNew)
+                      if (runningBadges(
+                        item.shownBadges,
+                        DateTime.now(),
+                      ).isNotEmpty)
                         PositionedDirectional(
                           top: 0,
                           start: 0,
-                          child: _Tag(
-                            key: StoreScreen.newKey(item.code),
-                            text: l10n.storeNew,
-                            color: p.primary,
-                            ink: p.onPrimary,
+                          // The end half keeps «تملكه» clear.
+                          end: item.ownedUntil != null ? 52 : 0,
+                          child: Align(
+                            alignment: AlignmentDirectional.topStart,
+                            child: _Badges(item: item),
                           ),
                         ),
                       if (item.ownedUntil != null)
@@ -275,6 +283,28 @@ class StoreItemTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// D289: the tile's badges; keyed «جديد» too while it shows (D270's key).
+class _Badges extends StatelessWidget {
+  const new({required this.item});
+
+  final StoreItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final running = runningBadges(item.shownBadges, now);
+    final row = KItemBadgeRow(
+      key: StoreScreen.badgesKey(item.code),
+      badges: running,
+      height: 18,
+      now: now,
+    );
+    return running.take(2).any((b) => b.code == ItemBadgeCode.isNew)
+        ? KeyedSubtree(key: StoreScreen.newKey(item.code), child: row)
+        : row;
   }
 }
 
