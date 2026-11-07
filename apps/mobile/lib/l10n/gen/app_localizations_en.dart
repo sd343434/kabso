@@ -14508,6 +14508,78 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileEditTagsFull => 'You have 10 tags.';
 
   @override
+  String get profileTagIconDefault => 'No icon';
+
+  @override
+  String get profileTagIconCrown => 'Crown';
+
+  @override
+  String get profileTagIconFlag => 'Country flag';
+
+  @override
+  String get profileTagIconFire => 'Fire';
+
+  @override
+  String get profileTagIconTrophy => 'Trophy';
+
+  @override
+  String get profileTagIconGamepad => 'Games';
+
+  @override
+  String get profileTagIconMusic => 'Music';
+
+  @override
+  String get profileTagIconMic => 'Microphone';
+
+  @override
+  String get profileTagIconMoon => 'Moon';
+
+  @override
+  String get profileTagIconHeart => 'Heart';
+
+  @override
+  String get profileTagIconStar => 'Star';
+
+  @override
+  String get profileTagIconGem => 'Gem';
+
+  @override
+  String get profileTagIconCamera => 'Camera';
+
+  @override
+  String get profileTagIconBook => 'Book';
+
+  @override
+  String get profileTagIconSport => 'Sport';
+
+  @override
+  String get profileTagIconPalette => 'Art';
+
+  @override
+  String get profileTagIconGlobe => 'Globe';
+
+  @override
+  String profileTagIconFlagOf(String country) {
+    return 'Flag of $country';
+  }
+
+  @override
+  String get profileTagIconPick => 'Tag icon';
+
+  @override
+  String profileTagIconChange(String tag) {
+    return 'Change the icon of $tag';
+  }
+
+  @override
+  String profileTagIconNew(String icon) {
+    return 'New tag icon: $icon';
+  }
+
+  @override
+  String get profileEditTagsIconHint => 'Tap a tag to choose its icon.';
+
+  @override
   String get liveTargetLevelEasy => 'Easy';
 
   @override

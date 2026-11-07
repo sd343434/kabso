@@ -29,6 +29,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/follows/data/follow_requests_repository.dart';
@@ -42,6 +43,7 @@ import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_fields_edit.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/profile/profile_tag_icons.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
@@ -89,6 +91,9 @@ class _FakeEdit implements ProfileEditRepository {
     if (change.clearCategory) next = next.copyWith(category: null);
     if (change.category case final c?) next = next.copyWith(category: c);
     if (change.tags case final tags?) next = next.copyWith(tags: tags);
+    if (change.tagIcons case final icons?) {
+      next = next.copyWith(tagIcons: icons);
+    }
     if (change.links case final links?) {
       next = next.copyWith(
         links: [
@@ -901,8 +906,10 @@ void main() {
     expect(find.text(l10n.profileEditTagInvalid), findsOneWidget);
     await tester.tap(find.byKey(EditProfileFieldsKeys.tagsSave));
     await tester.pumpAndSettle();
+    // D292: one icon per tag goes with the tags (none chosen: `default`).
     expect(repo.changes.last, {
       'tags': ['Gamer', 'Poet'],
+      'tagIcons': ['default', 'default'],
     });
     expect(
       _inRow(EditProfileScreen.tagsKey, l10n.profileEditTagsValue(2)),
@@ -919,5 +926,63 @@ void main() {
       find.byKey(EditProfileFieldsKeys.tagField),
     );
     expect(field.enabled, isFalse);
+  });
+
+  // D292 (§10.106): an icon per tag — picked for a new tag beside the field
+  // and changed with a tap on a tag's chip (a flag asks for its country);
+  // Save sends `tagIcons` with `tags`.
+  testWidgets('tags: icons picked for a new tag and changed on a chip, a '
+      'flag with its country; saved with the tags', (tester) async {
+    final l10n = l10nFor(AppLanguage.en);
+    final repo = await _pumpEdit(tester);
+    final row = find.byKey(EditProfileScreen.tagsKey);
+    await tester.scrollUntilVisible(
+      row,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    // A new tag's icon, then the tag.
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagNewIcon));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ProfileTagIconPickerSheet.sheetKey), findsOneWidget);
+    for (final kind in ProfileTagIconKind.values) {
+      expect(
+        find.byKey(ProfileTagIconPickerSheet.optionKey(kind)),
+        findsOneWidget,
+      );
+    }
+    await tester.tap(
+      find.byKey(ProfileTagIconPickerSheet.optionKey(ProfileTagIconKind.crown)),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(EditProfileFieldsKeys.tagField),
+      'Creator',
+    );
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagAdd));
+    await tester.pump();
+    await tester.enterText(find.byKey(EditProfileFieldsKeys.tagField), 'KSA');
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagAdd));
+    await tester.pump();
+    // The second tag's chip: a flag, then its country.
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagChip(1)));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(ProfileTagIconPickerSheet.optionKey(ProfileTagIconKind.flag)),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(CountryPickerSheet.searchKey), 'Saudi');
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Saudi Arabia').last);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip(l10n.profileTagIconChange('KSA')), findsOneWidget);
+    await tester.tap(find.byKey(EditProfileFieldsKeys.tagsSave));
+    await tester.pumpAndSettle();
+    expect(repo.changes.last, {
+      'tags': ['Creator', 'KSA'],
+      'tagIcons': ['crown', 'flag:SA'],
+    });
   });
 }

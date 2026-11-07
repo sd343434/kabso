@@ -8,6 +8,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/profile/application/profile_edit_controller.dart';
 import 'package:kabso_live/features/profile/data/profile_edit_repository.dart';
 import 'package:kabso_live/features/profile/profile_fields_view.dart';
+import 'package:kabso_live/features/profile/profile_tag_icons.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -31,6 +32,9 @@ abstract final class EditProfileFieldsKeys {
   static const tagField = Key('profile.edit.tag.field');
   static const tagAdd = Key('profile.edit.tag.add');
   static Key tagChip(int i) => Key('profile.edit.tag.$i');
+
+  /// D292: the new tag's icon button (beside the field).
+  static const tagNewIcon = Key('profile.edit.tag.newIcon');
   static const tagsSave = Key('profile.edit.tags.save');
 }
 
@@ -481,10 +485,17 @@ class _EditLinksScreenState extends ConsumerState<EditLinksScreen> {
 /// editor — up to 10 short tags (one line, 24 characters each, no
 /// duplicates ignoring case), shown as chips on the profile cover. Save
 /// sends the whole set (`PATCH /me {tags}`).
+///
+/// D292 (§10.106): each tag has an icon the person picks — the button
+/// beside the field for a new tag, a tap on a tag's chip for one already
+/// added ([showProfileTagIconPicker]); Save sends `tagIcons` with `tags`.
 class EditTagsScreen extends ConsumerStatefulWidget {
-  const new({required this.initial, super.key});
+  const new({required this.initial, super.key, this.initialIcons = const []});
 
   final List<String> initial;
+
+  /// `Me.tagIcons` (one per tag; missing entries are `default`).
+  final List<String> initialIcons;
 
   static const int maxTags = 10;
   static const int maxLength = 24;
@@ -495,6 +506,12 @@ class EditTagsScreen extends ConsumerStatefulWidget {
 
 class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
   late final List<String> _tags = [...widget.initial];
+  late final List<ProfileTagIcon> _initialIcons = ProfileTagIcon.listFor(
+    widget.initial,
+    widget.initialIcons,
+  );
+  late final List<ProfileTagIcon> _icons = [..._initialIcons];
+  ProfileTagIcon _newIcon = ProfileTagIcon.none;
   final _field = TextEditingController();
   String? _error;
   bool _saving = false;
@@ -507,7 +524,20 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
 
   bool get _dirty =>
       _tags.length != widget.initial.length ||
-      _tags.indexed.any((e) => e.$2 != widget.initial[e.$1]);
+      _tags.indexed.any((e) => e.$2 != widget.initial[e.$1]) ||
+      _icons.indexed.any((e) => e.$2 != _initialIcons[e.$1]);
+
+  Future<void> _pickNewIcon() async {
+    final icon = await showProfileTagIconPicker(context, current: _newIcon);
+    if (icon != null && mounted) setState(() => _newIcon = icon);
+  }
+
+  Future<void> _pickIcon(int i) async {
+    final icon = await showProfileTagIconPicker(context, current: _icons[i]);
+    if (icon != null && mounted && i < _icons.length) {
+      setState(() => _icons[i] = icon);
+    }
+  }
 
   /// The app's copy of the server's rule (§10.99); null when [tag] is fine.
   String? _issue(AppLocalizations l10n, String tag) {
@@ -534,6 +564,8 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
       _error = issue;
       if (issue == null) {
         _tags.add(tag);
+        _icons.add(_newIcon);
+        _newIcon = ProfileTagIcon.none;
         _field.clear();
       }
     });
@@ -545,7 +577,10 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
     setState(() => _saving = true);
     try {
       await ref.read(saveProfileFieldsProvider)(
-        ProfileFieldsChange(tags: [..._tags]),
+        ProfileFieldsChange(
+          tags: [..._tags],
+          tagIcons: [for (final icon in _icons) icon.wire],
+        ),
       );
       if (!mounted) return;
       KSnack.success(context, l10n.profileEditSaved);
@@ -556,7 +591,9 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
       String? shown;
       if (failure is ServerFailure) {
         for (final d in failure.details) {
-          if (!d.field.startsWith('tags')) continue;
+          if (!d.field.startsWith('tags') && !d.field.startsWith('tagIcons')) {
+            continue;
+          }
           shown = switch (d.issue) {
             'too_long' => l10n.profileEditTagTooLong(EditTagsScreen.maxLength),
             'invalid_value' => l10n.profileEditTagDuplicate,
@@ -580,6 +617,7 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
     final p = context.palette;
     final t = context.textStyles;
     final full = _tags.length >= EditTagsScreen.maxTags;
+    final arabic = Localizations.localeOf(context).languageCode == 'ar';
     return Scaffold(
       backgroundColor: p.background,
       appBar: KAppBar(
@@ -603,13 +641,30 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
         padding: const EdgeInsets.all(KSpacing.lg),
         children: [
           Text(
-            l10n.profileEditTagsHint,
+            '${l10n.profileEditTagsHint} ${l10n.profileEditTagsIconHint}',
             style: t.caption.copyWith(color: p.textSecondary),
           ),
           const SizedBox(height: KSpacing.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // D292: the new tag's icon.
+              Padding(
+                padding: const EdgeInsets.only(top: KSpacing.xs),
+                child: IconButton.outlined(
+                  key: EditProfileFieldsKeys.tagNewIcon,
+                  tooltip: l10n.profileTagIconNew(
+                    _newIcon.label(l10n, arabic: arabic),
+                  ),
+                  onPressed: _saving || full ? null : _pickNewIcon,
+                  icon: ProfileTagIconView(
+                    icon: _newIcon,
+                    size: 22,
+                    noneIcon: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: KSpacing.sm),
               Expanded(
                 child: TextField(
                   key: EditProfileFieldsKeys.tagField,
@@ -649,12 +704,22 @@ class _EditTagsScreenState extends ConsumerState<EditTagsScreen> {
               for (final (i, tag) in _tags.indexed)
                 InputChip(
                   key: EditProfileFieldsKeys.tagChip(i),
+                  shape: const StadiumBorder(),
+                  // D292: the tag's icon; a tap on the chip changes it.
+                  avatar: ProfileTagIconView(
+                    icon: _icons[i],
+                    size: 18,
+                    noneIcon: true,
+                  ),
                   label: Text(tag),
+                  tooltip: l10n.profileTagIconChange(tag),
+                  onPressed: _saving ? null : () => _pickIcon(i),
                   deleteButtonTooltipMessage: l10n.profileEditTagRemove(tag),
                   onDeleted: _saving
                       ? null
                       : () => setState(() {
                           _tags.removeAt(i);
+                          _icons.removeAt(i);
                           _error = null;
                         }),
                 ),

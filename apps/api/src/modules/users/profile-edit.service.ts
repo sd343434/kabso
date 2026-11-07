@@ -12,7 +12,13 @@ import { isUuid } from '../auth/tokens.js';
 import { syncHostFrameIn } from '../economy/host-frames.js';
 import { MediaService } from '../media/media.service.js';
 import { containsReservedTerm } from './confusables.js';
-import type { AccountCategory, Gender, ProfileLinkInput } from './profile-fields.js';
+import {
+  keptProfileTagIcons,
+  profileTagIconsOf,
+  type AccountCategory,
+  type Gender,
+  type ProfileLinkInput,
+} from './profile-fields.js';
 import { UsersService, type MeDto } from './users.service.js';
 import { refuseLimitedStaff } from '../live/live-staff.js';
 
@@ -35,6 +41,8 @@ export interface UpdateMeInput {
   readonly links?: readonly ProfileLinkInput[] | undefined;
   /** v1.85-social (D278b, §10.99). */
   readonly tags?: readonly string[] | undefined;
+  /** v1.91-social (D292, §10.106): one icon per tag of `tags` (only with `tags`). */
+  readonly tagIcons?: readonly string[] | undefined;
 }
 
 /** `SetAvatarRequest` (v1.45-social): strict (unknown fields → `unknown_field`). */
@@ -92,12 +100,20 @@ export class ProfileEditService {
           show_gender: boolean;
           account_category: string | null;
           tags: string[];
+          tag_icons: string[];
         }[]
       >`
         SELECT display_name, bio, gender::text AS gender, show_gender, account_category::text AS account_category,
-               tags
+               tags, tag_icons
           FROM user_profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
       if (!before) return false;
+      // v1.91-social (D292, §10.106): the icons go with the tags — the ones sent, or (an older app sending only
+      // `tags`) each tag keeps the icon it had by its text; a new tag is `default`.
+      const beforeIcons = profileTagIconsOf(before.tags, before.tag_icons);
+      const tagIcons =
+        input.tags === undefined
+          ? undefined
+          : (input.tagIcons ?? keptProfileTagIcons(input.tags, before.tags, beforeIcons));
       await tx.userProfile.update({
         where: { userId },
         data: {
@@ -109,6 +125,7 @@ export class ProfileEditService {
           ...(input.showGender !== undefined ? { showGender: input.showGender } : {}),
           ...(input.category !== undefined ? { category: input.category } : {}),
           ...(input.tags !== undefined ? { tags: [...input.tags] } : {}),
+          ...(tagIcons !== undefined ? { tagIcons: [...tagIcons] } : {}),
         },
       });
       const fields: string[] = [];
@@ -134,6 +151,11 @@ export class ProfileEditService {
         (input.tags.length !== before.tags.length || input.tags.some((t, i) => t !== before.tags[i]))
       )
         fields.push('tags');
+      if (
+        tagIcons !== undefined &&
+        (tagIcons.length !== beforeIcons.length || tagIcons.some((t, i) => t !== beforeIcons[i]))
+      )
+        fields.push('tagIcons');
       if (input.links !== undefined && (await this.replaceLinksIn(tx, userId, input.links)))
         fields.push('links');
       if (fields.length > 0) {

@@ -51,6 +51,12 @@ class KabsoTeamBadge extends StatelessWidget {
   /// … and 22 pt on the host's compact flat line (still readable).
   static const double flatChatHeight = 22;
 
+  /// D292 (owner, on the profile: «شارة فريق كابسو صغيرة وغير واضحة»):
+  /// beside the name on the profile header and the Me hub (was 20 / 22,
+  /// where the banner's name was ≈ 3.5 pt): the name in the banner is
+  /// ≈ 5 pt here, read at @3x.
+  static const double profileHeight = 30;
+
   /// D282c (owner: «ولون الخط في داخلها ذهبي مناسب»): the name in a warm
   /// gold matching the banner's frame, bold, over a thin dark shadow so it
   /// reads on the red.

@@ -103,6 +103,13 @@ VoidCallback? bondAction(
 /// art itself is never mirrored). The title (white, bold, a soft shadow)
 /// and the value (white 85 %) fill the rest and shrink to fit. The same in
 /// light and dark.
+///
+/// D292 (owner, «أ»): outline-only, like the tag chips — no painted body,
+/// a thin border in each bond's accent (the art's darker rim colour), the
+/// title and value in the theme's text colours; the owner's three shields
+/// carry «العائلة» / «العلاقة» / «الميداليات» on their ribbons, so the tiles
+/// show only the value, a little larger (the screen reader still says the
+/// bond's name).
 class ProfileBondsRow extends ConsumerWidget {
   const new({required this.profile, super.key});
 
@@ -118,6 +125,8 @@ class ProfileBondsRow extends ConsumerWidget {
   /// Each tile's body and medallion (tests).
   static const Key bodyKey = _BondTile.bodyKey;
   static const Key medalKey = _BondTile.medalKey;
+  static const Key ribbonKey = _BondTile.ribbonKey;
+  static const Key valueKey = _BondTile.valueKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -197,8 +206,15 @@ abstract final class KBondTile {
 /// its bottom, the shade next to the medallion, the light rim on top and
 /// the darker rim below.
 enum BondArt {
+  /// D292 (owner's art, 2026-11-06: «اجعلها أيقونة العائلة واكتب العائلة في
+  /// الشريط البنفسجي، وفاميلي في حال كانت لغة إنجليزية»): the gold-and-purple
+  /// family shield; «العائلة» / "Family" is written live on its empty
+  /// purple ribbon ([ribbon]).
   family(
-    'assets/profile/bonds/family_medal.webp',
+    'assets/profile/bonds/family_shield.webp',
+    aspect: 512 / 445,
+    ribbon: Rect.fromLTRB(0.273, 0.674, 0.727, 0.775),
+    ribbonShadow: Color(0xB3280040),
     top: Color(0xFFFFDB1D),
     middle: Color(0xFFFCC302),
     bottom: Color(0xFFFBCE09),
@@ -206,8 +222,17 @@ enum BondArt {
     rimLight: Color(0xFFFBF8C5),
     rimDark: Color(0xFFF4B50B),
   ),
+
+  /// D292 (owner's art, 2026-11-06: «اجعلها أيقونة العلاقة، واكتب العلاقة في
+  /// الشريط الأحمر … لا تُعِد كتابتها بجانب الأيقونة، فقط داخل الشريط»): the
+  /// heart with the crown and the two rings; «العلاقة» / "Couple" is
+  /// written live on its empty red ribbon (measured on `couple_shield.webp`,
+  /// 512 × 443: the red band x 110–400, y 302–345, under its top gem).
   couple(
-    'assets/profile/bonds/couple_medal.webp',
+    'assets/profile/bonds/couple_shield.webp',
+    aspect: 512 / 443,
+    ribbon: Rect.fromLTRB(0.215, 0.682, 0.781, 0.779),
+    ribbonShadow: Color(0xB3400000),
     top: Color(0xFFFC7516),
     middle: Color(0xFFFA5101),
     bottom: Color(0xFFFE6205),
@@ -215,14 +240,25 @@ enum BondArt {
     rimLight: Color(0xFFFDEE7C),
     rimDark: Color(0xFFF94E06),
   ),
+
+  /// D292 (owner's art, 2026-11-06: «اجعلها أيقونة الميداليات، واكتب
+  /// الميداليات في الشريط الأخضر … لا تُعِد كتابتها بجانب الأيقونة»): the
+  /// green-and-gold shield with the three medals; «الميداليات» / "Medals" is
+  /// written live on its empty green ribbon (measured on
+  /// `medals_shield.webp`, 512 × 473: the green band x 120–392, y 340–372,
+  /// under its top gem). The tile's border is the ribbon's green (sampled
+  /// #036B13 at (300, 355)), replacing the violet of the old pill.
   medals(
-    'assets/profile/bonds/medals_medal.webp',
+    'assets/profile/bonds/medals_shield.webp',
     top: Color(0xFFD054F9),
     middle: Color(0xFF982FF5),
     bottom: Color(0xFFC149FC),
     shade: Color(0xFF751EE8),
     rimLight: Color(0xFFD8C2F4),
-    rimDark: Color(0xFF9B3AEC),
+    rimDark: Color(0xFF036B13),
+    aspect: 512 / 473,
+    ribbon: Rect.fromLTRB(0.234, 0.719, 0.766, 0.786),
+    ribbonShadow: Color(0xB3002A08),
   );
 
   new(
@@ -233,9 +269,25 @@ enum BondArt {
     required this.shade,
     required this.rimLight,
     required this.rimDark,
+    this.aspect = 1,
+    this.ribbon,
+    this.ribbonShadow = const Color(0xB3000000),
   });
 
   final String medal;
+
+  /// The art's width ÷ height (the medallions are square).
+  final double aspect;
+
+  /// D292: the empty ribbon the bond's name is written on, as fractions of
+  /// the art's width and height (measured on `family_shield.webp`, 512 ×
+  /// 445: the purple band between the gold edges, x 140–372, y 300–345 —
+  /// clear of the gems above and below its middle). Null: no label.
+  final Rect? ribbon;
+
+  /// The ribbon label's soft shadow (a dark shade of the ribbon).
+  final Color ribbonShadow;
+
   final Color top;
   final Color middle;
   final Color bottom;
@@ -264,103 +316,93 @@ class _BondTile extends StatelessWidget {
   static const Key bodyKey = ValueKey('profile.bonds.body');
   static const Key medalKey = ValueKey('profile.bonds.medal');
 
+  /// D292: the bond's name on the art's ribbon (the family shield).
+  static const Key ribbonKey = ValueKey('profile.bonds.ribbon');
+
+  /// The value line (tests).
+  static const Key valueKey = ValueKey('profile.bonds.value');
+
   @override
   Widget build(BuildContext context) {
     final t = context.textStyles;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    const white = Color(0xFFFFFFFF);
-    const shadow = [
-      Shadow(color: Color(0x73000000), blurRadius: 3, offset: Offset(0, 1)),
-    ];
+    final p = context.palette;
     final radius = BorderRadius.circular(KBondTile.radius);
     const medal = KBondTile.height * KBondTile.medal;
+    final medalWidth = medal * art.aspect;
+    final ribbon = art.ribbon;
     return Semantics(
       button: onTap != null,
       label: '$title, $value',
       excludeSemantics: true,
       child: SizedBox(
         height: KBondTile.height,
+        // D292 (owner, «أ»): outline-only like the tag chips — no fill, a
+        // thin border in the bond's own accent (the art's darker rim
+        // colour: amber, orange, violet), in light and dark.
         child: DecoratedBox(
           key: bodyKey,
           decoration: BoxDecoration(
             borderRadius: radius,
-            // The pill's body: lighter on top and at the bottom edge, deeper
-            // in the middle (sampled down a column of the owner's art).
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [art.top, art.middle, art.middle, art.bottom],
-              stops: const [0, 0.42, 0.7, 1],
-            ),
             border: Border.all(color: art.rimDark, width: KBondTile.rim),
-            boxShadow: [
-              BoxShadow(
-                color: art.shade.withValues(alpha: 0.35),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: ClipRRect(
             borderRadius: radius,
             child: Stack(
               children: [
-                // Deeper next to the medallion (the art's horizontal shade).
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: rtl
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
-                        end: rtl ? Alignment.centerRight : Alignment.centerLeft,
-                        colors: [
-                          art.shade.withValues(alpha: 0),
-                          art.shade.withValues(alpha: 0.55),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // The glossy band along the top (the art's light rim).
-                Positioned(
-                  top: KBondTile.rim,
-                  left: KBondTile.rim + 2,
-                  right: KBondTile.rim + 2,
-                  height: KBondTile.height * 0.38,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(KBondTile.radius - 2),
-                        bottom: Radius.circular(KBondTile.radius),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          art.rimLight.withValues(alpha: 0.75),
-                          art.rimLight.withValues(alpha: 0),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
                 PositionedDirectional(
                   start: KBondTile.medalInset,
                   top: (KBondTile.height - medal) / 2,
-                  width: medal,
+                  width: medalWidth,
                   height: medal,
-                  child: Image.asset(
-                    art.medal,
-                    key: medalKey,
-                    fit: BoxFit.contain,
-                    // The owner's art, scaled as faithfully as possible.
-                    filterQuality: FilterQuality.high,
-                    excludeFromSemantics: true,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        art.medal,
+                        key: medalKey,
+                        fit: BoxFit.contain,
+                        // The owner's art, scaled as faithfully as possible.
+                        filterQuality: FilterQuality.high,
+                        excludeFromSemantics: true,
+                      ),
+                      // D292: the bond's name on the art's ribbon (absolute
+                      // offsets: the art is never mirrored).
+                      if (ribbon != null)
+                        Positioned(
+                          key: ribbonKey,
+                          left: ribbon.left * medalWidth,
+                          top: ribbon.top * medal,
+                          width: ribbon.width * medalWidth,
+                          height: ribbon.height * medal,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              softWrap: false,
+                              textScaler: TextScaler.noScaling,
+                              style: t.label.copyWith(
+                                color: const Color(0xFFFFE7A3),
+                                fontSize: ribbon.height * medal * 0.9,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                                letterSpacing: 0,
+                                shadows: [
+                                  Shadow(
+                                    color: art.ribbonShadow,
+                                    blurRadius: 1.5,
+                                    offset: const Offset(0, 0.6),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 PositionedDirectional(
-                  start: KBondTile.medalInset + medal + KSpacing.xs,
+                  start: KBondTile.medalInset + medalWidth + KSpacing.xs,
                   end: KSpacing.sm,
                   top: KSpacing.xs,
                   bottom: KSpacing.xs,
@@ -370,38 +412,62 @@ class _BondTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: AlignmentDirectional.centerStart,
-                            child: Text(
-                              title,
-                              key: titleKey,
-                              maxLines: 1,
-                              softWrap: false,
-                              style: t.label.copyWith(
-                                color: white,
-                                fontSize: KBondCard.titleFont,
-                                fontWeight: FontWeight.w700,
-                                height: 1.15,
-                                shadows: shadow,
+                        // D292 (owner, «أ»): a shield that carries the
+                        // name on its ribbon shows no title beside it.
+                        if (ribbon == null)
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                title,
+                                key: titleKey,
+                                maxLines: 1,
+                                softWrap: false,
+                                style: t.label.copyWith(
+                                  color: p.textPrimary,
+                                  fontSize: KBondCard.titleFont,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.15,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            value,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: t.caption.copyWith(
-                              color: white.withValues(alpha: 0.85),
-                              fontSize: KBondCard.valueFont - 1,
-                              height: 1.15,
-                              shadows: shadow,
+                        if (ribbon == null)
+                          Flexible(
+                            child: Text(
+                              value,
+                              key: valueKey,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.caption.copyWith(
+                                color: p.textSecondary,
+                                fontSize: KBondCard.valueFont - 1,
+                                height: 1.15,
+                              ),
+                            ),
+                          )
+                        else
+                          // Alone: a little more prominent, on one line
+                          // (shrinks to fit rather than break «لا يوجد»).
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                value,
+                                key: valueKey,
+                                maxLines: 1,
+                                softWrap: false,
+                                style: t.label.copyWith(
+                                  color: p.textPrimary,
+                                  fontSize: KBondCard.titleFont,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.15,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -538,9 +604,14 @@ class ProfileBondsBlock extends StatelessWidget {
     required this.profile,
     super.key,
     this.ownTiles = true,
+    this.showMedals = true,
   });
 
   final Widget levels;
+
+  /// Whether the medals [profile] chose to show are drawn here. D292: the
+  /// profile header draws them under the name instead.
+  final bool showMedals;
   final PublicProfile? profile;
 
   /// The bag and premium-username tiles of the own profile; D218 (owner:
@@ -563,7 +634,7 @@ class ProfileBondsBlock extends StatelessWidget {
         // D283: a Kabso Team account shows no family, relationship, medals
         // or bag — only the team's identity.
         if (profile != null && profile.staff == null) ...[
-          if (profile.medals.showcase.isNotEmpty)
+          if (showMedals && profile.medals.showcase.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: KSpacing.sm),
               child: MedalShowcaseRow(

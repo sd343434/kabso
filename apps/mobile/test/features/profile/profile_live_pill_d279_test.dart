@@ -82,8 +82,10 @@ Future<void> atNow(Future<void> Function() body) =>
 
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
-/// The pill on the cover at the reading end, opposite the photo and level
-/// with it; small (28 dp, a little more with large text).
+/// The pill on the cover at the reading end, opposite the photo; small
+/// (28 dp, a little more with large text). D292: the photo's middle is the
+/// picture's bottom edge, so the pill sits on the picture, centred in the
+/// photo box's upper half (less 8 dp).
 void expectPill(
   WidgetTester tester, {
   required double width,
@@ -97,12 +99,15 @@ void expectPill(
   expect(pill.height, greaterThanOrEqualTo(ProfileLivePill.height - 0.5));
   expect(pill.height, lessThanOrEqualTo(maxHeight));
   expect(pill.width, lessThan(width / 2));
-  // On the picture, level with the photo.
+  // On the picture, beside the photo's upper half.
   expect(pill.top, greaterThanOrEqualTo(cover.top));
   expect(pill.bottom, lessThanOrEqualTo(cover.bottom));
-  expect(pill.top, greaterThanOrEqualTo(avatar.top));
-  expect(pill.bottom, lessThanOrEqualTo(avatar.bottom));
-  expect(pill.center.dy, moreOrLessEquals(avatar.center.dy, epsilon: 1));
+  expect(pill.bottom, lessThanOrEqualTo(avatar.center.dy));
+  final slotTop = cover.bottom - KPublicProfile.avatarSlot.height / 2;
+  expect(
+    pill.center.dy,
+    moreOrLessEquals((slotTop + cover.bottom - 8) / 2, epsilon: 1),
+  );
   // The reading end, 16 dp in; the photo at the start (RTL mirrors it).
   if (ar) {
     expect(pill.left, moreOrLessEquals(16, epsilon: 0.5));

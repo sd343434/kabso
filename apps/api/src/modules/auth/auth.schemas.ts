@@ -10,6 +10,7 @@ import {
   ACCOUNT_CATEGORIES,
   GENDERS,
   profileLinksSchema,
+  profileTagIconsSchema,
   profileTagsSchema,
 } from '../users/profile-fields.js';
 import { installIdSchema, referralCodeInput } from '../referrals/referral-rules.js';
@@ -200,7 +201,8 @@ export const bioSchema = z
  * `PATCH /me`: v1.2 `locale`; v1.27.1-live (D133) `country` (ISO 3166-1 alpha-2, any case,
  * stored upper case; null clears it); v1.45-social (D168) `displayName` (the §6 registration rules;
  * reserved terms are checked by the service) and `bio` (null or empty clears it); v1.47-social (D175)
- * `gender`, `showGender`, `category` and `links`; v1.85-social (D278b) `tags`. At least one.
+ * `gender`, `showGender`, `category` and `links`; v1.85-social (D278b) `tags`; v1.91-social (D292) `tagIcons`
+ * (only with `tags`, one per tag). At least one.
  */
 export const updateMeSchema = z
   .strictObject({
@@ -221,8 +223,18 @@ export const updateMeSchema = z
     links: profileLinksSchema.optional(),
     // v1.85-social (D278b, §10.99): the profile tags «منشنات» (the whole set; [] clears them).
     tags: profileTagsSchema.optional(),
+    // v1.91-social (D292, §10.106): the icon of each tag (null = `default`); omitted, each tag keeps its icon.
+    tagIcons: profileTagIconsSchema.optional(),
   })
   .superRefine((body, ctx) => {
+    if (body.tagIcons !== undefined && body.tags?.length !== body.tagIcons.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['tagIcons'],
+        params: { issue: 'invalid_value' },
+        message: 'one icon per tag, sent with tags',
+      });
+    }
     if (Object.values(body).every((v) => v === undefined)) {
       ctx.addIssue({
         code: 'custom',

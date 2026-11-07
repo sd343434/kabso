@@ -29,6 +29,9 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   tags:
       (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
+  tagIcons:
+      (json['tagIcons'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
   specialUsername: specialUsernameFromJson(json['specialUsername']),
   coverUrl: json['coverUrl'] as String?,
   kabsoTeam: json['kabsoTeam'] as bool? ?? false,
@@ -57,6 +60,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'category': accountCategoryToJson(instance.category),
   'links': profileLinksToJson(instance.links),
   'tags': instance.tags,
+  'tagIcons': instance.tagIcons,
   'specialUsername': ?specialUsernameToJson(instance.specialUsername),
   'coverUrl': instance.coverUrl,
   'kabsoTeam': instance.kabsoTeam,

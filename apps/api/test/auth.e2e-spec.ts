@@ -71,8 +71,9 @@ describe('POST /auth/register', () => {
       showGender: false,
       category: null,
       links: [],
-      // v1.85-social (D278b): no profile tags.
+      // v1.85-social (D278b): no profile tags; v1.91-social (D292): so no icons.
       tags: [],
+      tagIcons: [],
       // v1.76-social (D218): no profile cover yet.
       coverUrl: null,
     });

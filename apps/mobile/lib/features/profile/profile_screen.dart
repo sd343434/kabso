@@ -124,6 +124,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       gender: user.showGender ? user.gender : null,
       links: user.links,
       tags: user.tags,
+      tagIcons: user.tagIcons,
       premiumTier: user.premiumTier,
       kabsoTeam: user.kabsoTeam,
       // D283c: the official staff ID «Kabso01» (the OWNER too).
@@ -226,7 +227,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           IconButton(
             key: ProfileScreen.settingsButtonKey,
             tooltip: l10n.settingsTitle,
-            icon: AppIcon(AppIcons.settings, size: KMetrics.iconMd, color: fg),
+            // D292: a plain glyph with a soft shadow over the cover.
+            icon: ProfileCoverBar.glyph(
+              solid: solid,
+              child: AppIcon(
+                AppIcons.settings,
+                size: KMetrics.iconMd,
+                color: fg,
+              ),
+            ),
             onPressed: () => context.push(AppRoutes.settings),
           ),
         ],
@@ -504,8 +513,11 @@ class ProfileHeaderView extends StatelessWidget {
                 key: const Key('profile.displayName'),
                 style: t.bodyStrong.copyWith(color: p.textPrimary),
               ),
-              // Owner (after D189): the agent and daily badges are as tall
-              // as the level badges (their default 18 = ProfileLevels').
+              // Owner (after D189): the agent and daily badges at their
+              // default 18 (ProfileLevels' height) in this compact view.
+              // D292: the profile header ([ProfileCoverHeader]) draws them
+              // at one visible size (KPublicProfile.nameBadge and its
+              // siblings) — the square crests were too small there.
               if (agentCode case final code?)
                 RechargeAgentBadge(key: agentBadgeKey, code: code),
               // D189: the host-agent badge, placed as the recharge one.

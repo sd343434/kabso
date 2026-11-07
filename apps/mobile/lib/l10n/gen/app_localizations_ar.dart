@@ -14509,6 +14509,78 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileEditTagsFull => 'وصلت إلى 10 منشنات.';
 
   @override
+  String get profileTagIconDefault => 'بدون أيقونة';
+
+  @override
+  String get profileTagIconCrown => 'تاج';
+
+  @override
+  String get profileTagIconFlag => 'علم دولة';
+
+  @override
+  String get profileTagIconFire => 'نار';
+
+  @override
+  String get profileTagIconTrophy => 'كأس';
+
+  @override
+  String get profileTagIconGamepad => 'ألعاب';
+
+  @override
+  String get profileTagIconMusic => 'موسيقى';
+
+  @override
+  String get profileTagIconMic => 'ميكروفون';
+
+  @override
+  String get profileTagIconMoon => 'هلال';
+
+  @override
+  String get profileTagIconHeart => 'قلب';
+
+  @override
+  String get profileTagIconStar => 'نجمة';
+
+  @override
+  String get profileTagIconGem => 'جوهرة';
+
+  @override
+  String get profileTagIconCamera => 'كاميرا';
+
+  @override
+  String get profileTagIconBook => 'كتاب';
+
+  @override
+  String get profileTagIconSport => 'رياضة';
+
+  @override
+  String get profileTagIconPalette => 'فن';
+
+  @override
+  String get profileTagIconGlobe => 'العالم';
+
+  @override
+  String profileTagIconFlagOf(String country) {
+    return 'علم $country';
+  }
+
+  @override
+  String get profileTagIconPick => 'أيقونة الوسم';
+
+  @override
+  String profileTagIconChange(String tag) {
+    return 'تغيير أيقونة $tag';
+  }
+
+  @override
+  String profileTagIconNew(String icon) {
+    return 'أيقونة الوسم الجديد: $icon';
+  }
+
+  @override
+  String get profileEditTagsIconHint => 'اضغط على أي منشن لاختيار أيقونته.';
+
+  @override
   String get liveTargetLevelEasy => 'سهل';
 
   @override

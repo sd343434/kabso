@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { updateMeSchema } from '../auth/auth.schemas.js';
 import {
+  keptProfileTagIcons,
   linkPlatform,
+  PROFILE_TAG_ICONS,
+  profileTagIconsOf,
+  profileTagIconsSchema,
   MAX_PROFILE_TAGS,
   normalizeProfileLink,
   profileLinksSchema,
@@ -161,5 +165,55 @@ describe('profile tags «منشنات» (v1.85-social, D278b, §10.99)', () => {
     expect(profileTagsOf(undefined)).toEqual([]);
     expect(profileTagsOf(null)).toEqual([]);
     expect(profileTagsOf(Array.from({ length: 12 }, (_, i) => `${i}`))).toHaveLength(10);
+  });
+});
+
+describe('profile tag icons (v1.91-social, D292, §10.106)', () => {
+  it('accepts the closed set and flag:<country> (upper-cased); null is default', () => {
+    const keys = PROFILE_TAG_ICONS.filter((k) => k !== 'flag');
+    expect(profileTagIconsSchema.parse(keys.slice(0, 10))).toEqual(keys.slice(0, 10));
+    expect(profileTagIconsSchema.parse(['flag:sa', null, 'flag:EG'])).toEqual([
+      'flag:SA',
+      'default',
+      'flag:EG',
+    ]);
+  });
+
+  it('refuses a bare flag, an unknown country, other words and emoji, per entry', () => {
+    for (const bad of ['flag', 'flag:ZZ', 'flag:XK', 'flag:SAU', 'rocket', 'Crown', '👑', '']) {
+      const r = profileTagIconsSchema.safeParse(['star', bad]);
+      expect(r.success, bad).toBe(false);
+      expect(r.error?.issues[0]?.path).toEqual([1]);
+    }
+  });
+
+  it('PATCH /me: tagIcons only with tags and one per tag', () => {
+    expect(updateMeSchema.safeParse({ tags: ['a'], tagIcons: ['star'] }).success).toBe(true);
+    for (const body of [
+      { tagIcons: ['star'] },
+      { tags: ['a', 'b'], tagIcons: ['star'] },
+      { tags: [], tagIcons: ['star'] },
+    ]) {
+      const r = updateMeSchema.safeParse(body);
+      expect(r.success).toBe(false);
+      expect(r.error?.issues.map((i) => i.path)).toEqual([['tagIcons']]);
+    }
+  });
+
+  it('reads one icon per tag, default where none is stored', () => {
+    expect(profileTagIconsOf(['a', 'b'], [])).toEqual(['default', 'default']);
+    expect(profileTagIconsOf(['a', 'b'], ['star', 'moon'])).toEqual(['star', 'moon']);
+    expect(profileTagIconsOf(null, null)).toEqual([]);
+  });
+
+  it('an older app sending only tags: each keeps its icon by text (ignoring case), a new one is default', () => {
+    expect(
+      keptProfileTagIcons(
+        ['saudi', 'New', 'MUSIC'],
+        ['Music', 'Games', 'Saudi'],
+        ['music', 'gamepad', 'flag:SA'],
+      ),
+    ).toEqual(['flag:SA', 'default', 'music']);
+    expect(keptProfileTagIcons([], ['a'], ['star'])).toEqual([]);
   });
 });

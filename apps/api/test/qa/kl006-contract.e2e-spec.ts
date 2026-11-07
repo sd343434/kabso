@@ -47,6 +47,8 @@ const ME_REQUIRED = [
   'links',
   // D278b (v1.85-social): the profile tags «منشنات».
   'tags',
+  // D292 (v1.91-social): the icon of each tag.
+  'tagIcons',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];

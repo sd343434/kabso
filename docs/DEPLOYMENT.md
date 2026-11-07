@@ -2941,6 +2941,16 @@ backfill — which is correct (level 1 is the old rule), so the API can be deplo
   `SELECT level, count(*) FROM user_medals WHERE medal_code = 'LUCKY_MASTER' GROUP BY 1;`.
 - **Panel:** «الميداليات» (`catalog.view` reads, the OWNER edits with the code; retired codes read-only). No new settings.
 
+### 5.74 Profile tag icons (migration `20270327090000_profile_tag_icons`; D292) — [IMPLEMENTED, draft contract v1.91-social; not deployed, not device-tested]
+
+CONVENTIONS §10.106. The migration adds `user_profiles.tag_icons` (`varchar(24)[]`, default empty) with the CHECKs
+`user_profiles_tag_icons_len` (empty or one per tag) and `user_profiles_tag_icons_values` (the closed set or
+`flag:XX`). Existing rows stay empty and read as `default` for every tag; no backfill. The runtime role keeps its DML
+on `user_profiles` (no GRANT). Additive: deploy the migration with the API (an older API ignores the column; an older
+app ignores `tagIcons` and keeps the icons when it edits its tags).
+
+- **Check after the deploy:** `SELECT count(*) FROM user_profiles WHERE cardinality(tag_icons) NOT IN (0, cardinality(tags))` → 0.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

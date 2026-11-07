@@ -104,6 +104,7 @@ class ProfileFieldsChange {
     this.clearCategory = false,
     this.links,
     this.tags,
+    this.tagIcons,
   });
 
   final Gender? gender;
@@ -116,6 +117,9 @@ class ProfileFieldsChange {
 
   /// D278b: the tags, the whole set in order (empty clears them).
   final List<String>? tags;
+
+  /// D292 (§10.106): one icon key per tag of [tags] (sent only with it).
+  final List<String>? tagIcons;
 
   Map<String, Object?> toJson() => {
     'gender': ?gender?.wire,
@@ -130,6 +134,7 @@ class ProfileFieldsChange {
           },
       ],
     'tags': ?tags,
+    if (tags != null) 'tagIcons': ?tagIcons,
   };
 }
 
