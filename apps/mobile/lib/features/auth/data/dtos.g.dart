@@ -37,6 +37,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   kabsoTeam: json['kabsoTeam'] as bool? ?? false,
   staff: staffIdentityFromJson(json['staff']),
   staffId: json['staffId'] as String?,
+  verification: verificationBadgeFromJson(json['verification']),
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -66,6 +67,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'kabsoTeam': instance.kabsoTeam,
   'staff': ?staffIdentityToJson(instance.staff),
   'staffId': ?instance.staffId,
+  'verification': ?verificationBadgeToJson(instance.verification),
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

@@ -2941,6 +2941,32 @@ backfill — which is correct (level 1 is the old rule), so the API can be deplo
   `SELECT level, count(*) FROM user_medals WHERE medal_code = 'LUCKY_MASTER' GROUP BY 1;`.
 - **Panel:** «الميداليات» (`catalog.view` reads, the OWNER edits with the code; retired codes read-only). No new settings.
 
+### 5.73 Automatic verification badges «شارة التوثيق» (migration `20270326090000_verification_badges`; D293) — [IMPLEMENTED, draft contract v1.90-social; not deployed, not device-tested]
+
+CONVENTIONS §10.105. The migration adds the type `verification_badge`, the table `user_verification_badges` (empty) and
+the one-row `verification_badge_settings` with the **owner's defaults**: 300 000 000 coins sold and 300 000 000 cherries
+bought by a recharge agent, more than 30 active hosts and 300 000 000 cherries received for a host agent's agency — all
+"more than", over the last 30 days. The runtime role gets DML through the default privileges (no GRANT). Nobody shows a
+badge until the first recompute.
+
+- **Settings:** `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` (default **3600** = hourly; 1 … 86 400; the owner said daily
+  is enough, hourly keeps a restart from postponing it by a day; `0` turns the sweeper off and is **refused in
+  production**). The thresholds are edited in the panel «شارات التوثيق» (OWNER, the code again), not in env files.
+- **First-run backfill, once after the deploy** (afterwards the sweeper and the immediate recomputes keep it current).
+  From `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/verification-admin.js recompute
+  ```
+
+  It prints `Verification badges: n granted, n changed, n removed, n kept.`; idempotent (a second run prints 0 granted,
+  0 changed, 0 removed); one `verification.recompute` audit row plus `verification.badge.change` per person
+  (`cause: backfill`). Several API instances are safe: one recompute at a time (an advisory transaction lock).
+- **Checks after deploy:** `SELECT badge, count(*) FROM user_verification_badges GROUP BY 1;` (OWNER = the OWNER
+  accounts, STAFF = the team) and `SELECT last_run_at FROM verification_badge_settings;` (moves every interval).
+- **Panel:** «شارات التوثيق» under «المستخدمون» (`verification.view`: OWNER, MODERATION, SUPPORT, FINANCE read; the OWNER
+  edits with a reason and the code); the badge on each user page.
+
 ### 5.74 Profile tag icons (migration `20270327090000_profile_tag_icons`; D292) — [IMPLEMENTED, draft contract v1.91-social; not deployed, not device-tested]
 
 CONVENTIONS §10.106. The migration adds `user_profiles.tag_icons` (`varchar(24)[]`, default empty) with the CHECKs

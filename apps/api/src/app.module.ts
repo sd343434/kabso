@@ -57,6 +57,7 @@ import { HostApplicationsModule } from './modules/host-applications/host-applica
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
 import { RecruitsModule } from './modules/recruits/recruits.controller.js';
 import { LevelRaiseModule } from './modules/level-raise/level-raise.controller.js';
+import { VerificationModule } from './modules/verification/verification.controller.js';
 import { PkDaresAdminModule } from './modules/live/pk-dares/pk-dares-admin.module.js';
 import { ProgramsAdminModule } from './modules/programs/admin-host-targets.controller.js';
 import { WaitlistModule } from './modules/waitlist/waitlist.module.js';
@@ -137,6 +138,8 @@ export class AppModule {
         RecruitsModule,
         // v1.89-social (D290, §10.103): level-raise requests «طلب رفع ليفيل».
         LevelRaiseModule,
+        // v1.90-social (D293, §10.105): automatic verification badges «شارة التوثيق».
+        VerificationModule,
         // v1.50-live (D229): «أحكام PK».
         PkDaresAdminModule,
         // v1.71-live (D281): «الأهداف الذكية» (OWNER only).

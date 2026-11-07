@@ -77,6 +77,7 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'levelRaise', pattern: '/level-raises/:id' },
   { name: 'levelRaiseApps', pattern: '/level-raise/apps' },
   { name: 'levelRaiseSettings', pattern: '/level-raise/settings' },
+  { name: 'verificationBadges', pattern: '/verification-badges' },
 ];
 
 export function matchPath(path: string): Match | null {

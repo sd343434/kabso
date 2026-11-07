@@ -44,6 +44,7 @@ import {
   type LiveMediaProvider,
   type LiveMediaSource,
 } from './media/live-media.provider.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 /** `LiveMediaAccess` (openapi v1.6-live, CP-010). */
 export interface LiveMediaAccessDto {
@@ -1112,6 +1113,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const ended = await this.prisma.$transaction(async (tx) => {
       const removed = await tx.liveHost.deleteMany({ where: { userId: user.id } });
       const rooms = await this.rooms.endByAdminIn(tx, { hostUserId: user.id });
+      // v1.90-social (D293, §10.105): no longer a host → the blue badge goes at once (unless another applies).
+      if (removed.count > 0) await recomputeBadgesIn(tx, [user.id], 'host');
       if (removed.count > 0 || rooms.length > 0) {
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_HOST_REVOKE,

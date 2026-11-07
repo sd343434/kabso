@@ -201,6 +201,8 @@ export class AdminUsersService {
           select: { username: true, displayName: true, avatarUrl: true, countryCode: true, bio: true },
         },
         adminPermissions: { select: { permission: true } },
+        // v1.90-social (D293, §10.105): the automatic verification badge.
+        verificationBadge: { select: { badge: true, since: true, computedAt: true } },
       },
     });
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
@@ -327,6 +329,14 @@ export class AdminUsersService {
         : null,
       agencyHost: agencyHost
         ? { agencyInviteCode: agencyHost.agency.inviteCode, status: agencyHost.status }
+        : null,
+      // v1.90-social (D293, §10.105): the badge shown beside the name, when it was granted and last confirmed.
+      verification: user.verificationBadge
+        ? {
+            badge: user.verificationBadge.badge,
+            since: user.verificationBadge.since.toISOString(),
+            computedAt: user.verificationBadge.computedAt.toISOString(),
+          }
         : null,
       reports: {
         open: openReports,

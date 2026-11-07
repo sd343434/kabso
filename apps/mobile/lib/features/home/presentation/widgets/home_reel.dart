@@ -12,12 +12,14 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
@@ -43,6 +45,7 @@ class FeedReelData {
     this.authorUsername,
     this.authorId,
     this.authorPremium = false,
+    this.authorVerification,
     this.isFollowingAuthor,
     this.caption,
     this.cover,
@@ -58,6 +61,9 @@ class FeedReelData {
   });
 
   final String authorName;
+
+  /// D293 (owner «نعم»): the author's verification badge, after the handle.
+  final VerificationBadge? authorVerification;
   final ImageProvider? authorAvatar;
 
   /// The reel's post id (real reels only): like, comment, save and share
@@ -1011,6 +1017,8 @@ class _ReelInfo extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // D293: the verification seal right after the handle.
+                  VerificationSeal(reel.authorVerification, fontSize: 16),
                 ],
               ),
             ),

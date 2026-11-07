@@ -15476,4 +15476,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String medalsThresholdLuckyCoins(String amount) {
     return '$amount coins of lucky gifts';
   }
+
+  @override
+  String get verificationBadgeOwner => 'app owner';
+
+  @override
+  String get verificationBadgeStaff => 'Kabso Team';
+
+  @override
+  String get verificationBadgeRechargeAgent => 'recharge agent';
+
+  @override
+  String get verificationBadgeHostAgent => 'host agent';
+
+  @override
+  String get verificationBadgeCreator => 'content creator';
+
+  @override
+  String get verificationBadgeVerifiedHost => 'identity-verified host';
+
+  @override
+  String verificationBadgeLabel(String kind) {
+    return 'Verified: $kind';
+  }
+
+  @override
+  String get verificationBadgeAbout => 'Granted automatically by conditions';
 }

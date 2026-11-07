@@ -54,6 +54,7 @@ const detail: UserDetail = {
   rechargeAgent: null,
   hostAgent: null,
   agencyHost: null,
+  verification: null,
   reports: { open: 0, recent: [] },
 };
 

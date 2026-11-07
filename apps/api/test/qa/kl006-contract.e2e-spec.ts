@@ -25,6 +25,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ME_REQUIRED = [
   // v1.76-social (D218): the profile cover (nullable, always present).
   'coverUrl',
+  // v1.90-social (D293): the automatic verification badge (nullable, always present).
+  'verification',
   'id',
   'email',
   'emailVerified',

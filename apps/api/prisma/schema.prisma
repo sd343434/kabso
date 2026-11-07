@@ -260,6 +260,8 @@ model User {
   levelRaisesAbout       LevelRaiseRequest[]        @relation("LevelRaiseSupporter")
   levelRaisesRequested   LevelRaiseRequest[]        @relation("LevelRaiseRequester")
   levelRaisesDecided     LevelRaiseRequest[]        @relation("LevelRaiseDecider")
+  /// v1.90-social (D293): the automatic verification badge «شارة التوثيق» (none = no row).
+  verificationBadge      UserVerificationBadge?
   recruitedAs            StaffRecruitment[]         @relation("StaffRecruit")
   recruitCommissions     StaffRecruitCommission[]
   /// v1.74-social (D217): the person's invite code, whom they invited, who invited them, their rewards.
@@ -7039,4 +7041,54 @@ model LevelRaiseRequest {
   @@index([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_idx")
   @@unique([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_once", where: raw("status IN ('PENDING'::level_raise_status, 'APPROVED'::level_raise_status)"))
   @@map("level_raise_requests")
+}
+
+// ---- v1.90-social (D293, CONVENTIONS §10.105): automatic verification badges «شارة التوثيق» ---------------------
+
+/// D293: the badge a person shows beside their name — granted automatically by conditions, highest first: OWNER
+/// (black and gold), STAFF (red: the Kabso Team), RECHARGE_AGENT (gold), HOST_AGENT (green), CREATOR (purple),
+/// VERIFIED_HOST (blue). One per person.
+enum VerificationBadge {
+  OWNER
+  STAFF
+  RECHARGE_AGENT
+  HOST_AGENT
+  CREATOR
+  VERIFIED_HOST
+
+  @@map("verification_badge")
+}
+
+/// D293: a person's current badge (no row = none), written only by `verification-badges.ts` (the sweeper and the
+/// immediate recomputes). `since` = when this badge was granted; `computedAt` = the last evaluation that kept it.
+model UserVerificationBadge {
+  userId     String            @id @map("user_id") @db.Uuid
+  badge      VerificationBadge
+  since      DateTime          @map("since") @db.Timestamptz(3)
+  computedAt DateTime          @map("computed_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([badge], map: "user_verification_badges_badge_idx")
+  @@map("user_verification_badges")
+}
+
+/// D293: the OWNER's thresholds (one row, id 1; panel-editable with the code, audited). "More than": a value equal
+/// to its threshold does not qualify. The window is the last 30 days (rolling, the owner's decision, not a setting).
+model VerificationBadgeSettings {
+  id                       Int       @id @default(1) @db.SmallInt
+  /// Gold: coins the recharge agent sold (direct sales + completed orders) in the window, more than this.
+  rechargeMinSalesCoins    BigInt    @default(300000000) @map("recharge_min_sales_coins")
+  /// Gold: cherries the recharge agent bought from hosts (confirmed cherry purchases) in the window, more than this.
+  rechargeMinCherries      BigInt    @default(300000000) @map("recharge_min_cherries")
+  /// Green: the host agent's agency has more than this many active hosts now.
+  hostAgentMinHosts        Int       @default(30) @map("host_agent_min_hosts")
+  /// Green: the cherries the agency's hosts received (agency earnings) in the window, more than this.
+  hostAgentMinCherries     BigInt    @default(300000000) @map("host_agent_min_cherries")
+  /// The last full recompute (the sweeper, the CLI or a settings change).
+  lastRunAt                DateTime? @map("last_run_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById              String?   @map("updated_by_id") @db.Uuid
+
+  @@map("verification_badge_settings")
 }

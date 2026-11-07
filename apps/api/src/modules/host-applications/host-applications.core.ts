@@ -4,6 +4,7 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import type { LiveHostSource, Prisma } from '../../generated/prisma/client.js';
 import { Notifier } from '../notifications/notifier.js';
 import { attributeRecruitIn } from '../recruits/recruit-core.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 /**
  * «كن مضيفاً مع الإدارة» (v1.73-social, D209, CONVENTIONS §10.68): the team's decisions on an application to host
@@ -155,6 +156,8 @@ export async function approveHostApplicationIn(
     where: { id: app.id },
     data: { status: 'APPROVED', decidedAt: now, decidedById: by.actorUserId },
   });
+  // v1.90-social (D293, §10.105; owner «نعم»): the team's approval of the ID card and selfie gives the blue badge at once.
+  await recomputeBadgesIn(tx, [app.user_id], 'host', now);
   await new Notifier().system(tx, { type: 'HOST_APPLICATION_APPROVED', recipientId: app.user_id });
   await audit(
     tx,

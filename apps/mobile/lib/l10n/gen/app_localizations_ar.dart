@@ -15482,4 +15482,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String medalsThresholdLuckyCoins(String amount) {
     return '$amount كوينز من هدايا الحظ';
   }
+
+  @override
+  String get verificationBadgeOwner => 'مالك التطبيق';
+
+  @override
+  String get verificationBadgeStaff => 'فريق كابسو';
+
+  @override
+  String get verificationBadgeRechargeAgent => 'وكيل شحن';
+
+  @override
+  String get verificationBadgeHostAgent => 'وكيل مضيفين';
+
+  @override
+  String get verificationBadgeCreator => 'صانع محتوى';
+
+  @override
+  String get verificationBadgeVerifiedHost => 'مضيف موثّق الهوية';
+
+  @override
+  String verificationBadgeLabel(String kind) {
+    return 'موثّق: $kind';
+  }
+
+  @override
+  String get verificationBadgeAbout => 'شارة تُمنح تلقائياً حسب الشروط';
 }

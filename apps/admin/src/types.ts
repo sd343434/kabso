@@ -101,7 +101,14 @@ export type Capability =
   | 'creators.decide'
   // v1.89-social (D290): level-raise requests «طلب رفع ليفيل».
   | 'levels.raise.request'
-  | 'levels.raise.decide';
+  | 'levels.raise.decide'
+  // v1.90-social (D293): automatic verification badges «شارة التوثيق».
+  | 'verification.view'
+  | 'verification.settings';
+
+/** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
+export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;
+export type VerificationBadge = (typeof VERIFICATION_BADGES)[number];
 
 export interface AdminSessionInfo {
   admin: { id: string; email: string; username: string; displayName: string };
@@ -184,6 +191,8 @@ export interface UserDetail {
   } | null;
   hostAgent: { inviteCode: string; hostCode: string | null; rank: string; suspended: boolean } | null;
   agencyHost: { agencyInviteCode: string; status: string } | null;
+  /** v1.90-social (D293): the automatic verification badge, when it was granted and last confirmed; null when none. */
+  verification: { badge: VerificationBadge; since: string; computedAt: string } | null;
   reports: {
     open: number;
     recent: { id: string; reason: string; status: string; targetType: string; createdAt: string }[];

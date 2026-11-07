@@ -16,6 +16,7 @@ import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -82,6 +83,9 @@ class DmInboxScreen extends ConsumerStatefulWidget {
   static const actionBlockKey = Key('dm.action.block');
   static const confirmDeleteKey = Key('dm.action.delete.confirm');
   static Key rowKey(String conversationId) => Key('dm.row.$conversationId');
+
+  /// D293: a row's verification seal.
+  static Key sealKey(String username) => Key('dm.seal.$username');
 
   @override
   ConsumerState<DmInboxScreen> createState() => _DmInboxScreenState();
@@ -474,6 +478,12 @@ class DmConversationRow extends StatelessWidget {
                                   color: p.textPrimary,
                                 ),
                               ),
+                            ),
+                            // D293: the peer's verification seal.
+                            VerificationSeal(
+                              peer.verification,
+                              key: DmInboxScreen.sealKey(peer.username),
+                              fontSize: KDmList.nameSize,
                             ),
                             if (item.muted) ...[
                               const SizedBox(width: KSpacing.xs),

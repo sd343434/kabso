@@ -6,6 +6,7 @@ import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
@@ -13,6 +14,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -716,6 +718,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               name: u.displayName,
               agentCode: u.rechargeAgentCode,
               hostAgentCode: u.hostAgentCode,
+              verification: u.verification,
               rechargeBadge: u.rechargeBadge,
               vip: u.vip,
               handle: [
@@ -888,6 +891,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             name: r.user.displayName,
             agentCode: r.user.rechargeAgentCode,
             hostAgentCode: r.user.hostAgentCode,
+            verification: r.user.verification,
             rechargeBadge: r.user.rechargeBadge,
             vip: r.user.vip,
             handle: r.seatIndex == null
@@ -927,6 +931,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
           _row(
             context,
             name: seat.user!.displayName,
+            verification: seat.user!.verification,
             handle: l10n.liveSeatNumberLabel(seat.index),
             // D109: a viewer taps a seated person for their card.
             onTap: widget.readOnly && widget.onPerson != null
@@ -979,6 +984,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                   context,
                   key: SeatControlKeys.contributor(c.user.username),
                   name: c.user.displayName,
+                  verification: c.user.verification,
                   handle: KHandle.plain(
                     c.user.username,
                     premiumTier: c.user.premiumTier,
@@ -1077,6 +1083,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     VoidCallback? onTap,
     List<Widget> actions = const [],
     Widget? badge,
+    VerificationBadge? verification,
   }) {
     final text = context.textStyles;
     final row = Padding(
@@ -1103,6 +1110,8 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                         ),
                       ),
                     ),
+                    // D293: the verification seal right after the name.
+                    VerificationSeal(verification, fontSize: _nameSize),
                     // D268 (owner: «ايقونة vip دائماً تأتي بعد الاسم»): the
                     // VIP badge right after the name.
                     if (vip.isMember) ...[

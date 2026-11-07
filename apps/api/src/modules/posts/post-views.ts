@@ -10,6 +10,7 @@ import { vipNotWorn } from '../vip/vip-bag.js';
 import { STORE_ART_SELECT, storeWearOf, type StoreArtRow } from '../store/store-rules.js';
 import { isTeamAvatarUrl } from '../live/staff-avatar.js';
 import { summaryStaffIdOf } from '../users/staff-ids.js';
+import type { VerificationBadgeValue } from '../verification/verification-rules.js';
 
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
@@ -90,6 +91,8 @@ export function userSummary(
     role?: string;
     staffNumber?: { number: number } | null;
     adminPermissions?: readonly { permission: string }[];
+    /** v1.90-social (D293); absent in older selects. */
+    verificationBadge?: { badge: string } | null;
   },
   now: Date = new Date(),
 ): UserSummaryDto {
@@ -129,6 +132,10 @@ export function userSummary(
     ...(wear ? { wear } : {}),
     // v1.73-live (D283c, §10.96.12): only while a panel role is held (the apps show it instead of the @username).
     ...(staffId ? { staffId } : {}),
+    // v1.90-social (D293, §10.105): only while the user holds a verification badge (its type; an active account).
+    ...(user.verificationBadge && (user.status === undefined || user.status === 'ACTIVE')
+      ? { verification: user.verificationBadge.badge as VerificationBadgeValue }
+      : {}),
   };
 }
 
@@ -263,6 +270,9 @@ export const USER_SUMMARY_SELECT = {
     select: { permission: true },
     take: 1,
   },
+  // v1.90-social (D293, §10.105): the automatic verification badge (`UserSummary.verification`; one row or none,
+  // read with the summary's own query — no per-row query).
+  verificationBadge: { select: { badge: true } },
 } as const;
 
 /**

@@ -33,6 +33,7 @@ import {
   type KycSettingsRow,
 } from './kyc.rules.js';
 import { KycSettingsStore } from './kyc.store.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 const DAY_MS = 86_400_000;
 
@@ -502,6 +503,10 @@ export class KycService {
             });
           }
         }
+      }
+      // v1.90-social (D293, §10.105): an approval (or its loss) may give or take the blue «موثّق» badge at once.
+      if (changed && (after.status === 'APPROVED' || check.status === 'APPROVED')) {
+        await recomputeBadgesIn(tx, [check.userId], 'kyc', now);
       }
       if (duplicateOf.length > 0 && !check.duplicateDocument) {
         await this.audit.recordIn(tx, {

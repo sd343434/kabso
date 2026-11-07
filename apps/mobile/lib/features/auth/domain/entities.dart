@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/special_username.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'entities.freezed.dart';
@@ -79,6 +80,10 @@ abstract class User with _$User {
     /// a panel role is held (the OWNER too) — the Me tab shows it instead of
     /// the @username. Null otherwise.
     String? staffId,
+
+    /// v1.90-social (D293, §10.105): the automatic verification badge
+    /// «شارة التوثيق» beside the name, or null.
+    VerificationBadge? verification,
   }) = _User;
 }
 

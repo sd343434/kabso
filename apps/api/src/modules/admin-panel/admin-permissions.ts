@@ -212,6 +212,11 @@ export const CAPABILITIES = {
    * the source-app data and the weights. OWNER only («الإدارة العليا»).
    */
   'levels.raise.decide': ['OWNER'],
+  // ---- v1.90-social (D293, CONVENTIONS §10.105): automatic verification badges «شارة التوثيق» --------------------
+  /** The thresholds of the badges, their defaults, the last recompute and how many people hold each badge (read). */
+  'verification.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  /** Change the thresholds (the code again and a reason; audited; everyone is recomputed at once). OWNER only. */
+  'verification.settings': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

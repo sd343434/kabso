@@ -17,6 +17,7 @@ import { HostApplicationDetail, HostApplications } from './pages/HostApplication
 import { PkDares } from './pages/PkDares';
 import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
 import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage } from './pages/LevelRaises';
+import { VerificationBadgesPage } from './pages/VerificationBadges';
 import { HostTargets } from './pages/HostTargets';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
 import { AgencyDetail, Agencies, Complaints } from './pages/Agencies';
@@ -248,6 +249,9 @@ export function App() {
           break;
         case 'levelRaiseSettings':
           page = <LevelRaiseSettingsPage />;
+          break;
+        case 'verificationBadges':
+          page = <VerificationBadgesPage />;
           break;
         case 'gifts':
           page = <Gifts />;

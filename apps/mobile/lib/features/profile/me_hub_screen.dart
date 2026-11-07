@@ -20,6 +20,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
 import 'package:kabso_live/features/staff/application/staff_providers.dart';
@@ -129,6 +130,9 @@ class MeHubScreen extends ConsumerWidget {
 
   /// D187: the daily recharge badge beside the name.
   static const rechargeBadgeKey = Key('meHub.rechargeBadge');
+
+  /// D293: the automatic verification badge after the name.
+  static const verificationBadgeKey = Key('meHub.verificationBadge');
   static const followingKey = Key('meHub.stat.following');
   static const fansKey = Key('meHub.stat.fans');
   static const cardsKey = Key('meHub.cards');
@@ -567,6 +571,16 @@ class MeHubScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  // D293: my automatic verification badge right after the
+                  // name.
+                  if (user?.verification case final badge?)
+                    ProfileVerificationBadge(
+                      key: verificationBadgeKey,
+                      badge: badge,
+                      size: ProfileVerificationBadge.sizeForFont(
+                        KMeHub.nameSize,
                       ),
                     ),
                   // D258: my VIP badge while my membership is active —

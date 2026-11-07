@@ -23,10 +23,14 @@ interface World {
   onShift: boolean;
   /** v1.73-live (D283c): the person's staff number (given by `kabso_admin_panel_role` on a grant). */
   staffNumber: number | null;
+  /** v1.90-social (D293): the person's stored verification badge. */
+  badge?: string | null;
 }
 
 function fakeTx(w: World) {
   const audits: { action: string; metadata: Record<string, unknown> }[] = [];
+  /** v1.90-social (D293): the badge recompute's rows (kept apart from the role rows). */
+  const badgeAudits: { action: string; metadata: Record<string, unknown> }[] = [];
   const raw: string[] = [];
   const sessionsEnded = vi.fn(async () => ({ count: 1 }));
   const shiftOff = vi.fn(async () => ({ count: w.onShift ? 1 : 0 }));
@@ -64,10 +68,43 @@ function fakeTx(w: World) {
         audits.push({ action: data.action, metadata: data.metadata });
         return {};
       }),
+      // v1.90-social (D293): the badge recompute's audit rows.
+      createMany: vi.fn(
+        async ({ data }: { data: { action: string; metadata: Record<string, unknown> }[] }) => {
+          for (const d of data) badgeAudits.push({ action: d.action, metadata: d.metadata });
+          return { count: data.length };
+        },
+      ),
+    },
+    // v1.90-social (D293, §10.105): the immediate badge recompute of a grant / revoke (the owner's thresholds).
+    verificationBadgeSettings: { findUnique: vi.fn(async () => null) },
+    userVerificationBadge: {
+      findMany: vi.fn(async () => (w.badge && w.user ? [{ userId: w.user.id, badge: w.badge }] : [])),
+      createMany: vi.fn(async ({ data }: { data: { badge: string }[] }) => {
+        w.badge = data[0]!.badge;
+        return { count: data.length };
+      }),
+      update: vi.fn(async ({ data }: { data: { badge: string } }) => {
+        w.badge = data.badge;
+        return {};
+      }),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+      deleteMany: vi.fn(async () => {
+        w.badge = null;
+        return { count: 1 };
+      }),
     },
     $queryRaw: vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const sql = strings.join('?');
       raw.push(sql);
+      // D293: the qualifying badges — OWNER / STAFF from the roles held now (an ACTIVE ADMIN account).
+      if (sql.includes("'VERIFIED_HOST'")) {
+        if (!w.user || w.user.status !== 'ACTIVE') return [];
+        const out: { user_id: string; badge: string }[] = [];
+        if (w.roles.includes('OWNER')) out.push({ user_id: w.user.id, badge: 'OWNER' });
+        if (w.roles.some((r) => r !== 'OWNER')) out.push({ user_id: w.user.id, badge: 'STAFF' });
+        return out;
+      }
       if (sql.includes('FROM users')) return w.user ? [w.user] : [];
       if (sql.includes('kabso_admin_panel_role')) {
         const [, role, grant] = values as [string, string, boolean];
@@ -84,7 +121,15 @@ function fakeTx(w: World) {
       return 1;
     }),
   };
-  return { tx: tx as unknown as Prisma.TransactionClient, audits, raw, sessionsEnded, shiftOff, mock: tx };
+  return {
+    tx: tx as unknown as Prisma.TransactionClient,
+    audits,
+    badgeAudits,
+    raw,
+    sessionsEnded,
+    shiftOff,
+    mock: tx,
+  };
 }
 
 const world = (over: Partial<World> = {}): World => ({
@@ -278,5 +323,23 @@ describe('admin roles (D271 «الموظفون والصلاحيات»)', () => {
     expect(teamGrantBody.safeParse(base).success).toBe(false);
     expect(teamGrantBody.safeParse({ ...base, account: '@staff', totpCode: undefined }).success).toBe(false);
     expect(teamGrantBody.safeParse({ ...base, account: '@staff', reason: ' ' }).success).toBe(false);
+  });
+
+  it('v1.90-social (D293): a grant and a revoke recompute the badge in the same transaction, audited', async () => {
+    const w = world({ roles: [], user: { id: TARGET_ID, role: 'USER', status: 'ACTIVE' } });
+    const { tx, badgeAudits } = fakeTx(w);
+    await grantRoleIn(tx, TARGET_ID, 'SUPPORT', PANEL, { reason: 'r' });
+    expect(w.badge).toBe('STAFF');
+    await grantRoleIn(tx, TARGET_ID, 'OWNER', PANEL, { reason: 'r' });
+    expect(w.badge).toBe('OWNER');
+    await revokeRoleIn(tx, TARGET_ID, 'OWNER', PANEL, { reason: 'r' });
+    expect(w.badge).toBe('STAFF');
+    await revokeRoleIn(tx, TARGET_ID, 'SUPPORT', PANEL, { reason: 'r' });
+    expect(w.badge).toBeNull();
+    expect(
+      badgeAudits
+        .filter((a) => a.action === 'verification.badge.change')
+        .map((a) => `${String(a.metadata.change)}:${String(a.metadata.after)}:${String(a.metadata.cause)}`),
+    ).toEqual(['granted:STAFF:role', 'changed:OWNER:role', 'changed:STAFF:role', 'removed:null:role']);
   });
 });

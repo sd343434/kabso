@@ -16,6 +16,7 @@ import 'package:kabso_live/features/follows/application/follow_list_controller.d
 import 'package:kabso_live/features/follows/domain/follow_list_models.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -457,6 +458,9 @@ class FollowListView extends ConsumerWidget {
   static const loadMoreRetryKey = Key('follows.loadMoreRetry');
 
   static Key rowKey(String username) => Key('follows.row.$username');
+
+  /// D293: a row's name line with its verification seal.
+  static Key nameKey(String username) => Key('follows.name.$username');
   static Key buttonKey(String username) => Key('follows.button.$username');
   static Key messageKey(String username) => Key('follows.message.$username');
   static Key moreKey(String username) => Key('follows.more.$username');
@@ -897,15 +901,24 @@ class FollowListRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    item.username,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textDirection: TextDirection.ltr,
-                    textAlign: rtl ? TextAlign.right : TextAlign.left,
-                    style: t.bodyStrong.copyWith(
-                      color: p.textPrimary,
-                      fontWeight: FontWeight.w700,
+                  // D293: the verification seal right after the name line.
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: NameWithSeal(
+                      key: FollowListView.nameKey(item.username),
+                      badge: item.verification,
+                      fontSize: t.bodyStrong.fontSize,
+                      name: Text(
+                        item.username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textDirection: TextDirection.ltr,
+                        textAlign: rtl ? TextAlign.right : TextAlign.left,
+                        style: t.bodyStrong.copyWith(
+                          color: p.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                   if (hasName)

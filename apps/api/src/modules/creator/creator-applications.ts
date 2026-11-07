@@ -12,6 +12,7 @@ import { uuidv7 } from '../levels/uuidv7.js';
 import { isLimitedStaff } from '../live/live-staff.js';
 import { formatStaffId } from '../users/staff-ids.js';
 import { attributeRecruitIn, recruiterOfForm } from '../recruits/recruit-core.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 /**
  * v1.75-live (D285, owner, CONVENTIONS §10.96.13): the creator programme «صانع المحتوى» — there was no creator
@@ -134,6 +135,8 @@ export async function approveCreatorApplicationIn(
     { user: app.user_id, before: 'PENDING', after: 'APPROVED' },
     by,
   );
+  // v1.90-social (D293, §10.105): the purple creator badge at once (unless a higher one applies).
+  await recomputeBadgesIn(tx, [app.user_id], 'creator', now);
   const attributed = await attributeRecruitIn(tx, {
     type: 'CREATOR',
     recruitUserId: app.user_id,

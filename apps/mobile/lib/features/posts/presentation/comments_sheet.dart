@@ -16,6 +16,7 @@ import 'package:kabso_live/features/posts/application/comments_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -661,6 +662,13 @@ class _CommentTile extends StatelessWidget {
                         color: p.textSecondary,
                       ),
                     ),
+                    // D293: the author's verification seal after the name.
+                    if (c.author.verification != null)
+                      VerificationSeal(
+                        c.author.verification,
+                        fontSize: KCommentsSheet.nameSize,
+                        gap: 0,
+                      ),
                     if (creator) ...[
                       // Separator dot (drawn, not a text literal).
                       Container(

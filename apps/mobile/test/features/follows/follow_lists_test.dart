@@ -9,6 +9,8 @@
 // follower, report, block) on your own lists, ⋯ (report, block) on others'.
 
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +22,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -35,6 +38,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -55,6 +59,7 @@ FollowListItem _person(
   bool isSelf = false,
   bool requestedByMe = false,
   String? name,
+  VerificationBadge? verification,
 }) => FollowListItem(
   id: 'u$i',
   username: 'user$i',
@@ -65,6 +70,7 @@ FollowListItem _person(
   followedByMe: followedByMe,
   followsMe: followsMe,
   requestedByMe: requestedByMe,
+  verification: verification,
 );
 
 AppFailure _server(ErrorCode code, String raw) =>
@@ -1050,5 +1056,93 @@ void main() {
       expect(find.byType(FollowListsScreen), findsNothing);
       expect(lists.calls, isEmpty);
     });
+  });
+
+  // D293 (owner «نعم»): the verification seal beside the name in the lists.
+  group('D293 verification seal', () {
+    final people = [
+      _person(1, verification: VerificationBadge.rechargeAgent),
+      _person(2),
+      _person(3, verification: VerificationBadge.verifiedHost),
+    ];
+    for (final language in AppLanguage.values) {
+      testWidgets('after the name line, only for a badge (${language.name})', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          lists: _FakeLists(followers: people),
+          language: language,
+        );
+        expect(tester.takeException(), isNull);
+        Finder sealIn(String u) => find.descendant(
+          of: _row(u),
+          matching: find.byType(ProfileVerificationBadge),
+        );
+        expect(sealIn('user1'), findsOneWidget);
+        expect(sealIn('user2'), findsNothing);
+        expect(sealIn('user3'), findsOneWidget);
+        final name = tester.getRect(
+          find.descendant(
+            of: find.byKey(FollowListView.nameKey('user1')),
+            matching: find.text('user1'),
+          ),
+        );
+        final seal = tester.getRect(sealIn('user1'));
+        expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
+        if (language == AppLanguage.ar) {
+          expect(seal.right, lessThanOrEqualTo(name.left + 0.5));
+        } else {
+          expect(seal.left, greaterThanOrEqualTo(name.right - 0.5));
+        }
+      });
+    }
+
+    test('read from the wire', () {
+      expect(
+        FollowListItem.fromJson(const {
+          'id': 'u1',
+          'username': 'a',
+          'displayName': 'A',
+          'avatarUrl': null,
+          'verification': 'HOST_AGENT',
+        }).verification,
+        VerificationBadge.hostAgent,
+      );
+    });
+
+    final captureDir = Platform.environment['D293_CAPTURE_DIR'];
+    for (final (language, brightness) in [
+      (AppLanguage.ar, Brightness.dark),
+      (AppLanguage.ar, Brightness.light),
+      (AppLanguage.en, Brightness.dark),
+    ]) {
+      testWidgets(
+        'capture ${language.name} ${brightness.name}',
+        skip: captureDir == null,
+        (tester) async {
+          await loadAppFonts();
+          await _pump(
+            tester,
+            lists: _FakeLists(followers: people),
+            language: language,
+            brightness: brightness,
+          );
+          await tester.runAsync(() async {
+            final element = find.byType(MaterialApp).evaluate().first;
+            final image = await captureImage(element);
+            final bytes = await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            );
+            final file = File(
+              '${captureDir!}/everywhere/followers.'
+              '${language.name}.${brightness.name}.png',
+            );
+            await file.parent.create(recursive: true);
+            await file.writeAsBytes(bytes!.buffer.asUint8List());
+          });
+        },
+      );
+    }
   });
 }

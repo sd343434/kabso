@@ -36,6 +36,7 @@ import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/profile/profile_live_pill.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_tag_icons.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/staff/presentation/staff_covers.dart';
@@ -600,6 +601,14 @@ class ProfileCoverHeader extends StatelessWidget {
                 ),
               ),
             ),
+            // D293: the automatic verification badge right after the name.
+            if (profile.verification case final badge?)
+              ProfileVerificationBadge(
+                badge: badge,
+                size: ProfileVerificationBadge.sizeForFont(
+                  KPublicProfile.nameFont,
+                ),
+              ),
             if (profile.vip?.member ?? false)
               VipNameBadge(vip: profile.vip, height: 20),
             // D282: a staff account wears the Kabso Team badge.

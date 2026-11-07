@@ -50,6 +50,7 @@
     "host:admin": "tsx src/cli/host-admin.ts",
     "referral:admin": "tsx src/cli/referral-admin.ts",
     "pk-dares:admin": "tsx src/cli/pk-dares-admin.ts",
+    "verification:admin": "tsx src/cli/verification-admin.ts",
     "pk-dares:generate": "tsx prisma/seed/pk-dares/generate.ts"
   },
   "dependencies": {

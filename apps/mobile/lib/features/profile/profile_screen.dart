@@ -129,6 +129,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       kabsoTeam: user.kabsoTeam,
       // D283c: the official staff ID «Kabso01» (the OWNER too).
       staffId: user.staffId,
+      // D293: the automatic verification badge beside the name.
+      verification: user.verification,
       rechargeAgentCode: agent?.status == RechargeAgentStatus.active
           ? agent?.code
           : null,

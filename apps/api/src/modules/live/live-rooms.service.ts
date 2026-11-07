@@ -50,6 +50,7 @@ import {
 import { activeDeviceBanOf, deviceBannedError } from '../auth/device-bans.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { refuseLimitedStaff, watchStaffSql } from './live-staff.js';
+import type { VerificationBadgeValue } from '../verification/verification-rules.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -137,6 +138,11 @@ export interface UserSummaryDto {
    * active account — the apps show it where they show the @username; absent otherwise.
    */
   staffId?: string;
+  /**
+   * v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» beside the name — only its type,
+   * present only while the user holds one (an active account; the stored `user_verification_badges` row).
+   */
+  verification?: VerificationBadgeValue;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER';
@@ -350,6 +356,8 @@ export interface RoomRow {
   agent_code: string | null;
   /** v1.58-social (D189): the host's host-agent code while not suspended, else null. */
   host_agent_code: string | null;
+  /** v1.90-social (D293): the host's verification badge, else null. */
+  host_verification: VerificationBadgeValue | null;
   /** v1.55-social (D186): the avatar frame the host wears now, else null. */
   host_frame_code: string | null;
   host_frame_asset: string | null;
@@ -451,6 +459,8 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT ag.host_code FROM agencies ag
            WHERE ag.owner_user_id = r.host_user_id AND ag.suspended_at IS NULL
              AND ag.status = 'OPEN'::agency_status) AS host_agent_code,
+         (SELECT vb.badge::text FROM user_verification_badges vb
+           WHERE vb.user_id = r.host_user_id) AS host_verification,
          (SELECT b.item_code FROM user_bag_items b
            WHERE b.user_id = r.host_user_id AND b.category = 'AVATAR_FRAME' AND b.equipped
              AND (b.expires_at IS NULL OR b.expires_at > now())
@@ -1104,6 +1114,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           : {}),
         ...(row.host_agent_code && row.host_status === 'ACTIVE'
           ? { hostAgent: { code: row.host_agent_code } }
+          : {}),
+        // v1.90-social (D293): the verification badge (only its type).
+        ...(row.host_verification && row.host_status === 'ACTIVE'
+          ? { verification: row.host_verification }
           : {}),
         ...(row.host_frame_code && row.host_frame_asset
           ? { avatarFrame: { code: row.host_frame_code, assetKey: row.host_frame_asset } }

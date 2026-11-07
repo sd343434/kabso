@@ -17,6 +17,7 @@ import {
   type ProfileLinkDto,
 } from './profile-fields.js';
 import { resolveUserIdByUsername } from './special-usernames.js';
+import type { VerificationBadgeValue } from '../verification/verification-rules.js';
 import { usernameHash } from './account-deletion.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
@@ -56,6 +57,8 @@ export interface MeDto {
   specialUsername?: MeSpecialUsernameDto;
   /** v1.76-social (D218, §10.73.3): the caller's profile cover (1 080 px), or null (the Kabso gradient). */
   coverUrl: string | null;
+  /** v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» (only its type), or null. */
+  verification: VerificationBadgeValue | null;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -95,6 +98,8 @@ export const ME_INCLUDE = {
   profileLinks: PROFILE_LINKS_SELECT,
   settings: true,
   liveHost: { select: { userId: true, coverUrl: true } },
+  // v1.90-social (D293): the automatic verification badge (one row or none).
+  verificationBadge: { select: { badge: true } },
   // v1.54-social (D185): the caller's own ACTIVE special username (self only, never public).
   specialUsernames: {
     where: { status: 'ACTIVE' },
@@ -151,6 +156,8 @@ export interface UserWithProfile {
   settings: { isPrivate: boolean } | null;
   /** Absent for a just-created account (no permission yet). */
   liveHost?: { userId: string; coverUrl?: string | null } | null;
+  /** v1.90-social (D293, §10.105): `ME_INCLUDE` reads the automatic verification badge (none: null). */
+  verificationBadge?: { badge: VerificationBadgeValue } | null;
   /** v1.54-social (D185): `ME_INCLUDE` reads the ACTIVE one. */
   specialUsernames?: {
     username: string;
@@ -188,6 +195,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     tagIcons: profileTagIconsOf(user.profile.tags, user.profile.tagIcons),
     ...specialOf(user),
     coverUrl: user.profile.coverUrl ?? null,
+    verification: user.verificationBadge?.badge ?? null,
   };
 }
 

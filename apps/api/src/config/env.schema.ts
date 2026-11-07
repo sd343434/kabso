@@ -1065,6 +1065,13 @@ export const envSchema = z
     RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
     RECRUIT_COMMISSION_CATCH_UP_DAYS: intSetting(7, 1, 60),
     /**
+     * v1.90-social (D293, CONVENTIONS §10.105): how often every verification badge «شارة التوثيق» is recomputed over
+     * the rolling 30-day window (0 = off: tests; refused in production). The owner: daily is enough; the default is
+     * hourly so that a restart never postpones a recompute by a day (the queries are a few indexed sums). The
+     * thresholds are in `verification_badge_settings` (the admin panel), not here.
+     */
+    VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
+    /**
      * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
      * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units
      * (owner: $10) and the payout time shown to the requester («تُدفع يدوياً خلال … أيام»).
@@ -1751,6 +1758,14 @@ export const envSchema = z
           code: 'custom',
           path: ['RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS'],
           message: 'the recruit commission job cannot be disabled in production',
+        });
+      }
+      // D293: the verification badges follow the rolling window only through the sweeper.
+      if (env.VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS'],
+          message: 'the verification badge sweeper cannot be disabled in production',
         });
       }
       // D193: a deletion request must be carried out when its grace period ends (store and privacy rules).
