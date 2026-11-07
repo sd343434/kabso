@@ -8986,6 +8986,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tasksWeeklyHint => 'They renew every Monday.';
 
   @override
+  String get tasksCreatorTitle => 'Content creator tasks';
+
+  @override
+  String get tasksCreatorHint => 'Count toward today\'s rewards.';
+
+  @override
+  String get tasksCreatorWeeklyTitle => 'Weekly creator tasks';
+
+  @override
   String get tasksEmpty => 'No tasks right now';
 
   @override

@@ -60,6 +60,16 @@ enum TaskMetric {
   familyChatMessages('FAMILY_CHAT_MESSAGES'),
   pkBattles('PK_BATTLES'),
   pkWins('PK_WINS'),
+  // v1.94-social (D297): the creator tasks' metrics — what other people did
+  // with the creator's content (views of their reels, likes, the comments
+  // they replied to, new followers, shares and reposts).
+  reelViewsReceived('REEL_VIEWS_RECEIVED'),
+  likesReceived('LIKES_RECEIVED'),
+  commentReplies('COMMENT_REPLIES'),
+  newFollowers('NEW_FOLLOWERS'),
+  sharesReceived('SHARES_RECEIVED'),
+  // D297 follow-up: different days with a live of 10 minutes or more (hosts).
+  hostLiveDays('HOST_LIVE_DAYS'),
   other('');
 
   new(this.wire);
@@ -111,6 +121,7 @@ final class ProgramTask {
     this.claimedCoins,
     this.claimedCherries,
     this.pooled = false,
+    this.forCreators = false,
     this.gift,
     this.windowFrom,
     this.windowTo,
@@ -127,6 +138,7 @@ final class ProgramTask {
     weekly: json['period'] == 'WEEKLY',
     metric: TaskMetric.fromWire(json['metric']),
     forHosts: json['audience'] == 'HOSTS',
+    forCreators: json['audience'] == 'CREATORS',
     name: json['name']! as String,
     target: _int(json['target']),
     progress: _int(json['progress']),
@@ -142,6 +154,10 @@ final class ProgramTask {
   final bool weekly;
   final TaskMetric metric;
   final bool forHosts;
+
+  /// v1.94-social (D297): a creator task «مهام صانع المحتوى» (audience
+  /// `CREATORS`: creator-programme members only), shown in its own section.
+  final bool forCreators;
   final String name;
   final int target;
   final int progress;
@@ -266,6 +282,7 @@ final class MyTasks {
     this.monthlyCapCherries = 0,
     this.monthlyEarnedCherries = 0,
     this.band,
+    this.creator = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => MyTasks(
@@ -277,6 +294,10 @@ final class MyTasks {
         host: b['host'] == true,
       ),
       _ => null,
+    },
+    creator: switch (json['band']) {
+      final Map<String, dynamic> b => b['creator'] == true,
+      _ => false,
     },
     dailyCapCoins: _int(json['dailyCapCoins']),
     dailyEarnedCoins: _int(json['dailyEarnedCoins']),
@@ -308,14 +329,32 @@ final class MyTasks {
   /// Null from a server before v1.50-social.
   final TaskBand? band;
 
+  /// v1.94-social (D297, `MyTasks.band.creator`): the caller is a member of
+  /// the creator programme (creator tasks are offered; host tasks are not).
+  final bool creator;
+
+  /// Today's tasks for the «مكافآت المهام» card (creator tasks have their own).
   List<ProgramTask> get daily => [
     for (final t in tasks)
-      if (!t.weekly) t,
+      if (!t.weekly && !t.forCreators) t,
   ];
 
+  /// The weekly host tasks (creator ones have their own card).
   List<ProgramTask> get weekly => [
     for (final t in tasks)
-      if (t.weekly) t,
+      if (t.weekly && !t.forCreators) t,
+  ];
+
+  /// v1.94-social (D297): today's creator tasks «مهام صانع المحتوى».
+  List<ProgramTask> get creatorDaily => [
+    for (final t in tasks)
+      if (!t.weekly && t.forCreators) t,
+  ];
+
+  /// v1.94-social (D297): this week's creator tasks.
+  List<ProgramTask> get creatorWeekly => [
+    for (final t in tasks)
+      if (t.weekly && t.forCreators) t,
   ];
 }
 

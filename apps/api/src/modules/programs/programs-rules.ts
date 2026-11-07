@@ -53,7 +53,51 @@ export const TASK_METRICS = [
   'FAMILY_CHAT_MESSAGES',
   'PK_BATTLES',
   'PK_WINS',
+  // v1.94-social (D297, CONVENTIONS §10.110): the creator tasks' new measurable actions — what OTHER ACTIVE people did
+  // with the creator's content (never the creator's own actions): §11.4 views of their reels, likes on their posts and
+  // reels, the different comments of others on their posts they replied to, new followers that still follow, and
+  // outside shares and reposts of their posts and reels.
+  'REEL_VIEWS_RECEIVED',
+  'LIKES_RECEIVED',
+  'COMMENT_REPLIES',
+  'NEW_FOLLOWERS',
+  'SHARES_RECEIVED',
+  // D297 follow-up (owner: four weekly host tasks): different days of the period on which the caller started a live of
+  // at least 10 minutes (the days of the programs' clock).
+  'HOST_LIVE_DAYS',
 ] as const;
+
+/**
+ * v1.94-social (D297): who a task is for — everyone, hosting-permission holders (`HOSTS`) or creator-programme members
+ * (`CREATORS`, `creator_members`). A creator never gets `HOSTS` tasks, even with a hosting permission (D295 grants one
+ * to members): the membership decides.
+ */
+export type TaskAudience = 'EVERYONE' | 'HOSTS' | 'CREATORS';
+
+/**
+ * v1.94-social (D297): the caller's role for the Task Center — a creator-programme member is a `creator` (and never
+ * a `host` for the tasks); otherwise a hosting-permission holder is a `host`.
+ */
+export function taskRoleOf(
+  hasHostingPermission: boolean,
+  isCreatorMember: boolean,
+): {
+  host: boolean;
+  creator: boolean;
+} {
+  return { host: hasHostingPermission && !isCreatorMember, creator: isCreatorMember };
+}
+
+/** v1.94-social (D297): whether a task of `audience` is offered to a caller with `role`. */
+export function audienceOffered(
+  audience: string,
+  role: { readonly host: boolean; readonly creator: boolean },
+): boolean {
+  if (audience === 'EVERYONE') return true;
+  if (audience === 'HOSTS') return role.host;
+  if (audience === 'CREATORS') return role.creator;
+  return false;
+}
 
 /**
  * v1.57-social (D188): the metrics whose target is a coin value (gifts sent or received, from the
@@ -233,7 +277,7 @@ export interface DefaultTask {
   readonly metric: TaskMetric;
   readonly target: number;
   readonly rewardCherries: number;
-  readonly audience: 'EVERYONE' | 'HOSTS';
+  readonly audience: TaskAudience;
   readonly nameAr: string;
   readonly nameEn: string;
   readonly sortOrder: number;
@@ -378,7 +422,17 @@ export const D281_POOL_TASKS: readonly string[] = [
 export const TASK_POOL_BANDS = 4;
 
 /** What a pool template groups under, so a day's tasks vary (at most one per group, then two). */
-export const TASK_POOL_GROUPS = ['WATCH', 'LIVE', 'SOCIAL', 'GIFT', 'CONTENT', 'MESSAGE', 'HOST'] as const;
+export const TASK_POOL_GROUPS = [
+  'WATCH',
+  'LIVE',
+  'SOCIAL',
+  'GIFT',
+  'CONTENT',
+  'MESSAGE',
+  'HOST',
+  // v1.94-social (D297): the creator tasks (audience CREATORS).
+  'CREATOR',
+] as const;
 export type TaskPoolGroup = (typeof TASK_POOL_GROUPS)[number];
 
 /** One level band (`task_pool_bands`): from `minLevel` (the higher of Support and Charm). */
@@ -389,16 +443,26 @@ export interface TaskPoolBand {
   readonly dailyCount: number;
   /** Of those, how many are host tasks for a person with the hosting permission. */
   readonly hostCount: number;
+  /** v1.94-social (D297): of those, how many are creator tasks for a creator-programme member. */
+  readonly creatorCount: number;
   readonly nameAr: string;
   readonly nameEn: string;
 }
 
 /** The default bands (owner-changeable with `task-admin band`). */
 export const DEFAULT_TASK_POOL_BANDS: readonly TaskPoolBand[] = [
-  { band: 1, minLevel: 0, dailyCount: 6, hostCount: 2, nameAr: 'مبتدئ', nameEn: 'Starter' },
-  { band: 2, minLevel: 10, dailyCount: 7, hostCount: 2, nameAr: 'نشيط', nameEn: 'Active' },
-  { band: 3, minLevel: 30, dailyCount: 7, hostCount: 2, nameAr: 'متقدّم', nameEn: 'Advanced' },
-  { band: 4, minLevel: 60, dailyCount: 8, hostCount: 3, nameAr: 'نخبة', nameEn: 'Elite' },
+  { band: 1, minLevel: 0, dailyCount: 6, hostCount: 2, creatorCount: 2, nameAr: 'مبتدئ', nameEn: 'Starter' },
+  { band: 2, minLevel: 10, dailyCount: 7, hostCount: 2, creatorCount: 2, nameAr: 'نشيط', nameEn: 'Active' },
+  {
+    band: 3,
+    minLevel: 30,
+    dailyCount: 7,
+    hostCount: 2,
+    creatorCount: 2,
+    nameAr: 'متقدّم',
+    nameEn: 'Advanced',
+  },
+  { band: 4, minLevel: 60, dailyCount: 8, hostCount: 3, creatorCount: 3, nameAr: 'نخبة', nameEn: 'Elite' },
 ];
 
 /** The band of `level` (0 = no level yet): the last band whose `minLevel` it reaches. */
@@ -413,7 +477,9 @@ export function bandForLevel(level: number, bands: readonly TaskPoolBand[]): Tas
 export interface PoolTemplate {
   readonly code: string;
   readonly group: string;
-  readonly audience: 'EVERYONE' | 'HOSTS';
+  readonly audience: TaskAudience;
+  /** v1.94-social (D297): its metric, so a creator's day never counts one action twice (absent: not checked). */
+  readonly metric?: string;
   /** One per band; 0 = not offered in that band. */
   readonly bandTargets: readonly number[];
   readonly bandRewards: readonly number[];
@@ -455,17 +521,23 @@ function generator(seed: number): () => number {
  * offered in `band` (target > 0). Hosts get up to `band.hostCount` host tasks first; then
  * everyone's tasks fill up to `band.dailyCount`, at most one per group, then at most two (variety),
  * never the same template twice. Shown host tasks first, then in the order picked.
+ * v1.94-social (D297): a creator-programme member (`isCreator`) gets up to `band.creatorCount`
+ * CREATOR tasks first instead — never host tasks, even with the hosting permission — and none of
+ * everyone's tasks that count the same action as one of their creator tasks (one post never
+ * completes two tasks).
  */
 export function assignDailyTasks(
   templates: readonly PoolTemplate[],
   band: TaskPoolBand,
   isHost: boolean,
   seed: number,
+  isCreator = false,
 ): PoolPick[] {
   const i = band.band - 1;
+  const role = taskRoleOf(isHost, isCreator);
   const offered = [...templates]
     .filter((t) => (t.bandTargets[i] ?? 0) > 0 && (t.bandRewards[i] ?? 0) > 0)
-    .filter((t) => t.audience === 'EVERYONE' || isHost)
+    .filter((t) => audienceOffered(t.audience, role))
     .sort((a, b) => a.sortOrder - b.sortOrder || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   // Fisher–Yates with the seeded generator (the input order is fixed first, so the result is too).
   const random = generator(seed);
@@ -484,11 +556,19 @@ export function assignDailyTasks(
     }
   };
   const hostPool = offered.filter((t) => t.audience === 'HOSTS');
-  const everyonePool = offered.filter((t) => t.audience === 'EVERYONE');
-  if (isHost) {
+  const creatorPool = offered.filter((t) => t.audience === 'CREATORS');
+  let everyonePool = offered.filter((t) => t.audience === 'EVERYONE');
+  if (role.host) {
     const hostLimit = Math.min(band.hostCount, band.dailyCount);
     // Host tasks are all one group: vary them by template only.
     for (const t of hostPool) if (picked.length < hostLimit) picked.push(t);
+  }
+  if (role.creator) {
+    // D297: creator tasks first, like host tasks (one group: varied by template only).
+    const creatorLimit = Math.min(band.creatorCount, band.dailyCount);
+    for (const t of creatorPool) if (picked.length < creatorLimit) picked.push(t);
+    const counted = new Set(picked.map((t) => t.metric).filter((m) => m !== undefined));
+    everyonePool = everyonePool.filter((t) => t.metric === undefined || !counted.has(t.metric));
   }
   take(everyonePool, band.dailyCount, 1);
   take(everyonePool, band.dailyCount, 2);
@@ -506,7 +586,7 @@ export interface DefaultPoolTask {
   readonly code: string;
   readonly metric: TaskMetric;
   readonly group: TaskPoolGroup;
-  readonly audience: 'EVERYONE' | 'HOSTS';
+  readonly audience: TaskAudience;
   readonly bandTargets: readonly [number, number, number, number];
   readonly bandRewards: readonly [number, number, number, number];
   readonly nameAr: string;
@@ -813,5 +893,208 @@ export const DEFAULT_POOL_TASKS: readonly DefaultPoolTask[] = [
     nameAr: 'اربح معارك PK',
     nameEn: 'Win PK battles',
     sortOrder: 740,
+  },
+];
+
+// ---- v1.94-social (D297, CONVENTIONS §10.110): the creator tasks «مهام صانع المحتوى» -----------------
+
+/**
+ * The creator group's daily pool templates (owner 2026-11-06: «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف»),
+ * seeded by migration 20270331090100_creator_tasks. Each reward ladder is a daily host task's (the ones the Task
+ * Center still offers hosts: P_HOST_LIVE_30, P_HOST_GUEST, P_PK_BATTLES, P_PK_WINS — P_HOST_GIFTS is the targets
+ * engine's since D281); the targets scale per band the way the host tasks' do. Owner-changeable with `task-admin`.
+ */
+export const DEFAULT_CREATOR_POOL_TASKS: readonly DefaultPoolTask[] = [
+  {
+    // Their own production, as the host's live minutes.
+    code: 'P_CR_REEL',
+    metric: 'REELS',
+    group: 'CREATOR',
+    audience: 'CREATORS',
+    bandTargets: [1, 1, 2, 2],
+    bandRewards: [4_000, 6_000, 8_000, 10_000],
+    nameAr: 'انشر مقاطع ريلز',
+    nameEn: 'Publish reels',
+    sortOrder: 800,
+  },
+  {
+    code: 'P_CR_POST',
+    metric: 'POSTS',
+    group: 'CREATOR',
+    audience: 'CREATORS',
+    bandTargets: [1, 1, 2, 3],
+    bandRewards: [2_000, 3_000, 4_000, 6_000],
+    nameAr: 'انشر منشورات',
+    nameEn: 'Publish posts',
+    sortOrder: 810,
+  },
+  {
+    code: 'P_CR_STORY',
+    metric: 'STORIES',
+    group: 'CREATOR',
+    audience: 'CREATORS',
+    bandTargets: [1, 2, 3, 5],
+    bandRewards: [2_000, 3_000, 4_000, 6_000],
+    nameAr: 'انشر قصصاً',
+    nameEn: 'Publish stories',
+    sortOrder: 820,
+  },
+  {
+    // What their audience does, as the host's PK wins.
+    code: 'P_CR_VIEWS',
+    metric: 'REEL_VIEWS_RECEIVED',
+    group: 'CREATOR',
+    audience: 'CREATORS',
+    bandTargets: [100, 250, 500, 1_000],
+    bandRewards: [3_000, 4_000, 6_000, 8_000],
+    nameAr: 'مشاهدات ريلزك اليوم',
+    nameEn: 'Views on your reels today',
+    sortOrder: 830,
+  },
+  {
+    code: 'P_CR_LIKES',
+    metric: 'LIKES_RECEIVED',
+    group: 'CREATOR',
+    audience: 'CREATORS',
+    bandTargets: [20, 50, 100, 200],
+    bandRewards: [3_000, 4_000, 6_000, 8_000],
+    nameAr: 'إعجابات على محتواك',
+    nameEn: 'Likes on your content',
+    sortOrder: 840,
+  },
+  {
+    // Engaging their audience, as the host's «accept a guest».
+    code: 'P_CR_REPLIES',
+    metric: 'COMMENT_REPLIES',
+    group: 'CREATOR',
+    audience: 'CREATORS',
+    bandTargets: [3, 5, 10, 20],
+    bandRewards: [2_000, 3_000, 4_000, 6_000],
+    nameAr: 'ردّ على تعليقات منشوراتك',
+    nameEn: 'Reply to comments on your posts',
+    sortOrder: 850,
+  },
+];
+
+/**
+ * The creator group's weekly tasks (fixed, per band like the weekly host tasks: the caller's band of the day; the
+ * owner's figure is band 1, scaled ×1 · ×1.2 · ×1.6 · ×2 like the weekly live minutes 300 · 360 · 480 · 600). The
+ * rewards are the weekly host tasks' ladders: production (reels, views) the live minutes' 180 000 … 250 000, audience
+ * (followers, shares) the gifts received's 220 000 … 430 000. Outside the daily cap and inside the monthly cap, as the
+ * weekly host tasks.
+ */
+export const DEFAULT_CREATOR_TASKS: readonly DefaultTask[] = [
+  {
+    code: 'CREATOR_WEEKLY_REELS',
+    period: 'WEEKLY',
+    metric: 'REELS',
+    target: 10,
+    rewardCherries: 250_000,
+    audience: 'CREATORS',
+    nameAr: 'انشر ريلز هذا الأسبوع',
+    nameEn: 'Publish reels this week',
+    sortOrder: 900,
+    bandTargets: [5, 6, 8, 10],
+    bandRewards: [180_000, 190_000, 220_000, 250_000],
+  },
+  {
+    code: 'CREATOR_WEEKLY_VIEWS',
+    period: 'WEEKLY',
+    metric: 'REEL_VIEWS_RECEIVED',
+    target: 10_000,
+    rewardCherries: 250_000,
+    audience: 'CREATORS',
+    nameAr: 'مشاهدات ريلزك هذا الأسبوع',
+    nameEn: 'Views on your reels this week',
+    sortOrder: 910,
+    bandTargets: [5_000, 6_000, 8_000, 10_000],
+    bandRewards: [180_000, 190_000, 220_000, 250_000],
+  },
+  {
+    code: 'CREATOR_WEEKLY_FOLLOWERS',
+    period: 'WEEKLY',
+    metric: 'NEW_FOLLOWERS',
+    target: 100,
+    rewardCherries: 430_000,
+    audience: 'CREATORS',
+    nameAr: 'متابعون جدد هذا الأسبوع',
+    nameEn: 'New followers this week',
+    sortOrder: 920,
+    bandTargets: [50, 60, 80, 100],
+    bandRewards: [220_000, 270_000, 290_000, 430_000],
+  },
+  {
+    code: 'CREATOR_WEEKLY_SHARES',
+    period: 'WEEKLY',
+    metric: 'SHARES_RECEIVED',
+    target: 40,
+    rewardCherries: 430_000,
+    audience: 'CREATORS',
+    nameAr: 'مشاركات محتواك هذا الأسبوع',
+    nameEn: 'Shares of your content this week',
+    sortOrder: 930,
+    bandTargets: [20, 24, 32, 40],
+    bandRewards: [220_000, 270_000, 290_000, 430_000],
+  },
+  // Owner follow-up (2026-11-06): a creator has six weekly tasks.
+  {
+    code: 'CREATOR_WEEKLY_LIKES',
+    period: 'WEEKLY',
+    metric: 'LIKES_RECEIVED',
+    target: 400,
+    rewardCherries: 430_000,
+    audience: 'CREATORS',
+    nameAr: 'إعجابات على محتواك هذا الأسبوع',
+    nameEn: 'Likes on your content this week',
+    sortOrder: 940,
+    bandTargets: [200, 240, 320, 400],
+    bandRewards: [220_000, 270_000, 290_000, 430_000],
+  },
+  {
+    code: 'CREATOR_WEEKLY_STORIES',
+    period: 'WEEKLY',
+    metric: 'STORIES',
+    target: 10,
+    rewardCherries: 250_000,
+    audience: 'CREATORS',
+    nameAr: 'انشر قصصاً هذا الأسبوع',
+    nameEn: 'Publish stories this week',
+    sortOrder: 950,
+    bandTargets: [5, 6, 8, 10],
+    bandRewards: [180_000, 190_000, 220_000, 250_000],
+  },
+];
+
+/**
+ * D297 follow-up (owner 2026-11-06: a host has four weekly tasks): two more weekly host tasks beside
+ * HOST_LIVE_MINUTES and HOST_GIFT_COINS, on the live-minutes ladder (180 000 … 250 000), targets ×1 · ×1.2 · ×1.6 · ×2
+ * of band 1 like the weekly live minutes. Seeded by migration 20270331090200_task_generator.
+ */
+export const DEFAULT_D297_HOST_TASKS: readonly DefaultTask[] = [
+  {
+    code: 'HOST_WEEKLY_LIVE_DAYS',
+    period: 'WEEKLY',
+    metric: 'HOST_LIVE_DAYS',
+    target: 6,
+    rewardCherries: 250_000,
+    audience: 'HOSTS',
+    nameAr: 'ابثّ في أيام مختلفة هذا الأسبوع',
+    nameEn: 'Go live on different days this week',
+    sortOrder: 62,
+    bandTargets: [3, 4, 5, 6],
+    bandRewards: [180_000, 190_000, 220_000, 250_000],
+  },
+  {
+    code: 'HOST_WEEKLY_PK_BATTLES',
+    period: 'WEEKLY',
+    metric: 'PK_BATTLES',
+    target: 10,
+    rewardCherries: 250_000,
+    audience: 'HOSTS',
+    nameAr: 'ادخل معارك PK هذا الأسبوع',
+    nameEn: 'Enter PK battles this week',
+    sortOrder: 64,
+    bandTargets: [5, 6, 8, 10],
+    bandRewards: [180_000, 190_000, 220_000, 250_000],
   },
 ];

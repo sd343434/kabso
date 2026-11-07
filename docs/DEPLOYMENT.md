@@ -2941,6 +2941,39 @@ backfill — which is correct (level 1 is the old rule), so the API can be deplo
   `SELECT level, count(*) FROM user_medals WHERE medal_code = 'LUCKY_MASTER' GROUP BY 1;`.
 - **Panel:** «الميداليات» (`catalog.view` reads, the OWNER edits with the code; retired codes read-only). No new settings.
 
+### 5.78 Creator tasks «مهام صانع المحتوى» and the generated catalogue (migrations `20270331090000_creator_tasks_enums`, `20270331090100_creator_tasks`, `20270331090200_task_generator`; D297) — [IMPLEMENTED, draft contract v1.94-social; not deployed, not device-tested]
+
+CONVENTIONS §10.110. The first migration only adds the enum value `program_audience` `CREATORS` (it must commit before
+the second uses it); the second adds `task_pool_bands.creator_count` (set to `host_count`), the five metrics and the
+group CREATOR to the task CHECKs, seeds the six daily `P_CR_…` templates and the four weekly `CREATOR_WEEKLY_…` tasks
+(`ON CONFLICT DO NOTHING`: a row the team already made keeps its values) and the CHECK `events_audience_not_creators`.
+No new table, no GRANT, no new setting: the caps are the existing `TASK_DAILY_CAP_CHERRIES` and `TASK_MONTHLY_CAP_MINOR`.
+Deploy the API with the migrations (an older API would show members no creator tasks and could not read the band row's
+new column — harmless, it never selects it).
+
+- **Seed (only for a database that did not run the migration's insert, e.g. restored from before it):** from
+  `/opt/kabso/infra/deploy`, `docker compose --profile jobs run --rm migrate node dist/cli/task-admin.js seed-defaults`
+  — prints `Added 0 default task(s), 0 pool template(s) and 10 creator task(s).` the first time, `… and 0 …` after.
+- **Checks after deploy:**
+  `SELECT code, period, audience, pool_group, band_targets, band_rewards, enabled FROM task_definitions WHERE audience = 'CREATORS' ORDER BY sort_order;`
+  (10 rows, all enabled) and `SELECT band, daily_count, host_count, creator_count FROM task_pool_bands ORDER BY band;`
+  (creator 2 · 2 · 2 · 3). `task-admin list` prints them with their money; `task-admin bands` prints the creator counts.
+- **Changes (owner, no release):** `task-admin set P_CR_VIEWS --targets 100,250,500,1000 --rewards 3000,4000,6000,8000`,
+  `task-admin set CREATOR_WEEKLY_SHARES --enabled false`, `task-admin band 4 --creator-count 2` (≤ `--count`). A day's
+  creator tasks are fixed at its first read; changes apply from the next day (weekly values from the next read).
+- **Follow-up migration `20270331090200_task_generator` (§10.110.1):** the metric `HOST_LIVE_DAYS`, the four extra fixed
+  weekly tasks, `task_assignments.variant` accepting `G.…`, and the generator's 32 template rows (`G_CR_…`, `G_HO_…`)
+  **switched ON** for both audiences. The catalogue itself is code (315 120 tasks per audience); nothing else to load.
+  From the deploy, a creator's or host's NEXT day (and week) without a list comes from the generator; lists already made
+  stay. Checks: `task-admin generator status` (ON / ON, 315 120 each), `task-admin generator count --verify`,
+  `task-admin generator preview <username>`, and
+  `SELECT task_code, count(*) FROM task_assignments WHERE variant LIKE 'G.%' GROUP BY 1;` after the first day.
+- **Switch off / on (owner, no release):** `docker compose --profile jobs run --rm migrate node dist/cli/task-admin.js
+  generator off CREATORS` (or `HOSTS`) — the hand-made creator / host pool and the fixed weekly tasks (6 / 4) apply from
+  the next list; `generator on …` brings the generator back. Audited (`task.update`, target `task_generator`).
+- **Interaction with D295 (creators go live):** none at deploy — a member keeps only creator tasks whatever their
+  hosting permission. Either order of deploy works.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

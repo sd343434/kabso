@@ -15,7 +15,14 @@ import {
   type TargetWindow,
   ALL_DAY,
 } from './host-target-engine.js';
-import { seedOf, type TaskMetric, type TaskPoolBand } from './programs-rules.js';
+import {
+  audienceOffered,
+  seedOf,
+  taskRoleOf,
+  type TaskAudience,
+  type TaskMetric,
+  type TaskPoolBand,
+} from './programs-rules.js';
 
 /** D281: the task metrics that take a gift (`subject` = a gift code) or a category (`subject` = its code). */
 export const GIFT_SUBJECT_METRICS: readonly TaskMetric[] = ['GIFT_COUNT_SENT'];
@@ -66,7 +73,10 @@ export function taskLadderOf(metric: TaskMetric): readonly number[] {
     case 'WATCH_MINUTES':
     case 'HOST_LIVE_MINUTES':
       return TASK_MINUTES_LADDER;
+    // v1.94-social (D297): views and likes received run in the hundreds, like hearts.
     case 'LIVE_TAPS':
+    case 'REEL_VIEWS_RECEIVED':
+    case 'LIKES_RECEIVED':
       return TASK_TAPS_LADDER;
     case 'GIFT_COINS_SENT':
     case 'HOST_GIFT_COINS':
@@ -84,7 +94,7 @@ export interface TaskTemplate {
   readonly code: string;
   readonly metric: TaskMetric;
   readonly group: string;
-  readonly audience: 'EVERYONE' | 'HOSTS';
+  readonly audience: TaskAudience;
   readonly bandTargets: readonly number[];
   readonly bandRewards: readonly number[];
   readonly sortOrder: number;
@@ -186,6 +196,11 @@ export function variantReward(t: TaskTemplate, band: number, amount: number, coi
 export interface TaskProfile {
   readonly band: TaskPoolBand;
   readonly isHost: boolean;
+  /**
+   * v1.94-social (D297): a creator-programme member — their band's `creatorCount` CREATOR tasks first, never HOSTS tasks
+   * (even with the hosting permission D295 gives them). Absent = not a member.
+   */
+  readonly isCreator?: boolean;
   /** The person's daily average of each metric over the last 7 days (stored data). */
   readonly dailyAverage: Readonly<Partial<Record<TaskMetric, number>>>;
   /** Tasks assigned / claimed over the last 7 days (the completion rate). */
@@ -261,8 +276,9 @@ const WINDOW_GROUPS = new Set(['WATCH', 'LIVE']);
  *    target)); a template given yesterday weighs × 0.4 (variety); «join a family» only outside a family and the
  *    family chat only inside one; gift tasks only with gifts in the catalogue. A seeded weighted order
  *    (Efraimidis–Spirakis keys).
- * 2. Selection as D176: hosts get up to the band's host count of host tasks first; then at most one per group,
- *    then two, up to the band's daily count; never one template twice.
+ * 2. Selection as D176: hosts get up to the band's host count of host tasks first (v1.94-social, D297: creators
+ *    the band's creator count of creator tasks, never host tasks); then at most one per group, then two, up to the
+ *    band's daily count; never one template twice.
  * 3. The amount: their 7-day daily average × the completion factor (0.7 … 1.3), or the band's target when they
  *    never do it, kept within half and three times the band's target and snapped up to the metric's ladder; a
  *    gift task names their favourite gift (else a seeded paid gift) and counts that gift; one WATCH/LIVE task may
@@ -281,9 +297,10 @@ export function assignSmartTasks(
   const paidGifts = gifts
     .filter((g) => g.priceCoins > 0 && !g.lucky)
     .sort((a, b) => (a.code < b.code ? -1 : 1));
+  const role = taskRoleOf(profile.isHost, profile.isCreator ?? false);
   const offered = catalogueTemplates(templates)
     .filter((t) => bandValues(t, band.band).target > 0 && (t.bandTargets[band.band - 1] ?? 0) > 0)
-    .filter((t) => t.audience === 'EVERYONE' || profile.isHost)
+    .filter((t) => audienceOffered(t.audience, role))
     .filter((t) => (t.metric === 'FAMILY_JOIN' ? !profile.inFamily : true))
     .filter((t) => (t.metric === 'FAMILY_CHAT_MESSAGES' ? profile.inFamily : true))
     .filter((t) => (subjectsOf(t.metric, gifts).length > 0 ? true : false))
@@ -311,10 +328,18 @@ export function assignSmartTasks(
     }
   };
   const hostPool = ordered.filter((t) => t.audience === 'HOSTS');
-  const everyone = ordered.filter((t) => t.audience === 'EVERYONE');
-  if (profile.isHost) {
+  const creatorPool = ordered.filter((t) => t.audience === 'CREATORS');
+  let everyone = ordered.filter((t) => t.audience === 'EVERYONE');
+  if (role.host) {
     const hostLimit = Math.min(band.hostCount, band.dailyCount);
     for (const t of hostPool) if (picked.length < hostLimit) picked.push(t);
+  }
+  if (role.creator) {
+    // D297: creator tasks first, like host tasks; none of everyone's tasks counting the same action.
+    const creatorLimit = Math.min(band.creatorCount, band.dailyCount);
+    for (const t of creatorPool) if (picked.length < creatorLimit) picked.push(t);
+    const counted = new Set(picked.map((t) => t.metric));
+    everyone = everyone.filter((t) => !counted.has(t.metric));
   }
   take(everyone, band.dailyCount, 1);
   take(everyone, band.dailyCount, 2);
