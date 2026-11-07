@@ -30,7 +30,8 @@ import {
  *    the window (`agency_earnings.host_cherries` not reversed: every gift a linked host received, the ledger behind
  *    the agency's month totals) are more than theirs;
  *  - CREATOR: a `creator_members` row (D285; the membership has no end today);
- *  - VERIFIED_HOST: a host — a hosting permission (`live_hosts`, any source: the team, an agency, «كن مضيفاً مع
+ *  - VERIFIED_HOST: a host — a hosting permission (`live_hosts`, any source but D295's `CREATOR`, which only comes
+ *    with the creator membership: the team, an agency, «كن مضيفاً مع
  *    الإدارة») or an ACTIVE agency link — whose identity was approved: an APPROVED Didit check (`kyc_checks`:
  *    document, passive liveness and face match, any purpose), or (owner 2026-11-06: «نعم») an APPROVED «كن مضيفاً مع
  *    الإدارة» application (`host_applications`, D209) — the team's manual review of the ID card and the selfie while
@@ -134,7 +135,8 @@ export async function qualifyingIn(
        AND u.id IN (SELECT k.user_id FROM kyc_checks k WHERE k.status = 'APPROVED'::kyc_status
                     UNION
                     SELECT h.user_id FROM host_applications h WHERE h.status = 'APPROVED'::host_application_status)
-       AND (EXISTS (SELECT 1 FROM live_hosts lh WHERE lh.user_id = u.id)
+       AND (EXISTS (SELECT 1 FROM live_hosts lh
+                     WHERE lh.user_id = u.id AND lh.source <> 'CREATOR'::live_host_source)
             OR EXISTS (SELECT 1 FROM agency_hosts ah
                         WHERE ah.host_user_id = u.id AND ah.status = 'ACTIVE'::agency_host_status))`;
   for (const r of rows) {

@@ -1,6 +1,7 @@
 import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { LiveHostSource, Prisma } from '../../generated/prisma/client.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 /**
  * v1.82-live (D295, owner, CONVENTIONS §10.108): content creators go live «صانع محتوى».
@@ -161,6 +162,9 @@ export async function revokeCreatorIn(
       },
     });
   }
+  // v1.90-social (D293, §10.105): no longer a creator → the purple badge goes at once (unless another applies). Every
+  // revocation path comes here: the team's «صناع المحتوى» revoke and an agency ban.
+  await recomputeBadgesIn(tx, [userId], 'creator', now);
   return {
     applicationId: member.applicationId,
     hostingRemoved: removed.count > 0,

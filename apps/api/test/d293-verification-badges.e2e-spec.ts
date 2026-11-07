@@ -642,10 +642,14 @@ describe('D293 verification badges', { timeout: 600_000 }, () => {
     await grant(ownerCreator.email, 'OWNER');
     expect(await badgeOf(ownerCreator.id)).toBe('OWNER');
 
-    // RECHARGE_AGENT + CREATOR + VERIFIED_HOST → RECHARGE_AGENT; when the sales stop → CREATOR (the next one).
+    // RECHARGE_AGENT + CREATOR → RECHARGE_AGENT; when the sales stop → CREATOR (the next one). Since D295 a creator
+    // cannot also be a host (the trigger refuses another hosting source) and the membership's own permission (source
+    // CREATOR) is not a host's: the approved check gives no VERIFIED_HOST.
     const multi = await signup();
     await approveCreator(multi.id);
-    await ctx.prisma.liveHost.create({ data: { userId: multi.id, source: 'ADMIN' } });
+    expect(await ctx.prisma.liveHost.findUnique({ where: { userId: multi.id } })).toMatchObject({
+      source: 'CREATOR',
+    });
     await kycCheck(multi.id, 'APPROVED');
     await makeAgent(multi.id);
     await sale(multi.id, M300 + 1n, 1);
@@ -759,10 +763,13 @@ describe('D293 verification badges', { timeout: 600_000 }, () => {
   });
 
   it('the badge beside the name everywhere: lists, search, posts, comments, chat, DMs, live cards (D293)', async () => {
-    // A creator (purple, at once) who is also a host.
+    // A creator (purple, at once) who goes live: since D295 the membership itself gives the hosting permission
+    // (source CREATOR; another source is refused for a creator).
     const star = await signup();
     await approveCreator(star.id);
-    await ctx.prisma.liveHost.create({ data: { userId: star.id, source: 'ADMIN' } });
+    expect(await ctx.prisma.liveHost.findUnique({ where: { userId: star.id } })).toMatchObject({
+      source: 'CREATOR',
+    });
     const plain = await signup();
     const leak = (body: unknown) => {
       const text = JSON.stringify(body);

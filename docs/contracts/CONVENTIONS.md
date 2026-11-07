@@ -7859,7 +7859,7 @@ SUSPENDED or a deletion removes it at the next recompute).
 | 3 | `RECHARGE_AGENT` | gold | an **ACTIVE** recharge agent (the `rechargeAgent` tag's rule) whose **coins sold** in the window are more than `rechargeMinSalesCoins` **and** whose **cherries bought from hosts** in the window are more than `rechargeMinCherries` |
 | 4 | `HOST_AGENT` | green | a **host agent** — the owner of an OPEN agency the team has not suspended, with its host code (the `hostAgent` tag's rule) — whose agency has more than `hostAgentMinHosts` **active hosts now** **and** whose hosts **received** more than `hostAgentMinCherries` cherries in the window |
 | 5 | `CREATOR` | purple | a member of the creator programme (D285 `creator_members`; the membership has no end today) |
-| 6 | `VERIFIED_HOST` | blue | a **host** — a hosting permission (`live_hosts`, any source: the team, an agency, «كن مضيفاً مع الإدارة») or an ACTIVE agency link — whose identity was **approved**: an APPROVED Didit check (`kyc_checks`, §10.77: the document, passive liveness and the 1:1 face match; any purpose), **or** (owner's decision 2026-11-06, «نعم») an APPROVED «كن مضيفاً مع الإدارة» application (`host_applications`, D209 §10.68) — the team's manual review of the ID card and the selfie while Didit is off (with Didit on, that approval itself needs an approved check). Pending, rejected and cancelled applications do not count |
+| 6 | `VERIFIED_HOST` | blue | a **host** — a hosting permission (`live_hosts`, any source but `CREATOR` — the permission a creator membership gives, §10.108, is not a host's: the team, an agency, «كن مضيفاً مع الإدارة») or an ACTIVE agency link — whose identity was **approved**: an APPROVED Didit check (`kyc_checks`, §10.77: the document, passive liveness and the 1:1 face match; any purpose), **or** (owner's decision 2026-11-06, «نعم») an APPROVED «كن مضيفاً مع الإدارة» application (`host_applications`, D209 §10.68) — the team's manual review of the ID card and the selfie while Didit is off (with Didit on, that approval itself needs an approved check). Pending, rejected and cancelled applications do not count |
 
 **10.105.2 The measures** — the gold measures below are the **owner's decision** (2026-11-06: sales = coins sold to
 buyers, direct sales plus completed orders, the employees' included; withdrawals = confirmed cherry purchases from
@@ -7887,7 +7887,8 @@ only by `verification-badges.ts`:
 - the **sweeper**, every `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` (default 3600 — hourly; 1 … 86 400; 0 = off for
   tests, **refused in production**), recomputes everyone, so badges appear and disappear as the window moves;
 - **at once**, in the change's own transaction, for one person: a panel role granted or revoked (CLI and «الموظفون
-  والصلاحيات»), a creator application approved, an identity check that becomes or stops being APPROVED, a «كن مضيفاً
+  والصلاحيات»), a creator application approved, an agency's creator activation or a creator membership revoked (the
+  team's revoke or an agency ban, §10.108), an identity check that becomes or stops being APPROVED, a «كن مضيفاً
   مع الإدارة» application approved, a hosting permission revoked by the team (cause `host`);
 - a **settings change** recomputes everyone in its transaction;
 - the CLI `verification-admin recompute` (the first-run backfill, DEPLOYMENT §5.73).

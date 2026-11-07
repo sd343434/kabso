@@ -21,6 +21,7 @@ import { syncAgentUsernameIn } from '../users/agent-usernames.js';
 import { cancelPendingHostApplicationIn } from '../host-applications/host-applications.core.js';
 import { creatorApplicationBody } from '../creator/creator-applications.js';
 import { activateCreatorIn, CreatorHostConflictError, hostKindIn } from '../creator/creator-membership.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 import { isLimitedStaff } from '../live/live-staff.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
@@ -1261,6 +1262,9 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         if (err instanceof CreatorHostConflictError) throw refused('HOST');
         throw err;
       }
+      // v1.90-social (D293, §10.105): the purple creator badge at once (unless a higher one applies), as an approved
+      // «انضم كصانع محتوى» application gives it.
+      await recomputeBadgesIn(tx, [member], 'creator', now);
       await tx.auditLog.create({
         data: {
           actorUserId: me,

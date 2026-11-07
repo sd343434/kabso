@@ -28,6 +28,7 @@ import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
 import { commissionCherries, giftProfitUnits } from '../src/modules/recruits/recruit-math.js';
 import { RecruitsService } from '../src/modules/recruits/recruits.service.js';
 import { reverseGiftCherriesIn } from '../src/modules/economy/cherry-ledger.js';
+import { qualifyingIn, thresholdsIn } from '../src/modules/verification/verification-badges.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { MemoryObjectStorage } from './helpers/memory-storage.js';
@@ -1097,5 +1098,99 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
       source: 'ADMIN',
     });
     expect(await ctx.prisma.creatorMember.count({ where: { userId: b.id } })).toBe(0);
+  });
+
+  it('with D293: an agency-activated creator gets the purple seal at once and loses it on revoke or an agency ban; the creator’s own permission is never a host’s (blue) and gives no host task (D297)', async () => {
+    const badge = async (u: TestUser) => {
+      const res = await ctx.http.get('/api/v1/me').set(auth(u));
+      expect(res.status).toBe(200);
+      return res.body.verification as string | null;
+    };
+    const causes = async (u: TestUser) =>
+      (
+        await ctx.prisma.auditLog.findMany({
+          where: { action: 'verification.badge.change', targetId: u.id },
+        })
+      ).map((a) => a.metadata as { before: string | null; after: string | null; cause: string });
+    const approvedCheck = (u: TestUser) =>
+      ctx.prisma.kycCheck.create({
+        data: {
+          userId: u.id,
+          purpose: 'HOST_APPLICATION',
+          status: 'APPROVED',
+          sessionId: randomUUID(),
+          workflowId: randomUUID(),
+          providerStatus: 'Approved',
+          dateOfBirth: new Date('1990-01-01T00:00:00Z'),
+          decidedAt: new Date(),
+        },
+      });
+    const tasksOf = async (u: TestUser) => {
+      const res = await ctx.http.get('/api/v1/me/tasks').set(auth(u));
+      expect(res.status).toBe(200);
+      return res.body as { band: { host: boolean; creator: boolean }; tasks: { audience: string }[] };
+    };
+
+    // The agency activates a member as a creator: purple at once (the sweeper is off in the tests).
+    const agent = await signup();
+    const agency = await openAgency(agent);
+    const [c1, c2, h1] = [await signup(), await signup(), await signup()];
+    for (const m of [c1, c2, h1]) await joinAgency(m, agency.inviteCode);
+    for (const m of [c1, c2]) {
+      expect((await badge(m)) ?? null).toBeNull();
+      const res = await activate(agent, m, { as: 'CREATOR', ...creatorForm, confirmCreator: true });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expect(await badge(m)).toBe('CREATOR');
+      expect(await causes(m)).toEqual([
+        expect.objectContaining({ before: null, after: 'CREATOR', cause: 'creator' }),
+      ]);
+    }
+    // D297: the Task Center reads the agency's creator (permission CREATOR) as a creator, never a host, and the
+    // agency's host (permission AGENCY) as a host (the task lists themselves: d297-creator-tasks).
+    expect((await activate(agent, h1, { as: 'HOST' })).status).toBe(200);
+    const creatorTasks = await tasksOf(c1);
+    expect(creatorTasks.band).toMatchObject({ host: false, creator: true });
+    expect(creatorTasks.tasks.some((t) => t.audience === 'HOSTS')).toBe(false);
+    expect((await tasksOf(h1)).band).toMatchObject({ host: true, creator: false });
+
+    // The team revokes c1's membership: the purple seal goes at once.
+    const revoked = await apost(support, `/admin/creator-members/${c1.id}/revoke`, { reason: 'روابط مزيفة' });
+    expect(revoked.status, JSON.stringify(revoked.body)).toBe(200);
+    expect(await badge(c1)).toBeNull();
+    expect(await causes(c1)).toContainEqual(
+      expect.objectContaining({ before: 'CREATOR', after: null, cause: 'creator' }),
+    );
+
+    // «حظر الوكالة» with c2 ticked as a fake creator: the purple seal goes at once too.
+    const ban = await apost(owner, `/admin/agencies/${agency.id}/ban`, {
+      reason: 'صانع محتوى وهمي',
+      totpCode: nextCode(owner.secret),
+      fakeCreatorUserIds: [c2.id],
+    });
+    expect(ban.status, JSON.stringify(ban.body)).toBe(200);
+    expect(ban.body).toMatchObject({ revokedCreators: 1 });
+    expect(await badge(c2)).toBeNull();
+    expect(await causes(c2)).toContainEqual(
+      expect.objectContaining({ before: 'CREATOR', after: null, cause: 'creator' }),
+    );
+
+    // The blue host rule leaves out the creator's own permission (source CREATOR): a creator with an approved
+    // identity check qualifies for CREATOR only; a host (source ADMIN) with one qualifies for VERIFIED_HOST.
+    const creator = await signup();
+    await makeCreator(creator);
+    expect(await ctx.prisma.liveHost.findUnique({ where: { userId: creator.id } })).toMatchObject({
+      source: 'CREATOR',
+    });
+    await approvedCheck(creator);
+    const host = await signup();
+    await makeHost(host);
+    await approvedCheck(host);
+    const q = await qualifyingIn(ctx.prisma, new Date(), await thresholdsIn(ctx.prisma), [
+      creator.id,
+      host.id,
+    ]);
+    expect([...(q.get(creator.id) ?? [])]).toEqual(['CREATOR']);
+    expect([...(q.get(host.id) ?? [])]).toEqual(['VERIFIED_HOST']);
+    expect(await badge(creator)).toBe('CREATOR');
   });
 });
