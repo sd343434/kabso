@@ -47,7 +47,10 @@ import 'package:material_ui/material_ui.dart';
 ///   your entry first — open your stories or add one — then followed
 ///   accounts; a ring opens the story viewer); D294: no line between posts.
 ///   Reels are full-bleed and dark in both app themes (D202), with light
-///   status-bar icons.
+///   status-bar icons. D298 (owner: «اجعل الريلز بحجم الشاشة»): the video
+///   runs from the very top (behind the status bar) to the bottom bar; the
+///   header floats over it on a soft scrim that fades out to nothing, so
+///   no dark band marks where the video "starts".
 /// - Posts, stories and (v1.41-social, D162) reels come from their APIs
 ///   (KL-060, CP-008, `GET /feed/reels`); an empty or failed feed shows
 ///   its honest state with a real way forward ("Watch live streams" opens
@@ -70,6 +73,9 @@ class FeedScreen extends StatefulWidget {
   final bool showNotifications;
 
   static const headerKey = Key('home.header');
+
+  /// D298: the reels page's soft top scrim under the floating header.
+  static const reelsScrimKey = Key('home.reels.scrim');
   static const tabsKey = Key('home.tabs');
   static const searchKey = Key('home.search');
 
@@ -103,9 +109,10 @@ class _FeedScreenState extends State<FeedScreen> {
       ),
     );
     final header = reels
-        // D294: the posts page's bar over the video, on D202's scrim.
+        // D294: the posts page's bar over the video; D298: no band of its
+        // own — it floats on the soft scrim below.
         ? _ReelsTheme(
-            child: _ReelsScrim(key: FeedScreen.headerKey, child: bar),
+            child: KeyedSubtree(key: FeedScreen.headerKey, child: bar),
           )
         // Posts follow the app theme (owner, 2026-10-26).
         : ColoredBox(
@@ -141,6 +148,16 @@ class _FeedScreenState extends State<FeedScreen> {
                 ],
               ),
             ),
+            // D298: a sibling of the header (not inside it), so it can run
+            // past the bar and fade out instead of being clipped to it.
+            if (reels)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: KReelsHeader.scrimHeight(context),
+                child: const _ReelsScrim(key: FeedScreen.reelsScrimKey),
+              ),
             Positioned(top: 0, left: 0, right: 0, child: header),
           ],
         ),
@@ -165,11 +182,30 @@ class _ReelsTheme extends StatelessWidget {
   );
 }
 
-/// D202 / D294 geometry of the reels header: the bar's scrim and the
-/// video's speaker button under it.
+/// D202 / D294 / D298 geometry of the reels header: the bar's scrim and
+/// the video's speaker button under it.
 abstract final class KReelsHeader {
-  /// The scrim runs this far under the bar's 48 dp row.
-  static const double scrimBelow = 8;
+  /// D298: the scrim runs this far under the bar's 48 dp row, fading to
+  /// fully transparent (D202's ran 8 dp and stopped at 25 % black, which
+  /// read as a solid band over the video).
+  static const double scrimBelow = 120;
+
+  /// The scrim's height: the status bar, the gap, the bar and the fade.
+  static double scrimHeight(BuildContext context) =>
+      KTopInset.of(context) + KMetrics.topBarHeight + scrimBelow;
+
+  /// D298: the scrim's black at its top edge (70 %).
+  static const double scrimTopOpacity = 0.7;
+
+  /// The scrim's opacity [t] of the way down: a smoothstep from
+  /// [scrimTopOpacity] to 0, flat at both ends so no edge shows.
+  static double scrimOpacityAt(double t) {
+    final x = t.clamp(0.0, 1.0);
+    return scrimTopOpacity * (1 - x * x * (3 - 2 * x));
+  }
+
+  /// The gradient's stops (evenly spaced samples of [scrimOpacityAt]).
+  static const int scrimStops = 9;
 
   /// D294: the video's speaker button (a 48 dp target) starts this far
   /// under the bar, at the reading end (D202 aligned it with the chips row,
@@ -181,39 +217,32 @@ abstract final class KReelsHeader {
       KTopInset.of(context) + KMetrics.topBarHeight + muteGap;
 }
 
-/// D202: the dark scrim under the reels page's bar, so the bar reads over
-/// any video.
+/// D202 / D298: the scrim behind the reels page's floating bar, so white
+/// text reads over a bright video: dark at the top (behind the status bar),
+/// still dark under the bar's row, then an eased fade to nothing — no edge.
 class _ReelsScrim extends StatelessWidget {
-  const new({required this.child, super.key});
-
-  final Widget child;
+  const new({super.key});
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Positioned(
-        top: 0,
-        left: 0,
-        right: 0,
-        height:
-            KTopInset.of(context) +
-            KMetrics.topBarHeight +
-            KReelsHeader.scrimBelow,
-        child: const IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xB3000000), Color(0x40000000)],
-              ),
-            ),
+  Widget build(BuildContext context) {
+    const n = KReelsHeader.scrimStops;
+    final stops = [for (var i = 0; i < n; i++) i / (n - 1)];
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: stops,
+            colors: [
+              for (final t in stops)
+                Color.fromRGBO(0, 0, 0, KReelsHeader.scrimOpacityAt(t)),
+            ],
           ),
         ),
       ),
-      child,
-    ],
-  );
+    );
+  }
 }
 
 /// The way forward from an empty or unavailable feed: "Watch live

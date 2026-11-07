@@ -6,6 +6,9 @@
 // the posts page's bar (Search, «Posts | Reels» with Reels selected, the
 // bell); the tabs Following · For You · Nearby, the Posts chip and Nearby's
 // country prompt are gone; the page reads `GET /feed/reels?tab=mixed` only.
+// D298 (owner: «اجعل الريلز بحجم الشاشة»): the reel fills the whole screen
+// from the very top; the header floats over it on a soft scrim that fades
+// to nothing (no band), its row under the status bar.
 
 import 'dart:ui' show Tristate;
 
@@ -16,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
+import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -34,6 +38,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
+import '../../helpers/fake_inline_video.dart';
 import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
@@ -150,6 +155,7 @@ Future<_Env> _pump(
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   GoRouter? router,
+  FakeInlineVideos? videos,
 }) async {
   final e = env ?? _Env();
   setViewport(tester, viewport);
@@ -162,6 +168,7 @@ Future<_Env> _pump(
       language: language,
       postsRepository: e.posts,
       overrides: e.overrides,
+      inlineVideos: videos,
     );
     await tester.pumpAndSettle();
   });
@@ -302,6 +309,264 @@ void main() {
       // The reels page was kept: the mix is not read again.
       expect(env.posts.calls.where((c) => c == 'reels:mixed:'), hasLength(1));
       expect(find.text(KHandle.ltr('@sara')), findsWidgets);
+    });
+  });
+
+  group('full screen (D298)', () {
+    testWidgets('the reel fills the screen from the very top (behind the '
+        'status bar); the header floats over it, its row under the status '
+        'bar; the scrim fades to nothing; the rail and bottom block keep '
+        'their places', (tester) async {
+      tester.view.padding = const FakeViewPadding(
+        top: 59 * GoldenViewport.pixelRatio,
+        bottom: 34 * GoldenViewport.pixelRatio,
+      );
+      addTearDown(tester.view.resetPadding);
+      await _pump(tester);
+      const screen = Rect.fromLTWH(0, 0, 393, 852);
+      final topInset = KTopInset.of(tester.element(find.byType(FeedScreen)));
+      expect(topInset, 59 + KMetrics.statusBarGap);
+      // The video (and its poster) edge to edge, from y = 0.
+      expect(tester.getRect(find.byType(HomeReelPage).first), screen);
+      expect(
+        tester.getRect(_onPage(find.byKey(HomeReelPage.mediaKey))),
+        screen,
+      );
+      final video = tester.widget<InlineVideo>(
+        _onPage(find.byType(InlineVideo)),
+      );
+      expect(video.fit, BoxFit.cover);
+      // The header overlays the video: it starts at the top, its row
+      // starts under the status bar, and it is only the bar (no band).
+      final header = tester.getRect(find.byKey(FeedScreen.headerKey));
+      expect(header.top, 0);
+      expect(header.height, topInset + KMetrics.topBarHeight);
+      expect(tester.getRect(find.byKey(FeedScreen.tabsKey)).top, topInset);
+      expect(tester.getRect(find.byKey(FeedScreen.searchKey)).top, topInset);
+      expect(
+        tester.widget(find.byKey(FeedScreen.headerKey)),
+        isA<KeyedSubtree>(),
+      );
+      // Nothing in the header paints a full-width fill.
+      final fills = find.descendant(
+        of: find.byKey(FeedScreen.headerKey),
+        matching: find.byWidgetPredicate(
+          (w) => w is ColoredBox || w is DecoratedBox,
+        ),
+      );
+      for (final e in fills.evaluate()) {
+        expect(
+          tester.getRect(find.byElementPredicate((x) => x == e)).width,
+          lessThan(393),
+        );
+      }
+      // The scrim: dark at the top, still dark at the bar's bottom, then a
+      // fade to fully transparent (no visible edge).
+      final scrim = find.byKey(FeedScreen.reelsScrimKey);
+      expect(
+        tester.getRect(scrim),
+        Rect.fromLTWH(
+          0,
+          0,
+          393,
+          topInset + KMetrics.topBarHeight + KReelsHeader.scrimBelow,
+        ),
+      );
+      final gradient =
+          (tester
+                          .widget<DecoratedBox>(
+                            find.descendant(
+                              of: scrim,
+                              matching: find.byType(DecoratedBox),
+                            ),
+                          )
+                          .decoration
+                      as BoxDecoration)
+                  .gradient!
+              as LinearGradient;
+      final alphas = [for (final c in gradient.colors) c.a];
+      expect(alphas.first, greaterThanOrEqualTo(0.6));
+      expect(alphas.last, 0);
+      for (var i = 1; i < alphas.length; i++) {
+        expect(alphas[i], lessThan(alphas[i - 1]));
+        // Small steps: no visible edge anywhere in the fade.
+        expect(alphas[i - 1] - alphas[i], lessThan(0.15));
+      }
+      // Flat at the bottom: the last step is the smallest of the fade's
+      // second half.
+      expect(
+        alphas[alphas.length - 2] - alphas.last,
+        lessThan(alphas[alphas.length - 3] - alphas[alphas.length - 2]),
+      );
+      // Still dark behind the bar's row (white text over a bright video).
+      final barEnd =
+          (topInset + KMetrics.topBarHeight) /
+          (topInset + KMetrics.topBarHeight + KReelsHeader.scrimBelow);
+      expect(KReelsHeader.scrimOpacityAt(barEnd), greaterThanOrEqualTo(0.35));
+      expect(KReelsHeader.scrimOpacityAt(barEnd / 2), greaterThan(0.5));
+      expect(
+        find.ancestor(of: scrim, matching: find.byType(IgnorePointer)),
+        findsWidgets,
+      );
+      // The rail and the bottom block keep their places from the bottom.
+      final rail = tester.getRect(_onPage(find.byKey(HomeReelPage.railKey)));
+      expect(rail.bottom, 852 - KHomeReels.railBottom);
+      expect(rail.right, 393 - KHomeReels.railEnd);
+      final sound = tester.getRect(_onPage(find.byKey(HomeReelPage.soundKey)));
+      expect(sound.bottom, lessThanOrEqualTo(852 - KHomeReels.contentBottom));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a swipe that starts under the scrim still pages the reels', (
+      tester,
+    ) async {
+      await _pump(tester, env: _Env(trending: [_reel('r1'), _reel('r2')]));
+      expect(find.byKey(const ValueKey('home.reel.r1')), findsOneWidget);
+      final topInset = KTopInset.of(tester.element(find.byType(FeedScreen)));
+      await tester.dragFrom(
+        Offset(200, topInset + KMetrics.topBarHeight + 24),
+        const Offset(0, -600),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('home.reel.r2')), findsOneWidget);
+    });
+
+    testWidgets('Posts keep their solid header and no scrim', (tester) async {
+      await _pump(tester);
+      expect(find.byKey(FeedScreen.reelsScrimKey), findsOneWidget);
+      await tester.tap(find.byKey(FeedScreen.switchKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(FeedScreen.reelsScrimKey), findsNothing);
+      final header = tester.widget(find.byKey(FeedScreen.headerKey));
+      expect(header, isA<ColoredBox>());
+      final p = tester.element(find.byKey(FeedScreen.headerKey)).palette;
+      expect((header as ColoredBox).color, p.background);
+    });
+  });
+
+  group('progress line and bottom scrim (D298)', () {
+    Finder bar() => _onPage(find.byKey(HomeReelPage.progressKey));
+    Finder paint() =>
+        find.descendant(of: bar(), matching: find.byType(CustomPaint));
+    String? value(WidgetTester tester) => tester.getSemantics(paint()).value;
+
+    testWidgets('a thin full-width line on the reel bottom edge once the '
+        'video has a length; it follows the player', (tester) async {
+      final videos = FakeInlineVideos();
+      await _pump(tester, videos: videos);
+      final video = videos.created.single;
+      expect(video.plays, 1);
+      final rect = tester.getRect(paint());
+      expect(
+        rect,
+        const Rect.fromLTWH(
+          0,
+          852 - KHomeReels.progressHit,
+          393,
+          KHomeReels.progressHit,
+        ),
+      );
+      expect(value(tester), '1%');
+      video.setPosition(const Duration(milliseconds: 3200));
+      await tester.pump();
+      expect(value(tester), '40%');
+      video.setPosition(const Duration(seconds: 8));
+      await tester.pump();
+      expect(value(tester), '100%');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no line while the length is unknown or the video cannot '
+        'play', (tester) async {
+      final videos = FakeInlineVideos()
+        ..failing.add('https://media.example.test/media/r1-v/video.mp4');
+      await _pump(tester, videos: videos);
+      expect(videos.created.single.state.initialized, isFalse);
+      expect(bar(), findsOneWidget);
+      expect(paint(), findsNothing);
+    });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name}: a tap seeks from the reading start '
+          '(mirrored in Arabic); a drag scrubs with a thicker line and seeks '
+          'on release', (tester) async {
+        final videos = FakeInlineVideos();
+        await _pump(tester, videos: videos, language: language);
+        final video = videos.created.single;
+        final ar = language == AppLanguage.ar;
+        expect(
+          Directionality.of(tester.element(bar())),
+          ar ? TextDirection.rtl : TextDirection.ltr,
+        );
+        const y = 852 - KHomeReels.progressHit / 2;
+        // A quarter of the width from the left: 25 % in English, 75 % in
+        // Arabic (it grows from the right).
+        await tester.tapAt(const Offset(393 * 0.25, y));
+        await tester.pump();
+        expect(
+          video.seeks.last,
+          ar ? const Duration(seconds: 6) : const Duration(seconds: 2),
+        );
+        expect(value(tester), ar ? '75%' : '25%');
+        // Scrub from 10 % to 50 % of the width (left to right).
+        final gesture = await tester.startGesture(const Offset(393 * 0.1, y));
+        await gesture.moveBy(const Offset(20, 0));
+        await tester.pump();
+        await gesture.moveTo(const Offset(393 * 0.5, y));
+        await tester.pump();
+        expect(value(tester), '50%');
+        final seeks = video.seeks.length;
+        await gesture.up();
+        await tester.pump();
+        expect(video.seeks, hasLength(seeks + 1));
+        expect(video.seeks.last, const Duration(seconds: 4));
+        expect(video.state.position, const Duration(seconds: 4));
+        // The page did not move: the drag was the line's, not the pager's.
+        expect(find.byType(HomeReelPage), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('the screen reader moves it 5 s at a time', (tester) async {
+      final videos = FakeInlineVideos();
+      await _pump(tester, videos: videos);
+      final video = videos.created.single
+        ..setPosition(const Duration(seconds: 2));
+      await tester.pump();
+      final node = tester.getSemantics(paint());
+      expect(node.label, _en.reelsProgress);
+      expect(node.increasedValue, '88%');
+      tester
+          .widget<Semantics>(
+            find.descendant(of: bar(), matching: find.byType(Semantics)).first,
+          )
+          .properties
+          .onIncrease!();
+      await tester.pump();
+      expect(video.seeks.last, const Duration(seconds: 7));
+    });
+
+    testWidgets('the bottom scrim: the top half clear, then dark under the '
+        'author, caption and sound line', (tester) async {
+      await _pump(tester);
+      final box = tester.widget<DecoratedBox>(
+        _onPage(find.byKey(HomeReelPage.bottomScrimKey)),
+      );
+      final g = (box.decoration as BoxDecoration).gradient! as LinearGradient;
+      final stops = g.stops!;
+      final alphas = [for (final c in g.colors) c.a];
+      for (var i = 0; i < stops.length; i++) {
+        if (stops[i] <= 0.5) expect(alphas[i], 0, reason: 'stop ${stops[i]}');
+      }
+      expect(alphas.last, greaterThanOrEqualTo(0.8));
+      for (var i = 1; i < alphas.length; i++) {
+        expect(alphas[i], greaterThanOrEqualTo(alphas[i - 1]));
+      }
+      // The caption's text sits where the scrim is at least 25 % black.
+      final caption = tester.getRect(
+        _onPage(find.byKey(HomeReelPage.captionKey)),
+      );
+      expect(caption.top / 852, greaterThanOrEqualTo(0.68));
     });
   });
 

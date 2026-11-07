@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:go_router/go_router.dart';
@@ -179,6 +180,23 @@ abstract final class KHomeReels {
 
   /// The double-tap heart.
   static const double burst = 96;
+
+  /// D298: the progress line along the reel's bottom edge (above the
+  /// bottom bar): 2 dp, 4 dp with a 12 dp thumb while scrubbing, in a
+  /// 24 dp strip that takes the tap or drag.
+  static const double progress = 2;
+  static const double progressActive = 4;
+  static const double progressThumb = 12;
+  static const double progressHit = 24;
+
+  /// D298: the progress line's unplayed part (white at 30 %).
+  static const double progressTrackOpacity = 0.3;
+
+  /// D298: the bottom scrim behind the author, caption and sound line:
+  /// clear through the top half (the middle of the video stays untouched),
+  /// then black rising to 85 % at the bottom edge (D202: 70 % from 55 %).
+  static const List<double> bottomScrimStops = [0, 0.5, 0.68, 0.84, 1];
+  static const List<double> bottomScrimOpacities = [0, 0, 0.25, 0.6, 0.85];
 }
 
 /// Full-screen vertical pager of reels: swipe up for the next one. Its
@@ -305,6 +323,8 @@ class HomeReelPage extends ConsumerStatefulWidget {
   static const moreKey = Key('home.reel.more');
   static const burstKey = Key('home.reel.burst');
   static const mediaKey = Key('home.reel.media');
+  static const progressKey = Key('home.reel.progress');
+  static const bottomScrimKey = Key('home.reel.bottomScrim');
 
   @override
   ConsumerState<HomeReelPage> createState() => _HomeReelPageState();
@@ -332,7 +352,23 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
   Duration _lastPosition = Duration.zero;
   static const _discPeriod = Duration(seconds: 6);
 
+  /// D298: the player's state for the progress line, and a way to seek.
+  final ValueNotifier<InlineVideoState?> _playback = ValueNotifier(null);
+  final InlineVideoHandle _video = InlineVideoHandle();
+  InlineVideoState? _latest;
+
   void _onVideo(InlineVideoState state) {
+    // A player can report while the tree builds (a page change pauses it
+    // from didUpdateWidget): the line then follows after this frame.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      _latest = state;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _playback.value = _latest;
+      });
+    } else {
+      _playback.value = _latest = state;
+    }
     final step = state.position - _lastPosition;
     _lastPosition = state.position;
     if (state.playing && step > Duration.zero && step < _discPeriod) {
@@ -346,6 +382,7 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
   void dispose() {
     _burst.dispose();
     _discTurns.dispose();
+    _playback.dispose();
     super.dispose();
   }
 
@@ -475,6 +512,7 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
         muteOnTop: true,
         muteTop: widget.muteTop,
         onState: _onVideo,
+        handle: _video,
         onDoubleTap: interactive ? _doubleTap : null,
         fit: (reel.aspect ?? 0) > 1 ? BoxFit.contain : BoxFit.cover,
       ),
@@ -490,17 +528,19 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
         fit: StackFit.expand,
         children: [
           KeyedSubtree(key: HomeReelPage.mediaKey, child: media),
-          const IgnorePointer(
+          // D298: stronger at the bottom (the caption reads over a pale
+          // video), still clear through the middle.
+          IgnorePointer(
             child: DecoratedBox(
+              key: HomeReelPage.bottomScrimKey,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: [0, 0.55, 1],
+                  stops: KHomeReels.bottomScrimStops,
                   colors: [
-                    Color(0x00000000),
-                    Color(0x00000000),
-                    Color(0xB3000000),
+                    for (final o in KHomeReels.bottomScrimOpacities)
+                      Color.fromRGBO(0, 0, 0, o),
                   ],
                 ),
               ),
@@ -560,6 +600,17 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
               ),
             ),
           ),
+          if (reel.videoUrl != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: ReelProgressBar(
+                key: HomeReelPage.progressKey,
+                playback: _playback,
+                onSeek: _video.seekTo,
+              ),
+            ),
         ],
       ),
     );
@@ -650,7 +701,168 @@ class _HomeReelPageState extends ConsumerState<HomeReelPage>
 
 const _shadows = [
   Shadow(color: Color(0x99000000), blurRadius: 8, offset: Offset(0, 1)),
+  // D298: a tight shadow too, so white text keeps its edge on a pale video.
+  Shadow(color: Color(0x73000000), blurRadius: 2, offset: Offset(0, 1)),
 ];
+
+/// D298 (owner: «لماذا لا يبان خط الفيديو؟»): the reel's playback progress,
+/// a thin line along its bottom edge, full width, directly above the
+/// bottom bar. The played part is white and grows from the reading start
+/// (right to left in Arabic); the rest is white at 30 %. It shows once the
+/// video has a known length. A tap jumps there; a horizontal drag scrubs
+/// (a thicker line with a thumb) and seeks on release.
+class ReelProgressBar extends StatefulWidget {
+  const new({required this.playback, required this.onSeek, super.key});
+
+  /// The player's state (position and duration).
+  final ValueListenable<InlineVideoState?> playback;
+
+  /// Jumps the player to a position.
+  final Future<void> Function(Duration position) onSeek;
+
+  @override
+  State<ReelProgressBar> createState() => _ReelProgressBarState();
+}
+
+class _ReelProgressBarState extends State<ReelProgressBar> {
+  /// The fraction under the finger while scrubbing, or of a seek on its
+  /// way (so the line does not jump back before the player reports it).
+  double? _scrub;
+  bool _dragging = false;
+
+  static const _step = Duration(seconds: 5);
+
+  Future<void> _seek(double fraction, Duration duration) async {
+    setState(() => _scrub = fraction);
+    await widget.onSeek(
+      Duration(microseconds: (fraction * duration.inMicroseconds).round()),
+    );
+    if (mounted && !_dragging) setState(() => _scrub = null);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<InlineVideoState?>(
+        valueListenable: widget.playback,
+        builder: (context, state, _) {
+          final duration = state?.duration ?? Duration.zero;
+          if (state == null ||
+              !state.initialized ||
+              state.failed ||
+              duration <= Duration.zero) {
+            return const SizedBox.shrink();
+          }
+          final total = duration.inMicroseconds;
+          final played =
+              _scrub ?? (state.position.inMicroseconds / total).clamp(0.0, 1.0);
+          final rtl = Directionality.of(context) == TextDirection.rtl;
+          final percent = (played * 100).round();
+          double step(int sign) =>
+              (played + sign * _step.inMicroseconds / total).clamp(0.0, 1.0);
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              double at(Offset local) {
+                final f = (local.dx / width).clamp(0.0, 1.0);
+                return rtl ? 1 - f : f;
+              }
+
+              return Semantics(
+                container: true,
+                slider: true,
+                label: context.l10n.reelsProgress,
+                value: '$percent%',
+                increasedValue: '${(step(1) * 100).round()}%',
+                decreasedValue: '${(step(-1) * 100).round()}%',
+                onIncrease: () => unawaited(_seek(step(1), duration)),
+                onDecrease: () => unawaited(_seek(step(-1), duration)),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (d) =>
+                      unawaited(_seek(at(d.localPosition), duration)),
+                  onHorizontalDragStart: (d) => setState(() {
+                    _dragging = true;
+                    _scrub = at(d.localPosition);
+                  }),
+                  onHorizontalDragUpdate: (d) =>
+                      setState(() => _scrub = at(d.localPosition)),
+                  onHorizontalDragEnd: (_) {
+                    _dragging = false;
+                    final f = _scrub;
+                    if (f != null) unawaited(_seek(f, duration));
+                  },
+                  onHorizontalDragCancel: () => setState(() {
+                    _dragging = false;
+                    _scrub = null;
+                  }),
+                  child: SizedBox(
+                    width: width,
+                    height: KHomeReels.progressHit,
+                    child: CustomPaint(
+                      painter: _ProgressPainter(
+                        played: played,
+                        active: _dragging,
+                        rtl: rtl,
+                        color: KPalette.dark.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+}
+
+class _ProgressPainter extends CustomPainter {
+  const new({
+    required this.played,
+    required this.active,
+    required this.rtl,
+    required this.color,
+  });
+
+  final double played;
+  final bool active;
+  final bool rtl;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final thick = active ? KHomeReels.progressActive : KHomeReels.progress;
+    // Scrubbing lifts the line so the whole thumb stays on the reel.
+    final bottom = active
+        ? size.height -
+              (KHomeReels.progressThumb - KHomeReels.progressActive) / 2
+        : size.height;
+    final track = Rect.fromLTRB(0, bottom - thick, size.width, bottom);
+    canvas.drawRect(
+      track,
+      Paint()..color = color.withValues(alpha: KHomeReels.progressTrackOpacity),
+    );
+    final w = size.width * played;
+    final done = rtl
+        ? Rect.fromLTRB(size.width - w, track.top, size.width, track.bottom)
+        : Rect.fromLTRB(0, track.top, w, track.bottom);
+    canvas.drawRect(done, Paint()..color = color);
+    if (active) {
+      final x = rtl ? size.width - w : w;
+      canvas.drawCircle(
+        Offset(x, track.center.dy),
+        KHomeReels.progressThumb / 2,
+        Paint()..color = color,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ProgressPainter old) =>
+      old.played != played ||
+      old.active != active ||
+      old.rtl != rtl ||
+      old.color != color;
+}
 
 /// One rail action: a 28 dp icon over its label, a 48 dp target. Without
 /// [onTap] it is display only (a fixture's counts).
