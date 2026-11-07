@@ -723,6 +723,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.78-live (draft) | 2026-11-06 | **D288 (owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله», and «يلغي» for the code on the permanent ban and content deletion): the shared report queue «البلاغات المشتركة», and two actions without a code** — `banAdminUser`, `moderateAdminContent` `delete` and `requestAdminUserDeletion` need no authenticator code (`totpCode` deprecated, accepted and ignored). `reports.view` gains SUPPORT; new capabilities `reports.resolve` (OWNER, MODERATION, SUPPORT) and `reports.reopen` (OWNER, MODERATION). `listAdminPanelReports` `status=RESOLVED`, `AdminPanelReport.resolvedBy` / `resolutionNote`; `resolveAdminPanelReport`, `reopenAdminPanelReport`, `getAdminPanelReportsSummary`; the app's «بلاغات» `listStaffReports`, `getStaffReportsSummary`, `resolveStaffReport`; `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Notification `STAFF_REPORT_NEW` (target `REPORT`: `reportTargetType`, `reportOpen`), push channel `staff` (Android `kabso_staff`). Migration `20270322090000_shared_reports` (`notification_type` value, `notifications.report_id`, `reports_resolved_idx`). §10.101; §10.96.14's table. | **Additive** (new operations, enum values, optional fields; the deprecated `totpCode` still accepted). **Behaviour change:** no code for the ban, content deletion and account deletion; SUPPORT sees every report; a new report notifies every moderator and support member. |
 | v1.79-live (draft) | 2026-11-06 | **D289 (owner: «كل شارة لها أيقونة خاصة في النظام كاملاً» — gift and store badges as a set, one icon each; «بمؤثرات صوتية» / «بدون مؤثرات صوتية» exclusive; «جديد» 14 days or the owner's date; «لفترة محدودة» / «موسمي» with an end; auto-detection in the panel; one or two on a gift-box tile, never over the price; all of them in the details; lucky gifts unchanged):** `ItemBadgeCode` (SOUND, NO_SOUND, NEW, MOST_WANTED, FEATURED, LIMITED, FULLSCREEN, EXCLUSIVE, SEASONAL), `ItemBadge` `{code, until}`, `AdminItemBadge` (+ `active`), `ItemBadgeInput` `{code, until?}`; `Gift.badges` and `StoreItem.badges` (required, the running ones in display priority); `Gift.badge` and `StoreItem.isNew` deprecated (derived); the panel's gift rows and `AdminStoreItem` gain `badges`; `createAdminGift` / `updateAdminGift` / `createAdminStoreItem` / `updateAdminStoreItem` accept `badges` (the old `badge` / `isNew` still accepted, not with it); `uploadAdminGiftFile` and `uploadAdminStoreArt` answer `hasAudio` / `fullscreen` (and an SVGA's `width` / `height` for gifts); code `ITEM_BADGES_INVALID` (400). Migration `20270323090000_item_badges`. **D289b (owner: «… لا يمكن حذفه، فاريد منك اضافة زر الحذف»):** `deleteAdminStoreItem` (`DELETE /admin/store/items/{itemId}`: DELETED when nobody bought or holds the item, else HIDDEN — out of the store, kept for its owners; `AdminStoreItemDeleted`, `AdminOptionalReasonRequest`), `restoreAdminStoreItem`, `AdminStoreItem.hiddenAt`; audit `store.item.delete \| hide \| restore`; migration `20270323090100_store_item_delete`. §4, §10.102. | **Additive** (a new required response field; deprecated fields keep their meaning while «جديد» runs; new optional request fields). |
 | v1.81-live (draft) | 2026-11-06 | **D291 (owner: «ما رأيك ان نصمم صفحة التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات. حاول ان تأخذ الفكرة»): medal levels and the medals page** — a medal has 1 … 20 levels (`medal_levels`), each reached when the medal's metric (`MedalMetric`) is at least its threshold; level 1 is the medal's original rule; a level never goes down. `Medal` + `category` (`MedalCategory`), `metric` (`MedalMetric`), `level`, `maxLevel`, `levels` (`MedalLevel`), `progress` (`MedalProgress`), `iconUrl`, `showcasePosition`; `UserMedal` + `category`, `level`, `maxLevel`, `iconUrl`; `ProfileMedal` + `level`, `iconUrl` (so `ProfileMedals`, `MedalShowcase`); `NotificationTarget.medalLevel` (MEDAL_AWARDED above 1 = a level-up); «ملوك الثروة» (§10.104.7): `MedalMetric` `GIFTS_SENT_COINS`, `iconAsset` on `MedalLevel` / `Medal` / `UserMedal` / `ProfileMedal` / `AdminMedalLevel` / the panel input, migrations `20270325090100_medal_wealth_metric` + `20270325090200_medal_wealth_kings`; the charm and live-hours codes retired as name-side icons (§10.104.8, `AdminMedal.retired`, migration `20270325090300_medal_retire_name_icons`; wearing one → 400 `invalid_value`); «سيد الحظ» (§10.104.9): `MedalMetric` `LUCKY_GIFTS_SENT_COINS`, migrations `20270325090400_medal_lucky_metric` + `20270325090500_medal_lucky_master`. Panel: `listAdminMedals`, `updateAdminMedal` (`catalog.view` / `catalog.manage` + the code; audited `medals.levels.update`). Level changes above 1 audited `medals.level_up`. Migration `20270325090000_medal_levels` (every held medal stays level 1) and `medals-admin backfill` (raises them; DEPLOYMENT §5.72, PP-50). §10.104. | **Additive** (new response fields and operations; an older app ignores levels and reads a level-up as «you earned a new medal»). |
+| v1.92-social (draft) | 2026-11-06 | **D294 (owner, from screenshots of the reels page and the posts page: «اجعل فلتر فقط منشورات وريلز»; v1.90-social and v1.91-social are D293 and D292 on their own branches):** `listFeedReels` `tab=mixed` — the reels page's only feed, the posts home feed's rule (§10.73.1) over reels: 1 Following (followed accounts, the caller's own reels, reels reposted by followed accounts, newest first) : 2 Trending (§11.3 over public reels), one frozen 10-minute list per caller (its own snapshot list `reels-mixed`), a reel once (its Following place), the same exclusions and caps (500 / 500). `following`, `trending` and `nearby` unchanged; the app stops using `nearby` and its country prompt (§11.15). No migration. §10.107, §11.3, §11.14, §11.15. | **Additive** (a new enum value on one operation; nothing else changes shape or behaviour). |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
@@ -7828,6 +7829,51 @@ lilac, red / gold, crystal-opal / gold; `PROVENANCE.md`). Totals and thresholds 
 levels); `medals-admin backfill` sets the totals from `live_gifts` of the LUCKY category. Description: «مجموع قيمة هدايا
 الحظ التي أرسلتها.» / "Total value of lucky gifts you sent."
 
+### 10.107 The reels page: one feed and the posts page's header *(v1.92-social, DRAFT — D294)*
+
+Owner, 2026-11-06, from screenshots of the app's own reels page and posts page: the reels page's header must look like
+the posts page's; «اجعل فلتر فقط منشورات وريلز» — the only switch is Posts / Reels; Nearby «القريبة» goes from the app;
+and «لماذا الخط أسفل البوست؟ أزله» on the posts feed.
+
+#### 10.107.1 `GET /feed/reels?tab=mixed`
+
+- **The rule** is the posts home feed's (§10.73.1) over reels: one entry from reels Following (§11.14: reels of
+  followed accounts, **the caller's own reels**, reels reposted by followed accounts; newest entry first, a reel once at
+  its newest entry, a repost with `repostedBy`), then two from reels Trending (§11.3's score over visible public reels
+  of the last 7 days, never the caller's own, at most 2 per author in any 10), then 1, 2, … (1 : 2).
+- **Exhaustion, each reel once, caps.** When one source is empty its turns go to the other; the list ends when both
+  are. A reel in both is listed at its Following place only. Following contributes its newest 500 entries, Trending its
+  500-entry snapshot.
+- **Left out** as in both sources: muted authors and reposters, hidden reels, private accounts in Trending, blocks both
+  ways; every page re-checks visibility. *Difference from the posts mix:* the posts mix leaves the caller's own posts
+  out (§10.73.1); reels Following has always held the caller's own reels (D162), so the reels mix keeps them (at their
+  Following place, never in Trending).
+- **Pagination.** The first page merges both sources into one frozen list (Redis, 10 minutes, per caller, its own list
+  name `reels-mixed`); later pages read it by offset — never a repeat or a skip, and new reels do not shift it. An
+  expired snapshot, another caller's cursor, or a cursor of another list (reels `following` / `trending`, the posts
+  `mixed`) → 400 `cursor` / `invalid_value`; the app reloads the first page once.
+- **One implementation.** The server reuses the posts mix unchanged (`FeedService` `mixed` with the reels format:
+  the same interleave, Following query, Trending ranking and snapshot paging). `following`, `trending` and `nearby`
+  answer exactly as before; `GET /feed/posts` has no `nearby` (still 400). Same `social:feed` bucket.
+
+#### 10.107.2 What the app does (no further API)
+
+- **The reels page's header is the posts page's bar** in the reels page's dark theme, floating over the video on
+  D202's scrim: Search at the reading start, the words «المنشورات | الريلز» in the middle — the same words in the same
+  order as on Posts — with «الريلز» selected (the red indicator under it) and «المنشورات» the switch back, the bell
+  at the end. Removed: the tabs «متابَعون / لك / القريبة» and the «المنشورات» chip under the bar. The video's speaker
+  button sits under the bar at the reading end.
+- **One reels feed:** the page lists `tab=mixed` only. Nearby — and its «اختر بلدك» prompt, which only Nearby used — is
+  gone from the app; the API keeps `nearby` (additive contract; an older app still uses it).
+- **The posts feed has no line between posts:** D218's hairline under the action row is gone from the posts feed and
+  16 dp of air separates two posts (it was 4 dp + the line + 8 dp). The single-post screen keeps its closing line.
+  The red indicator under the selected «المنشورات» / «الريلز» is unchanged.
+- **The live hub's brand** (owner, the same day: «إن كان التطبيق بالعربية، كلمة كابسو لايف تكون على اليمين بالعربية،
+  وإن كان إنجليزي تكون على اليسار بالإنجليزي، واجعلها بخط غامق وأكبر قليلاً»): the hub's top bar reads «كابسو لايف» in
+  Arabic and "Kabso Live" in English (was "Kabso" in both), at the reading start (right in RTL, left in LTR; the bar
+  follows the app's direction), in the language's own bundled font at its heaviest face (700), 21 sp (was 18),
+  ellipsized, never clipped. The auth screens' `KLogo` wordmark is unchanged.
+
 ### 11.1 Media upload
 
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
@@ -7924,7 +7970,8 @@ levels); `medals-admin backfill` sets the totals from `live_gifts` of the LUCKY 
   any 10. The ranked ids (≤ 500) are frozen for 10 minutes; later pages read the snapshot, so
   they never repeat or skip. An expired or foreign snapshot → 400 `cursor` / `invalid_value`.
 - *(v1.76-social, D218)* `mixed`: 1 `following` entry, then 2 `trending`, again and again, as one
-  frozen list — the app's home feed (§10.73.1).
+  frozen list — the app's home feed (§10.73.1). *(v1.92-social, D294)* `GET /feed/reels?tab=mixed`: the same
+  over reels — the app's reels page (§10.107).
 
 ### 11.4 Views
 
@@ -8349,7 +8396,9 @@ configuration (`DM_*`).
   `following` — reels of followed accounts and the caller's own, and reels reposted by followed
   accounts, newest first (a post appears once; muted and hidden left out); `trending` — the §11.3
   score over visible public reels published in the last 7 days, not the caller's own, at most 2
-  per author in any 10, frozen for 10 minutes. Not personalised (M5). Profile grids, saved,
+  per author in any 10, frozen for 10 minutes. *(v1.92-social, D294)* `mixed` — 1 `following` : 2
+  `trending` as one frozen list, the posts home feed's rule; the app's reels page lists it alone (§10.107).
+  Not personalised (M5). Profile grids, saved,
   reposts, search and hashtag pages list both formats; every item carries `format`.
 - **Playback** (the app): the phone streams `url` (progressive download; storage serves byte
   ranges), shows `posterUrl` / `thumbUrl` until the first frame, and starts muted.
@@ -8362,6 +8411,10 @@ configuration (`DM_*`).
 
 The Moments reels page (the owner's reference: a third-party composite, kept out of git; only its layout and type scale
 are matched, with Kabso's colours, icons and data).
+
+*(v1.92-social, D294)* The app no longer has Nearby: the reels page lists `tab=mixed` only, under the posts page's
+header (§10.107); its tabs «متابَعون / لك / القريبة», the «المنشورات» chip and the «اختر بلدك» prompt are gone. The
+API keeps `tab=nearby` exactly as below (additive contract; older apps).
 
 - **Nearby:** `GET /feed/reels?tab=nearby` — visible public reels (`moderation: VISIBLE`, not a private account) whose
   author's country (`user_profiles.country_code`) is the caller's own `Me.country` (D133; chosen by the person, never

@@ -97,6 +97,7 @@ class KPrimaryTabs extends StatelessWidget {
     super.key,
     this.centered = false,
     this.action,
+    this.actionFirst = false,
   });
 
   final List<String> labels;
@@ -107,6 +108,11 @@ class KPrimaryTabs extends StatelessWidget {
   /// else than select a tab (the Reels tab's Posts/Reels switch). Styled
   /// like an unselected tab, announced as a button, never selected.
   final KTabAction? action;
+
+  /// D294: [action] comes before the tabs (the divider after it) — the
+  /// reels page's «المنشورات | الريلز», the same words in the same order as
+  /// the posts page's, with the other one selected.
+  final bool actionFirst;
 
   /// D51: the tabs sit in the middle of the bar with [centeredGap] between
   /// them (the full-screen live hub); otherwise they start at the reading
@@ -155,6 +161,29 @@ class KPrimaryTabs extends StatelessWidget {
     return width;
   }
 
+  /// [action]'s word and the short divider between it and the tabs, in
+  /// reading order ([actionFirst]: the word, then the divider).
+  List<Widget> _actionWithDivider(
+    BuildContext context,
+    KTabAction action,
+    double pad,
+    double gap,
+  ) {
+    final divider = [
+      if (centered) SizedBox(width: gap / 2),
+      Center(
+        child: Container(
+          width: KMetrics.hairline,
+          height: KSpacing.lg,
+          color: context.palette.border,
+        ),
+      ),
+      if (centered) SizedBox(width: gap / 2),
+    ];
+    final word = _ActionTab(action: action, padding: pad);
+    return actionFirst ? [word, ...divider] : [...divider, word];
+  }
+
   @override
   Widget build(BuildContext context) => SizedBox(
     height: KMetrics.topBarHeight,
@@ -182,6 +211,8 @@ class KPrimaryTabs extends StatelessWidget {
                   : MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (action case final action? when actionFirst)
+                  ..._actionWithDivider(context, action, pad, gap),
                 for (var i = 0; i < labels.length; i++) ...[
                   if (centered && i > 0) SizedBox(width: gap),
                   _Tab(
@@ -192,18 +223,8 @@ class KPrimaryTabs extends StatelessWidget {
                     padding: pad,
                   ),
                 ],
-                if (action case final action?) ...[
-                  if (centered) SizedBox(width: gap / 2),
-                  Center(
-                    child: Container(
-                      width: KMetrics.hairline,
-                      height: KSpacing.lg,
-                      color: context.palette.border,
-                    ),
-                  ),
-                  if (centered) SizedBox(width: gap / 2),
-                  _ActionTab(action: action, padding: pad),
-                ],
+                if (action case final action? when !actionFirst)
+                  ..._actionWithDivider(context, action, pad, gap),
               ],
             ),
           ),
@@ -213,7 +234,7 @@ class KPrimaryTabs extends StatelessWidget {
   );
 }
 
-/// The word [KPrimaryTabs.action] shows after the tabs.
+/// The word [KPrimaryTabs.action] shows after the tabs (D294: or before).
 @immutable
 class KTabAction {
   const new({

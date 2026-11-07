@@ -38,6 +38,10 @@ void main() {
 
   test('T2: the brand is "Kabso Live" in Latin script in Arabic copy', () {
     for (final MapEntry(:key, :value) in ar.entries) {
+      // D294 (owner, 2026-11-06: «إن كان التطبيق بالعربية، كلمة كابسو لايف
+      // تكون على اليمين بالعربية»): the live hub's top-bar brand alone is
+      // written in Arabic script; checked exactly below.
+      if (key == 'liveHubBrand') continue;
       // D260 (owner, 2026-11-04): the staff badge is «فريق كابسو» in
       // Arabic, by the owner's own wording. D273: the team's name in the
       // staff strings too — only that phrase, never the brand alone.
@@ -47,6 +51,7 @@ void main() {
         reason: key,
       );
     }
+    expect(ar['liveHubBrand'], 'كابسو لايف');
     expect(ar['appTitle'], 'Kabso Live');
     expect(ar['codeWelcome'], contains('Kabso Live'));
   });

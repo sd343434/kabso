@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { interleaveMixed, MIXED_PATTERN, spreadAuthors } from './feed.service.js';
+import { feedQuerySchema, reelsFeedQuerySchema } from './posts.schemas.js';
 
 const ranked = (authors: string) => [...authors].map((authorId, i) => ({ id: `${i}`, authorId }));
 
@@ -73,5 +74,15 @@ describe('interleaveMixed', () => {
       { id: 'p', by: 'r' },
       { id: 'q', by: null },
     ]);
+  });
+});
+
+/** v1.92-social (D294, CONVENTIONS §10.107): the reels page's `tab=mixed`. */
+describe('reelsFeedQuerySchema', () => {
+  it('takes mixed next to following, trending and nearby; anything else is refused', () => {
+    for (const tab of ['following', 'trending', 'nearby', 'mixed'])
+      expect(reelsFeedQuerySchema.safeParse({ tab }).success).toBe(true);
+    expect(reelsFeedQuerySchema.safeParse({ tab: 'foryou' }).success).toBe(false);
+    expect(feedQuerySchema.safeParse({ tab: 'nearby' }).success).toBe(false);
   });
 });

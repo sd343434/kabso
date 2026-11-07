@@ -959,7 +959,6 @@
   "reelsModeLabel": "عرض الريلز أو المنشورات",
   "reelsModeReels": "ريلز",
   "reelsModePosts": "منشورات",
-  "reelsTabForYou": "لك",
   "reelsTabFriends": "الأصدقاء",
   "reelsCoins": "رصيد العملات، {count}",
   "@reelsCoins": {
@@ -7602,7 +7601,7 @@
   "@profileOpenFollowing": {
     "description": "D121: screen-reader hint of the Following count on a profile (opens the list)."
   },
-  "liveHubBrand": "Kabso",
+  "liveHubBrand": "كابسو لايف",
   "liveGridAudio": "صوتي",
   "liveGridVideo": "فيديو",
   "homeBannerSemantics": "إعلان {index} من {count}",
@@ -10993,16 +10992,6 @@
   "@reelsRequestFollow": {"description": "D202 the reels page", "placeholders": {"name": {"type": "String"}}},
   "reelsFollowRequested": "طلبت متابعة {name}",
   "@reelsFollowRequested": {"description": "D202 the reels page", "placeholders": {"name": {"type": "String"}}},
-  "reelsNearbyNoCountryTitle": "اختر بلدك",
-  "@reelsNearbyNoCountryTitle": {"description": "D202 the reels page"},
-  "reelsNearbyNoCountryBody": "«القريبة» تعرض ريلز من بلدك. اختر بلدك لتراها.",
-  "@reelsNearbyNoCountryBody": {"description": "D202 the reels page"},
-  "reelsNearbyChooseCountry": "اختيار البلد",
-  "@reelsNearbyChooseCountry": {"description": "D202 the reels page"},
-  "reelsNearbyEmptyTitle": "لا توجد ريلز من بلدك بعد",
-  "@reelsNearbyEmptyTitle": {"description": "D202 the reels page"},
-  "reelsNearbyUnavailableTitle": "تعذّر تحميل الريلز القريبة",
-  "@reelsNearbyUnavailableTitle": {"description": "D202 the reels page"},
   "liveTargetCountdownHours": "العد التنازلي {hours}س {minutes}د",
   "@liveTargetCountdownHours": {
     "description": "v1.44-live (D199b): the «تارجت» ranking sheet.",

@@ -369,8 +369,8 @@ void main() {
           homeMixedPostsProvider.overrideWith(
             (ref) => const FeedItems<FeedPostData>([]),
           ),
-          homeReelsProvider.overrideWith(
-            (ref, _) => const FeedItems<FeedReelData>([]),
+          homeMixedReelsProvider.overrideWith(
+            (ref) => const FeedItems<FeedReelData>([]),
           ),
         ],
       );

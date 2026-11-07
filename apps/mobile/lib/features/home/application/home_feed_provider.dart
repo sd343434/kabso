@@ -180,34 +180,16 @@ final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
       return FeedItems(empty ? const <FeedStoryData>[] : items);
     });
 
-/// Reels: full-screen vertical short videos, per [HomeFeed] (D162: the
-/// real reels feed, paged by [reelsFeedProvider]).
-final FutureProviderFamily<FeedLoad<FeedReelData>, HomeFeed> homeReelsProvider =
-    FutureProvider.family<FeedLoad<FeedReelData>, HomeFeed>((ref, feed) async {
-      if (watchDemo(ref)) return DemoData.reels(feed, ar: DemoData.arabic(ref));
-      final page = await ref.watch(reelsFeedProvider(feed).future);
-      final edits = ref.watch(postEditsProvider);
-      return FeedItems(
-        [
-          for (final post in page.items)
-            if ((edits[post.id] ?? post).video != null)
-              feedReelOf(edits[post.id] ?? post),
-        ],
-        hasMore: page.hasMore,
-        loadingMore: page.loadingMore,
-        loadMoreError: page.loadMoreError,
-      );
-    });
-
-/// v1.68-social (D202): the reels page's «Nearby» (reels of authors from
-/// the caller's own country, paged by [nearbyReelsFeedProvider]). A caller
-/// without a country gets an empty page; the page asks them to choose one.
-final FutureProvider<FeedLoad<FeedReelData>> homeNearbyReelsProvider =
+/// Reels: full-screen vertical short videos (D162: the real reels feed).
+/// v1.92-social (D294, CONVENTIONS §10.107): the reels page's only feed —
+/// `GET /feed/reels?tab=mixed` (1 Following : 2 Trending of reels), paged by
+/// [mixedReelsFeedProvider]. It replaced D202's Following · For You · Nearby.
+final FutureProvider<FeedLoad<FeedReelData>> homeMixedReelsProvider =
     FutureProvider((ref) async {
       if (watchDemo(ref)) {
         return DemoData.reels(HomeFeed.trending, ar: DemoData.arabic(ref));
       }
-      final page = await ref.watch(nearbyReelsFeedProvider.future);
+      final page = await ref.watch(mixedReelsFeedProvider.future);
       final edits = ref.watch(postEditsProvider);
       return FeedItems(
         [

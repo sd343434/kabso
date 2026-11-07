@@ -76,11 +76,6 @@ bool _selected(WidgetTester tester, String label) =>
     tester.getSemantics(_feedTab(label)).flagsCollection.isSelected ==
     Tristate.isTrue;
 
-Future<void> _selectFeed(WidgetTester tester, String label) async {
-  await tester.tap(_feedTab(label));
-  await tester.pumpAndSettle();
-}
-
 /// Every source populated; [calls] counts provider builds per source
 /// (`posts.trending`, `reels.following`, `stories`, …). Following gets a
 /// shorter list than Trending, so the two are told apart.
@@ -116,12 +111,10 @@ List<Override> _populated(
           ? FeedItems<FeedStoryData>(feedStories(language))
           : const FeedUnavailable<FeedStoryData>();
     }),
-    homeReelsProvider.overrideWith((ref, feed) {
-      count('reels.${feed.name}');
-      final reels = feedReels(language);
-      return FeedItems<FeedReelData>(
-        feed == HomeFeed.trending ? reels : reels.reversed.toList(),
-      );
+    // D294: Reels lists the server's 1 Following : 2 Trending mix of reels.
+    homeMixedReelsProvider.overrideWith((ref) {
+      count('reels.mixed');
+      return FeedItems<FeedReelData>(feedReels(language));
     }),
   ];
 }
@@ -183,10 +176,14 @@ void main() {
   // D162 (v1.41-social): reels have an API now. Was "reels are
   // unavailable (no API before M2)": the production provider reads
   // `GET /feed/reels`, never fixtures, and an empty feed is empty.
+  // D294 (v1.92-social): the reels page reads `tab=mixed` only.
   test('production providers are honest: reels come from the reels API '
-      '(D162), each feed its own tab', () async {
+      '(D162), the page reads tab=mixed (D294)', () async {
     final posts = FakePostsRepository()
-      ..reels[PostsFeedTab.trending] = [testPost('r1', reel: true)];
+      ..reels[PostsFeedTab.mixed] = [
+        testPost('r1', reel: true),
+        testPost('r2', reel: true),
+      ];
     final container = ProviderContainer.test(
       retry: (_, _) => null,
       overrides: [
@@ -194,18 +191,25 @@ void main() {
         currentUserProvider.overrideWithValue(testUser()),
       ],
     );
-    final trending = await container.read(
-      homeReelsProvider(HomeFeed.trending).future,
+    final mixed = await container.read(homeMixedReelsProvider.future);
+    final items = (mixed as FeedItems<FeedReelData>).items;
+    expect([for (final r in items) r.postId], ['r1', 'r2']);
+    expect(items.first.videoUrl, endsWith('/video.mp4'));
+    expect(posts.calls, ['reels:mixed:']);
+
+    final empty = ProviderContainer.test(
+      retry: (_, _) => null,
+      overrides: [
+        postsRepositoryProvider.overrideWithValue(FakePostsRepository()),
+        currentUserProvider.overrideWithValue(testUser()),
+      ],
     );
-    final items = (trending as FeedItems<FeedReelData>).items;
-    expect([for (final r in items) r.postId], ['r1']);
-    expect(items.single.videoUrl, endsWith('/video.mp4'));
-    final following = await container.read(
-      homeReelsProvider(HomeFeed.following).future,
+    expect(
+      (await empty.read(
+        homeMixedReelsProvider.future,
+      ) as FeedItems<FeedReelData>).items,
+      isEmpty,
     );
-    expect((following as FeedItems<FeedReelData>).items, isEmpty);
-    expect(posts.calls, containsAll(['reels:trending:', 'reels:following:']));
-    expect(posts.calls.where((c) => c.startsWith('feed:')), isEmpty);
   });
 
   test('CP-008: stories come from the stories API — your entry first ("add" '
@@ -418,19 +422,15 @@ void main() {
       await _switch(tester);
       await _switch(tester);
       expect(_scroll(tester, HomeTab.posts).pixels, offset);
-      // One build per source, however often the modes and feeds switch.
+      // One build per source, however often the modes switch.
       await _switch(tester);
-      await _selectFeed(tester, _en.feedTabFollowing);
-      // D202: Reels names Trending «For You» (the reels page's tabs).
-      await _selectFeed(tester, _en.reelsTabForYou);
       await _switch(tester);
+      await _switch(tester);
+      await _switch(tester);
+      expect(_mode(tester), HomeTab.posts);
       expect(_scroll(tester, HomeTab.posts).pixels, offset);
-      expect(calls, {
-        'posts.mixed': 1,
-        'stories': 1,
-        'reels.trending': 1,
-        'reels.following': 1,
-      });
+      // D294: Reels has one feed, the mix.
+      expect(calls, {'posts.mixed': 1, 'stories': 1, 'reels.mixed': 1});
     });
 
     testWidgets('the reels pager keeps its page across switches', (
@@ -459,35 +459,31 @@ void main() {
     });
   });
 
-  group('feeds (D53, Reels only since D218)', () {
-    testWidgets('Reels · Following shows its own feed; the selected feed is '
-        'kept across a mode switch', (tester) async {
+  group('feeds (D294: one feed on each page)', () {
+    testWidgets('Reels has no feed tabs: «Posts | Reels» (Reels selected) '
+        'over the mix; switching away and back keeps it', (tester) async {
       await _pump(
         tester,
         initialTab: HomeTab.reels,
         overrides: _populated(AppLanguage.en),
       );
-      await _selectFeed(tester, _en.feedTabFollowing);
-      expect(_selected(tester, _en.feedTabFollowing), isTrue);
-      // Reels · Following starts with the last reel of the fixture (no
-      // username: its name is shown).
-      expect(find.text('Hind'), findsOneWidget);
+      expect(_selected(tester, _en.homeTabReels), isTrue);
+      for (final gone in [_en.feedTabFollowing, _en.liveHubFilterNearby]) {
+        expect(find.text(gone), findsNothing);
+      }
+      expect(find.text(KHandle.ltr('@layla')), findsOneWidget);
       await _switch(tester);
       expect(_mode(tester), HomeTab.posts);
       await _switch(tester);
-      expect(_selected(tester, _en.feedTabFollowing), isTrue);
-      // D202: Reels' Trending is «For You»; a reel shows the handle.
-      await _selectFeed(tester, _en.reelsTabForYou);
+      expect(_selected(tester, _en.homeTabReels), isTrue);
       expect(find.text(KHandle.ltr('@layla')), findsOneWidget);
     });
 
-    testWidgets('reels · Following with nothing to show: its own copy and '
-        '"See who\'s live"', (tester) async {
+    testWidgets('reels with nothing to show: the honest copy and "Watch live '
+        'streams"', (tester) async {
       await _pump(tester, initialTab: HomeTab.reels);
-      await _selectFeed(tester, _en.feedTabFollowing);
-      expect(find.text(_en.homeReelsFollowingEmptyTitle), findsOneWidget);
-      expect(find.text(_en.homeSeeWhoIsLive), findsOneWidget);
-      expect(find.text(_en.homeWatchLive), findsNothing);
+      expect(find.text(_en.homeReelsEmptyTitle), findsOneWidget);
+      expect(find.text(_en.homeWatchLive), findsOneWidget);
     });
   });
 
@@ -894,8 +890,9 @@ void main() {
         expect(page, const Rect.fromLTWH(0, 0, 393, 852));
         final header = tester.getRect(find.byKey(FeedScreen.headerKey));
         expect(header.top, 0);
+        // D294: the posts page's bar in the reels page's dark theme.
         final label = find.descendant(
-          of: _feedTab(_en.reelsTabForYou),
+          of: _feedTab(_en.homeTabReels),
           matching: find.byType(RichText),
         );
         expect(
@@ -928,8 +925,8 @@ void main() {
         tester,
         const FeedScreen(initialTab: HomeTab.reels),
         overrides: [
-          homeReelsProvider.overrideWith(
-            (ref, _) => Completer<FeedLoad<FeedReelData>>().future,
+          homeMixedReelsProvider.overrideWith(
+            (ref) => Completer<FeedLoad<FeedReelData>>().future,
           ),
         ],
       );
@@ -953,10 +950,7 @@ void main() {
         tester,
         initialTab: HomeTab.reels,
         overrides: [
-          homeReelsProvider.overrideWith((ref, feed) {
-            if (feed == HomeFeed.following) {
-              return const FeedUnavailable<FeedReelData>();
-            }
+          homeMixedReelsProvider.overrideWith((ref) {
             calls++;
             if (fail) throw failure;
             return FeedItems<FeedReelData>(feedReels(AppLanguage.en));

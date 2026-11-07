@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -98,6 +99,78 @@ Future<void> _pump(
 }
 
 void main() {
+  // D294 (owner: «إن كان التطبيق بالعربية، كلمة كابسو لايف تكون على اليمين
+  // بالعربية، وإن كان إنجليزي تكون على اليسار بالإنجليزي، واجعلها بخط غامق
+  // وأكبر قليلاً»).
+  group('the hub brand (D294)', () {
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets(
+          '${language.name} ${viewport.name}: the brand at the reading '
+          'start, bold, 21 sp, the reading direction, no overflow at text '
+          'scale 1.3',
+          (tester) async {
+            await loadAppFonts();
+            setViewport(tester, viewport);
+            tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            await _pump(tester, const LiveScreen(), language: language);
+            final l10n = l10nFor(language);
+            final ar = language == AppLanguage.ar;
+            expect(l10n.liveHubBrand, ar ? 'كابسو لايف' : 'Kabso Live');
+            final title = find.byKey(LiveHubTopBar.titleKey);
+            final text = tester.widget<Text>(title);
+            expect(text.data, l10n.liveHubBrand);
+            expect(text.style?.fontWeight, FontWeight.w800);
+            expect(text.style?.fontSize, KLiveHubTopBar.titleSize);
+            expect(KLiveHubTopBar.titleSize, 21);
+            expect(text.overflow, TextOverflow.ellipsis);
+            expect(
+              text.style?.fontFamily,
+              ar ? KFonts.arabic : isNot(KFonts.arabic),
+            );
+            // Never forced LTR: the title follows the app's direction.
+            expect(
+              Directionality.of(tester.element(title)),
+              ar ? TextDirection.rtl : TextDirection.ltr,
+            );
+            final width =
+                tester.view.physicalSize.width / tester.view.devicePixelRatio;
+            final rect = tester.getRect(title);
+            final search = tester.getRect(find.byKey(LiveHubTopBar.searchKey));
+            // The words start at the reading start, 16 dp from the edge.
+            final paragraph = tester.renderObject<RenderParagraph>(
+              find.descendant(of: title, matching: find.byType(RichText)),
+            );
+            expect(paragraph.didExceedMaxLines, isFalse);
+            final words = paragraph.getBoxesForSelection(
+              TextSelection(
+                baseOffset: 0,
+                extentOffset: l10n.liveHubBrand.length,
+              ),
+            );
+            final left =
+                rect.left +
+                words.map((b) => b.left).reduce((a, b) => a < b ? a : b);
+            final right =
+                rect.left +
+                words.map((b) => b.right).reduce((a, b) => a > b ? a : b);
+            if (ar) {
+              expect(right, moreOrLessEquals(width - 16, epsilon: 1));
+              expect(rect.left, greaterThanOrEqualTo(search.right));
+            } else {
+              expect(left, moreOrLessEquals(16, epsilon: 1));
+              expect(rect.right, lessThanOrEqualTo(search.left));
+            }
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
+  });
+
   for (final (:name, :screen) in _screens) {
     group(name, () {
       testWidgets('defaults to Popular; D124: a top bar with the Kabso '

@@ -1,9 +1,11 @@
 // D202 (owner reference, v1.68-social): the reels page — the floating
-// header (Search, Following · For You · Nearby, the bell), the chips
-// (Stories, Rooms, Posts), the real rail (like with double tap and
-// rollback, comments, save, share, follow / request), the caption's
-// hashtags and «المزيد», the sound line, Nearby (country or not), and both
-// languages at 360×800 ×1.3.
+// header, the real rail (like with double tap and rollback, comments, save,
+// share, follow / request), the caption's hashtags and «المزيد», the sound
+// line, and both languages at 360×800 ×1.3.
+// D294 (v1.92-social, owner: «اجعل فلتر فقط منشورات وريلز»): the header is
+// the posts page's bar (Search, «Posts | Reels» with Reels selected, the
+// bell); the tabs Following · For You · Nearby, the Posts chip and Nearby's
+// country prompt are gone; the page reads `GET /feed/reels?tab=mixed` only.
 
 import 'dart:ui' show Tristate;
 
@@ -17,7 +19,6 @@ import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
@@ -114,8 +115,6 @@ class _Env {
   new({
     List<Post>? trending,
     List<Post>? following,
-    List<Post>? nearby,
-    this.country,
     bool privateAuthor = false,
     bool followingAuthor = false,
   }) : posts = FakePostsRepository(),
@@ -124,20 +123,18 @@ class _Env {
        ) {
     posts.reels[PostsFeedTab.trending] = trending ?? [_reel('r1')];
     posts.reels[PostsFeedTab.following] = following ?? const [];
-    posts.reels[PostsFeedTab.nearby] = nearby ?? const [];
   }
 
   final FakePostsRepository posts;
   final FakeProfileRepository profiles;
   final sharer = _FakeSharer();
-  final String? country;
 
   List<Override> get overrides => [
     profileRepositoryProvider.overrideWithValue(profiles),
     reelSharerProvider.overrideWithValue(sharer),
-    currentUserProvider.overrideWithValue(
-      testUser().copyWith(country: country),
-    ),
+    // D294: no country (the default test user has none) — the reels page
+    // never asks for one any more.
+    currentUserProvider.overrideWithValue(testUser()),
     homeStoriesProvider.overrideWith(
       (ref) => FeedItems<FeedStoryData>([
         const FeedStoryData(authorName: 'Omar', username: 'omar'),
@@ -184,90 +181,72 @@ Finder _onPage(Finder f) =>
     find.descendant(of: find.byType(HomeReelPage).first, matching: f);
 
 void main() {
-  group('header (D202)', () {
-    testWidgets('Search at the start, Following · For You · Nearby centred '
-        '(For You selected), the bell at the end; chips Stories, Rooms, '
-        'Posts under it', (tester) async {
+  group('header (D294)', () {
+    testWidgets('the posts page bar: Search at the start, «Posts | Reels» '
+        'centred with Reels selected, the bell at the end; no feed tabs, no '
+        'chip', (tester) async {
       await _pump(tester);
       final search = tester.getRect(find.byKey(FeedScreen.searchKey));
       final bell = tester.getRect(find.byKey(NotificationsBell.bellKey));
       expect(search.size, const Size.square(KSizes.minTouchTarget));
-      expect(search.left, KReelsHeader.sideInset);
-      expect(bell.right, 393 - KReelsHeader.sideInset);
-      final following = tester.getCenter(_tab(_en.feedTabFollowing)).dx;
-      final forYou = tester.getCenter(_tab(_en.reelsTabForYou)).dx;
-      final nearby = tester.getCenter(_tab(_en.liveHubFilterNearby)).dx;
-      expect(following < forYou && forYou < nearby, isTrue);
+      expect(search.left, KSpacing.xs);
+      expect(bell.right, 393 - KSpacing.xs);
+      // The same words in the same order as on Posts; Reels is selected,
+      // Posts is the switch back (a button, never selected).
+      final posts = tester.getCenter(_tab(_en.homeTabPosts)).dx;
+      final reels = tester.getCenter(_tab(_en.homeTabReels)).dx;
+      expect(posts < reels, isTrue);
+      expect(_selected(tester, _en.homeTabReels), isTrue);
       expect(
-        tester.getRect(find.byKey(FeedScreen.tabsKey)).center.dx,
-        moreOrLessEquals(393 / 2, epsilon: 0.5),
+        find.descendant(
+          of: find.byKey(FeedScreen.switchKey),
+          matching: find.text(_en.homeTabPosts),
+        ),
+        findsOneWidget,
       );
-      expect(_selected(tester, _en.reelsTabForYou), isTrue);
-      expect(_selected(tester, _en.feedTabFollowing), isFalse);
-      // Owner 2026-10-31: only the Posts chip stays («القصص», «الغرف» removed).
+      expect(find.bySemanticsLabel(_en.homeShowPosts), findsOneWidget);
+      final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
+      expect(tabs.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+      expect(tabs.top, search.top);
+      // D294: Following · For You · Nearby and the Posts chip are gone.
+      for (final gone in [_en.feedTabFollowing, _en.liveHubFilterNearby]) {
+        expect(find.text(gone), findsNothing);
+      }
       expect(find.bySemanticsLabel(_en.reelsOpenStories), findsNothing);
       expect(find.bySemanticsLabel(_en.reelsOpenRooms), findsNothing);
-      final chip = tester.getRect(find.byKey(FeedScreen.switchKey));
-      expect(chip.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
-      expect(chip.top, greaterThan(bell.bottom));
-      expect(chip.left, KReelsHeader.chipsStart);
-      expect(KReelsHeader.chipHeight, 28);
-      expect(KReelsHeader.chipIcon, 14);
-      expect(find.bySemanticsLabel(_en.homeShowPosts), findsOneWidget);
+      expect(
+        tester.getRect(find.byKey(FeedScreen.switchKey)).bottom,
+        lessThanOrEqualTo(bell.bottom),
+      );
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('tabs: Following and For You read their reels feeds; the '
-        'choice is kept', (tester) async {
+    testWidgets('one feed: GET /feed/reels?tab=mixed only (no following, '
+        'trending or nearby request); no country prompt', (tester) async {
       final env = await _pump(
         tester,
-        env: _Env(following: [_reel('f1', username: 'omar')]),
+        env:
+            _Env(
+                following: [_reel('f1', username: 'omar')],
+                trending: [_reel('t1', username: 'hind')],
+              )
+              ..posts.reels[PostsFeedTab.mixed] = [
+                _reel('m1', username: 'layla'),
+                _reel('m2', username: 'omar'),
+              ],
       );
-      expect(env.posts.calls, contains('reels:trending:'));
-      await tester.tap(_tab(_en.feedTabFollowing));
-      await tester.pumpAndSettle();
-      expect(_selected(tester, _en.feedTabFollowing), isTrue);
-      expect(env.posts.calls, contains('reels:following:'));
-      expect(find.text(KHandle.ltr('@omar')), findsOneWidget);
-      await tester.tap(_tab(_en.reelsTabForYou));
-      await tester.pumpAndSettle();
-      expect(find.text(KHandle.ltr('@sara')), findsOneWidget);
+      expect(env.posts.calls.where((c) => c.startsWith('reels:')), [
+        'reels:mixed:',
+      ]);
+      expect(find.text(KHandle.ltr('@layla')), findsOneWidget);
+      expect(find.text(KHandle.ltr('@hind')), findsNothing);
+      // No country (the default user has none): no «Choose your country».
+      expect(find.byIcon(Icons.public_rounded), findsNothing);
     });
 
-    testWidgets('Nearby without a country asks for one (the country '
-        'picker); nothing is fetched', (tester) async {
-      final env = await _pump(tester);
-      await tester.tap(_tab(_en.liveHubFilterNearby));
-      await tester.pumpAndSettle();
-      expect(_selected(tester, _en.liveHubFilterNearby), isTrue);
-      expect(find.text(_en.reelsNearbyNoCountryTitle), findsOneWidget);
-      expect(env.posts.calls, isNot(contains('reels:nearby:')));
-      await tester.tap(find.text(_en.reelsNearbyChooseCountry));
-      await tester.pumpAndSettle();
-      expect(find.byType(CountryPickerSheet), findsOneWidget);
-    });
-
-    testWidgets('Nearby with a country reads GET /feed/reels?tab=nearby; '
-        'empty says so', (tester) async {
-      final env = await _pump(
-        tester,
-        env: _Env(
-          country: 'SA',
-          nearby: [_reel('n1', username: 'hind')],
-        ),
-      );
-      await tester.tap(_tab(_en.liveHubFilterNearby));
-      await tester.pumpAndSettle();
-      expect(env.posts.calls, contains('reels:nearby:'));
-      expect(find.text(KHandle.ltr('@hind')), findsOneWidget);
-    });
-
-    testWidgets('Nearby with a country and no reels: the honest empty '
-        'state', (tester) async {
-      await _pump(tester, env: _Env(country: 'SA'));
-      await tester.tap(_tab(_en.liveHubFilterNearby));
-      await tester.pumpAndSettle();
-      expect(find.text(_en.reelsNearbyEmptyTitle), findsOneWidget);
+    testWidgets('an empty mix says so honestly', (tester) async {
+      await _pump(tester, env: _Env(trending: const []));
+      expect(find.text(_en.homeReelsEmptyTitle), findsOneWidget);
     });
 
     testWidgets('Search, the bell, Rooms and a hashtag navigate', (
@@ -302,14 +281,13 @@ void main() {
       expect(find.text('route:/users/sara'), findsOneWidget);
     });
 
-    testWidgets('the Posts chip switches back to Posts', (tester) async {
-      await _pump(tester);
-      // The chips row scrolls when the words are wide (the test font).
-      await tester.ensureVisible(find.byKey(FeedScreen.switchKey));
-      await tester.pumpAndSettle();
+    testWidgets('«Posts» switches to Posts and «Reels» back; each page is '
+        'kept', (tester) async {
+      final env = await _pump(tester);
       await tester.tap(find.byKey(FeedScreen.switchKey));
       await tester.pumpAndSettle();
-      // Posts' header names the other mode: «Reels».
+      // Posts' header: «Posts» selected, «Reels» the switch.
+      expect(_selected(tester, _en.homeTabPosts), isTrue);
       expect(
         find.descendant(
           of: find.byKey(FeedScreen.switchKey),
@@ -317,6 +295,13 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(env.posts.calls, contains('feed:mixed:'));
+      await tester.tap(find.byKey(FeedScreen.switchKey));
+      await tester.pumpAndSettle();
+      expect(_selected(tester, _en.homeTabReels), isTrue);
+      // The reels page was kept: the mix is not read again.
+      expect(env.posts.calls.where((c) => c == 'reels:mixed:'), hasLength(1));
+      expect(find.text(KHandle.ltr('@sara')), findsWidgets);
     });
   });
 
@@ -520,11 +505,7 @@ void main() {
         final search = tester.getCenter(find.byKey(FeedScreen.searchKey)).dx;
         expect(search < 180, !ar, reason: 'Search at the reading start');
         final l10n = l10nFor(language);
-        for (final label in [
-          l10n.feedTabFollowing,
-          l10n.reelsTabForYou,
-          l10n.liveHubFilterNearby,
-        ]) {
+        for (final label in [l10n.homeTabPosts, l10n.homeTabReels]) {
           final r = tester.getRect(_tab(label));
           expect(r.left, greaterThanOrEqualTo(0));
           expect(r.right, lessThanOrEqualTo(360));

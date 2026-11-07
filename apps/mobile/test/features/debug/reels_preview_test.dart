@@ -25,10 +25,12 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(FeedScreen), findsOneWidget);
-    // D202: the reels page's tabs Following · For You · Nearby.
-    expect(find.text(l10n.feedTabFollowing), findsOneWidget);
-    expect(find.text(l10n.reelsTabForYou), findsOneWidget);
-    expect(find.text(l10n.liveHubFilterNearby), findsOneWidget);
+    // D294: the posts page's toggle «المنشورات | الريلز»; D202's tabs
+    // Following · For You · Nearby are gone.
+    expect(find.text(l10n.homeTabPosts), findsOneWidget);
+    expect(find.text(l10n.homeTabReels), findsOneWidget);
+    expect(find.text(l10n.feedTabFollowing), findsNothing);
+    expect(find.text(l10n.liveHubFilterNearby), findsNothing);
     // No coin balance on the reels page.
     expect(find.byType(KabsoArtIcon), findsNothing);
   });

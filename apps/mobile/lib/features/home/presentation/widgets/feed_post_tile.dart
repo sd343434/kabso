@@ -155,13 +155,17 @@ class FeedPostData {
 
 /// Geometry of a post (D54; D218 the owner's second reference, E at ≈0.81
 /// px/dp — logical width 393 assumed; sizes on the Kabso scale): flat and
-/// full width, no card; posts are separated by a hairline and 8 dp.
+/// full width, no card. D294 (owner: «لماذا الخط أسفل البوست؟ أزله»): the
+/// posts feed separates posts by [feedGap] of air, no line.
 abstract final class KPostCard {
   /// Side padding of the author row, actions, caption and time.
   static const double inset = KSpacing.md;
 
-  /// Gap between two posts (D218: a hairline divider sits in it).
+  /// Gap between two posts where the closing hairline is drawn (D218).
   static const double gap = KSpacing.sm;
+
+  /// D294: the posts feed's gap between two posts — no hairline, more air.
+  static const double feedGap = KSpacing.lg;
   static const double avatar = 40;
 
   /// D218: the «متابعة» pill (32 dp tall, 16 dp side padding, fully round).
@@ -212,9 +216,16 @@ abstract final class KPostCard {
 /// only. Someone else's real post records a view while at least half of
 /// it is on screen ([ViewRecorder], `POST /views`).
 class FeedPostTile extends StatefulWidget {
-  const new({required this.post, super.key});
+  const new({required this.post, super.key, this.closingDivider = true});
 
   final FeedPostData post;
+
+  /// D218: a hairline under the action row closes the post. D294 (owner:
+  /// «لماذا الخط أسفل البوست؟ أزله»): the posts feed leaves it out and keeps
+  /// [KPostCard.feedGap] between posts instead; a single post keeps it.
+  final bool closingDivider;
+
+  static const dividerKey = Key('feed.post.divider');
 
   static const seeMoreKey = Key('feed.post.seeMore');
   static const videoMarkKey = Key('feed.post.video');
@@ -359,15 +370,18 @@ class _FeedPostTileState extends State<FeedPostTile> {
             ),
             child: _Counts(likes: likes, comments: comments, shares: shares),
           ),
-        // D218: a hairline closes the post (the reference's divider).
-        Padding(
-          padding: const EdgeInsets.only(top: KSpacing.xs),
-          child: Divider(
-            height: KMetrics.hairline,
-            thickness: KMetrics.hairline,
-            color: p.border,
+        // D218: a hairline closes the post (the reference's divider); D294:
+        // not on the posts feed.
+        if (widget.closingDivider)
+          Padding(
+            key: FeedPostTile.dividerKey,
+            padding: const EdgeInsets.only(top: KSpacing.xs),
+            child: Divider(
+              height: KMetrics.hairline,
+              thickness: KMetrics.hairline,
+              color: p.border,
+            ),
           ),
-        ),
       ],
     );
     return switch (post.postId) {

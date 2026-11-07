@@ -44,6 +44,7 @@ export class InteractionsController {
   /**
    * v1.41-social (D162): reels for Moments (CONVENTIONS §11.14); the `social:feed` bucket.
    * v1.68-social (D202): `tab=nearby` — reels of authors from the caller's country (§11.15).
+   * v1.92-social (D294): `tab=mixed` — 1 Following : 2 Trending of reels, the app's reels page (§10.107).
    */
   @Get('feed/reels')
   @RateLimit({ bucket: 'social:feed', rule: 'feedUser', key: byUserId, replacesDefault: true })

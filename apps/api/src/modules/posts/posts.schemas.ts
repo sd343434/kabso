@@ -115,9 +115,11 @@ export type FeedQuery = z.output<typeof feedQuerySchema>;
 /**
  * v1.68-social (D202): `GET /feed/reels` also takes `tab=nearby` (reels of authors from the caller's own
  * country, CONVENTIONS §11.15). `GET /feed/posts` has following | trending | (D218) mixed instead.
+ * v1.92-social (D294, CONVENTIONS §10.107): `GET /feed/reels` also takes `mixed` — 1 Following : 2 Trending
+ * of reels, the posts home feed's rule (§10.73.1); the app's reels page lists it alone.
  */
 export const reelsFeedQuerySchema = z.strictObject({
-  tab: z.string().pipe(z.enum(['following', 'trending', 'nearby'])),
+  tab: z.string().pipe(z.enum(['following', 'trending', 'nearby', 'mixed'])),
   cursor: z.string().min(1).max(512).optional(),
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });

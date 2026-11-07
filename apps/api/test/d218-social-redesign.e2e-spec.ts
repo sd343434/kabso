@@ -228,8 +228,14 @@ describe('D218 social redesign', { timeout: 120_000 }, () => {
         .get(`/api/v1/feed/posts?tab=trending&limit=2&cursor=${first.body.page.nextCursor}`)
         .set(auth(me));
       expect(otherTab.status).toBe(400);
-      // The reels feed has no `mixed`.
-      expect((await ctx.http.get('/api/v1/feed/reels?tab=mixed').set(auth(me))).status).toBe(400);
+      // v1.92-social (D294): the reels feed has its own `mixed` (d294-reels-mixed); the posts mix's cursor is
+      // not valid there.
+      expect((await ctx.http.get('/api/v1/feed/reels?tab=mixed').set(auth(me))).status).toBe(200);
+      const reelsWithPostsCursor = await ctx.http
+        .get(`/api/v1/feed/reels?tab=mixed&limit=2&cursor=${first.body.page.nextCursor}`)
+        .set(auth(me));
+      expect(reelsWithPostsCursor.status).toBe(400);
+      expect(reelsWithPostsCursor.body.error.details).toEqual([{ field: 'cursor', issue: 'invalid_value' }]);
     });
 
     it('a post that is also Trending is listed once, at its Following place', async () => {
