@@ -235,6 +235,11 @@ enum ErrorCode {
   /// `details[0].issue` says why (`HostingApplyRefusal`).
   hostApplicationNotAllowed('HOST_APPLICATION_NOT_ALLOWED'),
 
+  /// v1.82-live (D295, §10.108, 409): the agency owner's activation of a
+  /// member refused — `details[0].issue`: AGENCY_SUSPENDED, ACCOUNT_NOT_ACTIVE,
+  /// STAFF, HOST (a host cannot be made a creator), CREATOR (and back).
+  agencyActivationNotAllowed('AGENCY_ACTIVATION_NOT_ALLOWED'),
+
   /// v1.80-kyc (D227, §10.77, 409): an identity check cannot start now —
   /// `details[0].issue` says why (`KycRefusal`).
   kycNotAllowed('KYC_NOT_ALLOWED'),

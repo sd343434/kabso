@@ -646,6 +646,8 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
   it('D179: the cherry economy defaults are the owner values; the agency sweeper cannot be off in production', () => {
     expect(loadConfig(base).economy).toEqual({
       cherriesPerCoin: 10,
+      // v1.82-live (D295, owner 2026-11-06): agencies earn their commission on their creator members' gifts.
+      creatorAgencyCommission: true,
       agencyCommissionBps: 1500,
       agencyTierCommissionBps: 1600,
       agencyTierMonthlyCherries: 1_500_000_000,

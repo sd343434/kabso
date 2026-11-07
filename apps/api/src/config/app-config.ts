@@ -280,6 +280,8 @@ export interface AppConfig {
   /** v1.52-social (D179): the cherry economy (CONVENTIONS §10.46). */
   readonly economy: {
     readonly cherriesPerCoin: number;
+    /** v1.82-live (D295): agencies earn their commission on their creator members' gifts (owner: yes). */
+    readonly creatorAgencyCommission: boolean;
     readonly agencyCommissionBps: number;
     readonly agencyTierCommissionBps: number;
     readonly agencyTierMonthlyCherries: number;
@@ -476,6 +478,9 @@ export interface AppConfig {
     readonly quantities: readonly number[];
     /** v1.32-live (D154): the recipients' earnings share by category, basis points. */
     readonly hostShareBps: Readonly<Record<HostShareCategory, number>>;
+    /** v1.82-live (D295, §10.108): a creator's live — non-lucky gifts (72 %) and quips (60 %), basis points. */
+    readonly creatorShareBps: number;
+    readonly creatorQuipShareBps: number;
     /** v1.32-live (D154): the longest a quip may wait for its turn, in ms. */
     readonly quipMaxWaitMs: number;
   };
@@ -749,6 +754,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     gifts: {
       quantities: e.LIVE_GIFT_QUANTITIES,
       hostShareBps: e.GIFT_HOST_SHARE_PERCENTS,
+      creatorShareBps: e.GIFT_CREATOR_SHARE_PERCENT,
+      creatorQuipShareBps: e.GIFT_CREATOR_QUIP_SHARE_PERCENT,
       quipMaxWaitMs: e.QUIP_QUEUE_MAX_WAIT_SECONDS * 1000,
     },
     newcomerDays: e.NEWCOMER_DAYS,
@@ -780,6 +787,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     economy: {
       cherriesPerCoin: e.CHERRIES_PER_COIN,
+      creatorAgencyCommission: e.CREATOR_AGENCY_COMMISSION,
       agencyCommissionBps: e.AGENCY_COMMISSION_BPS,
       agencyTierCommissionBps: e.AGENCY_COMMISSION_TIER_BPS,
       agencyTierMonthlyCherries: e.AGENCY_TIER_MONTHLY_CHERRIES,

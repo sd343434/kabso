@@ -350,7 +350,40 @@ class FakeAgencyRepository implements AgencyRepository {
     this.openFailure,
     this.hostingState,
     this.applyFailure,
+    this.activateFailure,
   }) : current = mine ?? testMyAgency();
+
+  /// v1.82-live (D295): what `activateMember` throws (null: it activates).
+  AppFailure? activateFailure;
+
+  /// v1.82-live (D295): the activations `activateMember` received.
+  final List<(String, AgencyActivationDraft)> activations = [];
+
+  @override
+  Future<AgencyHostRow> activateMember(
+    String userId,
+    AgencyActivationDraft draft,
+  ) async {
+    calls.add('activate $userId ${draft.asCreator ? 'CREATOR' : 'HOST'}');
+    activations.add((userId, draft));
+    if (activateFailure case final failure?) throw failure;
+    final row = (hostRows ?? testHosts()).firstWhere(
+      (r) => r.user.id == userId,
+    );
+    return AgencyHostRow(
+      user: row.user,
+      joinedAt: row.joinedAt,
+      liveDays: row.liveDays,
+      liveSeconds: row.liveSeconds,
+      active: row.active,
+      monthCherries: row.monthCherries,
+      commissionEligible: row.commissionEligible,
+      hosting: draft.asCreator
+          ? AgencyMemberHosting.creator
+          : AgencyMemberHosting.host,
+      activatedByAgency: true,
+    );
+  }
 
   /// v1.73-social (D209): «كن مضيفاً مع الإدارة» now (null: an older server —
   /// not offered).

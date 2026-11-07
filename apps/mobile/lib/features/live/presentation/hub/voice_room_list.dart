@@ -2,6 +2,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -224,6 +225,7 @@ class VoiceRoomRow extends StatelessWidget {
     final semantics = [
       if (room.featured) l10n.liveBoostFeatured,
       if (room.popular) l10n.liveCardPopular,
+      if (room.hostIsCreator) l10n.liveCreatorBadge,
       withCategory,
       if (room.roomLevel case final level?) l10n.liveRoomLevelBadge(level),
     ].join(', ');
@@ -404,6 +406,10 @@ class VoiceRoomRow extends StatelessWidget {
                                         crossAxisAlignment:
                                             WrapCrossAlignment.center,
                                         children: [
+                                          // v1.82-live (D295): a content
+                                          // creator's room, first.
+                                          if (room.hostIsCreator)
+                                            const CreatorLiveBadge(),
                                           if (room.popular)
                                             _Chip(
                                               key: popularKey,

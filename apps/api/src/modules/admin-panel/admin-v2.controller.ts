@@ -62,6 +62,7 @@ import {
   pageOnlyQuery,
   reasonBody,
   reasonTotpBody,
+  agencyBanBody,
   rechargeTopupsQuery,
   refundBody,
   reportQuery,
@@ -351,6 +352,26 @@ export class AdminV2Controller {
     return this.agencies.close(pathUuid(id), body, admin);
   }
 
+  /** v1.82-live (D295, §10.108): «حظر الوكالة» — the figures the confirmation shows. */
+  @Get('agencies/:agencyId/ban')
+  @RequireCapability('agencies.ban')
+  agencyBanPreview(@Param('agencyId') id: string) {
+    return this.agencies.banPreview(pathUuid(id));
+  }
+
+  /** v1.82-live (D295, §10.108): «حظر الوكالة — تفعيل صانع محتوى وهمي» (OWNER, code again, reason; idempotent). */
+  @Post('agencies/:agencyId/ban')
+  @HttpCode(200)
+  @RequireCapability('agencies.ban')
+  banAgency(
+    @Param('agencyId') id: string,
+    @Body(new ZodValidationPipe(agencyBanBody))
+    body: { reason: string; totpCode: string; fakeCreatorUserIds: string[] },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.agencies.ban(pathUuid(id), body, admin);
+  }
+
   @Post('agencies/:agencyId/reopen')
   @HttpCode(200)
   @RequireCapability('agencies.probation')
@@ -430,7 +451,8 @@ export class AdminV2Controller {
   @Get('live-hosts')
   @RequireCapability('lives.view')
   async hosts(
-    @Query(new ZodValidationPipe(hostsQuery)) q: TableQuery & { source?: 'ADMIN' | 'AGENCY' | 'IDENTITY' },
+    @Query(new ZodValidationPipe(hostsQuery))
+    q: TableQuery & { source?: 'ADMIN' | 'AGENCY' | 'IDENTITY' | 'CREATOR' },
     @CurrentAdmin() admin: AdminContext,
     @Res({ passthrough: true }) res: Response,
   ) {

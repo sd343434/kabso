@@ -16,9 +16,11 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/agency/application/agency_providers.dart';
 import 'package:kabso_live/features/agency/data/agency_repository.dart';
 import 'package:kabso_live/features/agency/data/hosting_application.dart';
+import 'package:kabso_live/features/agency/presentation/agency_activation_sheet.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart'
     show reelSharerProvider;
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/wallet/presentation/me_page_parts.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart'
@@ -65,6 +67,10 @@ class AgencyScreen extends ConsumerWidget {
   static const progressKey = Key('agency.progress');
   static const commissionKey = Key('agency.commission');
   static const hostsEmptyKey = Key('agency.hosts.empty');
+
+  /// v1.82-live (D295): a member's «تفعيل» button and «مضيف» tag.
+  static Key activateKey(String userId) => Key('agency.host.activate.$userId');
+  static Key hostTagKey(String userId) => Key('agency.host.tag.$userId');
 
   /// v1.70-social (D206): «افتح وكالة», the probation card, the closed state.
   static const openKey = Key('agency.open');
@@ -193,7 +199,23 @@ class AgencyScreen extends ConsumerWidget {
         value: FeedItems(:final items, :final hasMore, :final loadMoreError),
       ) =>
         [
-          for (final h in items) _HostTile(host: h),
+          for (final h in items)
+            _HostTile(
+              host: h,
+              // v1.82-live (D295): the owner activates a member as a host or
+              // a content creator.
+              onActivate: () async {
+                final row = await showAgencyActivationSheet(context, h);
+                if (row == null || !context.mounted) return;
+                ref.invalidate(agencyHostsProvider);
+                KSnack.success(
+                  context,
+                  row.hosting == AgencyMemberHosting.creator
+                      ? l10n.agencyActivatedCreator(row.user.displayName)
+                      : l10n.agencyActivatedHost(row.user.displayName),
+                );
+              },
+            ),
           if (hasMore)
             MeLoadMore(
               failed: loadMoreError != null,
@@ -642,9 +664,13 @@ class _SubTile extends StatelessWidget {
 }
 
 class _HostTile extends StatelessWidget {
-  const new({required this.host});
+  const new({required this.host, this.onActivate});
 
   final AgencyHostRow host;
+
+  /// v1.82-live (D295): «تفعيل» for a member who is neither a host nor a
+  /// creator yet.
+  final VoidCallback? onActivate;
 
   @override
   Widget build(BuildContext context) {
@@ -663,11 +689,14 @@ class _HostTile extends StatelessWidget {
       container: true,
       label: [
         _name(h.user),
+        if (h.hosting == AgencyMemberHosting.host) l10n.agencyActivateAsHost,
+        if (h.hosting == AgencyMemberHosting.creator) l10n.liveCreatorBadge,
         status,
         line,
         if (!h.commissionEligible) l10n.agencyHostNoCommission,
       ].join(', '),
-      excludeSemantics: true,
+      excludeSemantics:
+          h.hosting != AgencyMemberHosting.none || onActivate == null,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
         child: Row(
@@ -682,11 +711,32 @@ class _HostTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _name(h.user),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.bodyStrong.copyWith(color: p.textPrimary),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _name(h.user),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodyStrong.copyWith(color: p.textPrimary),
+                        ),
+                      ),
+                      // v1.82-live (D295): what the member is now.
+                      if (h.hosting == AgencyMemberHosting.creator) ...[
+                        const SizedBox(width: KSpacing.xs),
+                        const CreatorLiveBadge(compact: true),
+                      ] else if (h.hosting == AgencyMemberHosting.host) ...[
+                        const SizedBox(width: KSpacing.xs),
+                        Text(
+                          l10n.agencyActivateAsHost,
+                          key: AgencyScreen.hostTagKey(h.user.id),
+                          style: t.caption.copyWith(
+                            color: p.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   Text(line, style: t.caption.copyWith(color: p.textSecondary)),
                   if (!h.commissionEligible)
@@ -698,6 +748,19 @@ class _HostTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: KSpacing.sm),
+            if (h.hosting == AgencyMemberHosting.none &&
+                onActivate != null) ...[
+              OutlinedButton(
+                key: AgencyScreen.activateKey(h.user.id),
+                onPressed: onActivate,
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+                ),
+                child: Text(l10n.agencyActivate),
+              ),
+              const SizedBox(width: KSpacing.xs),
+            ],
             DecoratedBox(
               decoration: BoxDecoration(
                 color: (h.active ? p.success : p.textTertiary).withValues(
@@ -1130,6 +1193,7 @@ class _OpenCard extends StatelessWidget {
       AgencyOpenRefusal.hostOfAgency => l10n.agencyOpenIsHost,
       AgencyOpenRefusal.ownsAgency => l10n.agencyOpenOwns,
       AgencyOpenRefusal.accountNotActive => l10n.agencyOpenNotActive,
+      AgencyOpenRefusal.banned => l10n.agencyOpenBanned,
       // The closed card says when (with the date); D227's identity check is
       // asked in the form, never before.
       AgencyOpenRefusal.reopenCooldown ||
@@ -1256,6 +1320,11 @@ class _HostWithTeamCardState extends ConsumerState<_HostWithTeamCard> {
     );
 
     final Widget body;
+    if (state.host == HostingSource.creator) {
+      // v1.82-live (D295): a content creator goes live through the creator
+      // programme (its own page); not a host, so not this card.
+      return const SizedBox.shrink();
+    }
     if (state.host case final source?) {
       // Already a host: the status instead of the card.
       body = Container(
@@ -1294,7 +1363,8 @@ class _HostWithTeamCardState extends ConsumerState<_HostWithTeamCard> {
         ),
       );
     } else if (state.refusal == HostingApplyRefusal.hostOfAgency ||
-        state.refusal == HostingApplyRefusal.ownsAgency) {
+        state.refusal == HostingApplyRefusal.ownsAgency ||
+        state.refusal == HostingApplyRefusal.creator) {
       // In an agency: not this path (the page shows the agency).
       return const SizedBox.shrink();
     } else if (app != null && app.status == HostingApplicationStatus.pending) {
@@ -1465,6 +1535,8 @@ class _ClosedCard extends StatelessWidget {
                     ),
                     KFormat.bidiIsolate('${closed.activatedHosts ?? 0}'),
                   )
+                : closed.banned
+                ? l10n.agencyClosedBanned
                 : l10n.agencyClosedAdmin,
             style: t.body.copyWith(color: p.textPrimary),
           ),
@@ -1473,15 +1545,16 @@ class _ClosedCard extends StatelessWidget {
             l10n.agencyClosedOn(date(closed.closedAt)),
             style: t.caption.copyWith(color: p.textSecondary),
           ),
-          Text(
-            canReopen
-                ? l10n.agencyReopenNow
-                : l10n.agencyOpenCooldown(date(closed.reopenAt)),
-            style: t.caption.copyWith(
-              color: canReopen ? p.success : p.textSecondary,
-              fontWeight: FontWeight.w600,
+          if (!closed.banned)
+            Text(
+              canReopen
+                  ? l10n.agencyReopenNow
+                  : l10n.agencyOpenCooldown(date(closed.reopenAt)),
+              style: t.caption.copyWith(
+                color: canReopen ? p.success : p.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
         ],
       ),
     );

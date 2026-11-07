@@ -122,6 +122,7 @@ class _AgencyOpenScreenState extends ConsumerState<AgencyOpenScreen> {
       AgencyOpenRefusal.hostOfAgency => l10n.agencyOpenIsHost,
       AgencyOpenRefusal.accountNotActive => l10n.agencyOpenNotActive,
       AgencyOpenRefusal.kycRequired => l10n.agencyOpenRefusedKyc,
+      AgencyOpenRefusal.banned => l10n.agencyOpenBanned,
       AgencyOpenRefusal.reopenCooldown || null => failureMessage(l10n, failure),
     };
   }

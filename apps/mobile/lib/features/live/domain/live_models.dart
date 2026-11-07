@@ -288,6 +288,10 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
     /// v1.58-live (D246): the host's profile country (ISO alpha-2), or null
     /// when the host set none.
     String? hostCountry,
+
+    /// v1.82-live (D295): the host is a content creator «صانع محتوى» (the
+    /// purple badge). Older servers: false.
+    @Default(false) bool hostIsCreator,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -354,6 +358,10 @@ abstract class LiveRoom with _$LiveRoom {
 
     /// v1.56-live (D213): a streamer's layout; null otherwise.
     LiveStreamer? streamer,
+
+    /// v1.82-live (D295): the host is a content creator (the purple badge next
+    /// to the host's name in the room). Older servers: false.
+    @Default(false) bool hostIsCreator,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);

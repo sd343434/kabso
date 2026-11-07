@@ -18,6 +18,13 @@ import { AgencyService } from '../economy/agency.service.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { addMonths, dateValue, monthKey } from '../economy/economy-math.js';
 import { HostAgentError, reinstateHostAgentIn, suspendHostAgentIn } from '../economy/host-agents.js';
+import {
+  AgencyBanError,
+  agencyBanFiguresIn,
+  agencyCreatorActivationsIn,
+  banAgencyIn,
+} from '../economy/agency-ban.js';
+import { LiveMediaService } from '../live/live-media.service.js';
 import { normalizeEmail } from '../users/username.js';
 import { AdminAuthService, type AdminContext } from './admin-auth.service.js';
 import { tableResult, window, type TableQuery } from './admin-tables.js';
@@ -62,7 +69,7 @@ function probationState(a: {
   status: 'OPEN' | 'CLOSED';
   probationEndsAt: Date | null;
   probationPassedAt: Date | null;
-  closeReason: 'PROBATION_FAILED' | 'ADMIN' | null;
+  closeReason: 'PROBATION_FAILED' | 'ADMIN' | 'BANNED' | null;
 }): 'NONE' | 'RUNNING' | 'PASSED' | 'FAILED' | 'STOPPED' {
   if (a.probationEndsAt === null) return 'NONE';
   if (a.probationPassedAt !== null) return 'PASSED';
@@ -85,6 +92,7 @@ export class AdminAgenciesService {
     private readonly auth: AdminAuthService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly media: LiveMediaService,
   ) {}
 
   private get zone(): string {
@@ -513,6 +521,92 @@ export class AdminAgenciesService {
     );
     if (releasedHosts.length > 0) await this.agencies.syncHostFrames(releasedHosts);
     return { status: 'CLOSED' as const, releasedHosts: releasedHosts.length };
+  }
+
+  /**
+   * v1.82-live (D295, §10.108): what «حظر الوكالة» would do now — the commission, the owner's balance, the amount to be
+   * forfeited and the creator activations concerned (the confirmation dialog shows them); the ban if made already.
+   */
+  async banPreview(id: string) {
+    const a = await this.prisma.agency.findUnique({
+      where: { id },
+      select: { id: true, ownerUserId: true, status: true, ban: true },
+    });
+    if (!a) throw new AppException(ErrorCode.NOT_FOUND);
+    const f = await this.prisma.$transaction((tx) =>
+      agencyBanFiguresIn(tx, a.id, a.ownerUserId, this.config.economy),
+    );
+    const activations = await agencyCreatorActivationsIn(this.prisma, a.id);
+    const people = await this.prisma.user.findMany({
+      where: { id: { in: activations.map((x) => x.userId) } },
+      select: person.select,
+    });
+    const byId = new Map(people.map((p) => [p.id, personDto(p)]));
+    return {
+      agencyId: a.id,
+      status: a.status,
+      ban: a.ban
+        ? {
+            reason: a.ban.reason,
+            commissionCherries: Number(a.ban.commissionCherries),
+            forfeitedCherries: Number(a.ban.forfeitedCherries),
+            creators: a.ban.creatorUserIds.length,
+            createdAt: a.ban.createdAt.toISOString(),
+          }
+        : null,
+      commissionCherries: Number(f.commissionCherries),
+      balanceCherries: Number(f.balanceCherries),
+      lockedCherries: Number(f.lockedCherries),
+      heldCherries: Number(f.heldCherries),
+      forfeitCherries: Number(f.forfeitCherries),
+      creators: activations.map((x) => ({
+        ...(byId.get(x.userId) ?? { id: x.userId, username: '', displayName: '', avatarUrl: null }),
+        applicationId: x.applicationId,
+        activatedAt: x.activatedAt.toISOString(),
+      })),
+    };
+  }
+
+  /** v1.82-live (D295, §10.108): «حظر الوكالة — تفعيل صانع محتوى وهمي» (OWNER, code again, reason). */
+  async ban(
+    id: string,
+    body: { reason: string; totpCode: string; fakeCreatorUserIds: string[] },
+    ctx: AdminContext,
+  ) {
+    await this.auth.reauthenticate(ctx, body.totpCode);
+    let r;
+    try {
+      r = await this.prisma.$transaction((tx) =>
+        banAgencyIn(
+          tx,
+          id,
+          { reason: body.reason, fakeCreatorUserIds: body.fakeCreatorUserIds },
+          new Date(),
+          this.config.economy,
+          this.config.specialUsernames.graceDays,
+          viaOf(ctx),
+        ),
+      );
+    } catch (err) {
+      if (err instanceof AgencyBanError) {
+        if (err.message === 'No such agency.') throw new AppException(ErrorCode.NOT_FOUND);
+        throw refused(err.message);
+      }
+      throw err;
+    }
+    if (r.releasedHosts.length > 0) await this.agencies.syncHostFrames(r.releasedHosts);
+    let endedRooms = 0;
+    for (const userId of r.revokedCreators)
+      endedRooms += r.banned ? await this.media.endHostedRooms(userId) : 0;
+    return {
+      status: 'BANNED' as const,
+      alreadyBanned: !r.banned,
+      commissionCherries: Number(r.commissionCherries),
+      forfeitedCherries: Number(r.forfeitedCherries),
+      revokedCreators: r.revokedCreators.length,
+      releasedHosts: r.releasedHosts.length,
+      endedRooms,
+    };
   }
 
   /** `economy-admin agency-reopen` from the panel (OWNER, code again). */

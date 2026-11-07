@@ -89,6 +89,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.agencyLeaveWindowClosed => l10n.errorAgencyLeaveWindowClosed,
     ErrorCode.agencyOpenNotAllowed => l10n.errorAgencyOpenNotAllowed,
     ErrorCode.hostApplicationNotAllowed => l10n.errorHostApplicationNotAllowed,
+    ErrorCode.agencyActivationNotAllowed =>
+      l10n.errorAgencyActivationNotAllowed,
     ErrorCode.kycNotAllowed => l10n.errorKycNotAllowed,
     ErrorCode.kycUnavailable => l10n.kycUnavailable,
     ErrorCode.referralUnavailable => l10n.errorReferralUnavailable,

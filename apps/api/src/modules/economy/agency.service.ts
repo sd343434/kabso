@@ -19,6 +19,9 @@ import { MediaService } from '../media/media.service.js';
 import { Notifier } from '../notifications/notifier.js';
 import { syncAgentUsernameIn } from '../users/agent-usernames.js';
 import { cancelPendingHostApplicationIn } from '../host-applications/host-applications.core.js';
+import { creatorApplicationBody } from '../creator/creator-applications.js';
+import { activateCreatorIn, CreatorHostConflictError, hostKindIn } from '../creator/creator-membership.js';
+import { isLimitedStaff } from '../live/live-staff.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
@@ -151,13 +154,15 @@ export interface ClosedAgencyDto {
   name: string | null;
   inviteCode: string;
   closedAt: string;
-  reason: 'PROBATION_FAILED' | 'ADMIN';
+  reason: 'PROBATION_FAILED' | 'ADMIN' | 'BANNED';
   activatedHosts: number | null;
   requiredHosts: number | null;
   reopenAt: string;
 }
 
-export type AgencyOpenRefusal = 'ACCOUNT_NOT_ACTIVE' | 'HOST_OF_AGENCY' | 'OWNS_AGENCY' | 'REOPEN_COOLDOWN';
+/** v1.82-live (D295, §10.108): `BANNED` — the person's agency was banned «حظر الوكالة»; it is never reopened. */
+export type AgencyOpenRefusal =
+  'ACCOUNT_NOT_ACTIVE' | 'HOST_OF_AGENCY' | 'OWNS_AGENCY' | 'REOPEN_COOLDOWN' | 'BANNED';
 /** v1.80-kyc (D227): with Didit on, «افتح وكالة» needs an approved identity check (only at the opening). */
 export type AgencyOpenSubmitRefusal = AgencyOpenRefusal | 'KYC_REQUIRED';
 
@@ -201,7 +206,35 @@ export interface AgencyHostDto {
   active: boolean;
   monthCherries: number;
   commissionEligible: boolean;
+  /**
+   * v1.82-live (D295, §10.108): what the member is now — NONE (no hosting permission), HOST (a host, any source) or
+   * CREATOR (a creator-programme member); the agency owner activates a NONE member as either.
+   */
+  hosting: 'NONE' | 'HOST' | 'CREATOR';
+  /** v1.82-live (D295): this agency activated them (as a host or a creator). */
+  activatedByAgency: boolean;
 }
+
+/**
+ * v1.82-live (D295, §10.108): `POST /me/agency/hosts/{userId}/activate` — «مضيف» or «صانع محتوى». A creator needs the
+ * creator programme's fields (country, category, 1–5 links, an optional bio) and the owner's tick on the warning
+ * «إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة أرباحك.» (`confirmCreator: true`).
+ */
+export const activateMemberBodySchema = z.discriminatedUnion('as', [
+  z.strictObject({ as: z.literal('HOST') }),
+  z.strictObject({
+    as: z.literal('CREATOR'),
+    country: creatorApplicationBody.shape.country,
+    category: creatorApplicationBody.shape.category,
+    links: creatorApplicationBody.shape.links,
+    bio: creatorApplicationBody.shape.bio,
+    confirmCreator: z.literal(true),
+  }),
+]);
+
+/** v1.82-live (D295): why an agency owner may not activate a member now (`details[0].issue`). */
+export type AgencyActivationRefusal =
+  'AGENCY_SUSPENDED' | 'ACCOUNT_NOT_ACTIVE' | 'STAFF' | 'HOST' | 'CREATOR';
 
 export const joinBodySchema = z.strictObject({ inviteCode: z.string().min(1).max(32) });
 export const complaintBodySchema = z.strictObject({ text: z.string().trim().min(1).max(1000) });
@@ -491,6 +524,7 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     ]);
     if (!user || user.deletedAt !== null || user.status !== 'ACTIVE') return 'ACCOUNT_NOT_ACTIVE';
     if (own?.status === 'OPEN') return 'OWNS_AGENCY';
+    if (own?.closeReason === 'BANNED') return 'BANNED';
     if (hostLinks > 0) return 'HOST_OF_AGENCY';
     if (
       own?.status === 'CLOSED' &&
@@ -570,10 +604,12 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
             if (own) {
               // The closed row is opened again (the owner-once index): checked again under its lock.
               const [row] = await tx.$queryRaw<
-                { status: string; closed_at: Date | null; code: string | null }[]
+                { status: string; closed_at: Date | null; code: string | null; banned: boolean }[]
               >`
-                SELECT status::text AS status, closed_at, host_code AS code FROM agencies
+                SELECT status::text AS status, closed_at, host_code AS code,
+                       (close_reason = 'BANNED'::agency_close_reason) AS banned FROM agencies
                  WHERE id = ${own.id}::uuid FOR UPDATE`;
+              if (row?.banned) throw refused('BANNED');
               if (
                 !row ||
                 row.status !== 'CLOSED' ||
@@ -1053,10 +1089,12 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
     ]);
     const act = new Map(activity.map((a) => [a.hostUserId, a]));
     const month = new Map(cherries.map((c) => [c.hostUserId, c._sum.hostCherries ?? 0n]));
+    const kinds = await this.hostingOf(agency.id, ids);
     const last = page[page.length - 1];
     return {
       data: page.map((l) => {
         const a = act.get(l.hostUserId);
+        const k = kinds.get(l.hostUserId);
         return {
           user: userSummary(l.host),
           joinedAt: l.activatedAt.toISOString(),
@@ -1065,6 +1103,8 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
           active: a?.active ?? false,
           monthCherries: Number(month.get(l.hostUserId) ?? 0n),
           commissionEligible: l.commissionEligible,
+          hosting: k?.hosting ?? 'NONE',
+          activatedByAgency: k?.byAgency ?? false,
         };
       }),
       page: {
@@ -1072,6 +1112,218 @@ export class AgencyService implements OnModuleInit, OnModuleDestroy {
         nextCursor:
           hasMore && last ? this.cursors.encode(scope, { at: last.activatedAt, id: last.id }) : null,
       },
+    };
+  }
+
+  /** v1.82-live (D295): each member's hosting kind and whether this agency activated it. */
+  private async hostingOf(
+    agencyId: string,
+    ids: readonly string[],
+  ): Promise<Map<string, { hosting: 'NONE' | 'HOST' | 'CREATOR'; byAgency: boolean }>> {
+    if (ids.length === 0) return new Map();
+    const [hosts, creators] = await Promise.all([
+      this.prisma.liveHost.findMany({
+        where: { userId: { in: [...ids] } },
+        select: { userId: true, source: true, grantedById: true },
+      }),
+      this.prisma.creatorMember.findMany({
+        where: { userId: { in: [...ids] } },
+        select: { userId: true, application: { select: { agencyId: true } } },
+      }),
+    ]);
+    const owner = await this.prisma.agency.findUnique({
+      where: { id: agencyId },
+      select: { ownerUserId: true },
+    });
+    const out = new Map<string, { hosting: 'NONE' | 'HOST' | 'CREATOR'; byAgency: boolean }>();
+    for (const h of hosts) {
+      if (h.source !== 'CREATOR') {
+        out.set(h.userId, {
+          hosting: 'HOST',
+          byAgency: h.source === 'AGENCY' && h.grantedById !== null && h.grantedById === owner?.ownerUserId,
+        });
+      }
+    }
+    for (const c of creators) {
+      out.set(c.userId, { hosting: 'CREATOR', byAgency: c.application.agencyId === agencyId });
+    }
+    return out;
+  }
+
+  /**
+   * v1.82-live (D295, owner, CONVENTIONS §10.108): `POST /me/agency/hosts/{userId}/activate` — the agency's owner
+   * activates one of its ACTIVE members as a host «مضيف» (the hosting permission, source AGENCY) or as a content
+   * creator «صانع محتوى» (a creator membership at once, recorded with the agency: «فعّله وكيل: …» in the panel; the
+   * hosting permission CREATOR). Order: 404 (no OPEN agency of the caller, or not its ACTIVE member) → 400 body → 409
+   * AGENCY_ACTIVATION_NOT_ALLOWED (`AGENCY_SUSPENDED`, `ACCOUNT_NOT_ACTIVE`, `STAFF`, `HOST` — a host cannot be made a
+   * creator, `CREATOR` — a creator cannot be made a host) → 200 (also when already activated as asked: unchanged).
+   * Audited `agency.member.activate` (+ `live.host.grant`); a pending «انضم كصانع محتوى» of the member is cancelled.
+   */
+  async activateMember(me: string, memberUserId: string, body: unknown): Promise<AgencyHostDto> {
+    const agency = await this.prisma.agency.findUnique({
+      where: { ownerUserId: me },
+      select: { id: true, status: true, suspendedAt: true },
+    });
+    if (!agency || agency.status !== 'OPEN' || !UUID.test(memberUserId))
+      throw new AppException(ErrorCode.NOT_FOUND);
+    const member = memberUserId.toLowerCase();
+    const link = await this.prisma.agencyHost.findFirst({
+      where: { agencyId: agency.id, hostUserId: member, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (!link) throw new AppException(ErrorCode.NOT_FOUND);
+    const parsed = activateMemberBodySchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const input = parsed.data;
+    const refused = (issue: AgencyActivationRefusal) =>
+      new AppException(ErrorCode.AGENCY_ACTIVATION_NOT_ALLOWED, undefined, [{ field: 'member', issue }]);
+    if (agency.suspendedAt !== null) throw refused('AGENCY_SUSPENDED');
+    const user = await this.prisma.user.findUnique({
+      where: { id: member },
+      select: { status: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt !== null || user.status !== 'ACTIVE') throw refused('ACCOUNT_NOT_ACTIVE');
+    if (await isLimitedStaff(this.prisma, member)) throw refused('STAFF');
+    const now = this.clock.now();
+    const by = { via: 'app' as const, actorUserId: me };
+    await this.prisma.$transaction(async (tx) => {
+      // The member's rows in a fixed order (as `activateCreatorIn`), so a concurrent activation waits.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`creator-host:${member}`}, 0))`;
+      const kind = await hostKindIn(tx, member);
+      if (input.as === 'HOST') {
+        if (kind === 'CREATOR') throw refused('CREATOR');
+        if (kind === 'HOST') return; // already a host: unchanged
+        let created = 0;
+        for (let attempt = 0; attempt < 5 && created === 0; attempt += 1) {
+          created = (
+            await tx.liveHost.createMany({
+              data: [{ userId: member, source: 'AGENCY', grantedById: me, grantedAt: now }],
+              skipDuplicates: true,
+            })
+          ).count;
+          if (created === 0 && (await tx.liveHost.count({ where: { userId: member } })) > 0) break;
+        }
+        if (created === 0) return;
+        await tx.auditLog.create({
+          data: {
+            actorUserId: me,
+            action: AuditAction.LIVE_HOST_GRANT,
+            targetType: 'user',
+            targetId: member,
+            metadata: { source: 'AGENCY', agency: agency.id, via: 'agency' },
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorUserId: me,
+            action: AuditAction.AGENCY_MEMBER_ACTIVATE,
+            targetType: 'user',
+            targetId: member,
+            metadata: { agency: agency.id, member, as: 'HOST', after: 'HOST' },
+          },
+        });
+        return;
+      }
+      if (kind === 'HOST') throw refused('HOST');
+      if (kind === 'CREATOR') return; // already a creator: unchanged
+      // A pending «انضم كصانع محتوى» of the member gives way to the agency's activation.
+      await tx.creatorApplication.updateMany({
+        where: { userId: member, status: 'PENDING' },
+        data: { status: 'CANCELLED', decidedAt: now },
+      });
+      const applicationId = uuidv7();
+      await tx.creatorApplication.create({
+        data: {
+          id: applicationId,
+          userId: member,
+          status: 'APPROVED',
+          source: 'AGENCY',
+          agencyId: agency.id,
+          country: input.country,
+          category: input.category,
+          links: input.links,
+          bio: input.bio && input.bio !== '' ? input.bio : null,
+          createdAt: now,
+          decidedAt: now,
+          decidedById: me,
+        },
+      });
+      try {
+        await activateCreatorIn(tx, {
+          userId: member,
+          applicationId,
+          now,
+          by,
+          via: 'agency',
+          agencyId: agency.id,
+        });
+      } catch (err) {
+        if (err instanceof CreatorHostConflictError) throw refused('HOST');
+        throw err;
+      }
+      await tx.auditLog.create({
+        data: {
+          actorUserId: me,
+          action: AuditAction.AGENCY_MEMBER_ACTIVATE,
+          targetType: 'user',
+          targetId: member,
+          metadata: {
+            agency: agency.id,
+            member,
+            as: 'CREATOR',
+            application: applicationId,
+            country: input.country,
+            category: input.category,
+            links: input.links.length,
+            warningConfirmed: true,
+            after: 'CREATOR',
+          },
+        },
+      });
+    });
+    const rows = await this.hosts(me, { limit: 50 });
+    const row = rows.data.find((r) => r.user.id === member);
+    if (row) return row;
+    return this.memberRow(agency.id, link.id);
+  }
+
+  /** One member's row (when it is not on the first page of `hosts`). */
+  private async memberRow(agencyId: string, linkId: string): Promise<AgencyHostDto> {
+    const l = await this.prisma.agencyHost.findUniqueOrThrow({
+      where: { id: linkId },
+      select: {
+        activatedAt: true,
+        commissionEligible: true,
+        hostUserId: true,
+        host: { select: USER_SUMMARY_SELECT },
+      },
+    });
+    const now = this.clock.now();
+    const [activity, kinds] = await Promise.all([
+      hostActivity(this.prisma, [agencyId], now, this.config.economy, this.zone, [l.hostUserId]),
+      this.hostingOf(agencyId, [l.hostUserId]),
+    ]);
+    const sum = await this.prisma.agencyEarning.aggregate({
+      where: {
+        agencyId,
+        hostUserId: l.hostUserId,
+        month: dateValue(monthKey(now, this.zone)),
+        reversedAt: null,
+      },
+      _sum: { hostCherries: true },
+    });
+    const a = activity[0];
+    const k = kinds.get(l.hostUserId);
+    return {
+      user: userSummary(l.host),
+      joinedAt: l.activatedAt.toISOString(),
+      liveDays: a?.liveDays ?? 0,
+      liveSeconds: a?.liveSeconds ?? 0,
+      active: a?.active ?? false,
+      monthCherries: Number(sum._sum.hostCherries ?? 0n),
+      commissionEligible: l.commissionEligible,
+      hosting: k?.hosting ?? 'NONE',
+      activatedByAgency: k?.byAgency ?? false,
     };
   }
 }

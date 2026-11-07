@@ -59,6 +59,7 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'recharge.rates': ['OWNER', 'FINANCE'],
   'agencies.applications': ['OWNER', 'SUPPORT'],
   'agencies.probation': ['OWNER'],
+  'agencies.ban': ['OWNER'],
   'hosts.applications': ['OWNER', 'SUPPORT', 'MODERATION'],
   'hosts.applications.photos': ['OWNER', 'SUPPORT'],
   'hosts.applications.decide': ['OWNER', 'SUPPORT'],

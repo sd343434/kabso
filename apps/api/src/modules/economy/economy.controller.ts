@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { languageFromAcceptLanguage } from '../../common/http/content-language.js';
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
@@ -146,6 +146,17 @@ export class EconomyController {
     @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
   ): Promise<PageDto<AgencyHostDto>> {
     return this.agencies.hosts(auth.userId, query);
+  }
+
+  /** v1.82-live (D295, §10.108): the agency owner activates a member as a host or a content creator. */
+  @Post('me/agency/hosts/:userId/activate')
+  @HttpCode(200)
+  activateMember(
+    @CurrentAuth() auth: AuthContext,
+    @Param('userId') userId: string,
+    @Body() body: unknown,
+  ): Promise<AgencyHostDto> {
+    return this.agencies.activateMember(auth.userId, userId, body);
   }
 
   /** v1.55-social (D186): the caller's active-host frame. Per-user default rate limit. */

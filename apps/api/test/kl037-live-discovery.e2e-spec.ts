@@ -387,6 +387,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         kicked: false,
         // v1.27.3-live (D136): no wish list yet (kl081 covers it).
         wishGifts: [],
+        // v1.82-live (D295): the host is not a content creator (d295 covers creators).
+        hostIsCreator: false,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

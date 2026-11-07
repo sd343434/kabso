@@ -147,6 +147,8 @@ export enum ErrorCode {
   HOST_APPLICATION_NOT_ALLOWED = 'HOST_APPLICATION_NOT_ALLOWED',
   /** v1.75-live (D285): the creator programme application «انضم كصانع محتوى» is not possible now (`details[0].issue`). */
   CREATOR_APPLICATION_NOT_ALLOWED = 'CREATOR_APPLICATION_NOT_ALLOWED',
+  /** v1.82-live (D295, §10.108): an agency owner's activation of a member refused (`details[0].issue`). */
+  AGENCY_ACTIVATION_NOT_ALLOWED = 'AGENCY_ACTIVATION_NOT_ALLOWED',
   /**
    * v1.89-social (D290, §10.103.2): a level-raise request for a source account (canonical app + account ID) that is
    * already PENDING or APPROVED — `details`: `status`, `createdAt`, `requestedBy` (the staff member's display name).
@@ -431,6 +433,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 409,
   [ErrorCode.HOST_APPLICATION_NOT_ALLOWED]: 409,
   [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 409,
+  [ErrorCode.AGENCY_ACTIVATION_NOT_ALLOWED]: 409,
   [ErrorCode.LEVEL_RAISE_DUPLICATE]: 409,
   [ErrorCode.KYC_NOT_ALLOWED]: 409,
   [ErrorCode.KYC_UNAVAILABLE]: 503,
@@ -589,6 +592,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.AGENCY_OPEN_NOT_ALLOWED]: 'You cannot open an agency now.',
   [ErrorCode.HOST_APPLICATION_NOT_ALLOWED]: 'You cannot apply to host with the Kabso team now.',
   [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 'You cannot apply to the creator programme now.',
+  [ErrorCode.AGENCY_ACTIVATION_NOT_ALLOWED]: 'This member cannot be activated that way.',
   [ErrorCode.LEVEL_RAISE_DUPLICATE]:
     'This source account already has a pending or approved level-raise request.',
   [ErrorCode.KYC_NOT_ALLOWED]: 'An identity check cannot be started now.',

@@ -33,6 +33,9 @@ const REFUSAL_KEYS: Record<string, Key> = {
   team_not_held: 'teamErrNotHeld',
   team_self_reset: 'teamErrSelfReset',
   team_not_member: 'teamErrNotMember',
+  // D295: host and creator are exclusive (the host grant, the approvals).
+  CREATOR: 'd295ErrCreator',
+  HOST: 'd295ErrHost',
 };
 
 function refusalKey(err: ApiError): Key | null {

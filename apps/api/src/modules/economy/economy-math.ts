@@ -19,6 +19,11 @@ export interface EconomyRules {
   readonly agencyTierMonthlyCherries: number;
   /** A parent agency's commission on its sub-agencies' hosts' cherries (owner: 3 %). */
   readonly parentCommissionBps: number;
+  /**
+   * v1.82-live (D295, §10.108): whether an agency earns its commission on the gifts its creator members receive (owner:
+   * yes, as with hosts — from the platform's part). Absent = yes.
+   */
+  readonly creatorAgencyCommission?: boolean;
 }
 
 export interface RankRules {

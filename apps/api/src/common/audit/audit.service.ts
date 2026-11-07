@@ -179,6 +179,12 @@ export enum AuditAction {
   CREATOR_APPLICATION_APPROVE = 'creator.application.approve',
   CREATOR_APPLICATION_REJECT = 'creator.application.reject',
   CREATOR_APPLICATION_CANCEL = 'creator.application.cancel',
+  // v1.82-live (D295, §10.108): content creators go live — a membership ended {application, source, agency, reason,
+  // hostingRemoved}; an agency owner activated a member {member, as, application}; «حظر الوكالة» {owner, reason,
+  // commissionCherries, forfeitedCherries, creators, applications, releasedHosts}.
+  CREATOR_MEMBER_REVOKE = 'creator.member.revoke',
+  AGENCY_MEMBER_ACTIVATE = 'agency.member.activate',
+  AGENCY_BAN = 'agency.ban',
   // v1.89-social (D290, §10.103): level-raise requests — a request made {supporter, app, level, via}, approved
   // {approvedLevel, proposedLevel, before, after, ledgerEntry}, rejected {reason}; a source app created / changed
   // {before, after, reason}; the weights changed {before, after, reason}.

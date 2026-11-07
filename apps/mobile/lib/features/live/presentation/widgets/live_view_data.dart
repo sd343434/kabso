@@ -37,6 +37,7 @@ class LiveRoomCardData {
     this.roomLevel,
     this.popular = false,
     this.hostCountry,
+    this.hostIsCreator = false,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -79,6 +80,7 @@ class LiveRoomCardData {
       roomLevel: room.roomLevel,
       popular: room.popular,
       hostCountry: room.hostCountry,
+      hostIsCreator: room.hostIsCreator,
     );
   }
 
@@ -138,6 +140,10 @@ class LiveRoomCardData {
 
   /// CP-011: guests seated now.
   final int occupiedSeats;
+
+  /// v1.82-live (D295): the host is a content creator — the purple «صانع
+  /// محتوى» badge on the card.
+  final bool hostIsCreator;
 
   /// D154b: in a paid «مميز» slot now (a traffic card); the card says so.
   final bool featured;

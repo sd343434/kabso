@@ -5,6 +5,7 @@ import { api } from '../api';
 import { codeField, ErrorAlert, FormDialog, Loading, reasonField, StatusBadge, useAsync, UserCell } from '../components';
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
+import { AgencyBanDialog } from './AgencyBan';
 import { navigate } from '../router';
 import type { PersonRef } from '../types';
 import { DataTable } from '../ui/DataTable';
@@ -37,7 +38,7 @@ interface AgencyDetailDto {
   origin: 'ADMIN' | 'SELF';
   status: 'OPEN' | 'CLOSED';
   closedAt: string | null;
-  closeReason: 'PROBATION_FAILED' | 'ADMIN' | null;
+  closeReason: 'PROBATION_FAILED' | 'ADMIN' | 'BANNED' | null;
   closeNote: string | null;
   probation: {
     state: 'NONE' | 'RUNNING' | 'PASSED' | 'FAILED' | 'STOPPED';
@@ -221,6 +222,8 @@ export function AgencyDetail({ id }: { id: string }) {
   const { data, error, loading, reload } = useAsync(() => api.get<AgencyDetailDto>(`/admin/agencies/${id}`), [id]);
   const [dialog, setDialog] = useState<'suspend' | 'reinstate' | null>(null);
   const [probationDialog, setProbationDialog] = useState<'extend' | 'close' | 'reopen' | null>(null);
+  // v1.82-live (D295): «حظر الوكالة — تفعيل صانع محتوى وهمي» (OWNER).
+  const [banning, setBanning] = useState(false);
   const n = (v: number) => formatNumber(v, lang);
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorAlert error={error} />;
@@ -251,7 +254,13 @@ export function AgencyDetail({ id }: { id: string }) {
           {closed && data.closedAt && (
             <p className="small" data-agency-closed>
               {t('agencyClosedOn', { date: formatDate(data.closedAt, lang) })} —{' '}
-              {t(data.closeReason === 'PROBATION_FAILED' ? 'agencyCloseReasonPROBATION_FAILED' : 'agencyCloseReasonADMIN')}
+              {t(
+                data.closeReason === 'PROBATION_FAILED'
+                  ? 'agencyCloseReasonPROBATION_FAILED'
+                  : data.closeReason === 'BANNED'
+                    ? 'agencyCloseReasonBANNED'
+                    : 'agencyCloseReasonADMIN',
+              )}
               {data.closeNote ? ` · ${data.closeNote}` : ''}
             </p>
           )}
@@ -267,7 +276,12 @@ export function AgencyDetail({ id }: { id: string }) {
               {t('agencyClose')}
             </button>
           )}
-          {can('agencies.probation') && closed && (
+          {can('agencies.ban') && data.closeReason !== 'BANNED' && (
+            <button className="btn danger" data-agency-ban onClick={() => setBanning(true)}>
+              {t('agencyBan')}
+            </button>
+          )}
+          {can('agencies.probation') && closed && data.closeReason !== 'BANNED' && (
             <button className="btn primary" onClick={() => setProbationDialog('reopen')}>
               {t('agencyReopen')}
             </button>
@@ -408,6 +422,21 @@ export function AgencyDetail({ id }: { id: string }) {
           onDone={() => {
             setDialog(null);
             toast(t('done'));
+            reload();
+          }}
+        />
+      )}
+      {banning && (
+        <AgencyBanDialog
+          agencyId={id}
+          onClose={() => setBanning(false)}
+          onDone={(r) => {
+            setBanning(false);
+            toast(
+              r.alreadyBanned
+                ? t('agencyBanAlready')
+                : t('agencyBanDone', { forfeited: formatNumber(r.forfeitedCherries, lang) }),
+            );
             reload();
           }}
         />

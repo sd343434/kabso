@@ -80,7 +80,38 @@ export interface CursorPosition {
   readonly id: string;
   /** v1.27.1-live (D133): the row's feature rank (featured lists only). */
   readonly rank?: number;
+  /**
+   * v1.82-live (D295, §10.108): the 1 : 1 host / creator interleave of `popular` and `new` (and Nearby): each group's
+   * own last position (null: none of that group taken yet) and the group of the last row taken. The service requires
+   * it on those lists and refuses it elsewhere.
+   */
+  readonly merge?: CursorMerge;
 }
+
+/** v1.82-live (D295): a group's sort key (`score`, `startedAt`, `id`). */
+export interface GroupPosition {
+  readonly score: number;
+  readonly startedAt: Date;
+  readonly id: string;
+}
+
+export interface CursorMerge {
+  readonly host: GroupPosition | null;
+  readonly creator: GroupPosition | null;
+  readonly last: 'H' | 'C';
+}
+
+const groupSchema = z
+  .tuple([
+    z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    z
+      .number()
+      .int()
+      .min(0)
+      .max(Date.UTC(9999, 11, 31, 23, 59, 59, 999)),
+    z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
+  ])
+  .nullable();
 
 /**
  * SEC-038: every sort key must be a value the keyset query can bind without a database error,
@@ -106,7 +137,16 @@ const payloadSchema = z.strictObject({
   n: z.number().int().min(0).max(CURSOR_MAX_SCORE),
   s: z.number().int().min(0).max(CURSOR_MAX_STARTED_AT_MS),
   i: z.string().regex(UUID),
+  x: z.strictObject({ h: groupSchema, c: groupSchema, g: z.enum(['H', 'C']) }).optional(),
 });
+
+function groupOut(p: GroupPosition | null): [number, number, string] | null {
+  return p === null ? null : [p.score, p.startedAt.getTime(), p.id.toLowerCase()];
+}
+
+function groupIn(t: readonly [number, number, string] | null): GroupPosition | null {
+  return t === null ? null : { score: t[0], startedAt: new Date(t[1]), id: t[2] };
+}
 
 /** The scope a request maps to (`userId` is only bound for the personal `following` tab). */
 export function cursorScope(
@@ -157,6 +197,16 @@ export class LiveCursorCodec {
         n: position.score,
         s: position.startedAt.getTime(),
         i: position.id.toLowerCase(),
+        // v1.82-live (D295): only on the interleaved lists (older cursors unchanged).
+        ...(position.merge
+          ? {
+              x: {
+                h: groupOut(position.merge.host),
+                c: groupOut(position.merge.creator),
+                g: position.merge.last,
+              },
+            }
+          : {}),
       }),
       'utf8',
     ).toString('base64url');
@@ -195,6 +245,12 @@ export class LiveCursorCodec {
     ) {
       return null;
     }
-    return { score: p.n, startedAt: new Date(p.s), id: p.i, ...(p.f !== undefined ? { rank: p.f } : {}) };
+    return {
+      score: p.n,
+      startedAt: new Date(p.s),
+      id: p.i,
+      ...(p.f !== undefined ? { rank: p.f } : {}),
+      ...(p.x ? { merge: { host: groupIn(p.x.h), creator: groupIn(p.x.c), last: p.x.g } } : {}),
+    };
   }
 }

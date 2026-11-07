@@ -1553,6 +1553,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             },
             username: user?.username,
             premiumTier: user?.premiumTier,
+            // v1.82-live (D295): a creator sees their own badge too.
+            hostIsCreator: room?.hostIsCreator ?? false,
             lines: KHostPill.pointLines(
               context,
               cherries: cherries,
@@ -2568,6 +2570,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         // D253 (the host's reference): the name alone on the host's own
         // screen (no `username`; D141's @username stays on the viewers').
         premiumTier: user?.premiumTier,
+        // v1.82-live (D295): a creator sees their own badge too.
+        hostIsCreator: room.hostIsCreator,
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
         lines: [

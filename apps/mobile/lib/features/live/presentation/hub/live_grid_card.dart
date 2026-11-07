@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -113,7 +114,10 @@ class KLiveGridCard extends StatelessWidget {
             ),
       room.title,
     );
-    final withType = l10n.liveCardSemanticsMode(base, type);
+    final withType = l10n.liveCardSemanticsMode(
+      room.hostIsCreator ? '$base, ${l10n.liveCreatorBadge}' : base,
+      type,
+    );
     final category = room.categoryName;
     final hasCategory = category != null && category.isNotEmpty;
     final described = hasCategory
@@ -208,6 +212,14 @@ class KLiveGridCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // v1.82-live (D295): a content creator's live — the
+                  // purple «صانع محتوى» badge under the live mark.
+                  if (room.hostIsCreator)
+                    const PositionedDirectional(
+                      top: 27,
+                      start: 8.5,
+                      child: CreatorLiveBadge(),
+                    ),
                   // D154b: «مميز» over the title (a running traffic card);
                   // D233 follow-up: with a rocket stage, its rocket inside
                   // the pill and the stage's colours (no separate badge).

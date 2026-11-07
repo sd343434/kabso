@@ -22,6 +22,9 @@ import {
   CreatorApplicationsService,
   rejectCreatorApplicationIn,
 } from '../creator/creator-applications.js';
+import { revokeCreatorIn } from '../creator/creator-membership.js';
+import { LiveMediaService } from '../live/live-media.service.js';
+import { LiveModule } from '../live/live.module.js';
 import { EconomyModule } from '../economy/economy.module.js';
 import { formatStaffId } from '../users/staff-ids.js';
 import {
@@ -107,7 +110,7 @@ const settingsBody = z
     message: 'at least one share',
   });
 const statusQuery = z.strictObject({
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'REVOKED']).optional(),
 });
 
 /**
@@ -127,6 +130,7 @@ export class AdminRecruitsController {
     private readonly creators: CreatorApplicationsService,
     private readonly auth: AdminAuthService,
     private readonly clock: Clock,
+    private readonly media: LiveMediaService,
   ) {}
 
   @Get('recruits/mine')
@@ -293,9 +297,37 @@ export class AdminRecruitsController {
       );
       return { status: 'APPROVED' as const, recruitmentId: out.recruitmentId };
     } catch (err) {
-      if (err instanceof CreatorApplicationError) throw refused(err.message);
+      if (err instanceof CreatorApplicationError)
+        throw err.issue ? refused(err.message, err.issue, 'application') : refused(err.message);
       throw err;
     }
+  }
+
+  /**
+   * v1.82-live (D295, §10.108): the team ends a creator's membership (any source — the person's own application or an
+   * agency's activation) with a reason; the hosting permission it gave goes and a running live is ended. 404: not a
+   * member. Audited `creator.member.revoke`.
+   */
+  @Post('creator-members/:userId/revoke')
+  @HttpCode(200)
+  @RequireCapability('creators.decide')
+  async revokeCreator(
+    @Param('userId') id: string,
+    @Body(new ZodValidationPipe(z.strictObject({ reason }))) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    const userId = pathUuid(id);
+    const out = await this.prisma.$transaction((tx) =>
+      revokeCreatorIn(tx, userId, body.reason, this.clock.now(), viaOf(admin)),
+    );
+    if (!out) throw new AppException(ErrorCode.NOT_FOUND);
+    const endedRooms = await this.media.endHostedRooms(userId);
+    return {
+      status: 'REVOKED' as const,
+      applicationId: out.applicationId,
+      hostingRemoved: out.hostingRemoved,
+      endedRooms,
+    };
   }
 
   @Post('creator-applications/:applicationId/reject')
@@ -320,7 +352,7 @@ export class AdminRecruitsController {
 
 /** v1.75-live (D285): recruitment by staff and the creator programme. */
 @Module({
-  imports: [AdminPanelModule, EconomyModule],
+  imports: [AdminPanelModule, EconomyModule, LiveModule],
   controllers: [RecruitsController, CreatorApplicationController, AdminRecruitsController],
   providers: [RecruitsService, RecruitCommissionSweeper, CreatorApplicationsService],
   exports: [RecruitsService],

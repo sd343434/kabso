@@ -12,6 +12,7 @@ import { uuidv7 } from '../levels/uuidv7.js';
 import { isLimitedStaff } from '../live/live-staff.js';
 import { formatStaffId } from '../users/staff-ids.js';
 import { attributeRecruitIn, recruiterOfForm } from '../recruits/recruit-core.js';
+import { activateCreatorIn, CreatorHostConflictError, hostSourceIn } from './creator-membership.js';
 
 /**
  * v1.75-live (D285, owner, CONVENTIONS §10.96.13): the creator programme «صانع المحتوى» — there was no creator
@@ -53,11 +54,12 @@ export const creatorApplicationBody = z.strictObject({
   recruiter: z.string().trim().max(64).optional(),
 });
 
-export type CreatorApplyRefusal = 'MEMBER' | 'PENDING' | 'ACCOUNT_NOT_ACTIVE' | 'STAFF';
+/** v1.82-live (D295, §10.108): `HOST` — a host (any hosting permission but a creator's) cannot be a creator. */
+export type CreatorApplyRefusal = 'MEMBER' | 'PENDING' | 'ACCOUNT_NOT_ACTIVE' | 'STAFF' | 'HOST';
 
 export interface CreatorApplicationDto {
   id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'REVOKED';
   country: string;
   category: string;
   links: string[];
@@ -66,6 +68,10 @@ export interface CreatorApplicationDto {
   createdAt: string;
   decidedAt: string | null;
   rejectReason: string | null;
+  /** v1.82-live (D295): APPLICATION (the person's own) or AGENCY (an agency owner activated them). */
+  source: 'APPLICATION' | 'AGENCY';
+  /** v1.82-live (D295): when the team ended the membership (status REVOKED), else null. */
+  revokedAt: string | null;
 }
 
 export interface MyCreatorApplicationDto {
@@ -74,7 +80,15 @@ export interface MyCreatorApplicationDto {
   rule: { canApply: boolean; refusal: CreatorApplyRefusal | null };
 }
 
-export class CreatorApplicationError extends Error {}
+export class CreatorApplicationError extends Error {
+  /** v1.82-live (D295): `HOST` — the applicant is a host (the panel's `details[0].issue`). */
+  constructor(
+    message: string,
+    readonly issue?: string,
+  ) {
+    super(message);
+  }
+}
 
 async function audit(
   tx: Tx,
@@ -123,10 +137,13 @@ export async function approveCreatorApplicationIn(
     where: { id: app.id },
     data: { status: 'APPROVED', decidedAt: now, decidedById: by.actorUserId },
   });
-  await tx.creatorMember.createMany({
-    data: [{ userId: app.user_id, applicationId: app.id, activatedAt: now }],
-    skipDuplicates: true,
-  });
+  // v1.82-live (D295, §10.108): the membership grants the hosting permission (CREATOR); a host cannot be a creator.
+  try {
+    await activateCreatorIn(tx, { userId: app.user_id, applicationId: app.id, now, by });
+  } catch (err) {
+    if (err instanceof CreatorHostConflictError) throw new CreatorApplicationError(err.message, 'HOST');
+    throw err;
+  }
   await audit(
     tx,
     AuditAction.CREATOR_APPLICATION_APPROVE,
@@ -201,16 +218,21 @@ export class CreatorApplicationsService {
       createdAt: a.createdAt.toISOString(),
       decidedAt: a.decidedAt?.toISOString() ?? null,
       rejectReason: a.rejectReason,
+      source: a.source,
+      revokedAt: a.revokedAt?.toISOString() ?? null,
     };
   }
 
   private async refusal(me: string, latest: CreatorApplication | null): Promise<CreatorApplyRefusal | null> {
-    const [user, member] = await Promise.all([
+    const [user, member, host] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: me }, select: { status: true, deletedAt: true } }),
       this.prisma.creatorMember.count({ where: { userId: me } }),
+      hostSourceIn(this.prisma, me),
     ]);
     if (!user || user.deletedAt !== null || user.status !== 'ACTIVE') return 'ACCOUNT_NOT_ACTIVE';
     if (member > 0) return 'MEMBER';
+    // v1.82-live (D295, §10.108): host and creator are exclusive.
+    if (host !== null) return 'HOST';
     if (await isLimitedStaff(this.prisma, me)) return 'STAFF';
     if (latest?.status === 'PENDING') return 'PENDING';
     return null;
@@ -322,7 +344,20 @@ export class CreatorApplicationsService {
       where: status ? { status } : {},
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 200,
-      include: { user: { select: { id: true, profile: { select: { username: true, displayName: true } } } } },
+      include: {
+        user: { select: { id: true, profile: { select: { username: true, displayName: true } } } },
+        member: { select: { activatedAt: true } },
+        revokedBy: { select: { profile: { select: { displayName: true } } } },
+        agency: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+            hostCode: true,
+            owner: { select: { id: true, profile: { select: { username: true, displayName: true } } } },
+          },
+        },
+      },
     });
     return {
       data: await Promise.all(
@@ -333,6 +368,23 @@ export class CreatorApplicationsService {
             username: r.user.profile?.username ?? '',
             displayName: r.user.profile?.displayName ?? '',
           },
+          // v1.82-live (D295, §10.108): the membership now, «فعّله وكيل: …» and the revocation.
+          memberActive: r.member !== null,
+          activatedBy: r.agency
+            ? {
+                agencyId: r.agency.id,
+                agencyName: r.agency.name,
+                inviteCode: r.agency.inviteCode,
+                hostCode: r.agency.hostCode,
+                owner: {
+                  id: r.agency.owner.id,
+                  username: r.agency.owner.profile?.username ?? '',
+                  displayName: r.agency.owner.profile?.displayName ?? '',
+                },
+              }
+            : null,
+          revokeReason: r.revokeReason,
+          revokedBy: r.revokedBy ? (r.revokedBy.profile?.displayName ?? '') : null,
         })),
       ),
     };

@@ -24,6 +24,9 @@ enum HostingApplicationStatus {
 /// `HostingApplyRefusal` (plus `UNDER_MIN_AGE`, refused only when sending).
 enum HostingApplyRefusal {
   accountNotActive('ACCOUNT_NOT_ACTIVE'),
+
+  /// v1.82-live (D295): a content creator cannot also be a host.
+  creator('CREATOR'),
   alreadyHost('ALREADY_HOST'),
   hostOfAgency('HOST_OF_AGENCY'),
   ownsAgency('OWNS_AGENCY'),
@@ -44,7 +47,10 @@ enum HostingApplyRefusal {
 enum HostingSource {
   admin('ADMIN'),
   agency('AGENCY'),
-  identity('IDENTITY');
+  identity('IDENTITY'),
+
+  /// v1.82-live (D295): the permission a creator-programme membership gives.
+  creator('CREATOR');
 
   new(this.wire);
 
@@ -54,7 +60,7 @@ enum HostingSource {
       values.where((s) => s.wire == wire).firstOrNull ?? admin;
 
   /// Directly with the Kabso Live team (approved, or given by the team).
-  bool get withTheTeam => this != agency;
+  bool get withTheTeam => this != agency && this != creator;
 }
 
 /// `HostingApplication`: the caller's latest application.

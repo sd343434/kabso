@@ -2904,6 +2904,48 @@ default privileges. Deploy with the API (an older API never writes the new kind)
 - **Checks after deploy:** `SELECT code, mode, confidence, aliases FROM level_raise_source_apps ORDER BY sort;` (14 rows) and
   `SELECT * FROM level_raise_settings;` (one row: 1000000, 7, 1000000, 20, 15, 40, 1, 2, 1, 2, 30).
 
+### 5.76 Content creators go live «صانع محتوى» (migrations `20270329090000_creator_lives_enums`, `20270329090100_creator_lives`; D295) — [IMPLEMENTED, draft contract v1.82-live; not deployed, not device-tested]
+
+CONVENTIONS §10.108. Two migrations, in order (the first only adds enum values — `live_host_source` CREATOR,
+`creator_application_status` REVOKED, `agency_close_reason` BANNED, `cherry_ledger_reason` AGENCY_FORFEIT — which must
+commit before the second uses them). The second adds `creator_applications.source` / `agency_id` / `revoked_*`, the
+trigger `kabso_creator_host_exclusive` on `live_hosts` and `creator_members`, the table `agency_bans` (append-only for
+the runtime group: UPDATE / DELETE revoked) and extends `cherry_ledger_reason_sign` (AGENCY_FORFEIT is a debit). It
+**backfills** `live_hosts` CREATOR for every existing creator member who holds no hosting permission. Deploy the API with
+the migrations (an older API would list creators' lives without the interleave and pay them 65 %).
+
+- **New config (all optional; defaults are the owner's):** `GIFT_CREATOR_SHARE_PERCENT=72` (a creator's live, every
+  recipient a creator), `GIFT_CREATOR_QUIP_SHARE_PERCENT=60` (quips there; owner 2026-11-06), `CREATOR_AGENCY_COMMISSION=true`
+  (agencies earn their commission on their creator members' gifts, from the platform's part; owner 2026-11-06: yes).
+  Lucky gifts keep `LUCKY_GIFT_HOST_SHARE_PERCENT`; DM / CP gifts keep theirs.
+- **Data checks before the migration** (read-only; run as the migration role):
+  - both roles already — a creator member who also holds a hosting permission of another source:
+    `SELECT m.user_id, h.source, h.granted_at, m.activated_at FROM creator_members m JOIN live_hosts h ON h.user_id = m.user_id WHERE h.source <> 'CREATOR';`
+    The migration does NOT fail on these rows and leaves them untouched (nothing is dropped); the trigger only guards new
+    writes. **Owner 2026-11-06 (decided): a person can never be both, and there is no automatic rule** — the team
+    resolves each row by hand in the panel by revoking ONE role: «سحب البث» (the host revoke) removes the host permission
+    and gives the membership's `CREATOR` permission back at once (audited `live.host.grant` `resolvedBothRoles`), or
+    «طلبات صناع المحتوى» → «إلغاء العضوية» ends the membership and the host permission stays. Until then such a person
+    keeps the host source and is shown as a creator. **Can such rows exist on staging?** Not ruled out: D285's approval
+    of a creator application did not check the hosting permission (its own e2e approved a host as a creator), and D285's
+    HOST / CREATOR exclusivity covers the *recruitment attribution* only, not the memberships. So a host approved as a
+    creator between the D285 deploy and this migration is a both-roles row — run the query; on a database where no
+    creator application was ever approved it returns none.
+  - members the backfill skipped (none expected; a room-number clash): after the migration,
+    `SELECT m.user_id FROM creator_members m LEFT JOIN live_hosts h ON h.user_id = m.user_id WHERE h.user_id IS NULL;`
+    → 0 rows (else run the migration's backfill `INSERT … ON CONFLICT DO NOTHING` again).
+- **Checks after deploy:** `SELECT source, count(*) FROM live_hosts GROUP BY 1;` (CREATOR = the members count);
+  `SELECT host_share_bps, count(*) FROM live_gifts WHERE created_at > now() - interval '1 day' GROUP BY 1;` (7200 /
+  6000 appear once creators receive gifts); `GET /live/rooms?tab=new` alternates host / creator and every row has
+  `hostIsCreator`.
+- **The agency ban (OWNER):** `banAdminAgency` writes one `agency_bans` row and at most one `AGENCY_FORFEIT` ledger row per
+  agency; check `SELECT a.agency_id, a.forfeited_cherries, l.delta FROM agency_bans a LEFT JOIN cherry_ledger l ON l.reason = 'AGENCY_FORFEIT' AND l.reference_id = a.agency_id::text;`
+  (`delta = −forfeited_cherries`, none when 0). Money already withdrawn and the members' earnings are never touched (owner,
+  decided 2026-11-06). Only the creators the OWNER ticked as fake are revoked (`agency_bans.creator_user_ids`; the
+  others stay creators, released from the agency).
+- **Rollback:** the API before D295 ignores the new columns and table; the enum values stay. Do not roll back after a
+  ban or a creator activation by an agency without the owner (the forfeit is in the ledger).
+
 ### 5.72 Medal levels (migration `20270325090000_medal_levels`; D291) — [IMPLEMENTED, draft contract v1.81-live; not deployed, not device-tested]
 
 CONVENTIONS §10.104. The migration adds the types `MedalCategory` / `MedalMetric`, `medals.category` / `.metric` (the

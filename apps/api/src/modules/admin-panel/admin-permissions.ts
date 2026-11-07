@@ -97,6 +97,11 @@ export const CAPABILITIES = {
   /** v1.70-social (D206): extend a probation, close or reopen an agency (with the authenticator code again). */
   'agencies.probation': ['OWNER'],
   /**
+   * v1.82-live (D295, §10.108): «حظر الوكالة — تفعيل صانع محتوى وهمي» — close the agency for good, forfeit the
+   * owner's unwithdrawn agency commission and revoke its creator activations (the code again and a reason).
+   */
+  'agencies.ban': ['OWNER'],
+  /**
    * v1.73-social (D209, §10.68): the applications «كن مضيفاً مع الإدارة» — the list and an application's fields
    * (every view audited). MODERATION may look; the ID pictures and the decision are OWNER + SUPPORT (no
    * authenticator code again: it moves no money).

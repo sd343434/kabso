@@ -29,7 +29,14 @@ const PLAIN = /^[^\p{Cc}\p{Cs}]*$/u;
 
 /** v1.73-social (D209, §10.68): why the caller may not apply now (`HostingApplyRule.refusal`). */
 export type HostingApplyRefusal =
-  'ACCOUNT_NOT_ACTIVE' | 'ALREADY_HOST' | 'HOST_OF_AGENCY' | 'OWNS_AGENCY' | 'PENDING' | 'REAPPLY_COOLDOWN';
+  | 'ACCOUNT_NOT_ACTIVE'
+  // v1.82-live (D295, §10.108): a content creator cannot also be a host.
+  | 'CREATOR'
+  | 'ALREADY_HOST'
+  | 'HOST_OF_AGENCY'
+  | 'OWNS_AGENCY'
+  | 'PENDING'
+  | 'REAPPLY_COOLDOWN';
 
 /** Refused only when submitting (the date of birth is in the form). */
 export type HostingApplySubmitRefusal = HostingApplyRefusal | 'UNDER_MIN_AGE';
@@ -196,13 +203,15 @@ export class HostApplicationsService {
 
   /** Why the caller may not apply now (null: they may), in the documented order. */
   private async refusal(me: string, latest: HostApplication | null): Promise<HostingApplyRefusal | null> {
-    const [user, host, links, owned] = await Promise.all([
+    const [user, host, links, owned, creator] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: me }, select: { status: true, deletedAt: true } }),
       this.prisma.liveHost.count({ where: { userId: me } }),
       this.prisma.agencyHost.count({ where: { hostUserId: me, status: 'ACTIVE' } }),
       this.prisma.agency.count({ where: { ownerUserId: me, status: 'OPEN' } }),
+      this.prisma.creatorMember.count({ where: { userId: me } }),
     ]);
     if (!user || user.deletedAt !== null || user.status !== 'ACTIVE') return 'ACCOUNT_NOT_ACTIVE';
+    if (creator > 0) return 'CREATOR';
     if (host > 0) return 'ALREADY_HOST';
     if (links > 0) return 'HOST_OF_AGENCY';
     if (owned > 0) return 'OWNS_AGENCY';

@@ -1362,6 +1362,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         agentCode: host.rechargeAgentCode,
         hostAgentCode: host.hostAgentCode,
         rechargeBadge: host.rechargeBadge,
+        hostIsCreator: room.hostIsCreator,
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -1772,6 +1773,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     agentCode: host.rechargeAgentCode,
                     hostAgentCode: host.hostAgentCode,
                     rechargeBadge: host.rechargeBadge,
+                    hostIsCreator: room.hostIsCreator,
                     hostName: host.displayName,
                     avatar: _networkImage(host.avatarUrl),
                     lines: KHostPill.pointLines(

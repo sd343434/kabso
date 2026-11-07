@@ -764,6 +764,22 @@ export const envSchema = z
      */
     GIFT_HOST_SHARE_PERCENTS: hostSharePercents('POPULAR:65,EVENT:65,FUN:65,QUIPS:50'),
     /**
+     * v1.82-live (D295, CONVENTIONS §10.108, owner): the recipients' share of a non-lucky gift sent in a content
+     * creator's live when every recipient is a creator — 72 % («1,000,000 coins → 7,200,000 cherries»), instead of the
+     * category share above; quips there take GIFT_CREATOR_QUIP_SHARE_PERCENT (owner 2026-11-06: 60 %). Lucky gifts keep
+     * LUCKY_GIFT_HOST_SHARE_PERCENT; direct-conversation and CP gifts keep their own rules.
+     */
+    GIFT_CREATOR_SHARE_PERCENT: percentSetting('72'),
+    GIFT_CREATOR_QUIP_SHARE_PERCENT: percentSetting('60'),
+    /**
+     * v1.82-live (D295, owner 2026-11-06: decided YES): an agency earns its usual commission on the gifts its creator
+     * members receive, as with its hosts (from the platform's part, never out of the creator's 72 %). "false" stops it.
+     */
+    CREATOR_AGENCY_COMMISSION: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    /**
      * v1.32-live (D154): a quip (or soundboard sound) is refused (409 QUIP_QUEUE_FULL) when it would
      * start more than this many seconds from now (one plays at a time per room).
      */
