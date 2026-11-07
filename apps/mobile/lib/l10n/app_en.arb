@@ -4861,5 +4861,8 @@
   "staffReportConfirmDeleteAccountHint": "The account's deletion starts with its grace period (it can be cancelled from the panel meanwhile); it is signed out everywhere.",
   "staffReportConfirmWord": "DELETE",
   "staffReportTypeToConfirm": "Type “{word}” to confirm",
-  "staffReportConfirmMismatch": "Type the word exactly"
+  "staffReportConfirmMismatch": "Type the word exactly",
+  "staffReportThreadOpen": "Tap to open the conversation",
+  "staffReportThreadCount": "Messages kept: {count}",
+  "staffReportThreadOnlyReported": "An older report: the reported message only"
 }

@@ -15661,4 +15661,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get staffReportConfirmMismatch => 'اكتب الكلمة كما هي';
+
+  @override
+  String get staffReportThreadOpen => 'اضغط لفتح المحادثة';
+
+  @override
+  String staffReportThreadCount(String count) {
+    return 'الرسائل المحفوظة: $count';
+  }
+
+  @override
+  String get staffReportThreadOnlyReported =>
+      'بلاغ قديم: الرسالة المُبلّغ عنها فقط';
 }

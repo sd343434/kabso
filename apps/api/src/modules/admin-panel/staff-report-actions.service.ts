@@ -32,6 +32,21 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 
 type Tx = Prisma.TransactionClient;
 
+/** The closed conversation card's summary of a stored thread (null: none, or purged). */
+function threadSummaryOf(raw: unknown): DmThreadSummaryDto | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const t = (raw as { thread?: unknown }).thread;
+  if (typeof t !== 'object' || t === null) return null;
+  const th = t as { messages?: unknown; total?: unknown; truncated?: unknown; capturedAt?: unknown };
+  const messages = Array.isArray(th.messages) ? th.messages.length : 0;
+  return {
+    messages,
+    total: typeof th.total === 'number' ? th.total : messages,
+    truncated: th.truncated === true,
+    capturedAt: typeof th.capturedAt === 'string' ? th.capturedAt : new Date(0).toISOString(),
+  };
+}
+
 /** v1.93-social (D296, §10.109): what a staff member may do from a report. */
 export const STAFF_REPORT_ACTIONS = [
   'WARN',
@@ -128,15 +143,41 @@ export interface StaffReportTargetDto {
   comment?: { id: string; text: string; createdAt: string; parentId: string | null; postId: string } | null;
   story?: { id: string; text: string; media: unknown; createdAt: string; expiresAt: string } | null;
   live?: { roomId: string; title: string; status: string } | null;
-  /** DM_MESSAGE: the frozen snapshot only (never the conversation) and the two people. */
+  /**
+   * DM_MESSAGE (and a USER reported from a conversation): the two people, the reported message (as the queue shows it)
+   * and only a SUMMARY of the conversation frozen with the report — the conversation itself comes from
+   * `getStaffReportDmThread`, which audits the read (owner: «عندما يضغط الموظف عليه تفتح الشات»).
+   */
   dm?: {
     snapshot: DmSnapshotDto | null;
     recipient: UserSummaryDto | null;
-    /** v1.93-social (D296, owner): the whole conversation frozen when the report was filed (null: none / purged). */
-    thread: DmThreadDto | null;
+    threadSummary: DmThreadSummaryDto | null;
   } | null;
   /** The text of a live chat message, a CP confession, a family chat message or a profile link. */
   text?: string | null;
+}
+
+/** `DmReportThreadSummary`: what the closed conversation card says (no message content). */
+export interface DmThreadSummaryDto {
+  /** Messages kept. */
+  messages: number;
+  /** Messages that existed when the report was filed (before the cap). */
+  total: number;
+  truncated: boolean;
+  capturedAt: string;
+}
+
+/** `StaffReportDmThread`: the conversation opened by a staff member (audited). */
+export interface StaffReportDmThreadDto {
+  reportId: string;
+  /** The reported person (the DM's sender, or the reported user). */
+  reported: UserSummaryDto | null;
+  /** The reporter, the other side of the conversation. */
+  recipient: UserSummaryDto | null;
+  /** The reported message (DM_MESSAGE reports; null for a person). */
+  snapshot: DmSnapshotDto | null;
+  /** The whole conversation; null for an older report that kept the reported message only, or once purged. */
+  thread: DmThreadDto | null;
 }
 
 /** `StaffReportView`. */
@@ -198,24 +239,9 @@ export class StaffReportActionsService {
     const row = await this.prisma.report.findUnique({ where: { id: reportId } });
     if (!row) throw new AppException(ErrorCode.NOT_FOUND);
     const report = await this.queue.one(reportId);
+    // D296 follow-up (owner): the conversation stays closed here — only its summary, so nothing is read or audited
+    // until the staff member opens it (`dmThread`).
     const target = await this.targetView(row, ctx);
-    if (target.dm) {
-      // D155 privacy: a staff read of private messages (the snapshot, the frozen conversation) is always audited.
-      await this.audit.record({
-        action: AuditAction.MODERATION_REPORT_DM_READ,
-        actorUserId: ctx.userId,
-        targetType: row.targetType === 'DM_MESSAGE' ? 'dm_message' : 'user',
-        targetId: row.targetDmMessageId ?? row.targetUserId ?? undefined,
-        metadata: {
-          reportId,
-          purged: target.dm.snapshot?.purged ?? (target.dm.thread === null ? true : false),
-          threadMessages: target.dm.thread?.messages.length ?? 0,
-          via: ctx.via ?? 'panel',
-        },
-        ip: ctx.ip,
-        requestId: ctx.requestId,
-      });
-    }
     return {
       report,
       target,
@@ -333,7 +359,7 @@ export class StaffReportActionsService {
       out.dm = {
         snapshot,
         recipient: await this.summaryOf(r.reporterId),
-        thread: await this.threadOf(r, base.authorId),
+        threadSummary: threadSummaryOf(r.dmSnapshot),
       };
       const live = r.targetDmMessageId
         ? await this.prisma.dmMessage.findFirst({
@@ -355,13 +381,50 @@ export class StaffReportActionsService {
         out.dm = {
           snapshot: null,
           recipient: await this.summaryOf(r.reporterId),
-          thread: await this.threadOf(r, r.targetUserId),
+          threadSummary: threadSummaryOf(r.dmSnapshot),
         };
       }
       return out;
     }
     out.text = base.text;
     return out;
+  }
+
+  /**
+   * `getStaffReportDmThread` (D296 follow-up; owner: «عند وصول الإبلاغ عن محادثة يجب أن يكون الإبلاغ مغلقاً … وعندما يضغط
+   * الموظف عليه تفتح الشات»): the conversation frozen with a DM report — or with a person reported from it — opened by a
+   * staff member. Every opening is audited `moderation.report.dm_read`. A report with no conversation → 404.
+   */
+  async dmThread(reportId: string, ctx: AdminContext): Promise<StaffReportDmThreadDto> {
+    const r = await this.prisma.report.findUnique({ where: { id: reportId } });
+    const dmReport = r?.targetType === 'DM_MESSAGE';
+    if (!r || (!dmReport && (r.targetType !== 'USER' || r.dmSnapshot === null)))
+      throw new AppException(ErrorCode.NOT_FOUND);
+    const reportedId = dmReport ? (await this.queue.targetOf(this.prisma, r)).authorId : r.targetUserId;
+    const snapshot = dmReport ? dmSnapshotDto(r.dmSnapshot, this.media.publicBaseUrl) : null;
+    const thread = await this.threadOf(r, reportedId);
+    // D155 privacy: a staff read of private messages is always audited.
+    await this.audit.record({
+      action: AuditAction.MODERATION_REPORT_DM_READ,
+      actorUserId: ctx.userId,
+      targetType: dmReport ? 'dm_message' : 'user',
+      targetId: r.targetDmMessageId ?? r.targetUserId ?? undefined,
+      metadata: {
+        reportId,
+        purged: snapshot?.purged ?? thread === null,
+        threadMessages: thread?.messages.length ?? 0,
+        via: ctx.via ?? 'panel',
+      },
+      ip: ctx.ip,
+      requestId: ctx.requestId,
+    });
+    return {
+      reportId,
+      reported: await this.summaryOf(reportedId),
+      recipient: await this.summaryOf(r.reporterId),
+      snapshot,
+      thread,
+    };
   }
 
   /** The frozen conversation, the senders' usernames read now (a renamed account shows its current name). */

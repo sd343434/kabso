@@ -312,8 +312,9 @@ info:
     the report with its target as the staff see it whatever its visibility (`StaffReportTarget`), a DM — and a person
     reported from a conversation (`CreateReportRequest.dmConversationId`) — with **the whole conversation frozen when the
     report was filed** (`DmReportThread`, owner's privacy decision «مثل طريقة نزاع وكيل الشحن»: every message still there,
-    at most 300, files for the newest 20; never later messages; cleared 30 days after resolution), every read audited
-    `moderation.report.dm_read`. `actOnStaffReport` (`StaffReportActionRequest`): WARN (`reports.act`), RESTRICT
+    at most 300, files for the newest 20; never later messages; cleared 30 days after resolution). Follow-up (owner:
+    the report arrives «مغلقاً»): `getStaffReport` carries only `threadSummary`; `getStaffReportDmThread` opens the
+    conversation on a tap and audits every opening `moderation.report.dm_read`. `actOnStaffReport` (`StaffReportActionRequest`): WARN (`reports.act`), RESTRICT
     NO_POSTING / NO_LIVE / CHAT_MUTE 1–365 days (`users.restrict`), SUSPEND 1–365 days (`users.lock`; SUPPORT too, owner),
     BAN (`users.ban`), REMOVE_CONTENT (`reports.act`), DELETE_CONTENT (`users.content`) and DELETE_ACCOUNT
     (`users.delete`) with `confirm: DELETE` — the panel's own rules, audited with the report id and `via: app`; **an
@@ -14008,7 +14009,7 @@ paths:
       tags: [staff]
       operationId: getStaffReport
       summary: "(v1.93-social, D296) One report with its content for the staff and the allowed actions (reports.view)"
-      description: "CONVENTIONS §10.109. The reported content whatever its visibility; a DM only as the report's frozen snapshot (D155; the conversation is never read) and every DM read audited `moderation.report.dm_read` {reportId, purged, via}. Staff work (§10.96.14). A non-staff account → 403."
+      description: "CONVENTIONS §10.109. The reported content whatever its visibility; a DM only as what the report froze (D155; the live conversation is never read). The conversation stays closed: only its summary (`threadSummary`), nothing audited — `getStaffReportDmThread` opens it and audits (D296 follow-up). Staff work (§10.96.14). A non-staff account → 403."
       parameters:
         - name: reportId
           in: path
@@ -14020,6 +14021,27 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StaffReportView' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/reports/{reportId}/dm-thread:
+    get:
+      tags: [staff]
+      operationId: getStaffReportDmThread
+      summary: "(v1.93-social, D296) The conversation of a DM report, opened on a tap (reports.view; audited)"
+      description: "CONVENTIONS §10.109.5. Owner (follow-up): «عند وصول الإبلاغ عن محادثة يجب أن يكون الإبلاغ مغلقاً، لا يعرض المحادثة على طول، وعندما يضغط الموظف عليه تفتح الشات». The conversation frozen with a DM_MESSAGE report or with a USER report made from the conversation; every call audited `moderation.report.dm_read` {reportId, purged, threadMessages, via}. Any other report → 404; a non-staff account → 403 (no audit). Staff work."
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffReportDmThread' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
@@ -21314,10 +21336,10 @@ components:
                 status: { type: string }
             - type: 'null'
         dm:
-          description: DM_MESSAGE — the snapshot kept by the report (D155), the recipient (the reporter) and (D296) the whole conversation frozen when the report was filed; USER reported from a conversation — the conversation (no `snapshot`). Absent otherwise. Every read audited.
+          description: "DM_MESSAGE — the reported message kept by the report (D155, as the queue shows it), the recipient (the reporter) and only a SUMMARY of the conversation frozen with the report (D296 follow-up, owner: «عند وصول الإبلاغ عن محادثة يجب أن يكون الإبلاغ مغلقاً … وعندما يضغط الموظف عليه تفتح الشات»); USER reported from a conversation — the same without `snapshot`. The conversation itself: `getStaffReportDmThread` (audited). Absent otherwise. Nothing here is audited."
           oneOf:
             - type: object
-              required: [snapshot, recipient, thread]
+              required: [snapshot, recipient, threadSummary]
               properties:
                 snapshot:
                   oneOf:
@@ -21327,12 +21349,48 @@ components:
                   oneOf:
                     - $ref: '#/components/schemas/UserSummary'
                     - type: 'null'
-                thread:
+                threadSummary:
+                  description: Null for an older report that kept the reported message only, or once purged.
                   oneOf:
-                    - $ref: '#/components/schemas/DmReportThread'
+                    - $ref: '#/components/schemas/DmReportThreadSummary'
                     - type: 'null'
             - type: 'null'
         text: { type: [string, 'null'], description: "The text of a live chat message, a CP confession, a family chat message or a profile link." }
+    DmReportThreadSummary:
+      type: object
+      required: [messages, total, truncated, capturedAt]
+      description: "(v1.93-social, D296 follow-up) The closed conversation card: how many messages the report kept, no content."
+      properties:
+        messages: { type: integer, minimum: 0, maximum: 300 }
+        total: { type: integer, minimum: 0, description: The messages that existed when the report was filed. }
+        truncated: { type: boolean }
+        capturedAt: { type: string, format: date-time }
+    StaffReportDmThread:
+      type: object
+      required: [reportId, reported, recipient, snapshot, thread]
+      description: "(v1.93-social, D296 follow-up) The conversation of a DM report (or of a person reported from it), opened by a staff member — audited."
+      properties:
+        reportId: { type: string, format: uuid }
+        reported:
+          description: The reported person (the DM's sender or the reported user).
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        recipient:
+          description: The reporter, the other side of the conversation.
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        snapshot:
+          description: The reported message (DM_MESSAGE reports; null for a person).
+          oneOf:
+            - $ref: '#/components/schemas/DmReportSnapshot'
+            - type: 'null'
+        thread:
+          description: Null for an older report that kept the reported message only, or once purged.
+          oneOf:
+            - $ref: '#/components/schemas/DmReportThread'
+            - type: 'null'
     DmReportThread:
       type: object
       required: [capturedAt, total, truncated, messages]

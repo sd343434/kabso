@@ -38,6 +38,7 @@ class StaffReportDetailScreen extends ConsumerStatefulWidget {
   static const actionBarKey = Key('staffReport.actions');
   static const dmViewKey = Key('staffReport.dm');
   static const threadKey = Key('staffReport.thread');
+  static const openThreadKey = Key('staffReport.thread.open');
   static const reportedMessageKey = Key('staffReport.thread.reported');
   static const postViewKey = Key('staffReport.post');
   static const commentKey = Key('staffReport.comment');
@@ -467,170 +468,25 @@ class _PostView extends StatelessWidget {
   }
 }
 
-/// D155: the reported message as a read-only conversation built only from the
-/// report's snapshot — the sender's bubble with its time, the two people,
-/// and the privacy line (every opening is audited by the server).
-class _DmSnapshotView extends StatelessWidget {
-  const new({required this.target});
-
-  final StaffReportedItem target;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final s = target.dmSnapshot;
-    final locale = Localizations.localeOf(context).toLanguageTag();
-    final sender = target.author != null
-        ? _nameOf(target.author)
-        : (s?.sender == null ? '' : '@${s!.sender}');
-    final recipient = _nameOf(target.dmRecipient);
-    final Widget content;
-    if (s == null || s.purged) {
-      content = Text(
-        l10n.staffReportDmPurged,
-        style: t.body.copyWith(fontStyle: FontStyle.italic),
-      );
-    } else if (s.kind == 'IMAGE' && s.mediaUrl != null) {
-      content = ClipRRect(
-        borderRadius: BorderRadius.circular(KRadius.md),
-        child: SizedBox(
-          width: 200,
-          height: 200,
-          child: Image.network(
-            s.mediaUrl!,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) =>
-                Center(child: Text(l10n.staffReportDmImage)),
-          ),
-        ),
-      );
-    } else if (s.kind == 'IMAGE') {
-      content = Text(l10n.staffReportDmImage, style: t.body);
-    } else if (s.kind == 'VOICE') {
-      content = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.mic_rounded, size: 18),
-          const SizedBox(width: KSpacing.xs),
-          Text(l10n.staffReportDmVoice, style: t.body),
-        ],
-      );
-    } else if (s.kind == 'GIFT') {
-      content = Text(
-        l10n.staffReportDmGift(s.giftCode ?? '', '${s.quantity ?? 1}'),
-        style: t.body,
-      );
-    } else {
-      content = Text(
-        s.text ?? s.token ?? '',
-        style: t.body.copyWith(height: 1.45),
-      );
-    }
-    return _Panel(
-      key: StaffReportDetailScreen.dmViewKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.lock_outline_rounded,
-                size: 18,
-                color: p.textSecondary,
-              ),
-              const SizedBox(width: KSpacing.xs),
-              Expanded(
-                child: Text(l10n.staffReportDmTitle, style: t.bodyStrong),
-              ),
-            ],
-          ),
-          const SizedBox(height: KSpacing.xxs),
-          Text(
-            l10n.staffReportDmBetween(
-              KFormat.bidiIsolate(sender),
-              KFormat.bidiIsolate(recipient),
-            ),
-            style: t.caption.copyWith(color: p.textSecondary),
-          ),
-          const SizedBox(height: KSpacing.md),
-          if (target.author != null) ...[
-            Row(
-              children: [
-                KAvatar(
-                  name: _nameOf(target.author),
-                  imageUrl: target.author!.avatarUrl,
-                  size: 28,
-                ),
-                const SizedBox(width: KSpacing.xs),
-                Text(
-                  KHandle.isolated(target.author!.username),
-                  style: t.caption.copyWith(color: p.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: KSpacing.xs),
-          ],
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 280),
-              padding: const EdgeInsets.symmetric(
-                horizontal: KSpacing.md,
-                vertical: KSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: p.surfaceRaised,
-                borderRadius: BorderRadius.circular(KRadius.lg),
-                border: Border.all(color: KBrandColors.red600, width: 2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  content,
-                  if (s != null) ...[
-                    const SizedBox(height: KSpacing.xxs),
-                    Text(
-                      '${KFormat.date(s.sentAt.toLocal(), locale)} '
-                      '${KFormat.time(s.sentAt.toLocal(), locale)}',
-                      style: t.caption.copyWith(color: p.textSecondary),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: KSpacing.md),
-          Text(
-            l10n.staffReportDmPrivacy,
-            style: t.caption.copyWith(color: p.textSecondary),
-          ),
-          if (target.state == StaffTargetState.expired)
-            Text(
-              l10n.staffReportDmExpired,
-              style: t.caption.copyWith(color: p.textSecondary),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 /// D296 (owner: «مثل طريقة نزاع وكيل الشحن»): the whole conversation between
 /// the two people as the report froze it — every message that existed then,
 /// oldest first, the reported person on one side and the reporter on the
 /// other, the reported message outlined in red. Read only; the server audits
 /// every opening.
 class _ThreadView extends StatelessWidget {
-  const new({required this.target, required this.thread, this.framed = true});
+  const new({
+    required this.thread,
+    this.reported,
+    this.recipient,
+    this.olderReport = false,
+  });
 
-  final StaffReportedItem target;
   final StaffThread thread;
+  final UserSummary? reported;
+  final UserSummary? recipient;
 
-  /// Inside its own panel (a DM report) or inside the profile's (a person).
-  final bool framed;
+  /// An older report that kept the reported message only.
+  final bool olderReport;
 
   @override
   Widget build(BuildContext context) {
@@ -643,9 +499,9 @@ class _ThreadView extends StatelessWidget {
       return '${KFormat.date(local, locale)} ${KFormat.time(local, locale)}';
     }
 
-    final reported = _nameOf(target.author);
-    final reporter = _nameOf(target.dmRecipient);
-    final body = Column(
+    final reportedName = _nameOf(reported);
+    final reporter = _nameOf(recipient);
+    return Column(
       key: StaffReportDetailScreen.threadKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -661,15 +517,21 @@ class _ThreadView extends StatelessWidget {
         const SizedBox(height: KSpacing.xxs),
         Text(
           l10n.staffReportDmBetween(
-            KFormat.bidiIsolate(reported),
+            KFormat.bidiIsolate(reportedName),
             KFormat.bidiIsolate(reporter),
           ),
           style: t.caption.copyWith(color: p.textSecondary),
         ),
-        Text(
-          l10n.staffReportThreadCaptured(when(thread.capturedAt)),
-          style: t.caption.copyWith(color: p.textSecondary),
-        ),
+        if (olderReport)
+          Text(
+            l10n.staffReportThreadOnlyReported,
+            style: t.caption.copyWith(color: p.textSecondary),
+          )
+        else
+          Text(
+            l10n.staffReportThreadCaptured(when(thread.capturedAt)),
+            style: t.caption.copyWith(color: p.textSecondary),
+          ),
         if (thread.truncated)
           Text(
             l10n.staffReportThreadTruncated('${thread.messages.length}'),
@@ -689,16 +551,167 @@ class _ThreadView extends StatelessWidget {
           l10n.staffReportThreadPrivacy,
           style: t.caption.copyWith(color: p.textSecondary),
         ),
-        if (target.state == StaffTargetState.expired)
-          Text(
-            l10n.staffReportDmExpired,
-            style: t.caption.copyWith(color: p.textSecondary),
-          ),
       ],
     );
-    return framed
-        ? _Panel(key: StaffReportDetailScreen.dmViewKey, child: body)
-        : body;
+  }
+}
+
+/// D296 follow-up (owner: «عند وصول الإبلاغ عن محادثة يجب أن يكون الإبلاغ
+/// مغلقاً، لا يعرض المحادثة على طول، وعندما يضغط الموظف عليه تفتح الشات»): the
+/// conversation of a report, CLOSED — its title, the two people, how many
+/// messages the report kept and «اضغط لفتح المحادثة». Nothing of the
+/// conversation is read here (the server audits only the opening).
+class _ThreadCard extends StatelessWidget {
+  const new({required this.reportId, required this.target, this.framed = true});
+
+  final String reportId;
+  final StaffReportedItem target;
+
+  /// Its own panel (a DM report) or inside the profile's (a person).
+  final bool framed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final summary = target.dmThreadSummary;
+    final body = InkWell(
+      key: StaffReportDetailScreen.openThreadKey,
+      borderRadius: BorderRadius.circular(KRadius.lg),
+      onTap: () => context.push(AppRoutes.staffReportChat(reportId)),
+      child: Padding(
+        padding: EdgeInsets.all(framed ? KSpacing.md : KSpacing.xs),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 18,
+                        color: p.textSecondary,
+                      ),
+                      const SizedBox(width: KSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          l10n.staffReportThreadTitle,
+                          style: t.bodyStrong,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: KSpacing.xxs),
+                  Text(
+                    // The handles are isolated already (LTR inside Arabic).
+                    l10n.staffReportDmBetween(
+                      target.author == null
+                          ? ''
+                          : KHandle.isolated(target.author!.username),
+                      target.dmRecipient == null
+                          ? ''
+                          : KHandle.isolated(target.dmRecipient!.username),
+                    ),
+                    style: t.caption.copyWith(color: p.textSecondary),
+                  ),
+                  Text(
+                    summary == null
+                        ? l10n.staffReportThreadOnlyReported
+                        : l10n.staffReportThreadCount('${summary.messages}'),
+                    style: t.caption.copyWith(color: p.textSecondary),
+                  ),
+                  if (target.state == StaffTargetState.expired)
+                    Text(
+                      l10n.staffReportDmExpired,
+                      style: t.caption.copyWith(color: p.textSecondary),
+                    ),
+                  const SizedBox(height: KSpacing.xs),
+                  Text(
+                    l10n.staffReportThreadOpen,
+                    style: t.bodyStrong.copyWith(color: p.primary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: KSpacing.sm),
+            Icon(
+              Directionality.of(context) == TextDirection.rtl
+                  ? Icons.chevron_left_rounded
+                  : Icons.chevron_right_rounded,
+              color: p.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!framed) return body;
+    return DecoratedBox(
+      key: StaffReportDetailScreen.dmViewKey,
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(KRadius.lg),
+        border: Border.all(color: p.border),
+      ),
+      child: Material(type: MaterialType.transparency, child: body),
+    );
+  }
+}
+
+/// D296 follow-up: the reported conversation opened full screen, read only —
+/// every message the report froze, the reported person at the start and the
+/// reporter at the end, the reported message outlined in red. Opening it is
+/// what the server audits (`moderation.report.dm_read`).
+class StaffReportChatScreen extends ConsumerWidget {
+  const new({required this.reportId, super.key});
+
+  final String reportId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final page = ref.watch(staffReportDmThreadProvider(reportId));
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.staffReportThreadTitle)),
+      body: switch (page) {
+        AsyncData(:final value) => switch (value.shown) {
+          final thread? => ListView(
+            padding: const EdgeInsets.all(KSpacing.lg),
+            children: [
+              _Panel(
+                child: _ThreadView(
+                  thread: thread,
+                  reported: value.reported,
+                  recipient: value.recipient,
+                  olderReport: value.thread == null,
+                ),
+              ),
+            ],
+          ),
+          null => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(KSpacing.xl),
+              child: Text(
+                l10n.staffReportDmPurged,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        },
+        AsyncError(:final error) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(KSpacing.xl),
+            child: Text(
+              failureMessage(l10n, toAppFailure(error)),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+        _ => const Center(child: CircularProgressIndicator()),
+      },
+    );
   }
 }
 
@@ -843,12 +856,8 @@ class _TargetView extends StatelessWidget {
       ),
     );
     if (target.type == 'DM_MESSAGE') {
-      // D296 (owner): the whole conversation as frozen by the report; an
-      // older report has the reported message only.
-      final thread = target.dmThread;
-      return thread == null
-          ? _DmSnapshotView(target: target)
-          : _ThreadView(target: target, thread: thread);
+      // D296 follow-up (owner): closed until the staff member opens it.
+      return _ThreadCard(reportId: view.report.id, target: target);
     }
     if (target.state.removed && target.post == null && target.story == null) {
       return deleted();
@@ -927,9 +936,13 @@ class _TargetView extends StatelessWidget {
                 ),
               ],
               // D296: reported from the conversation — the conversation too.
-              if (target.dmThread case final thread?) ...[
+              if (target.dmThreadSummary != null) ...[
                 const SizedBox(height: KSpacing.md),
-                _ThreadView(target: target, thread: thread, framed: false),
+                _ThreadCard(
+                  reportId: view.report.id,
+                  target: target,
+                  framed: false,
+                ),
               ],
             ],
           ),

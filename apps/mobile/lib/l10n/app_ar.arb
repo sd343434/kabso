@@ -13936,5 +13936,11 @@
   "staffReportTypeToConfirm": "اكتب «{word}» للتأكيد",
   "@staffReportTypeToConfirm": {"description": "D296: a report opened by the staff (§10.109).", "placeholders": {"word": {"type": "String"}}},
   "staffReportConfirmMismatch": "اكتب الكلمة كما هي",
-  "@staffReportConfirmMismatch": {"description": "D296: a report opened by the staff (§10.109)."}
+  "@staffReportConfirmMismatch": {"description": "D296: a report opened by the staff (§10.109)."},
+  "staffReportThreadOpen": "اضغط لفتح المحادثة",
+  "@staffReportThreadOpen": {"description": "D296: a report opened by the staff (§10.109)."},
+  "staffReportThreadCount": "الرسائل المحفوظة: {count}",
+  "@staffReportThreadCount": {"description": "D296: a report opened by the staff (§10.109).", "placeholders": {"count": {"type": "String"}}},
+  "staffReportThreadOnlyReported": "بلاغ قديم: الرسالة المُبلّغ عنها فقط",
+  "@staffReportThreadOnlyReported": {"description": "D296: a report opened by the staff (§10.109)."}
 }

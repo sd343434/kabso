@@ -60,6 +60,12 @@ abstract final class AppRoutes {
   static const staffReportPattern = '/me/staff/reports/:reportId';
   static String staffReport(String reportId) =>
       '$staffReports/${Uri.encodeComponent(reportId)}';
+
+  /// D296 follow-up (owner: «عندما يضغط الموظف عليه تفتح الشات»): a DM
+  /// report's conversation, opened from its closed card (read only).
+  static const staffReportChatPattern = '/me/staff/reports/:reportId/chat';
+  static String staffReportChat(String reportId) =>
+      '${staffReport(reportId)}/chat';
   static const staffEarnings = '/me/staff/earnings';
 
   /// v1.89-social (D290): «طلبات رفع الليفيل» and «طلب جديد» in the staff Me

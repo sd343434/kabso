@@ -3,10 +3,13 @@
 //   staff.report.post      a hidden post opened from «بلاغات» by a moderator:
 //                          the «محتوى مُبلّغ عنه» banner with its state, the
 //                          post, the report and the action bar (every action)
-//   staff.report.dm        a reported DM opened by SUPPORT: the whole
-//                          conversation frozen by the report (owner: «مثل
-//                          طريقة نزاع وكيل الشحن»), read only, the reported
-//                          message outlined; only the role's actions
+//   staff.report.dm        a reported DM opened by SUPPORT: the conversation
+//                          CLOSED (owner, D296 follow-up) — the card with the
+//                          two people, the count and «اضغط لفتح المحادثة»;
+//                          only the role's actions
+//   staff.report.dm_chat   the card tapped: the whole conversation frozen by
+//                          the report, full screen, read only, the reported
+//                          message outlined
 //   staff.report.delete    «حذف نهائي»: the reason and the typed word
 //   staff.report.delete_account  «حذف الحساب» (OWNER)
 //   staff.report.ban       the «حظر دائم» confirmation with its reason
@@ -55,6 +58,21 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('png/staff.report.dm.$name.phone.png'),
+      );
+    });
+
+    testWidgets('staff.report.dm_chat $name', (tester) async {
+      await pumpReportRoutes(
+        tester,
+        language: language,
+        repo: FakeReportViewRepository(),
+        initial: AppRoutes.staffReport('rep-dm'),
+      );
+      await tester.tap(find.byKey(StaffReportDetailScreen.openThreadKey));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('png/staff.report.dm_chat.$name.phone.png'),
       );
     });
 

@@ -37,7 +37,7 @@ interface TestUser {
 describe('D296 contract coverage', () => {
   it('openapi v1.93-social declares the report view and the actions in the app (tag staff)', () => {
     const byId = new Map(operations().map((o) => [o.operationId, o]));
-    for (const id of ['getStaffReport', 'actOnStaffReport']) {
+    for (const id of ['getStaffReport', 'actOnStaffReport', 'getStaffReportDmThread']) {
       const o = byId.get(id)!;
       expect(o, id).toBeDefined();
       expect(String(o.spec.summary)).toContain('(v1.93-social, D296)');
@@ -145,6 +145,8 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
     return res.body.message as { id: string; conversationId: string };
   };
   const view = (u: TestUser, reportId: string) => sget(u, `/staff/reports/${reportId}`);
+  /** D296 follow-up: the conversation opened on a tap (audited). */
+  const openThread = (u: TestUser, reportId: string) => sget(u, `/staff/reports/${reportId}/dm-thread`);
   const act = (u: TestUser, reportId: string, body: object) =>
     spost(u, `/staff/reports/${reportId}/actions`, body);
 
@@ -353,7 +355,7 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       expect(lv.body.target.live).toMatchObject({ roomId: room.id, title: 'an old live', status: 'ENDED' });
     });
 
-    it('a DM: the snapshot and the conversation as frozen by the report (never read live), every read audited', async () => {
+    it('a DM: the report shows the conversation closed (a summary, no audit); opening it returns it and audits', async () => {
       const [a, b] = [await signup(), await signup()];
       await dmText(b, a, 'what the reporter said before');
       advance(1000);
@@ -374,12 +376,28 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       });
       expect(res.body.target.dm.recipient.username).toBe(b.username);
       expect(res.body.target.author.username).toBe(a.username);
-      // Owner (2026-11-06): the whole conversation as it was when reported — from the report's copy, not the live rows.
-      expect(res.body.target.dm.thread.messages.map((x: { text: string }) => x.text)).toEqual([
+      // Owner (follow-up): the conversation is closed on the report — a summary only, nothing of it, no audit.
+      expect(res.body.target.dm.thread).toBeUndefined();
+      expect(res.body.target.dm.threadSummary).toMatchObject({ messages: 3, total: 3, truncated: false });
+      const closedBody = JSON.stringify(res.body);
+      expect(closedBody).not.toContain('what the reporter said before');
+      expect(closedBody).not.toContain('a later message');
+      expect((await audits('moderation.report.dm_read')).length).toBe(before);
+      // A tap opens it: the whole conversation as it was when reported (the report's copy), and the read is audited.
+      const opened = await openThread(support, id);
+      expect(opened.status, JSON.stringify(opened.body)).toBe(200);
+      expectContract(opened, 'getStaffReportDmThread');
+      expect(opened.body.thread.messages.map((x: { text: string }) => x.text)).toEqual([
         'what the reporter said before',
         'the reported message',
         'a later message',
       ]);
+      expect(opened.body).toMatchObject({
+        reportId: id,
+        reported: { username: a.username },
+        recipient: { username: b.username },
+        snapshot: { text: 'the reported message' },
+      });
       const reads = await audits('moderation.report.dm_read');
       expect(reads.length).toBe(before + 1);
       expect(reads.at(-1)).toMatchObject({
@@ -393,7 +411,24 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       const later = await view(mod, id);
       expect(later.body.target.state).toBe('EXPIRED');
       expect(later.body.target.dm.snapshot.text).toBe('the reported message');
+      expect((await audits('moderation.report.dm_read')).length).toBe(before + 1);
+      expect((await openThread(mod, id)).status).toBe(200);
       expect((await audits('moderation.report.dm_read')).length).toBe(before + 2);
+    });
+
+    it('the conversation endpoint needs the capability, and a report with no conversation has none', async () => {
+      const [a, b, other] = [await signup(), await signup(), await signup()];
+      const m = await dmText(a, b, 'private');
+      const id = await report(b, 'DM_MESSAGE', m.id);
+      const before = (await audits('moderation.report.dm_read')).length;
+      for (const u of [a, b, finance, bd]) expect((await openThread(u, id)).status).toBe(403);
+      expect((await audits('moderation.report.dm_read')).length).toBe(before);
+      expect((await openThread(mod, randomUUID())).status).toBe(404);
+      const postReport = await report(other, 'POST', await newPost(a));
+      expect((await openThread(mod, postReport)).status).toBe(404);
+      const plainUser = await report(other, 'USER', a.id);
+      expect((await openThread(mod, plainUser)).status).toBe(404);
+      expect((await audits('moderation.report.dm_read')).length).toBe(before);
     });
   });
 
@@ -417,10 +452,14 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       advance(1000);
       await dmText(a, b, 'a message after the report');
 
-      const res = await view(mod, id);
+      const closed = await view(mod, id);
+      expect(closed.status, JSON.stringify(closed.body)).toBe(200);
+      expectContract(closed, 'getStaffReport');
+      expect(closed.body.target.dm.threadSummary).toMatchObject({ messages: 4, total: 4, truncated: false });
+      const res = await openThread(mod, id);
       expect(res.status, JSON.stringify(res.body)).toBe(200);
-      expectContract(res, 'getStaffReport');
-      const thread = res.body.target.dm.thread;
+      expectContract(res, 'getStaffReportDmThread');
+      const thread = res.body.thread;
       expect(thread.truncated).toBe(false);
       expect(thread.total).toBe(4);
       expect(thread.messages.map((m: { text: string }) => m.text)).toEqual([
@@ -461,7 +500,7 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       expect(await ctx.prisma.dmMessage.count({ where: { conversationId: bad.conversationId } })).toBe(0);
       const later = await view(support, id);
       expect(later.body.target.state).toBe('EXPIRED');
-      expect(later.body.target.dm.thread.messages).toHaveLength(4);
+      expect((await openThread(support, id)).body.thread.messages).toHaveLength(4);
 
       // 30 days after resolution the snapshot, the thread included, is cleared (resolved_at moved back, not the clock:
       // the test sessions would expire).
@@ -472,13 +511,16 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       });
       await ctx.app.get(DmSweeper).sweep();
       const purged = await view(mod, id);
-      expect(purged.body.target.dm.thread).toBeNull();
+      expect(purged.body.target.dm.threadSummary).toBeNull();
       expect(purged.body.target.dm.snapshot.purged).toBe(true);
+      expect((await openThread(mod, id)).body).toMatchObject({ thread: null, snapshot: { purged: true } });
     });
 
     it('a person reported from the conversation keeps the conversation; the conversation must be theirs', async () => {
       const [a, b, c] = [await signup(), await signup(), await signup()];
       await dmText(a, b, 'hello there');
+      // The test clock is frozen: one second apart, so the order is the sending order.
+      advance(1000);
       const m = await dmText(a, b, 'send me your number');
       // Not with USER → 400; someone else's conversation → 404.
       expect(
@@ -514,13 +556,17 @@ describe('D296 report actions from the app', { timeout: 900_000 }, () => {
       expectContract(v, 'getStaffReport');
       expect(v.body.target.type).toBe('USER');
       expect(v.body.target.dm.snapshot).toBeNull();
-      expect(v.body.target.dm.thread.messages.map((x: { text: string }) => x.text)).toEqual([
+      expect(v.body.target.dm.threadSummary).toMatchObject({ messages: 2 });
+      const t = await openThread(mod, res.body.id as string);
+      expect(t.status).toBe(200);
+      expectContract(t, 'getStaffReportDmThread');
+      expect(t.body.snapshot).toBeNull();
+      expect(t.body.reported.username).toBe(a.username);
+      expect(t.body.thread.messages.map((x: { text: string }) => x.text)).toEqual([
         'hello there',
         'send me your number',
       ]);
-      expect(v.body.target.dm.thread.messages.every((x: { fromReported: boolean }) => x.fromReported)).toBe(
-        true,
-      );
+      expect(t.body.thread.messages.every((x: { fromReported: boolean }) => x.fromReported)).toBe(true);
       // A report of the person from elsewhere keeps no conversation.
       const plain = await report(c, 'USER', a.id);
       expect((await view(mod, plain)).body.target.dm).toBeUndefined();

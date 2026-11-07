@@ -26385,6 +26385,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اكتب الكلمة كما هي'**
   String get staffReportConfirmMismatch;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط لفتح المحادثة'**
+  String get staffReportThreadOpen;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل المحفوظة: {count}'**
+  String staffReportThreadCount(String count);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغ قديم: الرسالة المُبلّغ عنها فقط'**
+  String get staffReportThreadOnlyReported;
 }
 
 class _AppLocalizationsDelegate

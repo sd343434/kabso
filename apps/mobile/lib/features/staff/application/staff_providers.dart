@@ -117,3 +117,11 @@ final FutureProviderFamily<StaffReportView, String> staffReportViewProvider =
     FutureProvider.autoDispose.family<StaffReportView, String>(
       (ref, reportId) => ref.watch(staffRepositoryProvider).report(reportId),
     );
+
+/// D296 follow-up: the conversation of a DM report, read when the staff
+/// member opens it (every read audited by the server).
+final FutureProviderFamily<StaffDmThreadView, String>
+staffReportDmThreadProvider = FutureProvider.autoDispose
+    .family<StaffDmThreadView, String>(
+      (ref, reportId) => ref.watch(staffRepositoryProvider).dmThread(reportId),
+    );
