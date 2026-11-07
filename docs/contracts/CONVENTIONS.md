@@ -8051,9 +8051,11 @@ the other (§10.108.6), or they apply themselves.
   cursor's payload carries `x = {h, c, g}` — the host group's last position, the creator group's last position (null:
   none of that group taken yet) and the group of the last row taken (`H` / `C`); the next page continues each group
   after its own position and starts with the other group than `g`. Over an unchanged set of rooms no room repeats or is
-  skipped; drift between pages behaves as §10.4 says for every list (the client dedupes by id). `x` is required on the
-  interleaved lists and refused elsewhere (400 `cursor` `invalid_value`): a cursor issued before v1.82-live on those
-  lists is refused, and the app restarts from the first page.
+  skipped; drift between pages behaves as §10.4 says for every list (the client dedupes by id). `x` is refused outside
+  the interleaved lists (400 `cursor` `invalid_value`). A cursor **without** `x` on those lists (issued before
+  v1.82-live: the single order of §10.4) stays valid — the same signature, scope and SEC-038 bounds as before, 400
+  beyond them — and continues **both** groups after its position (`h` = `c` = that position), starting with a host
+  (integration int16: backward compatible, KL-045 / CP-012 cursors keep working).
 
 #### 10.108.4 The badge
 

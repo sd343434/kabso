@@ -70,7 +70,7 @@ describe('D295 the interleaved lists’ cursor', () => {
     const decoded = codec.decode(codec.encode(scope, position), scope);
     expect(decoded?.merge).toEqual({ host: { score: 5, startedAt: at, id: H }, creator: null, last: 'H' });
   });
-  it('an older cursor has no `merge` (the service refuses it on the interleaved lists)', () => {
+  it('an older cursor has no `merge` (the service continues both groups after its position on the interleaved lists)', () => {
     const decoded = codec.decode(codec.encode(scope, { score: 0, startedAt: at, id: H }), scope);
     expect(decoded).not.toBeNull();
     expect(decoded?.merge).toBeUndefined();

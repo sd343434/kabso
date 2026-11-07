@@ -16,7 +16,7 @@
  *  - «حظر الوكالة»: OWNER only, code + reason, the forfeit = the unwithdrawn agency commission, idempotent, withdrawn
  *    money and members' earnings untouched, the creator revoked, never reopened, no commission afterwards.
  */
-import { randomUUID } from 'node:crypto';
+import { createHmac, hkdfSync, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -421,6 +421,21 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
       .set(auth(viewer));
     expect(bad.status).toBe(400);
     expect(issueOf(bad)).toMatchObject({ field: 'cursor' });
+    // A cursor without the merge (issued before v1.82-live, the single order) stays valid on the interleaved lists and
+    // continues both groups after its position: after h3 in New's single order (c2, c1, h3, h2, h1) come h2, h1.
+    const h3Room = await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: rooms.get(h3.id)! } });
+    const key = Buffer.from(hkdfSync('sha256', ctx.config.live.cursorKey, 'kabso', 'live-cursor/v1', 32));
+    const body = Buffer.from(
+      JSON.stringify({ v: 2, t: 'new', c: null, u: null, n: 0, s: h3Room.startedAt.getTime(), i: h3Room.id }),
+    ).toString('base64url');
+    const tag = createHmac('sha256', key).update(`live-cursor\u0000${body}`).digest().subarray(0, 16);
+    const legacy = await ctx.http
+      .get('/api/v1/live/rooms')
+      .query({ tab: 'new', limit: 50, cursor: `${body}.${tag.toString('base64url')}` })
+      .set(auth(viewer));
+    expect(legacy.status, JSON.stringify(legacy.body)).toBe(200);
+    expectContract(legacy, 'listLiveRooms');
+    expect(legacy.body.data.map((r: { id: string }) => name(r.id))).toEqual([h2, h1].map((u) => u.username));
     // The room detail carries the flag too.
     const detail = await ctx.http.get(`/api/v1/live/rooms/${rooms.get(c1.id)}`).set(auth(viewer));
     expectContract(detail, 'getLiveRoom');

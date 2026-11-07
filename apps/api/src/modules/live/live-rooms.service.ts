@@ -1241,7 +1241,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
-      if (!position || merged !== (position.merge !== undefined))
+      // `x` (the merge) only on the interleaved lists. A cursor without it on those lists (issued before v1.82-live,
+      // the single order of §10.4) stays valid — same signature, scope and SEC-038 bounds as before — and continues
+      // BOTH groups after its position, starting with a host (§10.108.3).
+      if (!position || (!merged && position.merge !== undefined))
         throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
     }
 
@@ -1272,7 +1275,14 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId ?? ''}::uuid AND f.followee_id = r.host_user_id)`,
       );
     }
-    if (merged) return this.mergedPage(query, scope, conditions, position?.merge ?? null, now, lang);
+    if (merged) {
+      const legacy: GroupPosition | null = position
+        ? { score: position.score, startedAt: position.startedAt, id: position.id }
+        : null;
+      const merge: CursorMerge | null =
+        position === null ? null : (position.merge ?? { host: legacy, creator: legacy, last: 'C' });
+      return this.mergedPage(query, scope, conditions, merge, now, lang);
+    }
     if (position)
       conditions.push(featured ? featuredKeysetAfter(position) : keysetAfter(query.tab, position));
 
