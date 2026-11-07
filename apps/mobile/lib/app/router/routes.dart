@@ -53,6 +53,13 @@ abstract final class AppRoutes {
   static const staffReports = '/me/staff/reports';
   static String staffReportsFor(String reportId) =>
       '$staffReports?report=${Uri.encodeQueryComponent(reportId)}';
+
+  /// v1.93-social (D296, §10.109): one report opened — the reported content
+  /// for the staff with the actions (a tap in «بلاغات», a `STAFF_REPORT_NEW`
+  /// notification or push).
+  static const staffReportPattern = '/me/staff/reports/:reportId';
+  static String staffReport(String reportId) =>
+      '$staffReports/${Uri.encodeComponent(reportId)}';
   static const staffEarnings = '/me/staff/earnings';
 
   /// v1.89-social (D290): «طلبات رفع الليفيل» and «طلب جديد» in the staff Me

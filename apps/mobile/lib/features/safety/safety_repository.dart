@@ -95,8 +95,14 @@ abstract interface class SafetyRepository {
   /// `GET /me/mutes` (CP-007): the accounts the caller muted, newest first.
   Future<PageOf<UserSummary>> mutes({String? cursor});
 
-  /// `POST /reports` for a user.
-  Future<void> reportUser(String userId, ReportReason reason);
+  /// `POST /reports` for a user (`targetId` the user's id — accepted since
+  /// v1.93-social, D296). [dmConversationId]: reported from that direct
+  /// conversation, so the report keeps the whole conversation for the staff.
+  Future<void> reportUser(
+    String userId,
+    ReportReason reason, {
+    String? dmConversationId,
+  });
 
   /// v1.47-social (D175): `POST /reports` for a profile link
   /// (`targetType: PROFILE_LINK`, the link's id).
@@ -169,14 +175,21 @@ class SafetyRepositoryImpl implements SafetyRepository {
       _users('/me/mutes', cursor);
 
   @override
-  Future<void> reportUser(String userId, ReportReason reason) => guardApiCall(
-    () async {
-      await _dio.post<Map<String, dynamic>>(
-        '/reports',
-        data: {'targetType': 'USER', 'targetId': userId, 'reason': reason.wire},
-      );
-    },
-  );
+  Future<void> reportUser(
+    String userId,
+    ReportReason reason, {
+    String? dmConversationId,
+  }) => guardApiCall(() async {
+    await _dio.post<Map<String, dynamic>>(
+      '/reports',
+      data: {
+        'targetType': 'USER',
+        'targetId': userId,
+        'reason': reason.wire,
+        'dmConversationId': ?dmConversationId,
+      },
+    );
+  });
 
   @override
   Future<void> reportProfileLink(String linkId, ReportReason reason) =>

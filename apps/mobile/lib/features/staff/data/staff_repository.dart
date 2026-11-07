@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
+import 'package:kabso_live/features/staff/domain/staff_report_view.dart';
 
 /// v1.68-live (D273, CONVENTIONS §10.96.6): «أدوات فريق كابسو» — the staff
 /// member's own app account doing the panel's live moderation (tag `staff`).
@@ -64,6 +65,21 @@ abstract interface class StaffRepository {
   /// D288: `POST /staff/reports/{reportId}/resolve` «تم حله» (a second press
   /// throws the `REPORT_ALREADY_RESOLVED` failure).
   Future<SharedReport> resolveReport(String reportId, {String? note});
+
+  /// v1.93-social (D296): `GET /staff/reports/{reportId}` — the reported
+  /// content for the staff (a DM only as its snapshot) and the allowed
+  /// actions.
+  Future<StaffReportView> report(String reportId);
+
+  /// D296: `POST /staff/reports/{reportId}/actions` — the action resolves the
+  /// report (a closed one throws `REPORT_ALREADY_RESOLVED`).
+  Future<SharedReport> actOnReport(
+    String reportId,
+    StaffReportAction action, {
+    required String reason,
+    StaffRestriction? restriction,
+    int? days,
+  });
 }
 
 class StaffRepositoryImpl implements StaffRepository {
@@ -177,6 +193,36 @@ class StaffRepositoryImpl implements StaffRepository {
   Future<int> openReportsCount() => guardApiCall(() async {
     final res = await _dio.get<Map<String, dynamic>>('/staff/reports/summary');
     return (res.data!['open'] as num?)?.toInt() ?? 0;
+  });
+
+  @override
+  Future<StaffReportView> report(String reportId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/staff/reports/${pathSegment(reportId)}',
+    );
+    return StaffReportView.fromJson(res.data!);
+  });
+
+  @override
+  Future<SharedReport> actOnReport(
+    String reportId,
+    StaffReportAction action, {
+    required String reason,
+    StaffRestriction? restriction,
+    int? days,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/staff/reports/${pathSegment(reportId)}/actions',
+      data: {
+        'action': action.wire,
+        'reason': reason.trim(),
+        'restriction': ?restriction?.wire,
+        'days': ?days,
+        // The two permanent deletions: the staff member typed the word.
+        if (action.permanent) 'confirm': StaffReportAction.confirmWire,
+      },
+    );
+    return SharedReport.fromJson(res.data!['report']! as Map<String, dynamic>);
   });
 
   @override

@@ -35,6 +35,11 @@ import {
 } from '../safety/safety.schemas.js';
 import { CurrentStaff, NotStaffWork, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
+import {
+  StaffReportActionsService,
+  staffReportActionSchema,
+  type StaffReportActionInput,
+} from './staff-report-actions.service.js';
 import { teamAvatarPng } from '../live/staff-avatar.js';
 import { Public } from '../auth/public.decorator.js';
 
@@ -95,6 +100,7 @@ export class StaffAppController {
     private readonly moderation: AdminLiveModerationService,
     private readonly shifts: AdminStaffShiftsService,
     private readonly reportsQueue: AdminModerationService,
+    private readonly reportActions: StaffReportActionsService,
   ) {}
 
   // ---- status and step-up (no step-up needed) -------------------------------------------------
@@ -194,6 +200,35 @@ export class StaffAppController {
     @CurrentStaff() ctx: AdminContext,
   ) {
     return this.reportsQueue.resolve(pathUuid(id), body.note, ctx);
+  }
+
+  /**
+   * v1.93-social (D296, §10.109): one report opened from «بلاغات» — the reported content for the staff whatever its
+   * visibility (a DM only as the report's snapshot; every DM read audited), and the actions the caller may take.
+   */
+  @Get('reports/:reportId')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('reports.view')
+  report(@Param('reportId') id: string, @CurrentStaff() ctx: AdminContext) {
+    return this.reportActions.view(pathUuid(id), ctx);
+  }
+
+  /**
+   * D296: an action from the report (WARN, RESTRICT, SUSPEND, BAN, REMOVE_CONTENT) — each with its own panel capability,
+   * checked in the service — which resolves the report automatically (owner); a closed report → 409.
+   */
+  @Post('reports/:reportId/actions')
+  @HttpCode(200)
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('reports.view')
+  actOnReport(
+    @Param('reportId') id: string,
+    @Body(new ZodValidationPipe(staffReportActionSchema)) body: StaffReportActionInput,
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    return this.reportActions.act(pathUuid(id), body, ctx);
   }
 
   // ---- one live -------------------------------------------------------------------------------

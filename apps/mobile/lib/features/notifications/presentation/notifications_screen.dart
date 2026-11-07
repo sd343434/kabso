@@ -342,7 +342,7 @@ class NotificationRow extends StatelessWidget {
         target.id,
       ),
       // D288: «بلاغات» on that report.
-      NotificationTargetType.report => AppRoutes.staffReportsFor(target.id),
+      NotificationTargetType.report => AppRoutes.staffReport(target.id),
       NotificationTargetType.levelRaise => AppRoutes.staffLevelRaises,
     };
   }

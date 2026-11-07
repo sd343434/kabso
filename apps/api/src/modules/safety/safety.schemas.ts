@@ -55,6 +55,12 @@ export const createReportSchema = z.strictObject({
    * staff see it and are alerted. Only with `targetType` USER (400 otherwise); a live the reporter cannot see → 404.
    */
   liveRoomId: z.uuid().optional(),
+  /**
+   * v1.93-social (D296, §10.109.5): a USER reported from a direct conversation — that conversation (the reporter's, with
+   * that user), so the report keeps the whole conversation for the staff. Only with `targetType` USER (400 otherwise);
+   * not the reporter's conversation with that user → 404.
+   */
+  dmConversationId: z.uuid().optional(),
 });
 export type CreateReportInput = z.output<typeof createReportSchema>;
 

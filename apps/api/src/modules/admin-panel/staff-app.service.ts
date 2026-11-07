@@ -32,6 +32,14 @@ export const STAFF_APP_CAPABILITIES = [
   // v1.78-live (D288, §10.101): «بلاغات» — the shared report queue and «تم حله».
   'reports.view',
   'reports.resolve',
+  // v1.93-social (D296, §10.109): the actions from a report — the panel's own capabilities.
+  'reports.act',
+  'users.restrict',
+  'users.lock',
+  'users.ban',
+  // Owner (2026-11-06): the permanent deletions from a report too (no code since D288).
+  'users.content',
+  'users.delete',
 ] as const satisfies readonly Capability[];
 
 /** `StaffStatus` (v1.68-live, D273). */

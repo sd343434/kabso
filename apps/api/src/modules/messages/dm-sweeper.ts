@@ -4,7 +4,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MediaService } from '../media/media.service.js';
-import { DM_REPORT_SNAPSHOT_DAYS } from './dm-reports.js';
+import { DM_REPORT_SNAPSHOT_DAYS, dmSnapshotObjectKeys } from './dm-reports.js';
 
 /** Rows handled per statement (bounded batches). */
 const BATCH = 500;
@@ -101,18 +101,21 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
    */
   private async purgeSnapshots(now: Date): Promise<number> {
     const before = new Date(now.getTime() - DM_REPORT_SNAPSHOT_DAYS * 86_400_000);
-    const rows = await this.prisma.$queryRaw<{ id: string; media_key: string | null }[]>`
-      SELECT id::text AS id, dm_snapshot->>'mediaKey' AS media_key FROM reports
-       WHERE target_type = 'DM_MESSAGE'::report_target_type AND status <> 'OPEN'::report_status
+    // v1.93-social (D296): a USER report made from a conversation keeps a thread too; the thread's files go with it.
+    const rows = await this.prisma.$queryRaw<{ id: string; dm_snapshot: unknown }[]>`
+      SELECT id::text AS id, dm_snapshot FROM reports
+       WHERE target_type IN ('DM_MESSAGE'::report_target_type, 'USER'::report_target_type)
+         AND status <> 'OPEN'::report_status
          AND resolved_at < ${before}::timestamptz
          AND dm_snapshot IS NOT NULL AND COALESCE((dm_snapshot->>'purged')::boolean, false) = false
          AND legal_hold_id IS NULL
        LIMIT ${BATCH}`;
     if (rows.length === 0) return 0;
-    await this.media.deleteObjects(rows.map((r) => r.media_key).filter((k): k is string => k !== null));
+    await this.media.deleteObjects(rows.flatMap((r) => dmSnapshotObjectKeys(r.dm_snapshot)));
     await this.prisma.$executeRaw`
       UPDATE reports
-         SET dm_snapshot = dm_snapshot || '{"purged": true, "text": null, "token": null, "mediaKey": null}'::jsonb
+         SET dm_snapshot = dm_snapshot
+             || '{"purged": true, "text": null, "token": null, "mediaKey": null, "thread": null}'::jsonb
        WHERE id = ANY(${rows.map((r) => r.id)}::uuid[])`;
     return rows.length;
   }

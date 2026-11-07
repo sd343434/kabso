@@ -656,7 +656,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
                 'delete' => unawaited(_deleteConversation()),
                 'report' => unawaited(
-                  reportUser(context, ref, userId: s.peer.user.id),
+                  // v1.93-social (D296): from the conversation — the report
+                  // keeps it for the staff.
+                  reportUser(
+                    context,
+                    ref,
+                    userId: s.peer.user.id,
+                    dmConversationId: conversation?.id,
+                  ),
                 ),
                 'block' => unawaited(_block(name)),
                 _ => null,

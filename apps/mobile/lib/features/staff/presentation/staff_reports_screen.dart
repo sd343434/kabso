@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
@@ -29,6 +31,7 @@ class StaffReportsScreen extends ConsumerStatefulWidget {
   static const tabsKey = Key('staffReports.tabs');
   static Key card(String id) => Key('staffReports.card.$id');
   static Key resolve(String id) => Key('staffReports.resolve.$id');
+  static Key open(String id) => Key('staffReports.open.$id');
 
   @override
   ConsumerState<StaffReportsScreen> createState() => _StaffReportsScreenState();
@@ -138,6 +141,8 @@ class _StaffReportsScreenState extends ConsumerState<StaffReportsScreen> {
                       key: StaffReportsScreen.card(r.id),
                       report: r,
                       focused: r.id == widget.focusReportId,
+                      // v1.93-social (D296): a tap opens the reported content.
+                      onOpen: () => context.push(AppRoutes.staffReport(r.id)),
                       onResolve: canResolve && r.isOpen
                           ? () => unawaited(_resolve(r))
                           : null,
@@ -193,17 +198,33 @@ String sharedReportReasonLabel(AppLocalizations l10n, String reason) =>
       _ => l10n.reportReasonOther,
     };
 
+/// D296: the action that resolved a report, in words (null: «تم حله» alone).
+String? sharedReportActionLabel(AppLocalizations l10n, String? action) =>
+    switch (action) {
+      'WARN' => l10n.staffReportActionWarn,
+      'RESTRICT' => l10n.staffReportActionRestrict,
+      'SUSPEND' => l10n.staffReportActionSuspend,
+      'BAN' => l10n.staffReportActionBan,
+      'REMOVE_CONTENT' => l10n.staffReportActionRemove,
+      'DISMISS' => l10n.staffSharedOutcomeDismissed,
+      _ => null,
+    };
+
 /// One report of «بلاغات» with its details and, while it is open, «تم حله».
 class SharedReportCard extends StatelessWidget {
   const new({
     required this.report,
     super.key,
     this.focused = false,
+    this.onOpen,
     this.onResolve,
   });
 
   final SharedReport report;
   final bool focused;
+
+  /// v1.93-social (D296): opens the report's content and actions.
+  final VoidCallback? onOpen;
 
   /// Null: no «تم حله» (resolved already, or the role cannot resolve).
   final VoidCallback? onResolve;
@@ -237,7 +258,7 @@ class SharedReportCard extends StatelessWidget {
         ),
       ),
     );
-    return DecoratedBox(
+    final card = DecoratedBox(
       decoration: BoxDecoration(
         color: p.surface,
         borderRadius: BorderRadius.circular(KRadius.lg),
@@ -335,7 +356,13 @@ class SharedReportCard extends StatelessWidget {
                             ),
                       style: t.bodyStrong.copyWith(color: p.textPrimary),
                     ),
-                    if (r.status == 'DISMISSED')
+                    if (sharedReportActionLabel(l10n, r.resolutionAction)
+                        case final action? when r.status != 'DISMISSED')
+                      Text(
+                        l10n.staffReportResolvedByAction(action),
+                        style: muted,
+                      )
+                    else if (r.status == 'DISMISSED')
                       Text(l10n.staffSharedOutcomeDismissed, style: muted),
                     if (r.resolutionNote case final note? when note.isNotEmpty)
                       Text(
@@ -348,20 +375,39 @@ class SharedReportCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (onResolve != null) ...[
+            if (onResolve != null || onOpen != null) ...[
               const SizedBox(height: KSpacing.sm),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: FilledButton.icon(
-                  key: StaffReportsScreen.resolve(r.id),
-                  onPressed: onResolve,
-                  icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: Text(l10n.staffSharedResolve),
-                ),
+              Row(
+                children: [
+                  if (onOpen != null)
+                    TextButton.icon(
+                      key: StaffReportsScreen.open(r.id),
+                      onPressed: onOpen,
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: Text(l10n.staffReportOpen),
+                    ),
+                  const Spacer(),
+                  if (onResolve != null)
+                    FilledButton.icon(
+                      key: StaffReportsScreen.resolve(r.id),
+                      onPressed: onResolve,
+                      icon: const Icon(Icons.check_circle_rounded, size: 18),
+                      label: Text(l10n.staffSharedResolve),
+                    ),
+                ],
               ),
             ],
           ],
         ),
+      ),
+    );
+    if (onOpen == null) return card;
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(KRadius.lg),
+        onTap: onOpen,
+        child: card,
       ),
     );
   }

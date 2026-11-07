@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/features/staff/data/staff_repository.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
+import 'package:kabso_live/features/staff/domain/staff_report_view.dart';
 
 /// v1.68-live (D273, §10.96.6): the caller's «فريق كابسو» state — the roles,
 /// the tools' capabilities, the authenticator and the shift. Read when a
@@ -108,4 +109,11 @@ final FutureProviderFamily<SharedReportPage, SharedReportTab>
 staffSharedReportsProvider = FutureProvider.autoDispose
     .family<SharedReportPage, SharedReportTab>(
       (ref, tab) => ref.watch(staffRepositoryProvider).sharedReports(tab),
+    );
+
+/// v1.93-social (D296): one report opened from «بلاغات» (read again after an
+/// action or «تم حله»).
+final FutureProviderFamily<StaffReportView, String> staffReportViewProvider =
+    FutureProvider.autoDispose.family<StaffReportView, String>(
+      (ref, reportId) => ref.watch(staffRepositoryProvider).report(reportId),
     );

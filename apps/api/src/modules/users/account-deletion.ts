@@ -1,3 +1,4 @@
+import { dmSnapshotObjectKeys } from '../messages/dm-reports.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { purgeKycIn } from '../kyc/kyc-core.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
@@ -57,7 +58,7 @@ export interface DeletionActor {
   readonly ip?: string | null;
   readonly requestId?: string | null;
   /** v1.72-social (D208): the audit row's `via` for an ADMIN actor — `cli` (default) or `panel` (the admin panel). */
-  readonly auditVia?: 'cli' | 'panel';
+  readonly auditVia?: 'cli' | 'panel' | 'app';
 }
 
 /** SHA-256 (hex) of a lower-cased username: the quarantine key (the name itself is not kept). */
@@ -915,9 +916,8 @@ async function heldSnapshotIn(
       for (const k of keep) snapshot[k] = raw?.[k] ?? null;
       const objectKeys =
         type === 'DM_MESSAGE'
-          ? reports
-              .map((r) => (r.dmSnapshot as { mediaKey?: unknown } | null)?.mediaKey)
-              .filter((k): k is string => typeof k === 'string' && k !== '')
+          ? // v1.93-social (D296): the frozen conversation's files too, so the hold deletes them with it.
+            reports.flatMap((r) => dmSnapshotObjectKeys(r.dmSnapshot))
           : [];
       return { snapshot, objectKeys };
     }

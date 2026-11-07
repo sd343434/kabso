@@ -14,6 +14,7 @@ import {
   SafetyService,
   type ReportDto,
 } from '../safety/safety.service.js';
+import { markReportAlertsReadIn } from '../safety/report-staff-alerts.service.js';
 import { AccountLifecycleService } from '../users/profiles/account-lifecycle.service.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { refused } from './admin-users.service.js';
@@ -39,6 +40,11 @@ export type PanelReportDto = ReportDto & {
   /** v1.78-live (D288, §10.101): who resolved it (null while OPEN, or the account is gone) and their note. */
   resolvedBy: ReportResolverDto | null;
   resolutionNote: string | null;
+  /**
+   * v1.93-social (D296, §10.109): the staff action that resolved it automatically (WARN, RESTRICT, SUSPEND, BAN,
+   * REMOVE_CONTENT, DISMISS); null for «تم حله» without an action and while OPEN.
+   */
+  resolutionAction: string | null;
 };
 
 type Tx = Prisma.TransactionClient;
@@ -99,6 +105,7 @@ export class AdminModerationService {
         preview: row ? await this.preview(row) : { text: null, mediaUrl: null, author: null, gone: true },
         resolvedBy: resolverDto(row?.resolvedBy ?? null),
         resolutionNote: row?.resolutionNote ?? null,
+        resolutionAction: row?.resolutionAction ?? null,
       });
     }
     return { data, page: page.page };
@@ -116,6 +123,7 @@ export class AdminModerationService {
       preview: await this.preview(row),
       resolvedBy: resolverDto(row.resolvedBy),
       resolutionNote: row.resolutionNote,
+      resolutionAction: row.resolutionAction,
     };
   }
 
@@ -181,7 +189,13 @@ export class AdminModerationService {
         if (before.status === 'OPEN') throw refused('The report is open.', 'report_open', 'rule');
         await tx.report.update({
           where: { id: reportId },
-          data: { status: 'OPEN', resolvedAt: null, resolvedById: null, resolutionNote: null },
+          data: {
+            status: 'OPEN',
+            resolvedAt: null,
+            resolvedById: null,
+            resolutionNote: null,
+            resolutionAction: null,
+          },
         });
         await this.audit.recordIn(tx, {
           action: AuditAction.MODERATION_REPORT_REOPEN,
@@ -193,6 +207,7 @@ export class AdminModerationService {
             reason,
             before: before.status,
             resolvedById: before.resolvedById,
+            resolutionAction: before.resolutionAction,
             via: ctx.via ?? 'panel',
           },
           ip: ctx.ip,
@@ -208,7 +223,7 @@ export class AdminModerationService {
   }
 
   /** The author (or the reported user) of a report's target, and what it says. */
-  private async targetOf(
+  async targetOf(
     db: Db,
     r: Report,
   ): Promise<{ authorId: string | null; text: string | null; mediaUrl: string | null; gone: boolean }> {
@@ -359,7 +374,7 @@ export class AdminModerationService {
   ) {
     if (body.action === 'DISMISS' || body.action === 'REMOVE_TARGET') {
       return this.safety.act(
-        { userId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId, via: 'panel' },
+        { userId: ctx.userId, ip: ctx.ip, requestId: ctx.requestId, via: ctx.via ?? 'panel' },
         reportId,
         { action: body.action, ...(body.note ? { note: body.note } : {}) },
       );
@@ -390,10 +405,25 @@ export class AdminModerationService {
       } else if (!(await this.lifecycle.suspendIn(tx, authorId))) {
         throw refused('The account is not ACTIVE.');
       }
-      const closed = await tx.report.updateMany({
+      // v1.93-social (D296): the closed reports record the action, and the staff's alerts about them are read.
+      const closing = await tx.report.findMany({
         where: { ...reportTargetWhere(report), status: 'OPEN' },
-        data: { status: 'ACTIONED', resolvedAt: new Date(), resolvedById: ctx.userId, resolutionNote: note },
+        select: { id: true },
       });
+      const closed = await tx.report.updateMany({
+        where: { id: { in: closing.map((r) => r.id) }, status: 'OPEN' },
+        data: {
+          status: 'ACTIONED',
+          resolvedAt: new Date(),
+          resolvedById: ctx.userId,
+          resolutionNote: note,
+          resolutionAction: body.action,
+        },
+      });
+      await markReportAlertsReadIn(
+        tx,
+        closing.map((r) => r.id),
+      );
       await this.audit.recordIn(tx, {
         action: body.action === 'WARN' ? AuditAction.ADMIN_USER_WARN : AuditAction.ADMIN_USER_BAN,
         actorUserId: ctx.userId,
@@ -403,7 +433,7 @@ export class AdminModerationService {
           reason: note,
           reportId,
           ...(body.action === 'BAN' ? { before: author?.status ?? null, after: 'SUSPENDED' } : {}),
-          via: 'panel',
+          via: ctx.via ?? 'panel',
         },
         ip: ctx.ip,
         requestId: ctx.requestId,
@@ -413,7 +443,7 @@ export class AdminModerationService {
         actorUserId: ctx.userId,
         targetType: report.targetType.toLowerCase(),
         targetId: reportTargetId(report),
-        metadata: { reportId, action: body.action, reportsClosed: closed.count, via: 'panel' },
+        metadata: { reportId, action: body.action, reportsClosed: closed.count, via: ctx.via ?? 'panel' },
         ip: ctx.ip,
         requestId: ctx.requestId,
       });

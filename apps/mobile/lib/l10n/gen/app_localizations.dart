@@ -26062,6 +26062,426 @@ abstract class AppLocalizations {
   /// **'{amount} كوينز من هدايا الحظ'**
   String medalsThresholdLuckyCoins(String amount);
 
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'البلاغ'**
+  String get staffReportViewTitle;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'محتوى مُبلّغ عنه'**
+  String get staffReportBanner;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تراه كفريق كابسو مهما كانت حالته — لا يظهر للآخرين إلا إذا كان ظاهراً.'**
+  String get staffReportBannerHint;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'ظاهر'**
+  String get staffReportStateVisible;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'مخفي بالإشراف'**
+  String get staffReportStateHidden;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'محذوف'**
+  String get staffReportStateDeleted;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'منتهي'**
+  String get staffReportStateExpired;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'على الهواء'**
+  String get staffReportStateLive;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى البث'**
+  String get staffReportStateEnded;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير موجود'**
+  String get staffReportStateGone;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'المحتوى محذوف'**
+  String get staffReportContentDeleted;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'يُعرض ما حفظه البلاغ وقت الإبلاغ.'**
+  String get staffReportSnapshotShown;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز'**
+  String get staffReportReelMark;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get staffReportVideoMark;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليق على هذا المنشور'**
+  String get staffReportOnPost;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليق المُبلّغ عنه'**
+  String get staffReportReportedComment;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الملف الشخصي'**
+  String get staffReportOpenProfile;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'دخول البث كفريق كابسو'**
+  String get staffReportEnterLive;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'البث منتهٍ — هذا ملخصه.'**
+  String get staffReportLiveEnded;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'محادثة — للقراءة فقط'**
+  String get staffReportDmTitle;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'من {sender} إلى {recipient}'**
+  String staffReportDmBetween(String sender, String recipient);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'لقطة محفوظة من البلاغ: الرسالة المُبلّغ عنها فقط، لا باقي المحادثة. كل فتح يُسجَّل.'**
+  String get staffReportDmPrivacy;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت الرسالة الأصلية بعد ٢٤ ساعة؛ اللقطة باقية.'**
+  String get staffReportDmExpired;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'مُسح محتوى اللقطة بعد انتهاء مدة الحفظ.'**
+  String get staffReportDmPurged;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة'**
+  String get staffReportDmImage;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة صوتية'**
+  String get staffReportDmVoice;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية {code} ×{quantity}'**
+  String staffReportDmGift(String code, String quantity);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'إجراءات'**
+  String get staffReportActionsTitle;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحذير'**
+  String get staffReportActionWarn;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تقييد'**
+  String get staffReportActionRestrict;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليق مؤقت'**
+  String get staffReportActionSuspend;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر دائم'**
+  String get staffReportActionBan;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء المحتوى'**
+  String get staffReportActionRemove;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء البث'**
+  String get staffReportActionEndLive;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'منع النشر'**
+  String get staffReportRestrictNoPosting;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'منع البث'**
+  String get staffReportRestrictNoLive;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'منع الرسائل'**
+  String get staffReportRestrictChat;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{يوم واحد} =2{يومان} few{{count} أيام} many{{count} يوماً} other{{count} يوم}}'**
+  String staffReportDays(int count);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة'**
+  String get staffReportDuration;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب (يُحفظ في السجل)'**
+  String get staffReportReason;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب السبب'**
+  String get staffReportReasonRequired;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'يُحلّ البلاغ تلقائياً بعد الإجراء.'**
+  String get staffReportAutoResolve;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحذير {name}؟'**
+  String staffReportConfirmWarn(String name);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تقييد {name}؟'**
+  String staffReportConfirmRestrict(String name);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليق حساب {name} مؤقتاً؟'**
+  String staffReportConfirmSuspend(String name);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر {name} نهائياً؟'**
+  String staffReportConfirmBan(String name);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء هذا المحتوى عن الجميع؟'**
+  String get staffReportConfirmRemove;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'يُعلَّق الحساب ولا يستطيع الدخول. يمكن للإدارة رفعه من اللوحة.'**
+  String get staffReportConfirmBanHint;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يستطيع الدخول حتى تنتهي المدة.'**
+  String get staffReportConfirmSuspendHint;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تنفيذ'**
+  String get staffReportApply;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الإجراء وحُلّ البلاغ'**
+  String get staffReportActionDone;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حُلّ بإجراء: {action}'**
+  String staffReportResolvedByAction(String action);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا إجراءات متاحة لدورك على هذا البلاغ.'**
+  String get staffReportNoActions;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح'**
+  String get staffReportOpen;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'المحادثة كاملة — للقراءة فقط'**
+  String get staffReportThreadTitle;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخة محفوظة عند الإبلاغ: كل رسائل المحادثة التي كانت موجودة حينها، ولا تُضاف رسائل لاحقة. كل فتح يُسجَّل.'**
+  String get staffReportThreadPrivacy;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت {when}'**
+  String staffReportThreadCaptured(String when);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت آخر {count} رسالة فقط.'**
+  String staffReportThreadTruncated(String count);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسالة المُبلّغ عنها'**
+  String get staffReportThreadReported;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملف لم يُحفظ'**
+  String get staffReportThreadMediaMissing;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تكن في المحادثة رسائل عند الإبلاغ.'**
+  String get staffReportThreadEmpty;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف نهائي'**
+  String get staffReportActionDeleteContent;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحساب'**
+  String get staffReportActionDeleteAccount;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذا المحتوى نهائياً؟'**
+  String get staffReportConfirmDeleteContent;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف حساب {name}؟'**
+  String staffReportConfirmDeleteAccount(String name);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن التراجع عن الحذف النهائي، ويُبلَّغ صاحب المحتوى.'**
+  String get staffReportConfirmDeleteContentHint;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبدأ حذف الحساب بمهلته (يمكن إلغاؤه من اللوحة خلالها)، ويُسجَّل خروجه من كل الأجهزة.'**
+  String get staffReportConfirmDeleteAccountHint;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get staffReportConfirmWord;
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب «{word}» للتأكيد'**
+  String staffReportTypeToConfirm(String word);
+
+  /// D296: a report opened by the staff (§10.109).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب الكلمة كما هي'**
+  String get staffReportConfirmMismatch;
+
   /// D295: the purple badge on a creator's live card and next to the host's name in the room.
   ///
   /// In ar, this message translates to:

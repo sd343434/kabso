@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { Clock } from '../../common/time/clock.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LiveStaffAlertsService } from '../live/live-staff-alerts.service.js';
 
@@ -10,6 +11,23 @@ export const SHARED_REPORT_ROLES = ['MODERATION', 'SUPPORT'] as const;
 
 /** One unread STAFF_REPORT_NEW row per staff member (it moves to the newest report). */
 export const STAFF_REPORT_NEW_GROUP = 'STAFF_REPORT_NEW';
+
+/**
+ * v1.93-social (D296, §10.109): the reports in `reportIds` are closed — their `STAFF_REPORT_NEW` rows are read for every
+ * staff member, exactly as after a manual «تم حله» (D288). Inside the caller's transaction; returns the rows marked.
+ */
+export async function markReportAlertsReadIn(
+  tx: Prisma.TransactionClient,
+  reportIds: readonly string[],
+  at: Date = new Date(),
+): Promise<number> {
+  if (reportIds.length === 0) return 0;
+  const done = await tx.notification.updateMany({
+    where: { type: 'STAFF_REPORT_NEW', reportId: { in: [...reportIds] }, readAt: null },
+    data: { readAt: at },
+  });
+  return done.count;
+}
 
 export interface SharedReportAlertResult {
   route: 'staff' | 'owners';

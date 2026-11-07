@@ -24,8 +24,11 @@ export interface AdminActor {
   readonly userId: string;
   readonly ip: string | null;
   readonly requestId: string | null;
-  /** v1.60-social (D191): set when the admin panel (cookie session) acts; the audit row then says so. */
-  readonly via?: 'panel';
+  /**
+   * v1.60-social (D191): set when the admin panel (cookie session) acts; the audit row then says so. v1.93-social
+   * (D296): `app` — the staff tools in the app acting from a report.
+   */
+  readonly via?: 'panel' | 'app';
 }
 
 export interface AdminLevelCategoryDto {

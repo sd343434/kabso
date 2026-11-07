@@ -159,12 +159,15 @@ Future<void> reportUser(
   BuildContext context,
   WidgetRef ref, {
   required String userId,
+  String? dmConversationId,
 }) async {
   final l10n = context.l10n;
   final reason = await pickReportReason(context, l10n.safetyReportTitle);
   if (reason == null || !context.mounted) return;
   try {
-    await ref.read(safetyRepositoryProvider).reportUser(userId, reason);
+    await ref
+        .read(safetyRepositoryProvider)
+        .reportUser(userId, reason, dmConversationId: dmConversationId);
     if (context.mounted) KSnack.success(context, l10n.feedPostReported);
   } on Object catch (e) {
     if (context.mounted) {
