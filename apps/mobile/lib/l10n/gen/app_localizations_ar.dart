@@ -15465,6 +15465,93 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get liveCreatorBadge => 'صانع محتوى';
+
+  @override
+  String get hostApplyRefusedCreator =>
+      'أنت صانع محتوى: تبث من برنامج صناع المحتوى، ولا يمكن أن تكون مضيفاً أيضاً';
+
+  @override
+  String get creatorProgrammeHost =>
+      'أنت مضيف: لا يمكن أن تكون صانع محتوى أيضاً.';
+
+  @override
+  String get agencyOpenBanned => 'حُظرت وكالتك ولا يمكن فتحها من جديد';
+
+  @override
+  String get agencyClosedBanned => 'حُظرت الوكالة لتفعيل صانع محتوى وهمي';
+
+  @override
+  String get errorAgencyActivationNotAllowed =>
+      'لا يمكن تفعيل هذا العضو بهذه الطريقة';
+
+  @override
+  String get agencyActivate => 'تفعيل';
+
+  @override
+  String agencyActivateTitle(String name) {
+    return 'تفعيل $name';
+  }
+
+  @override
+  String get agencyActivateIntro => 'اختر كيف يبث هذا العضو:';
+
+  @override
+  String get agencyActivateAsHost => 'مضيف';
+
+  @override
+  String get agencyActivateAsHostBody =>
+      'يبث ضمن وكالتك بنسبة المضيف المعتادة.';
+
+  @override
+  String get agencyActivateAsCreator => 'صانع محتوى';
+
+  @override
+  String get agencyActivateAsCreatorBody =>
+      'لمن يصنع محتوى على منصات أخرى. تحتاج معلوماته وروابط أعماله.';
+
+  @override
+  String get agencyCreatorShareNote => 'نسبة صانع المحتوى 72%';
+
+  @override
+  String get agencyCreatorWarning =>
+      'إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة أرباحك.';
+
+  @override
+  String get agencyCreatorConfirm =>
+      'قرأت التحذير وأؤكد أن هذا الشخص صانع محتوى';
+
+  @override
+  String get agencyCreatorConfirmError => 'ضع علامة التأكيد للمتابعة';
+
+  @override
+  String get agencyActivateHostButton => 'تفعيل كمضيف';
+
+  @override
+  String get agencyActivateCreatorButton => 'تفعيل كصانع محتوى';
+
+  @override
+  String agencyActivatedHost(String name) {
+    return 'أصبح $name مضيفاً';
+  }
+
+  @override
+  String agencyActivatedCreator(String name) {
+    return 'أصبح $name صانع محتوى';
+  }
+
+  @override
+  String get agencyActivationRefusedHost =>
+      'هذا العضو مضيف: لا يمكن تفعيله صانع محتوى';
+
+  @override
+  String get agencyActivationRefusedCreator =>
+      'هذا العضو صانع محتوى: لا يمكن تفعيله مضيفاً';
+
+  @override
+  String get agencyActivationRefusedSuspended => 'وكالتك موقوفة من الفريق';
+
+  @override
   String get verificationBadgeOwner => 'مالك التطبيق';
 
   @override

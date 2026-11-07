@@ -21,7 +21,9 @@ import {
   cursorScope,
   LIVE_KIND_MODES,
   LiveCursorCodec,
+  type CursorMerge,
   type CursorPosition,
+  type GroupPosition,
   type LiveTab,
 } from './live-cursor.js';
 import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
@@ -207,6 +209,11 @@ export interface LiveRoomSummaryDto {
   hostCountry?: string;
   /** v1.56-live (D213, §10.86): a STREAMER's screen orientation and camera bubble; null otherwise. */
   streamer: LiveStreamerDto | null;
+  /**
+   * v1.82-live (D295, §10.108): the host is a content creator «صانع محتوى» (a creator-programme member) — the purple
+   * badge on the card and in the room. Public (the programme membership is public, like the D293 seal).
+   */
+  hostIsCreator: boolean;
 }
 
 /** v1.56-live (D213, §10.86): `LiveStreamer`. */
@@ -347,6 +354,8 @@ export interface RoomRow {
   kicked?: boolean;
   host_user_id: string;
   host_status: string;
+  /** v1.82-live (D295, §10.108): the host is a creator-programme member now. */
+  host_is_creator: boolean;
   username: string;
   display_name: string;
   avatar_url: string | null;
@@ -452,7 +461,8 @@ const ROOM_COLUMNS = Prisma.sql`
          COALESCE(sc.host_cherries, 0)::bigint AS host_cherries,
          (SELECT count(*)::int FROM live_room_seats s
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
-         r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
+         r.host_user_id::text AS host_user_id, u.status::text AS host_status,
+         EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = r.host_user_id) AS host_is_creator, p.username,
          p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier,
          p.country_code::text AS host_country,
          (SELECT ra.code FROM recharge_agents ra WHERE ra.user_id = r.host_user_id AND ra.status = 'ACTIVE') AS agent_code,
@@ -1145,6 +1155,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       streamer: streamerOf(row),
       roomLevel: row.room_level,
       popular: row.popular,
+      hostIsCreator: row.host_is_creator === true,
       ...(row.host_country ? { hostCountry: row.host_country } : {}),
     };
   }
@@ -1224,10 +1235,14 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       nearbyCountry,
       featured,
     });
+    // v1.82-live (D295, §10.108): Popular, New / Explore and Nearby (any category / kind) interleave one host's live
+    // and one creator's live; Following and Featured keep their single order.
+    const merged = query.tab !== 'following' && !featured;
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
-      if (!position) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+      if (!position || merged !== (position.merge !== undefined))
+        throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
     }
 
     // Reads filter stale rooms and write nothing (SEC-035): the freshness predicate below is what
@@ -1257,6 +1272,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId ?? ''}::uuid AND f.followee_id = r.host_user_id)`,
       );
     }
+    if (merged) return this.mergedPage(query, scope, conditions, position?.merge ?? null, now, lang);
     if (position)
       conditions.push(featured ? featuredKeysetAfter(position) : keysetAfter(query.tab, position));
 
@@ -1290,6 +1306,83 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                 startedAt: last.started_at,
                 id: last.id,
                 ...('feature_rank' in last ? { rank: Number(last.feature_rank) } : {}),
+              })
+            : null,
+        hasMore,
+      },
+      ...(query.scope === 'nearby' ? { emptyReason: null } : {}),
+    };
+  }
+
+  /**
+   * v1.82-live (D295, owner, CONVENTIONS §10.108): the 1 : 1 interleave — one host's live, then one creator's live,
+   * alternating, each group in the tab's own order (Popular: score, startedAt, id; New: startedAt, id); when a group runs
+   * out the other continues alone. Each group is its own keyset query; the cursor carries both groups' last positions
+   * and the group of the last row taken, so the merged sequence over an unchanged set of rooms neither repeats nor
+   * skips a room across pages (drift between pages behaves as §10.4 says for any list).
+   */
+  private async mergedPage(
+    query: ListLiveRoomsQuery,
+    scope: ReturnType<typeof cursorScope>,
+    conditions: readonly Prisma.Sql[],
+    merge: CursorMerge | null,
+    now: Date,
+    lang: ContentLanguage,
+  ): Promise<LiveRoomPageDto> {
+    const creatorSql = Prisma.sql`EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = r.host_user_id)`;
+    const group = async (creator: boolean, after: GroupPosition | null): Promise<RoomRow[]> => {
+      const where = [...conditions, creator ? creatorSql : Prisma.sql`NOT ${creatorSql}`];
+      if (after) where.push(keysetAfter(query.tab, after));
+      return this.prisma.$queryRaw<RoomRow[]>`
+        SELECT ${ROOM_COLUMNS}, ${popularSql(this.cutoff(now), this.config.live.popularTopN)} AS popular
+               ${ROOM_FROM}
+         WHERE ${Prisma.join(where, ' AND ')}
+         ORDER BY ${orderBy(query.tab)}
+         LIMIT ${query.limit + 1}`;
+    };
+    const [hosts, creators] = await Promise.all([
+      group(false, merge?.host ?? null),
+      group(true, merge?.creator ?? null),
+    ]);
+    const page: RoomRow[] = [];
+    let hi = 0;
+    let ci = 0;
+    let next: 'H' | 'C' = merge ? (merge.last === 'H' ? 'C' : 'H') : 'H';
+    let last: 'H' | 'C' = merge?.last ?? 'C';
+    let hostPos: GroupPosition | null = merge?.host ?? null;
+    let creatorPos: GroupPosition | null = merge?.creator ?? null;
+    const pos = (r: RoomRow): GroupPosition => ({
+      score: Number(r.score),
+      startedAt: r.started_at,
+      id: r.id,
+    });
+    while (page.length < query.limit) {
+      const hasH = hi < hosts.length;
+      const hasC = ci < creators.length;
+      if (!hasH && !hasC) break;
+      const take: 'H' | 'C' = next === 'H' ? (hasH ? 'H' : 'C') : hasC ? 'C' : 'H';
+      if (take === 'H') {
+        const r = hosts[hi++]!;
+        page.push(r);
+        hostPos = pos(r);
+      } else {
+        const r = creators[ci++]!;
+        page.push(r);
+        creatorPos = pos(r);
+      }
+      last = take;
+      next = take === 'H' ? 'C' : 'H';
+    }
+    const hasMore = hi < hosts.length || ci < creators.length;
+    const tail = page.at(-1);
+    return {
+      data: page.map((row) => this.toSummary(row, lang)),
+      page: {
+        nextCursor:
+          hasMore && tail
+            ? this.cursors.encode(scope, {
+                ...pos(tail),
+                merge: { host: hostPos, creator: creatorPos, last },
               })
             : null,
         hasMore,

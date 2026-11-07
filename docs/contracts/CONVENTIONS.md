@@ -153,8 +153,9 @@ All non-2xx responses use one envelope:
 | 409 | `AGENCY_JOIN_NOT_ALLOWED` | *(v1.52-social, DRAFT, D179)* `joinAgency` by the owner of an agency (an agent is never a host of an agency, their own included). |
 | 409 | `AGENCY_LEAVE_WINDOW_CLOSED` | *(v1.52-social, DRAFT, D179)* `leaveAgency` after `AGENCY_LEAVE_DAYS` (14) from joining; only a complaint to the admin remains (§10.46). |
 | 409 | `AGENCY_OPEN_NOT_ALLOWED` | *(v1.70-social, DRAFT, D206)* `openAgency` refused — `details[0] = {field: agency, issue}`: `ACCOUNT_NOT_ACTIVE`, `OWNS_AGENCY` (an open agency, its probation included), `HOST_OF_AGENCY`, `REOPEN_COOLDOWN` (§10.65). *(v1.80-kyc, D227)* `KYC_REQUIRED`: Didit is on and the person has no approved identity check for «افتح وكالة» (§10.77). |
-| 409 | `HOST_APPLICATION_NOT_ALLOWED` | *(v1.73-social, DRAFT, D209)* `applyForHosting` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_HOST` (any hosting permission), `HOST_OF_AGENCY`, `OWNS_AGENCY` (an open agency), `PENDING` (one open application per user), `REAPPLY_COOLDOWN` (rejected less than `HOST_APPLICATION_REAPPLY_DAYS` ago), `UNDER_MIN_AGE` (§10.68). Nothing was kept. |
-| 409 | `CREATOR_APPLICATION_NOT_ALLOWED` | *(v1.75-live, DRAFT, D285)* `applyForCreatorProgramme` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `MEMBER` (already a creator), `STAFF` (a Kabso Team account), `PENDING` (one open application per user) (§10.96.13). Nothing was kept. |
+| 409 | `HOST_APPLICATION_NOT_ALLOWED` | *(v1.73-social, DRAFT, D209)* `applyForHosting` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_HOST` (any hosting permission), `HOST_OF_AGENCY`, `OWNS_AGENCY` (an open agency), `PENDING` (one open application per user), `REAPPLY_COOLDOWN` (rejected less than `HOST_APPLICATION_REAPPLY_DAYS` ago), `UNDER_MIN_AGE` (§10.68). *(v1.82-live, D295)* `CREATOR` (a content creator cannot also be a host; checked right after `ACCOUNT_NOT_ACTIVE`, §10.108). Nothing was kept. |
+| 409 | `CREATOR_APPLICATION_NOT_ALLOWED` | *(v1.75-live, DRAFT, D285)* `applyForCreatorProgramme` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `MEMBER` (already a creator), `STAFF` (a Kabso Team account), `PENDING` (one open application per user) (§10.96.13). *(v1.82-live, D295)* `HOST` (a host — any hosting permission but a creator's — cannot also be a creator, §10.108). Nothing was kept. |
+| 409 | `AGENCY_ACTIVATION_NOT_ALLOWED` | *(v1.82-live, DRAFT, D295)* `activateMyAgencyMember` refused — `details[0] = {field: member, issue}`: `AGENCY_SUSPENDED` (the team suspended the agency's host agent), `ACCOUNT_NOT_ACTIVE`, `STAFF` (a Kabso Team account), `HOST` (a host cannot be made a creator), `CREATOR` (a creator cannot be made a host) (§10.108). Nothing changed. |
 | 409 | `LEVEL_RAISE_DUPLICATE` | *(v1.89-social, DRAFT, D290)* `createStaffLevelRaise` / `createAdminLevelRaise`: the source account (canonical app + account ID, trimmed, case-insensitive) already has a PENDING or APPROVED level-raise request — `details`: `{field: status, issue: PENDING\|APPROVED}`, `{field: createdAt, issue: <ISO time>}`, `{field: requestedBy, issue: <the staff member's display name>}` (§10.103.8). Nothing was kept. |
 | 409 | `KYC_NOT_ALLOWED` | *(v1.80-kyc, DRAFT, D227)* `startKycSession` refused — `details[0] = {field: purpose, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED` (an approved check counts for the purpose), `IN_REVIEW` (wait for the review), `DAILY_LIMIT` (the OWNER's sessions per 24 h, default 3; §10.77). Nothing was started. |
 | 503 | `KYC_UNAVAILABLE` | *(v1.80-kyc, DRAFT, D227)* Identity verification (Didit) is off or not configured in the admin panel «التحقق من الهوية (Didit)» — `startKycSession`, `syncKycCheck`; the webhook when no webhook secret is saved (Didit retries); the panel's image fetch without an API key. No `Retry-After`. |
@@ -645,6 +646,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | `docs/design/**` | Design | CTO review |
 | `.github/**`, `infra/**`, `docker-compose.yml` | DevOps | CTO review |
 | Root `package.json`, `pnpm-workspace.yaml` | Backend (Phase 1) | CTO review |
+| *(v1.82-live)* Table `agency_bans` (append-only for the runtime group); columns `creator_applications.source` / `agency_id` / `revoked_*`; enum values `live_host_source` CREATOR, `creator_application_status` REVOKED, `agency_close_reason` BANNED, `cherry_ledger_reason` AGENCY_FORFEIT; trigger `kabso_creator_host_exclusive`; server config `GIFT_CREATOR_SHARE_PERCENT`, `GIFT_CREATOR_QUIP_SHARE_PERCENT`, `CREATOR_AGENCY_COMMISSION` | Backend — `creator` (`creator-membership.ts`: the membership and its hosting permission), `economy` (`agency-ban.ts`, the agency activation), `live` (the share, the interleave) | CTO; Security (money: the forfeit, the share) |
 | *(v1.89-social)* Tables `level_raise_requests`, `level_raise_source_apps`, `level_raise_settings`; column `notifications.level_raise_request_id`; media kind `LEVEL_RAISE_VIDEO` | Backend — `level-raise` module (the level is raised only through the `levels` module's `LevelProgressService`) | CTO; the OWNER approves the weights and the source-app data (D290) |
 | *(v1.90-social)* Tables `user_verification_badges`, `verification_badge_settings`; type `verification_badge`; capabilities `verification.view` / `verification.settings`; audit `verification.*`; config `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` | Backend — `verification` module (`verification-badges.ts` the only writer of the badges; `VerificationService` the only writer of the settings; `admin-roles`, `creator-applications` and `kyc.service` call the recompute in their transactions); app — `ProfileVerificationBadge`; web — `apps/admin` «شارات التوثيق» and the user page | CTO; the OWNER sets the thresholds (D293) |
 | *(v1.91-social)* Column `user_profiles.tag_icons` (CHECKs `user_profiles_tag_icons_len`, `user_profiles_tag_icons_values`) | Backend — `users` module (`PATCH /me` writes; the profile reads) | CTO |
@@ -725,6 +727,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.78-live (draft) | 2026-11-06 | **D288 (owner: «ان البلاغ يصل كل المشرفين والدعم والذي يقوم بحله يضغط تم حله», and «يلغي» for the code on the permanent ban and content deletion): the shared report queue «البلاغات المشتركة», and two actions without a code** — `banAdminUser`, `moderateAdminContent` `delete` and `requestAdminUserDeletion` need no authenticator code (`totpCode` deprecated, accepted and ignored). `reports.view` gains SUPPORT; new capabilities `reports.resolve` (OWNER, MODERATION, SUPPORT) and `reports.reopen` (OWNER, MODERATION). `listAdminPanelReports` `status=RESOLVED`, `AdminPanelReport.resolvedBy` / `resolutionNote`; `resolveAdminPanelReport`, `reopenAdminPanelReport`, `getAdminPanelReportsSummary`; the app's «بلاغات» `listStaffReports`, `getStaffReportsSummary`, `resolveStaffReport`; `StaffStatus.capabilities` gains `reports.view` / `reports.resolve`. Notification `STAFF_REPORT_NEW` (target `REPORT`: `reportTargetType`, `reportOpen`), push channel `staff` (Android `kabso_staff`). Migration `20270322090000_shared_reports` (`notification_type` value, `notifications.report_id`, `reports_resolved_idx`). §10.101; §10.96.14's table. | **Additive** (new operations, enum values, optional fields; the deprecated `totpCode` still accepted). **Behaviour change:** no code for the ban, content deletion and account deletion; SUPPORT sees every report; a new report notifies every moderator and support member. |
 | v1.79-live (draft) | 2026-11-06 | **D289 (owner: «كل شارة لها أيقونة خاصة في النظام كاملاً» — gift and store badges as a set, one icon each; «بمؤثرات صوتية» / «بدون مؤثرات صوتية» exclusive; «جديد» 14 days or the owner's date; «لفترة محدودة» / «موسمي» with an end; auto-detection in the panel; one or two on a gift-box tile, never over the price; all of them in the details; lucky gifts unchanged):** `ItemBadgeCode` (SOUND, NO_SOUND, NEW, MOST_WANTED, FEATURED, LIMITED, FULLSCREEN, EXCLUSIVE, SEASONAL), `ItemBadge` `{code, until}`, `AdminItemBadge` (+ `active`), `ItemBadgeInput` `{code, until?}`; `Gift.badges` and `StoreItem.badges` (required, the running ones in display priority); `Gift.badge` and `StoreItem.isNew` deprecated (derived); the panel's gift rows and `AdminStoreItem` gain `badges`; `createAdminGift` / `updateAdminGift` / `createAdminStoreItem` / `updateAdminStoreItem` accept `badges` (the old `badge` / `isNew` still accepted, not with it); `uploadAdminGiftFile` and `uploadAdminStoreArt` answer `hasAudio` / `fullscreen` (and an SVGA's `width` / `height` for gifts); code `ITEM_BADGES_INVALID` (400). Migration `20270323090000_item_badges`. **D289b (owner: «… لا يمكن حذفه، فاريد منك اضافة زر الحذف»):** `deleteAdminStoreItem` (`DELETE /admin/store/items/{itemId}`: DELETED when nobody bought or holds the item, else HIDDEN — out of the store, kept for its owners; `AdminStoreItemDeleted`, `AdminOptionalReasonRequest`), `restoreAdminStoreItem`, `AdminStoreItem.hiddenAt`; audit `store.item.delete \| hide \| restore`; migration `20270323090100_store_item_delete`. §4, §10.102. | **Additive** (a new required response field; deprecated fields keep their meaning while «جديد» runs; new optional request fields). |
 | v1.81-live (draft) | 2026-11-06 | **D291 (owner: «ما رأيك ان نصمم صفحة التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات. حاول ان تأخذ الفكرة»): medal levels and the medals page** — a medal has 1 … 20 levels (`medal_levels`), each reached when the medal's metric (`MedalMetric`) is at least its threshold; level 1 is the medal's original rule; a level never goes down. `Medal` + `category` (`MedalCategory`), `metric` (`MedalMetric`), `level`, `maxLevel`, `levels` (`MedalLevel`), `progress` (`MedalProgress`), `iconUrl`, `showcasePosition`; `UserMedal` + `category`, `level`, `maxLevel`, `iconUrl`; `ProfileMedal` + `level`, `iconUrl` (so `ProfileMedals`, `MedalShowcase`); `NotificationTarget.medalLevel` (MEDAL_AWARDED above 1 = a level-up); «ملوك الثروة» (§10.104.7): `MedalMetric` `GIFTS_SENT_COINS`, `iconAsset` on `MedalLevel` / `Medal` / `UserMedal` / `ProfileMedal` / `AdminMedalLevel` / the panel input, migrations `20270325090100_medal_wealth_metric` + `20270325090200_medal_wealth_kings`; the charm and live-hours codes retired as name-side icons (§10.104.8, `AdminMedal.retired`, migration `20270325090300_medal_retire_name_icons`; wearing one → 400 `invalid_value`); «سيد الحظ» (§10.104.9): `MedalMetric` `LUCKY_GIFTS_SENT_COINS`, migrations `20270325090400_medal_lucky_metric` + `20270325090500_medal_lucky_master`. Panel: `listAdminMedals`, `updateAdminMedal` (`catalog.view` / `catalog.manage` + the code; audited `medals.levels.update`). Level changes above 1 audited `medals.level_up`. Migration `20270325090000_medal_levels` (every held medal stays level 1) and `medals-admin backfill` (raises them; DEPLOYMENT §5.72, PP-50). §10.104. | **Additive** (new response fields and operations; an older app ignores levels and reads a level-up as «you earned a new medal»). |
+| v1.82-live (draft) | 2026-11-06 | **D295 (owner: content creators go live «صانع محتوى» — the creator programme grants hosting, host and creator never both, the lists 1 : 1, a purple badge, 72 % share, the agency activates a creator; owner answers 2026-11-06: agency commission YES, quips 60 %, the agency ban as a panel action):** `LiveRoomSummary.hostIsCreator`; Popular / New / Nearby interleave one host's live and one creator's live (each group in the tab's order; the cursor carries both groups' positions, `x`; Following and Featured unchanged); `CreatorApplyRule.refusal` `HOST`, `HostingApplyRefusal` `CREATOR`; `CreatorApplication.source` / `.revokedAt`, status `REVOKED`; `LiveHostSource` `CREATOR` (on the panel's host rows, `MyHostingApplication.host`); `activateMyAgencyMember` (`POST /me/agency/hosts/{userId}/activate`, `AgencyMemberActivationRequest`), `AgencyHost.hosting` / `.activatedByAgency`; code `AGENCY_ACTIVATION_NOT_ALLOWED` (409); `grantLiveHost` / `revokeLiveHost` and the panel's grant / revoke 409 `ADMIN_ACTION_REFUSED` (`CREATOR`); panel `revokeAdminCreatorMember`, the creators list's `memberActive`, `activatedBy` («فعّله وكيل: …»), `revokeReason`, `revokedBy`; «حظر الوكالة» `getAdminAgencyBan` / `banAdminAgency` (capability `agencies.ban`, OWNER), `AdminAgencyBanPreview`, `ClosedAgency.reason` `BANNED`, `AgencyOpenRule.refusal` `BANNED`, `CherryLedgerReason` `AGENCY_FORFEIT`; audit `creator.member.revoke`, `agency.member.activate`, `agency.ban`; config `GIFT_CREATOR_SHARE_PERCENT` (72), `GIFT_CREATOR_QUIP_SHARE_PERCENT` (60), `CREATOR_AGENCY_COMMISSION` (true); migrations `20270329090000_creator_lives_enums`, `20270329090100_creator_lives`. §4, §8, §10.108. | **Additive** for clients (new fields, operations and enum values; a missing `hostIsCreator` reads as false; unknown `hosting` reads as NONE, unknown close reason as ADMIN). **Behaviour:** the lists' order (1 : 1); a cursor of the interleaved lists carries `x` (an older cursor on those lists → 400, the app restarts from the first page — §10.4); a creator's live pays 72 % / 60 %; a host can no longer become a creator nor a creator a host. |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
@@ -7988,6 +7991,149 @@ and «لماذا الخط أسفل البوست؟ أزله» on the posts feed.
   Arabic and "Kabso Live" in English (was "Kabso" in both), at the reading start (right in RTL, left in LTR; the bar
   follows the app's direction), in the language's own bundled font at its heaviest face (700), 21 sp (was 18),
   ellipsized, never clipped. The auth screens' `KLogo` wordmark is unchanged.
+
+### 10.108 Content creators go live «صانع محتوى» *(v1.82-live, DRAFT — D295)*
+
+Owner 2026-11-06: a member of the creator programme (§10.96.13) goes live like a host, with no host application and no
+agency; a person is never both a host and a creator; the lists alternate one host's live and one creator's live; a
+purple «صانع محتوى» badge; a creator's live pays 72 %; an agency owner may activate a member as a creator, under a
+warning; the team may ban an agency that activated a fake creator.
+
+#### 10.108.1 The hosting permission
+
+- A creator-programme membership (`creator_members`) **grants** the hosting permission: a `live_hosts` row with source
+  **`CREATOR`**, written in the same transaction as the membership (the panel's approval of «انضم كصانع محتوى», or an
+  agency activation, §10.108.6) and removed when the membership ends (§10.108.7, §10.108.8). `Me.canHost` is true while a member;
+  go-live, the room number, the cover and the blocked words work as for any host.
+- Audited `live.host.grant` (source CREATOR) and, at the end, `creator.member.revoke` (+ `live.host.revoke`).
+- Existing members without a permission get one from the migration (backfill). A member who already held a permission
+  of another source keeps it untouched: the migration and the trigger never fail on such rows (the trigger guards new
+  writes only). Owner 2026-11-06 (decided): a person can never be both and there is NO automatic rule — the team
+  resolves each such row by hand in the panel by revoking one role: the host revoke (`revokeLiveHost` / «سحب البث»)
+  removes the host permission and gives the membership's `CREATOR` permission back at once (audited
+  `live.host.grant` `resolvedBothRoles`); or «إلغاء العضوية» ends the membership and the host permission stays.
+  DEPLOYMENT §5.76 has the query that lists them.
+
+#### 10.108.2 Host and creator are mutually exclusive
+
+A **host** is a person holding a hosting permission of any source but `CREATOR` (`ADMIN`, `AGENCY`, `IDENTITY`). A
+**creator** is a creator-programme member. Nobody is both; every path refuses it and the database backs it:
+
+| Path | Refusal |
+| ---- | ------- |
+| `applyForCreatorProgramme` by a host | 409 `CREATOR_APPLICATION_NOT_ALLOWED` `{field: application, issue: HOST}` (also `rule.refusal`) |
+| the panel's approval of a creator application whose applicant became a host meanwhile | 409 `ADMIN_ACTION_REFUSED` `{field: application, issue: HOST}` |
+| `applyForHosting` by a creator | 409 `HOST_APPLICATION_NOT_ALLOWED` `{field: application, issue: CREATOR}` (also `rule.refusal`, right after `ACCOUNT_NOT_ACTIVE`) |
+| the panel's approval of a host application whose applicant became a creator | 409 `ADMIN_ACTION_REFUSED` `{field: application, issue: CREATOR}` |
+| an admin grant (`grantLiveHost`, the panel's «منح البث») of a creator; the admin revoke of a creator's `CREATOR` permission | 409 `ADMIN_ACTION_REFUSED` `{field: user, issue: CREATOR}` (a creator's permission ends only with the membership; a pre-D295 both-roles person's HOST permission can be revoked, §10.108.1) |
+| the agency activation of the opposite type | 409 `AGENCY_ACTIVATION_NOT_ALLOWED` `HOST` / `CREATOR` |
+| any other write (CLI, SQL) | the trigger `kabso_creator_host_exclusive` on `live_hosts` and `creator_members` (`creator_host_exclusive`, SQLSTATE 23514) |
+
+D285's recruitment is consistent: one HOST *or* CREATOR recruitment per person (`staff_recruitments_one_gift_recruit`).
+A member of an agency (`agency_hosts`) without a hosting permission is neither yet: the agency activates them as one or
+the other (§10.108.6), or they apply themselves.
+
+#### 10.108.3 The live lists: one host, one creator
+
+- **Popular «الشائع», New / Explore «الجديد» and Nearby «القريب»** (`tab` `popular` or `new`, with or without
+  `scope=nearby` / `country`, with any `category` and `kind`) interleave **1 : 1**: one host's live, then one
+  creator's live, alternating, starting with a host. Each group keeps the tab's own order (§10.4: Popular = score,
+  startedAt, id; New = startedAt, id). When one group runs out, the other continues alone.
+- **Following «المتابَعين»** keeps its single order (startedAt). **Featured** (`featured=true`) keeps its rank order
+  (the team's curation) — not interleaved.
+- **Cursor.** The lists do not freeze, so each group is its own keyset query and the merge is deterministic: the
+  cursor's payload carries `x = {h, c, g}` — the host group's last position, the creator group's last position (null:
+  none of that group taken yet) and the group of the last row taken (`H` / `C`); the next page continues each group
+  after its own position and starts with the other group than `g`. Over an unchanged set of rooms no room repeats or is
+  skipped; drift between pages behaves as §10.4 says for every list (the client dedupes by id). `x` is required on the
+  interleaved lists and refused elsewhere (400 `cursor` `invalid_value`): a cursor issued before v1.82-live on those
+  lists is refused, and the app restarts from the first page.
+
+#### 10.108.4 The badge
+
+`LiveRoomSummary.hostIsCreator` (so also `LiveRoom`): the host is a creator-programme member now. Public (the
+membership is public, like D293's creator seal). The app shows a purple «صانع محتوى» / "Creator" badge (the D293
+creator colour `#7B3FC4`) on the live card and next to the host's name in the room (the host pill / room bar).
+
+#### 10.108.5 The share and the agency commission
+
+- **72 %.** A non-lucky gift sent in a creator's live, when **every recipient is a creator member**, stores
+  `live_gifts.host_share_bps` = `GIFT_CREATOR_SHARE_PERCENT` (72 → 7 200 bps): 1 000 000 coins → 7 200 000 cherries
+  (1 coin = 10 cherries). **Quips** take `GIFT_CREATOR_QUIP_SHARE_PERCENT` (owner 2026-11-06: **60 %**, not 72 %,
+  not the hosts' 50 %).
+- The share is stored per send (D154), so a send that also reaches someone who is not a creator (a seated host or
+  guest) keeps the category share: the creator rate is never paid to a host through a creator's live. A creator seated
+  in a host's live gets the category share (it is the host's live).
+- **Unchanged:** lucky gifts keep `LUCKY_GIFT_HOST_SHARE_PERCENT`; direct-conversation and CP gifts keep their own
+  shares (`GIFT_DM_RECIPIENT_SHARE_PERCENT`, D155 / D179). Everything reading the stored share (the cherry ledger, the
+  host cherries pill, the data center, the history, the D281 targets' actual profit) follows by itself.
+- **Agency commission (owner 2026-11-06: YES, decided).** An agency earns its usual commission (and its parent's) on
+  the gifts its creator members receive, exactly as with its hosts — from the platform's part, on top of the creator's
+  72 %, never out of it. Config `CREATOR_AGENCY_COMMISSION` (default `true`; `false` stops it for creators only).
+- **D285.** A CREATOR (or HOST) recruit's profit reads the cherries actually credited (net of reversals) and the
+  commissions actually paid, so the recruiter's share follows the 72 % without change; there is one credit per
+  recipient and one commission per agency on a send (no double pay). The D285 shares stay 1 % hosts, 1 % creators,
+  1 % agencies, 0.75 % recharge agents, and the RECHARGE_AGENT formula's cautious share stays the highest *host*
+  category share (65 %; the 992 045 example unchanged) — owner 2026-11-06, decided.
+
+#### 10.108.6 The agency activation «تفعيل كمضيف / كصانع محتوى»
+
+`POST /me/agency/hosts/{userId}/activate` (`activateMyAgencyMember`): the owner of an OPEN agency activates one of its
+ACTIVE members (`AgencyHost.hosting` `NONE`) as:
+
+- **«مضيف»** `{as: HOST}` — the hosting permission, source `AGENCY`, `granted_by_id` the agency owner;
+- **«صانع محتوى»** `{as: CREATOR, country, category, links (1–5), bio?, confirmCreator: true}` — the creator
+  programme's fields, the note «نسبة صانع المحتوى 72%» and the warning «إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن
+  كذلك، سيتم حظر الوكالة وخسارة أرباحك.», which the owner must tick (`confirmCreator`; anything else → 400). The person
+  becomes a member at once: a `creator_applications` row written APPROVED with `source = AGENCY`, `agency_id`, the
+  owner as `decided_by_id` («فعّله وكيل: …» in the panel's «طلبات صناع المحتوى»), the membership and the permission
+  `CREATOR`. A pending «انضم كصانع محتوى» of the member is cancelled.
+
+No identity check (KYC) is required for either choice (owner 2026-11-06, decided; unlike «كن مضيفاً مع الإدارة»).
+Order: 404 (no OPEN agency of the caller, or not its ACTIVE member) → 400 → 409 `AGENCY_ACTIVATION_NOT_ALLOWED`
+(`AGENCY_SUSPENDED`, `ACCOUNT_NOT_ACTIVE`, `STAFF`, `HOST`, `CREATOR`) → 200 with the member's `AgencyHost` row (also
+when already activated as asked: nothing changes). Audited `agency.member.activate` (the member, the type, the
+application, `warningConfirmed`) and `live.host.grant`. Leaving or being released from the agency later does not end
+either role (the team ends a creator membership; a host keeps the permission as in D209).
+
+#### 10.108.7 The team ends a membership
+
+`POST /admin/creator-members/{userId}/revoke {reason}` (`creators.decide`: OWNER, SUPPORT): any membership (own
+application or agency). The membership goes, its application becomes `REVOKED` (`revokedAt`, `revokeReason`, kept),
+the `CREATOR` permission is removed and a running live ends (`ADMIN`). The person may apply again. 404 not a member.
+
+#### 10.108.8 «حظر الوكالة — تفعيل صانع محتوى وهمي»
+
+Owner 2026-11-06 (decided): a panel action on an agency and from a creator's record («فعّله وكيل: …»). **OWNER only**
+(`agencies.ban`), with the authenticator code again and a reason. `GET /admin/agencies/{agencyId}/ban` gives the
+confirmation's figures and the creators this agency activated first; `POST …/ban {reason, totpCode,
+fakeCreatorUserIds}` does, in one transaction:
+
+1. **The agency is banned**: closed with the reason `BANNED` through the existing closing (its ACTIVE members are
+   released, any open complaint resolved, the owner told and the host-agent perks removed). A banned agency is never
+   reopened: the owner's «افتح وكالة» answers `AgencyOpenRule.refusal` `BANNED` (409 `AGENCY_OPEN_NOT_ALLOWED`
+   `BANNED`), the team's reopening 409. An agency already closed is marked `BANNED`.
+2. **The owner loses the agency earnings still in the balance**: the agency's commission to its owner (`agency` +
+   `parent` commission of this agency in `agency_earnings`, net of reversals) is forfeited up to what the balance holds
+   beyond the locked task cherries — `forfeit = min(commission, max(0, balance − locked))` — as **one** cherry-ledger
+   debit `AGENCY_FORFEIT` (reference: the agency; never a silent deletion).
+   - **Not touched (owner, decided 2026-11-06):** money already withdrawn — including the cherries held by a pending
+     withdrawal — is NOT clawed back and the balance never goes below 0; the hosts' and creators' own earnings are NOT
+     touched.
+   - Nothing is pending: an agency's commission is credited with each gift (D179); a closed agency earns none
+     afterwards (`creditGiftCherriesIn` reads OPEN agencies only), so no sweeper credits the forfeited amount again. A
+     later reversal of an earlier send does not take the forfeited commission a second time (the owner's commission
+     rows are not mirrored once a ban exists).
+3. **Only the FAKE creators are revoked** (owner 2026-11-06, decided): the dialog lists every creator this agency
+   activated with a checkbox, NONE pre-selected; the OWNER ticks the fake ones and only those
+   (`fakeCreatorUserIds`, required, may be empty) lose the membership and the hosting permission it gave (their
+   running lives end). The agency's other creators stay creators and are released from the closed agency like its
+   hosts. A ticked id that is not an active creator this agency activated → 409 `ADMIN_ACTION_REFUSED` (nothing
+   changed). An empty list bans and forfeits without revoking any creator.
+
+One `agency_bans` row per agency (append-only): a second call changes nothing and answers `alreadyBanned: true` with
+the first ban's figures. Audited `agency.ban` (owner, reason, commission, forfeited, balance, locked, held,
+`fakeCreators` — the creators revoked as fake — with their `applications`, `keptCreators`, released members).
 
 ### 11.1 Media upload
 

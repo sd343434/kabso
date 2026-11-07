@@ -253,6 +253,10 @@ model User {
   creatorAppsReferred    CreatorApplication[]       @relation("CreatorApplicationRecruiter")
   creatorApplications    CreatorApplication[]       @relation("CreatorApplicant")
   creatorAppsDecided     CreatorApplication[]       @relation("CreatorApplicationDecider")
+  /// v1.82-live (D295): creator memberships this staff member ended; agencies they banned / owned when banned.
+  creatorAppsRevoked     CreatorApplication[]       @relation("CreatorMembershipRevoker")
+  agencyBansMade         AgencyBan[]                @relation("AgencyBanBy")
+  agencyBansOwned        AgencyBan[]                @relation("AgencyBanOwner")
   creatorMember          CreatorMember?
   recruitsMade           StaffRecruitment[]         @relation("StaffRecruiter")
   /// v1.89-social (D290): level-raise requests «طلب رفع ليفيل» about this supporter, made by this staff member, decided
@@ -625,6 +629,9 @@ enum LiveHostSource {
   ADMIN
   AGENCY
   IDENTITY
+  /// v1.82-live (D295, §10.108): a creator-programme membership grants the permission (with the membership; removed
+  /// when it ends). Host and creator are exclusive (trigger `kabso_creator_host_exclusive`).
+  CREATOR
 
   @@map("live_host_source")
 }
@@ -4138,6 +4145,9 @@ enum CherryLedgerReason {
   /// v1.75-live (D285): a recruiter's daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`),
   /// withdrawable (not locked like TASK_REWARD).
   STAFF_RECRUIT_COMMISSION
+  /// v1.82-live (D295, §10.108): «حظر الوكالة» — the owner's unwithdrawn agency commission forfeited (a debit;
+  /// reference: the agency).
+  AGENCY_FORFEIT
 
   @@map("cherry_ledger_reason")
 }
@@ -4179,6 +4189,8 @@ enum AgencyOrigin {
 enum AgencyCloseReason {
   PROBATION_FAILED
   ADMIN
+  /// v1.82-live (D295, §10.108): «حظر الوكالة — تفعيل صانع محتوى وهمي» (OWNER); never reopened.
+  BANNED
 
   @@map("agency_close_reason")
 }
@@ -4283,6 +4295,9 @@ model Agency {
   months        AgencyMonth[]
   applications  AgencyApplication[]
   notifications Notification[]
+  /// v1.82-live (D295): the creators this agency activated, and its ban (if any).
+  creatorActivations CreatorApplication[] @relation("CreatorActivatingAgency")
+  ban                AgencyBan?
 
   @@unique([ownerUserId], map: "agencies_owner_once")
   @@unique([inviteCode], map: "agencies_invite_code_key")
@@ -6811,8 +6826,19 @@ enum CreatorApplicationStatus {
   APPROVED
   REJECTED
   CANCELLED
+  /// v1.82-live (D295): the team ended the membership this application made.
+  REVOKED
 
   @@map("creator_application_status")
+}
+
+/// v1.82-live (D295, §10.108): who made a creator application — the person («انضم كصانع محتوى») or an agency owner who
+/// activated one of the agency's members as a creator (written APPROVED at once).
+enum CreatorApplicationSource {
+  APPLICATION
+  AGENCY
+
+  @@map("creator_application_source")
 }
 
 /// v1.75-live (D285): an application «انضم كصانع محتوى» (the creator programme). PRIVATE (the links and the bio are
@@ -6830,8 +6856,17 @@ model CreatorApplication {
   decidedAt       DateTime?                @map("decided_at") @db.Timestamptz(3)
   decidedById     String?                  @map("decided_by_id") @db.Uuid
   rejectReason    String?                  @map("reject_reason") @db.VarChar(500)
+  /// v1.82-live (D295): APPLICATION (the person's own) or AGENCY (an agency owner's activation; `agency_id` set).
+  source          CreatorApplicationSource @default(APPLICATION)
+  agencyId        String?                  @map("agency_id") @db.Uuid
+  /// v1.82-live (D295): the team ended the membership (status REVOKED).
+  revokedAt       DateTime?                @map("revoked_at") @db.Timestamptz(3)
+  revokedById     String?                  @map("revoked_by_id") @db.Uuid
+  revokeReason    String?                  @map("revoke_reason") @db.VarChar(500)
 
   user      User           @relation("CreatorApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  agency    Agency?        @relation("CreatorActivatingAgency", fields: [agencyId], references: [id], onDelete: SetNull)
+  revokedBy User?          @relation("CreatorMembershipRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
   decidedBy User?          @relation("CreatorApplicationDecider", fields: [decidedById], references: [id], onDelete: SetNull)
   recruiter User?          @relation("CreatorApplicationRecruiter", fields: [recruiterUserId], references: [id], onDelete: SetNull)
   member    CreatorMember?
@@ -6839,6 +6874,7 @@ model CreatorApplication {
   @@unique([userId], map: "creator_applications_one_pending", where: raw("status = 'PENDING'::creator_application_status"))
   @@index([userId, createdAt(sort: Desc)], map: "creator_applications_user_idx")
   @@index([status, createdAt(sort: Desc)], map: "creator_applications_status_idx")
+  @@index([agencyId, createdAt(sort: Desc)], map: "creator_applications_agency_idx", where: raw("agency_id IS NOT NULL"))
   @@map("creator_applications")
 }
 
@@ -7091,4 +7127,27 @@ model VerificationBadgeSettings {
   updatedById              String?   @map("updated_by_id") @db.Uuid
 
   @@map("verification_badge_settings")
+}
+
+/// v1.82-live (D295, §10.108): «حظر الوكالة — تفعيل صانع محتوى وهمي» (OWNER, the code again and a reason). One row per
+/// banned agency (a second ban changes nothing): the agency closed BANNED, the owner's unwithdrawn agency commission
+/// forfeited (`AGENCY_FORFEIT`, `forfeited_cherries` ≤ `commission_cherries`), the creator activations concerned revoked.
+/// Append-only for the runtime group.
+model AgencyBan {
+  agencyId           String   @id @map("agency_id") @db.Uuid
+  ownerUserId        String   @map("owner_user_id") @db.Uuid
+  bannedById         String?  @map("banned_by_id") @db.Uuid
+  reason             String   @db.VarChar(500)
+  /// The owner's agency and parent commission from this agency (net of reversals) at the ban.
+  commissionCherries BigInt   @map("commission_cherries")
+  forfeitedCherries  BigInt   @map("forfeited_cherries")
+  creatorUserIds     String[] @default([]) @map("creator_user_ids") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  agency   Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  owner    User   @relation("AgencyBanOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  bannedBy User?  @relation("AgencyBanBy", fields: [bannedById], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId], map: "agency_bans_owner_idx")
+  @@map("agency_bans")
 }

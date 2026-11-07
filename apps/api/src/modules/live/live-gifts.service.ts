@@ -176,6 +176,18 @@ export function hostShareBpsOf(config: AppConfig, category: string): number {
   return shares[category] ?? config.gifts.hostShareBps.POPULAR;
 }
 
+/**
+ * v1.82-live (D295, CONVENTIONS §10.108, owner): the share of a non-lucky send in a live. In a content creator's live,
+ * when every recipient is a creator member, it is GIFT_CREATOR_SHARE_PERCENT (72 %) — quips
+ * GIFT_CREATOR_QUIP_SHARE_PERCENT (60 %); otherwise the category share. The share is stored per send, so a send that
+ * also reaches someone who is not a creator (a seated host, a guest) keeps the category share: the creator rate is
+ * never paid to a host through a creator's live.
+ */
+export function liveShareBpsOf(config: AppConfig, category: string, creatorSend: boolean): number {
+  if (!creatorSend) return hostShareBpsOf(config, category);
+  return category === 'QUIPS' ? config.gifts.creatorQuipShareBps : config.gifts.creatorShareBps;
+}
+
 function toDto(row: GiftRow, originRoomId: string, publicBaseUrl: string | undefined): LiveGiftDto {
   return {
     id: row.id,
@@ -361,8 +373,16 @@ export class LiveGiftsService {
     const winners = isLucky ? this.lucky.draw(draws) : null;
     const table = this.lucky.table;
     // v1.32-live (D154): the recipients' earnings share of this send, fixed now (§10.33).
+    // v1.82-live (D295, §10.108): in a creator's live, a send to creators only takes the creator share (72 %, quips 60 %).
+    const creatorSend =
+      gift.category !== 'LUCKY' &&
+      (await this.prisma.creatorMember.count({
+        where: { userId: { in: [...new Set([row.host_user_id, ...toIds])] } },
+      })) === new Set([row.host_user_id, ...toIds]).size;
     const hostShareBps =
-      gift.category === 'LUCKY' ? table.hostShareBps : hostShareBpsOf(this.config, gift.category);
+      gift.category === 'LUCKY'
+        ? table.hostShareBps
+        : liveShareBpsOf(this.config, gift.category, creatorSend);
     let created: {
       dto: LiveGiftDto;
       coins: number | null;

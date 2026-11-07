@@ -67,6 +67,15 @@ export const agencyProbationExtendBody = z.strictObject({
   totpCode,
 });
 export const reasonTotpBody = z.strictObject({ reason, totpCode });
+/**
+ * v1.82-live (D295, §10.108, owner 2026-11-06): «حظر الوكالة»; `fakeCreatorUserIds` = ONLY the creators the OWNER ticked
+ * as fake (required; empty = ban and forfeit without revoking any creator).
+ */
+export const agencyBanBody = z.strictObject({
+  reason,
+  totpCode,
+  fakeCreatorUserIds: z.array(z.uuid()).max(100),
+});
 
 export const createAgencyBody = z
   .strictObject({
@@ -117,7 +126,7 @@ export const livesQuery = tableQuery(['viewers', 'startedAt'], 'viewers')
   .strict();
 
 export const hostsQuery = tableQuery(['grantedAt'], 'grantedAt')
-  .extend({ source: z.enum(['ADMIN', 'AGENCY', 'IDENTITY']).optional() })
+  .extend({ source: z.enum(['ADMIN', 'AGENCY', 'IDENTITY', 'CREATOR']).optional() })
   .strict();
 
 export const hostBody = z.strictObject({ username: z.string().trim().min(1).max(31), reason });

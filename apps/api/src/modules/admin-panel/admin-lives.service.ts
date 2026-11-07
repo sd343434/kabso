@@ -324,7 +324,10 @@ export class AdminLivesService {
     return { status: 'ENDED', endReason: 'ADMIN' };
   }
 
-  async hosts(q: TableQuery & { source?: 'ADMIN' | 'AGENCY' | 'IDENTITY' | undefined }, ctx: AdminContext) {
+  async hosts(
+    q: TableQuery & { source?: 'ADMIN' | 'AGENCY' | 'IDENTITY' | 'CREATOR' | undefined },
+    ctx: AdminContext,
+  ) {
     const text = q.q?.trim().toLowerCase().replace(/^@/, '');
     const where: Prisma.LiveHostWhereInput = {
       ...(q.source ? { source: q.source } : {}),

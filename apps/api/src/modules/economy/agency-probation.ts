@@ -127,7 +127,7 @@ export async function closeAgencyIn(
   tx: Tx,
   agencyId: string,
   input: {
-    reason: 'PROBATION_FAILED' | 'ADMIN';
+    reason: 'PROBATION_FAILED' | 'ADMIN' | 'BANNED';
     note: string | null;
     activated: number | null;
     required: number | null;
@@ -375,6 +375,10 @@ export async function reopenAgencyIn(
   const a = await lockAgency(tx, agencyId);
   if (!a) throw new HostAgentError('No such agency.');
   if (a.status !== 'CLOSED') throw new HostAgentError('The agency is not closed.');
+  // v1.82-live (D295, §10.108): a banned agency is never reopened.
+  if ((await tx.agencyBan.count({ where: { agencyId } })) > 0) {
+    throw new HostAgentError('The agency is banned and cannot be reopened.');
+  }
   const owner = await tx.user.findUnique({
     where: { id: a.owner },
     select: { status: true, deletedAt: true },

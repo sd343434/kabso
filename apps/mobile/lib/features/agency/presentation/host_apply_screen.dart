@@ -182,6 +182,7 @@ class _HostApplyScreenState extends ConsumerState<HostApplyScreen> {
     return switch (HostingApplyRefusal.fromWire(issue)) {
       HostingApplyRefusal.pending => l10n.hostApplyRefusedPending,
       HostingApplyRefusal.alreadyHost => l10n.hostApplyRefusedHost,
+      HostingApplyRefusal.creator => l10n.hostApplyRefusedCreator,
       HostingApplyRefusal.hostOfAgency ||
       HostingApplyRefusal.ownsAgency => l10n.hostApplyRefusedAgency,
       HostingApplyRefusal.reapplyCooldown => l10n.hostApplyRefusedCooldown,

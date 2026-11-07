@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { UsersService } from '../users/users.service.js';
+import { isCreatorIn } from '../creator/creator-membership.js';
 import {
   LiveRoomsService,
   LIVE_TX_OPTIONS,
@@ -107,6 +108,19 @@ export interface StaffMediaAccessDto {
   identity: string;
   expiresAt: string;
 }
+/**
+ * v1.82-live (D295, §10.108): the admin grant or revoke of a creator's hosting permission is refused — 409
+ * ADMIN_ACTION_REFUSED `details[0] = {field: 'user', issue: 'CREATOR'}` (host and creator are exclusive; a creator's
+ * permission comes and goes with the membership).
+ */
+function creatorHostRefused(issue: 'CREATOR'): AppException {
+  return new AppException(
+    ErrorCode.ADMIN_ACTION_REFUSED,
+    'This person is a content creator: the hosting permission follows the creator membership.',
+    [{ field: 'user', issue }],
+  );
+}
+
 const GUEST_PREFIX = 'guest:';
 const VIEWER_PAGE_MAX = 50;
 /** v1.56-live (D213, §10.86): the data message topic of a STREAMER's layout changes. */
@@ -1076,6 +1090,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     return this.prisma.$transaction(async (tx) => {
+      // v1.82-live (D295, §10.108): a content creator cannot also be a host (their permission comes with the membership).
+      if (await isCreatorIn(tx, user.id)) throw creatorHostRefused('CREATOR');
       // CP-016 G: the room number is drawn by the column default; `skipDuplicates` would also
       // skip a (rare) clash on it, so draw again while the host is still missing.
       let created = { count: 0 };
@@ -1101,6 +1117,19 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /**
+   * v1.82-live (D295): ends `hostUserId`'s running live (`ADMIN`) and closes its media — after the hosting permission
+   * went with a creator membership (revoked by the team or by an agency ban). Returns how many rooms ended.
+   */
+  async endHostedRooms(hostUserId: string): Promise<number> {
+    const rooms = await this.prisma.$transaction(
+      (tx) => this.rooms.endByAdminIn(tx, { hostUserId }),
+      LIVE_TX_OPTIONS,
+    );
+    for (const roomId of rooms) await this.closeMedia(roomId);
+    return rooms.length;
+  }
+
   /** `DELETE /admin/live/hosts/{username}`: also ends the user's LIVE room (`ADMIN`). */
   async revokeHost(
     adminId: string,
@@ -1111,8 +1140,34 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const ended = await this.prisma.$transaction(async (tx) => {
+      // v1.82-live (D295): a creator's permission ends only with the membership («صناع المحتوى» → revoke).
+      const creator = await isCreatorIn(tx, user.id);
+      const row = await tx.liveHost.findUnique({ where: { userId: user.id }, select: { source: true } });
+      if (creator && row?.source === 'CREATOR') throw creatorHostRefused('CREATOR');
       const removed = await tx.liveHost.deleteMany({ where: { userId: user.id } });
       const rooms = await this.rooms.endByAdminIn(tx, { hostUserId: user.id });
+      // D295 (owner: never both; rows from before D295 are resolved by hand): revoking the HOST role of a person who is
+      // also a creator leaves them a creator — the membership's permission (CREATOR) is given back at once.
+      if (creator && removed.count > 0) {
+        let granted = 0;
+        for (let attempt = 0; attempt < 5 && granted === 0; attempt += 1) {
+          granted = (
+            await tx.liveHost.createMany({
+              data: [{ userId: user.id, source: 'CREATOR', grantedById: adminId }],
+              skipDuplicates: true,
+            })
+          ).count;
+        }
+        await this.audit.recordIn(tx, {
+          action: AuditAction.LIVE_HOST_GRANT,
+          actorUserId: adminId,
+          targetType: 'user',
+          targetId: user.id,
+          metadata: { source: 'CREATOR', resolvedBothRoles: true, ...extra },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+      }
       // v1.90-social (D293, §10.105): no longer a host → the blue badge goes at once (unless another applies).
       if (removed.count > 0) await recomputeBadgesIn(tx, [user.id], 'host');
       if (removed.count > 0 || rooms.length > 0) {

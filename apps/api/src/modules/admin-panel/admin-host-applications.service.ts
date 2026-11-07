@@ -27,7 +27,9 @@ async function rule<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (err) {
-    if (err instanceof HostApplicationError) throw refused(err.message, err.issue);
+    // v1.82-live (D295): a creator applicant → `{field: 'application', issue: 'CREATOR'}`.
+    if (err instanceof HostApplicationError)
+      throw refused(err.message, err.issue, err.issue === 'CREATOR' ? 'application' : undefined);
     throw err;
   }
 }

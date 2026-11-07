@@ -3,7 +3,9 @@ import { api } from '../api';
 import { codeField, ErrorAlert, FormDialog, Loading, reasonField, UserCell, useAsync } from '../components';
 import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
+import { navigate } from '../router';
 import type { PanelRole } from '../types';
+import { AgencyBanDialog } from './AgencyBan';
 
 /**
  * D285 (owner, CONVENTIONS §10.96.13): recruitment by staff «الاستقطاب».
@@ -444,9 +446,22 @@ export function Recruits() {
   );
 }
 
-interface CreatorApp {
+export interface CreatorApp {
   id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'REVOKED';
+  /** v1.82-live (D295): the person's own application or an agency owner's activation. */
+  source?: 'APPLICATION' | 'AGENCY';
+  revokedAt?: string | null;
+  memberActive?: boolean;
+  activatedBy?: {
+    agencyId: string;
+    agencyName: string | null;
+    inviteCode: string;
+    hostCode: string | null;
+    owner: { id: string; username: string; displayName: string };
+  } | null;
+  revokeReason?: string | null;
+  revokedBy?: string | null;
   country: string;
   category: string;
   links: string[];
@@ -457,11 +472,31 @@ interface CreatorApp {
   user: { id: string; username: string; displayName: string };
 }
 
+/** v1.82-live (D295, §10.108): «فعّله وكيل: …» — the agency whose owner activated the person (a link to its page). */
+export function CreatorActivatedBy({ app }: { app: CreatorApp }) {
+  const { t } = useApp();
+  if (!app.activatedBy) return null;
+  const a = app.activatedBy;
+  const agent = `${a.owner.displayName} (@${a.owner.username})`;
+  return (
+    <p className="small" data-activated-by={a.agencyId}>
+      {t('creatorActivatedBy', { agent })} ·{' '}
+      <a href={`/agencies/${a.agencyId}`} onClick={(e) => (e.preventDefault(), navigate(`/agencies/${a.agencyId}`))}>
+        {t('creatorActivatedByAgency')}: <span className="mono">{a.hostCode ?? a.inviteCode}</span>
+        {a.agencyName ? ` · ${a.agencyName}` : ''}
+      </a>
+    </p>
+  );
+}
+
 /** «طلبات صناع المحتوى» (OWNER, SUPPORT). */
 export function CreatorApplications() {
-  const { t, lang, can } = useApp();
+  const { t, lang, can, toast } = useApp();
   const [status, setStatus] = useState<CreatorApp['status']>('PENDING');
   const [rejecting, setRejecting] = useState<CreatorApp | null>(null);
+  // v1.82-live (D295): the team ends a membership; the OWNER bans the activating agency.
+  const [revoking, setRevoking] = useState<CreatorApp | null>(null);
+  const [banning, setBanning] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<unknown>(null);
   const { data, error, loading, reload } = useAsync(
@@ -485,7 +520,7 @@ export function CreatorApplications() {
       <h1>{t('navCreatorApplications')}</h1>
       <p className="muted">{t('creatorAppsIntro')}</p>
       <div className="segmented wrap" role="group">
-        {(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] as const).map((s) => (
+        {(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'REVOKED'] as const).map((s) => (
           <button key={s} type="button" aria-pressed={status === s} onClick={() => setStatus(s)}>
             {t(`status${s}` as never)}
           </button>
@@ -501,9 +536,20 @@ export function CreatorApplications() {
           <div className="card" key={a.id} data-creator-app={a.id}>
             <div className="row">
               <UserCell username={a.user.username} displayName={a.user.displayName} />
+              {a.source && (
+                <span className="badge" data-creator-source={a.source}>
+                  {t(a.source === 'AGENCY' ? 'creatorSourceAGENCY' : 'creatorSourceAPPLICATION')}
+                </span>
+              )}
+              {a.memberActive !== undefined && a.status !== 'PENDING' && (a.status === 'APPROVED' || a.status === 'REVOKED') && (
+                <span className={`badge ${a.memberActive ? 'ok' : 'muted'}`}>
+                  {t(a.memberActive ? 'creatorMemberActive' : 'creatorMemberEnded')}
+                </span>
+              )}
               <span className="grow" />
               <span className="date muted">{formatDate(a.createdAt, lang)}</span>
             </div>
+            <CreatorActivatedBy app={a} />
             <dl className="kv small">
               <dt>{t('creatorAppCategory')}</dt>
               <dd>
@@ -539,7 +585,30 @@ export function CreatorApplications() {
                   <dd>{a.rejectReason}</dd>
                 </>
               ) : null}
+              {a.revokeReason ? (
+                <>
+                  <dt>{t('creatorRevoke')}</dt>
+                  <dd data-revoke-reason>
+                    {a.revokeReason}
+                    {a.revokedBy ? <span className="muted"> · {t('creatorRevokedBy', { name: a.revokedBy })}</span> : null}
+                  </dd>
+                </>
+              ) : null}
             </dl>
+            {a.memberActive && (can('creators.decide') || (a.activatedBy && can('agencies.ban'))) && (
+              <div className="row">
+                {can('creators.decide') && (
+                  <button className="btn small danger" data-creator-revoke onClick={() => setRevoking(a)}>
+                    {t('creatorRevoke')}
+                  </button>
+                )}
+                {a.activatedBy && can('agencies.ban') && (
+                  <button className="btn small danger" data-agency-ban onClick={() => setBanning(a.activatedBy!.agencyId)}>
+                    {t('agencyBan')}
+                  </button>
+                )}
+              </div>
+            )}
             {a.status === 'PENDING' && can('creators.decide') && (
               <div className="row">
                 <button className="btn primary small" disabled={busy === a.id} onClick={() => void approve(a)}>
@@ -552,6 +621,36 @@ export function CreatorApplications() {
             )}
           </div>
         ))
+      )}
+      {revoking && (
+        <FormDialog
+          title={t('creatorRevokeTitle')}
+          intro={<p className="muted small">{t('creatorRevokeIntro')}</p>}
+          fields={[reasonField(t)]}
+          confirmLabel={t('creatorRevoke')}
+          danger
+          submit={(v) => api.post(`/admin/creator-members/${revoking.user.id}/revoke`, { reason: v.reason })}
+          onClose={() => setRevoking(null)}
+          onDone={() => {
+            setRevoking(null);
+            reload();
+          }}
+        />
+      )}
+      {banning && (
+        <AgencyBanDialog
+          agencyId={banning}
+          onClose={() => setBanning(null)}
+          onDone={(r) => {
+            setBanning(null);
+            toast(
+              r.alreadyBanned
+                ? t('agencyBanAlready')
+                : t('agencyBanDone', { forfeited: formatNumber(r.forfeitedCherries, lang) }),
+            );
+            reload();
+          }}
+        />
       )}
       {rejecting && (
         <FormDialog

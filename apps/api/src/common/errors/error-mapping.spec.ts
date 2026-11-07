@@ -172,6 +172,7 @@ describe('ErrorCode', () => {
         // v1.47-social (DRAFT, D175)
         'FOLLOW_REQUEST_NOT_PENDING',
         // v1.52-social (DRAFT, D179)
+        'AGENCY_ACTIVATION_NOT_ALLOWED',
         'AGENCY_ALREADY_MEMBER',
         'AGENCY_JOIN_NOT_ALLOWED',
         'AGENCY_LEAVE_WINDOW_CLOSED',

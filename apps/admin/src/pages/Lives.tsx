@@ -620,7 +620,7 @@ export function Hosts() {
         defaultSort={{ sort: 'grantedAt', order: 'desc' }}
         searchLabel="usersSearch"
         csv
-        filters={[{ name: 'source', label: 'colSource', options: ['ADMIN', 'AGENCY', 'IDENTITY'].map((s) => ({ value: s, label: `source${s}` })) }]}
+        filters={[{ name: 'source', label: 'colSource', options: ['ADMIN', 'AGENCY', 'IDENTITY', 'CREATOR'].map((s) => ({ value: s, label: `source${s}` })) }]}
         columns={[
           { key: 'user', label: 'colHost', render: (r) => <UserCell username={r.username} displayName={r.displayName} avatarUrl={r.avatarUrl} /> },
           { key: 'status', label: 'colStatus', render: (r) => <StatusBadge status={r.status} /> },

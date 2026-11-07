@@ -138,7 +138,10 @@ export async function creditGiftCherriesIn(
       FROM agency_hosts ah
       JOIN agencies a ON a.id = ah.agency_id AND a.status = 'OPEN'::agency_status
       LEFT JOIN agencies p ON p.id = a.parent_agency_id AND p.status = 'OPEN'::agency_status
-     WHERE ah.status = 'ACTIVE' AND ah.host_user_id = ANY(${recipients.map((r) => r.userId)}::uuid[])`;
+     WHERE ah.status = 'ACTIVE' AND ah.host_user_id = ANY(${recipients.map((r) => r.userId)}::uuid[])
+       -- v1.82-live (D295, §10.108): CREATOR_AGENCY_COMMISSION=false — no agency commission on a creator member's gifts.
+       AND (${rules.creatorAgencyCommission !== false}
+            OR NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ah.host_user_id))`;
 
   const movements: Movement[] = recipients.map((r) => ({
     userId: r.userId,
@@ -322,7 +325,25 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
          WHERE agency_id = ${agencyId}::uuid AND month = ${month}::date`;
     }
   }
-  const movements = credits.map((c) => ({ userId: c.userId, reason: MIRROR[c.reason]!, delta: -c.delta }));
+  // v1.82-live (D295, §10.108): the owner of a BANNED agency already forfeited the agency's commission
+  // (AGENCY_FORFEIT): a later reversal does not take it a second time (their commission rows are left as they are).
+  const commissionUsers = [
+    ...new Set(credits.filter((c) => c.reason !== 'GIFT_RECEIVED').map((c) => c.userId)),
+  ];
+  const forfeited =
+    commissionUsers.length === 0
+      ? new Set<string>()
+      : new Set(
+          (
+            await tx.agencyBan.findMany({
+              where: { ownerUserId: { in: commissionUsers } },
+              select: { ownerUserId: true },
+            })
+          ).map((b) => b.ownerUserId),
+        );
+  const movements = credits
+    .filter((c) => c.reason === 'GIFT_RECEIVED' || !forfeited.has(c.userId))
+    .map((c) => ({ userId: c.userId, reason: MIRROR[c.reason]!, delta: -c.delta }));
   await applyMovementsIn(tx, movements, giftId, now);
   return { reversed: true, rows: movements.length, cherries: credits.reduce((s, c) => s + c.delta, 0n) };
 }
@@ -429,6 +450,23 @@ export async function creditRecruitCommissionIn(
     reference,
     now,
   );
+}
+
+/**
+ * v1.82-live (D295, CONVENTIONS §10.108): «حظر الوكالة» — the owner's unwithdrawn agency commission forfeited, as one
+ * `AGENCY_FORFEIT` row of −`cherries` (reference: the agency), so the ledger itself allows it once per agency (a second
+ * one fails on `cherry_ledger_reference_once`). The caller caps `cherries` at what the balance holds beyond the locked
+ * task cherries, so the balance never goes below 0 (money already withdrawn is not clawed back).
+ */
+export async function forfeitAgencyCommissionIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  agencyId: string,
+  now: Date,
+): Promise<void> {
+  if (cherries <= 0n) return;
+  await applyMovementsIn(tx, [{ userId, reason: 'AGENCY_FORFEIT', delta: -cherries }], agencyId, now);
 }
 
 /** The ledger reference of a host target's reward: one per host, level and day. */

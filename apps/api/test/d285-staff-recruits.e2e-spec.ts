@@ -529,7 +529,8 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
       rejectReason: 'روابط غير صالحة',
     });
 
-    // The host recruited by BD applies as a creator naming the moderator: the approval does not attribute again.
+    // The host recruited by BD applies as a creator naming the moderator. v1.82-live (D295, owner): a host can never
+    // be a creator — the approval is refused (`HOST`), so nothing is attributed a second time either.
     const host = (await ctx.prisma.staffRecruitment.findFirstOrThrow({ where: { type: 'HOST' } }))
       .recruitUserId;
     const hostUser = await ctx.prisma.user.findUniqueOrThrow({ where: { id: host } });
@@ -542,10 +543,11 @@ describe('D285 recruitment by staff', { timeout: 900_000 }, () => {
         recruiterUserId: moderator.id,
       },
     });
-    expect((await apost(support, `/admin/creator-applications/${hostApp.id}/approve`)).status).toBe(200);
+    const refusedHost = await apost(support, `/admin/creator-applications/${hostApp.id}/approve`);
+    expect(refusedHost.status, JSON.stringify(refusedHost.body)).toBe(409);
+    expect(issueOf(refusedHost)).toEqual({ field: 'application', issue: 'HOST' });
+    expect(await ctx.prisma.creatorMember.count({ where: { userId: host } })).toBe(0);
     expect(await ctx.prisma.staffRecruitment.count({ where: { recruitUserId: host } })).toBe(1);
-    const skip = await audits('staff.recruit.skip', host);
-    expect(skip.map((s) => (s.metadata as { reason: string }).reason)).toContain('already_attributed');
   });
 
   it('a recruiter who lost the role before the activation attributes nothing (audited)', async () => {

@@ -10,6 +10,7 @@ import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
@@ -573,7 +574,12 @@ class KHostPill extends StatefulWidget {
     this.agentCode,
     this.hostAgentCode,
     this.rechargeBadge,
+    this.hostIsCreator = false,
   });
+
+  /// v1.82-live (D295): the host is a content creator — the purple «صانع
+  /// محتوى» badge after the name.
+  final bool hostIsCreator;
 
   /// v1.54-social (D185): the host's recharge-agent code while ACTIVE (the
   /// badge after the name).
@@ -850,6 +856,11 @@ class _KHostPillState extends State<KHostPill> {
                           height: inlineAgentBadgeHeight(12.5),
                           gap: 3,
                         ),
+                        // v1.82-live (D295): a content creator's live.
+                        if (widget.hostIsCreator) ...[
+                          const SizedBox(width: 3),
+                          const CreatorLiveBadge(compact: true),
+                        ],
                         if (widget.username case final name?) ...[
                           const SizedBox(width: 5),
                           // The name keeps most of the room when it is

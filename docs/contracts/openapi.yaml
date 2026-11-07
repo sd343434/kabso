@@ -297,6 +297,17 @@ info:
     kept); «هل تقصد: …؟» name suggestions (`suggest…LevelRaiseSourceApps`, aliases); one PENDING / APPROVED request per
     source account (409 `LEVEL_RAISE_DUPLICATE`; after a rejection allowed and flagged). The source-app data (confidence CONFIRMED / ESTIMATE) and the weights are
     OWNER-editable. Notifications `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED` (target LEVEL_RAISE).
+    **D295 (DRAFT v1.82-live)** content creators go live «صانع محتوى» (CONVENTIONS §10.108; owner 2026-11-06): a
+    creator-programme membership grants the hosting permission (`live_hosts` source `CREATOR`; `Me.canHost` while a
+    member); host and creator are exclusive (`CreatorApplyRule` refusal `HOST`, `HostingApplyRefusal` `CREATOR`, the
+    admin grant 409, `AGENCY_ACTIVATION_NOT_ALLOWED`); Popular / New / Nearby interleave one host's live and one
+    creator's live (the cursor carries both positions; Following and Featured unchanged); `LiveRoomSummary.hostIsCreator`
+    (the purple badge); a creator's live pays 72 % (`GIFT_CREATOR_SHARE_PERCENT`; quips 60 %,
+    `GIFT_CREATOR_QUIP_SHARE_PERCENT`; lucky unchanged) stored per send; `activateMyAgencyMember` (the agency owner
+    activates a member as host or creator; `AgencyHost.hosting` / `.activatedByAgency`); panel
+    `revokeAdminCreatorMember`, the creators list's source, «فعّله وكيل: …», REVOKED; «حظر الوكالة» `getAdminAgencyBan`
+    / `banAdminAgency` (OWNER, code + reason; `ClosedAgency.reason` / `AgencyOpenRule.refusal` `BANNED`;
+    `CherryLedgerReason` `AGENCY_FORFEIT`). Migrations `20270329090000_creator_lives_enums`, `20270329090100_creator_lives`.
     **D291 (DRAFT v1.81-live)** medal levels and the medals page (CONVENTIONS §10.104; owner: «ما رأيك ان نصمم صفحة
     التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات»): a medal has 1 … 20 levels, each reached when the
     medal's metric (`MedalMetric`: lives, live hours, the charm level, family, couple, bullet messages) is at least its
@@ -5324,7 +5335,9 @@ paths:
       summary: "Admin: grant the hosting permission (CP-010)"
       description: |
         Permission `LIVE_HOSTS` (else 403). Idempotent; audited. Source `ADMIN` (agencies and
-        identity checks grant it in L1b). Unknown or not ACTIVE user → 404.
+        identity checks grant it in L1b). Unknown or not ACTIVE user → 404. (v1.82-live, D295) A content creator →
+        409 `ADMIN_ACTION_REFUSED` `{field: user, issue: CREATOR}` (host and creator are exclusive; the same for the
+        revoke: a creator's permission ends with the membership).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -5332,6 +5345,7 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
     delete:
       tags: [admin-live]
@@ -5339,7 +5353,9 @@ paths:
       summary: "Admin: revoke the hosting permission (CP-010)"
       description: |
         Permission `LIVE_HOSTS`. Idempotent; audited. Ends the user's LIVE room, if any, with
-        `endReason: ADMIN`.
+        `endReason: ADMIN`. (v1.82-live, D295) A content creator's `CREATOR` permission → 409 `ADMIN_ACTION_REFUSED`
+        (`CREATOR`); a person who is both from before D295 loses the host permission and keeps the membership's
+        (`CREATOR` given back at once, audited `resolvedBothRoles`).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -5347,6 +5363,7 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   # ------------------------------------------------------------------------------------------
@@ -6281,6 +6298,40 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  /api/v1/me/agency/hosts/{userId}/activate:
+    post:
+      tags: [agency]
+      operationId: activateMyAgencyMember
+      summary: "The agency owner activates a member as «مضيف» or «صانع محتوى» (v1.82-live, D295)"
+      description: |
+        v1.82-live (D295, owner, CONVENTIONS §10.108). The caller's OPEN agency's ACTIVE member becomes a host (the
+        hosting permission, source `AGENCY`) or a content creator (a creator-programme membership at once, recorded
+        with the agency — «فعّله وكيل: …» in the panel — and the hosting permission `CREATOR`). A creator needs the
+        programme's fields (country, category, 1–5 links, an optional bio) and `confirmCreator: true`: the owner ticked
+        the warning «إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة أرباحك.» (the app also
+        shows «نسبة صانع المحتوى 72%»). Host and creator are exclusive. Order: 401 → 404 (no OPEN agency of the caller,
+        or not its ACTIVE member) → 400 body → 409 `AGENCY_ACTIVATION_NOT_ALLOWED` (`details[0] = {field: member,
+        issue}`: `AGENCY_SUSPENDED`, `ACCOUNT_NOT_ACTIVE`, `STAFF`, `HOST` — a host cannot be made a creator,
+        `CREATOR` — a creator cannot be made a host) → 200 with the member's row (also when already activated as asked:
+        nothing changes). A pending «انضم كصانع محتوى» of the member is cancelled. Audited `agency.member.activate`.
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AgencyMemberActivationRequest' }
+      responses:
+        '200':
+          description: The member's row now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgencyHost' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/agency/hosts:
     get:
       tags: [agency]
@@ -6642,7 +6693,7 @@ paths:
       summary: "«طلبات صناع المحتوى»: the creator programme applications (creators.applications: OWNER, SUPPORT)"
       security: [{ adminSession: [] }]
       parameters:
-        - { name: status, in: query, required: false, schema: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED, REVOKED] } }
       responses:
         '200':
           description: OK (newest first, at most 200).
@@ -6676,6 +6727,44 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/creator-members/{userId}/revoke:
+    post:
+      tags: [admin-panel]
+      operationId: revokeAdminCreatorMember
+      summary: "Ends a creator's membership and the hosting permission it gave (creators.decide; v1.82-live, D295)"
+      description: "(v1.82-live, D295, §10.108) Any membership (the person's own application or an agency's activation). The application becomes REVOKED (kept, with the reason); `live_hosts` CREATOR is removed and a running live is ended (`ADMIN`). 404: not a member. Audited `creator.member.revoke` (+ `live.host.revoke`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, applicationId, hostingRemoved, endedRooms]
+                properties:
+                  status: { type: string, enum: [REVOKED] }
+                  applicationId: { type: string, format: uuid }
+                  hostingRemoved: { type: boolean }
+                  endedRooms: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/creator-applications/{applicationId}/reject:
     post:
@@ -13696,6 +13785,84 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/agencies/{agencyId}/ban:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminAgencyBan
+      summary: "«حظر الوكالة»: what a ban would do now (agencies.ban: OWNER; v1.82-live, D295)"
+      description: "(v1.82-live, D295, §10.108) The confirmation dialog's figures: the agency's commission to its owner (agency + parent, net of reversals), the owner's balance, locked task cherries and a pending withdrawal's held cherries, the amount a ban forfeits now (min(commission, max(0, balance − locked))) and the creators this agency activated (the dialog lists them, none pre-selected, for the OWNER to tick the fake ones); `ban` once banned. 404 unknown agency."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAgencyBanPreview' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: banAdminAgency
+      summary: "«حظر الوكالة — تفعيل صانع محتوى وهمي» (agencies.ban: OWNER; reason + authenticator code; audited; v1.82-live, D295)"
+      description: |
+        (v1.82-live, D295, owner 2026-11-06, CONVENTIONS §10.108) In one transaction: (a) the agency is closed with the
+        reason `BANNED` (its members released as at any closing; never reopened); (b) the owner's unwithdrawn agency
+        commission is forfeited — one `AGENCY_FORFEIT` cherry-ledger debit of min(commission, max(0, balance − locked
+        task cherries)); money already withdrawn (or held by a pending withdrawal) is NOT clawed back and the hosts' own
+        earnings are NOT touched (owner, decided); (c) ONLY the creators the OWNER ticked as fake (`fakeCreatorUserIds`,
+        required; the dialog pre-selects none; an empty list bans and forfeits without revoking any creator) are revoked
+        with their hosting permission (their running lives end); the agency's other creators stay creators and are
+        released from the closed agency like its hosts (owner 2026-11-06, decided). Idempotent: a second call changes
+        nothing (`alreadyBanned: true`, the first ban's figures). 400 body (reason, code, the list) → 403 a wrong code or
+        not OWNER → 404 → 409 `ADMIN_ACTION_REFUSED` (a ticked id that is not an active creator this agency activated;
+        nothing changed). Audited `agency.ban` with the creators revoked as fake (`fakeCreators`, `applications`) and
+        those kept (`keptCreators`).
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminAgencyIdPath'
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason, totpCode, fakeCreatorUserIds]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+                totpCode: { type: string, pattern: '^[0-9]{6}$' }
+                fakeCreatorUserIds:
+                  type: array
+                  maxItems: 100
+                  description: "The creators this agency activated that the OWNER ticked as fake (may be empty)."
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Banned (or banned before).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, alreadyBanned, commissionCherries, forfeitedCherries, revokedCreators, releasedHosts, endedRooms]
+                properties:
+                  status: { type: string, enum: [BANNED] }
+                  alreadyBanned: { type: boolean }
+                  commissionCherries: { type: integer, format: int64, minimum: 0 }
+                  forfeitedCherries: { type: integer, format: int64, minimum: 0 }
+                  revokedCreators: { type: integer, minimum: 0 }
+                  releasedHosts: { type: integer, minimum: 0 }
+                  endedRooms: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/agencies/{agencyId}/reopen:
     post:
       tags: [admin-panel]
@@ -14770,7 +14937,7 @@ paths:
                 required: [status, source]
                 properties:
                   status: { type: string, enum: [APPROVED] }
-                  source: { type: string, enum: [ADMIN, AGENCY, IDENTITY] }
+                  source: { type: string, enum: [ADMIN, AGENCY, IDENTITY, CREATOR], description: "(v1.82-live, D295) `CREATOR`: the permission a creator-programme membership gives." }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -15823,6 +15990,7 @@ paths:
           - ADMIN
           - AGENCY
           - IDENTITY
+          - CREATOR
       responses:
         '200':
           description: OK.
@@ -20144,8 +20312,8 @@ components:
       enum: [PENDING, APPROVED, REJECTED, CANCELLED]
     HostingApplyRefusal:
       type: string
-      description: (v1.73-social, D209) why the caller may not apply now, in the order they are checked (§10.68).
-      enum: [ACCOUNT_NOT_ACTIVE, ALREADY_HOST, HOST_OF_AGENCY, OWNS_AGENCY, PENDING, REAPPLY_COOLDOWN]
+      description: "(v1.73-social, D209) why the caller may not apply now, in the order they are checked (§10.68). (v1.82-live, D295, §10.108) `CREATOR`: a content creator cannot also be a host (checked right after ACCOUNT_NOT_ACTIVE)."
+      enum: [ACCOUNT_NOT_ACTIVE, CREATOR, ALREADY_HOST, HOST_OF_AGENCY, OWNS_AGENCY, PENDING, REAPPLY_COOLDOWN]
     HostingApplicationRequest:
       type: object
       additionalProperties: false
@@ -20197,7 +20365,7 @@ components:
             - type: object
               required: [source, grantedAt]
               properties:
-                source: { type: string, enum: [ADMIN, AGENCY, IDENTITY], description: "`IDENTITY`: approved here (a host directly with the Kabso team)." }
+                source: { type: string, enum: [ADMIN, AGENCY, IDENTITY, CREATOR], description: "`IDENTITY`: approved here (a host directly with the Kabso team). (v1.82-live, D295) `CREATOR`: a creator-programme member (then `rule.refusal` is `CREATOR`)." }
                 grantedAt: { type: string, format: date-time }
             - type: 'null'
         application:
@@ -20303,7 +20471,7 @@ components:
                 - type: object
                   required: [source, grantedAt]
                   properties:
-                    source: { type: string, enum: [ADMIN, AGENCY, IDENTITY] }
+                    source: { type: string, enum: [ADMIN, AGENCY, IDENTITY, CREATOR], description: "(v1.82-live, D295) `CREATOR`: the permission a creator-programme membership gives." }
                     grantedAt: { type: string, format: date-time }
                 - type: 'null'
             agency:
@@ -20757,10 +20925,12 @@ components:
       enum: [VIDEO, PHOTO, MUSIC, GAMING, COMEDY, EDUCATION, LIFESTYLE, OTHER]
     CreatorApplication:
       type: object
-      required: [id, status, country, category, links, bio, recruiter, createdAt, decidedAt, rejectReason]
+      required: [id, status, country, category, links, bio, recruiter, createdAt, decidedAt, rejectReason, source, revokedAt]
       properties:
         id: { type: string, format: uuid }
-        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED] }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, CANCELLED, REVOKED], description: "(v1.82-live, D295) `REVOKED`: the team ended the membership this application made." }
+        source: { type: string, enum: [APPLICATION, AGENCY], description: "(v1.82-live, D295, §10.108) `AGENCY`: an agency owner activated the person as a creator (written APPROVED at once)." }
+        revokedAt: { type: [string, 'null'], format: date-time, description: "(v1.82-live, D295) When the membership was ended (REVOKED only)." }
         country: { type: string }
         category: { $ref: '#/components/schemas/CreatorCategory' }
         links:
@@ -20798,7 +20968,7 @@ components:
           required: [canApply, refusal]
           properties:
             canApply: { type: boolean }
-            refusal: { type: [string, 'null'], enum: [ACCOUNT_NOT_ACTIVE, MEMBER, STAFF, PENDING, null] }
+            refusal: { type: [string, 'null'], enum: [ACCOUNT_NOT_ACTIVE, MEMBER, HOST, STAFF, PENDING, null], description: "(v1.82-live, D295) `HOST`: a host (any hosting permission but a creator's) cannot be a creator." }
     AdminCreatorApplicationList:
       type: object
       required: [data]
@@ -20809,7 +20979,7 @@ components:
             allOf:
               - $ref: '#/components/schemas/CreatorApplication'
               - type: object
-                required: [user]
+                required: [user, memberActive, activatedBy, revokeReason, revokedBy]
                 properties:
                   user:
                     type: object
@@ -20818,6 +20988,62 @@ components:
                       id: { type: string, format: uuid }
                       username: { type: string }
                       displayName: { type: string }
+                  memberActive: { type: boolean, description: "(v1.82-live, D295) The person is a creator member now (from this application)." }
+                  activatedBy:
+                    description: "(v1.82-live, D295, §10.108) «فعّله وكيل: …» — the agency whose owner activated the person (source AGENCY); null otherwise."
+                    oneOf:
+                      - type: object
+                        required: [agencyId, agencyName, inviteCode, hostCode, owner]
+                        properties:
+                          agencyId: { type: string, format: uuid }
+                          agencyName: { type: [string, 'null'] }
+                          inviteCode: { type: string }
+                          hostCode: { type: [string, 'null'] }
+                          owner:
+                            type: object
+                            required: [id, username, displayName]
+                            properties:
+                              id: { type: string, format: uuid }
+                              username: { type: string }
+                              displayName: { type: string }
+                      - type: 'null'
+                  revokeReason: { type: [string, 'null'] }
+                  revokedBy: { type: [string, 'null'], description: "The display name of the staff member who ended the membership." }
+    AdminAgencyBanPreview:
+      type: object
+      description: "(v1.82-live, D295, §10.108) The figures of «حظر الوكالة» now (cherries)."
+      required: [agencyId, status, ban, commissionCherries, balanceCherries, lockedCherries, heldCherries, forfeitCherries, creators]
+      properties:
+        agencyId: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, CLOSED] }
+        ban:
+          oneOf:
+            - type: object
+              required: [reason, commissionCherries, forfeitedCherries, creators, createdAt]
+              properties:
+                reason: { type: string }
+                commissionCherries: { type: integer, format: int64, minimum: 0 }
+                forfeitedCherries: { type: integer, format: int64, minimum: 0 }
+                creators: { type: integer, minimum: 0 }
+                createdAt: { type: string, format: date-time }
+            - type: 'null'
+        commissionCherries: { type: integer, format: int64, minimum: 0 }
+        balanceCherries: { type: integer, format: int64 }
+        lockedCherries: { type: integer, format: int64, minimum: 0 }
+        heldCherries: { type: integer, format: int64, minimum: 0 }
+        forfeitCherries: { type: integer, format: int64, minimum: 0 }
+        creators:
+          type: array
+          items:
+            type: object
+            required: [id, username, displayName, avatarUrl, applicationId, activatedAt]
+            properties:
+              id: { type: string, format: uuid }
+              username: { type: string }
+              displayName: { type: string }
+              avatarUrl: { type: [string, 'null'] }
+              applicationId: { type: string, format: uuid }
+              activatedAt: { type: string, format: date-time }
     StaffId:
       type: string
       pattern: '^Kabso(0[1-9]|[1-9][0-9]{1,8})?$'
@@ -23318,6 +23544,7 @@ components:
           - ADMIN
           - AGENCY
           - IDENTITY
+          - CREATOR
         grantedAt:
           type: string
           format: date-time
@@ -26850,6 +27077,9 @@ components:
           type: string
           pattern: '^[A-Z]{2}$'
           description: "v1.58-live (D246, CONVENTIONS §10.89) — the host's profile country (ISO 3166-1 alpha-2, upper case; public like `PublicProfile.country`); the party page's cards show its flag. Absent when the host set none."
+        hostIsCreator:
+          type: boolean
+          description: "v1.82-live (D295, CONVENTIONS §10.108) — the host is a content creator «صانع محتوى» (a creator-programme member now): the purple «صانع محتوى» / «Creator» badge on the card and next to the host's name in the room. Public (like the D293 creator seal). Sent by v1.82-live servers; a missing field reads as false."
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -32284,10 +32514,13 @@ components:
         target's profit-share reward (reference `HT:<level>@<day>`, D281b's lucky track `HT:LUCKY:<level>@<day>`; locked like
         `TASK_REWARD`, §10.62.2). *(v1.75-live, D285)* `STAFF_RECRUIT_COMMISSION` (credit): a Kabso Team recruiter's
         daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`; withdrawable, §10.96.13).
+        *(v1.82-live, D295)* `AGENCY_FORFEIT` (debit): «حظر الوكالة» — the owner's unwithdrawn agency commission
+        forfeited (reference: the agency; §10.108).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
-             REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD, STAFF_RECRUIT_COMMISSION]
+             REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD, STAFF_RECRUIT_COMMISSION,
+             AGENCY_FORFEIT]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."
@@ -32542,7 +32775,7 @@ components:
         name: { type: [string, 'null'] }
         inviteCode: { type: string }
         closedAt: { type: string, format: date-time }
-        reason: { type: string, enum: [PROBATION_FAILED, ADMIN] }
+        reason: { type: string, enum: [PROBATION_FAILED, ADMIN, BANNED], description: "(v1.82-live, D295) `BANNED`: «حظر الوكالة» — never reopened. Clients treat an unknown value as ADMIN." }
         activatedHosts: { type: [integer, 'null'], minimum: 0, description: The count reached (PROBATION_FAILED only). }
         requiredHosts: { type: [integer, 'null'], minimum: 1 }
         reopenAt: { type: string, format: date-time, description: "When the caller may open an agency again (`AGENCY_REOPEN_COOLDOWN_DAYS`)." }
@@ -32552,7 +32785,7 @@ components:
       required: [canOpen, refusal, free, probationDays, requiredHosts, reopenCooldownDays]
       properties:
         canOpen: { type: boolean }
-        refusal: { type: [string, 'null'], enum: [ACCOUNT_NOT_ACTIVE, OWNS_AGENCY, HOST_OF_AGENCY, REOPEN_COOLDOWN, null] }
+        refusal: { type: [string, 'null'], enum: [ACCOUNT_NOT_ACTIVE, OWNS_AGENCY, BANNED, HOST_OF_AGENCY, REOPEN_COOLDOWN, null], description: "(v1.82-live, D295) `BANNED`: the caller's agency was banned; it is never reopened." }
         free: { type: boolean, enum: [true] }
         probationDays: { type: integer, minimum: 1 }
         requiredHosts: { type: integer, minimum: 1 }
@@ -32605,8 +32838,10 @@ components:
         openRule: { $ref: '#/components/schemas/AgencyOpenRule' }
     AgencyHost:
       type: object
-      required: [user, joinedAt, liveDays, liveSeconds, active, monthCherries, commissionEligible]
+      required: [user, joinedAt, liveDays, liveSeconds, active, monthCherries, commissionEligible, hosting, activatedByAgency]
       properties:
+        hosting: { type: string, enum: [NONE, HOST, CREATOR], description: "(v1.82-live, D295) The member now: no hosting permission, a host (any source) or a content creator. Clients treat an unknown value as NONE." }
+        activatedByAgency: { type: boolean, description: "(v1.82-live, D295) This agency activated them." }
         user: { $ref: '#/components/schemas/UserSummary' }
         joinedAt: { type: string, format: date-time }
         liveDays: { type: integer, minimum: 0 }
@@ -32614,6 +32849,28 @@ components:
         active: { type: boolean }
         monthCherries: { type: integer, format: int64, minimum: 0 }
         commissionEligible: { type: boolean }
+    AgencyMemberActivationRequest:
+      description: "(v1.82-live, D295, §10.108) `as: HOST`, or `as: CREATOR` with the creator programme's fields and the owner's tick on the warning."
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [as]
+          properties:
+            as: { type: string, enum: [HOST] }
+        - type: object
+          additionalProperties: false
+          required: [as, country, category, links, confirmCreator]
+          properties:
+            as: { type: string, enum: [CREATOR] }
+            country: { type: string, pattern: '^[A-Z]{2}$' }
+            category: { $ref: '#/components/schemas/CreatorCategory' }
+            links:
+              type: array
+              minItems: 1
+              maxItems: 5
+              items: { type: string, maxLength: 200, pattern: '^https?://[^\s]+$' }
+            bio: { type: string, maxLength: 300 }
+            confirmCreator: { type: boolean, enum: [true], description: "The owner ticked the warning (any other value → 400 `confirmCreator`)." }
     AgencyHostPage:
       type: object
       required: [data, page]

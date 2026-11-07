@@ -26062,6 +26062,150 @@ abstract class AppLocalizations {
   /// **'{amount} كوينز من هدايا الحظ'**
   String medalsThresholdLuckyCoins(String amount);
 
+  /// D295: the purple badge on a creator's live card and next to the host's name in the room.
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى'**
+  String get liveCreatorBadge;
+
+  /// D295: HOST_APPLICATION_NOT_ALLOWED CREATOR.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت صانع محتوى: تبث من برنامج صناع المحتوى، ولا يمكن أن تكون مضيفاً أيضاً'**
+  String get hostApplyRefusedCreator;
+
+  /// D295: CREATOR_APPLICATION_NOT_ALLOWED HOST.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مضيف: لا يمكن أن تكون صانع محتوى أيضاً.'**
+  String get creatorProgrammeHost;
+
+  /// D295: AGENCY_OPEN_NOT_ALLOWED BANNED.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُظرت وكالتك ولا يمكن فتحها من جديد'**
+  String get agencyOpenBanned;
+
+  /// D295: the closed agency card, reason BANNED.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُظرت الوكالة لتفعيل صانع محتوى وهمي'**
+  String get agencyClosedBanned;
+
+  /// D295: AGENCY_ACTIVATION_NOT_ALLOWED.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تفعيل هذا العضو بهذه الطريقة'**
+  String get errorAgencyActivationNotAllowed;
+
+  /// D295: the button on an agency member's row.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل'**
+  String get agencyActivate;
+
+  /// D295: the activation sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل {name}'**
+  String agencyActivateTitle(String name);
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر كيف يبث هذا العضو:'**
+  String get agencyActivateIntro;
+
+  /// D295: the first choice; also the member's tag.
+  ///
+  /// In ar, this message translates to:
+  /// **'مضيف'**
+  String get agencyActivateAsHost;
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'يبث ضمن وكالتك بنسبة المضيف المعتادة.'**
+  String get agencyActivateAsHostBody;
+
+  /// D295: the second choice.
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى'**
+  String get agencyActivateAsCreator;
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'لمن يصنع محتوى على منصات أخرى. تحتاج معلوماته وروابط أعماله.'**
+  String get agencyActivateAsCreatorBody;
+
+  /// D295: the note on the creator choice (owner's wording).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسبة صانع المحتوى 72%'**
+  String get agencyCreatorShareNote;
+
+  /// D295: the warning before activating a creator (owner's wording).
+  ///
+  /// In ar, this message translates to:
+  /// **'إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة أرباحك.'**
+  String get agencyCreatorWarning;
+
+  /// D295: the tick the agent must give.
+  ///
+  /// In ar, this message translates to:
+  /// **'قرأت التحذير وأؤكد أن هذا الشخص صانع محتوى'**
+  String get agencyCreatorConfirm;
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضع علامة التأكيد للمتابعة'**
+  String get agencyCreatorConfirmError;
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل كمضيف'**
+  String get agencyActivateHostButton;
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل كصانع محتوى'**
+  String get agencyActivateCreatorButton;
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبح {name} مضيفاً'**
+  String agencyActivatedHost(String name);
+
+  /// D295: content creators go live.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبح {name} صانع محتوى'**
+  String agencyActivatedCreator(String name);
+
+  /// D295: AGENCY_ACTIVATION_NOT_ALLOWED HOST.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا العضو مضيف: لا يمكن تفعيله صانع محتوى'**
+  String get agencyActivationRefusedHost;
+
+  /// D295: AGENCY_ACTIVATION_NOT_ALLOWED CREATOR.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا العضو صانع محتوى: لا يمكن تفعيله مضيفاً'**
+  String get agencyActivationRefusedCreator;
+
+  /// D295: AGENCY_ACTIVATION_NOT_ALLOWED AGENCY_SUSPENDED.
+  ///
+  /// In ar, this message translates to:
+  /// **'وكالتك موقوفة من الفريق'**
+  String get agencyActivationRefusedSuspended;
+
   /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
   ///
   /// In ar, this message translates to:

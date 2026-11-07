@@ -107,6 +107,13 @@ export async function approveHostApplicationIn(
     tx.agency.count({ where: { ownerUserId: app.user_id, status: 'OPEN' } }),
   ]);
   if (links > 0 || owned > 0) throw new HostApplicationError('The applicant is now in an agency.');
+  // v1.82-live (D295, §10.108): a content creator cannot also be a host.
+  if ((await tx.creatorMember.count({ where: { userId: app.user_id } })) > 0) {
+    throw new HostApplicationError(
+      'The applicant is a content creator; a creator cannot also be a host.',
+      'CREATOR',
+    );
+  }
   // v1.80-kyc (D227): Didit on → an approved identity check first; off → the manual ID pictures (or a check).
   const pictures = await tx.hostApplication.findUniqueOrThrow({
     where: { id: app.id },

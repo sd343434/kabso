@@ -229,6 +229,8 @@ describe('KL-013 runtime role DML', () => {
         'cp_points_ledger',
         // v1.75-live (D285): a recruiter's day is written once (migration 20270319090100_staff_recruits).
         'staff_recruit_commissions',
+        // v1.82-live (D295): an agency is banned once (migration 20270329090100_creator_lives).
+        'agency_bans',
       ].includes(row.table);
       // KL-058: admin permissions are granted by the migration role only. v1.73-live (D283c): the staff IDs are given
       // only by the SECURITY DEFINER `kabso_assign_staff_id` (through `kabso_admin_panel_role`).

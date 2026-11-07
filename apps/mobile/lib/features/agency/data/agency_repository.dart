@@ -342,6 +342,7 @@ final class ClosedAgency {
     this.name,
     this.activatedHosts,
     this.requiredHosts,
+    this.banned = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => ClosedAgency(
@@ -352,6 +353,7 @@ final class ClosedAgency {
     activatedHosts: (json['activatedHosts'] as num?)?.toInt(),
     requiredHosts: (json['requiredHosts'] as num?)?.toInt(),
     reopenAt: DateTime.parse(json['reopenAt']! as String),
+    banned: json['reason'] == 'BANNED',
   );
 
   final String? name;
@@ -363,6 +365,9 @@ final class ClosedAgency {
   final int? activatedHosts;
   final int? requiredHosts;
   final DateTime reopenAt;
+
+  /// v1.82-live (D295): «حظر الوكالة» — never reopened.
+  final bool banned;
 }
 
 /// v1.70-social (D206): why «افتح وكالة» is not offered now.
@@ -371,6 +376,10 @@ enum AgencyOpenRefusal {
   ownsAgency('OWNS_AGENCY'),
   hostOfAgency('HOST_OF_AGENCY'),
   reopenCooldown('REOPEN_COOLDOWN'),
+
+  /// v1.82-live (D295): the caller's agency was banned «حظر الوكالة»; it is
+  /// never reopened.
+  banned('BANNED'),
 
   /// v1.80-kyc (D227): Didit is on and the identity check is not approved.
   kycRequired('KYC_REQUIRED');
@@ -531,6 +540,8 @@ final class AgencyHostRow {
     required this.active,
     required this.monthCherries,
     required this.commissionEligible,
+    this.hosting = AgencyMemberHosting.none,
+    this.activatedByAgency = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => AgencyHostRow(
@@ -541,6 +552,8 @@ final class AgencyHostRow {
     active: json['active'] == true,
     monthCherries: _int(json['monthCherries']),
     commissionEligible: json['commissionEligible'] == true,
+    hosting: AgencyMemberHosting.fromWire(json['hosting']),
+    activatedByAgency: json['activatedByAgency'] == true,
   );
 
   final UserSummary user;
@@ -550,6 +563,68 @@ final class AgencyHostRow {
   final bool active;
   final int monthCherries;
   final bool commissionEligible;
+
+  /// v1.82-live (D295): what the member is now (older servers: none).
+  final AgencyMemberHosting hosting;
+
+  /// v1.82-live (D295): this agency activated them.
+  final bool activatedByAgency;
+}
+
+/// v1.82-live (D295, §10.108): an agency member's hosting kind — no hosting
+/// permission yet, a host «مضيف» or a content creator «صانع محتوى». Host and
+/// creator are exclusive.
+enum AgencyMemberHosting {
+  none,
+  host,
+  creator;
+
+  /// The wire value (`NONE` / `HOST` / `CREATOR`); unknown → [none].
+  static AgencyMemberHosting fromWire(Object? v) => switch (v) {
+    'HOST' => host,
+    'CREATOR' => creator,
+    _ => none,
+  };
+}
+
+/// v1.82-live (D295, §10.108): «تفعيل كمضيف / كصانع محتوى» — the agency
+/// owner's activation of a member. A creator needs the programme's fields and
+/// the owner's tick on the warning ([confirmCreator]).
+@immutable
+final class AgencyActivationDraft {
+  const new host()
+    : asCreator = false,
+      country = null,
+      category = null,
+      links = const [],
+      bio = null,
+      confirmCreator = false;
+
+  const new creator({
+    required String this.country,
+    required String this.category,
+    required this.links,
+    required this.confirmCreator,
+    this.bio,
+  }) : asCreator = true;
+
+  final bool asCreator;
+  final String? country;
+  final String? category;
+  final List<String> links;
+  final String? bio;
+  final bool confirmCreator;
+
+  Map<String, Object> toJson() => asCreator
+      ? {
+          'as': 'CREATOR',
+          'country': country!,
+          'category': category!,
+          'links': links,
+          if (bio != null && bio!.trim().isNotEmpty) 'bio': bio!.trim(),
+          'confirmCreator': confirmCreator,
+        }
+      : {'as': 'HOST'};
 }
 
 /// Host agencies (openapi v1.52-social, D179). Every method throws an
@@ -572,6 +647,13 @@ abstract interface class AgencyRepository {
 
   /// `GET /me/agency/hosts`.
   Future<WalletPage<AgencyHostRow>> hosts({String? cursor});
+
+  /// v1.82-live (D295): `POST /me/agency/hosts/{userId}/activate` — the
+  /// member's row after the activation.
+  Future<AgencyHostRow> activateMember(
+    String userId,
+    AgencyActivationDraft draft,
+  );
 
   /// v1.70-social (D206): `POST /me/agency/open` — the two pictures go up as
   /// D185 private uploads first.
@@ -734,6 +816,18 @@ class AgencyRepositoryImpl implements AgencyRepository {
       data: {'text': text.trim()},
     );
     return AgencyComplaint.fromJson(res.data!);
+  });
+
+  @override
+  Future<AgencyHostRow> activateMember(
+    String userId,
+    AgencyActivationDraft draft,
+  ) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/me/agency/hosts/${Uri.encodeComponent(userId)}/activate',
+      data: draft.toJson(),
+    );
+    return AgencyHostRow.fromJson(res.data!);
   });
 
   @override

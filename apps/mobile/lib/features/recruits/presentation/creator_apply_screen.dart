@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -35,6 +36,9 @@ class CreatorApplyScreen extends ConsumerStatefulWidget {
 
   static const submitKey = Key('creatorApply.submit');
   static const statusKey = Key('creatorApply.status');
+
+  /// v1.82-live (D295): «ابدأ البث» for a member.
+  static const goLiveKey = Key('creatorApply.goLive');
   static Key linkKey(int i) => Key('creatorApply.link.$i');
   static Key categoryKey(CreatorCategory c) =>
       Key('creatorApply.cat.${c.wire}');
@@ -67,6 +71,17 @@ class _CreatorApplyScreenState extends ConsumerState<CreatorApplyScreen> {
     }
     _bio.dispose();
     super.dispose();
+  }
+
+  void _goLive() {
+    // The session's copy of `Me.canHost` may predate the membership.
+    final user = ref.read(currentUserProvider);
+    if (user != null && !user.canHost) {
+      ref
+          .read(sessionControllerProvider.notifier)
+          .updateUser(user.copyWith(canHost: true));
+    }
+    unawaited(context.push(AppRoutes.goLive));
   }
 
   static bool _linkOk(String v) =>
@@ -126,6 +141,9 @@ class _CreatorApplyScreenState extends ConsumerState<CreatorApplyScreen> {
           ? l10n.creatorProgrammeMember
           : status.refusal == 'STAFF'
           ? l10n.creatorProgrammeStaff
+          // v1.82-live (D295): a host cannot also be a creator.
+          : status.refusal == 'HOST'
+          ? l10n.creatorProgrammeHost
           : l10n.creatorProgrammePending;
       banner = Container(
         key: CreatorApplyScreen.statusKey,
@@ -150,6 +168,17 @@ class _CreatorApplyScreenState extends ConsumerState<CreatorApplyScreen> {
               textAlign: TextAlign.center,
               style: t.title.copyWith(color: p.textPrimary),
             ),
+            // v1.82-live (D295, §10.108): a member goes live like a host (the
+            // membership gives the hosting permission).
+            if (status.member) ...[
+              const SizedBox(height: KSpacing.md),
+              KButton(
+                key: CreatorApplyScreen.goLiveKey,
+                label: l10n.hostApplyGoLive,
+                icon: Icons.videocam_rounded,
+                onPressed: _goLive,
+              ),
+            ],
             if (status.status == 'PENDING') ...[
               const SizedBox(height: KSpacing.md),
               TextButton(

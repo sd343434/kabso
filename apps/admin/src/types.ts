@@ -40,6 +40,8 @@ export type Capability =
   // v1.70-social (D206)
   | 'agencies.applications'
   | 'agencies.probation'
+  /** v1.82-live (D295): «حظر الوكالة» (OWNER). */
+  | 'agencies.ban'
   // v1.73-social (D209)
   | 'hosts.applications'
   | 'hosts.applications.photos'
@@ -696,7 +698,7 @@ export interface HostApplicationDetail {
     totalReports: number;
     bans: number;
     warnings: number;
-    host: { source: 'ADMIN' | 'AGENCY' | 'IDENTITY'; grantedAt: string } | null;
+    host: { source: 'ADMIN' | 'AGENCY' | 'IDENTITY' | 'CREATOR'; grantedAt: string } | null;
     agency: { role: 'HOST' | 'OWNER'; inviteCode: string } | null;
   };
   history: { id: string; status: HostApplicationRow['status']; createdAt: string; decidedAt: string | null; rejectReason: string | null }[];

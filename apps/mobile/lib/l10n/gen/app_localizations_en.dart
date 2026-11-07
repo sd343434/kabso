@@ -15459,6 +15459,96 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get liveCreatorBadge => 'Creator';
+
+  @override
+  String get hostApplyRefusedCreator =>
+      'You are a content creator: you go live through the creator programme and cannot also be a host';
+
+  @override
+  String get creatorProgrammeHost =>
+      'You are a host: a host cannot also be a content creator.';
+
+  @override
+  String get agencyOpenBanned =>
+      'Your agency was banned and cannot be opened again';
+
+  @override
+  String get agencyClosedBanned =>
+      'Banned for activating a fake content creator';
+
+  @override
+  String get errorAgencyActivationNotAllowed =>
+      'This member cannot be activated that way';
+
+  @override
+  String get agencyActivate => 'Activate';
+
+  @override
+  String agencyActivateTitle(String name) {
+    return 'Activate $name';
+  }
+
+  @override
+  String get agencyActivateIntro => 'Choose how this member goes live:';
+
+  @override
+  String get agencyActivateAsHost => 'Host';
+
+  @override
+  String get agencyActivateAsHostBody =>
+      'Goes live in your agency at the usual host share.';
+
+  @override
+  String get agencyActivateAsCreator => 'Content creator';
+
+  @override
+  String get agencyActivateAsCreatorBody =>
+      'For someone who makes content on other platforms. Needs their details and links to their work.';
+
+  @override
+  String get agencyCreatorShareNote => 'Creator share: 72%';
+
+  @override
+  String get agencyCreatorWarning =>
+      'If you activate someone as a content creator who is not one, the agency will be banned and you will lose your earnings.';
+
+  @override
+  String get agencyCreatorConfirm =>
+      'I read the warning and confirm this person is a content creator';
+
+  @override
+  String get agencyCreatorConfirmError => 'Tick the confirmation to continue';
+
+  @override
+  String get agencyActivateHostButton => 'Activate as host';
+
+  @override
+  String get agencyActivateCreatorButton => 'Activate as creator';
+
+  @override
+  String agencyActivatedHost(String name) {
+    return '$name is now a host';
+  }
+
+  @override
+  String agencyActivatedCreator(String name) {
+    return '$name is now a content creator';
+  }
+
+  @override
+  String get agencyActivationRefusedHost =>
+      'This member is a host: they cannot be made a creator';
+
+  @override
+  String get agencyActivationRefusedCreator =>
+      'This member is a content creator: they cannot be made a host';
+
+  @override
+  String get agencyActivationRefusedSuspended =>
+      'Your agency is suspended by the team';
+
+  @override
   String get verificationBadgeOwner => 'app owner';
 
   @override
