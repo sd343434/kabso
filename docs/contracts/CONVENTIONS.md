@@ -8411,6 +8411,10 @@ Owner (2026-11-06, answers to PP-56):
   - **Coexistence — the generator replaces the small pools while on.** Chosen over running both: one source of creator /
     host tasks per person and period (never two tasks for one action), the same caps, and the hand-made pool stays as
     the fallback the team switches back to (`task-admin generator off`). **Seeded ON for both audiences** (owner).
+    While on, the day's pool leaves out every everyone task whose metric one of the audience's enabled generated DAILY
+    templates counts (as §10.110's creator pool does), so the generator's share of the day is always full and never sits
+    next to «انشر منشوراً» (integration int16: the pool was drawn first and could take the metric, the generator then
+    dropped its own template — the creator's share came up one short at random).
   - **`task-admin generator`:** `status` (on / off, enabled templates, catalogue sizes), `on|off CREATORS|HOSTS`
     (audited `task.update`, target `task_generator`), `count [--verify]` (≥ 300 000 per audience; `--verify` enumerates
     every code), `sample CREATORS|HOSTS [--level n] [--n k]`, `preview <username> [--day YYYY-MM-DD]` (a person's

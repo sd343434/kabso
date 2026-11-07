@@ -796,6 +796,38 @@ describe('D297 the generated catalogue: by charm level, creators and hosts', { t
     expect((await claim(claimer, 'G_HO_NEW_FOLLOWERS_D')).status).toBe(200);
   });
 
+  it("the pool never takes a metric a generated daily template counts: the generator's share stays full (int16)", async () => {
+    const creator = await signup();
+    await makeCreator(creator);
+    await onlyGenerated('G_CR_', ['G_CR_POSTS_D', 'G_CR_REELS_D', 'G_CR_POSTS_W']);
+    // Everyone's pool reduced to «share a post» / «share a reel»: the metrics of both generated daily templates.
+    const others = await ctx.prisma.taskDefinition.findMany({
+      where: { pool: true, audience: 'EVERYONE', enabled: true, code: { notIn: ['P_POST', 'P_REEL'] } },
+      select: { code: true },
+    });
+    await ctx.prisma.taskDefinition.updateMany({
+      where: { code: { in: others.map((o) => o.code) } },
+      data: { enabled: false },
+    });
+    let mine: MyTasks;
+    try {
+      mine = await tasks(creator);
+    } finally {
+      await ctx.prisma.taskDefinition.updateMany({
+        where: { code: { in: others.map((o) => o.code) } },
+        data: { enabled: true },
+      });
+      await generatorOn('G_CR_', true);
+    }
+    expect(
+      mine.tasks
+        .filter((t) => t.code.startsWith('G_CR_') && t.period === 'DAILY')
+        .map((t) => t.code)
+        .sort(),
+    ).toEqual(['G_CR_POSTS_D', 'G_CR_REELS_D']);
+    expect(mine.tasks.some((t) => t.code === 'P_POST' || t.code === 'P_REEL')).toBe(false);
+  });
+
   it('generated tasks are claimed once (daily and weekly), under the shared caps', async () => {
     const creator = await signup();
     await makeCreator(creator);

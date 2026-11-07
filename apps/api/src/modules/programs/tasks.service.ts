@@ -784,14 +784,23 @@ export class TasksService {
         : Math.min(band.dailyCount, role.creator ? band.creatorCount : band.hostCount);
     const poolRole = reserve > 0 ? { host: false, creator: false } : role;
     const poolBand = { ...band, dailyCount: band.dailyCount - reserve };
+    // D297 (§10.110.1, «creator tasks first»): the generator's share is taken after the pool, so the pool must not hold
+    // an everyone task whose metric a generated daily template counts — else the generator drops that template (one
+    // post never completes two tasks) and the creator / host share of the day comes up short.
+    const genMetrics = new Set<string>(
+      reserve > 0 ? genDaily.map((c) => genEntryOf(c)?.metric).filter((m) => m !== undefined) : [],
+    );
+    const poolOk = (t: { audience: string; metric: string }) =>
+      t.audience !== 'EVERYONE' || !genMetrics.has(t.metric);
     // v1.86-social (D281): from the smart engine's first day, the generated catalogue and the smart assignment.
     if (await this.targets.engineOn(day, db)) {
-      await this.smartAssign(db, me, day, reserve);
+      await this.smartAssign(db, me, day, reserve, poolOk);
     } else {
       const templates = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
       // D281: its new templates need the smart engine (a gift, a category, a variant): never on the old path.
       const usable = templates.filter(
-        (t) => isTaskMetric(t.metric) && t.poolGroup !== null && !D281_POOL_TASKS.includes(t.code),
+        (t) =>
+          isTaskMetric(t.metric) && t.poolGroup !== null && !D281_POOL_TASKS.includes(t.code) && poolOk(t),
       );
       const picks =
         usable.length === 0 || poolBand.dailyCount <= 0
@@ -1113,12 +1122,18 @@ export class TasksService {
    * assignment from their profile, each with its variant, gift or category, window, names and reasons, stored for the
    * day (concurrent first reads pick the same and keep one set).
    */
-  private async smartAssign(db: Tx | PrismaService, me: string, day: string, reserve = 0): Promise<void> {
+  private async smartAssign(
+    db: Tx | PrismaService,
+    me: string,
+    day: string,
+    reserve = 0,
+    poolOk: (t: { audience: string; metric: string }) => boolean = () => true,
+  ): Promise<void> {
     const windows = await programWindowsIn(db, this.clock.now(), this.zone);
     const dayStart = windows.day.date === day ? windows.day.start : dateValue(day);
     const rows = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
     const templates: TaskTemplate[] = rows
-      .filter((t) => isTaskMetric(t.metric) && t.poolGroup !== null)
+      .filter((t) => isTaskMetric(t.metric) && t.poolGroup !== null && poolOk(t))
       .map((t) => ({
         code: t.code,
         metric: t.metric as TaskMetric,
