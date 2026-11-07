@@ -30,7 +30,8 @@ import {
  *    the window (`agency_earnings.host_cherries` not reversed: every gift a linked host received, the ledger behind
  *    the agency's month totals) are more than theirs;
  *  - CREATOR: a `creator_members` row (D285; the membership has no end today);
- *  - VERIFIED_HOST: a host — a hosting permission (`live_hosts`, any source but D295's `CREATOR`, which only comes
+ *  - VERIFIED_HOST: never a creator member (D295: a person is never both); a host — a hosting permission (`live_hosts`,
+ *    any source but D295's `CREATOR`, which only comes
  *    with the creator membership: the team, an agency, «كن مضيفاً مع
  *    الإدارة») or an ACTIVE agency link — whose identity was approved: an APPROVED Didit check (`kyc_checks`:
  *    document, passive liveness and face match, any purpose), or (owner 2026-11-06: «نعم») an APPROVED «كن مضيفاً مع
@@ -132,6 +133,8 @@ export async function qualifyingIn(
     SELECT u.id::text, 'VERIFIED_HOST'
       FROM users u
      WHERE u.status = 'ACTIVE'::user_status ${only('u.id', userIds)}
+       -- D295 (owner: never both a host and a creator): a creator member never qualifies for blue, whatever the path.
+       AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = u.id)
        AND u.id IN (SELECT k.user_id FROM kyc_checks k WHERE k.status = 'APPROVED'::kyc_status
                     UNION
                     SELECT h.user_id FROM host_applications h WHERE h.status = 'APPROVED'::host_application_status)

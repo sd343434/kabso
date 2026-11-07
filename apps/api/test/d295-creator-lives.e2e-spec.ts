@@ -1115,7 +1115,7 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     expect(await ctx.prisma.creatorMember.count({ where: { userId: b.id } })).toBe(0);
   });
 
-  it('with D293: an agency-activated creator gets the purple seal at once and loses it on revoke or an agency ban; the creator’s own permission is never a host’s (blue) and gives no host task (D297)', async () => {
+  it('with D293: an agency-activated creator gets the purple seal at once and loses it on revoke or an agency ban; a creator — by its own permission or an agency link — is never blue, and gets no host task (D297)', async () => {
     const badge = async (u: TestUser) => {
       const res = await ctx.http.get('/api/v1/me').set(auth(u));
       expect(res.status).toBe(200);
@@ -1167,6 +1167,24 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     expect(creatorTasks.band).toMatchObject({ host: false, creator: true });
     expect(creatorTasks.tasks.some((t) => t.audience === 'HOSTS')).toBe(false);
     expect((await tasksOf(h1)).band).toMatchObject({ host: true, creator: false });
+
+    // A creator never qualifies for blue, not through the ACTIVE agency link either (owner: never both): an agency's
+    // creator with an approved identity check qualifies for CREATOR only; the agency's host (AGENCY) for blue.
+    const c3 = await signup();
+    await joinAgency(c3, agency.inviteCode);
+    expect((await activate(agent, c3, { as: 'CREATOR', ...creatorForm, confirmCreator: true })).status).toBe(
+      200,
+    );
+    expect(
+      await ctx.prisma.agencyHost.count({
+        where: { agencyId: agency.id, hostUserId: c3.id, status: 'ACTIVE' },
+      }),
+    ).toBe(1);
+    await approvedCheck(c3);
+    await approvedCheck(h1);
+    const linked = await qualifyingIn(ctx.prisma, new Date(), await thresholdsIn(ctx.prisma), [c3.id, h1.id]);
+    expect([...(linked.get(c3.id) ?? [])]).toEqual(['CREATOR']);
+    expect([...(linked.get(h1.id) ?? [])]).toEqual(['VERIFIED_HOST']);
 
     // The team revokes c1's membership: the purple seal goes at once.
     const revoked = await apost(support, `/admin/creator-members/${c1.id}/revoke`, { reason: 'روابط مزيفة' });
