@@ -16,6 +16,10 @@ describe('KL-060 contract coverage', () => {
       operations()
         .filter((o) => V15_PATHS.test(o.path))
         .filter((o) => !o.path.includes('stories'))
+        // v1.95-social (D301): «رسمي» on a post; d301-owner-profile covers it with its own list.
+        .filter(
+          (o) => !['markPostOfficial', 'unmarkPostOfficial', 'getSearchFeatured'].includes(o.operationId),
+        )
         .map((o) => o.operationId)
         .sort(),
     ).toEqual(

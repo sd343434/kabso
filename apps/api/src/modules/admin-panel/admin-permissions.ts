@@ -222,6 +222,12 @@ export const CAPABILITIES = {
   'verification.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   /** Change the thresholds (the code again and a reason; audited; everyone is recomputed at once). OWNER only. */
   'verification.settings': ['OWNER'],
+  // ---- v1.95-social (D301, CONVENTIONS §10.112.5) ---------------------------------------------------------------
+  /**
+   * «صندوق المؤسس» — the suggestions and the confidential staff reports sent to the app owner. OWNER only: staff never
+   * see reports about staff.
+   */
+  'owner.inbox': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

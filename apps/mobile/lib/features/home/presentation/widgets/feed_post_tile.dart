@@ -14,6 +14,8 @@ import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/official_label.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/application/view_recorder.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -62,6 +64,7 @@ class FeedPostData {
     this.isSelf = false,
     this.pendingModeration = false,
     this.announcement = false,
+    this.official = false,
     this.repostedBy,
     this.commentsOpen = true,
     this.hashtags = const {},
@@ -142,6 +145,10 @@ class FeedPostData {
 
   /// v1.72-live (D283): an official announcement «إعلان رسمي — فريق كابسو».
   final bool announcement;
+
+  /// v1.95-social (D301, §10.112.2): the app owner's official announcement
+  /// «رسمي» (his own posts; the label and, for him, the menu's toggle).
+  final bool official;
 
   /// The display name of who reposted it into the Following feed.
   final String? repostedBy;
@@ -253,6 +260,9 @@ class FeedPostTile extends StatefulWidget {
   static const reportActionKey = Key('feed.post.more.report');
   static const deleteActionKey = Key('feed.post.more.delete');
   static const pinActionKey = Key('feed.post.more.pin');
+
+  /// v1.95-social (D301): the owner's «تعيين كإعلان رسمي» toggle.
+  static const officialActionKey = Key('feed.post.more.official');
   static const editActionKey = Key('feed.post.more.edit');
   static const editedKey = Key('feed.post.edited');
   static const muteActionKey = Key('feed.post.more.mute');
@@ -441,7 +451,7 @@ class _ViewTrackerState extends ConsumerState<_ViewTracker> {
 /// API (`PUT`/`DELETE /users/{username}/follow`): the choice applies at
 /// once and comes back with a message on failure. Without a follow state
 /// (your own post, or a source without it) neither is shown.
-enum _MoreAction { follow, hide, mute, report, pin, edit, delete }
+enum _MoreAction { follow, hide, mute, report, pin, official, edit, delete }
 
 class _AuthorRow extends ConsumerStatefulWidget {
   const new({required this.post});
@@ -454,6 +464,7 @@ class _AuthorRow extends ConsumerStatefulWidget {
 
 class _AuthorRowState extends ConsumerState<_AuthorRow> {
   late bool? _following = widget.post.isFollowingAuthor;
+  late bool _official = widget.post.official;
   bool _busy = false;
 
   Future<void> _set({required bool follow}) async {
@@ -482,6 +493,8 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
     final following = _following;
     final id = post.postId;
     final name = post.authorName;
+    // D301: only the app owner marks his own posts «رسمي».
+    final owner = post.isSelf && ref.read(isKabsoOwnerProvider);
     final choice = await showModalBottomSheet<_MoreAction>(
       context: context,
       builder: (sheet) {
@@ -544,6 +557,20 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                   post.pinned ? l10n.feedPostUnpin : l10n.feedPostPin,
                   _MoreAction.pin,
                 ),
+                if (owner)
+                  item(
+                    FeedPostTile.officialActionKey,
+                    Icon(
+                      _official
+                          ? Icons.campaign_rounded
+                          : Icons.campaign_outlined,
+                      color: color,
+                    ),
+                    _official
+                        ? l10n.ownerOfficialUnmark
+                        : l10n.ownerOfficialMark,
+                    _MoreAction.official,
+                  ),
                 item(
                   FeedPostTile.editActionKey,
                   Icon(Icons.edit_outlined, color: color),
@@ -592,6 +619,8 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
         );
       case _MoreAction.pin:
         await _pin(pinned: !post.pinned);
+      case _MoreAction.official:
+        await _setOfficial(official: !_official);
       case _MoreAction.edit:
         if (id != null) await context.push(AppRoutes.editPost(id));
       case _MoreAction.delete:
@@ -635,6 +664,38 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
         post.pinned
             ? context.l10n.feedPostPinned
             : context.l10n.feedPostUnpinned,
+      );
+    } on Object catch (e) {
+      if (mounted) {
+        KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// v1.95-social (D301, §10.112.2): the owner marks his post «رسمي» (his
+  /// profile's «إعلانات رسمية») or takes it off.
+  Future<void> _setOfficial({required bool official}) async {
+    final id = widget.post.postId;
+    if (id == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final post = await ref
+          .read(ownerProfileRepositoryProvider)
+          .setOfficial(id, official: official);
+      if (!mounted) return;
+      setState(() => _official = post.official);
+      ref.read(postEditsProvider.notifier).put(post);
+      final username = widget.post.authorUsername;
+      if (username != null) {
+        ref.invalidate(ownerOfficialPostsProvider(username));
+      }
+      KSnack.success(
+        context,
+        post.official
+            ? context.l10n.ownerOfficialMarked
+            : context.l10n.ownerOfficialUnmarked,
       );
     } on Object catch (e) {
       if (mounted) {
@@ -742,6 +803,12 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                             const Padding(
                               padding: EdgeInsets.only(top: KSpacing.xxs),
                               child: AnnouncementLabel(),
+                            ),
+                          // D301: the app owner's official announcement.
+                          if (post.official)
+                            const Padding(
+                              padding: EdgeInsets.only(top: KSpacing.xxs),
+                              child: OfficialPostLabel(),
                             ),
                         ],
                       ),

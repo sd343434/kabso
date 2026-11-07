@@ -501,9 +501,14 @@ class ProfileCoverHeader extends StatelessWidget {
     this.onOpenFollowing,
     this.countsKnown = true,
     this.countsFailed = false,
+    this.coverVideo,
   });
 
   final PublicProfile profile;
+
+  /// v1.95-social (D301, §10.112.1): the app owner's cover video layer
+  /// (with its own shades and controls), over the cover picture.
+  final Widget? coverVideo;
 
   /// The action row: «متابعة», chat and more; or «تعديل الملف».
   final Widget actions;
@@ -707,6 +712,7 @@ class ProfileCoverHeader extends StatelessWidget {
               ),
             ),
           ),
+        ?coverVideo,
       ],
     );
     // D299 (owner: «ضع الصورة الشخصية فوق الغلاف، وبجانبها الاسم والشارات،
@@ -1499,17 +1505,23 @@ class ProfileInfoBlock extends StatelessWidget {
           ],
           // Our features (D218): the family, relationship and medals tiles
           // (no PK record pill; D292: the medals shown are under the name).
-          Padding(
-            padding: const EdgeInsets.only(top: KSpacing.xs),
-            child: ProfileBondsBlock(
-              levels: const SizedBox.shrink(),
-              profile: profile,
-              // The own bag and premium tiles stay in the Me hub (D163).
-              ownTiles: false,
-              // D292: the worn medals are under the name in the header.
-              showMedals: false,
+          // D301 (§10.112.6): on the app owner's page, only when they hold
+          // something (no empty «add» tiles there).
+          if (!profile.kabsoOwner ||
+              profile.family != null ||
+              profile.cp != null ||
+              profile.medals.owned > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: KSpacing.xs),
+              child: ProfileBondsBlock(
+                levels: const SizedBox.shrink(),
+                profile: profile,
+                // The own bag and premium tiles stay in the Me hub (D163).
+                ownTiles: false,
+                // D292: the worn medals are under the name in the header.
+                showMedals: false,
+              ),
             ),
-          ),
         ],
       ),
     );

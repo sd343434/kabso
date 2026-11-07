@@ -57,6 +57,7 @@ import { HostApplicationsModule } from './modules/host-applications/host-applica
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
 import { RecruitsModule } from './modules/recruits/recruits.controller.js';
 import { LevelRaiseModule } from './modules/level-raise/level-raise.controller.js';
+import { OwnerProfileModule } from './modules/owner-profile/owner-profile.controller.js';
 import { VerificationModule } from './modules/verification/verification.controller.js';
 import { PkDaresAdminModule } from './modules/live/pk-dares/pk-dares-admin.module.js';
 import { ProgramsAdminModule } from './modules/programs/admin-host-targets.controller.js';
@@ -138,6 +139,8 @@ export class AppModule {
         RecruitsModule,
         // v1.89-social (D290, §10.103): level-raise requests «طلب رفع ليفيل».
         LevelRaiseModule,
+        // v1.95-social (D301, §10.112): the app owner's profile «صفحة صاحب البرنامج» and «صندوق المؤسس».
+        OwnerProfileModule,
         // v1.90-social (D293, §10.105): automatic verification badges «شارة التوثيق».
         VerificationModule,
         // v1.50-live (D229): «أحكام PK».

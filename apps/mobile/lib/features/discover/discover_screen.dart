@@ -12,6 +12,8 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/discover/recent_searches.dart';
 import 'package:kabso_live/features/discover/search_home.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_search.dart';
 import 'package:kabso_live/features/posts/application/search_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
@@ -324,15 +326,31 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 ),
               ),
             Expanded(
+              // D301 (§10.112.9): the founder always in search — a card before
+              // typing, a pinned row above the results while typing.
               child: _query.isEmpty
-                  ? SearchHome(
-                      key: DiscoverScreen.promptKey,
-                      onSearchTerm: _searchTerm,
+                  ? Column(
+                      children: [
+                        const FounderSearchEntry(),
+                        Expanded(
+                          child: SearchHome(
+                            key: DiscoverScreen.promptKey,
+                            onSearchTerm: _searchTerm,
+                          ),
+                        ),
+                      ],
                     )
-                  : _Results(
-                      key: ValueKey((_type, _query)),
-                      type: _type,
-                      query: _query,
+                  : Column(
+                      children: [
+                        const FounderSearchEntry(compact: true),
+                        Expanded(
+                          child: _Results(
+                            key: ValueKey((_type, _query)),
+                            type: _type,
+                            query: _query,
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ],
@@ -353,6 +371,8 @@ class _Results extends ConsumerWidget {
     final l10n = context.l10n;
     final key = (type: type, query: query);
     final results = ref.watch(searchResultsProvider(key));
+    // D301: the founder is pinned above; never listed twice.
+    final founder = ref.watch(searchFeaturedProvider).value?.user.id;
     void more() => ref.read(searchResultsProvider(key).notifier).loadMore();
     return switch (results) {
       AsyncValue(value: FeedItems(:final items)) when items.isEmpty =>
@@ -383,6 +403,8 @@ class _Results extends ConsumerWidget {
               SliverList.builder(
                 itemCount: items.length,
                 itemBuilder: (_, i) => switch (items[i]) {
+                  final UserSummary u when u.id == founder =>
+                    const SizedBox.shrink(),
                   final UserSummary u => _UserRow(user: u),
                   final Hashtag h => _HashtagRow(hashtag: h),
                   _ => const SizedBox.shrink(),

@@ -19,6 +19,8 @@ import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
 import { isPanelStaff, staffIdentityOf, type LimitedStaffRole } from '../../live/live-staff.js';
 import { staffIdOf } from '../staff-ids.js';
+import { MediaService } from '../../media/media.service.js';
+import { ownerProfileFields, type OwnerCoverVideoDto } from '../../owner-profile/owner-core.js';
 import type { VerificationBadgeValue } from '../../verification/verification-rules.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
 
@@ -113,6 +115,10 @@ export interface PublicProfileDto {
   cherriesReceived?: number;
   /** v1.77-social (D220, §10.74): the lifetime coins sent on gifts; absent like `cherriesReceived` (`hideCoinsSent`). */
   coinsSent?: number;
+  /** v1.95-social (D301, §10.112): the app owner (an ACTIVE account holding the OWNER panel role); absent otherwise. */
+  kabsoOwner?: true;
+  /** v1.95-social (D301, §10.112.1): the owner's cover videos per language (only with at least one). */
+  coverVideo?: OwnerCoverVideoDto;
 }
 
 /**
@@ -133,6 +139,7 @@ export class PublicProfileService {
     private readonly medals: MedalsService,
     private readonly bag: BagService,
     private readonly clock: Clock,
+    private readonly media: MediaService,
   ) {}
 
   private readonly logger = new Logger(PublicProfileService.name);
@@ -298,6 +305,8 @@ export class PublicProfileService {
       joinedMonth: user.joinedMonth,
       blockedByMe,
       ...stats,
+      // v1.95-social (D301, §10.112): the owner's profile layout and cover videos.
+      ...(await ownerProfileFields(this.prisma, user.id, (key) => this.media.largeUrl({ largeKey: key }))),
     };
   }
 }

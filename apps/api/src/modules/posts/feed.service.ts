@@ -111,11 +111,44 @@ export class FeedService {
    * `GET /feed/posts` (`format` POST) and, v1.41-social (D162), `GET /feed/reels` (`format` REEL,
    * CONVENTIONS §11.14). Cursors and snapshots are bound to the list.
    */
-  feed(viewerId: string, query: FeedQuery, format: FeedFormat = 'POST'): Promise<PageDto<PostDto>> {
-    if (query.tab === 'mixed') return this.mixed(viewerId, query, format);
-    return query.tab === 'following'
-      ? this.following(viewerId, query, format)
-      : this.trending(viewerId, query, format);
+  async feed(viewerId: string, query: FeedQuery, format: FeedFormat = 'POST'): Promise<PageDto<PostDto>> {
+    const page = await (query.tab === 'mixed'
+      ? this.mixed(viewerId, query, format)
+      : query.tab === 'following'
+        ? this.following(viewerId, query, format)
+        : this.trending(viewerId, query, format));
+    return format === 'POST' ? this.withAnnouncement(viewerId, query, page) : page;
+  }
+
+  /**
+   * v1.95-social (D301 follow-up, §10.112.7; owner: «تكون دائماً في اول منشور»): every posts tab's first page starts
+   * with the app owner's latest official announcement (the newest `official_at` among the posts of an ACTIVE OWNER that
+   * the caller may see — a block, a mute or a hide still applies); it appears nowhere else in the list. Read live (not
+   * from the frozen snapshots), so a newer announcement replaces it, and un-marking removes it, at once.
+   */
+  private async withAnnouncement(
+    viewerId: string,
+    query: FeedQuery,
+    page: PageDto<PostDto>,
+  ): Promise<PageDto<PostDto>> {
+    const [top] = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT p.id::text AS id
+        FROM posts p
+        JOIN users a ON a.id = p.author_id
+        LEFT JOIN user_settings s ON s.user_id = a.id
+       WHERE p.official_at IS NOT NULL AND p.format = 'POST'::post_format
+         AND ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
+         AND EXISTS (SELECT 1 FROM user_admin_permissions o
+                      WHERE o.user_id = a.id AND o.permission = 'OWNER'::admin_permission)
+       ORDER BY p.official_at DESC
+       LIMIT 1`;
+    if (!top) return page;
+    const data = page.data.filter((p) => p.id !== top.id);
+    if (query.cursor === undefined) {
+      const [first] = await this.views.load(viewerId, [top.id]);
+      if (first) data.unshift(first);
+    }
+    return { ...page, data };
   }
 
   /**

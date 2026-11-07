@@ -24,6 +24,8 @@ import { SocialCursorCodec } from './social-cursor.js';
 import { parseHashtags, parseMentions } from './text-entities.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { isPanelStaff, refuseLimitedStaff } from '../live/live-staff.js';
+import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
+import { assertKabsoOwner, isKabsoOwner, queueAnnouncementIn } from '../owner-profile/owner-core.js';
 
 /** At most 3 pinned posts per user (§11.2). */
 export const MAX_PINS = 3;
@@ -77,6 +79,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
     private readonly views: PostViews,
     private readonly notifier: Notifier,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly audit: AuditService,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
   }
@@ -421,6 +424,40 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
     return this.views.one(authorId, id);
   }
 
+  /**
+   * v1.95-social (D301, §10.112.2): `PUT` / `DELETE /posts/{postId}/official` — the app owner marks his own PUBLISHED
+   * post or reel «رسمي» (or not). 403 `OWNER_ONLY` for anyone else; 404 for a post that is not his or not published.
+   * Idempotent; audited when it changes.
+   */
+  async setOfficial(
+    authorId: string,
+    postId: string,
+    official: boolean,
+    meta: { ip: string | null; requestId: string | null },
+  ): Promise<PostDto> {
+    await assertKabsoOwner(this.prisma, authorId);
+    const id = await this.prisma.$transaction(async (tx) => {
+      const post = await this.lockOwn(tx, authorId, postId);
+      if (post.status !== 'PUBLISHED') throw new AppException(ErrorCode.NOT_FOUND);
+      if ((post.officialAt !== null) !== official) {
+        await tx.post.update({ where: { id: post.id }, data: { officialAt: official ? new Date() : null } });
+        // D301 follow-up (§10.112.7): the first time a post becomes an announcement, everyone is told — once (the
+        // fan-out row is the post's; un-marking and marking again never queues a second one).
+        if (official) await queueAnnouncementIn(tx, post.id, authorId, meta);
+        await this.audit.recordIn(tx, {
+          action: official ? AuditAction.OWNER_POST_OFFICIAL : AuditAction.OWNER_POST_UNOFFICIAL,
+          actorUserId: authorId,
+          targetType: 'post',
+          targetId: post.id,
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+      }
+      return post.id;
+    });
+    return this.views.one(authorId, id);
+  }
+
   /** `DELETE /posts/{postId}/pin`. Idempotent. */
   async unpin(authorId: string, postId: string): Promise<PostDto> {
     const id = await this.prisma.$transaction(async (tx) => {
@@ -516,6 +553,63 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
       select: { id: true, publishedAt: true },
     });
     const room = Math.max(query.limit - pinned.length, 1);
+    const hasMore = rows.length > room;
+    const pageRows = rows.slice(0, room);
+    const last = pageRows[pageRows.length - 1];
+    const data = await this.views.load(viewerId, [...pinned, ...pageRows.map((r) => r.id)]);
+    return {
+      data,
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last ? this.cursors.encode(scope, { at: last.publishedAt!, id: last.id }) : null,
+      },
+    };
+  }
+
+  /**
+   * v1.95-social (D301, §10.112.2): `GET /users/{username}/official-posts` — the owner's official posts the caller may
+   * see (the rules of {@link listUserPosts}): the pinned ones first (first page only), then newest published first.
+   * Empty unless the user is the app owner now.
+   */
+  async listUserOfficialPosts(
+    viewerId: string,
+    username: string,
+    query: PageQuery,
+  ): Promise<PageDto<PostDto>> {
+    const authorId = await this.readableAuthor(viewerId, username);
+    if (!(await isKabsoOwner(this.prisma, authorId)))
+      return { data: [], page: { hasMore: false, nextCursor: null } };
+    const scope = `official-posts:${authorId}:${viewerId}`;
+    const after = this.decode(query.cursor, scope);
+    const visible: Prisma.PostWhereInput = {
+      AND: [visiblePostWhere(viewerId), { authorId, officialAt: { not: null } }],
+    };
+    let pinned: string[] = [];
+    if (!after) {
+      const pins = await this.prisma.postPin.findMany({
+        where: { userId: authorId, post: visible },
+        orderBy: { pinnedAt: 'desc' },
+        take: MAX_PINS,
+        select: { postId: true },
+      });
+      pinned = pins.map((p) => p.postId);
+    }
+    const room = Math.max(query.limit - pinned.length, 1);
+    const rows = await this.prisma.post.findMany({
+      where: {
+        AND: [
+          visible,
+          { pin: { is: null } },
+          after
+            ? { OR: [{ publishedAt: { lt: after.at } }, { publishedAt: after.at, id: { lt: after.id } }] }
+            : {},
+        ],
+      },
+      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+      take: room + 1,
+      select: { id: true, publishedAt: true },
+    });
     const hasMore = rows.length > room;
     const pageRows = rows.slice(0, room);
     const last = pageRows[pageRows.length - 1];

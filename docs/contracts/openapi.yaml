@@ -349,6 +349,18 @@ info:
     `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`. Fix: `createReport`
     USER accepts the user's id as well as the username (the app sends the id, which was answered 404). Additive; migration
     `20270330090000_report_resolution_action`.
+    **D301 (DRAFT v1.95-social)** the app owner's profile «صفحة صاحب البرنامج» (CONVENTIONS §10.112; owner: a combination
+    of features from five mock-ups): `kabsoOwner` and the bilingual cover video (`coverVideo`, `setMyCoverVideo`,
+    `removeMyCoverVideo`, media kind `PROFILE_COVER_VIDEO`), «إعلانات رسمية» (`markPostOfficial`, `unmarkPostOfficial`,
+    `Post.official`, `listUserOfficialPosts`), «رحلة Kabso» (`listUserJourney` and the owner's milestone CRUD and order),
+    «لوحة المؤسس» (`getOwnerDashboard`, cached 60 s), «اقترح ميزة / أبلغ عن موظف» (`createOwnerFeedback`,
+    `searchOwnerFeedbackStaff`, media kind `OWNER_FEEDBACK_IMAGE`) and the panel's «صندوق المؤسس» (`owner.inbox`, OWNER only);
+    `OWNER_FEEDBACK_NEW`; codes `OWNER_ONLY`, `OWNER_JOURNEY_LIMIT`. Additive; migrations
+    `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`. Follow-up (§10.112.7): bilingual announcements
+    (`createOwnerAnnouncement`, `updateOwnerAnnouncement`, `Post.texts`), the latest one first in every posts feed, and
+    `OWNER_ANNOUNCEMENT` to every ACTIVE account once (a background fan-out); migrations
+    `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`. Owner: the founder pinned in
+    search (`getSearchFeatured`, §10.112.9).
     **D297 (DRAFT v1.94-social)** tasks for content creators «مهام صانع المحتوى» (CONVENTIONS §10.110; owner: «مهام خاصة
     بصناع المحتوى، وقيمتها كمهام المضيف»): `ProgramTask.audience` `CREATORS` (only creator-programme members; a member never
     gets `HOSTS` tasks), `MyTasks.band.creator`, metrics `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`,
@@ -974,6 +986,8 @@ tags:
     description: "The report queue (admin permission MODERATION; v1.5-social DRAFT)."
   - name: staff
     description: "(v1.68-live DRAFT, D273) «أدوات فريق كابسو» — the panel staff's live moderation from their own app account, — since v1.76-live (D286) with no step-up code, the role is enough; staff work switches the shift on (CONVENTIONS §10.96.6)."
+  - name: owner
+    description: "(v1.95-social, D301) The app owner's profile «صفحة صاحب البرنامج»: the cover videos, «رحلة Kabso», «إعلانات رسمية», «لوحة المؤسس» and «اقترح ميزة / أبلغ عن موظف» (CONVENTIONS §10.112)."
   - name: admin-panel
     description: "(v1.60-social DRAFT, D191) The admin panel «لوحة الإدارة» at admin.<domain>: its own cookie session with a mandatory authenticator (TOTP) second factor, roles OWNER / MODERATION / SUPPORT / FINANCE (CONVENTIONS §10.54)."
   - name: site
@@ -1855,6 +1869,49 @@ paths:
         are off. No cover → 204 too. Same rate limit as `setMyCover`.
       responses:
         '204': { description: Removed (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/cover-video/{lang}:
+    parameters:
+      - { name: lang, in: path, required: true, schema: { type: string, enum: [ar, en] } }
+    put:
+      tags: [owner]
+      operationId: setMyCoverVideo
+      summary: "Set the owner's cover video for one language «فيديو الغلاف» (v1.95-social, D301; owner only)"
+      description: |
+        CONVENTIONS §10.112.1. Owner only (403 `OWNER_ONLY`). `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`)
+        → body → the asset: a READY, unattached `PROFILE_COVER_VIDEO` of the caller from the last 24 hours, else 400
+        `mediaId` / `invalid_value`. Replaces that language's video (the old asset is deleted); the same video again
+        changes nothing. Audited `owner.cover_video.set`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetCoverRequest' }
+      responses:
+        '200':
+          description: The cover videos now in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerCoverVideo' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [owner]
+      operationId: removeMyCoverVideo
+      summary: "Remove the owner's cover video for one language (v1.95-social, D301; owner only, idempotent)"
+      description: "CONVENTIONS §10.112.1. Works while uploads are off. Audited `owner.cover_video.remove` when one was removed."
+      responses:
+        '200':
+          description: The cover videos left.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerCoverVideo' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -9102,6 +9159,39 @@ paths:
               schema: { $ref: '#/components/schemas/Post' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/official:
+    put:
+      tags: [owner]
+      operationId: markPostOfficial
+      summary: "Mark the owner's own post as an official announcement «رسمي» (v1.95-social, D301; owner only, idempotent)"
+      description: "CONVENTIONS §10.112.2. The caller's own PUBLISHED post or reel (404 otherwise); 403 `OWNER_ONLY` for anyone but the owner. Audited `owner.post.official`."
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Official.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [owner]
+      operationId: unmarkPostOfficial
+      summary: "No longer an official announcement (v1.95-social, D301; owner only, idempotent)"
+      description: "CONVENTIONS §10.112.2. Audited `owner.post.unofficial`."
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Not official.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /api/v1/users/{username}/posts:
     get:
       tags: [posts]
@@ -9119,6 +9209,41 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PostPage' }
         '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/official-posts:
+    get:
+      tags: [owner]
+      operationId: listUserOfficialPosts
+      summary: "The owner's official announcements «إعلانات رسمية»: pinned first, then newest (v1.95-social, D301)"
+      description: "CONVENTIONS §10.112.2. The visibility rules of `listUserPosts` (404 the same way). Empty unless the user is the app owner."
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/journey:
+    get:
+      tags: [owner]
+      operationId: listUserJourney
+      summary: "«رحلة Kabso»: the owner's milestones in order (v1.95-social, D301)"
+      description: "CONVENTIONS §10.112.3. Empty unless the user is the app owner; an unknown user is 404 like the profile."
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The milestones.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JourneyMilestoneList' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
   /api/v1/users/{username}/reposts:
@@ -9145,8 +9270,10 @@ paths:
       operationId: listFeedPosts
       summary: "Posts feed: following (newest), trending (ranked) or mixed (1 : 2, the app's home feed)"
       description: |
-        CONVENTIONS §11.3. `following`: published posts and reposts of followed accounts, newest
-        first (a reposted post carries `repostedBy`). (v1.41-social, D162) `format: POST` only;
+        CONVENTIONS §11.3. (v1.95-social, D301 follow-up, §10.112.7) Every tab's first page starts with the app
+        owner's latest official announcement the caller may see (`Post.official`), which then appears nowhere else in
+        the list; read live, so a newer one replaces it and un-marking removes it. `following`: published posts and
+        reposts of followed accounts, newest first (a reposted post carries `repostedBy`). (v1.41-social, D162) `format: POST` only;
         reels are in `listFeedReels`. `trending`: visible public posts of the last
         7 days ranked by the global score; the first page freezes a snapshot for 10 minutes, so
         later pages never repeat or skip (an expired cursor → 400 `cursor` / `invalid_value`).
@@ -18359,6 +18486,317 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/journey:
+    post:
+      tags: [owner]
+      operationId: createOwnerJourneyMilestone
+      summary: "Add a milestone to «رحلة Kabso», last (v1.95-social, D301; owner only)"
+      description: "CONVENTIONS §10.112.3. At most 30 (409 `OWNER_JOURNEY_LIMIT`). `latest: true` clears it on the others. Audited `owner.journey.create`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateJourneyMilestoneRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JourneyMilestone' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/journey/order:
+    put:
+      tags: [owner]
+      operationId: reorderOwnerJourney
+      summary: "Reorder «رحلة Kabso» (v1.95-social, D301; owner only)"
+      description: "CONVENTIONS §10.112.3. `ids`: exactly the owner's milestones, each once (else 400 `ids` / `invalid_value`). Audited `owner.journey.reorder`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReorderJourneyRequest' }
+      responses:
+        '200':
+          description: The milestones in their new order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JourneyMilestoneList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/journey/{milestoneId}:
+    parameters:
+      - { name: milestoneId, in: path, required: true, schema: { type: string } }
+    patch:
+      tags: [owner]
+      operationId: updateOwnerJourneyMilestone
+      summary: "Edit a milestone (v1.95-social, D301; owner only)"
+      description: "CONVENTIONS §10.112.3. Any of the fields; another owner's milestone or an unknown id is 404. Audited `owner.journey.update`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateJourneyMilestoneRequest' }
+      responses:
+        '200':
+          description: The milestone.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JourneyMilestone' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [owner]
+      operationId: deleteOwnerJourneyMilestone
+      summary: "Delete a milestone; the rest are renumbered (v1.95-social, D301; owner only)"
+      description: "CONVENTIONS §10.112.3. Audited `owner.journey.delete`."
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/search/featured:
+    get:
+      tags: [owner]
+      operationId: getSearchFeatured
+      summary: "The app founder pinned at the top of search «مؤسس Kabso Live» (v1.95-social, D301)"
+      description: |
+        CONVENTIONS §10.112.9 (owner: «في البحث تظهر صفحة مؤسس البرنامج دائماً»). The primary ACTIVE OWNER (the staff ID
+        «Kabso», else the earliest OWNER grant) as a `UserSummary` with `isFollowing` / `isSelf`; `owner: null` when there
+        is no ACTIVE owner or a block stands either way. The app shows it before typing and pinned above the results.
+      responses:
+        '200':
+          description: The founder, or null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchFeatured' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/announcements:
+    post:
+      tags: [owner]
+      operationId: createOwnerAnnouncement
+      summary: "Publish a bilingual official announcement «إعلان رسمي» (v1.95-social, D301 follow-up; owner only)"
+      description: |
+        CONVENTIONS §10.112.7. Owner only (403 `OWNER_ONLY`). Both captions are required (`textAr`, `textEn`, 1–2 200
+        characters each); `mediaIds` as `createPost` (the same pictures for both languages). Published at once as an
+        official post (`Post.official`, `Post.texts`); the posts feed shows the latest announcement first. Every ACTIVE
+        account (staff too) gets `OWNER_ANNOUNCEMENT` once — written after the request by a batched fan-out. The
+        `Idempotency-Key` header of `createPost` is required. Audited `owner.announcement.publish`.
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOwnerAnnouncementRequest' }
+      responses:
+        '201':
+          description: Published.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/announcements/{postId}:
+    parameters:
+      - $ref: '#/components/parameters/PostIdPath'
+    patch:
+      tags: [owner]
+      operationId: updateOwnerAnnouncement
+      summary: "Edit an announcement's Arabic and / or English caption (owner only; never notifies again)"
+      description: "CONVENTIONS §10.112.7. The owner's own official post (404 otherwise). Audited `owner.announcement.update`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateOwnerAnnouncementRequest' }
+      responses:
+        '200':
+          description: The announcement.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/dashboard:
+    get:
+      tags: [owner]
+      operationId: getOwnerDashboard
+      summary: "«لوحة المؤسس»: online now, lives now, today's income (v1.95-social, D301; owner only, cached 60 s)"
+      description: "CONVENTIONS §10.112.4. 403 `OWNER_ONLY` for everyone else."
+      responses:
+        '200':
+          description: The numbers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerDashboard' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/feedback:
+    post:
+      tags: [owner]
+      operationId: createOwnerFeedback
+      summary: "«اقترح ميزة / أبلغ عن موظف» to the owner's inbox (v1.95-social, D301)"
+      description: |
+        CONVENTIONS §10.112.5. Any ACTIVE signed-in account; at most 3 in any 24 hours (429 `RATE_LIMITED` with
+        `Retry-After`). Pictures: the caller's pending `OWNER_FEEDBACK_IMAGE` uploads (FEATURE ≤ 1, STAFF_REPORT ≤ 4).
+        Notifies every owner (`OWNER_FEEDBACK_NEW`); the reported staff member is never told. Audited
+        `owner.feedback.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOwnerFeedbackRequest' }
+      responses:
+        '201':
+          description: Received.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFeedbackReceipt' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/feedback/staff:
+    get:
+      tags: [owner]
+      operationId: searchOwnerFeedbackStaff
+      summary: "The Kabso Team accounts a report may name, by @username, staff ID or name (v1.95-social, D301)"
+      description: "CONVENTIONS §10.112.5. At most 20; never an OWNER."
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 64 } }
+      responses:
+        '200':
+          description: The matching staff.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFeedbackStaffList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/owner-inbox:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminOwnerInbox
+      summary: "«صندوق المؤسس» (owner.inbox: OWNER only; v1.95-social, D301)"
+      description: "CONVENTIONS §10.112.5. Newest first, with the counts per status."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/OwnerFeedbackStatus' } }
+        - { name: kind, in: query, required: false, schema: { $ref: '#/components/schemas/OwnerFeedbackKind' } }
+        - $ref: '#/components/parameters/AdminCursor'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerInboxPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/owner-inbox/{feedbackId}:
+    parameters:
+      - { name: feedbackId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [admin-panel]
+      operationId: getAdminOwnerInboxItem
+      summary: "One item of «صندوق المؤسس»; a NEW item becomes READ (owner.inbox; audited)"
+      description: "(v1.95-social, D301, CONVENTIONS §10.112.5) Audited `admin.owner_inbox.view`."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerInboxItem' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-panel]
+      operationId: deleteAdminOwnerInboxItem
+      summary: "Delete an item of «صندوق المؤسس» and its private pictures (owner.inbox; audited)"
+      description: "(v1.95-social, D301; owner, PP-58: items are kept until the owner deletes them) The row, its notifications and its pictures in storage. Audited `admin.owner_inbox.delete` (never the text)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/owner-inbox/{feedbackId}/status:
+    parameters:
+      - { name: feedbackId, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminOwnerInboxStatus
+      summary: "Mark an item new, read or done (owner.inbox; audited)"
+      description: "(v1.95-social, D301, CONVENTIONS §10.112.5) Audited `admin.owner_inbox.status`."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/OwnerFeedbackStatus' }
+      responses:
+        '200':
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerInboxItem' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/owner-inbox/{feedbackId}/images/{index}:
+    parameters:
+      - { name: feedbackId, in: path, required: true, schema: { type: string } }
+      - { name: index, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 3 } }
+    get:
+      tags: [admin-panel]
+      operationId: getAdminOwnerInboxImage
+      summary: "A picture of an inbox item (owner.inbox; private, no-store)"
+      description: "(v1.95-social, D301, CONVENTIONS §10.112.5)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The picture.
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/level-raises:
     get:
       tags: [admin-panel]
@@ -26516,6 +26954,13 @@ components:
       type: object
       required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl, verification]
       properties:
+        kabsoOwner:
+          type: boolean
+          const: true
+          description: "(v1.95-social, D301, §10.112) The caller is the app owner (an ACTIVE account holding the OWNER panel role): the app shows the owner's profile layout. Absent otherwise."
+        coverVideo:
+          $ref: '#/components/schemas/OwnerCoverVideo'
+          description: "(v1.95-social, D301, §10.112.1) The owner's cover videos (Arabic, English); present only on an owner's profile with at least one."
         verification:
           description: "(v1.90-social, D293, §10.105) The caller's automatic verification badge beside the name, or null. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
@@ -26717,10 +27162,247 @@ components:
         startedAt: { type: string, format: date-time, description: "When the live started; the app shows «مباشر منذ …» from it." }
         viewerCount: { type: integer, minimum: 0, description: "Connected viewers now (as `LiveRoomSummary.viewerCount`)." }
         score: { type: integer, minimum: 0, description: "The live's points (taps + support; as `LiveRoomSummary.score`)." }
+    # ---- v1.95-social (D301, CONVENTIONS §10.112): the app owner's profile «صفحة صاحب البرنامج» ----------------------
+    CoverVideoVariant:
+      type: object
+      required: [url, posterUrl, durationMs, width, height]
+      properties:
+        url: { type: string, format: uri, description: "The video as uploaded (MP4 / QuickTime, no transcoding)." }
+        posterUrl: { type: string, format: uri, description: The first frame (the poster made on the phone). }
+        durationMs: { type: integer, minimum: 1, maximum: 60000 }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+    OwnerCoverVideo:
+      type: object
+      description: "(v1.95-social, D301, §10.112.1) The owner's cover videos per language. The app shows `ar` when its language is Arabic, else `en`; with only one, that one; with none, the cover picture."
+      properties:
+        ar: { $ref: '#/components/schemas/CoverVideoVariant' }
+        en: { $ref: '#/components/schemas/CoverVideoVariant' }
+    JourneyIcon:
+      type: string
+      enum: [rocket, users, agency, globe, sparkles, star, trophy, heart, gift, live, crown, flag]
+    JourneyMilestone:
+      type: object
+      required: [id, titleAr, titleEn, lineAr, lineEn, year, month, icon, latest, position]
+      properties:
+        id: { type: string, format: uuid }
+        titleAr: { type: string, minLength: 1, maxLength: 60 }
+        titleEn: { type: string, minLength: 1, maxLength: 60 }
+        lineAr: { type: [string, 'null'], maxLength: 120 }
+        lineEn: { type: [string, 'null'], maxLength: 120 }
+        year: { type: integer, minimum: 2020, maximum: 2100 }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        icon: { $ref: '#/components/schemas/JourneyIcon' }
+        latest: { type: boolean, description: "«الأحدث» (at most one per owner)." }
+        position: { type: integer, minimum: 0 }
+    JourneyMilestoneList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 30
+          items: { $ref: '#/components/schemas/JourneyMilestone' }
+    CreateJourneyMilestoneRequest:
+      type: object
+      additionalProperties: false
+      required: [titleAr, titleEn, year, month, icon]
+      properties:
+        titleAr: { type: string, minLength: 1, maxLength: 60 }
+        titleEn: { type: string, minLength: 1, maxLength: 60 }
+        lineAr: { type: [string, 'null'], maxLength: 120 }
+        lineEn: { type: [string, 'null'], maxLength: 120 }
+        year: { type: integer, minimum: 2020, maximum: 2100 }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        icon: { $ref: '#/components/schemas/JourneyIcon' }
+        latest: { type: boolean, default: false }
+    UpdateJourneyMilestoneRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        titleAr: { type: string, minLength: 1, maxLength: 60 }
+        titleEn: { type: string, minLength: 1, maxLength: 60 }
+        lineAr: { type: [string, 'null'], maxLength: 120 }
+        lineEn: { type: [string, 'null'], maxLength: 120 }
+        year: { type: integer, minimum: 2020, maximum: 2100 }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        icon: { $ref: '#/components/schemas/JourneyIcon' }
+        latest: { type: boolean }
+    ReorderJourneyRequest:
+      type: object
+      additionalProperties: false
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          maxItems: 30
+          items: { type: string, format: uuid }
+    SearchFeatured:
+      type: object
+      required: [owner]
+      properties:
+        owner:
+          oneOf:
+            - allOf:
+                - $ref: '#/components/schemas/UserSummary'
+                - type: object
+                  required: [isFollowing, isSelf]
+                  properties:
+                    isFollowing: { type: boolean }
+                    isSelf: { type: boolean }
+            - type: 'null'
+    CreateOwnerAnnouncementRequest:
+      type: object
+      additionalProperties: false
+      required: [textAr, textEn]
+      properties:
+        textAr: { type: string, minLength: 1, maxLength: 2200, description: "The Arabic caption (`Post.text` for Arabic accounts)." }
+        textEn: { type: string, minLength: 1, maxLength: 2200, description: "The English caption (every other language)." }
+        mediaIds:
+          type: array
+          maxItems: 10
+          items: { type: string, format: uuid }
+    UpdateOwnerAnnouncementRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        textAr: { type: string, minLength: 1, maxLength: 2200 }
+        textEn: { type: string, minLength: 1, maxLength: 2200 }
+    OwnerDashboard:
+      type: object
+      required: [onlineNow, onlineWindowMinutes, liveRoomsNow, income, generatedAt]
+      properties:
+        onlineNow: { type: integer, minimum: 0, description: "ACTIVE accounts with an authenticated request in the last `onlineWindowMinutes`." }
+        onlineWindowMinutes: { type: integer, const: 5 }
+        liveRoomsNow: { type: integer, minimum: 0 }
+        income:
+          type: object
+          required: [day, timeZone, currency, amountMinor, websiteMinor, agentsMinor, otherCurrencies]
+          description: "Only money Kabso itself receives (owner, PP-58): the store's card top-ups credited today less refunds, plus what recharge agents pay Kabso for their coin stock. An agent's resale of coins to users is the agent's, never counted."
+          properties:
+            day: { type: string, description: "YYYY-MM-DD in `timeZone` (the panel's day)." }
+            timeZone: { type: string }
+            currency: { type: string, const: USD }
+            amountMinor: { type: integer, minimum: 0, description: "websiteMinor + agentsMinor." }
+            websiteMinor: { type: integer, minimum: 0, description: "Card top-ups credited today, less refunds." }
+            agentsMinor: { type: integer, minimum: 0, description: "What agents paid Kabso today for their coin stock (`recharge-admin topup`), in USD." }
+            otherCurrencies:
+              type: array
+              description: "Money Kabso received today in another currency, one line per currency, never converted (empty when all was USD)."
+              items:
+                type: object
+                required: [currency, websiteMinor, agentsMinor, amountMinor]
+                properties:
+                  currency: { type: string, minLength: 3, maxLength: 3 }
+                  websiteMinor: { type: integer, minimum: 0 }
+                  agentsMinor: { type: integer, minimum: 0 }
+                  amountMinor: { type: integer, minimum: 0 }
+        generatedAt: { type: string, format: date-time, description: "When the numbers were computed (cached 60 s)." }
+    OwnerFeedbackKind:
+      type: string
+      enum: [FEATURE, STAFF_REPORT]
+    OwnerFeedbackStatus:
+      type: string
+      enum: [NEW, READ, DONE]
+    OwnerFeedbackCategory:
+      type: string
+      enum: [RUDENESS, ABUSE_OF_POWER, UNFAIR_ACTION, NO_RESPONSE, CORRUPTION, OTHER]
+    CreateOwnerFeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, text]
+      properties:
+        kind: { $ref: '#/components/schemas/OwnerFeedbackKind' }
+        text: { type: string, minLength: 1, maxLength: 1000 }
+        imageUploadIds:
+          type: array
+          maxItems: 4
+          description: "The caller's pending `OWNER_FEEDBACK_IMAGE` uploads (FEATURE ≤ 1, STAFF_REPORT ≤ 4)."
+          items: { type: string, format: uuid }
+        staffUserId: { type: string, format: uuid, description: "STAFF_REPORT only (required): a Kabso Team account (never an OWNER)." }
+        category: { $ref: '#/components/schemas/OwnerFeedbackCategory' }
+    OwnerFeedbackReceipt:
+      type: object
+      required: [id, kind, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/OwnerFeedbackKind' }
+        createdAt: { type: string, format: date-time }
+    OwnerFeedbackStaff:
+      type: object
+      required: [id, username, displayName, avatarUrl, staffId]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'], format: uri }
+        staffId: { type: [string, 'null'] }
+    OwnerFeedbackStaffList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/OwnerFeedbackStaff' }
+    OwnerInboxPerson:
+      type: object
+      required: [id, username, displayName, avatarUrl, staffId]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'] }
+        avatarUrl: { type: [string, 'null'] }
+        staffId: { type: [string, 'null'] }
+    OwnerInboxItem:
+      type: object
+      required: [id, kind, status, text, category, sender, staff, imageCount, createdAt, readAt, doneAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/OwnerFeedbackKind' }
+        status: { $ref: '#/components/schemas/OwnerFeedbackStatus' }
+        text: { type: string }
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/OwnerFeedbackCategory'
+            - type: 'null'
+        sender: { $ref: '#/components/schemas/OwnerInboxPerson' }
+        staff:
+          oneOf:
+            - $ref: '#/components/schemas/OwnerInboxPerson'
+            - type: 'null'
+        imageCount: { type: integer, minimum: 0, maximum: 4 }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: [string, 'null'], format: date-time }
+        doneAt: { type: [string, 'null'], format: date-time }
+    OwnerInboxPage:
+      type: object
+      required: [data, counts, nextCursor]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/OwnerInboxItem' }
+        counts:
+          type: object
+          required: [NEW, READ, DONE]
+          properties:
+            NEW: { type: integer, minimum: 0 }
+            READ: { type: integer, minimum: 0 }
+            DONE: { type: integer, minimum: 0 }
+        nextCursor: { type: [string, 'null'] }
     PublicProfile:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification]
       properties:
+        kabsoOwner:
+          type: boolean
+          const: true
+          description: "(v1.95-social, D301, §10.112) The user is the app owner (an ACTIVE account holding the OWNER panel role): the app shows the owner's profile layout. Absent otherwise."
+        coverVideo:
+          $ref: '#/components/schemas/OwnerCoverVideo'
+          description: "(v1.95-social, D301, §10.112.1) The owner's cover videos (Arabic, English); present only on an owner's profile with at least one."
         verification:
           description: "(v1.90-social, D293, §10.105) The user's automatic verification badge beside the name, or null — only its type: never an amount, a threshold or which condition was met beyond the badge itself. Also on a private account's profile. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
@@ -29214,8 +29896,9 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE]
       description: |
+        (v1.95-social, D301, §10.112) `PROFILE_COVER_VIDEO`: the owner's cover video (like a reel's: ≤ 100 MiB, ≤ 60 s, a poster; owner only, else 403 `OWNER_ONLY`); `OWNER_FEEDBACK_IMAGE`: a private picture of «اقترح ميزة / أبلغ عن موظف» (never completed, consumed by `createOwnerFeedback`).
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
         (CP-018) a family's emblem (a centre-cropped square like the live cover); (CP-022) a
@@ -29482,11 +30165,22 @@ components:
       type: object
       required: [id, format, announcement, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, viewerFollowsAuthor, settings, moderation, repostedBy]
       properties:
+        official:
+          type: boolean
+          const: true
+          description: "(v1.95-social, D301, §10.112.2) The app owner marked it «رسمي» (an official announcement on his profile). Absent otherwise."
         id: { type: string, format: uuid }
         announcement:
           type: boolean
           description: (v1.72-live, D283, §10.96.10) An official announcement of the Kabso Team — the feeds label it «إعلان رسمي — فريق كابسو» / "Official announcement — Kabso Team". Never changes.
         format: { type: string, enum: [POST, REEL], description: "(v1.41-social, D162) `REEL`: a reel (one vertical video and a caption, listed by `listFeedReels`)." }
+        texts:
+          type: object
+          required: [ar, en]
+          description: "(v1.95-social, D301 follow-up, §10.112.7) A bilingual official announcement's two captions; `text` is the caller's language's (the account's `locale`: Arabic → `ar`, else `en`, falling back to the one that exists). Absent on every other post."
+          properties:
+            ar: { type: string }
+            en: { type: string }
         author: { $ref: '#/components/schemas/UserSummary' }
         text: { type: string }
         media:
@@ -29748,13 +30442,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED]
+      description: "(v1.95-social, D301 follow-up) `OWNER_ANNOUNCEMENT` (to every ACTIVE account, staff too, once; target POST with `texts`): the app owner published an official announcement. (v1.95-social, D301) `OWNER_FEEDBACK_NEW` (to the app owners only; target OWNER_FEEDBACK): a new suggestion or staff report in «صندوق المؤسس». `LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, OWNER_FEEDBACK_NEW, OWNER_ANNOUNCEMENT]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT, LEVEL_RAISE], description: "(v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.89-social, D290) LEVEL_RAISE: a level-raise request (`id`). (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT, LEVEL_RAISE, OWNER_FEEDBACK], description: "(v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.89-social, D290) LEVEL_RAISE: a level-raise request (`id`). (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -29779,6 +30473,14 @@ components:
         reportOpen: { type: boolean, description: "REPORT only (v1.78-live, D288): the report is still unresolved." }
         level: { type: integer, minimum: 1, description: "LEVEL_RAISE only (v1.89-social, D290): the support level approved (absent on a rejection)." }
         medalLevel: { type: integer, minimum: 1, maximum: 20, description: "MEDAL only (v1.81-live, D291): the level this MEDAL_AWARDED announces — 1 = the medal was earned, more = it reached that level. Absent on rows from before." }
+        feedbackKind: { type: string, enum: [FEATURE, STAFF_REPORT], description: "OWNER_FEEDBACK only (v1.95-social, D301): a suggestion or a staff report (never the sender, the staff member or the text)." }
+        texts:
+          type: object
+          required: [ar, en]
+          description: "POST of OWNER_ANNOUNCEMENT only (v1.95-social, D301 follow-up): the announcement's caption excerpts (≤ 80 code points) in Arabic and English; the app shows its language's."
+          properties:
+            ar: { type: [string, 'null'], maxLength: 80 }
+            en: { type: [string, 'null'], maxLength: 80 }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]

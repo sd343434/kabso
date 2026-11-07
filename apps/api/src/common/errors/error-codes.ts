@@ -154,6 +154,10 @@ export enum ErrorCode {
    * already PENDING or APPROVED — `details`: `status`, `createdAt`, `requestedBy` (the staff member's display name).
    */
   LEVEL_RAISE_DUPLICATE = 'LEVEL_RAISE_DUPLICATE',
+  /** v1.95-social (DRAFT, D301, §10.112): only the app owner (an ACTIVE account holding the OWNER panel role). */
+  OWNER_ONLY = 'OWNER_ONLY',
+  /** v1.95-social (DRAFT, D301, §10.112.3): «رحلة Kabso» already has 30 milestones. */
+  OWNER_JOURNEY_LIMIT = 'OWNER_JOURNEY_LIMIT',
   /** v1.80-kyc (D227): an identity check cannot be started now (`details[0].issue`, CONVENTIONS §10.77). */
   KYC_NOT_ALLOWED = 'KYC_NOT_ALLOWED',
   /** v1.80-kyc (D227): identity verification (Didit) is off or not configured. */
@@ -435,6 +439,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CREATOR_APPLICATION_NOT_ALLOWED]: 409,
   [ErrorCode.AGENCY_ACTIVATION_NOT_ALLOWED]: 409,
   [ErrorCode.LEVEL_RAISE_DUPLICATE]: 409,
+  [ErrorCode.OWNER_ONLY]: 403,
+  [ErrorCode.OWNER_JOURNEY_LIMIT]: 409,
   [ErrorCode.KYC_NOT_ALLOWED]: 409,
   [ErrorCode.KYC_UNAVAILABLE]: 503,
   [ErrorCode.INSUFFICIENT_CHERRIES]: 409,
@@ -595,6 +601,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.AGENCY_ACTIVATION_NOT_ALLOWED]: 'This member cannot be activated that way.',
   [ErrorCode.LEVEL_RAISE_DUPLICATE]:
     'This source account already has a pending or approved level-raise request.',
+  [ErrorCode.OWNER_ONLY]: 'Only the app owner can do this.',
+  [ErrorCode.OWNER_JOURNEY_LIMIT]: 'The journey already has the most milestones allowed.',
   [ErrorCode.KYC_NOT_ALLOWED]: 'An identity check cannot be started now.',
   [ErrorCode.KYC_UNAVAILABLE]: 'Identity verification is not available right now.',
   [ErrorCode.INSUFFICIENT_CHERRIES]: 'Not enough cherries for that withdrawal.',

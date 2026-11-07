@@ -10,10 +10,12 @@ import {
   Post,
   Put,
   Query,
+  Req,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
-import type { AuthContext } from '../../common/http/request-context.js';
+import { clientIp, type AppRequest, type AuthContext } from '../../common/http/request-context.js';
+import { getRequestId } from '../../common/request-id/request-id.js';
 import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
@@ -85,6 +87,44 @@ export class PostsController {
   @HttpCode(200)
   unpin(@CurrentAuth() auth: AuthContext, @Param('postId') postId: string): Promise<PostDto> {
     return this.posts.unpin(auth.userId, postId);
+  }
+
+  /** v1.95-social (D301, §10.112.2): «رسمي» — the app owner only (403 `OWNER_ONLY`). */
+  @Put('posts/:postId/official')
+  @HttpCode(200)
+  official(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('postId') postId: string,
+  ): Promise<PostDto> {
+    return this.posts.setOfficial(auth.userId, postId, true, {
+      ip: clientIp(req),
+      requestId: getRequestId(req),
+    });
+  }
+
+  @Delete('posts/:postId/official')
+  @HttpCode(200)
+  unofficial(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('postId') postId: string,
+  ): Promise<PostDto> {
+    return this.posts.setOfficial(auth.userId, postId, false, {
+      ip: clientIp(req),
+      requestId: getRequestId(req),
+    });
+  }
+
+  /** v1.95-social (D301, §10.112.2): «إعلانات رسمية» — pinned first, then newest. */
+  @Get('users/:username/official-posts')
+  @RateLimit({ bucket: 'users:profile', rule: 'profileUser', key: byUserId, replacesDefault: true })
+  listUserOfficialPosts(
+    @CurrentAuth() auth: AuthContext,
+    @Param('username') username: string,
+    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+  ): Promise<PageDto<PostDto>> {
+    return this.posts.listUserOfficialPosts(auth.userId, username, query);
   }
 
   @Get('users/:username/posts')

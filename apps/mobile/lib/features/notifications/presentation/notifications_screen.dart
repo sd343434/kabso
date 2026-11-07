@@ -344,6 +344,8 @@ class NotificationRow extends StatelessWidget {
       // D288: «بلاغات» on that report.
       NotificationTargetType.report => AppRoutes.staffReport(target.id),
       NotificationTargetType.levelRaise => AppRoutes.staffLevelRaises,
+      // D301: «صندوق المؤسس» lives in the panel — the row says it all.
+      NotificationTargetType.ownerFeedback => null,
     };
   }
 
@@ -487,6 +489,21 @@ class NotificationRow extends StatelessWidget {
       ),
       NotificationType.levelRaised => l10n.notifLevelRaised(
         KFormat.bidiIsolate('${item.target?.level ?? ''}'),
+      ),
+      // D301: a new item in «صندوق المؤسس» (the owner reads it in the panel).
+      NotificationType.ownerFeedbackNew =>
+        item.target?.feedbackKind == 'STAFF_REPORT'
+            ? l10n.notifOwnerFeedbackReport
+            : l10n.notifOwnerFeedbackFeature,
+      // D301 follow-up: the owner's announcement, in this app's language.
+      NotificationType.ownerAnnouncement => l10n.notifOwnerAnnouncement(
+        KFormat.bidiIsolate(
+          (localeTag.startsWith('ar')
+                  ? item.target?.texts?.ar ?? item.target?.texts?.en
+                  : item.target?.texts?.en ?? item.target?.texts?.ar) ??
+              item.target?.text ??
+              '',
+        ),
       ),
       NotificationType.unknown => '',
     };

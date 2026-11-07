@@ -17,6 +17,7 @@ import { HostApplicationDetail, HostApplications } from './pages/HostApplication
 import { PkDares } from './pages/PkDares';
 import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
 import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage } from './pages/LevelRaises';
+import { OwnerInbox } from './pages/OwnerInbox';
 import { VerificationBadgesPage } from './pages/VerificationBadges';
 import { HostTargets } from './pages/HostTargets';
 import { ReferralDetail, Referrals, ReferralSettingsPage } from './pages/Referrals';
@@ -249,6 +250,10 @@ export function App() {
           break;
         case 'levelRaiseSettings':
           page = <LevelRaiseSettingsPage />;
+          break;
+        // v1.95-social (D301).
+        case 'ownerInbox':
+          page = <OwnerInbox />;
           break;
         case 'verificationBadges':
           page = <VerificationBadgesPage />;

@@ -1,3 +1,4 @@
+import { assertKabsoOwner } from '../owner-profile/owner-core.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
@@ -108,13 +109,20 @@ export const MEDIA_KINDS = [
   // v1.89-social (D290, §10.103): the video of a level-raise request «طلب رفع ليفيل» (a staff member records the
   // supporter's profile in the source app); a video like a post video, attached only by the request.
   'LEVEL_RAISE_VIDEO',
+  // v1.95-social (D301, §10.112): the app owner's cover video (like a reel's video, with a poster; only the owner gets a
+  // slot) and a private picture of «اقترح ميزة / أبلغ عن موظف» (consumed into `private/owner-feedback/<id>/`).
+  'PROFILE_COVER_VIDEO',
+  'OWNER_FEEDBACK_IMAGE',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
 /** v1.54-social (D185): kinds consumed privately (never completed into a public asset). */
 export function isPrivateKind(kind: string): boolean {
   return (
-    kind === 'RECHARGE_AGENT_PHOTO' || kind === 'RECHARGE_AGENT_SELFIE' || kind === 'RECHARGE_ORDER_IMAGE'
+    kind === 'RECHARGE_AGENT_PHOTO' ||
+    kind === 'RECHARGE_AGENT_SELFIE' ||
+    kind === 'RECHARGE_ORDER_IMAGE' ||
+    kind === 'OWNER_FEEDBACK_IMAGE'
   );
 }
 
@@ -332,6 +340,8 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     const parsed = createMediaUploadSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const { kind, contentType, byteSize } = parsed.data;
+    // v1.95-social (D301, §10.112.1): only the app owner uploads a cover video.
+    if (kind === 'PROFILE_COVER_VIDEO') await assertKabsoOwner(this.prisma, userId);
     const id = uuidv7();
     const objectKey = `uploads/${userId}/${id}`;
     const expiresAt = new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000);

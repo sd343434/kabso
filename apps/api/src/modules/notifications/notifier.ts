@@ -72,6 +72,10 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'LEVEL_RAISE_APPROVED',
   'LEVEL_RAISE_REJECTED',
   'LEVEL_RAISED',
+  // v1.95-social (D301): a new item in «صندوق المؤسس» (to the app owners only; target the item).
+  'OWNER_FEEDBACK_NEW',
+  // D301 follow-up: the app owner's official announcement, to everyone (a background fan-out).
+  'OWNER_ANNOUNCEMENT',
 ];
 
 /** Types that join one unread row per target (owner, D92). */
@@ -268,6 +272,29 @@ export class Notifier {
         updatedAt: now,
       },
     });
+  }
+
+  /**
+   * v1.95-social (D301, §10.112.5): a new item in «صندوق المؤسس» — OWNER_FEEDBACK_NEW to every app owner (an ACTIVE
+   * account holding the OWNER panel role), never to anyone else (the reported staff member is never told).
+   */
+  async ownerFeedback(tx: Tx, feedbackId: string): Promise<number> {
+    const owners = await tx.userAdminPermission.findMany({
+      where: { permission: 'OWNER', user: { status: 'ACTIVE' } },
+      select: { userId: true },
+    });
+    if (owners.length === 0) return 0;
+    const now = new Date();
+    await tx.notification.createMany({
+      data: owners.map((o) => ({
+        recipientId: o.userId,
+        type: 'OWNER_FEEDBACK_NEW' as const,
+        ownerFeedbackId: feedbackId,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    });
+    return owners.length;
   }
 
   async agency(

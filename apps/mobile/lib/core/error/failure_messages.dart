@@ -110,6 +110,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.adminLocked => l10n.errorAdminLocked,
     ErrorCode.adminActionRefused => l10n.errorAdminActionRefused,
     ErrorCode.levelRaiseDuplicate => l10n.lrDuplicateShort,
+    ErrorCode.ownerOnly => l10n.errorOwnerOnly,
+    ErrorCode.ownerJourneyLimit => l10n.errorOwnerJourneyLimit,
     ErrorCode.insufficientCherries => l10n.errorInsufficientCherries,
     ErrorCode.withdrawalPending => l10n.errorWithdrawalPending,
     ErrorCode.rechargeApplicationNotAllowed =>

@@ -25,6 +25,8 @@ export interface NotificationText {
   readonly level?: number | null;
   /** v1.81-live (D291): MEDAL_AWARDED — the level announced (above 1: a level-up). */
   readonly medalLevel?: number | null;
+  /** v1.95-social (D301 follow-up): OWNER_ANNOUNCEMENT — the caption excerpt in each language. */
+  readonly texts?: { ar: string | null; en: string | null } | null;
 }
 
 export type PushLocale = 'ar' | 'en';
@@ -83,6 +85,12 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       return w && (ar ? `بدأ ${w} بمتابعتك` : `${w} started following you`);
     case 'REPOST':
       return w && (ar ? `أعاد ${w} نشر منشورك` : `${w} reposted your post`);
+    // D301 follow-up: the owner's announcement, in the recipient's language («إعلان رسمي: …»).
+    case 'OWNER_ANNOUNCEMENT': {
+      const caption = (ar ? n.texts?.ar : n.texts?.en) ?? n.texts?.ar ?? n.texts?.en ?? n.targetText;
+      if (!caption) return ar ? 'إعلان رسمي جديد من المؤسس' : 'A new official announcement from the founder';
+      return ar ? `إعلان رسمي: ${caption}` : `Official announcement: ${caption}`;
+    }
     case 'POST_PUBLISHED':
       return ar ? 'نُشر منشورك المجدول' : 'Your scheduled post is now live';
     case 'CONTENT_REMOVED':
