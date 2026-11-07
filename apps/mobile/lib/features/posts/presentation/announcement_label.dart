@@ -79,7 +79,8 @@ class AnnouncementComposerNote extends StatelessWidget {
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              KabsoTeamBadge(height: 22),
+              // D299i: large enough for its name to read.
+              KabsoTeamBadge(height: KabsoTeamBadge.announcementHeight),
               SizedBox(width: KSpacing.sm),
               Flexible(child: AnnouncementLabel()),
             ],

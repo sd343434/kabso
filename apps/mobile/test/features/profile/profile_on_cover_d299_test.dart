@@ -439,11 +439,12 @@ void main() {
       );
       expectOnCover(tester, ar: ar, width: 393);
       expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsOneWidget);
-      final id = tester.widget<Text>(find.byKey(ProfileCoverHeader.staffIdKey));
-      // D299e (owner: «كلها لـ @»): «@Kabso01», isolated left to right.
-      expect(id.data, ar ? '\u200e@Kabso01\u200e' : '@Kabso01');
-      expect(id.textDirection, TextDirection.ltr);
-      expect(id.style!.shadows, ProfileCoverBar.coverShadow);
+      // D299h: the staff ID as the gold special-ID pill, «Kabso01».
+      final id = tester.widget<KStaffIdText>(
+        find.byKey(ProfileCoverHeader.staffIdKey),
+      );
+      expect(id.staffId, 'Kabso01');
+      expect(id.height, KStaffIdText.bar);
       // The top shade under the bar: deeper for a busy cover (D299e).
       final shade = tester.widget<DecoratedBox>(
         find.descendant(
@@ -457,7 +458,6 @@ void main() {
             .first,
         KPublicProfile.topShade,
       );
-      expect(id.style!.color, KPalette.dark.textPrimary);
       final idRect = _r(tester, ProfileCoverHeader.staffIdKey);
       expect(
         idRect.bottom,

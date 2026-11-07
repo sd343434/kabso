@@ -729,6 +729,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                 ),
                 if (_moderators.contains(u.username)) l10n.liveSeatModeratorTag,
               ].join(' · '),
+              staffId: u.staffId,
               avatar: KAvatar(
                 name: u.displayName,
                 imageUrl: u.avatarUrl,
@@ -901,6 +902,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     staffId: r.user.staffId,
                   )
                 : l10n.goLiveSeat(r.seatIndex! + 1),
+            staffId: r.seatIndex == null ? r.user.staffId : null,
             avatar: KAvatar(
               name: r.user.displayName,
               imageUrl: r.user.avatarUrl,
@@ -990,6 +992,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     premiumTier: c.user.premiumTier,
                     staffId: c.user.staffId,
                   ),
+                  staffId: c.user.staffId,
                   avatar: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1076,6 +1079,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     required Widget avatar,
     Key? key,
     String? handle,
+    String? staffId,
     String? agentCode,
     String? hostAgentCode,
     RechargeBadge? rechargeBadge,
@@ -1137,7 +1141,28 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     if (badge != null) ...[const SizedBox(width: 6), badge],
                   ],
                 ),
-                if (handle != null)
+                // D299h: a staff ID as the gold special-ID pill (then the
+                // rest of the line, e.g. the moderator tag).
+                if (staffId != null && handle != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: KStaffIdText(
+                          staffId,
+                          height: KStaffIdText.list,
+                          semanticHint: context.l10n.profileStaffIdHint,
+                        ),
+                      ),
+                      if (handle.length > staffId.length)
+                        Text(
+                          handle.substring(staffId.length),
+                          maxLines: 1,
+                          style: text.caption.copyWith(color: _Panel.soft),
+                        ),
+                    ],
+                  )
+                else if (handle != null)
                   Text(
                     handle,
                     maxLines: 1,

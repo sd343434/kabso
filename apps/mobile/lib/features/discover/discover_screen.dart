@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
-import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -440,14 +439,11 @@ class _UserRow extends StatelessWidget {
       // D146: a premium username wears its special-ID badge.
       subtitle: switch (user.premiumTier) {
         // D283c: a staff account's official staff ID «Kabso01».
-        _ when user.staffId != null => Text(
-          KHandle.isolated(user.username, staffId: user.staffId),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: Directionality.of(context) == TextDirection.rtl
-              ? TextAlign.right
-              : TextAlign.left,
-          style: TextStyle(color: p.textSecondary),
+        // D299h: the gold special-ID pill.
+        _ when user.staffId != null => KStaffIdText(
+          user.staffId!,
+          height: KStaffIdText.list,
+          semanticHint: context.l10n.profileStaffIdHint,
         ),
         final tier? => Align(
           alignment: AlignmentDirectional.centerStart,

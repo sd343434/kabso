@@ -5,8 +5,9 @@
 // tab, lists and search rows (KHandle) — while the username stays the
 // person's (login, links, the profile route).
 //
-// D299e (owner: «كلها لـ @»): the profile's title (the bar) shows the staff
-// ID in the @username's form, «@Kabso01»; the Me tab keeps «ID: Kabso01».
+// D299h (owner: «… مثل آيدي المميز الذهبي بأيقونة»): the profile's title,
+// the Me tab, the person card and list rows show the staff ID as the gold
+// special-ID pill (D146), «Kabso01», read as the official staff ID.
 //
 // The goldens are in test/goldens/staff_ids_d283c_golden_test.dart.
 
@@ -18,6 +19,7 @@ import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/dtos.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_card.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -117,15 +119,17 @@ void main() {
     final name = language.name;
     final ar = language == AppLanguage.ar;
 
-    testWidgets('a staff profile shows «@Kabso01» (D299e), not the '
-        '@username ($name)', (tester) async {
+    testWidgets('a staff profile shows «Kabso01» (D299h: the gold pill), '
+        'not the @username ($name)', (tester) async {
       await withClock(Clock.fixed(d283Now), () async {
         await pumpOther(tester, staffIdProfile(ar: ar), language: language);
       });
       expect(tester.takeException(), isNull);
       expect(
-        tester.widget<Text>(find.byKey(ProfileCoverHeader.staffIdKey)).data,
-        l10nFor(language).profileUsername('Kabso01'),
+        tester
+            .widget<KStaffIdText>(find.byKey(ProfileCoverHeader.staffIdKey))
+            .staffId,
+        'Kabso01',
       );
       // Read as the official staff ID (D283c's hint).
       expect(
@@ -144,18 +148,22 @@ void main() {
       );
     });
 
-    testWidgets('the staff-only Me tab shows «ID: Kabso01» under the name '
-        '($name)', (tester) async {
+    testWidgets('the staff-only Me tab shows «Kabso01» under the name '
+        '(D299h: the gold pill) ($name)', (tester) async {
       await pumpStaffHub(tester, language: language, staffId: 'Kabso01');
       expect(tester.takeException(), isNull);
       expect(
-        tester.widget<Text>(find.byKey(MeHubScreen.staffIdKey)).data,
-        'ID: Kabso01',
+        tester.widget<KStaffIdText>(find.byKey(MeHubScreen.staffIdKey)).staffId,
+        'Kabso01',
+      );
+      expect(
+        tester.getSemantics(find.byKey(MeHubScreen.staffIdKey)).hint,
+        l10nFor(language).profileStaffIdHint,
       );
     });
 
-    testWidgets('the person card shows the primary OWNER «ID: Kabso» '
-        '($name)', (tester) async {
+    testWidgets('the person card shows the primary OWNER «Kabso» (D299h: '
+        'the gold pill) ($name)', (tester) async {
       await pumpPersonCardRoom(
         tester,
         language: language,
@@ -163,10 +171,15 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(find.byType(LivePersonSheet), findsOneWidget);
-      // The card's ID line (the room's own host pill is not the card).
+      // The card's ID: the staff ID's gold pill, not the username.
+      expect(
+        tester
+            .widget<KStaffIdText>(find.byKey(LivePersonSheet.staffIdKey))
+            .staffId,
+        'Kabso',
+      );
       bool idLine(Widget w, String v) =>
           w is Text && (w.data ?? '').startsWith('ID:') && w.data!.contains(v);
-      expect(find.byWidgetPredicate((w) => idLine(w, 'Kabso')), findsOneWidget);
       expect(find.byWidgetPredicate((w) => idLine(w, 'host0')), findsNothing);
     });
   }

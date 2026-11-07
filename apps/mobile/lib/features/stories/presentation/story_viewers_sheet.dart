@@ -142,21 +142,28 @@ class _StoryViewersSheetState extends ConsumerState<StoryViewersSheet> {
                           child: KAvatar(name: name, imageUrl: u.avatarUrl),
                         ),
                         title: Text(name, maxLines: 1),
-                        subtitle: Text(
-                          KHandle.text(
-                            l10n,
-                            u.username,
-                            premiumTier: u.premiumTier,
-                            staffId: u.staffId,
-                          ),
-                          maxLines: 1,
-                          textDirection: TextDirection.ltr,
-                          textAlign:
-                              Directionality.of(context) == TextDirection.rtl
-                              ? TextAlign.right
-                              : TextAlign.left,
-                          style: TextStyle(color: p.textSecondary),
-                        ),
+                        subtitle: u.staffId != null
+                            ? KStaffIdText(
+                                u.staffId!,
+                                height: KStaffIdText.list,
+                                semanticHint: context.l10n.profileStaffIdHint,
+                              )
+                            : Text(
+                                KHandle.text(
+                                  l10n,
+                                  u.username,
+                                  premiumTier: u.premiumTier,
+                                  staffId: u.staffId,
+                                ),
+                                maxLines: 1,
+                                textDirection: TextDirection.ltr,
+                                textAlign:
+                                    Directionality.of(context) ==
+                                        TextDirection.rtl
+                                    ? TextAlign.right
+                                    : TextAlign.left,
+                                style: TextStyle(color: p.textSecondary),
+                              ),
                       );
                     },
                   ),

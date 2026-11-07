@@ -12,6 +12,7 @@ export 'components/k_party_icon.dart';
 export 'components/k_skeleton.dart';
 export 'components/k_snack.dart';
 export 'components/k_special_username.dart';
+export 'components/k_staff_id.dart';
 export 'components/k_states.dart';
 export 'components/k_tab_bar.dart';
 export 'components/k_tabs.dart';

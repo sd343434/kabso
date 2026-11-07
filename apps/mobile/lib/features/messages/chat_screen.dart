@@ -618,19 +618,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                         ),
                       ),
-                      Text(
-                        KHandle.text(
-                          l10n,
-                          username,
-                          premiumTier: tier,
-                          staffId: user?.staffId,
+                      if (user?.staffId != null)
+                        KStaffIdText(
+                          user!.staffId!,
+                          height: KStaffIdText.list,
+                          semanticHint: context.l10n.profileStaffIdHint,
+                        )
+                      else
+                        Text(
+                          KHandle.text(
+                            l10n,
+                            username,
+                            premiumTier: tier,
+                            staffId: user?.staffId,
+                          ),
+                          maxLines: 1,
+                          textDirection: TextDirection.ltr,
+                          style: context.textStyles.caption.copyWith(
+                            color: p.textSecondary,
+                          ),
                         ),
-                        maxLines: 1,
-                        textDirection: TextDirection.ltr,
-                        style: context.textStyles.caption.copyWith(
-                          color: p.textSecondary,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -792,20 +799,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         color: p.textPrimary,
                       ),
                     ),
-                    Text(
-                      KHandle.text(
-                        l10n,
-                        username,
-                        premiumTier:
-                            s.peer.user.premiumTier ?? widget.premiumTier,
-                        staffId: s.peer.user.staffId,
+                    if (s.peer.user.staffId != null)
+                      KStaffIdText(
+                        s.peer.user.staffId!,
+                        height: KStaffIdText.list,
+                        semanticHint: context.l10n.profileStaffIdHint,
+                      )
+                    else
+                      Text(
+                        KHandle.text(
+                          l10n,
+                          username,
+                          premiumTier:
+                              s.peer.user.premiumTier ?? widget.premiumTier,
+                          staffId: s.peer.user.staffId,
+                        ),
+                        textAlign: TextAlign.center,
+                        textDirection: TextDirection.ltr,
+                        style: context.textStyles.body.copyWith(
+                          color: p.textSecondary,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                      textDirection: TextDirection.ltr,
-                      style: context.textStyles.body.copyWith(
-                        color: p.textSecondary,
-                      ),
-                    ),
                     const SizedBox(height: KSpacing.sm),
                     Text(
                       conversation == null

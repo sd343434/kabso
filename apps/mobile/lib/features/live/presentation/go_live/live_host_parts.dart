@@ -554,17 +554,23 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
               overflow: TextOverflow.ellipsis,
               style: t.body.copyWith(color: _ink),
             ),
-            subtitle: Text(
-              KHandle.plain(
-                u.username,
-                premiumTier: u.premiumTier,
-                staffId: u.staffId,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textDirection: TextDirection.ltr,
-              style: t.caption.copyWith(color: _soft),
-            ),
+            subtitle: u.staffId != null
+                ? KStaffIdText(
+                    u.staffId!,
+                    height: KStaffIdText.list,
+                    semanticHint: context.l10n.profileStaffIdHint,
+                  )
+                : Text(
+                    KHandle.plain(
+                      u.username,
+                      premiumTier: u.premiumTier,
+                      staffId: u.staffId,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textDirection: TextDirection.ltr,
+                    style: t.caption.copyWith(color: _soft),
+                  ),
             trailing: OutlinedButton(
               key: LiveManageKeys.action(u.username),
               onPressed: _busy.contains(u.username)

@@ -740,7 +740,8 @@ void main() {
         expect(tester.takeException(), isNull);
         final badge = find.byKey(KabsoTeamBadge.badgeKey);
         expect(badge, findsOneWidget);
-        expect(tester.getSize(badge).height, 24);
+        // D299i: taller than the name's line, so its name reads.
+        expect(tester.getSize(badge).height, KabsoTeamBadge.cardHeight);
         final name = tester.getRect(find.byKey(LivePersonSheet.nameKey));
         final b = tester.getRect(badge);
         // After the name in the reading direction, inside the screen.

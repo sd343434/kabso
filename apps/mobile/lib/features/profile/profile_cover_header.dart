@@ -390,20 +390,18 @@ class ProfileCoverHandle extends StatelessWidget {
     return KeyedSubtree(
       key: ProfileCoverHeader.handleKey,
       child: switch (tier) {
-        _ when staffId != null => Semantics(
-          hint: l10n.profileStaffIdHint,
-          // D299e (owner: «كلها لـ @»): the official staff ID in the
-          // @username's own form, «@Kabso01» (isolated left to right, the
-          // «@» on its left in Arabic too); still read as the official ID.
-          child: Text(
-            l10n.profileUsername(staffId!),
-            key: ProfileCoverHeader.staffIdKey,
-            textDirection: TextDirection.ltr,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textScaler: scaler,
-            style: style,
-          ),
+        // D299h (owner: «… مثل آيدي المميز الذهبي بأيقونة»): the official
+        // staff ID as the gold special-ID pill with its medal, «Kabso01»
+        // (no «@», as a premium name), the premium badge's bar size, over
+        // the cover and once solid; read as the official ID (D283c).
+        _ when staffId != null => KStaffIdText(
+          staffId!,
+          key: ProfileCoverHeader.staffIdKey,
+          height: KStaffIdText.bar,
+          alignment: Alignment.center,
+          semanticHint: l10n.profileStaffIdHint,
+          // D299l: the tier's full motion in the profile bar.
+          effects: KSpecialIdEffects.full,
         ),
         final tier? => FittedBox(
           fit: BoxFit.scaleDown,
@@ -412,6 +410,7 @@ class ProfileCoverHandle extends StatelessWidget {
             username: username,
             tier: tier,
             height: badgeHeight,
+            effects: KSpecialIdEffects.full,
           ),
         ),
         null => Text(
@@ -817,7 +816,8 @@ class ProfileCoverHeader extends StatelessWidget {
       if (profile.vip?.member ?? false)
         VipNameBadge(vip: profile.vip, height: 20),
       // D282: a staff account wears the Kabso Team badge.
-      // D292 (owner: «شارة فريق كابسو صغيرة وغير واضحة»).
+      // D292 (owner: «شارة فريق كابسو صغيرة وغير واضحة»); D299i: 44 pt
+      // («بحجم اكبر ليكون كلام مكتوب بداخلها واضح»).
       if (profile.kabsoTeam)
         const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight),
       // D292: the crests at one visible size ([KPublicProfile.nameBadge]).
