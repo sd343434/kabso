@@ -215,6 +215,18 @@ export class StaffAppController {
   }
 
   /**
+   * D296 follow-up (owner: «عندما يضغط الموظف عليه تفتح الشات»): the conversation frozen with a DM report (or a person
+   * reported from it), opened on a tap — every opening audited `moderation.report.dm_read`.
+   */
+  @Get('reports/:reportId/dm-thread')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('reports.view')
+  reportDmThread(@Param('reportId') id: string, @CurrentStaff() ctx: AdminContext) {
+    return this.reportActions.dmThread(pathUuid(id), ctx);
+  }
+
+  /**
    * D296: an action from the report (WARN, RESTRICT, SUSPEND, BAN, REMOVE_CONTENT) — each with its own panel capability,
    * checked in the service — which resolves the report automatically (owner); a closed report → 409.
    */

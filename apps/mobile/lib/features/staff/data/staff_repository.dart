@@ -71,6 +71,10 @@ abstract interface class StaffRepository {
   /// actions.
   Future<StaffReportView> report(String reportId);
 
+  /// D296 follow-up: `GET /staff/reports/{reportId}/dm-thread` — the
+  /// conversation of a DM report, opened on a tap (the server audits it).
+  Future<StaffDmThreadView> dmThread(String reportId);
+
   /// D296: `POST /staff/reports/{reportId}/actions` — the action resolves the
   /// report (a closed one throws `REPORT_ALREADY_RESOLVED`).
   Future<SharedReport> actOnReport(
@@ -201,6 +205,14 @@ class StaffRepositoryImpl implements StaffRepository {
       '/staff/reports/${pathSegment(reportId)}',
     );
     return StaffReportView.fromJson(res.data!);
+  });
+
+  @override
+  Future<StaffDmThreadView> dmThread(String reportId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/staff/reports/${pathSegment(reportId)}/dm-thread',
+    );
+    return StaffDmThreadView.fromJson(res.data!);
   });
 
   @override

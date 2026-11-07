@@ -135,12 +135,12 @@ final postView = StaffReportView.fromJson({
 /// A reported DM opened by SUPPORT: the snapshot only, and the temporary lock.
 final dmView = StaffReportView.fromJson({
   'report': _report('rep-dm', 'DM_MESSAGE', reason: 'HARASSMENT'),
-  'target': {
+  'target': const {
     'type': 'DM_MESSAGE',
     'state': 'EXPIRED',
     'author': _author,
     'dm': {
-      'snapshot': const {
+      'snapshot': {
         'kind': 'TEXT',
         'text': 'إذا لم ترد سأنشر صورك',
         'token': null,
@@ -151,37 +151,57 @@ final dmView = StaffReportView.fromJson({
         'quantity': null,
         'purged': false,
       },
-      'recipient': const {
+      'recipient': {
         'id': 'u1',
         'username': 'reader01',
         'displayName': 'قارئ',
         'avatarUrl': null,
       },
-      // D296 (owner): the whole conversation as the report froze it.
-      'thread': {
-        'capturedAt': '2026-11-06T09:30:00.000Z',
+      // D296 follow-up (owner): the report arrives closed — a summary only.
+      'threadSummary': {
+        'messages': 5,
         'total': 5,
         'truncated': false,
-        'messages': [
-          _threadMessage('m1', 'reader01', false, 'مرحباً، من أنت؟', '20:40'),
-          _threadMessage('m2', 'spammer01', true, 'أرسل لي صورك', '20:45'),
-          _threadMessage('m3', 'reader01', false, 'لا، توقف من فضلك', '20:50'),
-          _threadMessage(
-            'm4',
-            'spammer01',
-            true,
-            'إذا لم ترد سأنشر صورك',
-            '21:04',
-            reported: true,
-          ),
-          _threadMessage('m5', 'reader01', false, 'سأبلغ عنك', '21:06'),
-        ],
+        'capturedAt': '2026-11-06T09:30:00.000Z',
       },
     },
   },
   'actions': const ['SUSPEND'],
   'restrictions': const <Object>[],
   'canResolve': true,
+});
+
+/// D296 (owner): the whole conversation as the report froze it — what the
+/// closed card opens (`getStaffReportDmThread`).
+final dmThreadView = StaffDmThreadView.fromJson({
+  'reportId': 'rep-dm',
+  'reported': _author,
+  'recipient': const {
+    'id': 'u1',
+    'username': 'reader01',
+    'displayName': 'قارئ',
+    'avatarUrl': null,
+  },
+  'snapshot': null,
+  'thread': {
+    'capturedAt': '2026-11-06T09:30:00.000Z',
+    'total': 5,
+    'truncated': false,
+    'messages': [
+      _threadMessage('m1', 'reader01', false, 'مرحباً، من أنت؟', '20:40'),
+      _threadMessage('m2', 'spammer01', true, 'أرسل لي صورك', '20:45'),
+      _threadMessage('m3', 'reader01', false, 'لا، توقف من فضلك', '20:50'),
+      _threadMessage(
+        'm4',
+        'spammer01',
+        true,
+        'إذا لم ترد سأنشر صورك',
+        '21:04',
+        reported: true,
+      ),
+      _threadMessage('m5', 'reader01', false, 'سأبلغ عنك', '21:06'),
+    ],
+  },
 });
 
 /// A comment deleted by its author: «المحتوى محذوف» with what the report kept.
@@ -195,8 +215,23 @@ final goneView = StaffReportView.fromJson({
 
 /// The views by report id; records the actions.
 class FakeReportViewRepository extends FakeReportsRepository {
-  new({Map<String, StaffReportView>? views, this.alreadyActed = false})
-    : views = views ?? {'rep-post': postView, 'rep-dm': dmView};
+  new({
+    Map<String, StaffReportView>? views,
+    Map<String, StaffDmThreadView>? threads,
+    this.alreadyActed = false,
+  }) : views = views ?? {'rep-post': postView, 'rep-dm': dmView},
+       threads = threads ?? {'rep-dm': dmThreadView};
+
+  final Map<String, StaffDmThreadView> threads;
+
+  /// D296 follow-up: the conversations actually opened (the audited call).
+  final threadOpens = <String>[];
+
+  @override
+  Future<StaffDmThreadView> dmThread(String reportId) async {
+    threadOpens.add(reportId);
+    return threads[reportId]!;
+  }
 
   final Map<String, StaffReportView> views;
   final bool alreadyActed;
@@ -267,6 +302,11 @@ Future<void> pumpReportRoutes(
         ),
       ),
       GoRoute(
+        path: AppRoutes.staffReportChatPattern,
+        builder: (_, state) =>
+            StaffReportChatScreen(reportId: state.pathParameters['reportId']!),
+      ),
+      GoRoute(
         path: AppRoutes.userProfilePattern,
         builder: (_, state) =>
             Scaffold(body: Text('profile ${state.pathParameters['username']}')),
@@ -329,17 +369,46 @@ void main() {
       expect(find.byKey(StaffReportDetailScreen.dmViewKey), findsOneWidget);
     });
 
-    testWidgets('a DM: the whole conversation, read only, the reported one '
-        'outlined', (tester) async {
+    testWidgets('a DM arrives closed: the card, no conversation, nothing '
+        'opened', (tester) async {
+      final repo = FakeReportViewRepository();
       await pumpReportRoutes(
         tester,
         language: AppLanguage.ar,
-        repo: FakeReportViewRepository(),
+        repo: repo,
         initial: AppRoutes.staffReport('rep-dm'),
       );
       expect(find.byKey(StaffReportDetailScreen.dmViewKey), findsOneWidget);
-      expect(find.byKey(StaffReportDetailScreen.threadKey), findsOneWidget);
+      expect(find.byKey(StaffReportDetailScreen.openThreadKey), findsOneWidget);
       expect(find.text('المحادثة كاملة — للقراءة فقط'), findsOneWidget);
+      expect(find.text('اضغط لفتح المحادثة'), findsOneWidget);
+      expect(find.text('الرسائل المحفوظة: 5'), findsOneWidget);
+      expect(find.textContaining('@spammer01'), findsWidgets);
+      expect(find.textContaining('@reader01'), findsWidgets);
+      // Closed: no message of the conversation, and it was not read.
+      expect(find.byKey(StaffReportDetailScreen.threadKey), findsNothing);
+      for (final text in ['مرحباً، من أنت؟', 'أرسل لي صورك', 'سأبلغ عنك']) {
+        expect(find.text(text), findsNothing, reason: text);
+      }
+      expect(repo.threadOpens, isEmpty);
+      // The report card and the action bar are still there.
+      expect(find.byKey(StaffReportDetailScreen.actionBarKey), findsOneWidget);
+    });
+
+    testWidgets('a tap opens the whole conversation full screen, read only, '
+        'the reported one outlined', (tester) async {
+      final repo = FakeReportViewRepository();
+      await pumpReportRoutes(
+        tester,
+        language: AppLanguage.ar,
+        repo: repo,
+        initial: AppRoutes.staffReport('rep-dm'),
+      );
+      await tester.tap(find.byKey(StaffReportDetailScreen.openThreadKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(StaffReportChatScreen), findsOneWidget);
+      expect(repo.threadOpens, ['rep-dm']);
+      expect(find.byKey(StaffReportDetailScreen.threadKey), findsOneWidget);
       for (final text in [
         'مرحباً، من أنت؟',
         'أرسل لي صورك',
@@ -359,14 +428,16 @@ void main() {
       );
       expect(find.text('الرسالة المُبلّغ عنها'), findsOneWidget);
       expect(find.textContaining('ولا تُضاف رسائل لاحقة'), findsOneWidget);
-      expect(find.textContaining('بعد ٢٤ ساعة'), findsOneWidget);
       // The reported person at the start, the reporter at the end (RTL: the
       // start is on the right).
       final reportedX = tester.getCenter(find.text('أرسل لي صورك')).dx;
       final reporterX = tester.getCenter(find.text('سأبلغ عنك')).dx;
       expect(reportedX, greaterThan(reporterX));
-      // No composer: nothing to type into.
+      // No composer: nothing to type into; back returns to the report.
       expect(find.byType(TextField), findsNothing);
+      GoRouter.of(tester.element(find.byType(StaffReportChatScreen))).pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(StaffReportDetailScreen), findsOneWidget);
     });
 
     testWidgets('an older DM report without a thread: the one message', (
@@ -386,21 +457,39 @@ void main() {
               'purged': false,
             },
             'recipient': null,
-            'thread': null,
+            'threadSummary': null,
           },
         },
         'actions': const ['SUSPEND'],
         'canResolve': true,
       });
+      final opened = StaffDmThreadView.fromJson(const {
+        'reportId': 'rep-old',
+        'reported': _author,
+        'recipient': null,
+        'snapshot': {
+          'kind': 'TEXT',
+          'text': 'رسالة قديمة',
+          'sender': 'spammer01',
+          'sentAt': '2026-11-05T21:04:00.000Z',
+          'purged': false,
+        },
+        'thread': null,
+      });
       await pumpReportRoutes(
         tester,
         language: AppLanguage.ar,
-        repo: FakeReportViewRepository(views: {'rep-old': old}),
+        repo: FakeReportViewRepository(
+          views: {'rep-old': old},
+          threads: {'rep-old': opened},
+        ),
         initial: AppRoutes.staffReport('rep-old'),
       );
-      expect(find.text('محادثة — للقراءة فقط'), findsOneWidget);
+      expect(find.text('بلاغ قديم: الرسالة المُبلّغ عنها فقط'), findsOneWidget);
+      await tester.tap(find.byKey(StaffReportDetailScreen.openThreadKey));
+      await tester.pumpAndSettle();
       expect(find.text('رسالة قديمة'), findsOneWidget);
-      expect(find.byKey(StaffReportDetailScreen.threadKey), findsNothing);
+      expect(find.byKey(StaffReportDetailScreen.reportedMessageKey), findsOne);
     });
 
     testWidgets('gone: «المحتوى محذوف» with what the report kept', (

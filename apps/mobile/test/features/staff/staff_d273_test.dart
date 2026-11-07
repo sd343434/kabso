@@ -162,6 +162,10 @@ class FakeStaffRepository implements StaffRepository {
   Future<StaffReportView> report(String reportId) => throw UnimplementedError();
 
   @override
+  Future<StaffDmThreadView> dmThread(String reportId) =>
+      throw UnimplementedError();
+
+  @override
   Future<SharedReport> actOnReport(
     String reportId,
     StaffReportAction action, {

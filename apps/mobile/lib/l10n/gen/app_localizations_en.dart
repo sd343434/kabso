@@ -15721,6 +15721,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get staffReportConfirmMismatch => 'Type the word exactly';
 
   @override
+  String get staffReportThreadOpen => 'Tap to open the conversation';
+
+  @override
+  String staffReportThreadCount(String count) {
+    return 'Messages kept: $count';
+  }
+
+  @override
+  String get staffReportThreadOnlyReported =>
+      'An older report: the reported message only';
+
+  @override
   String get liveCreatorBadge => 'Creator';
 
   @override

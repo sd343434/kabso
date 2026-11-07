@@ -294,6 +294,104 @@ class StaffThread {
   final List<StaffThreadMessage> messages;
 }
 
+/// D296 follow-up: what the closed conversation card says (no content).
+@immutable
+class StaffThreadSummary {
+  const new({
+    required this.messages,
+    required this.capturedAt,
+    this.total = 0,
+    this.truncated = false,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => StaffThreadSummary(
+    messages: json['messages'] as int? ?? 0,
+    total: json['total'] as int? ?? 0,
+    truncated: json['truncated'] as bool? ?? false,
+    capturedAt: DateTime.parse(json['capturedAt']! as String),
+  );
+
+  /// Messages kept.
+  final int messages;
+  final int total;
+  final bool truncated;
+  final DateTime capturedAt;
+}
+
+/// D296 follow-up: the conversation opened by a staff member
+/// (`StaffReportDmThread`; the server audits every opening).
+@immutable
+class StaffDmThreadView {
+  const new({
+    required this.reportId,
+    this.reported,
+    this.recipient,
+    this.snapshot,
+    this.thread,
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    UserSummary? user(Object? raw) => switch (raw) {
+      final Map<String, dynamic> m => UserSummary.fromJson(m),
+      _ => null,
+    };
+    return StaffDmThreadView(
+      reportId: json['reportId'] as String? ?? '',
+      reported: user(json['reported']),
+      recipient: user(json['recipient']),
+      snapshot: switch (json['snapshot']) {
+        final Map<String, dynamic> s => StaffDmSnapshot.fromJson(s),
+        _ => null,
+      },
+      thread: switch (json['thread']) {
+        final Map<String, dynamic> t => StaffThread.fromJson(t),
+        _ => null,
+      },
+    );
+  }
+
+  final String reportId;
+
+  /// The reported person (the DM's sender, or the reported user).
+  final UserSummary? reported;
+
+  /// The reporter, the other side of the conversation.
+  final UserSummary? recipient;
+
+  /// The reported message (DM reports).
+  final StaffDmSnapshot? snapshot;
+
+  /// The whole conversation; null for an older report or once purged.
+  final StaffThread? thread;
+
+  /// What to show: the thread, else the reported message alone (an older
+  /// report), else nothing (purged).
+  StaffThread? get shown {
+    if (thread != null) return thread;
+    final s = snapshot;
+    if (s == null || s.purged) return null;
+    return StaffThread(
+      capturedAt: s.sentAt,
+      total: 1,
+      messages: [
+        StaffThreadMessage(
+          id: reportId,
+          kind: s.kind,
+          sentAt: s.sentAt,
+          sender: s.sender,
+          fromReported: true,
+          text: s.text,
+          token: s.token,
+          mediaUrl: s.mediaUrl,
+          giftCode: s.giftCode,
+          quantity: s.quantity,
+          reported: true,
+        ),
+      ],
+    );
+  }
+}
+
 /// D296: the reported item as the staff see it, whatever its visibility
 /// (`StaffReportedItem`).
 @immutable
@@ -308,7 +406,7 @@ class StaffReportedItem {
     this.live,
     this.dmSnapshot,
     this.dmRecipient,
-    this.dmThread,
+    this.dmThreadSummary,
     this.text,
   });
 
@@ -343,8 +441,8 @@ class StaffReportedItem {
         _ => null,
       },
       dmRecipient: user(dm?['recipient']),
-      dmThread: switch (dm?['thread']) {
-        final Map<String, dynamic> t => StaffThread.fromJson(t),
+      dmThreadSummary: switch (dm?['threadSummary']) {
+        final Map<String, dynamic> t => StaffThreadSummary.fromJson(t),
         _ => null,
       },
       text: json['text'] as String?,
@@ -368,9 +466,15 @@ class StaffReportedItem {
   /// DM_MESSAGE: the person who received it (the reporter).
   final UserSummary? dmRecipient;
 
-  /// The whole conversation frozen with the report (a DM report, or a person
-  /// reported from the conversation); null when none or purged.
-  final StaffThread? dmThread;
+  /// D296 follow-up (owner: the report arrives «مغلقاً»): only a summary of
+  /// the conversation frozen with the report — the conversation itself is
+  /// opened on a tap (`getStaffReportDmThread`, audited). Null for an older
+  /// report that kept the reported message only, or once purged.
+  final StaffThreadSummary? dmThreadSummary;
+
+  /// The report carries a conversation to open (a DM report, or a person
+  /// reported from the conversation).
+  bool get hasConversation => type == 'DM_MESSAGE' || dmThreadSummary != null;
 
   /// A live chat message, a CP confession, a family chat message or a link.
   final String? text;

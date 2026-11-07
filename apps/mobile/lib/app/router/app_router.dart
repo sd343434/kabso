@@ -556,6 +556,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           reportId: state.pathParameters['reportId']!,
         ),
       ),
+      // D296 follow-up: the reported conversation, opened on a tap.
+      GoRoute(
+        path: AppRoutes.staffReportChatPattern,
+        builder: (_, state) =>
+            StaffReportChatScreen(reportId: state.pathParameters['reportId']!),
+      ),
       // v1.89-social (D290): «طلب رفع ليفيل».
       GoRoute(
         path: AppRoutes.staffLevelRaises,
