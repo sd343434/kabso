@@ -706,12 +706,24 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
       expect(repText.status).toBe(201);
       const copy = `reports/dm/${rep.body.id as string}.webp`;
       expect(storage.objects.has(copy)).toBe(true);
+      // v1.93-social (D296): the text report froze the whole conversation — the picture copied for it too.
+      const threadCopy = `reports/dm/${repText.body.id as string}/${img.body.message.id as string}.webp`;
+      expect(storage.objects.has(threadCopy)).toBe(true);
+      const frozen = await ctx.prisma.report.findUniqueOrThrow({ where: { id: repText.body.id as string } });
+      expect(
+        (frozen.dmSnapshot as { thread: { messages: { kind: string; mediaKey: string | null }[] } }).thread
+          .messages,
+      ).toEqual([
+        expect.objectContaining({ kind: 'IMAGE', mediaKey: threadCopy }),
+        expect.objectContaining({ kind: 'TEXT', mediaKey: null }),
+      ]);
 
       // The messages expire and are swept: the reports still show what they were.
       clock.advance(24 * 3600 + 1);
       await sweep();
       expect(await ctx.prisma.dmMessage.count({ where: { id: img.body.message.id } })).toBe(0);
       expect(storage.objects.has(copy)).toBe(true);
+      expect(storage.objects.has(threadCopy)).toBe(true);
       const queue = await ctx.http.get('/api/v1/admin/reports?limit=50').set(auth(mod));
       expect(queue.status).toBe(200);
       expectContract(queue, 'listAdminReports');
@@ -747,9 +759,18 @@ describe('D155 direct messages', { timeout: 240_000 }, () => {
         where: { id: rep.body.id as string },
         data: { resolvedAt: new Date(clock.now().getTime() - 31 * 86400 * 1000) },
       });
+      // D296: the text report (still open after the picture's REMOVE_TARGET) closed 31 days ago too.
+      await ctx.prisma.report.update({
+        where: { id: repText.body.id as string },
+        data: { status: 'DISMISSED', resolvedAt: new Date(clock.now().getTime() - 31 * 86400 * 1000) },
+      });
       const swept = await sweep();
       expect(swept.snapshots).toBeGreaterThanOrEqual(1);
       expect(storage.objects.has(copy)).toBe(false);
+      // D296: the frozen conversation and its files go with the snapshot.
+      expect(storage.objects.has(threadCopy)).toBe(false);
+      const textRow = await ctx.prisma.report.findUniqueOrThrow({ where: { id: repText.body.id as string } });
+      expect(textRow.dmSnapshot).toMatchObject({ purged: true, thread: null });
       const row = await ctx.prisma.report.findUniqueOrThrow({ where: { id: rep.body.id as string } });
       expect(row.dmSnapshot).toMatchObject({ purged: true, mediaKey: null, text: null, kind: 'IMAGE' });
     });

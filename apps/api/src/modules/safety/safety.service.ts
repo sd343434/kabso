@@ -10,15 +10,19 @@ import { readableFamilyChatMessage, removeFamilyChatMessageIn } from '../familie
 import { uuidv7 } from '../levels/uuidv7.js';
 import { MediaService } from '../media/media.service.js';
 import {
+  DM_REPORT_THREAD_MAX_FILES,
   dmSnapshotDto,
+  dmThreadRowsOf,
   removeDmMessageIn,
   reportableDmMessage,
   type DmSnapshot,
   type DmSnapshotDto,
+  type DmThreadMessage,
+  type DmThreadSnapshot,
 } from '../messages/dm-reports.js';
 import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveStaffAlertsService } from '../live/live-staff-alerts.service.js';
-import { ReportStaffAlertsService } from './report-staff-alerts.service.js';
+import { markReportAlertsReadIn, ReportStaffAlertsService } from './report-staff-alerts.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { LiveSeatsService } from '../live/live-seats.service.js';
@@ -350,6 +354,8 @@ export class SafetyService {
         throw AppException.validation([{ field: 'liveRoomId', issue: 'invalid_value' }]);
       contextLiveRoomId = (await this.liveRooms.visibleRow(input.liveRoomId.toLowerCase(), reporterId)).id;
     }
+    if (input.dmConversationId !== undefined && input.targetType !== 'USER')
+      throw AppException.validation([{ field: 'dmConversationId', issue: 'invalid_value' }]);
     // v1.40-social (D155): a direct message is kept as a snapshot (it is deleted after 24 h).
     const dm =
       input.targetType === 'DM_MESSAGE' && isUuid(input.targetId)
@@ -375,14 +381,31 @@ export class SafetyService {
       return { report: this.toDto(existing, false), created: false };
     }
     const reportId = uuidv7();
-    let snapshot: DmSnapshot | null = null;
+    // v1.93-social (D296): a person reported from a conversation — the reporter's conversation with them.
+    let personConversationId: string | null = null;
+    if (input.dmConversationId !== undefined && 'targetUserId' in target) {
+      const [low, high] = [reporterId, target.targetUserId].sort();
+      const conv = await this.prisma.dmConversation.findFirst({
+        where: { id: input.dmConversationId.toLowerCase(), userLowId: low!, userHighId: high! },
+        select: { id: true },
+      });
+      if (!conv) throw new AppException(ErrorCode.NOT_FOUND);
+      personConversationId = conv.id;
+    }
+    let snapshot: (DmSnapshot | { conversationId: string; thread: DmThreadSnapshot | null }) | null = null;
     if (dm) {
       let mediaKey: string | null = null;
       if (dm.media) {
         const key = `reports/dm/${reportId}.${dm.media.extension}`;
         if (await this.media.copyObject(dm.media.key, key, dm.media.contentType)) mediaKey = key;
       }
-      snapshot = { ...dm.snapshot, mediaKey, purged: false };
+      const thread = await this.freezeThread(reportId, dm.snapshot.conversationId, dm.id, mediaKey);
+      snapshot = { ...dm.snapshot, mediaKey, purged: false, thread };
+    } else if (personConversationId !== null) {
+      snapshot = {
+        conversationId: personConversationId,
+        thread: await this.freezeThread(reportId, personConversationId, null, null),
+      };
     }
     try {
       const row = await this.prisma.report.create({
@@ -411,6 +434,50 @@ export class SafetyService {
       }
       throw err;
     }
+  }
+
+  /**
+   * v1.93-social (D296, §10.109.5; owner: «مثل طريقة نزاع وكيل الشحن»): every message of the conversation that still
+   * exists now, oldest first (the newest DM_REPORT_THREAD_MAX_MESSAGES), with a copy of the newest
+   * DM_REPORT_THREAD_MAX_FILES files — taken once, when the report is filed; later messages are never added.
+   */
+  private async freezeThread(
+    reportId: string,
+    conversationId: string,
+    reportedMessageId: string | null,
+    reportedMediaKey: string | null,
+  ): Promise<DmThreadSnapshot> {
+    const now = new Date();
+    const { rows, total } = await dmThreadRowsOf(this.prisma, conversationId, now);
+    // The newest files first, up to the cap (the reported message's own copy is reused).
+    const copy = new Set(
+      rows
+        .filter((r) => r.media !== null && r.message.id !== reportedMessageId)
+        .slice(-DM_REPORT_THREAD_MAX_FILES)
+        .map((r) => r.message.id),
+    );
+    const messages: DmThreadMessage[] = [];
+    for (const r of rows) {
+      const reported = r.message.id === reportedMessageId;
+      let mediaKey: string | null = reported ? reportedMediaKey : null;
+      if (!reported && r.media && copy.has(r.message.id)) {
+        const key = `reports/dm/${reportId}/${r.message.id}.${r.media.extension}`;
+        if (await this.media.copyObject(r.media.key, key, r.media.contentType)) mediaKey = key;
+      }
+      messages.push({
+        ...r.message,
+        mediaKey,
+        mediaMissing: r.media !== null && mediaKey === null,
+        reported,
+      });
+    }
+    return {
+      conversationId,
+      capturedAt: now.toISOString(),
+      total,
+      truncated: total > rows.length,
+      messages,
+    };
   }
 
   /**
@@ -468,10 +535,18 @@ export class SafetyService {
   > {
     const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
     if (input.targetType === 'USER') {
-      const user = await this.users.findActivePublicUser(input.targetId);
-      if (!user) throw new AppException(ErrorCode.NOT_FOUND);
-      if (user.id === reporterId) throw invalid();
-      return { targetUserId: user.id };
+      // v1.93-social (D296, §10.109): the user's id is accepted too — the app has always sent the id (the profile,
+      // the chat's «الإبلاغ عن الشخص», the live person card), which the username lookup answered with 404.
+      const byId = isUuid(input.targetId)
+        ? await this.prisma.user.findFirst({
+            where: { id: input.targetId.toLowerCase(), status: 'ACTIVE' },
+            select: { id: true },
+          })
+        : null;
+      const userId = byId?.id ?? (await this.users.findActivePublicUser(input.targetId))?.id;
+      if (!userId) throw new AppException(ErrorCode.NOT_FOUND);
+      if (userId === reporterId) throw invalid();
+      return { targetUserId: userId };
     }
     if (!isUuid(input.targetId)) throw new AppException(ErrorCode.NOT_FOUND);
     const id = input.targetId.toLowerCase();
@@ -588,7 +663,16 @@ export class SafetyService {
    * for a user, records the decision only; DISMISS changes nothing. Every OPEN report on the same
    * target closes with the same outcome; one audit row records the action. A closed report → 409.
    */
-  async act(actor: AdminActor, reportId: string, body: unknown): Promise<ReportDto> {
+  async act(
+    actor: AdminActor,
+    reportId: string,
+    body: unknown,
+    /**
+     * v1.93-social (D296, §10.109.2; owner, as for «تم حله» in D288): close only this report — the app's actions from a
+     * report. Without it (the panel's queue, §11.7) every OPEN report on the target closes.
+     */
+    options: { onlyThisReport?: boolean } = {},
+  ): Promise<ReportDto> {
     if (!isUuid(reportId)) throw new AppException(ErrorCode.NOT_FOUND);
     const parsed = reportActionSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
@@ -692,15 +776,28 @@ export class SafetyService {
       const target: Prisma.ReportWhereInput = heldOnly
         ? { legalHoldId: report.legalHoldId }
         : reportTargetWhere(report);
+      // v1.93-social (D296, §10.109): the closed reports record which action resolved them, and the staff's alerts
+      // about them are read for everyone (as after «تم حله»).
+      const closing = options.onlyThisReport
+        ? [{ id }]
+        : await tx.report.findMany({
+            where: { ...target, status: 'OPEN' },
+            select: { id: true },
+          });
       const closed = await tx.report.updateMany({
-        where: { ...target, status: 'OPEN' },
+        where: { id: { in: closing.map((r) => r.id) }, status: 'OPEN' },
         data: {
           status: action === 'REMOVE_TARGET' ? 'ACTIONED' : 'DISMISSED',
           resolvedAt: new Date(),
           resolvedById: actor.userId,
           resolutionNote: note ?? null,
+          resolutionAction: action === 'REMOVE_TARGET' ? 'REMOVE_CONTENT' : 'DISMISS',
         },
       });
+      await markReportAlertsReadIn(
+        tx,
+        closing.map((r) => r.id),
+      );
       await this.audit.recordIn(tx, {
         action: AuditAction.MODERATION_REPORT_ACTION,
         actorUserId: actor.userId,

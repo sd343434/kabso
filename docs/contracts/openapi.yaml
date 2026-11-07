@@ -306,6 +306,23 @@ info:
     `iconUrl`; `NotificationTarget.medalLevel` (a MEDAL_AWARDED above level 1 is a level-up). Panel:
     `listAdminMedals`, `updateAdminMedal` (the levels list; audited `medals.levels.update`). Additive; migration
     `20270325090000_medal_levels`, then `medals-admin backfill` raises held medals to their level (DEPLOYMENT §5.72).
+    **D296 (DRAFT v1.93-social)** a report opens its content for the staff, with actions (CONVENTIONS §10.109; owner:
+    «يجب عند الضغط عليه الدخول إلى البوست، ويكون له أزرار صلاحية للتحذير والحظر ومنع النشر … عندما يضغط على البلاغ يدخل
+    إلى الشات المبلغ عنه ويكون عنده إجراء», then the owner's answers of 2026-11-06). `getStaffReport` (`reports.view`):
+    the report with its target as the staff see it whatever its visibility (`StaffReportTarget`), a DM — and a person
+    reported from a conversation (`CreateReportRequest.dmConversationId`) — with **the whole conversation frozen when the
+    report was filed** (`DmReportThread`, owner's privacy decision «مثل طريقة نزاع وكيل الشحن»: every message still there,
+    at most 300, files for the newest 20; never later messages; cleared 30 days after resolution), every read audited
+    `moderation.report.dm_read`. `actOnStaffReport` (`StaffReportActionRequest`): WARN (`reports.act`), RESTRICT
+    NO_POSTING / NO_LIVE / CHAT_MUTE 1–365 days (`users.restrict`), SUSPEND 1–365 days (`users.lock`; SUPPORT too, owner),
+    BAN (`users.ban`), REMOVE_CONTENT (`reports.act`), DELETE_CONTENT (`users.content`) and DELETE_ACCOUNT
+    (`users.delete`) with `confirm: DELETE` — the panel's own rules, audited with the report id and `via: app`; **an
+    action resolves only the pressed report** (owner), recording `AdminPanelReport.resolutionAction`, the reason as the
+    note, the staff's alerts read; a closed report → 409 `REPORT_ALREADY_RESOLVED`. The panel's report actions record
+    `resolutionAction` too (they still close every open report on the target). `StaffStatus.capabilities` gains
+    `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`. Fix: `createReport`
+    USER accepts the user's id as well as the username (the app sends the id, which was answered 404). Additive; migration
+    `20270330090000_report_resolution_action`.
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -13986,6 +14003,55 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/reports/{reportId}:
+    get:
+      tags: [staff]
+      operationId: getStaffReport
+      summary: "(v1.93-social, D296) One report with its content for the staff and the allowed actions (reports.view)"
+      description: "CONVENTIONS §10.109. The reported content whatever its visibility; a DM only as the report's frozen snapshot (D155; the conversation is never read) and every DM read audited `moderation.report.dm_read` {reportId, purged, via}. Staff work (§10.96.14). A non-staff account → 403."
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffReportView' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/reports/{reportId}/actions:
+    post:
+      tags: [staff]
+      operationId: actOnStaffReport
+      summary: "(v1.93-social, D296) An action from a report, which resolves it automatically"
+      description: "CONVENTIONS §10.109. Each action needs its panel capability (`StaffReportAction`; else 403). The panel's rules: WARN and BAN the report queue's, RESTRICT and SUSPEND the account controls' restriction (D208; NO_LIVE and SUSPEND end the person's live), REMOVE_CONTENT the report action REMOVE_TARGET. The author must not be the caller and a «فريق كابسو» account only by an OWNER (403). The report and every other OPEN report on the same target become ACTIONED with `resolutionAction`, the reason as the note and the caller as the resolver; the staff's STAFF_REPORT_NEW rows about them are read. A closed report → 409 `REPORT_ALREADY_RESOLVED` (one action per report). Audited with the action's own row (`admin.user.warn`, `admin.user.restrict`, `admin.user.lock`, `admin.user.ban` or `moderation.report.action` for REMOVE_CONTENT) and `moderation.report.action` {reportId, action, …, reportsClosed, via: app}."
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffReportActionRequest' }
+      responses:
+        '200':
+          description: Done; the report resolved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffReportActionResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/staff/reports/{reportId}/resolve:
     post:
       tags: [staff]
@@ -20328,8 +20394,8 @@ components:
           items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
         capabilities:
           type: array
-          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue)."
-          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve] }
+          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue). (v1.93-social, D296) `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`: the actions from a report."
+          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve, reports.act, users.restrict, users.lock, users.ban, users.content, users.delete] }
         authenticatorEnrolled: { type: boolean, description: "False: the app says to set it up at admin.<domain> first." }
         lockedUntil: { type: [string, 'null'], format: date-time, description: "Locked after wrong codes (the panel's lockout)." }
         stepUp:
@@ -21158,7 +21224,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Report'
         - type: object
-          required: [preview, resolvedBy, resolutionNote]
+          required: [preview, resolvedBy, resolutionNote, resolutionAction]
           properties:
             preview: { $ref: '#/components/schemas/AdminReportPreview' }
             resolvedBy:
@@ -21167,6 +21233,143 @@ components:
                 - $ref: '#/components/schemas/ReportResolver'
                 - type: 'null'
             resolutionNote: { type: [string, 'null'], maxLength: 500, description: "(v1.78-live, D288) The resolver's note (or the action's reason)." }
+            resolutionAction:
+              description: "(v1.93-social, D296, §10.109) The action that resolved the report automatically; null for «تم حله» without an action and while OPEN."
+              oneOf:
+                - { $ref: '#/components/schemas/StaffReportResolutionAction' }
+                - type: 'null'
+    StaffReportResolutionAction:
+      type: string
+      enum: [WARN, RESTRICT, SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT, DISMISS]
+      description: (v1.93-social, D296) Which action closed a report (DISMISS is the panel's dismiss).
+    StaffReportAction:
+      type: string
+      enum: [WARN, RESTRICT, SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT]
+      description: "(v1.93-social, D296, §10.109) WARN «تحذير» (reports.act); RESTRICT «تقييد» (users.restrict); SUSPEND «تعليق مؤقت» — the account locked for some days (users.lock; SUPPORT too, decided by the owner); BAN «حظر دائم» — the account suspended (users.ban); REMOVE_CONTENT «إخفاء المحتوى» — the report action REMOVE_TARGET (reports.act; not for USER); DELETE_CONTENT «حذف نهائي» — a post, reel or story deleted for good (users.content; POST and STORY only); DELETE_ACCOUNT «حذف الحساب» — the D193 account deletion with its grace period (users.delete: OWNER). The two deletions need `confirm: DELETE` (owner: in the app too, no authenticator code since D288)."
+    StaffReportActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason]
+      description: (v1.93-social, D296) `days` with RESTRICT and SUSPEND only (required there); `restriction` with RESTRICT only (required there); `confirm` with DELETE_CONTENT and DELETE_ACCOUNT only (required there); else 400.
+      properties:
+        action: { $ref: '#/components/schemas/StaffReportAction' }
+        reason: { type: string, minLength: 1, maxLength: 500, description: Required; the person sees it for a restriction; kept as the resolution note and in the audit. }
+        restriction: { type: string, enum: [NO_POSTING, NO_LIVE, CHAT_MUTE], description: "«منع النشر» / «منع البث» / «منع الرسائل» (CHAT_MUTE: DMs, comments and live chat)." }
+        days: { type: integer, minimum: 1, maximum: 365 }
+        confirm: { type: string, enum: [DELETE], description: "The word the staff member typed to confirm a permanent deletion." }
+    StaffReportActionResult:
+      type: object
+      required: [report, action, reportsClosed]
+      properties:
+        report: { $ref: '#/components/schemas/AdminPanelReport' }
+        action: { $ref: '#/components/schemas/StaffReportAction' }
+        reportsClosed: { type: integer, minimum: 0, maximum: 1, description: "The reports this action closed: only the pressed one (owner, as D288's «تم حله»)." }
+    StaffReportTarget:
+      type: object
+      required: [type, state, author]
+      description: "(v1.93-social, D296, §10.109) The reported item as the staff see it, whatever its visibility (hidden, private, blocked, another region). A DM is only the report's frozen `dm.snapshot` — the conversation is never read."
+      properties:
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK] }
+        state: { type: string, enum: [VISIBLE, HIDDEN, DELETED, EXPIRED, LIVE, ENDED, GONE], description: "HIDDEN: removed by moderation; DELETED: by its author or for good; EXPIRED: a story or DM past its life; GONE: no row any more." }
+        author:
+          description: The item's author (the reported user for USER, the sender for DM_MESSAGE); null when gone.
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        post:
+          description: POST — the post or reel; COMMENT — the post it is on. Null when gone.
+          oneOf:
+            - $ref: '#/components/schemas/Post'
+            - type: 'null'
+        comment:
+          oneOf:
+            - type: object
+              required: [id, text, createdAt, parentId, postId]
+              properties:
+                id: { type: string, format: uuid }
+                text: { type: string }
+                createdAt: { type: string, format: date-time }
+                parentId: { type: [string, 'null'], format: uuid }
+                postId: { type: string, format: uuid }
+            - type: 'null'
+        story:
+          oneOf:
+            - type: object
+              required: [id, text, media, createdAt, expiresAt]
+              properties:
+                id: { type: string, format: uuid }
+                text: { type: string }
+                media: { $ref: '#/components/schemas/MediaAsset' }
+                createdAt: { type: string, format: date-time }
+                expiresAt: { type: string, format: date-time }
+            - type: 'null'
+        live:
+          description: LIVE_ROOM and LIVE_CHAT_MESSAGE — the room (the app opens it as staff while LIVE).
+          oneOf:
+            - type: object
+              required: [roomId, title, status]
+              properties:
+                roomId: { type: string, format: uuid }
+                title: { type: string }
+                status: { type: string }
+            - type: 'null'
+        dm:
+          description: DM_MESSAGE — the snapshot kept by the report (D155), the recipient (the reporter) and (D296) the whole conversation frozen when the report was filed; USER reported from a conversation — the conversation (no `snapshot`). Absent otherwise. Every read audited.
+          oneOf:
+            - type: object
+              required: [snapshot, recipient, thread]
+              properties:
+                snapshot:
+                  oneOf:
+                    - $ref: '#/components/schemas/DmReportSnapshot'
+                    - type: 'null'
+                recipient:
+                  oneOf:
+                    - $ref: '#/components/schemas/UserSummary'
+                    - type: 'null'
+                thread:
+                  oneOf:
+                    - $ref: '#/components/schemas/DmReportThread'
+                    - type: 'null'
+            - type: 'null'
+        text: { type: [string, 'null'], description: "The text of a live chat message, a CP confession, a family chat message or a profile link." }
+    DmReportThread:
+      type: object
+      required: [capturedAt, total, truncated, messages]
+      description: "(v1.93-social, D296, §10.109.5; owner: «مثل طريقة نزاع وكيل الشحن») Every message of the conversation that still existed when the report was filed (D155 keeps 24 h), oldest first — the newest 300; files copied for the newest 20 pictures / voice clips. Never the messages sent later. Cleared with the snapshot 30 days after resolution. Staff view only (not in the lists)."
+      properties:
+        capturedAt: { type: string, format: date-time }
+        total: { type: integer, minimum: 0, description: The messages that existed then (before the cap). }
+        truncated: { type: boolean, description: More than 300 existed; the oldest were left out. }
+        messages:
+          type: array
+          maxItems: 300
+          items:
+            type: object
+            required: [id, sender, fromReported, kind, text, token, sentAt, mediaUrl, mediaMissing, giftCode, quantity, reported]
+            properties:
+              id: { type: string, format: uuid }
+              sender: { type: [string, 'null'], description: The sender's username now (null when the account is gone). }
+              fromReported: { type: boolean, description: Sent by the reported person. }
+              kind: { type: string, enum: [TEXT, EMOJI, IMAGE, VOICE, GIFT] }
+              text: { type: [string, 'null'] }
+              token: { type: [string, 'null'] }
+              sentAt: { type: string, format: date-time }
+              mediaUrl: { type: [string, 'null'], description: The report's own copy of the picture or voice clip. }
+              mediaMissing: { type: boolean, description: "A picture or voice clip beyond the 20 copied." }
+              giftCode: { type: [string, 'null'] }
+              quantity: { type: [integer, 'null'] }
+              reported: { type: boolean, description: The reported message (DM_MESSAGE reports). }
+    StaffReportView:
+      type: object
+      required: [report, target, actions, restrictions, canResolve]
+      description: (v1.93-social, D296) One report opened from the app's «بلاغات».
+      properties:
+        report: { $ref: '#/components/schemas/AdminPanelReport' }
+        target: { $ref: '#/components/schemas/StaffReportTarget' }
+        actions: { type: array, items: { $ref: '#/components/schemas/StaffReportAction' }, description: What the caller may do now (only these buttons are shown); empty once the report is closed. }
+        restrictions: { type: array, items: { type: string, enum: [NO_POSTING, NO_LIVE, CHAT_MUTE] }, description: The restrictions RESTRICT offers the caller. }
+        canResolve: { type: boolean, description: "«تم حله» without an action (reports.resolve, report OPEN)." }
     ReportResolver:
       type: object
       required: [id, username, displayName]
@@ -29255,7 +29458,7 @@ components:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message or (v1.47-social, D175) profile link (`ProfileLink.id`) id, or a username for USER.
+          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message or (v1.47-social, D175) profile link (`ProfileLink.id`) id, or a username for USER — (v1.93-social, D296) or the user's id.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
         liveRoomId:
@@ -29264,6 +29467,10 @@ components:
           description: |
             (v1.68-live, D273, §10.96.8) USER only (400 otherwise): the live the person was reported from — its staff see
             the report with the live's reports and are alerted (`LIVE_STAFF_REPORT`). A live the reporter cannot see → 404.
+        dmConversationId:
+          type: string
+          format: uuid
+          description: "(v1.93-social, D296, §10.109.5) USER only (400 otherwise): the person was reported from this direct conversation — the reporter's own with them (404 otherwise); the report keeps the whole conversation for the staff."
     Report:
       type: object
       required: [id, targetType, targetId, reason, status, createdAt]

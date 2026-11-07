@@ -15404,4 +15404,257 @@ class AppLocalizationsEn extends AppLocalizations {
   String medalsThresholdLuckyCoins(String amount) {
     return '$amount coins of lucky gifts';
   }
+
+  @override
+  String get staffReportViewTitle => 'Report';
+
+  @override
+  String get staffReportBanner => 'Reported content';
+
+  @override
+  String get staffReportBannerHint =>
+      'You see it as the Kabso Team whatever its state — others see it only while it is visible.';
+
+  @override
+  String get staffReportStateVisible => 'Visible';
+
+  @override
+  String get staffReportStateHidden => 'Hidden by moderation';
+
+  @override
+  String get staffReportStateDeleted => 'Deleted';
+
+  @override
+  String get staffReportStateExpired => 'Expired';
+
+  @override
+  String get staffReportStateLive => 'On air';
+
+  @override
+  String get staffReportStateEnded => 'Live ended';
+
+  @override
+  String get staffReportStateGone => 'Gone';
+
+  @override
+  String get staffReportContentDeleted => 'The content was deleted';
+
+  @override
+  String get staffReportSnapshotShown =>
+      'What the report kept when it was made is shown.';
+
+  @override
+  String get staffReportReelMark => 'Reel';
+
+  @override
+  String get staffReportVideoMark => 'Video';
+
+  @override
+  String get staffReportOnPost => 'The comment is on this post';
+
+  @override
+  String get staffReportReportedComment => 'The reported comment';
+
+  @override
+  String get staffReportOpenProfile => 'Open the profile';
+
+  @override
+  String get staffReportEnterLive => 'Enter the live as the Kabso Team';
+
+  @override
+  String get staffReportLiveEnded =>
+      'The live has ended — this is its summary.';
+
+  @override
+  String get staffReportDmTitle => 'Conversation — read only';
+
+  @override
+  String staffReportDmBetween(String sender, String recipient) {
+    return 'From $sender to $recipient';
+  }
+
+  @override
+  String get staffReportDmPrivacy =>
+      'A snapshot kept by the report: only the reported message, not the rest of the conversation. Every opening is logged.';
+
+  @override
+  String get staffReportDmExpired =>
+      'The original message ended after 24 hours; the snapshot stays.';
+
+  @override
+  String get staffReportDmPurged =>
+      'The snapshot\'s content was cleared after the retention period.';
+
+  @override
+  String get staffReportDmImage => 'Picture';
+
+  @override
+  String get staffReportDmVoice => 'Voice note';
+
+  @override
+  String staffReportDmGift(String code, String quantity) {
+    return 'Gift $code ×$quantity';
+  }
+
+  @override
+  String get staffReportActionsTitle => 'Actions';
+
+  @override
+  String get staffReportActionWarn => 'Warn';
+
+  @override
+  String get staffReportActionRestrict => 'Restrict';
+
+  @override
+  String get staffReportActionSuspend => 'Suspend';
+
+  @override
+  String get staffReportActionBan => 'Ban';
+
+  @override
+  String get staffReportActionRemove => 'Hide the content';
+
+  @override
+  String get staffReportActionEndLive => 'End the live';
+
+  @override
+  String get staffReportRestrictNoPosting => 'No posting';
+
+  @override
+  String get staffReportRestrictNoLive => 'No live';
+
+  @override
+  String get staffReportRestrictChat => 'No messages';
+
+  @override
+  String staffReportDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '$count day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get staffReportDuration => 'Duration';
+
+  @override
+  String get staffReportReason => 'Reason (kept in the log)';
+
+  @override
+  String get staffReportReasonRequired => 'Write the reason';
+
+  @override
+  String get staffReportAutoResolve =>
+      'The report is resolved automatically after the action.';
+
+  @override
+  String staffReportConfirmWarn(String name) {
+    return 'Warn $name?';
+  }
+
+  @override
+  String staffReportConfirmRestrict(String name) {
+    return 'Restrict $name?';
+  }
+
+  @override
+  String staffReportConfirmSuspend(String name) {
+    return 'Suspend $name\'s account for a while?';
+  }
+
+  @override
+  String staffReportConfirmBan(String name) {
+    return 'Ban $name for good?';
+  }
+
+  @override
+  String get staffReportConfirmRemove => 'Hide this content from everyone?';
+
+  @override
+  String get staffReportConfirmBanHint =>
+      'The account is suspended and cannot log in. The team can lift it from the panel.';
+
+  @override
+  String get staffReportConfirmSuspendHint =>
+      'They cannot log in until the time is over.';
+
+  @override
+  String get staffReportApply => 'Apply';
+
+  @override
+  String get staffReportActionDone => 'Done — the report is resolved';
+
+  @override
+  String staffReportResolvedByAction(String action) {
+    return 'Resolved by an action: $action';
+  }
+
+  @override
+  String get staffReportNoActions => 'No actions for your role on this report.';
+
+  @override
+  String get staffReportOpen => 'Open';
+
+  @override
+  String get staffReportThreadTitle => 'The whole conversation — read only';
+
+  @override
+  String get staffReportThreadPrivacy =>
+      'A copy kept when the report was made: every message of the conversation that existed then; later messages are never added. Every opening is logged.';
+
+  @override
+  String staffReportThreadCaptured(String when) {
+    return 'Kept $when';
+  }
+
+  @override
+  String staffReportThreadTruncated(String count) {
+    return 'Only the last $count messages were kept.';
+  }
+
+  @override
+  String get staffReportThreadReported => 'The reported message';
+
+  @override
+  String get staffReportThreadMediaMissing => 'File not kept';
+
+  @override
+  String get staffReportThreadEmpty =>
+      'The conversation had no messages when it was reported.';
+
+  @override
+  String get staffReportActionDeleteContent => 'Delete for good';
+
+  @override
+  String get staffReportActionDeleteAccount => 'Delete the account';
+
+  @override
+  String get staffReportConfirmDeleteContent => 'Delete this content for good?';
+
+  @override
+  String staffReportConfirmDeleteAccount(String name) {
+    return 'Delete $name\'s account?';
+  }
+
+  @override
+  String get staffReportConfirmDeleteContentHint =>
+      'A permanent deletion cannot be undone; the author is told.';
+
+  @override
+  String get staffReportConfirmDeleteAccountHint =>
+      'The account\'s deletion starts with its grace period (it can be cancelled from the panel meanwhile); it is signed out everywhere.';
+
+  @override
+  String get staffReportConfirmWord => 'DELETE';
+
+  @override
+  String staffReportTypeToConfirm(String word) {
+    return 'Type “$word” to confirm';
+  }
+
+  @override
+  String get staffReportConfirmMismatch => 'Type the word exactly';
 }

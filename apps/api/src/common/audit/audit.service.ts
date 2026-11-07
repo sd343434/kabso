@@ -72,6 +72,8 @@ export enum AuditAction {
   MODERATION_REPORT_ALERT = 'moderation.report.alert',
   /** v1.78-live (D288): a STAFF_REPORT_NEW push (recipient, sent, onShift). */
   MODERATION_REPORT_PUSH = 'moderation.report.push',
+  /** v1.93-social (D296, §10.109): a staff member opened a DM report's snapshot (D155 privacy: every read audited). */
+  MODERATION_REPORT_DM_READ = 'moderation.report.dm_read',
   // v1.19-live (DRAFT, CP-017): coins granted or taken back by an admin (`wallet-admin`).
   WALLET_GRANT = 'wallet.grant',
   WALLET_REVOKE = 'wallet.revoke',

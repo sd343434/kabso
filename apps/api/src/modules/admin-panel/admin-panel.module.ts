@@ -9,8 +9,10 @@ import { VipModule } from '../vip/vip.module.js';
 import { StoreModule } from '../store/store.module.js';
 import { MedalsModule } from '../medals/medals.module.js';
 import { SafetyModule } from '../safety/safety.module.js';
+import { PostsModule } from '../posts/posts.module.js';
 import { PublicProfileModule } from '../users/profiles/public-profile.module.js';
 import { AdminAuthService } from './admin-auth.service.js';
+import { StaffReportActionsService } from './staff-report-actions.service.js';
 import { AdminFinanceService } from './admin-finance.service.js';
 import { AdminModerationService } from './admin-moderation.service.js';
 import {
@@ -66,6 +68,8 @@ import { StaffAppService } from './staff-app.service.js';
     AuthModule,
     MediaModule,
     SafetyModule,
+    // v1.93-social (D296): a reported post as the staff see it.
+    PostsModule,
     PublicProfileModule,
     EconomyModule,
     LiveModule,
@@ -104,6 +108,7 @@ import { StaffAppService } from './staff-app.service.js';
   ],
   providers: [
     AdminAuthService,
+    StaffReportActionsService,
     AdminSessionGuard,
     AdminUsersService,
     AdminFinanceService,

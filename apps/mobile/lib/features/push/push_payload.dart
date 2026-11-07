@@ -89,7 +89,7 @@ class PushPayload {
     // D273: a staff alert — the live, as staff, on its reports.
     if (type == 'LIVE_STAFF_REPORT') return AppRoutes.liveRoomStaffReports(id);
     // D288: a new report in the shared queue — «بلاغات» on it.
-    if (type == 'STAFF_REPORT_NEW') return AppRoutes.staffReportsFor(id);
+    if (type == 'STAFF_REPORT_NEW') return AppRoutes.staffReport(id);
     // D204: a recharge order's chat.
     if (targetType == 'RECHARGE_ORDER') return AppRoutes.rechargeOrder(id);
     final postId = data['targetPostId'];

@@ -259,6 +259,8 @@ class SharedReport {
     required this.reason,
     required this.status,
     required this.createdAt,
+    this.targetId = '',
+    this.resolutionAction,
     this.note,
     this.resolvedAt,
     this.resolvedBy,
@@ -283,6 +285,8 @@ class SharedReport {
       reason: json['reason'] as String? ?? '',
       status: json['status'] as String? ?? 'OPEN',
       createdAt: DateTime.parse(json['createdAt']! as String),
+      targetId: json['targetId'] as String? ?? '',
+      resolutionAction: json['resolutionAction'] as String?,
       note: json['note'] as String?,
       resolvedAt: switch (json['resolvedAt']) {
         final String at => DateTime.parse(at),
@@ -312,6 +316,13 @@ class SharedReport {
 
   /// `ReportReason` (SPAM, NUDITY …).
   final String reason;
+
+  /// The reported item's id (a username for USER).
+  final String targetId;
+
+  /// v1.93-social (D296): the action that resolved it (WARN, RESTRICT,
+  /// SUSPEND, BAN, REMOVE_CONTENT, DISMISS); null for «تم حله» alone.
+  final String? resolutionAction;
 
   /// OPEN, ACTIONED or DISMISSED.
   final String status;

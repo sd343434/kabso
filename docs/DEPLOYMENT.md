@@ -2941,6 +2941,28 @@ backfill — which is correct (level 1 is the old rule), so the API can be deplo
   `SELECT level, count(*) FROM user_medals WHERE medal_code = 'LUCKY_MASTER' GROUP BY 1;`.
 - **Panel:** «الميداليات» (`catalog.view` reads, the OWNER edits with the code; retired codes read-only). No new settings.
 
+### 5.77 Reports open their content for the staff, with actions (migration `20270330090000_report_resolution_action`; D296) — [IMPLEMENTED, draft contract v1.93-social; not deployed, not device-tested]
+
+CONVENTIONS §10.109. (§5.73–§5.76 belong to other branches.) The migration adds `reports.resolution_action` (VARCHAR 20,
+NULL) with the CHECK `reports_resolution_action_check` (null while OPEN; one of WARN, RESTRICT, SUSPEND, BAN,
+REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT, DISMISS). Old rows keep NULL. Deploy the migration with (or before) the
+API: the new API writes the column on every report action, the panel's too. No new server setting.
+
+- **Tell the team:** in the app, «أنا» › «بلاغات» › a report (or the report's notification) now opens the reported post,
+  reel, comment, story, profile, live or — for a message — the **whole conversation** as it was when it was reported
+  (owner's decision; every opening is logged). The buttons are the role's: MODERATION warn, restrict, suspend, ban, hide,
+  delete for good; the OWNER also deletes an account; SUPPORT the temporary suspension and «تم حله». The two deletions ask
+  to type «حذف» / DELETE. An action resolves **only that report**; others on the same item stay in the queue.
+- **Storage:** a DM report now copies up to 20 pictures / voice clips of the conversation to `reports/dm/<reportId>/` in
+  the media bucket (private); the DM sweeper deletes them with the snapshot 30 days after the report is resolved.
+- **The bug:** reporting a person from a conversation, a profile or a live was answered «غير موجود» and never reached the
+  team; fixed in the API alone (the apps already in people's hands start working once the API is deployed). Reporting a
+  person from a conversation keeps the conversation only with the new app (it sends `dmConversationId`).
+- **Checks after deploy:** `SELECT resolution_action, count(*) FROM reports WHERE status <> 'OPEN' GROUP BY 1;`;
+  `SELECT count(*) FROM reports WHERE dm_snapshot ? 'thread';`; a test USER report from the app's chat menu shows in
+  «بلاغات» with the conversation; the audit rows `moderation.report.dm_read` and `moderation.report.action` with
+  `via: app`.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

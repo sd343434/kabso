@@ -344,8 +344,10 @@ void main() {
         'targetId': 'rep-open-1',
       });
       expect(push.isStaffReport, isTrue);
-      expect(push.route(), AppRoutes.staffReportsFor('rep-open-1'));
-      expect(push.route(), '/me/staff/reports?report=rep-open-1');
+      // v1.93-social (D296): the tap opens the report itself (its content and
+      // actions), no longer the list.
+      expect(push.route(), AppRoutes.staffReport('rep-open-1'));
+      expect(push.route(), '/me/staff/reports/rep-open-1');
     });
   });
 }

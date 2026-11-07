@@ -107,7 +107,7 @@ All non-2xx responses use one envelope:
 | 503 | `MEDIA_UPLOADS_UNAVAILABLE` | *(v1.5-social, DRAFT, CP-006)* Uploads are disabled by server config `MEDIA_UPLOADS_ENABLED=false` (no storage credentials yet, B12). *(v1.75-social, D222)* — or, more precisely, no storage is on: neither the OWNER's «التخزين (R2 / S3)» in the panel (§10.72) nor `MEDIA_UPLOADS_ENABLED` with `S3_*`; the apps say «التخزين غير مفعّل» / their per-feature «unavailable» text. Not transient: no `Retry-After`. |
 | 422 | `MEDIA_INVALID` | *(v1.5-social, DRAFT)* The uploaded object is missing, does not match the declared type or size, or is not a decodable image within the limits (§11.1). |
 | 409 | `PIN_LIMIT_REACHED` | *(v1.5-social, DRAFT)* The caller already has 3 pinned posts. |
-| 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. *(v1.78-live, D288, §10.101)* Also the second «تم حله» on the same report (the first press won; the client reloads and shows who resolved it). |
+| 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. *(v1.78-live, D288, §10.101)* Also the second «تم حله» on the same report (the first press won; the client reloads and shows who resolved it). *(v1.93-social, D296, §10.109)* Also an action (`actOnStaffReport`) on a report already resolved, by «تم حله» or another action. |
 | 409 | `LIVE_SCHEDULE_FULL` | *(v1.14-live, DRAFT, CP-016 C)* The host already has 10 upcoming scheduled lives. |
 | 409 | `INSUFFICIENT_COINS` | *(v1.19-live, DRAFT, CP-017)* The caller's coin balance does not cover the price (a bullet message costs 15 coins, §10.19). Nothing was charged or sent. The app shows the balance (`GET /wallet/me`). |
 | 403 | `LIVE_KICKED` | *(v1.20-live, DRAFT, D105)* The host or a moderator kicked the caller out of this live (§10.20): no media token, chat, bullet, taps or seat request in it until it ends. The app leaves the room and says so; a later live of the same host is fine. |
@@ -729,6 +729,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
 | v1.89-social (draft) | 2026-11-06 | **D290 (owner: «طلب رفع ليفيل» — staff send a supporter recruited from another app with a video of the source profile; the OWNER approves the proposed level, never above 40, never below the current level, after 1 000 000 coins recharged):** tag `staff`: `listStaffLevelRaiseSourceApps`, `checkStaffLevelRaise`, `listMyStaffLevelRaises`, `createStaffLevelRaise`; panel `listAdminLevelRaises` / `createAdminLevelRaise`, `checkAdminLevelRaise`, `listAdminLevelRaiseSourceAppOptions`, `uploadAdminLevelRaiseVideo` (raw bytes), `getAdminLevelRaise`, `getAdminLevelRaiseVideo` (ranges), `approveAdminLevelRaise`, `rejectAdminLevelRaise`, `listAdminLevelRaiseApps` / `createAdminLevelRaiseApp` / `updateAdminLevelRaiseApp`, `getAdminLevelRaiseSettings` / `updateAdminLevelRaiseSettings`; schemas `LevelRaise*`, `CreateLevelRaiseRequest`, `ApproveLevelRaiseRequest`, `RejectLevelRaiseRequest`, `(Create|Update)LevelRaiseSourceAppRequest`, `UpdateLevelRaiseSettingsRequest`; `MediaKind` `LEVEL_RAISE_VIDEO`; `NotificationType` `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED`; `NotificationTarget.type` `LEVEL_RAISE` + `level`; capabilities `levels.raise.request` (OWNER, MODERATION, SUPPORT), `levels.raise.decide` (OWNER); refusal issues under `ADMIN_ACTION_REFUSED`; owner follow-up (same day): code `LEVEL_RAISE_DUPLICATE` (409), `suggestStaffLevelRaiseSourceApps` / `suggestAdminLevelRaiseSourceApps` (`LevelRaiseSuggestions`), `LevelRaiseSourceApp.aliases`, `LevelRaiseVideo.byteSize` / `deletedAt`, `LevelRaiseRequest.previousRejection`; the video deleted after the decision; migrations `20270324090000_level_raise_enums`, `20270324090100_level_raise`. §4, §10.103. | **Additive** (new operations, schemas and enum values; clients ignore notification types they do not know). |
+| v1.93-social (draft) | 2026-11-06 | **D296 (owner: a report opens its content for the staff with warn / restrict / ban buttons, a reported message opens the reported chat, «رسائل الإبلاغ غير فعّال»; then: an action resolves only the pressed report, the whole conversation «مثل طريقة نزاع وكيل الشحن», SUPPORT keeps «تعليق مؤقت», the permanent deletions in the app too)** — `getStaffReport` (`StaffReportView`, `StaffReportTarget`: the content whatever its visibility; a DM / a person reported from a conversation with `DmReportThread`, every read audited `moderation.report.dm_read`), `actOnStaffReport` (`StaffReportActionRequest` / `StaffReportActionResult`: WARN, RESTRICT NO_POSTING / NO_LIVE / CHAT_MUTE, SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT with `confirm: DELETE`, each with its panel capability; only the pressed report resolved, `AdminPanelReport.resolutionAction`, the staff's alerts read, 409 on a second action); `CreateReportRequest.dmConversationId`; `StaffStatus.capabilities` gains `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`; `createReport` USER accepts the user's id (the bug). Migration `20270330090000_report_resolution_action`. §10.109. | **Additive** (new operations, fields, enum values). **Behaviour change:** an app action resolves its report; a USER report by id is accepted instead of 404; a DM report keeps the whole conversation (owner's privacy decision). |
 | v1.86-social (draft) | 2026-11-05 | **D281 (owner: more than 100 000 generated Task Center tasks, assigned from each person's data):** `ProgramTask.gift`, `ProgramTask.window`; metrics `GIFT_COUNT_SENT`, `CATEGORY_GIFTS_SENT`, `GIFTED_HOSTS`, `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES`, `PK_WINS`. §10.41.4. | **Additive** (an older app shows an unknown metric with the generic icon). |
 | v1.69-live (draft) | 2026-11-04 | **D277 (owner: the lucky target «هدف هدايا الحظ» counts only lucky gifts, including the host's own sends to themself, in cherries; the cherries target becomes «هدف الهدايا», gifts outside the lucky category in cherries; new badges to come):** `LiveHostTargets.gifts`, `me.gifts`, `HostGiftStats.lucky.cherries`, `ProgramTask.metric` `HOST_GIFT_CHERRIES` / `HOST_LUCKY_CHERRIES`, `AdminTasks` `targetUnit`. `LiveHostTargets.cherries` / `me.cherries` are deprecated (now the same as `gifts`). `lucky` is in cherries, and `HostGiftStats.cherries` is «هدف الهدايا»'s. Migration `20270313090000_host_targets_cherries` stores both targets in cherries. §10.62.1. | **Additive** (new fields and enum values; `lucky`'s unit is cherries, the same number at the default 10 % except for self-sends). |
 | v1.68-live (draft) | 2026-11-04 | **D273 (owner: «فريق كابسو» from the app — always visible, the panel's powers on the phone, the shift, free roaming, «مراقبة خفية», report pushes, untouchable):** tag `staff`: `getStaffStatus`, `createStaffStepUp` / `endStaffStepUp`, `getStaffShift` / `setStaffShift`, `listStaffLives`, `listStaffLiveReports`, `listStaffLiveModerations`, `moderateStaffLive`, `dismissStaffLiveReports`, `kickFromStaffLive`, `muteInStaffLive`, `removeStaffLiveMessage` (`StaffStatus`, `StaffStepUp(Request)`, `StaffLive(List)`, `StaffKick*`, `StaffChatMute*`, `StaffMessageRemoveResult`); `Me.kabsoTeam`, `PublicProfile.kabsoTeam`; `LiveMediaTokenRequest.staffVisibility`, `LiveMediaAccess.staff` (identity up to 80); `LiveChatMessage.authorStaff`; `AdminLiveModerateRequest.action` / results / history gain `WARN`; `AdminLiveReport.targetType` `LIVE_CHAT_MESSAGE` and `target`; `CreateReportRequest.liveRoomId`; notification `LIVE_STAFF_REPORT` (target `LIVE_ROOM`, `live`); `LIVE_MODERATION.moderation` `WARN`; codes `STAFF_PROTECTED`, `LIVE_STAFF_REFUSED`, `STAFF_STEP_UP_REQUIRED` (403), `STAFF_TOTP_NOT_ENROLLED` (409); `STAFF_APP_GRANT_SECONDS`, `RATE_LIMIT_STAFF_APP_USER`, `RATE_LIMIT_STAFF_STEP_UP_USER`. Migration `20270312090000_staff_app_tools` (`admin_app_grants`, `notifications.live_room_id`, `reports.context_live_room_id`, enum values `WARN`, `LIVE_STAFF_REPORT`). §4, §7, §10.96.6–§10.96.8. | **Additive for apps** (new optional fields; an older app ignores `staff`, `authorStaff`, `kabsoTeam` and the new notification). **Behaviour change:** a staff account entering from the app is listed as «فريق كابسو» instead of a viewer and can no longer send gifts / taps / bullets or take a seat there; users can no longer kick / mute / remove panel accounts (403). |
@@ -7828,6 +7829,127 @@ lilac, red / gold, crystal-opal / gold; `PROVENANCE.md`). Totals and thresholds 
 levels); `medals-admin backfill` sets the totals from `live_gifts` of the LUCKY category. Description: «مجموع قيمة هدايا
 الحظ التي أرسلتها.» / "Total value of lucky gifts you sent."
 
+### 10.109 Reports open their content for the staff, with actions; message reports fixed *(v1.93-social, DRAFT — D296)*
+
+Owner: «عند شخص يقوم بالإبلاغ على بوست أو ريلز، يصل إلى المشرف، لكن لا يمكن للمشرف الدخول إلى البوست. يجب عند الضغط عليه
+الدخول إلى البوست، ويكون له أزرار صلاحية للتحذير والحظر ومنع النشر … كذلك الرسائل: عند الإبلاغ، عندما يضغط على البلاغ يدخل
+إلى الشات المبلغ عنه ويكون عنده إجراء. ولاحظت خلل في رسائل الإبلاغ غير فعّال.» Then (2026-11-06, answers relayed by the
+coordinator): an action resolves the report automatically — **only the pressed report**; a DM report shows **the whole
+conversation** «مثل طريقة نزاع وكيل الشحن»; SUPPORT keeps «تعليق مؤقت»; the permanent deletions in the app too; the
+notification opens the report itself. (§10.105–§10.108 belong to other branches.)
+
+#### 10.109.1 One report opened from «بلاغات» — `getStaffReport`
+
+- `GET /staff/reports/{reportId}` — `reports.view` (OWNER, MODERATION, SUPPORT; anyone else 403, a missing report 404),
+  staff work (§10.96.14). Answers `StaffReportView` {report (`AdminPanelReport`), target (`StaffReportTarget`), actions,
+  restrictions, canResolve}.
+- **The target whatever its visibility.** The reported item is read for the staff with no viewer rule — hidden by
+  moderation, deleted, a private account, a block either way, another region — and `target.state` says which:
+  `VISIBLE`, `HIDDEN` (moderation), `DELETED`, `EXPIRED` (a story or a DM past its life), `LIVE` / `ENDED` (a live), `GONE`
+  (no row any more). POST → `post` (the `Post`, a reel included: `format: REEL`); COMMENT → `comment` {id, text,
+  createdAt, parentId, postId} and the `post` it is on; STORY → `story` {id, text, media, createdAt, expiresAt}; USER /
+  PROFILE_LINK → `author` (and the link's `text`); LIVE_ROOM / LIVE_CHAT_MESSAGE → `live` {roomId, title, status} (and the
+  message's `text`); CP_CONFESSION / FAMILY_CHAT_MESSAGE → `text`. `author` is the item's author (the reported user for
+  USER, the sender for a DM). The staff view counts no view and writes nothing.
+- **Direct messages: only what the report froze (§10.109.5).** DM_MESSAGE → `dm` {snapshot (`DmReportSnapshot`, the
+  reported message), recipient (the reporter), thread (`DmReportThread`, the whole conversation)}; a USER reported from a
+  conversation → `dm` {snapshot: null, recipient, thread}. The live conversation is **never** read (the live message's
+  existence only decides `state` VISIBLE / EXPIRED). **Every** read is audited `moderation.report.dm_read` {reportId,
+  purged, threadMessages, via} with the actor, IP and request id. The lists (`listStaffReports`, the panel's) never carry
+  the thread.
+- `actions`: the actions the caller may take now (below; empty once the report is closed); `restrictions`: the kinds
+  RESTRICT offers the caller; `canResolve`: «تم حله» without an action (`reports.resolve`, OPEN).
+
+#### 10.109.2 Actions from a report — `actOnStaffReport`
+
+`POST /staff/reports/{reportId}/actions` `{action, reason, restriction?, days?, confirm?}` — every action is an **existing**
+panel rule, with the panel's capability (checked on every request; 403 without):
+
+| Action | What it does (the existing rule) | Capability | OWNER | MODERATION | SUPPORT |
+|---|---|---|:-:|:-:|:-:|
+| `WARN` «تحذير» | the report queue's WARN: `MODERATION_WARNING` to the author (§10.54.5) | `reports.act` | ✓ | ✓ | |
+| `RESTRICT` «تقييد» | D208's restriction for `days` 1–365: `NO_POSTING` «منع النشر», `NO_LIVE` «منع البث» (a current live ends), `CHAT_MUTE` «منع الرسائل» (DMs, comments, live chat); the person is told with the reason (`ACCOUNT_RESTRICTED`) | `users.restrict` | ✓ | ✓ | |
+| `SUSPEND` «تعليق مؤقت» | D208's `LOCK` for `days` 1–365 (no sign-in, every session ended, a current live ends) — SUPPORT too: **decided by the owner** | `users.lock` | ✓ | ✓ | ✓ |
+| `BAN` «حظر دائم» | the report queue's BAN: the account SUSPENDED (no code since D288) | `users.ban` | ✓ | ✓ | |
+| `REMOVE_CONTENT` «إخفاء المحتوى» | the report action `REMOVE_TARGET` (§11.7): a post / reel / story hidden (restorable in the panel), a comment, a live chat / CP / family message removed, a DM expired now, a profile link removed, a live ended; not for USER (409) | `reports.act` | ✓ | ✓ | |
+| `DELETE_CONTENT` «حذف نهائي» | the panel's `moderateAdminContent` `delete`: a post / reel or a story deleted for good, the author told (`CONTENT_REMOVED`); POST and STORY reports only (else 409 `not_deletable`; a comment is only ever removed) | `users.content` | ✓ | ✓ | |
+| `DELETE_ACCOUNT` «حذف الحساب» | the panel's `requestAdminUserDeletion`: the D193 deletion with its grace period (cancellable from the panel), every session ended, a current live ended | `users.delete` | ✓ | | |
+
+- `days` only with RESTRICT and SUSPEND (required there), `restriction` only with RESTRICT (required there), **`confirm:
+  "DELETE"` only with the two deletions (required there)** — the owner's strong confirmation: the app makes the staff
+  member type the word («حذف» in Arabic, `DELETE` in any language) and gives the reason; no authenticator code (D288).
+  A reason (1–500) always; else 400. The author must not be the caller; an account holding a panel role only by an OWNER
+  (403).
+- **The report resolves automatically — only the pressed report (owner, as D288's «تم حله»).** In the same transaction
+  the report becomes ACTIONED with the caller as `resolvedBy`, the reason as `resolutionNote` and **`resolutionAction`**
+  (new); the staff's `STAFF_REPORT_NEW` rows about it are read for everyone, exactly as after «تم حله» (§10.101.4).
+  Other people's reports on the same target stay OPEN in the queue. The report is locked (`FOR UPDATE`): one action per
+  report — a second press, or two staff members at once, → **409 `REPORT_ALREADY_RESOLVED`** and nothing is done or sent
+  twice. «تم حله» without an action still works (`resolutionAction` null). Reopen (§10.101.5) clears `resolutionAction`
+  (the audit keeps it) and undoes nothing.
+- **The panel's own actions are unchanged:** `actOnAdminPanelReport` (DISMISS, REMOVE_TARGET, WARN, BAN) and
+  `moderateAdminContent` hide / delete still close every OPEN report on the target (§11.7); they now record
+  `resolutionAction` and read the staff's alerts too. The live tools (`moderateStaffLive`, the kick and the chat removal,
+  §10.96.6) also still close the live's / person's / message's reports.
+- **Audit.** The rule's own row (`admin.user.warn`, `admin.user.restrict`, `admin.user.lock`, `admin.user.ban`,
+  `admin.content.delete`, `account.deletion.requested`, or `moderation.report.action` for REMOVE_CONTENT) with `via: app`,
+  and `moderation.report.action` {reportId, action, authorId, reason, kind/days/endsAt for a restriction, contentType /
+  contentId for a deletion, reportsClosed: 1, via: app}.
+- `StaffStatus.capabilities` gains `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`,
+  `users.delete`. The app shows only `StaffReportView.actions`, each confirmed in a dialog (red for anything but WARN)
+  with the reason; the two deletions also need the typed word.
+
+#### 10.109.3 The app
+
+A report in «بلاغات» (its card or «فتح») and the `STAFF_REPORT_NEW` notification / push open the report
+(`/me/staff/reports/<id>`; owner: confirmed): the «محتوى مُبلّغ عنه» banner with the type, the reason and the state; the
+content (the post or reel read-only; the comment highlighted above its post; the story; the profile with «فتح الملف
+الشخصي» — and the conversation when reported from it; the live with «دخول البث كفريق كابسو» while LIVE, else its summary;
+a DM as «المحادثة كاملة — للقراءة فقط»: every frozen message, the reported person at the start and the reporter at the
+end, the reported message outlined in red); «المحتوى محذوف» with what the report kept when the item is gone; then the
+report's details and the action bar. A closed report shows «حُلّ بإجراء: …» when an action closed it. The conversation's ⋮
+«الإبلاغ عن الشخص» sends `dmConversationId`.
+
+#### 10.109.4 The bug «رسائل الإبلاغ غير فعّال» (fixed)
+
+`createReport` with `targetType: USER` looked the target up **by username only**, while the app has always sent the
+user's **id** — the conversation's ⋮ «الإبلاغ عن الشخص», the profile, the follow lists, the live person card and the live
+host. Every such report answered **404** («غير موجود»), so it never reached the queue or the staff. `targetId` for USER
+now accepts the user's id **or** the username (an ACTIVE account; one's own → 400; unknown → 404). A message report
+(`DM_MESSAGE`, the long press) worked and reaches the queue; the e2e covers both.
+
+#### 10.109.5 The whole conversation frozen with the report *(owner's privacy decision)*
+
+Owner (2026-11-06): «مثل طريقة نزاع وكيل الشحن» — the staff see the whole conversation between the two people, as the
+panel's recharge dispute shows every message between the buyer and the agent. **This widens D155's snapshot by the
+owner's decision.**
+
+- **When.** A `DM_MESSAGE` report, and a `USER` report with `CreateReportRequest.dmConversationId` (USER only, else 400;
+  it must be the reporter's own conversation with that user, else 404) — the conversation's ⋮ «الإبلاغ عن الشخص».
+  A person reported from anywhere else keeps no conversation.
+- **What.** Every message of that conversation that **still exists at that moment** (`expires_at > now`: D155 deletes
+  messages 24 h after they are sent, and a message deleted for everyone is gone), both directions, oldest first:
+  id, sender, kind, text, pack token, gift code / quantity, time, and a **copy of the picture or voice clip**
+  (`reports/dm/<reportId>/<messageId>.<ext>`, `private, no-store`; the reported message reuses D155's
+  `reports/dm/<reportId>.<ext>`). Kept in `reports.dm_snapshot.thread` (no new table: the JSON stays bounded).
+- **Bounds.** At most the newest **300** messages (`DM_REPORT_THREAD_MAX_MESSAGES`; `truncated` and `total` say when more
+  existed) and files for the newest **20** pictures / voice clips (`DM_REPORT_THREAD_MAX_FILES`; the others show
+  «ملف لم يُحفظ», `mediaMissing`). Taken **once**, when the report is filed: later messages are never added; a repeat
+  of one's own open report keeps the first copy.
+- **Life.** It survives the 24-hour purge of the messages. The sweeper clears it — thread and files — with the rest of
+  the snapshot **30 days after the report is resolved** (§11.13; now also for USER reports carrying a thread); under a
+  D193 legal hold its files go with the hold.
+- **Who.** Only `getStaffReport` returns it (`reports.view`: OWNER, MODERATION, SUPPORT), every read audited
+  `moderation.report.dm_read`; never the lists, never the people in the conversation.
+
+#### 10.109.6 Compatibility
+
+Additive: two operations, `AdminPanelReport.resolutionAction` (new required field, null when none),
+`CreateReportRequest.dmConversationId`, `DmReportThread`, new `StaffStatus.capabilities` values. **Behaviour changes:** an
+action from the app resolves only its report; the panel's report actions record `resolutionAction` and read the staff's
+alerts; a USER report by id works; DM reports keep the whole conversation (owner). Migration
+`20270330090000_report_resolution_action` (`reports.resolution_action`, a CHECK: null while OPEN). No server setting.
+
 ### 11.1 Media upload
 
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
@@ -7978,7 +8100,7 @@ count is eventually consistent (≤ 1 min).
   kept as a snapshot, §10.47) — or, for a user, records the decision only (suspension stays a separate
   admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
   report → 409 `REPORT_ALREADY_RESOLVED`. *(v1.78-live, D288, §10.101)* The panel's queue is shared by OWNER,
-  MODERATION and SUPPORT; «تم حله» closes one report for everyone; a new report alerts them (`STAFF_REPORT_NEW`).
+  MODERATION and SUPPORT; «تم حله» closes one report for everyone; a new report alerts them (`STAFF_REPORT_NEW`). *(v1.93-social, D296, §10.109)* A USER report's `targetId` may be the user's id or the username (and `dmConversationId` when made from a conversation); the staff open a report's content from the app and act on it, which resolves that report only.
 - **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user
   follows; `NOBODY`) and `defaultWhoCanComment` (`EVERYONE` default) for new posts;
   *(v1.25-live, CP-022)* `showActivityStatus` (default true): whether family members may see when
@@ -8283,7 +8405,10 @@ configuration (`DM_*`).
   `reports/dm/<messageId>.*`) for moderators (`Report.dmSnapshot`, admin views only). Retention: the
   snapshot lives while the report is open and **30 days after it is resolved**, then the sweeper
   clears it (text and file). `REMOVE_TARGET` removes the message (if it still exists). Reporting a
-  whole conversation is a report of the person (`USER`).
+  whole conversation is a report of the person (`USER`). *(v1.93-social, D296, §10.109.5 — the owner's
+  decision)* The snapshot also keeps **the whole conversation** as it was when reported (every message
+  still there, at most 300, files for the newest 20), for a DM report and for a person reported from the
+  conversation (`dmConversationId`); staff view only, every read audited; cleared with the snapshot.
 - **Push** (§11.12, channel `kabso_messages`): a new message or gift is pushed to the recipient when
   they are ACTIVE, keep `messages` on, have not muted the conversation or the sender (§11.7) and
   there is no block either way; at most one per recipient per conversation per

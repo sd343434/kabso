@@ -10,6 +10,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/staff/data/staff_repository.dart';
 import 'package:kabso_live/features/staff/domain/staff_models.dart';
+import 'package:kabso_live/features/staff/domain/staff_report_view.dart';
 import 'package:kabso_live/features/staff/presentation/staff_entry_dialog.dart';
 import 'package:kabso_live/features/staff/presentation/staff_screen.dart';
 import 'package:kabso_live/features/staff/presentation/staff_tools_sheet.dart';
@@ -155,6 +156,19 @@ class FakeStaffRepository implements StaffRepository {
   @override
   Future<SharedReport> resolveReport(String reportId, {String? note}) =>
       throw UnimplementedError();
+
+  // v1.93-social (D296): one report and its actions (not used by these tests).
+  @override
+  Future<StaffReportView> report(String reportId) => throw UnimplementedError();
+
+  @override
+  Future<SharedReport> actOnReport(
+    String reportId,
+    StaffReportAction action, {
+    required String reason,
+    StaffRestriction? restriction,
+    int? days,
+  }) => throw UnimplementedError();
 }
 
 /// A phone with the notch and home bar (insets 59 / 34).

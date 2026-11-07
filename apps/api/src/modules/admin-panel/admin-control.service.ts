@@ -26,6 +26,7 @@ import {
   type AdjustCurrency,
   type RestrictionView,
 } from '../users/account-control.js';
+import { markReportAlertsReadIn } from '../safety/report-staff-alerts.service.js';
 import { cancelDeletionIn, requestDeletionIn } from '../users/account-deletion.js';
 import { containsReservedTerm } from '../users/confusables.js';
 import { activeSpecialOf, specialHolderOf } from '../users/special-usernames.js';
@@ -634,7 +635,7 @@ export class AdminControlService {
   }
 
   /** The author of a post, story or comment (404 when none), checked like any target. */
-  private async contentAuthor(type: ContentType, contentId: string, ctx: AdminContext): Promise<string> {
+  async contentAuthor(type: ContentType, contentId: string, ctx: AdminContext): Promise<string> {
     const row =
       type === 'post'
         ? await this.prisma.post.findUnique({ where: { id: contentId }, select: { authorId: true } })
@@ -659,10 +660,22 @@ export class AdminControlService {
         : type === 'story'
           ? { targetStoryId: contentId }
           : { targetCommentId: contentId };
+    // v1.93-social (D296, §10.109): the reports record the action; the staff's alerts about them are read.
+    const closing = await tx.report.findMany({ where: { ...where, status: 'OPEN' }, select: { id: true } });
     const closed = await tx.report.updateMany({
-      where: { ...where, status: 'OPEN' },
-      data: { status: 'ACTIONED', resolvedAt: new Date(), resolvedById: ctx.userId, resolutionNote: note },
+      where: { id: { in: closing.map((r) => r.id) }, status: 'OPEN' },
+      data: {
+        status: 'ACTIONED',
+        resolvedAt: new Date(),
+        resolvedById: ctx.userId,
+        resolutionNote: note,
+        resolutionAction: 'REMOVE_CONTENT',
+      },
     });
+    await markReportAlertsReadIn(
+      tx,
+      closing.map((r) => r.id),
+    );
     return closed.count;
   }
 
@@ -706,8 +719,27 @@ export class AdminControlService {
   ) {
     if (type === 'comment' && op !== 'hide') throw refused('A comment can only be removed.');
     const authorId = await this.contentAuthor(type, contentId, ctx);
+    return this.prisma.$transaction((tx) => this.contentIn(tx, type, contentId, op, body, ctx, authorId));
+  }
+
+  /**
+   * {@link content} inside the caller's transaction, for an author already checked ({@link contentAuthor}).
+   * v1.93-social (D296, §10.109.2): `closeReports: false` — the app's action from a report closes only that report
+   * itself (owner); the panel keeps closing the item's open reports.
+   */
+  async contentIn(
+    tx: Tx,
+    type: ContentType,
+    contentId: string,
+    op: 'hide' | 'restore' | 'delete',
+    body: { reason: string },
+    ctx: AdminContext,
+    authorId: string,
+    options: { closeReports?: boolean } = {},
+  ): Promise<{ state: string; reportsClosed: number }> {
+    if (type === 'comment' && op !== 'hide') throw refused('A comment can only be removed.');
     const now = new Date();
-    const result = await this.prisma.$transaction(async (tx) => {
+    {
       let before: string;
       let after: string;
       let notify = false;
@@ -789,7 +821,9 @@ export class AdminControlService {
         });
       }
       const reportsClosed =
-        op === 'restore' ? 0 : await this.closeReportsIn(tx, type, contentId, ctx, body.reason);
+        op === 'restore' || options.closeReports === false
+          ? 0
+          : await this.closeReportsIn(tx, type, contentId, ctx, body.reason);
       await this.audit.recordIn(tx, {
         action:
           op === 'hide'
@@ -800,13 +834,12 @@ export class AdminControlService {
         actorUserId: ctx.userId,
         targetType: type,
         targetId: contentId,
-        metadata: { reason: body.reason, authorId, before, after, reportsClosed, via: 'panel' },
+        metadata: { reason: body.reason, authorId, before, after, reportsClosed, via: ctx.via ?? 'panel' },
         ip: ctx.ip,
         requestId: ctx.requestId,
       });
       return { state: after, reportsClosed };
-    });
-    return result;
+    }
   }
 
   // ---- money -----------------------------------------------------------------------------------------------------

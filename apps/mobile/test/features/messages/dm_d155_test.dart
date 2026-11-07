@@ -291,6 +291,29 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
+    // v1.93-social (D296): «الإبلاغ عن الشخص» from the conversation sends the
+    // conversation with the report (the staff see the whole conversation).
+    testWidgets('reporting the person from the menu sends the conversation', (
+      tester,
+    ) async {
+      final dm = _world();
+      final safety = FakeSafetyRepository();
+      await _pump(
+        tester,
+        const ChatScreen(username: 'sara_2026'),
+        dm: dm,
+        overrides: [safetyRepositoryProvider.overrideWithValue(safety)],
+      );
+      await tester.tap(find.byKey(ChatScreen.menuKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ChatScreen.reportPersonKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('feed.post.report.spam')));
+      await tester.pumpAndSettle();
+      final call = safety.calls.singleWhere((c) => c.startsWith('reportUser:'));
+      expect(call, endsWith(':SPAM:c-sara_2026'));
+    });
+
     testWidgets('mute and delete the conversation from the menu', (
       tester,
     ) async {

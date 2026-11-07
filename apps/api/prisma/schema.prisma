@@ -2044,6 +2044,9 @@ model Report {
   resolvedAt                DateTime?        @map("resolved_at") @db.Timestamptz(3)
   resolvedById              String?          @map("resolved_by_id") @db.Uuid
   resolutionNote            String?          @map("resolution_note") @db.VarChar(500)
+  /// v1.93-social (D296, CONVENTIONS §10.109): the staff action that resolved the report automatically (WARN, RESTRICT,
+  /// SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT, DISMISS); null for «تم حله» without an action (and while OPEN).
+  resolutionAction          String?          @map("resolution_action") @db.VarChar(20)
   /// D193: the content was deleted with its author's account and is kept under this legal hold (the target id of a
   /// deleted row is then null; the hold carries it). Deleted with the hold (REPORT_LEGAL_HOLD_DAYS).
   legalHoldId               String?          @map("legal_hold_id") @db.Uuid

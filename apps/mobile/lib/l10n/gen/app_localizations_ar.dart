@@ -15410,4 +15410,255 @@ class AppLocalizationsAr extends AppLocalizations {
   String medalsThresholdLuckyCoins(String amount) {
     return '$amount كوينز من هدايا الحظ';
   }
+
+  @override
+  String get staffReportViewTitle => 'البلاغ';
+
+  @override
+  String get staffReportBanner => 'محتوى مُبلّغ عنه';
+
+  @override
+  String get staffReportBannerHint =>
+      'تراه كفريق كابسو مهما كانت حالته — لا يظهر للآخرين إلا إذا كان ظاهراً.';
+
+  @override
+  String get staffReportStateVisible => 'ظاهر';
+
+  @override
+  String get staffReportStateHidden => 'مخفي بالإشراف';
+
+  @override
+  String get staffReportStateDeleted => 'محذوف';
+
+  @override
+  String get staffReportStateExpired => 'منتهي';
+
+  @override
+  String get staffReportStateLive => 'على الهواء';
+
+  @override
+  String get staffReportStateEnded => 'انتهى البث';
+
+  @override
+  String get staffReportStateGone => 'غير موجود';
+
+  @override
+  String get staffReportContentDeleted => 'المحتوى محذوف';
+
+  @override
+  String get staffReportSnapshotShown => 'يُعرض ما حفظه البلاغ وقت الإبلاغ.';
+
+  @override
+  String get staffReportReelMark => 'ريلز';
+
+  @override
+  String get staffReportVideoMark => 'فيديو';
+
+  @override
+  String get staffReportOnPost => 'التعليق على هذا المنشور';
+
+  @override
+  String get staffReportReportedComment => 'التعليق المُبلّغ عنه';
+
+  @override
+  String get staffReportOpenProfile => 'فتح الملف الشخصي';
+
+  @override
+  String get staffReportEnterLive => 'دخول البث كفريق كابسو';
+
+  @override
+  String get staffReportLiveEnded => 'البث منتهٍ — هذا ملخصه.';
+
+  @override
+  String get staffReportDmTitle => 'محادثة — للقراءة فقط';
+
+  @override
+  String staffReportDmBetween(String sender, String recipient) {
+    return 'من $sender إلى $recipient';
+  }
+
+  @override
+  String get staffReportDmPrivacy =>
+      'لقطة محفوظة من البلاغ: الرسالة المُبلّغ عنها فقط، لا باقي المحادثة. كل فتح يُسجَّل.';
+
+  @override
+  String get staffReportDmExpired =>
+      'انتهت الرسالة الأصلية بعد ٢٤ ساعة؛ اللقطة باقية.';
+
+  @override
+  String get staffReportDmPurged => 'مُسح محتوى اللقطة بعد انتهاء مدة الحفظ.';
+
+  @override
+  String get staffReportDmImage => 'صورة';
+
+  @override
+  String get staffReportDmVoice => 'رسالة صوتية';
+
+  @override
+  String staffReportDmGift(String code, String quantity) {
+    return 'هدية $code ×$quantity';
+  }
+
+  @override
+  String get staffReportActionsTitle => 'إجراءات';
+
+  @override
+  String get staffReportActionWarn => 'تحذير';
+
+  @override
+  String get staffReportActionRestrict => 'تقييد';
+
+  @override
+  String get staffReportActionSuspend => 'تعليق مؤقت';
+
+  @override
+  String get staffReportActionBan => 'حظر دائم';
+
+  @override
+  String get staffReportActionRemove => 'إخفاء المحتوى';
+
+  @override
+  String get staffReportActionEndLive => 'إنهاء البث';
+
+  @override
+  String get staffReportRestrictNoPosting => 'منع النشر';
+
+  @override
+  String get staffReportRestrictNoLive => 'منع البث';
+
+  @override
+  String get staffReportRestrictChat => 'منع الرسائل';
+
+  @override
+  String staffReportDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يوم',
+      many: '$count يوماً',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get staffReportDuration => 'المدة';
+
+  @override
+  String get staffReportReason => 'السبب (يُحفظ في السجل)';
+
+  @override
+  String get staffReportReasonRequired => 'اكتب السبب';
+
+  @override
+  String get staffReportAutoResolve => 'يُحلّ البلاغ تلقائياً بعد الإجراء.';
+
+  @override
+  String staffReportConfirmWarn(String name) {
+    return 'تحذير $name؟';
+  }
+
+  @override
+  String staffReportConfirmRestrict(String name) {
+    return 'تقييد $name؟';
+  }
+
+  @override
+  String staffReportConfirmSuspend(String name) {
+    return 'تعليق حساب $name مؤقتاً؟';
+  }
+
+  @override
+  String staffReportConfirmBan(String name) {
+    return 'حظر $name نهائياً؟';
+  }
+
+  @override
+  String get staffReportConfirmRemove => 'إخفاء هذا المحتوى عن الجميع؟';
+
+  @override
+  String get staffReportConfirmBanHint =>
+      'يُعلَّق الحساب ولا يستطيع الدخول. يمكن للإدارة رفعه من اللوحة.';
+
+  @override
+  String get staffReportConfirmSuspendHint =>
+      'لا يستطيع الدخول حتى تنتهي المدة.';
+
+  @override
+  String get staffReportApply => 'تنفيذ';
+
+  @override
+  String get staffReportActionDone => 'تم الإجراء وحُلّ البلاغ';
+
+  @override
+  String staffReportResolvedByAction(String action) {
+    return 'حُلّ بإجراء: $action';
+  }
+
+  @override
+  String get staffReportNoActions => 'لا إجراءات متاحة لدورك على هذا البلاغ.';
+
+  @override
+  String get staffReportOpen => 'فتح';
+
+  @override
+  String get staffReportThreadTitle => 'المحادثة كاملة — للقراءة فقط';
+
+  @override
+  String get staffReportThreadPrivacy =>
+      'نسخة محفوظة عند الإبلاغ: كل رسائل المحادثة التي كانت موجودة حينها، ولا تُضاف رسائل لاحقة. كل فتح يُسجَّل.';
+
+  @override
+  String staffReportThreadCaptured(String when) {
+    return 'حُفظت $when';
+  }
+
+  @override
+  String staffReportThreadTruncated(String count) {
+    return 'حُفظت آخر $count رسالة فقط.';
+  }
+
+  @override
+  String get staffReportThreadReported => 'الرسالة المُبلّغ عنها';
+
+  @override
+  String get staffReportThreadMediaMissing => 'ملف لم يُحفظ';
+
+  @override
+  String get staffReportThreadEmpty => 'لم تكن في المحادثة رسائل عند الإبلاغ.';
+
+  @override
+  String get staffReportActionDeleteContent => 'حذف نهائي';
+
+  @override
+  String get staffReportActionDeleteAccount => 'حذف الحساب';
+
+  @override
+  String get staffReportConfirmDeleteContent => 'حذف هذا المحتوى نهائياً؟';
+
+  @override
+  String staffReportConfirmDeleteAccount(String name) {
+    return 'حذف حساب $name؟';
+  }
+
+  @override
+  String get staffReportConfirmDeleteContentHint =>
+      'لا يمكن التراجع عن الحذف النهائي، ويُبلَّغ صاحب المحتوى.';
+
+  @override
+  String get staffReportConfirmDeleteAccountHint =>
+      'يبدأ حذف الحساب بمهلته (يمكن إلغاؤه من اللوحة خلالها)، ويُسجَّل خروجه من كل الأجهزة.';
+
+  @override
+  String get staffReportConfirmWord => 'حذف';
+
+  @override
+  String staffReportTypeToConfirm(String word) {
+    return 'اكتب «$word» للتأكيد';
+  }
+
+  @override
+  String get staffReportConfirmMismatch => 'اكتب الكلمة كما هي';
 }
