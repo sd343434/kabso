@@ -72,9 +72,15 @@ export class ProgramsController {
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const host = await this.prisma.liveHost.findUnique({
       where: { userId: user.id },
-      select: { userId: true },
+      select: { userId: true, source: true },
     });
-    if (!host) throw new AppException(ErrorCode.NOT_FOUND);
+    // D295 (owner, int16): the host targets are host tasks — a content creator (permission CREATOR) has none.
+    if (
+      !host ||
+      host.source === 'CREATOR' ||
+      (await this.prisma.creatorMember.count({ where: { userId: user.id } })) > 0
+    )
+      throw new AppException(ErrorCode.NOT_FOUND);
     const caller = req.auth?.userId ?? null;
     if (
       caller !== null &&

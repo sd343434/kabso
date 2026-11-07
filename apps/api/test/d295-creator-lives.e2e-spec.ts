@@ -30,6 +30,7 @@ import { RecruitsService } from '../src/modules/recruits/recruits.service.js';
 import { reverseGiftCherriesIn } from '../src/modules/economy/cherry-ledger.js';
 import { qualifyingIn, thresholdsIn } from '../src/modules/verification/verification-badges.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
+import { TasksService } from '../src/modules/programs/tasks.service.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { MemoryObjectStorage } from './helpers/memory-storage.js';
 import { expectContract, operations } from './helpers/openapi.js';
@@ -1225,5 +1226,89 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     expect([...(q.get(creator.id) ?? [])]).toEqual(['CREATOR']);
     expect([...(q.get(host.id) ?? [])]).toEqual(['VERIFIED_HOST']);
     expect(await badge(creator)).toBe('CREATOR');
+  });
+
+  it('owner (int16): a creator is not a host for host-only events, the host targets or the «new host» gift task', async () => {
+    const [host, creator, sender] = [await signup(), await signup(), await signup()];
+    await makeHost(host);
+    await makeCreator(creator);
+    await coins(sender, 1_000_000n);
+    const hRoom = await goLive(host);
+    const cRoom = await goLive(creator);
+    for (const r of [hRoom, cRoom]) await enter(r, sender);
+    const started = new Date(Date.now() - 1000);
+    const hostsEvent = await ctx.prisma.event.create({
+      data: {
+        titleAr: 'فعالية المضيفين',
+        titleEn: 'Hosts only',
+        rulesAr: '-',
+        rulesEn: '-',
+        startsAt: started,
+        permanent: true,
+        metric: 'GIFT_COINS_RECEIVED',
+        audience: 'HOSTS',
+      },
+    });
+    advance(1000);
+    await send(hRoom, sender, [host], ROSE);
+    await send(cRoom, sender, [creator], ROSE);
+    // The test clock is frozen: move past the sends (the board counts gifts before now).
+    advance(1000);
+
+    // Who sees it: a host (and anyone else, as before) — never a creator.
+    const seen = async (u: TestUser) => {
+      const res = await ctx.http.get('/api/v1/events?tab=PERMANENT').set(auth(u));
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expectContract(res, 'listEvents');
+      return (res.body.data as { id: string }[]).some((e) => e.id === hostsEvent.id);
+    };
+    expect(await seen(host)).toBe(true);
+    expect(await seen(sender)).toBe(true);
+    expect(await seen(creator)).toBe(false);
+    // Who is ranked: the host, not the creator (both received the same gift).
+    const board = await ctx.http.get(`/api/v1/events/${hostsEvent.id}/leaderboard`).set(auth(host));
+    expect(board.status).toBe(200);
+    expectContract(board, 'getEventLeaderboard');
+    const ranked = (board.body.data as { user: { id: string } }[]).map((r) => r.user.id);
+    expect(ranked).toContain(host.id);
+    expect(ranked).not.toContain(creator.id);
+    const mine = await ctx.http.get(`/api/v1/events/${hostsEvent.id}/leaderboard`).set(auth(creator));
+    expect(mine.body.me).toMatchObject({ rank: null });
+
+    // The host targets are host tasks: a host has them, a creator does not (404, as for a non-host).
+    expect((await ctx.http.get(`/api/v1/live/hosts/${host.username}/targets`).set(auth(sender))).status).toBe(
+      200,
+    );
+    expect(
+      (await ctx.http.get(`/api/v1/live/hosts/${creator.username}/targets`).set(auth(sender))).status,
+    ).toBe(404);
+
+    // NEW_HOST_GIFTS: the gift to the new host counts, the gift to the creator does not.
+    const tasks = ctx.app.get(TasksService);
+    const now = new Date();
+    const progress = await (
+      tasks['progressOf'] as (
+        db: unknown,
+        me: string,
+        metric: string,
+        w: { date: string; start: Date; end: Date },
+        now: Date,
+      ) => Promise<number>
+    ).call(
+      tasks,
+      ctx.prisma,
+      sender.id,
+      'NEW_HOST_GIFTS',
+      {
+        date: now.toISOString().slice(0, 10),
+        start: started,
+        end: new Date(now.getTime() + 60_000),
+      },
+      now,
+    );
+    expect(progress).toBe(1);
+
+    await ctx.prisma.event.delete({ where: { id: hostsEvent.id } });
+    for (const u of [host, creator]) await endLive(u);
   });
 });

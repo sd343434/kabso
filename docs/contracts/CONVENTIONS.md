@@ -8143,6 +8143,17 @@ One `agency_bans` row per agency (append-only): a second call changes nothing an
 the first ban's figures. Audited `agency.ban` (owner, reason, commission, forfeited, balance, locked, held,
 `fakeCreators` — the creators revoked as fake — with their `applications`, `keptCreators`, released members).
 
+#### 10.108.9 Creators are not hosts for host-only features *(owner, integration int16)*
+
+Owner (2026-11-07, «لا، تختفي من عنده فعاليات المضيفين فقط، فعاليات صناع المحتوى»): a creator member's hosting
+permission (`live_hosts` `CREATOR`) is for going live only. **Host-only events** (`audience` `HOSTS`): a creator does
+not see them (`listEvents` leaves them out for a creator member) and is never counted or ranked on their boards (the
+rank needs a hosting permission of another source and no membership). **The host targets** (`GET
+/live/hosts/{username}/targets`, host tasks) answer 404 for a creator, as for anyone who is not a host. **The task
+metric `NEW_HOST_GIFTS`** does not count a gift to a creator. Kept for creators, because they are about the hosting
+permission itself: going live and the room tools (cover, blocked words, programme, schedule, stickers). Creators get
+their own events («فعاليات صناع المحتوى») later, as a separate change.
+
 ### 10.109 Reports open their content for the staff, with actions; message reports fixed *(v1.93-social, DRAFT — D296)*
 
 Owner: «عند شخص يقوم بالإبلاغ على بوست أو ريلز، يصل إلى المشرف، لكن لا يمكن للمشرف الدخول إلى البوست. يجب عند الضغط عليه

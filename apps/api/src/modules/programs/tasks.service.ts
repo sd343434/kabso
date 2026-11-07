@@ -514,7 +514,10 @@ function progressSql(
            AND EXISTS (SELECT 1 FROM live_gift_recipients gr
                          JOIN users u ON u.id = gr.user_id AND u.status = 'ACTIVE'
                          JOIN live_hosts lh ON lh.user_id = gr.user_id
+                              AND lh.source <> 'CREATOR'::live_host_source
                         WHERE gr.gift_id = g.id AND gr.user_id <> ${me}::uuid
+                          -- D295 (owner, int16): a gift to a content creator is not a gift to a new host.
+                          AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = gr.user_id)
                           AND lh.granted_at > g.created_at - make_interval(days => ${NEW_HOST_DAYS}))`;
     case 'POSTS':
     case 'REELS':

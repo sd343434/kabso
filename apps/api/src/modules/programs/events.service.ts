@@ -170,7 +170,11 @@ function rankedSql(event: Event, to: Date): Prisma.Sql {
       JOIN users u ON u.id = s.user_id AND u.status = 'ACTIVE'
       JOIN user_profiles p ON p.user_id = s.user_id
      WHERE s.score > 0
-       AND (${!hostsOnly} OR EXISTS (SELECT 1 FROM live_hosts h WHERE h.user_id = s.user_id))
+       -- D295 (owner, int16): a content creator is not a host for host-only events (neither their own CREATOR
+       -- permission nor the membership counts); creators get their own events later.
+       AND (${!hostsOnly} OR (EXISTS (SELECT 1 FROM live_hosts h
+                                       WHERE h.user_id = s.user_id AND h.source <> 'CREATOR'::live_host_source)
+                              AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = s.user_id)))
        AND (${regions.length === 0} OR p.country_code = ANY(string_to_array(${regions.join(',')}::text, ',')))`;
 }
 
@@ -262,6 +266,9 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const { tab } = parsed.data;
     const now = this.clock.now();
     const country = await this.country(me);
+    // D295 (owner, int16: «تختفي من عنده فعاليات المضيفين»): a content creator does not see host-only events.
+    const creator = (await this.prisma.creatorMember.count({ where: { userId: me } })) > 0;
+    const audience = creator ? { audience: { not: 'HOSTS' as const } } : {};
     const visibleSince = new Date(now.getTime() - ENDED_VISIBLE_MS);
     let month: string | null = null;
     let events: Event[] = [];
@@ -278,6 +285,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       month = w!.month;
       events = await this.prisma.event.findMany({
         where: {
+          ...audience,
           permanent: false,
           regions: { isEmpty: true },
           startsAt: { lt: w!.end },
@@ -289,6 +297,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     } else if (tab === 'PERMANENT') {
       events = await this.prisma.event.findMany({
         where: {
+          ...audience,
           permanent: true,
           OR: [{ endsAt: null }, { endsAt: { gt: visibleSince } }],
           AND: [
@@ -301,6 +310,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     } else if (country !== null) {
       events = await this.prisma.event.findMany({
         where: {
+          ...audience,
           regions: { has: country },
           OR: [{ endsAt: null }, { endsAt: { gt: visibleSince } }],
         },
