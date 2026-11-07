@@ -14002,7 +14002,7 @@
   "@agencyActivateAsCreator": {"description": "D295: the second choice."},
   "agencyActivateAsCreatorBody": "لمن يصنع محتوى على منصات أخرى. تحتاج معلوماته وروابط أعماله.",
   "@agencyActivateAsCreatorBody": {"description": "D295: content creators go live."},
-  "agencyCreatorShareNote": "نسبة صانع المحتوى 72%",
+  "agencyCreatorShareNote": "نسبة صانع المحتوى 70%",
   "@agencyCreatorShareNote": {"description": "D295: the note on the creator choice (owner's wording)."},
   "agencyCreatorWarning": "إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة أرباحك.",
   "@agencyCreatorWarning": {"description": "D295: the warning before activating a creator (owner's wording)."},

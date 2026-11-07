@@ -485,7 +485,7 @@ export interface AppConfig {
     readonly quantities: readonly number[];
     /** v1.32-live (D154): the recipients' earnings share by category, basis points. */
     readonly hostShareBps: Readonly<Record<HostShareCategory, number>>;
-    /** v1.82-live (D295, §10.108): a creator's live — non-lucky gifts (72 %) and quips (60 %), basis points. */
+    /** v1.82-live (D295, §10.108): a creator's live — non-lucky gifts (70 %) and quips (60 %), basis points. */
     readonly creatorShareBps: number;
     readonly creatorQuipShareBps: number;
     /** v1.32-live (D154): the longest a quip may wait for its turn, in ms. */

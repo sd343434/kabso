@@ -21,7 +21,7 @@ import 'package:material_ui/material_ui.dart';
 ///
 /// The sheet shows the two choices. «صانع محتوى» needs the creator
 /// programme's fields (country, content type, 1–5 links, an optional bio),
-/// shows the note «نسبة صانع المحتوى 72%» and the owner's warning «إن قمت
+/// shows the note «نسبة صانع المحتوى 70%» and the owner's warning «إن قمت
 /// بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة
 /// أرباحك.», which must be ticked before the button works. The server
 /// answers with the member's row (popped to the caller).

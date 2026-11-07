@@ -5,7 +5,7 @@ import { cursorScope, LiveCursorCodec, type CursorPosition } from './live-cursor
 import { liveShareBpsOf } from './live-gifts.service.js';
 
 /**
- * v1.82-live (D295, CONVENTIONS §10.108): the creator share (72 %, quips 60 %) and its configuration, and the
+ * v1.82-live (D295, CONVENTIONS §10.108): the creator share (70 %, quips 60 %) and its configuration, and the
  * interleaved lists' cursor (both groups' positions and the last group).
  */
 const base = {
@@ -18,22 +18,22 @@ const base = {
 
 describe('D295 the creator share', () => {
   const config = loadConfig(base);
-  it('defaults to the owner’s 72 % and quips 60 %; agency commission on creators on', () => {
-    expect(config.gifts.creatorShareBps).toBe(7_200);
+  it('defaults to the owner’s 70 % and quips 60 %; agency commission on creators on', () => {
+    expect(config.gifts.creatorShareBps).toBe(7_000);
     expect(config.gifts.creatorQuipShareBps).toBe(6_000);
     expect(config.economy.creatorAgencyCommission).toBe(true);
   });
-  it('a creator send takes 72 % (quips 60 %); any other send keeps the category share', () => {
-    expect(liveShareBpsOf(config, 'POPULAR', true)).toBe(7_200);
-    expect(liveShareBpsOf(config, 'EVENT', true)).toBe(7_200);
+  it('a creator send takes 70 % (quips 60 %); any other send keeps the category share', () => {
+    expect(liveShareBpsOf(config, 'POPULAR', true)).toBe(7_000);
+    expect(liveShareBpsOf(config, 'EVENT', true)).toBe(7_000);
     expect(liveShareBpsOf(config, 'QUIPS', true)).toBe(6_000);
     expect(liveShareBpsOf(config, 'POPULAR', false)).toBe(6_500);
     expect(liveShareBpsOf(config, 'QUIPS', false)).toBe(5_000);
     // A category added in the panel: the creator rate in a creator's live, POPULAR's otherwise.
-    expect(liveShareBpsOf(config, 'NEW_PANEL_CATEGORY', true)).toBe(7_200);
+    expect(liveShareBpsOf(config, 'NEW_PANEL_CATEGORY', true)).toBe(7_000);
     expect(liveShareBpsOf(config, 'NEW_PANEL_CATEGORY', false)).toBe(6_500);
-    // 1 000 000 coins × 72 % × 10 cherries = 7 200 000 cherries.
-    expect((1_000_000n * BigInt(liveShareBpsOf(config, 'POPULAR', true)) * 10n) / 10_000n).toBe(7_200_000n);
+    // 1 000 000 coins × 70 % × 10 cherries = 7 000 000 cherries.
+    expect((1_000_000n * BigInt(liveShareBpsOf(config, 'POPULAR', true)) * 10n) / 10_000n).toBe(7_000_000n);
   });
   it('is configurable and validated', () => {
     const c = loadConfig({

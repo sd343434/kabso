@@ -6,7 +6,7 @@
 //   creator_lives.host_pill    the room's host pill: a creator's name with the
 //                              badge, a host's without
 //   creator_lives.activate     the agency owner's activation sheet: the two
-//                              choices with «صانع محتوى» chosen — the 72 %
+//                              choices with «صانع محتوى» chosen — the 70 %
 //                              note, the creator form and the ticked warning
 //                              (dark and light)
 //

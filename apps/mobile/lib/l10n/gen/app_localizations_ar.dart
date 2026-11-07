@@ -15771,7 +15771,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'لمن يصنع محتوى على منصات أخرى. تحتاج معلوماته وروابط أعماله.';
 
   @override
-  String get agencyCreatorShareNote => 'نسبة صانع المحتوى 72%';
+  String get agencyCreatorShareNote => 'نسبة صانع المحتوى 70%';
 
   @override
   String get agencyCreatorWarning =>

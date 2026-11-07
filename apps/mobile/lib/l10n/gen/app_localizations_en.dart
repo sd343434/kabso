@@ -15769,7 +15769,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'For someone who makes content on other platforms. Needs their details and links to their work.';
 
   @override
-  String get agencyCreatorShareNote => 'Creator share: 72%';
+  String get agencyCreatorShareNote => 'Creator share: 70%';
 
   @override
   String get agencyCreatorWarning =>

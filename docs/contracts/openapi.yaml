@@ -302,7 +302,7 @@ info:
     member); host and creator are exclusive (`CreatorApplyRule` refusal `HOST`, `HostingApplyRefusal` `CREATOR`, the
     admin grant 409, `AGENCY_ACTIVATION_NOT_ALLOWED`); Popular / New / Nearby interleave one host's live and one
     creator's live (the cursor carries both positions; Following and Featured unchanged); `LiveRoomSummary.hostIsCreator`
-    (the purple badge); a creator's live pays 72 % (`GIFT_CREATOR_SHARE_PERCENT`; quips 60 %,
+    (the purple badge); a creator's live pays 70 % (`GIFT_CREATOR_SHARE_PERCENT`; quips 60 %,
     `GIFT_CREATOR_QUIP_SHARE_PERCENT`; lucky unchanged) stored per send; `activateMyAgencyMember` (the agency owner
     activates a member as host or creator; `AgencyHost.hosting` / `.activatedByAgency`); panel
     `revokeAdminCreatorMember`, the creators list's source, «فعّله وكيل: …», REVOKED; «حظر الوكالة» `getAdminAgencyBan`
@@ -6335,7 +6335,7 @@ paths:
         with the agency — «فعّله وكيل: …» in the panel — and the hosting permission `CREATOR`). A creator needs the
         programme's fields (country, category, 1–5 links, an optional bio) and `confirmCreator: true`: the owner ticked
         the warning «إن قمت بتفعيل شخص على أنه صانع محتوى ولم يكن كذلك، سيتم حظر الوكالة وخسارة أرباحك.» (the app also
-        shows «نسبة صانع المحتوى 72%»). Host and creator are exclusive. Order: 401 → 404 (no OPEN agency of the caller,
+        shows «نسبة صانع المحتوى 70%»). Host and creator are exclusive. Order: 401 → 404 (no OPEN agency of the caller,
         or not its ACTIVE member) → 400 body → 409 `AGENCY_ACTIVATION_NOT_ALLOWED` (`details[0] = {field: member,
         issue}`: `AGENCY_SUSPENDED`, `ACCOUNT_NOT_ACTIVE`, `STAFF`, `HOST` — a host cannot be made a creator,
         `CREATOR` — a creator cannot be made a host) → 200 with the member's row (also when already activated as asked:

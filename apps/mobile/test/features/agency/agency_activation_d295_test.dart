@@ -1,6 +1,6 @@
 // v1.82-live (D295, owner, CONVENTIONS §10.108.6): the agency owner activates
 // a member as «مضيف» or «صانع محتوى» — the two choices, the creator form, the
-// note «نسبة صانع المحتوى 72%», the warning and its required tick, the
+// note «نسبة صانع المحتوى 70%», the warning and its required tick, the
 // server's refusals; the agency list's «تفعيل» and the member tags.
 
 import 'package:flutter_test/flutter_test.dart';
@@ -118,7 +118,7 @@ void main() {
       find.byKey(AgencyActivationSheet.creatorChoiceKey),
     );
     expect(find.text(_ar.agencyCreatorShareNote), findsOneWidget);
-    expect(_ar.agencyCreatorShareNote, 'نسبة صانع المحتوى 72%');
+    expect(_ar.agencyCreatorShareNote, 'نسبة صانع المحتوى 70%');
     expect(find.text(_ar.agencyCreatorWarning), findsOneWidget);
     expect(
       _ar.agencyCreatorWarning,

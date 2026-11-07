@@ -9,10 +9,10 @@
  *  - Popular / New / Nearby interleave one host's live and one creator's live with stable cursors (exhaustion
  *    included); Following and Featured keep their order;
  *  - `LiveRoomSummary.hostIsCreator`;
- *  - the creator share: 72 % stored per send and credited (1 000 000 coins → 7 200 000 cherries), quips 60 %, lucky
+ *  - the creator share: 70 % stored per send and credited (1 000 000 coins → 7 000 000 cherries), quips 60 %, lucky
  *    unchanged, a send that also reaches a non-creator keeps the category share;
  *  - the agency owner's activation as host or creator (fields, the warning tick, audit, «فعّله وكيل»), the agency
- *    commission on a creator's gifts (on top of the 72 %), the D285 recruit commission of a creator;
+ *    commission on a creator's gifts (on top of the 70 %), the D285 recruit commission of a creator;
  *  - «حظر الوكالة»: OWNER only, code + reason, the forfeit = the unwithdrawn agency commission, idempotent, withdrawn
  *    money and members' earnings untouched, the creator revoked, never reopened, no commission afterwards.
  */
@@ -597,16 +597,16 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     ).rejects.toThrow(/creator_host_exclusive|cannot also be a content creator/);
   });
 
-  it('a creator’s live pays 72 % (1 000 000 coins → 7 200 000 cherries), quips 60 %, lucky unchanged; a host keeps 65 %', async () => {
+  it('a creator’s live pays 70 % (1 000 000 coins → 7 000 000 cherries), quips 60 %, lucky unchanged; a host keeps 65 %', async () => {
     const creator = await signup();
     await makeCreator(creator);
     const roomId = await goLive(creator, { mode: 'AUDIO', seatCount: 10 });
     await enter(roomId, fan);
-    // 100 × 10 000 coins = 1 000 000 coins → 72 % × 10 = 7 200 000 cherries.
+    // 100 × 10 000 coins = 1 000 000 coins → 70 % × 10 = 7 000 000 cherries.
     const big = await send(roomId, fan, [creator], ROSE, 100);
     expect(big.totalCoins).toBe(1_000_000n);
-    expect(big.hostShareBps).toBe(7_200);
-    expect(await received(creator, big.id)).toBe(7_200_000n);
+    expect(big.hostShareBps).toBe(7_000);
+    expect(await received(creator, big.id)).toBe(7_000_000n);
     // A quip: 60 % (owner 2026-11-06).
     const quip = await send(roomId, fan, [creator], QUIP);
     expect(quip.hostShareBps).toBe(6_000);
@@ -614,7 +614,7 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     // Lucky keeps the lucky share.
     const lucky = await send(roomId, fan, [creator], LUCKY);
     expect(lucky.hostShareBps).toBe(ctx.config.lucky.table.hostShareBps);
-    expect(lucky.hostShareBps).not.toBe(7_200);
+    expect(lucky.hostShareBps).not.toBe(7_000);
     // A send that also reaches a seated non-creator keeps the category share (never the creator rate to a host).
     const guest = await signup();
     await enter(roomId, guest);
@@ -743,7 +743,7 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     expect([kinds.get(m1.id), kinds.get(m2.id), kinds.get(m3.id)]).toEqual(['CREATOR', 'HOST', 'CREATOR']);
   });
 
-  it('the agency commission on a creator’s gifts (on top of the 72 %) and the D285 recruit commission of a creator', async () => {
+  it('the agency commission on a creator’s gifts (on top of the 70 %) and the D285 recruit commission of a creator', async () => {
     const agent = await signup();
     const agency = await openAgency(agent);
     const creator = await signup();
@@ -754,25 +754,25 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     const roomId = await goLive(creator);
     await enter(roomId, fan);
     const sendRow = await send(roomId, fan, [creator], ROSE, 100);
-    // The creator's 72 % is whole; the agency earns 15 % of it ON TOP, from the platform's part.
-    expect(await received(creator, sendRow.id)).toBe(7_200_000n);
+    // The creator's 70 % is whole; the agency earns 15 % of it ON TOP, from the platform's part.
+    expect(await received(creator, sendRow.id)).toBe(7_000_000n);
     const commission = await ctx.prisma.cherryLedgerEntry.findFirstOrThrow({
       where: { userId: agent.id, referenceId: sendRow.id, reason: 'AGENCY_COMMISSION' },
     });
-    expect(commission.delta).toBe(1_080_000n);
+    expect(commission.delta).toBe(1_050_000n);
     const earning = await ctx.prisma.agencyEarning.findFirstOrThrow({ where: { giftId: sendRow.id } });
-    expect(earning).toMatchObject({ hostCherries: 7_200_000n, rateBps: 1_500, commission: 1_080_000n });
+    expect(earning).toMatchObject({ hostCherries: 7_000_000n, rateBps: 1_500, commission: 1_050_000n });
     // One credit each: no double payment.
     expect(await ctx.prisma.cherryLedgerEntry.count({ where: { referenceId: sendRow.id } })).toBe(2);
     await endLive(creator);
 
-    // D285: a creator recruited by BD — the recruiter's commission reads the 72 % actually credited.
+    // D285: a creator recruited by BD — the recruiter's commission reads the 70 % actually credited.
     const recruit = await signup();
     await makeCreator(recruit, bdStaffId);
     const rRoom = await goLive(recruit);
     await enter(rRoom, fan);
     const rs = await send(rRoom, fan, [recruit], ROSE, 100);
-    expect(await received(recruit, rs.id)).toBe(7_200_000n);
+    expect(await received(recruit, rs.id)).toBe(7_000_000n);
     const recruitment = await ctx.prisma.staffRecruitment.findFirstOrThrow({
       where: { recruitUserId: recruit.id, type: 'CREATOR' },
     });
@@ -785,7 +785,7 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
       where: { recruitmentId_day: { recruitmentId: recruitment.id, day: new Date(`${day}T00:00:00Z`) } },
     });
     const profit = giftProfitUnits(
-      { charged: 1_000_000n, luckyCoins: 0n, cherries: 7_200_000n, commissions: 0n },
+      { charged: 1_000_000n, luckyCoins: 0n, cherries: 7_000_000n, commissions: 0n },
       e,
     );
     expect(BigInt(row.profitUnits.toFixed(0))).toBe(profit);
@@ -814,13 +814,13 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     const hRoom = await goLive(host);
     await enter(cRoom, fan);
     await enter(hRoom, fan);
-    const g1 = await send(cRoom, fan, [creator], ROSE, 100); // 7 200 000 → commission 1 080 000
+    const g1 = await send(cRoom, fan, [creator], ROSE, 100); // 7 000 000 → commission 1 050 000
     const g2 = await send(hRoom, fan, [host], ROSE, 10); // 650 000 → commission 97 500
-    const commission = 1_080_000n + 97_500n;
+    const commission = 1_050_000n + 97_500n;
     expect(await cherries(agent)).toBe(commission);
     const creatorBefore = await cherries(creator);
     const hostBefore = await cherries(host);
-    expect(creatorBefore).toBe(7_200_000n);
+    expect(creatorBefore).toBe(7_000_000n);
     expect(hostBefore).toBe(650_000n);
 
     // The owner withdraws part of it (held by the pending withdrawal).
@@ -1031,14 +1031,14 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     ).toBe(200);
     const room = await goLive(creator);
     await enter(room, fan);
-    await send(room, fan, [creator], ROSE, 10); // 720 000 → commission 108 000
+    await send(room, fan, [creator], ROSE, 10); // 700 000 → commission 105 000
     const ban = await apost(owner, `/admin/agencies/${agency.id}/ban`, {
       reason: 'إغلاق دون صانع وهمي',
       totpCode: nextCode(owner.secret),
       fakeCreatorUserIds: [],
     });
     expect(ban.status, JSON.stringify(ban.body)).toBe(200);
-    expect(ban.body).toMatchObject({ forfeitedCherries: 108_000, revokedCreators: 0, endedRooms: 0 });
+    expect(ban.body).toMatchObject({ forfeitedCherries: 105_000, revokedCreators: 0, endedRooms: 0 });
     expect(await cherries(agent)).toBe(0n);
     expect(await canHost(creator)).toBe(true);
     expect((await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: room } })).status).toBe('LIVE');

@@ -4916,7 +4916,7 @@
   "agencyActivateAsHostBody": "Goes live in your agency at the usual host share.",
   "agencyActivateAsCreator": "Content creator",
   "agencyActivateAsCreatorBody": "For someone who makes content on other platforms. Needs their details and links to their work.",
-  "agencyCreatorShareNote": "Creator share: 72%",
+  "agencyCreatorShareNote": "Creator share: 70%",
   "agencyCreatorWarning": "If you activate someone as a content creator who is not one, the agency will be banned and you will lose your earnings.",
   "agencyCreatorConfirm": "I read the warning and confirm this person is a content creator",
   "agencyCreatorConfirmError": "Tick the confirmation to continue",

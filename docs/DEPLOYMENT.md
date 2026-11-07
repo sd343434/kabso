@@ -2987,8 +2987,8 @@ the runtime group: UPDATE / DELETE revoked) and extends `cherry_ledger_reason_si
 **backfills** `live_hosts` CREATOR for every existing creator member who holds no hosting permission. Deploy the API with
 the migrations (an older API would list creators' lives without the interleave and pay them 65 %).
 
-- **New config (all optional; defaults are the owner's):** `GIFT_CREATOR_SHARE_PERCENT=72` (a creator's live, every
-  recipient a creator), `GIFT_CREATOR_QUIP_SHARE_PERCENT=60` (quips there; owner 2026-11-06), `CREATOR_AGENCY_COMMISSION=true`
+- **New config (all optional; defaults are the owner's):** `GIFT_CREATOR_SHARE_PERCENT=70` (a creator's live, every
+  recipient a creator; owner, was 72), `GIFT_CREATOR_QUIP_SHARE_PERCENT=60` (quips there; owner 2026-11-06), `CREATOR_AGENCY_COMMISSION=true`
   (agencies earn their commission on their creator members' gifts, from the platform's part; owner 2026-11-06: yes).
   Lucky gifts keep `LUCKY_GIFT_HOST_SHARE_PERCENT`; DM / CP gifts keep theirs.
 - **Data checks before the migration** (read-only; run as the migration role):
@@ -3008,7 +3008,7 @@ the migrations (an older API would list creators' lives without the interleave a
     `SELECT m.user_id FROM creator_members m LEFT JOIN live_hosts h ON h.user_id = m.user_id WHERE h.user_id IS NULL;`
     → 0 rows (else run the migration's backfill `INSERT … ON CONFLICT DO NOTHING` again).
 - **Checks after deploy:** `SELECT source, count(*) FROM live_hosts GROUP BY 1;` (CREATOR = the members count);
-  `SELECT host_share_bps, count(*) FROM live_gifts WHERE created_at > now() - interval '1 day' GROUP BY 1;` (7200 /
+  `SELECT host_share_bps, count(*) FROM live_gifts WHERE created_at > now() - interval '1 day' GROUP BY 1;` (7000 /
   6000 appear once creators receive gifts); `GET /live/rooms?tab=new` alternates host / creator and every row has
   `hostIsCreator`.
 - **The agency ban (OWNER):** `banAdminAgency` writes one `agency_bans` row and at most one `AGENCY_FORFEIT` ledger row per

@@ -26581,7 +26581,7 @@ abstract class AppLocalizations {
   /// D295: the note on the creator choice (owner's wording).
   ///
   /// In ar, this message translates to:
-  /// **'نسبة صانع المحتوى 72%'**
+  /// **'نسبة صانع المحتوى 70%'**
   String get agencyCreatorShareNote;
 
   /// D295: the warning before activating a creator (owner's wording).
