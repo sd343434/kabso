@@ -188,8 +188,9 @@ describe('D297 creator tasks: who gets them, the metrics, the weekly tasks', { t
   it('a creator gets the CREATOR tasks (and never the host tasks); a viewer and a host do not', async () => {
     const creator = await signup();
     await makeCreator(creator);
-    // D295 gives a member a hosting permission: still a creator for the tasks (no HOSTS task).
-    await ctx.prisma.liveHost.create({ data: { userId: creator.id, source: 'ADMIN' } });
+    // D295 gives a member a hosting permission (source CREATOR; the trigger refuses any other source for a member):
+    // still a creator for the tasks (no HOSTS task).
+    await ctx.prisma.liveHost.create({ data: { userId: creator.id, source: 'CREATOR' } });
     const mine = await tasks(creator);
     expect(mine.band).toMatchObject({ band: 1, host: false, creator: true });
     expect(mine.tasks.filter((t) => t.audience === 'HOSTS')).toEqual([]);
@@ -258,7 +259,7 @@ describe('D297 creator tasks: who gets them, the metrics, the weekly tasks', { t
     try {
       const creator = await signup();
       await makeCreator(creator);
-      await ctx.prisma.liveHost.create({ data: { userId: creator.id, source: 'ADMIN' } });
+      await ctx.prisma.liveHost.create({ data: { userId: creator.id, source: 'CREATOR' } });
       const mine = await tasks(creator);
       const pooled = mine.tasks.filter((t) => t.pooled);
       expect(pooled.length).toBe(DEFAULT_TASK_POOL_BANDS[0]!.dailyCount);
@@ -766,7 +767,7 @@ describe('D297 the generated catalogue: by charm level, creators and hosts', { t
     expect((await claim(viewer, weekly[0]!.code)).status).toBe(404);
     const creator = await signup();
     await makeCreator(creator);
-    await ctx.prisma.liveHost.create({ data: { userId: creator.id, source: 'ADMIN' } });
+    await ctx.prisma.liveHost.create({ data: { userId: creator.id, source: 'CREATOR' } });
     const theirs = await tasks(creator);
     expect(theirs.tasks.some((t) => t.code.startsWith('G_HO_'))).toBe(false);
     expect(theirs.tasks.some((t) => t.code.startsWith('G_CR_'))).toBe(true);
