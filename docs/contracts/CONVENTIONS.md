@@ -730,6 +730,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.92-social (draft) | 2026-11-06 | **D294 (owner, from screenshots of the reels page and the posts page: «اجعل فلتر فقط منشورات وريلز»; v1.90-social and v1.91-social are D293 and D292 on their own branches):** `listFeedReels` `tab=mixed` — the reels page's only feed, the posts home feed's rule (§10.73.1) over reels: 1 Following (followed accounts, the caller's own reels, reels reposted by followed accounts, newest first) : 2 Trending (§11.3 over public reels), one frozen 10-minute list per caller (its own snapshot list `reels-mixed`), a reel once (its Following place), the same exclusions and caps (500 / 500). `following`, `trending` and `nearby` unchanged; the app stops using `nearby` and its country prompt (§11.15). No migration. §10.107, §11.3, §11.14, §11.15. | **Additive** (a new enum value on one operation; nothing else changes shape or behaviour). |
 | v1.91-social (draft) | 2026-11-06 | **D292 (owner, option 1: the person picks an icon for each profile tag, chips like his mock):** `UpdateMeRequest.tagIcons` (one per tag of `tags`, sent with it — else `tagIcons` / `invalid_value`; each a `ProfileTagIcon` or null for `default`, anything else → `tagIcons.<i>` / `invalid_value`; `tags` without `tagIcons` keeps each tag's icon by its text, a new tag `default`), `Me.tagIcons`, `PublicProfile.tagIcons` (one per tag), schema `ProfileTagIcon` (`default`, `crown`, `fire`, `trophy`, `gamepad`, `music`, `mic`, `moon`, `heart`, `star`, `gem`, `camera`, `book`, `sport`, `palette`, `globe`, or `flag:<ISO 3166-1 alpha-2>`). Column `user_profiles.tag_icons` (`varchar(24)[]`, CHECKs `user_profiles_tag_icons_len` — empty or one per tag — and `user_profiles_tag_icons_values`), migration `20270327090000_profile_tag_icons`; `PATCH /me` audits `tagIcons` among the changed fields (never the values). §10.106. | **Additive.** An older app ignores `tagIcons` and keeps the icons when it edits the tags; an app reading an unknown icon draws `default`. |
 | v1.90-social (draft) | 2026-11-06 | **D293 (owner: «شارة التوثيق» — granted automatically by conditions over the last 30 days, one per person, the highest of OWNER › STAFF › RECHARGE_AGENT › HOST_AGENT › CREATOR › VERIFIED_HOST; thresholds 300 000 000 coins / 300 000 000 cherries / 30 hosts / 300 000 000 cherries, «more than»):** schema `VerificationBadge`; `Me.verification`, `PublicProfile.verification` (required, nullable; only the type); `AdminUserDetail.verification` (`AdminUserVerification`); panel `getAdminVerificationSettings` / `updateAdminVerificationSettings` (`/admin/verification-badges/settings`; `AdminVerificationSettings`, `VerificationThresholds`, `UpdateAdminVerificationSettingsRequest`); capabilities `verification.view` (OWNER, MODERATION, SUPPORT, FINANCE), `verification.settings` (OWNER, the code again); audit `verification.badge.change`, `verification.settings.update`, `verification.recompute`; config `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` (3600; 0 refused in production); CLI `verification-admin recompute`; migration `20270326090000_verification_badges`. `UserSummary.verification` (owner «نعم»: beside the name everywhere). Owner decisions: the gold measures; the team's manual ID + selfie approval (`host_applications` APPROVED) also gives VERIFIED_HOST. §10.105. | **Additive** (new response fields — required in the responses, so strict clients update their models in the same change set — new operations and schemas). An older app ignores `verification`. |
 | v1.89-social (draft) | 2026-11-06 | **D290 (owner: «طلب رفع ليفيل» — staff send a supporter recruited from another app with a video of the source profile; the OWNER approves the proposed level, never above 40, never below the current level, after 1 000 000 coins recharged):** tag `staff`: `listStaffLevelRaiseSourceApps`, `checkStaffLevelRaise`, `listMyStaffLevelRaises`, `createStaffLevelRaise`; panel `listAdminLevelRaises` / `createAdminLevelRaise`, `checkAdminLevelRaise`, `listAdminLevelRaiseSourceAppOptions`, `uploadAdminLevelRaiseVideo` (raw bytes), `getAdminLevelRaise`, `getAdminLevelRaiseVideo` (ranges), `approveAdminLevelRaise`, `rejectAdminLevelRaise`, `listAdminLevelRaiseApps` / `createAdminLevelRaiseApp` / `updateAdminLevelRaiseApp`, `getAdminLevelRaiseSettings` / `updateAdminLevelRaiseSettings`; schemas `LevelRaise*`, `CreateLevelRaiseRequest`, `ApproveLevelRaiseRequest`, `RejectLevelRaiseRequest`, `(Create|Update)LevelRaiseSourceAppRequest`, `UpdateLevelRaiseSettingsRequest`; `MediaKind` `LEVEL_RAISE_VIDEO`; `NotificationType` `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED`; `NotificationTarget.type` `LEVEL_RAISE` + `level`; capabilities `levels.raise.request` (OWNER, MODERATION, SUPPORT), `levels.raise.decide` (OWNER); refusal issues under `ADMIN_ACTION_REFUSED`; owner follow-up (same day): code `LEVEL_RAISE_DUPLICATE` (409), `suggestStaffLevelRaiseSourceApps` / `suggestAdminLevelRaiseSourceApps` (`LevelRaiseSuggestions`), `LevelRaiseSourceApp.aliases`, `LevelRaiseVideo.byteSize` / `deletedAt`, `LevelRaiseRequest.previousRejection`; the video deleted after the decision; migrations `20270324090000_level_raise_enums`, `20270324090100_level_raise`. §4, §10.103. | **Additive** (new operations, schemas and enum values; clients ignore notification types they do not know). |
@@ -7916,6 +7917,78 @@ is the same, the spoken label and the tooltip / long press say which one: «مو
 agent" (and the five others) with «شارة تُمنح تلقائياً حسب الشروط». The admin panel shows the badge on the user page
 and the thresholds page.
 
+### 10.106 Profile tag icons *(v1.91-social, DRAFT — D292)*
+
+The owner (2026-11-06, after his own mock of the profile: rounded tag chips with a leading icon) chose **option 1**:
+tags stay free text (§10.99) and the **person picks the icon** of each tag.
+
+- **The icons** (`ProfileTagIcon`): a closed set the apps draw with their own icons — never emoji glyphs:
+  `default` (the plain chip, no icon), `crown`, `fire`, `trophy`, `gamepad`, `music`, `mic`, `moon`, `heart`, `star`,
+  `gem`, `camera`, `book`, `sport`, `palette`, `globe`; and **`flag:<country>`** with an ISO 3166-1 alpha-2 code
+  (the countries of §10.28; stored upper case), drawn with the app's bundled flag art (`assets/flags/`, OFL). A bare
+  `flag` is not an icon. An app that meets an icon it does not know draws `default`.
+- **Set** with `PATCH /me` `tagIcons`: one entry per tag of `tags`, in the same order, **only together with `tags`**
+  and exactly as many (else `tagIcons` / `invalid_value`); each entry an icon or null (= `default`); anything else
+  → `tagIcons.<i>` / `invalid_value`. The 10-tag limit and the tag rules (§10.99) are unchanged.
+- **Older apps**: `tags` without `tagIcons` keeps, for each tag, the icon it had (the same text ignoring case,
+  `toLocaleLowerCase('en')`); a new tag gets `default`. `tagIcons` without `tags` is refused (above), so an icon
+  never drifts to another tag.
+- **Read** in `Me.tagIcons` and `PublicProfile.tagIcons`: always one per tag, `default` where none was chosen.
+  Stored in `user_profiles.tag_icons` (`varchar(24)[]`, empty for rows before v1.91-social — read as `default` —
+  or one per tag: CHECK `user_profiles_tag_icons_len`; CHECK `user_profiles_tag_icons_values` as a backstop for
+  the set).
+- **Audit**: a change adds `tagIcons` to the `profile.update` row's `fields` (never the values, §10.42).
+- **App**: the chips on the profile are small hollow pills (≈ 24 dp; a thin Kabso-red outline, red text, no fill;
+  owner: «اجعلها أصغر وبصف واحد، والأيقونة فقط بإطار مفرّغ») with the icon before the text, on **one line** — what does
+  not fit shows as «+n» (this replaces §10.99's two lines). In «تعديل الملف الشخصي» each tag shows its icon; a tap
+  on it opens a grid of the icons (and, for `flag`, the country list). Each icon has an Arabic and an English name for
+  screen readers.
+
+### 10.107 The reels page: one feed and the posts page's header *(v1.92-social, DRAFT — D294)*
+
+Owner, 2026-11-06, from screenshots of the app's own reels page and posts page: the reels page's header must look like
+the posts page's; «اجعل فلتر فقط منشورات وريلز» — the only switch is Posts / Reels; Nearby «القريبة» goes from the app;
+and «لماذا الخط أسفل البوست؟ أزله» on the posts feed.
+
+#### 10.107.1 `GET /feed/reels?tab=mixed`
+
+- **The rule** is the posts home feed's (§10.73.1) over reels: one entry from reels Following (§11.14: reels of
+  followed accounts, **the caller's own reels**, reels reposted by followed accounts; newest entry first, a reel once at
+  its newest entry, a repost with `repostedBy`), then two from reels Trending (§11.3's score over visible public reels
+  of the last 7 days, never the caller's own, at most 2 per author in any 10), then 1, 2, … (1 : 2).
+- **Exhaustion, each reel once, caps.** When one source is empty its turns go to the other; the list ends when both
+  are. A reel in both is listed at its Following place only. Following contributes its newest 500 entries, Trending its
+  500-entry snapshot.
+- **Left out** as in both sources: muted authors and reposters, hidden reels, private accounts in Trending, blocks both
+  ways; every page re-checks visibility. *Difference from the posts mix:* the posts mix leaves the caller's own posts
+  out (§10.73.1); reels Following has always held the caller's own reels (D162), so the reels mix keeps them (at their
+  Following place, never in Trending).
+- **Pagination.** The first page merges both sources into one frozen list (Redis, 10 minutes, per caller, its own list
+  name `reels-mixed`); later pages read it by offset — never a repeat or a skip, and new reels do not shift it. An
+  expired snapshot, another caller's cursor, or a cursor of another list (reels `following` / `trending`, the posts
+  `mixed`) → 400 `cursor` / `invalid_value`; the app reloads the first page once.
+- **One implementation.** The server reuses the posts mix unchanged (`FeedService` `mixed` with the reels format:
+  the same interleave, Following query, Trending ranking and snapshot paging). `following`, `trending` and `nearby`
+  answer exactly as before; `GET /feed/posts` has no `nearby` (still 400). Same `social:feed` bucket.
+
+#### 10.107.2 What the app does (no further API)
+
+- **The reels page's header is the posts page's bar** in the reels page's dark theme, floating over the video on
+  D202's scrim: Search at the reading start, the words «المنشورات | الريلز» in the middle — the same words in the same
+  order as on Posts — with «الريلز» selected (the red indicator under it) and «المنشورات» the switch back, the bell
+  at the end. Removed: the tabs «متابَعون / لك / القريبة» and the «المنشورات» chip under the bar. The video's speaker
+  button sits under the bar at the reading end.
+- **One reels feed:** the page lists `tab=mixed` only. Nearby — and its «اختر بلدك» prompt, which only Nearby used — is
+  gone from the app; the API keeps `nearby` (additive contract; an older app still uses it).
+- **The posts feed has no line between posts:** D218's hairline under the action row is gone from the posts feed and
+  16 dp of air separates two posts (it was 4 dp + the line + 8 dp). The single-post screen keeps its closing line.
+  The red indicator under the selected «المنشورات» / «الريلز» is unchanged.
+- **The live hub's brand** (owner, the same day: «إن كان التطبيق بالعربية، كلمة كابسو لايف تكون على اليمين بالعربية،
+  وإن كان إنجليزي تكون على اليسار بالإنجليزي، واجعلها بخط غامق وأكبر قليلاً»): the hub's top bar reads «كابسو لايف» in
+  Arabic and "Kabso Live" in English (was "Kabso" in both), at the reading start (right in RTL, left in LTR; the bar
+  follows the app's direction), in the language's own bundled font at its heaviest face (700), 21 sp (was 18),
+  ellipsized, never clipped. The auth screens' `KLogo` wordmark is unchanged.
+
 ### 11.1 Media upload
 
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
@@ -8012,7 +8085,8 @@ and the thresholds page.
   any 10. The ranked ids (≤ 500) are frozen for 10 minutes; later pages read the snapshot, so
   they never repeat or skip. An expired or foreign snapshot → 400 `cursor` / `invalid_value`.
 - *(v1.76-social, D218)* `mixed`: 1 `following` entry, then 2 `trending`, again and again, as one
-  frozen list — the app's home feed (§10.73.1).
+  frozen list — the app's home feed (§10.73.1). *(v1.92-social, D294)* `GET /feed/reels?tab=mixed`: the same
+  over reels — the app's reels page (§10.107).
 
 ### 11.4 Views
 
@@ -8437,7 +8511,9 @@ configuration (`DM_*`).
   `following` — reels of followed accounts and the caller's own, and reels reposted by followed
   accounts, newest first (a post appears once; muted and hidden left out); `trending` — the §11.3
   score over visible public reels published in the last 7 days, not the caller's own, at most 2
-  per author in any 10, frozen for 10 minutes. Not personalised (M5). Profile grids, saved,
+  per author in any 10, frozen for 10 minutes. *(v1.92-social, D294)* `mixed` — 1 `following` : 2
+  `trending` as one frozen list, the posts home feed's rule; the app's reels page lists it alone (§10.107).
+  Not personalised (M5). Profile grids, saved,
   reposts, search and hashtag pages list both formats; every item carries `format`.
 - **Playback** (the app): the phone streams `url` (progressive download; storage serves byte
   ranges), shows `posterUrl` / `thumbUrl` until the first frame, and starts muted.
@@ -8450,6 +8526,10 @@ configuration (`DM_*`).
 
 The Moments reels page (the owner's reference: a third-party composite, kept out of git; only its layout and type scale
 are matched, with Kabso's colours, icons and data).
+
+*(v1.92-social, D294)* The app no longer has Nearby: the reels page lists `tab=mixed` only, under the posts page's
+header (§10.107); its tabs «متابَعون / لك / القريبة», the «المنشورات» chip and the «اختر بلدك» prompt are gone. The
+API keeps `tab=nearby` exactly as below (additive contract; older apps).
 
 - **Nearby:** `GET /feed/reels?tab=nearby` — visible public reels (`moderation: VISIBLE`, not a private account) whose
   author's country (`user_profiles.country_code`) is the caller's own `Me.country` (D133; chosen by the person, never
@@ -8529,30 +8609,3 @@ played full screen as is) and side-by-side alpha — chosen per gift. Replaces t
   Drawing past the canvas still shows in the drawn area (D145c). A file with **vector shapes or clip paths** plays on
   the package's player as before, but read and decoded by the engine (`SvgaDoc.toMovie`). The MP4 path was already off
   the UI thread (the platform's decoder); it gains the download ahead. Queue, combo and hold timing are unchanged.
-
-### 10.106 Profile tag icons *(v1.91-social, DRAFT — D292)*
-
-The owner (2026-11-06, after his own mock of the profile: rounded tag chips with a leading icon) chose **option 1**:
-tags stay free text (§10.99) and the **person picks the icon** of each tag.
-
-- **The icons** (`ProfileTagIcon`): a closed set the apps draw with their own icons — never emoji glyphs:
-  `default` (the plain chip, no icon), `crown`, `fire`, `trophy`, `gamepad`, `music`, `mic`, `moon`, `heart`, `star`,
-  `gem`, `camera`, `book`, `sport`, `palette`, `globe`; and **`flag:<country>`** with an ISO 3166-1 alpha-2 code
-  (the countries of §10.28; stored upper case), drawn with the app's bundled flag art (`assets/flags/`, OFL). A bare
-  `flag` is not an icon. An app that meets an icon it does not know draws `default`.
-- **Set** with `PATCH /me` `tagIcons`: one entry per tag of `tags`, in the same order, **only together with `tags`**
-  and exactly as many (else `tagIcons` / `invalid_value`); each entry an icon or null (= `default`); anything else
-  → `tagIcons.<i>` / `invalid_value`. The 10-tag limit and the tag rules (§10.99) are unchanged.
-- **Older apps**: `tags` without `tagIcons` keeps, for each tag, the icon it had (the same text ignoring case,
-  `toLocaleLowerCase('en')`); a new tag gets `default`. `tagIcons` without `tags` is refused (above), so an icon
-  never drifts to another tag.
-- **Read** in `Me.tagIcons` and `PublicProfile.tagIcons`: always one per tag, `default` where none was chosen.
-  Stored in `user_profiles.tag_icons` (`varchar(24)[]`, empty for rows before v1.91-social — read as `default` —
-  or one per tag: CHECK `user_profiles_tag_icons_len`; CHECK `user_profiles_tag_icons_values` as a backstop for
-  the set).
-- **Audit**: a change adds `tagIcons` to the `profile.update` row's `fields` (never the values, §10.42).
-- **App**: the chips on the profile are small hollow pills (≈ 24 dp; a thin Kabso-red outline, red text, no fill;
-  owner: «اجعلها أصغر وبصف واحد، والأيقونة فقط بإطار مفرّغ») with the icon before the text, on **one line** — what does
-  not fit shows as «+n» (this replaces §10.99's two lines). In «تعديل الملف الشخصي» each tag shows its icon; a tap
-  on it opens a grid of the icons (and, for `flag`, the country list). Each icon has an Arabic and an English name for
-  screen readers.

@@ -2084,12 +2084,6 @@ abstract class AppLocalizations {
   /// **'منشورات'**
   String get reelsModePosts;
 
-  /// No description provided for @reelsTabForYou.
-  ///
-  /// In ar, this message translates to:
-  /// **'لك'**
-  String get reelsTabForYou;
-
   /// No description provided for @reelsTabFriends.
   ///
   /// In ar, this message translates to:
@@ -10649,7 +10643,7 @@ abstract class AppLocalizations {
   /// No description provided for @liveHubBrand.
   ///
   /// In ar, this message translates to:
-  /// **'Kabso'**
+  /// **'كابسو لايف'**
   String get liveHubBrand;
 
   /// No description provided for @liveGridAudio.
@@ -19755,36 +19749,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'طلبت متابعة {name}'**
   String reelsFollowRequested(String name);
-
-  /// D202 the reels page
-  ///
-  /// In ar, this message translates to:
-  /// **'اختر بلدك'**
-  String get reelsNearbyNoCountryTitle;
-
-  /// D202 the reels page
-  ///
-  /// In ar, this message translates to:
-  /// **'«القريبة» تعرض ريلز من بلدك. اختر بلدك لتراها.'**
-  String get reelsNearbyNoCountryBody;
-
-  /// D202 the reels page
-  ///
-  /// In ar, this message translates to:
-  /// **'اختيار البلد'**
-  String get reelsNearbyChooseCountry;
-
-  /// D202 the reels page
-  ///
-  /// In ar, this message translates to:
-  /// **'لا توجد ريلز من بلدك بعد'**
-  String get reelsNearbyEmptyTitle;
-
-  /// D202 the reels page
-  ///
-  /// In ar, this message translates to:
-  /// **'تعذّر تحميل الريلز القريبة'**
-  String get reelsNearbyUnavailableTitle;
 
   /// v1.44-live (D199b): the «تارجت» ranking sheet.
   ///

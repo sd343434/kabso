@@ -181,6 +181,8 @@ class _NewReelScreenState extends ConsumerState<NewReelScreen> {
       for (final feed in HomeFeed.values) {
         ref.invalidate(reelsFeedProvider(feed));
       }
+      // D294: the reels page lists the mix.
+      ref.invalidate(mixedReelsFeedProvider);
       KSnack.success(
         context,
         post.pendingModeration ? l10n.reelSharedInReview : l10n.reelShared,

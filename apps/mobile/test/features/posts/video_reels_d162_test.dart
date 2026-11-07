@@ -587,7 +587,8 @@ void main() {
       final posts = FakePostsRepository()
         ..reels[PostsFeedTab.trending] = [reel('r1'), reel('r2'), reel('r3')];
       final videos = await pump(tester, posts);
-      expect(posts.calls, contains('reels:trending:'));
+      // D294: the reels page reads the mix (seeded through Trending here).
+      expect(posts.calls, contains('reels:mixed:'));
       expect(find.byType(HomeReelPage), findsWidgets);
       final first = videos.created.firstWhere((v) => v.url.contains('r1-v'));
       expect(first.plays, 1);

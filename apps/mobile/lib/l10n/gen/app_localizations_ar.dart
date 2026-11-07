@@ -1251,9 +1251,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get reelsModePosts => 'منشورات';
 
   @override
-  String get reelsTabForYou => 'لك';
-
-  @override
   String get reelsTabFriends => 'الأصدقاء';
 
   @override
@@ -6184,7 +6181,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileOpenFollowing => 'عرض من يتابعهم';
 
   @override
-  String get liveHubBrand => 'Kabso';
+  String get liveHubBrand => 'كابسو لايف';
 
   @override
   String get liveGridAudio => 'صوتي';
@@ -11635,22 +11632,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String reelsFollowRequested(String name) {
     return 'طلبت متابعة $name';
   }
-
-  @override
-  String get reelsNearbyNoCountryTitle => 'اختر بلدك';
-
-  @override
-  String get reelsNearbyNoCountryBody =>
-      '«القريبة» تعرض ريلز من بلدك. اختر بلدك لتراها.';
-
-  @override
-  String get reelsNearbyChooseCountry => 'اختيار البلد';
-
-  @override
-  String get reelsNearbyEmptyTitle => 'لا توجد ريلز من بلدك بعد';
-
-  @override
-  String get reelsNearbyUnavailableTitle => 'تعذّر تحميل الريلز القريبة';
 
   @override
   String liveTargetCountdownHours(String hours, String minutes) {

@@ -43,12 +43,10 @@ class PostsPreviewScreen extends StatelessWidget {
         homeStoriesProvider.overrideWithValue(
           AsyncData(FeedItems(storiesPreviewFixture(ar: ar))),
         ),
-        homeReelsProvider.overrideWith((ref, feed) {
-          final reels = reelsPreviewFixture(fixture);
-          return FeedItems(
-            feed == HomeFeed.trending ? reels : reels.reversed.toList(),
-          );
-        }),
+        // D294: the reels page shows the mix.
+        homeMixedReelsProvider.overrideWith(
+          (ref) => FeedItems(reelsPreviewFixture(fixture)),
+        ),
         // Follow on a reel succeeds locally: the preview has no server.
         profileRepositoryProvider.overrideWithValue(_PreviewFollow()),
       ],

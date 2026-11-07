@@ -202,8 +202,9 @@ void main() {
             screen: const FeedScreen(initialTab: HomeTab.reels),
             navIndex: _reelsIndex,
             overrides: [
-              homeReelsProvider.overrideWith(
-                (ref, _) => FeedItems<FeedReelData>(feedReels(language)),
+              // D294: the reels page shows the server's mix.
+              homeMixedReelsProvider.overrideWith(
+                (ref) => FeedItems<FeedReelData>(feedReels(language)),
               ),
             ],
           );

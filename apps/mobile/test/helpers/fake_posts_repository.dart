@@ -80,7 +80,13 @@ class FakePostsRepository implements PostsRepository {
       reelsFailWith = null;
       throw e;
     }
-    return _slice(reels[tab] ?? const [], cursor);
+    // D294: the reels page reads `tab=mixed`; a test that seeds only
+    // Trending gets those reels for the mix (the server's interleave is
+    // tested in the API's e2e suite).
+    final list =
+        reels[tab] ??
+        (tab == PostsFeedTab.mixed ? reels[PostsFeedTab.trending] : null);
+    return _slice(list ?? const [], cursor);
   }
 
   /// Profile grids per username, and the caller's saved posts.

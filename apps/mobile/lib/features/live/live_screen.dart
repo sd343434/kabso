@@ -161,12 +161,16 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
 
 /// The measured top bar of ref 165 (title cap 30 px ≈ 18 sp black, icons
 /// 41 px ≈ 17.5 pt ink). The row keeps Kabso's 48 pt touch targets.
+/// D294 (owner: «كلمة كابسو لايف … بخط غامق وأكبر قليلاً»): the title is
+/// «كابسو لايف» / "Kabso Live", 3 sp larger (18 → 21).
 abstract final class KLiveHubTopBar {
-  static const double titleSize = 18;
+  static const double titleSize = 21;
   static const double iconSize = 22;
 }
 
-/// D124: the hub's top bar: the Kabso title at the reading start, search
+/// D124: the hub's top bar: the Kabso title at the reading start (D294:
+/// right in Arabic, left in English — it follows the app's direction, never
+/// forced LTR — in the language's own font, the heaviest bundled face), search
 /// (Discover), the party button (D130, D131: opens the voice rooms) and the
 /// notifications bell at the end.
 class LiveHubTopBar extends StatelessWidget {

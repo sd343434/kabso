@@ -112,7 +112,7 @@ export class FeedService {
    * CONVENTIONS §11.14). Cursors and snapshots are bound to the list.
    */
   feed(viewerId: string, query: FeedQuery, format: FeedFormat = 'POST'): Promise<PageDto<PostDto>> {
-    if (query.tab === 'mixed' && format === 'POST') return this.mixed(viewerId, query);
+    if (query.tab === 'mixed') return this.mixed(viewerId, query, format);
     return query.tab === 'following'
       ? this.following(viewerId, query, format)
       : this.trending(viewerId, query, format);
@@ -124,15 +124,23 @@ export class FeedService {
    * like Trending for 10 minutes. Never the caller's own posts (also not when reposted into Following),
    * nor muted, hidden or blocked authors (both sources already leave them out; every page re-checks
    * visibility).
+   *
+   * v1.92-social (D294, CONVENTIONS §10.107): `GET /feed/reels?tab=mixed` — the same rule over the reels
+   * lists: reels Following (followed accounts, the caller's own — as `tab=following` lists them — and
+   * reels reposted by followed accounts) and reels Trending; its own snapshot list (`reels-mixed`).
    */
-  private mixed(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
-    return this.rankedPage(viewerId, 'mixed', query, async () => {
+  private mixed(viewerId: string, query: FeedQuery, format: FeedFormat): Promise<PageDto<PostDto>> {
+    const reels = format === 'REEL';
+    return this.rankedPage(viewerId, reels ? 'reels-mixed' : 'mixed', query, async () => {
       const [following, trending] = await Promise.all([
-        this.followingEntries(viewerId, 'POST', null, MIXED_FOLLOWING_CANDIDATES),
-        this.rankTrending(viewerId, 'POST'),
+        this.followingEntries(viewerId, format, null, MIXED_FOLLOWING_CANDIDATES),
+        this.rankTrending(viewerId, format),
       ]);
       return interleaveMixed(
-        following.filter((r) => r.author_id !== viewerId).map((r) => ({ id: r.post_id, by: r.reposter_id })),
+        // D218: the posts home feed never lists the caller's own; D294: reels Following keeps them (D162).
+        following
+          .filter((r) => reels || r.author_id !== viewerId)
+          .map((r) => ({ id: r.post_id, by: r.reposter_id })),
         trending.map((id) => ({ id, by: null })),
         TRENDING_SNAPSHOT_SIZE + MIXED_FOLLOWING_CANDIDATES,
       );

@@ -37,14 +37,15 @@ const MEDIA_ON = {
 };
 
 describe('D202 contract coverage', () => {
-  it('openapi v1.68-social declares tab=nearby on listFeedReels only', () => {
+  it('openapi v1.68-social declares tab=nearby on listFeedReels only (v1.92-social adds mixed)', () => {
     const reels = operations().find((o) => o.operationId === 'listFeedReels');
     const posts = operations().find((o) => o.operationId === 'listFeedPosts');
     const tab = (op: typeof reels) =>
       (op?.spec.parameters as { name: string; schema?: { enum?: string[] } }[] | undefined)?.find(
         (p) => p.name === 'tab',
       )?.schema?.enum;
-    expect(tab(reels)).toEqual(['following', 'trending', 'nearby']);
+    // v1.92-social (D294): listFeedReels gained `mixed` (the app's reels page); `nearby` is kept.
+    expect(tab(reels)).toEqual(['following', 'trending', 'nearby', 'mixed']);
     // v1.76-social (D218): listFeedPosts gained `mixed` (never `nearby`).
     expect(tab(posts)).toEqual(['following', 'trending', 'mixed']);
   });

@@ -86,25 +86,19 @@ extension on HomeFeed {
 /// Trending snapshot) reloads the feed from the first page once. A hidden or
 /// deleted post leaves the list at once.
 class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
-  new(this.feed, {this.reels = false, this.nearby = false, this.mixed = false});
+  new(this.feed, {this.reels = false, this.mixed = false});
 
   final HomeFeed feed;
   final bool reels;
 
-  /// v1.68-social (D202): the reels of authors from the caller's country
-  /// (`GET /feed/reels?tab=nearby`); [feed] is then ignored.
-  final bool nearby;
-
   /// v1.76-social (D218, CONVENTIONS §10.73.1): the posts page's home feed
   /// (`GET /feed/posts?tab=mixed`, 1 Following : 2 Trending, frozen like
-  /// Trending); [feed] is then ignored.
+  /// Trending); with [reels] (v1.92-social, D294, §10.107) the reels page's
+  /// (`GET /feed/reels?tab=mixed`, the same rule over reels). [feed] is then
+  /// ignored.
   final bool mixed;
 
-  PostsFeedTab get _tab => nearby
-      ? PostsFeedTab.nearby
-      : mixed
-      ? PostsFeedTab.mixed
-      : feed.tab;
+  PostsFeedTab get _tab => mixed ? PostsFeedTab.mixed : feed.tab;
 
   String? _next;
   int _generation = 0;
@@ -116,15 +110,12 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
     ref
       ..watch(currentUserProvider.select((u) => u?.id))
       ..watch(postsRepositoryProvider);
-    if (nearby) ref.watch(currentUserProvider.select((u) => u?.country));
     _generation++;
     return _first();
   }
 
   Future<FeedItems<Post>> _first() async {
-    final page = reels || nearby
-        ? await _repo.reelsFeed(_tab)
-        : await _repo.feed(_tab);
+    final page = reels ? await _repo.reelsFeed(_tab) : await _repo.feed(_tab);
     _next = page.next;
     return FeedItems(_dedupe(const [], page.items), hasMore: _next != null);
   }
@@ -146,7 +137,7 @@ class PostsFeedController extends AsyncNotifier<FeedItems<Post>> {
       FeedItems(current.items, hasMore: true, loadingMore: true),
     );
     try {
-      final page = reels || nearby
+      final page = reels
           ? await _repo.reelsFeed(_tab, cursor: cursor)
           : await _repo.feed(_tab, cursor: cursor);
       if (!ref.mounted || generation != _generation) return;
@@ -238,11 +229,13 @@ reelsFeedProvider = AsyncNotifierProvider.family(
   (feed) => PostsFeedController(feed, reels: true),
 );
 
-/// v1.68-social (D202): the reels page's «Nearby» — reels of authors from
-/// the caller's own country (§11.15). Reloads when the country changes.
+/// v1.92-social (D294, CONVENTIONS §10.107; owner: «اجعل فلتر فقط منشورات
+/// وريلز»): the reels page's only feed — 1 Following : 2 Trending of reels,
+/// interleaved by the server like the posts page's (§10.73.1). It replaces
+/// the reels page's Following · For You · Nearby tabs (D202).
 final AsyncNotifierProvider<PostsFeedController, FeedItems<Post>>
-nearbyReelsFeedProvider = AsyncNotifierProvider(
-  () => PostsFeedController(HomeFeed.trending, nearby: true),
+mixedReelsFeedProvider = AsyncNotifierProvider(
+  () => PostsFeedController(HomeFeed.trending, reels: true, mixed: true),
 );
 
 /// v1.76-social (D218): the posts page's only feed — 1 Following : 2
@@ -295,8 +288,8 @@ void removePostFromFeeds(WidgetRef ref, String postId) {
       ref.read(reelsFeedProvider(feed).notifier).remove(postId);
     }
   }
-  if (ref.exists(nearbyReelsFeedProvider)) {
-    ref.read(nearbyReelsFeedProvider.notifier).remove(postId);
+  if (ref.exists(mixedReelsFeedProvider)) {
+    ref.read(mixedReelsFeedProvider.notifier).remove(postId);
   }
   if (ref.exists(mixedPostsFeedProvider)) {
     ref.read(mixedPostsFeedProvider.notifier).remove(postId);

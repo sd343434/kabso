@@ -317,6 +317,10 @@ info:
     live cards); `AdminUserDetail.verification`; the OWNER's thresholds `getAdminVerificationSettings` /
     `updateAdminVerificationSettings` (`verification.view` / `verification.settings`, the code again, audited).
     Additive; migration `20270326090000_verification_badges`, then `verification-admin recompute` (DEPLOYMENT §5.73).
+    **D294 (DRAFT v1.92-social)** the reels page lists one feed (CONVENTIONS §10.107; owner: «اجعل فلتر فقط منشورات
+    وريلز»): `listFeedReels` gains `tab=mixed` — the posts home feed's rule (§10.73.1) over reels: 1 Following : 2
+    Trending, one frozen list, a reel once. Additive; `following`, `trending` and `nearby` are unchanged (the app no
+    longer uses `nearby`).
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -9057,7 +9061,7 @@ paths:
     get:
       tags: [feed]
       operationId: listFeedReels
-      summary: "Reels feed for Moments: following (newest), trending (ranked) or nearby (v1.41-social, D162; nearby v1.68-social, D202)"
+      summary: "Reels feed for Moments: following (newest), trending (ranked), nearby or mixed (v1.41-social, D162; nearby v1.68-social, D202; mixed v1.92-social, D294)"
       description: |
         CONVENTIONS §11.14. Posts with `format: REEL` only. `following`: reels of followed accounts
         and the caller's own, and reels reposted by followed
@@ -9070,11 +9074,19 @@ paths:
         muted or hidden. A caller with no country gets 200 with an empty page. The cursor is bound to
         the caller and their country (after a country change → 400 `cursor` / `invalid_value`).
         `listFeedPosts` has no `nearby`.
+        v1.92-social (D294, CONVENTIONS §10.107): `mixed` — the app's reels page: the posts home feed's rule
+        (`listFeedPosts` `tab=mixed`, §10.73.1) over reels. One entry from `following` (reels of followed
+        accounts, the caller's own and reels reposted by followed accounts, newest first; its newest 500), then
+        two from `trending` (its 500-entry snapshot), again and again (1 : 2); when one source is empty its
+        turns go to the other. A reel in both is listed once, at its Following place (with `repostedBy`).
+        Muted, hidden and blocked authors are left out. The first page freezes the merged list for 10 minutes
+        per caller; later pages read it by offset (never repeating or skipping). An expired, foreign or
+        other-tab cursor → 400 `cursor` / `invalid_value`.
       parameters:
         - name: tab
           in: query
           required: true
-          schema: { type: string, enum: [following, trending, nearby] }
+          schema: { type: string, enum: [following, trending, nearby, mixed] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:

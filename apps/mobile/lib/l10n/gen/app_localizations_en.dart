@@ -1214,9 +1214,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reelsModePosts => 'Posts';
 
   @override
-  String get reelsTabForYou => 'For You';
-
-  @override
   String get reelsTabFriends => 'Friends';
 
   @override
@@ -6160,7 +6157,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileOpenFollowing => 'Show following';
 
   @override
-  String get liveHubBrand => 'Kabso';
+  String get liveHubBrand => 'Kabso Live';
 
   @override
   String get liveGridAudio => 'Audio';
@@ -11609,22 +11606,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String reelsFollowRequested(String name) {
     return 'Follow request sent to $name';
   }
-
-  @override
-  String get reelsNearbyNoCountryTitle => 'Choose your country';
-
-  @override
-  String get reelsNearbyNoCountryBody =>
-      'Nearby shows reels from your country. Choose your country to see them.';
-
-  @override
-  String get reelsNearbyChooseCountry => 'Choose country';
-
-  @override
-  String get reelsNearbyEmptyTitle => 'No reels from your country yet';
-
-  @override
-  String get reelsNearbyUnavailableTitle => 'Couldn\'t load nearby reels';
 
   @override
   String liveTargetCountdownHours(String hours, String minutes) {
