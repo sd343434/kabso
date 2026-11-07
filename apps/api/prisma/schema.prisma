@@ -1853,6 +1853,9 @@ model PostView {
   postId   String   @map("post_id") @db.Uuid
   userId   String   @map("user_id") @db.Uuid
   viewedAt DateTime @map("viewed_at") @db.Timestamptz(3)
+  /// D300 (§10.111): the §11.4 views this row has counted (1 per rolling 24 h; rows before D300 start at 1) — a
+  /// creator's views from ACTIVE viewers are summed from it. CHECK ≥ 1.
+  countedViews Int  @default(1) @map("counted_views")
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2800,6 +2803,18 @@ enum MedalMetric {
   /// D291 (owner «سيد الحظ»: «يتم احتساب من مجموع هدايا الحظ التي قام بإرسالها»): the coin value of the LUCKY gifts sent
   /// (any path, any recipient; never the winnings), in `medal_metric_totals`, added in each send's transaction.
   LUCKY_GIFTS_SENT_COINS
+  /// D300 (§10.111): a multi-requirement medal («مدرسة المحتوى») — its value is the highest level whose every
+  /// `medal_level_requirements` row is met; each level's `threshold` is the level number.
+  ALL_REQUIREMENTS
+  /// D300: a content creator's (`creator_members`) followers now — ACTIVE accounts, as the profile counts them.
+  CREATOR_FOLLOWERS
+  /// D300: likes from other ACTIVE accounts on the creator's posts and reels that still stand (never self).
+  CREATOR_LIKES
+  /// D300: §11.4 views from other ACTIVE accounts of the creator's posts and reels that still stand
+  /// (`post_views.counted_views`).
+  CREATOR_VIEWS
+  /// D300 («لاعب الأحكام»): a host's PK points now (`pk_host_records.points`, every PK type; may fall, levels never do).
+  PK_POINTS
 }
 
 /// D291: a running total of a medal metric that is not cheap to recount on every event (GIFTS_SENT_COINS), added to in
@@ -2858,10 +2873,28 @@ model MedalLevel {
   iconAsset String?  @map("icon_asset") @db.VarChar(60)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  medal Medal @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+  medal        Medal                   @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+  /// D300 (§10.111): the several thresholds of this level (a medal on `ALL_REQUIREMENTS`); none for the others.
+  requirements MedalLevelRequirement[]
 
   @@id([medalCode, level], map: "medal_levels_pkey")
   @@map("medal_levels")
+}
+
+/// D300 (owner 2026-11-07 «مدرسة المحتوى», CONVENTIONS §10.111): one of the thresholds a level of a multi-requirement
+/// medal (metric `ALL_REQUIREMENTS`) needs — the level is reached when EVERY row of it is met. CHECKs: threshold
+/// 1 … 10^12, `metric` never `ALL_REQUIREMENTS`.
+model MedalLevelRequirement {
+  medalCode String      @map("medal_code") @db.VarChar(40)
+  level     Int         @db.SmallInt
+  metric    MedalMetric
+  threshold BigInt
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  medalLevel MedalLevel @relation(fields: [medalCode, level], references: [medalCode, level], onDelete: Cascade, onUpdate: Cascade, map: "medal_level_requirements_level_fkey")
+
+  @@id([medalCode, level, metric], map: "medal_level_requirements_pkey")
+  @@map("medal_level_requirements")
 }
 
 /// A medal a user earned (once per user and medal).

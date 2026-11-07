@@ -36,6 +36,7 @@ import { AR_D290, EN_D290 } from './i18n-d290';
 import { AR_D291, EN_D291 } from './i18n-d291';
 import { AR_D293, EN_D293 } from './i18n-d293';
 import { AR_D295, EN_D295 } from './i18n-d295';
+import { AR_D300, EN_D300 } from './i18n-d300';
 
 export type Lang = 'ar' | 'en';
 
@@ -442,6 +443,7 @@ const ar = {
   ...AR_D289,
   ...AR_D290,
   ...AR_D291,
+  ...AR_D300,
   ...AR_D293,
   ...AR_D295,
 };
@@ -838,6 +840,7 @@ const en: Record<Key, string> = {
   ...EN_D289,
   ...EN_D290,
   ...EN_D291,
+  ...EN_D300,
   ...EN_D293,
   ...EN_D295,
 };

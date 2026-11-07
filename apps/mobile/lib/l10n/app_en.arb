@@ -4934,5 +4934,12 @@
   "verificationBadgeCreator": "content creator",
   "verificationBadgeVerifiedHost": "identity-verified host",
   "verificationBadgeLabel": "Verified: {kind}",
-  "verificationBadgeAbout": "Granted automatically by conditions"
+  "verificationBadgeAbout": "Granted automatically by conditions",
+  "medalsReqFollowers": "Followers",
+  "medalsReqLikes": "Likes",
+  "medalsReqViews": "Views",
+  "medalsReqAllTogether": "All three together for the next level",
+  "medalsCreatorsOnly": "Content creators only",
+  "medalsCreatorsOnlyBody": "Followers, likes and views count for content creators only. A level you reached stays yours.",
+  "medalsThresholdPkPoints": "{points} PK points"
 }

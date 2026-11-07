@@ -6,12 +6,49 @@ part of 'medal_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_MedalLevelRequirement _$MedalLevelRequirementFromJson(
+  Map<String, dynamic> json,
+) => _MedalLevelRequirement(
+  metric: json['metric'] as String,
+  threshold: (json['threshold'] as num).toInt(),
+);
+
+Map<String, dynamic> _$MedalLevelRequirementToJson(
+  _MedalLevelRequirement instance,
+) => <String, dynamic>{
+  'metric': instance.metric,
+  'threshold': instance.threshold,
+};
+
+_MedalRequirementProgress _$MedalRequirementProgressFromJson(
+  Map<String, dynamic> json,
+) => _MedalRequirementProgress(
+  metric: json['metric'] as String,
+  value: (json['value'] as num?)?.toInt() ?? 0,
+  next: (json['next'] as num?)?.toInt(),
+);
+
+Map<String, dynamic> _$MedalRequirementProgressToJson(
+  _MedalRequirementProgress instance,
+) => <String, dynamic>{
+  'metric': instance.metric,
+  'value': instance.value,
+  'next': instance.next,
+};
+
 _MedalLevel _$MedalLevelFromJson(Map<String, dynamic> json) => _MedalLevel(
   level: (json['level'] as num).toInt(),
   threshold: (json['threshold'] as num).toInt(),
   name: json['name'] as String?,
   iconUrl: json['iconUrl'] as String?,
   iconAsset: json['iconAsset'] as String?,
+  requirements:
+      (json['requirements'] as List<dynamic>?)
+          ?.map(
+            (e) => MedalLevelRequirement.fromJson(e as Map<String, dynamic>),
+          )
+          .toList() ??
+      const <MedalLevelRequirement>[],
 );
 
 Map<String, dynamic> _$MedalLevelToJson(_MedalLevel instance) =>
@@ -21,16 +58,30 @@ Map<String, dynamic> _$MedalLevelToJson(_MedalLevel instance) =>
       'name': instance.name,
       'iconUrl': instance.iconUrl,
       'iconAsset': instance.iconAsset,
+      'requirements': instance.requirements,
     };
 
 _MedalProgress _$MedalProgressFromJson(Map<String, dynamic> json) =>
     _MedalProgress(
       value: (json['value'] as num?)?.toInt() ?? 0,
       next: (json['next'] as num?)?.toInt(),
+      requirements:
+          (json['requirements'] as List<dynamic>?)
+              ?.map(
+                (e) => MedalRequirementProgress.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
+              .toList() ??
+          const <MedalRequirementProgress>[],
     );
 
 Map<String, dynamic> _$MedalProgressToJson(_MedalProgress instance) =>
-    <String, dynamic>{'value': instance.value, 'next': instance.next};
+    <String, dynamic>{
+      'value': instance.value,
+      'next': instance.next,
+      'requirements': instance.requirements,
+    };
 
 _Medal _$MedalFromJson(Map<String, dynamic> json) => _Medal(
   code: json['code'] as String,
@@ -62,6 +113,7 @@ _Medal _$MedalFromJson(Map<String, dynamic> json) => _Medal(
   iconUrl: json['iconUrl'] as String?,
   iconAsset: json['iconAsset'] as String?,
   showcasePosition: (json['showcasePosition'] as num?)?.toInt(),
+  eligible: json['eligible'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$MedalToJson(_Medal instance) => <String, dynamic>{
@@ -80,6 +132,7 @@ Map<String, dynamic> _$MedalToJson(_Medal instance) => <String, dynamic>{
   'iconUrl': instance.iconUrl,
   'iconAsset': instance.iconAsset,
   'showcasePosition': instance.showcasePosition,
+  'eligible': instance.eligible,
 };
 
 const _$MedalCategoryEnumMap = {

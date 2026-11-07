@@ -31,7 +31,32 @@ export type MedalMetricCode =
   | 'CP_FORMED'
   | 'BULLETS_SENT'
   | 'GIFTS_SENT_COINS'
-  | 'LUCKY_GIFTS_SENT_COINS';
+  | 'LUCKY_GIFTS_SENT_COINS'
+  | 'ALL_REQUIREMENTS'
+  | RequirementMetricCode
+  | 'PK_POINTS';
+
+/**
+ * D300 (§10.111): the metrics a multi-requirement medal's levels need together (`medal_level_requirements`) — a
+ * content creator's ACTIVE followers now, likes from other ACTIVE accounts on posts and reels that still stand, and
+ * §11.4 views of those posts and reels. They are only counted for content creators (`creator_members`).
+ */
+export type RequirementMetricCode = 'CREATOR_FOLLOWERS' | 'CREATOR_LIKES' | 'CREATOR_VIEWS';
+
+/** D300: the requirement metrics, in the order the app and the panel show them. */
+export const REQUIREMENT_METRICS: readonly RequirementMetricCode[] = [
+  'CREATOR_FOLLOWERS',
+  'CREATOR_LIKES',
+  'CREATOR_VIEWS',
+];
+
+/** D300: whether `metric` is a requirement metric (a row of `medal_level_requirements`). */
+export function isRequirementMetric(metric: string): metric is RequirementMetricCode {
+  return (REQUIREMENT_METRICS as readonly string[]).includes(metric);
+}
+
+/** D300: requirement metrics only content creators earn and progress on (a non-creator's value is 0). */
+export const CREATOR_ONLY_METRICS: ReadonlySet<RequirementMetricCode> = new Set(REQUIREMENT_METRICS);
 
 /** Metrics that are 0 or 1 (a medal on them has exactly one level, threshold 1). */
 export const BINARY_MEDAL_METRICS: ReadonlySet<MedalMetricCode> = new Set(['FAMILY_JOINED', 'CP_FORMED']);
@@ -47,7 +72,9 @@ export type MedalCode =
   | 'FIRST_CP'
   | 'BULLET_FIRST'
   | 'WEALTH_KINGS'
-  | 'LUCKY_MASTER';
+  | 'LUCKY_MASTER'
+  | 'CONTENT_SCHOOL'
+  | 'DARES_PLAYER';
 
 export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   {
@@ -173,6 +200,32 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
     iconKey: 'medal_lucky_master',
     sortOrder: 110,
   },
+  // D300 (owner 2026-11-07): the first multi-requirement medal, for content creators only, seeded by
+  // 20270401090100_medal_content_school.
+  {
+    code: 'CONTENT_SCHOOL',
+    category: 'ACHIEVEMENT',
+    metric: 'ALL_REQUIREMENTS',
+    nameAr: 'مدرسة المحتوى',
+    nameEn: 'Content School',
+    descriptionAr: 'لصنّاع المحتوى: المتابعون والإعجابات والمشاهدات معاً.',
+    descriptionEn: 'For content creators: followers, likes and views together.',
+    iconKey: 'medal_content_school',
+    sortOrder: 120,
+  },
+  // D300 (owner 2026-11-07: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»): the host's PK points, seeded by
+  // 20270401090200_medal_dares_player.
+  {
+    code: 'DARES_PLAYER',
+    category: 'ACTIVITY',
+    metric: 'PK_POINTS',
+    nameAr: 'لاعب الأحكام',
+    nameEn: 'Dares Player',
+    descriptionAr: 'نقاط PK التي جمعتها في التحديات.',
+    descriptionEn: 'PK points you earned in battles.',
+    iconKey: 'medal_dares_player',
+    sortOrder: 130,
+  },
 ];
 
 /**
@@ -194,7 +247,41 @@ export const MEDAL_DEFAULT_LEVELS: Readonly<Record<MedalCode, readonly number[]>
   WEALTH_KINGS: [50_000_000, 150_000_000, 300_000_000, 500_000_000, 1_000_000_000, 3_000_000_000],
   // The owner's thresholds (coins of lucky gifts sent) — not provisional; 10 B is above 2^32 by design.
   LUCKY_MASTER: [500_000_000, 1_500_000_000, 3_000_000_000, 10_000_000_000],
+  // D300: a multi-requirement medal's level k has threshold k (its metric's value is the level the requirements reach).
+  CONTENT_SCHOOL: [1, 2, 3, 4],
+  // D300: the owner's PK points thresholds — not provisional.
+  DARES_PLAYER: [1_500, 3_000, 5_000, 20_000],
 };
+
+/** D300 (§10.111): one threshold of a multi-requirement level. */
+export interface MedalRequirement {
+  readonly metric: RequirementMetricCode;
+  readonly threshold: number;
+}
+
+/**
+ * D300: the requirements of each level of the multi-requirement medals, level 1 first, as the migration
+ * `20270401090100_medal_content_school` seeds them — the owner's thresholds (not provisional).
+ */
+export const MEDAL_LEVEL_REQUIREMENTS: Readonly<
+  Partial<Record<MedalCode, readonly (readonly MedalRequirement[])[]>>
+> = {
+  CONTENT_SCHOOL: [
+    creatorLevel(2_000, 10_000, 20_000),
+    creatorLevel(10_000, 50_000, 100_000),
+    creatorLevel(100_000, 200_000, 500_000),
+    creatorLevel(1_000_000, 2_000_000, 5_000_000),
+  ],
+};
+
+/** A content creator's level: followers, likes and views together (D300). */
+function creatorLevel(followers: number, likes: number, views: number): readonly MedalRequirement[] {
+  return [
+    { metric: 'CREATOR_FOLLOWERS', threshold: followers },
+    { metric: 'CREATOR_LIKES', threshold: likes },
+    { metric: 'CREATOR_VIEWS', threshold: views },
+  ];
+}
 
 /** D291: each level's art bundled in the app (`medal_levels.icon_asset`), by medal, level 1 first. */
 export const MEDAL_LEVEL_ASSETS: Readonly<Partial<Record<MedalCode, readonly string[]>>> = {
@@ -207,6 +294,18 @@ export const MEDAL_LEVEL_ASSETS: Readonly<Partial<Record<MedalCode, readonly str
     'medal_wealth_l6',
   ],
   LUCKY_MASTER: ['medal_lucky_l1', 'medal_lucky_l2', 'medal_lucky_l3', 'medal_lucky_l4'],
+  CONTENT_SCHOOL: [
+    'medal_content_school_l1',
+    'medal_content_school_l2',
+    'medal_content_school_l3',
+    'medal_content_school_l4',
+  ],
+  DARES_PLAYER: [
+    'medal_dares_player_l1',
+    'medal_dares_player_l2',
+    'medal_dares_player_l3',
+    'medal_dares_player_l4',
+  ],
 };
 
 /** The medals of CP-018 (seeded by 20261110100000_families_cp_medals); WEALTH_KINGS has its own migration. */
@@ -250,6 +349,26 @@ export function medalLevelFor(thresholds: readonly number[], value: number): num
   for (const t of thresholds) {
     if (value >= t) level += 1;
     else break;
+  }
+  return level;
+}
+
+/**
+ * D300 (§10.111): the level a multi-requirement medal reaches for `values` — the highest level k such that every
+ * requirement of levels 1 … k is met (a level is never reached over an unmet lower one; with thresholds rising per
+ * metric this is simply the highest level whose requirements are all met). A level without requirements is never
+ * reached (a medal on `ALL_REQUIREMENTS` always has them). 0 = none.
+ */
+export function levelByRequirements(
+  levels: readonly { readonly requirements: readonly MedalRequirement[] }[],
+  values: Readonly<Partial<Record<RequirementMetricCode, number>>>,
+): number {
+  let level = 0;
+  for (const l of levels) {
+    const met =
+      l.requirements.length > 0 && l.requirements.every((r) => (values[r.metric] ?? 0) >= r.threshold);
+    if (!met) break;
+    level += 1;
   }
   return level;
 }

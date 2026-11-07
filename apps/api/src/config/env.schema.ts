@@ -1088,6 +1088,13 @@ export const envSchema = z
      */
     VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86_400),
     /**
+     * D300 (CONVENTIONS §10.111): how often the content creators' multi-requirement medals («مدرسة المحتوى»: followers,
+     * likes and views together) are re-evaluated (0 = off: tests; refused in production). Follows, likes and views are
+     * hot paths, so their exact counts are taken here rather than on each event; a cheap upper-bound pre-filter counts
+     * exactly only the creators near their next level.
+     */
+    MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS: intSetting(600, 0, 86_400),
+    /**
      * D179: withdrawals (paid by hand, no provider yet): CHERRY_PAYOUT_RATE = `cherries:minor` (owner:
      * 1 000 000 cherries = $1.10 → `1000000:110`), the currency, the smallest request in minor units
      * (owner: $10) and the payout time shown to the requester («تُدفع يدوياً خلال … أيام»).
@@ -1782,6 +1789,14 @@ export const envSchema = z
           code: 'custom',
           path: ['VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS'],
           message: 'the verification badge sweeper cannot be disabled in production',
+        });
+      }
+      // D300: the content-creator medals are raised only by the sweeper (and a creator's activation).
+      if (env.MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS'],
+          message: 'the content-creator medal sweeper cannot be disabled in production',
         });
       }
       // D193: a deletion request must be carried out when its grace period ends (store and privacy rules).

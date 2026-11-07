@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '../../generated/prisma/client.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { MedalCode, MedalMetricCode } from './medals.catalogue.js';
+import { sweepRequirementMedals } from './medal-requirements.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -28,12 +29,21 @@ export interface RaisedMedalLevel {
  * - a `MEDAL_AWARDED` notification with `medal_level` = the new level (1 = earned; more = a level-up);
  * - an audit row `medals.level_up` when a level above 1 is reached (system; target the user).
  * Shared by the API and `medals-admin` (no Nest dependencies). Returns the changes.
+ *
+ * D300 (§10.111): `medalCode` limits the raise to one medal of the metric (each multi-requirement medal on
+ * `ALL_REQUIREMENTS` has its own value per person); `details` adds each person's requirement values to the audit rows.
  */
 export async function raiseMedalLevelsIn(
   tx: Tx,
   metric: MedalMetricCode,
   values: readonly MedalMetricValue[],
-  options: { readonly at?: Date; readonly notify?: boolean; readonly via?: string } = {},
+  options: {
+    readonly at?: Date;
+    readonly notify?: boolean;
+    readonly via?: string;
+    readonly medalCode?: MedalCode;
+    readonly details?: ReadonlyMap<string, Readonly<Record<string, number>>>;
+  } = {},
 ): Promise<RaisedMedalLevel[]> {
   const wanted = values.filter((v) => Number.isFinite(v.value) && v.value > 0);
   if (wanted.length === 0) return [];
@@ -50,6 +60,7 @@ export async function raiseMedalLevelsIn(
         FROM v
         JOIN medal_levels l ON l.threshold <= v.value
         JOIN medals m ON m.code = l.medal_code AND m.metric = ${metric}::"MedalMetric" AND NOT m.retired
+                     AND (${options.medalCode ?? null}::text IS NULL OR m.code = ${options.medalCode ?? null}::text)
        GROUP BY v.user_id, l.medal_code
     ), prev AS (
       SELECT u.user_id, u.medal_code, u.level::int AS level
@@ -100,6 +111,7 @@ export async function raiseMedalLevelsIn(
           to: r.to,
           metric,
           value: byUser.get(r.userId) ?? null,
+          ...(options.details?.has(r.userId) ? { requirements: { ...options.details.get(r.userId) } } : {}),
           via: options.via ?? 'event',
         },
         createdAt: at,
@@ -229,6 +241,15 @@ async function addMetricTotalIn(
 }
 
 /**
+ * D300 «لاعب الأحكام» (owner: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»): raises the host's DARES_PLAYER
+ * level to what their PK points total (`pk_host_records.points`, every PK type) reaches now, in the transaction that
+ * wrote the points (`addPkPointsIn`). A total that fell (a refused dare) never lowers a level.
+ */
+export async function awardPkMedalsIn(tx: Tx, hostId: string, points: number, at?: Date): Promise<void> {
+  await raiseMedalLevelsIn(tx, 'PK_POINTS', [{ userId: hostId, value: points }], { at });
+}
+
+/**
  * Every person's current value of each medal metric (the backfill's input, D291): hosts' ended lives and hours,
  * charm levels reached, family members, partners of every couple ever formed, bullet senders and their counts.
  */
@@ -267,6 +288,8 @@ export async function allMedalMetricValues(
       FROM live_gifts lg JOIN gifts g ON g.code = lg.gift_code
      WHERE g.category = 'LUCKY' AND lg.total_coins > 0
      GROUP BY lg.sender_id`;
+  const pk = await db.$queryRaw<{ id: string; points: number }[]>`
+    SELECT host_id::text AS id, points FROM pk_host_records WHERE points > 0`;
   return {
     LIVES_HOSTED: hosts.map((h) => ({ userId: h.id, value: h.lives })),
     LIVE_HOURS: hosts.map((h) => ({ userId: h.id, value: h.hours })),
@@ -276,6 +299,14 @@ export async function allMedalMetricValues(
     BULLETS_SENT: senders.map((s) => ({ userId: s.id, value: s.n })),
     GIFTS_SENT_COINS: givers.map((g) => ({ userId: g.id, value: Number(g.coins) })),
     LUCKY_GIFTS_SENT_COINS: luckyGivers.map((g) => ({ userId: g.id, value: Number(g.coins) })),
+    // D300: multi-requirement medals are evaluated per medal by `sweepRequirementMedals` (backfillMedals runs it);
+    // their requirement metrics carry no medal of their own.
+    ALL_REQUIREMENTS: [],
+    CREATOR_FOLLOWERS: [],
+    CREATOR_LIKES: [],
+    CREATOR_VIEWS: [],
+    // D300 «لاعب الأحكام»: every host's PK points now (a negative or zero total reaches nothing).
+    PK_POINTS: pk.map((r) => ({ userId: r.id, value: r.points })),
   };
 }
 
@@ -322,6 +353,16 @@ export async function backfillMedals(
         into[r.medalCode] = (into[r.medalCode] ?? 0) + 1;
       }
     }
+  }
+  // D300 (§10.111): every content creator's multi-requirement medals, counted exactly (no pre-filter).
+  const creators = await sweepRequirementMedals(prisma, {
+    via: 'backfill',
+    prefilter: false,
+    notify: options.notify === true,
+  });
+  for (const r of creators.raised) {
+    const into = r.from === null ? awarded : levelUps;
+    into[r.medalCode] = (into[r.medalCode] ?? 0) + 1;
   }
   return { awarded, levelUps };
 }

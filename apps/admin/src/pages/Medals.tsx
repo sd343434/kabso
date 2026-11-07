@@ -4,7 +4,7 @@ import { codeField, ErrorAlert, FormDialog, Loading, reasonField, useAsync } fro
 import { useApp } from '../context';
 import type { Key } from '../i18n';
 import { formatNumber } from '../format';
-import type { AdminMedal, AdminMedalList, MedalCategory } from '../types';
+import type { AdminMedal, AdminMedalList, AdminMedalRequirement, MedalCategory, MedalRequirementMetric } from '../types';
 
 /** One editable level (empty strings = no name / no art). */
 export interface LevelDraft {
@@ -14,6 +14,8 @@ export interface LevelDraft {
   iconUrl: string;
   /** D291: the app's bundled art key for this level (e.g. medal_wealth_l1); '' = none. */
   iconAsset: string;
+  /** D300: a multi-requirement level's thresholds (followers, likes, views); absent for a single-metric medal. */
+  requirements?: AdminMedalRequirement[];
 }
 
 export interface MedalDraft {
@@ -24,7 +26,21 @@ export interface MedalDraft {
 const MAX_LEVELS = 20;
 const MAX_THRESHOLD = 1_000_000_000_000;
 
+/** D300: the requirement metrics in the order the editor shows them. */
+export const REQUIREMENT_METRICS: readonly MedalRequirementMetric[] = ['CREATOR_FOLLOWERS', 'CREATOR_LIKES', 'CREATOR_VIEWS'];
+
+/** D300: a medal whose levels need several numbers together («مدرسة المحتوى»). */
+export function multiRequirement(m: AdminMedal): boolean {
+  return m.metric === 'ALL_REQUIREMENTS';
+}
+
+/** D300: a level's requirements in the editor's order (followers, likes, views). */
+function sortedRequirements(reqs: readonly AdminMedalRequirement[]): AdminMedalRequirement[] {
+  return [...reqs].sort((a, b) => REQUIREMENT_METRICS.indexOf(a.metric) - REQUIREMENT_METRICS.indexOf(b.metric));
+}
+
 export function draftOf(m: AdminMedal): MedalDraft {
+  const multi = multiRequirement(m);
   return {
     category: m.category,
     levels: m.levels.length
@@ -34,6 +50,7 @@ export function draftOf(m: AdminMedal): MedalDraft {
           nameEn: l.nameEn ?? '',
           iconUrl: l.iconUrl ?? '',
           iconAsset: l.iconAsset ?? '',
+          ...(multi ? { requirements: sortedRequirements(l.requirements ?? []) } : {}),
         }))
       : [{ threshold: 1, nameAr: '', nameEn: '', iconUrl: '', iconAsset: '' }],
   };
@@ -48,6 +65,7 @@ export function singleLevel(m: AdminMedal): boolean {
 export function draftProblem(m: AdminMedal, draft: MedalDraft): { key: Key; vars?: Record<string, number> } | null {
   const ts = draft.levels.map((l) => l.threshold);
   if (singleLevel(m) && (ts.length !== 1 || ts[0] !== 1)) return { key: 'mdSingle' };
+  if (multiRequirement(m) && requirementsProblem(draft)) return { key: 'mdReqRising' };
   if (
     ts.length < 1 ||
     ts.length > MAX_LEVELS ||
@@ -63,6 +81,28 @@ export function draftProblem(m: AdminMedal, draft: MedalDraft): { key: Key; vars
   return null;
 }
 
+/**
+ * D300: a multi-requirement medal's levels — each level's threshold is its number, one threshold per metric (the same
+ * metrics on every level), whole numbers 1 … 10¹², each higher than the level before. True when something is wrong.
+ */
+function requirementsProblem(draft: MedalDraft): boolean {
+  const first = (draft.levels[0]?.requirements ?? []).map((r) => r.metric);
+  return draft.levels.some((l, i) => {
+    const reqs = l.requirements ?? [];
+    const metrics = reqs.map((r) => r.metric);
+    if (l.threshold !== i + 1 || reqs.length === 0 || new Set(metrics).size !== metrics.length) return true;
+    if (metrics.length !== first.length || !metrics.every((x) => first.includes(x))) return true;
+    const prev = i > 0 ? (draft.levels[i - 1]!.requirements ?? []) : [];
+    return reqs.some(
+      (r) =>
+        !Number.isInteger(r.threshold) ||
+        r.threshold < 1 ||
+        r.threshold > MAX_THRESHOLD ||
+        (i > 0 && r.threshold <= (prev.find((p) => p.metric === r.metric)?.threshold ?? Infinity)),
+    );
+  });
+}
+
 export function draftChanged(m: AdminMedal, draft: MedalDraft): boolean {
   return JSON.stringify(draftOf(m)) !== JSON.stringify(draft);
 }
@@ -76,6 +116,7 @@ export function levelsBody(draft: MedalDraft) {
     nameEn: opt(l.nameEn),
     iconUrl: opt(l.iconUrl),
     iconAsset: opt(l.iconAsset),
+    ...(l.requirements && l.requirements.length > 0 ? { requirements: l.requirements } : {}),
   }));
 }
 
@@ -95,6 +136,11 @@ export function MedalLevelsForm({
   // D291: a retired code is a name-side icon, not a medal — shown read-only.
   const edit = can('catalog.manage') && !medal.retired;
   const single = singleLevel(medal);
+  const multi = multiRequirement(medal);
+  const setRequirement = (i: number, metric: MedalRequirementMetric, threshold: number) =>
+    setLevel(i, {
+      requirements: (draft.levels[i]!.requirements ?? []).map((r) => (r.metric === metric ? { ...r, threshold } : r)),
+    });
   const problem = draftProblem(medal, draft);
   const changed = draftChanged(medal, draft);
   const holdersOf = (level: number) => medal.levels.find((l) => l.level === level)?.holders ?? 0;
@@ -134,7 +180,15 @@ export function MedalLevelsForm({
         <thead>
           <tr>
             <th>{t('mdLevel')}</th>
-            <th>{t('mdThreshold')}</th>
+            {multi ? (
+              REQUIREMENT_METRICS.map((metric) => (
+                <th key={metric} data-requirement-head={metric}>
+                  {t(`mdMetric${metric}` as Key)}
+                </th>
+              ))
+            ) : (
+              <th>{t('mdThreshold')}</th>
+            )}
             <th>{t('mdNameAr')}</th>
             <th>{t('mdNameEn')}</th>
             <th>{t('mdIconUrl')}</th>
@@ -146,17 +200,33 @@ export function MedalLevelsForm({
           {draft.levels.map((l, i) => (
             <tr key={i} data-level={i + 1}>
               <td className="mono">{i + 1}</td>
-              <td>
-                <input
-                  type="number"
-                  min={1}
-                  className="ltr mono"
-                  aria-label={`${t('mdThreshold')} ${i + 1}`}
-                  value={l.threshold}
-                  disabled={!edit || single}
-                  onChange={(e) => setLevel(i, { threshold: Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
-                />
-              </td>
+              {multi ? (
+                REQUIREMENT_METRICS.map((metric) => (
+                  <td key={metric} data-requirement={metric}>
+                    <input
+                      type="number"
+                      min={1}
+                      className="ltr mono"
+                      aria-label={`${t(`mdMetric${metric}` as Key)} ${i + 1}`}
+                      value={l.requirements?.find((r) => r.metric === metric)?.threshold ?? ''}
+                      disabled={!edit}
+                      onChange={(e) => setRequirement(i, metric, Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+                    />
+                  </td>
+                ))
+              ) : (
+                <td>
+                  <input
+                    type="number"
+                    min={1}
+                    className="ltr mono"
+                    aria-label={`${t('mdThreshold')} ${i + 1}`}
+                    value={l.threshold}
+                    disabled={!edit || single}
+                    onChange={(e) => setLevel(i, { threshold: Math.max(0, Math.floor(Number(e.target.value)) || 0) })}
+                  />
+                </td>
+              )}
               <td>
                 <input
                   dir="rtl"
@@ -208,6 +278,11 @@ export function MedalLevelsForm({
           ))}
         </tbody>
       </table>
+      {multi && (
+        <p className="muted small" data-requirements-hint>
+          {t('mdReqHint')}
+        </p>
+      )}
       <p className="muted small">{t('mdIconHint')}</p>
       {problem && <div className="alert error">{t(problem.key, problem.vars)}</div>}
       {edit && (
@@ -223,7 +298,17 @@ export function MedalLevelsForm({
                     ...draft,
                     levels: [
                       ...draft.levels,
-                      { threshold: (last?.threshold ?? 0) * 2 || 1, nameAr: '', nameEn: '', iconUrl: '', iconAsset: '' },
+                      multi
+                        ? {
+                            // D300: the next level number; each requirement doubled from the last level.
+                            threshold: draft.levels.length + 1,
+                            nameAr: '',
+                            nameEn: '',
+                            iconUrl: '',
+                            iconAsset: '',
+                            requirements: (last?.requirements ?? []).map((r) => ({ ...r, threshold: r.threshold * 2 })),
+                          }
+                        : { threshold: (last?.threshold ?? 0) * 2 || 1, nameAr: '', nameEn: '', iconUrl: '', iconAsset: '' },
                     ],
                   })
                 }
@@ -249,7 +334,7 @@ export function MedalLevelsForm({
   );
 }
 
-/** «الميداليات» (v1.81-live, D291, CONVENTIONS §10.104.4). */
+/** «الميداليات» (v1.81-live, D291, CONVENTIONS §10.104.4; D300 §10.111.5: three thresholds per level). */
 export function Medals() {
   const { t, can, toast } = useApp();
   const { data, error, loading, reload } = useAsync(() => api.get<AdminMedalList>('/admin/medals'), []);

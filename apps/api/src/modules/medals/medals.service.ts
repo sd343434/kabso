@@ -4,9 +4,16 @@ import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.j
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
-import type { Medal, MedalLevel, Prisma } from '../../generated/prisma/client.js';
+import type { Medal, MedalLevel, MedalLevelRequirement, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
+import {
+  creatorRequirementValuesIn,
+  sortRequirements,
+  ZERO_REQUIREMENT_VALUES,
+  type RequirementValues,
+} from './medal-requirements.js';
+import { CREATOR_ONLY_METRICS, isRequirementMetric, levelByRequirements } from './medals.catalogue.js';
 
 /** `MedalLevel` (v1.81-live, D291): one level of a medal — reached when the medal's metric is at least `threshold`. */
 export interface MedalLevelDto {
@@ -18,12 +25,36 @@ export interface MedalLevelDto {
   iconUrl: string | null;
   /** D291: this level's art bundled in the app (an asset key), or null (the medal's art). */
   iconAsset: string | null;
+  /**
+   * D300 (§10.111): a multi-requirement level's thresholds — all of them together reach it (followers, likes, views);
+   * empty for a single-metric medal.
+   */
+  requirements: MedalLevelRequirementDto[];
+}
+
+/** `MedalLevelRequirement` (D300): one threshold of a multi-requirement level. */
+export interface MedalLevelRequirementDto {
+  metric: string;
+  threshold: number;
+}
+
+/** `MedalRequirementProgress` (D300): the caller's value of one requirement and the next level's target. */
+export interface MedalRequirementProgressDto {
+  metric: string;
+  value: number;
+  /** The next level's threshold of this metric; null at the top level. */
+  next: number | null;
 }
 
 /** `MedalProgress` (v1.81-live, D291): the caller's metric now and the next level's threshold (null at the top). */
 export interface MedalProgressDto {
   value: number;
   next: number | null;
+  /**
+   * D300 (§10.111): a multi-requirement medal's requirements — each value now against the next level's threshold
+   * (the top level's thresholds with `next` null at the top); empty for a single-metric medal.
+   */
+  requirements: MedalRequirementProgressDto[];
 }
 
 /** `Medal`: a catalogue entry with the caller's award time (null when not earned). */
@@ -51,6 +82,11 @@ export interface MedalDto {
   iconAsset: string | null;
   /** v1.81-live (D291): 1 … 5 when the caller wears it (the showcase, in order), else null. */
   showcasePosition: number | null;
+  /**
+   * D300 (§10.111): false when the medal is for content creators and the caller is not one now — they neither earn
+   * nor progress (a level already reached is kept); true otherwise.
+   */
+  eligible: boolean;
 }
 
 /** `MedalCatalogue`. */
@@ -142,7 +178,7 @@ function localized(medal: Medal, lang: ContentLanguage): { name: string; descrip
     : { name: medal.nameEn, description: medal.descriptionEn };
 }
 
-type MedalWithLevels = Medal & { levels: MedalLevel[] };
+type MedalWithLevels = Medal & { levels: (MedalLevel & { requirements: MedalLevelRequirement[] })[] };
 
 function profileMedalOf(
   row: { medalCode: string; level: number; medal: MedalWithLevels },
@@ -158,7 +194,23 @@ function profileMedalOf(
   };
 }
 
-const WITH_LEVELS = { levels: { orderBy: { level: 'asc' } } } as const satisfies Prisma.MedalInclude;
+const WITH_LEVELS = {
+  levels: { orderBy: { level: 'asc' }, include: { requirements: true } },
+} as const satisfies Prisma.MedalInclude;
+
+/** D300: a level's requirements, followers / likes / views order. */
+function requirementsOf(level: MedalWithLevels['levels'][number]): MedalLevelRequirementDto[] {
+  return sortRequirements(
+    level.requirements.map((r) => ({ metric: r.metric, threshold: Number(r.threshold) })),
+  );
+}
+
+/** D300: the medal is a multi-requirement one only content creators earn. */
+function forCreatorsOnly(medal: MedalWithLevels): boolean {
+  return medal.levels.some((l) =>
+    l.requirements.some((r) => isRequirementMetric(r.metric) && CREATOR_ONLY_METRICS.has(r.metric)),
+  );
+}
 
 function levelsOf(medal: MedalWithLevels, lang: ContentLanguage): MedalLevelDto[] {
   return medal.levels.map((l) => ({
@@ -167,6 +219,7 @@ function levelsOf(medal: MedalWithLevels, lang: ContentLanguage): MedalLevelDto[
     name: (lang === 'ar' ? l.nameAr : l.nameEn) ?? null,
     iconUrl: l.iconUrl,
     iconAsset: l.iconAsset,
+    requirements: requirementsOf(l),
   }));
 }
 
@@ -199,6 +252,7 @@ async function metricValuesOf(db: PrismaService, userId: string): Promise<Record
       bullets: number;
       gifts: bigint | null;
       lucky: bigint | null;
+      pk: number | null;
     }[]
   >`
     SELECT
@@ -214,7 +268,8 @@ async function metricValuesOf(db: PrismaService, userId: string): Promise<Record
       (SELECT value FROM medal_metric_totals
         WHERE user_id = ${userId}::uuid AND metric = 'GIFTS_SENT_COINS') AS gifts,
       (SELECT value FROM medal_metric_totals
-        WHERE user_id = ${userId}::uuid AND metric = 'LUCKY_GIFTS_SENT_COINS') AS lucky`;
+        WHERE user_id = ${userId}::uuid AND metric = 'LUCKY_GIFTS_SENT_COINS') AS lucky,
+      (SELECT points FROM pk_host_records WHERE host_id = ${userId}::uuid) AS pk`;
   return {
     LIVES_HOSTED: row?.lives ?? 0,
     LIVE_HOURS: Math.floor(row?.hours ?? 0),
@@ -224,6 +279,8 @@ async function metricValuesOf(db: PrismaService, userId: string): Promise<Record
     BULLETS_SENT: row?.bullets ?? 0,
     GIFTS_SENT_COINS: Number(row?.gifts ?? 0n),
     LUCKY_GIFTS_SENT_COINS: Number(row?.lucky ?? 0n),
+    // D300 «لاعب الأحكام»: PK points now (shown from 0; the total itself may be below 0).
+    PK_POINTS: Math.max(0, row?.pk ?? 0),
   };
 }
 
@@ -254,6 +311,11 @@ export class MedalsService {
       metricValuesOf(this.prisma, callerId),
     ]);
     const owned = new Map(mine.map((m) => [m.medalCode, m]));
+    // D300: a content creator's requirement values (counted only when a multi-requirement medal exists; a
+    // non-creator has none — they neither earn nor progress).
+    const creator = medals.some((m) => m.metric === 'ALL_REQUIREMENTS')
+      ? ((await creatorRequirementValuesIn(this.prisma, [callerId])).get(callerId) ?? null)
+      : null;
     // The worn ones as the showcase reads them (its first 5, in order; D269).
     const worn = mine
       .filter((m) => m.showcasePosition !== null)
@@ -265,8 +327,26 @@ export class MedalsService {
         const held = owned.get(m.code);
         const level = held ? Math.max(1, held.level) : 0;
         const levels = levelsOf(m, lang);
-        const value = m.metric ? (values[m.metric] ?? 0) : held ? 1 : 0;
+        const multi = m.metric === 'ALL_REQUIREMENTS';
+        const eligible = !forCreatorsOnly(m) || creator !== null;
+        const reqValues: RequirementValues = eligible && creator ? creator : ZERO_REQUIREMENT_VALUES;
+        const value = multi
+          ? levelByRequirements(
+              m.levels.map((l) => ({
+                requirements: requirementsOf(l).flatMap((r) =>
+                  isRequirementMetric(r.metric) ? [{ metric: r.metric, threshold: r.threshold }] : [],
+                ),
+              })),
+              reqValues,
+            )
+          : m.metric
+            ? (values[m.metric] ?? 0)
+            : held
+              ? 1
+              : 0;
         const position = worn.indexOf(m.code);
+        const target = levels.find((l) => l.level === level + 1) ?? null;
+        const top = levels[levels.length - 1];
         return {
           code: m.code,
           ...localized(m, lang),
@@ -278,10 +358,22 @@ export class MedalsService {
           level,
           maxLevel: maxLevelOf(m),
           levels,
-          progress: { value, next: levels.find((l) => l.level === level + 1)?.threshold ?? null },
+          progress: {
+            value,
+            next: target?.threshold ?? null,
+            // D300: each requirement now against the next level's target (the top level's at the top).
+            requirements: multi
+              ? ((target ?? top)?.requirements.map((r) => ({
+                  metric: r.metric,
+                  value: isRequirementMetric(r.metric) ? reqValues[r.metric] : 0,
+                  next: target ? r.threshold : null,
+                })) ?? [])
+              : [],
+          },
           iconUrl: iconUrlOf(m, level),
           iconAsset: iconAssetOf(m, level),
           showcasePosition: position < 0 ? null : position + 1,
+          eligible,
         };
       }),
       total: medals.length,

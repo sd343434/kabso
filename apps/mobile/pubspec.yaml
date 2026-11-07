@@ -197,6 +197,16 @@ flutter:
     - assets/medals/medal_lucky_l2.webp
     - assets/medals/medal_lucky_l3.webp
     - assets/medals/medal_lucky_l4.webp
+    # D300 «مدرسة المحتوى»: the owner's art of each level (2026-11-07).
+    - assets/medals/medal_content_school_l1.webp
+    - assets/medals/medal_content_school_l2.webp
+    - assets/medals/medal_content_school_l3.webp
+    - assets/medals/medal_content_school_l4.webp
+    # D300 «لاعب الأحكام»: the owner's art of each level (2026-11-07).
+    - assets/medals/medal_dares_player_l1.webp
+    - assets/medals/medal_dares_player_l2.webp
+    - assets/medals/medal_dares_player_l3.webp
+    - assets/medals/medal_dares_player_l4.webp
     - assets/medals/medal_card_frame.webp
     - assets/medals/medals_bg_light.webp
     - assets/medals/medals_bg_dark.webp

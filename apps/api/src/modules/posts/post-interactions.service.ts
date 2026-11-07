@@ -216,11 +216,13 @@ export class PostInteractionsService {
     const cutoff = new Date(now.getTime() - VIEW_WINDOW_MS);
     await this.prisma.$transaction(async (tx) => {
       // A row is inserted, or moved forward when its last counted view is ≥ 24 h old; only those
-      // rows (RETURNING) add to the post's count. Sorted ids keep lock order deterministic.
+      // rows (RETURNING) add to the post's count. Sorted ids keep lock order deterministic. D300: the row also counts
+      // its own views (`counted_views`), so a creator's views can be summed over ACTIVE viewers (§10.111).
       const counted = await tx.$queryRaw<{ post_id: string }[]>`
         INSERT INTO post_views (post_id, user_id, viewed_at)
         SELECT unnest(${visible.map((v) => v.id).sort()}::uuid[]), ${userId}::uuid, ${now}
-        ON CONFLICT (post_id, user_id) DO UPDATE SET viewed_at = EXCLUDED.viewed_at
+        ON CONFLICT (post_id, user_id) DO UPDATE
+          SET viewed_at = EXCLUDED.viewed_at, counted_views = post_views.counted_views + 1
          WHERE post_views.viewed_at <= ${cutoff}
         RETURNING post_id::text AS post_id`;
       if (counted.length > 0) {

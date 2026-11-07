@@ -3074,6 +3074,40 @@ new column — harmless, it never selects it).
 - **Interaction with D295 (creators go live):** none at deploy — a member keeps only creator tasks whatever their
   hosting permission. Either order of deploy works.
 
+### 5.79 «مدرسة المحتوى» / Content School and «لاعب الأحكام» / Dares Player (migrations `20270401090000_medal_requirement_metrics`, `20270401090100_medal_content_school`, `20270401090200_medal_dares_player`; D300) — [IMPLEMENTED, draft contract v1.83-live; not deployed, not device-tested]
+
+CONVENTIONS §10.111. Interpretations owner-confirmed 2026-11-07 (creators only, levels kept; ACTIVE accounts, never self;
+posts and reels).
+
+- **Migrations, in order.** `20270401090000_medal_requirement_metrics` adds only the five `MedalMetric` values (they
+  must commit before the next one uses them); `20270401090100_medal_content_school` adds `medal_level_requirements`,
+  `post_views.counted_views` (`INTEGER NOT NULL DEFAULT 1`, CHECK ≥ 1 — the column add is metadata-only on PostgreSQL 16,
+  no rewrite; the CHECK is validated by one scan of `post_views` under the migration's lock, seconds at today's size), the medal `CONTENT_SCHOOL`, its four levels and twelve requirements. Runtime role: default
+  privileges, no GRANT. Deploy the API with them (an older API would not add to `counted_views`).
+- **Setting:** `MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS` (default **600**; 1 … 86 400; `0` is refused in production). Each
+  run reads the creators with three indexed sums each and counts exactly only those whose upper bounds reach their next
+  level; it logs `Content-creator medals raised` only when something changed.
+- **Backfill, once after the deploy** (exact for every creator; without `--notify` so it does not flood inboxes). From
+  `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/medals-admin.js backfill
+  ```
+
+  It prints the usual `Awarded n medals.` / `Raised n medal levels.` (with `CONTENT_SCHOOL n` when any); idempotent; a
+  second run prints 0 and 0. Views recorded before the migration count once per viewer and post (`counted_views` = 1):
+  a lower bound of the real views.
+- **Checks after deploy:** `SELECT level, metric, threshold FROM medal_level_requirements WHERE medal_code =
+  'CONTENT_SCHOOL' ORDER BY 1, 2;` (12 rows) and, after the backfill, `SELECT level, count(*) FROM user_medals WHERE
+  medal_code = 'CONTENT_SCHOOL' GROUP BY 1;`.
+- **«لاعب الأحكام» (§10.111.7):** `20270401090200_medal_dares_player` (the medal and its four levels, 1 500 … 20 000 PK
+  points; the enum value `PK_POINTS` comes with the first migration). From the deploy on, each positive PK points event
+  raises the level in its own transaction. The same one-off `medals-admin backfill` raises every host from
+  `pk_host_records.points` (prints `DARES_PLAYER n`). Check:
+  `SELECT level, count(*) FROM user_medals WHERE medal_code = 'DARES_PLAYER' GROUP BY 1;`.
+- **App:** the art ships in the app (`assets/medals/medal_content_school_l1` … `_l4.webp`,
+  `medal_dares_player_l1` … `_l4.webp`); an older app shows the medal's generic icon and «level / next level» progress.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

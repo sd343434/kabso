@@ -1,6 +1,7 @@
 import { auditBy, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
 import type { LiveHostSource, Prisma } from '../../generated/prisma/client.js';
+import { raiseRequirementMedalsIn } from '../medals/medal-requirements.js';
 import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 /**
@@ -103,6 +104,9 @@ export async function activateCreatorIn(
       },
     });
   }
+  // D300 (§10.111): a person who becomes a creator gets «مدرسة المحتوى» at once at the level their followers, likes and
+  // views already reach (cheap and rare here; the sweeper covers what happens later).
+  if (member.count > 0) await raiseRequirementMedalsIn(tx, [input.userId], { at: input.now });
   return { created: member.count > 0 };
 }
 

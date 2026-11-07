@@ -602,6 +602,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.24-live)* Tables `cp_points_ledger`, `cp_check_ins`, `cp_task_claims`, `cp_confessions` | Backend — `cp-space` module (`cp_points_ledger` is also written by the `couples` module's CP gift path through `couples/cp-points.ts`, in the gift's transaction) | CTO |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
 | *(v1.81-live, D291)* Table `medal_levels`; columns `medals.category`, `medals.metric`, `user_medals.level`, `user_medals.level_reached_at`, `notifications.medal_level`; types `MedalCategory`, `MedalMetric` | Backend — `medals` module (levels raised through `medal-awards.ts` `raiseMedalLevelsIn` in the events' transactions; `medal_levels` edited by the panel through `MedalsAdminService`) | CTO |
+| *(v1.83-live, D300)* Table `medal_level_requirements`; column `post_views.counted_views`; `MedalMetric` values `ALL_REQUIREMENTS`, `CREATOR_FOLLOWERS`, `CREATOR_LIKES`, `CREATOR_VIEWS`, `PK_POINTS` (DARES_PLAYER, raised by `pk-dare-match.ts` `addPkPointsIn`) | Backend — `medals` module (`medal-requirements.ts`: raised by `MedalRequirementsSweeper`, `activateCreatorIn` and `medals-admin backfill`; requirements edited by the panel through `MedalsAdminService`); `post_views.counted_views` written only by `PostInteractionsService.recordViews` | CTO |
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
 | *(v1.48-social)* Table `bag_transfers`; columns `user_bag_items.expires_at`, `user_bag_items.gifted_by_user_id`, `notifications.bag_item_code`; `bag_item_source` value `GIFT`, `notification_type` value `BAG_ITEM_RECEIVED` | Backend — `bag` module (the notification through the notifications module's `Notifier`) | CTO |
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
@@ -728,6 +729,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.79-live (draft) | 2026-11-06 | **D289 (owner: «كل شارة لها أيقونة خاصة في النظام كاملاً» — gift and store badges as a set, one icon each; «بمؤثرات صوتية» / «بدون مؤثرات صوتية» exclusive; «جديد» 14 days or the owner's date; «لفترة محدودة» / «موسمي» with an end; auto-detection in the panel; one or two on a gift-box tile, never over the price; all of them in the details; lucky gifts unchanged):** `ItemBadgeCode` (SOUND, NO_SOUND, NEW, MOST_WANTED, FEATURED, LIMITED, FULLSCREEN, EXCLUSIVE, SEASONAL), `ItemBadge` `{code, until}`, `AdminItemBadge` (+ `active`), `ItemBadgeInput` `{code, until?}`; `Gift.badges` and `StoreItem.badges` (required, the running ones in display priority); `Gift.badge` and `StoreItem.isNew` deprecated (derived); the panel's gift rows and `AdminStoreItem` gain `badges`; `createAdminGift` / `updateAdminGift` / `createAdminStoreItem` / `updateAdminStoreItem` accept `badges` (the old `badge` / `isNew` still accepted, not with it); `uploadAdminGiftFile` and `uploadAdminStoreArt` answer `hasAudio` / `fullscreen` (and an SVGA's `width` / `height` for gifts); code `ITEM_BADGES_INVALID` (400). Migration `20270323090000_item_badges`. **D289b (owner: «… لا يمكن حذفه، فاريد منك اضافة زر الحذف»):** `deleteAdminStoreItem` (`DELETE /admin/store/items/{itemId}`: DELETED when nobody bought or holds the item, else HIDDEN — out of the store, kept for its owners; `AdminStoreItemDeleted`, `AdminOptionalReasonRequest`), `restoreAdminStoreItem`, `AdminStoreItem.hiddenAt`; audit `store.item.delete \| hide \| restore`; migration `20270323090100_store_item_delete`. §4, §10.102. | **Additive** (a new required response field; deprecated fields keep their meaning while «جديد» runs; new optional request fields). |
 | v1.81-live (draft) | 2026-11-06 | **D291 (owner: «ما رأيك ان نصمم صفحة التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات. حاول ان تأخذ الفكرة»): medal levels and the medals page** — a medal has 1 … 20 levels (`medal_levels`), each reached when the medal's metric (`MedalMetric`) is at least its threshold; level 1 is the medal's original rule; a level never goes down. `Medal` + `category` (`MedalCategory`), `metric` (`MedalMetric`), `level`, `maxLevel`, `levels` (`MedalLevel`), `progress` (`MedalProgress`), `iconUrl`, `showcasePosition`; `UserMedal` + `category`, `level`, `maxLevel`, `iconUrl`; `ProfileMedal` + `level`, `iconUrl` (so `ProfileMedals`, `MedalShowcase`); `NotificationTarget.medalLevel` (MEDAL_AWARDED above 1 = a level-up); «ملوك الثروة» (§10.104.7): `MedalMetric` `GIFTS_SENT_COINS`, `iconAsset` on `MedalLevel` / `Medal` / `UserMedal` / `ProfileMedal` / `AdminMedalLevel` / the panel input, migrations `20270325090100_medal_wealth_metric` + `20270325090200_medal_wealth_kings`; the charm and live-hours codes retired as name-side icons (§10.104.8, `AdminMedal.retired`, migration `20270325090300_medal_retire_name_icons`; wearing one → 400 `invalid_value`); «سيد الحظ» (§10.104.9): `MedalMetric` `LUCKY_GIFTS_SENT_COINS`, migrations `20270325090400_medal_lucky_metric` + `20270325090500_medal_lucky_master`. Panel: `listAdminMedals`, `updateAdminMedal` (`catalog.view` / `catalog.manage` + the code; audited `medals.levels.update`). Level changes above 1 audited `medals.level_up`. Migration `20270325090000_medal_levels` (every held medal stays level 1) and `medals-admin backfill` (raises them; DEPLOYMENT §5.72, PP-50). §10.104. | **Additive** (new response fields and operations; an older app ignores levels and reads a level-up as «you earned a new medal»). |
 | v1.82-live (draft) | 2026-11-06 | **D295 (owner: content creators go live «صانع محتوى» — the creator programme grants hosting, host and creator never both, the lists 1 : 1, a purple badge, 70 % share (owner, was 72 %), the agency activates a creator; owner answers 2026-11-06: agency commission YES, quips 60 %, the agency ban as a panel action):** `LiveRoomSummary.hostIsCreator`; Popular / New / Nearby interleave one host's live and one creator's live (each group in the tab's order; the cursor carries both groups' positions, `x`; Following and Featured unchanged); `CreatorApplyRule.refusal` `HOST`, `HostingApplyRefusal` `CREATOR`; `CreatorApplication.source` / `.revokedAt`, status `REVOKED`; `LiveHostSource` `CREATOR` (on the panel's host rows, `MyHostingApplication.host`); `activateMyAgencyMember` (`POST /me/agency/hosts/{userId}/activate`, `AgencyMemberActivationRequest`), `AgencyHost.hosting` / `.activatedByAgency`; code `AGENCY_ACTIVATION_NOT_ALLOWED` (409); `grantLiveHost` / `revokeLiveHost` and the panel's grant / revoke 409 `ADMIN_ACTION_REFUSED` (`CREATOR`); panel `revokeAdminCreatorMember`, the creators list's `memberActive`, `activatedBy` («فعّله وكيل: …»), `revokeReason`, `revokedBy`; «حظر الوكالة» `getAdminAgencyBan` / `banAdminAgency` (capability `agencies.ban`, OWNER), `AdminAgencyBanPreview`, `ClosedAgency.reason` `BANNED`, `AgencyOpenRule.refusal` `BANNED`, `CherryLedgerReason` `AGENCY_FORFEIT`; audit `creator.member.revoke`, `agency.member.activate`, `agency.ban`; config `GIFT_CREATOR_SHARE_PERCENT` (72), `GIFT_CREATOR_QUIP_SHARE_PERCENT` (60), `CREATOR_AGENCY_COMMISSION` (true); migrations `20270329090000_creator_lives_enums`, `20270329090100_creator_lives`. §4, §8, §10.108. | **Additive** for clients (new fields, operations and enum values; a missing `hostIsCreator` reads as false; unknown `hosting` reads as NONE, unknown close reason as ADMIN). **Behaviour:** the lists' order (1 : 1); a cursor of the interleaved lists carries `x` (an older cursor on those lists → 400, the app restarts from the first page — §10.4); a creator's live pays 70 % (owner, int16; was 72 %) / 60 %; a host can no longer become a creator nor a creator a host. |
+| v1.83-live (draft) | 2026-11-07 | **D300 (owner: «مدرسة المحتوى» / Content School and «لاعب الأحكام» / Dares Player; — four levels, each needing a content creator's followers, likes and views together; interpretations owner-confirmed 2026-11-07)** — `medal_level_requirements` (several thresholds per level); `MedalMetric` + `ALL_REQUIREMENTS` (the medal's metric: value = the level the requirements reach; each level's threshold its number), `CREATOR_FOLLOWERS`, `CREATOR_LIKES`, `CREATOR_VIEWS` (creators only; ACTIVE accounts; never self; posts and reels); `MedalLevel.requirements` (`MedalLevelRequirement`), `MedalProgress.requirements` (`MedalRequirementProgress`), `Medal.eligible`; `AdminMedalLevel.requirements` and the panel input's per-level `requirements` (400 `levels` `invalid_value` rules); `post_views.counted_views`; per-level bundled art `medal_content_school_l1` … `_l4`; the sweeper `MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS`, the creator activation and `medals-admin backfill` raise it; `medals.level_up` audits carry the three values. «لاعب الأحكام» / Dares Player (§10.111.7): `MedalMetric` `PK_POINTS` (the host's `PkHostRecord.points`; 1 500 / 3 000 / 5 000 / 20 000; raised in `addPkPointsIn`'s transaction; never lowered), art `medal_dares_player_l1` … `_l4`. Migrations `20270401090000_medal_requirement_metrics`, `20270401090100_medal_content_school`, `20270401090200_medal_dares_player` (DEPLOYMENT §5.79, PP-57). §10.111. | **Additive** (new enum values, response fields and an optional input field; single-metric medals unchanged; an older app shows the medal with «level / next level» progress and ignores the requirements; clients treat unknown metrics as none). |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
@@ -8406,6 +8408,103 @@ Owner (2026-11-06, answers to PP-56):
   - **Wire (additive):** `ProgramTask.metric` `HOST_LIVE_DAYS`; generated tasks are ordinary `ProgramTask`s (`code` = the
     template, `name` = the generated wording, `pooled` true for daily ones). The app shows creator tasks in their cards
     and host tasks with the host tasks.
+
+### 10.111 «مدرسة المحتوى» / Content School — a medal with several requirements per level; «لاعب الأحكام» / Dares Player *(v1.83-live, DRAFT — D300)*
+
+Owner (2026-11-07): a medal «مدرسة المحتوى» with four levels, each with the owner's own art, reached when the **content
+creator** has **all three** of its followers, likes and views. **Interpretations owner-confirmed (2026-11-07, via the
+coordinator):** (1) content creators only, and a level already earned is kept if the membership ends; (2) current
+followers, plus all-time likes and views, from ACTIVE accounts, never self; (3) views (and likes) count posts **and**
+reels.
+
+**10.111.1 The model (an extension of §10.104; single-metric medals unchanged).**
+- `medal_level_requirements(medal_code, level, metric, threshold)` (PK the three keys; FK → `medal_levels` ON DELETE
+  CASCADE; threshold 1 … 10¹²; `metric` never `ALL_REQUIREMENTS`): the several thresholds of one level.
+- A multi-requirement medal has the metric **`ALL_REQUIREMENTS`**: its value for a person is the highest level *k* such
+  that every requirement of levels 1 … *k* is met (`levelByRequirements`), and each level's `medal_levels.threshold` is
+  *k* itself. So the D291 raise (`raiseMedalLevelsIn`, now optionally limited to one medal code) works unchanged: a level
+  is reached when all of its requirements are, several levels at once (a jump straight to level 3), **never lowered**,
+  each change notified `MEDAL_AWARDED` with `medalLevel`, levels above 1 audited `medals.level_up` (now with
+  `requirements: {CREATOR_FOLLOWERS, CREATOR_LIKES, CREATOR_VIEWS}` — the values that reached it).
+- Requirement metrics (`MedalMetric`), counted only for **content creators** (`creator_members`, D285 / D295) whose
+  account is ACTIVE:
+  - `CREATOR_FOLLOWERS` — followers now whose account is ACTIVE (exactly the profile's `followerCount`, D121);
+  - `CREATOR_LIKES` — all-time likes on the creator's posts and reels that still stand (PUBLISHED, not deleted, not
+    REMOVED by moderation), from **other** accounts that are ACTIVE now (a self-like never counts);
+  - `CREATOR_VIEWS` — all-time §11.4 views (once per viewer and rolling 24 h, ≥ 1 s) of those posts and reels, from
+    **other** accounts that are ACTIVE now (the author's own views are never recorded). Summed from the new
+    `post_views.counted_views` (each viewer row counts its views; `recordViews` adds 1 in the same statement that
+    moves `viewed_at` and `posts.view_count`); `posts.view_count` itself cannot tell who viewed. Rows from before the
+    migration start at 1 — a viewer's earlier repeat views cannot be recovered (a lower bound, never more than real).
+- **Who:** a non-creator is never evaluated: they never earn it and their requirement values are 0 (`Medal.eligible`
+  false, «لصنّاع المحتوى فقط»). A person whose membership ends keeps the level reached (D291: medals never go down) and
+  stops progressing.
+
+**10.111.2 When levels rise.** Follows, likes and views are the app's hottest writes and the exact counts (ACTIVE
+accounts only, never self) are counts over up to millions of rows, so they are **not** counted on each event; a
+denormalised counter could not follow accounts suspended or deleted later either. Instead:
+- **The sweeper** every `MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS` (default 600; 1 … 86 400; 0 = off, tests only — refused in
+  production): for every ACTIVE creator below the top level, three indexed **upper bounds** (all follows; the standing
+  posts' `like_count` and `view_count` sums) are compared with their next level; only the creators whose bounds reach
+  it are counted exactly and raised (chunks of 200 per transaction). Idempotent; two replicas at once never notify twice
+  (the raise is per row, `WHERE level < new`).
+- **At a creator's activation** (`activateCreatorIn`: an approved application or an agency's activation): exact, in
+  that transaction — a popular account gets the level it already reaches at once.
+- **`medals-admin backfill`** (exact, no pre-filter; DEPLOYMENT §5.79): history, and after the panel lowers a threshold.
+
+**10.111.3 The medal.** `CONTENT_SCHOOL`, «مدرسة المحتوى» / "Content School", tab ACHIEVEMENT, sort 120, iconKey
+`medal_content_school`. Description: «لصنّاع المحتوى: المتابعون والإعجابات والمشاهدات معاً.» / "For content creators:
+followers, likes and views together." The owner's thresholds (not provisional):
+
+| Level | Followers | Likes | Views | Art (`icon_asset`) |
+| ----- | --------- | ----- | ----- | ------------------ |
+| 1 | 2 000 | 10 000 | 20 000 | `medal_content_school_l1` — blue and silver shield, clapperboard and camera, a star |
+| 2 | 10 000 | 50 000 | 100 000 | `medal_content_school_l2` — violet and silver, clapperboard, camera and mic |
+| 3 | 100 000 | 200 000 | 500 000 | `medal_content_school_l3` — red and gold with a crown |
+| 4 | 1 000 000 | 2 000 000 | 5 000 000 | `medal_content_school_l4` — red and gold with a crown and crystal wings |
+
+The art is the owner's own (2026-11-07, `apps/mobile/assets/medals/PROVENANCE.md`), bundled per level through the D291
+key mechanism; the app shows the **current level's art** (stage, card, profile, picker), never a number on it. One
+category, one medal (D291): the level rises in place; wearing it twice → 400 `medalCodes` / `invalid_value`.
+
+**10.111.4 The wire (additive).** `MedalMetric` + `ALL_REQUIREMENTS`, `CREATOR_FOLLOWERS`, `CREATOR_LIKES`,
+`CREATOR_VIEWS`, `PK_POINTS` (§10.111.7). `MedalLevel.requirements` (`MedalLevelRequirement {metric, threshold}`, followers / likes / views order;
+empty for single-metric medals). `MedalProgress.requirements` (`MedalRequirementProgress {metric, value, next}`: each
+value now against the next level's threshold; the top level's metrics with `next` null at the top); `MedalProgress.value`
+of such a medal is the level the requirements reach now and `next` the next level number (an older app shows «1 / 2»).
+`Medal.eligible` (false: a creators-only medal and the caller is not a creator now; true for all others; missing = true).
+`UserMedal`, `ProfileMedal` unchanged (their `iconAsset` is the level's art). The app: the card's bar is the **lowest** of
+the three ratios; the sheet shows three bars «المتابعون / الإعجابات / المشاهدات» with «x / y» and every level with its
+three thresholds; a non-creator sees «لصنّاع المحتوى فقط».
+
+**10.111.5 The panel.** `AdminMedalLevel.requirements`; `updateAdminMedal` levels take `requirements` for a medal on
+`ALL_REQUIREMENTS` only: one threshold per metric, the same metrics on every level, each strictly rising, the level's
+`threshold` = its number (400 `levels` `invalid_value` otherwise, and for requirements on any other medal); the D291
+rules stay (OWNER, the code again, a reason, never shorter than the highest level held). Audited `medals.levels.update`
+with each level's `requirements` as `METRIC:threshold,…`. «الميداليات»'s editor shows the three thresholds per level for
+this medal.
+
+**10.111.6 Migrations.** `20270401090000_medal_requirement_metrics` (the five enum values — the four above and
+`PK_POINTS` — alone: a new value cannot be used in the transaction that adds it), then
+`20270401090100_medal_content_school` (`medal_level_requirements`, `post_views.counted_views` with CHECK ≥ 1, the medal,
+its levels and requirements) and `20270401090200_medal_dares_player` (§10.111.7). Runtime role: default privileges, no
+GRANT. DEPLOYMENT §5.79, PP-57.
+
+**10.111.7 «لاعب الأحكام» / Dares Player** (owner 2026-11-07: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»;
+the owner wrote «المستوى الأول» on the last two lines — clearly levels 3 and 4). A **single-metric** medal (the D291 model
+unchanged): `DARES_PLAYER`, tab ACTIVITY, sort 130, iconKey `medal_dares_player`; metric **`PK_POINTS`** — the host's PK
+points now, `PkHostRecord.points` (D229 / D276, §10.80, «نقاط PK» on the PK stage: +3 a counted win, +1 a draw, −3 a
+refused or not-done dare, …, one `pk_point_events` row per match, host and kind). The owner's thresholds (not
+provisional): **1 500 / 3 000 / 5 000 / 20 000** points, each level with the owner's own art (`medal_dares_player_l1` …
+`_l4`: blue and silver shield with crossed gavels; violet with a crown; gold and emerald with a lion and wings; gold and
+ruby with a lion and wings; PROVENANCE). **When:** in the very transaction that writes a positive points event
+(`addPkPointsIn`, the only writer of `pk_host_records.points`), at the new total (`raiseMedalLevelsIn`). The total can
+fall (a refused dare) but **a level never goes down** (D291). **Who:** anyone with a PK record — hosts and creators who
+play PK; no creator gate. **To confirm with the owner:** the points of ALL PK types count, as `PkHostRecord.points` sums
+them (normal PK and «PK أحكام» alike), not only DARES matches. `medals-admin backfill` reads `pk_host_records.points`
+(totals ≤ 0 reach nothing). `progress.value` shows the total from 0 (never negative). Description: «نقاط PK التي
+جمعتها في التحديات.» / "PK points you earned in battles." One category, one medal (D291): wearing it twice → 400.
+The sheet words each threshold «1,500 نقطة PK» / "1,500 PK points".
 
 ### 11.1 Media upload
 
