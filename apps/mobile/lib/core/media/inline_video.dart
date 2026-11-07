@@ -44,6 +44,9 @@ abstract class InlineVideoController implements Listenable {
   Future<void> play();
   Future<void> pause();
 
+  /// D298: jumps to [position] (the reels' progress bar).
+  Future<void> seekTo(Duration position);
+
   /// 0 (muted) or 1.
   Future<void> setVolume(double volume);
 
@@ -91,6 +94,9 @@ class VideoPlayerInlineVideo implements InlineVideoController {
   Future<void> pause() => _controller.pause();
 
   @override
+  Future<void> seekTo(Duration position) => _controller.seekTo(position);
+
+  @override
   Future<void> setVolume(double volume) => _controller.setVolume(volume);
 
   @override
@@ -125,6 +131,17 @@ class VideoMuted extends Notifier<bool> {
 
 final videoMutedProvider = NotifierProvider<VideoMuted, bool>(VideoMuted.new);
 
+/// D298: lets the widget that owns an [InlineVideo] seek its player (the
+/// reels' progress bar sits above the reel's scrim, outside the video).
+class InlineVideoHandle {
+  _InlineVideoState? _attached;
+
+  /// Jumps the open player to [position]; nothing when none is open.
+  Future<void> seekTo(Duration position) async {
+    await _attached?._video?.seekTo(position);
+  }
+}
+
 /// A video over its poster: until it plays, the poster ([poster]) with the
 /// play mark; a tap plays or pauses; the speaker button (end corner) mutes
 /// or unmutes. It loops, starts muted, plays only while at least half of it
@@ -141,8 +158,12 @@ class InlineVideo extends ConsumerStatefulWidget {
     this.muteOnTop = false,
     this.muteTop,
     this.onState,
+    this.handle,
     super.key,
   });
+
+  /// D298: seeks this video from outside (see [InlineVideoHandle]).
+  final InlineVideoHandle? handle;
 
   /// D202: every change of the player's state (the reels' sound disc turns
   /// with the playback position).
@@ -189,11 +210,16 @@ class _InlineVideoState extends ConsumerState<InlineVideo> {
   void initState() {
     super.initState();
     _wantPlay = widget.autoplay;
+    widget.handle?._attached = this;
   }
 
   @override
   void didUpdateWidget(InlineVideo old) {
     super.didUpdateWidget(old);
+    if (old.handle != widget.handle) {
+      if (old.handle?._attached == this) old.handle?._attached = null;
+      widget.handle?._attached = this;
+    }
     if (old.url != widget.url) {
       unawaited(_release());
       _failed = false;
@@ -206,6 +232,7 @@ class _InlineVideoState extends ConsumerState<InlineVideo> {
 
   @override
   void dispose() {
+    if (widget.handle?._attached == this) widget.handle?._attached = null;
     unawaited(_release());
     super.dispose();
   }

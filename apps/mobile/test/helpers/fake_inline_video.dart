@@ -53,6 +53,27 @@ class FakeInlineVideo extends ChangeNotifier implements InlineVideoController {
     notifyListeners();
   }
 
+  /// D298: every seek, in order.
+  final seeks = <Duration>[];
+
+  @override
+  Future<void> seekTo(Duration position) async {
+    seeks.add(position);
+    setPosition(position);
+  }
+
+  /// D298: the player reports [position] (as playback would).
+  void setPosition(Duration position) {
+    _state = InlineVideoState(
+      initialized: _state.initialized,
+      playing: _state.playing,
+      position: position,
+      duration: _state.duration,
+      size: _state.size,
+    );
+    notifyListeners();
+  }
+
   @override
   Future<void> setVolume(double volume) async => volumes.add(volume);
 
