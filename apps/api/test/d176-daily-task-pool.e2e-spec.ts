@@ -72,7 +72,7 @@ interface MyTasks {
   day: string;
   dailyEarnedCoins: number;
   dailyEarnedCherries: number;
-  band: { band: number; level: number; name: string; host: boolean };
+  band: { band: number; level: number; name: string; host: boolean; creator: boolean };
   tasks: Task[];
 }
 
@@ -300,7 +300,7 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
   it("each person's day: the band's count, deterministic, stable on reload; D166's fixed daily tasks off", async () => {
     const me = await signup();
     const first = await tasks(me);
-    expect(first.band).toEqual({ band: 1, level: 0, name: 'Starter', host: false });
+    expect(first.band).toEqual({ band: 1, level: 0, name: 'Starter', host: false, creator: false });
     expect(first.tasks).toHaveLength(6);
     expect(first.tasks.every((t) => t.pooled && t.period === 'DAILY' && t.audience === 'EVERYONE')).toBe(
       true,

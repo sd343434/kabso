@@ -9023,6 +9023,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tasksWeeklyHint => 'تتجدد كل يوم إثنين.';
 
   @override
+  String get tasksCreatorTitle => 'مهام صانع المحتوى';
+
+  @override
+  String get tasksCreatorHint => 'ضمن مكافآت اليوم.';
+
+  @override
+  String get tasksCreatorWeeklyTitle => 'مهام صانع المحتوى الأسبوعية';
+
+  @override
   String get tasksEmpty => 'لا مهام الآن';
 
   @override

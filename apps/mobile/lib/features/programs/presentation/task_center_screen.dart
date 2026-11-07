@@ -25,9 +25,11 @@ import 'package:material_ui/material_ui.dart';
 /// a warm page, the sign-in rewards card (a 7-day strip, today first, the 7th
 /// day the bonus, and the check-in pill; it pays coins), the task rewards
 /// card (today's tasks from the daily pool, each «اذهب» → «استلم» → «تم»), the
-/// weekly host tasks for hosts and the team's banners at the bottom (hidden
-/// when none). Progress, targets and rewards come from the server
-/// (`GET /me/tasks`); task rewards are cherries since v1.53-social (D184:
+/// weekly host tasks for hosts, the creator tasks for creator-programme
+/// members in their own cards (D297: «مهام صانع المحتوى», today and this
+/// week) and the team's banners at the bottom (hidden when none). Progress,
+/// targets and rewards come from the server (`GET /me/tasks`); task rewards
+/// are cherries since v1.53-social (D184:
 /// the cherry icon and «+N» on each row and in the claim feedback).
 class TaskCenterScreen extends ConsumerStatefulWidget {
   const new({super.key});
@@ -42,6 +44,10 @@ class TaskCenterScreen extends ConsumerStatefulWidget {
   static const monthCapKey = Key('tasks.monthCap');
   static const rewardsKey = Key('tasks.rewards');
   static const weeklyKey = Key('tasks.weekly');
+
+  /// D297: the creator tasks' cards «مهام صانع المحتوى» (today, this week).
+  static const creatorKey = Key('tasks.creator');
+  static const creatorWeeklyKey = Key('tasks.creator.weekly');
   static const emptyKey = Key('tasks.empty');
 
   /// D184: the claim feedback's «+N» cherries.
@@ -142,6 +148,13 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       TaskMetric.audioRooms => AppRoutes.voiceRooms,
       TaskMetric.posts => AppRoutes.create,
       TaskMetric.reels => AppRoutes.newReel,
+      // D297: what others do with the creator's content — their own profile
+      // (their reels, posts, comments and followers).
+      TaskMetric.reelViewsReceived ||
+      TaskMetric.likesReceived ||
+      TaskMetric.commentReplies ||
+      TaskMetric.newFollowers ||
+      TaskMetric.sharesReceived => AppRoutes.myProfile,
       TaskMetric.stories => AppRoutes.newStory,
       TaskMetric.dmFriends || TaskMetric.dmVoiceMessages => AppRoutes.messages,
       // D281: a family to join or chat in (the families hub).
@@ -150,6 +163,7 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
       TaskMetric.pkBattles ||
       TaskMetric.pkWins ||
       TaskMetric.hostLiveMinutes ||
+      TaskMetric.hostLiveDays ||
       TaskMetric.hostGiftCoins ||
       TaskMetric.hostGiftsReceived ||
       TaskMetric.hostGiftCherries ||
@@ -227,6 +241,27 @@ class _TaskCenterScreenState extends ConsumerState<TaskCenterScreen> {
           onGo: _go,
           onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
         ),
+        // D297: a creator's own tasks, today then this week.
+        if (value.creatorDaily.isNotEmpty)
+          _RewardsCard(
+            key: TaskCenterScreen.creatorKey,
+            title: l10n.tasksCreatorTitle,
+            caption: l10n.tasksCreatorHint,
+            tasks: value.creatorDaily,
+            busy: _busy,
+            onGo: _go,
+            onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
+          ),
+        if (value.creatorWeekly.isNotEmpty)
+          _RewardsCard(
+            key: TaskCenterScreen.creatorWeeklyKey,
+            title: l10n.tasksCreatorWeeklyTitle,
+            caption: l10n.tasksWeeklyHint,
+            tasks: value.creatorWeekly,
+            busy: _busy,
+            onGo: _go,
+            onClaim: (code) => unawaited(_run(code, () => repo.claim(code))),
+          ),
         if (value.weekly.isNotEmpty)
           _RewardsCard(
             key: TaskCenterScreen.weeklyKey,
@@ -830,6 +865,7 @@ class _TaskRow extends StatelessWidget {
   static const _blue = Color(0xFF4DA3FF);
   static const _amber = Color(0xFFE0A21B);
 
+  /// The metric's icon and hue (D297: also used by the creator cards).
   static (IconData, Color) look(TaskMetric metric) => switch (metric) {
     TaskMetric.watchLives => (Icons.videocam_rounded, _teal),
     TaskMetric.watchMinutes => (Icons.timer_rounded, _teal),
@@ -860,6 +896,19 @@ class _TaskRow extends StatelessWidget {
     TaskMetric.familyChatMessages => (Icons.forum_rounded, _blue),
     TaskMetric.pkBattles => (Icons.sports_mma_rounded, KBrandColors.red500),
     TaskMetric.pkWins => (Icons.emoji_events_rounded, _amber),
+    // D297.
+    TaskMetric.reelViewsReceived => (
+      Icons.visibility_rounded,
+      KBrandColors.red500,
+    ),
+    TaskMetric.likesReceived => (Icons.thumb_up_alt_rounded, _pink),
+    TaskMetric.commentReplies => (Icons.reply_rounded, _blue),
+    TaskMetric.newFollowers => (Icons.group_add_rounded, _teal),
+    TaskMetric.sharesReceived => (Icons.share_rounded, _amber),
+    TaskMetric.hostLiveDays => (
+      Icons.calendar_month_rounded,
+      KBrandColors.red500,
+    ),
     TaskMetric.other => (Icons.task_alt_rounded, _teal),
   };
 

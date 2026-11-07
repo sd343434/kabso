@@ -3866,6 +3866,8 @@ enum TaskPeriod {
 enum ProgramAudience {
   EVERYONE
   HOSTS
+  /// v1.94-social (D297): creator-programme members only (`creator_members`); Task Center tasks only.
+  CREATORS
 
   @@map("program_audience")
 }
@@ -3897,7 +3899,8 @@ model TaskDefinition {
   sortOrder      Int             @default(0) @map("sort_order")
   /// D176: a daily pool template, offered through the per-person assignment (task_assignments).
   pool           Boolean         @default(false)
-  /// D176: WATCH, LIVE, SOCIAL, GIFT, CONTENT, MESSAGE or HOST (variety; null when not pool).
+  /// D176: WATCH, LIVE, SOCIAL, GIFT, CONTENT, MESSAGE or HOST (variety; null when not pool); v1.94-social (D297):
+  /// CREATOR (audience CREATORS).
   poolGroup      String?         @map("pool_group") @db.VarChar(10)
   /// D176: one target and reward per level band 1…4 (0 = not offered in that band); rewards in
   /// cherries since v1.53-social (D184).
@@ -3914,13 +3917,15 @@ model TaskDefinition {
 
 /// D176: a level band of the daily pool (the higher of Support and Charm levels from `minLevel`).
 model TaskPoolBand {
-  band       Int      @id @db.SmallInt
-  minLevel   Int      @map("min_level")
-  dailyCount Int      @map("daily_count") @db.SmallInt
-  hostCount  Int      @map("host_count") @db.SmallInt
-  nameAr     String   @map("name_ar") @db.VarChar(40)
-  nameEn     String   @map("name_en") @db.VarChar(40)
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  band         Int      @id @db.SmallInt
+  minLevel     Int      @map("min_level")
+  dailyCount   Int      @map("daily_count") @db.SmallInt
+  hostCount    Int      @map("host_count") @db.SmallInt
+  /// v1.94-social (D297): of the daily count, how many CREATOR tasks a creator-programme member gets first.
+  creatorCount Int      @default(0) @map("creator_count") @db.SmallInt
+  nameAr       String   @map("name_ar") @db.VarChar(40)
+  nameEn       String   @map("name_en") @db.VarChar(40)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("task_pool_bands")
 }

@@ -13,7 +13,7 @@
  *                   [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   # pool templates and weekly tasks
  *                   [--group <GROUP>]   # pool only
  *   pnpm task:admin bands
- *   pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>]
+ *   pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>] [--creator-count <n>]
  *                   [--name-ar <text>] [--name-en <text>]
  *
  * v1.50-social (D176): the daily pool. Pool templates (`P_…`) are offered per person: each day a
@@ -31,6 +31,23 @@
  * the payout rate (`CHERRY_PAYOUT_RATE`, owner 1 000 000 = $1.10) — and next to coin-value targets
  * (gifts sent / received) — coins at the retail price (`COIN_RETAIL_USD_PER_MILLION`, owner $12.50 per
  * 1 000 000). Read from this process's environment (the server's values; defaults when unset).
+ *
+ * v1.94-social (D297, owner «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف»): creator tasks — audience CREATORS,
+ * only for creator-programme members (who never get the HOSTS tasks). The pool group CREATOR (`P_CR_…`, a member gets
+ * `--creator-count` of them first each day) and the weekly `CREATOR_WEEKLY_…` tasks (per band, like the weekly host
+ * tasks). Their values follow the host tasks' and change here like any task (`set … --targets … --rewards …`); they
+ * count toward the same daily and monthly caps. `seed-defaults` adds the missing ones.
+ *
+ * D297 follow-up (owner: «قم بتوليد 300 ألف مهمة لصانع المحتوى و300 ألف مهمة للمضيف … حسب المستوى وتدريجياً»; CONVENTIONS
+ * §10.110.1): the generated catalogue (task-generator.ts, never stored), driven by the person's CHARM level:
+ *
+ *   pnpm task:admin generator status                       # on / off per audience, catalogue sizes
+ *   pnpm task:admin generator on|off CREATORS|HOSTS        # switches the audience's G_… templates (audited)
+ *   pnpm task:admin generator count [--verify]             # ≥ 300 000 per audience (--verify enumerates the codes)
+ *   pnpm task:admin generator sample CREATORS|HOSTS [--level <0-100>] [--n <count>]
+ *   pnpm task:admin generator preview <username> [--day YYYY-MM-DD]   # a person's generated tasks (nothing stored)
+ *
+ * A single template is switched like any task (`set G_CR_REELS_D --enabled false`).
  *
  * The daily caps and the check-in coins are server config (`TASK_DAILY_CAP_CHERRIES` for the daily
  * tasks' cherries, `TASK_DAILY_CAP_COINS` for the check-in's coins, `TASK_CHECK_IN_COINS`,
@@ -52,7 +69,31 @@ import {
   parsePayoutRate,
   type TaskMetric,
 } from '../modules/programs/programs-rules.js';
-import { seedDefaultTaskPoolIn, seedDefaultTasksIn } from '../modules/programs/programs-seed.js';
+import {
+  DEFAULT_TASK_POOL_BANDS,
+  bandForLevel,
+  monthlyCapCherries,
+  taskRoleOf,
+} from '../modules/programs/programs-rules.js';
+import { addDays, programWindowsIn } from '../modules/programs/programs-time.js';
+import {
+  GEN_WEEKLY_COUNT,
+  assignGenerated,
+  enumerateGenCodes,
+  genCatalogueCount,
+  genEntriesOf,
+  genTaskAt,
+  genTask,
+  GEN_DEFAULT_STEP,
+  type GenAudience,
+  type GenCaps,
+  type GenTask,
+} from '../modules/programs/task-generator.js';
+import {
+  seedD297TasksIn,
+  seedDefaultTaskPoolIn,
+  seedDefaultTasksIn,
+} from '../modules/programs/programs-seed.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -66,8 +107,11 @@ const USAGE = [
   '         [--name-ar <text>] [--name-en <text>] [--sort <n>]',
   '         [--targets <b1,b2,b3,b4>] [--rewards <b1,b2,b3,b4>]   (pool templates and weekly tasks)',
   '         [--group <GROUP>]   (pool templates)',
+  '       pnpm task:admin generator status | on|off CREATORS|HOSTS | count [--verify]',
+  '       pnpm task:admin generator sample CREATORS|HOSTS [--level <0-100>] [--n <count>]',
+  '       pnpm task:admin generator preview <username> [--day YYYY-MM-DD]',
   '       pnpm task:admin bands',
-  '       pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>]',
+  '       pnpm task:admin band <1-4> [--min-level <n>] [--count <n>] [--host-count <n>] [--creator-count <n>]',
   '         [--name-ar <text>] [--name-en <text>]',
 ].join('\n');
 
@@ -151,6 +195,7 @@ const BAND_OPTIONS = {
   'min-level': { type: 'string' },
   count: { type: 'string' },
   'host-count': { type: 'string' },
+  'creator-count': { type: 'string' },
   'name-ar': { type: 'string' },
   'name-en': { type: 'string' },
 } as const;
@@ -268,7 +313,8 @@ async function bands(): Promise<void> {
   for (const b of rows) {
     process.stdout.write(
       `band ${String(b.band)} from level ${String(b.minLevel)}: ${String(b.dailyCount)} tasks a day ` +
-        `(${String(b.hostCount)} host tasks for hosts) «${b.nameAr}» / ${b.nameEn}\n`,
+        `(${String(b.hostCount)} host tasks for hosts, ${String(b.creatorCount)} creator tasks for creators) ` +
+        `«${b.nameAr}» / ${b.nameEn}\n`,
     );
   }
 }
@@ -292,6 +338,7 @@ async function band(raw: string, args: readonly string[]): Promise<void> {
     minLevel?: number;
     dailyCount?: number;
     hostCount?: number;
+    creatorCount?: number;
     nameAr?: string;
     nameEn?: string;
   } = {};
@@ -300,11 +347,16 @@ async function band(raw: string, args: readonly string[]): Promise<void> {
   if (values.count !== undefined) data.dailyCount = wholeNumber(values.count, '--count', 1, 12);
   if (values['host-count'] !== undefined)
     data.hostCount = wholeNumber(values['host-count'], '--host-count', 0, 12);
+  if (values['creator-count'] !== undefined)
+    data.creatorCount = wholeNumber(values['creator-count'], '--creator-count', 0, 12);
   if (values['name-ar'] !== undefined) data.nameAr = name(values['name-ar'], '--name-ar');
   if (values['name-en'] !== undefined) data.nameEn = name(values['name-en'], '--name-en');
   if (Object.keys(data).length === 0) fail(`Nothing to change.\n${USAGE}`);
   if ((data.hostCount ?? row.hostCount) > (data.dailyCount ?? row.dailyCount)) {
     fail('--host-count cannot be more than --count.');
+  }
+  if ((data.creatorCount ?? row.creatorCount) > (data.dailyCount ?? row.dailyCount)) {
+    fail('--creator-count cannot be more than --count.');
   }
   await prisma.$transaction(async (tx) => {
     await tx.taskPoolBand.update({ where: { band: number }, data });
@@ -320,6 +372,185 @@ async function band(raw: string, args: readonly string[]): Promise<void> {
   process.stdout.write(`Band ${String(number)} updated.\n`);
 }
 
+// ---- D297: the generated catalogue ------------------------------------------------------------------------------
+
+const GEN_OPTIONS = {
+  level: { type: 'string' },
+  n: { type: 'string' },
+  day: { type: 'string' },
+  verify: { type: 'boolean' },
+} as const;
+
+function audienceArg(raw: string | undefined): GenAudience {
+  const a = (raw ?? '').toUpperCase();
+  if (a !== 'CREATORS' && a !== 'HOSTS') fail(`The audience is CREATORS or HOSTS.\n${USAGE}`);
+  return a;
+}
+
+/** The caps a single generated reward is kept within (this process's environment, the server's defaults). */
+function genCaps(): GenCaps {
+  const daily = Number(process.env.TASK_DAILY_CAP_CHERRIES?.trim() || '50000');
+  const minor = Number(process.env.TASK_MONTHLY_CAP_MINOR?.trim() || '500');
+  return {
+    dailyCherries: daily,
+    monthlyCherries: monthlyCapCherries(minor, PAYOUT_RATE.cherries, PAYOUT_RATE.minor),
+  };
+}
+
+function genLine(t: GenTask): string {
+  return (
+    `${t.code} → ${t.template} target ${targetWithUsd(t.target, t.entry.metric)} reward ` +
+    `${cherriesWithUsd(t.rewardCherries)} «${t.nameAr}» / ${t.nameEn}\n`
+  );
+}
+
+async function generator(args: readonly string[]): Promise<void> {
+  const [sub, ...more] = args;
+  let values: { level?: string; n?: string; day?: string; verify?: boolean } = {};
+  let positionals: string[] = [];
+  try {
+    ({ values, positionals } = parseArgs({
+      args: [...more],
+      options: GEN_OPTIONS,
+      strict: true,
+      allowPositionals: true,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  const arg = positionals[0];
+  const templates = await prisma.taskDefinition.findMany({
+    where: { code: { startsWith: 'G_' } },
+    select: { code: true, enabled: true, audience: true, period: true },
+  });
+  switch (sub) {
+    case 'status':
+      for (const audience of ['CREATORS', 'HOSTS'] as const) {
+        const mine = templates.filter((t) => t.audience === audience);
+        const on = mine.filter((t) => t.enabled);
+        process.stdout.write(
+          `${audience}: ${on.length > 0 ? 'ON' : 'OFF'} (${String(on.filter((t) => t.period === 'DAILY').length)} daily ` +
+            `and ${String(on.filter((t) => t.period === 'WEEKLY').length)} weekly templates of ${String(mine.length)} on; ` +
+            `${String(GEN_WEEKLY_COUNT[audience])} weekly tasks a week) — catalogue ${String(genCatalogueCount(audience))} tasks\n`,
+        );
+      }
+      return;
+    case 'on':
+    case 'off': {
+      const audience = audienceArg(arg);
+      const enabled = sub === 'on';
+      const codes = templates.filter((t) => t.audience === audience).map((t) => t.code);
+      if (codes.length === 0) fail('No generator templates (run seed-defaults).');
+      await prisma.$transaction(async (tx) => {
+        await tx.taskDefinition.updateMany({ where: { code: { in: codes } }, data: { enabled } });
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.TASK_UPDATE,
+            targetType: 'task_generator',
+            targetId: audience,
+            metadata: { enabled, templates: codes.length, via: 'cli' },
+          },
+        });
+      });
+      process.stdout.write(
+        `Generator ${enabled ? 'ON' : 'OFF'} for ${audience} (${String(codes.length)} templates); ` +
+          'from the next day (and the next week) for people with no list yet.\n',
+      );
+      return;
+    }
+    case 'count':
+      for (const audience of ['CREATORS', 'HOSTS'] as const) {
+        let line = `${audience}: ${String(genCatalogueCount(audience))} generated tasks`;
+        if (values.verify) {
+          const seen = new Set<string>();
+          for (const code of enumerateGenCodes(audience)) seen.add(code);
+          line += ` (verified: ${String(seen.size)} distinct codes)`;
+        }
+        process.stdout.write(`${line}\n`);
+      }
+      return;
+    case 'sample': {
+      const audience = audienceArg(arg);
+      const n = values.n === undefined ? 10 : wholeNumber(values.n, '--n', 1, 200);
+      if (values.level !== undefined) {
+        const level = wholeNumber(values.level, '--level', 0, 1000);
+        for (const entry of genEntriesOf(audience).slice(0, n))
+          process.stdout.write(genLine(genTask(entry, level, GEN_DEFAULT_STEP, 0, genCaps())));
+        return;
+      }
+      const total = genCatalogueCount(audience);
+      for (let i = 0; i < n; i++) {
+        process.stdout.write(genLine(genTaskAt(audience, Math.floor((i * total) / n) + i, genCaps())));
+      }
+      return;
+    }
+    case 'preview': {
+      if (!arg) fail(USAGE);
+      const profile = await prisma.userProfile.findUnique({
+        where: { username: arg.toLowerCase().replace(/^@/, '') },
+        select: { userId: true },
+      });
+      if (!profile) fail(`No user @${arg}.`);
+      const me = profile.userId;
+      const [roleRow] = await prisma.$queryRaw<{ host: boolean; creator: boolean }[]>`
+        SELECT EXISTS (SELECT 1 FROM live_hosts WHERE user_id = ${me}::uuid) AS host,
+               EXISTS (SELECT 1 FROM creator_members WHERE user_id = ${me}::uuid) AS creator`;
+      const role = taskRoleOf(roleRow?.host ?? false, roleRow?.creator ?? false);
+      const audience: GenAudience | null = role.creator ? 'CREATORS' : role.host ? 'HOSTS' : null;
+      if (audience === null) {
+        process.stdout.write(`@${arg} is neither a creator nor a host: no generated tasks.\n`);
+        return;
+      }
+      const levels = await prisma.$queryRaw<{ code: string; level: number | null }[]>`
+        SELECT c.code, s.current_level AS level FROM user_level_states s
+          JOIN level_categories c ON c.id = s.category_id AND c.is_enabled
+         WHERE s.user_id = ${me}::uuid AND c.code IN ('SUPPORT', 'ATTRACTIVENESS')`;
+      const charm = levels.find((l) => l.code === 'ATTRACTIVENESS')?.level ?? 0;
+      const poolLevel = Math.max(0, ...levels.map((l) => l.level ?? 0));
+      const bandRows = await prisma.taskPoolBand.findMany({ orderBy: { band: 'asc' } });
+      const band = bandForLevel(poolLevel, bandRows.length ? bandRows : DEFAULT_TASK_POOL_BANDS);
+      const zone = process.env.LIVE_RANKINGS_TIME_ZONE?.trim() || 'Asia/Riyadh';
+      const day = values.day ?? (await programWindowsIn(prisma, new Date(), zone)).day.date;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) fail('--day is YYYY-MM-DD.');
+      const week = addDays(day, -((new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7));
+      const on = (period: string) =>
+        templates
+          .filter((t) => t.audience === audience && t.enabled && t.period === period)
+          .map((t) => t.code);
+      process.stdout.write(
+        `@${arg}: ${audience}, charm level ${String(charm)}, band ${String(band.band)}; day ${day}, week of ${week}\n`,
+      );
+      const daily = assignGenerated({
+        audience,
+        period: 'DAILY',
+        templates: on('DAILY'),
+        userId: me,
+        periodKey: day,
+        charmLevel: charm,
+        count: audience === 'CREATORS' ? band.creatorCount : band.hostCount,
+        caps: genCaps(),
+      });
+      const weekly = assignGenerated({
+        audience,
+        period: 'WEEKLY',
+        templates: on('WEEKLY'),
+        userId: me,
+        periodKey: week,
+        charmLevel: charm,
+        count: GEN_WEEKLY_COUNT[audience],
+        caps: genCaps(),
+      });
+      process.stdout.write("Daily (before the day's other tasks are known):\n");
+      for (const t of daily) process.stdout.write(`  ${genLine(t)}`);
+      process.stdout.write('Weekly:\n');
+      for (const t of weekly) process.stdout.write(`  ${genLine(t)}`);
+      return;
+    }
+    default:
+      fail(USAGE);
+  }
+}
+
 const [command, first, ...rest] = process.argv.slice(2);
 try {
   switch (command) {
@@ -331,9 +562,17 @@ try {
       if (first !== undefined) fail(USAGE);
       const added = await seedDefaultTasksIn(prisma);
       const pool = await seedDefaultTaskPoolIn(prisma);
-      process.stdout.write(`Added ${String(added)} default task(s) and ${String(pool)} pool template(s).\n`);
+      const creator = await seedD297TasksIn(prisma);
+      process.stdout.write(
+        `Added ${String(added)} default task(s), ${String(pool)} pool template(s) and ` +
+          `${String(creator)} D297 task(s).\n`,
+      );
       break;
     }
+    case 'generator':
+      if (!first) fail(USAGE);
+      await generator([first, ...rest]);
+      break;
     case 'bands':
       if (first !== undefined) fail(USAGE);
       await bands();

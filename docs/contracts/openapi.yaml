@@ -349,6 +349,15 @@ info:
     `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`. Fix: `createReport`
     USER accepts the user's id as well as the username (the app sends the id, which was answered 404). Additive; migration
     `20270330090000_report_resolution_action`.
+    **D297 (DRAFT v1.94-social)** tasks for content creators «مهام صانع المحتوى» (CONVENTIONS §10.110; owner: «مهام خاصة
+    بصناع المحتوى، وقيمتها كمهام المضيف»): `ProgramTask.audience` `CREATORS` (only creator-programme members; a member never
+    gets `HOSTS` tasks), `MyTasks.band.creator`, metrics `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`,
+    `NEW_FOLLOWERS`, `SHARES_RECEIVED`; the pool group CREATOR and four weekly creator tasks per band, rewarded like the host
+    tasks and under the same daily and monthly caps; migrations `20270331090000_creator_tasks_enums`,
+    `20270331090100_creator_tasks`. Follow-up (§10.110.1): metric `HOST_LIVE_DAYS`, six / four weekly tasks, and the
+    generated catalogue (315 120 tasks per audience by the person's charm level; generated tasks are ordinary
+    `ProgramTask`s whose `code` is a `G_…` template and `name` the generated wording); migration
+    `20270331090200_task_generator`.
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -32250,7 +32259,7 @@ components:
         period: { type: string, enum: [DAILY, WEEKLY] }
         metric:
           type: string
-          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT, HOST_LUCKY_COINS, HOST_GIFT_CHERRIES, HOST_LUCKY_CHERRIES, GIFT_COUNT_SENT, CATEGORY_GIFTS_SENT, GIFTED_HOSTS, FAMILY_JOIN, FAMILY_CHAT_MESSAGES, PK_BATTLES, PK_WINS]
+          enum: [WATCH_LIVES, FOLLOWS, LIVE_CHAT_MESSAGES, GIFT_SENDS, HOST_LIVE_MINUTES, HOST_GIFT_COINS, WATCH_MINUTES, AUDIO_ROOMS, LIVE_TAPS, NEW_HOST_GIFTS, POSTS, REELS, STORIES, POST_COMMENTS, DM_FRIENDS, DM_VOICE_MESSAGES, HOST_GIFTS_RECEIVED, HOST_GUESTS, GIFT_COINS_SENT, HOST_LUCKY_COINS, HOST_GIFT_CHERRIES, HOST_LUCKY_CHERRIES, GIFT_COUNT_SENT, CATEGORY_GIFTS_SENT, GIFTED_HOSTS, FAMILY_JOIN, FAMILY_CHAT_MESSAGES, PK_BATTLES, PK_WINS, REEL_VIEWS_RECEIVED, LIKES_RECEIVED, COMMENT_REPLIES, NEW_FOLLOWERS, SHARES_RECEIVED, HOST_LIVE_DAYS]
           description: |
             What is counted (the app picks where «اذهب» leads from it). v1.50-social (D176) adds the
             daily pool's metrics (CONVENTIONS §10.41.1); a client shows an unknown metric with a
@@ -32260,8 +32269,19 @@ components:
             from other people) and `HOST_LUCKY_CHERRIES` («هدف هدايا الحظ»: the cherries of lucky gifts, self-sends
             included); their targets are cherries. v1.86-social (D281, §10.41.4) adds `GIFT_COUNT_SENT` (how many of
             the task's `gift` were sent), `CATEGORY_GIFTS_SENT` (of one gift category), `GIFTED_HOSTS` (different
-            people gifted), `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES` and `PK_WINS` (hosts).
-        audience: { type: string, enum: [EVERYONE, HOSTS] }
+            people gifted), `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES` and `PK_WINS` (hosts). v1.94-social (D297,
+            §10.110) adds the creator tasks' metrics, each counting what OTHER ACTIVE people did with the caller's
+            content (never the caller's own actions): `REEL_VIEWS_RECEIVED` (§11.4 views of the caller's reels, one per
+            viewer and reel), `LIKES_RECEIVED` (likes on the caller's posts and reels that still stand),
+            `COMMENT_REPLIES` (different comments of others on the caller's posts the caller replied to),
+            `NEW_FOLLOWERS` (follows of the caller made in the period that still stand) and `SHARES_RECEIVED` (outside
+            shares and reposts of the caller's posts and reels). The follow-up adds `HOST_LIVE_DAYS` (different days
+            with a live of 10 minutes or more; hosts).
+        audience:
+          type: string
+          enum: [EVERYONE, HOSTS, CREATORS]
+          description: "v1.94-social (D297, CONVENTIONS §10.110): `CREATORS` — a task only for creator-programme members «مهام صانع المحتوى» (the app shows them in their own section; an older app shows them with the other tasks). A member never gets `HOSTS` tasks."
+
         name: { type: string, description: "v1.86-social (D281): a generated task's name states its gift, category or window." }
         gift:
           description: "v1.86-social (D281): the gift a `GIFT_COUNT_SENT` task names (its picture and name), else null. Sent by a v1.86-social server."
@@ -32334,12 +32354,13 @@ components:
         band:
           type: object
           description: "v1.50-social (D176): the level band of today's pool tasks (the band at the day's first read; before any assignment, the band of the level now)."
-          required: [band, level, name, host]
+          required: [band, level, name, host, creator]
           properties:
             band: { type: integer, minimum: 1, maximum: 4 }
             level: { type: integer, minimum: 0, description: The higher of the caller's Support and Charm levels now (0 = none). }
             name: { type: string, description: In the language of Accept-Language. }
-            host: { type: boolean, description: The caller holds the hosting permission (host tasks are offered). }
+            host: { type: boolean, description: "Host tasks are offered: the caller holds the hosting permission and (v1.94-social, D297) is not a creator-programme member." }
+            creator: { type: boolean, description: "v1.94-social (D297, CONVENTIONS §10.110): the caller is a creator-programme member (`creator_members`) — creator tasks («مهام صانع المحتوى», audience `CREATORS`) are offered and host tasks are not." }
         checkIn:
           type: object
           required: [checkedInToday, streak, cycleDays, rewardCoins, bonusCoins, days]

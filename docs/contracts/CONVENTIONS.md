@@ -733,6 +733,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.94-social (draft) | 2026-11-06 | **D297 (owner: «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف» — Task Center tasks only for content creators, valued like the host tasks):** `ProgramTask.audience` `CREATORS` (creator-programme members only; a member never gets `HOSTS` tasks), `MyTasks.band.creator` (`band.host` = host tasks offered), `ProgramTask.metric` `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`, `NEW_FOLLOWERS`, `SHARES_RECEIVED`; the pool group CREATOR with `task_pool_bands.creator_count`; ten default tasks (six daily, four weekly per band) mirroring the host tasks' rewards under the same daily and monthly caps; `task-admin band --creator-count`; CHECK `events_audience_not_creators`; migrations `20270331090000_creator_tasks_enums`, `20270331090100_creator_tasks`. §10.110. | **Additive** (a new enum value in a response, new metric values — clients map unknown ones to the generic icon —, a new field). |
+| v1.94-social (draft) | 2026-11-06 | **D297 follow-up (owner answers: defaults approved, no anti-fake rule, 6 / 4 weekly tasks; «قم بتوليد 300 ألف مهمة لصانع المحتوى و300 ألف مهمة للمضيف … حسب المستوى وتدريجياً», the level = the charm level):** `ProgramTask.metric` `HOST_LIVE_DAYS`; fixed weekly tasks `CREATOR_WEEKLY_LIKES`, `CREATOR_WEEKLY_STORIES`, `HOST_WEEKLY_LIVE_DAYS`, `HOST_WEEKLY_PK_BATTLES`; the generated catalogue (315 120 tasks per audience, by charm level; 32 template rows `G_CR_…` / `G_HO_…`; `task_assignments.variant` `G.…`), `task-admin generator`; migration `20270331090200_task_generator`. §10.110.1. | **Additive** (a new metric value; generated tasks are ordinary tasks on the wire). |
 | v1.93-social (draft) | 2026-11-06 | **D296 (owner: a report opens its content for the staff with warn / restrict / ban buttons, a reported message opens the reported chat, «رسائل الإبلاغ غير فعّال»; then: an action resolves only the pressed report, the whole conversation «مثل طريقة نزاع وكيل الشحن», SUPPORT keeps «تعليق مؤقت», the permanent deletions in the app too)** — `getStaffReport` (`StaffReportView`, `StaffReportTarget`: the content whatever its visibility; a DM / a person reported from a conversation with `DmReportThread`, every read audited `moderation.report.dm_read`), `actOnStaffReport` (`StaffReportActionRequest` / `StaffReportActionResult`: WARN, RESTRICT NO_POSTING / NO_LIVE / CHAT_MUTE, SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT with `confirm: DELETE`, each with its panel capability; only the pressed report resolved, `AdminPanelReport.resolutionAction`, the staff's alerts read, 409 on a second action); `CreateReportRequest.dmConversationId`; `StaffStatus.capabilities` gains `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`; `createReport` USER accepts the user's id (the bug). Migration `20270330090000_report_resolution_action`. §10.109. | **Additive** (new operations, fields, enum values). **Behaviour change:** an app action resolves its report; a USER report by id is accepted instead of 404; a DM report keeps the whole conversation (owner's privacy decision). |
 | v1.92-social (draft) | 2026-11-06 | **D294 (owner, from screenshots of the reels page and the posts page: «اجعل فلتر فقط منشورات وريلز»; v1.90-social and v1.91-social are D293 and D292 on their own branches):** `listFeedReels` `tab=mixed` — the reels page's only feed, the posts home feed's rule (§10.73.1) over reels: 1 Following (followed accounts, the caller's own reels, reels reposted by followed accounts, newest first) : 2 Trending (§11.3 over public reels), one frozen 10-minute list per caller (its own snapshot list `reels-mixed`), a reel once (its Following place), the same exclusions and caps (500 / 500). `following`, `trending` and `nearby` unchanged; the app stops using `nearby` and its country prompt (§11.15). No migration. §10.107, §11.3, §11.14, §11.15. | **Additive** (a new enum value on one operation; nothing else changes shape or behaviour). |
 | v1.91-social (draft) | 2026-11-06 | **D292 (owner, option 1: the person picks an icon for each profile tag, chips like his mock):** `UpdateMeRequest.tagIcons` (one per tag of `tags`, sent with it — else `tagIcons` / `invalid_value`; each a `ProfileTagIcon` or null for `default`, anything else → `tagIcons.<i>` / `invalid_value`; `tags` without `tagIcons` keeps each tag's icon by its text, a new tag `default`), `Me.tagIcons`, `PublicProfile.tagIcons` (one per tag), schema `ProfileTagIcon` (`default`, `crown`, `fire`, `trophy`, `gamepad`, `music`, `mic`, `moon`, `heart`, `star`, `gem`, `camera`, `book`, `sport`, `palette`, `globe`, or `flag:<ISO 3166-1 alpha-2>`). Column `user_profiles.tag_icons` (`varchar(24)[]`, CHECKs `user_profiles_tag_icons_len` — empty or one per tag — and `user_profiles_tag_icons_values`), migration `20270327090000_profile_tag_icons`; `PATCH /me` audits `tagIcons` among the changed fields (never the values). §10.106. | **Additive.** An older app ignores `tagIcons` and keeps the icons when it edits the tags; an app reading an unknown icon draws `default`. |
@@ -2947,7 +2949,8 @@ or level points from tasks). Every value is a default the owner changes with `ta
 - **Templates:** `task_definitions` rows with `pool = true` (code `P_…`, DAILY), a variety group (`WATCH`,
   `LIVE`, `SOCIAL`, `GIFT`, `CONTENT`, `MESSAGE`, `HOST`) and one target and one coin reward per level band
   1…4 (`band_targets`, `band_rewards`; 0 = not offered in that band). `HOST` templates are for hosting
-  permission holders only. Fixed (non-pool) tasks keep §10.41; D166's four fixed daily tasks are switched
+  permission holders only. *(v1.94-social, D297: the group `CREATOR`, audience `CREATORS`, is for creator-programme
+  members only — and they never get `HOST` templates; §10.110.)* Fixed (non-pool) tasks keep §10.41; D166's four fixed daily tasks are switched
   off by the migration (the pool offers the same actions per band; the team can switch them on again).
 - **Bands** (`task_pool_bands`): the band is the last whose `min_level` the person's level reaches — the
   higher of their **Support** and **Charm** («الجاذبية», `ATTRACTIVENESS`) current levels (enabled
@@ -8256,6 +8259,152 @@ Additive: two operations, `AdminPanelReport.resolutionAction` (new required fiel
 action from the app resolves only its report; the panel's report actions record `resolutionAction` and read the staff's
 alerts; a USER report by id works; DM reports keep the whole conversation (owner). Migration
 `20270330090000_report_resolution_action` (`reports.resolution_action`, a CHECK: null while OPEN). No server setting.
+
+### 10.110 Tasks for content creators «مهام صانع المحتوى» *(v1.94-social, DRAFT — D297)*
+
+Owner (2026-11-06): «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف» — Task Center tasks only for content creators,
+valued like the host tasks. The Task Center's rules stay (§10.41, §10.41.1, §10.41.3, §10.51, §10.41.4); this adds an
+audience, a pool group, five metrics and four weekly tasks. Every value is a `task-admin` default (no release).
+
+- **Who.** Audience `CREATORS` (`task_definitions.audience`, enum `program_audience`): only creator-programme members —
+  a `creator_members` row (D285), checked on every read and claim, as `HOSTS` tasks are only for hosting-permission
+  holders (`live_hosts`). **A member never gets `HOSTS` tasks**, even with a hosting permission: the membership decides
+  (`role = creator` when a member, else `host` when a permission holder). A membership that ends ends the creator tasks
+  from the next read (a day's assignment already made keeps its creator rows hidden: their audience no longer matches).
+  Anyone else: 404 on a creator task's claim, as on a host task.
+  - *With D295 (v1.82-live, another branch):* D295 gives every member the hosting permission (`live_hosts.source =
+    CREATOR`, `Me.canHost` true) and keeps host and creator mutually exclusive (a member never holds a permission of
+    another source). Merged together, a member has `canHost` and still gets **only** the creator tasks — never the host
+    daily pool tasks, the weekly host tasks or «هدف هدايا الحظ» — and a host (any other source) never gets creator
+    tasks. Nothing in D297 reads `live_hosts.source`, so the merge needs no code change; the e2e gives a member an
+    `ADMIN` permission to stand for D295's. Whether a live-streaming creator should *also* get host tasks is an owner
+    question (PP-56), not built.
+- **The daily pool.** Group `CREATOR` (templates `P_CR_…`, audience `CREATORS`) and `task_pool_bands.creator_count`
+  (default = `host_count`: 2 · 2 · 2 · 3): a member gets that many creator tasks first, then everyone's tasks fill the
+  band's daily count as §10.41.1 (one per group, then two). Same in the smart assignment (§10.41.4; ladders: views and
+  likes the hearts ladder, the others the actions ladder; rewards `variantReward`). A day never holds an everyone task
+  whose metric one of the day's creator tasks counts (no «انشر منشوراً» next to «انشر منشورات»: one post never completes
+  two tasks). Non-members' lists are unchanged (the creator templates are filtered out before the shuffle).
+- **Metrics** (per read from stored data; never the creator's own actions; counterparts ACTIVE; content published,
+  not removed, not deleted):
+  - `REELS`, `POSTS`, `STORIES` — as §10.41.1 (their own production).
+  - `REEL_VIEWS_RECEIVED` — §11.4 views of the creator's reels whose counted view falls in the period, one per viewer and
+    reel (`post_views` keeps the last counted view and moves it after 24 h, so a viewer counts once a day and, in a week,
+    once per reel).
+  - `LIKES_RECEIVED` — likes on the creator's posts and reels made in the period that still stand (an unlike deletes the
+    row).
+  - `COMMENT_REPLIES` — different comments by other people (not deleted) on the creator's own posts that the creator
+    replied to in the period (the reply not deleted): ten replies under one comment count once.
+  - `NEW_FOLLOWERS` — follows of the creator made in the period that still stand. *Unfollow rule:* an unfollow deletes the
+    row, so a follower who leaves within the week no longer counts; one who follows again counts once (from the new
+    follow). A follow made before the period never counts, and a claim already paid is kept.
+  - `SHARES_RECEIVED` — outside shares (`post_share_events`, at most one per person, post and **UTC day**; counted for the
+    UTC days from the one the period starts in up to, not including, the one it ends in, so each day is in one period
+    only) plus reposts made in the period that still stand. An outside share is reported by the *sharer's* app (the
+    server cannot see a link leave the phone) — never by the creator, whose own shares are excluded.
+- **Defaults** (migration `20270331090100_creator_tasks`, `task-admin seed-defaults`; rewards in cherries mirror the host
+  tasks the Task Center still offers, band by band; targets scale per band as the host tasks' do):
+
+  | Task | Metric | Targets (bands 1 · 2 · 3 · 4) | Rewards (cherries) | Mirrors |
+  |---|---|---|---|---|
+  | `P_CR_REEL` «انشر مقاطع ريلز» (daily) | `REELS` | 1 · 1 · 2 · 2 | 4 000 · 6 000 · 8 000 · 10 000 | `P_HOST_LIVE_30` |
+  | `P_CR_POST` «انشر منشورات» | `POSTS` | 1 · 1 · 2 · 3 | 2 000 · 3 000 · 4 000 · 6 000 | `P_HOST_GUEST` |
+  | `P_CR_STORY` «انشر قصصاً» | `STORIES` | 1 · 2 · 3 · 5 | 2 000 · 3 000 · 4 000 · 6 000 | `P_PK_BATTLES` |
+  | `P_CR_VIEWS` «مشاهدات ريلزك اليوم» | `REEL_VIEWS_RECEIVED` | 100 · 250 · 500 · 1 000 | 3 000 · 4 000 · 6 000 · 8 000 | `P_PK_WINS` |
+  | `P_CR_LIKES` «إعجابات على محتواك» | `LIKES_RECEIVED` | 20 · 50 · 100 · 200 | 3 000 · 4 000 · 6 000 · 8 000 | `P_PK_WINS` |
+  | `P_CR_REPLIES` «ردّ على تعليقات منشوراتك» | `COMMENT_REPLIES` | 3 · 5 · 10 · 20 | 2 000 · 3 000 · 4 000 · 6 000 | `P_HOST_GUEST` |
+  | `CREATOR_WEEKLY_REELS` (weekly) | `REELS` | 5 · 6 · 8 · 10 | 180 000 · 190 000 · 220 000 · 250 000 | `HOST_LIVE_MINUTES` |
+  | `CREATOR_WEEKLY_VIEWS` | `REEL_VIEWS_RECEIVED` | 5 000 · 6 000 · 8 000 · 10 000 | 180 000 · 190 000 · 220 000 · 250 000 | `HOST_LIVE_MINUTES` |
+  | `CREATOR_WEEKLY_FOLLOWERS` | `NEW_FOLLOWERS` | 50 · 60 · 80 · 100 | 220 000 · 270 000 · 290 000 · 430 000 | `HOST_GIFT_COINS` |
+  | `CREATOR_WEEKLY_SHARES` | `SHARES_RECEIVED` | 20 · 24 · 32 · 40 | 220 000 · 270 000 · 290 000 · 430 000 | `HOST_GIFT_COINS` |
+
+  The weekly figures the owner proposed (5 reels, 5 000 views, 50 followers, 20 shares) are band 1, scaled ×1 · ×1.2 ·
+  ×1.6 · ×2 like the weekly live minutes (300 · 360 · 480 · 600). The weekly host tasks have no flat 300 000 any more
+  (§10.41.3's value was replaced by D188's bands, §10.51): the creator weekly tasks take the bands' values. `P_HOST_GIFTS`
+  is not mirrored: since D281 it is the targets engine's (§10.62.2), not a Task Center task.
+- **Caps — the host tasks' own, shared.** Owner: «كمهام المضيف». Daily creator tasks count toward
+  `TASK_DAILY_CAP_CHERRIES` (50 000) with every other daily task of the person; daily and weekly creator tasks count
+  toward `TASK_MONTHLY_CAP_MINOR` ($5 = 4 545 454 cherries) with every other task claim; weekly creator tasks are
+  outside the daily cap, like the weekly host tasks. The claim code does not look at the audience: one cap per person,
+  whatever mix of tasks they have. A band-4 creator who completes all four weekly tasks (1 360 000 a week) reaches the
+  monthly cap sooner than a band-4 host (680 000 a week): the monthly cap is what keeps both at $5 (PP-56).
+- **Claim, credit, history, withdrawal** as §10.41.3 / §10.51: `task_claims_once`, `cherry_ledger` `TASK_REWARD`
+  (reference `<code>@<period start>`), locked until the §10.46.1 unlock.
+- **`task-admin`:** `set <CODE> --targets … --rewards …` / `--enabled` on every creator task (as host tasks);
+  `band <n> --creator-count <n>` (≤ `--count`); `bands` and `list` print the creator count and the `CREATORS` audience;
+  `seed-defaults` adds missing creator tasks. The panel's read-only «المهام» lists them with their audience.
+- **Events.** The audience type is shared with the Event Center; events stay `EVERYONE` / `HOSTS` (CHECK
+  `events_audience_not_creators`).
+- **Wire (additive).** `ProgramTask.audience` `CREATORS`; the five metrics (an older app shows an unknown metric with the
+  generic icon and a creator task among the other tasks); `MyTasks.band.creator` (`band.host` is now "host tasks are
+  offered": false for a member).
+- **The app.** The Task Center shows a member's creator tasks in their own card «مهام صانع المحتوى» (daily, with the
+  cap's note) and «مهام صانع المحتوى الأسبوعية» (weekly), each metric with its own icon and «اذهب» to where it is done
+  (new reel, create a post, new story, the creator's own profile for views, likes, replies, followers and shares).
+
+#### 10.110.1 Owner answers; six / four weekly tasks; the generated catalogue by charm level *(v1.94-social, DRAFT — D297 follow-up)*
+
+Owner (2026-11-06, answers to PP-56):
+
+- **Defaults approved for now** («نرى فيما بعد، الآن اعتمدها»): §10.110's table is the owner's; every value stays
+  changeable with `task-admin`.
+- **No anti-fake rule (decided):** no minimum account age or level for the counted counterparts — only ACTIVE people,
+  never the person themself.
+- **Weekly counts:** a creator has **6** weekly tasks, a host **4**. Fixed tasks added (migration
+  `20270331090200_task_generator`): `CREATOR_WEEKLY_LIKES` (`LIKES_RECEIVED` 200 · 240 · 320 · 400 → 220 000 · 270 000 ·
+  290 000 · 430 000), `CREATOR_WEEKLY_STORIES` (`STORIES` 5 · 6 · 8 · 10 → 180 000 … 250 000), `HOST_WEEKLY_LIVE_DAYS`
+  (new metric `HOST_LIVE_DAYS`: different days of the period, on the programs' clock, on which the person started a
+  live that lasted ≥ 10 minutes; 3 · 4 · 5 · 6 → 180 000 … 250 000) and `HOST_WEEKLY_PK_BATTLES` (`PK_BATTLES` 5 · 6 · 8
+  · 10 → 180 000 … 250 000). Same caps as every task. They are what a person gets while the generator is **off** for
+  their audience; with it on, the same counts come from the generator.
+- **The generated catalogue** («قم بتوليد 300 ألف مهمة لصانع المحتوى و300 ألف مهمة للمضيف، بحيث يعطي النظام المهام حسب
+  المستوى وتدريجياً»; the level: «مستوى الشخص للجاذبية»):
+  - **Design:** a deterministic procedural generator (`task-generator.ts`), not 600 000 rows. A generated task is
+    ENTRY (one metric and one period of one audience: 8 daily + 8 weekly per audience) × **charm level** 0 … 100 ×
+    difficulty **step** 0 … 12 (factor 2^((step − 6) / 6), ×0.5 … ×2) × **wording** 0 … 14 (5 openings × 3 endings,
+    ar/en, e.g. «هدفك: انشر مقاطع ريلز اليوم» / "Your goal: publish reels today"). Code
+    `G.<CR|HO>.<METRIC>.<D|W>.<level>.<step>.<variant>`. **315 120 distinct tasks per audience** (16 × 101 × 13 × 15),
+    stable across runs (a pinned fingerprint of every code in the unit tests).
+  - **Entries:** creators — `REELS`, `POSTS`, `STORIES`, `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`,
+    `NEW_FOLLOWERS`, `SHARES_RECEIVED`, daily and weekly; hosts — `HOST_LIVE_MINUTES`, `HOST_LIVE_DAYS`, `HOST_GUESTS`,
+    `PK_BATTLES`, `PK_WINS`, `HOST_GIFTS_RECEIVED`, `HOST_GIFT_COINS`, `NEW_FOLLOWERS`, daily and weekly. Each has a target
+    and a reward at level 0 (= band 1's) and at level 60 (= band 4's): daily values from the creator / host pool
+    templates, weekly ones from the weekly host ladders (180 000 → 250 000; audience or money 220 000 → 430 000).
+  - **The level curve (gradual, «تدريجياً»):** the level is the person's own **CHARM** level (`ATTRACTIVENESS`, CP-005;
+    none = 0; above 100 = 100) — not support, not a host tier, not an agency level. target = t0 × (t60 / t0)^(level / 60)
+    × the step's factor — rising with every level, not in four bands — rounded (whole below 100, two significant digits
+    from 100, e.g. 413 519 → 410 000), ≥ 1, never above an entry's maximum (1 live day a day, 7 a week). reward = r0 → r60
+    linearly over levels 0 … 60, then flat, × the step's factor kept within ¾ … 1½, in tens; a coin-valued task
+    (`HOST_GIFT_COINS`) pays at most 0.1 cherry a coin (D188's ≈ 1 % of the value); a daily reward is at most
+    `TASK_DAILY_CAP_CHERRIES`, a weekly one at most the monthly cap. Both never fall when the level rises.
+  - **The template rows:** one `task_definitions` row per entry (`G_CR_<METRIC>_<D|W>`, `G_HO_…`; 32; not pool, no
+    band values; target / reward = the level-0 values for `task-admin list`). It holds the entry's switch (`enabled`) and
+    keys the claims: one claim per person, template and day or ISO week, `cherry_ledger` reference
+    `<template>@<period start>` — idempotent as every task. Codes `G_…` are reserved; never offered as fixed tasks.
+  - **The assignment** (with the generator on for the person's audience — a creator-programme member: CREATORS, else a
+    hosting-permission holder: HOSTS):
+    - **Daily**, at the day's first read: the band's `creator_count` / `host_count` (§10.110; band by §10.41.1's level)
+      generated tasks replace the creator / host pool templates; the pool (D176 or D281's smart engine) fills the rest
+      of the band's daily count with everyone's tasks; the generated ones never take a metric one of those counts.
+    - **Weekly**, at the week's first read: **6** (creators) / **4** (hosts) generated weekly tasks, stored on the ISO
+      week's first day, replacing the audience's fixed weekly tasks.
+    - **Which:** the enabled entries of the period in an order seeded by the person and the period (FNV-1a + mulberry32,
+      like §10.41.1), the previous period's metrics last, one task per metric; each at the person's charm level **at
+      that read**, a step 5 … 7 (seeded; the curve does the rising) and a seeded wording — never the previous period's
+      exact task (the wording moves on). Stored in `task_assignments` (`variant` = the generated code, its target,
+      reward and names, `reason` {generated, charmLevel, step, variant}); fixed for the day / week.
+    - The everyone tasks, the check-in, the targets engine and «هدف هدايا الحظ» are unchanged. With the generator **off**
+      for an audience, §10.110's pool and the fixed weekly tasks apply (six / four).
+  - **Coexistence — the generator replaces the small pools while on.** Chosen over running both: one source of creator /
+    host tasks per person and period (never two tasks for one action), the same caps, and the hand-made pool stays as
+    the fallback the team switches back to (`task-admin generator off`). **Seeded ON for both audiences** (owner).
+  - **`task-admin generator`:** `status` (on / off, enabled templates, catalogue sizes), `on|off CREATORS|HOSTS`
+    (audited `task.update`, target `task_generator`), `count [--verify]` (≥ 300 000 per audience; `--verify` enumerates
+    every code), `sample CREATORS|HOSTS [--level n] [--n k]`, `preview <username> [--day YYYY-MM-DD]` (a person's
+    generated tasks, nothing stored). One template: `set G_CR_REELS_D --enabled false`.
+  - **Wire (additive):** `ProgramTask.metric` `HOST_LIVE_DAYS`; generated tasks are ordinary `ProgramTask`s (`code` = the
+    template, `name` = the generated wording, `pooled` true for daily ones). The app shows creator tasks in their cards
+    and host tasks with the host tasks.
 
 ### 11.1 Media upload
 

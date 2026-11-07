@@ -27,6 +27,13 @@ import {
 } from './task-catalogue.js';
 import { addDays, dateValue, programWindowsIn, type ProgramWindow } from './programs-time.js';
 import {
+  GEN_WEEKLY_COUNT,
+  assignGenerated,
+  genEntryOf,
+  isGenTemplateCode,
+  type GenAudience,
+} from './task-generator.js';
+import {
   CHECK_IN_CYCLE_DAYS,
   D281_POOL_TASKS,
   DEFAULT_TASK_POOL_BANDS,
@@ -34,6 +41,7 @@ import {
   TASK_POOL_BANDS,
   WATCH_LIVE_MIN_MS,
   assignDailyTasks,
+  audienceOffered,
   bandForLevel,
   cappedReward,
   cappedTaskReward,
@@ -44,6 +52,8 @@ import {
   isTaskMetric,
   monthlyCapCherries,
   seedOf,
+  taskRoleOf,
+  type TaskAudience,
   type TaskMetric,
   type TaskPoolBand,
 } from './programs-rules.js';
@@ -175,7 +185,8 @@ export interface ProgramTaskDto {
   pooled: boolean;
   period: 'DAILY' | 'WEEKLY';
   metric: TaskMetric;
-  audience: 'EVERYONE' | 'HOSTS';
+  /** v1.94-social (D297): `CREATORS` — a creator-programme member's task «مهام صانع المحتوى». */
+  audience: TaskAudience;
   name: string;
   /** v1.86-social (D281): the gift a chosen-gift task names (its picture and name), else null. */
   gift: { code: string; name: string; assetKey: string; imageUrl: string | null } | null;
@@ -226,7 +237,11 @@ export interface MyTasksDto {
   /** v1.57-social (D188): cherries from tasks (daily and weekly) paid this calendar month. */
   monthlyEarnedCherries: number;
   /** v1.50-social (D176): the level band today's pool tasks were chosen for. */
-  band: { band: number; level: number; name: string; host: boolean };
+  /**
+   * `host`: host tasks are offered (the hosting permission, and — v1.94-social, D297 — not a creator-programme
+   * member); `creator` (D297): creator tasks are offered (a creator-programme member).
+   */
+  band: { band: number; level: number; name: string; host: boolean; creator: boolean };
   checkIn: {
     checkedInToday: boolean;
     streak: number;
@@ -288,6 +303,7 @@ function progressSql(
   w: ProgramWindow,
   now: Date,
   subject: string | null = null,
+  zone = 'UTC',
 ): Prisma.Sql {
   const from = w.start;
   const to = w.end;
@@ -325,6 +341,79 @@ function progressSql(
         SELECT count(*) AS n FROM family_chat_messages m
          WHERE m.author_id = ${me}::uuid AND m.deleted_at IS NULL
            AND m.created_at >= ${from}::timestamptz AND m.created_at < ${to}::timestamptz`;
+    // ---- v1.94-social (D297, CONVENTIONS §10.110): what OTHER ACTIVE people did with the caller's content -------
+    case 'REEL_VIEWS_RECEIVED':
+      // §11.4 views of the caller's reels (published, not removed or deleted) by other ACTIVE people whose counted view
+      // falls in the period: one per viewer and reel (`post_views` keeps the last counted view; a new one counts after
+      // 24 h and moves it).
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM post_views v
+          JOIN posts p ON p.id = v.post_id AND p.author_id = ${me}::uuid AND p.format = 'REEL'::post_format
+                      AND p.status = 'PUBLISHED' AND p.moderation <> 'REMOVED' AND p.deleted_at IS NULL
+          JOIN users u ON u.id = v.user_id AND u.status = 'ACTIVE'
+         WHERE v.user_id <> ${me}::uuid
+           AND v.viewed_at >= ${from}::timestamptz AND v.viewed_at < ${to}::timestamptz`;
+    case 'LIKES_RECEIVED':
+      // Likes on the caller's posts and reels (published, not removed or deleted) made in the period by other ACTIVE
+      // people that still stand (an unlike deletes the row).
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM post_likes l
+          JOIN posts p ON p.id = l.post_id AND p.author_id = ${me}::uuid
+                      AND p.status = 'PUBLISHED' AND p.moderation <> 'REMOVED' AND p.deleted_at IS NULL
+          JOIN users u ON u.id = l.user_id AND u.status = 'ACTIVE'
+         WHERE l.user_id <> ${me}::uuid
+           AND l.created_at >= ${from}::timestamptz AND l.created_at < ${to}::timestamptz`;
+    case 'COMMENT_REPLIES':
+      // Different comments of other ACTIVE people (not deleted) on the caller's own posts that the caller replied to in
+      // the period (the reply not deleted): ten replies under one comment count once.
+      return Prisma.sql`
+        SELECT count(DISTINCT c.parent_id) AS n
+          FROM comments c
+          JOIN comments pc ON pc.id = c.parent_id AND pc.author_id <> ${me}::uuid AND pc.deleted_at IS NULL
+          JOIN users u ON u.id = pc.author_id AND u.status = 'ACTIVE'
+          JOIN posts p ON p.id = c.post_id AND p.author_id = ${me}::uuid AND p.deleted_at IS NULL
+         WHERE c.author_id = ${me}::uuid AND c.deleted_at IS NULL
+           AND c.created_at >= ${from}::timestamptz AND c.created_at < ${to}::timestamptz`;
+    case 'NEW_FOLLOWERS':
+      // ACTIVE people who started following the caller in the period and still do (an unfollow deletes the row, so a
+      // follower who left does not count; one who comes back counts once, from the new follow).
+      return Prisma.sql`
+        SELECT count(*) AS n
+          FROM follows f
+          JOIN users u ON u.id = f.follower_id AND u.status = 'ACTIVE'
+         WHERE f.followee_id = ${me}::uuid AND f.follower_id <> ${me}::uuid
+           AND f.created_at >= ${from}::timestamptz AND f.created_at < ${to}::timestamptz`;
+    case 'SHARES_RECEIVED':
+      // Shares of the caller's posts and reels (published, not removed or deleted) by other ACTIVE people: outside
+      // shares (`post_share_events`, at most one per person, post and UTC day — counted for the UTC days from the one
+      // the period starts in up to the one it ends in, each day in one period only) and reposts made in the period
+      // that still stand.
+      return Prisma.sql`
+        SELECT (
+          (SELECT count(*) FROM post_share_events e
+             JOIN posts p ON p.id = e.post_id AND p.author_id = ${me}::uuid
+                         AND p.status = 'PUBLISHED' AND p.moderation <> 'REMOVED' AND p.deleted_at IS NULL
+             JOIN users u ON u.id = e.user_id AND u.status = 'ACTIVE'
+            WHERE e.user_id <> ${me}::uuid
+              AND e.day >= (${from}::timestamptz AT TIME ZONE 'UTC')::date
+              AND e.day < (${to}::timestamptz AT TIME ZONE 'UTC')::date)
+          + (SELECT count(*) FROM post_reposts r
+             JOIN posts p ON p.id = r.post_id AND p.author_id = ${me}::uuid
+                         AND p.status = 'PUBLISHED' AND p.moderation <> 'REMOVED' AND p.deleted_at IS NULL
+             JOIN users u ON u.id = r.user_id AND u.status = 'ACTIVE'
+            WHERE r.user_id <> ${me}::uuid
+              AND r.created_at >= ${from}::timestamptz AND r.created_at < ${to}::timestamptz))::bigint AS n`;
+    case 'HOST_LIVE_DAYS':
+      // D297 follow-up: different days (the programs' clock) of the period on which the caller started a live that lasted
+      // at least 10 minutes (a live in progress up to its last heartbeat).
+      return Prisma.sql`
+        SELECT count(DISTINCT (r.started_at AT TIME ZONE ${zone})::date) AS n
+          FROM live_rooms r
+         WHERE r.host_user_id = ${me}::uuid
+           AND r.started_at >= ${from}::timestamptz AND r.started_at < ${to}::timestamptz
+           AND COALESCE(r.ended_at, r.last_heartbeat_at) - r.started_at >= interval '10 minutes'`;
     case 'PK_BATTLES':
     case 'PK_WINS':
       // D281: PK battles the caller (a host) started in the period — started, never the void ones (cancelled or
@@ -566,7 +655,7 @@ export class TasksService {
     subject: string | null = null,
   ): Promise<number> {
     const rows = await db.$queryRaw<{ n: bigint | number | null }[]>(
-      progressSql(me, metric, w, now, subject),
+      progressSql(me, metric, w, now, subject, this.zone),
     );
     return Number(rows[0]?.n ?? 0);
   }
@@ -581,20 +670,31 @@ export class TasksService {
     };
   }
 
-  private async isHost(db: Db, me: string): Promise<boolean> {
-    const [row] = await db.$queryRaw<{ host: boolean }[]>`
-      SELECT EXISTS (SELECT 1 FROM live_hosts WHERE user_id = ${me}::uuid) AS host`;
-    return row?.host ?? false;
+  /**
+   * v1.94-social (D297, CONVENTIONS §10.110): the caller's role for the tasks — a creator-programme member
+   * (`creator_members`) gets CREATORS tasks and never HOSTS tasks (D295 gives members a hosting permission); otherwise a
+   * hosting-permission holder gets HOSTS tasks.
+   */
+  private async roleOf(db: Db, me: string): Promise<{ host: boolean; creator: boolean }> {
+    const [row] = await db.$queryRaw<{ host: boolean; creator: boolean }[]>`
+      SELECT EXISTS (SELECT 1 FROM live_hosts WHERE user_id = ${me}::uuid) AS host,
+             EXISTS (SELECT 1 FROM creator_members WHERE user_id = ${me}::uuid) AS creator`;
+    return taskRoleOf(row?.host ?? false, row?.creator ?? false);
   }
 
-  /** The tasks the caller may see: enabled, known metric, and HOSTS tasks only for hosts. */
+  /**
+   * The tasks the caller may see: enabled, known metric, HOSTS tasks only for hosts and (v1.94-social, D297) CREATORS
+   * tasks only for creator-programme members (who never get HOSTS tasks).
+   */
   private async definitionsFor(db: Tx | PrismaService, me: string): Promise<TaskDefinition[]> {
     const defs = await db.taskDefinition.findMany({
       where: { enabled: true },
       orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
     });
-    const host = defs.some((d) => d.audience === 'HOSTS') ? await this.isHost(db, me) : false;
-    return defs.filter((d) => isTaskMetric(d.metric) && (d.audience === 'EVERYONE' || host));
+    const role = defs.some((d) => d.audience !== 'EVERYONE')
+      ? await this.roleOf(db, me)
+      : { host: false, creator: false };
+    return defs.filter((d) => isTaskMetric(d.metric) && audienceOffered(d.audience, role));
   }
 
   /** The caller's level for the pool: the higher of their Support and Charm levels (0 = none). */
@@ -604,6 +704,19 @@ export class TasksService {
         FROM user_level_states s
         JOIN level_categories c ON c.id = s.category_id AND c.is_enabled
                                AND c.code IN ('SUPPORT', 'ATTRACTIVENESS')
+       WHERE s.user_id = ${me}::uuid`;
+    return row?.level ?? 0;
+  }
+
+  /**
+   * D297 (owner: «مستوى الشخص للجاذبية»): the caller's CHARM level (`ATTRACTIVENESS`, enabled category) — the only level
+   * the generated tasks read; none = 0.
+   */
+  private async charmLevelOf(db: Db, me: string): Promise<number> {
+    const [row] = await db.$queryRaw<{ level: number | null }[]>`
+      SELECT s.current_level AS level
+        FROM user_level_states s
+        JOIN level_categories c ON c.id = s.category_id AND c.is_enabled AND c.code = 'ATTRACTIVENESS'
        WHERE s.user_id = ${me}::uuid`;
     return row?.level ?? 0;
   }
@@ -638,7 +751,12 @@ export class TasksService {
       nameEn: string | null;
     }[];
   }> {
-    const where = { userId: me, day: dateValue(day) };
+    // D297: a week's generated tasks are stored on the week's first day; they are not the day's (see weeklyGenerated).
+    const where = {
+      userId: me,
+      day: dateValue(day),
+      NOT: { taskCode: { startsWith: 'G_', endsWith: '_W' } },
+    };
     const select = {
       taskCode: true,
       target: true,
@@ -653,46 +771,169 @@ export class TasksService {
     } as const;
     let rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
     if (rows.length > 0) return { rows };
+    // D297 (§10.110.1): with the generator on for the caller's audience, their creator / host share of the day (the
+    // band's creator / host count) comes from the generated catalogue; the pool fills the rest with everyone's tasks.
+    const role = await this.roleOf(db, me);
+    const genDaily = (await this.genTemplates(db, role))
+      .filter((d) => d.period === 'DAILY')
+      .map((d) => d.code);
+    const band = bandForLevel(await this.levelOf(db, me), await this.bands(db));
+    const reserve =
+      genDaily.length === 0
+        ? 0
+        : Math.min(band.dailyCount, role.creator ? band.creatorCount : band.hostCount);
+    const poolRole = reserve > 0 ? { host: false, creator: false } : role;
+    const poolBand = { ...band, dailyCount: band.dailyCount - reserve };
     // v1.86-social (D281): from the smart engine's first day, the generated catalogue and the smart assignment.
     if (await this.targets.engineOn(day, db)) {
-      await this.smartAssign(db, me, day);
-      rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
-      return { rows };
+      await this.smartAssign(db, me, day, reserve);
+    } else {
+      const templates = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
+      // D281: its new templates need the smart engine (a gift, a category, a variant): never on the old path.
+      const usable = templates.filter(
+        (t) => isTaskMetric(t.metric) && t.poolGroup !== null && !D281_POOL_TASKS.includes(t.code),
+      );
+      const picks =
+        usable.length === 0 || poolBand.dailyCount <= 0
+          ? []
+          : assignDailyTasks(
+              usable.map((t) => ({
+                code: t.code,
+                group: t.poolGroup!,
+                audience: t.audience,
+                metric: t.metric,
+                bandTargets: t.bandTargets,
+                bandRewards: t.bandRewards,
+                sortOrder: t.sortOrder,
+              })),
+              poolBand,
+              poolRole.host,
+              seedOf(`${me}:${day}`),
+              poolRole.creator,
+            );
+      await db.taskAssignment.createMany({
+        data: picks.map((p) => ({
+          userId: me,
+          day: dateValue(day),
+          taskCode: p.code,
+          band: band.band,
+          target: p.target,
+          rewardCherries: p.rewardCherries,
+          position: p.position,
+        })),
+        skipDuplicates: true,
+      });
     }
-    const templates = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
-    // D281: its new templates need the smart engine (a gift, a category, a variant): never on the old path.
-    const usable = templates.filter(
-      (t) => isTaskMetric(t.metric) && t.poolGroup !== null && !D281_POOL_TASKS.includes(t.code),
-    );
-    if (usable.length === 0) return { rows };
-    const band = bandForLevel(await this.levelOf(db, me), await this.bands(db));
-    const picks = assignDailyTasks(
-      usable.map((t) => ({
-        code: t.code,
-        group: t.poolGroup!,
-        audience: t.audience,
-        bandTargets: t.bandTargets,
-        bandRewards: t.bandRewards,
-        sortOrder: t.sortOrder,
-      })),
-      band,
-      await this.isHost(db, me),
-      seedOf(`${me}:${day}`),
-    );
-    await db.taskAssignment.createMany({
-      data: picks.map((p) => ({
+    rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+    if (reserve > 0) {
+      await this.genAssign(db, me, day, 'DAILY', genDaily, reserve, rows, band.band);
+      rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+    }
+    return { rows };
+  }
+
+  /** D297 (§10.110.1): the generator's enabled template rows for the caller's audience (none: off, or neither role). */
+  private async genTemplates(
+    db: Tx | PrismaService,
+    role: { host: boolean; creator: boolean },
+  ): Promise<TaskDefinition[]> {
+    const audience: GenAudience | null = role.creator ? 'CREATORS' : role.host ? 'HOSTS' : null;
+    if (audience === null) return [];
+    const rows = await db.taskDefinition.findMany({
+      where: { enabled: true, audience, code: { startsWith: 'G_' } },
+      orderBy: { code: 'asc' },
+    });
+    return rows.filter((r) => isGenTemplateCode(r.code) && genEntryOf(r.code)?.audience === audience);
+  }
+
+  /**
+   * D297 (§10.110.1): picks and stores the caller's generated tasks of a day or an ISO week (`key`: its first day) —
+   * at their CHARM level now, never a metric another task of the day counts, and never the previous period's exact task
+   * — with each reward within the caps (the claim applies them again).
+   */
+  private async genAssign(
+    db: Tx | PrismaService,
+    me: string,
+    key: string,
+    period: 'DAILY' | 'WEEKLY',
+    templates: readonly string[],
+    count: number,
+    existing: readonly { taskCode: string }[],
+    band: number,
+  ): Promise<void> {
+    const audience = genEntryOf(templates[0] ?? '')?.audience;
+    if (audience === undefined || count <= 0) return;
+    const charmLevel = await this.charmLevelOf(db, me);
+    const previous = await db.taskAssignment.findMany({
+      where: {
         userId: me,
-        day: dateValue(day),
-        taskCode: p.code,
-        band: band.band,
+        day: dateValue(addDays(key, period === 'DAILY' ? -1 : -7)),
+        taskCode: { startsWith: 'G_', endsWith: period === 'DAILY' ? '_D' : '_W' },
+      },
+      select: { taskCode: true, variant: true },
+    });
+    const taken = existing.length
+      ? await db.taskDefinition.findMany({
+          where: { code: { in: existing.map((r) => r.taskCode) } },
+          select: { metric: true },
+        })
+      : [];
+    const picks = assignGenerated({
+      audience,
+      period,
+      templates,
+      userId: me,
+      periodKey: key,
+      charmLevel,
+      count,
+      avoidMetrics: new Set(taken.map((t) => t.metric)),
+      previousCodes: new Set(previous.map((r) => r.variant).filter((v): v is string => v !== null)),
+      previousMetrics: new Set(
+        previous.map((r) => genEntryOf(r.taskCode)?.metric).filter((m) => m !== undefined),
+      ),
+      caps: { dailyCherries: this.config.programs.taskDailyCapCherries, monthlyCherries: this.monthlyCap },
+    });
+    await db.taskAssignment.createMany({
+      data: picks.map((p, i) => ({
+        userId: me,
+        day: dateValue(key),
+        taskCode: p.template,
+        band,
         target: p.target,
         rewardCherries: p.rewardCherries,
-        position: p.position,
+        position: Math.min(11, existing.length + i),
+        variant: p.code,
+        nameAr: p.nameAr,
+        nameEn: p.nameEn,
+        reason: { generated: true, charmLevel: p.level, step: p.step, variant: p.variant },
       })),
       skipDuplicates: true,
     });
-    rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
-    return { rows };
+  }
+
+  /** D297: the caller's generated tasks of the ISO week starting `week` (assigned at the week's first read). */
+  private async weeklyGenerated(
+    db: Tx | PrismaService,
+    me: string,
+    week: string,
+    templates: readonly string[],
+    band: number,
+  ) {
+    const where = { userId: me, day: dateValue(week), taskCode: { in: [...templates] } };
+    const select = {
+      taskCode: true,
+      target: true,
+      rewardCherries: true,
+      nameAr: true,
+      nameEn: true,
+    } as const;
+    let rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+    if (rows.length === 0 && templates.length > 0) {
+      const audience = genEntryOf(templates[0]!)!.audience;
+      await this.genAssign(db, me, week, 'WEEKLY', templates, GEN_WEEKLY_COUNT[audience], [], band);
+      rows = await db.taskAssignment.findMany({ where, select, orderBy: { position: 'asc' } });
+    }
+    return rows;
   }
 
   /**
@@ -700,13 +941,33 @@ export class TasksService {
    * tasks (not pool), each with its target and reward (a pool task's from its assignment). v1.57-social
    * (D188 follow-up): a fixed task with one value per band (the weekly host tasks) takes the caller's
    * band of the day — today's assignment's, else the band of their level now; 0 = not offered.
+   * D297 (§10.110.1): with the generator on for the caller's audience, the generated tasks of the day (among the pool
+   * tasks) and of the week (instead of the audience's fixed weekly tasks).
    */
-  private async tasksFor(db: Tx | PrismaService, me: string, day: string): Promise<OfferedTask[]> {
+  private async tasksFor(
+    db: Tx | PrismaService,
+    me: string,
+    day: string,
+    week: string | null = null,
+  ): Promise<OfferedTask[]> {
     // v1.72-live (D283, §10.96.10): a Kabso Team account has no tasks or targets (none listed, none claimable).
     if (await isLimitedStaff(db, me)) return [];
     const defs = await this.definitionsFor(db, me);
     const byCode = new Map(defs.map((d) => [d.code, d]));
     const { rows } = await this.assignmentsFor(db, me, day);
+    const generated = (r: {
+      target: number;
+      rewardCherries: number;
+      nameAr: string | null;
+      nameEn: string | null;
+    }) => ({
+      target: r.target,
+      rewardCherries: r.rewardCherries,
+      subject: null,
+      window: null,
+      nameAr: r.nameAr,
+      nameEn: r.nameEn,
+    });
     const pooled: OfferedTask[] = [];
     for (const r of rows) {
       const def = byCode.get(r.taskCode);
@@ -722,6 +983,8 @@ export class TasksService {
           nameAr: r.nameAr,
           nameEn: r.nameEn,
         });
+      } else if (def && isGenTemplateCode(def.code) && def.period === 'DAILY') {
+        pooled.push({ def, pooled: true, ...generated(r) });
       }
     }
     const banded = (d: TaskDefinition) =>
@@ -730,12 +993,18 @@ export class TasksService {
     if (band === null && defs.some((d) => !d.pool && banded(d))) {
       band = bandForLevel(await this.levelOf(db, me), await this.bands(db)).band;
     }
+    // D297: the generator's weekly templates of the caller's audience (definitionsFor keeps only theirs).
+    const genWeekly = defs
+      .filter((d) => isGenTemplateCode(d.code) && d.period === 'WEEKLY')
+      .map((d) => d.code);
     // v1.71-live (D281): from the smart engine's first day the host's targets are the targets engine's own (rewarded
     // with a share of the profit), never Task Center tasks: the fixed «هدف هدايا الحظ» task is no longer offered.
     const engine = await this.targets.engineOn(day, db);
     const fixed: OfferedTask[] = [];
-    for (const def of defs.filter((d) => !d.pool)) {
+    for (const def of defs.filter((d) => !d.pool && !isGenTemplateCode(d.code))) {
       if (engine && (TARGET_METRICS as readonly string[]).includes(def.metric)) continue;
+      // D297: the generated weekly tasks replace the audience's fixed weekly tasks.
+      if (genWeekly.length > 0 && def.period === 'WEEKLY' && def.audience !== 'EVERYONE') continue;
       if (!banded(def)) {
         fixed.push({ def, target: def.target, rewardCherries: def.rewardCherries, pooled: false, ...PLAIN });
         continue;
@@ -745,7 +1014,14 @@ export class TasksService {
       if (target > 0 && rewardCherries > 0)
         fixed.push({ def, target, rewardCherries, pooled: false, ...PLAIN });
     }
-    return [...pooled, ...fixed];
+    const weekly: OfferedTask[] = [];
+    if (week !== null && genWeekly.length > 0) {
+      for (const r of await this.weeklyGenerated(db, me, week, genWeekly, band ?? 1)) {
+        const def = byCode.get(r.taskCode);
+        if (def) weekly.push({ def, pooled: false, ...generated(r) });
+      }
+    }
+    return [...pooled, ...fixed, ...weekly];
   }
 
   /**
@@ -795,7 +1071,7 @@ export class TasksService {
           JOIN task_assignments a ON a.user_id = c.user_id AND a.task_code = c.task_code AND a.day = c.period_start
          WHERE c.user_id = ${me}::uuid AND c.period_start >= ${addDays(day, -7)}::date
            AND c.period_start < ${day}::date`,
-      this.isHost(db, me),
+      this.roleOf(db, me),
       this.levelOf(db, me),
       this.bands(db),
     ]);
@@ -815,7 +1091,8 @@ export class TasksService {
     const recentWeek = recent.filter((r) => r.day.toISOString().slice(0, 10) >= addDays(day, -7));
     return {
       band: bandForLevel(level, bands),
-      isHost: host,
+      isHost: host.host,
+      isCreator: host.creator,
       dailyAverage,
       recentAssigned: recentWeek.length,
       recentClaimed: claimed[0]?.n ?? 0,
@@ -836,7 +1113,7 @@ export class TasksService {
    * assignment from their profile, each with its variant, gift or category, window, names and reasons, stored for the
    * day (concurrent first reads pick the same and keep one set).
    */
-  private async smartAssign(db: Tx | PrismaService, me: string, day: string): Promise<void> {
+  private async smartAssign(db: Tx | PrismaService, me: string, day: string, reserve = 0): Promise<void> {
     const windows = await programWindowsIn(db, this.clock.now(), this.zone);
     const dayStart = windows.day.date === day ? windows.day.start : dateValue(day);
     const rows = await db.taskDefinition.findMany({ where: { enabled: true, pool: true } });
@@ -864,7 +1141,17 @@ export class TasksService {
       catalogueTemplates(templates),
       settings.taskNoRepeatDays,
     );
-    const picks = assignSmartTasks(templates, profile, gifts, taskSeed(me, day));
+    // D297: the generator's share of the day is reserved (no creator / host template, fewer pool tasks).
+    const forPool: TaskProfile =
+      reserve > 0
+        ? {
+            ...profile,
+            isHost: false,
+            isCreator: false,
+            band: { ...profile.band, dailyCount: Math.max(0, profile.band.dailyCount - reserve) },
+          }
+        : profile;
+    const picks = assignSmartTasks(templates, forPool, gifts, taskSeed(me, day));
     const giftBy = new Map(gifts.map((g) => [g.code, g]));
     const cats = new Map(
       (await db.giftCategory.findMany({ select: { code: true, nameAr: true, nameEn: true } })).map((c) => [
@@ -1034,13 +1321,14 @@ export class TasksService {
     const now = this.clock.now();
     const windows = await programWindowsIn(this.prisma, now, this.zone);
     const today = windows.day.date;
-    const offered = await this.tasksFor(this.prisma, me, today);
+    const offered = await this.tasksFor(this.prisma, me, today, windows.week.date);
     const tasks = await Promise.all(offered.map((t) => this.taskIn(this.prisma, me, t, windows, now, lang)));
     // The band of today's assignment (fixed for the day), else the band of the level now.
     const level = await this.levelOf(this.prisma, me);
     const bands = await this.bands(this.prisma);
     const assignedBand = await this.assignedBand(me, today);
     const shownBand = bands.find((b) => b.band === assignedBand) ?? bandForLevel(level, bands);
+    const role = await this.roleOf(this.prisma, me);
     const checks = await this.prisma.dailyCheckIn.findMany({
       where: { userId: me, day: { in: [dateValue(addDays(today, -1)), dateValue(today)] } },
       select: { day: true, streak: true },
@@ -1083,7 +1371,8 @@ export class TasksService {
         band: shownBand.band,
         level,
         name: lang === 'ar' ? shownBand.nameAr : shownBand.nameEn,
-        host: await this.isHost(this.prisma, me),
+        host: role.host,
+        creator: role.creator,
       },
       checkIn: {
         checkedInToday: todayRow !== undefined,
@@ -1180,7 +1469,9 @@ export class TasksService {
       this.prisma.$transaction(async (tx) => {
         const windows = await programWindowsIn(tx, now, this.zone);
         // A pool task only when it is one of the caller's tasks of today (404 otherwise).
-        const offered = (await this.tasksFor(tx, me, windows.day.date)).find((t) => t.def.code === code);
+        const offered = (await this.tasksFor(tx, me, windows.day.date, windows.week.date)).find(
+          (t) => t.def.code === code,
+        );
         if (!offered) throw new AppException(ErrorCode.NOT_FOUND);
         const { def } = offered;
         await this.lockUser(tx, me);

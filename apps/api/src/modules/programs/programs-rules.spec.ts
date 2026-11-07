@@ -233,14 +233,23 @@ describe('D166 check-in rules', () => {
       'HOST_LIVE_MINUTES',
       'HOST_GIFT_COINS',
     ]);
-    // D199 (v1.44-live): the lucky gifts received.
-    expect(TASK_METRICS).toHaveLength(29);
-    expect(TASK_METRICS.at(-11)).toBe('GIFT_COINS_SENT');
-    expect(TASK_METRICS.at(-10)).toBe('HOST_LUCKY_COINS');
+    // D199 (v1.44-live): the lucky gifts received. D297 (v1.94-social) appends five metrics after D281's.
+    expect(TASK_METRICS).toHaveLength(35);
+    expect(TASK_METRICS.at(-17)).toBe('GIFT_COINS_SENT');
+    expect(TASK_METRICS.at(-16)).toBe('HOST_LUCKY_COINS');
     // D277 (v1.69-live): the host's targets in cherries.
-    expect(TASK_METRICS.slice(-9, -7)).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
+    expect(TASK_METRICS.slice(-15, -13)).toEqual(['HOST_GIFT_CHERRIES', 'HOST_LUCKY_CHERRIES']);
+    // D297 (v1.94-social): the creator tasks' new actions, then the hosts' live days.
+    expect(TASK_METRICS.slice(-6)).toEqual([
+      'REEL_VIEWS_RECEIVED',
+      'LIKES_RECEIVED',
+      'COMMENT_REPLIES',
+      'NEW_FOLLOWERS',
+      'SHARES_RECEIVED',
+      'HOST_LIVE_DAYS',
+    ]);
     // D281 (v1.86-social): the generated catalogue's new actions.
-    expect(TASK_METRICS.slice(-7)).toEqual([
+    expect(TASK_METRICS.slice(-13, -6)).toEqual([
       'GIFT_COUNT_SENT',
       'CATEGORY_GIFTS_SENT',
       'GIFTED_HOSTS',

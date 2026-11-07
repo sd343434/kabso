@@ -15408,6 +15408,24 @@ abstract class AppLocalizations {
   /// **'تتجدد كل يوم إثنين.'**
   String get tasksWeeklyHint;
 
+  /// D297: the creator tasks of today (creator-programme members only).
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام صانع المحتوى'**
+  String get tasksCreatorTitle;
+
+  /// D297: the creator tasks count toward the daily cap like every daily task.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضمن مكافآت اليوم.'**
+  String get tasksCreatorHint;
+
+  /// D297: the weekly creator tasks.
+  ///
+  /// In ar, this message translates to:
+  /// **'مهام صانع المحتوى الأسبوعية'**
+  String get tasksCreatorWeeklyTitle;
+
   /// D166: no task is configured.
   ///
   /// In ar, this message translates to:
