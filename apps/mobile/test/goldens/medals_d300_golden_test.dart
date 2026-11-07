@@ -115,7 +115,7 @@ void main() {
     });
     testWidgets('medals.d300.dares_sheet$suffix ar', (tester) async {
       await _pump(tester, brightness: brightness);
-      await _sheet(tester, d300DaresCode, tab: MedalCategory.activity);
+      await _sheet(tester, d300DaresCode);
       await _expect('medals.d300.dares_sheet$suffix.ar.phone');
     });
   }

@@ -18,11 +18,12 @@ import {
  * The requirement metrics are a content creator's (`creator_members`, D285 / D295); nobody else is ever evaluated, so a
  * non-creator never earns or progresses, and a former creator keeps the level reached (levels never go down):
  *  - CREATOR_FOLLOWERS: followers now whose account is ACTIVE (exactly the profile's `followerCount`, D121);
- *  - CREATOR_LIKES: likes on the creator's posts and reels that still stand (PUBLISHED, not deleted, not REMOVED by
- *    moderation) from OTHER accounts that are ACTIVE now;
- *  - CREATOR_VIEWS: the §11.4 views of those posts and reels (once per viewer and rolling 24 h) from OTHER accounts
- *    that are ACTIVE now — summed from `post_views.counted_views` (`posts.view_count` cannot tell who viewed).
- * All three owner-confirmed 2026-11-07 (creators only; levels kept when the membership ends; posts AND reels).
+ *  - CREATOR_LIKES: all-time likes on the creator's posts and reels from OTHER accounts that are ACTIVE now — posts
+ *    later deleted or removed by moderation too (owner 2026-11-07: «لا» to leaving them out; their rows stay);
+ *  - CREATOR_VIEWS: all-time §11.4 views of the creator's posts and reels (once per viewer and rolling 24 h) from OTHER
+ *    accounts that are ACTIVE now, deleted or removed ones too — summed from `post_views.counted_views`
+ *    (`posts.view_count` cannot tell who viewed; rows before D300 count once: a lower bound, owner-accepted).
+ * All owner-decided 2026-11-07 (creators only; levels kept when the membership ends; posts AND reels).
  *
  * Why a sweeper and not the events: follows, likes and views are the hottest writes of the app, and the exact numbers
  * (ACTIVE accounts only, never self) are counts over every follower and like of the creator — up to millions of rows —
@@ -56,10 +57,6 @@ export interface RequirementMedalDef {
 
 /** People per transaction of a sweep or a backfill. */
 const CHUNK = 200;
-
-/** `posts` rows that still stand: published, not deleted, not removed by moderation. */
-const STANDING = Prisma.sql`p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL
-  AND p.moderation <> 'REMOVED'::post_moderation`;
 
 export const ZERO_REQUIREMENT_VALUES: RequirementValues = {
   CREATOR_FOLLOWERS: 0,
@@ -125,12 +122,12 @@ export async function creatorRequirementValuesIn(
            (SELECT count(*) FROM posts p
               JOIN post_likes pl ON pl.post_id = p.id
               JOIN users lu ON lu.id = pl.user_id
-             WHERE p.author_id = cm.user_id AND ${STANDING}
+             WHERE p.author_id = cm.user_id
                AND pl.user_id <> p.author_id AND lu.status = 'ACTIVE'::user_status)::bigint AS likes,
            (SELECT coalesce(sum(pv.counted_views), 0) FROM posts p
               JOIN post_views pv ON pv.post_id = p.id
               JOIN users vu ON vu.id = pv.user_id
-             WHERE p.author_id = cm.user_id AND ${STANDING}
+             WHERE p.author_id = cm.user_id
                AND pv.user_id <> p.author_id AND vu.status = 'ACTIVE'::user_status)::bigint AS views
       FROM creator_members cm JOIN users u ON u.id = cm.user_id
      WHERE u.status = 'ACTIVE'::user_status ${onlyCreators(userIds)}`;
@@ -147,7 +144,7 @@ export async function creatorRequirementValuesIn(
 }
 
 /**
- * UPPER bounds of the requirement values (the sweep's pre-filter): every follow (any account), the standing posts'
+ * UPPER bounds of the requirement values (the sweep's pre-filter): every follow (any account), all the creator's posts'
  * `like_count` and `view_count` sums (self-likes and inactive likers and viewers included) — index lookups per
  * creator. `view_count` ≥ the ACTIVE viewers' `counted_views` (both rise in the same statement).
  */
@@ -159,10 +156,8 @@ async function creatorRequirementBoundsIn(
   const rows = await db.$queryRaw<{ id: string; followers: bigint; likes: bigint; views: bigint }[]>`
     SELECT cm.user_id::text AS id,
            (SELECT count(*) FROM follows f WHERE f.followee_id = cm.user_id)::bigint AS followers,
-           (SELECT coalesce(sum(p.like_count), 0) FROM posts p
-             WHERE p.author_id = cm.user_id AND ${STANDING})::bigint AS likes,
-           (SELECT coalesce(sum(p.view_count), 0) FROM posts p
-             WHERE p.author_id = cm.user_id AND ${STANDING})::bigint AS views
+           (SELECT coalesce(sum(p.like_count), 0) FROM posts p WHERE p.author_id = cm.user_id)::bigint AS likes,
+           (SELECT coalesce(sum(p.view_count), 0) FROM posts p WHERE p.author_id = cm.user_id)::bigint AS views
       FROM creator_members cm
      WHERE cm.user_id = ANY(${[...userIds]}::uuid[])`;
   return new Map(

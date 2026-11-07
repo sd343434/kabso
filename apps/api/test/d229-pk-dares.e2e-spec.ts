@@ -661,10 +661,11 @@ describe('D229 «PK أحكام»', { timeout: 600_000 }, () => {
     expect(res.body.recent[0]).toMatchObject({ type: 'DARES', dare: { status: 'REFUSED', mine: true } });
   });
 
-  // D300 «لاعب الأحكام» / Dares Player (owner 2026-11-07: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»): the
-  // medal follows the host's PK points in the very transaction that writes them (real matches through the API); a
-  // refused dare lowers the points, never the level. The catalogue is seeded here (the last test of this file).
-  it('D300 «لاعب الأحكام»: PK points crossing 1 500 → level 1; a refused dare after level 1 keeps it; a jump to level 3', async () => {
+  // D300 «لاعب الأحكام» / Dares Player (owner 2026-11-07: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»; owner
+  // answer: «PK أحكام» only): the medal follows the host's DARES-match points (`dares_points`) in the very transaction
+  // that writes them (real matches through the API); NORMAL-match points never count; a refused dare lowers the points,
+  // never the level. The catalogue is seeded here (the last test of this file).
+  it('D300 «لاعب الأحكام»: only «PK أحكام» points count — NORMAL never; crossing 1 500 → level 1; a refused dare keeps it; a jump to level 3', async () => {
     await seedMedalCatalogue(ctx.prisma);
     const level = async (u: TestUser) =>
       (
@@ -672,14 +673,26 @@ describe('D229 «PK أحكام»', { timeout: 600_000 }, () => {
           where: { userId_medalCode: { userId: u.id, medalCode: 'DARES_PLAYER' } },
         })
       )?.level ?? null;
-    const preset = (u: TestUser, points: number) =>
+    const preset = (u: TestUser, points: number, daresPoints: number) =>
       ctx.prisma.pkHostRecord.upsert({
         where: { hostId: u.id },
-        create: { hostId: u.id, points },
-        update: { points },
+        create: { hostId: u.id, points, daresPoints },
+        update: { points, daresPoints },
       });
-    /** B wins the dare battle by one gift (+3 for B; the loser A then decides). */
-    const bWins = async (s: Awaited<ReturnType<typeof dareBattle>>) => {
+    const daresPoints = async (u: TestUser) =>
+      (await ctx.prisma.pkHostRecord.findUniqueOrThrow({ where: { hostId: u.id } })).daresPoints;
+    /** A battle of `type` that B wins by one gift (+3 for B), ended by the time (tick). */
+    const battle = async (type: 'NORMAL' | 'DARES') => {
+      const [a, b] = [await host(), await host()];
+      const roomA = await goLive(a);
+      const roomB = await goLive(b);
+      const inv = await call('post', `live/rooms/${roomA}/pk/invites`, a, { toRoomId: roomB, type });
+      expect(inv.status, JSON.stringify(inv.body)).toBe(201);
+      const acc = await call('post', `live/rooms/${roomB}/pk/invites/${inv.body.id as string}/accept`, b);
+      expect(acc.status, JSON.stringify(acc.body)).toBe(200);
+      return { a, b, roomA, roomB };
+    };
+    const bWins = async (s: { a: TestUser; b: TestUser; roomA: string; roomB: string }) => {
       const f = await fan(10_000, s.roomB);
       const sent = await send(s.roomB, f, normalGift, s.b);
       expect(sent.status, JSON.stringify(sent.body)).toBe(201);
@@ -687,17 +700,27 @@ describe('D229 «PK أحكام»', { timeout: 600_000 }, () => {
       await pk.tick();
     };
 
-    // B at 1 498 wins (+3 → 1 501): level 1 at once. A holds level 1 at exactly 1 500 and refuses the dare (−3).
-    const s = await dareBattle();
-    await preset(s.b, 1_498);
-    await preset(s.a, 1_500);
+    // A NORMAL battle: B at 1 498 (all types and DARES alike) wins +3 — the all-types total passes 1 500, the DARES
+    // total stays 1 498: no medal.
+    const n = await battle('NORMAL');
+    await preset(n.b, 1_498, 1_498);
+    await bWins(n);
+    expect(await record(n.b)).toMatchObject({ wins: 1, points: 1_501 });
+    expect(await daresPoints(n.b)).toBe(1_498);
+    expect(await level(n.b)).toBeNull();
+
+    // A «PK أحكام» battle: B at 1 498 DARES points (0 in all) wins +3 → 1 501 DARES points: level 1 at once. A holds
+    // level 1 at exactly 1 500 DARES points and refuses the dare (−3).
+    const s = await battle('DARES');
+    await preset(s.b, 0, 1_498);
+    await preset(s.a, 1_500, 1_500);
     await ctx.prisma.$transaction((tx) =>
-      raiseMedalLevelsIn(tx, 'PK_POINTS', [{ userId: s.a.id, value: 1_500 }]),
+      raiseMedalLevelsIn(tx, 'PK_DARES_POINTS', [{ userId: s.a.id, value: 1_500 }]),
     );
     expect(await level(s.a)).toBe(1);
-    expect(await level(s.b)).toBeNull();
     await bWins(s);
-    expect(await record(s.b)).toMatchObject({ wins: 1, points: 1_501 });
+    expect(await record(s.b)).toMatchObject({ wins: 1, points: 3 });
+    expect(await daresPoints(s.b)).toBe(1_501);
     expect(await level(s.b)).toBe(1);
     expect(
       await ctx.prisma.notification.count({
@@ -708,23 +731,33 @@ describe('D229 «PK أحكام»', { timeout: 600_000 }, () => {
     const refused = await call('post', `live/rooms/${s.roomA}/pk/dare/refuse`, s.a);
     expect(refused.status, JSON.stringify(refused.body)).toBe(200);
     expect(await record(s.a)).toMatchObject({ points: 1_497, daresRefused: 1 });
+    expect(await daresPoints(s.a)).toBe(1_497);
     expect(await level(s.a)).toBe(1);
     const page = await call('get', 'medals', s.a);
     expect(page.status).toBe(200);
     expectContract(page, 'listMedals');
     const mine = (page.body.data as { code: string }[]).find((m) => m.code === 'DARES_PLAYER');
+    // The sheet shows the DARES points; the medal sits with the other medals (owner: «هذه ميداليات»).
     expect(mine).toMatchObject({
-      metric: 'PK_POINTS',
+      metric: 'PK_DARES_POINTS',
+      category: 'ACHIEVEMENT',
       level: 1,
       maxLevel: 4,
       iconAsset: 'medal_dares_player_l1',
       progress: { value: 1_497, next: 3_000, requirements: [] },
       eligible: true,
     });
+    const normalPage = await call('get', 'medals', n.b);
+    expect((normalPage.body.data as { code: string }[]).find((m) => m.code === 'DARES_PLAYER')).toMatchObject(
+      {
+        level: 0,
+        progress: { value: 1_498, next: 1_500 },
+      },
+    );
 
-    // A second battle: B at 4 998 wins (+3 → 5 001) — straight to level 3, audited from nothing to 3.
-    const s2 = await dareBattle();
-    await preset(s2.b, 4_998);
+    // A second «PK أحكام» battle: B at 4 998 DARES points wins (+3 → 5 001) — straight to level 3, audited from nothing.
+    const s2 = await battle('DARES');
+    await preset(s2.b, 4_998, 4_998);
     await bWins(s2);
     expect(await level(s2.b)).toBe(3);
     const audit = await ctx.prisma.auditLog.findMany({
@@ -735,7 +768,7 @@ describe('D229 «PK أحكام»', { timeout: 600_000 }, () => {
         medalCode: 'DARES_PLAYER',
         from: null,
         to: 3,
-        metric: 'PK_POINTS',
+        metric: 'PK_DARES_POINTS',
         value: 5_001,
       }),
     ]);

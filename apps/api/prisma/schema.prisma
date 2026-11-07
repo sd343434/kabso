@@ -2808,13 +2808,15 @@ enum MedalMetric {
   ALL_REQUIREMENTS
   /// D300: a content creator's (`creator_members`) followers now — ACTIVE accounts, as the profile counts them.
   CREATOR_FOLLOWERS
-  /// D300: likes from other ACTIVE accounts on the creator's posts and reels that still stand (never self).
+  /// D300: likes from other ACTIVE accounts on the creator's posts and reels, all-time — deleted or removed ones too
+  /// (owner); never self.
   CREATOR_LIKES
-  /// D300: §11.4 views from other ACTIVE accounts of the creator's posts and reels that still stand
-  /// (`post_views.counted_views`).
+  /// D300: §11.4 views from other ACTIVE accounts of the creator's posts and reels, all-time — deleted or removed ones
+  /// too (owner); `post_views.counted_views`.
   CREATOR_VIEWS
-  /// D300 («لاعب الأحكام»): a host's PK points now (`pk_host_records.points`, every PK type; may fall, levels never do).
-  PK_POINTS
+  /// D300 («لاعب الأحكام», owner: «PK أحكام» only): a host's PK points from DARES matches now
+  /// (`pk_host_records.dares_points`; may fall, levels never do). Renamed from PK_POINTS (20270401090300).
+  PK_DARES_POINTS
 }
 
 /// D291: a running total of a medal metric that is not cheap to recount on every event (GIFTS_SENT_COINS), added to in
@@ -5791,6 +5793,9 @@ model PkHostRecord {
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
   /// v1.50-live (D229): PK points (win / draw / loss / refused dare, `pk_dare_settings`; may be below 0).
   points       Int      @default(0)
+  /// D300 (owner: «لاعب الأحكام» counts «PK أحكام» only): the part of `points` from DARES matches — the same
+  /// once-per-match `pk_point_events`, added in the same statement (may be below 0).
+  daresPoints  Int      @default(0) @map("dares_points")
   daresDone    Int      @default(0) @map("dares_done")
   daresRefused Int      @default(0) @map("dares_refused")
 

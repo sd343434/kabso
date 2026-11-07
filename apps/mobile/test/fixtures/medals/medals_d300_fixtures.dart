@@ -31,7 +31,7 @@ List<int> d300SchoolValues(int level) => switch (level) {
   _ => [1200000, 2600000, 7100000],
 };
 
-/// PK points while at [level] (0 … 4).
+/// «PK أحكام» points while at [level] (0 … 4).
 int d300DaresValue(int level) => switch (level) {
   0 => 900,
   1 => 2140,
@@ -109,8 +109,8 @@ Map<String, Object?> d300DaresJson({
     description: ar
         ? 'نقاط PK التي جمعتها في التحديات.'
         : 'PK points you earned in battles.',
-    category: 'ACTIVITY',
-    metric: 'PK_POINTS',
+    category: 'ACHIEVEMENT',
+    metric: 'PK_DARES_POINTS',
     thresholds: d300DaresThresholds,
     level: level,
     value: d300DaresValue(level),

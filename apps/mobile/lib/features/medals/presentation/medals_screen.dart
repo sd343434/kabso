@@ -921,7 +921,7 @@ class _MedalDetailSheetState extends ConsumerState<MedalDetailSheet> {
         ),
         'FAMILY_JOINED' || 'CP_FORMED' => l10n.medalsThresholdOnce,
         // D300 «لاعب الأحكام».
-        'PK_POINTS' => l10n.medalsThresholdPkPoints(KFormat.grouped(n)),
+        'PK_DARES_POINTS' => l10n.medalsThresholdPkPoints(KFormat.grouped(n)),
         _ => KFormat.grouped(n),
       };
 

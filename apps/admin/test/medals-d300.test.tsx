@@ -60,7 +60,9 @@ const SCHOOL: AdminMedal = {
 };
 
 describe('D300 «مدرسة المحتوى» in the panel', () => {
-  it('has every string in both languages', () => {
+  it('has every string in both languages, the «PK أحكام» points metric included', () => {
+    expect(AR_D300.mdMetricPK_DARES_POINTS).toBe('نقاط PK أحكام (لاعب الأحكام)');
+    expect(EN_D300.mdMetricPK_DARES_POINTS).toBe('«PK أحكام» points (Dares Player)');
     expect(Object.keys(EN_D300).sort()).toEqual(Object.keys(AR_D300).sort());
     for (const k of Object.keys(AR_D300)) {
       expect(DICTIONARIES.ar[k as keyof typeof AR_D300]).toBeTruthy();

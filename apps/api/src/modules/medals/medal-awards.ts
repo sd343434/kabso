@@ -241,12 +241,17 @@ async function addMetricTotalIn(
 }
 
 /**
- * D300 «لاعب الأحكام» (owner: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»): raises the host's DARES_PLAYER
- * level to what their PK points total (`pk_host_records.points`, every PK type) reaches now, in the transaction that
- * wrote the points (`addPkPointsIn`). A total that fell (a refused dare) never lowers a level.
+ * D300 «لاعب الأحكام» (owner: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»; «PK أحكام» only): raises the
+ * host's DARES_PLAYER level to what their DARES-match points total (`pk_host_records.dares_points`) reaches now, in the
+ * transaction that wrote the points (`addPkPointsIn`). A total that fell (a refused dare) never lowers a level.
  */
-export async function awardPkMedalsIn(tx: Tx, hostId: string, points: number, at?: Date): Promise<void> {
-  await raiseMedalLevelsIn(tx, 'PK_POINTS', [{ userId: hostId, value: points }], { at });
+export async function awardPkDaresMedalsIn(
+  tx: Tx,
+  hostId: string,
+  daresPoints: number,
+  at?: Date,
+): Promise<void> {
+  await raiseMedalLevelsIn(tx, 'PK_DARES_POINTS', [{ userId: hostId, value: daresPoints }], { at });
 }
 
 /**
@@ -289,7 +294,7 @@ export async function allMedalMetricValues(
      WHERE g.category = 'LUCKY' AND lg.total_coins > 0
      GROUP BY lg.sender_id`;
   const pk = await db.$queryRaw<{ id: string; points: number }[]>`
-    SELECT host_id::text AS id, points FROM pk_host_records WHERE points > 0`;
+    SELECT host_id::text AS id, dares_points AS points FROM pk_host_records WHERE dares_points > 0`;
   return {
     LIVES_HOSTED: hosts.map((h) => ({ userId: h.id, value: h.lives })),
     LIVE_HOURS: hosts.map((h) => ({ userId: h.id, value: h.hours })),
@@ -305,8 +310,8 @@ export async function allMedalMetricValues(
     CREATOR_FOLLOWERS: [],
     CREATOR_LIKES: [],
     CREATOR_VIEWS: [],
-    // D300 «لاعب الأحكام»: every host's PK points now (a negative or zero total reaches nothing).
-    PK_POINTS: pk.map((r) => ({ userId: r.id, value: r.points })),
+    // D300 «لاعب الأحكام»: every host's «PK أحكام» points now (a negative or zero total reaches nothing).
+    PK_DARES_POINTS: pk.map((r) => ({ userId: r.id, value: r.points })),
   };
 }
 

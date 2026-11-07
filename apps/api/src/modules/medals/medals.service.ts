@@ -269,7 +269,7 @@ async function metricValuesOf(db: PrismaService, userId: string): Promise<Record
         WHERE user_id = ${userId}::uuid AND metric = 'GIFTS_SENT_COINS') AS gifts,
       (SELECT value FROM medal_metric_totals
         WHERE user_id = ${userId}::uuid AND metric = 'LUCKY_GIFTS_SENT_COINS') AS lucky,
-      (SELECT points FROM pk_host_records WHERE host_id = ${userId}::uuid) AS pk`;
+      (SELECT dares_points FROM pk_host_records WHERE host_id = ${userId}::uuid) AS pk`;
   return {
     LIVES_HOSTED: row?.lives ?? 0,
     LIVE_HOURS: Math.floor(row?.hours ?? 0),
@@ -279,8 +279,8 @@ async function metricValuesOf(db: PrismaService, userId: string): Promise<Record
     BULLETS_SENT: row?.bullets ?? 0,
     GIFTS_SENT_COINS: Number(row?.gifts ?? 0n),
     LUCKY_GIFTS_SENT_COINS: Number(row?.lucky ?? 0n),
-    // D300 «لاعب الأحكام»: PK points now (shown from 0; the total itself may be below 0).
-    PK_POINTS: Math.max(0, row?.pk ?? 0),
+    // D300 «لاعب الأحكام»: «PK أحكام» points now (shown from 0; the total itself may be below 0).
+    PK_DARES_POINTS: Math.max(0, row?.pk ?? 0),
   };
 }
 

@@ -291,6 +291,11 @@ describe('D300 «مدرسة المحتوى» / Content School', { timeout: 600_0
     const res = await ctx.http.get('/api/v1/medals').set(auth(u));
     const wealth = (res.body.data as MedalBody[]).find((x) => x.code === 'WEALTH_KINGS')!;
     expect(wealth.eligible).toBe(true);
+    // Owner («هذه ميداليات»): both D300 medals sit in the tab of the other medals.
+    const all = res.body.data as (MedalBody & { category: string })[];
+    expect(
+      all.filter((x) => ['WEALTH_KINGS', CODE, 'DARES_PLAYER'].includes(x.code)).map((x) => x.category),
+    ).toEqual(['ACHIEVEMENT', 'ACHIEVEMENT', 'ACHIEVEMENT']);
     expect(wealth.progress.requirements).toEqual([]);
     expect(wealth.levels.every((l) => l.requirements.length === 0)).toBe(true);
     expect((await school(u)).description).toBe('For content creators: followers, likes and views together.');
@@ -357,6 +362,18 @@ describe('D300 «مدرسة المحتوى» / Content School', { timeout: 600_0
       ['CREATOR_VIEWS', 21_994, 100_000],
     ]);
     expect(await schoolNotes(c)).toEqual([1]);
+
+    // Owner (2026-11-07, «لا» to leaving them out): likes and views of posts later deleted or removed by moderation
+    // still count. The creator deletes a post through the API; the team removes the reel.
+    const del = await ctx.http.delete(`/api/v1/posts/${cPosts[1]!}`).set(auth(c));
+    expect(del.status, JSON.stringify(del.body)).toBeLessThan(300);
+    expect((await ctx.prisma.post.findUniqueOrThrow({ where: { id: cPosts[1]! } })).deletedAt).not.toBeNull();
+    await ctx.prisma.post.update({ where: { id: cPosts[4]! }, data: { moderation: 'REMOVED' } });
+    expect(values(await school(c))).toEqual([
+      ['CREATOR_FOLLOWERS', 2_000, 10_000],
+      ['CREATOR_LIKES', 10_000, 50_000],
+      ['CREATOR_VIEWS', 21_994, 100_000],
+    ]);
     // A repeat sweep changes nothing (and notifies nothing).
     expect((await sweep()).raised).toEqual([]);
     expect(await schoolNotes(c)).toEqual([1]);
@@ -507,12 +524,16 @@ describe('D300 «مدرسة المحتوى» / Content School', { timeout: 600_0
       INSERT INTO post_views (post_id, user_id, viewed_at, counted_views)
       SELECT p, fa, now() - interval '3 days', 2 FROM unnest(${posts}::uuid[]) p CROSS JOIN unnest(${fans}::uuid[]) fa`;
     expect(await levelOf(f)).toBeNull();
-    // «لاعب الأحكام»: PK records from before the medal (3 200 points → level 2; a negative total → nothing).
-    const [pkHost, pkLow] = [await signup(), await signup()];
+    // «لاعب الأحكام»: PK records from before the medal — only «PK أحكام» points count (owner): 3 200 → level 2; a
+    // negative total or NORMAL points only → nothing.
+    const [pkHost, pkLow, pkNormal] = [await signup(), await signup(), await signup()];
     await ctx.prisma.pkHostRecord.createMany({
       data: [
-        { hostId: pkHost.id, wins: 1_000, points: 3_200 },
-        { hostId: pkLow.id, losses: 5, points: -6, daresRefused: 2 },
+        // «PK أحكام» points only (owner): 3 200 of the 9 000 → level 2.
+        { hostId: pkHost.id, wins: 3_000, points: 9_000, daresPoints: 3_200 },
+        { hostId: pkLow.id, losses: 5, points: -6, daresPoints: -6, daresRefused: 2 },
+        // 20 000 NORMAL points, none from «PK أحكام»: nothing.
+        { hostId: pkNormal.id, wins: 6_667, points: 20_000, daresPoints: 0 },
       ],
     });
     const run = medalsAdmin('backfill');
@@ -528,6 +549,7 @@ describe('D300 «مدرسة المحتوى» / Content School', { timeout: 600_0
       )?.level ?? null;
     expect(await dares(pkHost)).toBe(2);
     expect(await dares(pkLow)).toBeNull();
+    expect(await dares(pkNormal)).toBeNull();
     const pkPage = (await ctx.http.get('/api/v1/medals').set(auth(pkHost))).body.data as MedalBody[];
     expect(pkPage.find((m) => m.code === 'DARES_PLAYER')).toMatchObject({
       level: 2,

@@ -898,7 +898,7 @@ export type MedalMetric =
   | 'LUCKY_GIFTS_SENT_COINS'
   | 'ALL_REQUIREMENTS'
   | MedalRequirementMetric
-  | 'PK_POINTS';
+  | 'PK_DARES_POINTS';
 
 /** D300 (v1.83-live): a requirement metric of a multi-requirement medal («مدرسة المحتوى»). */
 export type MedalRequirementMetric = 'CREATOR_FOLLOWERS' | 'CREATOR_LIKES' | 'CREATOR_VIEWS';

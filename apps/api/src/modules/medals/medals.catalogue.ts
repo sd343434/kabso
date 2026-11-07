@@ -34,12 +34,12 @@ export type MedalMetricCode =
   | 'LUCKY_GIFTS_SENT_COINS'
   | 'ALL_REQUIREMENTS'
   | RequirementMetricCode
-  | 'PK_POINTS';
+  | 'PK_DARES_POINTS';
 
 /**
  * D300 (§10.111): the metrics a multi-requirement medal's levels need together (`medal_level_requirements`) — a
- * content creator's ACTIVE followers now, likes from other ACTIVE accounts on posts and reels that still stand, and
- * §11.4 views of those posts and reels. They are only counted for content creators (`creator_members`).
+ * content creator's ACTIVE followers now, and all-time likes and §11.4 views from other ACTIVE accounts on their posts and
+ * reels (deleted or removed ones too — owner). They are only counted for content creators (`creator_members`).
  */
 export type RequirementMetricCode = 'CREATOR_FOLLOWERS' | 'CREATOR_LIKES' | 'CREATOR_VIEWS';
 
@@ -217,8 +217,9 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
   // 20270401090200_medal_dares_player.
   {
     code: 'DARES_PLAYER',
-    category: 'ACTIVITY',
-    metric: 'PK_POINTS',
+    // D300 follow-up (owner: «هذه ميداليات»): the tab of the other medals; «PK أحكام» points only.
+    category: 'ACHIEVEMENT',
+    metric: 'PK_DARES_POINTS',
     nameAr: 'لاعب الأحكام',
     nameEn: 'Dares Player',
     descriptionAr: 'نقاط PK التي جمعتها في التحديات.',

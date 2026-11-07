@@ -305,7 +305,7 @@ void main() {
     testWidgets('level 3: its art and «12,400 / 20,000» PK points; four '
         'levels with their art and thresholds', (tester) async {
       await pumpMedals(tester);
-      await openSheet(tester, d300DaresCode, tab: MedalCategory.activity);
+      await openSheet(tester, d300DaresCode);
       expect(inSheet(find.text('12,400 / 20,000')), findsOneWidget);
       expect(inSheet(find.text(en.medalsReqAllTogether)), findsNothing);
       final scrollable = inSheet(find.byType(Scrollable)).first;
@@ -331,6 +331,28 @@ void main() {
     });
   });
 
+  testWidgets('both D300 medals sit with the other medals in «الإنجازات» '
+      '(owner: «هذه ميداليات»); none in «النشاط»', (tester) async {
+    await pumpMedals(tester);
+    for (final code in [d300SchoolCode, d300DaresCode, 'WEALTH_KINGS']) {
+      await tester.scrollUntilVisible(
+        find.byKey(MedalsScreen.medalKey(code)),
+        200,
+      );
+      expect(find.byKey(MedalsScreen.medalKey(code)), findsOneWidget);
+    }
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 3000));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(MedalsScreen.tabKey(MedalCategory.activity)));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
+    await tester.pumpAndSettle();
+    // The Activity tab is showing (its own medal is there).
+    expect(find.byKey(MedalsScreen.medalKey('FIRST_LIVE')), findsOneWidget);
+    expect(find.byKey(MedalsScreen.medalKey(d300DaresCode)), findsNothing);
+    expect(find.byKey(MedalsScreen.medalKey(d300SchoolCode)), findsNothing);
+  });
+
   group('360 × 800 at × 1.3 and × 2, both languages: no overflow', () {
     for (final scale in [1.3, 2.0]) {
       testWidgets('the page and both sheets at × $scale', (tester) async {
@@ -344,7 +366,7 @@ void main() {
           expect(tester.takeException(), isNull, reason: 'school $language');
           await tester.pumpWidget(const SizedBox.shrink());
           await pumpMedals(tester, language: language);
-          await openSheet(tester, d300DaresCode, tab: MedalCategory.activity);
+          await openSheet(tester, d300DaresCode);
           expect(tester.takeException(), isNull, reason: 'dares $language');
           await tester.pumpWidget(const SizedBox.shrink());
         }

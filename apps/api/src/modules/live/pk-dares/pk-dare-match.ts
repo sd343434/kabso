@@ -6,7 +6,7 @@
 import { randomInt } from 'node:crypto';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { AuditAction } from '../../../common/audit/audit.service.js';
-import { awardPkMedalsIn } from '../../medals/medal-awards.js';
+import { awardPkDaresMedalsIn } from '../../medals/medal-awards.js';
 import { PK_DARE_LEVELS, type PkDareLevel } from './pk-dare-rules.js';
 
 type Tx = Prisma.TransactionClient;
@@ -35,18 +35,24 @@ export async function addPkPointsIn(
     ON CONFLICT DO NOTHING`;
   if (inserted === 0) return false;
   const one = (c: string) => (input.counter === c ? 1 : 0);
-  const [record] = await tx.$queryRaw<{ points: number }[]>`
-    INSERT INTO pk_host_records (host_id, wins, losses, draws, points, dares_done, dares_refused, updated_at)
-    VALUES (${input.hostId}::uuid, ${one('wins')}, ${one('losses')}, ${one('draws')}, ${input.points}, 0,
-            ${one('dares_refused')}, ${at}::timestamptz)
+  // D300 (owner: «لاعب الأحكام» counts «PK أحكام» only): a DARES match's points also go to `dares_points`.
+  const [match] = await tx.$queryRaw<{ dares: boolean }[]>`
+    SELECT type = 'DARES'::pk_type AS dares FROM pk_matches WHERE id = ${input.matchId}::uuid`;
+  const daresPoints = match?.dares ? input.points : 0;
+  const [record] = await tx.$queryRaw<{ dares_points: number }[]>`
+    INSERT INTO pk_host_records (host_id, wins, losses, draws, points, dares_points, dares_done, dares_refused,
+                                 updated_at)
+    VALUES (${input.hostId}::uuid, ${one('wins')}, ${one('losses')}, ${one('draws')}, ${input.points}, ${daresPoints},
+            0, ${one('dares_refused')}, ${at}::timestamptz)
     ON CONFLICT (host_id) DO UPDATE
        SET wins = pk_host_records.wins + EXCLUDED.wins, losses = pk_host_records.losses + EXCLUDED.losses,
            draws = pk_host_records.draws + EXCLUDED.draws, points = pk_host_records.points + EXCLUDED.points,
+           dares_points = pk_host_records.dares_points + EXCLUDED.dares_points,
            dares_refused = pk_host_records.dares_refused + EXCLUDED.dares_refused,
            updated_at = EXCLUDED.updated_at
-    RETURNING points`;
-  // D300 «لاعب الأحكام»: the medal follows the new total in this transaction (a level never goes down).
-  if (record && input.points > 0) await awardPkMedalsIn(tx, input.hostId, record.points, input.now);
+    RETURNING dares_points`;
+  // D300 «لاعب الأحكام»: the medal follows the new DARES total in this transaction (a level never goes down).
+  if (record && daresPoints > 0) await awardPkDaresMedalsIn(tx, input.hostId, record.dares_points, input.now);
   await tx.auditLog.create({
     data: {
       action: AuditAction.LIVE_PK_POINTS,

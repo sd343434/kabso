@@ -33,6 +33,10 @@ const daresMigration = readFileSync(
   new URL('../../../prisma/migrations/20270401090200_medal_dares_player/migration.sql', import.meta.url),
   'utf8',
 );
+const daresOnlyMigration = readFileSync(
+  new URL('../../../prisma/migrations/20270401090300_medal_dares_only_points/migration.sql', import.meta.url),
+  'utf8',
+);
 const levelsMigration = readFileSync(
   new URL('../../../prisma/migrations/20270325090000_medal_levels/migration.sql', import.meta.url),
   'utf8',
@@ -225,12 +229,28 @@ describe('medal catalogue (CP-018)', () => {
   // D300 (owner 2026-11-07: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»).
   it("Dares Player: the owner's four PK points thresholds, its row and each level's art, as the migration seeds them", () => {
     const m = MEDAL_CATALOGUE.find((x) => x.code === 'DARES_PLAYER')!;
-    expect(m).toMatchObject({ metric: 'PK_POINTS', category: 'ACTIVITY', iconKey: 'medal_dares_player' });
+    // Owner's answers: «PK أحكام» points only, and the tab of the other medals.
+    expect(m).toMatchObject({
+      metric: 'PK_DARES_POINTS',
+      category: 'ACHIEVEMENT',
+      iconKey: 'medal_dares_player',
+    });
     expect(m.descriptionAr).toBe('نقاط PK التي جمعتها في التحديات.');
     expect(m.descriptionEn).toBe('PK points you earned in battles.');
     expect(daresMigration).toContain(
-      `('${m.code}', '${m.nameAr}', '${m.nameEn}', '${m.descriptionAr}', '${m.descriptionEn}', '${m.iconKey}', ${String(m.sortOrder)}, '${m.category}', '${m.metric}')`,
+      `('${m.code}', '${m.nameAr}', '${m.nameEn}', '${m.descriptionAr}', '${m.descriptionEn}', '${m.iconKey}', ${String(m.sortOrder)}, 'ACTIVITY', 'PK_POINTS')`,
     );
+    // …then 20270401090300 renames the metric and moves both D300 medals to the other medals' tab.
+    expect(daresOnlyMigration).toContain(
+      `ALTER TYPE "MedalMetric" RENAME VALUE 'PK_POINTS' TO '${m.metric}';`,
+    );
+    expect(daresOnlyMigration).toContain(
+      `UPDATE "medals" SET "category" = '${m.category}' WHERE "code" IN ('DARES_PLAYER', 'CONTENT_SCHOOL');`,
+    );
+    expect(daresOnlyMigration).toContain('ADD COLUMN "dares_points" INTEGER NOT NULL DEFAULT 0');
+    expect(daresOnlyMigration).toMatch(/WHERE m\."type" = 'DARES'/);
+    expect(MEDAL_CATALOGUE.find((x) => x.code === 'CONTENT_SCHOOL')!.category).toBe(m.category);
+    expect(MEDAL_CATALOGUE.find((x) => x.code === 'WEALTH_KINGS')!.category).toBe(m.category);
     const seeded = [...daresMigration.matchAll(/\('DARES_PLAYER', (\d+), (\d+), '([a-z0-9_]+)'\)/g)].map(
       (r) => [Number(r[1]), Number(r[2]), r[3]],
     );

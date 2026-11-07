@@ -3074,7 +3074,7 @@ new column — harmless, it never selects it).
 - **Interaction with D295 (creators go live):** none at deploy — a member keeps only creator tasks whatever their
   hosting permission. Either order of deploy works.
 
-### 5.79 «مدرسة المحتوى» / Content School and «لاعب الأحكام» / Dares Player (migrations `20270401090000_medal_requirement_metrics`, `20270401090100_medal_content_school`, `20270401090200_medal_dares_player`; D300) — [IMPLEMENTED, draft contract v1.83-live; not deployed, not device-tested]
+### 5.79 «مدرسة المحتوى» / Content School and «لاعب الأحكام» / Dares Player (migrations `20270401090000_medal_requirement_metrics`, `20270401090100_medal_content_school`, `20270401090200_medal_dares_player`, `20270401090300_medal_dares_only_points`; D300) — [IMPLEMENTED, draft contract v1.83-live; not deployed, not device-tested]
 
 CONVENTIONS §10.111. Interpretations owner-confirmed 2026-11-07 (creators only, levels kept; ACTIVE accounts, never self;
 posts and reels).
@@ -3096,15 +3096,20 @@ posts and reels).
 
   It prints the usual `Awarded n medals.` / `Raised n medal levels.` (with `CONTENT_SCHOOL n` when any); idempotent; a
   second run prints 0 and 0. Views recorded before the migration count once per viewer and post (`counted_views` = 1):
-  a lower bound of the real views.
+  a lower bound of the real views (accepted by the owner). Likes and views of posts later deleted or removed by
+  moderation count too (owner decision).
 - **Checks after deploy:** `SELECT level, metric, threshold FROM medal_level_requirements WHERE medal_code =
   'CONTENT_SCHOOL' ORDER BY 1, 2;` (12 rows) and, after the backfill, `SELECT level, count(*) FROM user_medals WHERE
   medal_code = 'CONTENT_SCHOOL' GROUP BY 1;`.
 - **«لاعب الأحكام» (§10.111.7):** `20270401090200_medal_dares_player` (the medal and its four levels, 1 500 … 20 000 PK
-  points; the enum value `PK_POINTS` comes with the first migration). From the deploy on, each positive PK points event
-  raises the level in its own transaction. The same one-off `medals-admin backfill` raises every host from
-  `pk_host_records.points` (prints `DARES_PLAYER n`). Check:
-  `SELECT level, count(*) FROM user_medals WHERE medal_code = 'DARES_PLAYER' GROUP BY 1;`.
+  points; the enum value comes with the first migration), then `20270401090300_medal_dares_only_points` (owner: «PK
+  أحكام» only — renames the metric `PK_POINTS` → `PK_DARES_POINTS`, adds `pk_host_records.dares_points` and fills it
+  from the DARES matches' `pk_point_events`, and moves both D300 medals to ACHIEVEMENT with the other medals). From the
+  deploy on, each positive DARES points event raises the level in its own transaction; NORMAL matches never do. The same
+  one-off `medals-admin backfill` raises every host from `pk_host_records.dares_points` (prints `DARES_PLAYER n`).
+  Checks: `SELECT count(*) FROM pk_host_records r WHERE r.dares_points <> coalesce((SELECT sum(e.points) FROM
+  pk_point_events e JOIN pk_matches m ON m.id = e.match_id WHERE m.type = 'DARES' AND e.host_id = r.host_id), 0);`
+  → 0, and `SELECT level, count(*) FROM user_medals WHERE medal_code = 'DARES_PLAYER' GROUP BY 1;`.
 - **App:** the art ships in the app (`assets/medals/medal_content_school_l1` … `_l4.webp`,
   `medal_dares_player_l1` … `_l4.webp`); an older app shows the medal's generic icon and «level / next level» progress.
 
