@@ -174,13 +174,19 @@ export class SearchService {
     // v1.73-live (D283c, §10.96.12): «Kabso01» finds the staff member who shows that staff ID now (first).
     const staffNumber = parseStaffId(q);
     const rows = await this.prisma.$queryRaw<
-      (UserSummaryDto & { tier: UserSummaryDto['premiumTier'] | null; staffNumber: number | null })[]
+      (Omit<UserSummaryDto, 'verification'> & {
+        tier: UserSummaryDto['premiumTier'] | null;
+        staffNumber: number | null;
+        badge: UserSummaryDto['verification'] | null;
+      })[]
     >`
       SELECT u.id::text AS id, p.username AS "username", p.display_name AS "displayName",
-             p.avatar_url AS "avatarUrl", p.premium_tier::text AS "tier", si.number AS "staffNumber"
+             p.avatar_url AS "avatarUrl", p.premium_tier::text AS "tier", si.number AS "staffNumber",
+             vb.badge::text AS "badge"
         FROM user_profiles p
         JOIN users u ON u.id = p.user_id AND u.status = 'ACTIVE'::user_status
         LEFT JOIN staff_ids si ON si.user_id = u.id AND ${panelStaffSql(Prisma.sql`u.id`)}
+        LEFT JOIN user_verification_badges vb ON vb.user_id = u.id
        WHERE (p.username LIKE ${prefix} ESCAPE '\\' OR lower(p.display_name) LIKE ${prefix} ESCAPE '\\'
               OR si.number = ${staffNumber}::int)
          AND NOT EXISTS (SELECT 1 FROM user_blocks b
@@ -192,10 +198,12 @@ export class SearchService {
                 p.username ASC
        OFFSET ${offset} LIMIT ${take}`;
     // v1.28-live (D146): the badge tier only for premium usernames.
-    return rows.map(({ tier, staffNumber: n, ...user }) => ({
+    return rows.map(({ tier, staffNumber: n, badge, ...user }) => ({
       ...user,
       ...(tier ? { premiumTier: tier } : {}),
       ...(n !== null ? { staffId: formatStaffId(n) } : {}),
+      // v1.90-social (D293): the verification badge (one LEFT JOIN, only its type).
+      ...(badge ? { verification: badge } : {}),
     }));
   }
 

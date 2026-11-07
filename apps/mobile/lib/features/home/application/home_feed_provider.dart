@@ -228,6 +228,7 @@ FeedReelData feedReelOf(Post post) {
     postId: post.id,
     authorId: post.author.id,
     authorPremium: post.author.premiumTier != null,
+    authorVerification: post.author.verification,
     liked: post.viewerHasLiked,
     saved: post.viewerHasSaved,
     hashtags: {for (final t in post.hashtags) t.toLowerCase()},

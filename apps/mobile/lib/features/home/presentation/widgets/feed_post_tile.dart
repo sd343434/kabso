@@ -11,6 +11,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
@@ -20,6 +21,7 @@ import 'package:kabso_live/features/posts/presentation/announcement_label.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -37,6 +39,7 @@ class FeedPostData {
     this.authorAvatar,
     this.authorUsername,
     this.authorId,
+    this.authorVerification,
     this.isFollowingAuthor,
     this.location,
     this.text,
@@ -67,6 +70,10 @@ class FeedPostData {
   });
 
   final String authorName;
+
+  /// D293 (owner «نعم»): the author's verification badge — the seal right
+  /// after the name in the author row. Null when none.
+  final VerificationBadge? authorVerification;
   final ImageProvider? authorAvatar;
 
   /// The author's username, the key of the follow API.
@@ -695,13 +702,18 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            post.authorName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: t.bodyStrong.copyWith(
-                              color: p.textPrimary,
-                              fontWeight: FontWeight.w700,
+                          // D293: the verification seal after the name.
+                          NameWithSeal(
+                            badge: post.authorVerification,
+                            fontSize: t.bodyStrong.fontSize,
+                            name: Text(
+                              post.authorName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.bodyStrong.copyWith(
+                                color: p.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           if (subline.isNotEmpty)

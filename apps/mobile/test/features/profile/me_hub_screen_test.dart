@@ -10,10 +10,12 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
@@ -25,6 +27,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_rankings_shee
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/referrals/application/referral_providers.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -75,6 +78,7 @@ Future<void> _pump(
   double textScale = 1,
   bool statsFail = false,
   List<Override> extra = const [],
+  User? user,
 }) async {
   final router = GoRouter(
     initialLocation: AppRoutes.profile,
@@ -105,8 +109,8 @@ Future<void> _pump(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
-        currentUserProvider.overrideWithValue(testUser()),
-        meProvider.overrideWith((ref) => testUser()),
+        currentUserProvider.overrideWithValue(user ?? testUser()),
+        meProvider.overrideWith((ref) => user ?? testUser()),
         profileStatsProvider.overrideWith((ref, _) {
           if (statsFail) throw const NetworkFailure.offline();
           return apiProfile(isSelf: true)
@@ -191,6 +195,54 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Friends'), findsNothing);
+  });
+
+  testWidgets('D293: the verification badge right after the name, spoken '
+      'and explained on a long press; none without one', (tester) async {
+    await _pump(
+      tester,
+      user: testUser().copyWith(verification: VerificationBadge.creator),
+    );
+    final name = tester.getRect(find.byKey(MeHubScreen.nameKey));
+    final seal = tester.getRect(find.byKey(MeHubScreen.verificationBadgeKey));
+    final level = tester.getRect(find.byType(KLevelBadge));
+    expect(seal.left, greaterThan(name.right));
+    expect(seal.right, lessThan(level.left));
+    expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
+    expect(seal.width, ProfileVerificationBadge.sizeForFont(KMeHub.nameSize));
+    expect(find.bySemanticsLabel('Verified: content creator'), findsOneWidget);
+    await tester.longPress(find.byKey(MeHubScreen.verificationBadgeKey));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Verified: content creator\nGranted automatically by conditions',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  for (final language in AppLanguage.values) {
+    testWidgets('D293: the badge fits the name row at 360x800 and 1.3 '
+        '(${language.name})', (tester) async {
+      await _pump(
+        tester,
+        language: language,
+        viewport: GoldenViewport.android,
+        textScale: 1.3,
+        user: testUser().copyWith(verification: VerificationBadge.owner),
+      );
+      expect(tester.takeException(), isNull);
+      final name = tester.getRect(find.byKey(MeHubScreen.nameKey));
+      final seal = tester.getRect(find.byKey(MeHubScreen.verificationBadgeKey));
+      expect(seal.left, greaterThanOrEqualTo(0));
+      expect(seal.right, lessThanOrEqualTo(360));
+      expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
+    });
+  }
+
+  testWidgets('D293: no verification badge without one', (tester) async {
+    await _pump(tester);
+    expect(find.byType(ProfileVerificationBadge), findsNothing);
   });
 
   testWidgets('a failed count shows a dash, not a skeleton', (tester) async {

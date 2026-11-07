@@ -25965,6 +25965,54 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{amount} كوينز من هدايا الحظ'**
   String medalsThresholdLuckyCoins(String amount);
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
+  ///
+  /// In ar, this message translates to:
+  /// **'مالك التطبيق'**
+  String get verificationBadgeOwner;
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
+  ///
+  /// In ar, this message translates to:
+  /// **'فريق كابسو'**
+  String get verificationBadgeStaff;
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل شحن'**
+  String get verificationBadgeRechargeAgent;
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
+  ///
+  /// In ar, this message translates to:
+  /// **'وكيل مضيفين'**
+  String get verificationBadgeHostAgent;
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
+  ///
+  /// In ar, this message translates to:
+  /// **'صانع محتوى'**
+  String get verificationBadgeCreator;
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …».
+  ///
+  /// In ar, this message translates to:
+  /// **'مضيف موثّق الهوية'**
+  String get verificationBadgeVerifiedHost;
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The spoken label and the tooltip title.
+  ///
+  /// In ar, this message translates to:
+  /// **'موثّق: {kind}'**
+  String verificationBadgeLabel(String kind);
+
+  /// D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The tooltip's second line.
+  ///
+  /// In ar, this message translates to:
+  /// **'شارة تُمنح تلقائياً حسب الشروط'**
+  String get verificationBadgeAbout;
 }
 
 class _AppLocalizationsDelegate

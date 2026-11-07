@@ -90,4 +90,6 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   // D290.
   'levels.raise.request': ['OWNER', 'MODERATION', 'SUPPORT'],
   'levels.raise.decide': ['OWNER'],
+  'verification.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  'verification.settings': ['OWNER'],
 };

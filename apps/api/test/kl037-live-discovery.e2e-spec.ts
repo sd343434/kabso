@@ -951,6 +951,8 @@ describe('KL-037 public profile and follow', () => {
       country: null,
       joinedMonth: expect.stringMatching(/^\d{4}-\d{2}$/),
       blockedByMe: false,
+      // v1.90-social (D293): no verification badge (only its type would show, never an amount).
+      verification: null,
       // v1.77-social (D220): the lifetime totals the user does not hide (nothing received or sent yet).
       cherriesReceived: 0,
       coinsSent: 0,

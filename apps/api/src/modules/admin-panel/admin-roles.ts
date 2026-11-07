@@ -6,6 +6,7 @@ import { CAPABILITIES, PANEL_ROLES, type PanelRole } from './admin-permissions.j
 import { revokeStaffGrantsIn } from '../live/live-staff.js';
 import { syncTeamAvatarsIn } from '../live/staff-avatar.js';
 import { formatStaffId, keptStaffIdOf, parseStaffId } from '../users/staff-ids.js';
+import { recomputeBadgesIn } from '../verification/verification-badges.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -119,6 +120,8 @@ export async function grantRoleIn(
   // v1.72-live (D283, §10.96.10): a limited staff account wears the fixed team picture (an OWNER grant gives the
   // person's own photo back).
   await syncTeamAvatarsIn(tx, user.id);
+  // v1.90-social (D293, §10.105): the OWNER / Kabso Team badge at once.
+  await recomputeBadgesIn(tx, [user.id], 'role');
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
@@ -165,6 +168,8 @@ export async function revokeRoleIn(
   const left = before.filter((r) => r !== role);
   // v1.72-live (D283): no limited role left → the person's own photo again.
   await syncTeamAvatarsIn(tx, user.id);
+  // v1.90-social (D293, §10.105): the badge follows the roles left (or the next condition that applies) at once.
+  await recomputeBadgesIn(tx, [user.id], 'role');
   if (left.length === 0) {
     await tx.adminSession.updateMany({
       where: { userId: user.id, revokedAt: null },

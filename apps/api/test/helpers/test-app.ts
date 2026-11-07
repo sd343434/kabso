@@ -254,6 +254,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // v1.74-social (D217): the referral sweeper runs only when a test calls it.
     REFERRAL_SWEEP_INTERVAL_SECONDS: '0',
     RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS: '0',
+    VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_ACCOUNT_DELETION_USER: GENEROUS,
     // D198: specs call DataExportsService.sweep() / build directly.
     DATA_EXPORT_SWEEP_INTERVAL_SECONDS: '0',
@@ -344,6 +345,10 @@ export async function resetDatabase(): Promise<void> {
     // v1.89-social (D290): the level-raise weights' one row and the source apps, as their migration seeds them.
     await client.$executeRawUnsafe(`INSERT INTO level_raise_settings (id) VALUES (1) ON CONFLICT DO NOTHING`);
     await client.$executeRawUnsafe(seedLevelRaiseAppsSql());
+    // v1.90-social (D293): the verification badges' thresholds row (the owner's defaults), inserted by its migration.
+    await client.$executeRawUnsafe(
+      `INSERT INTO verification_badge_settings (id) VALUES (1) ON CONFLICT DO NOTHING`,
+    );
   });
 }
 

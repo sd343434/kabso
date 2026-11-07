@@ -3,6 +3,7 @@
 // v1.26.1-live, D125: `q`, `order`, `removeMyFollower`; CONVENTIONS §10.6).
 
 import 'package:kabso_live/core/models/premium_tier.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Which list of a user: who follows them, or whom they follow.
@@ -47,6 +48,7 @@ class FollowListItem {
     required this.followsMe,
     this.requestedByMe = false,
     this.premiumTier,
+    this.verification,
   });
 
   factory fromJson(Map<String, dynamic> json) => FollowListItem(
@@ -60,6 +62,7 @@ class FollowListItem {
     followsMe: json['followsMe'] as bool? ?? false,
     requestedByMe: json['requestedByMe'] as bool? ?? false,
     premiumTier: premiumTierFromJson(json['premiumTier']),
+    verification: verificationBadgeFromJson(json['verification']),
   );
 
   final String id;
@@ -87,6 +90,9 @@ class FollowListItem {
   /// null for a regular username (D158: shown without «@»).
   final PremiumTier? premiumTier;
 
+  /// v1.90-social (D293, via `UserSummary`): the verification badge, or null.
+  final VerificationBadge? verification;
+
   /// The name to show (the username when the display name is empty).
   String get name => displayName.isEmpty ? username : displayName;
 
@@ -107,5 +113,6 @@ class FollowListItem {
     followsMe: followsMe,
     requestedByMe: requestedByMe,
     premiumTier: premiumTier,
+    verification: verification,
   );
 }

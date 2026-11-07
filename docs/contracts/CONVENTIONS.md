@@ -646,6 +646,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | `.github/**`, `infra/**`, `docker-compose.yml` | DevOps | CTO review |
 | Root `package.json`, `pnpm-workspace.yaml` | Backend (Phase 1) | CTO review |
 | *(v1.89-social)* Tables `level_raise_requests`, `level_raise_source_apps`, `level_raise_settings`; column `notifications.level_raise_request_id`; media kind `LEVEL_RAISE_VIDEO` | Backend — `level-raise` module (the level is raised only through the `levels` module's `LevelProgressService`) | CTO; the OWNER approves the weights and the source-app data (D290) |
+| *(v1.90-social)* Tables `user_verification_badges`, `verification_badge_settings`; type `verification_badge`; capabilities `verification.view` / `verification.settings`; audit `verification.*`; config `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` | Backend — `verification` module (`verification-badges.ts` the only writer of the badges; `VerificationService` the only writer of the settings; `admin-roles`, `creator-applications` and `kyc.service` call the recompute in their transactions); app — `ProfileVerificationBadge`; web — `apps/admin` «شارات التوثيق» and the user page | CTO; the OWNER sets the thresholds (D293) |
 
 ## 9. Contract change log
 
@@ -728,6 +729,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.90-social (draft) | 2026-11-06 | **D293 (owner: «شارة التوثيق» — granted automatically by conditions over the last 30 days, one per person, the highest of OWNER › STAFF › RECHARGE_AGENT › HOST_AGENT › CREATOR › VERIFIED_HOST; thresholds 300 000 000 coins / 300 000 000 cherries / 30 hosts / 300 000 000 cherries, «more than»):** schema `VerificationBadge`; `Me.verification`, `PublicProfile.verification` (required, nullable; only the type); `AdminUserDetail.verification` (`AdminUserVerification`); panel `getAdminVerificationSettings` / `updateAdminVerificationSettings` (`/admin/verification-badges/settings`; `AdminVerificationSettings`, `VerificationThresholds`, `UpdateAdminVerificationSettingsRequest`); capabilities `verification.view` (OWNER, MODERATION, SUPPORT, FINANCE), `verification.settings` (OWNER, the code again); audit `verification.badge.change`, `verification.settings.update`, `verification.recompute`; config `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` (3600; 0 refused in production); CLI `verification-admin recompute`; migration `20270326090000_verification_badges`. `UserSummary.verification` (owner «نعم»: beside the name everywhere). Owner decisions: the gold measures; the team's manual ID + selfie approval (`host_applications` APPROVED) also gives VERIFIED_HOST. §10.105. | **Additive** (new response fields — required in the responses, so strict clients update their models in the same change set — new operations and schemas). An older app ignores `verification`. |
 | v1.89-social (draft) | 2026-11-06 | **D290 (owner: «طلب رفع ليفيل» — staff send a supporter recruited from another app with a video of the source profile; the OWNER approves the proposed level, never above 40, never below the current level, after 1 000 000 coins recharged):** tag `staff`: `listStaffLevelRaiseSourceApps`, `checkStaffLevelRaise`, `listMyStaffLevelRaises`, `createStaffLevelRaise`; panel `listAdminLevelRaises` / `createAdminLevelRaise`, `checkAdminLevelRaise`, `listAdminLevelRaiseSourceAppOptions`, `uploadAdminLevelRaiseVideo` (raw bytes), `getAdminLevelRaise`, `getAdminLevelRaiseVideo` (ranges), `approveAdminLevelRaise`, `rejectAdminLevelRaise`, `listAdminLevelRaiseApps` / `createAdminLevelRaiseApp` / `updateAdminLevelRaiseApp`, `getAdminLevelRaiseSettings` / `updateAdminLevelRaiseSettings`; schemas `LevelRaise*`, `CreateLevelRaiseRequest`, `ApproveLevelRaiseRequest`, `RejectLevelRaiseRequest`, `(Create|Update)LevelRaiseSourceAppRequest`, `UpdateLevelRaiseSettingsRequest`; `MediaKind` `LEVEL_RAISE_VIDEO`; `NotificationType` `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED`; `NotificationTarget.type` `LEVEL_RAISE` + `level`; capabilities `levels.raise.request` (OWNER, MODERATION, SUPPORT), `levels.raise.decide` (OWNER); refusal issues under `ADMIN_ACTION_REFUSED`; owner follow-up (same day): code `LEVEL_RAISE_DUPLICATE` (409), `suggestStaffLevelRaiseSourceApps` / `suggestAdminLevelRaiseSourceApps` (`LevelRaiseSuggestions`), `LevelRaiseSourceApp.aliases`, `LevelRaiseVideo.byteSize` / `deletedAt`, `LevelRaiseRequest.previousRejection`; the video deleted after the decision; migrations `20270324090000_level_raise_enums`, `20270324090100_level_raise`. §4, §10.103. | **Additive** (new operations, schemas and enum values; clients ignore notification types they do not know). |
 | v1.86-social (draft) | 2026-11-05 | **D281 (owner: more than 100 000 generated Task Center tasks, assigned from each person's data):** `ProgramTask.gift`, `ProgramTask.window`; metrics `GIFT_COUNT_SENT`, `CATEGORY_GIFTS_SENT`, `GIFTED_HOSTS`, `FAMILY_JOIN`, `FAMILY_CHAT_MESSAGES`, `PK_BATTLES`, `PK_WINS`. §10.41.4. | **Additive** (an older app shows an unknown metric with the generic icon). |
 | v1.69-live (draft) | 2026-11-04 | **D277 (owner: the lucky target «هدف هدايا الحظ» counts only lucky gifts, including the host's own sends to themself, in cherries; the cherries target becomes «هدف الهدايا», gifts outside the lucky category in cherries; new badges to come):** `LiveHostTargets.gifts`, `me.gifts`, `HostGiftStats.lucky.cherries`, `ProgramTask.metric` `HOST_GIFT_CHERRIES` / `HOST_LUCKY_CHERRIES`, `AdminTasks` `targetUnit`. `LiveHostTargets.cherries` / `me.cherries` are deprecated (now the same as `gifts`). `lucky` is in cherries, and `HostGiftStats.cherries` is «هدف الهدايا»'s. Migration `20270313090000_host_targets_cherries` stores both targets in cherries. §10.62.1. | **Additive** (new fields and enum values; `lucky`'s unit is cherries, the same number at the default 10 % except for self-sends). |
@@ -3955,6 +3957,8 @@ session's `capabilities` do not include.
 | `kyc.settings` (v1.80-kyc, D227: the Didit API key, webhook secret, workflows, daily limit and switch, §10.77) | ✓ | | | |
 | `fx.settings` (v1.81-social, D245: the paid exchange-rate provider, its API key and switch «مزوّد أسعار الصرف», §10.87.4) | ✓ | | | |
 | `kyc.view` (v1.80-kyc, D227: a person's identity check — name, birth date, document country, duplicates — and the short-lived image fetch, each audited, §10.77) | ✓ | | ✓ | |
+| `verification.view` (v1.90-social, D293: the verification badges' thresholds, their defaults, the last recompute and the holders per badge, §10.105.4) | ✓ | ✓ | ✓ | ✓ |
+| `verification.settings` (v1.90-social, D293: change the thresholds — a reason and the code again; everyone recomputed at once, §10.105.4) | ✓ | | | |
 | `recharge.disputes` (v1.69-social, D204: «نزاعات الشحن» — a disputed order, its chat and pictures, «الإدارة» lines, §10.64.9; D275: the moderator too) | ✓ | ✓ | ✓ | ✓ |
 | `recharge.disputes.resolve` (v1.69-social, D204: a dispute's decision, the code again; D275: the moderator too) | ✓ | ✓ | | ✓ |
 | `recharge.rates` (v1.69-social, D204: editing the exchange rates) | ✓ | | | ✓ |
@@ -7827,6 +7831,88 @@ lilac, red / gold, crystal-opal / gold; `PROVENANCE.md`). Totals and thresholds 
 `20270325090400_medal_lucky_metric` (the enum value, alone) and `20270325090500_medal_lucky_master` (the medal and its
 levels); `medals-admin backfill` sets the totals from `live_gifts` of the LUCKY category. Description: «مجموع قيمة هدايا
 الحظ التي أرسلتها.» / "Total value of lucky gifts you sent."
+
+### 10.105 Automatic verification badges «شارة التوثيق» *(v1.90-social, DRAFT — D293)*
+
+Owner (2026-11-06): a verification badge beside the name, **granted automatically by conditions** over the **last 30
+days** (rolling, recomputed regularly — daily is enough); a person shows **one** badge, the highest of the order below
+when several apply (the owner also expects a person to qualify for one at most; the order makes an overlap
+deterministic). The thresholds are the OWNER's, editable in the panel.
+
+**10.105.1 The badges, highest first** (`VerificationBadge`; every one needs an ACTIVE account — a ban, a lock to
+SUSPENDED or a deletion removes it at the next recompute).
+
+| # | Value | Colour, icon | Who (as read by the server) |
+|---|---|---|---|
+| 1 | `OWNER` | black seal, gold rim and gold check | an account with `users.role = ADMIN` holding the panel role **OWNER** (every OWNER, the primary «Kabso» and any other) |
+| 2 | `STAFF` | red | the **Kabso Team**: an ADMIN account holding MODERATION, SUPPORT, FINANCE or BD (D283's limited staff roles, `LIMITED_STAFF_ROLES`) |
+| 3 | `RECHARGE_AGENT` | gold | an **ACTIVE** recharge agent (the `rechargeAgent` tag's rule) whose **coins sold** in the window are more than `rechargeMinSalesCoins` **and** whose **cherries bought from hosts** in the window are more than `rechargeMinCherries` |
+| 4 | `HOST_AGENT` | green | a **host agent** — the owner of an OPEN agency the team has not suspended, with its host code (the `hostAgent` tag's rule) — whose agency has more than `hostAgentMinHosts` **active hosts now** **and** whose hosts **received** more than `hostAgentMinCherries` cherries in the window |
+| 5 | `CREATOR` | purple | a member of the creator programme (D285 `creator_members`; the membership has no end today) |
+| 6 | `VERIFIED_HOST` | blue | a **host** — a hosting permission (`live_hosts`, any source: the team, an agency, «كن مضيفاً مع الإدارة») or an ACTIVE agency link — whose identity was **approved**: an APPROVED Didit check (`kyc_checks`, §10.77: the document, passive liveness and the 1:1 face match; any purpose), **or** (owner's decision 2026-11-06, «نعم») an APPROVED «كن مضيفاً مع الإدارة» application (`host_applications`, D209 §10.68) — the team's manual review of the ID card and the selfie while Didit is off (with Didit on, that approval itself needs an approved check). Pending, rejected and cancelled applications do not count |
+
+**10.105.2 The measures** — the gold measures below are the **owner's decision** (2026-11-06: sales = coins sold to
+buyers, direct sales plus completed orders, the employees' included; withdrawals = confirmed cherry purchases from
+hosts) (the window is `[now − 30 days, now]`; every comparison is **«more than»**: a value equal to
+its threshold does not qualify; sums are BIGINT / NUMERIC in PostgreSQL and compared there, exact at any size).
+- **Coins sold** (gold) = the agent's direct sales (`recharge_sales.coins`, `created_at` in the window — the agent's
+  and every employee's sale, D287: `agent_user_id` is the agent's account) **plus** the coin orders closed
+  `COMPLETED` or `COMPLETED_BY_ADMIN` (`recharge_orders.coins`, `closed_at` in the window — whoever of the agent's side
+  owned them). Orders cancelled, expired or refunded to the agent do not count. No sale is counted twice (a completed
+  order writes no `recharge_sales` row).
+- **Cherries bought from hosts** (gold, the owner's «سحوبات») = the agent's **confirmed** cherry purchases
+  (`recharge_cherry_requests.cherries`, status `CONFIRMED`, `decided_at` in the window — made or answered by the agent
+  or an employee). Pending, declined, cancelled and expired requests do not count.
+- **Active hosts** (green) = the agency's `agency_hosts` rows `ACTIVE` now whose host account is ACTIVE (members who
+  left, were released or moved do not count). This is **not** the agency ranks' «active host» live-time test
+  (§10.46: ≥ 7 live days and ≥ 10 live hours in 30 days).
+- **The agency's target** (green) = the cherries the agency's hosts received from gifts while linked to it
+  (`agency_earnings.host_cherries`, not reversed, `created_at` in the window) — the ledger behind the agency's month
+  totals. The agency module's own monthly concepts (`agency_months.host_cherries` per calendar month, the rank
+  exception and the commission tier) are **not** used: the owner chose the rolling 30 days.
+
+**10.105.3 Computing.** The result is stored: `user_verification_badges` (one row per person with a badge: `badge`,
+`since` = when this badge was granted, `computed_at` = the last recompute that kept it; no row = no badge). Written
+only by `verification-badges.ts`:
+- the **sweeper**, every `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` (default 3600 — hourly; 1 … 86 400; 0 = off for
+  tests, **refused in production**), recomputes everyone, so badges appear and disappear as the window moves;
+- **at once**, in the change's own transaction, for one person: a panel role granted or revoked (CLI and «الموظفون
+  والصلاحيات»), a creator application approved, an identity check that becomes or stops being APPROVED, a «كن مضيفاً
+  مع الإدارة» application approved, a hosting permission revoked by the team (cause `host`);
+- a **settings change** recomputes everyone in its transaction;
+- the CLI `verification-admin recompute` (the first-run backfill, DEPLOYMENT §5.73).
+One recompute at a time (an advisory transaction lock). Each difference is audited **`verification.badge.change`**
+(system; target the user; `{before, after, change: granted | changed | removed, cause: sweep | backfill | settings |
+role | creator | kyc | host}`) — never an amount. A kept badge only moves `computed_at`.
+
+**10.105.4 The panel «شارات التوثيق».** `GET /admin/verification-badges/settings` (`verification.view`: OWNER,
+MODERATION, SUPPORT, FINANCE) → `AdminVerificationSettings` (`settings`, `defaults`, `windowDays` 30, `holders` per
+badge, `lastRunAt`, `updatedAt`). `PUT` the same path (`verification.settings`: OWNER; any of the four thresholds, a
+reason and the authenticator code again; CSRF) → the same body after the recompute; 400 for nothing to change
+(`rechargeMinSalesCoins` / `required`), a negative, fractional or too-large value (≤ 10¹⁵; hosts ≤ 100 000). Audited
+`verification.settings.update` `{before, after, reason, via}`. **Defaults (the owner's):** 300 000 000 coins sold,
+300 000 000 cherries bought, 30 hosts, 300 000 000 cherries received. `getAdminUser` → `AdminUserDetail.verification`
+(`{badge, since, computedAt}` or null).
+
+**10.105.5 The wire (public-safe).** `Me.verification` and `PublicProfile.verification`: the `VerificationBadge` or null
+— **only the badge type**, never a sum, a threshold or a host count; also on a private account's profile. An unknown
+value is shown as no badge. **`UserSummary.verification`** (owner 2026-11-06, «نعم»: beside the name **everywhere** the
+name appears): present only while the user holds a badge (an active account), read with the summary's own query
+(`USER_SUMMARY_SELECT`'s one-to-one relation, a LEFT JOIN in search, a subquery on the primary key in live room cards —
+never one query per row). So it reaches live chat lines and join lines (`LiveChatMessage.author`), the viewers list,
+seats, the person card, follow lists, search, post / reel and comment authors, DM lists and headers
+(`DmConversation.peer`), live room cards (`LiveRoomSummary.host`) and every other list that carries a `UserSummary`.
+
+**10.105.6 The apps.** `ProfileVerificationBadge`: a rosette seal with 8 soft, rounded lobes (the generic
+"verified" silhouette, drawn in Flutter from r(θ) = R·(1 + 0.075·cos 8θ) — no copied art) in the badge's colour with
+**the same check mark in every seal** (owner 2026-11-06: «اجعلها كلها بصح لكن الألوان مختلفة التي حددناها»; white,
+the OWNER's black seal with a gold rim and a gold check); about the name's line height (1.15 × its font size: 23 lp in
+the profile header, 21 lp in the Me tab's name row), vertically centred, right after the display name; in every other place where a person's name is shown (chat
+lines, lists, search, authors, DMs, the person card, the viewers list) the same seal sized to that text
+(`VerificationSeal`, ≈ 1.15 × the font size). Since the check
+is the same, the spoken label and the tooltip / long press say which one: «موثّق: وكيل شحن» / "Verified: recharge
+agent" (and the five others) with «شارة تُمنح تلقائياً حسب الشروط». The admin panel shows the badge on the user page
+and the thresholds page.
 
 ### 11.1 Media upload
 

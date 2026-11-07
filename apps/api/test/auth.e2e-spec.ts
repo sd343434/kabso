@@ -75,6 +75,8 @@ describe('POST /auth/register', () => {
       tags: [],
       // v1.76-social (D218): no profile cover yet.
       coverUrl: null,
+      // v1.90-social (D293): no verification badge yet.
+      verification: null,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

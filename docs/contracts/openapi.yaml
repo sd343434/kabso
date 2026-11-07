@@ -306,6 +306,17 @@ info:
     `iconUrl`; `NotificationTarget.medalLevel` (a MEDAL_AWARDED above level 1 is a level-up). Panel:
     `listAdminMedals`, `updateAdminMedal` (the levels list; audited `medals.levels.update`). Additive; migration
     `20270325090000_medal_levels`, then `medals-admin backfill` raises held medals to their level (DEPLOYMENT §5.72).
+    **D293 (DRAFT v1.90-social)** automatic verification badges «شارة التوثيق» (CONVENTIONS §10.105): one badge per
+    person beside the name, granted and removed automatically by conditions over the last 30 days (rolling, recomputed
+    by a sweeper and at once on a panel role, a creator activation and an identity-check decision), the highest of
+    OWNER (black and gold) › STAFF (red, the Kabso Team) › RECHARGE_AGENT (gold: more than 300 000 000 coins sold and
+    300 000 000 cherries bought from hosts) › HOST_AGENT (green: more than 30 active hosts and 300 000 000 cherries
+    received by them) › CREATOR (purple, the creator programme) › VERIFIED_HOST (blue: a host with an approved Didit
+    check). `Me.verification`, `PublicProfile.verification` (`VerificationBadge`, only the type — never an amount);
+    `UserSummary.verification` (owner «نعم»: beside the name everywhere — chat, lists, search, posts, comments, DMs,
+    live cards); `AdminUserDetail.verification`; the OWNER's thresholds `getAdminVerificationSettings` /
+    `updateAdminVerificationSettings` (`verification.view` / `verification.settings`, the code again, audited).
+    Additive; migration `20270326090000_verification_badges`, then `verification-admin recompute` (DEPLOYMENT §5.73).
     **D286 (DRAFT v1.76-live)** staff work without an authenticator code, and the automatic shift (CONVENTIONS
     §10.96.6, §10.96.14; owner: «ازله لتسهيل العملية … وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): the app's staff
     tools (tag `staff`) and the hidden watch need no step-up any more — the role held now, checked on every request, is
@@ -2090,6 +2101,7 @@ paths:
                     country: SA
                     joinedMonth: '2026-10'
                     blockedByMe: false
+                    verification: VERIFIED_HOST
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -18411,6 +18423,46 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.90-social (D293, CONVENTIONS §10.105): automatic verification badges «شارة التوثيق» ----------------------
+  /api/v1/admin/verification-badges/settings:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminVerificationSettings
+      summary: "The verification badges' thresholds, their defaults, the last recompute and the holders (verification.view)"
+      description: "(v1.90-social, D293, §10.105.4) OWNER, MODERATION, SUPPORT and FINANCE. The window is fixed at 30 days (the owner's decision)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVerificationSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminVerificationSettings
+      summary: "Changes the thresholds and recomputes every badge (verification.settings; OWNER; the code again and a reason; audited)"
+      description: "(v1.90-social, D293, §10.105.4) Any subset (at least one) of the four thresholds, a reason and the authenticator code again (a wrong code → 401 like every re-authentication). Audited `verification.settings.update` {before, after, reason, via}; every badge is then recomputed in the same transaction (each change audited `verification.badge.change`, cause `settings`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminVerificationSettingsRequest' }
+      responses:
+        '200':
+          description: The thresholds now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminVerificationSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -18931,6 +18983,70 @@ components:
         charmBonusMax: { type: integer, minimum: 0, maximum: 10 }
         belowTableExponent: { type: number, minimum: 1, maximum: 10 }
         reason: { type: string, minLength: 1, maxLength: 500 }
+    VerificationBadge:
+      type: string
+      enum: [OWNER, STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST]
+      description: |
+        (v1.90-social, D293, CONVENTIONS §10.105) The automatic verification badge «شارة التوثيق» beside the name, in
+        priority order (one per person, the first that applies): `OWNER` the app owner (black seal, gold rim),
+        `STAFF` the Kabso Team (red), `RECHARGE_AGENT` a top recharge agent (gold), `HOST_AGENT` a top host agent
+        (green), `CREATOR` a creator-programme member (purple), `VERIFIED_HOST` a host whose identity check is approved
+        (blue). Every seal carries the same check mark; the colour tells them apart. Clients show an unknown value as no
+        badge.
+    VerificationThresholds:
+      type: object
+      additionalProperties: false
+      description: "(v1.90-social, D293, §10.105.2) The OWNER's thresholds; every one is «more than» (equal does not qualify) over the last 30 days."
+      required: [rechargeMinSalesCoins, rechargeMinCherries, hostAgentMinHosts, hostAgentMinCherries]
+      properties:
+        rechargeMinSalesCoins: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000, description: "RECHARGE_AGENT: coins sold (direct sales + completed coin orders) in the window, more than this. Default 300 000 000." }
+        rechargeMinCherries: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000, description: "RECHARGE_AGENT: cherries bought from hosts (confirmed cherry purchases) in the window, more than this. Default 300 000 000." }
+        hostAgentMinHosts: { type: integer, minimum: 0, maximum: 100000, description: "HOST_AGENT: the agency's active hosts now, more than this. Default 30." }
+        hostAgentMinCherries: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000, description: "HOST_AGENT: the cherries the agency's hosts received (agency earnings) in the window, more than this. Default 300 000 000." }
+    AdminVerificationSettings:
+      type: object
+      additionalProperties: false
+      description: "(v1.90-social, D293, §10.105.4) «شارات التوثيق» in the panel."
+      required: [settings, defaults, windowDays, holders, lastRunAt, updatedAt]
+      properties:
+        settings: { $ref: '#/components/schemas/VerificationThresholds' }
+        defaults: { $ref: '#/components/schemas/VerificationThresholds' }
+        windowDays: { type: integer, const: 30, description: "The rolling window (the owner's decision; not a setting)." }
+        holders:
+          type: object
+          additionalProperties: false
+          description: How many people hold each badge now.
+          required: [OWNER, STAFF, RECHARGE_AGENT, HOST_AGENT, CREATOR, VERIFIED_HOST]
+          properties:
+            OWNER: { type: integer, minimum: 0 }
+            STAFF: { type: integer, minimum: 0 }
+            RECHARGE_AGENT: { type: integer, minimum: 0 }
+            HOST_AGENT: { type: integer, minimum: 0 }
+            CREATOR: { type: integer, minimum: 0 }
+            VERIFIED_HOST: { type: integer, minimum: 0 }
+        lastRunAt: { type: [string, 'null'], format: date-time, description: "The last full recompute (the sweeper, the CLI or a settings change); null before the first." }
+        updatedAt: { type: string, format: date-time }
+    UpdateAdminVerificationSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: "(v1.90-social, D293) At least one threshold (none → 400 `rechargeMinSalesCoins` / `required`)."
+      required: [reason, totpCode]
+      properties:
+        rechargeMinSalesCoins: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000 }
+        rechargeMinCherries: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000 }
+        hostAgentMinHosts: { type: integer, minimum: 0, maximum: 100000 }
+        hostAgentMinCherries: { type: integer, format: int64, minimum: 0, maximum: 1000000000000000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        totpCode: { type: string, pattern: '^[0-9]{6}$' }
+    AdminUserVerification:
+      type: object
+      additionalProperties: false
+      description: "(v1.90-social, D293, §10.105) A person's verification badge in the panel."
+      required: [badge, since, computedAt]
+      properties:
+        badge: { $ref: '#/components/schemas/VerificationBadge' }
+        since: { type: string, format: date-time, description: "When this badge was granted (a change of badge restarts it)." }
+        computedAt: { type: string, format: date-time, description: "The last recompute that kept it." }
     LevelRaiseEvidence:
       type: object
       required: [totalRechargeCoins, firstDaysRechargeCoins, firstDays, accountCreatedAt, firstDaysEndAt, supportLevel, charmLevel, minRechargeCoins, eligible]
@@ -20831,8 +20947,13 @@ components:
         createdAt: { type: string, format: date-time }
     AdminUserDetail:
       type: object
-      required: [user, specialUsername, adminRoles, balances, ledger, rechargeAgent, hostAgent, agencyHost, reports]
+      required: [user, specialUsername, adminRoles, balances, ledger, rechargeAgent, hostAgent, agencyHost, reports, verification]
       properties:
+        verification:
+          description: "(v1.90-social, D293, §10.105) The person's verification badge, or null."
+          oneOf:
+            - $ref: '#/components/schemas/AdminUserVerification'
+            - type: 'null'
         user:
           type: object
           required: [id, username, displayName, email, status, avatarUrl, createdAt, role, lastActiveAt, countryCode, bio, baseUsername]
@@ -25927,8 +26048,13 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country, gender, showGender, category, links, tags, coverUrl, verification]
       properties:
+        verification:
+          description: "(v1.90-social, D293, §10.105) The caller's automatic verification badge beside the name, or null. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
+          oneOf:
+            - $ref: '#/components/schemas/VerificationBadge'
+            - type: 'null'
         kabsoTeam:
           type: boolean
           const: true
@@ -26091,6 +26217,9 @@ components:
         staffId:
           $ref: '#/components/schemas/StaffId'
           description: "(v1.73-live, D283c, §10.96.12) — present only while the user holds a panel role (the OWNER too) with an active account: the apps show it where they show the @username (live viewers and chat, the person card, search results, lists). Absent otherwise."
+        verification:
+          $ref: '#/components/schemas/VerificationBadge'
+          description: "(v1.90-social, D293, §10.105.5; owner «نعم»: beside the name everywhere) — present only while the user holds an automatic verification badge with an active account; only its type, never an amount. Read with the summary's own query (no per-row query). The apps draw the seal right after the name wherever a summary's name is shown: live chat lines and join lines, the viewers list, seats, the person card, follow lists, search results, post / reel and comment authors, DM lists and headers, live cards. Absent otherwise."
     UserVip:
       type: object
       required: [tier, rank, color]
@@ -26119,8 +26248,13 @@ components:
         score: { type: integer, minimum: 0, description: "The live's points (taps + support; as `LiveRoomSummary.score`)." }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, followRequested, isMuted, isSelf, liveRoomId, live, family, cp, medals, profileCard, gender, category, links, tags, rechargeAgent, hostAgent, avatarFrame, coverUrl, country, joinedMonth, blockedByMe, verification]
       properties:
+        verification:
+          description: "(v1.90-social, D293, §10.105) The user's automatic verification badge beside the name, or null — only its type: never an amount, a threshold or which condition was met beyond the badge itself. Also on a private account's profile. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
+          oneOf:
+            - $ref: '#/components/schemas/VerificationBadge'
+            - type: 'null'
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
         displayName: { type: string }

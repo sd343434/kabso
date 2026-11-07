@@ -4791,5 +4791,13 @@
   "notifMedalLevelUpUnnamed": "Your medal reached level {level}",
   "medalsProfileWornCount": "On your profile: {count} of {max}",
   "medalsThresholdGiftCoins": "{amount} coins of gifts",
-  "medalsThresholdLuckyCoins": "{amount} coins of lucky gifts"
+  "medalsThresholdLuckyCoins": "{amount} coins of lucky gifts",
+  "verificationBadgeOwner": "app owner",
+  "verificationBadgeStaff": "Kabso Team",
+  "verificationBadgeRechargeAgent": "recharge agent",
+  "verificationBadgeHostAgent": "host agent",
+  "verificationBadgeCreator": "content creator",
+  "verificationBadgeVerifiedHost": "identity-verified host",
+  "verificationBadgeLabel": "Verified: {kind}",
+  "verificationBadgeAbout": "Granted automatically by conditions"
 }

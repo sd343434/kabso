@@ -8,6 +8,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
@@ -102,6 +103,16 @@ abstract class PublicProfile with _$PublicProfile {
       toJson: rechargeAgentCodeToJson,
     )
     String? hostAgentCode,
+
+    /// v1.90-social (D293, §10.105): the automatic verification badge
+    /// «شارة التوثيق» right after the name — only its type. Null when none,
+    /// for unknown values and from older servers.
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: verificationBadgeFromJson,
+      toJson: verificationBadgeToJson,
+    )
+    VerificationBadge? verification,
 
     /// v1.55-social (D186, §10.49): the avatar frame the user wears (e.g.
     /// the active-host frame), drawn around the profile photo. Null when

@@ -24,6 +24,7 @@ import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:kabso_live/features/messages/widgets/dm_message_view.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/push/open_conversation.dart';
 import 'package:kabso_live/features/push/push_payload.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
@@ -604,12 +605,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.textStyles.bodyStrong.copyWith(
-                          color: p.textPrimary,
+                      // D293: the peer's verification seal after the name.
+                      NameWithSeal(
+                        badge: user?.verification,
+                        fontSize: context.textStyles.bodyStrong.fontSize,
+                        name: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textStyles.bodyStrong.copyWith(
+                            color: p.textPrimary,
+                          ),
                         ),
                       ),
                       Text(

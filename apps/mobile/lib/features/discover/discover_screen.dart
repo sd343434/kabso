@@ -17,6 +17,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -427,7 +428,15 @@ class _UserRow extends StatelessWidget {
       leading: ExcludeSemantics(
         child: KAvatar(name: name, imageUrl: user.avatarUrl),
       ),
-      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      // D293: the verification seal right after the name.
+      title: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: NameWithSeal(
+          badge: user.verification,
+          fontSize: 16,
+          name: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ),
       // D146: a premium username wears its special-ID badge.
       subtitle: switch (user.premiumTier) {
         // D283c: a staff account's official staff ID «Kabso01».

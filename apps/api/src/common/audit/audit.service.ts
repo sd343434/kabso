@@ -188,6 +188,12 @@ export enum AuditAction {
   LEVEL_RAISE_APP_CREATE = 'level.raise.app.create',
   LEVEL_RAISE_APP_UPDATE = 'level.raise.app.update',
   LEVEL_RAISE_SETTINGS_UPDATE = 'level.raise.settings.update',
+  // v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» — a person's badge granted, changed
+  // or removed by a recompute (system; {before, after, change, cause}; never an amount); the OWNER's thresholds changed
+  // {before, after, reason, via}; the CLI's first-run backfill {granted, changed, removed, kept, via}.
+  VERIFICATION_BADGE_CHANGE = 'verification.badge.change',
+  VERIFICATION_SETTINGS_UPDATE = 'verification.settings.update',
+  VERIFICATION_RECOMPUTE = 'verification.recompute',
   // v1.45-live (D201, §10.63): the host's live tools — a second-camera pairing code created, redeemed
   // (or refused, with the reason, never the code), the second camera ended, the main feed chosen; the
   // one-time music-rights notice accepted; a clip recording started or stopped (viewers are told).

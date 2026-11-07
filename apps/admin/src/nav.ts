@@ -29,6 +29,8 @@ export const NAV: NavGroup[] = [
     items: [
       { to: '/users', key: 'navUsers', icon: 'users', cap: 'users.list', match: ['users', 'user'] },
       { to: '/special-usernames', key: 'navSpecialUsernames', icon: 'at', cap: 'programs.view', match: ['specialUsernames'] },
+      // v1.90-social (D293): «شارات التوثيق» — the thresholds (OWNER edits; the team reads).
+      { to: '/verification-badges', key: 'navVerificationBadges', icon: 'shield', cap: 'verification.view', match: ['verificationBadges'] },
     ],
   },
   {

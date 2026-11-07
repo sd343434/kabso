@@ -8,6 +8,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -27,6 +28,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_perks.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -252,6 +254,7 @@ class LiveRoomChatLines extends ConsumerWidget {
         ),
       LiveChatPosted(:final entry) => LiveChatAuthoredLine(
         name: entry.author.displayName,
+        verification: entry.author.verification,
         vip: entry.author.vip,
         username: entry.author.username,
         premiumTier: entry.author.premiumTier,
@@ -293,6 +296,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           opacity: failed ? 1 : 0.6,
           child: LiveChatAuthoredLine(
             name: authorName,
+            verification: ref.watch(currentUserProvider)?.verification,
             username: ref.watch(currentUserProvider)?.username,
             premiumTier: ref.watch(currentUserProvider)?.premiumTier,
             avatarUrl: ref.watch(currentUserProvider)?.avatarUrl,
@@ -367,6 +371,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     return LiveChatFlatLine(
       textSize: textSize,
       name: entry.author.displayName,
+      verification: entry.author.verification,
       text: entry.text,
       role: entry.authorRole,
       badges: entry.authorBadges,
@@ -503,6 +508,7 @@ class LiveRoomChatLines extends ConsumerWidget {
         final name = entry.author.displayName;
         return LiveChatInlineRow(
           name: name,
+          verification: entry.author.verification,
           role: entry.authorRole,
           badges: entry.authorBadges,
           agentCode: entry.author.rechargeAgentCode,
@@ -544,6 +550,7 @@ class LiveRoomChatLines extends ConsumerWidget {
       case LiveChatPosted(:final entry):
         return LiveChatInlineRow(
           name: entry.author.displayName,
+          verification: entry.author.verification,
           vip: entry.author.vip,
           role: entry.authorRole,
           badges: entry.authorBadges,
@@ -608,6 +615,7 @@ class LiveRoomChatLines extends ConsumerWidget {
           join: liveJoinText(l10n, join),
           agentCode: join.user.rechargeAgentCode,
           hostAgentCode: join.user.hostAgentCode,
+          verification: join.user.verification,
           rechargeBadge: join.user.rechargeBadge,
         );
       case LiveChatGiftLine() || LiveChatLuckyLine() || LiveChatQuipLine():
@@ -664,6 +672,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     final voice = entry.kind == LiveChatKind.voice;
     return LiveChatAuthoredLine(
       name: name,
+      verification: entry.author.verification,
       username: entry.author.username,
       premiumTier: entry.author.premiumTier,
       agentCode: entry.author.rechargeAgentCode,
@@ -899,7 +908,12 @@ class LiveChatAuthoredLine extends StatelessWidget {
     this.hostAgentCode,
     this.rechargeBadge,
     this.vip,
+    this.verification,
   });
+
+  /// D293 (owner «نعم»): the author's verification badge — the seal right
+  /// after the name, sized to the chat's name text.
+  final VerificationBadge? verification;
 
   final String name;
 
@@ -990,6 +1004,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
     final badges = this.badges;
     final spoken = [
       label,
+      // D293: the seal is drawn in the line; its meaning is spoken here.
+      if (verification case final v?)
+        l10n.verificationBadgeLabel(verificationBadgeKind(l10n, v)),
       if (agentCode case final code?)
         l10n.rechargeAgentBadgeLabel(KFormat.bidiIsolate(code)),
       if (hostAgentCode case final code?)
@@ -1089,6 +1106,12 @@ class LiveChatAuthoredLine extends StatelessWidget {
                       ),
                     ),
                   ),
+                  seal: verification == null
+                      ? null
+                      : VerificationSeal(
+                          verification,
+                          fontSize: KChat.nameSize,
+                        ),
                   badges: row.isNotEmpty ? row : null,
                 ),
               ),
@@ -1396,9 +1419,13 @@ class LiveChatNameRow extends StatelessWidget {
     this.heart = false,
     this.nameBadge,
     this.lead,
+    this.seal,
   });
 
   final Widget? name;
+
+  /// D293: the verification seal right after the name (never shortened).
+  final Widget? seal;
   final Widget? badges;
   final bool heart;
   final Widget? nameBadge;
@@ -1444,6 +1471,7 @@ class LiveChatNameRow extends StatelessWidget {
             ),
           if (lead case final tag?) ...[tag, const SizedBox(width: 4)],
           if (name != null) Flexible(child: name),
+          ?seal,
           if (name != null && badges != null) const SizedBox(width: gap),
           if (badges != null)
             ConstrainedBox(
@@ -2078,6 +2106,7 @@ class LiveChatInlineRow extends StatefulWidget {
     this.join,
     this.agentCode,
     this.hostAgentCode,
+    this.verification,
     this.rechargeBadge,
     this.failed,
     this.cp = false,
@@ -2110,6 +2139,9 @@ class LiveChatInlineRow extends StatefulWidget {
 
   /// v1.58-social (D189): the person's host-agent code (its badge too).
   final String? hostAgentCode;
+
+  /// D293 (owner «نعم»): the seal right after the name.
+  final VerificationBadge? verification;
 
   /// v1.56-social (D187): the person's daily recharge badge (after the name
   /// or the join text) while it shows.
@@ -2306,6 +2338,9 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
                       ),
                     ),
               heart: w.cp,
+              seal: name == null || w.verification == null
+                  ? null
+                  : VerificationSeal(w.verification, fontSize: KChat.nameSize),
               badges: badges.isNotEmpty
                   ? KeyedSubtree(
                       key: LiveChatInlineRow.badgesKey,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -8,6 +9,7 @@ import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.d
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_role_tag.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_text.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -160,6 +162,7 @@ class LiveChatFlatLine extends ConsumerWidget {
     this.badges,
     this.agentCode,
     this.hostAgentCode,
+    this.verification,
     this.rechargeBadge,
     this.cp = false,
     this.failed,
@@ -178,6 +181,9 @@ class LiveChatFlatLine extends ConsumerWidget {
   final LiveChatAuthorBadges? badges;
   final String? agentCode;
   final String? hostAgentCode;
+
+  /// D293 (owner «نعم»): the seal right after the name.
+  final VerificationBadge? verification;
   final RechargeBadge? rechargeBadge;
 
   /// D257: the author's couple wears the Exclusive Chat Bubble.
@@ -292,6 +298,9 @@ class LiveChatFlatLine extends ConsumerWidget {
           ),
         ),
       ),
+      seal: verification == null
+          ? null
+          : VerificationSeal(verification, fontSize: KChat.nameSize),
       // A long line fades at its end instead of wrapping.
       badges: levels.isNotEmpty ? LiveChatFadeOverflow(child: levels) : null,
     );

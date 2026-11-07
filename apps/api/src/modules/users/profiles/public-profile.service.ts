@@ -19,6 +19,7 @@ import { UsersService } from '../users.service.js';
 import { profileStatsTotals } from './profile-stats.js';
 import { isPanelStaff, staffIdentityOf, type LimitedStaffRole } from '../../live/live-staff.js';
 import { staffIdOf } from '../staff-ids.js';
+import type { VerificationBadgeValue } from '../../verification/verification-rules.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
 
 /**
@@ -81,6 +82,11 @@ export interface PublicProfileDto {
   rechargeAgent: { code: string } | null;
   /** v1.58-social (D189, §10.52): the host agent's code while not suspended (frame, badge), else null. */
   hostAgent: { code: string } | null;
+  /**
+   * v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» beside the name — only its type
+   * (never an amount or a threshold), or null.
+   */
+  verification: VerificationBadgeValue | null;
   /** v1.55-social (D186, §10.49): the avatar frame the user wears now (`AvatarFrame`), or null. */
   avatarFrame: { code: string; assetKey: string } | null;
   /** v1.56-social (D187, §10.50): present only while the daily recharge badge is showing. */
@@ -187,6 +193,7 @@ export class PublicProfileService {
       badge,
       blockedByMe,
       stats,
+      verification,
       membership,
       worn,
     ] = await Promise.all([
@@ -220,6 +227,8 @@ export class PublicProfileService {
       isSelf ? Promise.resolve(false) : this.blocked(callerId, user.id),
       // v1.77-social (D220): the card's lifetime totals, minus what the user hides from others.
       this.statsFor(user.id, isSelf),
+      // v1.90-social (D293, §10.105): the stored verification badge (only its type).
+      this.prisma.userVerificationBadge.findUnique({ where: { userId: user.id }, select: { badge: true } }),
       // v1.83-social (D258): the VIP membership (shown while active).
       this.prisma.vipMembership.findUnique({
         where: { userId: user.id },
@@ -274,6 +283,7 @@ export class PublicProfileService {
       tags: user.tags,
       rechargeAgent: agent?.code ? { code: agent.code } : null,
       hostAgent: hostAgency?.hostCode ? { code: hostAgency.hostCode } : null,
+      verification: verification?.badge ?? null,
       // v1.72-live (D283, §10.96.10): a limited staff account wears only the team frame (the app's) and its region's
       // team cover — no bag, VIP or store frame, no VIP / store wear, no cover of its own.
       avatarFrame: staff ? null : avatarFrame,

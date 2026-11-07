@@ -4,6 +4,7 @@ import 'package:json_annotation/json_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/models/special_username.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
@@ -39,6 +40,7 @@ class MeDto {
     this.kabsoTeam = false,
     this.staff,
     this.staffId,
+    this.verification,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -121,6 +123,15 @@ class MeDto {
   @JsonKey(includeIfNull: false)
   final String? staffId;
 
+  /// v1.90-social (D293, §10.105): the automatic verification badge beside
+  /// the name, or null (also from older servers and for unknown values).
+  @JsonKey(
+    fromJson: verificationBadgeFromJson,
+    toJson: verificationBadgeToJson,
+    includeIfNull: false,
+  )
+  final VerificationBadge? verification;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -149,6 +160,7 @@ class MeDto {
     kabsoTeam: kabsoTeam,
     staff: staff,
     staffId: staffId,
+    verification: verification,
   );
 }
 

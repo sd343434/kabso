@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/models/store_art.dart';
+import 'package:kabso_live/core/models/verification_badge.dart';
 
 export 'package:kabso_live/core/models/store_art.dart';
 
@@ -312,6 +313,17 @@ abstract class UserSummary with _$UserSummary {
     /// the user holds a panel role (the OWNER too): shown where the
     /// @username is (live viewers and chat, search, lists). Null otherwise.
     @JsonKey(includeIfNull: false) String? staffId,
+
+    /// v1.90-social (D293, §10.105.5; owner «نعم»): the automatic
+    /// verification badge «شارة التوثيق» — the seal right after the name
+    /// wherever the name is shown. Null when none, for unknown values and
+    /// from older servers.
+    @JsonKey(
+      includeIfNull: false,
+      fromJson: verificationBadgeFromJson,
+      toJson: verificationBadgeToJson,
+    )
+    VerificationBadge? verification,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

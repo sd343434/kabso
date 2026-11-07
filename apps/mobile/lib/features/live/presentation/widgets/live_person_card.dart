@@ -27,6 +27,7 @@ import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart'
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
@@ -206,6 +207,9 @@ class LivePersonSheet extends ConsumerWidget {
 
   /// The name: opens the full profile too (D220).
   static const nameKey = Key('room.userCard.name');
+
+  /// D293: the verification seal after the name.
+  static const verificationKey = Key('livePerson.verification');
 
   /// D220: «دردشة» (a direct conversation).
   static const messageKey = Key('room.userCard.message');
@@ -729,6 +733,13 @@ class _Body extends ConsumerWidget {
                   ),
                 ),
               ),
+            ),
+            // D293: the verification seal right after the name.
+            VerificationSeal(
+              profile.verification,
+              key: LivePersonSheet.verificationKey,
+              fontSize: 20,
+              gap: 6,
             ),
             if (profile.vip.isMember) ...[
               const SizedBox(width: 6),

@@ -13796,5 +13796,21 @@
   "medalsThresholdGiftCoins": "{amount} كوينز من الهدايا",
   "@medalsThresholdGiftCoins": {"description": "D291: a Wealth Kings level threshold (coins of gifts sent, lucky excluded).", "placeholders": {"amount": {"type": "String"}}},
   "medalsThresholdLuckyCoins": "{amount} كوينز من هدايا الحظ",
-  "@medalsThresholdLuckyCoins": {"description": "D291: a Lucky Master level threshold (coins of lucky gifts sent).", "placeholders": {"amount": {"type": "String"}}}
+  "@medalsThresholdLuckyCoins": {"description": "D291: a Lucky Master level threshold (coins of lucky gifts sent).", "placeholders": {"amount": {"type": "String"}}},
+  "verificationBadgeOwner": "مالك التطبيق",
+  "@verificationBadgeOwner": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …»."},
+  "verificationBadgeStaff": "فريق كابسو",
+  "@verificationBadgeStaff": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …»."},
+  "verificationBadgeRechargeAgent": "وكيل شحن",
+  "@verificationBadgeRechargeAgent": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …»."},
+  "verificationBadgeHostAgent": "وكيل مضيفين",
+  "@verificationBadgeHostAgent": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …»."},
+  "verificationBadgeCreator": "صانع محتوى",
+  "@verificationBadgeCreator": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …»."},
+  "verificationBadgeVerifiedHost": "مضيف موثّق الهوية",
+  "@verificationBadgeVerifiedHost": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The badge kind inside «موثّق: …»."},
+  "verificationBadgeLabel": "موثّق: {kind}",
+  "@verificationBadgeLabel": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The spoken label and the tooltip title.", "placeholders": {"kind": {"type": "String"}}},
+  "verificationBadgeAbout": "شارة تُمنح تلقائياً حسب الشروط",
+  "@verificationBadgeAbout": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The tooltip's second line."}
 }

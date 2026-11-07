@@ -21,6 +21,7 @@ import {
   type ControlAction,
 } from './UserControl';
 import { UserDevice } from './UserDevice';
+import { VerificationChip } from './VerificationBadges';
 import type { UserControl } from '../types';
 
 type Action = ControlAction | 'revoke' | 'bag' | null;
@@ -276,6 +277,8 @@ export function UserDetail({ id }: { id: string }) {
             ))}
             {data.rechargeAgent?.code && <span className="badge warn mono">{data.rechargeAgent.code}</span>}
             {data.hostAgent?.hostCode && <span className="badge ok mono">{data.hostAgent.hostCode}</span>}
+            {/* v1.90-social (D293): the automatic verification badge beside the name, as in the app. */}
+            {data.verification && <VerificationChip badge={data.verification.badge} />}
           </div>
         </div>
         <div className="row actions-row">
@@ -358,6 +361,20 @@ export function UserDetail({ id }: { id: string }) {
                   </>
                 ) : (
                   t('none')
+                )}
+              </dd>
+              <dt>{t('vbBadge')}</dt>
+              <dd data-verification-detail={data.verification?.badge ?? 'none'}>
+                {data.verification ? (
+                  <>
+                    <VerificationChip badge={data.verification.badge} />{' '}
+                    <span className="muted small">
+                      {t('vbSince', { d: formatDate(data.verification.since, lang) })} ·{' '}
+                      {t('vbComputed', { d: formatDate(data.verification.computedAt, lang) })}
+                    </span>
+                  </>
+                ) : (
+                  t('vbNone')
                 )}
               </dd>
               <dt>{t('agencyHost')}</dt>

@@ -424,6 +424,13 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     readonly catchUpDays: number;
   };
+  /**
+   * v1.90-social (D293, CONVENTIONS §10.105): the verification badges' sweeper interval (0 = off: tests; refused in
+   * production). The thresholds live in `verification_badge_settings` (the panel).
+   */
+  readonly verificationBadges: {
+    readonly sweepIntervalSeconds: number;
+  };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
     readonly graceDays: number;
@@ -893,6 +900,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     recruits: {
       sweepIntervalSeconds: e.RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS,
       catchUpDays: e.RECRUIT_COMMISSION_CATCH_UP_DAYS,
+    },
+    verificationBadges: {
+      sweepIntervalSeconds: e.VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS,
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,
