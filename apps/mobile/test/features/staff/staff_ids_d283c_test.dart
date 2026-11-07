@@ -5,6 +5,9 @@
 // tab, lists and search rows (KHandle) — while the username stays the
 // person's (login, links, the profile route).
 //
+// D299e (owner: «كلها لـ @»): the profile's title (the bar) shows the staff
+// ID in the @username's form, «@Kabso01»; the Me tab keeps «ID: Kabso01».
+//
 // The goldens are in test/goldens/staff_ids_d283c_golden_test.dart.
 
 import 'dart:convert';
@@ -114,15 +117,20 @@ void main() {
     final name = language.name;
     final ar = language == AppLanguage.ar;
 
-    testWidgets('a staff profile shows «ID: Kabso01», not the @username '
-        '($name)', (tester) async {
+    testWidgets('a staff profile shows «@Kabso01» (D299e), not the '
+        '@username ($name)', (tester) async {
       await withClock(Clock.fixed(d283Now), () async {
         await pumpOther(tester, staffIdProfile(ar: ar), language: language);
       });
       expect(tester.takeException(), isNull);
       expect(
         tester.widget<Text>(find.byKey(ProfileCoverHeader.staffIdKey)).data,
-        'ID: Kabso01',
+        l10nFor(language).profileUsername('Kabso01'),
+      );
+      // Read as the official staff ID (D283c's hint).
+      expect(
+        tester.getSemantics(find.byKey(ProfileCoverHeader.staffIdKey)).hint,
+        l10nFor(language).profileStaffIdHint,
       );
       expect(
         find.text(l10nFor(language).profileUsername('host0')),

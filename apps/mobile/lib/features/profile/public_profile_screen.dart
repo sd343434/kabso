@@ -503,25 +503,15 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       extendBodyBehindAppBar: true,
       appBar: ProfileCoverBar(
         solid: solid,
-        // D146: a premium username wears its special-ID badge.
-        title: switch (load.value?.premiumTier) {
-          // D283c: a staff account's official staff ID «ID: Kabso01».
-          _ when load.value?.staffId != null => Text(
-            l10n.profileStaffId(load.value!.staffId!),
-            textDirection: TextDirection.ltr,
-            style: context.textStyles.title.copyWith(color: p.textPrimary),
-          ),
-          final tier? => KSpecialUsername(
-            username: load.value!.username,
-            tier: tier,
-            height: 24,
-          ),
-          null => Text(
-            l10n.profileUsername(widget.username),
-            textDirection: TextDirection.ltr,
-            style: context.textStyles.title.copyWith(color: p.textPrimary),
-          ),
-        },
+        // D299d (owner: «اليوزر اجعله في أعلى الصفحة»): the @username at
+        // the top over the cover too (D146: a premium one with its badge;
+        // D283c: a staff account's «ID: Kabso01»).
+        title: ProfileCoverHandle(
+          solid: solid,
+          username: load.value?.username ?? widget.username,
+          tier: load.value?.premiumTier,
+          staffId: load.value?.staffId,
+        ),
         actions: [
           IconButton(
             key: PublicProfileScreen.moreKey,

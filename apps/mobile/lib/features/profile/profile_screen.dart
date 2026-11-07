@@ -203,22 +203,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       appBar: ProfileCoverBar(
         solid: solid,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
-        // the tab label).
-        title: staffId != null || tier == null
-            ? Text(
-                staffId != null
-                    ? l10n.profileStaffId(staffId)
-                    : l10n.profileUsername(username),
-                key: const Key('profile.title'),
-                textDirection: TextDirection.ltr,
-                style: context.textStyles.title.copyWith(color: p.textPrimary),
-              )
-            : KSpecialUsername(
-                key: const Key('profile.title'),
-                username: username,
-                tier: tier,
-                height: 24,
-              ),
+        // the tab label). D299d: over the cover too, white.
+        title: ProfileCoverHandle(
+          solid: solid,
+          username: username,
+          tier: tier,
+          staffId: staffId,
+          textKey: const Key('profile.title'),
+        ),
         actions: [
           IconButton(
             key: ProfileScreen.draftsButtonKey,

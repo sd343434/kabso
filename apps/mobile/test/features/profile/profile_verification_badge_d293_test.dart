@@ -225,43 +225,40 @@ void main() {
   group('the profile header', () {
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
-      testWidgets(
-        'right after the name, before the VIP badge (${language.name})',
-        (tester) async {
-          await pumpOther(
-            tester,
-            otherProfile(ar: ar)
-                .copyWith(verification: VerificationBadge.rechargeAgent),
-            language: language,
-          );
-          expect(tester.takeException(), isNull);
-          final name = tester.getRect(
-            find.byKey(const Key('profile.displayName')),
-          );
-          final seal = tester.getRect(
-            find.byKey(ProfileVerificationBadge.badgeKey),
-          );
-          final vip = tester.getRect(find.byType(VipNameBadge));
-          expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
-          expect(
-            seal.width,
-            ProfileVerificationBadge.sizeForFont(KPublicProfile.nameFont),
-          );
-          if (ar) {
-            // Right to left: the seal is to the left of the name, the VIP badge
-            // further left.
-            expect(seal.right, lessThan(name.left));
-            expect(vip.right, lessThanOrEqualTo(seal.left));
-          } else {
-            expect(seal.left, greaterThan(name.right));
-            expect(vip.left, greaterThanOrEqualTo(seal.right));
-          }
-          expect(
-            find.bySemanticsLabel(_labels[VerificationBadge.rechargeAgent]!.$1),
-            ar ? findsOneWidget : findsNothing,
-          );
-        },
-      );
+      testWidgets('right after the name, the VIP badge under it '
+          '(D299, ${language.name})', (tester) async {
+        await pumpOther(
+          tester,
+          otherProfile(ar: ar)
+              .copyWith(verification: VerificationBadge.rechargeAgent),
+          language: language,
+        );
+        expect(tester.takeException(), isNull);
+        final name = tester.getRect(
+          find.byKey(const Key('profile.displayName')),
+        );
+        final seal = tester.getRect(
+          find.byKey(ProfileVerificationBadge.badgeKey),
+        );
+        final vip = tester.getRect(find.byType(VipNameBadge));
+        expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
+        expect(
+          seal.width,
+          ProfileVerificationBadge.sizeForFont(KPublicProfile.nameFont),
+        );
+        if (ar) {
+          // Right to left: the seal is to the left of the name.
+          expect(seal.right, lessThan(name.left));
+        } else {
+          expect(seal.left, greaterThan(name.right));
+        }
+        // D299: the VIP badge leads the badges under the name line.
+        expect(vip.top, greaterThanOrEqualTo(seal.bottom));
+        expect(
+          find.bySemanticsLabel(_labels[VerificationBadge.rechargeAgent]!.$1),
+          ar ? findsOneWidget : findsNothing,
+        );
+      });
     }
 
     for (final language in AppLanguage.values) {

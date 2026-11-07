@@ -17,6 +17,10 @@
 // D278: the cover is now tall and full-bleed with the name over its lower
 // part, beside the photo — still never under the photo or its frame.
 //
+// D299 (owner: «ضع الصورة الشخصية فوق الغلاف، وبجانبها الاسم والشارات»):
+// the photo and its frame wholly on the picture again, the name beside it
+// on the picture (one line, «…») — still never under the photo or frame.
+//
 // With D244_CAPTURE_DIR set, the capture test writes PNGs there (not
 // committed).
 
@@ -149,9 +153,9 @@ Rect _cover(WidgetTester tester) {
   );
 }
 
-/// D292: the photo and its frame half on the cover picture, half on the
-/// page, at the reading start; the name under the photo, never under its
-/// frame.
+/// D299: the photo and its frame (its slot) wholly on the cover picture,
+/// at the reading start; the name beside it on the picture, never under the
+/// photo or its frame.
 void _expectInside(
   WidgetTester tester, {
   required bool rtl,
@@ -160,10 +164,14 @@ void _expectInside(
   expect(tester.takeException(), isNull);
   final cover = _cover(tester);
   final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-  // D292: half on the picture, half on the page (its centre on the
-  // picture's bottom edge).
-  expect(photo.top, greaterThanOrEqualTo(cover.top));
-  expect(photo.center.dy, moreOrLessEquals(cover.bottom, epsilon: 0.5));
+  // D299: the whole slot on the picture.
+  final slot = Rect.fromCenter(
+    center: photo.center,
+    width: KPublicProfile.avatarSlot.width,
+    height: KPublicProfile.avatarSlot.height,
+  );
+  expect(slot.top, greaterThanOrEqualTo(cover.top));
+  expect(slot.bottom, lessThanOrEqualTo(cover.bottom));
   expect(photo.left, greaterThanOrEqualTo(0));
   expect(photo.right, lessThanOrEqualTo(width));
   // At the reading start.
@@ -174,25 +182,33 @@ void _expectInside(
   }
   final name = find.byKey(const Key('profile.displayName'));
   final nameRect = tester.getRect(name);
-  // The name under the photo, so never under the photo or its frame.
-  expect(nameRect.top, greaterThanOrEqualTo(cover.bottom));
-  expect(nameRect.top, greaterThanOrEqualTo(photo.bottom));
-  expect(nameRect.overlaps(photo), isFalse);
+  // The name beside the slot on the picture, so never under the photo or
+  // its frame.
+  expect(nameRect.bottom, lessThanOrEqualTo(cover.bottom));
+  expect(nameRect.overlaps(slot), isFalse);
+  if (rtl) {
+    expect(nameRect.right, lessThanOrEqualTo(slot.left));
+  } else {
+    expect(nameRect.left, greaterThanOrEqualTo(slot.right));
+  }
 }
 
 void main() {
   setUpAll(loadAppFonts);
 
   test("the photo slot is the frames' common box; the cover picture "
-      'ends at the slot middle (D292)', () {
+      'holds the whole slot under the bar (D299)', () {
     final slot = KPublicProfile.avatarSlot;
     expect(slot.width, closeTo(1.6 * KProfile.avatar, 0.01));
     expect(slot.height, greaterThanOrEqualTo(1.4 * KProfile.avatar));
-    // D292: the cover ends at the slot's middle, under the bar.
+    // D299: the bar, a gap, the whole slot and a margin.
     expect(
       KPublicProfile.coverHeightFor(125),
       moreOrLessEquals(
-        125 + KPublicProfile.avatarTopGap + slot.height / 2,
+        125 +
+            KPublicProfile.avatarTopGap +
+            slot.height +
+            KPublicProfile.coverBottomGap,
         epsilon: 0.5,
       ),
     );
@@ -215,12 +231,13 @@ void main() {
             );
             _expectInside(tester, rtl: language == AppLanguage.ar, width: 393);
             if (look == _Look.longName) {
-              // The whole name is shown (it wraps; no ellipsis).
+              // D299: the whole name, on one line cut with «…».
               final text = tester.widget<Text>(
                 find.byKey(const Key('profile.displayName')),
               );
               expect(text.data, _longName);
-              expect(text.maxLines, isNull);
+              expect(text.maxLines, 1);
+              expect(text.overflow, TextOverflow.ellipsis);
             }
           });
         }

@@ -116,14 +116,15 @@ void main() {
       cover.height,
       KPublicProfile.coverHeightFor(tester.getRect(find.byType(AppBar)).bottom),
     );
-    // D278b: under the photo the name row (with the level badges), the
-    // numbers and «Edit profile»; the bio after the header.
+    // D299: the photo wholly on the picture; beside it the name row (with
+    // the level badges); under the picture the numbers and «Edit profile»;
+    // the bio (D299c) in the header under the tags.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    // D292: half on the picture, half on the page; the name under it.
-    expect(photo.center.dy, moreOrLessEquals(cover.bottom, epsilon: 0.5));
+    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
     final header = tester.getRect(find.byKey(ProfileCoverHeader.headerKey));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
-    expect(name.top, greaterThanOrEqualTo(cover.bottom));
+    expect(name.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(name.overlaps(photo), isFalse);
     final nameRow = tester.getRect(find.byKey(ProfileCoverHeader.nameRowKey));
     final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(nameRow.top - 0.5));
@@ -134,10 +135,9 @@ void main() {
     expect(find.textContaining('5.6K'), findsOneWidget);
     expect(find.text(_en.liveCardFollowers), findsOneWidget);
     expect(find.text('Music every evening'), findsOneWidget);
-    expect(
-      tester.getRect(find.text('Music every evening')).top,
-      greaterThanOrEqualTo(header.bottom),
-    );
+    final bio = tester.getRect(find.text('Music every evening'));
+    expect(bio.top, greaterThanOrEqualTo(stats.bottom));
+    expect(bio.bottom, lessThanOrEqualTo(header.bottom));
     final edit = find.byKey(ProfileScreen.editButtonKey);
     expect(
       find.descendant(of: edit, matching: find.text(_en.profileEditShort)),
@@ -152,7 +152,10 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    await tester.tap(find.byKey(ProfileCoverHeader.coverButtonKey));
+    // D299: the name block sits on the cover now; a tap on its clear part
+    // (under the bar at the reading end) changes it.
+    final bar = tester.getRect(find.byType(AppBar));
+    await tester.tapAt(Offset(393 - KSpacing.lg, bar.bottom + KSpacing.xs));
     await tester.pumpAndSettle();
     expect(find.byKey(EditProfileScreen.coverLibraryKey), findsOneWidget);
     expect(find.byKey(EditProfileScreen.coverCameraKey), findsOneWidget);
