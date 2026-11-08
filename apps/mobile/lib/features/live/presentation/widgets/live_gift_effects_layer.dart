@@ -13,7 +13,7 @@ import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_gift_ticker_bar.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_global_strip_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_level_ticker_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_program_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
@@ -178,8 +178,15 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                         roomId: roomId,
                         onOpenRoom: onOpenRoom,
                       ),
-                      // D178: the global gift strip, under the lucky one.
-                      LiveGiftTickerBar(roomId: roomId, onOpenRoom: onOpenRoom),
+                      // D178 / D305: the global strips (the owner's art),
+                      // under the lucky one: from the reading start to the
+                      // middle, 2 s, out by the other side. D305b: the games
+                      // lane above the gifts lane, each on its own.
+                      LiveGlobalStripLanes(
+                        roomId: roomId,
+                        onOpenRoom: onOpenRoom,
+                        onPerson: onSender,
+                      ),
                     ],
                   ),
                 ),

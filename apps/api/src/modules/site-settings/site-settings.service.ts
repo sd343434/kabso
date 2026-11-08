@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PaymentSettingsStore } from '../payment-settings/payment-settings.store.js';
@@ -11,6 +12,12 @@ import {
   type CameraFxSettingsDto,
   type UpdateCameraFxInput,
 } from './camera-fx.rules.js';
+import {
+  GLOBAL_STRIPS_SETTING_KEY,
+  readGlobalStrips,
+  type GlobalStripsSettingsDto,
+  type UpdateGlobalStripsInput,
+} from './global-strips.rules.js';
 import {
   LEVEL_TICKER_SETTING_KEY,
   readLevelTickerMinLevel,
@@ -42,6 +49,7 @@ export class SiteSettingsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly payments: PaymentSettingsStore,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   async get(db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma): Promise<SiteSettingsDto> {
@@ -183,6 +191,61 @@ export class SiteSettingsService {
           key: LEVEL_TICKER_SETTING_KEY,
           before: before.minLevel,
           after: after.minLevel,
+          ...(input.reason ? { reason: input.reason } : {}),
+          via: 'panel',
+        },
+        ip: actor.ip,
+        requestId: actor.requestId,
+      });
+      return after;
+    });
+  }
+
+  /** D305: the server's configuration — the thresholds when the OWNER has set none. */
+  get globalStripsDefaults(): GlobalStripsSettingsDto {
+    return {
+      giftMinCoins: this.config.live.giftTickerMinCoins,
+      gameMinTickets: this.config.live.gameWinTickerMinTickets,
+    };
+  }
+
+  /** D305: the global strips' thresholds (the gift's unit price, the prize in tickets). */
+  async getGlobalStrips(
+    db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma,
+  ): Promise<GlobalStripsSettingsDto> {
+    return readGlobalStrips(db, this.globalStripsDefaults);
+  }
+
+  /**
+   * D305 (owner: «both thresholds editable in the panel»): the OWNER sets them; audited in the same transaction
+   * (`site.settings.update`, `metadata.key` = `globalStrips`, before and after). The live strips read them through a
+   * cache of at most 30 s (no restart).
+   */
+  async updateGlobalStrips(
+    input: UpdateGlobalStripsInput,
+    actor: SiteSettingsActor,
+  ): Promise<GlobalStripsSettingsDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
+      const before = await this.getGlobalStrips(tx);
+      const after: GlobalStripsSettingsDto = {
+        giftMinCoins: input.giftMinCoins,
+        gameMinTickets: input.gameMinTickets,
+      };
+      const value = { giftMinCoins: after.giftMinCoins, gameMinTickets: after.gameMinTickets };
+      await tx.siteSetting.upsert({
+        where: { key: GLOBAL_STRIPS_SETTING_KEY },
+        create: { key: GLOBAL_STRIPS_SETTING_KEY, value, updatedById: actor.userId },
+        update: { value, updatedById: actor.userId },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.SITE_SETTINGS_UPDATE,
+        actorUserId: actor.userId,
+        targetType: 'site_settings',
+        metadata: {
+          key: GLOBAL_STRIPS_SETTING_KEY,
+          before: { ...before },
+          after: { ...after },
           ...(input.reason ? { reason: input.reason } : {}),
           via: 'panel',
         },

@@ -521,8 +521,10 @@ abstract class LuckyWin with _$LuckyWin {
 }
 
 /// The `gift-ticker` data message (topic `gift`, v1.41-live, D178): a send
-/// of at least the server's `GIFT_GLOBAL_TICKER_MIN_COINS` in another live,
-/// shown as the global gift strip; a tap opens [room].
+/// of at least the server's `GIFT_GLOBAL_TICKER_MIN_COINS` (v1.85-live,
+/// D305: 500 000 by default) in any live — its own too since v1.85-live —
+/// shown as the gifts strip «شريط الهدايا»; a tap opens [room]. Its `kind`
+/// is `GIFT` (v1.85-live; not read: the type says it).
 @immutable
 class GiftTicker {
   const new({required this.gift, required this.room});
@@ -535,4 +537,64 @@ class GiftTicker {
 
   final LiveGift gift;
   final LuckyTickerRoom room;
+}
+
+/// The game of a [GameWinTicker] (v1.85-live, D305).
+@immutable
+class StripGame {
+  const new({required this.code, required this.name, this.imageUrl});
+
+  factory fromJson(Map<String, dynamic> json) => StripGame(
+    code: json['code']! as String,
+    name: json['name']! as String,
+    imageUrl: json['imageUrl'] as String?,
+  );
+
+  final String code;
+  final String name;
+
+  /// The game's thumbnail; null: none (the strip's trophy art stands alone).
+  final String? imageUrl;
+}
+
+/// The `game-win-ticker` data message (topic `gift`, v1.85-live, D305,
+/// `kind` GAME_WIN): a game prize of at least the server's
+/// `GAME_WIN_TICKER_MIN_TICKETS` (default 1 000 000 tickets), shown as the
+/// games strip «شريط الألعاب» in every live. [room] is the live the game was
+/// played in (null: none, or it ended).
+@immutable
+class GameWinTicker {
+  const new({
+    required this.id,
+    required this.game,
+    required this.winner,
+    required this.tickets,
+    required this.createdAt,
+    this.room,
+  });
+
+  /// Throws a `TypeError` when the message does not match the contract.
+  factory fromJson(Map<String, dynamic> json) {
+    final win = json['win']! as Map<String, dynamic>;
+    final room = json['room'];
+    return GameWinTicker(
+      id: win['id']! as String,
+      game: StripGame.fromJson(win['game']! as Map<String, dynamic>),
+      winner: UserSummary.fromJson(win['winner']! as Map<String, dynamic>),
+      tickets: (win['tickets']! as num).toInt(),
+      createdAt: DateTime.parse(win['createdAt']! as String),
+      room: room == null
+          ? null
+          : LuckyTickerRoom.fromJson(room as Map<String, dynamic>),
+    );
+  }
+
+  final String id;
+  final StripGame game;
+  final UserSummary winner;
+
+  /// The prize in tickets «تذاكر» (game cards, D182).
+  final int tickets;
+  final DateTime createdAt;
+  final LuckyTickerRoom? room;
 }

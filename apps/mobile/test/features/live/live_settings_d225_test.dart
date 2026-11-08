@@ -385,6 +385,9 @@ void main() {
         'blockedWords',
         'guests',
         'wish',
+        // D305: the account's strip switches, in the host's sheet too.
+        'giftStrip',
+        'gameStrip',
         'schedule',
       ]) {
         await tester.scrollUntilVisible(
@@ -409,6 +412,9 @@ void main() {
         ),
       );
       expect(_switchOn(tester, 'camera'), isTrue);
+      // D305: two more rows above; bring the row fully into view.
+      await tester.ensureVisible(_row('camera'));
+      await tester.pumpAndSettle();
       await tester.tap(_row('camera'));
       await tester.pumpAndSettle();
       expect(engine.videoPaused, isTrue);
@@ -715,6 +721,9 @@ void main() {
           matching: find.byType(Scrollable),
         ),
       );
+      // D305: two more rows above; bring the row fully into view.
+      await tester.ensureVisible(_row('clean'));
+      await tester.pumpAndSettle();
       await tester.tap(_row('clean'));
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomChatLines), findsNothing);
@@ -737,6 +746,9 @@ void main() {
           matching: find.byType(Scrollable),
         ),
       );
+      // D305: two more rows above; bring the row fully into view.
+      await tester.ensureVisible(_row('dataSaver'));
+      await tester.pumpAndSettle();
       await tester.tap(_row('dataSaver'));
       await tester.pumpAndSettle();
       expect(engine.receiveVideo, isFalse);

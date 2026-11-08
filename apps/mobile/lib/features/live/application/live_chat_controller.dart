@@ -563,6 +563,7 @@ class LiveChatController extends Notifier<LiveChatState> {
           LuckyWinReceived() ||
           LuckyTickerReceived() ||
           GiftTickerReceived() ||
+          GameWinTickerReceived() ||
           LevelTickerReceived() ||
           LiveSeatEmojiReceived() ||
           LiveQuipReceived() ||

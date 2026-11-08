@@ -16,7 +16,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
-import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
+import 'package:kabso_live/features/live/application/live_global_strips.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_level_ticker.dart';
@@ -53,6 +53,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_strip_settings.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -537,9 +538,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref
           .read(liveLuckyTickersProvider(room.id).notifier)
           .attach(_session.engine);
-      // D178: the global gift strip.
+      // D178 / D305: the global strips (gifts and games).
       ref
-          .read(liveGiftTickersProvider(room.id).notifier)
+          .read(liveGlobalStripsProvider(room.id).notifier)
           .attach(_session.engine);
       // D254: the level banner (a high level reached in any live).
       ref
@@ -2042,6 +2043,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 value: prefs.entrancesHidden,
                 onChanged: (on) => prefsCtl.setEntrancesHidden(hidden: on),
               ),
+              // D305: the global strips, for this account in every live.
+              ...liveStripSwitches(sheet, sheetRef),
             ],
           ),
           LiveSettingsGroup(
