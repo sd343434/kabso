@@ -181,14 +181,21 @@ class _StaffRecruitsScreenState extends ConsumerState<StaffRecruitsScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: t.bodyStrong.copyWith(color: p.textPrimary),
                       ),
-                      Text(
-                        KHandle.plain(
-                          r.recruit.username,
-                          staffId: r.recruit.staffId,
+                      if (r.recruit.staffId != null)
+                        KStaffIdText(
+                          r.recruit.staffId!,
+                          height: KStaffIdText.list,
+                          semanticHint: context.l10n.profileStaffIdHint,
+                        )
+                      else
+                        Text(
+                          KHandle.plain(
+                            r.recruit.username,
+                            staffId: r.recruit.staffId,
+                          ),
+                          textDirection: TextDirection.ltr,
+                          style: t.caption.copyWith(color: p.textSecondary),
                         ),
-                        textDirection: TextDirection.ltr,
-                        style: t.caption.copyWith(color: p.textSecondary),
-                      ),
                       const SizedBox(height: KSpacing.xs),
                       Wrap(
                         spacing: KSpacing.xs,

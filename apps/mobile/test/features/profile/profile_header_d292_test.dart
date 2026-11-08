@@ -12,7 +12,14 @@
 // - the top bar: back then the page's buttons side by side at the reading
 //   start, plain glyphs (no circles).
 //
+// D299 (owner: «ضع الصورة الشخصية فوق الغلاف، وبجانبها الاسم والشارات»;
+// then «اجعل اليوزر محل الميداليات … والميداليات محل اليوزر»): the badges
+// on their own line(s) under the name, the crests centred on their line;
+// the medals under the badges on the cover; the @username under the cover.
+//
 // Arabic RTL and English LTR; 360 × 800 at text scale 1.3.
+
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +29,7 @@ import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile/profile_badge_wrap.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_tag_icons.dart';
@@ -73,6 +81,28 @@ PublicProfile _full({required bool ar, bool self = false}) =>
 
 Rect _r(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
+/// D299: the rects of the badges shown under the name.
+List<Rect> _badgeRects(WidgetTester tester) {
+  final wrap = tester.renderObject<RenderProfileBadgeWrap>(
+    find.byKey(ProfileCoverHeader.badgesKey),
+  );
+  final out = <Rect>[];
+  var child = wrap.firstChild;
+  while (child != null) {
+    final data = child.parentData! as ProfileBadgeWrapParentData;
+    if (!data.hidden) {
+      out.add(
+        MatrixUtils.transformRect(
+          child.getTransformTo(null),
+          Offset.zero & child.size,
+        ),
+      );
+    }
+    child = data.nextSibling;
+  }
+  return out;
+}
+
 /// Disposes the daily badge's timer.
 Future<void> _end(WidgetTester tester) => tester.pumpWidget(const SizedBox());
 
@@ -104,9 +134,11 @@ void main() {
     final ar = language == AppLanguage.ar;
 
     testWidgets('the name row: the crests at one visible size, centred on '
-        'the line (${language.name})', (tester) async {
+        'their line under the name (${language.name})', (tester) async {
       await pumpOther(tester, _full(ar: ar), language: language);
       final name = _r(tester, const Key('profile.displayName'));
+      final line = _r(tester, ProfileCoverHeader.nameLineKey);
+      final badges = _badgeRects(tester);
       for (final (key, height) in [
         (
           ProfileHeaderView.agentBadgeKey,
@@ -120,9 +152,14 @@ void main() {
       ]) {
         final r = _r(tester, key);
         expect(r.height, height, reason: '$key');
+        // D299: under the name line, centred on the badges' line it is on.
+        expect(r.top, greaterThanOrEqualTo(line.bottom), reason: '$key');
+        final run = badges.where((b) => b.top < r.bottom && b.bottom > r.top);
+        final top = run.map((b) => b.top).reduce(math.min);
+        final bottom = run.map((b) => b.bottom).reduce(math.max);
         expect(
           r.center.dy,
-          moreOrLessEquals(name.center.dy, epsilon: 1),
+          moreOrLessEquals((top + bottom) / 2, epsilon: 1),
           reason: '$key',
         );
       }
@@ -159,16 +196,18 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets('the worn medals: their own row under the name line, '
+    testWidgets('the worn medals: their own row under the name row, '
         'larger, in order, a button; once (${language.name})', (tester) async {
       await pumpOther(tester, _full(ar: ar), language: language);
       final nameRow = _r(tester, ProfileCoverHeader.nameRowKey);
       final row = _r(tester, ProfileCoverHeader.medalsKey);
       final stats = _r(tester, ProfileScreen.statsKey);
       final handle = _r(tester, ProfileCoverHeader.handleKey);
-      expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
-      expect(row.top, greaterThanOrEqualTo(handle.bottom));
-      expect(row.top - handle.bottom, lessThanOrEqualTo(8));
+      // D299b: the medals right under the name row (on the cover); D299d:
+      // the @username at the top (in the bar); the numbers under the cover.
+      expect(row.top, greaterThanOrEqualTo(nameRow.bottom));
+      expect(row.top - nameRow.bottom, lessThanOrEqualTo(8));
+      expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
       expect(stats.top, greaterThanOrEqualTo(row.bottom));
       // Exactly one showcase on the page (none in the block under the
       // cover).
@@ -224,14 +263,14 @@ void main() {
       expect(find.byKey(MedalShowcaseRow.rowKey), findsNothing);
       final nameRow = _r(tester, ProfileCoverHeader.nameRowKey);
       final stats = _r(tester, ProfileScreen.statsKey);
-      // The name row, the @username, then the numbers.
+      // The name row, then the numbers (D299d: the @username at the top).
       final handle = _r(tester, ProfileCoverHeader.handleKey);
-      expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
-      expect(stats.top - handle.bottom, lessThanOrEqualTo(16));
+      expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
+      expect(stats.top, greaterThanOrEqualTo(nameRow.bottom));
     });
 
-    testWidgets('the own profile: the @username under the name, the medals '
-        'under it (${language.name})', (tester) async {
+    testWidgets('the own profile: the medals under the name, the @username '
+        'at the top (${language.name})', (tester) async {
       await pumpOwn(
         tester,
         language: language,
@@ -242,8 +281,7 @@ void main() {
       expect(row.top, greaterThanOrEqualTo(nameRow.bottom));
       expect(find.byKey(MedalShowcaseRow.rowKey), findsOneWidget);
       final handle = _r(tester, ProfileCoverHeader.handleKey);
-      expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
-      expect(row.top, greaterThanOrEqualTo(handle.bottom));
+      expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
       await _end(tester);
     });
 
@@ -276,10 +314,14 @@ void main() {
         expect(r.bottom, lessThanOrEqualTo(nameRow.bottom), reason: '$key');
       }
       final handle = _r(tester, ProfileCoverHeader.handleKey);
-      expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
-      expect(handle.right, lessThanOrEqualTo(360));
       final medals = _r(tester, ProfileCoverHeader.medalsKey);
-      expect(medals.top, greaterThanOrEqualTo(handle.bottom));
+      expect(medals.top, greaterThanOrEqualTo(nameRow.bottom));
+      expect(medals.left, greaterThanOrEqualTo(0));
+      expect(medals.right, lessThanOrEqualTo(360));
+      // D299d: the @username at the top, clear of back and the dots.
+      expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
+      expect(handle.left, greaterThanOrEqualTo(0));
+      expect(handle.right, lessThanOrEqualTo(360));
       final back = tester.getRect(find.byType(BackButton));
       final more = _r(tester, PublicProfileScreen.moreKey);
       if (ar) {
@@ -289,6 +331,8 @@ void main() {
         expect(back.left, lessThan(16));
         expect(more.left, greaterThanOrEqualTo(back.right - 4));
       }
+      expect(handle.overlaps(back), isFalse);
+      expect(handle.overlaps(more), isFalse);
       final text = tester.widget<Text>(
         find.descendant(
           of: find.byKey(ProfileCoverHeader.handleKey),

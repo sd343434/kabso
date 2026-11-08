@@ -160,16 +160,23 @@ class _DmNewMessageSheetState extends ConsumerState<DmNewMessageSheet> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: Text(
-                                KHandle.text(
-                                  l10n,
-                                  u.username,
-                                  premiumTier: u.premiumTier,
-                                  staffId: u.staffId,
-                                ),
-                                maxLines: 1,
-                                textDirection: TextDirection.ltr,
-                              ),
+                              subtitle: u.staffId != null
+                                  ? KStaffIdText(
+                                      u.staffId!,
+                                      height: KStaffIdText.list,
+                                      semanticHint:
+                                          context.l10n.profileStaffIdHint,
+                                    )
+                                  : Text(
+                                      KHandle.text(
+                                        l10n,
+                                        u.username,
+                                        premiumTier: u.premiumTier,
+                                        staffId: u.staffId,
+                                      ),
+                                      maxLines: 1,
+                                      textDirection: TextDirection.ltr,
+                                    ),
                               onTap: () => Navigator.of(context).pop(u),
                             ),
                         ],

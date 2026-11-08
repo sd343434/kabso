@@ -53,9 +53,17 @@ class KabsoTeamBadge extends StatelessWidget {
 
   /// D292 (owner, on the profile: «شارة فريق كابسو صغيرة وغير واضحة»):
   /// beside the name on the profile header and the Me hub (was 20 / 22,
-  /// where the banner's name was ≈ 3.5 pt): the name in the banner is
-  /// ≈ 5 pt here, read at @3x.
-  static const double profileHeight = 30;
+  /// where the banner's name was ≈ 3.5 pt). D299i (owner: «ميدالية مشرفين
+  /// يجب ان تكون الايقونة بحجم اكبر ليكون كلام مكتوب بداخلها واضح»): 44 pt
+  /// (was 30, a ≈ 5 pt name) — the banner's name is now ≈ 7.5 pt; in a
+  /// tight row the badge wraps to its own line, never shrinks.
+  static const double profileHeight = 44;
+
+  /// D299i: the live person card, after the name (was 24, the name's line).
+  static const double cardHeight = 32;
+
+  /// D299i: before «إعلان رسمي — فريق كابسو» in the composer (was 22).
+  static const double announcementHeight = 28;
 
   /// D282c (owner: «ولون الخط في داخلها ذهبي مناسب»): the name in a warm
   /// gold matching the banner's frame, bold, over a thin dark shadow so it
@@ -95,10 +103,12 @@ class KabsoTeamBadge extends StatelessWidget {
                 top: banner.top * height,
                 width: bannerW,
                 height: bannerH,
+                // D299i: thinner insets and a larger name, so the name
+                // fills the banner (still scaled down to fit, never cut).
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: bannerW * 0.06,
-                    vertical: bannerH * 0.08,
+                    horizontal: bannerW * 0.035,
+                    vertical: bannerH * 0.06,
                   ),
                   child: Center(
                     // Auto-fit: a long name (or a small badge) scales down,
@@ -113,7 +123,7 @@ class KabsoTeamBadge extends StatelessWidget {
                         textAlign: TextAlign.center,
                         textScaler: TextScaler.noScaling,
                         style: context.textStyles.caption.copyWith(
-                          fontSize: bannerH * 0.62,
+                          fontSize: bannerH * 0.70,
                           height: 1.15,
                           color: ink,
                           fontWeight: FontWeight.w800,

@@ -199,19 +199,27 @@ class FollowRequestsScreen extends ConsumerWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: context.textStyles.bodyStrong,
                                     ),
-                                    Text(
-                                      KHandle.text(
-                                        l10n,
-                                        u.username,
-                                        premiumTier: u.premiumTier,
-                                        staffId: u.staffId,
+                                    if (u.staffId != null)
+                                      KStaffIdText(
+                                        u.staffId!,
+                                        height: KStaffIdText.list,
+                                        semanticHint:
+                                            context.l10n.profileStaffIdHint,
+                                      )
+                                    else
+                                      Text(
+                                        KHandle.text(
+                                          l10n,
+                                          u.username,
+                                          premiumTier: u.premiumTier,
+                                          staffId: u.staffId,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textDirection: TextDirection.ltr,
+                                        style: context.textStyles.caption
+                                            .copyWith(color: p.textSecondary),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textDirection: TextDirection.ltr,
-                                      style: context.textStyles.caption
-                                          .copyWith(color: p.textSecondary),
-                                    ),
                                   ],
                                 ),
                               ),

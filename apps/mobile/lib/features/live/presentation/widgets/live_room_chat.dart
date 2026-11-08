@@ -1868,7 +1868,15 @@ Future<void> showLiveChatActions(
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: Text(handle),
+            // D299h: a staff ID as the gold special-ID pill.
+            subtitle: switch (entry.author.staffId) {
+              final id? => KStaffIdText(
+                id,
+                height: KStaffIdText.list,
+                semanticHint: sheet.l10n.profileStaffIdHint,
+              ),
+              null => Text(handle),
+            },
           ),
           ListTile(
             key: const Key('liveChat.action.profile'),

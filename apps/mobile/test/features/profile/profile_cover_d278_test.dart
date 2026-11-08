@@ -26,6 +26,12 @@
 // ان كانت دارك سوداء وان كانت لايت بيضاء»): that block is the page colour
 // in the theme's colours; the picture ends with a short fade.
 //
+// D299 (owner: «ضع الصورة الشخصية فوق الغلاف، وبجانبها الاسم والشارات،
+// وتحته الميداليات»; then the @username and the medals swapped, and the bio
+// above the links): the photo wholly on the picture, the name, the badges
+// and the medals beside it; under it the @username, the numbers, the
+// buttons, the tags, the bio and the links.
+//
 // With D278_CAPTURE_DIR set, the capture group writes PNGs there (not
 // committed).
 
@@ -287,29 +293,35 @@ void expectCover(
   final bar = tester.getRect(find.byType(AppBar));
   expect(area.top, 0);
   expect(area.width, screen.width);
-  // D292: shorter — the bar, a gap and the photo box's top half.
-  expect(area.height, KPublicProfile.coverHeightFor(bar.bottom));
-  expect(area.height, lessThan(screen.height * 0.3));
+  // D299: the bar, a gap, the whole photo box and a margin (taller only
+  // when the name block beside the photo is).
+  expect(
+    area.height,
+    greaterThanOrEqualTo(KPublicProfile.coverHeightFor(bar.bottom)),
+  );
+  expect(area.height, lessThan(screen.height * 0.5));
   expect(_rect(tester, ProfileCoverHeader.coverFallbackKey), area);
   final photo = _rect(tester, ProfileHeaderView.avatarKey);
-  // D292 (owner: «نصفها داخل الغلاف ونصفها خارج الغلاف»): the photo's
-  // centre on the picture's bottom edge, under the top bar, at the reading
-  // start; the name row starts under the photo.
+  // D299 (owner: «ضع الصورة الشخصية فوق الغلاف»): the photo wholly on the
+  // picture, under the top bar; the name row beside it on the picture.
   expect(photo.top, greaterThan(bar.bottom));
-  expect(photo.center.dy, moreOrLessEquals(area.bottom, epsilon: 0.5));
+  expect(photo.bottom, lessThanOrEqualTo(area.bottom));
   final name = _rect(tester, const Key('profile.displayName'));
   final nameRow = _rect(tester, ProfileCoverHeader.nameRowKey);
   final handle = _rect(tester, ProfileCoverHeader.handleKey);
   final stats = _rect(tester, ProfileScreen.statsKey);
   final actions = _rect(tester, ProfileCoverHeader.actionsKey);
-  expect(name.top, greaterThanOrEqualTo(photo.bottom - 1));
-  expect(nameRow.top, greaterThanOrEqualTo(area.bottom));
-  // The @username under the name row (D292: back there, owner: «ارجع
-  // اليوزر أسفل الاسم»), then the numbers.
-  expect(handle.top, greaterThanOrEqualTo(nameRow.bottom - 1));
-  expect(stats.top, greaterThanOrEqualTo(handle.bottom));
+  expect(name.overlaps(photo), isFalse);
+  expect(nameRow.top, greaterThanOrEqualTo(bar.bottom));
+  expect(nameRow.bottom, lessThanOrEqualTo(area.bottom));
+  // D299d: the @username at the top, in the bar; the numbers under the
+  // picture.
+  expect(handle.bottom, lessThanOrEqualTo(bar.bottom));
+  expect(handle.left, greaterThanOrEqualTo(0));
+  expect(handle.right, lessThanOrEqualTo(screen.width));
+  expect(stats.top, greaterThanOrEqualTo(area.bottom));
   expect(actions.top, greaterThanOrEqualTo(stats.bottom));
-  for (final r in [name, nameRow, handle, stats, actions]) {
+  for (final r in [name, nameRow, stats, actions]) {
     expect(r.bottom, lessThanOrEqualTo(header.bottom));
     expect(r.left, greaterThanOrEqualTo(0));
     expect(r.right, lessThanOrEqualTo(screen.width));
@@ -364,14 +376,17 @@ void main() {
     profileCoverImageFor = NetworkImage.new;
   });
 
-  test("D292: the cover ends at the photo box's middle (≈ 213 dp under a "
-      '125 dp bar; was 42 % of the screen, 358 dp)', () {
-    final half = KPublicProfile.avatarSlot.height / 2;
+  test('D299: the cover holds the whole photo box (≈ 270 dp under a '
+      '125 dp bar; D292: 213 dp; D278b: 42 % of the screen, 358 dp)', () {
     expect(
       KPublicProfile.coverHeightFor(125),
-      (125 + KPublicProfile.avatarTopGap + half).roundToDouble(),
+      (125 +
+              KPublicProfile.avatarTopGap +
+              KPublicProfile.avatarSlot.height +
+              KPublicProfile.coverBottomGap)
+          .roundToDouble(),
     );
-    expect(KPublicProfile.coverHeightFor(125), 213);
+    expect(KPublicProfile.coverHeightFor(125), 270);
   });
 
   group("D278 someone else's profile", () {
@@ -396,13 +411,15 @@ void main() {
           expect(bar.backgroundColor, Colors.transparent);
           expect(find.byType(BackButton), findsOneWidget);
           expect(find.byKey(PublicProfileScreen.moreKey), findsOneWidget);
-          final title = tester.widget<AnimatedOpacity>(
-            find.ancestor(
+          // D299d (owner: «اليوزر اجعله في أعلى الصفحة»): the @username is
+          // the bar's title over the cover too (no fade).
+          expect(
+            find.descendant(
               of: find.byKey(ProfileCoverBar.titleKey),
-              matching: find.byType(AnimatedOpacity),
+              matching: find.byKey(ProfileCoverHeader.handleKey),
             ),
+            findsOneWidget,
           );
-          expect(title.opacity, 0);
           final back = tester.getRect(find.byType(BackButton));
           final more = _rect(tester, PublicProfileScreen.moreKey);
           if (ar) {
@@ -460,21 +477,22 @@ void main() {
             expect(f.right, lessThan(m.left));
             expect(m.right, lessThan(d.left));
           }
-          // D268: the VIP badge right after the name; D278b: the level
-          // badges on the same line, after it.
+          // D268: the VIP badge first; D278b: the level badges after it.
+          // D299: on the badges' line under the name, at its reading start.
           final name = _rect(tester, const Key('profile.displayName'));
           final badge = tester.getRect(find.byType(VipNameBadge));
           final levels = _rect(tester, ProfileInfoBlock.levelsKey);
+          expect(badge.top, greaterThanOrEqualTo(name.bottom));
           if (ar) {
-            expect(badge.right, lessThanOrEqualTo(name.left));
+            expect(badge.right, moreOrLessEquals(name.right, epsilon: 0.5));
             expect(levels.right, lessThanOrEqualTo(badge.left));
           } else {
-            expect(badge.left, greaterThanOrEqualTo(name.right));
+            expect(badge.left, moreOrLessEquals(name.left, epsilon: 0.5));
             expect(levels.left, greaterThanOrEqualTo(badge.right));
           }
           expect(
             levels.center.dy,
-            moreOrLessEquals(name.center.dy, epsilon: 6),
+            moreOrLessEquals(badge.center.dy, epsilon: 6),
           );
           // D278c: the block under the picture is the page itself (white
           // in light, black in dark), in the theme's colours.
@@ -496,7 +514,10 @@ void main() {
               matching: find.byType(Text),
             ),
           );
-          expect(handleText.style?.color, palette.textSecondary);
+          // D299d: the @username in the bar over the cover — white with
+          // the bar's shadow, in both themes.
+          expect(handleText.style?.color, KPalette.dark.textPrimary);
+          expect(handleText.style?.shadows, ProfileCoverBar.coverShadow);
           final chip = tester.widget<DecoratedBox>(
             find
                 .descendant(
@@ -627,19 +648,17 @@ void main() {
       await tester.pumpAndSettle();
       final bar = tester.widget<AppBar>(find.byType(AppBar));
       expect(bar.backgroundColor, KPalette.light.background);
-      final title = tester.widget<AnimatedOpacity>(
-        find.ancestor(
-          of: find.byKey(ProfileCoverBar.titleKey),
-          matching: find.byType(AnimatedOpacity),
-        ),
-      );
-      expect(title.opacity, 1);
       expect(
         find.descendant(
           of: find.byKey(ProfileCoverBar.titleKey),
           matching: find.text('@host0'),
         ),
         findsOneWidget,
+      );
+      // D299d: the same title, now in the theme's colour; once.
+      expect(
+        tester.widget<Text>(find.text('@host0')).style!.color,
+        KPalette.light.textPrimary,
       );
       final barRect = tester.getRect(find.byType(AppBar));
       final tabs = tester.getRect(

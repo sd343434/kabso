@@ -2105,17 +2105,23 @@ class _Requests extends ConsumerWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              subtitle: Text(
-                KHandle.text(
-                  l10n,
-                  r.user.username,
-                  premiumTier: r.user.premiumTier,
-                  staffId: r.user.staffId,
-                ),
-                textDirection: TextDirection.ltr,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              subtitle: r.user.staffId != null
+                  ? KStaffIdText(
+                      r.user.staffId!,
+                      height: KStaffIdText.list,
+                      semanticHint: context.l10n.profileStaffIdHint,
+                    )
+                  : Text(
+                      KHandle.text(
+                        l10n,
+                        r.user.username,
+                        premiumTier: r.user.premiumTier,
+                        staffId: r.user.staffId,
+                      ),
+                      textDirection: TextDirection.ltr,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

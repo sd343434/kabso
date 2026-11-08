@@ -219,6 +219,10 @@ class LivePersonSheet extends ConsumerWidget {
 
   /// D220: «+ متابعة» / «متابَع» / «تم الطلب».
   static const followKey = Key('room.userCard.follow');
+
+  /// D299h: the staff ID as the gold special-ID pill.
+  static const staffIdKey = Key('liveCard.staffId');
+
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
   static const cpFrameKey = Key('room.userCard.cpFrame');
@@ -747,10 +751,10 @@ class _Body extends ConsumerWidget {
               VipNameBadge(vip: profile.vip, height: 24),
             ],
             // D282: a staff account wears the Kabso Team badge after the
-            // name, as tall as the name's line.
+            // name; D299i: taller than the name's line, so its name reads.
             if (profile.kabsoTeam) ...[
               const SizedBox(width: 6),
-              const KabsoTeamBadge(height: 24),
+              const KabsoTeamBadge(height: KabsoTeamBadge.cardHeight),
             ],
           ],
         ),
@@ -800,6 +804,18 @@ class _Body extends ConsumerWidget {
                     username: profile.username,
                     tier: tier,
                     height: 18,
+                    // D299l: the tier's full motion on the person card.
+                    effects: KSpecialIdEffects.full,
+                  )
+                // D299h: a staff ID as the gold special-ID pill, «Kabso».
+                else if (profile.staffId case final id?)
+                  Flexible(
+                    child: KStaffIdText(
+                      id,
+                      key: LivePersonSheet.staffIdKey,
+                      semanticHint: l10n.profileStaffIdHint,
+                      effects: KSpecialIdEffects.full,
+                    ),
                   )
                 else
                   Flexible(

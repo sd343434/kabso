@@ -75,18 +75,18 @@ void main() {
     final repo = await _pump(tester);
     expect(repo.calls, ['GET host0']);
     expect(find.text(KHandle.isolated('host0')), findsNothing);
-    // D278: the @username under the name (and in the bar's hidden title).
-    expect(find.text('@host0'), findsNWidgets(2));
+    // D299d: the @username once, at the top (the bar's title).
+    expect(find.text('@host0'), findsOneWidget);
     expect(find.text('Sara'), findsOneWidget);
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
     final handle = tester.getRect(find.byKey(ProfileCoverHeader.handleKey));
-    expect(handle.top, greaterThanOrEqualTo(name.bottom));
+    expect(handle.bottom, lessThanOrEqualTo(name.top));
     // D278b: the level badges on the name's line, above the @username.
     final nameRow = tester.getRect(find.byKey(ProfileCoverHeader.nameRowKey));
     final levels = tester.getRect(find.byKey(PublicProfileScreen.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(nameRow.top - 0.5));
     expect(levels.bottom, lessThanOrEqualTo(nameRow.bottom + 0.5));
-    expect(handle.top, greaterThanOrEqualTo(nameRow.bottom));
+    expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
     expect(find.byType(LivePkRecordLine), findsNothing);
     expect(find.text('Arabic music every evening'), findsOneWidget);
     // D278b: the person card's short numbers.
@@ -118,16 +118,24 @@ void main() {
       cover.height,
       KPublicProfile.coverHeightFor(tester.getRect(bar).bottom),
     );
-    // D292: the photo (here with the live ring and badge) half on the
-    // picture, half on the page; the name under it.
+    // D299: the photo (here with the live ring and badge) wholly on the
+    // picture; the name beside it on the picture.
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, greaterThan(cover.top));
-    expect(photo.center.dy, moreOrLessEquals(cover.bottom, epsilon: 0.5));
-    expect(name.top, greaterThanOrEqualTo(cover.bottom));
-    // The bio under the header block.
+    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(name.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(name.overlaps(photo), isFalse);
+    // D299c: the bio in the header under the numbers and buttons.
+    final bio = tester.getRect(find.text('Arabic music every evening'));
     expect(
-      tester.getRect(find.text('Arabic music every evening')).top,
+      bio.top,
       greaterThanOrEqualTo(
+        tester.getRect(find.byKey(ProfileScreen.statsKey)).bottom,
+      ),
+    );
+    expect(
+      bio.bottom,
+      lessThanOrEqualTo(
         tester.getRect(find.byKey(ProfileCoverHeader.headerKey)).bottom,
       ),
     );

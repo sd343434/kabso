@@ -589,7 +589,8 @@ class MeHubScreen extends ConsumerWidget {
                     VipNameBadge(vip: myVip, height: 22),
                   // D283: the Kabso Team badge instead of levels.
                   if (staff != null)
-                    // D292: large enough for its name to read.
+                    // D292 / D299i: large enough for its name to read (44 pt;
+                    // the wrap puts it on its own line when the row is full).
                     const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight)
                   else
                     // D163: the level badge beside the name.
@@ -610,18 +611,15 @@ class MeHubScreen extends ConsumerWidget {
             // D283c: the official staff ID «ID: Kabso01» (the OWNER too).
             if (user?.staffId case final id?) ...[
               const SizedBox(height: KSpacing.xxs),
-              Semantics(
-                hint: l10n.profileStaffIdHint,
-                child: Text(
-                  l10n.profileStaffId(id),
-                  key: staffIdKey,
-                  textAlign: TextAlign.center,
-                  textDirection: TextDirection.ltr,
-                  style: context.textStyles.body.copyWith(
-                    color: p.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              // D299h: the gold special-ID pill, «Kabso01», read as the
+              // official staff ID.
+              KStaffIdText(
+                id,
+                key: staffIdKey,
+                alignment: Alignment.center,
+                semanticHint: l10n.profileStaffIdHint,
+                // D299l: the gold tier's full motion on the Me tab.
+                effects: KSpecialIdEffects.full,
               ),
             ],
             // D283d (owner): «مشرف للوطن العربي» only in the official bio

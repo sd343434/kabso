@@ -99,14 +99,14 @@ void expectPill(
   expect(pill.height, greaterThanOrEqualTo(ProfileLivePill.height - 0.5));
   expect(pill.height, lessThanOrEqualTo(maxHeight));
   expect(pill.width, lessThan(width / 2));
-  // On the picture, beside the photo's upper half.
+  // On the picture, beside the photo's upper half. D299: at the top of
+  // the name block beside the photo, never on the name.
   expect(pill.top, greaterThanOrEqualTo(cover.top));
   expect(pill.bottom, lessThanOrEqualTo(cover.bottom));
   expect(pill.bottom, lessThanOrEqualTo(avatar.center.dy));
-  final slotTop = cover.bottom - KPublicProfile.avatarSlot.height / 2;
   expect(
-    pill.center.dy,
-    moreOrLessEquals((slotTop + cover.bottom - 8) / 2, epsilon: 1),
+    pill.bottom,
+    lessThanOrEqualTo(_rect(tester, ProfileCoverHeader.nameRowKey).top),
   );
   // The reading end, 16 dp in; the photo at the start (RTL mirrors it).
   if (ar) {

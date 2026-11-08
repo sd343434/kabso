@@ -119,9 +119,13 @@ Future<void> pumpStaffHub(
   String? staffId,
   // D288: the unresolved reports on the «بلاغات» row (MODERATION / SUPPORT).
   int openReports = 0,
+  // D299i: the badge's fit at 360 × 800 too.
+  GoldenViewport viewport = GoldenViewport.phone,
+  String? displayName,
 }) async {
   final ar = language == AppLanguage.ar;
-  final user = staffUser(ar: ar, staff: staff, staffId: staffId);
+  var user = staffUser(ar: ar, staff: staff, staffId: staffId);
+  if (displayName != null) user = user.copyWith(displayName: displayName);
   final router = GoRouter(
     initialLocation: AppRoutes.profile,
     routes: [
@@ -139,7 +143,7 @@ Future<void> pumpStaffHub(
     ],
   );
   await loadAppFonts();
-  setViewport(tester, GoldenViewport.phone);
+  setViewport(tester, viewport);
   tester.view.padding = const FakeViewPadding(
     top: 59 * GoldenViewport.pixelRatio,
     bottom: 34 * GoldenViewport.pixelRatio,
@@ -394,14 +398,25 @@ void main() {
     expect(staffBioTitle(tester), contains('مشرف للوطن العربي'));
     expect(find.text('مشرف للوطن العربي'), findsNothing);
     expect(find.byKey(MeHubScreen.kabsoTeamKey), findsOneWidget);
-    expect(find.byKey(MeHubScreen.staffAnnouncementKey), findsOneWidget);
-    // v1.78-live (D288): and «بلاغات», the shared report queue.
-    expect(find.byKey(MeHubScreen.staffReportsKey), findsOneWidget);
-    // v1.89-social (D290): and «طلب رفع ليفيل».
-    expect(find.byKey(MeHubScreen.staffLevelRaiseKey), findsOneWidget);
     expect(find.byKey(MeHubScreen.cardsKey), findsNothing);
     for (final item in MeHubItem.values) {
       expect(find.byKey(item.key), findsNothing, reason: item.name);
+    }
+    // D299i: the taller team badge (44 pt) moved the rows below further
+    // down; each is scrolled to (the list builds what is visible).
+    for (final key in [
+      MeHubScreen.staffAnnouncementKey,
+      // v1.78-live (D288): and «بلاغات», the shared report queue.
+      MeHubScreen.staffReportsKey,
+      // v1.89-social (D290): and «طلب رفع ليفيل».
+      MeHubScreen.staffLevelRaiseKey,
+    ]) {
+      await tester.scrollUntilVisible(
+        find.byKey(key),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.byKey(key), findsOneWidget);
     }
     // D288's «بلاغات» and D290's «طلب رفع ليفيل» rows moved the announcement
     // reel and settings below the first screen of the list (the list builds
@@ -516,6 +531,83 @@ void main() {
       AppRoutes.newReel,
     ]) {
       expect(authRedirect(staff, route), isNull, reason: route);
+    }
+  });
+
+  // D299i (owner: «ميدالية مشرفين يجب ان تكون الايقونة بحجم اكبر ليكون كلام
+  // مكتوب بداخلها واضح»): the badge at 44 pt on the profile and the Me tab,
+  // in both languages, at 393 × 852 and 360 × 800, at text scale 1.3 and with
+  // a long name — inside the screen, never over the name, nothing overflows
+  // (the badge wraps to its own line rather than shrink).
+  group('D299i: the larger badge fits', () {
+    for (final viewport in GoldenViewport.values) {
+      for (final language in AppLanguage.values) {
+        final ar = language == AppLanguage.ar;
+        final longName = ar
+            ? 'سارة عبد الرحمن الهاشمية من الإسكندرية'
+            : 'Sara Abdulrahman Al-Hashimi of Alexandria';
+        void expectBadge(WidgetTester tester, Finder name) {
+          final width = viewport.logicalSize.width;
+          final badge = find.byKey(KabsoTeamBadge.badgeKey).first;
+          final b = tester.getRect(badge);
+          expect(b.height, KabsoTeamBadge.profileHeight);
+          expect(b.left, greaterThanOrEqualTo(0));
+          expect(b.right, lessThanOrEqualTo(width));
+          final n = tester.getRect(name);
+          expect(b.overlaps(n), isFalse);
+          expect(
+            find.descendant(
+              of: badge,
+              matching: find.text(l10nFor(language).liveKabsoTeam),
+            ),
+            findsOneWidget,
+          );
+        }
+
+        for (final name in [null, longName]) {
+          final label =
+              '${viewport.name} ${language.name} ×1.3'
+              '${name == null ? '' : ' long name'}';
+          testWidgets('profile: $label', (tester) async {
+            tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            var profile = staffProfile(ar: ar);
+            if (name != null) profile = profile.copyWith(displayName: name);
+            await withClock(Clock.fixed(d283Now), () async {
+              await pumpOther(
+                tester,
+                profile,
+                language: language,
+                viewport: viewport,
+              );
+            });
+            expect(tester.takeException(), isNull);
+            final badge = find.descendant(
+              of: find.byKey(ProfileCoverHeader.nameRowKey),
+              matching: find.byKey(KabsoTeamBadge.badgeKey),
+            );
+            expect(badge, findsOneWidget);
+            expectBadge(tester, find.byKey(const Key('profile.displayName')));
+          });
+
+          testWidgets('Me tab: $label', (tester) async {
+            tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            await pumpStaffHub(
+              tester,
+              language: language,
+              viewport: viewport,
+              displayName: name,
+            );
+            expect(tester.takeException(), isNull);
+            expectBadge(tester, find.byKey(MeHubScreen.nameKey));
+          });
+        }
+      }
     }
   });
 }

@@ -664,14 +664,21 @@ class _MentionSearchState extends ConsumerState<_MentionSearch> {
                               size: KSizes.avatarSm,
                             ),
                             title: Text(u.displayName),
-                            subtitle: Text(
-                              KHandle.text(
-                                context.l10n,
-                                u.username,
-                                premiumTier: u.premiumTier,
-                                staffId: u.staffId,
-                              ),
-                            ),
+                            subtitle: u.staffId != null
+                                ? KStaffIdText(
+                                    u.staffId!,
+                                    height: KStaffIdText.list,
+                                    semanticHint:
+                                        context.l10n.profileStaffIdHint,
+                                  )
+                                : Text(
+                                    KHandle.text(
+                                      context.l10n,
+                                      u.username,
+                                      premiumTier: u.premiumTier,
+                                      staffId: u.staffId,
+                                    ),
+                                  ),
                             onTap: () => Navigator.of(context).pop(u),
                           ),
                       ],

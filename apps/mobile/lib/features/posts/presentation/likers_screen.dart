@@ -114,19 +114,27 @@ class LikersScreen extends ConsumerWidget {
                   child: KAvatar(name: name, imageUrl: u.avatarUrl),
                 ),
                 title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(
-                  KHandle.text(
-                    l10n,
-                    u.username,
-                    premiumTier: u.premiumTier,
-                    staffId: u.staffId,
-                  ),
-                  maxLines: 1,
-                  textDirection: TextDirection.ltr,
-                  textAlign: Directionality.of(context) == TextDirection.rtl
-                      ? TextAlign.right
-                      : TextAlign.left,
-                ),
+                subtitle: u.staffId != null
+                    ? KStaffIdText(
+                        u.staffId!,
+                        height: KStaffIdText.list,
+                        semanticHint: context.l10n.profileStaffIdHint,
+                      )
+                    : Text(
+                        KHandle.text(
+                          l10n,
+                          u.username,
+                          premiumTier: u.premiumTier,
+                          staffId: u.staffId,
+                        ),
+                        maxLines: 1,
+                        textDirection: TextDirection.ltr,
+
+                        textAlign:
+                            Directionality.of(context) == TextDirection.rtl
+                            ? TextAlign.right
+                            : TextAlign.left,
+                      ),
                 onTap: () => context.push(AppRoutes.userProfile(u.username)),
               );
             },
