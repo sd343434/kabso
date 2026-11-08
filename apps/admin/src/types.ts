@@ -356,6 +356,10 @@ export interface GlobalStripsSettings {
   giftMinCoins: number;
   /** A game prize (tickets). */
   gameMinTickets: number;
+  /** v1.89-live (D318): a lucky win's chat line from this multiplier (absent from an older API). */
+  luckyChatMinMultiplier?: number;
+  /** v1.89-live (D318): the lucky multipliers the threshold may be (absent from an older API). */
+  luckyMultipliers?: number[];
 }
 
 /** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */

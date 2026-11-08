@@ -162,7 +162,11 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
   it('the defaults: 500 000 coins and 1 000 000 tickets', async () => {
     expect(ctx.config.live.giftTickerMinCoins).toBe(500_000);
     expect(ctx.config.live.gameWinTickerMinTickets).toBe(1_000_000);
-    expect(await strips.thresholds()).toEqual({ giftMinCoins: 500_000, gameMinTickets: 1_000_000 });
+    expect(await strips.thresholds()).toEqual({
+      giftMinCoins: 500_000,
+      gameMinTickets: 1_000_000,
+      luckyChatMinMultiplier: 250,
+    });
   });
 
   it("gifts strip (owner: one gift's price): 499 999 and 10 × 50 000 stay in the room; a 500 000 gift is a `gift-ticker` kind GIFT in every live, its own too", async () => {
@@ -359,7 +363,13 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
     const get = await p.send(owner, 'get', '/admin/global-strips');
     expect(get.status).toBe(200);
     expectContract(get, 'getAdminGlobalStrips');
-    expect(get.body).toEqual({ giftMinCoins: 500_000, gameMinTickets: 1_000_000 });
+    // v1.89-live (D318): with the lucky chat threshold and the multipliers to choose from.
+    expect(get.body).toEqual({
+      giftMinCoins: 500_000,
+      gameMinTickets: 1_000_000,
+      luckyChatMinMultiplier: 250,
+      luckyMultipliers: [5, 10, 25, 50, 100, 250, 500, 1000],
+    });
     expect((await p.send(moderator, 'get', '/admin/global-strips')).status).toBe(403);
     const denied = await p.send(moderator, 'put', '/admin/global-strips', {
       giftMinCoins: 1,
@@ -390,28 +400,39 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
     });
     expect(put.status, JSON.stringify(put.body)).toBe(200);
     expectContract(put, 'updateAdminGlobalStrips');
-    expect(put.body).toEqual({ giftMinCoins: 20_000, gameMinTickets: 300 });
+    expect(put.body).toEqual({
+      giftMinCoins: 20_000,
+      gameMinTickets: 300,
+      luckyChatMinMultiplier: 250,
+      luckyMultipliers: [5, 10, 25, 50, 100, 250, 500, 1000],
+    });
     const audit = await ctx.prisma.auditLog.findMany({
       where: { action: 'site.settings.update', actorUserId: owner.id },
     });
     expect(audit).toHaveLength(1);
     expect(audit[0]!.metadata).toMatchObject({
       key: 'globalStrips',
-      before: { giftMinCoins: 500_000, gameMinTickets: 1_000_000 },
-      after: { giftMinCoins: 20_000, gameMinTickets: 300 },
+      before: { giftMinCoins: 500_000, gameMinTickets: 1_000_000, luckyChatMinMultiplier: 250 },
+      after: { giftMinCoins: 20_000, gameMinTickets: 300, luckyChatMinMultiplier: 250 },
       reason: 'launch week',
       via: 'panel',
     });
     expect((await p.send(owner, 'get', '/admin/global-strips')).body).toEqual({
       giftMinCoins: 20_000,
       gameMinTickets: 300,
+      luckyChatMinMultiplier: 250,
+      luckyMultipliers: [5, 10, 25, 50, 100, 250, 500, 1000],
     });
   });
 
   it("the panel's thresholds apply without a restart (after the ≤ 30 s cache): a 20 000 gift is a strip, a 19 999 one is not", async () => {
     // The cache would expire within 30 s; the test forgets it instead of waiting.
     strips.forgetThresholds();
-    expect(await strips.thresholds()).toEqual({ giftMinCoins: 20_000, gameMinTickets: 300 });
+    expect(await strips.thresholds()).toEqual({
+      giftMinCoins: 20_000,
+      gameMinTickets: 300,
+      luckyChatMinMultiplier: 250,
+    });
     await gapOver();
     const before = giftStrips(roomB).length;
     await send(roomA, viewer, hA, await gift(19_999));
@@ -424,5 +445,50 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
     await ctx.prisma.siteSetting.deleteMany({ where: { key: 'globalStrips' } });
     strips.forgetThresholds();
     await gapOver();
+  });
+
+  it('D318: the lucky chat threshold — 250 by default in the catalogue; the OWNER picks one of the multipliers (else 400); the catalogue follows (version changes); a PUT without it keeps it', async () => {
+    const gifts = ctx.app.get((await import('../src/modules/gifts/gifts.service.js')).GiftsService);
+    gifts.forgetLuckyChat();
+    const reader = await signup();
+    const catalogue = () => ctx.http.get('/api/v1/gifts/catalogue').set(auth(reader));
+    const before = await catalogue();
+    expect(before.status).toBe(200);
+    expectContract(before, 'getGiftCatalogue');
+    expect(before.body.luckyChatMinMultiplier).toBe(250);
+    for (const bad of [300, 0, 1.5, '500']) {
+      const res = await p.send(owner, 'put', '/admin/global-strips', {
+        giftMinCoins: 20_000,
+        gameMinTickets: 300,
+        luckyChatMinMultiplier: bad,
+      });
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+      expectContract(res, 'updateAdminGlobalStrips');
+    }
+    const put = await p.send(owner, 'put', '/admin/global-strips', {
+      giftMinCoins: 20_000,
+      gameMinTickets: 300,
+      luckyChatMinMultiplier: 500,
+    });
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
+    expect(put.body.luckyChatMinMultiplier).toBe(500);
+    gifts.forgetLuckyChat();
+    const after = await catalogue();
+    expect(after.body.luckyChatMinMultiplier).toBe(500);
+    expect(after.body.version).not.toBe(before.body.version);
+    // An older panel (no field) leaves it as it is.
+    const older = await p.send(owner, 'put', '/admin/global-strips', {
+      giftMinCoins: 20_000,
+      gameMinTickets: 300,
+    });
+    expect(older.status).toBe(200);
+    expect(older.body.luckyChatMinMultiplier).toBe(500);
+    // A stored value that is no longer a multiplier falls back to the configuration.
+    await ctx.prisma.siteSetting.update({
+      where: { key: 'globalStrips' },
+      data: { value: { giftMinCoins: 20_000, gameMinTickets: 300, luckyChatMinMultiplier: 7 } },
+    });
+    gifts.forgetLuckyChat();
+    expect((await catalogue()).body.luckyChatMinMultiplier).toBe(250);
   });
 });

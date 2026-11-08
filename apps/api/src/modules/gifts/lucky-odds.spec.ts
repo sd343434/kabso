@@ -225,10 +225,16 @@ describe('D148 lucky odds: eight tiers, chances per million, the guarantee (CONV
       enabled: false,
       table: DEFAULT,
       bigWinMultiplier: 100,
+      chatMinMultiplier: 250,
       dayTimeZone: 'UTC',
       disabledCountries: [],
       countryHeader: null,
     });
+    // v1.89-live (D318): the chat threshold is one of the multipliers.
+    expect(loadConfig({ ...base, LUCKY_CHAT_MIN_MULTIPLIER: '500' }).lucky.chatMinMultiplier).toBe(500);
+    expect(() => loadConfig({ ...base, LUCKY_CHAT_MIN_MULTIPLIER: '300' })).toThrow(
+      /LUCKY_CHAT_MIN_MULTIPLIER/,
+    );
     expect(loadConfig({ ...base, LUCKY_PITY_AFTER: '0' }).lucky.table.pity).toBeNull();
     expect(loadConfig({ ...base, LUCKY_PITY_AFTER: '20' }).lucky.table.pity).toEqual({
       after: 20,
