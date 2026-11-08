@@ -10,6 +10,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_moderation.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -130,8 +131,13 @@ class LivePersonTools extends ConsumerStatefulWidget {
     required this.middle,
     this.ink,
     this.kabsoTeam = false,
+    this.kabsoOwner = false,
     super.key,
   });
+
+  /// v1.99-social (D311): the person is an owner of the app — no «إجراءات
+  /// المؤسس» on them (the server refuses too).
+  final bool kabsoOwner;
 
   /// v1.68-live (D273, §10.96.7): the person holds a panel role — no kick,
   /// chat mute or seat mute against «فريق كابسو» (the server refuses too).
@@ -310,6 +316,12 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
 
   Future<void> _more() async {
     final l10n = context.l10n;
+    // D311: «إجراءات المؤسس» for the app owner on anyone else.
+    final founder = founderActionsOffered(
+      ref,
+      targetIsSelf: widget.self,
+      targetIsOwner: widget.kabsoOwner,
+    );
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (sheet) => SafeArea(
@@ -331,11 +343,24 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
               ),
               onTap: () => Navigator.of(sheet).pop('block'),
             ),
+            if (founder)
+              FounderActionsTile(
+                onTap: () => Navigator.of(sheet).pop('founder'),
+              ),
           ],
         ),
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'founder') {
+      final done = await showFounderActions(context, (
+        id: widget.person.id,
+        username: widget.person.username,
+        name: widget.person.name,
+      ));
+      if (done && mounted) _closeCard();
+      return;
+    }
     if (action == 'report') {
       await reportUser(context, ref, userId: widget.person.id);
       return;

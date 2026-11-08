@@ -373,6 +373,8 @@ class LivePersonSheet extends ConsumerWidget {
                   self: profile.isSelf,
                   // D273: no actions against «فريق كابسو».
                   kabsoTeam: profile.kabsoTeam,
+                  // D311: no founder actions on an owner.
+                  kabsoOwner: profile.kabsoOwner,
                   middle: picture.width + 8,
                   // D258: white on the VIP card.
                   ink: vipCard?.ink,

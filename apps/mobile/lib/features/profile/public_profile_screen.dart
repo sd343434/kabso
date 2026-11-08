@@ -10,6 +10,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/founder_moderation.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
@@ -99,7 +100,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
       _PublicProfileScreenState();
 }
 
-enum _More { copy, mute, unmute, block, report }
+enum _More { copy, mute, unmute, block, report, founder }
 
 /// Asks before unfollowing [name] (the profile page and, D220, the person
 /// card in a live): true when confirmed. D232: [live] asks in the live's
@@ -248,6 +249,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final name = profile.displayName.isEmpty
         ? profile.username
         : profile.displayName;
+    // D311: «إجراءات المؤسس» for the app owner on anyone else (not an owner).
+    final founder = founderActionsOffered(
+      ref,
+      targetIsSelf: profile.isSelf,
+      targetIsOwner: profile.kabsoOwner,
+    );
     final action = await showModalBottomSheet<_More>(
       context: context,
       builder: (sheet) {
@@ -317,6 +324,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   ),
                   onTap: () => Navigator.of(sheet).pop(_More.report),
                 ),
+                if (founder)
+                  FounderActionsTile(
+                    onTap: () => Navigator.of(sheet).pop(_More.founder),
+                  ),
               ],
             ],
           ),
@@ -352,6 +363,16 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         if (blocked && mounted && context.canPop()) context.pop();
       case _More.report:
         await reportUser(context, ref, userId: profile.id);
+      case _More.founder:
+        final done = await showFounderActions(context, (
+          id: profile.id,
+          username: profile.username,
+          name: name,
+        ));
+        // The profile reads again (a ban or a deletion hides it).
+        if (done && mounted) {
+          ref.invalidate(publicProfileProvider(profile.username));
+        }
     }
   }
 

@@ -214,6 +214,11 @@ export enum AuditAction {
   OWNER_FIXED_COST_CREATE = 'owner.fixed_cost.create',
   OWNER_FIXED_COST_UPDATE = 'owner.fixed_cost.update',
   OWNER_FIXED_COST_DELETE = 'owner.fixed_cost.delete',
+  /**
+   * v1.99-social (D311, §10.117): «إجراءات المؤسس» — one of the owner's moderation actions from the app {action, reason,
+   * days?, endsAt?, purgeAfter?, actionId, via: app} (the reused panel rule writes its own row too).
+   */
+  OWNER_MODERATION_ACTION = 'owner.moderation.action',
   ADMIN_OWNER_INBOX_VIEW = 'admin.owner_inbox.view',
   ADMIN_OWNER_INBOX_STATUS = 'admin.owner_inbox.status',
   ADMIN_OWNER_INBOX_DELETE = 'admin.owner_inbox.delete',
