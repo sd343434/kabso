@@ -691,25 +691,25 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       expect(agents.body.pricing.activationMinCoins).toBe(30_000_000);
       // Financial: the code again — missing or wrong is refused and nothing changes.
       const topup = (body: object) => post(finance, `/admin/recharge/agents/${applicant.id}/topup`, body);
-      expect((await topup({ coins: '30000000', paidUsd: '360' })).status).toBe(400);
-      const wrong = await topup({ coins: '30000000', paidUsd: '360', totpCode: '123456' });
+      expect((await topup({ coins: '30000000', paidUsd: '364.50' })).status).toBe(400);
+      const wrong = await topup({ coins: '30000000', paidUsd: '364.50', totpCode: '123456' });
       expect(wrong.status).toBe(403);
       expect(wrong.body.error.code).toBe('ADMIN_TOTP_INVALID');
       expect(await ctx.prisma.rechargeTopup.count({ where: { agentUserId: applicant.id } })).toBe(0);
-      const ok = await topup({ coins: '30000000', paidUsd: '360', totpCode: nextCode(finance.secret) });
+      const ok = await topup({ coins: '30000000', paidUsd: '364.50', totpCode: nextCode(finance.secret) });
       expect(ok.status, JSON.stringify(ok.body)).toBe(200);
       expectContract(ok, 'topUpAdminRechargeAgent');
       expect(ok.body).toMatchObject({
         first: true,
         stockCoins: 30_000_000,
-        expectedMinor: 36_000,
-        paidMinor: 36_000,
+        expectedMinor: 36_450,
+        paidMinor: 36_450,
       });
       expect(ok.body.code).toMatch(/^coin[0-9]{4}$/);
       // The same code twice is refused (replay).
       const replay = await topup({
         coins: '1000000',
-        paidUsd: '12',
+        paidUsd: '12.15',
         totpCode: totpCode(finance.secret, clock),
       });
       expect(replay.body.error.code).toBe('ADMIN_TOTP_INVALID');
@@ -724,7 +724,7 @@ describe('D191 admin panel', { timeout: 300_000 }, () => {
       });
 
       // The CLI runs the same rule: its row differs only by `via` and the actor.
-      await cli('recharge-admin.ts', ['topup', ok.body.code as string, '1000000', '--paid', '12']);
+      await cli('recharge-admin.ts', ['topup', ok.body.code as string, '1000000', '--paid', '12.15']);
       const rows = await audits('recharge.topup');
       expect(rows).toHaveLength(2);
       const viaOf = (r: (typeof rows)[number]) => (r.metadata as { via: string }).via;

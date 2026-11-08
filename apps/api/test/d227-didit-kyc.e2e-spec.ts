@@ -713,7 +713,7 @@ describe('D227 «تأكيد الهوية» with Didit', { timeout: 600_000 }, ()
     const topup = () =>
       p.send(finance, 'post', `/admin/recharge/agents/${u.id}/topup`, {
         coins: '30000000',
-        paidUsd: '360',
+        paidUsd: '364.50',
         totpCode: p.nextCode(finance.secret),
       });
     const refused = await topup();
