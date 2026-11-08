@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/domain/live_boost_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/hub_card_banner.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.dart';
@@ -690,6 +691,21 @@ class LiveHubBody extends StatelessWidget {
       content: content,
       copy: copy,
       header: header,
+      // D303 (owner): in the grid the promo carousel is the Live home's
+      // first block in every state — loading, empty, error — not only above
+      // loaded rooms.
+      leading: banner == null || list
+          ? null
+          : SliverPadding(
+              key: LiveHubGrid.bannerSlotKey,
+              padding: const EdgeInsets.fromLTRB(
+                KLiveGrid.inset,
+                KLiveGrid.gap,
+                KLiveGrid.inset,
+                0,
+              ),
+              sliver: SliverToBoxAdapter(child: banner),
+            ),
       onRefresh: onRefresh,
       onRetry: onRetry,
       onLoadMore: onLoadMore,
@@ -709,7 +725,6 @@ class LiveHubBody extends StatelessWidget {
             )
           : LiveHubGrid.sliver(
               rooms: rooms,
-              banner: banner,
               cardBanner: cardBanner,
               cardBannerCell: cardBannerCell,
               onOpenRoom: onOpenRoom,

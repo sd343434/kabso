@@ -239,6 +239,9 @@ export enum AuditAction {
   EVENT_END = 'event.end',
   EVENT_HOLD = 'event.hold',
   EVENT_RELEASE = 'event.release',
+  /** v1.97-social (D303): a gift event edited (panel or app), and its automatic payout (system). */
+  EVENT_UPDATE = 'event.update',
+  EVENT_PAYOUT = 'event.payout',
   /** v1.50-social (D176): an event's calendar line, tone or «رائج» changed. */
   EVENT_STYLE = 'event.style',
   TASK_UPDATE = 'task.update',

@@ -36,6 +36,17 @@ import {
 import { CurrentStaff, NotStaffWork, StaffAppGuard, StaffCapability } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
 import {
+  AdminGiftEventsService,
+  eventBadgeInputSchema,
+  eventUploadQuery,
+  type EventBadgeInput,
+} from './admin-gift-events.service.js';
+import type { EventMediaKind } from '../programs/event-media.js';
+
+/** v1.97-social (D303 follow-ups): the app editor's art upload (raw bytes, app.setup). */
+export const STAFF_EVENT_UPLOAD_PATH = '/api/v1/staff/event-uploads';
+import { giftEventInputSchema, type GiftEventInput } from '../programs/gift-events.js';
+import {
   StaffReportActionsService,
   staffReportActionSchema,
   type StaffReportActionInput,
@@ -93,6 +104,9 @@ export class StaffTeamAvatarController {
   }
 }
 
+/** v1.97-social (D303): the reason of an event's end / hold / release from the app. */
+export const EVENT_REASON_BODY = z.strictObject({ reason: z.string().trim().min(3).max(500) });
+
 @Controller('staff')
 export class StaffAppController {
   constructor(
@@ -101,6 +115,7 @@ export class StaffAppController {
     private readonly shifts: AdminStaffShiftsService,
     private readonly reportsQueue: AdminModerationService,
     private readonly reportActions: StaffReportActionsService,
+    private readonly giftEvents: AdminGiftEventsService,
   ) {}
 
   // ---- status and step-up (no step-up needed) -------------------------------------------------
@@ -324,5 +339,109 @@ export class StaffAppController {
     @CurrentStaff() ctx: AdminContext,
   ) {
     return this.staff.removeMessage(pathUuid(id), pathUuid(messageId), body.reason, ctx);
+  }
+
+  // ---- «الفعاليات»: gift events from the phone (v1.97-social, D303, §10.114.7) ---------------------------------
+
+  /** Every event with its state (newest first), for the staff tool's list. */
+  @Get('events')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  events() {
+    return this.giftEvents.list();
+  }
+
+  /** The gifts, bag items and VIP tiers an event may use, the board kinds and the limits. */
+  @Get('event-options')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  eventOptions() {
+    return this.giftEvents.options();
+  }
+
+  /** D303 follow-ups: one piece of an event's art from the phone — the panel's checks and specs. */
+  @Post('event-uploads')
+  @HttpCode(201)
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  uploadEventMedia(
+    @Query(new ZodValidationPipe(eventUploadQuery)) q: { kind: EventMediaKind },
+    @Req() req: AppRequest,
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    return this.giftEvents.upload(q.kind, req.body, ctx);
+  }
+
+  @Post('event-badges')
+  @HttpCode(201)
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  createEventBadge(
+    @Body(new ZodValidationPipe(eventBadgeInputSchema)) body: EventBadgeInput,
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    return this.giftEvents.createBadge(body, ctx);
+  }
+
+  /** Creates a gift event — the panel's rules, audited `via: app`. */
+  @Post('gift-events')
+  @HttpCode(201)
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  createGiftEvent(
+    @Body(new ZodValidationPipe(giftEventInputSchema)) body: GiftEventInput,
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    return this.giftEvents.create(body, ctx);
+  }
+
+  @Get('gift-events/:eventId')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  giftEvent(@Param('eventId') id: string) {
+    return this.giftEvents.get(pathUuid(id));
+  }
+
+  @Put('gift-events/:eventId')
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  updateGiftEvent(
+    @Param('eventId') id: string,
+    @Body(new ZodValidationPipe(giftEventInputSchema)) body: GiftEventInput,
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    return this.giftEvents.update(pathUuid(id), body, ctx);
+  }
+
+  /** end / hold / release (the panel's `POST /admin/events/{id}/{command}`), with a reason. */
+  @Post('events/:eventId/:command')
+  @HttpCode(200)
+  @RateLimit(STAFF_LIMIT)
+  @UseGuards(StaffAppGuard)
+  @StaffCapability('events.manage')
+  @NotStaffWork()
+  changeEvent(
+    @Param('eventId') id: string,
+    @Param('command') command: string,
+    @Body(new ZodValidationPipe(EVENT_REASON_BODY)) body: { reason: string },
+    @CurrentStaff() ctx: AdminContext,
+  ) {
+    if (command !== 'end' && command !== 'hold' && command !== 'release')
+      throw new AppException(ErrorCode.NOT_FOUND);
+    return this.giftEvents.change(pathUuid(id), command, body.reason, ctx);
   }
 }

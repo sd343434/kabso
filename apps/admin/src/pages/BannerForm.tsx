@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, ApiError, uploadBannerPicture } from '../api';
-import { Dialog, ErrorAlert } from '../components';
+import { api, ApiError, uploadBannerPicture, uploadBannerVideo, uploadEventMedia } from '../api';
+import { Dialog, ErrorAlert, useAsync } from '../components';
 import { useApp } from '../context';
 
 /**
@@ -95,15 +95,32 @@ export interface BannerFormFields {
   endsAt: string;
   sortOrder: string;
   reason: string;
+  /** v1.97-social (D303): `image` (a still or an animated picture) or `video` (home only; the picture is its poster). */
+  kind?: 'image' | 'video';
+  /** v1.97-social (D303): the event the banner opens ('' = the link). */
+  eventId?: string;
 }
 
+/**
+ * v1.97-social (D303 follow-ups, §10.114.9): an event banner's spec — the carousel's real 5:1 shape. The editor shows
+ * the server's `EventOptions.specs`; this line repeats it for the banner form (kept equal by the panel test).
+ */
+export const EVENT_BANNER_SPEC =
+  '1500 × 300 px (5:1) · PNG / JPEG / WebP ≤ 2 MB · animated WebP / GIF ≤ 5 MB, ≤ 10 s · MP4 / MOV (H.264 / HEVC) ≤ 30 MB, ≤ 30 s + a still poster · text in the centred 900 × 240 px';
+
+/** v1.97-social (D303): the server's video limits for a home banner. */
+export const BANNER_VIDEO_MAX_BYTES = 30 * 1024 * 1024;
+
 /** The `POST /admin/banners` body for an uploaded picture (empty optional fields left out). */
-export function bannerBody(mediaId: string, f: BannerFormFields) {
+export function bannerBody(mediaId: string, f: BannerFormFields, videoMediaId: string | null = null) {
   const sort = Number(f.sortOrder);
   return {
     mediaId,
     placement: f.placement,
-    link: f.link.trim(),
+    // D303: a banner on an event opens it (the server sets the link `/events/<id>`).
+    link: f.eventId ? `/events/${f.eventId}` : f.link.trim(),
+    ...(videoMediaId ? { videoMediaId } : {}),
+    ...(f.eventId ? { eventId: f.eventId } : {}),
     ...(f.titleAr.trim() ? { titleAr: f.titleAr.trim() } : {}),
     ...(f.titleEn.trim() ? { titleEn: f.titleEn.trim() } : {}),
     titleSide: f.titleSide,
@@ -128,7 +145,7 @@ const EMPTY: BannerFormFields = {
 
 /** «إضافة بانر»: the picture (cropped preview), where it shows, the link, the window and the reason. */
 export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () => void; onDone: () => void; initial?: BannerFormFields }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const [f, setF] = useState<BannerFormFields>(initial);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -136,6 +153,14 @@ export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () =
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [animated, setAnimated] = useState(false);
+  const [video, setVideo] = useState<File | null>(null);
+  const events = useAsync(
+    () =>
+      api.get<{
+        data: { id: string; titleAr: string; titleEn: string; state: string }[];
+      }>('/admin/events'),
+    [],
+  );
   useEffect(() => {
     if (!file) {
       setPreview(null);
@@ -157,7 +182,9 @@ export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () =
   const issueKey = animationIssueKey(error);
   const set = (k: keyof BannerFormFields) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const shape = BANNER_SHAPES[f.placement];
-  const ok = file !== null && !!f.link.trim() && !!f.reason.trim();
+  const kind = f.kind ?? 'image';
+  const videoOk = kind === 'image' || (f.placement === 'home' && video !== null && video.size <= BANNER_VIDEO_MAX_BYTES);
+  const ok = file !== null && (!!f.link.trim() || !!f.eventId) && !!f.reason.trim() && videoOk;
   return (
     <Dialog title={t('bannerCreate')} onClose={onClose}>
       {issueKey ? <p className="alert bad">{t(issueKey)}</p> : <ErrorAlert error={error} />}
@@ -168,8 +195,22 @@ export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () =
           if (!ok || busy) return;
           setBusy(true);
           setError(null);
-          uploadBannerPicture(f.placement, file, setProgress)
-            .then((up) => api.post('/admin/banners', bannerBody(up.mediaId, f)))
+          // D303: a video banner uploads its video first, then the poster picture.
+          (kind === 'video' && video
+            ? f.eventId
+              ? uploadEventMedia('banner_video', video, setProgress).then((v) => v.mediaId ?? '')
+              : uploadBannerVideo(video, setProgress).then((v) => v.mediaId)
+            : Promise.resolve(null)
+          )
+            .then((videoId) =>
+              // D303 follow-ups: an event's banner must meet the published spec (checked by the server).
+              (f.eventId
+                ? uploadEventMedia('banner', file, setProgress).then((up) => ({
+                    mediaId: up.mediaId ?? '',
+                  }))
+                : uploadBannerPicture(f.placement, file, setProgress)
+              ).then((up) => api.post('/admin/banners', bannerBody(up.mediaId, f, videoId))),
+            )
             .then(onDone, (err: unknown) => {
               setError(err);
               setBusy(false);
@@ -195,6 +236,42 @@ export function BannerForm({ onClose, onDone, initial = EMPTY }: { onClose: () =
         </div>
         <div className="field span-2">
           <BannerPreview placement={f.placement} url={preview} animated={animated} />
+        </div>
+        <div className="field">
+          <label htmlFor="bn-kind">{t('bannerKind')}</label>
+          <select id="bn-kind" value={kind} onChange={(e) => setF((x) => ({ ...x, kind: e.target.value as 'image' | 'video' }))}>
+            <option value="image">
+              {t('bannerKind_IMAGE')} / {t('bannerKind_ANIMATED')}
+            </option>
+            <option value="video">{t('bannerKind_VIDEO')}</option>
+          </select>
+          {kind === 'video' && f.placement !== 'home' && <span className="hint bad">{t('bannerVideoHomeOnly')}</span>}
+        </div>
+        {kind === 'video' && (
+          <div className="field">
+            <label htmlFor="bn-video">{t('bannerVideo')}</label>
+            <input id="bn-video" type="file" accept="video/mp4,video/quicktime" onChange={(e) => setVideo(e.target.files?.[0] ?? null)} />
+            <span className="hint">{t('bannerVideoHint')}</span>
+          </div>
+        )}
+        <div className="field span-2">
+          <label htmlFor="bn-event">{t('bannerEvent')}</label>
+          <select id="bn-event" value={f.eventId ?? ''} onChange={(e) => setF((x) => ({ ...x, eventId: e.target.value }))}>
+            <option value="">{t('bannerEventNone')}</option>
+            {events.data?.data
+              .filter((ev) => ev.state === 'UPCOMING' || ev.state === 'RUNNING')
+              .map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {lang === 'ar' ? ev.titleAr : ev.titleEn}
+                </option>
+              ))}
+          </select>
+          <span className="hint">{t('bannerEventHint')}</span>
+          {f.eventId && (
+            <span className="hint ltr spec" data-spec="banner">
+              {t('bannerSpecHint')}: {EVENT_BANNER_SPEC}
+            </span>
+          )}
         </div>
         <div className="field span-2">
           <label htmlFor="bn-link">{t('bannerLink')}</label>

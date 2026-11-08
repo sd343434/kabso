@@ -9,9 +9,8 @@ import 'package:material_ui/material_ui.dart';
 /// [KLiveGrid]).
 ///
 /// D248 (owner, refs 375/376):
-/// - `banner` (the promo carousel) full width after the first row
-///   (`KLiveGrid.bannerAfter` cells), or after the last cell when there are
-///   fewer;
+/// - `banner` (the promo carousel) full width — D303 (owner): the first
+///   block, above the first row;
 /// - `cardBanner` (the card-size banner) takes one cell, `cardBannerCell`
 ///   (0-based, reading order over every cell; after the last room when
 ///   there are fewer).
@@ -20,7 +19,6 @@ import 'package:material_ui/material_ui.dart';
 /// list's cursor and paging never see them.
 abstract final class LiveHubGrid {
   static const gridKey = Key('liveGrid');
-  static const restGridKey = Key('liveGrid.rest');
   static const bannerSlotKey = Key('liveGrid.banner');
 
   /// D248: the cell of the card-size banner.
@@ -87,35 +85,31 @@ abstract final class LiveHubGrid {
       rooms.length,
       cardBannerCell: cardBanner == null ? null : cardBannerCell,
     );
-    final split = all.length < KLiveGrid.bannerAfter
-        ? all.length
-        : KLiveGrid.bannerAfter;
-    final first = all.sublist(0, split);
-    final rest = all.sublist(split);
+    // D303 (owner: «البانر أول شيء في صفحة اللايف»): the carousel is the first
+    // block, above the first row (D248 had it after the first row).
+    if (banner == null) {
+      return _grid(gridKey, rooms, all, cardBanner, onOpenRoom);
+    }
     return SliverMainAxisGroup(
       slivers: [
-        _grid(gridKey, rooms, first, cardBanner, onOpenRoom),
-        if (banner != null)
-          SliverPadding(
-            key: bannerSlotKey,
-            padding: const EdgeInsets.fromLTRB(
-              KLiveGrid.inset,
-              KLiveGrid.bannerTop,
-              KLiveGrid.inset,
-              0,
-            ),
-            sliver: SliverToBoxAdapter(child: banner),
+        SliverPadding(
+          key: bannerSlotKey,
+          padding: const EdgeInsets.fromLTRB(
+            KLiveGrid.inset,
+            KLiveGrid.gap,
+            KLiveGrid.inset,
+            0,
           ),
-        if (rest.isNotEmpty)
-          _grid(
-            restGridKey,
-            rooms,
-            rest,
-            cardBanner,
-            onOpenRoom,
-            // Below the carousel the ref's gap; else the usual row gap.
-            top: banner != null ? KLiveGrid.bannerBottom : KLiveGrid.rowGap,
-          ),
+          sliver: SliverToBoxAdapter(child: banner),
+        ),
+        _grid(
+          gridKey,
+          rooms,
+          all,
+          cardBanner,
+          onOpenRoom,
+          top: KLiveGrid.bannerBottom,
+        ),
       ],
     );
   }

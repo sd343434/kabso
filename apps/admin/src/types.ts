@@ -110,7 +110,9 @@ export type Capability =
   // v1.95-social (D301): «صندوق المؤسس» (OWNER only).
   | 'owner.inbox'
   // D301 follow-up (§10.112.10): the fixed monthly costs of «الربح» (OWNER only).
-  | 'owner.costs';
+  | 'owner.costs'
+  // v1.97-social (D303): gift events «فعاليات الهدايا» (create / edit / hold), OWNER.
+  | 'events.manage';
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;

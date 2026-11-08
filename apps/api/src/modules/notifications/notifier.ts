@@ -76,6 +76,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'OWNER_FEEDBACK_NEW',
   // D301 follow-up: the app owner's official announcement, to everyone (a background fan-out).
   'OWNER_ANNOUNCEMENT',
+  // v1.97-social (D303): a prize of an event board was paid (target the event).
+  'EVENT_PRIZE_WON',
 ];
 
 /** Types that join one unread row per target (owner, D92). */

@@ -134,6 +134,10 @@ enum NotificationType {
   /// v1.95-social (D301 follow-up, system; target POST with `texts`): the
   /// app owner published an official announcement — to everyone, once.
   ownerAnnouncement('OWNER_ANNOUNCEMENT'),
+
+  /// v1.97-social (D303, system; target EVENT): a prize of an event board was
+  /// paid to you — opens the event.
+  eventPrizeWon('EVENT_PRIZE_WON'),
   unknown('');
 
   new(this.wire);
@@ -171,7 +175,8 @@ enum NotificationType {
   bool get isLevelRaise =>
       this == levelRaiseApproved ||
       this == levelRaiseRejected ||
-      this == levelRaised;
+      this == levelRaised ||
+      this == eventPrizeWon;
 
   /// v1.80-kyc (D227): the identity check's result.
   bool get isKyc =>
@@ -234,7 +239,10 @@ enum NotificationTargetType {
   levelRaise('LEVEL_RAISE'),
 
   /// v1.95-social (D301): a «صندوق المؤسس» item (its id; `feedbackKind`).
-  ownerFeedback('OWNER_FEEDBACK');
+  ownerFeedback('OWNER_FEEDBACK'),
+
+  /// v1.97-social (D303): an event (EVENT_PRIZE_WON).
+  event('EVENT');
 
   new(this.wire);
 

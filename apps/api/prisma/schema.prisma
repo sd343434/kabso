@@ -236,6 +236,10 @@ model User {
   hostTargetAssignments  HostTargetAssignment[]
   dailyCheckIns          DailyCheckIn[]
   eventResults           EventResult[]
+  /// v1.97-social (D303): event prizes paid to the person (one row per result and winner).
+  eventPrizePayouts      EventPrizePayout[]
+  /// v1.97-social (D303 follow-up): event badges the person holds (until `expires_at`).
+  eventBadges            UserEventBadge[]
   // v1.52-social (D179): the cherry economy.
   cherryWallet           CherryWallet?
   cherryLedger           CherryLedgerEntry[]
@@ -1722,26 +1726,28 @@ model MediaAsset {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
 
-  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  upload        MediaUpload?
-  postMedia     PostMedia?
-  story         Story?
-  liveCover     LiveHost?
-  chatMessage   LiveChatMessage?
+  owner           User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload          MediaUpload?
+  postMedia       PostMedia?
+  story           Story?
+  liveCover       LiveHost?
+  chatMessage     LiveChatMessage?
   /// CP-018: a family's emblem.
-  familyEmblem  Family?
+  familyEmblem    Family?
   /// CP-022: a family's cover.
-  familyCover   Family?          @relation("FamilyCover")
-  /// D124: a home banner's picture.
-  homeBanner    HomeBanner?
+  familyCover     Family?            @relation("FamilyCover")
+  /// D124: a home banner's picture (v1.97-social, D303: a video banner's poster).
+  homeBanner      HomeBanner?        @relation("HomeBannerMedia")
+  /// v1.97-social (D303): a video banner's `BANNER_VIDEO`.
+  homeBannerVideo HomeBanner?        @relation("HomeBannerVideo")
   /// D155: a direct message's picture or voice clip.
-  dmMessage     DmMessage?
+  dmMessage       DmMessage?
   /// D168: a profile photo.
-  profileAvatar UserProfile?     @relation("ProfileAvatar")
+  profileAvatar   UserProfile?       @relation("ProfileAvatar")
   /// D218: a profile cover.
-  profileCover  UserProfile?     @relation("ProfileCover")
+  profileCover    UserProfile?       @relation("ProfileCover")
   /// v1.89-social (D290): the video of a level-raise request.
-  levelRaise    LevelRaiseRequest?
+  levelRaise      LevelRaiseRequest?
   /// v1.95-social (D301): the owner's cover video (one language).
   ownerCoverVideo OwnerCoverVideo?
 
@@ -2294,6 +2300,8 @@ enum NotificationType {
   /// v1.95-social (D301 follow-up, §10.112.7, system; target POST): the app owner published an official announcement —
   /// to every ACTIVE account (staff too), written by a background fan-out, once per announcement.
   OWNER_ANNOUNCEMENT
+  /// v1.97-social (D303, system; target EVENT): the person won a prize of an event board (paid automatically).
+  EVENT_PRIZE_WON
 
   @@map("notification_type")
 }
@@ -2359,6 +2367,9 @@ model Notification {
   /// v1.95-social (D301): OWNER_FEEDBACK_NEW — the new inbox item.
   ownerFeedbackId      String?                 @map("owner_feedback_id") @db.Uuid
   ownerFeedback        OwnerFeedback?          @relation(fields: [ownerFeedbackId], references: [id], onDelete: Cascade)
+  /// v1.97-social (D303): EVENT_PRIZE_WON — the event (deleted with it).
+  eventId              String?                 @map("event_id") @db.Uuid
+  event                Event?                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2383,6 +2394,7 @@ model Notification {
   @@index([ownerFeedbackId], map: "notifications_owner_feedback_idx", where: raw("owner_feedback_id IS NOT NULL"))
   /// D301 follow-up: one OWNER_ANNOUNCEMENT per person and announcement (the fan-out is idempotent).
   @@unique([recipientId, postId], map: "notifications_owner_announcement_once", where: raw("type = 'OWNER_ANNOUNCEMENT'::notification_type"))
+  @@index([eventId], map: "notifications_event_idx", where: raw("event_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
@@ -2984,6 +2996,8 @@ enum BagItemSource {
   HOST_ACTIVE
   /// D270 (§10.98): bought in the store for oneself (a store gift is a GIFT with its giver).
   STORE
+  /// v1.97-social (D303, §10.114): an event prize (reference: the `event_prize_payouts` row).
+  EVENT
 
   @@map("bag_item_source")
 }
@@ -3237,6 +3251,8 @@ model Gift {
   stock       UserGiftStock[]
   pkBoosts    PkBoost[]
   sends       LiveGift[]
+  /// v1.97-social (D303): the events this gift scores in.
+  eventGifts  EventGift[]
 
   @@index([category, sortOrder], map: "gifts_category_sort_idx")
   @@map("gifts")
@@ -3538,7 +3554,16 @@ model HomeBanner {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  /// v1.97-social (D303, §10.114.6): `IMAGE` (a still), `ANIMATED` (an animated WebP / GIF kept animated) or `VIDEO`
+  /// (`video_media_id`, muted and looping; `media_id` is its poster) — CHECK `home_banners_kind_shape`.
+  kind         String  @default("IMAGE") @db.VarChar(8)
+  videoMediaId String? @unique @map("video_media_id") @db.Uuid
+  /// v1.97-social (D303): the event the banner opens (`link` is then `/events/<id>`); null once the event is gone.
+  eventId      String? @map("event_id") @db.Uuid
+
+  media MediaAsset  @relation("HomeBannerMedia", fields: [mediaId], references: [id], onDelete: Cascade)
+  video MediaAsset? @relation("HomeBannerVideo", fields: [videoMediaId], references: [id], onDelete: SetNull)
+  event Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([sortOrder, startsAt], map: "home_banners_enabled_idx", where: raw("enabled"))
   @@index([placement, sortOrder, startsAt], map: "home_banners_placement_idx", where: raw("enabled"))
@@ -3946,6 +3971,8 @@ enum EventMetric {
   LIVE_MINUTES
   TAPS_RECEIVED
   NEW_FOLLOWERS
+  /// v1.97-social (D303, §10.114): the event's own gifts (`event_gifts`), scored per board (`event_boards`).
+  EVENT_GIFTS
 
   @@map("event_metric")
 }
@@ -4132,35 +4159,53 @@ model DailyCheckIn {
 /// `regions` (ISO 3166-1 alpha-2) targets the event at those countries (the Regional tab).
 /// `prizes` is a JSON array of `{rankFrom, rankTo, coins}`.
 model Event {
-  id          String          @id @default(uuid(7)) @db.Uuid
-  titleAr     String          @map("title_ar") @db.VarChar(120)
-  titleEn     String          @map("title_en") @db.VarChar(120)
-  bannerUrl   String?         @map("banner_url") @db.VarChar(2048)
-  startsAt    DateTime        @map("starts_at") @db.Timestamptz(3)
-  endsAt      DateTime?       @map("ends_at") @db.Timestamptz(3)
-  rulesAr     String          @map("rules_ar") @db.VarChar(4000)
-  rulesEn     String          @map("rules_en") @db.VarChar(4000)
+  id                  String          @id @default(uuid(7)) @db.Uuid
+  titleAr             String          @map("title_ar") @db.VarChar(120)
+  titleEn             String          @map("title_en") @db.VarChar(120)
+  bannerUrl           String?         @map("banner_url") @db.VarChar(2048)
+  startsAt            DateTime        @map("starts_at") @db.Timestamptz(3)
+  endsAt              DateTime?       @map("ends_at") @db.Timestamptz(3)
+  rulesAr             String          @map("rules_ar") @db.VarChar(4000)
+  rulesEn             String          @map("rules_en") @db.VarChar(4000)
   /// D176: the calendar bar's second line (a short prize line) and its tone.
-  summaryAr   String?         @map("summary_ar") @db.VarChar(80)
-  summaryEn   String?         @map("summary_en") @db.VarChar(80)
-  tone        String?         @db.VarChar(6)
-  metric      EventMetric
-  audience    ProgramAudience @default(EVERYONE)
-  permanent   Boolean         @default(false)
-  regions     String[]        @default([]) @db.Char(2)
-  featured    Boolean         @default(false)
-  prizes      Json            @default("[]")
+  summaryAr           String?         @map("summary_ar") @db.VarChar(80)
+  summaryEn           String?         @map("summary_en") @db.VarChar(80)
+  tone                String?         @db.VarChar(6)
+  metric              EventMetric
+  audience            ProgramAudience @default(EVERYONE)
+  permanent           Boolean         @default(false)
+  regions             String[]        @default([]) @db.Char(2)
+  featured            Boolean         @default(false)
+  prizes              Json            @default("[]")
   /// The leaderboard was frozen into `event_results` (once, after the end).
-  frozenAt    DateTime?       @map("frozen_at") @db.Timestamptz(3)
+  frozenAt            DateTime?       @map("frozen_at") @db.Timestamptz(3)
   /// The prizes are paid from this time (the review window after the freeze).
-  payoutDueAt DateTime?       @map("payout_due_at") @db.Timestamptz(3)
+  payoutDueAt         DateTime?       @map("payout_due_at") @db.Timestamptz(3)
   /// An admin holds the payout during the review (event-admin hold / release).
-  payoutHold  Boolean         @default(false) @map("payout_hold")
-  paidAt      DateTime?       @map("paid_at") @db.Timestamptz(3)
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  payoutHold          Boolean         @default(false) @map("payout_hold")
+  paidAt              DateTime?       @map("paid_at") @db.Timestamptz(3)
+  /// v1.97-social (D303, §10.114.1): the IANA zone the event's dates are shown in (null: LIVE_RANKINGS_TIME_ZONE).
+  timeZone            String?         @map("time_zone") @db.VarChar(64)
+  /// v1.97-social (D303 follow-ups, owner; CONVENTIONS §10.114.9): the event page's art, uploaded per event
+  /// (`uploadAdminEventMedia` / `uploadStaffEventMedia`, the published specs): the background (`media/events/bg/…`:
+  /// `.webp` still, `.anim.webp` animated, `.mp4` / `.mov` video with `backgroundPosterKey`), the transparent title art
+  /// (`media/events/title/…webp`) and the animation overlay (`media/events/overlay/….svga|.json`). Null = none.
+  backgroundKey       String?         @map("background_key") @db.VarChar(200)
+  backgroundPosterKey String?         @map("background_poster_key") @db.VarChar(200)
+  titleKey            String?         @map("title_key") @db.VarChar(200)
+  overlayKey          String?         @map("overlay_key") @db.VarChar(200)
+  /// v1.97-social (D303): who made it last («via» panel / app / cli) — audit has the full trail.
+  createdById         String?         @map("created_by_id") @db.Uuid
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  results EventResult[]
+  results       EventResult[]
+  /// v1.97-social (D303): an EVENT_GIFTS event's gifts and boards.
+  gifts         EventGift[]
+  boards        EventBoard[]
+  banners       HomeBanner[]
+  notifications Notification[]
+  badgeGrants   UserEventBadge[]
 
   @@index([startsAt], map: "events_starts_idx")
   @@index([endsAt], map: "events_due_idx", where: raw("(paid_at IS NULL)"))
@@ -4172,22 +4217,88 @@ model Event {
 model EventResult {
   id          String    @id @default(uuid(7)) @db.Uuid
   eventId     String    @map("event_id") @db.Uuid
+  /// v1.97-social (D303): `MAIN` (a D166 event's one board) or the board kind (SENDERS, RECEIVERS, AGENCIES, CP).
+  board       String    @default("MAIN") @db.VarChar(10)
   rank        Int
+  /// The person (SENDERS / RECEIVERS / MAIN), the agency's OWNER (AGENCIES) or the couple's first partner (CP).
   userId      String    @map("user_id") @db.Uuid
+  /// v1.97-social (D303): what is ranked — the user id, the agency id (AGENCIES) or the couple id (CP).
+  entrantKey  String    @map("entrant_key") @db.VarChar(36)
+  /// v1.97-social (D303): AGENCIES — the agency; CP — the couple and its second partner (both win the bundle).
+  agencyId    String?   @map("agency_id") @db.Uuid
+  coupleId    String?   @map("couple_id") @db.Uuid
+  partnerId   String?   @map("partner_id") @db.Uuid
   score       BigInt
   prizeCoins  Int       @default(0) @map("prize_coins")
+  /// v1.97-social (D303): the prize bundle of this rank, frozen with the result (`[]` = none or not qualified).
+  prize       Json      @default("[]")
   /// NONE (no prize for this rank), PENDING, PAID or FORFEITED (the account was not active).
   prizeStatus String    @default("NONE") @map("prize_status") @db.VarChar(10)
   paidAt      DateTime? @map("paid_at") @db.Timestamptz(3)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event   Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payouts EventPrizePayout[]
 
-  @@unique([eventId, rank], map: "event_results_rank_once")
-  @@unique([eventId, userId], map: "event_results_user_once")
+  @@unique([eventId, board, rank], map: "event_results_rank_once")
+  @@unique([eventId, board, entrantKey], map: "event_results_entrant_once")
   @@index([userId], map: "event_results_user_idx")
   @@map("event_results")
+}
+
+/// v1.97-social (D303, CONVENTIONS §10.114.2): a gift that scores in an EVENT_GIFTS event — each recipient of a send
+/// adds `coins × points_per_coin + quantity × points_per_gift` points (CHECK `event_gifts_points`).
+model EventGift {
+  eventId       String @map("event_id") @db.Uuid
+  giftCode      String @map("gift_code") @db.VarChar(40)
+  pointsPerCoin Int    @default(1) @map("points_per_coin")
+  pointsPerGift Int    @default(0) @map("points_per_gift")
+  sortOrder     Int    @default(0) @map("sort_order")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  gift  Gift  @relation(fields: [giftCode], references: [code], onDelete: Restrict)
+
+  @@id([eventId, giftCode], map: "event_gifts_pkey")
+  @@index([giftCode], map: "event_gifts_gift_idx")
+  @@map("event_gifts")
+}
+
+/// v1.97-social (D303, §10.114.3): one board of an EVENT_GIFTS event — SENDERS «الداعمين», RECEIVERS «المضيفين»,
+/// AGENCIES «الوكالات», CP — with its qualification minimum and its prize bundles per rank range (CHECK
+/// `event_boards_kind`, `event_boards_min_points`).
+model EventBoard {
+  id        String @id @default(uuid(7)) @db.Uuid
+  eventId   String @map("event_id") @db.Uuid
+  kind      String @db.VarChar(10)
+  minPoints BigInt @default(0) @map("min_points")
+  /// `[{rankFrom, rankTo, items: [{type: COINS|CHERRIES|BAG_ITEM|VIP, amount?, itemCode?, tierCode?, days?}]}]`.
+  prizes    Json   @default("[]")
+  sortOrder Int    @default(0) @map("sort_order")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, kind], map: "event_boards_kind_once")
+  @@map("event_boards")
+}
+
+/// v1.97-social (D303, §10.114.4): one winner's payout of one result (CP: both partners) — once (the key); `granted`
+/// lists what was given (items skipped because gone from the catalogue are listed with `skipped`).
+model EventPrizePayout {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  resultId  String   @map("result_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// PAID, or FORFEITED (the account was not ACTIVE at payout time).
+  status    String   @db.VarChar(10)
+  granted   Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  result EventResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([resultId, userId], map: "event_prize_payouts_once")
+  @@index([userId], map: "event_prize_payouts_user_idx")
+  @@map("event_prize_payouts")
 }
 
 // ---- v1.52-social (D179, CONVENTIONS §10.46): the cherry economy, phase 1 ----------------------------
@@ -4223,6 +4334,9 @@ enum CherryLedgerReason {
   /// v1.82-live (D295, §10.108): «حظر الوكالة» — the owner's unwithdrawn agency commission forfeited (a debit;
   /// reference: the agency).
   AGENCY_FORFEIT
+  /// v1.97-social (D303, §10.114): an event prize in cherries (reference `EVP:<result>`), locked for withdrawal and the
+  /// store like TASK_REWARD (§10.46.1).
+  EVENT_PRIZE
 
   @@map("cherry_ledger_reason")
 }
@@ -4362,14 +4476,14 @@ model Agency {
   closeReason         AgencyCloseReason? @map("close_reason")
   closeNote           String?            @map("close_note") @db.VarChar(500)
 
-  owner         User                @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  parent        Agency?             @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
-  subAgencies   Agency[]            @relation("AgencyParent")
-  hosts         AgencyHost[]
-  earnings      AgencyEarning[]
-  months        AgencyMonth[]
-  applications  AgencyApplication[]
-  notifications Notification[]
+  owner              User                 @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  parent             Agency?              @relation("AgencyParent", fields: [parentAgencyId], references: [id], onDelete: SetNull)
+  subAgencies        Agency[]             @relation("AgencyParent")
+  hosts              AgencyHost[]
+  earnings           AgencyEarning[]
+  months             AgencyMonth[]
+  applications       AgencyApplication[]
+  notifications      Notification[]
   /// v1.82-live (D295): the creators this agency activated, and its ban (if any).
   creatorActivations CreatorApplication[] @relation("CreatorActivatingAgency")
   ban                AgencyBan?
@@ -6809,33 +6923,33 @@ enum StoreCurrency {
 /// D270: an item on the store — a bag catalogue row (`bagCode`, `store_<12 hex>`) with its hosted art, names, order,
 /// «جديد» badge, on / off and prices (per duration per currency). Never deleted (purchases point at it).
 model StoreItem {
-  id              String               @id @default(uuid(7)) @db.Uuid
-  bagCode         String               @unique(map: "store_items_bag_code_key") @map("bag_code") @db.VarChar(40)
-  kind            BagCategory
-  nameAr          String               @map("name_ar") @db.VarChar(40)
-  nameEn          String               @map("name_en") @db.VarChar(40)
+  id                 String               @id @default(uuid(7)) @db.Uuid
+  bagCode            String               @unique(map: "store_items_bag_code_key") @map("bag_code") @db.VarChar(40)
+  kind               BagCategory
+  nameAr             String               @map("name_ar") @db.VarChar(40)
+  nameEn             String               @map("name_en") @db.VarChar(40)
   /// Hosted https art: a PNG / WebP still and an SVGA or MP4 animation (MP4: `animationAlpha` set).
-  still           String?              @db.VarChar(2048)
-  animation       String?              @db.VarChar(2048)
-  animationFormat GiftAnimationFormat? @map("animation_format")
-  animationAlpha  GiftVideoAlpha?      @map("animation_alpha")
-  artWidth        Int?                 @map("art_width")
-  artHeight       Int?                 @map("art_height")
-  sortOrder       Int                  @map("sort_order")
+  still              String?              @db.VarChar(2048)
+  animation          String?              @db.VarChar(2048)
+  animationFormat    GiftAnimationFormat? @map("animation_format")
+  animationAlpha     GiftVideoAlpha?      @map("animation_alpha")
+  artWidth           Int?                 @map("art_width")
+  artHeight          Int?                 @map("art_height")
+  sortOrder          Int                  @map("sort_order")
   /// Deprecated v1.79-live (D289): true exactly when `badges` holds NEW (kept for a rollback).
-  isNew           Boolean              @default(false) @map("is_new")
+  isNew              Boolean              @default(false) @map("is_new")
   /// v1.79-live (D289): the badges, as on gifts (CHECKs `store_items_badges_sound`, `store_items_badge_*_until`).
-  badges             ItemBadge[]       @default([])
-  badgeNewUntil      DateTime?         @map("badge_new_until") @db.Timestamptz(3)
-  badgeLimitedUntil  DateTime?         @map("badge_limited_until") @db.Timestamptz(3)
-  badgeSeasonalUntil DateTime?         @map("badge_seasonal_until") @db.Timestamptz(3)
-  enabled         Boolean              @default(false)
+  badges             ItemBadge[]          @default([])
+  badgeNewUntil      DateTime?            @map("badge_new_until") @db.Timestamptz(3)
+  badgeLimitedUntil  DateTime?            @map("badge_limited_until") @db.Timestamptz(3)
+  badgeSeasonalUntil DateTime?            @map("badge_seasonal_until") @db.Timestamptz(3)
+  enabled            Boolean              @default(false)
   /// v1.79-live (D289b): «حذف من المتجر» of an item someone bought or holds — gone from the store and every listing, never
   /// sold (`enabled` false), still working for its owners until their items end; null: in the store. CHECK
   /// `store_items_hidden_off`. An item nobody bought or holds is deleted for real instead.
-  hiddenAt        DateTime?            @map("hidden_at") @db.Timestamptz(3)
-  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  hiddenAt           DateTime?            @map("hidden_at") @db.Timestamptz(3)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   bagItem   BagItem          @relation(fields: [bagCode, kind], references: [code, category], onDelete: Restrict)
   prices    StoreItemPrice[]
@@ -7051,27 +7165,27 @@ enum LevelRaiseStatus {
 /// a conservative `factor_milli` (500 = × 0.5). `confidence` CONFIRMED only with a source (owner or a cited page).
 /// Exactly one row is the default for an app not in the list (`is_other`).
 model LevelRaiseSourceApp {
-  id                 String   @id @default(uuid(7)) @db.Uuid
-  code               String   @unique @db.VarChar(32)
-  nameAr             String   @map("name_ar") @db.VarChar(60)
-  nameEn             String   @map("name_en") @db.VarChar(60)
-  mode               String   @db.VarChar(8)
-  usdPerMillionCents BigInt?  @map("usd_per_million_cents")
-  coinsPerXpMilli    BigInt?  @map("coins_per_xp_milli")
-  xpTable            Json     @default("[]") @map("xp_table")
-  factorMilli        Int?     @map("factor_milli")
-  confidence         String   @db.VarChar(10)
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  code               String    @unique @db.VarChar(32)
+  nameAr             String    @map("name_ar") @db.VarChar(60)
+  nameEn             String    @map("name_en") @db.VarChar(60)
+  mode               String    @db.VarChar(8)
+  usdPerMillionCents BigInt?   @map("usd_per_million_cents")
+  coinsPerXpMilli    BigInt?   @map("coins_per_xp_milli")
+  xpTable            Json      @default("[]") @map("xp_table")
+  factorMilli        Int?      @map("factor_milli")
+  confidence         String    @db.VarChar(10)
   /// v1.89-social (D290): other spellings matched by the name suggestion (Zafa / زفة / Zafa Live …).
-  aliases            String[] @default([]) @db.VarChar(60)
-  sourceNote         String   @default("") @map("source_note") @db.VarChar(1000)
-  sourceUrl          String?  @map("source_url") @db.VarChar(500)
+  aliases            String[]  @default([]) @db.VarChar(60)
+  sourceNote         String    @default("") @map("source_note") @db.VarChar(1000)
+  sourceUrl          String?   @map("source_url") @db.VarChar(500)
   sourceDate         DateTime? @map("source_date") @db.Date
-  enabled            Boolean  @default(true)
-  isOther            Boolean  @default(false) @map("is_other")
-  sort               Int      @default(100)
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
-  updatedById        String?  @map("updated_by_id") @db.Uuid
+  enabled            Boolean   @default(true)
+  isOther            Boolean   @default(false) @map("is_other")
+  sort               Int       @default(100)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById        String?   @map("updated_by_id") @db.Uuid
 
   requests LevelRaiseRequest[]
 
@@ -7103,57 +7217,57 @@ model LevelRaiseSettings {
 /// One PENDING per supporter. On approval the level is raised through the levels engine (an ADJUSTMENT ledger entry,
 /// `ledger_entry_id`); `proposal` keeps the proposal and its inputs as decided.
 model LevelRaiseRequest {
-  id              String           @id @default(uuid(7)) @db.Uuid
-  supporterUserId String           @map("supporter_user_id") @db.Uuid
-  requestedById   String           @map("requested_by_id") @db.Uuid
-  via             String           @db.VarChar(8)
-  sourceAppId     String?          @map("source_app_id") @db.Uuid
-  sourceAppName   String           @map("source_app_name") @db.VarChar(60)
-  sourceAccountId String           @map("source_account_id") @db.VarChar(64)
-  sourceLevel     Int              @map("source_level")
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  supporterUserId    String           @map("supporter_user_id") @db.Uuid
+  requestedById      String           @map("requested_by_id") @db.Uuid
+  via                String           @db.VarChar(8)
+  sourceAppId        String?          @map("source_app_id") @db.Uuid
+  sourceAppName      String           @map("source_app_name") @db.VarChar(60)
+  sourceAccountId    String           @map("source_account_id") @db.VarChar(64)
+  sourceLevel        Int              @map("source_level")
   /// The video's asset while it exists; NULL once deleted after the decision (owner: the video goes, the evidence stays).
-  videoMediaId    String?          @unique @map("video_media_id") @db.Uuid
+  videoMediaId       String?          @unique @map("video_media_id") @db.Uuid
   /// The video's evidence, kept after its deletion: the asset id, length, size and display size.
-  videoAssetId    String           @map("video_asset_id") @db.Uuid
-  videoDurationMs Int?             @map("video_duration_ms")
-  videoByteSize   Int              @map("video_byte_size")
-  videoWidth      Int              @map("video_width")
-  videoHeight     Int              @map("video_height")
+  videoAssetId       String           @map("video_asset_id") @db.Uuid
+  videoDurationMs    Int?             @map("video_duration_ms")
+  videoByteSize      Int              @map("video_byte_size")
+  videoWidth         Int              @map("video_width")
+  videoHeight        Int              @map("video_height")
   /// Set at the decision; the media sweeper deletes the objects and the asset row (retried until it succeeds).
-  videoDeletedAt  DateTime?        @map("video_deleted_at") @db.Timestamptz(3)
+  videoDeletedAt     DateTime?        @map("video_deleted_at") @db.Timestamptz(3)
   /// The canonical source app (`APP:<code>`, or `NAME:<normalized name>` for an app not in the list) and the account ID
   /// trimmed and lower-cased: unique among PENDING / APPROVED requests (`level_raise_requests_source_once`).
-  sourceAppKey     String          @map("source_app_key") @db.VarChar(80)
-  sourceAccountKey String          @map("source_account_key") @db.VarChar(64)
+  sourceAppKey       String           @map("source_app_key") @db.VarChar(80)
+  sourceAccountKey   String           @map("source_account_key") @db.VarChar(64)
   /// The latest REJECTED request for the same source account when this one was made («سبق رفض طلب بنفس الحساب»).
-  previousRejectedId String?       @map("previous_rejected_id") @db.Uuid
-  note            String?          @db.VarChar(500)
-  status          LevelRaiseStatus @default(PENDING)
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  decidedAt       DateTime?        @map("decided_at") @db.Timestamptz(3)
-  decidedById     String?          @map("decided_by_id") @db.Uuid
-  rejectReason    String?          @map("reject_reason") @db.VarChar(500)
-  proposedLevel   Int?             @map("proposed_level")
-  approvedLevel   Int?             @map("approved_level")
-  levelBefore     Int?             @map("level_before")
-  levelAfter      Int?             @map("level_after")
-  ledgerEntryId   String?          @map("ledger_entry_id") @db.Uuid
-  proposal        Json?
+  previousRejectedId String?          @map("previous_rejected_id") @db.Uuid
+  note               String?          @db.VarChar(500)
+  status             LevelRaiseStatus @default(PENDING)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt          DateTime?        @map("decided_at") @db.Timestamptz(3)
+  decidedById        String?          @map("decided_by_id") @db.Uuid
+  rejectReason       String?          @map("reject_reason") @db.VarChar(500)
+  proposedLevel      Int?             @map("proposed_level")
+  approvedLevel      Int?             @map("approved_level")
+  levelBefore        Int?             @map("level_before")
+  levelAfter         Int?             @map("level_after")
+  ledgerEntryId      String?          @map("ledger_entry_id") @db.Uuid
+  proposal           Json?
 
-  supporter     User                 @relation("LevelRaiseSupporter", fields: [supporterUserId], references: [id], onDelete: Cascade)
-  requestedBy   User                 @relation("LevelRaiseRequester", fields: [requestedById], references: [id], onDelete: Cascade)
-  decidedBy     User?                @relation("LevelRaiseDecider", fields: [decidedById], references: [id], onDelete: SetNull)
-  sourceApp     LevelRaiseSourceApp? @relation(fields: [sourceAppId], references: [id], onDelete: SetNull)
-  video         MediaAsset?          @relation(fields: [videoMediaId], references: [id], onDelete: SetNull)
-  previousRejected LevelRaiseRequest? @relation("LevelRaisePreviousRejection", fields: [previousRejectedId], references: [id], onDelete: SetNull)
-  laterRequests    LevelRaiseRequest[] @relation("LevelRaisePreviousRejection")
-  notifications Notification[]
+  supporter        User                 @relation("LevelRaiseSupporter", fields: [supporterUserId], references: [id], onDelete: Cascade)
+  requestedBy      User                 @relation("LevelRaiseRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  decidedBy        User?                @relation("LevelRaiseDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  sourceApp        LevelRaiseSourceApp? @relation(fields: [sourceAppId], references: [id], onDelete: SetNull)
+  video            MediaAsset?          @relation(fields: [videoMediaId], references: [id], onDelete: SetNull)
+  previousRejected LevelRaiseRequest?   @relation("LevelRaisePreviousRejection", fields: [previousRejectedId], references: [id], onDelete: SetNull)
+  laterRequests    LevelRaiseRequest[]  @relation("LevelRaisePreviousRejection")
+  notifications    Notification[]
 
+  @@unique([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_once", where: raw("status IN ('PENDING'::level_raise_status, 'APPROVED'::level_raise_status)"))
   @@index([status, createdAt(sort: Desc)], map: "level_raise_requests_status_idx")
   @@index([requestedById, createdAt(sort: Desc)], map: "level_raise_requests_requester_idx")
   @@index([supporterUserId, createdAt(sort: Desc)], map: "level_raise_requests_supporter_idx")
   @@index([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_idx")
-  @@unique([sourceAppKey, sourceAccountKey], map: "level_raise_requests_source_once", where: raw("status IN ('PENDING'::level_raise_status, 'APPROVED'::level_raise_status)"))
   @@map("level_raise_requests")
 }
 
@@ -7190,19 +7304,19 @@ model UserVerificationBadge {
 /// D293: the OWNER's thresholds (one row, id 1; panel-editable with the code, audited). "More than": a value equal
 /// to its threshold does not qualify. The window is the last 30 days (rolling, the owner's decision, not a setting).
 model VerificationBadgeSettings {
-  id                       Int       @id @default(1) @db.SmallInt
+  id                    Int       @id @default(1) @db.SmallInt
   /// Gold: coins the recharge agent sold (direct sales + completed orders) in the window, more than this.
-  rechargeMinSalesCoins    BigInt    @default(300000000) @map("recharge_min_sales_coins")
+  rechargeMinSalesCoins BigInt    @default(300000000) @map("recharge_min_sales_coins")
   /// Gold: cherries the recharge agent bought from hosts (confirmed cherry purchases) in the window, more than this.
-  rechargeMinCherries      BigInt    @default(300000000) @map("recharge_min_cherries")
+  rechargeMinCherries   BigInt    @default(300000000) @map("recharge_min_cherries")
   /// Green: the host agent's agency has more than this many active hosts now.
-  hostAgentMinHosts        Int       @default(30) @map("host_agent_min_hosts")
+  hostAgentMinHosts     Int       @default(30) @map("host_agent_min_hosts")
   /// Green: the cherries the agency's hosts received (agency earnings) in the window, more than this.
-  hostAgentMinCherries     BigInt    @default(300000000) @map("host_agent_min_cherries")
+  hostAgentMinCherries  BigInt    @default(300000000) @map("host_agent_min_cherries")
   /// The last full recompute (the sweeper, the CLI or a settings change).
-  lastRunAt                DateTime? @map("last_run_at") @db.Timestamptz(3)
-  updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
-  updatedById              String?   @map("updated_by_id") @db.Uuid
+  lastRunAt             DateTime? @map("last_run_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  updatedById           String?   @map("updated_by_id") @db.Uuid
 
   @@map("verification_badge_settings")
 }
@@ -7327,4 +7441,54 @@ model OwnerFixedCost {
 
   @@index([activeFrom, activeTo], map: "owner_fixed_costs_active_idx")
   @@map("owner_fixed_costs")
+}
+
+/// v1.97-social (D303 follow-ups, owner: «ميداليات كجوائز» with levels; CONVENTIONS §10.114.8): an event medal «وسام
+/// فعالية», made by the team (panel or app) and reusable across events; each level has its own uploaded art
+/// (`event_badge_levels`); a prize line gives one level for N days.
+model EventBadge {
+  code        String   @id @db.VarChar(40)
+  nameAr      String   @map("name_ar") @db.VarChar(40)
+  nameEn      String   @map("name_en") @db.VarChar(40)
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  levels  EventBadgeLevel[]
+  holders UserEventBadge[]
+
+  @@map("event_badges")
+}
+
+/// v1.97-social (D303 follow-up): one level of an event medal and its art (`media/events/badge/<id>.webp`, 512 × 512,
+/// transparent — the published spec).
+model EventBadgeLevel {
+  badgeCode String @map("badge_code") @db.VarChar(40)
+  level     Int    @db.SmallInt
+  imageKey  String @map("image_key") @db.VarChar(200)
+
+  badge EventBadge @relation(fields: [badgeCode], references: [code], onDelete: Cascade)
+
+  @@id([badgeCode, level], map: "event_badge_levels_pkey")
+  @@map("event_badge_levels")
+}
+
+/// v1.97-social (D303 follow-up): an event medal a person holds until `expires_at`, at `level` (a new prize of the same
+/// medal adds its days and keeps the higher level); shown with the medals while it lasts; the events sweeper deletes
+/// rows a day after they end.
+model UserEventBadge {
+  userId    String    @map("user_id") @db.Uuid
+  badgeCode String    @map("badge_code") @db.VarChar(40)
+  level     Int       @default(1) @db.SmallInt
+  /// Null = permanent «دائم» (owner, D303 follow-up).
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(3)
+  grantedAt DateTime  @default(now()) @map("granted_at") @db.Timestamptz(3)
+  eventId   String?   @map("event_id") @db.Uuid
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge EventBadge @relation(fields: [badgeCode], references: [code], onDelete: Cascade)
+  event Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@id([userId, badgeCode], map: "user_event_badges_pkey")
+  @@index([expiresAt], map: "user_event_badges_expires_idx")
+  @@map("user_event_badges")
 }

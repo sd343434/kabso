@@ -169,10 +169,12 @@ export class ProgramsController {
   }
 
   @Get('events/:eventId/leaderboard')
-  leaderboard(
+  async leaderboard(
     @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
     @Param('eventId') eventId: string,
+    @Query() query: unknown,
   ): Promise<EventLeaderboardDto> {
-    return this.events.leaderboard(auth.userId, eventId);
+    return this.events.leaderboard(auth.userId, eventId, query, await this.language(req, auth));
   }
 }

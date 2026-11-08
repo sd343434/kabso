@@ -14,6 +14,21 @@ Color programGold(BuildContext context) =>
     ? KBrandColors.gold
     : const Color(0xFFB7811A);
 
+/// D303 follow-ups: sections under this draw as the event page's
+/// semi-transparent gold-framed cards with gold headings (over its art).
+class ProgramGoldFrame extends InheritedWidget {
+  const new({required super.child, super.key});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ProgramGoldFrame>() != null;
+
+  @override
+  bool updateShouldNotify(ProgramGoldFrame oldWidget) => false;
+}
+
+/// The event page's gold.
+const Color kProgramFrameGold = Color(0xFFE2B54A);
+
 /// A rounded section card with a short accent bar before its [title]
 /// (the reference's section headers) and an optional [trailing].
 class ProgramSection extends StatelessWidget {
@@ -36,13 +51,17 @@ class ProgramSection extends StatelessWidget {
     final t = context.textStyles;
     final subtitle = this.subtitle;
     final trailing = this.trailing;
+    final gold = ProgramGoldFrame.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: KSpacing.md),
       padding: const EdgeInsets.all(KSpacing.lg),
       decoration: BoxDecoration(
-        color: p.surfaceRaised,
+        color: gold ? const Color(0xA6140C04) : p.surfaceRaised,
         borderRadius: BorderRadius.circular(KRadius.lg),
-        border: Border.all(color: p.border),
+        border: Border.all(
+          color: gold ? kProgramFrameGold : p.border,
+          width: gold ? 1.2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -64,8 +83,8 @@ class ProgramSection extends StatelessWidget {
                   child: Text(
                     title,
                     style: t.title.copyWith(
-                      color: p.textPrimary,
-                      fontWeight: FontWeight.w700,
+                      color: gold ? kProgramFrameGold : p.textPrimary,
+                      fontWeight: gold ? FontWeight.w800 : FontWeight.w700,
                     ),
                   ),
                 ),

@@ -40,6 +40,8 @@ export const STAFF_APP_CAPABILITIES = [
   // Owner (2026-11-06): the permanent deletions from a report too (no code since D288).
   'users.content',
   'users.delete',
+  // v1.97-social (D303, §10.114.7): «الفعاليات» — create / edit gift events and hold their payout.
+  'events.manage',
 ] as const satisfies readonly Capability[];
 
 /** `StaffStatus` (v1.68-live, D273). */

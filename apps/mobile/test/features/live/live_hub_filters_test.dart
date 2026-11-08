@@ -403,7 +403,9 @@ void main() {
       );
     });
 
-    testWidgets('D248: the banner follows the first row', (tester) async {
+    testWidgets('D303: the banner is the first block, above the first row', (
+      tester,
+    ) async {
       await _pump(
         tester,
         banners: const [
@@ -415,11 +417,11 @@ void main() {
         ],
       );
       expect(find.byKey(LiveHubGrid.bannerSlotKey), findsOneWidget);
+      final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
       final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
-      final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
       final banner = tester.getRect(find.byType(KHomeBannerCarousel));
-      expect(banner.top, greaterThanOrEqualTo(second.bottom));
-      expect(third.top, greaterThan(banner.bottom));
+      expect(first.top, greaterThan(banner.bottom));
+      expect(second.top, greaterThan(banner.bottom));
     });
 
     testWidgets('Arabic: Nearby at the reading start (right)', (tester) async {

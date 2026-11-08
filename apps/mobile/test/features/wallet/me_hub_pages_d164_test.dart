@@ -161,7 +161,7 @@ class _FakePrograms implements ProgramsRepository {
   Future<EventDetail> event(String eventId) => throw UnimplementedError();
 
   @override
-  Future<EventLeaderboard> leaderboard(String eventId) =>
+  Future<EventLeaderboard> leaderboard(String eventId, {String? board}) =>
       throw UnimplementedError();
 }
 

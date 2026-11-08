@@ -146,7 +146,7 @@ export interface SvgaMovieInfo {
 export interface GiftAnimationFile extends GiftArtFile, SvgaMovieInfo {}
 
 /** A protobuf varint at `at`: its value (safe for lengths) and the next offset, or null past the end. */
-function varint(bytes: Buffer, at: number): { value: number; next: number } | null {
+export function varint(bytes: Buffer, at: number): { value: number; next: number } | null {
   let value = 0;
   let scale = 1;
   for (let i = at; i < bytes.length && i < at + 10; i += 1) {
@@ -159,7 +159,7 @@ function varint(bytes: Buffer, at: number): { value: number; next: number } | nu
 }
 
 /** The top-level fields of a protobuf message: number, wire type and (length-delimited) payload. */
-function* protoFields(
+export function* protoFields(
   bytes: Buffer,
 ): Generator<{ field: number; wire: number; start: number; end: number }, void, undefined> {
   let at = 0;

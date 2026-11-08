@@ -33,7 +33,9 @@ export type BagItemSource =
   | 'GIFT'
   | 'HOST_ACTIVE'
   /** D270 (§10.98): bought in the store for oneself (a store gift is a `GIFT` with its giver). */
-  | 'STORE';
+  | 'STORE'
+  /** v1.97-social (D303, §10.114.4): an event prize (non-transferable, like a level reward). */
+  | 'EVENT';
 
 /** One day, the unit of a partial send and of an admin grant (§10.45). */
 export const BAG_DAY_MS = 24 * 3600_000;
@@ -42,7 +44,11 @@ export const BAG_DAY_MS = 24 * 3600_000;
  * frames, earned by the person's own level) and `HOST_ACTIVE` (v1.55-social, D186: the active-host
  * frame, the server's while the host stays active). Free items are not transferable either.
  */
-export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set(['LEVEL_REWARD', 'HOST_ACTIVE']);
+export const NON_TRANSFERABLE_SOURCES: ReadonlySet<string> = new Set([
+  'LEVEL_REWARD',
+  'HOST_ACTIVE',
+  'EVENT',
+]);
 
 /**
  * Whether an owned item may be sent: not free, not a level reward, and (D266, owner: «العناصر الدائمة ايضاً لا

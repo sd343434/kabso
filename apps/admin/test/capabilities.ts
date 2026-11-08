@@ -96,4 +96,5 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   // D301.
   'owner.inbox': ['OWNER'],
   'owner.costs': ['OWNER'],
+  'events.manage': ['OWNER'],
 };

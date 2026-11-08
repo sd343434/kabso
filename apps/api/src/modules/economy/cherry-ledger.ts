@@ -412,6 +412,21 @@ export async function creditTaskCherriesIn(
   await applyMovementsIn(tx, [{ userId, reason: 'TASK_REWARD', delta: cherries }], reference, now);
 }
 
+/**
+ * v1.97-social (D303, CONVENTIONS §10.114.4): a gift event's cherry prize — `cherries` (> 0) as one `EVENT_PRIZE` row,
+ * reference `EVP:<payout>` (the ledger allows it once). Owner (D303 follow-up): withdrawable as soon as won — NOT in
+ * the task-cherry lock.
+ */
+export async function creditEventPrizeCherriesIn(
+  tx: Tx,
+  userId: string,
+  cherries: bigint,
+  reference: string,
+  now: Date,
+): Promise<void> {
+  await applyMovementsIn(tx, [{ userId, reason: 'EVENT_PRIZE', delta: cherries }], reference, now);
+}
+
 /** The ledger reference of a task reward: one per person, task and period. */
 export function taskRewardReference(taskCode: string, periodStart: string): string {
   return `${taskCode}@${periodStart}`;

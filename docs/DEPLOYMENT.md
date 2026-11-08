@@ -3272,3 +3272,37 @@ metadata-only, no rewrite; the runtime role gets DML through the default privile
   columns and table, but the staff's `avatar_url` stays the team picture's URL (served only by this version) — before
   rolling back run `UPDATE user_profiles SET avatar_url = staff_saved_avatar_url, staff_saved_avatar_url = NULL,
   staff_avatar = false WHERE staff_avatar;`.
+
+### 5.83 Gift events «فعاليات الهدايا» and animated / video banners (migrations `20270404090000_gift_events_enums`, `20270404090100_gift_events`; D303) — [IMPLEMENTED API + panel; app partial (see the board); draft contract v1.97-social; not deployed, not device-tested]
+
+CONVENTIONS §10.114. (Numbers chosen above every other branch's: §5.79–§5.82 belong to D300–D302.) The first migration
+only adds enum values (`event_metric` `EVENT_GIFTS`, `bag_item_source` `EVENT`, `cherry_ledger_reason` `EVENT_PRIZE`,
+`notification_type` `EVENT_PRIZE_WON`); they must commit before the second uses them. The second adds `event_gifts`,
+`event_boards`, `event_prize_payouts` (the runtime role gets DML through the default privileges), `events.time_zone` /
+`created_by_id`, the `event_results` board columns (existing rows become board `MAIN`, `entrant_key` = their user; the
+two unique indexes are recreated per board), `home_banners.kind` / `video_media_id` / `event_id`, `notifications.event_id`,
+the media kind `BANNER_VIDEO` and the duration / poster CHECKs for banner media, the cherry reason/sign rule for
+`EVENT_PRIZE`, and relaxes `events_audience_not_creators` to gift events. Deploy the API with the migrations (an older API
+does not know the new metric; it never creates one).
+
+- **No new setting.** The sweeper is the existing `EVENTS_SWEEP_INTERVAL_SECONDS` (must not be 0 in production: gift
+  events are frozen and paid by it **automatically at the end**; `EVENT_PRIZE_REVIEW_HOURS` applies to the D166 events
+  only). The video body limit (31 MB raw on `POST /api/v1/admin/banner-video-uploads`) is in the API; a reverse proxy in
+  front of the API must allow at least **31 MB** request bodies on that path (as for the level-raise videos, §5.71).
+- **Follow-ups (same migrations):** `event_badges` + `event_badge_levels` (medals with levels) and `user_event_badges`
+  (`expires_at` null = permanent), `events.background_key` / `background_poster_key` / `title_key` / `overlay_key`
+  (CHECK `events_art_keys`), media kind `EVENT_VIDEO` is never a media row (event art lives under `media/events/…` in
+  the media bucket; nothing sweeps it — delete unused art by hand if needed). Raw upload paths needing a 31 MB proxy
+  limit: `/api/v1/admin/banner-video-uploads`, `/api/v1/admin/event-uploads`, `/api/v1/staff/event-uploads`.
+- **Who can create:** the capability `events.manage` is **OWNER only** (code: `admin-permissions.ts`); widening it is a
+  code change the owner decides (PP-60).
+- **Checks after deploy:** `SELECT count(*) FROM event_results WHERE board <> 'MAIN';` (0 before any gift event);
+  `\d event_prize_payouts` (unique `event_prize_payouts_once`); `SELECT kind, count(*) FROM home_banners GROUP BY kind;`
+  (every existing row `IMAGE`). In the panel «البانرات والفعاليات»: create a gift event (it lists with state UPCOMING or
+  RUNNING), upload a short MP4 as a home banner with a poster and open `GET /api/v1/home/banners` (kind `VIDEO`).
+- **Running an event:** the leaderboards are live (`/events/{id}/leaderboard?board=…`). Suspected fraud: **hold** the
+  payout (panel «إيقاف الصرف» or the app) before the end; investigate; `release` (or leave held). Paid prizes are not
+  taken back by the system: a reversal is manual (`control-admin` / panel balance adjustment; bag items with `bag-admin
+  revoke`).
+- **After an event:** `SELECT r.board, r.rank, r.prize_status, p.status FROM event_results r LEFT JOIN event_prize_payouts p
+  ON p.result_id = r.id WHERE r.event_id = '<id>' ORDER BY r.board, r.rank;` and the `event.payout` audit row.

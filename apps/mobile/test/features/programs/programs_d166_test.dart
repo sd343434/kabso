@@ -249,7 +249,7 @@ class _FakePrograms implements ProgramsRepository {
   );
 
   @override
-  Future<EventLeaderboard> leaderboard(String eventId) async =>
+  Future<EventLeaderboard> leaderboard(String eventId, {String? board}) async =>
       const EventLeaderboard(
         isFinal: true,
         rows: [(rank: 1, user: _winner, score: 1200, prizeCoins: 500)],

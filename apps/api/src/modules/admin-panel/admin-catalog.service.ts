@@ -61,6 +61,7 @@ import {
   type EventChange,
 } from '../programs/event-admin-rules.js';
 import { parsePrizeText } from '../programs/programs-rules.js';
+import { MediaService } from '../media/media.service.js';
 import type { AdminContext } from './admin-auth.service.js';
 import { refused, viaOf } from './admin-users.service.js';
 
@@ -151,6 +152,7 @@ export class AdminCatalogService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly storageSettings: StorageSettingsStore,
+    private readonly media: MediaService,
   ) {}
 
   private usd(coins: number): string {
@@ -659,6 +661,9 @@ export class AdminCatalogService {
       enabled: b.enabled,
       showing,
       imageUrl: giftArtUrl(base, b.media.thumbKey ?? b.media.largeKey),
+      // v1.97-social (D303): the banner's kind and the event it opens.
+      kind: b.kind,
+      eventId: b.eventId,
     };
   }
 
@@ -699,6 +704,24 @@ export class AdminCatalogService {
     };
   }
 
+  /**
+   * v1.97-social (D303, §10.114.6): stores a HOME banner's video (raw bytes; MP4 / MOV, H.264 / HEVC, 1–30 s, ≤ 30 MiB)
+   * unchanged, owned by the admin and unattached until [createBanner] names it. 400 `MEDIA_INVALID` otherwise.
+   */
+  async uploadBannerVideo(body: unknown, ctx: AdminContext) {
+    if (!Buffer.isBuffer(body) || body.length === 0) throw refused('The file is empty.');
+    const asset = await this.media.storeRawVideo(ctx.userId, body, 'BANNER_VIDEO');
+    const base = this.storageSettings.current().publicBaseUrl;
+    return {
+      mediaId: asset.id,
+      width: asset.width,
+      height: asset.height,
+      durationMs: asset.durationMs,
+      byteSize: asset.byteSize,
+      videoUrl: giftArtUrl(base, asset.largeKey),
+    };
+  }
+
   /** v1.59-live (D248, §10.90): adds a banner from the panel (the CLI's rules; audited via panel with the reason). */
   async createBanner(
     input: {
@@ -712,6 +735,8 @@ export class AdminCatalogService {
       endsAt?: string | null | undefined;
       sortOrder?: number | undefined;
       enabled?: boolean | undefined;
+      videoMediaId?: string | null | undefined;
+      eventId?: string | null | undefined;
       reason: string;
     },
     ctx: AdminContext,
@@ -732,6 +757,8 @@ export class AdminCatalogService {
             sortOrder: input.sortOrder ?? 0,
             enabled: input.enabled ?? true,
             placement: panelPlacement(input.placement),
+            videoMediaId: input.videoMediaId ?? null,
+            eventId: input.eventId ?? null,
           },
           viaOf(ctx),
           input.reason,

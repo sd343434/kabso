@@ -23,6 +23,14 @@ import { GIFT_CATEGORY_CODE_PATTERN, GIFT_CODE_PATTERN } from '../gifts/gift-cat
 import type { AdminContext } from './admin-auth.service.js';
 import { AdminAgenciesService, type AgenciesQuery, type ComplaintsQuery } from './admin-agencies.service.js';
 import { AdminCatalogService, type GiftCategoryInput, type GiftUploadKind } from './admin-catalog.service.js';
+import {
+  AdminGiftEventsService,
+  eventBadgeInputSchema,
+  eventUploadQuery,
+  type EventBadgeInput,
+} from './admin-gift-events.service.js';
+import type { EventMediaKind } from '../programs/event-media.js';
+import { giftEventInputSchema, type GiftEventInput } from '../programs/gift-events.js';
 import { AdminLivesService } from './admin-lives.service.js';
 import { AdminMoneyService, type RangeQuery } from './admin-money.service.js';
 import { pathUuid } from './admin-panel.schemas.js';
@@ -103,6 +111,10 @@ export const GIFT_UPLOAD_PATH = '/api/v1/admin/gift-uploads';
 
 /** v1.59-live (D248): the panel's banner picture upload (its body is kept as bytes too, app.setup). */
 export const BANNER_UPLOAD_PATH = '/api/v1/admin/banner-uploads';
+/** v1.97-social (D303, §10.114.6): the panel's banner video upload (raw bytes, at most 30 MiB, app.setup). */
+export const BANNER_VIDEO_UPLOAD_PATH = '/api/v1/admin/banner-video-uploads';
+/** v1.97-social (D303 follow-ups, §10.114.9): an event's art upload (raw bytes, ≤ 30 MiB, app.setup). */
+export const EVENT_UPLOAD_PATH = '/api/v1/admin/event-uploads';
 
 type Page = { page: number; pageSize: number };
 type GiftBody = {
@@ -134,6 +146,7 @@ export class AdminV2Controller {
     private readonly team: AdminTeamService,
     private readonly programs: AdminProgramsService,
     private readonly shifts: AdminStaffShiftsService,
+    private readonly giftEvents: AdminGiftEventsService,
   ) {}
 
   // ---- statistics and search (§10.60.1) -------------------------------------------------------------------------
@@ -651,6 +664,18 @@ export class AdminV2Controller {
   }
 
   /** v1.59-live (D248, §10.90): adds a banner on an uploaded picture (`banner.add`, via panel, with the reason). */
+  /**
+   * v1.97-social (D303, §10.114.6): a HOME banner's video, the raw bytes (`application/octet-stream`: MP4 / MOV, H.264 or
+   * HEVC, 1–30 s, at most 30 MiB), stored unchanged (muted in the app). `POST /admin/banners` names it as `videoMediaId`
+   * beside its poster picture (`mediaId`) within 24 hours.
+   */
+  @Post('banner-video-uploads')
+  @HttpCode(201)
+  @RequireCapability('catalog.manage')
+  uploadBannerVideo(@Req() req: Request, @CurrentAdmin() admin: AdminContext) {
+    return this.catalog.uploadBannerVideo(req.body, admin);
+  }
+
   @Post('banners')
   @HttpCode(201)
   @RequireCapability('catalog.manage')
@@ -703,7 +728,7 @@ export class AdminV2Controller {
 
   @Post('events')
   @HttpCode(201)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('events.manage')
   createEvent(
     @Body(new ZodValidationPipe(createEventBody))
     body: Parameters<AdminCatalogService['createEvent']>[0] & { metric: EventMetric },
@@ -712,9 +737,67 @@ export class AdminV2Controller {
     return this.catalog.createEvent(body, admin);
   }
 
+  // ---- v1.97-social (D303, §10.114.7): gift events -----------------------------------------------------------------
+
+  @Get('event-options')
+  @RequireCapability('events.manage')
+  eventOptions() {
+    return this.giftEvents.options();
+  }
+
+  @Post('gift-events')
+  @HttpCode(201)
+  @RequireCapability('events.manage')
+  createGiftEvent(
+    @Body(new ZodValidationPipe(giftEventInputSchema)) body: GiftEventInput,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.giftEvents.create(body, admin);
+  }
+
+  /** D303 follow-ups (§10.114.9): one piece of an event's art, checked against the published spec. */
+  @Post('event-uploads')
+  @HttpCode(201)
+  @RequireCapability('events.manage')
+  uploadEventMedia(
+    @Query(new ZodValidationPipe(eventUploadQuery)) q: { kind: EventMediaKind },
+    @Req() req: Request,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.giftEvents.upload(q.kind, req.body, admin);
+  }
+
+  /** D303 follow-up: a reusable event badge «وسام فعالية». */
+  @Post('event-badges')
+  @HttpCode(201)
+  @RequireCapability('events.manage')
+  createEventBadge(
+    @Body(new ZodValidationPipe(eventBadgeInputSchema)) body: EventBadgeInput,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.giftEvents.createBadge(body, admin);
+  }
+
+  @Get('gift-events/:eventId')
+  @RequireCapability('catalog.view')
+  giftEvent(@Param('eventId') id: string) {
+    return this.giftEvents.get(pathUuid(id));
+  }
+
+  @Put('gift-events/:eventId')
+  @RequireCapability('events.manage')
+  updateGiftEvent(
+    @Param('eventId') id: string,
+    @Body(new ZodValidationPipe(giftEventInputSchema)) body: GiftEventInput,
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.giftEvents.update(pathUuid(id), body, admin);
+  }
+
+  // v1.97-social (D303): end / hold / release need `events.manage` (OWNER, as `catalog.manage` before).
   @Post('events/:eventId/:command')
   @HttpCode(200)
-  @RequireCapability('catalog.manage')
+  @RequireCapability('events.manage')
   changeEvent(
     @Param('eventId') id: string,
     @Param('command') command: string,

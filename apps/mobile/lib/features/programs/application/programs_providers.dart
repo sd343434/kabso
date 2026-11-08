@@ -54,6 +54,17 @@ final FutureProviderFamily<EventLeaderboard, String> eventLeaderboardProvider =
       (ref, id) => ref.watch(programsRepositoryProvider).leaderboard(id),
     );
 
+/// v1.97-social (D303): one board of a gift event.
+typedef EventBoardKey = ({String id, EventBoardKind board});
+
+/// `GET /events/{eventId}/leaderboard?board=` (D303): a gift event's board.
+final FutureProviderFamily<EventLeaderboard, EventBoardKey> eventBoardProvider =
+    FutureProvider.autoDispose.family(
+      (ref, key) => ref
+          .watch(programsRepositoryProvider)
+          .leaderboard(key.id, board: key.board.wire),
+    );
+
 /// The recharge packages (`GET /wallet/recharge-packages`, D166).
 final FutureProvider<RechargeOffer> rechargeOfferProvider =
     FutureProvider.autoDispose(

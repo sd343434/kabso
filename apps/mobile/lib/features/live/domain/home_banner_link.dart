@@ -7,7 +7,8 @@ sealed class HomeBannerTarget {
 
   /// Parses an allowlisted link: `/cp/space`, `/families`,
   /// `/live?tab=trending|new|following`, `/home/room/{roomId}`,
-  /// `/users/{username}`. Anything else is `null`, including `https://`
+  /// `/users/{username}`, (D303) `/events/{eventId}`. Anything else is
+  /// `null`, including `https://`
   /// links: the app has no in-app browser yet, and the contract lets an app
   /// ignore a link it cannot open (the banner is then not a button).
   static HomeBannerTarget? parse(String link) {
@@ -25,8 +26,15 @@ sealed class HomeBannerTarget {
     final room = _room.firstMatch(link);
     if (room != null) return HomeBannerRoute(link.toLowerCase());
     if (_user.hasMatch(link)) return HomeBannerRoute(link);
+    // v1.97-social (D303): an event page (the Event Center's detail).
+    if (_event.hasMatch(link)) return HomeBannerRoute(link.toLowerCase());
     return null;
   }
+
+  static final _event = RegExp(
+    '^/events/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
 
   static final _room = RegExp(
     '^/home/room/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'

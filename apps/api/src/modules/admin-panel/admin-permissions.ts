@@ -230,6 +230,12 @@ export const CAPABILITIES = {
   'owner.inbox': ['OWNER'],
   /** D301 follow-up (§10.112.10): the owner's fixed monthly costs of «الربح» — OWNER only. */
   'owner.costs': ['OWNER'],
+  // ---- v1.97-social (D303, CONVENTIONS §10.114.7): gift events «فعاليات الهدايا» ------------------------------------
+  /**
+   * Create and edit events (gifts, boards, prizes), end one, hold / release its automatic payout — from the panel and
+   * from the app. OWNER only by default (owner to widen; PP-60).
+   */
+  'events.manage': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

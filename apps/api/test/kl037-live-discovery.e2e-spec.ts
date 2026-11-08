@@ -936,7 +936,7 @@ describe('KL-037 public profile and follow', () => {
       // v1.21-live (CP-018): no family or couple; the catalogue is empty in this database.
       family: null,
       cp: null,
-      medals: { owned: 0, total: 0, latest: [], showcase: [] },
+      medals: { owned: 0, total: 0, latest: [], showcase: [], eventBadges: [] }, // v1.97-social (D303): event medals held
       // v1.22-live (CP-019): the bag catalogue is empty in this database, so nothing is worn.
       profileCard: null,
       // v1.47-social (D175): no request pending; gender private by default; no category or links.
