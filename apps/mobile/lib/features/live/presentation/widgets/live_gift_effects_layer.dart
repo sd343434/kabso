@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/item_badge.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -128,6 +129,14 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                     animationAlpha: big.animationUrl != null
                         ? big.animationAlpha
                         : _art(catalogue, big)?.animationAlpha,
+                    // D317: «شاشة كاملة» (D289) covers the whole screen.
+                    fullScreen:
+                        _art(catalogue, big)?.badges.any(
+                          (b) =>
+                              b.code == ItemBadgeCode.fullscreen &&
+                              b.runningAt(DateTime.now()),
+                        ) ??
+                        false,
                     audioUrl: big.audioUrl ?? _art(catalogue, big)?.audioUrl,
                     audioDurationMs: big.audioUrl != null
                         ? big.audioDurationMs
