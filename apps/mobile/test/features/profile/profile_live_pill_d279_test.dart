@@ -82,10 +82,9 @@ Future<void> atNow(Future<void> Function() body) =>
 
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
-/// The pill on the cover at the reading end, opposite the photo; small
-/// (28 dp, a little more with large text). D292: the photo's middle is the
-/// picture's bottom edge, so the pill sits on the picture, centred in the
-/// photo box's upper half (less 8 dp).
+/// The pill on the cover; small (28 dp, a little more with large text).
+/// D316: the centred header — the pill centred between the photo and the
+/// name (was at the reading end opposite the photo, D279b / D299).
 void expectPill(
   WidgetTester tester, {
   required double width,
@@ -94,28 +93,23 @@ void expectPill(
 }) {
   expect(tester.takeException(), isNull);
   final pill = _rect(tester, ProfileLivePill.pillKey);
-  final cover = _rect(tester, ProfileCoverHeader.coverAreaKey);
+  final cover = _rect(tester, ProfileCoverHeader.topBlockKey);
   final avatar = _rect(tester, ProfileHeaderView.avatarKey);
   expect(pill.height, greaterThanOrEqualTo(ProfileLivePill.height - 0.5));
   expect(pill.height, lessThanOrEqualTo(maxHeight));
   expect(pill.width, lessThan(width / 2));
-  // On the picture, beside the photo's upper half. D299: at the top of
-  // the name block beside the photo, never on the name.
+  // In the top block, under the photo, never on the name.
   expect(pill.top, greaterThanOrEqualTo(cover.top));
   expect(pill.bottom, lessThanOrEqualTo(cover.bottom));
-  expect(pill.bottom, lessThanOrEqualTo(avatar.center.dy));
+  expect(pill.top, greaterThanOrEqualTo(avatar.bottom));
   expect(
     pill.bottom,
     lessThanOrEqualTo(_rect(tester, ProfileCoverHeader.nameRowKey).top),
   );
-  // The reading end, 16 dp in; the photo at the start (RTL mirrors it).
-  if (ar) {
-    expect(pill.left, moreOrLessEquals(16, epsilon: 0.5));
-    expect(pill.right, lessThan(avatar.left));
-  } else {
-    expect(pill.right, moreOrLessEquals(width - 16, epsilon: 0.5));
-    expect(pill.left, greaterThan(avatar.right));
-  }
+  // Centred, as the photo, in both directions ([ar] is the page's
+  // language: the same place in RTL and LTR).
+  expect(pill.center.dx, moreOrLessEquals(width / 2, epsilon: 0.5));
+  expect(avatar.center.dx, moreOrLessEquals(width / 2, epsilon: 0.5));
   final box = tester.widget<Container>(find.byKey(ProfileLivePill.pillKey));
   final gradient =
       (box.decoration! as BoxDecoration).gradient! as LinearGradient;

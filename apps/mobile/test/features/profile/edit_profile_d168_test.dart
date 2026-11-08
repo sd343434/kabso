@@ -729,6 +729,19 @@ void main() {
       );
     });
 
+    testWidgets('D316: «Cover photo» stays here (the profile page shows no '
+        'cover): choose or take; nothing to remove without one', (
+      tester,
+    ) async {
+      await _pumpEdit(tester);
+      await tester.ensureVisible(find.byKey(EditProfileScreen.coverKey));
+      await tester.tap(find.byKey(EditProfileScreen.coverKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(EditProfileScreen.coverLibraryKey), findsOneWidget);
+      expect(find.byKey(EditProfileScreen.coverCameraKey), findsOneWidget);
+      expect(find.byKey(EditProfileScreen.coverRemoveKey), findsNothing);
+    });
+
     testWidgets('the username opens the D146 change screen', (tester) async {
       await _pumpEdit(tester);
       await tester.tap(find.byKey(EditProfileScreen.usernameKey));

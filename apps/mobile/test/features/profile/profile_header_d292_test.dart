@@ -136,7 +136,6 @@ void main() {
     testWidgets('the name row: the crests at one visible size, centred on '
         'their line under the name (${language.name})', (tester) async {
       await pumpOther(tester, _full(ar: ar), language: language);
-      final name = _r(tester, const Key('profile.displayName'));
       final line = _r(tester, ProfileCoverHeader.nameLineKey);
       final badges = _badgeRects(tester);
       for (final (key, height) in [
@@ -172,14 +171,20 @@ void main() {
         expect(r.width, moreOrLessEquals(r.height));
       }
       // Larger than before (18); at most a hair taller than the name's
-      // line, so the row does not grow by more than that.
+      // line (D292). D316: the name is 18 dp now and the badges have their
+      // own line under the @username, so the crests are measured against
+      // the 20 dp name of D299 they were sized for (≤ its 26–27 dp line + 1)
+      // and stay within the level pills' line (D189: «as tall as the level
+      // badges») + 4.
+      final levels = _r(tester, ProfileCoverHeader.levelsKey);
       for (final h in [
         KPublicProfile.nameBadge,
         KPublicProfile.hostAgentNameBadge,
         KPublicProfile.rechargeAgentNameBadge,
       ]) {
         expect(h, greaterThan(18));
-        expect(h, lessThanOrEqualTo(name.height + 2));
+        expect(h, lessThanOrEqualTo(KPublicProfile.nameFont * 1.4));
+        expect(h, lessThanOrEqualTo(levels.height + 4));
       }
       // D292b: the same visible weight — √(opaque share × width ÷ height)
       // × height within 3 % of the daily badge's (factors measured on the
@@ -196,19 +201,52 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets('the worn medals: their own row under the name row, '
-        'larger, in order, a button; once (${language.name})', (tester) async {
+    testWidgets("the worn medals (D316, owner 3a: the reference's icon row): "
+        'their own row first under the cover, then the bio (owner: '
+        '«الميداليات قبل البايو»), the art alone (no chip: «الميداليات '
+        'داخل فقاعة، أزلها»), in order, a 44 dp '
+        'button; once (${language.name})', (tester) async {
       await pumpOther(tester, _full(ar: ar), language: language);
       final nameRow = _r(tester, ProfileCoverHeader.nameRowKey);
       final row = _r(tester, ProfileCoverHeader.medalsKey);
+      final bio = _r(tester, ProfileCoverHeader.bioKey);
       final stats = _r(tester, ProfileScreen.statsKey);
       final handle = _r(tester, ProfileCoverHeader.handleKey);
-      // D299b: the medals right under the name row (on the cover); D299d:
-      // the @username at the top (in the bar); the numbers under the cover.
+      // D316: the medals right under the cover (under the name row), then
+      // the bio; D299d: the @username at the top (in the bar); the numbers
+      // after.
+      final area = _r(tester, ProfileCoverHeader.topBlockKey);
       expect(row.top, greaterThanOrEqualTo(nameRow.bottom));
-      expect(row.top - nameRow.bottom, lessThanOrEqualTo(8));
+      expect(
+        bio.top - row.bottom,
+        moreOrLessEquals(KPublicProfile.centredBioGap, epsilon: 0.5),
+      );
       expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
-      expect(stats.top, greaterThanOrEqualTo(row.bottom));
+      expect(stats.top, greaterThanOrEqualTo(bio.bottom));
+      // A 44 dp tap target, the art centred in it, 10 dp under the name
+      // block.
+      expect(row.height, moreOrLessEquals(KPublicProfile.centredMedalTap));
+      expect(KPublicProfile.centredMedalTap, greaterThanOrEqualTo(44));
+      final art = _r(tester, MedalShowcaseRow.medalKey('WEALTH_KINGS'));
+      expect(
+        art.top - area.bottom,
+        moreOrLessEquals(KPublicProfile.centredMedalsGap, epsilon: 0.5),
+      );
+      expect(art.center.dy, moreOrLessEquals(row.center.dy, epsilon: 0.5));
+      // No chip behind the art: no round box around any medal (the art's
+      // own drawing aside).
+      expect(
+        find.ancestor(
+          of: find.byType(MedalIcon),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+          ),
+        ),
+        findsNothing,
+      );
       // Exactly one showcase on the page (none in the block under the
       // cover).
       expect(find.byKey(MedalShowcaseRow.rowKey), findsOneWidget);
@@ -224,9 +262,10 @@ void main() {
           _r(tester, MedalShowcaseRow.medalKey(m.code)),
       ];
       for (final i in icons) {
-        expect(i.height, KPublicProfile.medal);
+        expect(i.height, KPublicProfile.centredMedal);
       }
-      expect(KPublicProfile.medal, greaterThan(26));
+      // A little larger than D299b's 28 (no chip any more).
+      expect(KPublicProfile.centredMedal, greaterThan(KPublicProfile.medal));
       // The user's order, from the reading start.
       for (var i = 1; i < icons.length; i++) {
         if (ar) {
@@ -235,13 +274,18 @@ void main() {
           expect(icons[i].left, greaterThanOrEqualTo(icons[i - 1].right));
         }
       }
-      // At the reading start, like the name.
+      // D316: centred, like the name; 42 dp between the centres.
       final name = _r(tester, const Key('profile.displayName'));
-      if (ar) {
-        expect(icons.first.right, moreOrLessEquals(name.right, epsilon: 1));
-      } else {
-        expect(icons.first.left, moreOrLessEquals(name.left, epsilon: 1));
-      }
+      final mid = (icons.first.center.dx + icons.last.center.dx) / 2;
+      expect(mid, moreOrLessEquals(name.center.dx, epsilon: 1));
+      expect(mid, moreOrLessEquals(393 / 2, epsilon: 1));
+      expect(
+        (icons[1].center.dx - icons[0].center.dx).abs(),
+        moreOrLessEquals(
+          KPublicProfile.centredMedal + KPublicProfile.centredMedalGap,
+          epsilon: 0.5,
+        ),
+      );
       // The current-level art, no number on it (D291).
       final icon = tester.widget<MedalIcon>(
         find.byKey(MedalShowcaseRow.medalKey('WEALTH_KINGS')),

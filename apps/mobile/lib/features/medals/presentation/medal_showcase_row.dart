@@ -14,12 +14,16 @@ class MedalShowcaseRow extends StatelessWidget {
     this.size = 26,
     this.onTap,
     this.alignment = MainAxisAlignment.center,
+    this.spacing = 6,
   });
 
   final List<ProfileMedal> medals;
   final double size;
   final VoidCallback? onTap;
   final MainAxisAlignment alignment;
+
+  /// The space between two medals (D316: wider on the centred profile).
+  final double spacing;
 
   static const rowKey = Key('profile.medals.showcase');
 
@@ -40,7 +44,7 @@ class MedalShowcaseRow extends StatelessWidget {
         mainAxisAlignment: alignment,
         children: [
           for (final (i, m) in shown.indexed) ...[
-            if (i > 0) const SizedBox(width: 6),
+            if (i > 0) SizedBox(width: spacing),
             MedalIcon(
               key: medalKey(m.code),
               iconKey: m.iconKey,

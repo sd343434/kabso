@@ -158,9 +158,17 @@ abstract final class ProfileLinkKeys {
 /// ([openProfileLink]); a long press offers Copy and, on another person's
 /// profile, Report.
 class ProfileLinksRow extends ConsumerWidget {
-  const new({required this.links, required this.reportable, super.key});
+  const new({
+    required this.links,
+    required this.reportable,
+    super.key,
+    this.alignment = WrapAlignment.start,
+  });
 
   final List<ProfileLink> links;
+
+  /// D316: centred in the centred profile header.
+  final WrapAlignment alignment;
 
   /// Another person's profile: the links can be reported.
   final bool reportable;
@@ -179,6 +187,7 @@ class ProfileLinksRow extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: KSpacing.xs),
       child: Wrap(
+        alignment: alignment,
         spacing: KSpacing.md,
         runSpacing: KSpacing.xxs,
         children: [
