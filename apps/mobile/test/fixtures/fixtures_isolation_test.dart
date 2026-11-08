@@ -76,6 +76,16 @@ void main() {
       'd291LuckyThresholds',
       'luckyValue(',
       'd291NothingEarned(',
+      // D300 (test/fixtures/medals/medals_d300_fixtures.dart).
+      'd300Medals(',
+      'd300SchoolJson(',
+      'd300DaresJson(',
+      'd300SchoolCode',
+      'd300DaresCode',
+      'd300SchoolThresholds',
+      'd300DaresThresholds',
+      'd300SchoolValues(',
+      'd300DaresValue(',
       // CP-021 (the CP space fixtures).
       'cpTasksJson(',
       'cpPrivilegesJson(',

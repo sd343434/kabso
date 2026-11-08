@@ -26709,6 +26709,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شارة تُمنح تلقائياً حسب الشروط'**
   String get verificationBadgeAbout;
+
+  /// D300: «مدرسة المحتوى» requirement — followers (ACTIVE accounts, as the profile counts them).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعون'**
+  String get medalsReqFollowers;
+
+  /// D300: «مدرسة المحتوى» requirement — likes from other ACTIVE accounts on posts and reels.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعجابات'**
+  String get medalsReqLikes;
+
+  /// D300: «مدرسة المحتوى» requirement — views from other ACTIVE accounts of posts and reels.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدات'**
+  String get medalsReqViews;
+
+  /// D300: the heading above the three requirement bars in the medal sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشروط الثلاثة معاً للمستوى التالي'**
+  String get medalsReqAllTogether;
+
+  /// D300: a creators-only medal for a person who is not a content creator now (card pill and sheet).
+  ///
+  /// In ar, this message translates to:
+  /// **'لصنّاع المحتوى فقط'**
+  String get medalsCreatorsOnly;
+
+  /// D300: the sheet's note for a person who is not a content creator now.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحسب المتابعات والإعجابات والمشاهدات لصنّاع المحتوى فقط. المستوى الذي وصلت إليه يبقى لك.'**
+  String get medalsCreatorsOnlyBody;
+
+  /// D300: a «لاعب الأحكام» level threshold (PK points).
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} نقطة PK'**
+  String medalsThresholdPkPoints(String points);
 }
 
 class _AppLocalizationsDelegate

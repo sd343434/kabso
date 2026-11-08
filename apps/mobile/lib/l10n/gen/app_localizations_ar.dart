@@ -15848,4 +15848,28 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get verificationBadgeAbout => 'شارة تُمنح تلقائياً حسب الشروط';
+
+  @override
+  String get medalsReqFollowers => 'المتابعون';
+
+  @override
+  String get medalsReqLikes => 'الإعجابات';
+
+  @override
+  String get medalsReqViews => 'المشاهدات';
+
+  @override
+  String get medalsReqAllTogether => 'الشروط الثلاثة معاً للمستوى التالي';
+
+  @override
+  String get medalsCreatorsOnly => 'لصنّاع المحتوى فقط';
+
+  @override
+  String get medalsCreatorsOnlyBody =>
+      'تُحسب المتابعات والإعجابات والمشاهدات لصنّاع المحتوى فقط. المستوى الذي وصلت إليه يبقى لك.';
+
+  @override
+  String medalsThresholdPkPoints(String points) {
+    return '$points نقطة PK';
+  }
 }

@@ -6,7 +6,10 @@ import {
   MEDAL_CATALOGUE,
   MEDAL_LEVEL_ASSETS,
   MEDAL_DEFAULT_LEVELS,
+  MEDAL_LEVEL_REQUIREMENTS,
   MEDAL_MAX_LEVELS,
+  REQUIREMENT_METRICS,
+  levelByRequirements,
   medalLevelFor,
 } from './medals.catalogue.js';
 
@@ -20,6 +23,18 @@ const wealthMigration = readFileSync(
 );
 const luckyMigration = readFileSync(
   new URL('../../../prisma/migrations/20270325090500_medal_lucky_master/migration.sql', import.meta.url),
+  'utf8',
+);
+const contentSchoolMigration = readFileSync(
+  new URL('../../../prisma/migrations/20270401090100_medal_content_school/migration.sql', import.meta.url),
+  'utf8',
+);
+const daresMigration = readFileSync(
+  new URL('../../../prisma/migrations/20270401090200_medal_dares_player/migration.sql', import.meta.url),
+  'utf8',
+);
+const daresOnlyMigration = readFileSync(
+  new URL('../../../prisma/migrations/20270401090300_medal_dares_only_points/migration.sql', import.meta.url),
   'utf8',
 );
 const levelsMigration = readFileSync(
@@ -79,6 +94,8 @@ describe('medal catalogue (CP-018)', () => {
         BULLET_FIRST: 1,
         WEALTH_KINGS: 50_000_000,
         LUCKY_MASTER: 500_000_000,
+        CONTENT_SCHOOL: 1,
+        DARES_PLAYER: 1_500,
       };
       for (const m of MEDAL_CATALOGUE) {
         const levels = MEDAL_DEFAULT_LEVELS[m.code];
@@ -143,5 +160,107 @@ describe('medal catalogue (CP-018)', () => {
       expect(medalLevelFor(MEDAL_DEFAULT_LEVELS.LUCKY_MASTER, 10_000_000_000)).toBe(4);
       expect(medalLevelFor(MEDAL_DEFAULT_LEVELS.LUCKY_MASTER, 9_999_999_999)).toBe(3);
     });
+  });
+
+  // D300 (owner 2026-11-07, §10.111): «مدرسة المحتوى» — a level needs followers, likes and views together.
+  describe('Content School (D300)', () => {
+    const levels = MEDAL_LEVEL_REQUIREMENTS.CONTENT_SCHOOL!.map((requirements) => ({ requirements }));
+    const v = (f: number, l: number, w: number) => ({
+      CREATOR_FOLLOWERS: f,
+      CREATOR_LIKES: l,
+      CREATOR_VIEWS: w,
+    });
+
+    it("the owner's thresholds, its row, each level's art and threshold = the level number, as the migration seeds them", () => {
+      const m = MEDAL_CATALOGUE.find((x) => x.code === 'CONTENT_SCHOOL')!;
+      expect(m).toMatchObject({
+        metric: 'ALL_REQUIREMENTS',
+        category: 'ACHIEVEMENT',
+        iconKey: 'medal_content_school',
+      });
+      expect(m.descriptionAr).toBe('لصنّاع المحتوى: المتابعون والإعجابات والمشاهدات معاً.');
+      expect(m.descriptionEn).toBe('For content creators: followers, likes and views together.');
+      expect(contentSchoolMigration).toContain(
+        `('${m.code}', '${m.nameAr}', '${m.nameEn}', '${m.descriptionAr}', '${m.descriptionEn}', '${m.iconKey}', ${String(m.sortOrder)}, '${m.category}', '${m.metric}')`,
+      );
+      const seededLevels = [
+        ...contentSchoolMigration.matchAll(/\('CONTENT_SCHOOL', (\d+), (\d+), '([a-z0-9_]+)'\)/g),
+      ].map((r) => [Number(r[1]), Number(r[2]), r[3]]);
+      expect(seededLevels).toEqual(
+        MEDAL_DEFAULT_LEVELS.CONTENT_SCHOOL.map((t, i) => [i + 1, t, MEDAL_LEVEL_ASSETS.CONTENT_SCHOOL![i]]),
+      );
+      expect(MEDAL_DEFAULT_LEVELS.CONTENT_SCHOOL).toEqual([1, 2, 3, 4]);
+      const seededReqs = [
+        ...contentSchoolMigration.matchAll(/\('CONTENT_SCHOOL', (\d+), '([A-Z_]+)', (\d+)\)/g),
+      ].map((r) => [Number(r[1]), r[2], Number(r[3])]);
+      expect(seededReqs).toEqual(
+        MEDAL_LEVEL_REQUIREMENTS.CONTENT_SCHOOL!.flatMap((reqs, i) =>
+          reqs.map((r) => [i + 1, r.metric, r.threshold]),
+        ),
+      );
+      expect(MEDAL_LEVEL_REQUIREMENTS.CONTENT_SCHOOL!.map((reqs) => reqs.map((r) => r.threshold))).toEqual([
+        [2_000, 10_000, 20_000],
+        [10_000, 50_000, 100_000],
+        [100_000, 200_000, 500_000],
+        [1_000_000, 2_000_000, 5_000_000],
+      ]);
+      for (const reqs of MEDAL_LEVEL_REQUIREMENTS.CONTENT_SCHOOL!) {
+        expect(reqs.map((r) => r.metric)).toEqual(REQUIREMENT_METRICS);
+      }
+    });
+
+    it('a level needs ALL its requirements; two of three is not enough; jumps; never over an unmet level', () => {
+      expect(levelByRequirements(levels, v(0, 0, 0))).toBe(0);
+      expect(levelByRequirements(levels, v(2_000, 10_000, 19_999))).toBe(0);
+      expect(levelByRequirements(levels, v(1_999, 10_000, 20_000))).toBe(0);
+      expect(levelByRequirements(levels, v(2_000, 9_999, 20_000))).toBe(0);
+      expect(levelByRequirements(levels, v(2_000, 10_000, 20_000))).toBe(1);
+      // Followers of L4, the rest of L1: level 1.
+      expect(levelByRequirements(levels, v(5_000_000, 10_000, 20_000))).toBe(1);
+      expect(levelByRequirements(levels, v(100_000, 200_000, 500_000))).toBe(3);
+      expect(levelByRequirements(levels, v(1_000_000, 2_000_000, 5_000_000))).toBe(4);
+      expect(levelByRequirements(levels, v(9e9, 9e9, 9e9))).toBe(4);
+      // A level without requirements is never reached; nor anything above it.
+      expect(levelByRequirements([{ requirements: [] }, ...levels], v(9e9, 9e9, 9e9))).toBe(0);
+      expect(levelByRequirements([], v(1, 1, 1))).toBe(0);
+    });
+  });
+
+  // D300 (owner 2026-11-07: «عندما يكون نقاط PK تحدي = 1500 / 3000 / 5000 / 20000»).
+  it("Dares Player: the owner's four PK points thresholds, its row and each level's art, as the migration seeds them", () => {
+    const m = MEDAL_CATALOGUE.find((x) => x.code === 'DARES_PLAYER')!;
+    // Owner's answers: «PK أحكام» points only, and the tab of the other medals.
+    expect(m).toMatchObject({
+      metric: 'PK_DARES_POINTS',
+      category: 'ACHIEVEMENT',
+      iconKey: 'medal_dares_player',
+    });
+    expect(m.descriptionAr).toBe('نقاط PK التي جمعتها في التحديات.');
+    expect(m.descriptionEn).toBe('PK points you earned in battles.');
+    expect(daresMigration).toContain(
+      `('${m.code}', '${m.nameAr}', '${m.nameEn}', '${m.descriptionAr}', '${m.descriptionEn}', '${m.iconKey}', ${String(m.sortOrder)}, 'ACTIVITY', 'PK_POINTS')`,
+    );
+    // …then 20270401090300 renames the metric and moves both D300 medals to the other medals' tab.
+    expect(daresOnlyMigration).toContain(
+      `ALTER TYPE "MedalMetric" RENAME VALUE 'PK_POINTS' TO '${m.metric}';`,
+    );
+    expect(daresOnlyMigration).toContain(
+      `UPDATE "medals" SET "category" = '${m.category}' WHERE "code" IN ('DARES_PLAYER', 'CONTENT_SCHOOL');`,
+    );
+    expect(daresOnlyMigration).toContain('ADD COLUMN "dares_points" INTEGER NOT NULL DEFAULT 0');
+    expect(daresOnlyMigration).toMatch(/WHERE m\."type" = 'DARES'/);
+    expect(MEDAL_CATALOGUE.find((x) => x.code === 'CONTENT_SCHOOL')!.category).toBe(m.category);
+    expect(MEDAL_CATALOGUE.find((x) => x.code === 'WEALTH_KINGS')!.category).toBe(m.category);
+    const seeded = [...daresMigration.matchAll(/\('DARES_PLAYER', (\d+), (\d+), '([a-z0-9_]+)'\)/g)].map(
+      (r) => [Number(r[1]), Number(r[2]), r[3]],
+    );
+    expect(seeded).toEqual(
+      MEDAL_DEFAULT_LEVELS.DARES_PLAYER.map((t, i) => [i + 1, t, MEDAL_LEVEL_ASSETS.DARES_PLAYER![i]]),
+    );
+    expect(MEDAL_DEFAULT_LEVELS.DARES_PLAYER).toEqual([1_500, 3_000, 5_000, 20_000]);
+    expect(medalLevelFor(MEDAL_DEFAULT_LEVELS.DARES_PLAYER, 1_499)).toBe(0);
+    expect(medalLevelFor(MEDAL_DEFAULT_LEVELS.DARES_PLAYER, 1_500)).toBe(1);
+    expect(medalLevelFor(MEDAL_DEFAULT_LEVELS.DARES_PLAYER, 6_000)).toBe(3);
+    expect(medalLevelFor(MEDAL_DEFAULT_LEVELS.DARES_PLAYER, -3)).toBe(0);
   });
 });

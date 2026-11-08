@@ -14045,5 +14045,19 @@
   "verificationBadgeLabel": "موثّق: {kind}",
   "@verificationBadgeLabel": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The spoken label and the tooltip title.", "placeholders": {"kind": {"type": "String"}}},
   "verificationBadgeAbout": "شارة تُمنح تلقائياً حسب الشروط",
-  "@verificationBadgeAbout": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The tooltip's second line."}
+  "@verificationBadgeAbout": {"description": "D293: the automatic verification badge «شارة التوثيق» beside the name (profile header, Me tab). The tooltip's second line."},
+  "medalsReqFollowers": "المتابعون",
+  "@medalsReqFollowers": {"description": "D300: «مدرسة المحتوى» requirement — followers (ACTIVE accounts, as the profile counts them)."},
+  "medalsReqLikes": "الإعجابات",
+  "@medalsReqLikes": {"description": "D300: «مدرسة المحتوى» requirement — likes from other ACTIVE accounts on posts and reels."},
+  "medalsReqViews": "المشاهدات",
+  "@medalsReqViews": {"description": "D300: «مدرسة المحتوى» requirement — views from other ACTIVE accounts of posts and reels."},
+  "medalsReqAllTogether": "الشروط الثلاثة معاً للمستوى التالي",
+  "@medalsReqAllTogether": {"description": "D300: the heading above the three requirement bars in the medal sheet."},
+  "medalsCreatorsOnly": "لصنّاع المحتوى فقط",
+  "@medalsCreatorsOnly": {"description": "D300: a creators-only medal for a person who is not a content creator now (card pill and sheet)."},
+  "medalsCreatorsOnlyBody": "تُحسب المتابعات والإعجابات والمشاهدات لصنّاع المحتوى فقط. المستوى الذي وصلت إليه يبقى لك.",
+  "@medalsCreatorsOnlyBody": {"description": "D300: the sheet's note for a person who is not a content creator now."},
+  "medalsThresholdPkPoints": "{points} نقطة PK",
+  "@medalsThresholdPkPoints": {"description": "D300: a «لاعب الأحكام» level threshold (PK points).", "placeholders": {"points": {"type": "String"}}}
 }

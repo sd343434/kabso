@@ -433,6 +433,10 @@ export interface AppConfig {
   readonly verificationBadges: {
     readonly sweepIntervalSeconds: number;
   };
+  /** D300 (CONVENTIONS §10.111): the content-creator medals' sweeper interval (0 = off: tests; refused in production). */
+  readonly medalCreators: {
+    readonly sweepIntervalSeconds: number;
+  };
   /** v1.62-social (D193): account deletion (CONVENTIONS §10.56). */
   readonly accountDeletion: {
     readonly graceDays: number;
@@ -911,6 +915,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     verificationBadges: {
       sweepIntervalSeconds: e.VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS,
+    },
+    medalCreators: {
+      sweepIntervalSeconds: e.MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS,
     },
     accountDeletion: {
       graceDays: e.ACCOUNT_DELETION_GRACE_DAYS,

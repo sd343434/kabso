@@ -269,7 +269,8 @@ describe('D291 medal levels', { timeout: 240_000 }, () => {
     });
     expect(before.FIRST_LIVE!.levels.map((l) => l.threshold)).toEqual([1, 10, 50, 100, 500]);
     expect(before.BULLET_FIRST).toMatchObject({ category: 'ACTIVITY', level: 3, maxLevel: 4 });
-    expect(before.BULLET_FIRST!.progress).toEqual({ value: 0, next: 1000 });
+    // D300: a single-metric medal's progress has no requirements.
+    expect(before.BULLET_FIRST!.progress).toEqual({ value: 0, next: 1000, requirements: [] });
     expect(before.FIRST_CP).toMatchObject({ level: 1, maxLevel: 1, progress: { value: 0, next: null } });
     expect(before.WEALTH_KINGS).toMatchObject({
       level: 0,
@@ -547,6 +548,7 @@ describe('D291 medal levels', { timeout: 240_000 }, () => {
       name: 'Bullet star',
       iconUrl: 'https://cdn.k.test/m/b4.png',
       iconAsset: null,
+      requirements: [], // D300: a single-metric level has none
     });
     expect(page.BULLET_FIRST!.levels[1]!.name).toBeNull();
   });

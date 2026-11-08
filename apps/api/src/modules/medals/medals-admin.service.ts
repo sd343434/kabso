@@ -6,12 +6,15 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { sortRequirements } from './medal-requirements.js';
 import {
   BINARY_MEDAL_METRICS,
   MEDAL_MAX_LEVELS,
   MEDAL_MAX_THRESHOLD,
+  REQUIREMENT_METRICS,
   type MedalCategoryCode,
   type MedalMetricCode,
+  type RequirementMetricCode,
 } from './medals.catalogue.js';
 
 /** `AdminMedalLevel` (v1.81-live, D291, §10.104.4). */
@@ -25,6 +28,14 @@ export interface AdminMedalLevelDto {
   iconAsset: string | null;
   /** People whose level is exactly this one. */
   holders: number;
+  /** D300 (§10.111): a multi-requirement level's thresholds (followers, likes, views); empty otherwise. */
+  requirements: AdminMedalRequirementDto[];
+}
+
+/** `MedalLevelRequirement` (D300). */
+export interface AdminMedalRequirementDto {
+  metric: RequirementMetricCode;
+  threshold: number;
 }
 
 /** `AdminMedal`. */
@@ -77,6 +88,18 @@ export const adminMedalBody = z.strictObject({
           .regex(/^[a-z0-9_]{1,60}$/)
           .nullish()
           .transform((v) => v ?? null),
+        // D300 (§10.111): a multi-requirement level's thresholds, one per metric; only for a medal on
+        // ALL_REQUIREMENTS (checked in `update`).
+        requirements: z
+          .array(
+            z.strictObject({
+              metric: z.enum(REQUIREMENT_METRICS as [RequirementMetricCode, ...RequirementMetricCode[]]),
+              threshold: z.number().int().min(1).max(MEDAL_MAX_THRESHOLD),
+            }),
+          )
+          .max(REQUIREMENT_METRICS.length)
+          .optional()
+          .transform((v) => v ?? []),
       }),
     )
     .min(1)
@@ -93,6 +116,47 @@ export type AdminMedalBody = z.output<typeof adminMedalBody>;
 type Db = Pick<Prisma.TransactionClient, 'medal' | 'userMedal'>;
 
 /**
+ * D300 (§10.111): a medal on `ALL_REQUIREMENTS` needs on every level one threshold per metric of the same set (1 … 3
+ * of followers, likes, views), each strictly rising from level to level, and each level's `threshold` equal to its
+ * number (the composite value is the level reached); any other medal takes no requirements. Else 400 `levels`.
+ */
+function checkRequirements(metric: MedalMetricCode | null, levels: AdminMedalBody['levels']): void {
+  if (metric !== 'ALL_REQUIREMENTS') {
+    if (levels.some((l) => l.requirements.length > 0)) {
+      throw invalidLevels('only a multi-requirement medal takes requirements');
+    }
+    return;
+  }
+  const first = levels[0]!.requirements.map((r) => r.metric);
+  for (const [i, l] of levels.entries()) {
+    const metrics = l.requirements.map((r) => r.metric);
+    if (l.threshold !== i + 1) {
+      throw invalidLevels(
+        `level ${String(i + 1)} of a multi-requirement medal has threshold ${String(i + 1)}`,
+      );
+    }
+    if (
+      metrics.length === 0 ||
+      new Set(metrics).size !== metrics.length ||
+      metrics.length !== first.length ||
+      !metrics.every((m) => first.includes(m))
+    ) {
+      throw invalidLevels(
+        'every level needs one threshold per requirement, the same requirements on every level',
+      );
+    }
+    if (i > 0) {
+      const prev = levels[i - 1]!.requirements;
+      for (const r of l.requirements) {
+        if (r.threshold <= prev.find((p) => p.metric === r.metric)!.threshold) {
+          throw invalidLevels('each requirement needs more than the level before');
+        }
+      }
+    }
+  }
+}
+
+/**
  * The medals in the admin panel (v1.81-live, D291, CONVENTIONS §10.104.4): `catalog.view` reads every medal with its
  * levels and how many people hold each level; `catalog.manage` (OWNER) replaces a medal's tab and levels with a
  * reason and the authenticator code again, audited `medals.levels.update` (before / after). Levels already reached are
@@ -107,7 +171,7 @@ export class MedalsAdminService {
     const [medals, counts] = await Promise.all([
       db.medal.findMany({
         orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-        include: { levels: { orderBy: { level: 'asc' } } },
+        include: { levels: { orderBy: { level: 'asc' }, include: { requirements: true } } },
       }),
       db.userMedal.groupBy({ by: ['medalCode', 'level'], _count: { _all: true } }),
     ]);
@@ -138,6 +202,12 @@ export class MedalsAdminService {
             iconUrl: l.iconUrl,
             iconAsset: l.iconAsset,
             holders: byLevel.get(l.level) ?? 0,
+            requirements: sortRequirements(
+              l.requirements.map((r) => ({
+                metric: r.metric as RequirementMetricCode,
+                threshold: Number(r.threshold),
+              })),
+            ),
           })),
         };
       }),
@@ -164,6 +234,7 @@ export class MedalsAdminService {
       if (single && (thresholds.length !== 1 || thresholds[0] !== 1)) {
         throw invalidLevels('this medal is earned once: exactly one level at 1');
       }
+      checkRequirements(medal.metric, body.levels);
       const top = await tx.userMedal.aggregate({ where: { medalCode: code }, _max: { level: true } });
       const highest = top._max.level ?? 0;
       if (highest > thresholds.length) {
@@ -183,6 +254,16 @@ export class MedalsAdminService {
           iconAsset: l.iconAsset,
         })),
       });
+      // D300: the requirements of each level (the levels' delete above removed the old ones).
+      const requirements = body.levels.flatMap((l, i) =>
+        l.requirements.map((r) => ({
+          medalCode: code,
+          level: i + 1,
+          metric: r.metric,
+          threshold: BigInt(r.threshold),
+        })),
+      );
+      if (requirements.length > 0) await tx.medalLevelRequirement.createMany({ data: requirements });
       const after = (await this.list(tx)).data.find((m) => m.code === code)!;
       await tx.auditLog.create({
         data: {
@@ -211,6 +292,9 @@ function auditLevel(l: AdminMedalLevelDto): Record<string, string | number | nul
     nameEn: l.nameEn,
     iconUrl: l.iconUrl,
     iconAsset: l.iconAsset,
+    ...(l.requirements.length > 0
+      ? { requirements: l.requirements.map((r) => `${r.metric}:${String(r.threshold)}`).join(',') }
+      : {}),
   };
 }
 

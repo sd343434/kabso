@@ -15847,4 +15847,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verificationBadgeAbout => 'Granted automatically by conditions';
+
+  @override
+  String get medalsReqFollowers => 'Followers';
+
+  @override
+  String get medalsReqLikes => 'Likes';
+
+  @override
+  String get medalsReqViews => 'Views';
+
+  @override
+  String get medalsReqAllTogether => 'All three together for the next level';
+
+  @override
+  String get medalsCreatorsOnly => 'Content creators only';
+
+  @override
+  String get medalsCreatorsOnlyBody =>
+      'Followers, likes and views count for content creators only. A level you reached stays yours.';
+
+  @override
+  String medalsThresholdPkPoints(String points) {
+    return '$points PK points';
+  }
 }

@@ -184,6 +184,7 @@ class MedalCardData {
     this.progress,
     this.levels = const [],
     this.metric,
+    this.eligible = true,
   });
 
   /// From `GET /medals`.
@@ -201,6 +202,7 @@ class MedalCardData {
     progress: m.progress,
     levels: m.levels,
     metric: m.metric,
+    eligible: m.eligible,
   );
 
   final String code;
@@ -223,8 +225,52 @@ class MedalCardData {
   final List<MedalLevel> levels;
   final String? metric;
 
+  /// D300: false for a creators-only medal when the caller is not a content
+  /// creator now (no progress; a level reached is kept).
+  final bool eligible;
+
   bool get locked => level == 0;
+
+  /// D300: a multi-requirement medal («مدرسة المحتوى»): its levels need
+  /// several numbers together.
+  bool get multiRequirement =>
+      metric == 'ALL_REQUIREMENTS' ||
+      levels.any((l) => l.requirements.isNotEmpty);
+
+  /// D300: the caller's requirements toward the next level, in the app's
+  /// order (followers, likes, views); unknown metrics are skipped.
+  List<MedalRequirementProgress> get requirements => [
+    for (final metric in medalRequirementMetrics)
+      ...?progress?.requirements.where((r) => r.metric == metric),
+  ];
+
+  /// D300: the requirement furthest from its target (the card's bar: the
+  /// lowest of the three ratios), or null at the top / without any.
+  MedalRequirementProgress? get weakestRequirement {
+    MedalRequirementProgress? weakest;
+    var lowest = double.infinity;
+    for (final r in requirements) {
+      final next = r.next;
+      if (next == null || next <= 0) continue;
+      final ratio = r.value / next;
+      if (ratio < lowest) {
+        lowest = ratio;
+        weakest = r;
+      }
+    }
+    return weakest;
+  }
 }
+
+/// D300: the name of a requirement metric («المتابعون» …), or null for one
+/// this app does not know.
+String? medalRequirementName(AppLocalizations l10n, String metric) =>
+    switch (metric) {
+      'CREATOR_FOLLOWERS' => l10n.medalsReqFollowers,
+      'CREATOR_LIKES' => l10n.medalsReqLikes,
+      'CREATOR_VIEWS' => l10n.medalsReqViews,
+      _ => null,
+    };
 
 class _MyMedals extends ConsumerStatefulWidget {
   const new();
@@ -624,9 +670,11 @@ class _Status extends StatelessWidget {
     final look = MedalsLook.of(context);
     final t = context.textStyles;
     final c = card;
+    // D300: a creators-only medal for someone who is not a creator now.
+    final creatorsOnly = c.multiRequirement && !c.eligible;
     if (c.locked) {
       return _Pill(
-        label: l10n.medalsNotObtained,
+        label: creatorsOnly ? l10n.medalsCreatorsOnly : l10n.medalsNotObtained,
         background: look.mutedPill,
         foreground: look.textSecondary,
       );
@@ -655,6 +703,30 @@ class _Status extends StatelessWidget {
     );
     final progress = c.progress;
     if (progress == null) return head;
+    if (c.multiRequirement) {
+      // D300: the card's bar is the lowest of the three requirements.
+      final weakest = c.weakestRequirement;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          head,
+          const SizedBox(height: KSpacing.xxs),
+          if (creatorsOnly || weakest == null)
+            Text(
+              creatorsOnly ? l10n.medalsCreatorsOnly : l10n.medalsTopLevel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.caption.copyWith(color: look.textSecondary),
+            )
+          else
+            MedalProgressBar(
+              value: weakest.value,
+              next: weakest.next!,
+              compact: true,
+            ),
+        ],
+      );
+    }
     final next = progress.next;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -791,6 +863,11 @@ class MedalDetailSheet extends ConsumerStatefulWidget {
   static const wearKey = Key('medals.sheet.wear');
   static Key levelKey(int level) => Key('medals.sheet.level.$level');
 
+  /// D300: a requirement's row (its name and bar) in the sheet.
+  static Key requirementKey(String metric) =>
+      Key('medals.sheet.requirement.$metric');
+  static const creatorsOnlyKey = Key('medals.sheet.creatorsOnly');
+
   @override
   ConsumerState<MedalDetailSheet> createState() => _MedalDetailSheetState();
 }
@@ -843,8 +920,19 @@ class _MedalDetailSheetState extends ConsumerState<MedalDetailSheet> {
           KFormat.grouped(n),
         ),
         'FAMILY_JOINED' || 'CP_FORMED' => l10n.medalsThresholdOnce,
+        // D300 «لاعب الأحكام».
+        'PK_DARES_POINTS' => l10n.medalsThresholdPkPoints(KFormat.grouped(n)),
         _ => KFormat.grouped(n),
       };
+
+  /// D300: a multi-requirement level's thresholds; each «name number» pair
+  /// is kept on one line (a no-break space), lines break between pairs.
+  String _requirementsText(AppLocalizations l10n, MedalLevel level) => [
+    for (final metric in medalRequirementMetrics)
+      for (final r in level.requirements.where((r) => r.metric == metric))
+        if (medalRequirementName(l10n, r.metric) case final name?)
+          '$name\u00A0${KFormat.grouped(r.threshold)}',
+  ].join(' · ');
 
   @override
   Widget build(BuildContext context) {
@@ -905,7 +993,31 @@ class _MedalDetailSheetState extends ConsumerState<MedalDetailSheet> {
               textAlign: TextAlign.center,
               style: t.caption.copyWith(color: p.textTertiary),
             ),
-            if (progress != null && towards != null) ...[
+            if (c.multiRequirement) ...[
+              const SizedBox(height: KSpacing.md),
+              if (!c.eligible)
+                Text(
+                  l10n.medalsCreatorsOnlyBody,
+                  key: MedalDetailSheet.creatorsOnlyKey,
+                  textAlign: TextAlign.center,
+                  style: t.body.copyWith(color: p.textSecondary),
+                )
+              else if (c.weakestRequirement != null) ...[
+                Text(
+                  l10n.medalsReqAllTogether,
+                  style: t.label.copyWith(color: p.textPrimary),
+                ),
+                const SizedBox(height: KSpacing.xs),
+                for (final r in c.requirements)
+                  if (medalRequirementName(l10n, r.metric) case final name?)
+                    _RequirementRow(
+                      key: MedalDetailSheet.requirementKey(r.metric),
+                      name: name,
+                      value: r.value,
+                      next: r.next!,
+                    ),
+              ],
+            ] else if (progress != null && towards != null) ...[
               const SizedBox(height: KSpacing.md),
               MedalProgressBar(value: progress.value, next: towards),
             ],
@@ -924,7 +1036,9 @@ class _MedalDetailSheetState extends ConsumerState<MedalDetailSheet> {
                   reached: l.level <= c.level,
                   current: l.level == c.level,
                   name: l.name ?? l10n.medalsLevel(l.level),
-                  threshold: _threshold(l10n, l.threshold),
+                  threshold: l.requirements.isNotEmpty
+                      ? _requirementsText(l10n, l)
+                      : _threshold(l10n, l.threshold),
                 ),
             ],
             if (widget.mine && !c.locked) ...[
@@ -1028,7 +1142,8 @@ class _LevelRow extends StatelessWidget {
                   ),
                   Text(
                     threshold,
-                    maxLines: 1,
+                    // D300: three thresholds may need a second line.
+                    maxLines: level.requirements.isEmpty ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: t.caption.copyWith(color: p.textTertiary),
                   ),
@@ -1043,6 +1158,57 @@ class _LevelRow extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// D300: one requirement of a multi-requirement medal in the sheet — its
+/// name, then a bar toward the next level's threshold with «x / y».
+class _RequirementRow extends StatelessWidget {
+  const new({
+    required this.name,
+    required this.value,
+    required this.next,
+    super.key,
+  });
+
+  final String name;
+  final int value;
+  final int next;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final done = value >= next;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: KSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.caption.copyWith(color: p.textSecondary),
+                ),
+              ),
+              if (done)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: KBrandColors.gold,
+                ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.xxs),
+          MedalProgressBar(value: value, next: next),
+        ],
       ),
     );
   }

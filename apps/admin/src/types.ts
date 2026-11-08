@@ -895,7 +895,19 @@ export type MedalMetric =
   | 'CP_FORMED'
   | 'BULLETS_SENT'
   | 'GIFTS_SENT_COINS'
-  | 'LUCKY_GIFTS_SENT_COINS';
+  | 'LUCKY_GIFTS_SENT_COINS'
+  | 'ALL_REQUIREMENTS'
+  | MedalRequirementMetric
+  | 'PK_DARES_POINTS';
+
+/** D300 (v1.83-live): a requirement metric of a multi-requirement medal («مدرسة المحتوى»). */
+export type MedalRequirementMetric = 'CREATOR_FOLLOWERS' | 'CREATOR_LIKES' | 'CREATOR_VIEWS';
+
+/** `MedalLevelRequirement` (v1.83-live, D300): one threshold of a multi-requirement level. */
+export interface AdminMedalRequirement {
+  metric: MedalRequirementMetric;
+  threshold: number;
+}
 
 /** `AdminMedalLevel` (v1.81-live, D291). */
 export interface AdminMedalLevel {
@@ -907,6 +919,8 @@ export interface AdminMedalLevel {
   /** D291: the level's art bundled in the app (asset key), or null. */
   iconAsset: string | null;
   holders: number;
+  /** D300 (v1.83-live): the level's thresholds, all needed together; empty (or absent from an older server) otherwise. */
+  requirements?: AdminMedalRequirement[];
 }
 
 /** `AdminMedal` (v1.81-live, D291). */

@@ -308,6 +308,22 @@ info:
     `revokeAdminCreatorMember`, the creators list's source, «فعّله وكيل: …», REVOKED; «حظر الوكالة» `getAdminAgencyBan`
     / `banAdminAgency` (OWNER, code + reason; `ClosedAgency.reason` / `AgencyOpenRule.refusal` `BANNED`;
     `CherryLedgerReason` `AGENCY_FORFEIT`). Migrations `20270329090000_creator_lives_enums`, `20270329090100_creator_lives`.
+    **D300 (DRAFT v1.83-live)** «مدرسة المحتوى» / Content School (CONVENTIONS §10.111; owner 2026-11-07, interpretations
+    owner-confirmed): the first multi-requirement medal — four levels, each reached when a content creator
+    (`creator_members`) has ALL THREE of its ACTIVE followers, likes and views (posts and reels, from other ACTIVE
+    accounts, never self) at once; creators only; levels never go down (also after the membership ends). `MedalMetric`
+    gains `ALL_REQUIREMENTS` (the medal's metric: its value is the level the requirements reach, so each level's
+    `threshold` is its number), `CREATOR_FOLLOWERS`, `CREATOR_LIKES`, `CREATOR_VIEWS`; `MedalLevel.requirements`
+    (`MedalLevelRequirement`), `MedalProgress.requirements` (`MedalRequirementProgress`: each value now against the
+    next level's target), `Medal.eligible`; `AdminMedalLevel.requirements` and the panel input's per-level
+    `requirements`. Per-level bundled art `medal_content_school_l1` … `_l4`. Raised by a sweeper, at a creator's
+    activation and by `medals-admin backfill`. Additive; migrations `20270401090000_medal_requirement_metrics`,
+    `20270401090100_medal_content_school` (DEPLOYMENT §5.79). The same decision adds «لاعب الأحكام» / Dares Player:
+    a single-metric medal on the new `MedalMetric` `PK_DARES_POINTS` (the host's «PK أحكام» points only,
+    `pk_host_records.dares_points`; 1 500 / 3 000 / 5 000 / 20 000; raised where the points are written; art
+    `medal_dares_player_l1` … `_l4`), migrations `20270401090200_medal_dares_player`,
+    `20270401090300_medal_dares_only_points`. Both medals are in the ACHIEVEMENT tab; likes and views of deleted posts
+    count (owner's answers, CONVENTIONS §10.111.8).
     **D291 (DRAFT v1.81-live)** medal levels and the medals page (CONVENTIONS §10.104; owner: «ما رأيك ان نصمم صفحة
     التي تعرض الميداليات بحيث يمكن ان يكون للميدالية ايضاً ليفيلات»): a medal has 1 … 20 levels, each reached when the
     medal's metric (`MedalMetric`: lives, live hours, the charm level, family, couple, bullet messages) is at least its
@@ -15252,7 +15268,7 @@ paths:
       tags: [admin-panel]
       operationId: updateAdminMedal
       summary: "Replaces a medal's tab and levels (catalog.manage: OWNER; the code again; audited)"
-      description: "(v1.81-live, D291, §10.104.4) A retired code (§10.104.8) → 409 `ADMIN_ACTION_REFUSED`. The whole levels list, lowest first: 1 … 20 levels, thresholds 1 … 10^12 and strictly rising (else 400 `levels` `invalid_value`), optional names and hosted art per level. 400 `levels` `invalid_value` too when a 0/1 medal (FIRST_FAMILY, FIRST_CP, or a medal without a metric) gets anything but one level at 1, or when the list is shorter than the highest level somebody holds (levels are never taken away). 404 unknown medal. With a reason and the authenticator code again (a wrong code answers like every re-authentication). Audited `medals.levels.update` (before, after, reason). A new threshold applies from the next event that moves the metric; `medals-admin backfill` applies it to past activity. Nobody's level goes down."
+      description: "(v1.81-live, D291, §10.104.4) A retired code (§10.104.8) → 409 `ADMIN_ACTION_REFUSED`. The whole levels list, lowest first: 1 … 20 levels, thresholds 1 … 10^12 and strictly rising (else 400 `levels` `invalid_value`), optional names and hosted art per level. 400 `levels` `invalid_value` too when a 0/1 medal (FIRST_FAMILY, FIRST_CP, or a medal without a metric) gets anything but one level at 1, or when the list is shorter than the highest level somebody holds (levels are never taken away). 404 unknown medal. With a reason and the authenticator code again (a wrong code answers like every re-authentication). Audited `medals.levels.update` (before, after, reason). A new threshold applies from the next event that moves the metric; `medals-admin backfill` applies it to past activity. Nobody's level goes down. (v1.83-live, D300, §10.111) A medal on `ALL_REQUIREMENTS` («مدرسة المحتوى») takes per level `requirements` — one threshold per metric, the same metrics on every level, each strictly rising — and each level's `threshold` equal to its number; any other medal takes none (400 `levels` `invalid_value` otherwise). The audit's levels carry `requirements` as `METRIC:threshold,…`."
       security: [{ adminSession: [] }]
       parameters:
         - $ref: '#/components/parameters/AdminCsrf'
@@ -20057,7 +20073,7 @@ components:
     AdminMedalLevel:
       type: object
       additionalProperties: false
-      required: [level, threshold, nameAr, nameEn, iconUrl, iconAsset, holders]
+      required: [level, threshold, nameAr, nameEn, iconUrl, iconAsset, holders, requirements]
       properties:
         level: { type: integer, minimum: 1, maximum: 20 }
         threshold: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
@@ -20066,6 +20082,11 @@ components:
         iconUrl: { type: [string, 'null'], format: uri, maxLength: 500 }
         iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$' }
         holders: { type: integer, minimum: 0, description: People whose level is exactly this one. }
+        requirements:
+          type: array
+          maxItems: 3
+          description: "(v1.83-live, D300, §10.111) A multi-requirement level's thresholds (followers, likes, views order), all needed together; empty for a single-metric medal."
+          items: { $ref: '#/components/schemas/MedalLevelRequirement' }
     AdminMedal:
       type: object
       additionalProperties: false
@@ -20117,6 +20138,11 @@ components:
               nameEn: { type: [string, 'null'], minLength: 1, maxLength: 60 }
               iconUrl: { type: [string, 'null'], format: uri, maxLength: 500, pattern: '^https://' }
               iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) A level's art bundled in the app." }
+              requirements:
+                type: array
+                maxItems: 3
+                description: "(v1.83-live, D300, §10.111) Only for a medal on `ALL_REQUIREMENTS` (else 400 `levels` `invalid_value`): one threshold per requirement metric, the same metrics on every level, each strictly rising from level to level, and the level's `threshold` equal to its number. Omitted = none."
+                items: { $ref: '#/components/schemas/MedalLevelRequirement' }
         reason: { type: string, minLength: 1, maxLength: 500 }
         totpCode: { type: string, pattern: '^[0-9]{6}$' }
     AdminReferralSettings:
@@ -30591,28 +30617,55 @@ components:
       description: "(v1.81-live, D291, §10.104) The medals page's tab: «الإنجازات» / «النشاط». Clients show a category they do not know under ACHIEVEMENT."
     MedalMetric:
       type: string
-      enum: [LIVES_HOSTED, LIVE_HOURS, CHARM_LEVEL, FAMILY_JOINED, CP_FORMED, BULLETS_SENT, GIFTS_SENT_COINS, LUCKY_GIFTS_SENT_COINS]
-      description: "(v1.81-live, D291, §10.104) What a medal's levels count: ended lives hosted, hours of ended lives hosted, the charm level reached, 0/1 created or joined a family, 0/1 formed a couple, bullet messages sent; GIFTS_SENT_COINS (owner «ملوك الثروة», §10.104.7: «اي هدية مرسلة لاي مستخدم الا هدايا فئة الحظ»): the coin value of every gift sent to anyone — in a live (host, seat guests), a direct conversation or as a CP gift — lucky gifts excluded; LUCKY_GIFTS_SENT_COINS (owner «سيد الحظ», §10.104.9: «يتم احتساب من مجموع هدايا الحظ التي قام بإرسالها»): the coin value of the lucky gifts sent (any path, any recipient; never the winnings). Values reach 10^10 (above 2^32): int64. Clients treat an unknown value as none."
+      enum: [LIVES_HOSTED, LIVE_HOURS, CHARM_LEVEL, FAMILY_JOINED, CP_FORMED, BULLETS_SENT, GIFTS_SENT_COINS, LUCKY_GIFTS_SENT_COINS, ALL_REQUIREMENTS, CREATOR_FOLLOWERS, CREATOR_LIKES, CREATOR_VIEWS, PK_DARES_POINTS]
+      description: "(v1.81-live, D291, §10.104) What a medal's levels count: ended lives hosted, hours of ended lives hosted, the charm level reached, 0/1 created or joined a family, 0/1 formed a couple, bullet messages sent; GIFTS_SENT_COINS (owner «ملوك الثروة», §10.104.7: «اي هدية مرسلة لاي مستخدم الا هدايا فئة الحظ»): the coin value of every gift sent to anyone — in a live (host, seat guests), a direct conversation or as a CP gift — lucky gifts excluded; LUCKY_GIFTS_SENT_COINS (owner «سيد الحظ», §10.104.9: «يتم احتساب من مجموع هدايا الحظ التي قام بإرسالها»): the coin value of the lucky gifts sent (any path, any recipient; never the winnings). Values reach 10^10 (above 2^32): int64. Clients treat an unknown value as none. (v1.83-live, D300, §10.111) ALL_REQUIREMENTS: a multi-requirement medal — its value is the highest level whose every requirement (`MedalLevel.requirements`) is met, so each level's threshold is the level number; CREATOR_FOLLOWERS (a content creator's ACTIVE followers now, as the profile counts them), CREATOR_LIKES (all-time likes on the creator's posts and reels — deleted or removed ones too — from other ACTIVE accounts) and CREATOR_VIEWS (all-time §11.4 views of those posts and reels from other ACTIVE accounts) are the requirement metrics — only content creators (`creator_members`) earn or progress on them. PK_DARES_POINTS (owner «لاعب الأحكام», §10.111.7–8): a host's PK points now from «PK أحكام» (DARES) matches only — the DARES share of `PkHostRecord.points`; it can fall (a refused dare) but a level never goes down; `progress.value` shows it from 0."
     MedalLevel:
       type: object
       description: "(v1.81-live, D291, §10.104) One level of a medal: reached when the medal's metric is at least `threshold` (level 1 is the medal's original rule)."
-      required: [level, threshold, name, iconUrl, iconAsset]
+      required: [level, threshold, name, iconUrl, iconAsset, requirements]
       properties:
         level: { type: integer, minimum: 1, maximum: 20 }
-        threshold: { type: integer, format: int64, minimum: 1 }
+        threshold: { type: integer, format: int64, minimum: 1, description: "For a medal on `ALL_REQUIREMENTS` (D300) the level number; the app words the level with `requirements` instead." }
         name: { type: [string, 'null'], description: "This level's own name in the request's language, or null (the medal's name; the app shows the level as text)." }
         iconUrl: { type: [string, 'null'], format: uri, description: "This level's own hosted art, or null (the medal's art; the app writes the level as text)." }
         iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291, §10.104.7) This level's art bundled in the app (an asset key, e.g. `medal_wealth_l1`), or null. `iconUrl` wins when both are set; an app without that asset draws the medal's `iconKey`." }
+        requirements:
+          type: array
+          maxItems: 3
+          description: "(v1.83-live, D300, §10.111) A multi-requirement level's thresholds, all needed together (followers, likes, views order); empty for a single-metric medal. An older app ignores it."
+          items: { $ref: '#/components/schemas/MedalLevelRequirement' }
+    MedalLevelRequirement:
+      type: object
+      additionalProperties: false
+      description: "(v1.83-live, D300, §10.111) One threshold of a multi-requirement level."
+      required: [metric, threshold]
+      properties:
+        metric: { type: string, enum: [CREATOR_FOLLOWERS, CREATOR_LIKES, CREATOR_VIEWS], description: "A requirement metric (`MedalMetric`). Clients skip a value they do not know." }
+        threshold: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+    MedalRequirementProgress:
+      type: object
+      additionalProperties: false
+      description: "(v1.83-live, D300, §10.111) The caller's value of one requirement now and the next level's threshold of it (null at the top level)."
+      required: [metric, value, next]
+      properties:
+        metric: { type: string, enum: [CREATOR_FOLLOWERS, CREATOR_LIKES, CREATOR_VIEWS] }
+        value: { type: integer, format: int64, minimum: 0, description: "0 for a caller who is not a content creator now." }
+        next: { type: [integer, 'null'], format: int64, minimum: 1 }
     MedalProgress:
       type: object
-      description: "(v1.81-live, D291) The caller's value of the medal's metric now (whole numbers; hours rounded down) and the next level's threshold (null at the top level)."
-      required: [value, next]
+      description: "(v1.81-live, D291) The caller's value of the medal's metric now (whole numbers; hours rounded down) and the next level's threshold (null at the top level). (v1.83-live, D300) For a medal on `ALL_REQUIREMENTS`, `value` is the level the requirements reach now and `requirements` holds each requirement's value against the next level's target (the app shows three bars; the card shows the lowest of the three)."
+      required: [value, next, requirements]
       properties:
         value: { type: integer, format: int64, minimum: 0 }
         next: { type: [integer, 'null'], format: int64, minimum: 1 }
+        requirements:
+          type: array
+          maxItems: 3
+          description: "(v1.83-live, D300) Empty for a single-metric medal; at the top level each `next` is null."
+          items: { $ref: '#/components/schemas/MedalRequirementProgress' }
     Medal:
       type: object
-      required: [code, name, description, iconKey, sortOrder, awardedAt, category, metric, level, maxLevel, levels, progress, iconUrl, iconAsset, showcasePosition]
+      required: [code, name, description, iconKey, sortOrder, awardedAt, category, metric, level, maxLevel, levels, progress, iconUrl, iconAsset, showcasePosition, eligible]
       properties:
         code: { type: string, maxLength: 40 }
         name: { type: string }
@@ -30637,6 +30690,7 @@ components:
         iconUrl: { type: [string, 'null'], format: uri, description: "(v1.81-live, D291) The hosted art of the level shown (the caller's, else level 1), or null (the app draws `iconKey`)." }
         iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) The bundled art key of the level shown, or null." }
         showcasePosition: { type: [integer, 'null'], minimum: 1, maximum: 5, description: "(v1.81-live, D291) 1 … 5 when the caller wears it (`PUT /me/medals/showcase`, in that order), else null." }
+        eligible: { type: boolean, description: "(v1.83-live, D300, §10.111) False when the medal is for content creators (its requirements are creator metrics) and the caller is not one now: they neither earn nor progress (the requirement values are 0), but a level already reached is kept («لصنّاع المحتوى فقط»). True for every other medal. An older server sends none: read as true." }
     MedalCatalogue:
       type: object
       required: [data, total, owned]

@@ -1,6 +1,7 @@
 // Wire models of the medals API (docs/contracts/openapi.yaml v1.21-live
 // DRAFT, tag `medals`, CP-018; CONVENTIONS §10.21; levels and tabs
-// v1.81-live, D291, §10.104).
+// v1.81-live, D291, §10.104; multi-requirement medals v1.83-live, D300,
+// §10.111).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -20,6 +21,37 @@ enum MedalCategory {
   activity,
 }
 
+/// D300 (§10.111): the requirement metrics of a multi-requirement medal
+/// («مدرسة المحتوى»), in the order the app shows them.
+const List<String> medalRequirementMetrics = [
+  'CREATOR_FOLLOWERS',
+  'CREATOR_LIKES',
+  'CREATOR_VIEWS',
+];
+
+/// `MedalLevelRequirement` (v1.83-live, D300): one threshold of a
+/// multi-requirement level — all of a level's requirements together reach
+/// it.
+@freezed
+abstract class MedalLevelRequirement with _$MedalLevelRequirement {
+  const factory({required String metric, required int threshold}) =
+      _MedalLevelRequirement;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$MedalLevelRequirementFromJson(json);
+}
+
+/// `MedalRequirementProgress` (v1.83-live, D300): the caller's value of one
+/// requirement now and the next level's threshold of it (null at the top).
+@freezed
+abstract class MedalRequirementProgress with _$MedalRequirementProgress {
+  const factory({required String metric, @Default(0) int value, int? next}) =
+      _MedalRequirementProgress;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$MedalRequirementProgressFromJson(json);
+}
+
 /// `MedalLevel` (v1.81-live, D291): reached when the medal's metric is at
 /// least [threshold]. [name] and [iconUrl] are this level's own, or null
 /// (the medal's name and art with the numeral).
@@ -33,6 +65,10 @@ abstract class MedalLevel with _$MedalLevel {
 
     /// D291: this level's art bundled in the app (e.g. `medal_wealth_l1`).
     String? iconAsset,
+
+    /// D300: a multi-requirement level's thresholds (empty otherwise).
+    @Default(<MedalLevelRequirement>[])
+    List<MedalLevelRequirement> requirements,
   }) = _MedalLevel;
 
   factory fromJson(Map<String, dynamic> json) => _$MedalLevelFromJson(json);
@@ -42,7 +78,15 @@ abstract class MedalLevel with _$MedalLevel {
 /// level's threshold (null at the top level).
 @freezed
 abstract class MedalProgress with _$MedalProgress {
-  const factory({@Default(0) int value, int? next}) = _MedalProgress;
+  const factory({
+    @Default(0) int value,
+    int? next,
+
+    /// D300: each requirement now against the next level's target (empty
+    /// for a single-metric medal).
+    @Default(<MedalRequirementProgress>[])
+    List<MedalRequirementProgress> requirements,
+  }) = _MedalProgress;
 
   factory fromJson(Map<String, dynamic> json) => _$MedalProgressFromJson(json);
 }
@@ -79,6 +123,11 @@ abstract class Medal with _$Medal {
     /// D291: the bundled art key of the level shown, or null.
     String? iconAsset,
     int? showcasePosition,
+
+    /// D300: false when the medal is for content creators and the caller is
+    /// not one now (no progress; a level reached is kept). Older servers:
+    /// true.
+    @Default(true) bool eligible,
   }) = _Medal;
 
   const new _();

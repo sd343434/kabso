@@ -31,6 +31,18 @@ abstract final class MedalArt {
     'medal_lucky_l2' => 'assets/medals/medal_lucky_l2.webp',
     'medal_lucky_l3' => 'assets/medals/medal_lucky_l3.webp',
     'medal_lucky_l4' => 'assets/medals/medal_lucky_l4.webp',
+    // D300 «مدرسة المحتوى» and «لاعب الأحكام»: the owner's art of each level
+    // (2026-11-07); each medal's own key shows level 1.
+    'medal_content_school' ||
+    'medal_content_school_l1' => 'assets/medals/medal_content_school_l1.webp',
+    'medal_content_school_l2' => 'assets/medals/medal_content_school_l2.webp',
+    'medal_content_school_l3' => 'assets/medals/medal_content_school_l3.webp',
+    'medal_content_school_l4' => 'assets/medals/medal_content_school_l4.webp',
+    'medal_dares_player' ||
+    'medal_dares_player_l1' => 'assets/medals/medal_dares_player_l1.webp',
+    'medal_dares_player_l2' => 'assets/medals/medal_dares_player_l2.webp',
+    'medal_dares_player_l3' => 'assets/medals/medal_dares_player_l3.webp',
+    'medal_dares_player_l4' => 'assets/medals/medal_dares_player_l4.webp',
     'medal_first_family' => 'assets/leaderboard/rank_shield_1.webp',
     'medal_first_cp' => 'assets/leaderboard/heart.webp',
     'medal_charm_10' => CharmTier.of(10).icon,
@@ -41,7 +53,10 @@ abstract final class MedalArt {
 
   /// Art that is a whole emblem (drawn full-size, without the tinted disc).
   static bool isEmblem(String iconKey) =>
-      iconKey.startsWith('medal_wealth_') || iconKey.startsWith('medal_lucky_');
+      iconKey.startsWith('medal_wealth_') ||
+      iconKey.startsWith('medal_lucky_') ||
+      iconKey.startsWith('medal_content_school') ||
+      iconKey.startsWith('medal_dares_player');
 
   /// The fallback icon and tint of [iconKey].
   static (IconData, Color) fallback(String iconKey) => switch (iconKey) {
