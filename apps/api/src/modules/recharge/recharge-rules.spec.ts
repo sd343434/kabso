@@ -17,9 +17,9 @@ import {
 } from './recharge-rules.js';
 
 const TIERS = [
-  { minCoins: 0, minorPerMillion: 1200 },
-  { minCoins: 100_000_000, minorPerMillion: 1195 },
-  { minCoins: 300_000_000, minorPerMillion: 1190 },
+  { minCoins: 0, minorPerMillion: 1215 },
+  { minCoins: 100_000_000, minorPerMillion: 1210 },
+  { minCoins: 300_000_000, minorPerMillion: 1200 },
 ];
 
 describe('D185 recharge rules', () => {
@@ -33,26 +33,26 @@ describe('D185 recharge rules', () => {
     expect(normalizeAgentCode('agent0001')).toBeNull();
   });
 
-  it("uses the owner's price tiers ($12, from 100M $11.95, from 300M $11.90)", () => {
+  it("uses the owner's price tiers ($12.15, from 100M $12.10, from 300M $12.00; D306)", () => {
     expect(topUpPrice(30_000_000n, TIERS)).toEqual({
       tier: 'STANDARD',
-      minorPerMillion: 1200,
-      expectedMinor: 36_000n,
+      minorPerMillion: 1215,
+      expectedMinor: 36_450n,
     });
     expect(topUpPrice(99_999_999n, TIERS).tier).toBe('STANDARD');
     expect(topUpPrice(100_000_000n, TIERS)).toEqual({
       tier: 'FROM_100M',
-      minorPerMillion: 1195,
-      expectedMinor: 119_500n,
+      minorPerMillion: 1210,
+      expectedMinor: 121_000n,
     });
-    expect(topUpPrice(299_990_000n, TIERS).minorPerMillion).toBe(1195);
+    expect(topUpPrice(299_990_000n, TIERS).minorPerMillion).toBe(1210);
     expect(topUpPrice(300_000_000n, TIERS)).toEqual({
       tier: 'FROM_300M',
-      minorPerMillion: 1190,
-      expectedMinor: 357_000n,
+      minorPerMillion: 1200,
+      expectedMinor: 360_000n,
     });
     // Rounded half up to a cent.
-    expect(topUpPrice(10_000_001n, TIERS).expectedMinor).toBe(12_000n);
+    expect(topUpPrice(10_000_001n, TIERS).expectedMinor).toBe(12_150n);
     expect(() => topUpPrice(0n, TIERS)).toThrow(RangeError);
   });
 

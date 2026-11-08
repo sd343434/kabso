@@ -41,9 +41,9 @@ interface TestUser {
 }
 
 const TIERS = [
-  { minCoins: 0, minorPerMillion: 1200 },
-  { minCoins: 100_000_000, minorPerMillion: 1195 },
-  { minCoins: 300_000_000, minorPerMillion: 1190 },
+  { minCoins: 0, minorPerMillion: 1215 },
+  { minCoins: 100_000_000, minorPerMillion: 1210 },
+  { minCoins: 300_000_000, minorPerMillion: 1200 },
 ];
 const RULES = { activationMinCoins: 30_000_000, priceTiers: TIERS, currency: 'USD' };
 
@@ -160,7 +160,7 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     const id = await appId(user);
     await ctx.prisma.$transaction((tx) => approveApplicationIn(tx, id, now()));
     const r = await ctx.prisma.$transaction((tx) =>
-      topUpIn(tx, user.id, coins, (coins * 1200n + 500_000n) / 1_000_000n, null, RULES, now()),
+      topUpIn(tx, user.id, coins, (coins * 1215n + 500_000n) / 1_000_000n, null, RULES, now()),
     );
     return { user, code: r.code! };
   };
@@ -303,7 +303,7 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     await ctx.prisma.$transaction((tx) => approveApplicationIn(tx, id, now()));
     expect(await me(u)).toMatchObject({ status: 'APPROVED', agent: { code: null, stockCoins: 0 } });
     await expect(
-      ctx.prisma.$transaction((tx) => topUpIn(tx, u.id, 29_999_999n, 36_000n, null, RULES, now())),
+      ctx.prisma.$transaction((tx) => topUpIn(tx, u.id, 29_999_999n, 36_450n, null, RULES, now())),
     ).rejects.toBeInstanceOf(RechargeAdminError);
     // A price other than the tier's needs a note.
     await expect(
@@ -323,7 +323,7 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     }
     const results = await Promise.all(
       users.map((v) =>
-        ctx.prisma.$transaction((tx) => topUpIn(tx, v.id, 30_000_000n, 36_000n, null, RULES, now())),
+        ctx.prisma.$transaction((tx) => topUpIn(tx, v.id, 30_000_000n, 36_450n, null, RULES, now())),
       ),
     );
     const numbers = results.map((r) => Number(r.code!.slice(4))).sort((a, b) => a - b);
@@ -332,21 +332,21 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     expect(results[0]!.code).toMatch(/^coin[0-9]{4}$/);
     // The second top-up does not change the code; the tier follows the amount.
     const second = await ctx.prisma.$transaction((tx) =>
-      topUpIn(tx, u.id, 300_000_000n, 357_000n, null, RULES, now()),
+      topUpIn(tx, u.id, 300_000_000n, 360_000n, null, RULES, now()),
     );
     expect(second).toMatchObject({
       first: false,
       code: results[0]!.code,
       tier: 'FROM_300M',
-      minorPerMillion: 1190,
+      minorPerMillion: 1200,
     });
     const topups = await ctx.prisma.rechargeTopup.findMany({
       where: { agentUserId: u.id },
       orderBy: { createdAt: 'asc' },
     });
     expect(topups.map((t) => [t.tier, t.pricePerMillionMinor, Number(t.paidMinor), t.first])).toEqual([
-      ['STANDARD', 1200, 36_000, true],
-      ['FROM_300M', 1190, 357_000, false],
+      ['STANDARD', 1215, 36_450, true],
+      ['FROM_300M', 1200, 360_000, false],
     ]);
     expect(await me(u)).toMatchObject({ status: 'ACTIVE', agent: { stockCoins: 330_000_000 } });
     expect(await ctx.prisma.auditLog.count({ where: { action: 'recharge.activate', targetId: u.id } })).toBe(

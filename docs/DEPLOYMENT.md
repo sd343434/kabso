@@ -3329,3 +3329,20 @@ CONVENTIONS §10.115. §5.81–§5.83 belong to other branches.
 - **Order:** API (with its migration) first, then the panel, then the app (the app reads `giftStrip` / `gameStrip` with a default of on,
   so an older API is fine). **Rollback:** an older API ignores the two columns; `GIFT_GLOBAL_TICKER_MIN_COINS` falls
   back to 1 000 unless set.
+
+### 5.85 Recharge-agent price tiers $12.15 / $12.10 / $12.00 (no migration; D306) — [IMPLEMENTED; config default only]
+
+CONVENTIONS §10.48 (owner 2026-11-07).
+
+- **Setting:** `RECHARGE_AGENT_PRICE_TIERS` default is now `0:1215,100000000:1210,300000000:1200` (USD cents per
+  1 000 000 coins: $12.15 below 100 000 000, $12.10 from 100 000 000, $12.00 from 300 000 000; was
+  `0:1200,100000000:1195,300000000:1190`). `RECHARGE_AGENT_ACTIVATION_MIN_COINS` is unchanged (30 000 000).
+- **Server:** the owner has already set `RECHARGE_AGENT_PRICE_TIERS=0:1215,100000000:1210,300000000:1200` in the API
+  env (`/etc/kabso/api.env`); keep it (or remove it to use the same default). It is read when the container starts:
+  after a change recreate the API (`docker compose up -d api` from `/opt/kabso/infra/deploy`, as `update.sh` does;
+  `docker compose restart` does not re-read `env_file`). Check with
+  `docker compose exec api printenv RECHARGE_AGENT_PRICE_TIERS`.
+- **Effect:** only new `recharge-admin topup` records use the new prices (a different paid amount still needs
+  `--note`); top-ups already recorded keep their stored tier and price. «الربح» (D301) still values given-away coins at
+  `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION` = 1200, now equal to the lowest tier.
+- **Rollback:** set the old value `0:1200,100000000:1195,300000000:1190` and recreate the API.

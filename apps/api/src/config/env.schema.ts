@@ -1149,16 +1149,17 @@ export const envSchema = z
     /**
      * v1.54-social (D185, CONVENTIONS §10.48): recharge agents. The first top-up that activates an agent (owner:
      * 30 000 000 coins); the owner's wholesale price tiers `minCoins:minorPerMillion,…` (USD cents per 1 000 000
-     * coins: $12, from 100M $11.95, from 300M $11.90); the cherry → coin rate for an agent buying a host's
-     * cherries `cherries:coins` (owner: 1 000 000 → 93 220), its minimum and step, how long a request stays open,
-     * the default daily cap per agent (cherries), the most employees per agent, how long a rejected
-     * application's private data is kept, and the sweeper (retention; 0 = off, refused in production).
+     * coins: $12.15, from 100M $12.10, from 300M $12.00 — owner 2026-11-07, D306; was $12 / $11.95 / $11.90); the
+     * cherry → coin rate for an agent buying a host's cherries `cherries:coins` (owner: 1 000 000 → 93 220), its
+     * minimum and step, how long a request stays open, the default daily cap per agent (cherries), the most
+     * employees per agent, how long a rejected application's private data is kept, and the sweeper (retention;
+     * 0 = off, refused in production).
      */
     RECHARGE_AGENT_ACTIVATION_MIN_COINS: intSetting(30_000_000, 1),
     RECHARGE_AGENT_PRICE_TIERS: z
       .string()
       .trim()
-      .default('0:1200,100000000:1195,300000000:1190')
+      .default('0:1215,100000000:1210,300000000:1200')
       .refine((v) => /^0:[1-9][0-9]{0,6}(,[1-9][0-9]{0,14}:[1-9][0-9]{0,6})*$/.test(v), {
         message: 'must be minCoins:minorPerMillion pairs, the first from 0, e.g. 0:1200,100000000:1195',
       })

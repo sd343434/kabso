@@ -3500,10 +3500,11 @@ No URL is ever returned for them.
 
 **Activation and top-ups** (`recharge-admin topup <agent> <coins> --paid <USD>`): the team records each
 wholesale top-up paid outside the app — the coins, the owner's **price tier** and the USD paid:
-`< 100 000 000` coins $12.00 per 1 000 000; `100 000 000 – 299 999 999` $11.95; `≥ 300 000 000` $11.90
-(`RECHARGE_AGENT_PRICE_TIERS`); a USD amount different from the tier's price needs `--note`. The tier, price
+`< 100 000 000` coins $12.15 per 1 000 000; `100 000 000 – 299 999 999` $12.10; `≥ 300 000 000` $12.00
+(`RECHARGE_AGENT_PRICE_TIERS`, default `0:1215,100000000:1210,300000000:1200`; owner 2026-11-07, D306 — was
+$12.00 / $11.95 / $11.90; a top-up already recorded keeps the tier and price stored with it); a USD amount different from the tier's price needs `--note`. The tier, price
 per million, expected and paid amounts are stored with the top-up (`recharge_topups`). The **first** top-up
-must be ≥ `RECHARGE_AGENT_ACTIVATION_MIN_COINS` (30 000 000 = $360) and activates the agent in the same
+must be ≥ `RECHARGE_AGENT_ACTIVATION_MIN_COINS` (30 000 000 = $364.50 at $12.15) and activates the agent in the same
 transaction: the agent gets the next **code** `coin0001`, `coin0002`, … from a counter row updated in that
 transaction (sequential, never reused, never changed; beyond 9999 the number simply grows; a number whose
 name an older account already uses — made before `coin` + digits was reserved — is skipped, the only gap). The
