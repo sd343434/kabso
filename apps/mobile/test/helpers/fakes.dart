@@ -63,6 +63,10 @@ class FakeAuthRepository implements AuthRepository {
   AppFailure? registerFailure;
   AppFailure? availabilityFailure;
   int loginCalls = 0;
+
+  /// D302: the identifier of each login call (an email, a username or a
+  /// staff ID).
+  final List<String> loginIdentifiers = [];
   int registerCalls = 0;
   Set<String> takenUsernames;
   Duration availabilityDelay;
@@ -98,6 +102,7 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
   }) async {
     loginCalls++;
+    loginIdentifiers.add(identifier);
     final failure = loginFailure;
     if (failure != null) throw failure;
     return me;

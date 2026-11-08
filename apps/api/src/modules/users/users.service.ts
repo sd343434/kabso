@@ -323,9 +323,11 @@ export class UsersService {
 
   /** Looks a user up by normalized email or username. */
   async findLoginCandidate(
-    identifier: { email: string } | { username: string },
+    identifier: { email: string } | { username: string } | { id: string },
   ): Promise<LoginCandidate | null> {
     const select = { id: true, passwordHash: true, status: true, passwordChangeRequiredAt: true } as const;
+    // v1.84-live (D302): the current holder of a staff ID, already resolved (`staffIdHolderOf`).
+    if ('id' in identifier) return this.prisma.user.findUnique({ where: { id: identifier.id }, select });
     if ('email' in identifier) {
       return this.prisma.user.findUnique({ where: { email: identifier.email }, select });
     }

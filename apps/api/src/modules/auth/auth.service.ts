@@ -8,6 +8,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-sender.js';
 import { normalizeEmail, normalizeUsername } from '../users/username.js';
+import { parseStaffId, staffIdHolderOf } from '../users/staff-ids.js';
 import { activeDeviceBanOf, deviceBannedError } from './device-bans.js';
 import { activeRestrictionOf } from '../users/account-control.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
@@ -52,6 +53,9 @@ interface LoginLimits {
   reserved: boolean;
 }
 
+/** How the sign-in identifier was read (audit metadata; v1.84-live D302 adds `staff_id`). */
+type LoginIdentifierType = 'email' | 'username' | 'staff_id';
+
 /** Redis flag bucket: "this source logged into this account recently" (SEC-023). */
 const RECENT_SUCCESS_BUCKET = 'login:recent_success';
 
@@ -77,8 +81,17 @@ export class AuthService {
     const identifier = input.identifier.includes('@')
       ? { email: normalizeEmail(input.identifier) }
       : { username: normalizeUsername(input.identifier) };
-    const identifierType = 'email' in identifier ? 'email' : 'username';
-    const candidate = await this.users.findLoginCandidate(identifier);
+    // v1.84-live (D302, §10.96.12; owner: «المشرفين يدخلون من خلال وضع الايدي المميز والباسورد»): a staff ID («Kabso01»,
+    // «kabso1», «@KABSO01», the primary OWNER's «Kabso») signs in its CURRENT holder (ACTIVE, a panel role held). A
+    // retired number or a suspended holder resolves to nobody and the identifier is read as before (username / email),
+    // so the answer and the work done are those of any unknown identifier. Every rule below applies unchanged.
+    const staffNumber = parseStaffId(input.identifier);
+    const staffHolder = staffNumber === null ? null : await staffIdHolderOf(this.prisma, staffNumber);
+    const identifierType: LoginIdentifierType =
+      staffHolder !== null ? 'staff_id' : 'email' in identifier ? 'email' : 'username';
+    const candidate = await this.users.findLoginCandidate(
+      staffHolder !== null ? { id: staffHolder } : identifier,
+    );
     const limits = await this.checkLoginLimits(candidate?.id ?? null, identifier, identifierType, meta);
 
     let passwordOk: boolean;
@@ -433,7 +446,7 @@ export class AuthService {
   private async checkLoginLimits(
     userId: string | null,
     identifier: { email: string } | { username: string },
-    identifierType: 'email' | 'username',
+    identifierType: LoginIdentifierType,
     meta: RequestMeta,
   ): Promise<LoginLimits> {
     const account = userId

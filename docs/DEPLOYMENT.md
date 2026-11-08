@@ -3163,6 +3163,21 @@ needs the new build for the owner's layout (an older app shows the owner's profi
   «بعد» counts none. **Checks:** `SELECT count(*) FROM owner_fixed_costs;`; as the owner, `GET /owner/profit` answers
   with «قبل» equal to the dashboard's income (plus held chargebacks) and «بعد» below it.
 
+### 5.81 The staff sign in with the staff ID (no migration; D302) — [IMPLEMENTED, draft contract v1.84-live; not deployed, not device-tested]
+
+CONVENTIONS §10.96.12 (D302). `login` (app) and `adminLogin` (panel) also take the official staff ID («Kabso01», any
+case, `@`, leading zeros; «Kabso» for the primary OWNER) and resolve it to its **current** holder through `staff_ids`
+(already readable by the runtime role since D283c). **No migration, no new setting, no GRANT.** Deploy the API with
+the apps; an older app or panel just does not mention the staff ID in its field label (an older panel's email-type
+field refuses a staff ID in the browser — the email keeps working).
+
+- **Checks after deploy:** sign in to the app with a staff member's `Kabso01` (and `kabso1`) and their password → 200,
+  `user.staffId = Kabso01`; a revoked or suspended staff member's number with the right password → 401
+  `AUTH_INVALID_CREDENTIALS`; the panel with `Kabso01` + password → `next: TOTP_VERIFY` (the authenticator code is
+  still asked). `SELECT metadata FROM audit_logs WHERE action = 'auth.login.success' ORDER BY created_at DESC LIMIT 5;`
+  shows `{"identifierType": "staff_id"}` for those sign-ins.
+- **Rollback:** the previous API simply reads a staff ID as a username / email again (no data to undo).
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

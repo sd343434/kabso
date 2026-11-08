@@ -52,7 +52,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginSubtitle => 'Log in and pick up where you left off.';
 
   @override
-  String get loginIdentifierLabel => 'Email or username';
+  String get loginIdentifierLabel => 'Email, username or staff ID';
 
   @override
   String get loginPasswordLabel => 'Password';

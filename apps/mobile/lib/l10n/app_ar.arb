@@ -32,7 +32,7 @@
   "languageSwitchHint": "يغيّر لغة التطبيق",
   "loginTitle": "تسجيل الدخول",
   "loginSubtitle": "سجّل دخولك وكمّل من حيث وقفت",
-  "loginIdentifierLabel": "البريد الإلكتروني أو اسم المستخدم",
+  "loginIdentifierLabel": "البريد أو اسم المستخدم أو ايدي الموظف",
   "loginPasswordLabel": "كلمة المرور",
   "loginSubmit": "تسجيل الدخول",
   "loginForgotPassword": "نسيت كلمة المرور؟",

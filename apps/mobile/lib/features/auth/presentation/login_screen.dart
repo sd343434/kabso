@@ -120,7 +120,8 @@ TextStyle _baloo(double size, FontWeight weight, Color color, {double? h}) =>
 /// The behaviour is the earlier login's: validation, server errors with
 /// Error IDs, Retry-After countdowns, the ended-session banner, the
 /// language switch and the email prefill from the code screen. Changes
-/// from the supplied file: the identifier is "email or username" (the
+/// from the supplied file: the identifier is "email or username" (D302:
+/// or the staff ID «Kabso01»; the
 /// contract has no phone login); Google and Apple are disabled and marked
 /// "Soon" (proposal CP-002); the button says "Log in" (the copy rules
 /// T2/T3 forbid "كابسو" in Arabic and "!"); copy from l10n; bundled fonts;

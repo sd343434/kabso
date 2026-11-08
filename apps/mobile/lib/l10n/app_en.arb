@@ -14,7 +14,7 @@
   "languageSwitchHint": "Changes the app language",
   "loginTitle": "Log in",
   "loginSubtitle": "Log in and pick up where you left off.",
-  "loginIdentifierLabel": "Email or username",
+  "loginIdentifierLabel": "Email, username or staff ID",
   "loginPasswordLabel": "Password",
   "loginSubmit": "Log in",
   "loginForgotPassword": "Forgot password?",
