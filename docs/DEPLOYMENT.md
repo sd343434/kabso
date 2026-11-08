@@ -3295,6 +3295,13 @@ does not know the new metric; it never creates one).
   (CHECK `events_art_keys`), media kind `EVENT_VIDEO` is never a media row (event art lives under `media/events/…` in
   the media bucket; nothing sweeps it — delete unused art by hand if needed). Raw upload paths needing a 31 MB proxy
   limit: `/api/v1/admin/banner-video-uploads`, `/api/v1/admin/event-uploads`, `/api/v1/staff/event-uploads`.
+- **With D301 (integration `claude/kl-int17`):** D301's `20270402090100_owner_profile` and this branch's
+  `20270404090100_gift_events` both rewrite the `media_assets` CHECKs `media_assets_kind_known`,
+  `media_assets_duration_shape` and `media_assets_poster_shape`; applied in order, the second dropped
+  `PROFILE_COVER_VIDEO`. `20270406090000_media_kind_checks_merge` (after `20270405090000_global_strip_settings`)
+  restores the union (PROFILE_COVER_VIDEO and BANNER_VIDEO). Apply all three with the same deploy; until it runs the
+  owner's cover-video upload fails (500). Check: `SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname =
+  'media_assets_kind_known';` names both kinds.
 - **Who can create:** the capability `events.manage` is **OWNER only** (code: `admin-permissions.ts`); widening it is a
   code change the owner decides (PP-60).
 - **Checks after deploy:** `SELECT count(*) FROM event_results WHERE board <> 'MAIN';` (0 before any gift event);
