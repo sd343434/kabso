@@ -32,6 +32,10 @@ abstract class LiveConfig with _$LiveConfig {
     /// (default; also for an older server) or `FREE` (ML Kit + MediaPipe).
     /// Read through `LiveFxEngine.parse`.
     @Default('DEEPAR') String cameraFxEngine,
+
+    /// v1.88-live (D315, §10.120): at least one game is on — the ranking
+    /// page's «مجنون اللعب» tab shows only then (false from an older server).
+    @Default(false) bool gamesEnabled,
   }) = _LiveConfig;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveConfigFromJson(json);
@@ -260,8 +264,15 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
     @Default(0) int occupiedSeats,
     @Default(LiveThemes.classic) String theme,
 
-    /// CP-012: the live's points (taps + support); `popular` orders by it.
+    /// CP-012: the live's points (taps + support). D310 (v1.86-live): points
+    /// only — `popular` orders by [cherries].
     @Default(0) int score,
+
+    /// D310 (v1.86-live, §10.116): the room's cherries — what the host AND
+    /// the seated guests were credited for this live's gifts; `popular`
+    /// orders by it and the hub card shows it with the cherry. Null from an
+    /// older server (the card then shows no number).
+    int? cherries,
 
     /// CP-014: the host's one-line topic, or null.
     String? topic,
@@ -327,6 +338,9 @@ abstract class LiveRoom with _$LiveRoom {
     /// CP-012 (see [LiveRoomSummary]) and its parts.
     @Default(0) int score,
     LiveScore? scoreParts,
+
+    /// D310 (see [LiveRoomSummary.cherries]).
+    int? cherries,
 
     /// CP-013: the host has not turned the chat off.
     @Default(true) bool chatEnabled,
@@ -396,6 +410,11 @@ abstract class LiveScore with _$LiveScore {
     /// for gifts received in this live — the host pill's cherries (the
     /// score is points). 0 from an older server.
     @Default(0) int hostCherries,
+
+    /// D310 (v1.86-live, §10.116): the room's cherries — the host's AND the
+    /// seated guests' credits of this live; the host pill shows it. Null from
+    /// an older server (the pill then falls back to [hostCherries]).
+    int? roomCherries,
   }) = _LiveScore;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveScoreFromJson(json);

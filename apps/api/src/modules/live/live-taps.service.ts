@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -7,6 +7,7 @@ import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { isAvailable, loadCategory } from '../levels/level-catalog.js';
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
@@ -76,6 +77,7 @@ export class LiveTapsService {
     private readonly users: UsersService,
     private readonly levelTicker: LiveLevelTickerService,
     private readonly background: BackgroundTasks,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /**
@@ -146,6 +148,15 @@ export class LiveTapsService {
           VALUES (${room.host_user_id}::uuid, date_trunc('hour', ${at}::timestamptz), ${accepted * POINTS_PER_TAP})
           ON CONFLICT (host_user_id, hour_start) DO UPDATE
              SET points = live_host_points_hourly.points + EXCLUDED.points`;
+        // v1.87-live (D314, §10.119): and in the host's local month (the month / year boards).
+        await tx.$executeRaw`
+          INSERT INTO live_host_points_monthly (host_user_id, month_start, points)
+          VALUES (${room.host_user_id}::uuid,
+                  (date_trunc('month', ${at}::timestamptz AT TIME ZONE ${this.config.live.rankingsTimeZone}::text)
+                    AT TIME ZONE ${this.config.live.rankingsTimeZone}::text),
+                  ${accepted * POINTS_PER_TAP})
+          ON CONFLICT (host_user_id, month_start) DO UPDATE
+             SET points = live_host_points_monthly.points + EXCLUDED.points`;
         charmUp = await this.creditCharm(tx, {
           roomId: id,
           hostId: room.host_user_id,
@@ -162,11 +173,17 @@ export class LiveTapsService {
       }
 
       const [score] = await tx.$queryRaw<
-        { total: bigint; tap_points: bigint; support_points: bigint; host_cherries: bigint }[]
+        {
+          total: bigint;
+          tap_points: bigint;
+          support_points: bigint;
+          host_cherries: bigint;
+          cherries: bigint;
+        }[]
       >`
         SELECT r.score AS total, COALESCE(sc.tap_points, 0)::bigint AS tap_points,
                COALESCE(sc.support_points, 0)::bigint AS support_points,
-               COALESCE(sc.host_cherries, 0)::bigint AS host_cherries
+               COALESCE(sc.host_cherries, 0)::bigint AS host_cherries, r.cherries
           FROM live_rooms r LEFT JOIN live_room_scores sc ON sc.room_id = r.id
          WHERE r.id = ${id}::uuid`;
       return {
@@ -178,6 +195,8 @@ export class LiveTapsService {
           tapPoints: Number(score?.tap_points ?? 0),
           supportPoints: Number(score?.support_points ?? 0),
           hostCherries: Number(score?.host_cherries ?? 0),
+          // v1.86-live (D310): taps never change it; returned so the pill keeps the room's cherries.
+          roomCherries: Number(score?.cherries ?? 0),
         },
       };
     }, LIVE_TX_OPTIONS);

@@ -16547,4 +16547,120 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifEventPrizeWon => 'مبروك، وصلتك جائزة فعالية';
+
+  @override
+  String get founderActionsTitle => 'إجراءات المؤسس';
+
+  @override
+  String founderActionsFor(String name) {
+    return 'إجراءات المؤسس · $name';
+  }
+
+  @override
+  String get founderActionWarn => 'تحذير';
+
+  @override
+  String get founderActionSuspend => 'حظر مؤقت';
+
+  @override
+  String get founderActionBan => 'حظر دائم';
+
+  @override
+  String get founderActionDelete => 'حذف الحساب';
+
+  @override
+  String get founderActionWarnHint =>
+      'يصل للشخص إشعار تحذير، ويبقى حسابه كما هو.';
+
+  @override
+  String get founderActionSuspendHint =>
+      'لا يستطيع الدخول حتى تنتهي المدة، ويُنهى بثه إن كان مباشراً.';
+
+  @override
+  String get founderActionBanHint =>
+      'يُحظر الحساب حتى يُفك الحظر من لوحة التحكم.';
+
+  @override
+  String get founderActionDeleteHint =>
+      'يدخل الحساب مهلة الحذف ويمكن استرجاعه خلالها عند تسجيل الدخول، ثم يُحذف نهائياً.';
+
+  @override
+  String get founderActionReason => 'السبب';
+
+  @override
+  String get founderActionReasonHint => 'مطلوب — يُحفظ في سجل التدقيق';
+
+  @override
+  String get founderActionDuration => 'المدة';
+
+  @override
+  String founderActionDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يوم',
+      many: '$count يوماً',
+      few: '$count أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String founderActionConfirmTitle(String action, String name) {
+    return '$action — $name';
+  }
+
+  @override
+  String get founderActionConfirm => 'تأكيد';
+
+  @override
+  String founderActionDone(String action) {
+    return 'تم: $action';
+  }
+
+  @override
+  String get founderActionNotActive =>
+      'رُفض: الحساب غير نشط أو عليه إجراء قائم.';
+
+  @override
+  String get founderActionSelfOrOwner =>
+      'لا يمكن تنفيذ هذا الإجراء على هذا الحساب.';
+
+  @override
+  String giftOwnerBy(String name) {
+    return 'هدية $name';
+  }
+
+  @override
+  String giftOwnerSemantics(String name) {
+    return 'هدية مخصصة لصاحبها $name';
+  }
+
+  @override
+  String get liveRankMonth => 'هذا الشهر';
+
+  @override
+  String get liveRankYear => 'هذه السنة';
+
+  @override
+  String get liveRankGames => 'مجنون اللعب';
+
+  @override
+  String get liveRankGamesEmpty =>
+      'لا تذاكر مُنفقة في الألعاب بعد في هذه الفترة.';
+
+  @override
+  String liveRankTickets(String formatted) {
+    return '$formatted تذكرة';
+  }
+
+  @override
+  String liveRankCoins(String formatted) {
+    return '$formatted كوينز';
+  }
+
+  @override
+  String get liveRankRichEmpty => 'لم يُرسل أحد هدايا بعد في هذه الفترة.';
 }

@@ -186,8 +186,13 @@ export interface LiveRoomSummaryDto {
   occupiedSeats: number;
   /** CP-011: a slug of `LiveConfig.themes`. */
   theme: string;
-  /** CP-012: the live's points (taps + support); `popular` orders by it. */
+  /** CP-012: the live's points (taps + support). v1.86-live (D310): no longer the `popular` order (points only). */
   score: number;
+  /**
+   * v1.86-live (D310, §10.116): the room's cherries — what the host AND the seated guests were credited for this live's
+   * gifts; `popular` orders by it and the hub chip shows it with the cherry.
+   */
+  cherries: number;
   /** v1.47-live (D212, §10.69): the episode facts of a PODCAST live; null for other modes. */
   podcast: LivePodcastDto | null;
   /**
@@ -255,6 +260,11 @@ export interface LiveScoreDto {
   supportPoints: number;
   /** v1.63-live (D259, §10.95): the cherries the host's balance was credited for this live's gifts. */
   hostCherries: number;
+  /**
+   * v1.86-live (D310, §10.116): the room's cherries — what the host AND the seated guests were credited for this live's
+   * gifts (the room's ranking value; the host pill shows it).
+   */
+  roomCherries: number;
 }
 
 export interface LiveRoomDto extends LiveRoomSummaryDto {
@@ -302,6 +312,8 @@ export interface LiveConfigDto {
   };
   /** v1.49-live (D228, §10.79): the Android camera effects engine, `DEEPAR` (default) or `FREE`. */
   cameraFxEngine: CameraFxEngine;
+  /** v1.88-live (D315, §10.120): at least one game is on — the «مجنون اللعب» board's tab shows only then. */
+  gamesEnabled: boolean;
 }
 
 /**
@@ -345,6 +357,8 @@ export interface RoomRow {
   support_points: bigint;
   /** v1.63-live (D259): `live_room_scores.host_cherries` (0 without a row). */
   host_cherries: bigint;
+  /** v1.86-live (D310): `live_rooms.cherries` — the room's cherries (host and seated guests), the popular key. */
+  cherries: bigint;
   occupied_seats: number;
   /** CP-013: the host's chat switch. */
   chat_enabled: boolean;
@@ -455,7 +469,7 @@ const ROOM_LEVEL_SQL = Prisma.sql`(
 const ROOM_COLUMNS = Prisma.sql`
          r.id::text AS id, r.title, r.topic, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
-         r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score,
+         r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score, r.cherries,
          COALESCE(sc.tap_points, 0)::bigint AS tap_points,
          COALESCE(sc.support_points, 0)::bigint AS support_points,
          COALESCE(sc.host_cherries, 0)::bigint AS host_cherries,
@@ -533,7 +547,8 @@ function popularKindSql(alias: string): Prisma.Sql {
 
 /**
  * v1.58-live (D246, §10.89): `r` is «رائج» — among the first `topN` listable lives (LIVE, fresh, ACTIVE
- * host) of its kind in the `popular` order (score, startedAt, id, all desc; the same as the tab). An
+ * host) of its kind in the `popular` order (cherries — v1.86-live, D310 —, startedAt, id, all desc; the same as the
+ * tab). An
  * uncorrelated subquery: PostgreSQL computes the set once per statement (a hashed subplan), never per
  * row. Global (the same for every viewer), so blocks do not change it.
  */
@@ -542,7 +557,7 @@ function popularSql(cutoff: Date, topN: number): Prisma.Sql {
            SELECT t.id FROM (
              SELECT r2.id, row_number() OVER (
                       PARTITION BY ${popularKindSql('r2')}
-                      ORDER BY r2.score DESC, r2.started_at DESC, r2.id DESC) AS rn
+                      ORDER BY r2.cherries DESC, r2.started_at DESC, r2.id DESC) AS rn
                FROM live_rooms r2
                JOIN users u2 ON u2.id = r2.host_user_id
               WHERE r2.status = 'LIVE' AND u2.status = 'ACTIVE'
@@ -659,33 +674,34 @@ function ts(date: Date): string {
 }
 
 /**
- * ORDER BY of a tab (CONVENTIONS §10.4): `popular` = score (CP-012), startedAt, id (all desc);
+ * ORDER BY of a tab (CONVENTIONS §10.4): `popular` = the room's cherries (v1.86-live, D310, §10.116; was the
+ * CP-012 score), startedAt, id (all desc);
  * `new` and `following` = startedAt, id (desc). `id` is always the final tiebreak, so the order
  * is total and keyset pages neither repeat nor skip rows of an unchanged result set.
  */
 export function orderBy(tab: LiveTab): Prisma.Sql {
   return tab === 'popular'
-    ? Prisma.sql`r.score DESC, r.started_at DESC, r.id DESC`
+    ? Prisma.sql`r.cherries DESC, r.started_at DESC, r.id DESC`
     : Prisma.sql`r.started_at DESC, r.id DESC`;
 }
 
 /**
  * v1.27.1-live (D133): `featured=true` orders by feature rank ascending, then like `popular`, on
- * every tab; rows strictly after `position` in that order.
+ * every tab (v1.86-live, D310: the room's cherries, not the score); rows strictly after `position` in that order.
  */
-export const FEATURED_ORDER = Prisma.sql`fh.rank ASC, r.score DESC, r.started_at DESC, r.id DESC`;
+export const FEATURED_ORDER = Prisma.sql`fh.rank ASC, r.cherries DESC, r.started_at DESC, r.id DESC`;
 
 export function featuredKeysetAfter(position: CursorPosition): Prisma.Sql {
   const startedAt = ts(position.startedAt);
   const rank = position.rank ?? 0;
-  return Prisma.sql`(fh.rank > ${rank}::int OR (fh.rank = ${rank}::int AND (r.score, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)))`;
+  return Prisma.sql`(fh.rank > ${rank}::int OR (fh.rank = ${rank}::int AND (r.cherries, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)))`;
 }
 
 /** Rows strictly after `position` in the tab's order (row-value comparison, all keys desc). */
 export function keysetAfter(tab: LiveTab, position: CursorPosition): Prisma.Sql {
   const startedAt = ts(position.startedAt);
   return tab === 'popular'
-    ? Prisma.sql`(r.score, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)`
+    ? Prisma.sql`(r.cherries, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)`
     : Prisma.sql`(r.started_at, r.id) < (${startedAt}::timestamptz, ${position.id}::uuid)`;
 }
 
@@ -835,6 +851,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       },
       // D228: the OWNER's switch (a `site_settings` row; DEEPAR when absent or unreadable).
       cameraFxEngine: await readCameraFxEngine(this.prisma),
+      gamesEnabled: this.config.live.gamesEnabled,
     };
   }
 
@@ -1141,6 +1158,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       occupiedSeats: row.occupied_seats,
       theme: row.theme,
       score: Number(row.score),
+      cherries: Number(row.cherries),
       podcast:
         row.mode === 'PODCAST' && row.episode_number !== null && row.podcast_topic !== null
           ? {
@@ -1180,6 +1198,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         tapPoints: Number(row.tap_points),
         supportPoints: Number(row.support_points),
         hostCherries: Number(row.host_cherries),
+        roomCherries: Number(row.cherries),
       },
       chatEnabled: row.chat_enabled,
       chatMuted: row.chat_muted ?? false,
@@ -1312,7 +1331,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         nextCursor:
           hasMore && last
             ? this.cursors.encode(scope, {
-                score: Number(last.score),
+                score: Number(last.cherries),
                 startedAt: last.started_at,
                 id: last.id,
                 ...('feature_rank' in last ? { rank: Number(last.feature_rank) } : {}),
@@ -1362,7 +1381,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     let hostPos: GroupPosition | null = merge?.host ?? null;
     let creatorPos: GroupPosition | null = merge?.creator ?? null;
     const pos = (r: RoomRow): GroupPosition => ({
-      score: Number(r.score),
+      score: Number(r.cherries),
       startedAt: r.started_at,
       id: r.id,
     });

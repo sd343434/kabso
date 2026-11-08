@@ -119,6 +119,8 @@ export interface AppConfig {
     /** v1.68-live (D273): the staff tools in the app, and their step-up. */
     readonly staffAppUser: RateLimitRule;
     readonly staffStepUpUser: RateLimitRule;
+    /** v1.99-social (D311): the app owner's moderation actions per user. */
+    readonly ownerModerationUser: RateLimitRule;
     readonly registerEmail: RateLimitRule;
     readonly registerVerifyIp: RateLimitRule;
     readonly registerVerifyEmail: RateLimitRule;
@@ -494,6 +496,9 @@ export interface AppConfig {
     /** v1.82-live (D295, §10.108): a creator's live — non-lucky gifts (70 %) and quips (60 %), basis points. */
     readonly creatorShareBps: number;
     readonly creatorQuipShareBps: number;
+    /** v1.100-social (D312, §10.118): a custom gift — the recipients' share and the gift owner's coin share, bps. */
+    readonly customShareBps: number;
+    readonly customOwnerBps: number;
     /** v1.32-live (D154): the longest a quip may wait for its turn, in ms. */
     readonly quipMaxWaitMs: number;
   };
@@ -535,6 +540,8 @@ export interface AppConfig {
     /** The validated odds (the server refuses to start on an invalid table). */
     readonly table: LuckyTable;
     readonly bigWinMultiplier: number;
+    /** v1.89-live (D318): the smallest win multiplier with a chat line (the panel's value wins). */
+    readonly chatMinMultiplier: number;
     readonly dayTimeZone: string;
     /** ISO 3166-1 alpha-2, upper case. */
     readonly disabledCountries: readonly string[];
@@ -568,6 +575,8 @@ export interface AppConfig {
     readonly guestKey: string;
     /** CP-016 A: the popularity boards' time zone (day and week boundaries). */
     readonly rankingsTimeZone: string;
+    /** v1.88-live (D315): at least one game is on (the «مجنون اللعب» tab shows). */
+    readonly gamesEnabled: boolean;
     /** v1.45-live (D201, §10.63): a second-camera pairing code's lifetime (LIVE_SECOND_CAMERA_CODE_SECONDS). */
     readonly secondCameraCodeSeconds: number;
   };
@@ -666,6 +675,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       adminTeamIp: e.RATE_LIMIT_ADMIN_TEAM_IP,
       staffAppUser: e.RATE_LIMIT_STAFF_APP_USER,
       staffStepUpUser: e.RATE_LIMIT_STAFF_STEP_UP_USER,
+      ownerModerationUser: e.RATE_LIMIT_OWNER_MODERATION_USER,
       registerEmail: e.RATE_LIMIT_REGISTER_EMAIL,
       registerVerifyIp: e.RATE_LIMIT_REGISTER_VERIFY_IP,
       registerVerifyEmail: e.RATE_LIMIT_REGISTER_VERIFY_EMAIL,
@@ -771,6 +781,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       hostShareBps: e.GIFT_HOST_SHARE_PERCENTS,
       creatorShareBps: e.GIFT_CREATOR_SHARE_PERCENT,
       creatorQuipShareBps: e.GIFT_CREATOR_QUIP_SHARE_PERCENT,
+      customShareBps: e.GIFT_CUSTOM_SHARE_PERCENT,
+      customOwnerBps: e.GIFT_CUSTOM_OWNER_PERCENT,
       quipMaxWaitMs: e.QUIP_QUEUE_MAX_WAIT_SECONDS * 1000,
     },
     newcomerDays: e.NEWCOMER_DAYS,
@@ -972,6 +984,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         luckyPityOf(e),
       ) as LuckyTable,
       bigWinMultiplier: e.LUCKY_GIFT_BIG_WIN_MULTIPLIER,
+      chatMinMultiplier: e.LUCKY_CHAT_MIN_MULTIPLIER,
       dayTimeZone: e.LUCKY_GIFT_DAY_TIME_ZONE,
       disabledCountries: e.LUCKY_GIFTS_DISABLED_COUNTRIES,
       countryHeader: e.LUCKY_GIFTS_COUNTRY_HEADER ?? null,
@@ -1020,6 +1033,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
           : null,
       guestKey: rateLimitKeySecret,
       rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
+      gamesEnabled: e.LIVE_GAMES_ENABLED,
       secondCameraCodeSeconds: e.LIVE_SECOND_CAMERA_CODE_SECONDS,
     },
     registration: {

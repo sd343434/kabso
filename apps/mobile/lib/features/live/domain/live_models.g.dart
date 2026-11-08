@@ -21,6 +21,7 @@ _LiveConfig _$LiveConfigFromJson(Map<String, dynamic> json) => _LiveConfig(
       ? const LivePodcastConfig()
       : LivePodcastConfig.fromJson(json['podcast'] as Map<String, dynamic>),
   cameraFxEngine: json['cameraFxEngine'] as String? ?? 'DEEPAR',
+  gamesEnabled: json['gamesEnabled'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveConfigToJson(_LiveConfig instance) =>
@@ -32,6 +33,7 @@ Map<String, dynamic> _$LiveConfigToJson(_LiveConfig instance) =>
       'seatCounts': instance.seatCounts,
       'podcast': instance.podcast,
       'cameraFxEngine': instance.cameraFxEngine,
+      'gamesEnabled': instance.gamesEnabled,
     };
 
 _LiveSeatCounts _$LiveSeatCountsFromJson(Map<String, dynamic> json) =>
@@ -179,6 +181,7 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
       occupiedSeats: (json['occupiedSeats'] as num?)?.toInt() ?? 0,
       theme: json['theme'] as String? ?? LiveThemes.classic,
       score: (json['score'] as num?)?.toInt() ?? 0,
+      cherries: (json['cherries'] as num?)?.toInt(),
       topic: json['topic'] as String?,
       podcast: json['podcast'] == null
           ? null
@@ -207,6 +210,7 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'occupiedSeats': instance.occupiedSeats,
       'theme': instance.theme,
       'score': instance.score,
+      'cherries': instance.cherries,
       'topic': instance.topic,
       'podcast': instance.podcast,
       'inPk': instance.inPk,
@@ -258,6 +262,7 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   scoreParts: json['scoreParts'] == null
       ? null
       : LiveScore.fromJson(json['scoreParts'] as Map<String, dynamic>),
+  cherries: (json['cherries'] as num?)?.toInt(),
   chatEnabled: json['chatEnabled'] as bool? ?? true,
   chatMuted: json['chatMuted'] as bool? ?? false,
   topic: json['topic'] as String?,
@@ -296,6 +301,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'theme': instance.theme,
   'score': instance.score,
   'scoreParts': instance.scoreParts,
+  'cherries': instance.cherries,
   'chatEnabled': instance.chatEnabled,
   'chatMuted': instance.chatMuted,
   'topic': instance.topic,
@@ -347,6 +353,7 @@ _LiveScore _$LiveScoreFromJson(Map<String, dynamic> json) => _LiveScore(
   tapPoints: (json['tapPoints'] as num).toInt(),
   supportPoints: (json['supportPoints'] as num).toInt(),
   hostCherries: (json['hostCherries'] as num?)?.toInt() ?? 0,
+  roomCherries: (json['roomCherries'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$LiveScoreToJson(_LiveScore instance) =>
@@ -355,6 +362,7 @@ Map<String, dynamic> _$LiveScoreToJson(_LiveScore instance) =>
       'tapPoints': instance.tapPoints,
       'supportPoints': instance.supportPoints,
       'hostCherries': instance.hostCherries,
+      'roomCherries': instance.roomCherries,
     };
 
 _LiveTapsResult _$LiveTapsResultFromJson(Map<String, dynamic> json) =>

@@ -27945,6 +27945,174 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مبروك، وصلتك جائزة فعالية'**
   String get notifEventPrizeWon;
+
+  /// D311: the founder's moderation menu on a profile or a person card.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجراءات المؤسس'**
+  String get founderActionsTitle;
+
+  /// D311: the sheet's title with the person's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجراءات المؤسس · {name}'**
+  String founderActionsFor(String name);
+
+  /// D311: warn the person.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحذير'**
+  String get founderActionWarn;
+
+  /// D311: a timed ban.
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر مؤقت'**
+  String get founderActionSuspend;
+
+  /// D311: a permanent ban.
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر دائم'**
+  String get founderActionBan;
+
+  /// D311: delete the account (with its grace period).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الحساب'**
+  String get founderActionDelete;
+
+  /// D311: what WARN does.
+  ///
+  /// In ar, this message translates to:
+  /// **'يصل للشخص إشعار تحذير، ويبقى حسابه كما هو.'**
+  String get founderActionWarnHint;
+
+  /// D311: what SUSPEND does.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يستطيع الدخول حتى تنتهي المدة، ويُنهى بثه إن كان مباشراً.'**
+  String get founderActionSuspendHint;
+
+  /// D311: what BAN does.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُحظر الحساب حتى يُفك الحظر من لوحة التحكم.'**
+  String get founderActionBanHint;
+
+  /// D311: what DELETE_ACCOUNT does.
+  ///
+  /// In ar, this message translates to:
+  /// **'يدخل الحساب مهلة الحذف ويمكن استرجاعه خلالها عند تسجيل الدخول، ثم يُحذف نهائياً.'**
+  String get founderActionDeleteHint;
+
+  /// D311: the reason field.
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب'**
+  String get founderActionReason;
+
+  /// D311: the reason field's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مطلوب — يُحفظ في سجل التدقيق'**
+  String get founderActionReasonHint;
+
+  /// D311: the timed ban's duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة'**
+  String get founderActionDuration;
+
+  /// D311: a duration in days.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{يوم واحد} =2{يومان} few{{count} أيام} many{{count} يوماً} other{{count} يوم}}'**
+  String founderActionDays(int count);
+
+  /// D311: the confirmation dialog's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'{action} — {name}'**
+  String founderActionConfirmTitle(String action, String name);
+
+  /// D311: the confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get founderActionConfirm;
+
+  /// D311: the success message.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم: {action}'**
+  String founderActionDone(String action);
+
+  /// D311: ADMIN_ACTION_REFUSED (not ACTIVE / already pending).
+  ///
+  /// In ar, this message translates to:
+  /// **'رُفض: الحساب غير نشط أو عليه إجراء قائم.'**
+  String get founderActionNotActive;
+
+  /// D311: refused on yourself or another owner.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تنفيذ هذا الإجراء على هذا الحساب.'**
+  String get founderActionSelfOrOwner;
+
+  /// D312: a custom gift's owner on the gift tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية {name}'**
+  String giftOwnerBy(String name);
+
+  /// D312: the custom gift's owner for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية مخصصة لصاحبها {name}'**
+  String giftOwnerSemantics(String name);
+
+  /// D314: the ranking page's month period.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الشهر'**
+  String get liveRankMonth;
+
+  /// D314: the ranking page's year period.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه السنة'**
+  String get liveRankYear;
+
+  /// D315: the ranking page's tab of players by game tickets spent.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجنون اللعب'**
+  String get liveRankGames;
+
+  /// D315: an empty «مجنون اللعب» board.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تذاكر مُنفقة في الألعاب بعد في هذه الفترة.'**
+  String get liveRankGamesEmpty;
+
+  /// D315: tickets spent, for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'{formatted} تذكرة'**
+  String liveRankTickets(String formatted);
+
+  /// D320: coins sent as gifts on «الأغنى», for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'{formatted} كوينز'**
+  String liveRankCoins(String formatted);
+
+  /// D320: an empty «الأغنى» board.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُرسل أحد هدايا بعد في هذه الفترة.'**
+  String get liveRankRichEmpty;
 }
 
 class _AppLocalizationsDelegate
