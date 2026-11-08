@@ -455,6 +455,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /admin/auth/login`, `…/totp/enrolment`, `…/totp/enrolment/confirm`, `…/totp/verify` *(v1.60-social, D191)* | 30 / 15 min per IP (bucket `admin_login:ip`, `RATE_LIMIT_ADMIN_LOGIN_IP`); plus the lockout of §10.54.2 (`ADMIN_LOCKOUT_ATTEMPTS` failures per email and per admin account → 429 `ADMIN_LOCKED`). **Replaces** the public default |
 | Every other cookie-authenticated `/admin/*` route of §10.54 *(v1.60-social, D191)* | 1200 / 15 min per IP (bucket `admin:ip`, `RATE_LIMIT_ADMIN_IP`). **Replaces** the public default |
 | Every `staff` operation *(v1.68-live, D273)* | 300 / 15 min per user (bucket `staff:user`, `RATE_LIMIT_STAFF_APP_USER`), replacing the default |
+| `createOwnerModerationAction` *(v1.99-social, D311)* | 30 / 15 min per user (bucket `owner:moderation`, `RATE_LIMIT_OWNER_MODERATION_USER`), on top of the default; a retry with the same `clientId` is answered before the bucket |
 | `createStaffStepUp` *(v1.68-live, D273)* | also 10 / 15 min per user (bucket `staff-step-up:user`, `RATE_LIMIT_STAFF_STEP_UP_USER`); plus the admin lockout of §10.54.2 |
 | `grantAdminTeamRole`, `revokeAdminTeamRole`, `resetAdminTeamTotp` *(v1.66-live, D271)* | 20 / 15 min per IP (bucket `admin-team:ip`, `RATE_LIMIT_ADMIN_TEAM_IP`) **and** the `admin:ip` bucket above |
 | `POST /auth/register` | 5 / hour per IP; *(v1.2)* 3 / hour per email |
@@ -655,6 +656,12 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.90-social)* Tables `user_verification_badges`, `verification_badge_settings`; type `verification_badge`; capabilities `verification.view` / `verification.settings`; audit `verification.*`; config `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` | Backend — `verification` module (`verification-badges.ts` the only writer of the badges; `VerificationService` the only writer of the settings; `admin-roles`, `creator-applications` and `kyc.service` call the recompute in their transactions); app — `ProfileVerificationBadge`; web — `apps/admin` «شارات التوثيق» and the user page | CTO; the OWNER sets the thresholds (D293) |
 | *(v1.91-social)* Column `user_profiles.tag_icons` (CHECKs `user_profiles_tag_icons_len`, `user_profiles_tag_icons_values`) | Backend — `users` module (`PATCH /me` writes; the profile reads) | CTO |
 | *(v1.95-social)* Tables `owner_cover_videos`, `owner_journey_milestones`, `owner_feedback`; columns `posts.official_at`, `notifications.owner_feedback_id`; (follow-up) column `posts.text_en`, table `owner_announcement_fanouts`, indexes `posts_official_latest_idx`, `notifications_owner_announcement_once`; index `users_last_active_idx`; media kinds `PROFILE_COVER_VIDEO`, `OWNER_FEEDBACK_IMAGE`; capability `owner.inbox`; («الربح») table `owner_fixed_costs`, index `wallet_ledger_free_coins_idx`, capability `owner.costs` | Backend — `owner-profile` module (the posts module serves `Post.official`; the panel reads the inbox through `owner.inbox` only) | CTO; Security (confidential staff reports) |
+| *(v1.86-live)* Column `live_rooms.cherries` (CHECK `live_rooms_cherries_nonneg`), indexes `live_rooms_live_popular_cherries_idx`, `live_rooms_live_cat_popular_cherries_idx` (replacing the score ones) | Backend — `live` module (written by the gift send and `reverseGiftCherriesIn` only) | CTO |
+| *(v1.99-social)* Table `owner_moderation_actions` (CHECK `owner_moderation_actions_shape`, unique `owner_moderation_actions_client_once`) | Backend — `admin-panel` module (`OwnerModerationService`) | CTO; Security (an OWNER-only path without the panel step-up) |
+| *(v1.100-social)* Column `gifts.owner_user_id` (FK RESTRICT, CHECK `gifts_custom_owner`, index `gifts_owner_idx`); category `CUSTOM` (kind `CUSTOM`); wallet reasons `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL` (sign rule extended); index `wallet_ledger_gift_owner_idx` | Backend — `gifts` module (catalogue, panel), `live` module (sends), `economy` (reversal) | CTO; Security (money: a coin credit to a third party per send) |
+| *(v1.87-live)* Table `live_host_points_monthly` (CHECK `live_host_points_monthly_points`, index `live_host_points_monthly_month_idx`) | Backend — `live` module (written with the hourly row by gifts and taps; read by `LiveRankingsService`; swept after 400 days) | CTO |
+| *(v1.88-live)* Tables `game_ticket_spends` (unique `(game_code, reference)`), `game_ticket_spends_hourly`, `game_ticket_spends_monthly`; setting `LIVE_GAMES_ENABLED` | Backend — `live` module (`recordGameTicketSpendIn`, the only writer, called by a game in its own transaction; the board; the sweeper) | CTO; Security (money-adjacent: tickets) |
+| *(v1.90-live)* Tables `gift_coins_sent_hourly`, `gift_coins_sent_monthly` (CHECKs `…_coins` ≥ 0) | Backend — `live` module (`addGiftCoinsSentIn` from the live / DM sends and `couples` CP gifts; `takeBackGiftCoinsSentIn` from `economy` `reverseGiftCherriesIn`; the board; the sweeper) | CTO |
 
 ## 9. Contract change log
 
@@ -736,11 +743,18 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.83-live (draft) | 2026-11-07 | **D300 (owner: «مدرسة المحتوى» / Content School and «لاعب الأحكام» / Dares Player; — four levels, each needing a content creator's followers, likes and views together; interpretations owner-confirmed 2026-11-07)** — `medal_level_requirements` (several thresholds per level); `MedalMetric` + `ALL_REQUIREMENTS` (the medal's metric: value = the level the requirements reach; each level's threshold its number), `CREATOR_FOLLOWERS`, `CREATOR_LIKES`, `CREATOR_VIEWS` (creators only; ACTIVE accounts; never self; posts and reels); `MedalLevel.requirements` (`MedalLevelRequirement`), `MedalProgress.requirements` (`MedalRequirementProgress`), `Medal.eligible`; `AdminMedalLevel.requirements` and the panel input's per-level `requirements` (400 `levels` `invalid_value` rules); `post_views.counted_views`; per-level bundled art `medal_content_school_l1` … `_l4`; the sweeper `MEDAL_CREATOR_SWEEP_INTERVAL_SECONDS`, the creator activation and `medals-admin backfill` raise it; `medals.level_up` audits carry the three values. «لاعب الأحكام» / Dares Player (§10.111.7): `MedalMetric` `PK_DARES_POINTS` (the host's «PK أحكام» points only, `pk_host_records.dares_points`; 1 500 / 3 000 / 5 000 / 20 000; raised in `addPkPointsIn`'s transaction; never lowered), art `medal_dares_player_l1` … `_l4`. Owner's answers (§10.111.8): DARES only, old views a lower bound accepted, deleted / removed posts' likes and views count, both medals in ACHIEVEMENT. Migrations `20270401090000_medal_requirement_metrics`, `20270401090100_medal_content_school`, `20270401090200_medal_dares_player`, `20270401090300_medal_dares_only_points` (DEPLOYMENT §5.79, PP-57). §10.111. | **Additive** (new enum values, response fields and an optional input field; single-metric medals unchanged; an older app shows the medal with «level / next level» progress and ignores the requirements; clients treat unknown metrics as none). |
 | v1.84-live (draft) | 2026-11-07 | **D302 (owner: «المشرفين يدخلون من خلال وضع الايدي المميز والباسورد» — the staff sign in with the staff ID and the password):** `login`'s `identifier` may be the official staff ID (`Kabso01`, any case, an optional `@`, leading zeros as the search reads them: `kabso1`, `@KABSO01`; the primary OWNER's `Kabso`); it signs in **only the account that holds it now** (ACTIVE, `role = ADMIN`, a panel role — the rule for showing it). A retired number (revoked role, purged account) or a suspended holder resolves to nobody and the identifier is read as before (email / username), so the answer is the usual 401 `AUTH_INVALID_CREDENTIALS` with the same work done; a held staff ID wins over an older username spelled like it. Every other `login` rule unchanged (rate limits — the holder's account bucket —, deletion pending, lock, device ban, password change required). Panel `adminLogin`: the `email` field takes the staff ID too (its holder's email: the same lockout bucket); the authenticator is still required. Audit `identifierType` `staff_id`. §10.96.12, §10.54.2, §7. | **Additive** (a value that never signed in before now may). No schema change, no migration, no setting. |
 | v1.85-live (draft) | 2026-11-07 | **D305 (owner: «هذا شريط الهدايا والآخر شريط الألعاب، يظهر في جميع الغرف من الجانب الى المنتصف ويخرج من الجهة الأخرى، ويبقى في المنتصف ثانيتين … يظهر للهدايا التي سعرها ٥٠٠ ألف كوينز وأكثر … للجائزة التي قيمتها ١ مليون وأكثر»; «يمكن للمستخدم الغاء شريط الهدايا من اعدادات اي غرفة وايضاً الغاء شريط الألعاب»):** (1) `gift-ticker` (D178) gains `kind: "GIFT"` and goes to **every** LIVE room, the send's own first (was every other); the threshold is on ONE gift's `unitPrice` (owner; was the send's `totalCoins`), `GIFT_GLOBAL_TICKER_MIN_COINS` default **500 000** (was 1 000); (2) new data message **`game-win-ticker`** on topic `gift`, `kind: "GAME_WIN"`, for a game prize ≥ `GAME_WIN_TICKER_MIN_TICKETS` (default 1 000 000 tickets), from the server hook `LiveGiftTickerService.offerGameWin` (no game exists yet); each kind has its own 3 s gate (two lanes in the app, D305b: the games strip above the gifts strip); (3) `NotificationSettings.giftStrip` / `gameStrip` (default true; PATCH accepts them), migration `20270405090000_global_strip_settings`; (4) the OWNER's thresholds `getAdminGlobalStrips` / `updateAdminGlobalStrips` (`/admin/global-strips`, `site.settings`, audited, `site_settings` key `globalStrips`, 30 s cache). §10.115. | **Additive** for clients (a field, a new message type old apps ignore, two new settings fields; old apps already drop their own room's `gift-ticker`). |
+| v1.86-live (draft) | 2026-11-08 | **D310 (owner: «ترتيب الغرف اجعله بالكرز … كل 1 مليون كوينز يرسل يصل 6.5 مليون كرزة ولصانع المحتوى 7 مليون»):** `LiveRoomSummary.cherries` (the room's cherries: what the cherry ledger credited the host AND the seated guests for this live's gifts, net of reversals) and `LiveScore.roomCherries`; `listLiveRooms` `popular` (and `featured=true` after the rank, and «رائج») order by it; the live cursor format v3; the media metadata key `roomCherries`. Taps no longer move the order. Migration `20270408090000_live_room_cherries` (backfill of LIVE rooms from the ledger). §10.4, §10.116. | **Additive fields; behaviour change:** the popular order (cherries instead of points) and the cursor format (a v2 cursor → 400 `cursor`, the app reloads). The boards (§10.15) and PK stay on points. |
 | v1.76-live (draft) | 2026-11-05 | **D286 (owner: «لاحظت ان كل ما اراد المشرف عمل شيء قام بإدخال رمز تحقق ثنائي من جوجل، ازله لتسهيل العملية. وعندما يقوم المشرف بالعمل يتم تفعيل زر مناوبة»): staff work without a code, and the automatic shift** — the app's staff tools and the hidden watch need no step-up (the role held now, checked on every request); `createStaffStepUp` / `endStaffStepUp` and `StaffStatus.stepUp` deprecated (`stepUp` always set for watch staff, so older apps never ask); `STAFF_STEP_UP_REQUIRED` no longer returned. The code is kept where it guards money, permissions or a permanent action (§10.96.14 lists them). Staff work switches «في المناوبة» on (audited `admin.shift.on` {via: auto, trigger, from}); `listAdminLives` `background` (the panel's refresh, not staff work); an automatic shift goes off after `STAFF_SHIFT_IDLE_OFF_SECONDS` (7200; 0 = never) without staff work. Migration `20270320090000_staff_auto_shift` (`admin_shifts.started_via`, `.last_activity_at`; `account_restrictions_shape` accepts `via = 'app'` — a fix: the app's NO_LIVE / SUSPEND failed). §10.96.6, §10.96.14. | **Additive** (a new optional query parameter; deprecated operations kept). **Behaviour change:** the staff tools never ask for a code; staff work turns the shift on (and the assignment pass gives the person lives). |
 | v1.75-live (draft) | 2026-11-05 | **D285 (owner: recruitment by staff «الاستقطاب»; defaults 1 % / 1 % / 1 % / 0.75 %):** optional `recruiter` (`RecruiterField`) on `openMyAgency`, `applyForRechargeAgent`, `applyForHosting` and the new `applyForCreatorProgramme`; `lookupStaffRecruiter`; attribution at the activation (`staff_recruitments`, audited `staff.recruit.*`); the daily commission (`STAFF_RECRUIT_COMMISSION`, withdrawable; `staff_recruit_commissions` with the guard CHECK); `getMyStaffRecruits`, `getMyStaffEarnings`; panel `getAdminMyRecruits`, `getAdminMyRecruitCommissions`, `listAdminRecruits`, `listAdminRecruitStaff`, `getAdminRecruitSettings` / `updateAdminRecruitSettings`, `getAdminRecruitCommissions`, `reassignAdminRecruit`, `listAdminCreatorApplications` / approve / reject; capabilities `recruits.mine` / `recruits.view` / `recruits.manage` / `creators.applications` / `creators.decide`; role **BD** (`AdminPanelRole`, `KabsoStaffIdentity.role`, `StaffStatus.roles`); `AdminTeam` rows' `recruits`; code `CREATOR_APPLICATION_NOT_ALLOWED` (409); config `RECRUIT_COMMISSION_SWEEP_INTERVAL_SECONDS` (3600), `RECRUIT_COMMISSION_CATCH_UP_DAYS` (7); migrations `20270319090000_staff_recruits_enums`, `20270319090100_staff_recruits`. §4, §10.96.13. | **Additive** (optional fields, new operations, schemas and enum values; an older app sends no recruiter). |
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.90-live (draft) | 2026-11-08 | **D320 (owner: «الأغنى» — users by the coins they sent as gifts, «والأيقونة التي بجانب أرقامهم كوينز»):** `LiveRankingBoard` gains `RICH` (top 20; every gift send's coin value, lucky / custom / bag included, a reversal taken back); tables `gift_coins_sent_hourly` / `_monthly`, migration `20270408090600_live_rich_board` (backfill from the kept sends). §10.124, §10.15. | **Additive** (an enum value an older app never sends). |
+| v1.89-live (draft) | 2026-11-08 | **D318 (owner: «لا يظهر في التكست إلا المكسب x250 وx500 وx1000»):** `GiftCatalogue.luckyChatMinMultiplier` (a lucky win's chat line only from this multiplier); `GlobalStripsSettings.luckyChatMinMultiplier` + `luckyMultipliers`, `UpdateGlobalStripsRequest.luckyChatMinMultiplier` (optional); env `LUCKY_CHAT_MIN_MULTIPLIER` (250). No migration (the `globalStrips` row gains a field). §10.121. | **Additive** (an optional field old apps ignore — they keep every line; an optional request field). |
+| v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
+| v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
+| v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
+| v1.99-social (draft) | 2026-11-08 | **D311 (owner: «يمكنه حذف او حظر او تحذير اي شخص»; no code, no password):** `createOwnerModerationAction` (`POST /owner/users/{userId}/actions`, `OwnerModerationRequest`, `OwnerModerationResult`): WARN / SUSPEND (days) / BAN / DELETE_ACCOUNT by the app owner only, reusing the panel's rules, idempotent by `clientId`, audited `owner.moderation.action`; `RATE_LIMIT_OWNER_MODERATION_USER`. Migration `20270408090300_owner_moderation`. §10.117, §7, §8. | **Additive** (a new operation; no shape change elsewhere). Owner decision recorded: the panel step-up of D286 / D288 is waived for the OWNER in the app only. |
 | v1.97-social (draft) | 2026-11-07 | **D303 (owner: «فعاليات الهدايا» like a third-party «ملك الكنوز» event page — look and idea only — and an animated promo banner first in the Live home that is an ad or an event; follow-ups: agencies, CP and content-creator boards):** `EventMetric` `EVENT_GIFTS`; `EventDetail.timeZone`, `.gifts` (`EventGift`: points per coin and per gift, `pointsEach`), `.boards` (`EventBoard`: `EventBoardKind` SENDERS / RECEIVERS / CREATORS / AGENCIES / CP, `minPoints`, `EventPrizeLine` of `EventPrizeItem` COINS / CHERRIES / BAG_ITEM / VIP with days); `EventSummary.audience` `CREATORS`; `getEventLeaderboard?board=` with `board`, `minPoints`, per row `qualified`, `prize`, `partner` (CP), `agency` (AGENCIES), `me.qualified` / `pointsToQualify` / `prize`; notification `EVENT_PRIZE_WON` (target `EVENT`); `CherryLedgerReason` `EVENT_PRIZE`; `BagItemSource` `EVENT`; panel `getAdminEventOptions`, `createAdminGiftEvent`, `getAdminGiftEvent`, `updateAdminGiftEvent`, `uploadAdminBannerVideo`, `AdminBannerCreateRequest.videoMediaId` / `.eventId`, `AdminBanner.kind` / `.eventId`, the event commands under `events.manage`; staff `listStaffEvents`, `getStaffEventOptions`, `createStaffGiftEvent`, `getStaffGiftEvent`, `updateStaffGiftEvent`, `changeStaffEvent`; `StaffStatus.capabilities` `events.manage`; `HomeBanner.kind` / `.posterUrl` / `.videoUrl` / `.durationMs` / `.eventId`, links `/events/{eventId}`; migrations `20270404090000_gift_events_enums`, `20270404090100_gift_events`. §10.114. | **Additive** (new optional query parameter, new fields, new enum values clients ignore when unknown; the D166 events and their boards are unchanged). |
 | v1.95-social (draft) | 2026-11-07 | **D301 (owner: «صفحة صاحب البرنامج» — features chosen from five mock-ups; the milestones managed in the app):** `PublicProfile.kabsoOwner` / `Me.kabsoOwner`, `PublicProfile.coverVideo` / `Me.coverVideo` (`OwnerCoverVideo`, `CoverVideoVariant`); `setMyCoverVideo` / `removeMyCoverVideo` (`/me/cover-video/{lang}`); `MediaKind` `PROFILE_COVER_VIDEO` (≤ 60 s, poster) and `OWNER_FEEDBACK_IMAGE` (private); `markPostOfficial` / `unmarkPostOfficial`, `Post.official`, `listUserOfficialPosts`; `listUserJourney`, `createOwnerJourneyMilestone`, `updateOwnerJourneyMilestone`, `deleteOwnerJourneyMilestone`, `reorderOwnerJourney` (`JourneyMilestone`, `JourneyMilestoneList`, `CreateJourneyMilestoneRequest`, `UpdateJourneyMilestoneRequest`, `ReorderJourneyRequest`); `getOwnerDashboard` (`OwnerDashboard`); `createOwnerFeedback` (`CreateOwnerFeedbackRequest`, `OwnerFeedbackReceipt`), `searchOwnerFeedbackStaff` (`OwnerFeedbackStaffList`); panel `listAdminOwnerInbox`, `getAdminOwnerInboxItem`, `updateAdminOwnerInboxStatus`, `getAdminOwnerInboxImage` (`OwnerInboxPage`, `OwnerInboxItem`), capability `owner.inbox` (OWNER); `NotificationType` `OWNER_FEEDBACK_NEW`, `NotificationTarget.type` `OWNER_FEEDBACK` + `feedbackKind`; codes `OWNER_ONLY` (403), `OWNER_JOURNEY_LIMIT` (409); audit `owner.*`, `admin.owner_inbox.*`; migrations `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`. Follow-up (owner, same day): bilingual announcements `createOwnerAnnouncement` / `updateOwnerAnnouncement` (`CreateOwnerAnnouncementRequest`, `UpdateOwnerAnnouncementRequest`), `Post.texts`, the latest announcement first in `listFeedPosts`, `NotificationType` `OWNER_ANNOUNCEMENT` (+ `NotificationTarget.texts`) to every ACTIVE account once by a background fan-out; `getSearchFeatured` (`SearchFeatured`, §10.112.9); owner answers (§10.112.8): `deleteAdminOwnerInboxItem`, `OwnerDashboard.income.otherCurrencies` and the income definition; migrations `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`. «الربح» (owner, same day; §10.112.10): `getOwnerProfit` (`OwnerProfit`, `OwnerProfitPeriod`, `OwnerProfitDeductionKey`), the fixed costs `listOwnerFixedCosts` / `createOwnerFixedCost` / `updateOwnerFixedCost` / `deleteOwnerFixedCost` and panel `listAdminOwnerFixedCosts` / `createAdminOwnerFixedCost` / `updateAdminOwnerFixedCost` / `deleteAdminOwnerFixedCost` (`OwnerFixedCost`, `OwnerFixedCostList`, `CreateOwnerFixedCostRequest`, `UpdateOwnerFixedCostRequest`), capability `owner.costs` (OWNER); migration `20270402090400_owner_profit`. §4, §10.112. | **Additive** (new operations, fields, schemas and enum values; clients ignore notification types they do not know). |
 | v1.94-social (draft) | 2026-11-06 | **D297 (owner: «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف» — Task Center tasks only for content creators, valued like the host tasks):** `ProgramTask.audience` `CREATORS` (creator-programme members only; a member never gets `HOSTS` tasks), `MyTasks.band.creator` (`band.host` = host tasks offered), `ProgramTask.metric` `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`, `NEW_FOLLOWERS`, `SHARES_RECEIVED`; the pool group CREATOR with `task_pool_bands.creator_count`; ten default tasks (six daily, four weekly per band) mirroring the host tasks' rewards under the same daily and monthly caps; `task-admin band --creator-count`; CHECK `events_audience_not_creators`; migrations `20270331090000_creator_tasks_enums`, `20270331090100_creator_tasks`. §10.110. | **Additive** (a new enum value in a response, new metric values — clients map unknown ones to the generic icon —, a new field). |
@@ -983,11 +997,11 @@ until a media provider is wired in.
 
   | Tab | Order |
   | --- | ----- |
-  | `popular` | *(v1.8-live)* `score` desc (§10.10), then `startedAt` desc. *(v1.3–v1.7)* `viewerCount` desc |
+  | `popular` | *(v1.86-live, D310)* the room's `cherries` desc (§10.116), then `startedAt` desc. *(v1.8–v1.85-live)* `score` desc (§10.10). *(v1.3–v1.7)* `viewerCount` desc |
   | `new` | `startedAt` desc |
   | `following` | `startedAt` desc, over rooms whose host the caller follows |
 
-  While every score is 0, `popular` orders like `new`.
+  While every room has 0 cherries (every score was 0 before v1.86-live), `popular` orders like `new`.
 - **`category`** is optional and filters **every** tab, so the semantics are uniform. Per HL-H3
   the client sends it only on Popular.
 - *(v1.26.4-live, owner D129)* **`kind`** is optional and, like `category`, filters **every** tab:
@@ -1479,6 +1493,9 @@ been live, the viewers, the score and «انضم».
 - Storage: points per host per UTC hour, written in the same transaction as the taps; rows older
   than 15 days are removed by the live sweeper. Rich (spenders) and regional boards wait (L3, a
   host country).
+- *(v1.87-live, D314)* `period` also takes **MONTH** and **YEAR** (this calendar month / year), read from monthly
+  rollups — §10.119. *(v1.88-live, D315)* `board=GAMES` «مجنون اللعب» ranks players by game tickets spent — §10.120.
+  *(v1.90-live, D320)* `board=RICH` «الأغنى» ranks users by the coins they sent as gifts — §10.124.
 
 ### 10.16 Live schedule *(v1.14-live, DRAFT — CP-016 C, D99)*
 
@@ -8770,7 +8787,9 @@ Owner (2026-11-07): «اريد عند حساب الارباح على صفحتي 
   hosts' and creators' share of gifts), **AGENCY_COMMISSIONS** (agency + parent commissions − their reversals −
   `AGENCY_FORFEIT`), **REFERRAL_REWARDS** (− `REFERRAL_REVERSAL`), **TASK_REWARDS** (task and host-target cherries),
   **STAFF_COMMISSIONS** (recruiters' commissions), **TEAM_ADJUSTMENTS** (the team's cherry adjustments, net — may lower
-  the costs); **COIN_REWARDS**, the coins Kabso gives away (event prizes, task and check-in coins) valued
+  the costs); **COIN_REWARDS**, the coins Kabso gives away (event prizes, task and check-in coins; *v1.100-social,
+  D312:* the custom gift owners' coin shares `GIFT_OWNER_ROYALTY`, net of their claw-backs `GIFT_OWNER_ROYALTY_REVERSAL`,
+  §10.118) valued
   conservatively at the lowest price an agent pays Kabso (owner 2026-11-07: «وكيل الشحن اقل سعر يحصله منا لل ١٠ مليون
   كوينز هو ١٢٠ دولار» — `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`, default 1200 = $12 a million; read only here);
   and **CARD_FEES**, the estimated card fees of the period's card orders (`ADMIN_REPORT_CARD_FEE_BPS` +
@@ -9594,7 +9613,8 @@ played full screen as is) and side-by-side alpha — chosen per gift. Replaces t
 - **Categories are rows** of `gift_categories`: `code` (`^[A-Z][A-Z0-9_]{0,39}$`, never changes), `kind` (`NORMAL` |
   `LUCKY` | `QUIPS`), `nameAr` / `nameEn` (1–30), `sortOrder` (0 … 10^6), `enabled`, an optional icon (PNG/WebP,
   square, 32–512 px, ≤ 256 KB). The migration seeds the five former values with the app's names in the former order.
-  `gifts.category` is a foreign key to it. **Special kinds:** at most one LUCKY and one QUIPS category, each with the
+  `gifts.category` is a foreign key to it. *(v1.100-social, D312: a third special kind, `CUSTOM` «مُخصَّص», seeded with the
+  code `CUSTOM`; its gifts name an owner — §10.118.)* **Special kinds:** at most one LUCKY and one QUIPS category, each with the
   code equal to its kind — so every rule written as `category = 'LUCKY' | 'QUIPS'` (lucky draws §10.27, quips §10.33,
   boosters §10.58, the bag) keeps its meaning. A special category may be renamed, reordered and given an icon; it is
   never turned off or deleted, and no gift is moved into it by a delete.
@@ -9647,3 +9667,224 @@ played full screen as is) and side-by-side alpha — chosen per gift. Replaces t
   Drawing past the canvas still shows in the drawn area (D145c). A file with **vector shapes or clip paths** plays on
   the package's player as before, but read and decoded by the engine (`SvgaDoc.toMovie`). The MP4 path was already off
   the UI thread (the platform's decoder); it gains the download ahead. Queue, combo and hold timing are unchanged.
+
+### 10.116 Rooms rank by their cherries «ترتيب الغرف بالكرز» *(v1.86-live, DRAFT — D310)*
+
+Owner (2026-11-08): «ترتيب الغرف اجعله بالكرز … كل 1 مليون كوينز يرسل يصل 6.5 مليون كرزة ولصانع المحتوى 7 مليون». Approved
+points: the ranking value is the real cherries the cherry ledger credited in this live to the host AND the guests on seats
+together (each send's stored share, never recomputed); heart taps no longer count (they stay for the charm level, §10.18);
+lucky gifts count their real cherries (10 % → 1 a coin), quips and the rest their stored share; the hub chip, the room card
+and the host pill show cherries; the popularity boards (§10.15) and PK points stay on points.
+
+- **`live_rooms.cherries`** (`LiveRoomSummary.cherries`, `LiveScore.roomCherries`): per live send, the sum of every
+  recipient's `GIFT_RECEIVED` credit of that send (floor(coins × the send's stored `host_share_bps` × CHERRIES_PER_COIN),
+  §10.46: a normal gift 65 % → 6.5 a coin, a content creator's live 70 % → 7, a custom gift 60 % → 6 (§10.118), a lucky
+  gift its stored share — 10 % → 1, a quip its share; a free quip nothing). Added in the send's own transaction right after
+  the ledger credit (the room row is already locked by the send). Every recipient of a live send is the host or seated, so
+  the host and the seated guests count; a recipient gifting themself counts as credited. **A reversal**
+  (`reverseGiftCherriesIn`) takes the reversed `GIFT_RECEIVED` credits back out (never below 0), in its own transaction.
+  Taps, PK boosters' points, the score and viewers never change it. A new live starts at 0 (D129: the ranking belongs to
+  one live).
+- **Order:** `popular` = `cherries` desc, `startedAt` desc, `id` desc (§10.4); `featured=true` after the feature rank; the
+  D295 host / creator interleave uses the same key; «رائج» (`LiveRoomSummary.popular`, §10.89) is the top
+  `LIVE_POPULAR_TOP_N` of each kind in this order. Indexes `live_rooms_live_popular_cherries_idx` and
+  `live_rooms_live_cat_popular_cherries_idx` replace the score ones.
+- **Cursor:** format v3 — `n` is the room's cherries. A v2 cursor (the score) → 400 `cursor` / `invalid_value`, like any
+  unknown version; an app paging across the deploy reloads the list once.
+- **Live updates:** the media room metadata carries `roomCherries` next to `score` and `hostCherries` (the same 2-second
+  throttle, left out at 0). Apps read a missing key as "unknown" and fall back to `hostCherries` (older servers).
+- **The apps:** the host pill (video, multi, audio, podcast; host and viewer) shows `roomCherries`; the host's own seat
+  tile and the data pages keep `hostCherries` (§10.95, the host's own share). *Owner follow-up (2026-11-08, «أرى أن
+  المعلومات على بطاقة البث كثيرة»):* the hub card draws no number but the viewers — one type badge (Live / PK / multi /
+  the voice kinds' label) and the viewer count (0 included; no «جديد»), a small creator mark on a creator's live, and the
+  title alone (the host's name when empty, 2 lines). `cherries` still orders the list and stays in the response.
+- **Unchanged:** `LiveRoomSummary.score` / `LiveScore.total` (points), the popularity boards (§10.15, points), PK points
+  (§10.58), the charm level from taps (§10.18), the Contribution list (§10.12).
+- **Backfill:** the migration fills the rooms LIVE at deploy from the ledger itself (`GIFT_RECEIVED` + `GIFT_REVERSAL` of
+  each send's recipients), so any CHERRIES_PER_COIN is exact; an ENDED room keeps 0 (it is never listed).
+
+### 10.117 «إجراءات المؤسس» — the founder's moderation actions in the app *(v1.99-social, DRAFT — D311)*
+
+Owner (2026-11-08): «يمكنه حذف او حظر او تحذير اي شخص», and he chose **no code (no authenticator, no password)** for these —
+a confirmation dialog only. **Owner decision recorded:** D286 / D288 kept the permanent ban and the account deletion behind
+the panel's step-up for the staff; the OWNER waives that for himself, in the app only. Every other role is unchanged (the
+panel and the staff tools keep their rules).
+
+- **`createOwnerModerationAction`** — `POST /owner/users/{userId}/actions` `{action, reason (1–500, trimmed), days?,
+  clientId}`; 201 `OwnerModerationResult`, or 200 with the first result for a retry with the same `clientId` (nothing
+  done again; unique `(actor, clientId)`, a concurrent retry answered the same way).
+- **Who:** the app owner only — an ACTIVE account holding the OWNER panel role, read now (`isKabsoOwner`, the D301 check);
+  anyone else → 403 `OWNER_ONLY` (a MODERATION / SUPPORT / FINANCE member too). Never on the owner's own account (409
+  `ADMIN_ACTION_REFUSED`, detail `rule` / `self`) or on an account that holds OWNER (`owner_target`); an unknown or
+  DELETED account → 404.
+- **Actions — each the panel's own rule, no second copy:** `WARN` «تحذير» — the report queue's warning (system
+  notification `MODERATION_WARNING`, never the owner's name; audited `admin.user.warn`); `SUSPEND` «حظر مؤقت» — the
+  account controls' `LOCK` for `days` (1–365, required here and refused elsewhere; sessions revoked, the person told
+  `ACCOUNT_RESTRICTED`, their live ended and seats released; audited `admin.user.lock`); `BAN` «حظر دائم» — the panel's ban
+  (`SUSPENDED`; lives ended, seats released; audited `admin.user.ban`; an account not ACTIVE → 409); `DELETE_ACCOUNT`
+  «حذف الحساب» — the D193 deletion with its grace period (`ACCOUNT_DELETION_GRACE_DAYS`; still cancellable at sign-in
+  until `purgeAfter`; the blockers → 409 `ACCOUNT_DELETION_BLOCKED`; already pending → 409; audited
+  `account.deletion.requested`).
+- **Audit:** every reused row carries `via: app`; one more row `owner.moderation.action` {actionId, action, reason, days?,
+  endsAt?, purgeAfter?, via: app} with the actor and the target; the action itself in `owner_moderation_actions`.
+- **Limits:** `RATE_LIMIT_OWNER_MODERATION_USER` (30 / 15 min, bucket `owner:moderation`) on top of the default.
+- **The app:** «إجراءات المؤسس» in a profile's ⋯ menu and the person card's ⋯ (in a live), shown only when the signed-in
+  account is the owner (`PublicProfile.kabsoOwner` of their own profile) and the person is someone else who is not an
+  owner. A sheet of the four actions (what each does), then a confirmation: the duration chips for a timed ban (1, 3, 7,
+  30, 90 days), the required reason, «تأكيد» (red for a ban or a deletion); errors stay in the dialog (one `clientId` per
+  intent, so a retry never acts twice); success closes with a message.
+
+### 10.118 Custom gifts «مُخصَّص» *(v1.100-social, DRAFT — D312)*
+
+Owner (2026-11-08): «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … 100 ألف → 600 ألف كرزة بدل 650 ألف، وصاحب الهدية
+يأخذ 3٪ لكن كوينزات يعني 3 آلاف كوينزة، ونفس الشيء صانع المحتوى في هذه الفئة فقط».
+
+- **Category:** the special kind `CUSTOM`, seeded as the category `CUSTOM` «مُخصَّص» / Custom (sort 60); like LUCKY and
+  QUIPS it is renamed, reordered and given an icon only (§10.66). Every gift in it names its owner `gifts.owner_user_id`
+  (CHECK `gifts_custom_owner`: set exactly for CUSTOM, never a PK booster); the panel takes the owner's **Kabso ID**
+  (`owner`: the username, a leading @ and any case accepted), which must be an existing **ACTIVE** account (409
+  `ADMIN_ACTION_REFUSED`, detail `owner` / `owner_not_found` | `owner_not_active`); a gift moved out of «مُخصَّص» loses its
+  owner. Audited with the gift's fields (`ownerUserId`).
+- **The app:** `Gift.owner` (`GiftOwner` {id, username, displayName, avatarUrl}) on a custom gift; the gift panel's
+  «مُخصَّص» tab (only when it has gifts), the owner's picture on the tile, «هدية {name}» in the details. A custom gift is
+  listed and sendable only while its owner is ACTIVE (otherwise 409 `GIFT_UNAVAILABLE`); it is sent with **coins only**
+  (a bag send → 400 `source` / `invalid_value`; never listed in the bag).
+- **Money (per send, in the send's transaction):** the recipients' share is `GIFT_CUSTOM_SHARE_PERCENT` (**60**) wherever
+  it is sent — any live (a host's or a content creator's: the creator 70 % does not apply to this category) and a direct
+  conversation (decided: the same 60 %, not the DM share; CP gifts are not catalogue gifts) — stored as the send's
+  `host_share_bps`, so the cherry ledger credits 100 000 coins → 600 000 cherries at CHERRIES_PER_COIN 10. The **owner**
+  gets floor(coin value × `GIFT_CUSTOM_OWNER_PERCENT` (**3**) / 100) **coins** (`GIFT_OWNER_ROYALTY`, reference the send;
+  100 000 → 3 000) — **none when the owner sends his own gift**. The owner's and the sender's wallets are locked in id
+  order. Agency commissions stay as for a normal gift (from the platform's part, on the host's cherries). Levels, score,
+  room cherries (§10.116), PK and medals count the send like any normal gift.
+- **Spendable only:** coins are never withdrawn (only cherries are), so the owner's coins are spendable only by nature.
+  «الربح» (§10.112.10) counts them as a cost in **COIN_REWARDS**, net of claw-backs.
+- **Reversal:** `reverseGiftCherriesIn` (the `economy-admin` reversal) also takes the owner's coins back
+  (`GIFT_OWNER_ROYALTY_REVERSAL`, once per send), even when spent — the balance may go below 0, a debt (as a reversed
+  website purchase, §10.53: no gift while in debt).
+- **Settings:** `GIFT_CUSTOM_SHARE_PERCENT` (default 60), `GIFT_CUSTOM_OWNER_PERCENT` (default 3); the share of each send is
+  stored, so a change applies to later sends only.
+
+### 10.119 The boards' month and year «هذا الشهر / هذه السنة» *(v1.87-live, DRAFT — D314)*
+
+Owner (2026-11-08): the ranking page «التصنيف» offers **هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة** on every
+tab (popularity, and «مجنون اللعب» §10.120; «الأغنى» still waits for its board).
+
+- **Periods:** `LiveRankingPeriod` = `HOUR` | `DAY` | `WEEK` | `MONTH` | `YEAR` (default `HOUR`; anything else → 400
+  `period`). The same zone and reset rules as §10.15, in `LIVE_RANKINGS_TIME_ZONE` (IANA, default UTC):
+  - **MONTH** starts at **00:00 local on the 1st** of the current month and ends at 00:00 local on the 1st of the next
+    (28–31 days; a DST change inside the month makes it 1 h shorter or longer — `endsAt` is the true instant).
+  - **YEAR** starts at **00:00 local on 1 January** and ends at 00:00 local on the next 1 January.
+  - `startsAt` / `endsAt` give the window; the app's countdown runs to `endsAt` (days shown) and the board reloads when
+    it ends; a new month / year starts empty. One region for everyone (D99).
+- **Storage (efficient for a year):** every point written to `live_host_points_hourly` (UTC hour) is also added, in the
+  same statement's transaction, to `live_host_points_monthly` (host, **local** month start in the ranking zone) — by the
+  gift send and the taps. HOUR / DAY / WEEK keep reading the hourly rows; **MONTH reads 1 monthly row a host, YEAR at most
+  12** (`month_start` in [year start, now], index `live_host_points_monthly_month_idx`). Points ≥ 0 (CHECK). Monthly rows
+  older than **400 days** are removed by the live sweeper (the hourly ones still after 15 days).
+- **The zone is part of the data:** a monthly row is keyed by the local month of the zone in force when it was written.
+  Changing `LIVE_RANKINGS_TIME_ZONE` mid-month misfiles the points written around midnight of the 1st until the next
+  month (DEPLOYMENT §5.92) — set it once.
+- **History:** the migration fills the monthly rows from the hourly rows still kept (the last 15 days), in **UTC**
+  (a migration cannot read the API's zone); older points no longer exist, so the first month / year boards hold only those.
+  A server on another zone re-runs the backfill with its zone (DEPLOYMENT §5.92).
+- **App:** five pills in the order above (they scroll sideways when they do not fit, the chosen one brought into view);
+  «هذا الشهر» / "This month", «هذه السنة» / "This year".
+
+### 10.120 «مجنون اللعب» — the game tickets board *(v1.88-live, DRAFT — D315)*
+
+Owner (2026-11-08): a third tab «مجنون اللعب» / "Game Crazy" on the ranking page: players ranked by the game **tickets
+they SPEND in games**, the same five periods (§10.119), the ticket count beside each player like the coins on «الأغنى».
+Hidden until at least one game is on — never an empty or «قريبًا» tab.
+
+- **No game exists yet** (D173, D305's game hook): there is no ticket wallet and no game in this build. The board stands on a
+  documented **ledger and hook** that the first game calls: `recordGameTicketSpendIn(tx, {userId, gameCode, tickets,
+  reference, at}, LIVE_RANKINGS_TIME_ZONE)` (`apps/api/src/modules/live/game-ticket-spends.ts`), **inside the game's own
+  transaction that debits the tickets** (a rolled-back round counts nothing). It writes:
+  - `game_ticket_spends` — one row per spend: player, `game_code` (`^[a-z0-9][a-z0-9_]{0,39}$`), `tickets` (> 0, whole),
+    `reference` (the game's own id of the round / bet, 1–64 characters), `created_at`; **unique `(game_code,
+    reference)`**: a replay adds nothing (returns false).
+  - `game_ticket_spends_hourly` (player, UTC hour) and `game_ticket_spends_monthly` (player, local month in the ranking
+    zone) — the rollups the board reads, exactly as the points of §10.15 / §10.119. Only spends count (winnings, refunds and
+    purchases never do); a refunded round is the game's to never record, or to record only once settled.
+  - Retention: the ledger is kept; hourly rollups 15 days, monthly 400 days (the live sweeper).
+- **API:** `GET /live/rankings?period=…&board=GAMES` (`LiveRankingBoard`, default `POPULARITY`; anything else → 400
+  `board`): up to 50 **ACTIVE players** with tickets spent in the window, highest first (ties by user id); the entry's `host`
+  is the player and `points` the tickets; `liveRoom` the player's live now, if any. The same block rules and guest
+  access as §10.15. `me` for **any signed-in caller** (rank null with 0 tickets). `LiveRankings.board` echoes the board.
+- **The switch:** `LiveConfig.gamesEnabled` (env `LIVE_GAMES_ENABLED`, default **false**) — true once at least one game is
+  on. The app shows the «مجنون اللعب» tab **only** while it is true (the same rule as D305's games strip: nothing about
+  games shows before a game exists); the API answers the board either way (empty).
+- **App:** the tabs «ترتيب الشعبية» · «الأغنى» (greyed «قريبًا» until D320, §10.124) · «مجنون اللعب»; the three shrink to fit
+  (360 pt, Arabic, large text). On «مجنون اللعب» each player shows the ticket (D182 art `KabsoArt.ticket`) and the count
+  (`liveRankTickets` "{n} tickets" / «{n} تذكرة» for screen readers); the caller's own row pinned at the bottom; empty:
+  «لا تذاكر مُنفقة في الألعاب بعد في هذه الفترة.» / "No game tickets spent yet in this period."
+
+### 10.121 Lucky wins in the chat «المكاسب في التكست» *(v1.89-live, DRAFT — D318)*
+
+Owner (2026-11-08): «عند لعب محظوظ تظهر مكاسب صغيرة في التكست فيمتلئ؛ أريد أن لا يظهر في التكست إلا المكسب x250 وx500 وx1000».
+
+- **Rule:** a lucky win (`lucky-win` to its own room, D178, or the sender's own `luckyResult`) writes its line in the live
+  chat only when its multiplier is **≥ `luckyChatMinMultiplier`** (default **250**: ×250, ×500, ×1000 with the default
+  `LUCKY_GIFT_MULTIPLIERS`). A smaller win keeps everything else it has: the sender's coins, the win banner / combo
+  («لحظة الحظ» frame), the sender's own result. The server still sends every `lucky-win` (the banner needs it); only the
+  app's chat line is held back. The cross-live «لحظة الحظ» ticker (`lucky-ticker`, ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`)
+  writes no chat line and is unchanged.
+- **Setting:** `LUCKY_CHAT_MIN_MULTIPLIER` (env, default 250; must be one of `LUCKY_GIFT_MULTIPLIERS` or the server refuses
+  to start); the OWNER's value wins: the panel «إعدادات الموقع» → «شريطا الهدايا والألعاب» (the same `site_settings`
+  row `globalStrips`, field `luckyChatMinMultiplier`; `GET /admin/global-strips` also answers `luckyMultipliers`, the
+  choices; `PUT` takes it optionally — absent: unchanged — and refuses a value that is not a multiplier, 400
+  `luckyChatMinMultiplier` / `invalid_value`; audited with the strips). A stored value that is no longer a multiplier
+  reads as the configuration's. Read through a 30 s cache.
+- **Delivery:** `GiftCatalogue.luckyChatMinMultiplier` (the app's catalogue; a change changes `version`, so the app
+  reloads it). Absent from an older server: every win keeps its line (D178).
+
+### 10.122 A full-screen SVGA gift fills the screen *(app only, D317)*
+
+Owner (2026-11-08, from a device: the 500 000-coin «الملاك المحارب» `angel_warrior`, an SVGA, showed the room's header
+above it and looked cropped): «the full-screen gift must appear filling the whole screen».
+
+- A gift effect is **full screen** when the gift carries the «شاشة كاملة» badge (`FULLSCREEN`, D289) **or** its SVGA
+  canvas is portrait at least 1.5 : 1 (the panel's own `looksFullscreen` rule; `angel_warrior` is 750 × 1624). Its own
+  canvas (`viewBoxWidth` × `viewBoxHeight`) is then scaled to **cover** the whole live screen, centred, its aspect kept —
+  a canvas of another shape loses equal strips at two opposite edges, never leaves a band of the room — on the effects
+  layer above the header and the chat; what the movie leaves transparent stays transparent. The same rule as D309's
+  plain MP4 (§10.66). Every other SVGA keeps D145d's fit (its drawn area full width, standing on the bottom edge).
+  No contract change.
+
+### 10.123 Data messages through a short LiveKit outage *(server only, D319)*
+
+Seen on staging (2026-11-08): LiveKit closed a room for a few seconds («closing idle room … departure timeout», the
+host's connection had dropped) while it was still LIVE here; the gift and the gift-ticker `SendData` answered **503**
+«no response from servers» and `UpdateRoomMetadata` **404**; minutes later the room existed again.
+
+- Every server → room data message (`broadcastData`: gifts, the global strips, lucky wins, the level ticker, chat,
+  bullets, boosts, kicks, PK, programs, stickers …) sends once as before; a **503 unavailable** or **404 not found** is
+  **retried in the background** after 0.5 s, 1 s, 2 s, 3 s and 5 s (≈ 11.5 s in all), then dropped with a warning. The
+  caller is answered after the first attempt — no HTTP response and no gift send waits for a retry (they already send
+  after the commit). Any other error is not retried and reaches the caller as before (logged and ignored). The global
+  strips send to each room on its own: a room still missing after the retries is skipped, the others get the strip.
+  Retries waiting at shutdown are dropped. Room metadata is not retried (the next change sends it whole).
+
+### 10.124 «الأغنى» — the Richest board *(v1.90-live, DRAFT — D320)*
+
+Owner (2026-11-08): the ranking page's «الأغنى» tab, until now a greyed «قريبًا», ranks users by the **coins they SENT as
+gifts**, the same five periods (§10.119), «والأيقونة التي بجانب أرقامهم كوينز».
+
+- **What counts:** the coin value (`total_coins`: unit price × quantity × recipients) of **every** gift send — a live
+  (to the host or seated guests), a direct conversation, a CP gift; **lucky** sends too (what was sent, never what was
+  won back), custom gifts (§10.118), and bag sends at their coin value; free quips (0 coins) do not. Exactly the sum of
+  the two medal metrics `GIFTS_SENT_COINS` + `LUCKY_GIFTS_SENT_COINS` (§10.104.7, §10.104.9), written at the same place,
+  once per send, in the send's own transaction (`addGiftCoinsSentIn`). A **reversed** send (`reverseGiftCherriesIn`,
+  `economy-admin reverse-gift`; live and direct-conversation sends — CP gifts are not reversible) is taken back from the
+  sender's hour and month of the **send** (never below 0, once). The medals are unchanged (they never subtract).
+- **Storage:** `gift_coins_sent_hourly` (user, UTC hour; 15 days) and `gift_coins_sent_monthly` (user, local month in
+  `LIVE_RANKINGS_TIME_ZONE`; 400 days), read exactly like the other boards (HOUR / DAY / WEEK from the hourly rows, MONTH /
+  YEAR from the monthly ones). Migration `20270408090600_live_rich_board` fills them from the sends kept (`live_gifts` not
+  reversed, `cp_gifts`): hourly for the last 15 days, monthly for the last 400 days, months in UTC (DEPLOYMENT §5.96).
+- **API:** `GET /live/rankings?board=RICH&period=…`: the **top 20** ACTIVE users with coins sent in the window, highest first
+  (ties by user id), the usual block rules and guest access; `host` is the sender, `points` the coins; `me` for any
+  signed-in caller (rank null with 0).
+- **App:** the tab is a normal tab now (no «قريبًا»), the podium and rows like the other boards, the **coin** art (D182
+  `KabsoArt.coin`) beside every number, `liveRankCoins` «{n} كوينز» / "{n} coins" for screen readers, the caller's own row
+  pinned; empty: «لم يُرسل أحد هدايا بعد في هذه الفترة.» / "No gifts sent yet in this period."

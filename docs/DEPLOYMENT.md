@@ -3353,3 +3353,112 @@ CONVENTIONS §10.48 (owner 2026-11-07).
   `--note`); top-ups already recorded keep their stored tier and price. «الربح» (D301) still values given-away coins at
   `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION` = 1200, now equal to the lowest tier.
 - **Rollback:** set the old value `0:1200,100000000:1195,300000000:1190` and recreate the API.
+
+### 5.89 Rooms rank by cherries (migration `20270408090000_live_room_cherries`; D310) — [IMPLEMENTED, draft contract v1.86-live; not deployed, not device-tested]
+
+CONVENTIONS §10.116 (owner 2026-11-08). §5.86–§5.88 are another branch's.
+
+- **Migration:** adds `live_rooms.cherries` (CHECK ≥ 0), backfills the rooms that are LIVE at that moment from the cherry
+  ledger, and swaps the two popular indexes (score → cherries). It reads `cherry_ledger` joined to the live sends of the
+  rooms LIVE now only; on a busy database run it at a quiet hour. No setting, no GRANT (default privileges).
+- **Behaviour change on deploy:** «الرائج» (`tab=popular`), «مميز» and «رائج» order by the room's cherries; taps no longer
+  move a room. The live cursor moves to v3: an app paging across the deploy gets one 400 `cursor` and reloads. The
+  popularity boards and PK are unchanged (points).
+- **Order:** API (with the migration) first, then the app (it reads `cherries` / `roomCherries` and falls back to the
+  host's cherries on an older server). **Rollback:** an older API ignores the column (its index on the score is gone:
+  re-create `live_rooms_live_popular_idx` / `live_rooms_live_cat_popular_idx` from `20261028090000_live_taps` if rolling
+  back for long).
+
+### 5.90 «إجراءات المؤسس» — the founder's moderation actions (migration `20270408090300_owner_moderation`; D311) — [IMPLEMENTED, draft contract v1.99-social; not deployed, not device-tested]
+
+CONVENTIONS §10.117 (owner 2026-11-08).
+
+- **Migration:** the table `owner_moderation_actions` (one row per action, keyed by the app's `clientId`). No GRANT.
+- **New optional setting:** `RATE_LIMIT_OWNER_MODERATION_USER` (default `30/900`). Nothing else to configure: the owner
+  is whoever holds the OWNER panel role (D301).
+- **Security note (owner decision):** these actions need no authenticator code for the OWNER in the app (the panel and
+  every other role keep their step-up rules, D286 / D288). Every action is audited (`owner.moderation.action` and the
+  reused `admin.user.*` / `account.deletion.requested` rows, `via: app`).
+- **Order:** API first, then the app (an older API answers 404 and the app shows the error in the dialog).
+  **Rollback:** an older API ignores the table.
+
+### 5.91 Custom gifts «مُخصَّص» (migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`; D312) — [IMPLEMENTED, draft contract v1.100-social; not deployed, not device-tested]
+
+CONVENTIONS §10.118 (owner 2026-11-08).
+
+- **Migrations, in order:** the enum values (`gift_category_kind` `CUSTOM`, `wallet_ledger_reason` `GIFT_OWNER_ROYALTY`,
+  `GIFT_OWNER_ROYALTY_REVERSAL`; their own migration), then `gifts.owner_user_id` (FK RESTRICT, CHECK
+  `gifts_custom_owner`), the seeded category `CUSTOM` «مُخصَّص» (sort 60), the ledger's sign rule extended in place and the
+  index `wallet_ledger_gift_owner_idx`. `prisma migrate deploy` applies both in order.
+- **New optional settings (API env, defaults are the owner's):** `GIFT_CUSTOM_SHARE_PERCENT=60` (the recipients' share
+  of a custom gift everywhere), `GIFT_CUSTOM_OWNER_PERCENT=3` (the gift owner's coins). Read at start: recreate the API
+  after a change (`docker compose up -d api`). Each send stores its share, so a change applies to later sends only.
+- **Panel:** «الهدايا» → choose «مُخصَّص» → «صاحب الهدية (Kabso ID)» is required (an ACTIVE account). The category can be
+  renamed / reordered in «التصنيفات», never turned off.
+- **Reversal:** `economy-admin reverse-gift <send>` now also takes the owner's coins back (may leave a negative balance).
+- **Order:** API first, then the panel, then the app (an older app shows the custom tab as a plain tab and sends with
+  coins; a bag send of a custom gift is refused by the API). **Rollback:** an older API cannot read a gift whose category
+  is CUSTOM as special — disable the custom gifts first.
+
+### 5.92 The boards' month and year (migration `20270408090400_live_rankings_month_year`; D314) — [IMPLEMENTED, draft contract v1.87-live; not deployed, not device-tested]
+
+CONVENTIONS §10.119 (owner 2026-11-08).
+
+- **Migration:** the table `live_host_points_monthly` (host, local month start, points) and a backfill from the hourly
+  rows still kept (15 days), months taken in **UTC**. No new config: the months follow `LIVE_RANKINGS_TIME_ZONE`.
+- **A server whose `LIVE_RANKINGS_TIME_ZONE` is not UTC** re-runs the backfill with its zone, once, right after the
+  migration and **before** the new API takes traffic (replace `Asia/Riyadh`):
+  `TRUNCATE live_host_points_monthly; INSERT INTO live_host_points_monthly (host_user_id, month_start, points) SELECT
+  host_user_id, date_trunc('month', hour_start AT TIME ZONE 'Asia/Riyadh') AT TIME ZONE 'Asia/Riyadh', SUM(points) FROM
+  live_host_points_hourly GROUP BY 1, 2 HAVING SUM(points) > 0;` (as the migration role).
+- **Do not change `LIVE_RANKINGS_TIME_ZONE` afterwards** without re-running that backfill (the monthly rows are keyed by
+  the zone's months; older months cannot be rebuilt once their hourly rows are swept).
+- **Order:** API first (an older app never asks for MONTH / YEAR), then the app. **Rollback:** an older API ignores the
+  table (left in place; the sweeper of the new API removes rows after 400 days).
+
+### 5.93 «مجنون اللعب» — game tickets spent (migration `20270408090500_game_ticket_spends`; D315) — [IMPLEMENTED as a hook, draft contract v1.88-live; not deployed, not device-tested]
+
+CONVENTIONS §10.120 (owner 2026-11-08).
+
+- **Migration:** the ledger `game_ticket_spends` (unique `(game_code, reference)`) and its rollups
+  `game_ticket_spends_hourly` / `game_ticket_spends_monthly`. Empty until a game exists.
+- **New optional setting (API env):** `LIVE_GAMES_ENABLED=false` (default). Keep it false — the app hides the
+  «مجنون اللعب» tab — until the first game ships and records each spend with `recordGameTicketSpendIn` in the transaction
+  that debits the tickets; then set `true` and recreate the API (`docker compose up -d api`). The API answers
+  `board=GAMES` either way.
+- **Order:** API first, then the app (an older app has no third tab). **Rollback:** an older API ignores the tables and
+  never sends `gamesEnabled` (the app reads it as false: the tab hides).
+
+### 5.94 Lucky wins in the chat (D318; no migration) — [IMPLEMENTED, draft contract v1.89-live; not deployed, not device-tested]
+
+CONVENTIONS §10.121 (owner 2026-11-08).
+
+- **New optional setting (API env):** `LUCKY_CHAT_MIN_MULTIPLIER=250` — must be one of `LUCKY_GIFT_MULTIPLIERS` (the API
+  refuses to start otherwise; check it when changing the multipliers). The OWNER's panel value («إعدادات الموقع» →
+  «شريطا الهدايا والألعاب» → «مكاسب الحظ في التكست») wins and applies within 30 s without a restart.
+- **Order:** API, then the panel, then the app (an older app keeps a line for every win; an older panel leaves the value
+  as it is). **Rollback:** an older API ignores the extra field in the `globalStrips` row.
+
+### 5.95 Data messages through a short LiveKit outage (D319; no migration, no config) — [IMPLEMENTED; not deployed]
+
+CONVENTIONS §10.123. Nothing to set: `broadcastData` retries a 503 / 404 in the background for ≈ 11.5 s. After deploying,
+a `data message (topic …) to room … dropped after 5 retries` warning in the API logs means LiveKit had the room closed
+for longer — look at the host's connection / LiveKit's `departure timeout`, not at the API.
+
+### 5.96 «الأغنى» — the Richest board (migration `20270408090600_live_rich_board`; D320) — [IMPLEMENTED, draft contract v1.90-live; not deployed, not device-tested]
+
+CONVENTIONS §10.124 (owner 2026-11-08).
+
+- **Migration:** the tables `gift_coins_sent_hourly` / `gift_coins_sent_monthly` and a backfill from the sends kept —
+  `live_gifts` not reversed and `cp_gifts`: hourly rows for the last 15 days, monthly rows for the last 400 days, months
+  in **UTC**. No new config.
+- **A server whose `LIVE_RANKINGS_TIME_ZONE` is not UTC** re-runs the monthly part with its zone, once, right after the
+  migration and before the new API takes traffic (replace `Asia/Riyadh`; as the migration role):
+  `TRUNCATE gift_coins_sent_monthly; INSERT INTO gift_coins_sent_monthly (user_id, month_start, coins) SELECT user_id,
+  date_trunc('month', created_at AT TIME ZONE 'Asia/Riyadh') AT TIME ZONE 'Asia/Riyadh', SUM(coins) FROM (SELECT
+  sender_id AS user_id, created_at, total_coins AS coins FROM live_gifts g WHERE total_coins > 0 AND created_at >= now() -
+  interval '400 days' AND NOT EXISTS (SELECT 1 FROM cherry_ledger c WHERE c.reference_id = g.id::text AND c.reason =
+  'GIFT_REVERSAL') UNION ALL SELECT sender_id, created_at, amount FROM cp_gifts WHERE amount > 0 AND created_at >= now() -
+  interval '400 days') s GROUP BY 1, 2;`
+- **Order:** API first, then the app (an older app keeps its greyed «قريبًا» tab). **Rollback:** an older API ignores the
+  tables; a newer app then gets 400 on `board=RICH` and shows the error text on that tab.
