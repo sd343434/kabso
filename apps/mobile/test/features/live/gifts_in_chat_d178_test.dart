@@ -9,13 +9,13 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
-import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
+import 'package:kabso_live/features/live/application/live_global_strips.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_gift_line.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_gift_ticker_bar.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_global_strip_bar.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -142,8 +142,8 @@ void main() {
     await _leave(tester);
   });
 
-  testWidgets('a big gift in another live is the global strip (3 s); one of '
-      'this live is not', (tester) async {
+  testWidgets('a big gift is the global strip (D305: 2.9 s, this live '
+      'too)', (tester) async {
     final (engine, _) = await _pump(tester);
     GiftTicker ticker(String id, String room) => GiftTicker(
       gift: LiveGift.fromJson({
@@ -157,17 +157,35 @@ void main() {
       }),
       room: LuckyTickerRoom(id: room, title: 'Party', host: _omar),
     );
+    // v1.85-live (D305, owner «في جميع الغرف»): this live's own big gift
+    // shows too.
     engine.chat.add(GiftTickerReceived(ticker('t0', 'room-0')));
     await tester.pump();
-    expect(find.byKey(LiveGiftTickerBar.tickerKey), findsNothing);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.byKey(LiveGlobalStripBar.laneKey(StripLane.gifts)),
+      findsOneWidget,
+    );
+    expect(LiveGlobalStrips.showTime, const Duration(milliseconds: 2900));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(LiveGlobalStripBar.laneKey(StripLane.gifts)),
+      findsNothing,
+    );
     engine.chat.add(GiftTickerReceived(ticker('t1', 'room-9')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(LiveGiftTickerBar.tickerKey), findsOneWidget);
-    expect(LiveGiftTickers.showTime, const Duration(seconds: 3));
+    expect(
+      find.byKey(LiveGlobalStripBar.laneKey(StripLane.gifts)),
+      findsOneWidget,
+    );
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    expect(find.byKey(LiveGiftTickerBar.tickerKey), findsNothing);
+    expect(
+      find.byKey(LiveGlobalStripBar.laneKey(StripLane.gifts)),
+      findsNothing,
+    );
     await _leave(tester);
   });
 }

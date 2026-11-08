@@ -401,6 +401,8 @@ class NotificationSettings {
     this.reposts = true,
     this.lives = true,
     this.messages = true,
+    this.giftStrip = true,
+    this.gameStrip = true,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationSettings(
@@ -413,6 +415,9 @@ class NotificationSettings {
     lives: json['lives'] as bool? ?? true,
     // v1.30-live (D152); an older server does not send it (on).
     messages: json['messages'] as bool? ?? true,
+    // v1.85-live (D305); an older server does not send them (on).
+    giftStrip: json['giftStrip'] as bool? ?? true,
+    gameStrip: json['gameStrip'] as bool? ?? true,
   );
 
   final bool likes;
@@ -429,6 +434,13 @@ class NotificationSettings {
   /// Pushes of new family chat messages (v1.30-live, D152).
   final bool messages;
 
+  /// v1.85-live (D305): the global gifts strip «شريط الهدايا» shows in
+  /// every live this account watches or hosts (the server still sends it).
+  final bool giftStrip;
+
+  /// v1.85-live (D305): the global games strip «شريط الألعاب».
+  final bool gameStrip;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationSettings &&
@@ -438,11 +450,22 @@ class NotificationSettings {
       other.follows == follows &&
       other.reposts == reposts &&
       other.lives == lives &&
-      other.messages == messages;
+      other.messages == messages &&
+      other.giftStrip == giftStrip &&
+      other.gameStrip == gameStrip;
 
   @override
-  int get hashCode =>
-      Object.hash(likes, comments, mentions, follows, reposts, lives, messages);
+  int get hashCode => Object.hash(
+    likes,
+    comments,
+    mentions,
+    follows,
+    reposts,
+    lives,
+    messages,
+    giftStrip,
+    gameStrip,
+  );
 }
 
 /// One switch of [NotificationSettings] (the wire field name).
@@ -453,7 +476,11 @@ enum NotificationSetting {
   follows,
   reposts,
   lives,
-  messages;
+  messages,
+
+  /// v1.85-live (D305): the global strips in the lives.
+  giftStrip,
+  gameStrip;
 
   bool of(NotificationSettings s) => switch (this) {
     likes => s.likes,
@@ -463,6 +490,8 @@ enum NotificationSetting {
     reposts => s.reposts,
     lives => s.lives,
     messages => s.messages,
+    giftStrip => s.giftStrip,
+    gameStrip => s.gameStrip,
   };
 
   NotificationSettings set(NotificationSettings s, {required bool on}) =>
@@ -474,5 +503,7 @@ enum NotificationSetting {
         reposts: this == reposts ? on : s.reposts,
         lives: this == lives ? on : s.lives,
         messages: this == messages ? on : s.messages,
+        giftStrip: this == giftStrip ? on : s.giftStrip,
+        gameStrip: this == gameStrip ? on : s.gameStrip,
       );
 }

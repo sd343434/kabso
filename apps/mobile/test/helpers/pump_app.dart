@@ -256,6 +256,8 @@ Future<void> pumpScreen(
   RechargeRepository? rechargeRepository,
   FakeLivePkRepository? livePkRepository,
   FakePkOpponentMedia? pkOpponent,
+  // D305: the strip switches live in the notification settings.
+  FakeNotificationsRepository? notificationsRepository,
   // D220: the person card is white in light mode, dark in dark mode.
   Brightness brightness = Brightness.dark,
   bool disableAnimations = false,
@@ -293,7 +295,7 @@ Future<void> pumpScreen(
         ),
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         notificationsRepositoryProvider.overrideWithValue(
-          FakeNotificationsRepository(),
+          notificationsRepository ?? FakeNotificationsRepository(),
         ),
         // D124: no promo banners unless a test adds them.
         homeBannersRepositoryProvider.overrideWithValue(

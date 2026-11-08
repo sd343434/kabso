@@ -831,7 +831,8 @@ a `CONNECTION LIMIT`.
   | `LUCKY_PITY_MULTIPLIER` | `5` (D148) | what the guaranteed draw pays at least (one of the multipliers) |
   | ~~`LUCKY_GIFT_RTP_SHARES`~~ | — | **removed in D148**: set → the API refuses to start |
   | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | wins from this multiplier are told to every other live («لحظة الحظ»); D178: every win is announced to its own room |
-  | `GIFT_GLOBAL_TICKER_MIN_COINS` | `1000` (D178; **the owner will set the real value** after studying coin prices) | a gift send worth at least this many coins shows as a strip in every other live (one every 3 s, the newest first). See D178. Change it in the API's `.env` on the server (`GIFT_GLOBAL_TICKER_MIN_COINS=5000`) and restart the API (`docker compose up -d api`); no app update, no migration |
+  | `GIFT_GLOBAL_TICKER_MIN_COINS` | `500000` (D305, owner «٥٠٠ ألف كوينز وأكثر»; was `1000` in D178) | a gift whose **unit price** (one gift — owner, D305; D178 counted the send) is at least this many coins shows as the gifts strip in every live, its own too (one every 3 s, the newest first). See D178, D305 and §5.84. **The OWNER sets it in the panel** («إعدادات الموقع» → «شريطا الهدايا والألعاب», no restart, ≤ 30 s); this variable is only the fallback (`.env`, restart the API) |
+  | `GAME_WIN_TICKER_MIN_TICKETS` | `1000000` (D305, owner «١ مليون وأकثر») | a game prize worth at least this many tickets shows as the games strip in every live (§5.84); the panel's value wins (as above). No game pays ticket prizes yet |
   | `LUCKY_GIFT_DAY_TIME_ZONE` | `UTC` | the daily protection's day |
   | `LUCKY_GIFTS_DISABLED_COUNTRIES` | empty | ISO alpha-2 codes where lucky gifts are off |
   | `LUCKY_GIFTS_COUNTRY_HEADER` | unset | the header the edge sets to the client country (required with a country list) |
@@ -3168,3 +3169,25 @@ metadata-only, no rewrite; the runtime role gets DML through the default privile
   columns and table, but the staff's `avatar_url` stays the team picture's URL (served only by this version) — before
   rolling back run `UPDATE user_profiles SET avatar_url = staff_saved_avatar_url, staff_saved_avatar_url = NULL,
   staff_avatar = false WHERE staff_avatar;`.
+
+### 5.84 The global strips «شريط الهدايا» and «شريط الألعاب» (migration `20270405090000_global_strip_settings`; D305) — [IMPLEMENTED, draft contract v1.85-live; not deployed, not device-tested]
+
+CONVENTIONS §10.115. §5.81–§5.83 belong to other branches.
+
+- **Migration:** `20270405090000_global_strip_settings` adds `notification_settings.gift_strip` and `game_strip`
+  (BOOLEAN NOT NULL DEFAULT true). An existing table: no GRANT, no backfill (no row = all on, as before). Apply with the
+  API image as usual (`prisma migrate deploy`); old API versions ignore the columns.
+- **Migration (2):** the same migration extends the `site_settings` key CHECK with `globalStrips` (the panel's
+  thresholds; no row inserted).
+- **Thresholds:** the OWNER sets both in the panel («إعدادات الموقع» → «شريطا الهدايا والألعاب»; `site.settings`,
+  audited; effective within 30 s, no restart). Fallback configuration (API `.env`, restart): `GIFT_GLOBAL_TICKER_MIN_COINS`
+  default **500 000** on ONE gift's price (was 1 000 on the send's total: a server that set its own value keeps it —
+  check `.env`), `GAME_WIN_TICKER_MIN_TICKETS` default **1 000 000**.
+- **Behaviour change on deploy:** a gift strip now also shows in the live where the gift was sent (apps before this
+  version ignore that message there, so nothing changes for them); the gift strip pace is unchanged (one every 3 s for
+  the whole service); game wins have their own lane and gate (one every 3 s), so both strips can show at once.
+- **Games:** no game pays ticket prizes yet; the hook a game calls is `LiveGiftTickerService.offerGameWin` (§10.115).
+  Nothing to configure until a game exists.
+- **Order:** API (with its migration) first, then the panel, then the app (the app reads `giftStrip` / `gameStrip` with a default of on,
+  so an older API is fine). **Rollback:** an older API ignores the two columns; `GIFT_GLOBAL_TICKER_MIN_COINS` falls
+  back to 1 000 unless set.

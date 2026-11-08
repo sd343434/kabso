@@ -220,6 +220,9 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
           reposts: true,
           lives: true,
           messages: true,
+          // v1.85-live (D305): the global strips' switches.
+          giftStrip: true,
+          gameStrip: true,
         },
       },
       wallet: { select: { coins: true } },

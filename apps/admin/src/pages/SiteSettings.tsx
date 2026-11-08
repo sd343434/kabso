@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { ErrorAlert, Loading, useAsync } from '../components';
 import { useApp } from '../context';
-import type { CameraFxEngine, CameraFxSettings, LevelTickerSettings, SiteSettings as Settings } from '../types';
+import type {
+  CameraFxEngine,
+  CameraFxSettings,
+  GlobalStripsSettings,
+  LevelTickerSettings,
+  SiteSettings as Settings,
+} from '../types';
 
 export function SiteSettings() {
   const { t, toast } = useApp();
@@ -92,6 +98,7 @@ export function SiteSettings() {
       </form>
       <CameraFxCard />
       <LevelTickerCard />
+      <GlobalStripsCard />
     </>
   );
 }
@@ -275,6 +282,144 @@ function LevelTickerCard() {
             (saved) => {
               setBusy(false);
               setMinLevel(String(saved.minLevel));
+              setReason('');
+              toast(t('saved'));
+            },
+            (err: unknown) => {
+              setBusy(false);
+              setSaveError(err);
+            },
+          );
+        }}
+      />
+    </>
+  );
+}
+
+/** D305: a whole positive number up to [max] typed in a field, or null. */
+function wholeUpTo(text: string, max: number): number | null {
+  const t = text.trim();
+  if (!/^[0-9]{1,13}$/.test(t)) return null;
+  const n = Number(t);
+  return n >= 1 && n <= max ? n : null;
+}
+
+/**
+ * D305: the PUT body of «شريطا الهدايا والألعاب» — both thresholds as whole numbers (one gift's price 1–10⁹ coins,
+ * a prize 1–10¹² tickets; null when either is not one, the form refuses it) and a reason only when typed.
+ */
+export function globalStripsBody(
+  giftMinCoins: string,
+  gameMinTickets: string,
+  reason: string,
+): { giftMinCoins: number; gameMinTickets: number; reason?: string } | null {
+  const gift = wholeUpTo(giftMinCoins, 1_000_000_000);
+  const game = wholeUpTo(gameMinTickets, 1_000_000_000_000);
+  if (gift === null || game === null) return null;
+  return { giftMinCoins: gift, gameMinTickets: game, ...(reason.trim() ? { reason: reason.trim() } : {}) };
+}
+
+/** D305: the form of «شريطا الهدايا والألعاب» (the global strips' thresholds), pure for the tests. */
+export function GlobalStripsView(props: {
+  giftMinCoins: string;
+  gameMinTickets: string;
+  reason: string;
+  busy: boolean;
+  onGiftMinCoins: (value: string) => void;
+  onGameMinTickets: (value: string) => void;
+  onReason: (reason: string) => void;
+  onSave: () => void;
+}) {
+  const { t } = useApp();
+  const invalid = globalStripsBody(props.giftMinCoins, props.gameMinTickets, '') === null;
+  return (
+    <form
+      className="card"
+      style={{ maxWidth: 640, marginTop: 16 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!invalid) props.onSave();
+      }}
+    >
+      <h2>{t('gsTitle')}</h2>
+      <p className="muted small">{t('gsIntro')}</p>
+      <div className="field">
+        <label htmlFor="gs-gift">{t('gsGiftMinCoins')}</label>
+        <input
+          id="gs-gift"
+          type="number"
+          className="ltr"
+          min={1}
+          step={1}
+          inputMode="numeric"
+          value={props.giftMinCoins}
+          aria-invalid={invalid}
+          onChange={(e) => props.onGiftMinCoins(e.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="gs-game">{t('gsGameMinTickets')}</label>
+        <input
+          id="gs-game"
+          type="number"
+          className="ltr"
+          min={1}
+          step={1}
+          inputMode="numeric"
+          value={props.gameMinTickets}
+          aria-invalid={invalid}
+          onChange={(e) => props.onGameMinTickets(e.target.value)}
+        />
+        <span className="hint">{invalid ? t('gsInvalid') : t('gsHint')}</span>
+      </div>
+      <div className="field">
+        <label htmlFor="gs-reason">{t('reason')}</label>
+        <textarea id="gs-reason" maxLength={500} value={props.reason} onChange={(e) => props.onReason(e.target.value)} />
+      </div>
+      <button className="btn primary" disabled={props.busy || invalid}>
+        {t('gsSave')}
+      </button>
+    </form>
+  );
+}
+
+function GlobalStripsCard() {
+  const { t, toast } = useApp();
+  const { data, error, loading } = useAsync(() => api.get<GlobalStripsSettings>('/admin/global-strips'), []);
+  const [gift, setGift] = useState('500000');
+  const [game, setGame] = useState('1000000');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  useEffect(() => {
+    if (data) {
+      setGift(String(data.giftMinCoins));
+      setGame(String(data.gameMinTickets));
+    }
+  }, [data]);
+  if (loading && !data) return <Loading />;
+  if (!data) return <ErrorAlert error={error} />;
+  return (
+    <>
+      <ErrorAlert error={saveError} />
+      <GlobalStripsView
+        giftMinCoins={gift}
+        gameMinTickets={game}
+        reason={reason}
+        busy={busy}
+        onGiftMinCoins={setGift}
+        onGameMinTickets={setGame}
+        onReason={setReason}
+        onSave={() => {
+          const body = globalStripsBody(gift, game, reason);
+          if (!body) return;
+          setBusy(true);
+          setSaveError(null);
+          api.put<GlobalStripsSettings>('/admin/global-strips', body).then(
+            (saved) => {
+              setBusy(false);
+              setGift(String(saved.giftMinCoins));
+              setGame(String(saved.gameMinTickets));
               setReason('');
               toast(t('saved'));
             },

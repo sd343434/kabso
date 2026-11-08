@@ -6814,9 +6814,23 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String liveGiftTicker(String sender, String gift, int count, String room) {
-    return '$sender أرسل $gift ×$count في غرفة $room';
+  String liveStripGift(String sender, String receiver, String gift) {
+    return 'أرسل $sender إلى $receiver هدية $gift';
   }
+
+  @override
+  String liveStripGameWin(String winner, String amount) {
+    return 'فاز $winner بجائزة قيمتها $amount تذكرة';
+  }
+
+  @override
+  String get liveStripShowGifts => 'إظهار شريط الهدايا';
+
+  @override
+  String get liveStripShowGames => 'إظهار شريط الألعاب';
+
+  @override
+  String get liveStripSwitchHint => 'في جميع البثوث وعلى كل أجهزتك';
 
   @override
   String get liveViewerMenu => 'المزيد';

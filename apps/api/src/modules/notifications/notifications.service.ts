@@ -105,6 +105,10 @@ export interface NotificationSettingsDto {
   lives: boolean;
   /** v1.30-live (D152): pushes of new family chat messages. */
   messages: boolean;
+  /** v1.85-live (D305): the global gifts strip shows in the lives (the app hides it when off). */
+  giftStrip: boolean;
+  /** v1.85-live (D305): the global games strip shows in the lives (the app hides it when off). */
+  gameStrip: boolean;
 }
 
 /** Retention (owner, D92): latest activity older than this is deleted. */
@@ -122,6 +126,8 @@ const DEFAULT_SETTINGS: NotificationSettingsDto = {
   reposts: true,
   lives: true,
   messages: true,
+  giftStrip: true,
+  gameStrip: true,
 };
 const ACTOR_TYPES: NotificationType[] = [
   'LIKE_POST',
@@ -683,5 +689,7 @@ function pickSettings(row: NotificationSettingsDto): NotificationSettingsDto {
     reposts: row.reposts,
     lives: row.lives,
     messages: row.messages,
+    giftStrip: row.giftStrip,
+    gameStrip: row.gameStrip,
   };
 }

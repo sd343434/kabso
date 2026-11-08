@@ -30,5 +30,9 @@ export const updateNotificationSettingsSchema = z
     lives: z.boolean().optional(),
     /** v1.30-live (D152): family chat pushes. */
     messages: z.boolean().optional(),
+    /** v1.85-live (D305): the global gifts strip in the lives. */
+    giftStrip: z.boolean().optional(),
+    /** v1.85-live (D305): the global games strip in the lives. */
+    gameStrip: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });

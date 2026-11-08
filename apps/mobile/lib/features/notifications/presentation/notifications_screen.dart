@@ -746,6 +746,18 @@ class NotificationSettingsScreen extends ConsumerWidget {
                 l10n.notifSettingMessages,
                 l10n.notifSettingMessagesBody,
               ),
+              // v1.85-live (D305): the global strips in the lives (the same
+              // switches as in every live's settings sheet).
+              (
+                NotificationSetting.giftStrip,
+                l10n.liveStripShowGifts,
+                l10n.liveStripSwitchHint,
+              ),
+              (
+                NotificationSetting.gameStrip,
+                l10n.liveStripShowGames,
+                l10n.liveStripSwitchHint,
+              ),
             ])
               SwitchListTile(
                 key: switchKey(s),

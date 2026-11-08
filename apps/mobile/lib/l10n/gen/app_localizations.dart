@@ -11743,11 +11743,35 @@ abstract class AppLocalizations {
   /// **'{sender} ربح ×{multiplier} = {coins} عملة من هدية الحظ'**
   String liveChatLuckyLine(String sender, String multiplier, String coins);
 
-  /// D178: gifts, lucky wins and the global gift strip in the live.
+  /// D305: the global gifts strip (a gift of ≥ 500 000 coins in any live). Names are bidi-isolated by the app.
   ///
   /// In ar, this message translates to:
-  /// **'{sender} أرسل {gift} ×{count} في غرفة {room}'**
-  String liveGiftTicker(String sender, String gift, int count, String room);
+  /// **'أرسل {sender} إلى {receiver} هدية {gift}'**
+  String liveStripGift(String sender, String receiver, String gift);
+
+  /// D305: the global games strip (a game prize of ≥ 1 000 000 tickets). amount is the grouped number; the ticket icon follows it.
+  ///
+  /// In ar, this message translates to:
+  /// **'فاز {winner} بجائزة قيمتها {amount} تذكرة'**
+  String liveStripGameWin(String winner, String amount);
+
+  /// D305: per-account switch, every live's settings sheet and the notification settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار شريط الهدايا'**
+  String get liveStripShowGifts;
+
+  /// D305: per-account switch, every live's settings sheet and the notification settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار شريط الألعاب'**
+  String get liveStripShowGames;
+
+  /// D305: under the two strip switches.
+  ///
+  /// In ar, this message translates to:
+  /// **'في جميع البثوث وعلى كل أجهزتك'**
+  String get liveStripSwitchHint;
 
   /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
   ///

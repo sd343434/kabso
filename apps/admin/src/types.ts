@@ -344,6 +344,14 @@ export interface LevelTickerSettings {
   minLevel: number;
 }
 
+/** v1.85-live (D305): `GlobalStripsSettings` — the thresholds of the gifts strip and the games strip. */
+export interface GlobalStripsSettings {
+  /** One gift's price (coins). */
+  giftMinCoins: number;
+  /** A game prize (tickets). */
+  gameMinTickets: number;
+}
+
 /** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */
 export interface PaymentKeyInfo {
   kind: 'secret' | 'restricted' | 'webhook';

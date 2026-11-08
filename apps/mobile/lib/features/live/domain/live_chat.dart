@@ -225,6 +225,10 @@ sealed class LiveChatEvent {
         'lucky-ticker' => LuckyTickerReceived(LuckyTicker.fromJson(json)),
         // v1.41-live (D178): a big gift in another live (the global strip).
         'gift-ticker' => GiftTickerReceived(GiftTicker.fromJson(json)),
+        // v1.85-live (D305): a big game prize (the games strip, every live).
+        'game-win-ticker' => GameWinTickerReceived(
+          GameWinTicker.fromJson(json),
+        ),
         // v1.62-live (D254): a high level reached in a live (every live).
         'level-ticker' => LevelTickerReceived(LevelTicker.fromJson(json)),
         // v1.27.5-live (D138): an emoji on someone's own seat.
@@ -423,6 +427,14 @@ final class GiftTickerReceived extends LiveChatEvent {
   const new(this.ticker);
 
   final GiftTicker ticker;
+}
+
+/// v1.85-live (D305): a big game prize in any live or outside one (topic
+/// `gift`, `game-win-ticker`), shown as the games strip.
+final class GameWinTickerReceived extends LiveChatEvent {
+  const new(this.ticker);
+
+  final GameWinTicker ticker;
 }
 
 /// v1.62-live (D254): someone reached a high support or charm level in a

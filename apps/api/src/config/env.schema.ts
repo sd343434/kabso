@@ -896,10 +896,18 @@ export const envSchema = z
      */
     LUCKY_GIFT_BIG_WIN_MULTIPLIER: intSetting(100, 2, 10_000),
     /**
-     * v1.41-live (D178, owner): a gift send worth at least this many coins is told to every other
-     * live as a `gift-ticker` strip (one at a time, the newest first). Every gift shows in its own room.
+     * v1.41-live (D178, owner): a gift send is told to every live as a `gift-ticker` strip (one at a
+     * time, the newest first). v1.85-live (D305, owner «٥٠٠ ألف كوينز وأكثر»): from a gift whose unit price
+     * (ONE gift; D178 counted the send) is at least this; default 500 000 (was 1 000); its own room too.
+     * The OWNER's panel value (`site_settings` `globalStrips`) wins; this is the fallback.
      */
-    GIFT_GLOBAL_TICKER_MIN_COINS: intSetting(1000, 1, 1_000_000_000),
+    GIFT_GLOBAL_TICKER_MIN_COINS: intSetting(500_000, 1, 1_000_000_000),
+    /**
+     * v1.85-live (D305, owner «يظهر للجائزة التي قيمتها ١ مليون وأكثر»): a game prize worth at least
+     * this many tickets is told to every live as a `game-win-ticker` strip «شريط الألعاب». The OWNER's
+     * panel value wins; this is the fallback.
+     */
+    GAME_WIN_TICKER_MIN_TICKETS: intSetting(1_000_000, 1, 1_000_000_000_000),
     /** The daily protection's day starts at midnight in this IANA time zone. */
     LUCKY_GIFT_DAY_TIME_ZONE: ianaTimeZone('UTC'),
     /** Countries (ISO 3166-1 alpha-2) where lucky gifts are off; needs LUCKY_GIFTS_COUNTRY_HEADER. */

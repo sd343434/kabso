@@ -542,6 +542,8 @@ export interface AppConfig {
     readonly hostingEnabled: boolean;
     /** v1.41-live (D178): the coins from which a gift send is told to every other live. */
     readonly giftTickerMinCoins: number;
+    /** v1.85-live (D305): the tickets from which a game prize is told to every live. */
+    readonly gameWinTickerMinTickets: number;
     readonly heartbeatIntervalSeconds: number;
     readonly heartbeatStaleSeconds: number;
     /** v1.58-live (D246): `LIVE_POPULAR_TOP_N`, the «رائج» lives per kind. */
@@ -994,6 +996,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,
       giftTickerMinCoins: e.GIFT_GLOBAL_TICKER_MIN_COINS,
+      gameWinTickerMinTickets: e.GAME_WIN_TICKER_MIN_TICKETS,
       heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,
       heartbeatStaleSeconds: e.LIVE_HEARTBEAT_STALE_SECONDS,
       popularTopN: e.LIVE_POPULAR_TOP_N,

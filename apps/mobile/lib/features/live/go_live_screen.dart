@@ -23,7 +23,7 @@ import 'package:kabso_live/features/live/application/live_assistant.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_fx_engine_providers.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
-import 'package:kabso_live/features/live/application/live_gift_ticker.dart';
+import 'package:kabso_live/features/live/application/live_global_strips.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_level_ticker.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
@@ -79,6 +79,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_settings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_sticker_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_strip_settings.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -637,11 +638,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         () =>
             ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine),
       );
-      // D178: the global gift strip.
+      // D178 / D305: the global strips (gifts and games).
       _optional(
-        'giftTickers',
+        'globalStrips',
         () =>
-            ref.read(liveGiftTickersProvider(room.id).notifier).attach(engine),
+            ref.read(liveGlobalStripsProvider(room.id).notifier).attach(engine),
       );
       // D254: the level banner (a high level reached in any live).
       _optional(
@@ -3180,6 +3181,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           LiveSettingsGroup(
             title: l10n.liveSettingsGeneral,
             items: [
+              // D305: the global strips, for this account in every live.
+              ...liveStripSwitches(sheet, sheetRef),
               LiveSettingsLink(
                 id: 'schedule',
                 icon: Icons.alarm_rounded,

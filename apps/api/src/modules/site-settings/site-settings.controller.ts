@@ -11,6 +11,11 @@ import {
   type UpdateCameraFxInput,
 } from './camera-fx.rules.js';
 import {
+  updateGlobalStripsSchema,
+  type GlobalStripsSettingsDto,
+  type UpdateGlobalStripsInput,
+} from './global-strips.rules.js';
+import {
   updateLevelTickerSchema,
   type LevelTickerSettingsDto,
   type UpdateLevelTickerInput,
@@ -115,6 +120,37 @@ export class AdminLevelTickerController {
     @CurrentAdmin() admin: AdminContext,
   ): Promise<LevelTickerSettingsDto> {
     return this.settings.updateLevelTicker(body, {
+      userId: admin.userId,
+      ip: admin.ip,
+      requestId: admin.requestId,
+    });
+  }
+}
+
+/**
+ * v1.85-live (D305): `GET|PUT /admin/global-strips` — the OWNER's thresholds of the global strips «شريط الهدايا»
+ * (one gift's price, coins) and «شريط الألعاب» (a prize, tickets), audited; the configuration is the default.
+ */
+@Public()
+@Controller('admin/global-strips')
+@RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true })
+@UseGuards(AdminSessionGuard)
+export class AdminGlobalStripsController {
+  constructor(private readonly settings: SiteSettingsService) {}
+
+  @Get()
+  @RequireCapability('site.settings')
+  get(): Promise<GlobalStripsSettingsDto> {
+    return this.settings.getGlobalStrips();
+  }
+
+  @Put()
+  @RequireCapability('site.settings')
+  put(
+    @Body(new ZodValidationPipe(updateGlobalStripsSchema)) body: UpdateGlobalStripsInput,
+    @CurrentAdmin() admin: AdminContext,
+  ): Promise<GlobalStripsSettingsDto> {
+    return this.settings.updateGlobalStrips(body, {
       userId: admin.userId,
       ip: admin.ip,
       requestId: admin.requestId,

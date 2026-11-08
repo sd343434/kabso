@@ -2390,6 +2390,10 @@ model NotificationSettings {
   lives     Boolean  @default(true)
   /// v1.30-live (D152): pushes of new family chat messages.
   messages  Boolean  @default(true)
+  /// v1.85-live (D305): the gifts strip «شريط الهدايا» shows in the lives this person watches or hosts.
+  giftStrip Boolean  @default(true) @map("gift_strip")
+  /// v1.85-live (D305): the games strip «شريط الألعاب» shows in the lives this person watches or hosts.
+  gameStrip Boolean  @default(true) @map("game_strip")
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

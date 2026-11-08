@@ -191,10 +191,18 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
   };
 
   beforeAll(async () => {
-    ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '3600' }, [
-      { token: Clock, value: clock },
-      { token: LIVE_MEDIA_PROVIDER, value: media },
-    ]);
+    // D305 made the default 500 000; these tests keep D178's 1 000 (d305-global-strips checks the default).
+    ctx = await createTestApp(
+      {
+        LIVE_HOSTING_ENABLED: 'true',
+        LIVE_HEARTBEAT_STALE_SECONDS: '3600',
+        GIFT_GLOBAL_TICKER_MIN_COINS: '1000',
+      },
+      [
+        { token: Clock, value: clock },
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+      ],
+    );
   });
   afterAll(async () => ctx?.close());
 
@@ -715,7 +723,7 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
 
   // v1.41-live (D178, owner «والهدايا يجب أن تظهر في شريط في جميع البثوث»).
   describe('D178 global gift strip', () => {
-    it('a send of ≥ GIFT_GLOBAL_TICKER_MIN_COINS (1000) is a `gift-ticker` in every other live, one at a time; smaller ones stay in their room', async () => {
+    it('a send of ≥ GIFT_GLOBAL_TICKER_MIN_COINS (1000 here) is a `gift-ticker` in every live (D305: its own too), one at a time; smaller ones stay in their room', async () => {
       const { h, viewer, roomId } = await scene();
       const other = await goLive(await host());
       const third = await goLive(await host());
@@ -729,12 +737,13 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       const sent = await send(roomId, viewer, body(big, [h]));
       expect(sent.status).toBe(201);
       await settle(ctx);
-      // Its own room has the `gift` message only.
-      expect(media.broadcastsOf(roomId).filter((m) => m.type === 'gift-ticker')).toEqual([]);
+      // v1.85-live (D305, owner «في جميع الغرف»): its own room gets the strip too, besides its `gift` messages.
+      expect(tickers(roomId)).toHaveLength(1);
       expect(giftsTo(roomId).length).toBeGreaterThanOrEqual(2);
-      for (const room of [other, third]) {
+      for (const room of [roomId, other, third]) {
         expect(tickers(room).at(-1)).toMatchObject({
           type: 'gift-ticker',
+          kind: 'GIFT',
           gift: { id: sent.body.gift.id, roomId, giftCode: big, totalCoins: 1_000 },
           room: { id: roomId, host: { id: h.id } },
         });

@@ -297,6 +297,18 @@ info:
     kept); «هل تقصد: …؟» name suggestions (`suggest…LevelRaiseSourceApps`, aliases); one PENDING / APPROVED request per
     source account (409 `LEVEL_RAISE_DUPLICATE`; after a rejection allowed and flagged). The source-app data (confidence CONFIRMED / ESTIMATE) and the weights are
     OWNER-editable. Notifications `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED` (target LEVEL_RAISE).
+    **D305 (DRAFT v1.85-live)** the global strips «شريط الهدايا» and «شريط الألعاب» (CONVENTIONS §10.115; owner
+    2026-11-07): the `gift-ticker` data message (topic `gift`, D178) carries `kind: "GIFT"`, goes to **every** LIVE room
+    (the send's own room too) and starts at a gift whose **unit price** (one gift; was the send's total) is at least
+    `GIFT_GLOBAL_TICKER_MIN_COINS` = **500 000** by default (was 1 000); a new
+    data message `game-win-ticker` on topic `gift` (`{"type":"game-win-ticker","kind":"GAME_WIN","win":{"id","game":
+    {"code","name","imageUrl"},"winner":UserSummary,"tickets","roomId","createdAt"},"room":{"id","title","host"}|null}`)
+    for a game prize of at least `GAME_WIN_TICKER_MIN_TICKETS` = 1 000 000 tickets, sent by the server-side hook a game
+    calls (no game pays ticket prizes yet); each kind has its own one-every-3-s gate (two lanes: the games strip above the gifts strip). Two per-account switches
+    `NotificationSettings.giftStrip` / `gameStrip` (default on; `PATCH /me/notification-settings`) hide a kind in that
+    person's app; the server still sends. Old apps ignore `kind`, the new type and (as before) their own room's strip.
+    Both thresholds are the OWNER's in the panel: `getAdminGlobalStrips` / `updateAdminGlobalStrips` (`/admin/global-strips`,
+    capability `site.settings`, audited; `site_settings` key `globalStrips`; the configuration is the fallback).
     **D295 (DRAFT v1.82-live)** content creators go live «صانع محتوى» (CONVENTIONS §10.108; owner 2026-11-06): a
     creator-programme membership grants the hosting permission (`live_hosts` source `CREATOR`; `Me.canHost` while a
     member); host and creator are exclusive (`CreatorApplyRule` refusal `HOST`, `HostingApplyRefusal` `CREATOR`, the
@@ -11802,6 +11814,43 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LevelTickerSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/global-strips:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminGlobalStrips
+      summary: "The thresholds of the global strips «شريط الهدايا» / «شريط الألعاب» (site.settings: OWNER)"
+      description: "v1.85-live (D305, CONVENTIONS §10.115). `giftMinCoins`: a gift whose unit price (ONE gift) is at least this many coins is the `gift-ticker` strip in every live; `gameMinTickets`: a game prize of at least this many tickets is the `game-win-ticker` strip. Until the OWNER sets them: the server's configuration (`GIFT_GLOBAL_TICKER_MIN_COINS` 500 000, `GAME_WIN_TICKER_MIN_TICKETS` 1 000 000)."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The thresholds in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GlobalStripsSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminGlobalStrips
+      summary: "Sets both thresholds of the global strips (site.settings: OWNER; audited)"
+      description: "The panel session and its CSRF token (a bearer token is not a session: 401). Both values are required. They take effect without a restart, within the API's 30 s cache. Audited `site.settings.update` with `metadata.key` = `globalStrips`, before, after and `reason`. Not integers within the bounds, a missing value, or any other field → 400 `VALIDATION_FAILED`, nothing changed."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateGlobalStripsRequest' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GlobalStripsSettings' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
@@ -25744,6 +25793,22 @@ components:
       properties:
         minLevel: { type: integer, minimum: 1, maximum: 100 }
         reason: { type: string, minLength: 1, maxLength: 500 }
+    GlobalStripsSettings:
+      type: object
+      additionalProperties: false
+      required: [giftMinCoins, gameMinTickets]
+      description: "v1.85-live (D305, CONVENTIONS §10.115) — the thresholds of the global strips."
+      properties:
+        giftMinCoins: { type: integer, minimum: 1, maximum: 1000000000, examples: [500000], description: "A gift whose unit price (one gift, not the send) is at least this many coins is the gifts strip. 500 000 until the OWNER sets it." }
+        gameMinTickets: { type: integer, minimum: 1, maximum: 1000000000000, examples: [1000000], description: "A game prize of at least this many tickets is the games strip. 1 000 000 until the OWNER sets it." }
+    UpdateGlobalStripsRequest:
+      type: object
+      additionalProperties: false
+      required: [giftMinCoins, gameMinTickets]
+      properties:
+        giftMinCoins: { type: integer, minimum: 1, maximum: 1000000000 }
+        gameMinTickets: { type: integer, minimum: 1, maximum: 1000000000000 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
     UpdateSiteSettingsRequest:
       type: object
       additionalProperties: false
@@ -29883,7 +29948,7 @@ components:
         all: { type: boolean, const: true }
     NotificationSettings:
       type: object
-      required: [likes, comments, mentions, follows, reposts, lives, messages]
+      required: [likes, comments, mentions, follows, reposts, lives, messages, giftStrip, gameStrip]
       properties:
         likes: { type: boolean }
         comments: { type: boolean, description: Comments on your posts and replies to your comments. }
@@ -29892,6 +29957,8 @@ components:
         reposts: { type: boolean }
         lives: { type: boolean, description: "(v1.14-live) Reminders of lives scheduled by hosts you follow." }
         messages: { type: boolean, description: "(v1.30-live, D152) Push notifications of new messages in your family chat and (v1.40-social, D155) of direct messages. In-app reading is not affected." }
+        giftStrip: { type: boolean, description: "(v1.85-live, D305) The global gifts strip «شريط الهدايا» (`gift-ticker`) shows in the lives this account watches or hosts. Off: the app hides it; the server still sends it (CONVENTIONS §10.115)." }
+        gameStrip: { type: boolean, description: "(v1.85-live, D305) The global games strip «شريط الألعاب» (`game-win-ticker`) shows in the lives this account watches or hosts. Off: the app hides it; the server still sends it (CONVENTIONS §10.115)." }
     UpdateNotificationSettingsRequest:
       type: object
       additionalProperties: false
@@ -29904,6 +29971,8 @@ components:
         reposts: { type: boolean }
         lives: { type: boolean }
         messages: { type: boolean }
+        giftStrip: { type: boolean, description: "(v1.85-live, D305)" }
+        gameStrip: { type: boolean, description: "(v1.85-live, D305)" }
     RegisterPushTokenRequest:
       type: object
       additionalProperties: false

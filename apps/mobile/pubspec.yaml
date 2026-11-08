@@ -126,6 +126,8 @@ flutter:
     - assets/live_top_frames/
     # D159 the owner's tiered lucky-win frames (assets/win_frames/PROVENANCE.md).
     - assets/win_frames/
+    # D305 the owner's global strips — gifts and games (assets/global_strips/PROVENANCE.md).
+    - assets/global_strips/
     # The owner's currency set (assets/currency/PROVENANCE.md): the Kabi coin (D161),
     # the Kab Cherry (D134; new art D182) and the game-card ticket (D182).
     - assets/currency/
