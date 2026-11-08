@@ -13,6 +13,7 @@ import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/owner_profile/presentation/announcement_composer.dart';
 import 'package:kabso_live/features/owner_profile/presentation/journey_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/official_posts_screen.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_profit.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -273,6 +274,14 @@ class _FounderDashboardCardState extends ConsumerState<FounderDashboardCard> {
                         ],
                       ),
                     ),
+                  // D301 follow-up (§10.112.10): «ربح اليوم», before and after.
+                  if (!(load.hasError && data == null)) ...[
+                    const SizedBox(height: KSpacing.sm),
+                    FounderProfitStrip(
+                      hidden: !_revealed,
+                      onTap: () => setState(() => _revealed = !_revealed),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -287,6 +296,8 @@ class _FounderDashboardCardState extends ConsumerState<FounderDashboardCard> {
     OwnerDashboard d,
   ) => showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
     showDragHandle: true,
     builder: (sheet) {
       final l10n = sheet.l10n;
@@ -304,7 +315,7 @@ class _FounderDashboardCardState extends ConsumerState<FounderDashboardCard> {
         ),
       );
       return SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           key: FounderDashboardCard.detailsKey,
           padding: const EdgeInsets.fromLTRB(
             KSpacing.lg,
@@ -330,29 +341,9 @@ class _FounderDashboardCardState extends ConsumerState<FounderDashboardCard> {
               ),
               row(l10n.ownerDashboardLives, KFormat.grouped(d.liveRoomsNow)),
               const Divider(),
-              row(
-                l10n.ownerDashboardIncome,
-                ownerMoney(d.incomeMinor, d.currency),
-              ),
-              row(
-                l10n.ownerDashboardIncomeWebsite,
-                ownerMoney(d.websiteMinor, d.currency),
-              ),
-              row(
-                l10n.ownerDashboardIncomeAgents,
-                ownerMoney(d.agentsMinor, d.currency),
-              ),
-              for (final o in d.otherCurrencies)
-                row(
-                  l10n.ownerDashboardIncomeOther(o.currency),
-                  ownerMoney(o.amountMinor, o.currency),
-                ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                l10n.ownerDashboardIncomeNote,
-                key: FounderDashboardCard.incomeNoteKey,
-                style: t.caption.copyWith(color: p.textSecondary),
-              ),
+              // D301 follow-up (§10.112.10): «الربح» — before and after every
+              // share, the fixed costs, a day or its month.
+              const OwnerProfitView(),
               const SizedBox(height: KSpacing.sm),
               Text(
                 l10n.ownerDashboardUpdated(

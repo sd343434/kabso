@@ -360,7 +360,9 @@ info:
     (`createOwnerAnnouncement`, `updateOwnerAnnouncement`, `Post.texts`), the latest one first in every posts feed, and
     `OWNER_ANNOUNCEMENT` to every ACTIVE account once (a background fan-out); migrations
     `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`. Owner: the founder pinned in
-    search (`getSearchFeatured`, §10.112.9).
+    search (`getSearchFeatured`, §10.112.9). Owner: «الربح» before and after every share (`getOwnerProfit`) and the
+    fixed monthly costs (`/owner/fixed-costs`, panel `/admin/owner-fixed-costs`, `owner.costs`), §10.112.10; migration
+    `20270402090400_owner_profit`.
     **D297 (DRAFT v1.94-social)** tasks for content creators «مهام صانع المحتوى» (CONVENTIONS §10.110; owner: «مهام خاصة
     بصناع المحتوى، وقيمتها كمهام المضيف»): `ProgramTask.audience` `CREATORS` (only creator-programme members; a member never
     gets `HOSTS` tasks), `MyTasks.band.creator`, metrics `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`,
@@ -18649,6 +18651,105 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/profit:
+    get:
+      tags: [owner]
+      operationId: getOwnerProfit
+      summary: "«الربح»: a day and its month, before («قبل») and after («بعد») every share and the fixed costs (v1.95-social, D301 follow-up; owner only, cached 60 s)"
+      description: |
+        CONVENTIONS §10.112.10 (owner: «ان تزيل نسب الجميع لكون ربح نهائي وضعها قبل وبعد … تكاليف ثابتة … يتم تقسيمها
+        على الشهر»). «قبل» is the money Kabso received (PP-58: card top-ups less refunds and held chargebacks, plus what
+        agents paid for their coin stock); the deductions come from the real ledgers of the period (the cherries
+        credited, net of reversals, at `CHERRY_PAYOUT_RATE`; the estimated card fees of `ADMIN_REPORT_CARD_FEE_*`); the
+        fixed costs are prorated by day (monthly ÷ the days of the month). The month of `day` is whole when it has
+        ended and runs to today otherwise (`partial`). US dollars; money received in another currency is listed apart,
+        never converted. 403 `OWNER_ONLY` for everyone else.
+      parameters:
+        - name: day
+          in: query
+          required: false
+          description: "A local day `YYYY-MM-DD` in the dashboard's zone, from 2026-01-01 to today (default today); 400 otherwise."
+          schema: { type: string, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' }
+      responses:
+        '200':
+          description: The numbers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerProfit' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/fixed-costs:
+    get:
+      tags: [owner]
+      operationId: listOwnerFixedCosts
+      summary: "The fixed monthly costs «تكاليف ثابتة» of «الربح» (v1.95-social, D301 follow-up; owner only)"
+      description: "CONVENTIONS §10.112.10. The active ones first, then by name. 403 `OWNER_ONLY` for everyone else."
+      responses:
+        '200':
+          description: The costs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFixedCostList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [owner]
+      operationId: createOwnerFixedCost
+      summary: "Add a fixed monthly cost (owner only; audited)"
+      description: "CONVENTIONS §10.112.10. At most 100 (400 `too_many`). Audited `owner.fixed_cost.create` (`via: app`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOwnerFixedCostRequest' }
+      responses:
+        '201':
+          description: The cost.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFixedCost' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/fixed-costs/{costId}:
+    parameters:
+      - { name: costId, in: path, required: true, schema: { type: string } }
+    patch:
+      tags: [owner]
+      operationId: updateOwnerFixedCost
+      summary: "Change a fixed monthly cost (owner only; audited)"
+      description: "CONVENTIONS §10.112.10. Audited `owner.fixed_cost.update` (before / after, `via: app`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateOwnerFixedCostRequest' }
+      responses:
+        '200':
+          description: The cost.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFixedCost' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [owner]
+      operationId: deleteOwnerFixedCost
+      summary: "Delete a fixed monthly cost (owner only; audited)"
+      description: "CONVENTIONS §10.112.10. Audited `owner.fixed_cost.delete` (`via: app`)."
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/owner/feedback:
     post:
       tags: [owner]
@@ -18690,6 +18791,86 @@ paths:
               schema: { $ref: '#/components/schemas/OwnerFeedbackStaffList' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/owner-fixed-costs:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminOwnerFixedCosts
+      summary: "The owner's fixed monthly costs of «الربح» (owner.costs: OWNER only; v1.95-social, D301 follow-up)"
+      description: "CONVENTIONS §10.112.10."
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: The costs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFixedCostList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminOwnerFixedCost
+      summary: "Add a fixed monthly cost (owner.costs; audited)"
+      description: "CONVENTIONS §10.112.10. Audited `owner.fixed_cost.create` (`via: panel`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOwnerFixedCostRequest' }
+      responses:
+        '201':
+          description: The cost.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFixedCost' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/owner-fixed-costs/{costId}:
+    parameters:
+      - { name: costId, in: path, required: true, schema: { type: string } }
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminOwnerFixedCost
+      summary: "Change a fixed monthly cost (owner.costs; audited)"
+      description: "CONVENTIONS §10.112.10. Audited `owner.fixed_cost.update` (`via: panel`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateOwnerFixedCostRequest' }
+      responses:
+        '200':
+          description: The cost.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerFixedCost' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-panel]
+      operationId: deleteAdminOwnerFixedCost
+      summary: "Delete a fixed monthly cost (owner.costs; audited)"
+      description: "CONVENTIONS §10.112.10. Audited `owner.fixed_cost.delete` (`via: panel`)."
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/owner-inbox:
     get:
@@ -27300,6 +27481,155 @@ components:
                   agentsMinor: { type: integer, minimum: 0 }
                   amountMinor: { type: integer, minimum: 0 }
         generatedAt: { type: string, format: date-time, description: "When the numbers were computed (cached 60 s)." }
+    OwnerProfitDeductionKey:
+      type: string
+      enum: [GIFTS, AGENCY_COMMISSIONS, REFERRAL_REWARDS, TASK_REWARDS, STAFF_COMMISSIONS, TEAM_ADJUSTMENTS, COIN_REWARDS, CARD_FEES]
+      description: |
+        A deduction line of «الربح» (§10.112.10): GIFTS — the gift cherries credited to hosts and creators (GIFT_RECEIVED
+        − GIFT_REVERSAL); AGENCY_COMMISSIONS — agency and parent-agency commissions (− their reversals and forfeits);
+        REFERRAL_REWARDS — referral rewards (− reversals); TASK_REWARDS — task and host-target reward cherries;
+        STAFF_COMMISSIONS — recruiters' commissions; TEAM_ADJUSTMENTS — the team's cherry adjustments (net, may be
+        negative); COIN_REWARDS — the coins given away (event prizes, task and check-in coins) at the lowest price an
+        agent pays Kabso (owner: $120 per 10 000 000 coins, `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`); CARD_FEES — the
+        estimated card fees of the period's card orders.
+    OwnerProfitPeriod:
+      type: object
+      required: [kind, key, from, to, days, daysInMonth, partial, before, deductions, fixedCosts, after, info, otherCurrencies]
+      properties:
+        kind: { type: string, enum: [DAY, MONTH] }
+        key: { type: string, description: "`YYYY-MM-DD` for a day, `YYYY-MM` for a month." }
+        from: { type: string, description: "The first local day (included)." }
+        to: { type: string, description: "The last local day (included): today for the current month." }
+        days: { type: integer, minimum: 1 }
+        daysInMonth: { type: integer, minimum: 28, maximum: 31 }
+        partial: { type: boolean, description: "The current month counted to today only (the elapsed share of the fixed costs)." }
+        before:
+          type: object
+          required: [amountMinor, cardChargedMinor, refundsMinor, chargebacksMinor, agentsMinor]
+          description: "«الدخل قبل», US cents: cardChargedMinor − refundsMinor − chargebacksMinor + agentsMinor (PP-58)."
+          properties:
+            amountMinor: { type: integer }
+            cardChargedMinor: { type: integer, minimum: 0, description: "Card top-ups credited in the period." }
+            refundsMinor: { type: integer, minimum: 0, description: "Their refunds (Stripe's or the team's)." }
+            chargebacksMinor: { type: integer, minimum: 0, description: "Their open or lost disputes (never above what is left)." }
+            agentsMinor: { type: integer, minimum: 0, description: "What agents paid Kabso for their coin stock." }
+        deductions:
+          type: array
+          description: "Every line, in this order, zeros included."
+          items:
+            type: object
+            required: [key, amountMinor, cherries, coins, orders]
+            properties:
+              key: { $ref: '#/components/schemas/OwnerProfitDeductionKey' }
+              amountMinor: { type: integer, description: "US cents (a negative net lowers the costs)." }
+              cherries: { type: [integer, 'null'], description: "The net cherries of a cherry line (null for COIN_REWARDS and CARD_FEES)." }
+              coins: { type: [integer, 'null'], description: "The coins of COIN_REWARDS (null otherwise)." }
+              orders: { type: [integer, 'null'], description: "The card orders of CARD_FEES (null otherwise)." }
+        fixedCosts:
+          type: object
+          required: [amountMinor, items]
+          properties:
+            amountMinor: { type: integer, minimum: 0 }
+            items:
+              type: array
+              items:
+                type: object
+                required: [id, name, monthlyMinor, days, shareMinor]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  monthlyMinor: { type: integer, minimum: 1 }
+                  days: { type: integer, minimum: 1, description: "The active days of the period." }
+                  shareMinor: { type: integer, minimum: 0, description: "monthly × days ÷ daysInMonth, rounded half up." }
+        after:
+          type: object
+          required: [amountMinor]
+          description: "«الربح النهائي بعد» = before − the deductions − the fixed costs (may be negative)."
+          properties:
+            amountMinor: { type: integer }
+        info:
+          type: object
+          required: [agentCoins, agentCoinsRetailMinor]
+          description: "For information, never deducted: the coins agents bought in the period and their value at the retail price (their discount is already in `before`)."
+          properties:
+            agentCoins: { type: integer, minimum: 0 }
+            agentCoinsRetailMinor: { type: integer, minimum: 0 }
+        otherCurrencies:
+          type: array
+          description: "Money received (and its card fees) in another currency, one line each, never converted."
+          items:
+            type: object
+            required: [currency, beforeMinor, cardChargedMinor, refundsMinor, chargebacksMinor, agentsMinor, deductionsMinor, afterMinor]
+            properties:
+              currency: { type: string, minLength: 3, maxLength: 3 }
+              beforeMinor: { type: integer }
+              cardChargedMinor: { type: integer, minimum: 0 }
+              refundsMinor: { type: integer, minimum: 0 }
+              chargebacksMinor: { type: integer, minimum: 0 }
+              agentsMinor: { type: integer, minimum: 0 }
+              deductionsMinor: { type: integer }
+              afterMinor: { type: integer }
+    OwnerProfit:
+      type: object
+      required: [timeZone, currency, today, day, month, rates, generatedAt]
+      properties:
+        timeZone: { type: string, description: "The dashboard's zone (`ADMIN_DASHBOARD_TIME_ZONE`)." }
+        currency: { type: string, const: USD }
+        today: { type: string, description: "Today, `YYYY-MM-DD` in `timeZone`." }
+        day: { $ref: '#/components/schemas/OwnerProfitPeriod' }
+        month: { $ref: '#/components/schemas/OwnerProfitPeriod' }
+        rates:
+          type: object
+          required: [cherries, minor, cherryCurrency, cardFeeBps, cardFeeFixedMinor, coinRetailUsdPerMillion, coinValueMinorPerMillion]
+          description: "The rates used: `cherries` cherries = `minor` minor units of `cherryCurrency` (`CHERRY_PAYOUT_RATE`, owner: 1 000 000 = $1.10), the estimated card fee (`ADMIN_REPORT_CARD_FEE_*`), the coins' retail price, and the value of given-away coins (`OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`, owner: 1200)."
+          properties:
+            cherries: { type: integer, minimum: 1 }
+            minor: { type: integer, minimum: 1 }
+            cherryCurrency: { type: string }
+            cardFeeBps: { type: integer, minimum: 0 }
+            cardFeeFixedMinor: { type: integer, minimum: 0 }
+            coinRetailUsdPerMillion: { type: number }
+            coinValueMinorPerMillion: { type: integer, minimum: 1 }
+        generatedAt: { type: string, format: date-time }
+    OwnerFixedCost:
+      type: object
+      required: [id, name, monthlyMinor, currency, activeFrom, activeTo, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 60 }
+        monthlyMinor: { type: integer, minimum: 1, maximum: 100000000000, description: "US cents a month." }
+        currency: { type: string, const: USD }
+        activeFrom: { type: string, description: "The first local day it counts (`YYYY-MM-DD`)." }
+        activeTo: { type: [string, 'null'], description: "The last local day it counts, or null (open-ended)." }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    OwnerFixedCostList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OwnerFixedCost' }
+    CreateOwnerFixedCostRequest:
+      type: object
+      additionalProperties: false
+      required: [name, monthlyMinor]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60 }
+        monthlyMinor: { type: integer, minimum: 1, maximum: 100000000000 }
+        currency: { type: string, const: USD }
+        activeFrom: { type: string, description: "Default today." }
+        activeTo: { type: [string, 'null'] }
+    UpdateOwnerFixedCostRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60 }
+        monthlyMinor: { type: integer, minimum: 1, maximum: 100000000000 }
+        currency: { type: string, const: USD }
+        activeFrom: { type: string }
+        activeTo: { type: [string, 'null'] }
     OwnerFeedbackKind:
       type: string
       enum: [FEATURE, STAFF_REPORT]

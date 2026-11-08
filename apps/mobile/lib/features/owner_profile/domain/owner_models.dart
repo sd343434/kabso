@@ -316,3 +316,273 @@ const int ownerFeedbackMaxText = 1000;
 
 /// At most this many milestones (409 `OWNER_JOURNEY_LIMIT`).
 const int ownerJourneyMax = 30;
+
+// ---- «الربح» (D301 follow-up, §10.112.10) ----------------------------------
+
+/// `OwnerProfitDeductionKey`: one deduction line of «الربح».
+enum ProfitDeductionKey {
+  gifts('GIFTS'),
+  agencyCommissions('AGENCY_COMMISSIONS'),
+  referralRewards('REFERRAL_REWARDS'),
+  taskRewards('TASK_REWARDS'),
+  staffCommissions('STAFF_COMMISSIONS'),
+  teamAdjustments('TEAM_ADJUSTMENTS'),
+  coinRewards('COIN_REWARDS'),
+  cardFees('CARD_FEES');
+
+  new(this.wire);
+
+  final String wire;
+
+  static ProfitDeductionKey? fromWire(Object? v) {
+    for (final k in values) {
+      if (k.wire == v) return k;
+    }
+    return null;
+  }
+}
+
+int _int(Object? v) => (v as num?)?.toInt() ?? 0;
+
+/// One deduction of a period.
+@immutable
+class ProfitDeduction {
+  const new({
+    required this.key,
+    required this.amountMinor,
+    this.cherries,
+    this.coins,
+    this.orders,
+  });
+
+  final ProfitDeductionKey key;
+
+  /// US cents (a negative net lowers the costs).
+  final int amountMinor;
+
+  /// The net cherries of a cherry line (null otherwise).
+  final int? cherries;
+
+  /// The coins given away of the coin rewards (null otherwise).
+  final int? coins;
+
+  /// The card orders of the card fees (null otherwise).
+  final int? orders;
+}
+
+/// A fixed cost's share of a period.
+@immutable
+class FixedCostShare {
+  const new({
+    required this.id,
+    required this.name,
+    required this.monthlyMinor,
+    required this.days,
+    required this.shareMinor,
+  });
+
+  final String id;
+  final String name;
+  final int monthlyMinor;
+  final int days;
+  final int shareMinor;
+}
+
+/// Money received in another currency (never converted).
+@immutable
+class ProfitOtherCurrency {
+  const new({
+    required this.currency,
+    required this.beforeMinor,
+    required this.deductionsMinor,
+    required this.afterMinor,
+  });
+
+  final String currency;
+  final int beforeMinor;
+  final int deductionsMinor;
+  final int afterMinor;
+}
+
+/// `OwnerProfitPeriod`: a day or a month of «الربح».
+@immutable
+class OwnerProfitPeriod {
+  const new({
+    required this.month,
+    required this.key,
+    required this.from,
+    required this.to,
+    required this.days,
+    required this.daysInMonth,
+    required this.beforeMinor,
+    required this.cardChargedMinor,
+    required this.refundsMinor,
+    required this.chargebacksMinor,
+    required this.agentsMinor,
+    required this.deductions,
+    required this.fixedCostsMinor,
+    required this.fixedCosts,
+    required this.afterMinor,
+    this.partial = false,
+    this.otherCurrencies = const [],
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    final before = json['before']! as Map<String, dynamic>;
+    final fixed = json['fixedCosts']! as Map<String, dynamic>;
+    return OwnerProfitPeriod(
+      month: json['kind'] == 'MONTH',
+      key: json['key']! as String,
+      from: json['from']! as String,
+      to: json['to']! as String,
+      days: _int(json['days']),
+      daysInMonth: _int(json['daysInMonth']),
+      partial: json['partial'] == true,
+      beforeMinor: _int(before['amountMinor']),
+      cardChargedMinor: _int(before['cardChargedMinor']),
+      refundsMinor: _int(before['refundsMinor']),
+      chargebacksMinor: _int(before['chargebacksMinor']),
+      agentsMinor: _int(before['agentsMinor']),
+      deductions: [
+        for (final d in (json['deductions'] as List<dynamic>?) ?? const [])
+          if (d case {'key': final Object k} when d is Map<String, dynamic>)
+            if (ProfitDeductionKey.fromWire(k) case final key?)
+              ProfitDeduction(
+                key: key,
+                amountMinor: _int(d['amountMinor']),
+                cherries: (d['cherries'] as num?)?.toInt(),
+                coins: (d['coins'] as num?)?.toInt(),
+                orders: (d['orders'] as num?)?.toInt(),
+              ),
+      ],
+      fixedCostsMinor: _int(fixed['amountMinor']),
+      fixedCosts: [
+        for (final i in (fixed['items'] as List<dynamic>?) ?? const [])
+          if (i is Map<String, dynamic>)
+            FixedCostShare(
+              id: i['id']! as String,
+              name: i['name']! as String,
+              monthlyMinor: _int(i['monthlyMinor']),
+              days: _int(i['days']),
+              shareMinor: _int(i['shareMinor']),
+            ),
+      ],
+      afterMinor: _int((json['after']! as Map<String, dynamic>)['amountMinor']),
+      otherCurrencies: [
+        for (final o in (json['otherCurrencies'] as List<dynamic>?) ?? const [])
+          if (o is Map<String, dynamic>)
+            ProfitOtherCurrency(
+              currency: o['currency']! as String,
+              beforeMinor: _int(o['beforeMinor']),
+              deductionsMinor: _int(o['deductionsMinor']),
+              afterMinor: _int(o['afterMinor']),
+            ),
+      ],
+    );
+  }
+
+  /// A month (else a day).
+  final bool month;
+  final String key;
+  final String from;
+  final String to;
+  final int days;
+  final int daysInMonth;
+
+  /// The current month counted to today (the elapsed share of the fixed
+  /// costs).
+  final bool partial;
+
+  /// «الدخل قبل» and its parts (US cents).
+  final int beforeMinor;
+  final int cardChargedMinor;
+  final int refundsMinor;
+  final int chargebacksMinor;
+  final int agentsMinor;
+  final List<ProfitDeduction> deductions;
+  final int fixedCostsMinor;
+  final List<FixedCostShare> fixedCosts;
+
+  /// «الربح النهائي بعد» (may be negative).
+  final int afterMinor;
+
+  final List<ProfitOtherCurrency> otherCurrencies;
+
+  int get deductionsMinor => deductions.fold(0, (s, d) => s + d.amountMinor);
+}
+
+/// `OwnerProfit`: a day and its month.
+@immutable
+class OwnerProfit {
+  const new({
+    required this.today,
+    required this.day,
+    required this.month,
+    required this.rateCherries,
+    required this.rateMinor,
+    required this.cardFeeBps,
+    required this.cardFeeFixedMinor,
+    required this.generatedAt,
+    this.coinValueMinorPerMillion = 0,
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    final rates = json['rates'] as Map<String, dynamic>? ?? const {};
+    return OwnerProfit(
+      today: json['today']! as String,
+      day: OwnerProfitPeriod.fromJson(json['day']! as Map<String, dynamic>),
+      month: OwnerProfitPeriod.fromJson(json['month']! as Map<String, dynamic>),
+      rateCherries: _int(rates['cherries']),
+      rateMinor: _int(rates['minor']),
+      cardFeeBps: _int(rates['cardFeeBps']),
+      cardFeeFixedMinor: _int(rates['cardFeeFixedMinor']),
+      coinValueMinorPerMillion: _int(rates['coinValueMinorPerMillion']),
+      generatedAt: DateTime.parse(json['generatedAt']! as String),
+    );
+  }
+
+  final String today;
+  final OwnerProfitPeriod day;
+  final OwnerProfitPeriod month;
+  final int rateCherries;
+  final int rateMinor;
+  final int cardFeeBps;
+  final int cardFeeFixedMinor;
+
+  /// Given-away coins' value: US cents per 1 000 000 coins (owner: 1200).
+  final int coinValueMinorPerMillion;
+  final DateTime generatedAt;
+}
+
+/// `OwnerFixedCost`: a fixed monthly cost «تكلفة ثابتة» (USD).
+@immutable
+class OwnerFixedCost {
+  const new({
+    required this.id,
+    required this.name,
+    required this.monthlyMinor,
+    required this.activeFrom,
+    this.activeTo,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => OwnerFixedCost(
+    id: json['id']! as String,
+    name: json['name']! as String,
+    monthlyMinor: _int(json['monthlyMinor']),
+    activeFrom: json['activeFrom']! as String,
+    activeTo: json['activeTo'] as String?,
+  );
+
+  final String id;
+  final String name;
+  final int monthlyMinor;
+
+  /// Local days `YYYY-MM-DD`; [activeTo] null = open-ended.
+  final String activeFrom;
+  final String? activeTo;
+
+  /// Whether it counts on [day] (`YYYY-MM-DD`).
+  bool activeOn(String day) =>
+      activeFrom.compareTo(day) <= 0 &&
+      (activeTo == null || activeTo!.compareTo(day) >= 0);
+}

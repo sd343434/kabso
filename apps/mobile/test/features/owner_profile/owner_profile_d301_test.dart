@@ -46,6 +46,7 @@ import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dar
 import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_feedback_sheet.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_profit.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/data/video_source.dart';
@@ -112,6 +113,8 @@ FakeOwnerProfileRepository d301Repo({
   dashboardData: ownerDashboard(),
   dashboardFails: dashboardFails,
   staff: ownerFeedbackStaff,
+  profitData: ownerProfit(),
+  costs: ownerFixedCosts,
 );
 
 List<Override> _common(FakeOwnerProfileRepository repo) => [
@@ -600,12 +603,28 @@ void main() {
       await tester.tap(find.byKey(FounderDashboardCard.incomeKey));
       await tester.pump();
       expect(find.byKey(FounderDashboardCard.incomeHiddenKey), findsNothing);
-      expect(find.text(r'$8,431.25'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(FounderDashboardCard.incomeKey),
+          matching: find.text(r'$8,431.25'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(FounderDashboardCard.onlineKey));
       await tester.pumpAndSettle();
       expect(find.byKey(FounderDashboardCard.detailsKey), findsOneWidget);
-      expect(find.text(r'$6,125.00'), findsOneWidget);
-      expect(find.text(r'$2,306.25'), findsOneWidget);
+      // D301 follow-up: the income's parts under «الدخل قبل».
+      await tester.tap(find.byKey(OwnerProfitView.beforeKey));
+      await tester.pumpAndSettle();
+      final before = find.byKey(OwnerProfitView.beforeKey);
+      expect(
+        find.descendant(of: before, matching: find.text(r'$6,500.00')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: before, matching: find.text(r'$2,306.25')),
+        findsOneWidget,
+      );
       await _end(tester);
     });
 
@@ -959,9 +978,12 @@ void main() {
         await pumpOwnerOwn(tester, language: AppLanguage.ar, repo: repo);
         await tester.tap(find.byKey(FounderDashboardCard.onlineKey));
         await tester.pumpAndSettle();
+        // D301 follow-up: the definition under «الدخل قبل», other currencies
+        // on their own line (never converted).
+        await tester.tap(find.byKey(OwnerProfitView.beforeKey));
+        await tester.pumpAndSettle();
         expect(find.byKey(FounderDashboardCard.incomeNoteKey), findsOneWidget);
-        expect(find.text('بعملة أخرى (EUR)'), findsOneWidget);
-        expect(find.text('EUR 50.00'), findsOneWidget);
+        expect(find.text('EUR: قبل EUR 50.00، بعد EUR 50.00'), findsOneWidget);
         await _end(tester);
       },
     );

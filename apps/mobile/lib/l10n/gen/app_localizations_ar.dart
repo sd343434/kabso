@@ -16178,4 +16178,169 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ownerSearchFollowing => 'متابَع';
+
+  @override
+  String get ownerProfitTitle => 'الربح';
+
+  @override
+  String get ownerProfitToday => 'ربح اليوم';
+
+  @override
+  String get ownerProfitBeforeShort => 'قبل';
+
+  @override
+  String get ownerProfitAfterShort => 'بعد';
+
+  @override
+  String get ownerProfitBefore => 'الدخل قبل';
+
+  @override
+  String get ownerProfitAfter => 'الربح النهائي بعد';
+
+  @override
+  String get ownerProfitDay => 'اليوم';
+
+  @override
+  String get ownerProfitMonth => 'الشهر';
+
+  @override
+  String get ownerProfitPickDay => 'اختيار يوم';
+
+  @override
+  String get ownerProfitCardCharged => 'شحن المتجر بالبطاقات';
+
+  @override
+  String get ownerProfitRefunds => 'المبالغ المستردة';
+
+  @override
+  String get ownerProfitChargebacks => 'الاعتراضات البنكية';
+
+  @override
+  String get ownerProfitAgents => 'شراء الوكلاء من Kabso';
+
+  @override
+  String get ownerProfitDeductions => 'الخصومات';
+
+  @override
+  String get ownerProfitGifts => 'نصيب المضيفين وصنّاع المحتوى من الهدايا';
+
+  @override
+  String get ownerProfitAgencies => 'عمولات الوكالات';
+
+  @override
+  String get ownerProfitReferrals => 'مكافآت الدعوات';
+
+  @override
+  String get ownerProfitTasks => 'جوائز المهام والأهداف';
+
+  @override
+  String get ownerProfitStaff => 'عمولات الموظفين على التجنيد';
+
+  @override
+  String get ownerProfitTeam => 'تعديلات الفريق';
+
+  @override
+  String get ownerProfitCardFees => 'رسوم البطاقات (تقديرية)';
+
+  @override
+  String ownerProfitCherries(String count, String rate) {
+    return 'الكرز: $count، بسعر السحب $rate لكل مليون';
+  }
+
+  @override
+  String ownerProfitFees(String count, String percent, String fixed) {
+    return 'الطلبات: $count، بنسبة $percent و$fixed للطلب';
+  }
+
+  @override
+  String get ownerProfitFixed => 'تكاليف ثابتة';
+
+  @override
+  String ownerProfitFixedShare(String days, String monthly) {
+    return 'أيام: $days من $monthly شهرياً';
+  }
+
+  @override
+  String get ownerProfitFixedNone => 'لا تكاليف ثابتة في هذه الفترة';
+
+  @override
+  String get ownerProfitPartial =>
+      'حتى اليوم: الحصة المنقضية من التكاليف الثابتة';
+
+  @override
+  String ownerProfitOther(String currency, String before, String after) {
+    return '$currency: قبل $before، بعد $after';
+  }
+
+  @override
+  String get ownerProfitFailed => 'تعذّر حساب الربح';
+
+  @override
+  String get ownerProfitRetry => 'إعادة المحاولة';
+
+  @override
+  String get ownerCostsManage => 'إدارة التكاليف الثابتة';
+
+  @override
+  String get ownerCostsHint => 'مبلغ شهري بالدولار يُقسَّم على أيام الشهر';
+
+  @override
+  String get ownerCostsEmpty => 'لا تكاليف ثابتة بعد';
+
+  @override
+  String get ownerCostsAdd => 'إضافة تكلفة';
+
+  @override
+  String get ownerCostsEdit => 'تعديل التكلفة';
+
+  @override
+  String get ownerCostsName => 'الاسم';
+
+  @override
+  String get ownerCostsNameHint => 'مثلاً: Claude أو LiveKit أو الخوادم';
+
+  @override
+  String get ownerCostsMonthly => 'المبلغ الشهري (USD)';
+
+  @override
+  String get ownerCostsFrom => 'من';
+
+  @override
+  String get ownerCostsTo => 'إلى (اختياري)';
+
+  @override
+  String get ownerCostsOngoing => 'مستمرة';
+
+  @override
+  String ownerCostsPerMonth(String amount) {
+    return '$amount شهرياً';
+  }
+
+  @override
+  String get ownerCostsEnded => 'انتهت';
+
+  @override
+  String get ownerCostsInvalid => 'أدخل اسماً ومبلغاً أكبر من صفر';
+
+  @override
+  String get ownerCostsDelete => 'حذف';
+
+  @override
+  String ownerCostsDeleteConfirm(String name) {
+    return 'حذف $name؟ لن تُحسب في الربح بعد الآن.';
+  }
+
+  @override
+  String get ownerCostsCancel => 'إلغاء';
+
+  @override
+  String get ownerCostsSaved => 'حُفظت التكلفة';
+
+  @override
+  String get ownerProfitCoins => 'عملات مُنحت مجاناً (جوائز ومكافآت)';
+
+  @override
+  String ownerProfitCoinsDetail(String count, String rate) {
+    return 'العملات: $count، بأقل سعر للوكيل $rate لكل مليون';
+  }
 }

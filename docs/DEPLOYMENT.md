@@ -3074,7 +3074,7 @@ new column — harmless, it never selects it).
 - **Interaction with D295 (creators go live):** none at deploy — a member keeps only creator tasks whatever their
   hosting permission. Either order of deploy works.
 
-### 5.80 The app owner's profile «صفحة صاحب البرنامج» (migrations `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`, `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`; D301) — [IMPLEMENTED, draft contract v1.95-social; not deployed, not device-tested]
+### 5.80 The app owner's profile «صفحة صاحب البرنامج» (migrations `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`, `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`, `20270402090400_owner_profit`; D301) — [IMPLEMENTED, draft contract v1.95-social; not deployed, not device-tested]
 
 CONVENTIONS §10.112. The first migration only adds `notification_type` `OWNER_FEEDBACK_NEW` (it must commit before
 anything uses it); the second replaces the `media_assets` kind / duration / poster CHECKs (adds `PROFILE_COVER_VIDEO`,
@@ -3114,6 +3114,15 @@ needs the new build for the owner's layout (an older app shows the owner's profi
 - **The founder in search (§10.112.9):** `GET /search/featured` (no migration, no setting): the app's search shows the
   primary ACTIVE OWNER first (a card before typing, a pinned row while typing). Check: as an ordinary account, the
   search screen shows the founder's card; as an account blocking him (or blocked by him), nothing.
+- **«الربح» and the fixed costs (§10.112.10):** apply `20270402090400_owner_profit` (the table `owner_fixed_costs` and
+  the small partial index `wallet_ledger_free_coins_idx` — built over `wallet_ledger` while the migration holds its lock;
+  only event-prize, task and check-in coin rows are indexed). Settings read (no secret): `CHERRY_PAYOUT_RATE` (owner:
+  `1000000:110`, $1.10 per 1 000 000 cherries — the same value the withdrawals use), `ADMIN_REPORT_CARD_FEE_BPS` /
+  `_FIXED_MINOR` (owner CP-039 Q3: 290 / 30 — the store records card amounts gross), `ADMIN_DASHBOARD_TIME_ZONE`, and the
+  new `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION` (default 1200: the owner's lowest agent price, $120 per 10 000 000
+  coins; read only by «الربح»). The owner enters the fixed costs himself (app or panel «التكاليف الثابتة»); until then
+  «بعد» counts none. **Checks:** `SELECT count(*) FROM owner_fixed_costs;`; as the owner, `GET /owner/profit` answers
+  with «قبل» equal to the dashboard's income (plus held chargebacks) and «بعد» below it.
 
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 

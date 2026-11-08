@@ -16181,4 +16181,170 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ownerSearchFollowing => 'Following';
+
+  @override
+  String get ownerProfitTitle => 'Profit';
+
+  @override
+  String get ownerProfitToday => 'Today\'s profit';
+
+  @override
+  String get ownerProfitBeforeShort => 'Before';
+
+  @override
+  String get ownerProfitAfterShort => 'After';
+
+  @override
+  String get ownerProfitBefore => 'Income before';
+
+  @override
+  String get ownerProfitAfter => 'Final profit after';
+
+  @override
+  String get ownerProfitDay => 'Day';
+
+  @override
+  String get ownerProfitMonth => 'Month';
+
+  @override
+  String get ownerProfitPickDay => 'Pick a day';
+
+  @override
+  String get ownerProfitCardCharged => 'Store card top-ups';
+
+  @override
+  String get ownerProfitRefunds => 'Refunds';
+
+  @override
+  String get ownerProfitChargebacks => 'Chargebacks';
+
+  @override
+  String get ownerProfitAgents => 'Agents\' purchases from Kabso';
+
+  @override
+  String get ownerProfitDeductions => 'Deductions';
+
+  @override
+  String get ownerProfitGifts => 'Hosts\' and creators\' share of gifts';
+
+  @override
+  String get ownerProfitAgencies => 'Agency commissions';
+
+  @override
+  String get ownerProfitReferrals => 'Referral rewards';
+
+  @override
+  String get ownerProfitTasks => 'Task and target rewards';
+
+  @override
+  String get ownerProfitStaff => 'Recruiters\' commissions';
+
+  @override
+  String get ownerProfitTeam => 'Team adjustments';
+
+  @override
+  String get ownerProfitCardFees => 'Card fees (estimated)';
+
+  @override
+  String ownerProfitCherries(String count, String rate) {
+    return 'Cherries: $count, at the payout rate of $rate per million';
+  }
+
+  @override
+  String ownerProfitFees(String count, String percent, String fixed) {
+    return 'Orders: $count, at $percent plus $fixed each';
+  }
+
+  @override
+  String get ownerProfitFixed => 'Fixed costs';
+
+  @override
+  String ownerProfitFixedShare(String days, String monthly) {
+    return 'Days: $days of $monthly a month';
+  }
+
+  @override
+  String get ownerProfitFixedNone => 'No fixed costs in this period';
+
+  @override
+  String get ownerProfitPartial =>
+      'To date: the elapsed share of the fixed costs';
+
+  @override
+  String ownerProfitOther(String currency, String before, String after) {
+    return '$currency: before $before, after $after';
+  }
+
+  @override
+  String get ownerProfitFailed => 'Couldn\'t compute the profit';
+
+  @override
+  String get ownerProfitRetry => 'Try again';
+
+  @override
+  String get ownerCostsManage => 'Manage fixed costs';
+
+  @override
+  String get ownerCostsHint =>
+      'A monthly amount in US dollars, split over the days of the month';
+
+  @override
+  String get ownerCostsEmpty => 'No fixed costs yet';
+
+  @override
+  String get ownerCostsAdd => 'Add a cost';
+
+  @override
+  String get ownerCostsEdit => 'Edit the cost';
+
+  @override
+  String get ownerCostsName => 'Name';
+
+  @override
+  String get ownerCostsNameHint => 'e.g. Claude, LiveKit or servers';
+
+  @override
+  String get ownerCostsMonthly => 'Monthly amount (USD)';
+
+  @override
+  String get ownerCostsFrom => 'From';
+
+  @override
+  String get ownerCostsTo => 'To (optional)';
+
+  @override
+  String get ownerCostsOngoing => 'Ongoing';
+
+  @override
+  String ownerCostsPerMonth(String amount) {
+    return '$amount a month';
+  }
+
+  @override
+  String get ownerCostsEnded => 'Ended';
+
+  @override
+  String get ownerCostsInvalid => 'Enter a name and an amount above zero';
+
+  @override
+  String get ownerCostsDelete => 'Delete';
+
+  @override
+  String ownerCostsDeleteConfirm(String name) {
+    return 'Delete $name? It will no longer count in the profit.';
+  }
+
+  @override
+  String get ownerCostsCancel => 'Cancel';
+
+  @override
+  String get ownerCostsSaved => 'Cost saved';
+
+  @override
+  String get ownerProfitCoins => 'Coins given away (prizes and rewards)';
+
+  @override
+  String ownerProfitCoinsDetail(String count, String rate) {
+    return 'Coins: $count, at the lowest agent price of $rate per million';
+  }
 }

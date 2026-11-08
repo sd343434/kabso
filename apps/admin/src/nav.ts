@@ -109,6 +109,8 @@ export const NAV: NavGroup[] = [
       { to: '/reports', key: 'navReports', icon: 'flag', cap: 'reports.view', match: ['reports'] },
       // v1.95-social (D301): «صندوق المؤسس» — suggestions and confidential staff reports (OWNER only).
       { to: '/owner-inbox', key: 'navOwnerInbox', icon: 'mail', cap: 'owner.inbox', match: ['ownerInbox'] },
+      // D301 follow-up (§10.112.10): the fixed monthly costs of «الربح» (OWNER only).
+      { to: '/owner-fixed-costs', key: 'navOwnerFixedCosts', icon: 'money', cap: 'owner.costs', match: ['ownerFixedCosts'] },
     ],
   },
   {

@@ -64,6 +64,27 @@ abstract interface class OwnerProfileRepository {
   /// `GET /owner/dashboard` (owner) — «لوحة المؤسس».
   Future<OwnerDashboard> dashboard();
 
+  /// `GET /owner/profit?day=` (owner, §10.112.10) — «الربح» of the day
+  /// (`YYYY-MM-DD`, default today) and its month.
+  Future<OwnerProfit> profit({String? day});
+
+  /// `/owner/fixed-costs` (owner): the fixed monthly costs «تكاليف ثابتة».
+  Future<List<OwnerFixedCost>> fixedCosts();
+  Future<OwnerFixedCost> createFixedCost({
+    required String name,
+    required int monthlyMinor,
+    required String activeFrom,
+    String? activeTo,
+  });
+  Future<OwnerFixedCost> updateFixedCost(
+    String id, {
+    required String name,
+    required int monthlyMinor,
+    required String activeFrom,
+    String? activeTo,
+  });
+  Future<void> deleteFixedCost(String id);
+
   /// `GET /search/featured` (§10.112.9): the founder pinned in search, or
   /// null (no ACTIVE owner, or a block either way).
   Future<FeaturedFounder?> searchFeatured();
@@ -215,6 +236,70 @@ class OwnerProfileRepositoryImpl implements OwnerProfileRepository {
   });
 
   @override
+  Future<OwnerProfit> profit({String? day}) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/owner/profit',
+      queryParameters: {'day': ?day},
+    );
+    return OwnerProfit.fromJson(res.data!);
+  });
+
+  @override
+  Future<List<OwnerFixedCost>> fixedCosts() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/owner/fixed-costs');
+    return [
+      for (final c in res.data!['items']! as List<dynamic>)
+        OwnerFixedCost.fromJson(c as Map<String, dynamic>),
+    ];
+  });
+
+  Map<String, Object?> _cost(
+    String name,
+    int monthlyMinor,
+    String activeFrom,
+    String? activeTo,
+  ) => {
+    'name': name,
+    'monthlyMinor': monthlyMinor,
+    'activeFrom': activeFrom,
+    'activeTo': activeTo,
+  };
+
+  @override
+  Future<OwnerFixedCost> createFixedCost({
+    required String name,
+    required int monthlyMinor,
+    required String activeFrom,
+    String? activeTo,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/owner/fixed-costs',
+      data: _cost(name, monthlyMinor, activeFrom, activeTo),
+    );
+    return OwnerFixedCost.fromJson(res.data!);
+  });
+
+  @override
+  Future<OwnerFixedCost> updateFixedCost(
+    String id, {
+    required String name,
+    required int monthlyMinor,
+    required String activeFrom,
+    String? activeTo,
+  }) => guardApiCall(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      '/owner/fixed-costs/${pathSegment(id)}',
+      data: _cost(name, monthlyMinor, activeFrom, activeTo),
+    );
+    return OwnerFixedCost.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> deleteFixedCost(String id) => guardApiCall(() async {
+    await _dio.delete<void>('/owner/fixed-costs/${pathSegment(id)}');
+  });
+
+  @override
   Future<OwnerCoverVideo> setCoverVideo(String lang, String mediaId) =>
       guardApiCall(() async {
         final res = await _dio.put<Map<String, dynamic>>(
@@ -307,6 +392,18 @@ final FutureProviderFamily<List<Post>, String> ownerOfficialPostsProvider =
 final FutureProvider<OwnerDashboard> ownerDashboardProvider =
     FutureProvider.autoDispose<OwnerDashboard>(
       (ref) => ref.watch(ownerProfileRepositoryProvider).dashboard(),
+    );
+
+/// «الربح» (§10.112.10) of a day (null: today) and its month.
+final FutureProviderFamily<OwnerProfit, String?> ownerProfitProvider =
+    FutureProvider.autoDispose.family(
+      (ref, day) => ref.watch(ownerProfileRepositoryProvider).profit(day: day),
+    );
+
+/// The owner's fixed monthly costs «تكاليف ثابتة».
+final FutureProvider<List<OwnerFixedCost>> ownerFixedCostsProvider =
+    FutureProvider.autoDispose<List<OwnerFixedCost>>(
+      (ref) => ref.watch(ownerProfileRepositoryProvider).fixedCosts(),
     );
 
 /// §10.112.9: the founder pinned at the top of search (null: none to show).

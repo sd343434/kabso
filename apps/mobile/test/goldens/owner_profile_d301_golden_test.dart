@@ -8,6 +8,9 @@
 //   owner.feedTop  D301 follow-up: the posts feed starts with the owner's
 //                  latest announcement («رسمي»), in the app's language
 //   owner.composer D301 follow-up: the bilingual announcement composer
+//   owner.profit   §10.112.10: «الربح» in the dashboard's details — «الدخل
+//                  قبل» opened with its parts, each deduction, «بعد»
+//   owner.costs    §10.112.10: «تكاليف ثابتة», the owner's fixed costs
 //   owner.search   §10.112.9: the founder always in search — the card before
 //                  anything is typed and the row pinned above the results
 //
@@ -30,6 +33,8 @@ import '../features/owner_profile/founder_search_d301_test.dart'
     show pumpFounderSearch, typeSearch;
 import '../features/owner_profile/owner_profile_d301_test.dart'
     show pumpComposer, pumpFeedTop, pumpOwnerOwn, pumpOwnerVisitor;
+import '../features/owner_profile/owner_profit_d301_test.dart'
+    show pumpCostsEditor, pumpProfitDetails;
 import '../features/profile/profile_cover_d278_test.dart' show coverBytes;
 import '../fixtures/owner/owner_fixtures.dart';
 import '../helpers/golden.dart';
@@ -48,6 +53,36 @@ void main() {
   });
 
   forEachLanguage((language) {
+    for (final brightness in Brightness.values) {
+      final tag = '${brightness.name}.${language.name}';
+      testWidgets('owner.profit $tag', (tester) async {
+        await pumpProfitDetails(
+          tester,
+          language: language,
+          brightness: brightness,
+        );
+        await precacheImages(tester);
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('png/owner.profit.$tag.phone.png'),
+        );
+        await tester.pumpWidget(const SizedBox());
+      });
+      testWidgets('owner.costs $tag', (tester) async {
+        await pumpCostsEditor(
+          tester,
+          language: language,
+          brightness: brightness,
+        );
+        await precacheImages(tester);
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('png/owner.costs.$tag.phone.png'),
+        );
+        await tester.pumpWidget(const SizedBox());
+      });
+    }
+
     for (final brightness in Brightness.values) {
       final tag = '${brightness.name}.${language.name}';
       testWidgets('owner.search $tag', (tester) async {

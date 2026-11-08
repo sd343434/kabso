@@ -237,3 +237,128 @@ Future<Uint8List> paintOwnerPoster() async {
   image.dispose();
   return bytes!.buffer.asUint8List();
 }
+
+/// D301 follow-up (§10.112.10): the owner's fixed monthly costs.
+const List<OwnerFixedCost> ownerFixedCosts = [
+  OwnerFixedCost(
+    id: 'c1',
+    name: 'Claude',
+    monthlyMinor: 6000,
+    activeFrom: '2026-01-01',
+  ),
+  OwnerFixedCost(
+    id: 'c2',
+    name: 'LiveKit',
+    monthlyMinor: 45000,
+    activeFrom: '2026-01-01',
+  ),
+  OwnerFixedCost(
+    id: 'c3',
+    name: 'Servers',
+    monthlyMinor: 120000,
+    activeFrom: '2026-01-01',
+  ),
+  OwnerFixedCost(
+    id: 'c4',
+    name: 'DeepAR filters',
+    monthlyMinor: 30000,
+    activeFrom: '2026-03-01',
+    activeTo: '2026-10-31',
+  ),
+];
+
+List<ProfitDeduction> _deductions(List<int> minor, List<int> cherries) => [
+  for (final (i, k) in ProfitDeductionKey.values.indexed)
+    ProfitDeduction(
+      key: k,
+      amountMinor: minor[i],
+      cherries:
+          k == ProfitDeductionKey.cardFees ||
+              k == ProfitDeductionKey.coinRewards
+          ? null
+          : cherries[i],
+      orders: k == ProfitDeductionKey.cardFees ? cherries[i] : null,
+      coins: k == ProfitDeductionKey.coinRewards ? cherries[i] : null,
+    ),
+];
+
+List<FixedCostShare> _shares(int days) => [
+  for (final c in ownerFixedCosts.take(3))
+    FixedCostShare(
+      id: c.id,
+      name: c.name,
+      monthlyMinor: c.monthlyMinor,
+      days: days,
+      shareMinor: (c.monthlyMinor * days / 30).round(),
+    ),
+];
+
+/// «الربح» of 7 November 2026 and November to date (7 of 30 days). With
+/// [loss], the month's costs exceed the income (after < 0).
+OwnerProfit ownerProfit({bool loss = false}) => OwnerProfit(
+  today: '2026-11-07',
+  rateCherries: 1000000,
+  rateMinor: 110,
+  cardFeeBps: 290,
+  cardFeeFixedMinor: 30,
+  coinValueMinorPerMillion: 1200,
+  generatedAt: DateTime.utc(2026, 11, 7, 9, 41),
+  day: OwnerProfitPeriod(
+    month: false,
+    key: '2026-11-07',
+    from: '2026-11-07',
+    to: '2026-11-07',
+    days: 1,
+    daysInMonth: 30,
+    beforeMinor: 843125,
+    cardChargedMinor: 650000,
+    refundsMinor: 25000,
+    chargebacksMinor: 12500,
+    agentsMinor: 230625,
+    deductions: _deductions(
+      [412000, 61800, 4400, 8800, 2200, 0, 1440, 22600],
+      [3745454545, 561818181, 40000000, 80000000, 20000000, 0, 1200000, 125],
+    ),
+    fixedCostsMinor: 5700,
+    fixedCosts: _shares(1),
+    afterMinor: 843125 - 513240 - 5700,
+    otherCurrencies: const [
+      ProfitOtherCurrency(
+        currency: 'EUR',
+        beforeMinor: 5000,
+        deductionsMinor: 0,
+        afterMinor: 5000,
+      ),
+    ],
+  ),
+  month: OwnerProfitPeriod(
+    month: true,
+    key: '2026-11',
+    from: '2026-11-01',
+    to: '2026-11-07',
+    days: 7,
+    daysInMonth: 30,
+    partial: true,
+    beforeMinor: loss ? 300000 : 5120000,
+    cardChargedMinor: loss ? 250000 : 4000000,
+    refundsMinor: 50000,
+    chargebacksMinor: 25000,
+    agentsMinor: loss ? 125000 : 1195000,
+    deductions: _deductions(
+      [2560000, 384000, 27000, 51000, 13000, -5000, 10000, 140000],
+      [
+        23272727272,
+        3490909090,
+        245454545,
+        463636363,
+        118181818,
+        -45454545,
+        8333333,
+        760,
+      ],
+    ),
+    fixedCostsMinor: 39900,
+    fixedCosts: _shares(7),
+    afterMinor: (loss ? 300000 : 5120000) - 3180000 - 39900,
+  ),
+);

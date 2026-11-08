@@ -228,6 +228,8 @@ export const CAPABILITIES = {
    * see reports about staff.
    */
   'owner.inbox': ['OWNER'],
+  /** D301 follow-up (§10.112.10): the owner's fixed monthly costs of «الربح» — OWNER only. */
+  'owner.costs': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

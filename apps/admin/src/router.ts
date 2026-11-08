@@ -80,6 +80,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'verificationBadges', pattern: '/verification-badges' },
   // v1.95-social (D301): «صندوق المؤسس» (OWNER only).
   { name: 'ownerInbox', pattern: '/owner-inbox' },
+  // D301 follow-up (§10.112.10): «التكاليف الثابتة» (OWNER only).
+  { name: 'ownerFixedCosts', pattern: '/owner-fixed-costs' },
 ];
 
 export function matchPath(path: string): Match | null {

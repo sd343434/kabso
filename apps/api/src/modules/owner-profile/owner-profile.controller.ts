@@ -33,6 +33,7 @@ import { PostsModule } from '../posts/posts.module.js';
 import { OwnerAnnouncementsService } from './owner-announcements.service.js';
 import { OwnerFeedbackService } from './owner-feedback.service.js';
 import { OwnerProfileService, type OwnerMeta } from './owner-profile.service.js';
+import { appActor, OwnerProfitService, panelActor } from './owner-profit.service.js';
 
 const meta = (req: AppRequest): OwnerMeta => ({ ip: clientIp(req), requestId: getRequestId(req) });
 const PROFILE_LIMIT = {
@@ -53,6 +54,7 @@ export class OwnerProfileController {
     private readonly owner: OwnerProfileService,
     private readonly feedback: OwnerFeedbackService,
     private readonly announcements: OwnerAnnouncementsService,
+    private readonly profitService: OwnerProfitService,
   ) {}
 
   /**
@@ -154,6 +156,44 @@ export class OwnerProfileController {
     return this.owner.dashboard(auth.userId);
   }
 
+  /** D301 follow-up (§10.112.10): «الربح» — the day (default today) and its month, before and after every share. */
+  @Get('owner/profit')
+  profit(@CurrentAuth() auth: AuthContext, @Query() query: unknown) {
+    return this.profitService.profit(auth.userId, query);
+  }
+
+  @Get('owner/fixed-costs')
+  fixedCosts(@CurrentAuth() auth: AuthContext) {
+    return this.profitService.listCostsFor(auth.userId);
+  }
+
+  @Post('owner/fixed-costs')
+  @HttpCode(201)
+  createFixedCost(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest, @Body() body: unknown) {
+    return this.profitService.createCost(appActor(auth.userId, meta(req)), body);
+  }
+
+  @Patch('owner/fixed-costs/:costId')
+  @HttpCode(200)
+  updateFixedCost(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('costId') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.profitService.updateCost(appActor(auth.userId, meta(req)), id, body);
+  }
+
+  @Delete('owner/fixed-costs/:costId')
+  @HttpCode(204)
+  async deleteFixedCost(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('costId') id: string,
+  ): Promise<void> {
+    await this.profitService.deleteCost(appActor(auth.userId, meta(req)), id);
+  }
+
   @Post('owner/feedback')
   @HttpCode(201)
   createFeedback(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest, @Body() body: unknown) {
@@ -218,10 +258,48 @@ export class AdminOwnerInboxController {
   }
 }
 
+/**
+ * D301 follow-up (§10.112.10): the fixed monthly costs of «الربح» in the panel — `owner.costs`, OWNER only; every change
+ * audited (`via: panel`).
+ */
+@Public()
+@Controller('admin/owner-fixed-costs')
+@RateLimit({ bucket: 'admin:ip', rule: 'adminIp', key: byIp, replacesDefault: true })
+@UseGuards(AdminSessionGuard)
+export class AdminOwnerFixedCostsController {
+  constructor(private readonly profit: OwnerProfitService) {}
+
+  @Get()
+  @RequireCapability('owner.costs')
+  list() {
+    return this.profit.listCosts();
+  }
+
+  @Post()
+  @HttpCode(201)
+  @RequireCapability('owner.costs')
+  create(@CurrentAdmin() admin: AdminContext, @Body() body: unknown) {
+    return this.profit.createCost(panelActor(admin), body);
+  }
+
+  @Patch(':costId')
+  @RequireCapability('owner.costs')
+  update(@CurrentAdmin() admin: AdminContext, @Param('costId') id: string, @Body() body: unknown) {
+    return this.profit.updateCost(panelActor(admin), id, body);
+  }
+
+  @Delete(':costId')
+  @HttpCode(204)
+  @RequireCapability('owner.costs')
+  async remove(@CurrentAdmin() admin: AdminContext, @Param('costId') id: string): Promise<void> {
+    await this.profit.deleteCost(panelActor(admin), id);
+  }
+}
+
 /** v1.95-social (D301): the app owner's profile «صفحة صاحب البرنامج». */
 @Module({
   imports: [AdminPanelModule, MediaModule, NotificationsModule, UsersModule, PostsModule],
-  controllers: [OwnerProfileController, AdminOwnerInboxController],
-  providers: [OwnerProfileService, OwnerFeedbackService, OwnerAnnouncementsService],
+  controllers: [OwnerProfileController, AdminOwnerInboxController, AdminOwnerFixedCostsController],
+  providers: [OwnerProfileService, OwnerFeedbackService, OwnerAnnouncementsService, OwnerProfitService],
 })
 export class OwnerProfileModule {}

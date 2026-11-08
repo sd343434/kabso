@@ -210,6 +210,10 @@ export enum AuditAction {
   OWNER_ANNOUNCEMENT_UPDATE = 'owner.announcement.update',
   OWNER_ANNOUNCEMENT_FANOUT_DONE = 'owner.announcement.fanout_done',
   OWNER_FEEDBACK_CREATE = 'owner.feedback.create',
+  /** D301 follow-up (§10.112.10): a fixed monthly cost of «الربح» added, changed or deleted (app or panel). */
+  OWNER_FIXED_COST_CREATE = 'owner.fixed_cost.create',
+  OWNER_FIXED_COST_UPDATE = 'owner.fixed_cost.update',
+  OWNER_FIXED_COST_DELETE = 'owner.fixed_cost.delete',
   ADMIN_OWNER_INBOX_VIEW = 'admin.owner_inbox.view',
   ADMIN_OWNER_INBOX_STATUS = 'admin.owner_inbox.status',
   ADMIN_OWNER_INBOX_DELETE = 'admin.owner_inbox.delete',

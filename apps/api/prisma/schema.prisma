@@ -1153,6 +1153,8 @@ model WalletLedgerEntry {
 
   @@unique([reason, referenceId], map: "wallet_ledger_reference_once")
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
+  /// D301 follow-up (§10.112.10): «الربح» sums the free coins given in a period (migration 20270402090400_owner_profit).
+  @@index([createdAt], map: "wallet_ledger_free_coins_idx", where: raw("reason IN ('EVENT_PRIZE'::wallet_ledger_reason, 'TASK_REWARD'::wallet_ledger_reason, 'CHECK_IN_REWARD'::wallet_ledger_reason)"))
   @@map("wallet_ledger")
 }
 
@@ -7271,4 +7273,20 @@ model OwnerAnnouncementFanout {
 
   @@index([startedAt], map: "owner_announcement_fanouts_pending_idx", where: raw("done_at IS NULL"))
   @@map("owner_announcement_fanouts")
+}
+
+/// v1.95-social (D301 follow-up, §10.112.10): the owner's fixed monthly costs «تكاليف ثابتة» (USD), prorated by day in
+/// «الربح». CHECK `owner_fixed_costs_shape` in the migration.
+model OwnerFixedCost {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  name         String    @db.VarChar(60)
+  monthlyMinor BigInt    @map("monthly_minor")
+  currency     String    @default("USD") @db.Char(3)
+  activeFrom   DateTime  @map("active_from") @db.Date
+  activeTo     DateTime? @map("active_to") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([activeFrom, activeTo], map: "owner_fixed_costs_active_idx")
+  @@map("owner_fixed_costs")
 }

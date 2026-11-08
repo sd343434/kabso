@@ -405,6 +405,8 @@ export interface AppConfig {
     readonly dashboardTimeZone: string;
     /** v1.65-social (D197): the report's estimated card fees (basis points + fixed cents per order). */
     readonly reportCardFee: { readonly bps: number; readonly fixedMinor: number };
+    /** D301 follow-up (§10.112.10): «الربح»'s value of given-away coins, US cents per 1 000 000 coins. */
+    readonly ownerProfitCoinMinorPerMillion: number;
     /** v1.72-social (D208): the per-admin daily cap of balance adjustments (0 = none allowed). */
     readonly adjustDailyCap: { readonly coins: number; readonly cherries: number };
     /** v1.72-social (D208): days the old username stays held after a team rename (0 = none). */
@@ -899,6 +901,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       staffShiftIdleOffSeconds: e.STAFF_SHIFT_IDLE_OFF_SECONDS,
       dashboardTimeZone: e.ADMIN_DASHBOARD_TIME_ZONE,
       reportCardFee: { bps: e.ADMIN_REPORT_CARD_FEE_BPS, fixedMinor: e.ADMIN_REPORT_CARD_FEE_FIXED_MINOR },
+      ownerProfitCoinMinorPerMillion: e.OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION,
       adjustDailyCap: { coins: e.ADMIN_ADJUST_DAILY_CAP_COINS, cherries: e.ADMIN_ADJUST_DAILY_CAP_CHERRIES },
       renameHoldDays: e.ADMIN_USERNAME_RENAME_HOLD_DAYS,
     },

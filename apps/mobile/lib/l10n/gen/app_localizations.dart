@@ -27327,6 +27327,306 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'متابَع'**
   String get ownerSearchFollowing;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the section title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الربح'**
+  String get ownerProfitTitle;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card's strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح اليوم'**
+  String get ownerProfitToday;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card: before every share.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبل'**
+  String get ownerProfitBeforeShort;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card: after every share and the fixed costs.
+  ///
+  /// In ar, this message translates to:
+  /// **'بعد'**
+  String get ownerProfitAfterShort;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the money Kabso received.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدخل قبل'**
+  String get ownerProfitBefore;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — what is left.
+  ///
+  /// In ar, this message translates to:
+  /// **'الربح النهائي بعد'**
+  String get ownerProfitAfter;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the day tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get ownerProfitDay;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the month tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر'**
+  String get ownerProfitMonth;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the day picker button.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار يوم'**
+  String get ownerProfitPickDay;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن المتجر بالبطاقات'**
+  String get ownerProfitCardCharged;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'المبالغ المستردة'**
+  String get ownerProfitRefunds;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'الاعتراضات البنكية'**
+  String get ownerProfitChargebacks;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء الوكلاء من Kabso'**
+  String get ownerProfitAgents;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the deductions heading.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصومات'**
+  String get ownerProfitDeductions;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction GIFTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'نصيب المضيفين وصنّاع المحتوى من الهدايا'**
+  String get ownerProfitGifts;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction AGENCY_COMMISSIONS.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولات الوكالات'**
+  String get ownerProfitAgencies;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction REFERRAL_REWARDS.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت الدعوات'**
+  String get ownerProfitReferrals;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction TASK_REWARDS.
+  ///
+  /// In ar, this message translates to:
+  /// **'جوائز المهام والأهداف'**
+  String get ownerProfitTasks;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction STAFF_COMMISSIONS.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولات الموظفين على التجنيد'**
+  String get ownerProfitStaff;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction TEAM_ADJUSTMENTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديلات الفريق'**
+  String get ownerProfitTeam;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction CARD_FEES.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسوم البطاقات (تقديرية)'**
+  String get ownerProfitCardFees;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a cherry line's detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز: {count}، بسعر السحب {rate} لكل مليون'**
+  String ownerProfitCherries(String count, String rate);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card fees' detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات: {count}، بنسبة {percent} و{fixed} للطلب'**
+  String ownerProfitFees(String count, String percent, String fixed);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the fixed costs line and the editor's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تكاليف ثابتة'**
+  String get ownerProfitFixed;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a fixed cost's share.
+  ///
+  /// In ar, this message translates to:
+  /// **'أيام: {days} من {monthly} شهرياً'**
+  String ownerProfitFixedShare(String days, String monthly);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — no fixed cost.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تكاليف ثابتة في هذه الفترة'**
+  String get ownerProfitFixedNone;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the current month's note.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى اليوم: الحصة المنقضية من التكاليف الثابتة'**
+  String get ownerProfitPartial;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — another currency's line, never converted.
+  ///
+  /// In ar, this message translates to:
+  /// **'{currency}: قبل {before}، بعد {after}'**
+  String ownerProfitOther(String currency, String before, String after);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حساب الربح'**
+  String get ownerProfitFailed;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — retry.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get ownerProfitRetry;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the editor button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة التكاليف الثابتة'**
+  String get ownerCostsManage;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the editor's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'مبلغ شهري بالدولار يُقسَّم على أيام الشهر'**
+  String get ownerCostsHint;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the empty list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تكاليف ثابتة بعد'**
+  String get ownerCostsEmpty;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the add button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة تكلفة'**
+  String get ownerCostsAdd;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the form's title when editing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل التكلفة'**
+  String get ownerCostsEdit;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the name field.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم'**
+  String get ownerCostsName;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the name hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثلاً: Claude أو LiveKit أو الخوادم'**
+  String get ownerCostsNameHint;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the amount field.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ الشهري (USD)'**
+  String get ownerCostsMonthly;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the start day.
+  ///
+  /// In ar, this message translates to:
+  /// **'من'**
+  String get ownerCostsFrom;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the end day.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى (اختياري)'**
+  String get ownerCostsTo;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — no end day.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستمرة'**
+  String get ownerCostsOngoing;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a cost's amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} شهرياً'**
+  String ownerCostsPerMonth(String amount);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a cost no longer active.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت'**
+  String get ownerCostsEnded;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the form's error.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل اسماً ومبلغاً أكبر من صفر'**
+  String get ownerCostsInvalid;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — delete.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get ownerCostsDelete;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the delete confirmation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف {name}؟ لن تُحسب في الربح بعد الآن.'**
+  String ownerCostsDeleteConfirm(String name);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get ownerCostsCancel;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت التكلفة'**
+  String get ownerCostsSaved;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction COIN_REWARDS.
+  ///
+  /// In ar, this message translates to:
+  /// **'عملات مُنحت مجاناً (جوائز ومكافآت)'**
+  String get ownerProfitCoins;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the coin rewards' detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'العملات: {count}، بأقل سعر للوكيل {rate} لكل مليون'**
+  String ownerProfitCoinsDetail(String count, String rate);
 }
 
 class _AppLocalizationsDelegate

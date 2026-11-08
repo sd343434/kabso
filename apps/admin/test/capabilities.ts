@@ -95,4 +95,5 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'verification.settings': ['OWNER'],
   // D301.
   'owner.inbox': ['OWNER'],
+  'owner.costs': ['OWNER'],
 };

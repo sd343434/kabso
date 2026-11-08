@@ -17,6 +17,7 @@ import { HostApplicationDetail, HostApplications } from './pages/HostApplication
 import { PkDares } from './pages/PkDares';
 import { CreatorApplications, MyRecruits, Recruits } from './pages/Recruits';
 import { LevelRaiseApps, LevelRaiseDetail, LevelRaises, LevelRaiseSettingsPage } from './pages/LevelRaises';
+import { OwnerFixedCosts } from './pages/OwnerFixedCosts';
 import { OwnerInbox } from './pages/OwnerInbox';
 import { VerificationBadgesPage } from './pages/VerificationBadges';
 import { HostTargets } from './pages/HostTargets';
@@ -254,6 +255,10 @@ export function App() {
         // v1.95-social (D301).
         case 'ownerInbox':
           page = <OwnerInbox />;
+          break;
+        // D301 follow-up (§10.112.10).
+        case 'ownerFixedCosts':
+          page = <OwnerFixedCosts />;
           break;
         case 'verificationBadges':
           page = <VerificationBadgesPage />;

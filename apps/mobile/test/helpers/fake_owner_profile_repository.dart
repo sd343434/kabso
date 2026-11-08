@@ -18,7 +18,81 @@ class FakeOwnerProfileRepository implements OwnerProfileRepository {
     this.staff = const [],
     this.dashboardFails = false,
     this.featured,
-  }) : journeyItems = [...journey];
+    this.profitData,
+    List<OwnerFixedCost> costs = const [],
+  }) : journeyItems = [...journey],
+       costItems = [...costs];
+
+  /// §10.112.10: what `GET /owner/profit` answers (null: it fails).
+  OwnerProfit? profitData;
+
+  /// The days `profit` was asked for (null: today).
+  final List<String?> profitDays = [];
+
+  /// The fixed costs, changed by the create / update / delete calls.
+  List<OwnerFixedCost> costItems;
+
+  @override
+  Future<OwnerProfit> profit({String? day}) async {
+    profitDays.add(day);
+    final p = profitData;
+    if (p == null) throw const NetworkFailure.offline();
+    return p;
+  }
+
+  @override
+  Future<List<OwnerFixedCost>> fixedCosts() async => [...costItems];
+
+  @override
+  Future<OwnerFixedCost> createFixedCost({
+    required String name,
+    required int monthlyMinor,
+    required String activeFrom,
+    String? activeTo,
+  }) async {
+    calls.add('cost:create:$name:$monthlyMinor:$activeFrom:${activeTo ?? ''}');
+    final c = OwnerFixedCost(
+      id: 'c${_nextId++}',
+      name: name,
+      monthlyMinor: monthlyMinor,
+      activeFrom: activeFrom,
+      activeTo: activeTo,
+    );
+    costItems = [...costItems, c];
+    return c;
+  }
+
+  @override
+  Future<OwnerFixedCost> updateFixedCost(
+    String id, {
+    required String name,
+    required int monthlyMinor,
+    required String activeFrom,
+    String? activeTo,
+  }) async {
+    calls.add('cost:update:$id:$name:$monthlyMinor');
+    final c = OwnerFixedCost(
+      id: id,
+      name: name,
+      monthlyMinor: monthlyMinor,
+      activeFrom: activeFrom,
+      activeTo: activeTo,
+    );
+    costItems = [
+      for (final x in costItems)
+        if (x.id == id) c else x,
+    ];
+    return c;
+  }
+
+  @override
+  Future<void> deleteFixedCost(String id) async {
+    calls.add('cost:delete:$id');
+    costItems = [
+      for (final x in costItems)
+        if (x.id != id) x,
+    ];
+  }
 
   /// §10.112.9: the founder `GET /search/featured` answers.
   FeaturedFounder? featured;

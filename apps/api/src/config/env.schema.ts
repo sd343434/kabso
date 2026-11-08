@@ -1302,6 +1302,13 @@ export const envSchema = z
     ADMIN_REPORT_CARD_FEE_BPS: intSetting(290, 0, 5000),
     ADMIN_REPORT_CARD_FEE_FIXED_MINOR: intSetting(30, 0, 1000),
     /**
+     * D301 follow-up (owner 2026-11-07: «وكيل الشحن اقل سعر يحصله منا لل ١٠ مليون كوينز هو ١٢٠ دولار»; CONVENTIONS
+     * §10.112.10): the conservative value of coins Kabso gives away (event prizes, task and check-in coins) in the
+     * owner's «الربح», in US cents per 1 000 000 coins — the lowest price an agent pays Kabso ($120 per 10 000 000 =
+     * $12 a million = 1200). Only «الربح» reads it; agents' purchases count at what they really paid.
+     */
+    OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION: intSetting(1200, 1, 1_000_000),
+    /**
      * v1.72-social (D208, CONVENTIONS §10.67): the most coins / cherries ONE admin may move by balance adjustments in
      * a day (credits and debits added up as amounts, the ADMIN_DASHBOARD_TIME_ZONE day). 0 = no adjustment at all.
      * Default 10 000 000 coins ($125 at the retail price) and 10 000 000 cherries.
