@@ -86,6 +86,9 @@ class FakeLiveRepository implements LiveRepository {
   /// D228: `LiveConfig.cameraFxEngine` (`DEEPAR` / `FREE`).
   String cameraFxEngine = 'DEEPAR';
 
+  /// D315: `LiveConfig.gamesEnabled` (the «مجنون اللعب» board's tab).
+  bool gamesEnabled = false;
+
   int configCalls = 0;
   int categoryCalls = 0;
   final List<RoomsRequest> requests = [];
@@ -101,6 +104,7 @@ class FakeLiveRepository implements LiveRepository {
       heartbeatStaleAfterSeconds: 45,
       themes: themes,
       cameraFxEngine: cameraFxEngine,
+      gamesEnabled: gamesEnabled,
     );
   }
 
