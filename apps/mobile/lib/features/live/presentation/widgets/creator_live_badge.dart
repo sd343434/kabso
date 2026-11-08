@@ -7,7 +7,7 @@ import 'package:material_ui/material_ui.dart';
 /// the host's name in the room. The purple is D293's creator seal
 /// (`VerificationBadgeColors.creator`, #7B3FC4), drawn in code (no copied art).
 class CreatorLiveBadge extends StatelessWidget {
-  const new({super.key, this.compact = false});
+  const new({super.key, this.compact = false, this.iconOnly = false});
 
   /// D293's creator colour.
   static const purple = Color(0xFF7B3FC4);
@@ -17,11 +17,40 @@ class CreatorLiveBadge extends StatelessWidget {
   /// The room's host pill: a smaller pill (no icon).
   final bool compact;
 
+  /// Owner (2026-11-08, «المعلومات على بطاقة البث كثيرة»): the live card's
+  /// small mark — the same purple and sparkle in a 18 pt circle, no text (the
+  /// card's screen-reader label still says «صانع محتوى»).
+  final bool iconOnly;
+
+  static const iconKey = Key('creatorLiveBadge.icon');
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
     const white = Color(0xFFFFFFFF);
+    if (iconOnly) {
+      return Semantics(
+        label: l10n.liveCreatorBadge,
+        child: ExcludeSemantics(
+          child: Container(
+            key: iconKey,
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: purple,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0x66FFFFFF), width: 0.8),
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              size: 11,
+              color: white,
+            ),
+          ),
+        ),
+      );
+    }
     return Semantics(
       label: l10n.liveCreatorBadge,
       child: ExcludeSemantics(

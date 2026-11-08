@@ -52,10 +52,14 @@ abstract final class KLiveGrid {
 ///   fails to load falls back the same way, with no error text (VG-13).
 /// - Top start: the animated live mark ([KLiveEqualizer], teal) and, for
 ///   PK and multi-guest lives, the room type (ref 165 labels only those).
-///   Top end: the viewer count with a person icon, or "New" below 1 viewer
-///   (VG-11: a count is never invented).
-/// - Bottom, over a scrim: the title (1 line, bold). The host's name and
-///   the category are announced, not drawn (ref 165).
+///   Top end: the viewer count with a person icon (owner 2026-11-08: «المعلومات
+///   على بطاقة البث كثيرة» — one type and the viewers; the «جديد» chip is
+///   gone, 0 is shown as 0: the real count, never invented).
+/// - A content creator's live: the small creator mark ([CreatorLiveBadge]
+///   `iconOnly`) under the type.
+/// - Bottom, over a scrim: only the title the host set (the host's name when
+///   it is empty), up to 2 lines with an ellipsis; «مميز» above it. The
+///   host's name and the category are announced, not drawn (ref 165).
 /// - Press: scales to 0.98 (instant with reduce motion).
 ///
 /// Announced as "{host}, live, {n viewers | New}, {title}[, {type}]
@@ -68,6 +72,9 @@ class KLiveGridCard extends StatelessWidget {
 
   static const typeKey = Key('liveGrid.type');
   static const viewersKey = Key('liveGrid.viewers');
+
+  /// The card's only text at the bottom: the live's title (2 lines).
+  static const titleKey = Key('liveGrid.title');
   static const initialKey = Key('liveGrid.initial');
 
   /// D154b: the «مميز» label of a live with a running traffic card.
@@ -85,7 +92,6 @@ class KLiveGridCard extends StatelessWidget {
     const shadows = [
       Shadow(color: Color(0x80000000), blurRadius: 4, offset: Offset(0, 1)),
     ];
-    final isNew = room.viewerCount < 1;
     // D237 (owner): every card names its live's category, from the room's
     // own mode (the hub has no category row any more): «بث مباشر»,
     // «بث صوتي», «بث بودكاست», «بث متعدد»; a PK keeps «PK». D213: a
@@ -101,15 +107,11 @@ class KLiveGridCard extends StatelessWidget {
         : room.isMulti
         ? l10n.liveCategoryMulti
         : l10n.liveCategoryLive;
+    final title = room.title.trim().isEmpty ? room.hostName : room.title;
     final base = l10n.liveCardSemantics(
       room.hostName,
-      isNew
-          ? l10n.liveCardNew
-          : l10n.liveViewers(
-              room.viewerCount,
-              KFormat.grouped(room.viewerCount),
-            ),
-      room.title,
+      l10n.liveViewers(room.viewerCount, KFormat.grouped(room.viewerCount)),
+      title,
     );
     final withType = l10n.liveCardSemanticsMode(
       room.hostIsCreator ? '$base, ${l10n.liveCreatorBadge}' : base,
@@ -182,19 +184,15 @@ class KLiveGridCard extends StatelessWidget {
                             key: viewersKey,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (!isNew) ...[
-                                Icon(
-                                  Icons.person_outline_rounded,
-                                  size: 13,
-                                  color: white,
-                                  shadows: shadows,
-                                ),
-                                const SizedBox(width: KSpacing.xxs),
-                              ],
+                              Icon(
+                                Icons.person_outline_rounded,
+                                size: 13,
+                                color: white,
+                                shadows: shadows,
+                              ),
+                              const SizedBox(width: KSpacing.xxs),
                               Text(
-                                isNew
-                                    ? l10n.liveCardNew
-                                    : KFormat.compact(room.viewerCount, l10n),
+                                KFormat.compact(room.viewerCount, l10n),
                                 maxLines: 1,
                                 style: t.caption.copyWith(
                                   color: white,
@@ -209,45 +207,52 @@ class KLiveGridCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // v1.82-live (D295): a content creator's live — the
-                  // purple «صانع محتوى» badge under the live mark.
+                  // v1.82-live (D295): a content creator's live — the small
+                  // purple creator mark under the live mark (owner
+                  // 2026-11-08: an icon, not the worded pill).
                   if (room.hostIsCreator)
                     const PositionedDirectional(
                       top: 27,
                       start: 8.5,
-                      child: CreatorLiveBadge(),
+                      child: CreatorLiveBadge(iconOnly: true),
                     ),
-                  // D154b: «مميز» over the title (a running traffic card);
-                  // D233 follow-up: with a rocket stage, its rocket inside
-                  // the pill and the stage's colours (no separate badge).
-                  if (room.featured)
-                    PositionedDirectional(
-                      start: 8.5,
-                      bottom: 28,
-                      child: DefaultTextStyle.merge(
-                        style: t.caption,
-                        child: KFeaturedPill(
-                          key: featuredKey,
-                          label: l10n.liveBoostFeatured,
-                          stage: stage,
-                        ),
-                      ),
-                    ),
-                  // Ref 165: the title 8.5 pt in, its baseline 10.6 pt up.
+                  // Ref 165: the title 8.5 pt in, its baseline 10.6 pt up —
+                  // up to 2 lines (owner 2026-11-08). D154b: «مميز» over it
+                  // (a running traffic card); D233 follow-up: with a rocket
+                  // stage, its rocket inside the pill and the stage's colours.
                   PositionedDirectional(
                     start: 8.5,
                     end: 8.5,
                     bottom: 8,
-                    child: Text(
-                      room.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.bodyStrong.copyWith(
-                        color: white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        shadows: shadows,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (room.featured) ...[
+                          DefaultTextStyle.merge(
+                            style: t.caption,
+                            child: KFeaturedPill(
+                              key: featuredKey,
+                              label: l10n.liveBoostFeatured,
+                              stage: stage,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+                        Text(
+                          title,
+                          key: titleKey,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodyStrong.copyWith(
+                            color: white,
+                            fontSize: 12.5,
+                            height: 1.25,
+                            fontWeight: FontWeight.w700,
+                            shadows: shadows,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

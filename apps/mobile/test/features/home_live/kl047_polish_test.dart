@@ -671,8 +671,8 @@ void main() {
     Finder inCard(int i, Finder f) =>
         find.descendant(of: find.byKey(LiveHubGrid.cardKey(i)), matching: f);
 
-    testWidgets('the live mark on every card; viewer count only when > 0, '
-        'otherwise "New" (never invented)', (tester) async {
+    testWidgets('the live mark on every card; the real viewer count, 0 too '
+        '(owner 2026-11-08: no «جديد» chip)', (tester) async {
       final rooms = apiRooms(2);
       final live = FakeLiveRepository(
         rooms: (_) => apiPage([rooms[0], rooms[1].copyWith(viewerCount: 7)]),
@@ -682,10 +682,11 @@ void main() {
       for (final i in [0, 1]) {
         expect(inCard(i, find.byType(KLiveEqualizer)), findsOneWidget);
       }
-      expect(inCard(0, find.text(_en.liveCardNew)), findsOneWidget);
+      expect(inCard(0, find.text(_en.liveCardNew)), findsNothing);
+      expect(inCard(0, find.text('0')), findsOneWidget);
       expect(
         inCard(0, find.byIcon(Icons.person_outline_rounded)),
-        findsNothing,
+        findsOneWidget,
       );
       expect(inCard(1, find.text(_en.liveCardNew)), findsNothing);
       expect(inCard(1, find.text('7')), findsOneWidget);
@@ -702,19 +703,18 @@ void main() {
       expect(inCard(0, find.text('Arabic music night')), findsOneWidget);
       expect(
         find.bySemanticsLabel(
-          'Sara, live, New, Arabic music night, Live, Music',
+          'Sara, live, 0 viewers, Arabic music night, Live, Music',
         ),
         findsOneWidget,
       );
       expect(
-        find.bySemanticsLabel('Omar, live, New, Evening chat, Live'),
+        find.bySemanticsLabel('Omar, live, 0 viewers, Evening chat, Live'),
         findsOneWidget,
       );
     });
 
-    testWidgets('hierarchy: host above title above category, one line each', (
-      tester,
-    ) async {
+    testWidgets('owner 2026-11-08: the title is the only bottom text, up to '
+        '2 lines; no host row, avatar or category on the card', (tester) async {
       await pumpComponent(
         tester,
         Center(
@@ -724,20 +724,23 @@ void main() {
           ),
         ),
       );
-      final host = tester.getRect(find.text('Sara'));
-      final title = tester.getRect(find.text('Arabic music night'));
-      final category = tester.getRect(find.text('Music'));
-      expect(host.bottom, lessThanOrEqualTo(title.top));
-      expect(title.bottom, lessThanOrEqualTo(category.top));
-      for (final text in ['Sara', 'Arabic music night', 'Music']) {
-        expect(tester.widget<Text>(find.text(text)).maxLines, 1);
-      }
-      TextStyle style(String t) => tester.widget<Text>(find.text(t)).style!;
-      expect(style('Sara').fontSize, greaterThan(style('Music').fontSize!));
+      expect(find.text('Sara'), findsNothing);
+      expect(find.text('Music'), findsNothing);
+      expect(find.byIcon(Icons.tag_rounded), findsNothing);
+      final title = tester.widget<Text>(find.text('Arabic music night'));
+      expect(title.maxLines, 2);
+      // The cover shows; the host avatar only stands in for a missing cover.
+      expect(
+        find.descendant(
+          of: find.byType(KLiveCoverCard),
+          matching: find.byType(KAvatar),
+        ),
+        findsNothing,
+      );
     });
 
-    testWidgets('RTL: LIVE badge at the top-right, then the chip; category '
-        'at the reading start', (tester) async {
+    testWidgets('RTL: the type badge at the top-right, then the viewers; the '
+        'title right-aligned', (tester) async {
       await pumpComponent(
         tester,
         Center(
@@ -749,29 +752,17 @@ void main() {
         language: AppLanguage.ar,
       );
       final card = tester.getRect(find.byType(KLiveCoverCard));
-      final liveBadge = tester.getRect(badge(KBadgeVariant.live));
+      final type = tester.getRect(find.byKey(KLiveCoverCard.typeKey));
       final viewers = tester.getRect(find.byType(KViewerCountChip));
-      expect(liveBadge.center.dx, greaterThan(viewers.center.dx));
-      expect(card.right - liveBadge.right, closeTo(KSpacing.sm, 0.5));
-      // The text column starts after the host avatar (at the right): the
-      // category line is right-aligned with the host name.
-      final host = tester.getRect(find.text('يوسف'));
-      final avatar = tester.getRect(
-        find.descendant(
-          of: find.byType(KLiveCoverCard),
-          matching: find.byType(KAvatar),
-        ),
-      );
-      expect(avatar.center.dx, greaterThan(host.center.dx));
-      final categoryIcon = tester.getRect(find.byIcon(Icons.tag_rounded));
-      final category = tester.getRect(find.text('ألعاب'));
-      expect(categoryIcon.right, closeTo(host.right, 0.5));
-      expect(categoryIcon.center.dx, greaterThan(category.center.dx));
+      expect(type.center.dx, greaterThan(viewers.center.dx));
+      expect(card.right - type.right, closeTo(KSpacing.sm, 0.5));
+      final title = tester.getRect(find.byKey(KLiveCoverCard.titleKey));
+      expect(card.right - title.right, closeTo(KSpacing.sm, 0.5));
     });
 
     for (final language in AppLanguage.values) {
-      testWidgets('long labels at 360 dp: no overflow, PK tag kept '
-          '(${language.name})', (tester) async {
+      testWidgets('long labels at 360 dp: no overflow, one PK badge, the '
+          'title in 2 lines (${language.name})', (tester) async {
         await loadAppFonts();
         final ar = language == AppLanguage.ar;
         await pumpComponent(
@@ -801,9 +792,11 @@ void main() {
         expect(tester.takeException(), isNull);
         final card = tester.getRect(find.byType(KLiveCoverCard));
         final pk = tester.getRect(badge(KBadgeVariant.pk));
-        final liveBadge = tester.getRect(badge(KBadgeVariant.live));
         expect(card.contains(pk.center), isTrue);
-        expect(pk.overlaps(liveBadge), isFalse);
+        // One type badge only (owner 2026-11-08).
+        expect(badge(KBadgeVariant.live), findsNothing);
+        final title = tester.widget<Text>(find.byKey(KLiveCoverCard.titleKey));
+        expect((title.maxLines, title.overflow), (2, TextOverflow.ellipsis));
       });
     }
   });
