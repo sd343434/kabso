@@ -72,8 +72,7 @@ class VipPalette {
 /// The reference's measures (pt at 393 wide).
 abstract final class KVip {
   static const double side = 15.5;
-  static const double tabRow = 30;
-  static const double tabPitch = 48;
+
   static const double pillHeight = 22;
   static const double myChipHeight = 22;
   static const double badge = 115;
@@ -86,131 +85,6 @@ abstract final class KVip {
   static const double icon = 44;
   static const double perkRow = 122;
   static const double payHeight = 84;
-}
-
-/// The tier tabs (VIP1…VIP12 — any number, scrolling): the selected one a
-/// pill in the tier's colour, the others muted; the selected tab is brought
-/// into view.
-class VipRefTabs extends StatefulWidget {
-  const new({
-    required this.tiers,
-    required this.selectedId,
-    required this.onSelect,
-    super.key,
-  });
-
-  final List<VipTier> tiers;
-  final String selectedId;
-  final ValueChanged<VipTier> onSelect;
-
-  static const rowKey = Key('vip.tabs');
-
-  @override
-  State<VipRefTabs> createState() => _VipRefTabsState();
-}
-
-class _VipRefTabsState extends State<VipRefTabs> {
-  final _keys = <String, GlobalKey>{};
-
-  GlobalKey _keyOf(String id) => _keys.putIfAbsent(id, GlobalKey.new);
-
-  @override
-  void initState() {
-    super.initState();
-    _reveal();
-  }
-
-  @override
-  void didUpdateWidget(VipRefTabs old) {
-    super.didUpdateWidget(old);
-    if (old.selectedId != widget.selectedId) _reveal();
-  }
-
-  void _reveal() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _keyOf(widget.selectedId).currentContext;
-      if (ctx == null || !mounted) return;
-      Scrollable.ensureVisible(
-        ctx,
-        alignment: 0.5,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 250),
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = VipPalette.of(context);
-    final t = context.textStyles;
-    return SizedBox(
-      key: VipRefTabs.rowKey,
-      height: KVip.tabRow,
-      // Every tab is built (12 or so): each can be brought into view.
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Row(
-          children: [
-            for (final tier in widget.tiers)
-              Semantics(
-                key: _keyOf(tier.id),
-                button: true,
-                selected: tier.id == widget.selectedId,
-                label: tier.name,
-                excludeSemantics: true,
-                child: GestureDetector(
-                  key: Key('vip.tab.${tier.code}'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onSelect(tier),
-                  child: SizedBox(
-                    width: KVip.tabPitch,
-                    child: Center(
-                      // D258 (owner, reference 38): text tabs; the chosen
-                      // one brighter over a small ornament underline.
-                      child: tier.id == widget.selectedId
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _short(tier),
-                                  maxLines: 1,
-                                  style: t.label.copyWith(
-                                    fontSize: 13,
-                                    height: 1,
-                                    fontWeight: FontWeight.w800,
-                                    fontStyle: FontStyle.italic,
-                                    color: p.text,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                _TabOrnament(color: Color(tier.color)),
-                              ],
-                            )
-                          : Text(
-                              _short(tier),
-                              maxLines: 1,
-                              style: t.label.copyWith(
-                                fontSize: 12,
-                                height: 1,
-                                fontWeight: FontWeight.w700,
-                                fontStyle: FontStyle.italic,
-                                color: p.muted,
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// «VIP2» (the reference's tab text): the level, not the full name.
-  static String _short(VipTier t) => 'VIP${t.level}';
 }
 
 /// «الخاص بي VIP ›»: the member's own VIP, a tab attached to the screen's end
@@ -589,28 +463,4 @@ class _Perk extends StatelessWidget {
       ),
     );
   }
-}
-
-/// D258: the chosen tab's underline — a short line with a diamond in its
-/// middle, in the tier's colour.
-class _TabOrnament extends StatelessWidget {
-  const new({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 30,
-    height: 6,
-    child: Stack(
-      alignment: Alignment.center,
-      children: [
-        Container(height: 1.2, color: color),
-        Transform.rotate(
-          angle: 0.785398,
-          child: Container(width: 5, height: 5, color: color),
-        ),
-      ],
-    ),
-  );
 }

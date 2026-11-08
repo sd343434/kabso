@@ -14,6 +14,8 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -21,6 +23,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
+import 'package:kabso_live/features/vip/presentation/vip_carousel.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_screen.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
@@ -263,10 +266,39 @@ final Finder _page = find
     )
     .first;
 
+/// D304: brings [code]'s card to the middle of the carousel — swiping toward
+/// it until it is built, then tapping it (a tap on a neighbour selects it).
 Future<void> _tapTab(WidgetTester tester, String code) async {
-  await tester.ensureVisible(find.byKey(VipScreen.tabKey(code)));
-  await tester.tap(find.byKey(VipScreen.tabKey(code)));
-  await tester.pumpAndSettle();
+  final card = find.byKey(VipScreen.tabKey(code));
+  final carousel = find.byKey(VipTierCarousel.carouselKey);
+  final rtl = Directionality.of(tester.element(carousel)) == TextDirection.rtl;
+  final want = int.parse(code.split('_').last);
+  for (var i = 0; i < 30; i++) {
+    final area = tester.getRect(carousel);
+    if (card.evaluate().isNotEmpty) {
+      final c = tester.getCenter(card);
+      if ((c.dx - area.center.dx).abs() < 1) return;
+      if (c.dx > area.left && c.dx < area.right) {
+        await tester.tapAt(
+          Offset(c.dx.clamp(area.left + 6, area.right - 6), c.dy),
+        );
+        await tester.pumpAndSettle();
+        continue;
+      }
+    }
+    // Swipe one page toward it (forward = the higher tiers).
+    final selected = tester
+        .widget<VipTierCarousel>(find.byType(VipTierCarousel))
+        .selectedId;
+    final at = int.parse(selected.substring(1));
+    final forward = want > at;
+    await tester.drag(
+      carousel,
+      Offset((rtl ? 1 : -1) * (forward ? 1 : -1) * area.width * 0.6, 0),
+    );
+    await tester.pumpAndSettle();
+  }
+  fail('could not bring $code to the middle');
 }
 
 Finder _cta(String label) => find.descendant(
@@ -318,7 +350,10 @@ void main() {
       // D252c: «الامتياز الحصري VIPn x/y» (this tier's perks / the most a
       // tier has) and the tier's perks (one not yet built is dimmed).
       // D258 (owner, reference 38): «التعريف» and a tile per perk.
-      expect(find.text(_en.vipIdentity), findsOneWidget);
+      // D304: «VIP Privileges» and the count (this tier's perks / the most
+      // a tier has).
+      expect(find.text(_en.vipPrivilegesHeader), findsOneWidget);
+      expect(find.text('(1/7)'), findsOneWidget);
       expect(find.byKey(VipScreen.perkKey('BADGE')), findsOneWidget);
 
       await tester.tap(find.byKey(VipScreen.ctaKey));
@@ -611,7 +646,8 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.byKey(VipScreen.ctaKey), findsOneWidget);
         if (language == AppLanguage.ar) {
-          // D252c: no page title (the reference has none); «الخاص بي VIP».
+          // D304: the top bar's title «في آي بي»; «الخاص بي VIP».
+          expect(find.text(_ar.vipPageTitle), findsOneWidget);
           expect(find.text(_ar.vipMine), findsOneWidget);
           expect(find.text(_ar.vipRenew), findsOneWidget);
           // RTL: the first tier is at the reading start (the right).
@@ -632,43 +668,37 @@ void main() {
   });
 
   group('D252c the new reference (white / black, 12 tiers)', () {
-    testWidgets('twelve tabs scroll; the selected one comes into view; each '
-        'tier its own perks and count', (tester) async {
+    testWidgets('D304: twelve cards swipe; each tier its own perks and '
+        'count', (tester) async {
       await _pump(tester, vip: _FakeVip());
-      for (var l = 1; l <= 12; l++) {
-        expect(find.byKey(VipScreen.tabKey('VIP_$l')), findsOneWidget);
-      }
       await _tapTab(tester, 'VIP_12');
-      final tab = tester.getRect(find.byKey(VipScreen.tabKey('VIP_12')));
-      expect(tab.left, greaterThanOrEqualTo(0));
-      expect(tab.right, lessThanOrEqualTo(393));
+      final card = tester.getRect(find.byKey(VipScreen.tabKey('VIP_12')));
+      expect(card.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
       expect(find.byKey(VipScreen.perkKey('MONTHLY_GIFT')), findsOneWidget);
+      expect(find.text('(7/7)'), findsOneWidget);
       await _tapTab(tester, 'VIP_4');
       expect(find.byKey(VipScreen.perkKey('MONTHLY_GIFT')), findsNothing);
+      expect(find.text('(4/7)'), findsOneWidget);
     });
 
-    testWidgets("D258: the page takes the selected tier's colour in both "
-        'modes, and follows the tabs', (tester) async {
-      Color top() =>
+    testWidgets("D304: the page is the reference's navy in both modes, "
+        'whatever the tier (supersedes D258)', (tester) async {
+      List<Color> colors() =>
           ((tester
-                              .widget<AnimatedContainer>(
+                              .widget<DecoratedBox>(
                                 find.byKey(VipScreen.backdropKey),
                               )
-                              .decoration!
+                              .decoration
                           as BoxDecoration)
                       .gradient!
                   as LinearGradient)
-              .colors
-              .first;
+              .colors;
       await _pump(tester, vip: _FakeVip());
-      final list = _list();
-      expect(top(), VipScreen.backdropOf(list.tiers.first).first);
+      expect(colors(), VipScreen.backdrop);
       await tester.pumpWidget(const SizedBox.shrink());
       await _pump(tester, vip: _FakeVip(), brightness: Brightness.dark);
-      expect(top(), VipScreen.backdropOf(list.tiers.first).first);
       await _tapTab(tester, 'VIP_3');
-      await tester.pumpAndSettle();
-      expect(top(), VipScreen.backdropOf(list.tiers[2]).first);
+      expect(colors(), VipScreen.backdrop);
     });
 
     // The reference's VIP2: six art perks in the showcase, ten perks.
@@ -774,5 +804,262 @@ void main() {
         matchesGoldenFile('png/vip.daily_coins.ar.phone.png'),
       );
     });
+  });
+
+  group('D304 the reference layout: top bar, tier cards, hexagon perks', () {
+    Rect cardOf(WidgetTester tester, String code) =>
+        tester.getRect(find.byKey(VipScreen.tabKey(code)));
+
+    double opacityOf(WidgetTester tester, String code) => tester
+        .widget<Opacity>(
+          find
+              .descendant(
+                of: find.byKey(VipScreen.tabKey(code)),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        )
+        .opacity;
+
+    for (final language in AppLanguage.values) {
+      testWidgets('the top bar, then the cards in reading order with the '
+          "reference's measures (${language.name})", (tester) async {
+        await _pump(tester, vip: _FakeVip(), language: language);
+        final l10n = language == AppLanguage.ar ? _ar : _en;
+        final title = find.byKey(VipScreen.titleKey);
+        expect(find.text(l10n.vipPageTitle), findsOneWidget);
+        expect(
+          tester.getCenter(title).dx,
+          moreOrLessEquals(393 / 2, epsilon: 1),
+        );
+        final back = tester.getRect(find.byType(IconButton).first);
+        // Back at the reading start.
+        if (language == AppLanguage.ar) {
+          expect(back.center.dx, greaterThan(393 / 2));
+        } else {
+          expect(back.center.dx, lessThan(393 / 2));
+        }
+        // VIP 1 centred, 300 × 147.4 pt; VIP 2 peeks at the reading end.
+        final first = cardOf(tester, 'VIP_1');
+        expect(first.top, greaterThan(back.bottom));
+        expect(first.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+        expect(first.width, moreOrLessEquals(KVipRef.cardWidth, epsilon: 0.5));
+        expect(
+          first.height,
+          moreOrLessEquals(KVipRef.cardHeight, epsilon: 0.5),
+        );
+        final second = cardOf(tester, 'VIP_2');
+        if (language == AppLanguage.ar) {
+          expect(second.right, moreOrLessEquals(first.left - 31.5, epsilon: 1));
+          expect(second.right, greaterThan(0));
+        } else {
+          expect(second.left, moreOrLessEquals(first.right + 31.5, epsilon: 1));
+          expect(second.left, lessThan(393));
+        }
+        // The header 37 pt under the cards; the first hexagon 41 × 48.6.
+        final header = tester.getRect(find.text(l10n.vipPrivilegesHeader));
+        expect(header.top - first.bottom, moreOrLessEquals(37, epsilon: 1));
+        final hex = tester.getRect(
+          find
+              .descendant(
+                of: find.byKey(VipScreen.perkKey('BADGE')),
+                matching: find.byType(CustomPaint),
+              )
+              .first,
+        );
+        expect(hex.width, KVipRef.hexWidth);
+        expect(hex.height, moreOrLessEquals(KVipRef.hexHeight, epsilon: 0.01));
+        // Its column is the reading-start quarter of the screen.
+        expect(
+          hex.center.dx,
+          moreOrLessEquals(
+            language == AppLanguage.ar ? 393 * 3 / 4 : 393 / 4,
+            epsilon: 1,
+          ),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('a swipe selects the next tier: badge, price, perks follow', (
+      tester,
+    ) async {
+      await _pump(tester, vip: _FakeVip(), language: AppLanguage.ar);
+      // RTL: the next tier is to the left; swipe right to bring it in.
+      await tester.drag(
+        find.byKey(VipTierCarousel.carouselKey),
+        const Offset(250, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        cardOf(tester, 'VIP_2').center.dx,
+        moreOrLessEquals(393 / 2, epsilon: 1),
+      );
+      expect(find.text('4,000,000'), findsWidgets);
+      expect(find.byKey(VipScreen.perkKey('ENTRY_BANNER')), findsOneWidget);
+      // The emblem is the selected card's badge only.
+      expect(find.byKey(VipScreen.emblemKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(VipScreen.tabKey('VIP_2')),
+          matching: find.byKey(VipScreen.emblemKey),
+        ),
+        findsOneWidget,
+      );
+      // A tap on the neighbour back at the reading start selects VIP 1.
+      await tester.tapAt(Offset(cardOf(tester, 'VIP_1').left + 8, 150));
+      await tester.pumpAndSettle();
+      expect(find.text('1,000,000'), findsWidgets);
+      expect(find.byKey(VipScreen.perkKey('ENTRY_BANNER')), findsNothing);
+    });
+
+    testWidgets('a member opens on their tier, the card says until when; '
+        'the tiers below are dimmed and not sold', (tester) async {
+      final held = _membership(_tier(10));
+      await _pump(tester, vip: _FakeVip(membership: held));
+      expect(
+        cardOf(tester, 'VIP_10').center.dx,
+        moreOrLessEquals(393 / 2, epsilon: 1),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(VipScreen.tabKey('VIP_10')),
+          matching: find.textContaining('VIP 10 until'),
+        ),
+        findsOneWidget,
+      );
+      // «My VIP» sits in the top bar.
+      expect(find.byKey(VipScreen.statusKey), findsOneWidget);
+      expect(opacityOf(tester, 'VIP_9'), lessThan(1));
+      expect(opacityOf(tester, 'VIP_11'), 1);
+      await _tapTab(tester, 'VIP_9');
+      expect(_cta(_en.vipLowerTier), findsOneWidget);
+      expect(opacityOf(tester, 'VIP_9'), 1);
+    });
+
+    testWidgets('semantics: each card a button with the tier name and its '
+        'line; the selected one marked; the owned one says so', (tester) async {
+      final handle = tester.ensureSemantics();
+      final held = _membership(_tier(2));
+      await _pump(tester, vip: _FakeVip(membership: held));
+      final date = KFormat.date(held.expiresAt, 'en');
+      expect(
+        tester.getSemantics(find.byKey(VipScreen.tabKey('VIP_2'))),
+        matchesSemantics(
+          label: 'VIP 2',
+          value: '${_en.vipCurrent}، ${_en.vipUntil('VIP 2', date)}',
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: true,
+          hasTapAction: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byKey(VipScreen.tabKey('VIP_3'))),
+        matchesSemantics(
+          label: 'VIP 3',
+          value: '9,000,000 ${_en.vipPricePer('30')}',
+          isButton: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
+      expect(find.bySemanticsLabel(_en.vipPageTitle), findsOneWidget);
+      expect(find.bySemanticsLabel(_en.vipPrivilegesHeader), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets("D304b the bar: the coin by the price; a lower tier's button "
+        'is disabled (muted, not tappable)', (tester) async {
+      final handle = tester.ensureSemantics();
+      final vip = _FakeVip(membership: _membership(_tier(3)));
+      await _pump(tester, vip: vip);
+      expect(
+        find.descendant(
+          of: find.byKey(VipScreen.barKey),
+          matching: find.byWidgetPredicate(
+            (w) => w is KabsoArtIcon && w.art == KabsoArt.coin,
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(_cta(_en.vipRenew), findsOneWidget);
+      await _tapTab(tester, 'VIP_1');
+      expect(_cta(_en.vipLowerTier), findsOneWidget);
+      expect(
+        tester.getSemantics(
+          find
+              .ancestor(
+                of: find.byKey(VipScreen.ctaKey),
+                matching: find.byType(Semantics),
+              )
+              .first,
+        ),
+        matchesSemantics(
+          label: _en.vipLowerTier,
+          isButton: true,
+          hasEnabledState: true,
+        ),
+      );
+      await tester.tap(find.byKey(VipScreen.ctaKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(VipScreen.confirmKey), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('one tier: one card, centred, nothing peeking', (tester) async {
+      await _pump(
+        tester,
+        vip: _FakeVip(list: VipTierList(tiers: [_tier(1)], maxAheadDays: 400)),
+      );
+      expect(find.byType(VipTierCard), findsOneWidget);
+      expect(
+        cardOf(tester, 'VIP_1').center.dx,
+        moreOrLessEquals(393 / 2, epsilon: 0.5),
+      );
+      expect(find.text('(1/1)'), findsOneWidget);
+      expect(_cta(_en.vipPayCoins), findsOneWidget);
+      // A swipe has nowhere to go.
+      await tester.drag(
+        find.byKey(VipTierCarousel.carouselKey),
+        const Offset(-250, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        cardOf(tester, 'VIP_1').center.dx,
+        moreOrLessEquals(393 / 2, epsilon: 0.5),
+      );
+    });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('12 tiers at 360 × 800, text scale 1.3 (${language.name})', (
+        tester,
+      ) async {
+        await _pump(
+          tester,
+          vip: _FakeVip(membership: _membership(_tier(12))),
+          language: language,
+          size: const Size(360, 800),
+          textScale: 1.3,
+        );
+        expect(tester.takeException(), isNull);
+        final twelve = cardOf(tester, 'VIP_12');
+        expect(twelve.center.dx, moreOrLessEquals(180, epsilon: 1));
+        // The card keeps the reference's proportion at 360.
+        expect(
+          twelve.width / twelve.height,
+          moreOrLessEquals(
+            KVipRef.cardWidth / KVipRef.cardHeight,
+            epsilon: 0.01,
+          ),
+        );
+        await tester.scrollUntilVisible(
+          find.byKey(VipScreen.perkKey('MONTHLY_GIFT')),
+          100,
+          scrollable: _page,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }

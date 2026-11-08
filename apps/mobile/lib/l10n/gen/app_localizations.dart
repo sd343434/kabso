@@ -23557,6 +23557,18 @@ abstract class AppLocalizations {
   /// **'الخاص بي VIP'**
   String get vipMine;
 
+  /// D304: the VIP purchase page's top bar title.
+  ///
+  /// In ar, this message translates to:
+  /// **'في آي بي'**
+  String get vipPageTitle;
+
+  /// D304: the header over the tier's perks (the owner's reference layout).
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات VIP'**
+  String get vipPrivilegesHeader;
+
   /// D252c: «شراء VIP» in the owner's new reference.
   ///
   /// In ar, this message translates to:

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -18,7 +20,7 @@ import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/features/vip/application/vip_look.dart';
 import 'package:kabso_live/features/vip/application/vip_providers.dart';
 import 'package:kabso_live/features/vip/data/vip_repository.dart';
-import 'package:kabso_live/features/vip/presentation/vip_identity.dart';
+import 'package:kabso_live/features/vip/presentation/vip_carousel.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_ref_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -83,9 +85,12 @@ class VipScreen extends ConsumerStatefulWidget {
 
   static const statusKey = Key('vip.status');
 
+  /// D304: the top bar's title.
+  static const titleKey = Key('vip.title');
+
   /// D258: «من زار ملفي» in the member's sheet.
   static const visitorsKey = Key('vip.visitors');
-  static const emblemKey = Key('vip.emblem');
+  static const Key emblemKey = VipTierCard.emblemKey;
   static const ctaKey = Key('vip.cta');
   static const barKey = Key('vip.bar');
   static const emptyKey = Key('vip.empty');
@@ -106,18 +111,13 @@ class VipScreen extends ConsumerStatefulWidget {
   static const renewalLineKey = Key('vip.renewalLine');
   static const listPriceKey = Key('vip.listPrice');
 
-  /// D258: the page's tier-coloured background.
+  /// D258: the page's background.
   static const backdropKey = Key('vip.backdrop');
 
-  /// D258: the page's background for [tier] — a vertical gradient of deep
-  /// shades of its colour (VIP 1 #2E8B3D → ≈ #0B230F / #050E06).
-  static List<Color> backdropOf(VipTier? tier) {
-    final c = Color(tier?.color ?? 0xFF2A2338);
-    return [
-      Color.lerp(c, const Color(0xFF000000), 0.75)!,
-      Color.lerp(c, const Color(0xFF000000), 0.9)!,
-    ];
-  }
+  /// D304 (owner, reference): the page's background — a deep navy behind
+  /// the cards fading into the dark plum of the reference (no longer the
+  /// tier's colour, D258).
+  static const List<Color> backdrop = [KVipRef.pageTop, KVipRef.page];
 
   @override
   ConsumerState<VipScreen> createState() => _VipScreenState();
@@ -274,32 +274,40 @@ class _VipScreenState extends ConsumerState<VipScreen> {
       // caller's): the buy button would renew it, not buy or upgrade.
       final action = vipActionFor(tier, membership, list, now);
       final held = action == VipAction.renew || action == VipAction.lower;
+      final active = membership != null && membership.expiresAt.isAfter(now);
       body = [
-        // «الخاص بي VIP ›» at the end edge (members only; their status).
-        SizedBox(
-          height: KVip.myChipHeight,
-          child: membership == null
-              ? null
-              : Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: VipMyChip(
-                    key: VipScreen.statusKey,
-                    label: l10n.vipMine,
-                    onTap: () => unawaited(_showMine(membership)),
-                  ),
-                ),
+        // D304 (owner, reference «استنسخ التصميم ١٠٠٪»): the tier cards, the
+        // «امتيازات VIP» header with its count, the hexagon grid.
+        VipTierCarousel(
+          tiers: list.tiers,
+          selectedId: tier.id,
+          ownedId: active ? membership.tierId : null,
+          lockedIds: {
+            for (final t in list.tiers)
+              if (vipActionFor(t, membership, list, now) == VipAction.lower)
+                t.id,
+          },
+          captionOf: (t) => active && membership.tierId == t.id
+              ? l10n.vipUntil(
+                  t.name,
+                  KFormat.date(membership.expiresAt, l10n.localeName),
+                )
+              : '${KFormat.grouped(t.priceCoins)} '
+                    '${l10n.vipPricePer('${t.durationDays}')}',
+          onSelect: (t) {
+            if (t.id != _selectedId) setState(() => _selectedId = t.id);
+          },
         ),
-        // D258 (owner, reference 38): the badge on its stage with the tier's
-        // glow, then «التعريف» and a live preview of every perk.
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            VipStage(key: VipScreen.emblemKey, tier: tier),
-            if (tier.badgeStill == null && tier.badgeAnimation == null)
-              Positioned(bottom: 18, child: VipNamePlate(name: tier.name)),
-          ],
+        const SizedBox(
+          height:
+              KVipRef.headerGap - KVipRef.dividerMiddle - KVipRef.dividerEnd,
         ),
-        VipIdentityPanel(tier: tier, active: held),
+        VipPrivilegesHeader(
+          count: tier.perks.length,
+          total: list.tiers.map((t) => t.perks.length).reduce(math.max),
+        ),
+        const SizedBox(height: KVipRef.gridGap),
+        VipHexPerkGrid(tier: tier, active: held),
       ];
     } else if (ready) {
       body = [
@@ -345,61 +353,44 @@ class _VipScreenState extends ConsumerState<VipScreen> {
     }
 
     final showBar = ready && tier != null && list.tiers.isNotEmpty;
-    final backdrop = VipScreen.backdropOf(tier);
     return Scaffold(
-      backgroundColor: backdrop.last,
-      body: AnimatedContainer(
+      backgroundColor: KVipRef.page,
+      body: DecoratedBox(
         key: VipScreen.backdropKey,
-        // A cross-fade as the tabs change (none with reduced motion).
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: backdrop,
+            colors: VipScreen.backdrop,
+            stops: [0.35, 0.45],
           ),
         ),
-        child: SafeArea(
-          bottom: false,
+        // D304: the top bar under the status bar (D142's gap), then the
+        // tier pills below it.
+        child: KTopSafeArea(
           child: Column(
             children: [
-              // The tabs row: back at the start, the tiers (scrolling) after.
-              SizedBox(
-                height: KVip.tabRow + 6,
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      tooltip: MaterialLocalizations.of(context)
-                          .backButtonTooltip,
-                      // Mirrors in RTL (ref «›» at the right).
-                      icon: Icon(
-                        Icons.chevron_left_rounded,
-                        color: palette.text,
-                        size: 28,
-                      ),
-                    ),
-                    Expanded(
-                      child: showBar
-                          ? VipRefTabs(
-                              tiers: list.tiers,
-                              selectedId: tier.id,
-                              onSelect: (t) =>
-                                  setState(() => _selectedId = t.id),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
+              _TopBar(
+                title: l10n.vipPageTitle,
+                // «الخاص بي VIP ›» at the end edge (members only).
+                trailing: ready && membership != null
+                    ? VipMyChip(
+                        key: VipScreen.statusKey,
+                        label: l10n.vipMine,
+                        onTap: () => unawaited(_showMine(membership)),
+                      )
+                    : null,
               ),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _refresh,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 8, bottom: KSpacing.xl),
+                    // D304: the cards 16 pt under the top bar.
+                    padding: const EdgeInsets.only(
+                      top: KSpacing.lg,
+                      bottom: KSpacing.xl,
+                    ),
                     children: body,
                   ),
                 ),
@@ -467,6 +458,54 @@ class _VipScreenState extends ConsumerState<VipScreen> {
           ),
         ),
       );
+}
+
+/// D304: the page's top bar — back at the reading start (mirrors in RTL),
+/// «في آي بي» centred, «الخاص بي VIP» at the end for a member.
+class _TopBar extends StatelessWidget {
+  const new({required this.title, this.trailing});
+
+  final String title;
+
+  /// «الخاص بي VIP» (members), at the end edge.
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = VipPalette.of(context);
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: KMetrics.topBarMaxTextScale,
+      child: SizedBox(
+        height: KMetrics.topBarHeight,
+        child: NavigationToolbar(
+          trailing: trailing,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            icon: Icon(
+              Icons.chevron_left_rounded,
+              color: palette.text,
+              size: 28,
+            ),
+          ),
+          middle: Semantics(
+            header: true,
+            child: Text(
+              title,
+              key: VipScreen.titleKey,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.title.copyWith(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: palette.text,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// A compact membership line for a member: the tier, the end date and the days
@@ -548,7 +587,6 @@ class _BottomBar extends StatelessWidget {
       VipAction.lower => l10n.vipLowerTier,
       VipAction.renewLimit => l10n.vipRenewLimit,
     };
-    final accent = Color(tier.color);
     const white = Color(0xFFFFFFFF);
     final soft = white.withValues(alpha: 0.78);
     // D258 (owner, reference 40): the package's real value — the daily
@@ -570,27 +608,36 @@ class _BottomBar extends StatelessWidget {
       if (speedup != null) l10n.vipSpeedupLine('$speedup'),
     ].join('، ');
     final discounted = chargeCoins < tier.priceCoins;
+    // D304 (owner: «شريط الشراء في الاسفل اجعله بطريقة اجمل»): a raised navy
+    // panel under a gold curve (echoing the divider over the perks), the
+    // price in large gold digits by the coin, the discount as a gold chip,
+    // the value line muted, and a rich gold button. Texts and behaviour
+    // unchanged.
     return CustomPaint(
       key: VipScreen.barKey,
-      painter: _BarPainter(
-        top: Color.lerp(accent, const Color(0xFF000000), 0.5)!,
-        bottom: Color.lerp(accent, const Color(0xFF000000), 0.78)!,
-        edge: gold,
-      ),
+      painter: const _BarPainter(),
       child: SafeArea(
         top: false,
+        minimum: const EdgeInsets.only(bottom: KSpacing.sm),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, _BarPainter.arc + 12, 18, 10),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            _BarPainter.arc + 16,
+            20,
+            KSpacing.sm,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // «1,000,000 كوينز / 30 يوماً», the number in gold (the list
-              // price struck through before a renewal price).
+              // «🪙 1,000,000 كوينز / 30 يوماً» (the list price struck
+              // through before a renewal price).
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 6,
+                runSpacing: 2,
                 children: [
+                  const KabsoArtIcon(KabsoArt.coin, size: 22),
                   if (discounted)
                     Text(
                       KFormat.grouped(tier.priceCoins),
@@ -601,80 +648,79 @@ class _BottomBar extends StatelessWidget {
                         decorationColor: soft,
                       ),
                     ),
-                  Text(
-                    KFormat.grouped(chargeCoins),
-                    style: t.title.copyWith(
-                      color: gold,
-                      fontWeight: FontWeight.w800,
+                  ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (rect) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFFFF6D0),
+                        Color(0xFFF8D46A),
+                        Color(0xFFD9A23A),
+                      ],
+                    ).createShader(rect),
+                    child: Text(
+                      KFormat.grouped(chargeCoins),
+                      style: t.headline.copyWith(
+                        fontSize: 24,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        color: white,
+                      ),
                     ),
                   ),
                   Text(
                     l10n.vipPricePer('${tier.durationDays}'),
-                    style: t.body.copyWith(color: white),
+                    style: t.body.copyWith(fontSize: 13, color: soft),
                   ),
                 ],
               ),
-              if (value.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  key: VipScreen.dailyTotalKey,
-                  style: t.caption.copyWith(color: soft),
-                ),
-              ],
               if (tier.renewalDiscountPercent > 0) ...[
-                const SizedBox(height: 2),
-                Text(
-                  l10n.vipRenewalDiscountLine('${tier.renewalDiscountPercent}'),
-                  key: VipScreen.renewalLineKey,
-                  style: t.caption.copyWith(
-                    color: gold,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: gold.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                    border: Border.all(color: gold.withValues(alpha: 0.55)),
+                  ),
+                  child: Text(
+                    l10n.vipRenewalDiscountLine(
+                      '${tier.renewalDiscountPercent}',
+                    ),
+                    key: VipScreen.renewalLineKey,
+                    style: t.caption.copyWith(
+                      color: gold,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
-              // One full-width gold pill (no VIP gifting yet).
+              if (value.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  key: VipScreen.dailyTotalKey,
+                  style: t.caption.copyWith(
+                    color: white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
               Semantics(
                 button: true,
                 enabled: enabled,
                 label: label,
                 excludeSemantics: true,
-                child: Material(
+                child: _GoldButton(
                   key: VipScreen.ctaKey,
-                  color: gold,
-                  shape: const StadiumBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: enabled ? () => onPressed(action) : null,
-                    child: SizedBox(
-                      height: 46,
-                      width: double.infinity,
-                      child: Opacity(
-                        opacity: enabled ? 1 : 0.5,
-                        child: Center(
-                          child: busy
-                              ? const SizedBox.square(
-                                  dimension: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(0xFF3A2600),
-                                  ),
-                                )
-                              : Text(
-                                  label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: t.label.copyWith(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF3A2600),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  enabled: enabled,
+                  busy: busy,
+                  label: label,
+                  onTap: () => onPressed(action),
                 ),
               ),
             ],
@@ -685,16 +731,133 @@ class _BottomBar extends StatelessWidget {
   }
 }
 
-/// The purchase panel: full width at the screen's bottom, a curved top with
-/// a thin gold line along it, a gradient of the tier's colour (reference 40).
+/// D304: the bar's button — a gold gradient pill with a soft inner
+/// highlight and a warm glow; muted (still a pill, no glow) when disabled.
+class _GoldButton extends StatelessWidget {
+  const new({
+    required this.enabled,
+    required this.busy,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  final bool enabled;
+  final bool busy;
+  final String label;
+  final VoidCallback onTap;
+
+  static const ink = Color(0xFF3A2600);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.textStyles;
+    final live = enabled || busy;
+    final shape = BorderRadius.circular(KRadius.pill);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: shape,
+        boxShadow: live
+            ? const [
+                BoxShadow(
+                  color: Color(0x40F5C451),
+                  blurRadius: 18,
+                  offset: Offset(0, 2),
+                ),
+              ]
+            : const [],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: shape,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: live
+                  ? const [
+                      Color(0xFFFFE9A3),
+                      Color(0xFFF5C451),
+                      Color(0xFFD99A2B),
+                    ]
+                  : const [Color(0xFF4A4658), Color(0xFF3A3646)],
+            ),
+            border: Border.all(
+              color: live ? const Color(0xFFFFF3C4) : const Color(0x33F5C451),
+              width: 0.8,
+            ),
+          ),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            child: SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // The inner highlight over the top half.
+                  if (live)
+                    Positioned(
+                      top: 1,
+                      left: 14,
+                      right: 14,
+                      height: 20,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: shape,
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              const Color(0xFFFFFFFF).withValues(alpha: 0.45),
+                              const Color(0xFFFFFFFF).withValues(alpha: 0),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (busy)
+                    const SizedBox.square(
+                      dimension: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: ink,
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.label.copyWith(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: live ? ink : const Color(0xFFB9B1C6),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The purchase panel: a soft shadow over the page, a gentle curve on top
+/// with a thin gold line fading to the sides (the divider's language), and a
+/// navy → plum gradient.
 class _BarPainter extends CustomPainter {
-  new({required this.top, required this.bottom, required this.edge});
+  const new();
 
-  final Color top;
-  final Color bottom;
-  final Color edge;
-
-  static const double arc = 14;
+  static const double arc = 12;
 
   Path _curve(Size size) => Path()
     ..moveTo(0, arc)
@@ -702,32 +865,58 @@ class _BarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
     final body = _curve(size)
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
     canvas
+      // The soft shadow cast upward over the perks.
+      ..drawPath(
+        body.shift(const Offset(0, -4)),
+        Paint()
+          ..color = const Color(0x8C000000)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      )
       ..drawPath(
         body,
         Paint()
-          ..shader = LinearGradient(
+          ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [top, bottom],
-          ).createShader(Offset.zero & size),
+            colors: [Color(0xFF1E2443), Color(0xFF171A2C), Color(0xFF15131C)],
+            stops: [0, 0.45, 1],
+          ).createShader(rect),
+      )
+      // A faint sheen just under the curve.
+      ..drawPath(
+        _curve(size).shift(const Offset(0, 3)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6
+          ..color = const Color(0x142E3A66)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       )
       ..drawPath(
         _curve(size),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = edge.withValues(alpha: 0.8),
+          ..strokeWidth = 1
+          ..shader = const LinearGradient(
+            colors: [
+              Color(0x40E6C873),
+              Color(0xFFCFBC87),
+              Color(0xFFF3ECB3),
+              Color(0xFFCFBC87),
+              Color(0x40E6C873),
+            ],
+            stops: [0, 0.27, 0.5, 0.73, 1],
+          ).createShader(rect),
       );
   }
 
   @override
-  bool shouldRepaint(_BarPainter old) =>
-      old.top != top || old.bottom != bottom || old.edge != edge;
+  bool shouldRepaint(_BarPainter old) => false;
 }
 
 /// The confirm card (the live family's [KLiveDialogCard]): the tier, the
