@@ -13931,6 +13931,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vipMine => 'My VIP';
 
   @override
+  String get vipPageTitle => 'VIP';
+
+  @override
+  String get vipPrivilegesHeader => 'VIP Privileges';
+
+  @override
   String get vipPayCoins => 'Pay with gold coins';
 
   @override

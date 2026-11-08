@@ -13939,6 +13939,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get vipMine => 'الخاص بي VIP';
 
   @override
+  String get vipPageTitle => 'في آي بي';
+
+  @override
+  String get vipPrivilegesHeader => 'امتيازات VIP';
+
+  @override
   String get vipPayCoins => 'ادفع بالعملات الذهبية';
 
   @override
