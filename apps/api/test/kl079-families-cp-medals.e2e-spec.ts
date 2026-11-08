@@ -18,12 +18,12 @@ import { FAMILY_CREATE_COST_COINS as COST } from '../src/modules/families/famili
 import { FamiliesService } from '../src/modules/families/families.service.js';
 import { uuidv7 } from '../src/modules/levels/uuidv7.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
-import { MEDAL_CATALOGUE, RETIRED_MEDAL_CODES } from '../src/modules/medals/medals.catalogue.js';
+import { MEDAL_CATALOGUE } from '../src/modules/medals/medals.catalogue.js';
 
 /** D291: the wearable medals (the retired name-side icons are left out of every list). */
-const WEARABLE = MEDAL_CATALOGUE.length - RETIRED_MEDAL_CODES.size;
+const WEARABLE = MEDAL_CATALOGUE.length - PRE_D313_RETIRED.size;
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
-import { seedMedalCatalogue } from './helpers/medals.js';
+import { PRE_D313_RETIRED, seedMedalCatalogue } from './helpers/medals.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import { createTestApp, registerVerified, settle, type TestContext } from './helpers/test-app.js';
@@ -194,7 +194,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       { token: Clock, value: clock },
       { token: LIVE_MEDIA_PROVIDER, value: media },
     ]);
-    await seedMedalCatalogue(ctx.prisma);
+    await seedMedalCatalogue(ctx.prisma, { keepFirsts: true });
   });
   afterAll(async () => ctx?.close());
 
@@ -943,7 +943,7 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       expect(restored.some((m) => m.medalCode === 'FIRST_CP')).toBe(true);
       expect(restored.some((m) => m.medalCode === 'BULLET_FIRST')).toBe(true);
       // D291: the retired name-side icons are never awarded again.
-      expect(restored.filter((m) => RETIRED_MEDAL_CODES.has(m.medalCode as never))).toEqual([]);
+      expect(restored.filter((m) => PRE_D313_RETIRED.has(m.medalCode as never))).toEqual([]);
       expect(run.out).toMatch(/^Awarded \d+ medals/);
       const again = medalsAdmin('backfill');
       expect(again).toEqual({ status: 0, out: 'Awarded 0 medals.\nRaised 0 medal levels.\n' });
