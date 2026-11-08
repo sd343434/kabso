@@ -51,3 +51,5 @@ test/goldens/failures/
 # D144: the local DeepAR licence key (--dart-define-from-file); never committed.
 deepar.local.json
 test/features/vip/failures/
+# D307 cleanup: flutter_test writes a failed golden's diffs to failures/ next to the test; never committed.
+test/**/failures/
