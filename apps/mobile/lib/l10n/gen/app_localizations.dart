@@ -185,7 +185,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginIdentifierLabel.
   ///
   /// In ar, this message translates to:
-  /// **'البريد الإلكتروني أو اسم المستخدم'**
+  /// **'البريد أو اسم المستخدم أو ايدي الموظف'**
   String get loginIdentifierLabel;
 
   /// No description provided for @loginPasswordLabel.

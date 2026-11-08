@@ -52,7 +52,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loginSubtitle => 'سجّل دخولك وكمّل من حيث وقفت';
 
   @override
-  String get loginIdentifierLabel => 'البريد الإلكتروني أو اسم المستخدم';
+  String get loginIdentifierLabel => 'البريد أو اسم المستخدم أو ايدي الموظف';
 
   @override
   String get loginPasswordLabel => 'كلمة المرور';

@@ -88,3 +88,18 @@ export function summaryStaffIdOf(user: {
     return null;
   return formatStaffId(user.staffNumber.number);
 }
+
+/**
+ * v1.84-live (D302, CONVENTIONS §10.96.12; owner: «المشرفين يدخلون من خلال وضع الايدي المميز والباسورد»): the account that
+ * holds staff number `number` NOW — the row's `user_id`, while that account is ACTIVE with `role = ADMIN` and a panel
+ * role (the same rule as the staff ID shown). A retired number (revoked role, purged account) or a suspended holder →
+ * null: the sign-in then falls back to the username / email rules, so nothing tells such a number apart from an unknown
+ * one.
+ */
+export async function staffIdHolderOf(db: Db, number: number): Promise<string | null> {
+  const [row] = await db.$queryRaw<{ id: string }[]>`
+    SELECT s.user_id::text AS id FROM staff_ids s
+     WHERE s.number = ${number} AND s.user_id IS NOT NULL
+       AND ${panelStaffSql(Prisma.sql`s.user_id`)}`;
+  return row?.id ?? null;
+}

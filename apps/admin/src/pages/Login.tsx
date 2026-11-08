@@ -59,7 +59,7 @@ export function AuthShell({ children, tools }: { children: ReactNode; tools: Rea
 }
 
 /**
- * Sign-in: email and password, then the second factor — the QR enrolment on the first sign-in (with the ten
+ * Sign-in: email (or the staff ID «Kabso01», D302) and password, then the second factor — the QR enrolment on the first sign-in (with the ten
  * recovery codes shown once), or an authenticator code / a recovery code later (CONVENTIONS §10.54.2).
  * `initialStep` exists for the unit tests of each step's shell; the app always starts at the password.
  */
@@ -138,8 +138,9 @@ export function Login({
           <p className="muted small auth-sub">{t('loginSubtitle')}</p>
           <ErrorAlert error={error} />
           <div className="field">
-            <label htmlFor="email">{t('email')}</label>
-            <input id="email" type="email" className="ltr" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            {/* D302: the email or the staff ID («Kabso01»), sent in the same `email` field. */}
+            <label htmlFor="email">{t('loginIdentifier')}</label>
+            <input id="email" type="text" inputMode="email" className="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="password">{t('password')}</label>

@@ -52,7 +52,9 @@ describe('D249 sign-in split card', () => {
     expectShell(html, 'ar');
     expect(html).toContain('<h1>مرحباً بعودتك</h1>');
     expect(html).toContain('للفريق فقط. كل دخول وكل إجراء مسجَّل.');
-    expect(html).toContain('<label for="email">البريد الإلكتروني</label>');
+    // D302: the email or the staff ID, in a text field (an email-type field would refuse «Kabso01»).
+    expect(html).toContain('<label for="email">البريد الإلكتروني أو ايدي الموظف</label>');
+    expect(html).toMatch(/<input id="email" type="text" inputMode="email"[^>]*autoComplete="username"/i);
     expect(html).toContain('<label for="password">كلمة المرور</label>');
     expect(html).toMatch(/<input id="password" type="password"[^>]*autoComplete="current-password"/i);
     expect(html).toMatch(/<button type="button" class="pw-toggle" aria-controls="password" aria-pressed="false" aria-label="إظهار"/);
@@ -68,6 +70,7 @@ describe('D249 sign-in split card', () => {
     expect(html).toContain('Stream. Engage.');
     expect(html).toContain('Grow.');
     expect(html).toContain('aria-label="Show"');
+    expect(html).toContain('<label for="email">Email or staff ID</label>');
   });
 
   it('TOTP step: the same shell with the 6-digit code field, «تحقق» and the recovery switch', () => {

@@ -9,6 +9,7 @@ import type { AdminSession } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PasswordHasher } from '../auth/password-hasher.service.js';
 import { normalizeEmail } from '../users/username.js';
+import { parseStaffId, staffIdHolderOf } from '../users/staff-ids.js';
 import {
   AdminSecretBox,
   newRecoveryCode,
@@ -234,7 +235,7 @@ export class AdminAuthService {
     meta: AdminMeta,
   ): Promise<IssuedSession & { next: 'TOTP_ENROL' | 'TOTP_VERIFY' }> {
     this.requireOn();
-    const normalized = normalizeEmail(email);
+    const normalized = await this.loginKeyOf(email);
     const p = this.config.adminPanel;
     // The same lock for every email (counted before the password; a right password gives the slot back).
     const hit = await this.limiter.hit(LOGIN_BUCKET, normalized, {
@@ -305,6 +306,22 @@ export class AdminAuthService {
       requestId: meta.requestId,
     });
     return { ...issued, next };
+  }
+
+  /**
+   * The email the sign-in names. v1.84-live (D302, §10.96.12): the `email` field may instead carry a staff ID («Kabso01»,
+   * «kabso1», «@KABSO01», «Kabso»); it stands for its CURRENT holder's email (ACTIVE, a panel role held), so the lockout
+   * bucket and every check below are the email's. A retired number or a suspended holder → a key no account has (the
+   * same 401 as an unknown email).
+   */
+  private async loginKeyOf(raw: string): Promise<string> {
+    const staffNumber = parseStaffId(raw);
+    if (staffNumber === null) return normalizeEmail(raw);
+    const holder = await staffIdHolderOf(this.prisma, staffNumber);
+    const row = holder
+      ? await this.prisma.user.findUnique({ where: { id: holder }, select: { email: true } })
+      : null;
+    return row ? normalizeEmail(row.email) : `staff-id:${staffNumber}`;
   }
 
   private locked(retryAfterSeconds: number): AppException {

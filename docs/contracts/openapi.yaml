@@ -297,6 +297,12 @@ info:
     kept); «هل تقصد: …؟» name suggestions (`suggest…LevelRaiseSourceApps`, aliases); one PENDING / APPROVED request per
     source account (409 `LEVEL_RAISE_DUPLICATE`; after a rejection allowed and flagged). The source-app data (confidence CONFIRMED / ESTIMATE) and the weights are
     OWNER-editable. Notifications `LEVEL_RAISE_APPROVED`, `LEVEL_RAISE_REJECTED`, `LEVEL_RAISED` (target LEVEL_RAISE).
+    **D302 (DRAFT v1.84-live)** the staff sign in with the staff ID (CONVENTIONS §10.96.12; owner 2026-11-07:
+    «المشرفين يدخلون من خلال وضع الايدي المميز والباسورد»): `login`'s `identifier` and `adminLogin`'s `email` also take
+    the official staff ID («Kabso01», any case, an optional `@`, leading zeros; the primary OWNER's «Kabso»), which
+    signs in only its current holder (an ACTIVE account holding a panel role); a retired number or a suspended holder
+    is answered like any unknown identifier (401 `AUTH_INVALID_CREDENTIALS`). Every other sign-in rule unchanged; the
+    panel's authenticator is still required. No schema change, no migration.
     **D295 (DRAFT v1.82-live)** content creators go live «صانع محتوى» (CONVENTIONS §10.108; owner 2026-11-06): a
     creator-programme membership grants the hosting permission (`live_hosts` source `CREATOR`; `Me.canHost` while a
     member); host and creator are exclusive (`CreatorApplyRule` refusal `HOST`, `HostingApplyRefusal` `CREATOR`, the
@@ -1123,9 +1129,13 @@ paths:
     post:
       tags: [auth]
       operationId: login
-      summary: "Sign in with email or username"
+      summary: "Sign in with email, username or staff ID"
       description: |
-        `identifier` is an email or a username (any case). v1.54-social (D185, §10.48.1): a username is the one
+        `identifier` is an email or a username (any case). v1.84-live (D302, §10.96.12): or the official staff ID
+        («Kabso01», `kabso1`, `@KABSO01`; the primary OWNER's `Kabso`) — it signs in only the account that holds it
+        now (ACTIVE, with a panel role); a retired number or a suspended holder resolves to nobody and the identifier
+        is read as an email / username as before (normally 401 `AUTH_INVALID_CREDENTIALS`, the answer of a wrong
+        password). A staff ID that is held wins over an older username spelled like it. v1.54-social (D185, §10.48.1): a username is the one
         shown now or, while a special username is active, the person's own (base) username; a special username
         that ended (in its grace period) no longer signs in.
         v1.62-social (D193, §10.56): an account in its deletion grace period answers — only after the right
@@ -10908,8 +10918,8 @@ paths:
     post:
       tags: [admin-panel]
       operationId: adminLogin
-      summary: "Panel sign-in, step 1: an admin account's email and password (sets the session cookie)"
-      description: "An ACTIVE account with `role = ADMIN` and at least one panel role (OWNER, MODERATION, SUPPORT, FINANCE). Every other case — unknown email, wrong password, not an admin, suspended — is the same 401 `AUTH_INVALID_CREDENTIALS`. Sets the HttpOnly, Secure, SameSite=Strict cookie `__Host-kabso_admin` of a session that only allows the second factor (`ADMIN_PENDING_SECONDS`). 429 `ADMIN_LOCKED` (`Retry-After`) after `ADMIN_LOCKOUT_ATTEMPTS` failed passwords for the email (the same for every email) or while the admin account is locked; 429 `RATE_LIMITED` per IP (`RATE_LIMIT_ADMIN_LOGIN_IP`); 503 `ADMIN_PANEL_UNAVAILABLE` while `ADMIN_TOTP_KEY` is not set. §10.54.2."
+      summary: "Panel sign-in, step 1: an admin account's email (or staff ID) and password (sets the session cookie)"
+      description: "v1.84-live (D302, §10.96.12): `email` may instead be the staff ID («Kabso01», any case, an optional `@`, leading zeros; the primary OWNER's «Kabso»); it stands for its current holder's email (same lockout bucket); a retired, unknown or suspended number is the same 401 as an unknown email; the second factor is still required. An ACTIVE account with `role = ADMIN` and at least one panel role (OWNER, MODERATION, SUPPORT, FINANCE). Every other case — unknown email, wrong password, not an admin, suspended — is the same 401 `AUTH_INVALID_CREDENTIALS`. Sets the HttpOnly, Secure, SameSite=Strict cookie `__Host-kabso_admin` of a session that only allows the second factor (`ADMIN_PENDING_SECONDS`). 429 `ADMIN_LOCKED` (`Retry-After`) after `ADMIN_LOCKOUT_ATTEMPTS` failed passwords for the email (the same for every email) or while the admin account is locked; 429 `RATE_LIMITED` per IP (`RATE_LIMIT_ADMIN_LOGIN_IP`); 503 `ADMIN_PANEL_UNAVAILABLE` while `ADMIN_TOTP_KEY` is not set. §10.54.2."
       security: []
       requestBody:
         required: true
@@ -20291,7 +20301,11 @@ components:
       additionalProperties: false
       required: [email, password]
       properties:
-        email: { type: string, minLength: 3, maxLength: 254 }
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+          description: The admin account's email; v1.84-live (D302) or its staff ID («Kabso01», «Kabso»).
         password: { type: string, minLength: 1, maxLength: 1024 }
     AdminLoginResponse:
       type: object
@@ -26496,7 +26510,9 @@ components:
           type: string
           minLength: 1
           maxLength: 254
-          description: Email address or username.
+          description: |
+            Email address or username; v1.84-live (D302, §10.96.12): or the staff ID («Kabso01», any case, an
+            optional `@`, leading zeros; «Kabso»), for its current holder only.
         password: { type: string, minLength: 1, maxLength: 128 }
         device: { $ref: '#/components/schemas/DeviceInfo' }
         cancelDeletion:
