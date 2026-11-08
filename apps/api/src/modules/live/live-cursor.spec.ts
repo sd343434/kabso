@@ -130,9 +130,10 @@ describe('LiveCursorCodec', () => {
 
   it('rejects a correctly signed payload with an unknown version or a bad shape', () => {
     const scope = cursorScope('new', undefined, USER);
-    const good = { v: 2, t: 'new', c: null, u: null, n: 0, s: position.startedAt.getTime(), i: ROOM };
+    const good = { v: 3, t: 'new', c: null, u: null, n: 0, s: position.startedAt.getTime(), i: ROOM };
     expect(codec.decode(forge(good), scope)).toEqual({ ...position, score: 0 });
-    expect(codec.decode(forge({ ...good, v: 3 }), scope)).toBeNull();
+    expect(codec.decode(forge({ ...good, v: 4 }), scope)).toBeNull();
+    expect(codec.decode(forge({ ...good, v: 2 }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, i: 'x' }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, n: -1 }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, s: 'yesterday' }), scope)).toBeNull();
@@ -141,7 +142,7 @@ describe('LiveCursorCodec', () => {
 
   it('SEC-038: bounds the sort keys to values the database accepts', () => {
     const scope = cursorScope('popular', undefined, USER);
-    const good = { v: 2, t: 'popular', c: null, u: null, n: 0, s: 0, i: ROOM };
+    const good = { v: 3, t: 'popular', c: null, u: null, n: 0, s: 0, i: ROOM };
     expect(codec.decode(forge({ ...good, n: CURSOR_MAX_SCORE, s: CURSOR_MAX_STARTED_AT_MS }), scope)).toEqual(
       {
         score: CURSOR_MAX_SCORE,
@@ -170,20 +171,22 @@ describe('LiveCursorCodec', () => {
     expect(codec.decode(`${body}.${tag.toString('base64url')}`, scope)).toBeNull();
   });
 
-  it('CP-012 (v1.8-live): format v2 carries the score; a v1 cursor (viewerCount) is rejected', () => {
-    expect(CURSOR_VERSION).toBe(2);
+  it('D310 (v1.86-live): format v3 carries the room cherries; a v2 (score) or v1 (viewerCount) cursor is rejected', () => {
+    expect(CURSOR_VERSION).toBe(3);
     const scope = cursorScope('popular', undefined, USER);
     const big = { ...position, score: 12_345_678_901 };
     const cursor = codec.encode(scope, big);
     const [payload = ''] = cursor.split('.');
     expect(JSON.parse(Buffer.from(payload, 'base64url').toString())).toMatchObject({
-      v: 2,
+      v: 3,
       n: 12_345_678_901,
     });
     expect(codec.decode(cursor, scope)).toEqual(big);
     for (const tab of ['popular', 'new'] as const) {
-      const v1 = { v: 1, t: tab, c: null, u: null, n: 3, s: position.startedAt.getTime(), i: ROOM };
-      expect(codec.decode(forge(v1), cursorScope(tab, undefined, USER))).toBeNull();
+      for (const v of [1, 2]) {
+        const old = { v, t: tab, c: null, u: null, n: 3, s: position.startedAt.getTime(), i: ROOM };
+        expect(codec.decode(forge(old), cursorScope(tab, undefined, USER))).toBeNull();
+      }
     }
   });
 

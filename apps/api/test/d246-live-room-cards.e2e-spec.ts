@@ -93,7 +93,8 @@ describe('D246 room cards on GET /live/rooms', { timeout: 300_000 }, () => {
   const setScore = (id: string, score: number, pk = false) =>
     ctx.prisma.liveRoom.update({
       where: { id },
-      data: { score: BigInt(score), ...(pk ? { mode: 'PK' } : {}) },
+      // v1.86-live (D310): «رائج» follows the popular order, the room cherries; the fixture sets both.
+      data: { score: BigInt(score), cherries: BigInt(score), ...(pk ? { mode: 'PK' } : {}) },
     });
   const cards = async (query: string): Promise<Map<string, Card>> => {
     const res = await ctx.http.get(`/api/v1/live/rooms?${query}`);

@@ -349,20 +349,23 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
     const byName = Object.fromEntries(indexes.map((i) => [i.name, i.def]));
     for (const name of [
       'live_rooms_one_live_per_host',
-      'live_rooms_live_popular_idx',
+      'live_rooms_live_popular_cherries_idx',
       'live_rooms_live_new_idx',
-      'live_rooms_live_cat_popular_idx',
+      'live_rooms_live_cat_popular_cherries_idx',
       'live_rooms_live_cat_new_idx',
       'live_rooms_live_heartbeat_idx',
     ]) {
       expect(byName[name], name).toMatch(/WHERE \(status = 'LIVE'::live_room_status\)$/);
     }
     expect(byName.live_rooms_one_live_per_host).toMatch(/^CREATE UNIQUE INDEX/);
-    // CP-012 (v1.8-live): the popular keyset indexes order by the score.
-    expect(byName.live_rooms_live_popular_idx).toContain('(score DESC, started_at DESC, id DESC)');
-    expect(byName.live_rooms_live_cat_popular_idx).toContain(
-      '(category_id, score DESC, started_at DESC, id DESC)',
+    // v1.86-live (D310): the popular keyset indexes order by the room cherries (CP-012's score ones are gone).
+    expect(byName.live_rooms_live_popular_cherries_idx).toContain(
+      '(cherries DESC, started_at DESC, id DESC)',
     );
+    expect(byName.live_rooms_live_cat_popular_cherries_idx).toContain(
+      '(category_id, cherries DESC, started_at DESC, id DESC)',
+    );
+    expect(byName.live_rooms_live_popular_idx).toBeUndefined();
     expect(Object.keys(byName)).toEqual(
       expect.arrayContaining([
         'live_rooms_host_started_idx',
@@ -381,6 +384,8 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_categories_name_ar_length',
       'live_categories_name_en_length',
       'live_categories_slug_format',
+      // v1.86-live (D310, 20270408090000_live_room_cherries): the room cherries are never negative.
+      'live_rooms_cherries_nonneg',
       'live_rooms_end_state',
       // CP-014 (20261030090000_live_room_edit): the info version is never negative.
       'live_rooms_info_version_nonneg',
@@ -470,6 +475,13 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
     await expect(runtimeExec(`UPDATE live_rooms SET score = -1 WHERE id = '${ids.room}'`)).rejects.toThrow(
       /live_rooms_score_nonneg/,
     );
+    // v1.86-live (D310): the runtime role writes the room cherries; never below 0.
+    expect(
+      await runtimeExec(`UPDATE live_rooms SET cherries = cherries + 650 WHERE id = '${ids.room}'`),
+    ).toBe(1);
+    await expect(runtimeExec(`UPDATE live_rooms SET cherries = -1 WHERE id = '${ids.room}'`)).rejects.toThrow(
+      /live_rooms_cherries_nonneg/,
+    );
     await expect(
       runtimeExec(`UPDATE live_room_scores SET support_points = -1 WHERE room_id = '${ids.room}'`),
     ).rejects.toThrow(/live_room_scores_nonneg/);
@@ -485,7 +497,7 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
       'TRUNCATE TABLE live_room_scores',
       'TRUNCATE TABLE live_room_tappers',
       'ALTER TABLE live_room_tappers DROP CONSTRAINT live_room_tappers_counted',
-      'DROP INDEX live_rooms_live_popular_idx',
+      'DROP INDEX live_rooms_live_popular_cherries_idx',
     ]) {
       await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
     }

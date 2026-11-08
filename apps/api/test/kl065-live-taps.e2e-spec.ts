@@ -69,7 +69,13 @@ describe('CP-012 live taps and the room score', () => {
     expect(res.status).toBe(201);
     expectContract(res, 'startLiveRoom');
     expect(res.body.score).toBe(0);
-    expect(res.body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0 });
+    expect(res.body.scoreParts).toEqual({
+      total: 0,
+      tapPoints: 0,
+      supportPoints: 0,
+      hostCherries: 0,
+      roomCherries: 0,
+    });
     return res.body.id as string;
   };
   const end = async (roomId: string, u: TestUser) => {
@@ -126,19 +132,19 @@ describe('CP-012 live taps and the room score', () => {
 
       expect(await tapOk(roomId, v, 7)).toEqual({
         accepted: 7,
-        score: { total: 7, tapPoints: 7, supportPoints: 0, hostCherries: 0 },
+        score: { total: 7, tapPoints: 7, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       clock.advance(1);
       expect(await tapOk(roomId, v, 4)).toEqual({
         accepted: 4,
-        score: { total: 11, tapPoints: 11, supportPoints: 0, hostCherries: 0 },
+        score: { total: 11, tapPoints: 11, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
 
       const detail = await room(roomId, v);
       expect(detail.status).toBe(200);
       expect(detail.body).toMatchObject({
         score: 11,
-        scoreParts: { total: 11, tapPoints: 11, supportPoints: 0, hostCherries: 0 },
+        scoreParts: { total: 11, tapPoints: 11, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       // Guests read the score too (the room allows guests by default).
       expect((await room(roomId)).body.score).toBe(11);
@@ -174,7 +180,7 @@ describe('CP-012 live taps and the room score', () => {
       const res = await tapOk(roomId, v, 50);
       expect(res).toEqual({
         accepted: 50,
-        score: { total: 82, tapPoints: 82, supportPoints: 0, hostCherries: 0 },
+        score: { total: 82, tapPoints: 82, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       expect((await tapper(roomId, v.id))?.counted).toBe(82);
 
@@ -195,6 +201,7 @@ describe('CP-012 live taps and the room score', () => {
         tapPoints: 10,
         supportPoints: 0,
         hostCherries: 0,
+        roomCherries: 0,
       });
       // Several callers at once: each is counted, and the score is their sum.
       const others = [await signup(), await signup(), await signup()];
@@ -219,7 +226,7 @@ describe('CP-012 live taps and the room score', () => {
       clock.advance(10);
       expect(await tapOk(roomId, v, 50)).toEqual({
         accepted: 5,
-        score: { total: 10_000, tapPoints: 10_000, supportPoints: 0, hostCherries: 0 },
+        score: { total: 10_000, tapPoints: 10_000, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       clock.advance(10);
       expect((await tapOk(roomId, v, 50)).accepted).toBe(0);
@@ -236,7 +243,7 @@ describe('CP-012 live taps and the room score', () => {
       // A first batch counts at most 10, like anyone's.
       expect(await tapOk(roomId, h, 15)).toEqual({
         accepted: 10,
-        score: { total: 10, tapPoints: 10, supportPoints: 0, hostCherries: 0 },
+        score: { total: 10, tapPoints: 10, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       expect((await tapper(roomId, h.id))?.counted).toBe(10);
       // 10 a second: no time passed → nothing more; 2 seconds later at most 20.
@@ -260,6 +267,7 @@ describe('CP-012 live taps and the room score', () => {
         tapPoints: 45,
         supportPoints: 0,
         hostCherries: 0,
+        roomCherries: 0,
       });
       // The score reaches the media room's metadata like a viewer's taps.
       expect(media.metadataWrites.some((w) => w.room === roomId)).toBe(true);
@@ -291,6 +299,7 @@ describe('CP-012 live taps and the room score', () => {
         tapPoints: 19,
         supportPoints: 0,
         hostCherries: 0,
+        roomCherries: 0,
       });
       await end(roomId, h);
     });
@@ -316,7 +325,7 @@ describe('CP-012 live taps and the room score', () => {
       expect(ended.body).toMatchObject({
         status: 'ENDED',
         score: 9,
-        scoreParts: { total: 9, tapPoints: 9, supportPoints: 0, hostCherries: 0 },
+        scoreParts: { total: 9, tapPoints: 9, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
       });
       clock.advance(5);
       const res = await tap(roomId, v, { count: 5 });
@@ -331,6 +340,7 @@ describe('CP-012 live taps and the room score', () => {
         tapPoints: 0,
         supportPoints: 0,
         hostCherries: 0,
+        roomCherries: 0,
       });
       await end(next, h);
     });
@@ -397,7 +407,7 @@ describe('CP-012 live taps and the room score', () => {
       return `${body}.${tag.toString('base64url')}`;
     };
 
-    it('orders by score desc, then startedAt desc, then id desc; pages with the v2 cursor', async () => {
+    it('v1.86-live (D310): orders by the room cherries desc, then startedAt desc, then id desc (taps never move it); pages with the v3 cursor', async () => {
       // Only this test's rooms are live.
       await ctx.prisma.liveRoom.updateMany({
         where: { status: 'LIVE' },
@@ -417,6 +427,13 @@ describe('CP-012 live taps and the room score', () => {
       await tapOk(r1, tappers[1]!, 10);
       await tapOk(r3, tappers[0]!, 10);
       await tapOk(r0, tappers[2]!, 10);
+      // v1.86-live (D310): the order is the room cherries (gifts' credits), not the score: taps alone leave every
+      // room at 0 cherries, so r4 (the latest) leads; then the cherries the gifts would credit decide.
+      const tapsOnly = await ctx.http.get('/api/v1/live/rooms').query({ tab: 'popular' }).set(auth(viewer));
+      expect(tapsOnly.body.data.map((r: { id: string }) => r.id)).toEqual([r4, r3, r2, r1, r0]);
+      await ctx.prisma.liveRoom.update({ where: { id: r1 }, data: { cherries: 20 } });
+      await ctx.prisma.liveRoom.update({ where: { id: r3 }, data: { cherries: 10 } });
+      await ctx.prisma.liveRoom.update({ where: { id: r0 }, data: { cherries: 10 } });
       // A high viewer count no longer moves a room up (v1.8-live).
       await ctx.prisma.liveRoom.update({ where: { id: r2 }, data: { viewerCount: 500 } });
       const expected = [r1, r3, r0, r4, r2];
@@ -437,8 +454,8 @@ describe('CP-012 live taps and the room score', () => {
             v: number;
             n: number;
           };
-          const last = res.body.data.at(-1) as { score: number };
-          expect(payload).toMatchObject({ v: 2, n: last.score });
+          const last = res.body.data.at(-1) as { cherries: number };
+          expect(payload).toMatchObject({ v: 3, n: last.cherries });
         }
       } while (cursor);
       expect(pages).toEqual([[r1, r3], [r0, r4], [r2]]);
@@ -461,8 +478,15 @@ describe('CP-012 live taps and the room score', () => {
         expect(res.body.error.code).toBe('VALIDATION_FAILED');
         expect(res.body.error.details).toEqual([{ field: 'cursor', issue: 'invalid_value' }]);
       }
-      // A forged v2 cursor at a big score still binds (int8).
-      const big = forge({ v: 2, t: 'popular', c: null, u: null, n: 2 ** 40, s: 0, i: r1 });
+      // v1.86-live (D310): a v2 cursor (the score) is rejected too.
+      const v2 = forge({ v: 2, t: 'popular', c: null, u: null, n: 0, s: clock.now().getTime(), i: r1 });
+      const v2Res = await ctx.http
+        .get('/api/v1/live/rooms')
+        .query({ tab: 'popular', cursor: v2 })
+        .set(auth(viewer));
+      expect(v2Res.status).toBe(400);
+      // A forged v3 cursor at a big key still binds (int8).
+      const big = forge({ v: 3, t: 'popular', c: null, u: null, n: 2 ** 40, s: 0, i: r1 });
       const bigRes = await ctx.http
         .get('/api/v1/live/rooms')
         .query({ tab: 'popular', cursor: big })

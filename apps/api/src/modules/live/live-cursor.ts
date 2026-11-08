@@ -6,8 +6,8 @@ import { z } from 'zod';
  *
  * Format: `base64url(JSON payload) "." base64url(HMAC-SHA-256 tag truncated to 128 bits)`.
  * The payload holds a format version, the tab, the category filter, the caller's user id (for
- * `following` only) and the sort key of the last row returned (v2, CP-012 / v1.8-live: `score`,
- * `startedAt`, `id`; v1 carried `viewerCount` and is rejected like any unknown version). Nothing in it is secret; the tag
+ * `following` only) and the sort key of the last row returned (v3, v1.86-live / D310: the room's `cherries`,
+ * `startedAt`, `id`; v2 carried the score and v1 `viewerCount`; both are rejected like any unknown version). Nothing in it is secret; the tag
  * only stops crafted cursors from turning into arbitrary keyset queries. A cursor that does not
  * decode, fails the tag, has an unknown version or was issued for another tab, category or
  * caller is rejected (the caller maps that to 400 `cursor` / `invalid_value`).
@@ -50,8 +50,12 @@ export type LiveScope = (typeof LIVE_SCOPES)[number];
 /** The largest feature rank (`live_featured_hosts_rank_range`). */
 export const FEATURE_RANK_MAX = 1_000_000;
 
-/** v2 (CP-012, v1.8-live): `n` is the room's score (was the viewer count in v1). */
-export const CURSOR_VERSION = 2;
+/**
+ * v2 (CP-012, v1.8-live): `n` is the room's score (was the viewer count in v1). v3 (v1.86-live, D310, §10.116): `n` is
+ * the room's cherries (the `popular` key); a v2 cursor is rejected like any unknown version (400 `cursor`), so an app
+ * scrolling across the deploy reloads the list once instead of paging on the old key.
+ */
+export const CURSOR_VERSION = 3;
 const TAG_BYTES = 16;
 const TAG_CHARS = 22; // base64url of 16 bytes, no padding
 const MAX_CURSOR_CHARS = 512;
@@ -74,7 +78,7 @@ export interface CursorScope {
 
 /** Sort key of the last row of a page (`score`, `startedAt`, `id`). */
 export interface CursorPosition {
-  /** The room's score (`popular` orders by it; carried for every tab). */
+  /** The room's `popular` key — v3 (D310) its cherries (was its score in v2); carried for every tab. */
   readonly score: number;
   readonly startedAt: Date;
   readonly id: string;

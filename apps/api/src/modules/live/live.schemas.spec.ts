@@ -186,15 +186,15 @@ describe('list ordering (CONVENTIONS §10.4)', () => {
   const text = (sql: Prisma.Sql) => sql.sql.replace(/\s+/g, ' ').trim();
   const position = { score: 7, startedAt: new Date('2026-10-16T19:00:00.000Z'), id: 'room-id' };
 
-  it('popular = score desc (CP-012), startedAt desc, id desc; new/following = startedAt desc, id desc', () => {
-    expect(text(orderBy('popular'))).toBe('r.score DESC, r.started_at DESC, r.id DESC');
+  it('popular = the room cherries desc (v1.86-live, D310; was the score), startedAt desc, id desc; new/following = startedAt desc, id desc', () => {
+    expect(text(orderBy('popular'))).toBe('r.cherries DESC, r.started_at DESC, r.id DESC');
     expect(text(orderBy('new'))).toBe('r.started_at DESC, r.id DESC');
     expect(text(orderBy('following'))).toBe('r.started_at DESC, r.id DESC');
   });
 
   it('keyset continues strictly after the last row with the same key columns as the order', () => {
     const popular = keysetAfter('popular', position);
-    expect(text(popular)).toBe('(r.score, r.started_at, r.id) < (?::bigint, ?::timestamptz, ?::uuid)');
+    expect(text(popular)).toBe('(r.cherries, r.started_at, r.id) < (?::bigint, ?::timestamptz, ?::uuid)');
     expect(popular.values).toEqual(['7', '2026-10-16T19:00:00.000Z', 'room-id']);
     for (const tab of ['new', 'following'] as const) {
       const sql = keysetAfter(tab, position);

@@ -1287,8 +1287,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final me = ref.watch(currentUserProvider);
     // D273: «فريق كابسو» does not tap for points in a live.
     final canTap = !ended && me != null && session.staff == null;
-    // D259: the host pill shows the real cherries (the score is points).
-    final cherries = _hostCherries(session, engine);
+    // D259: the host pill shows the real cherries (the score is points);
+    // D310 (owner: «ترتيب الغرف اجعله بالكرز»): the room's — the host's and
+    // the seated guests' — the value the hub ranks this live by.
+    final cherries = _roomCherries(session, engine);
     final composer = liveChatComposerHint(
       l10n,
       chat: ref.watch(liveChatProvider(room.id)),
@@ -2533,6 +2535,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       session.scoreParts?.hostCherries ??
       _room.scoreParts?.hostCherries ??
       0;
+
+  /// D310 (§10.116): the room's cherries (host and seated guests) for the
+  /// host pill — the media room's metadata, else this viewer's last tap
+  /// batch, else the room's; an older server sends none, so the pill keeps
+  /// the host's own (D259).
+  int _roomCherries(LiveRoomSessionState session, LiveMediaEngine engine) =>
+      engine.roomCherries ??
+      session.scoreParts?.roomCherries ??
+      _room.scoreParts?.roomCherries ??
+      _room.cherries ??
+      _hostCherries(session, engine);
 
   /// MULTI: the host's tile and the seats; AUDIO: the crowned circle and
   /// rows of seats. A seated viewer sees their own camera in their tile.

@@ -1317,6 +1317,23 @@ void main() {
       expect(find.textContaining('12,400'), findsNothing);
     });
 
+    testWidgets('D310: the host pill shows the room cherries (the host and '
+        'the seated guests), the hub ranking value', (tester) async {
+      final engine = FakeLiveMediaEngine()
+        ..scoreNow = 12400
+        ..hostCherriesNow = 650
+        ..roomCherriesNow = 1300;
+      await _pumpRoom(tester, engine: engine);
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomScreen.scoreKey),
+          matching: find.textContaining('1,300'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('12,400'), findsNothing);
+    });
+
     testWidgets('the host ends the live: the media session drops and the '
         'viewer sees the ended state (real web run)', (tester) async {
       var ended = false;

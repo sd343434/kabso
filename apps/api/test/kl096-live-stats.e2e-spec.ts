@@ -300,7 +300,14 @@ describe('D140 live statistics', { timeout: 120_000 }, () => {
 
     const s = await statsOk(roomId, h);
     // D259: six 4-coin sends to the host at 65 % → 6 × 26 cherries.
-    expect(s.score).toEqual({ total: 2_411, tapPoints: 11, supportPoints: 2_400, hostCherries: 156 });
+    // D310: the room's cherries are the same here (every send went to the host).
+    expect(s.score).toEqual({
+      total: 2_411,
+      tapPoints: 11,
+      supportPoints: 2_400,
+      hostCherries: 156,
+      roomCherries: 156,
+    });
     expect(s.hostOwnPoints).toBe(801);
     expect(s.supporters).toBe(4);
     expect(s.topSupporters.map((t) => [t.user.username, t.points])).toEqual([

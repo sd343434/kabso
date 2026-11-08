@@ -1234,6 +1234,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           (_tapsRoom == room?.id ? _tapParts?.hostCherries : null) ??
           room?.scoreParts?.hostCherries ??
           0;
+      // D310: the pill shows the room's cherries (host and seated guests, the
+      // hub's ranking value); the host's seat keeps the host's own (D259).
+      final roomCherries =
+          engine.roomCherries ??
+          (_tapsRoom == room?.id ? _tapParts?.roomCherries : null) ??
+          room?.scoreParts?.roomCherries ??
+          room?.cherries ??
+          cherries;
       final viewers = room == null
           ? null
           : ref.watch(liveViewersPreviewProvider(room.id)).value;
@@ -1558,7 +1566,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             hostIsCreator: room?.hostIsCreator ?? false,
             lines: KHostPill.pointLines(
               context,
-              cherries: cherries,
+              cherries: roomCherries,
               taps:
                   (_tapsRoom == room?.id ? _tapParts?.tapPoints : null) ??
                   room?.scoreParts?.tapPoints,
@@ -2211,8 +2219,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final taps =
         (_tapsRoom == room.id ? _tapParts?.tapPoints : null) ??
         room.scoreParts?.tapPoints;
-    // D259: the host pill shows the real cherries (the score is points).
+    // D259: the host pill shows the real cherries (the score is points);
+    // D310: the room's (host and seated guests), the hub's ranking value — an
+    // older server sends none, so the host's own.
     final cherries =
+        engine.roomCherries ??
+        (_tapsRoom == room.id ? _tapParts?.roomCherries : null) ??
+        room.scoreParts?.roomCherries ??
+        room.cherries ??
         engine.hostCherries ??
         (_tapsRoom == room.id ? _tapParts?.hostCherries : null) ??
         room.scoreParts?.hostCherries ??

@@ -19,6 +19,7 @@ export function roomMetadataJson(
   roomInfoVersion = 0,
   streamerVersion = 0,
   hostCherries = 0,
+  roomCherries = 0,
 ): string {
   // v1.56-live (D213, §10.86): a STREAMER's layout version, once the host changed it (left out at 0).
   // v1.63-live (D259, §10.95): the host's real cherries of this live, once there are any (left out at 0).
@@ -28,6 +29,8 @@ export function roomMetadataJson(
     ...(roomInfoVersion > 0 ? { roomInfoVersion } : {}),
     ...(streamerVersion > 0 ? { streamerVersion } : {}),
     ...(hostCherries > 0 ? { hostCherries } : {}),
+    // v1.86-live (D310, §10.116): the room's cherries (host and seated guests), once there are any (left out at 0).
+    ...(roomCherries > 0 ? { roomCherries } : {}),
   });
 }
 
@@ -143,6 +146,7 @@ export class LiveRoomMetadataService implements OnModuleDestroy {
         score: true,
         infoVersion: true,
         streamerVersion: true,
+        cherries: true,
         scoreParts: { select: { hostCherries: true } },
       },
     });
@@ -150,7 +154,14 @@ export class LiveRoomMetadataService implements OnModuleDestroy {
     const score = Number(room.score);
     const hostCherries = Number(room.scoreParts?.hostCherries ?? 0n);
     return {
-      json: roomMetadataJson(room.seatsVersion, score, room.infoVersion, room.streamerVersion, hostCherries),
+      json: roomMetadataJson(
+        room.seatsVersion,
+        score,
+        room.infoVersion,
+        room.streamerVersion,
+        hostCherries,
+        Number(room.cherries),
+      ),
       score,
       roomInfoVersion: room.infoVersion,
       streamerVersion: room.streamerVersion,
