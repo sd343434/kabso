@@ -137,19 +137,14 @@ void main() {
           cards: sampleCardBanners(count: 1),
           language: language,
         );
-        // The carousel (D248b: 5:1) is after the first row.
+        // The carousel (D248b: 5:1) — D303 (owner): the first block, above
+        // the first row.
         final pager = tester.getRect(
           find.byKey(KHomeBannerCarousel.carouselKey),
         );
         expect(
-          pager.top,
-          greaterThan(
-            tester.getRect(find.byKey(LiveHubGrid.cardKey(1))).bottom,
-          ),
-        );
-        expect(
           pager.bottom,
-          lessThan(tester.getRect(find.byKey(LiveHubGrid.cardKey(2))).top),
+          lessThan(tester.getRect(find.byKey(LiveHubGrid.cardKey(0))).top),
         );
         expect(pager.width / pager.height, moreOrLessEquals(5, epsilon: 0.1));
         await _scrollBy(tester, 300);

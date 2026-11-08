@@ -6,6 +6,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/event_center_screen.dart';
+import 'package:kabso_live/features/programs/presentation/gift_event_sections.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -18,12 +19,19 @@ String eventMetricLabel(AppLocalizations l10n, String metric) =>
       'LIVE_MINUTES' => l10n.eventsMetricLiveMinutes,
       'TAPS_RECEIVED' => l10n.eventsMetricTaps,
       'NEW_FOLLOWERS' => l10n.eventsMetricFollowers,
+      'EVENT_GIFTS' => l10n.eventsGifts,
       _ => l10n.eventsMetricOther,
     };
 
 /// `/events/:eventId` (D166): one event — banner, dates, rules, prizes and
 /// the leaderboard (top 100 and the caller's own place), live until the
 /// event is frozen, then the final results.
+///
+/// v1.97-social (D303, §10.114): a gift event (`EVENT_GIFTS`) shows, in the
+/// owner's reference order, the banner and dates, «هدايا الفعالية» (each
+/// gift's price and points), the rules, and a tab per board (supporters,
+/// hosts, creators, agencies, CP) with its prize table, minimum, the
+/// caller's place and the live board.
 class EventDetailScreen extends ConsumerWidget {
   const new({required this.eventId, super.key});
 
@@ -35,6 +43,11 @@ class EventDetailScreen extends ConsumerWidget {
   static const meKey = Key('event.me');
 
   static Key rankKey(int rank) => Key('event.rank.$rank');
+  static const titleArtKey = Key('event.titleArt');
+
+  /// Tests and goldens: a fixed clock for the countdown.
+  @visibleForTesting
+  static DateTime Function()? countdownClock;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,13 +55,20 @@ class EventDetailScreen extends ConsumerWidget {
     final p = context.palette;
     final t = context.textStyles;
     final detail = ref.watch(eventDetailProvider(eventId));
-    final board = ref.watch(eventLeaderboardProvider(eventId));
+    // D303: a gift event's boards load per tab (`eventBoardProvider`).
+    // The D166 board loads once the event is known not to be a gift event.
+    final isGift = detail.value?.isGiftEvent ?? true;
+    final board = isGift
+        ? const AsyncValue<EventLeaderboard>.loading()
+        : ref.watch(eventLeaderboardProvider(eventId));
     final localeTag = Localizations.localeOf(context).toLanguageTag();
 
     Future<void> refresh() async {
       ref
         ..invalidate(eventDetailProvider(eventId))
-        ..invalidate(eventLeaderboardProvider(eventId));
+        ..invalidate(eventLeaderboardProvider(eventId))
+        // D303: and the gift event's boards.
+        ..invalidate(eventBoardProvider);
       try {
         await ref.read(eventDetailProvider(eventId).future);
       } on Object {
@@ -58,10 +78,37 @@ class EventDetailScreen extends ConsumerWidget {
 
     final children = switch (detail) {
       AsyncValue(value: final e?) => [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(KRadius.lg),
-          child: EventBanner(event: e, hue: ProgramHues.of(e.id), height: 140),
-        ),
+        // D303 follow-ups: the event's transparent title art over its
+        // background, else the Event Center banner.
+        if (e.isGiftEvent && e.art.titleUrl != null)
+          AspectRatio(
+            key: titleArtKey,
+            aspectRatio: 1080 / 480,
+            child: Image(
+              image: GiftEventBackdrop.image(e.art.titleUrl!),
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          )
+        // Over its own art the page needs no generic banner.
+        else if (!e.isGiftEvent || e.art.isEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(KRadius.lg),
+            child: EventBanner(
+              event: e,
+              hue: ProgramHues.of(e.id),
+              height: 140,
+            ),
+          ),
+        if (e.isGiftEvent) ...[
+          const SizedBox(height: KSpacing.sm),
+          Center(
+            child: EventCountdown(
+              event: e,
+              now: EventDetailScreen.countdownClock,
+            ),
+          ),
+        ],
         const SizedBox(height: KSpacing.md),
         Row(
           children: [
@@ -79,6 +126,14 @@ class EventDetailScreen extends ConsumerWidget {
           eventDates(l10n, e, localeTag),
           style: t.body.copyWith(color: p.textSecondary),
         ),
+        if (e.isGiftEvent)
+          Padding(
+            padding: const EdgeInsets.only(top: KSpacing.xxs),
+            child: Text(
+              l10n.eventsLocalTime,
+              style: t.caption.copyWith(color: p.textTertiary),
+            ),
+          ),
         if (e.forHosts)
           Padding(
             padding: const EdgeInsets.only(top: KSpacing.xs),
@@ -88,59 +143,71 @@ class EventDetailScreen extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: KSpacing.lg),
-        ProgramSection(
-          key: rulesKey,
-          title: l10n.eventsRules,
-          child: Text(
-            e.rules.isEmpty ? l10n.eventsNoRules : e.rules,
-            style: t.body.copyWith(color: p.textPrimary),
+        if (e.isGiftEvent) ...[
+          if (e.gifts.isNotEmpty) EventGiftsSection(gifts: e.gifts),
+          ProgramSection(
+            key: rulesKey,
+            title: l10n.eventsRules,
+            child: GiftEventRules(rules: e.rules),
           ),
-        ),
-        ProgramSection(
-          key: prizesKey,
-          title: l10n.eventsPrizes,
-          subtitle: e.paidAt != null
-              ? l10n.eventsPrizesPaid
-              : (e.prizes.isEmpty ? null : l10n.eventsPrizesReview),
-          child: e.prizes.isEmpty
-              ? Text(
-                  l10n.eventsNoPrizes,
-                  style: t.body.copyWith(color: p.textSecondary),
-                )
-              : Column(
-                  children: [
-                    for (final prize in e.prizes)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: KSpacing.xs,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                prize.rankFrom == prize.rankTo
-                                    ? l10n.eventsRank('${prize.rankFrom}')
-                                    : l10n.eventsRanks(
-                                        '${prize.rankFrom}',
-                                        '${prize.rankTo}',
-                                      ),
-                                style: t.bodyStrong.copyWith(
-                                  color: p.textPrimary,
+          GiftEventBoards(event: e),
+          // Room for the sticky «مركزي» bar.
+          const SizedBox(height: 72),
+        ] else ...[
+          ProgramSection(
+            key: rulesKey,
+            title: l10n.eventsRules,
+            child: Text(
+              e.rules.isEmpty ? l10n.eventsNoRules : e.rules,
+              style: t.body.copyWith(color: p.textPrimary),
+            ),
+          ),
+          ProgramSection(
+            key: prizesKey,
+            title: l10n.eventsPrizes,
+            subtitle: e.paidAt != null
+                ? l10n.eventsPrizesPaid
+                : (e.prizes.isEmpty ? null : l10n.eventsPrizesReview),
+            child: e.prizes.isEmpty
+                ? Text(
+                    l10n.eventsNoPrizes,
+                    style: t.body.copyWith(color: p.textSecondary),
+                  )
+                : Column(
+                    children: [
+                      for (final prize in e.prizes)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: KSpacing.xs,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  prize.rankFrom == prize.rankTo
+                                      ? l10n.eventsRank('${prize.rankFrom}')
+                                      : l10n.eventsRanks(
+                                          '${prize.rankFrom}',
+                                          '${prize.rankTo}',
+                                        ),
+                                  style: t.bodyStrong.copyWith(
+                                    color: p.textPrimary,
+                                  ),
                                 ),
                               ),
-                            ),
-                            CoinAmount(prize.coins),
-                          ],
+                              CoinAmount(prize.coins),
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                ),
-        ),
-        _Board(
-          metric: eventMetricLabel(l10n, e.metric),
-          board: board,
-          onRetry: () => ref.invalidate(eventLeaderboardProvider(eventId)),
-        ),
+                    ],
+                  ),
+          ),
+          _Board(
+            metric: eventMetricLabel(l10n, e.metric),
+            board: board,
+            onRetry: () => ref.invalidate(eventLeaderboardProvider(eventId)),
+          ),
+        ],
       ],
       AsyncValue(:final error?, isLoading: false) => [
         FailureErrorState(
@@ -158,27 +225,51 @@ class EventDetailScreen extends ConsumerWidget {
       ],
     };
 
-    return Scaffold(
-      backgroundColor: p.background,
+    final event = detail.value;
+    final gift = event != null && event.isGiftEvent;
+    // D303 follow-ups: a gift event with its own art draws the page over it
+    // (dark theme there, so the gold frames and headings read).
+    final art = gift && !event.art.isEmpty ? event.art : null;
+    final list = RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          KSpacing.lg,
+          KSpacing.sm,
+          KSpacing.lg,
+          KSpacing.xl,
+        ),
+        children: children,
+      ),
+    );
+    final scaffold = Scaffold(
+      backgroundColor: art == null ? p.background : const Color(0x00000000),
+      extendBodyBehindAppBar: art != null,
       appBar: KAppBar(
-        backgroundColor: p.background,
+        backgroundColor: art == null ? p.background : const Color(0x00000000),
         centerTitle: true,
         title: Text(l10n.eventsDetailTitle),
       ),
-      body: RefreshIndicator(
-        onRefresh: refresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(
-            KSpacing.lg,
-            KSpacing.sm,
-            KSpacing.lg,
-            KSpacing.xl,
-          ),
-          children: children,
-        ),
-      ),
+      body: art == null
+          ? list
+          : Stack(
+              children: [
+                Positioned.fill(child: GiftEventBackdrop(art: art)),
+                SafeArea(child: ProgramGoldFrame(child: list)),
+              ],
+            ),
+      bottomNavigationBar: gift ? GiftEventMyBar(event: event) : null,
     );
+    return art == null
+        ? scaffold
+        : Theme(
+            data: buildAppTheme(
+              brightness: Brightness.dark,
+              locale: Localizations.localeOf(context),
+            ),
+            child: scaffold,
+          );
   }
 }
 

@@ -301,6 +301,9 @@ export const createBannerBody = z.strictObject({
   mediaId: uuid,
   placement: bannerPlacementParam,
   link: z.string().trim().min(1).max(512),
+  // v1.97-social (D303, §10.114.6): a HOME video banner's video, and the event the banner opens.
+  videoMediaId: uuid.nullable().optional(),
+  eventId: uuid.nullable().optional(),
   titleAr: z.string().trim().min(1).max(80).nullable().optional(),
   titleEn: z.string().trim().min(1).max(80).nullable().optional(),
   titleSide: z.enum(['LEFT', 'RIGHT']).optional(),

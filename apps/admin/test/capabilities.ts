@@ -93,4 +93,5 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'levels.raise.decide': ['OWNER'],
   'verification.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   'verification.settings': ['OWNER'],
+  'events.manage': ['OWNER'],
 };

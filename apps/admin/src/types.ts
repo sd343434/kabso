@@ -106,7 +106,9 @@ export type Capability =
   | 'levels.raise.decide'
   // v1.90-social (D293): automatic verification badges «شارة التوثيق».
   | 'verification.view'
-  | 'verification.settings';
+  | 'verification.settings'
+  // v1.97-social (D303): gift events «فعاليات الهدايا» (create / edit / hold), OWNER.
+  | 'events.manage';
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;

@@ -34,7 +34,8 @@ export interface NotificationTargetDto {
     | 'LIVE_MODERATION'
     | 'LIVE_ROOM'
     | 'REPORT'
-    | 'LEVEL_RAISE';
+    | 'LEVEL_RAISE'
+    | 'EVENT';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -221,6 +222,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
         type: { in: ['LEVEL_RAISE_APPROVED', 'LEVEL_RAISE_REJECTED', 'LEVEL_RAISED'] },
         levelRaiseRequestId: { not: null },
       },
+      // v1.97-social (D303): an event prize paid (system; the event is the target).
+      { type: 'EVENT_PRIZE_WON', eventId: { not: null } },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -476,6 +479,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         reportTargetType: row.report.targetType,
         reportOpen: row.report.status === 'OPEN',
       };
+    }
+    // v1.97-social (D303): the event whose prize was paid (the app opens it; no text).
+    if (row.type === 'EVENT_PRIZE_WON' && row.eventId !== null) {
+      return { type: 'EVENT', id: row.eventId, postId: null, thumbUrl: null, text: null };
     }
     // v1.89-social (D290): a level-raise request — the level approved; the supporter's username for the staff member.
     if (row.levelRaiseRequestId !== null && row.levelRaiseRequest) {

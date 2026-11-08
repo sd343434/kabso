@@ -233,6 +233,8 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
       if (ar) return `لم تتم الموافقة على طلب رفع ليفيل${who ? ` ${who}` : ''}. افتح الطلب لمعرفة السبب`;
       return `Level raise not approved${who ? ` for ${who}` : ''}. Open the request to see why`;
     }
+    case 'EVENT_PRIZE_WON':
+      return ar ? 'مبروك، وصلتك جائزة فعالية' : 'Congratulations, your event prize has arrived';
     case 'LEVEL_RAISED': {
       const lv = n.level ?? null;
       if (ar)

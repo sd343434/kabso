@@ -1,3 +1,5 @@
+import { giftArtUrl } from '../gifts/gift-art.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
@@ -75,11 +77,24 @@ export interface UserMedalDto {
   iconAsset: string | null;
 }
 
+/** v1.97-social (D303 follow-up, §10.114.8): an event badge «وسام فعالية» held now (shown with the medals). */
+export interface EventBadgeHeldDto {
+  code: string;
+  name: string;
+  /** The level held (its own art). */
+  level: number;
+  imageUrl: string | null;
+  /** Null = permanent «دائم». */
+  expiresAt: string | null;
+}
+
 /** `UserMedalList`. */
 export interface UserMedalListDto {
   data: UserMedalDto[];
   owned: number;
   total: number;
+  /** v1.97-social (D303 follow-up): the event badges held now (soonest end last). */
+  eventBadges: EventBadgeHeldDto[];
 }
 
 /** `ProfileMedal`: a medal as the profile shows it. */
@@ -102,6 +117,8 @@ export interface ProfileMedalsDto {
   latest: ProfileMedalDto[];
   /** The medals the user chose to show, in their order (≤ 6; empty until they choose). */
   showcase: ProfileMedalDto[];
+  /** v1.97-social (D303 follow-up): the event badges held now, shown before the medals. */
+  eventBadges: EventBadgeHeldDto[];
 }
 
 /** `MedalShowcase`. */
@@ -237,7 +254,25 @@ export class MedalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
+
+  /** v1.97-social (D303 follow-up): the event badges `userId` holds now (an ended one is never shown). */
+  async eventBadgesOf(userId: string, lang: ContentLanguage): Promise<EventBadgeHeldDto[]> {
+    const rows = await this.prisma.userEventBadge.findMany({
+      where: { userId, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      orderBy: [{ expiresAt: 'desc' }, { badgeCode: 'asc' }],
+      include: { badge: { include: { levels: true } } },
+    });
+    const base = this.storageSettings.current().publicBaseUrl;
+    return rows.map((r) => ({
+      code: r.badgeCode,
+      name: lang === 'ar' ? r.badge.nameAr : r.badge.nameEn,
+      level: r.level,
+      imageUrl: giftArtUrl(base, r.badge.levels.find((l) => l.level === r.level)?.imageKey ?? null),
+      expiresAt: r.expiresAt?.toISOString() ?? null,
+    }));
+  }
 
   /** `GET /medals`: every medal in catalogue order, with the caller's award times. */
   async catalogue(callerId: string, lang: ContentLanguage): Promise<MedalCatalogueDto> {
@@ -315,6 +350,7 @@ export class MedalsService {
       })),
       owned: rows.length,
       total,
+      eventBadges: await this.eventBadgesOf(user.id, lang),
     };
   }
 
@@ -336,6 +372,7 @@ export class MedalsService {
       total,
       latest: latest.map((r) => profileMedalOf(r, lang)),
       showcase,
+      eventBadges: await this.eventBadgesOf(userId, lang),
     };
   }
 

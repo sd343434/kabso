@@ -4,6 +4,21 @@ import 'package:flutter/foundation.dart';
 /// picture serves both languages, so this is not a reading direction).
 enum HomeBannerTitleSide { left, right }
 
+/// v1.97-social (D303, CONVENTIONS §10.114.6): a still picture, an animated
+/// WebP (`imageUrl` moves), or a short muted video (`videoUrl`, `posterUrl`
+/// its poster). An unknown kind reads as [image].
+enum HomeBannerKind {
+  image,
+  animated,
+  video;
+
+  static HomeBannerKind fromWire(Object? wire) => switch (wire) {
+    'ANIMATED' => animated,
+    'VIDEO' => video,
+    _ => image,
+  };
+}
+
 /// `HomeBanner` (openapi v1.26-live draft, D124): a promo banner of the live
 /// hub, a 3:1 picture with optional overlay text and a link.
 @immutable
@@ -16,6 +31,11 @@ class HomeBanner {
     this.height = 500,
     this.title,
     this.titleSide = HomeBannerTitleSide.right,
+    this.kind = HomeBannerKind.image,
+    this.posterUrl,
+    this.videoUrl,
+    this.durationMs,
+    this.eventId,
   });
 
   /// Parses one banner; throws a `TypeError` when the body does not match
@@ -30,6 +50,12 @@ class HomeBanner {
         ? HomeBannerTitleSide.left
         : HomeBannerTitleSide.right,
     link: json['link']! as String,
+    // v1.97-social (D303): older servers send none of these (a still).
+    kind: HomeBannerKind.fromWire(json['kind']),
+    posterUrl: json['posterUrl'] as String?,
+    videoUrl: json['videoUrl'] as String?,
+    durationMs: json['durationMs'] as int?,
+    eventId: json['eventId'] as String?,
   );
 
   final String id;
@@ -43,6 +69,28 @@ class HomeBanner {
 
   /// An allowlisted in-app route or an https URL (`openHomeBannerLink`).
   final String link;
+
+  /// v1.97-social (D303): what [imageUrl] is, and the video.
+  final HomeBannerKind kind;
+
+  /// The still (an animation's first frame, a video's poster); null from an
+  /// older server — then [imageUrl].
+  final String? posterUrl;
+
+  /// [HomeBannerKind.video] only: the MP4 / MOV, played muted and looping.
+  final String? videoUrl;
+
+  /// A video's length or an animation's loop (ms), null for a still.
+  final int? durationMs;
+
+  /// The event the banner opens (`link` is then `/events/<id>`).
+  final String? eventId;
+
+  /// The picture shown with reduced motion and before a video plays.
+  String get stillUrl => posterUrl ?? imageUrl;
+
+  /// Whether this banner plays a video (a video kind with its file).
+  bool get isVideo => kind == HomeBannerKind.video && videoUrl != null;
 }
 
 /// D248 (openapi v1.59-live draft, CONVENTIONS §10.90): the live hub's

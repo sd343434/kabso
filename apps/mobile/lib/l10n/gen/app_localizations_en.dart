@@ -15847,4 +15847,153 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get verificationBadgeAbout => 'Granted automatically by conditions';
+
+  @override
+  String get eventsGifts => 'Event gifts';
+
+  @override
+  String eventsGiftPoints(String points) {
+    return '$points pts';
+  }
+
+  @override
+  String get eventsGiftPointsHint =>
+      'Every coin sent in an event gift earns points';
+
+  @override
+  String get eventsRuleOnlyGifts =>
+      'Points come only from sending the event gifts during the event.';
+
+  @override
+  String get eventsRuleMinimum =>
+      'You must reach the minimum points to qualify for a prize.';
+
+  @override
+  String get eventsRuleAutoPayout =>
+      'Prizes are sent automatically after the event ends.';
+
+  @override
+  String get eventsLocalTime => 'Dates in your local time';
+
+  @override
+  String get eventsBoardSenders => 'Supporters';
+
+  @override
+  String get eventsBoardReceivers => 'Hosts';
+
+  @override
+  String get eventsBoardCreators => 'Creators';
+
+  @override
+  String get eventsBoardAgencies => 'Agencies';
+
+  @override
+  String get eventsBoardCp => 'CP couples';
+
+  @override
+  String eventsMinPoints(String points) {
+    return 'Minimum to qualify: $points pts';
+  }
+
+  @override
+  String eventsPointsToQualify(String points) {
+    return '$points pts to qualify';
+  }
+
+  @override
+  String get eventsQualified => 'Qualified for a prize';
+
+  @override
+  String get eventsNotQualified => 'Not qualified';
+
+  @override
+  String eventsPrizeCherries(String amount) {
+    return '$amount cherries';
+  }
+
+  @override
+  String eventsPrizeDays(String name, String days) {
+    return '$name · $days days';
+  }
+
+  @override
+  String get eventsPrizeVip => 'VIP card';
+
+  @override
+  String get eventsPrizeItem => 'Item';
+
+  @override
+  String eventsAgencyOwner(String name) {
+    return 'Owner: $name';
+  }
+
+  @override
+  String eventsCpPair(String a, String b) {
+    return '$a & $b';
+  }
+
+  @override
+  String get eventsBoardsTitle => 'Ranks and prizes';
+
+  @override
+  String eventsPrizeCpMoney(String cherries, String coins) {
+    return '$cherries cherries to a host / $coins coins to others';
+  }
+
+  @override
+  String eventsPrizePermanent(String name) {
+    return '$name · permanent';
+  }
+
+  @override
+  String eventsPrizeMedalLevel(String name, String level) {
+    return '$name (level $level)';
+  }
+
+  @override
+  String eventsCountdownStarts(String time) {
+    return 'Starts in $time';
+  }
+
+  @override
+  String eventsCountdownEnds(String time) {
+    return 'Ends in $time';
+  }
+
+  @override
+  String get eventsCountdownEnded => 'The event has ended';
+
+  @override
+  String eventsMyBar(String rank, String points) {
+    return 'My place: $rank · $points pts';
+  }
+
+  @override
+  String eventsMyBarNone(String points) {
+    return 'Not ranked yet · $points pts';
+  }
+
+  @override
+  String eventsToNextRank(String points, String rank) {
+    return '$points pts to place $rank';
+  }
+
+  @override
+  String eventsSendGiftTitle(String name) {
+    return 'Send $name in a live';
+  }
+
+  @override
+  String get eventsSendGiftBody =>
+      'Event gifts are sent from the gift panel inside any live; their points count at once.';
+
+  @override
+  String get eventsGoLive => 'Go to lives';
+
+  @override
+  String get eventsPrizePreview => 'Prize preview';
+
+  @override
+  String get notifEventPrizeWon =>
+      'Congratulations, your event prize has arrived';
 }

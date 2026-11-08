@@ -31,12 +31,9 @@ abstract final class KLiveGrid {
   /// The live mark's teal (sampled `#18D6C3`).
   static const Color liveMark = Color(0xFF18D6C3);
 
-  /// D248 (owner: «بعد أول بثين هناك بنر متحرك», ref 375): the banner
-  /// carousel sits after this many grid cells — the first row.
-  static const int bannerAfter = 2;
-
   /// D248 (ref 375): the carousel's gap below the first row (12 px ≈ 6.4
-  /// pt) and above the next one (21 px ≈ 11.2 pt).
+  /// pt) and above the next one (21 px ≈ 11.2 pt). D303: the carousel is the
+  /// first block; [bannerBottom] is its gap above the first row.
   static const double bannerTop = 6.4;
   static const double bannerBottom = 11.2;
 

@@ -350,6 +350,21 @@ info:
     `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`. Fix: `createReport`
     USER accepts the user's id as well as the username (the app sends the id, which was answered 404). Additive; migration
     `20270330090000_report_resolution_action`.
+    **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
+    §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
+    coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
+    المحتوى», AGENCIES «الوكالات», CP), each with a qualification minimum and prize bundles per rank range
+    (`EventPrizeItem`: COINS, CHERRIES, BAG_ITEM / VIP for N days), `EventDetail.timeZone`; `getEventLeaderboard?board=`
+    with `qualified`, `prize`, `partner`, `agency`, `me.pointsToQualify`; frozen and paid AUTOMATICALLY at the end
+    (unless held), once per result and winner, ACTIVE accounts only; notification `EVENT_PRIZE_WON` (target EVENT);
+    ledger reasons `EVENT_PRIZE` (coins, existing) and `CherryLedgerReason` `EVENT_PRIZE` (locked like task rewards);
+    `BagItemSource` `EVENT`; audience `CREATORS`. Created and edited from the panel (`createAdminGiftEvent`,
+    `getAdminGiftEvent`, `updateAdminGiftEvent`, `getAdminEventOptions`) and from the app (`listStaffEvents`,
+    `getStaffEventOptions`, `createStaffGiftEvent`, `getStaffGiftEvent`, `updateStaffGiftEvent`, `changeStaffEvent`),
+    capability `events.manage` (OWNER), the same rules and validation. Banners: `HomeBanner.kind` IMAGE / ANIMATED /
+    VIDEO with `posterUrl`, `videoUrl`, `durationMs`, `eventId`; `uploadAdminBannerVideo`; `AdminBannerCreateRequest`
+    `videoMediaId`, `eventId`; links `/events/{eventId}`. Migrations `20270404090000_gift_events_enums`,
+    `20270404090100_gift_events`. Additive.
     **D297 (DRAFT v1.94-social)** tasks for content creators «مهام صانع المحتوى» (CONVENTIONS §10.110; owner: «مهام خاصة
     بصناع المحتوى، وقيمتها كمهام المضيف»): `ProgramTask.audience` `CREATORS` (only creator-programme members; a member never
     gets `HOSTS` tasks), `MyTasks.band.creator`, metrics `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`,
@@ -2140,6 +2155,7 @@ paths:
                     medals:
                       owned: 2
                       total: 9
+                      eventBadges: []
                       latest:
                         - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp, level: 1, iconUrl: null, iconAsset: null }
                         - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live, level: 2, iconUrl: null, iconAsset: null }
@@ -8075,6 +8091,11 @@ paths:
                         title: فضاء الثنائيات
                         titleSide: RIGHT
                         link: /cp/space
+                        kind: IMAGE
+                        posterUrl: https://media.kabso.app/media/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8092/1500.webp
+                        videoUrl: null
+                        durationMs: null
+                        eventId: null
                 hubCard:
                   summary: "`placement=hub_card`: one card-size banner in the grid's 5th cell"
                   value:
@@ -8087,6 +8108,11 @@ paths:
                         title: null
                         titleSide: RIGHT
                         link: /families
+                        kind: IMAGE
+                        posterUrl: https://media.kabso.app/media/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8094/720.webp
+                        videoUrl: null
+                        durationMs: null
+                        eventId: null
                     cell: 4
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
@@ -8638,6 +8664,8 @@ paths:
                   - { code: FIRST_LIVE, name: أول لايف, description: استضفت أول بث مباشر لك., iconKey: medal_first_live, awardedAt: '2026-10-26T18:30:00.000Z', category: ACTIVITY, level: 2, maxLevel: 5, iconUrl: null, iconAsset: null }
                 owned: 1
                 total: 9
+                eventBadges:
+                  - { code: gift_king, name: ملك الهدايا, level: 3, imageUrl: 'https://media.kabso.app/media/events/badge/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8099.webp', expiresAt: '2026-11-24T17:00:00.000Z' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -10753,8 +10781,17 @@ paths:
         event's dates (ACTIVE people, the event's audience and regions); after the end the board is
         frozen (`final: true`) and prizes are paid once after the review window. People the caller
         blocked or who blocked the caller are left out of `data` (ranks stay). Checks: 401; 404.
+        v1.97-social (D303, §10.114.5): a gift event ranks one board (`board`): every row says whether it reaches the
+        minimum (`qualified`) and its bundle (`prize`, empty when not qualified); CP rows carry `partner`, AGENCIES rows
+        `agency` (the `user` is its owner); `me` is the caller (AGENCIES: the agency they own; CP: their best couple).
+        Paid automatically at the end unless held.
       parameters:
         - $ref: '#/components/parameters/ProgramEventIdPath'
+        - name: board
+          in: query
+          required: false
+          description: "v1.97-social (D303): a gift event's board (default its first); a board it does not have, or any board on another metric → 400 `board` / `invalid_value`."
+          schema: { $ref: '#/components/schemas/EventBoardKind' }
       responses:
         '200':
           description: The board.
@@ -14179,6 +14216,187 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/events:
+    get:
+      tags: [staff]
+      operationId: listStaffEvents
+      summary: "(v1.97-social, D303) «الفعاليات»: every event with its state (events.manage; not staff work)"
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffEventList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/event-options:
+    get:
+      tags: [staff]
+      operationId: getStaffEventOptions
+      summary: "(v1.97-social, D303) What a gift event may use (events.manage)"
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventOptions' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/event-uploads:
+    post:
+      tags: [staff]
+      operationId: uploadStaffEventMedia
+      summary: "(v1.97-social, D303 follow-ups) Uploads one piece of an event's art — raw bytes, checked against the published spec (events.manage)"
+      description: "CONVENTIONS §10.114.9. `kind` banner (1 500 × 300, 5:1 — the carousel's real shape), banner_video, background (1 080 × 1 920), background_video, title (1 080 × 480, transparent), overlay (SVGA 2.x / Lottie JSON), badge (512 × 512, transparent); sizes, formats, lengths and alpha as in `EventOptions.specs`. A file outside the spec → 409 `ADMIN_ACTION_REFUSED` with `details[0]` {field: file, issue: event_media_format | event_media_size | event_media_bytes | event_media_duration | event_media_transparency | event_media_codec} and a message saying what is wrong."
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge] }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventMediaUpload' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/event-badges:
+    post:
+      tags: [staff]
+      operationId: createStaffEventBadge
+      summary: "(v1.97-social, D303 follow-up) Makes a reusable event badge «وسام فعالية» on an uploaded badge picture (events.manage; audited)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventBadgeInput' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventBadgeCreated' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/gift-events:
+    post:
+      tags: [staff]
+      operationId: createStaffGiftEvent
+      summary: "(v1.97-social, D303) Creates a gift event from the app — the panel's rules (events.manage; audited via app)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GiftEventInput' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GiftEventSaved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/gift-events/{eventId}:
+    get:
+      tags: [staff]
+      operationId: getStaffGiftEvent
+      summary: "(v1.97-social, D303) A gift event's form, state and results (events.manage)"
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminGiftEvent' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [staff]
+      operationId: updateStaffGiftEvent
+      summary: "(v1.97-social, D303) Edits a gift event from the app (events.manage; audited via app)"
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GiftEventInput' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GiftEventSaved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/staff/events/{eventId}/{command}:
+    post:
+      tags: [staff]
+      operationId: changeStaffEvent
+      summary: "(v1.97-social, D303) end / hold / release an event from the app (events.manage; reason; audited via app)"
+      description: "The panel's `endAdminEvent` / `holdAdminEvent` / `releaseAdminEvent` rule. Hold stops the automatic payout (also before the end); release resumes it. Settled → 409; another command → 404."
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: command
+          in: path
+          required: true
+          schema: { type: string, enum: [end, hold, release] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminEventChanged' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/staff/reports:
     get:
       tags: [staff]
@@ -16709,6 +16927,34 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/banner-video-uploads:
+    post:
+      tags: [admin-panel]
+      operationId: uploadAdminBannerVideo
+      summary: "(v1.97-social, D303) Uploads a home banner's video — raw bytes (catalog.manage)"
+      description: "CONVENTIONS §10.114.6. `application/octet-stream`: MP4 or MOV with H.264 / HEVC video, 1–30 s, at most 30 MiB (checked from the container; stored unchanged; the app plays it muted). Shown nowhere until `createAdminBanner` names it as `videoMediaId` (with a poster picture as `mediaId`) within 24 hours. Not an acceptable video → 422 `MEDIA_INVALID`."
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBannerVideoUpload' }
+        '400': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/banner-uploads:
     post:
       tags:
@@ -16896,7 +17142,7 @@ paths:
       tags:
       - admin-panel
       operationId: createAdminEvent
-      summary: Creates an event — the `event-admin create` rule (reason; audited) (catalog.manage)
+      summary: "Creates an event — the `event-admin create` rule (reason; audited) (v1.97-social, D303: events.manage — OWNER, as before)"
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -16930,7 +17176,7 @@ paths:
       tags:
       - admin-panel
       operationId: endAdminEvent
-      summary: Ends a running event now — `event-admin end` (reason; audited) (catalog.manage)
+      summary: "Ends a running event now — `event-admin end` (reason; audited) (v1.97-social, D303: events.manage — OWNER, as before)"
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -16967,7 +17213,7 @@ paths:
       tags:
       - admin-panel
       operationId: holdAdminEvent
-      summary: Stops the automatic prize payout — `event-admin hold` (reason; audited) (catalog.manage)
+      summary: "Stops the automatic prize payout — `event-admin hold` (reason; audited) (v1.97-social, D303: events.manage — OWNER, as before)"
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -17004,7 +17250,7 @@ paths:
       tags:
       - admin-panel
       operationId: releaseAdminEvent
-      summary: Resumes the prize payout — `event-admin release` (reason; audited) (catalog.manage)
+      summary: "Resumes the prize payout — `event-admin release` (reason; audited) (v1.97-social, D303: events.manage — OWNER, as before)"
       description: '(v1.65-social, D197) '
       security:
       - adminSession: []
@@ -17036,6 +17282,156 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+  /api/v1/admin/event-options:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminEventOptions
+      summary: "(v1.97-social, D303) What a gift event may use: gifts, bag items, VIP tiers, the board kinds, the limits (events.manage)"
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventOptions' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/event-uploads:
+    post:
+      tags: [admin-panel]
+      operationId: uploadAdminEventMedia
+      summary: "(v1.97-social, D303 follow-ups) Uploads one piece of an event's art — raw bytes, checked against the published spec (events.manage)"
+      description: "CONVENTIONS §10.114.9. `kind` banner (1 500 × 300, 5:1 — the carousel's real shape), banner_video, background (1 080 × 1 920), background_video, title (1 080 × 480, transparent), overlay (SVGA 2.x / Lottie JSON), badge (512 × 512, transparent); sizes, formats, lengths and alpha as in `EventOptions.specs`. A file outside the spec → 409 `ADMIN_ACTION_REFUSED` with `details[0]` {field: file, issue: event_media_format | event_media_size | event_media_bytes | event_media_duration | event_media_transparency | event_media_codec} and a message saying what is wrong."
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+        - name: kind
+          in: query
+          required: true
+          schema: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge] }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventMediaUpload' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/event-badges:
+    post:
+      tags: [admin-panel]
+      operationId: createAdminEventBadge
+      summary: "(v1.97-social, D303 follow-up) Makes a reusable event badge «وسام فعالية» on an uploaded badge picture (events.manage; audited)"
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventBadgeInput' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventBadgeCreated' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/gift-events:
+    post:
+      tags: [admin-panel]
+      operationId: createAdminGiftEvent
+      summary: "(v1.97-social, D303) Creates a gift event — gifts, boards, prize bundles, minimums (events.manage; reason; audited `event.create`)"
+      description: "CONVENTIONS §10.114.7. The same rules as `createStaffGiftEvent`: shape → 400 `VALIDATION_FAILED`; a rule (dates, duplicates, overlapping ranks, an unknown gift / bag item / VIP tier / time zone) → 409 `ADMIN_ACTION_REFUSED` with the message."
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GiftEventInput' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GiftEventSaved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/gift-events/{eventId}:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminGiftEvent
+      summary: "(v1.97-social, D303) A gift event's form, state and results with each winner's payout (catalog.view)"
+      security:
+        - adminSession: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminGiftEvent' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-panel]
+      operationId: updateAdminGiftEvent
+      summary: "(v1.97-social, D303) Edits a gift event (events.manage; reason; audited `event.update`)"
+      description: "CONVENTIONS §10.114.7. Before the start everything; while it runs only the texts, banner, style, «رائج» and a later end (the rest must be unchanged); after the end → 409."
+      security:
+        - adminSession: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GiftEventInput' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GiftEventSaved' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/finance/recharge-topups:
     get:
       tags:
@@ -20736,8 +21132,8 @@ components:
           items: { type: string, enum: [OWNER, MODERATION, SUPPORT, FINANCE, BD] }
         capabilities:
           type: array
-          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue). (v1.93-social, D296) `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`: the actions from a report."
-          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve, reports.act, users.restrict, users.lock, users.ban, users.content, users.delete] }
+          description: "The panel capabilities the staff tools use, for the caller's roles (the app shows only these). (v1.78-live, D288) `reports.view` / `reports.resolve`: the «بلاغات» row (the shared queue). (v1.93-social, D296) `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`: the actions from a report. (v1.97-social, D303) `events.manage`: «الفعاليات» (create / edit gift events, hold their payout)."
+          items: { type: string, enum: [lives.watch, lives.watch.hidden, lives.reports, lives.moderate, devices.ban, reports.view, reports.resolve, reports.act, users.restrict, users.lock, users.ban, users.content, users.delete, events.manage] }
         authenticatorEnrolled: { type: boolean, description: "False: the app says to set it up at admin.<domain> first." }
         lockedUntil: { type: [string, 'null'], format: date-time, description: "Locked after wrong codes (the panel's lockout)." }
         stepUp:
@@ -24509,6 +24905,26 @@ components:
           type:
           - string
           - 'null'
+        kind:
+          type: string
+          enum: [IMAGE, ANIMATED, VIDEO]
+          description: (v1.97-social, D303)
+        eventId:
+          type: [string, 'null']
+          format: uuid
+          description: (v1.97-social, D303) The event the banner opens.
+    AdminBannerVideoUpload:
+      type: object
+      additionalProperties: false
+      description: (v1.97-social, D303, §10.114.6) A stored banner video, not shown until `createAdminBanner` names it as `videoMediaId`.
+      required: [mediaId, width, height, durationMs, byteSize, videoUrl]
+      properties:
+        mediaId: { type: string, format: uuid }
+        width: { type: integer, minimum: 16, maximum: 4096 }
+        height: { type: integer, minimum: 16, maximum: 4096 }
+        durationMs: { type: integer, minimum: 1, maximum: 30000 }
+        byteSize: { type: integer, minimum: 1, maximum: 31457280 }
+        videoUrl: { type: [string, 'null'], description: Null without MEDIA_PUBLIC_BASE_URL. }
     AdminBannerUpload:
       type: object
       description: (v1.59-live, D248) A stored banner picture, not shown until `createAdminBanner` names it. (v1.61-live, D248c) `animated`, `frames`, `durationMs`.
@@ -24542,6 +24958,8 @@ components:
         endsAt: { type: [string, 'null'], format: date-time, description: Null or absent = open. }
         sortOrder: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
         enabled: { type: boolean, default: true }
+        videoMediaId: { type: [string, 'null'], format: uuid, description: "(v1.97-social, D303) A `uploadAdminBannerVideo` asset within 24 hours: a VIDEO banner (placement home only), `mediaId` its poster." }
+        eventId: { type: [string, 'null'], format: uuid, description: "(v1.97-social, D303) The event the banner opens; `link` is then `/events/{eventId}` whatever was sent." }
         reason: { type: string, minLength: 1, maxLength: 500 }
     AdminBannerEnabled:
       type: object
@@ -24564,6 +24982,317 @@ components:
       properties:
         removed:
           type: boolean
+    PrizeItemInput:
+      description: "(v1.97-social, D303 and follow-ups) One prize item: COINS / CHERRIES `amount` 1 … 10^8 (the board decides which: SENDERS coins; RECEIVERS, CREATORS cherries; AGENCIES either); CP_MONEY (CP only) `cherries` and `coins` ≥ 0, at least one > 0; BAG_ITEM `itemCode` + `days` 1 … 365 or null = permanent; VIP `tierCode` + `days` 1 … 365 (never permanent); BADGE `badgeCode` + `level` + `days` 1 … 365 or null = permanent."
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type, amount]
+          properties:
+            type: { type: string, enum: [COINS, CHERRIES] }
+            amount: { type: integer, minimum: 1, maximum: 100000000 }
+        - type: object
+          additionalProperties: false
+          required: [type, cherries, coins]
+          properties:
+            type: { type: string, enum: [CP_MONEY] }
+            cherries: { type: integer, minimum: 0, maximum: 100000000 }
+            coins: { type: integer, minimum: 0, maximum: 100000000 }
+        - type: object
+          additionalProperties: false
+          required: [type, itemCode, days]
+          properties:
+            type: { type: string, enum: [BAG_ITEM] }
+            itemCode: { type: string, maxLength: 40 }
+            days: { type: [integer, 'null'], minimum: 1, maximum: 365 }
+        - type: object
+          additionalProperties: false
+          required: [type, tierCode, days]
+          properties:
+            type: { type: string, enum: [VIP] }
+            tierCode: { type: string, maxLength: 40 }
+            days: { type: integer, minimum: 1, maximum: 365 }
+        - type: object
+          additionalProperties: false
+          required: [type, badgeCode, days]
+          properties:
+            type: { type: string, enum: [BADGE] }
+            badgeCode: { type: string, pattern: '^[a-z0-9_]{2,40}$' }
+            level: { type: integer, minimum: 1, maximum: 10, default: 1 }
+            days: { type: [integer, 'null'], minimum: 1, maximum: 365 }
+    GiftEventForm:
+      type: object
+      description: "(v1.97-social, D303, §10.114.1) A gift event as edited: dates are instants (`startsAt` < `endsAt`, at most 92 days, starting at most 365 days ahead); `timeZone` (IANA, optional) is how they are shown. 1–12 gifts (distinct; points per coin 0–1000, per gift 0–10^6, not both 0); 1–5 boards (distinct kinds), each with `minPoints` and up to 20 prize lines (ranks 1–100 in order, not overlapping, 1–6 items each)."
+      required: [titleAr, titleEn, startsAt, endsAt, gifts, boards]
+      properties:
+        titleAr: { type: string, minLength: 1, maxLength: 120 }
+        titleEn: { type: string, minLength: 1, maxLength: 120 }
+        rulesAr: { type: string, maxLength: 4000 }
+        rulesEn: { type: string, maxLength: 4000 }
+        summaryAr: { type: [string, 'null'], maxLength: 80 }
+        summaryEn: { type: [string, 'null'], maxLength: 80 }
+        tone: { type: [string, 'null'], enum: [RED, GOLD, TEAL, BLUE, PINK, AMBER, null] }
+        bannerUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time }
+        timeZone: { type: [string, 'null'], maxLength: 64 }
+        audience: { type: string, enum: [EVERYONE, HOSTS, CREATORS], default: EVERYONE }
+        regions:
+          type: array
+          maxItems: 50
+          items: { type: string, pattern: '^[A-Za-z]{2}$' }
+        featured: { type: boolean, default: false }
+        backgroundKey: { type: [string, 'null'], pattern: '^media/events/bg/[0-9a-f-]{36}(\.anim)?\.(webp|mp4|mov)$', description: "(D303 follow-ups) From `uploadAdminEventMedia` kind background / background_video." }
+        backgroundPosterKey: { type: [string, 'null'], pattern: '^media/events/bg/[0-9a-f-]{36}\.webp$', description: "Required exactly with a video background (a background still)." }
+        titleKey: { type: [string, 'null'], pattern: '^media/events/title/[0-9a-f-]{36}\.webp$' }
+        overlayKey: { type: [string, 'null'], pattern: '^media/events/overlay/[0-9a-f-]{36}\.(svga|json)$' }
+        gifts:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [giftCode]
+            properties:
+              giftCode: { type: string, maxLength: 40 }
+              pointsPerCoin: { type: integer, minimum: 0, maximum: 1000, default: 1 }
+              pointsPerGift: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+        boards:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind]
+            properties:
+              kind: { $ref: '#/components/schemas/EventBoardKind' }
+              minPoints: { type: integer, format: int64, minimum: 0, maximum: 1000000000000, default: 0 }
+              prizes:
+                type: array
+                maxItems: 20
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [rankFrom, rankTo, items]
+                  properties:
+                    rankFrom: { type: integer, minimum: 1, maximum: 100 }
+                    rankTo: { type: integer, minimum: 1, maximum: 100 }
+                    items:
+                      type: array
+                      minItems: 1
+                      maxItems: 6
+                      items: { $ref: '#/components/schemas/PrizeItemInput' }
+    GiftEventInput:
+      description: (v1.97-social, D303) The body of a create or a full edit (panel and app).
+      allOf:
+        - $ref: '#/components/schemas/GiftEventForm'
+        - type: object
+          required: [reason]
+          properties:
+            reason: { type: string, minLength: 3, maxLength: 500 }
+    EventMediaSpec:
+      type: object
+      required: [kind, width, height, formats, maxStillBytes, maxAnimatedBytes, maxDurationMs, transparent, safeZone]
+      properties:
+        kind: { type: string, enum: [banner, banner_video, background, background_video, title, overlay, badge] }
+        width: { type: [integer, 'null'] }
+        height: { type: [integer, 'null'] }
+        formats: { type: array, items: { type: string } }
+        maxStillBytes: { type: [integer, 'null'] }
+        maxAnimatedBytes: { type: [integer, 'null'] }
+        maxDurationMs: { type: [integer, 'null'] }
+        transparent: { type: boolean }
+        safeZone: { type: [string, 'null'] }
+    EventMediaUpload:
+      type: object
+      description: "(D303 follow-ups) A stored piece of event art: `mediaId` for banner / banner_video (name it in `createAdminBanner` with `eventId`), `key` for the rest (name it in the event or a badge)."
+      required: [kind, mediaId, key, url, width, height, animated, durationMs, spec]
+      properties:
+        kind: { type: string }
+        mediaId: { type: [string, 'null'], format: uuid }
+        key: { type: [string, 'null'] }
+        url: { type: [string, 'null'] }
+        width: { type: [integer, 'null'] }
+        height: { type: [integer, 'null'] }
+        animated: { type: boolean }
+        durationMs: { type: [integer, 'null'] }
+        spec: { $ref: '#/components/schemas/EventMediaSpec' }
+    EventBadgeInput:
+      type: object
+      additionalProperties: false
+      required: [code, nameAr, nameEn, levels, reason]
+      properties:
+        code: { type: string, pattern: '^[a-z0-9_]{2,40}$' }
+        nameAr: { type: string, minLength: 1, maxLength: 40 }
+        nameEn: { type: string, minLength: 1, maxLength: 40 }
+        levels:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: "Each level's own art (a `badge` upload: 512 × 512 transparent PNG / WebP ≤ 1 MB)."
+          items:
+            type: object
+            additionalProperties: false
+            required: [level, imageKey]
+            properties:
+              level: { type: integer, minimum: 1, maximum: 10 }
+              imageKey: { type: string, pattern: '^media/events/badge/[0-9a-f-]{36}\.webp$' }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    EventBadgeCreated:
+      type: object
+      required: [code, nameAr, nameEn, levels]
+      properties:
+        code: { type: string }
+        nameAr: { type: string }
+        nameEn: { type: string }
+        levels:
+          type: array
+          items:
+            type: object
+            required: [level, imageUrl]
+            properties:
+              level: { type: integer }
+              imageUrl: { type: [string, 'null'] }
+    GiftEventSaved:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: { type: string, format: uuid }
+    EventOptions:
+      type: object
+      additionalProperties: false
+      description: (v1.97-social, D303) What a gift event may use.
+      required: [timeZone, boardKinds, limits, specs, badges, gifts, bagItems, vipTiers]
+      properties:
+        specs:
+          type: array
+          description: "(D303 follow-ups, §10.114.9) The published art specs — the same object the uploads enforce; the panel and the app show them beside each upload field."
+          items: { $ref: '#/components/schemas/EventMediaSpec' }
+        badges:
+          type: array
+          items:
+            type: object
+            required: [code, nameAr, nameEn, levels]
+            properties:
+              code: { type: string }
+              nameAr: { type: string }
+              nameEn: { type: string }
+              levels:
+                type: array
+                items:
+                  type: object
+                  required: [level, imageUrl]
+                  properties:
+                    level: { type: integer }
+                    imageUrl: { type: [string, 'null'] }
+        timeZone: { type: string, description: The server's default zone (LIVE_RANKINGS_TIME_ZONE). }
+        boardKinds:
+          type: array
+          items: { $ref: '#/components/schemas/EventBoardKind' }
+        limits: { type: object, additionalProperties: { type: integer } }
+        gifts:
+          type: array
+          items:
+            type: object
+            required: [code, nameAr, nameEn, priceCoins, assetKey, imageUrl, enabled]
+            properties:
+              code: { type: string }
+              nameAr: { type: string }
+              nameEn: { type: string }
+              priceCoins: { type: integer, minimum: 0 }
+              assetKey: { type: string }
+              imageUrl: { type: [string, 'null'] }
+              enabled: { type: boolean }
+        bagItems:
+          type: array
+          items:
+            type: object
+            required: [code, category, nameAr, nameEn, assetKey]
+            properties:
+              code: { type: string }
+              category: { type: string }
+              nameAr: { type: string }
+              nameEn: { type: string }
+              assetKey: { type: string }
+        vipTiers:
+          type: array
+          items:
+            type: object
+            required: [code, nameAr, nameEn, color, enabled]
+            properties:
+              code: { type: string }
+              nameAr: { type: string }
+              nameEn: { type: string }
+              color: { type: string }
+              enabled: { type: boolean }
+    AdminGiftEvent:
+      type: object
+      description: (v1.97-social, D303) A gift event for its editors (panel and app).
+      required: [id, state, payoutHold, frozenAt, paidAt, structureLocked, artUrls, form, results]
+      properties:
+        id: { type: string, format: uuid }
+        state: { type: string, enum: [UPCOMING, RUNNING, PAID, HELD, IN_REVIEW, ENDED] }
+        payoutHold: { type: boolean }
+        frozenAt: { type: [string, 'null'], format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        structureLocked: { type: boolean, description: "Started: gifts, boards, prizes, start, audience and regions can no longer change." }
+        artUrls:
+          type: object
+          required: [background, backgroundPoster, title, overlay]
+          properties:
+            background: { type: [string, 'null'] }
+            backgroundPoster: { type: [string, 'null'] }
+            title: { type: [string, 'null'] }
+            overlay: { type: [string, 'null'] }
+        form: { $ref: '#/components/schemas/GiftEventForm' }
+        results:
+          type: array
+          items:
+            type: object
+            required: [board, rank, username, displayName, agencyId, coupleId, partnerId, score, prize, prizeStatus, payouts]
+            properties:
+              board: { type: string }
+              rank: { type: integer, minimum: 1 }
+              username: { type: [string, 'null'] }
+              displayName: { type: [string, 'null'] }
+              agencyId: { type: [string, 'null'], format: uuid }
+              coupleId: { type: [string, 'null'], format: uuid }
+              partnerId: { type: [string, 'null'], format: uuid }
+              score: { type: integer, format: int64 }
+              prize: { type: array, items: { type: object } }
+              prizeStatus: { type: string, enum: [NONE, PENDING, PAID, FORFEITED] }
+              payouts:
+                type: array
+                items:
+                  type: object
+                  required: [userId, status, granted]
+                  properties:
+                    userId: { type: string, format: uuid }
+                    status: { type: string, enum: [PAID, FORFEITED] }
+                    granted: { type: array, items: { type: object } }
+    StaffEventList:
+      type: object
+      description: (v1.97-social, D303)
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, titleAr, titleEn, metric, startsAt, endsAt, state, payoutHold, editable]
+            properties:
+              id: { type: string, format: uuid }
+              titleAr: { type: string }
+              titleEn: { type: string }
+              metric: { type: string }
+              startsAt: { type: string, format: date-time }
+              endsAt: { type: [string, 'null'], format: date-time }
+              state: { type: string, enum: [UPCOMING, RUNNING, PAID, HELD, IN_REVIEW, ENDED] }
+              payoutHold: { type: boolean }
+              editable: { type: boolean }
     AdminEventList:
       type: object
       required:
@@ -24604,6 +25333,7 @@ components:
                 - LIVE_MINUTES
                 - TAPS_RECEIVED
                 - NEW_FOLLOWERS
+                - EVENT_GIFTS
               audience:
                 type: string
               startsAt:
@@ -27079,7 +27809,7 @@ components:
     HomeBanner:
       type: object
       additionalProperties: false
-      required: [id, imageUrl, width, height, blurhash, title, titleSide, link]
+      required: [id, imageUrl, width, height, blurhash, title, titleSide, link, kind, posterUrl, videoUrl, durationMs, eventId]
       description: A promo banner of the live hub (v1.26-live, D124, CONVENTIONS §10.26).
       properties:
         id: { type: string, format: uuid }
@@ -27103,7 +27833,16 @@ components:
           maxLength: 512
           description: |
             `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/{roomId}`,
-            `/users/{username}` or an `https://` URL. Apps ignore a link they cannot open.
+            `/users/{username}`, (v1.97-social, D303) `/events/{eventId}` or an `https://` URL. Apps ignore a link
+            they cannot open.
+        kind:
+          type: string
+          enum: [IMAGE, ANIMATED, VIDEO]
+          description: "v1.97-social (D303, §10.114.6): IMAGE (a still), ANIMATED (`imageUrl` is an animated WebP), VIDEO (`videoUrl`: muted, looping, played only while visible; `imageUrl` = `posterUrl` its poster). With reduced motion the app shows `posterUrl` only. Older apps show `imageUrl`. Clients treat an unknown kind as IMAGE."
+        posterUrl: { type: string, format: uri, description: "The still: an animation's first frame, a video's poster, a still's picture." }
+        videoUrl: { type: [string, 'null'], format: uri, description: "VIDEO: the MP4 / MOV (H.264 or HEVC, 1–30 s)." }
+        durationMs: { type: [integer, 'null'], minimum: 1, maximum: 30000, description: "A video's length or an animation's loop; null for a still." }
+        eventId: { type: [string, 'null'], format: uuid, description: "The event the banner opens (`link` is then `/events/{eventId}`)." }
     HomeBannerList:
       type: object
       additionalProperties: false
@@ -29806,13 +30545,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). (v1.47-social, D175) `FOLLOW_REQUEST` (someone asked to follow your private account; target USER: the requester; withdrawn when the request is cancelled, accepted or declined), `FOLLOW_REQUEST_ACCEPTED` (target USER: the account that accepted), `AVATAR_REMOVED` (system, no target: a moderator removed your profile photo). The two follow-request types follow the `follows` setting. (v1.48-social, D171) `BAG_ITEM_RECEIVED` (actor the sender, target BAG_ITEM: the item code, `bagCategory`). (v1.54-social, D185) `RECHARGE_COINS_RECEIVED` (actor the agent or employee who sold, target RECHARGE_SALE: the sale id and `coins`), `RECHARGE_CHERRY_REQUEST` (actor the host or agent who asked; no target: the app opens the cherry requests). (v1.60-social, D191) `MODERATION_WARNING` (system: a moderator warned you about content that breaks the rules; target POST when the warning is about a post, else none). (v1.66-social, D198) `DATA_EXPORT_READY` (system, no target: the data export «تنزيل بياناتي» is ready; the app opens Settings › Privacy). (v1.69-social, D204) `RECHARGE_ORDER_UPDATE` (system: a recharge order you take part in changed or got a message; target RECHARGE_ORDER with `coins`, `orderEvent` and `orderStatus`; one unread row per order, moved up by each event). (v1.70-social, D206) system, target AGENCY: `AGENCY_OPENED` (your agency is open — also when the team reopens it), `AGENCY_PROBATION_REMINDER` (less than 24 h left with fewer activated hosts than needed; `activatedHosts` / `requiredHosts`), `AGENCY_PROBATION_PASSED`, `AGENCY_CLOSED` (with `activatedHosts` / `requiredHosts` when the probation failed; none when the team closed it), `AGENCY_HOST_RELEASED` (to each host of a closed agency: they are free). (v1.72-social, D208) `ACCOUNT_RESTRICTED` / `ACCOUNT_RESTRICTION_LIFTED` (system, target ACCOUNT_RESTRICTION: `restriction`, `endsAt`, `text` = the team's reason), `BALANCE_ADJUSTED` (system, target BALANCE_ADJUSTMENT: `currency`, `amount` signed), `PROFILE_EDITED_BY_TEAM` (system, no target). (v1.73-social, D209) system, no target: `HOST_APPLICATION_APPROVED` (your application «كن مضيفاً مع الإدارة» was approved — you may go live), `HOST_APPLICATION_REJECTED` (it was rejected; the reason is in `getMyHostingApplication`); the app opens «الوكالة». (v1.74-social, D217) `REFERRAL_REWARD_REVERSED` (system, no target): the team voided a referral and took back the cherries it had credited (the amount is in the cherry ledger, `REFERRAL_REVERSAL`); the app opens the cherry wallet. (v1.80-kyc, D227) system, no target: `KYC_APPROVED` (your identity check «تأكيد الهوية» was approved), `KYC_DECLINED` (declined — the reasons and the retry are in `getMyKyc`), `KYC_IN_REVIEW` (sent to a manual review); the app opens the application that asked for it. (v1.60-live, D250) `LIVE_MODERATED` (system, target LIVE_MODERATION: the team acted on your live from the panel — `moderation` END / NO_LIVE / SUSPEND / DEVICE_BAN, `reason`, `endsAt` or `permanent`; also pushed with the reason). (v1.68-live, D273) `LIVE_STAFF_REPORT` (system, target LIVE_ROOM: a report on a live you look after as «فريق كابسو» — one unread row per live, moved up and pushed again by each new report; the push says «بلاغ جديد على بث» and the host's name only; the app opens the live as staff with the reports). (v1.78-live, D288, §10.101) `STAFF_REPORT_NEW` (system, target REPORT: a new report in the shared queue, to every MODERATION and SUPPORT account — OWNERs when there is none —; one unread row per staff member, moved to the newest report and pushed again on the Android channel `kabso_staff` with the title «بلاغات فريق كابسو» and «بلاغ جديد بانتظار الحل» — never the reporter, the reason or the target; read for everyone once the report is resolved; the app opens «بلاغات»). (v1.89-social, D290) system, target LEVEL_RAISE: `LEVEL_RAISE_APPROVED` / `LEVEL_RAISE_REJECTED` (to the staff member who made the request; `text` the supporter's username, `level` the approved level), `LEVEL_RAISED` (to the supporter on approval when the level rose; `level`); the app opens the staff member's requests (or the levels page for the supporter). (v1.97-social, D303) `EVENT_PRIZE_WON` (system, target EVENT: `id` the event, no text): a prize of an event board was paid to you; the app opens the event. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED, FOLLOW_REQUEST, FOLLOW_REQUEST_ACCEPTED, AVATAR_REMOVED, BAG_ITEM_RECEIVED, RECHARGE_COINS_RECEIVED, RECHARGE_CHERRY_REQUEST, MODERATION_WARNING, DATA_EXPORT_READY, RECHARGE_ORDER_UPDATE, AGENCY_OPENED, AGENCY_PROBATION_REMINDER, AGENCY_PROBATION_PASSED, AGENCY_CLOSED, AGENCY_HOST_RELEASED, ACCOUNT_RESTRICTED, ACCOUNT_RESTRICTION_LIFTED, BALANCE_ADJUSTED, PROFILE_EDITED_BY_TEAM, HOST_APPLICATION_APPROVED, HOST_APPLICATION_REJECTED, REFERRAL_REWARD_REVERSED, COVER_REMOVED, KYC_APPROVED, KYC_DECLINED, KYC_IN_REVIEW, LIVE_MODERATED, LIVE_STAFF_REPORT, STAFF_REPORT_NEW, LEVEL_RAISE_APPROVED, LEVEL_RAISE_REJECTED, LEVEL_RAISED, EVENT_PRIZE_WON]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT, LEVEL_RAISE], description: "(v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.89-social, D290) LEVEL_RAISE: a level-raise request (`id`). (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME, BAG_ITEM, RECHARGE_SALE, RECHARGE_ORDER, AGENCY, ACCOUNT_RESTRICTION, BALANCE_ADJUSTMENT, LIVE_MODERATION, LIVE_ROOM, REPORT, LEVEL_RAISE, EVENT], description: "(v1.97-social, D303) EVENT (`id` the event; `text` null); (v1.78-live, D288) REPORT (`id` the report, `reportTargetType`, `reportOpen`; no text or picture); (v1.89-social, D290) LEVEL_RAISE: a level-raise request (`id`). (v1.68-live, D273) LIVE_ROOM (`id` = `roomId` the live, `text` the host's name, `thumbUrl` their picture, `live`); (v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; (v1.48-social, D171) BAG_ITEM; (v1.54-social, D185) RECHARGE_SALE; (v1.69-social, D204) RECHARGE_ORDER (`id` the order); (v1.70-social, D206) AGENCY (id the agency, `text` its name; the app opens «الوكالة»); (v1.72-social, D208) ACCOUNT_RESTRICTION and BALANCE_ADJUSTMENT; (v1.60-live, D250) LIVE_MODERATION (`id` the action; `text` the reason's excerpt); clients ignore target types they do not know." }
         id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME, the item code for BAG_ITEM." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
@@ -30660,15 +31399,30 @@ components:
         maxLevel: { type: integer, minimum: 1, maximum: 20 }
         iconUrl: { type: [string, 'null'], format: uri, description: "(v1.81-live, D291) That level's own art, or null." }
         iconAsset: { type: [string, 'null'], pattern: '^[a-z0-9_]{1,60}$', description: "(D291) That level's bundled art key, or null." }
+    EventBadgeHeld:
+      type: object
+      additionalProperties: false
+      description: "(v1.97-social, D303 follow-up, §10.114.8) An event badge «وسام فعالية» held now (until `expiresAt`; shown with the medals, gone at the end)."
+      required: [code, name, level, imageUrl, expiresAt]
+      properties:
+        code: { type: string, maxLength: 40 }
+        name: { type: string }
+        level: { type: integer, minimum: 1, maximum: 10 }
+        imageUrl: { type: [string, 'null'], format: uri, description: "The held level's art." }
+        expiresAt: { type: [string, 'null'], format: date-time, description: "Null = permanent «دائم»." }
     UserMedalList:
       type: object
-      required: [data, owned, total]
+      required: [data, owned, total, eventBadges]
       properties:
         data:
           type: array
           items: { $ref: '#/components/schemas/UserMedal' }
         owned: { type: integer, minimum: 0 }
         total: { type: integer, minimum: 0 }
+        eventBadges:
+          type: array
+          description: (v1.97-social, D303 follow-up) The event badges held now.
+          items: { $ref: '#/components/schemas/EventBadgeHeld' }
     ProfileMedal:
       type: object
       required: [code, name, iconKey, level, iconUrl, iconAsset]
@@ -30682,8 +31436,12 @@ components:
     ProfileMedals:
       type: object
       description: "(v1.21-live, CP-018) Medals on the public profile: owned, the catalogue size, the newest three and the user's chosen showcase."
-      required: [owned, total, latest, showcase]
+      required: [owned, total, latest, showcase, eventBadges]
       properties:
+        eventBadges:
+          type: array
+          description: (v1.97-social, D303 follow-up) The event badges held now, shown before the medals.
+          items: { $ref: '#/components/schemas/EventBadgeHeld' }
         owned: { type: integer, minimum: 0 }
         total: { type: integer, minimum: 0 }
         latest:
@@ -31048,8 +31806,8 @@ components:
       description: "(v1.84-social, D270, §10.98) CHAT_BUBBLE, ENTRY_BANNER and ENTRY_EFFECT are also real bag items now (sold in the store); only MIC_WAVE stays VIP-only. A bag category; one worn item each (v1.65-live, D264). PROFILE_CARD: the decoration on the profile card's header (v1.65-live, D264: or the VIP card art). AVATAR_FRAME (v1.46-levels, D169): the frame around the user's photo (the support level's tier frames; v1.65-live, D264: the VIP frame too). (v1.65-live, D264, §10.97) VIP items only: CHAT_BUBBLE, ENTRY_BANNER, ENTRY_EFFECT (the entry car), MIC_WAVE. More categories come later; clients ignore items of categories they do not know (§10.22)."
     BagItemSource:
       type: string
-      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE, VIP, STORE]
-      description: "(v1.84-social, D270) `STORE`: bought in the store for oneself (a store gift is `GIFT` with `giftedBy`); timed, so transferable. (v1.65-live, D264) `VIP`: a VIP member's tier item, there while the membership is active (`BagItem.vip`; not transferable, `expiresAt` = the membership's end, §10.97). How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
+      enum: [FREE_SIGNUP, BACKFILL, ADMIN, LEVEL_REWARD, GIFT, HOST_ACTIVE, VIP, STORE, EVENT]
+      description: "(v1.97-social, D303) `EVENT`: an event prize (timed, not transferable). (v1.84-social, D270) `STORE`: bought in the store for oneself (a store gift is `GIFT` with `giftedBy`); timed, so transferable. (v1.65-live, D264) `VIP`: a VIP member's tier item, there while the membership is active (`BagItem.vip`; not transferable, `expiresAt` = the membership's end, §10.97). How the item was obtained: free at signup, free for accounts that existed before the bag, granted by an admin, (v1.46-levels, D169) given by the server when a level is reached (the support tier frames; not transferable), (v1.48-social, D171) sent by another user (`GIFT`, see `BagItem.giftedBy`), or (v1.55-social, D186) the active-host frame, kept only while the user is an active agency host (`HOST_ACTIVE`; not transferable, no expiry, §10.49). More values come later (store, rewards); clients treat unknown values as opaque."
     BagCatalogueItem:
       type: object
       required: [code, category, name, assetKey, sortOrder, free]
@@ -32629,8 +33387,8 @@ components:
         startsAt: { type: string, format: date-time }
         endsAt: { type: [string, 'null'], format: date-time, description: Null only for a permanent event without an end. }
         status: { type: string, enum: [UPCOMING, RUNNING, ENDED] }
-        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS] }
-        audience: { type: string, enum: [EVERYONE, HOSTS] }
+        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS, EVENT_GIFTS] }
+        audience: { type: string, enum: [EVERYONE, HOSTS, CREATORS], description: "v1.97-social (D303): CREATORS — shown to content-creator members only." }
         permanent: { type: boolean }
         featured: { type: boolean, description: Shown as «رائج». }
         regions:
@@ -32662,13 +33420,103 @@ components:
         rankFrom: { type: integer, minimum: 1, maximum: 100 }
         rankTo: { type: integer, minimum: 1, maximum: 100 }
         coins: { type: integer, minimum: 1 }
+    EventPrizeItem:
+      type: object
+      additionalProperties: false
+      description: "v1.97-social (D303, §10.114.3): one item of a prize bundle. COINS / CHERRIES carry `amount`; BAG_ITEM (a frame, an entry vehicle, a card …) and VIP carry `days` and `code` (the item / tier code), with the catalogue's `name`, `category`, `assetKey` and (VIP) `color` for display (null when gone from the catalogue). Clients ignore types they do not know."
+      required: [type, amount, days, code, name, category, assetKey, color]
+      properties:
+        type: { type: string, enum: [COINS, CHERRIES, CP_MONEY, BAG_ITEM, VIP, BADGE], description: "(D303 follow-ups) BADGE: an event medal «وسام فعالية» at `level` (`imageUrl` that level's art); CP_MONEY (CP boards): `cherries` for a partner who is an approved host or creator at payout time, `coins` for a partner who is not; `days` null on BAG_ITEM / BADGE = permanent «دائم»." }
+        imageUrl: { type: [string, 'null'], format: uri }
+        level: { type: integer, minimum: 1, maximum: 10 }
+        cherries: { type: integer, minimum: 0 }
+        coins: { type: integer, minimum: 0 }
+        amount: { type: [integer, 'null'], minimum: 1 }
+        days: { type: [integer, 'null'], minimum: 1, maximum: 365, description: "Null for money, and on BAG_ITEM / BADGE for a permanent «دائم» prize." }
+        code: { type: [string, 'null'] }
+        name: { type: [string, 'null'] }
+        category: { type: [string, 'null'], description: "BAG_ITEM: its `BagCategory`; VIP: `VIP`; BADGE: `BADGE`." }
+        assetKey: { type: [string, 'null'] }
+        color: { type: [string, 'null'], pattern: '^#[0-9A-F]{6}$' }
+    EventPrizeLine:
+      type: object
+      additionalProperties: false
+      required: [rankFrom, rankTo, items]
+      properties:
+        rankFrom: { type: integer, minimum: 1, maximum: 100 }
+        rankTo: { type: integer, minimum: 1, maximum: 100 }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 6
+          items: { $ref: '#/components/schemas/EventPrizeItem' }
+    EventBoardKind:
+      type: string
+      enum: [SENDERS, RECEIVERS, CREATORS, AGENCIES, CP]
+      description: "v1.97-social (D303, §10.114.3): SENDERS «ترتيب الداعمين» (who sent the event gifts); RECEIVERS «ترتيب المضيفين» (who received them, never a content-creator member, D295); CREATORS «صناع المحتوى» (creator members who received them); AGENCIES «الوكالات» (the receiving host's agency at the time of the gift; the agency's owner wins); CP (the event gifts two partners sent each other while a couple; both partners win). Clients ignore kinds they do not know."
+    EventBoard:
+      type: object
+      additionalProperties: false
+      required: [kind, minPoints, prizes]
+      properties:
+        kind: { $ref: '#/components/schemas/EventBoardKind' }
+        minPoints: { type: integer, format: int64, minimum: 0, description: "The qualification minimum: a rank below it wins nothing." }
+        prizes:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/EventPrizeLine' }
+    EventGift:
+      type: object
+      additionalProperties: false
+      required: [code, name, priceCoins, assetKey, imageUrl, pointsPerCoin, pointsPerGift, pointsEach]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        priceCoins: { type: integer, minimum: 0 }
+        assetKey: { type: string }
+        imageUrl: { type: [string, 'null'], format: uri }
+        pointsPerCoin: { type: integer, minimum: 0, maximum: 1000 }
+        pointsPerGift: { type: integer, minimum: 0, maximum: 1000000 }
+        pointsEach: { type: integer, format: int64, minimum: 0, description: "Points of one such gift per recipient (`priceCoins × pointsPerCoin + pointsPerGift`)." }
     EventDetail:
       allOf:
         - $ref: '#/components/schemas/EventSummary'
         - type: object
-          required: [rules, prizes, frozenAt, payoutDueAt, paidAt]
+          required: [rules, prizes, timeZone, art, gifts, boards, frozenAt, payoutDueAt, paidAt]
           properties:
             rules: { type: string }
+            timeZone: { type: string, description: "v1.97-social (D303): the IANA zone the app shows the dates in (the event's own, else the server's)." }
+            art:
+              type: object
+              description: "v1.97-social (D303 follow-ups, §10.114.9): the page art uploaded for the event (null parts: none). The app draws the cards over `background`, `titleUrl` in the top 480 px, and plays `overlay` looping (paused off screen and with reduced motion)."
+              required: [background, titleUrl, overlay]
+              properties:
+                background:
+                  oneOf:
+                    - type: 'null'
+                    - type: object
+                      required: [kind, url, posterUrl]
+                      properties:
+                        kind: { type: string, enum: [IMAGE, ANIMATED, VIDEO] }
+                        url: { type: string, format: uri }
+                        posterUrl: { type: [string, 'null'], format: uri }
+                titleUrl: { type: [string, 'null'], format: uri }
+                overlay:
+                  oneOf:
+                    - type: 'null'
+                    - type: object
+                      required: [format, url]
+                      properties:
+                        format: { type: string, enum: [SVGA, LOTTIE] }
+                        url: { type: string, format: uri }
+            gifts:
+              type: array
+              description: "v1.97-social (D303): an EVENT_GIFTS event's gifts, in order (empty for the other metrics)."
+              items: { $ref: '#/components/schemas/EventGift' }
+            boards:
+              type: array
+              description: "v1.97-social (D303): an EVENT_GIFTS event's boards, in order (empty for the other metrics); `prizes` above is then empty."
+              items: { $ref: '#/components/schemas/EventBoard' }
             prizes:
               type: array
               items: { $ref: '#/components/schemas/EventPrize' }
@@ -32680,7 +33528,7 @@ components:
       required: [eventId, metric, final, data, me]
       properties:
         eventId: { type: string, format: uuid }
-        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS] }
+        metric: { type: string, enum: [GIFT_COINS_RECEIVED, GIFT_COINS_SENT, LIVE_MINUTES, TAPS_RECEIVED, NEW_FOLLOWERS, EVENT_GIFTS] }
         final: { type: boolean }
         data:
           type: array
@@ -32693,6 +33541,17 @@ components:
               user: { $ref: '#/components/schemas/UserSummary' }
               score: { type: integer, format: int64, minimum: 0 }
               prizeCoins: { type: integer, minimum: 0 }
+              partner: { $ref: '#/components/schemas/UserSummary' }
+              agency:
+                type: object
+                required: [id, name]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: [string, 'null'] }
+              qualified: { type: boolean }
+              prize:
+                type: array
+                items: { $ref: '#/components/schemas/EventPrizeItem' }
         me:
           type: object
           required: [rank, score, prizeCoins]
@@ -32700,6 +33559,17 @@ components:
             rank: { type: [integer, 'null'], minimum: 1 }
             score: { type: integer, format: int64, minimum: 0 }
             prizeCoins: { type: integer, minimum: 0 }
+            qualified: { type: boolean }
+            pointsToQualify: { type: integer, format: int64, minimum: 0 }
+            prize:
+              type: array
+              items: { $ref: '#/components/schemas/EventPrizeItem' }
+        board:
+          oneOf:
+            - { $ref: '#/components/schemas/EventBoardKind' }
+            - { type: 'null' }
+          description: "v1.97-social (D303): the board shown (gift events)."
+        minPoints: { type: integer, format: int64, minimum: 0 }
     RechargePackages:
       type: object
       required: [currency, purchasesEnabled, packages]
@@ -32801,12 +33671,13 @@ components:
         `TASK_REWARD`, §10.62.2). *(v1.75-live, D285)* `STAFF_RECRUIT_COMMISSION` (credit): a Kabso Team recruiter's
         daily share of a recruit's platform profit (reference `SR:<recruitment>@<day>`; withdrawable, §10.96.13).
         *(v1.82-live, D295)* `AGENCY_FORFEIT` (debit): «حظر الوكالة» — the owner's unwithdrawn agency commission
-        forfeited (reference: the agency; §10.108).
+        forfeited (reference: the agency; §10.108). *(v1.97-social, D303)* `EVENT_PRIZE` (credit): a gift event's
+        cherry prize (reference `EVP:<payout>`; locked like `TASK_REWARD`, §10.114.4).
         New values may appear later.
       enum: [GIFT_RECEIVED, AGENCY_COMMISSION, PARENT_COMMISSION, GIFT_REVERSAL, AGENCY_COMMISSION_REVERSAL,
              PARENT_COMMISSION_REVERSAL, WITHDRAWAL_HOLD, WITHDRAWAL_REFUND, TASK_REWARD, RECHARGE_SALE,
              REFERRAL_REWARD, REFERRAL_REVERSAL, STORE_PURCHASE, HOST_TARGET_REWARD, STAFF_RECRUIT_COMMISSION,
-             AGENCY_FORFEIT]
+             AGENCY_FORFEIT, EVENT_PRIZE]
     CherryPayoutRules:
       type: object
       description: "`rateCherries` cherries are paid `rateMinor` minor units of `currency` (owner: 1 000 000 = 110, $1.10)."

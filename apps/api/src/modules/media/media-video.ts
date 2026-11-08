@@ -11,7 +11,7 @@ export const VIDEO_CONTENT_TYPES = ['video/mp4', 'video/quicktime'] as const;
 export type VideoContentType = (typeof VIDEO_CONTENT_TYPES)[number];
 
 /** v1.89-social (D290, §10.103): `LEVEL_RAISE_VIDEO` — the source-app profile video of a level-raise request. */
-export type VideoKind = 'POST_VIDEO' | 'REEL_VIDEO' | 'LEVEL_RAISE_VIDEO';
+export type VideoKind = 'POST_VIDEO' | 'REEL_VIDEO' | 'LEVEL_RAISE_VIDEO' | 'BANNER_VIDEO' | 'EVENT_VIDEO';
 
 /**
  * Server-enforced limits per kind (owner D162: reels 100 MiB / 60 s, post videos 200 MiB; owner D168:
@@ -22,6 +22,10 @@ export const VIDEO_LIMITS: Readonly<Record<VideoKind, { maxBytes: number; maxDur
   REEL_VIDEO: { maxBytes: 100 * 1024 * 1024, maxDurationMs: 60_000 },
   // v1.89-social (D290): like a post video (a recording of the source app's profile: level and ID on screen).
   LEVEL_RAISE_VIDEO: { maxBytes: 200 * 1024 * 1024, maxDurationMs: 90_000 },
+  // v1.97-social (D303, §10.114.6): a HOME banner's video from the panel only (muted loop; owner-changeable defaults).
+  BANNER_VIDEO: { maxBytes: 30 * 1024 * 1024, maxDurationMs: 30_000 },
+  // v1.97-social (D303 follow-up): an event page's background video (never a media asset; `event-media.ts`).
+  EVENT_VIDEO: { maxBytes: 20 * 1024 * 1024, maxDurationMs: 15_000 },
 };
 /** The largest upload of any kind (`CreateMediaUploadRequest.byteSize` maximum). */
 export const MAX_VIDEO_BYTES = VIDEO_LIMITS.POST_VIDEO.maxBytes;
@@ -40,7 +44,9 @@ const MAX_TOP_LEVEL_BOXES = 64;
 export class InvalidVideoError extends Error {}
 
 export function isVideoKind(kind: string): kind is VideoKind {
-  return kind === 'POST_VIDEO' || kind === 'REEL_VIDEO' || kind === 'LEVEL_RAISE_VIDEO';
+  return (
+    kind === 'POST_VIDEO' || kind === 'REEL_VIDEO' || kind === 'LEVEL_RAISE_VIDEO' || kind === 'BANNER_VIDEO'
+  );
 }
 
 /** Reads `length` bytes at `offset` of the stored object (fewer at its end; null when missing). */

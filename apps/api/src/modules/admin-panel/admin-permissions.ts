@@ -222,6 +222,12 @@ export const CAPABILITIES = {
   'verification.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
   /** Change the thresholds (the code again and a reason; audited; everyone is recomputed at once). OWNER only. */
   'verification.settings': ['OWNER'],
+  // ---- v1.97-social (D303, CONVENTIONS §10.114.7): gift events «فعاليات الهدايا» ------------------------------------
+  /**
+   * Create and edit events (gifts, boards, prizes), end one, hold / release its automatic payout — from the panel and
+   * from the app. OWNER only by default (owner to widen; PP-60).
+   */
+  'events.manage': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;

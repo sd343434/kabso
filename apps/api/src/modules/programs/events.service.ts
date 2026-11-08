@@ -12,7 +12,22 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import { giftArtUrl } from '../gifts/gift-art.js';
+import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { creditIn } from '../wallet/wallet-ledger.js';
+import {
+  boardRankedSql,
+  bundleCoins,
+  bundleForRank,
+  EVENT_BOARD_KINDS,
+  freezeGiftEventIn,
+  parseBundle,
+  parsePrizeLines,
+  payGiftEventIn,
+  type BoardRow,
+  type EventBoardKind,
+  type PrizeItem,
+} from './gift-events.js';
 import { EVENT_LEADERBOARD_MAX, parseEventPrizes, prizeForRank, type EventPrize } from './programs-rules.js';
 
 type Tx = Prisma.TransactionClient;
@@ -35,6 +50,62 @@ export const eventsQuerySchema = z.strictObject({
 });
 
 export type EventStatus = 'UPCOMING' | 'RUNNING' | 'ENDED';
+
+/** v1.97-social (D303): `getEventLeaderboard?board=` (a gift event's board; a D166 event takes none). */
+export const leaderboardQuerySchema = z.strictObject({ board: z.enum(EVENT_BOARD_KINDS).optional() });
+
+/** `EventPrizeItem` (v1.97-social, D303): one item of a prize bundle, with what the app shows. */
+export interface EventPrizeItemDto {
+  type: PrizeItem['type'];
+  /** COINS / CHERRIES: how many; null otherwise. */
+  amount: number | null;
+  /** BAG_ITEM / VIP: for how many days; null otherwise. */
+  days: number | null;
+  /** BAG_ITEM: the item code; VIP: the tier code; null otherwise. */
+  code: string | null;
+  /** The item's or tier's name in the requested language (null when gone from the catalogue). */
+  name: string | null;
+  /** BAG_ITEM: its bag category (AVATAR_FRAME, ENTRY_EFFECT …); VIP: `VIP`; null otherwise. */
+  category: string | null;
+  /** BAG_ITEM: the app's asset key; VIP: the tier's still (asset path or https URL); null otherwise. */
+  assetKey: string | null;
+  /** VIP: the tier colour `#RRGGBB`; null otherwise. */
+  color: string | null;
+  /** v1.97-social (D303 follow-up) BADGE: the medal level and that level's uploaded art (512 × 512, transparent). */
+  imageUrl?: string | null;
+  level?: number;
+  /** v1.97-social (D303 follow-up) CP_MONEY: cherries for a host / creator partner, coins for another (payout time). */
+  cherries?: number;
+  coins?: number;
+}
+
+/** `EventPrizeLine`. */
+export interface EventPrizeLineDto {
+  rankFrom: number;
+  rankTo: number;
+  items: EventPrizeItemDto[];
+}
+
+/** `EventBoard` (v1.97-social, D303). */
+export interface EventBoardDto {
+  kind: EventBoardKind;
+  /** The qualification minimum: below it no prize. */
+  minPoints: number;
+  prizes: EventPrizeLineDto[];
+}
+
+/** `EventGift` (v1.97-social, D303): one gift of a gift event and its points. */
+export interface EventGiftDto {
+  code: string;
+  name: string;
+  priceCoins: number;
+  assetKey: string;
+  imageUrl: string | null;
+  pointsPerCoin: number;
+  pointsPerGift: number;
+  /** The points one gift of this kind earns per recipient (`priceCoins × pointsPerCoin + pointsPerGift`). */
+  pointsEach: number;
+}
 
 /** `EventSummary` (openapi v1.44-social, D166). */
 export interface EventSummaryDto {
@@ -73,6 +144,17 @@ export interface EventListDto {
 export interface EventDetailDto extends EventSummaryDto {
   rules: string;
   prizes: EventPrize[];
+  /** v1.97-social (D303): the IANA zone the app shows the dates in (the event's own, else the server's). */
+  timeZone: string;
+  /** v1.97-social (D303 follow-ups, §10.114.9): the page art uploaded for the event (null parts: none). */
+  art: {
+    background: { kind: 'IMAGE' | 'ANIMATED' | 'VIDEO'; url: string; posterUrl: string | null } | null;
+    titleUrl: string | null;
+    overlay: { format: 'SVGA' | 'LOTTIE'; url: string } | null;
+  };
+  /** v1.97-social (D303): an EVENT_GIFTS event's gifts and boards (empty for the other metrics). */
+  gifts: EventGiftDto[];
+  boards: EventBoardDto[];
   /** When the leaderboard was frozen (after the end), the payout time, and when prizes were paid. */
   frozenAt: string | null;
   payoutDueAt: string | null;
@@ -82,9 +164,16 @@ export interface EventDetailDto extends EventSummaryDto {
 /** `EventLeaderboardEntry`. */
 export interface EventLeaderboardEntryDto {
   rank: number;
+  /** The person; AGENCIES: the agency's owner; CP: the first partner (`partner` the second). */
   user: UserSummaryDto;
   score: number;
   prizeCoins: number;
+  /** v1.97-social (D303, gift events): CP — the second partner; AGENCIES — the agency. Absent otherwise. */
+  partner?: UserSummaryDto;
+  agency?: { id: string; name: string | null };
+  /** v1.97-social (D303, gift events): the score reaches the board's minimum, and the bundle of this rank. */
+  qualified?: boolean;
+  prize?: EventPrizeItemDto[];
 }
 
 /** `EventLeaderboard`. */
@@ -95,7 +184,18 @@ export interface EventLeaderboardDto {
   final: boolean;
   data: EventLeaderboardEntryDto[];
   /** The caller's own place: rank null when not on the board. */
-  me: { rank: number | null; score: number; prizeCoins: number };
+  me: {
+    rank: number | null;
+    score: number;
+    prizeCoins: number;
+    /** v1.97-social (D303, gift events): qualified, and the points still missing to reach the minimum. */
+    qualified?: boolean;
+    pointsToQualify?: number;
+    prize?: EventPrizeItemDto[];
+  };
+  /** v1.97-social (D303): the board shown (null for a D166 event) and its minimum. */
+  board?: EventBoardKind | null;
+  minPoints?: number;
 }
 
 export interface EventsSweepResult {
@@ -155,6 +255,9 @@ function scoresSql(metric: EventMetric, from: Date, to: Date): Prisma.Sql {
           JOIN users u ON u.id = f.follower_id AND u.status = 'ACTIVE'
          WHERE f.created_at >= ${from}::timestamptz AND f.created_at < ${to}::timestamptz
          GROUP BY f.followee_id`;
+    case 'EVENT_GIFTS':
+      // v1.97-social (D303): ranked per board (`gift-events.boardRankedSql`), never as one board.
+      return Prisma.sql`SELECT NULL::uuid AS user_id, 0::bigint AS score WHERE false`;
   }
 }
 
@@ -195,6 +298,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly storageSettings: StorageSettingsStore,
   ) {}
 
   onModuleInit(): void {
@@ -268,7 +372,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const country = await this.country(me);
     // D295 (owner, int16: «تختفي من عنده فعاليات المضيفين»): a content creator does not see host-only events.
     const creator = (await this.prisma.creatorMember.count({ where: { userId: me } })) > 0;
-    const audience = creator ? { audience: { not: 'HOSTS' as const } } : {};
+    // v1.97-social (D303): a creators-only event is shown to creator members only.
+    const audience = creator
+      ? { audience: { not: 'HOSTS' as const } }
+      : { audience: { not: 'CREATORS' as const } };
     const visibleSince = new Date(now.getTime() - ENDED_VISIBLE_MS);
     let month: string | null = null;
     let events: Event[] = [];
@@ -337,13 +444,165 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   /** `GET /events/{eventId}`. */
   async detail(eventId: string, lang: ContentLanguage): Promise<EventDetailDto> {
     const e = await this.eventOr404(eventId);
+    const gift = e.metric === 'EVENT_GIFTS';
+    const [gifts, boards] = gift
+      ? await Promise.all([
+          this.prisma.eventGift.findMany({
+            where: { eventId: e.id },
+            orderBy: { sortOrder: 'asc' },
+            include: { gift: true },
+          }),
+          this.prisma.eventBoard.findMany({ where: { eventId: e.id }, orderBy: { sortOrder: 'asc' } }),
+        ])
+      : [[], []];
+    const base = this.storageSettings.current().publicBaseUrl;
+    const lines = boards.map((b) => parsePrizeLines(b.prizes));
+    const items = await this.itemNames(
+      lines.flat().flatMap((l) => l.items),
+      lang,
+    );
     return {
       ...this.summary(e, this.clock.now(), lang),
       rules: lang === 'ar' ? e.rulesAr : e.rulesEn,
       prizes: parseEventPrizes(e.prizes) ?? [],
+      timeZone: e.timeZone ?? this.zone,
+      art: this.artOf(e),
+      gifts: gifts.map((g) => ({
+        code: g.giftCode,
+        name: lang === 'ar' ? g.gift.nameAr : g.gift.nameEn,
+        priceCoins: g.gift.priceCoins,
+        assetKey: g.gift.assetKey,
+        imageUrl: giftArtUrl(base, g.gift.imageObjectKey),
+        pointsPerCoin: g.pointsPerCoin,
+        pointsPerGift: g.pointsPerGift,
+        pointsEach: g.gift.priceCoins * g.pointsPerCoin + g.pointsPerGift,
+      })),
+      boards: boards.map((b, i) => ({
+        kind: b.kind as EventBoardKind,
+        minPoints: Number(b.minPoints),
+        prizes: lines[i]!.map((l) => ({ rankFrom: l.rankFrom, rankTo: l.rankTo, items: l.items.map(items) })),
+      })),
       frozenAt: e.frozenAt?.toISOString() ?? null,
       payoutDueAt: e.payoutDueAt?.toISOString() ?? null,
       paidAt: e.paidAt?.toISOString() ?? null,
+    };
+  }
+
+  /** v1.97-social (D303 follow-ups): an event's page art as URLs. */
+  private artOf(e: Event): EventDetailDto['art'] {
+    const base = this.storageSettings.current().publicBaseUrl;
+    const url = (k: string | null) => giftArtUrl(base, k);
+    const bg = e.backgroundKey;
+    const bgUrl = url(bg);
+    const overlayUrl = url(e.overlayKey);
+    return {
+      background:
+        bg && bgUrl
+          ? {
+              kind: /\.(mp4|mov)$/.test(bg) ? 'VIDEO' : bg.endsWith('.anim.webp') ? 'ANIMATED' : 'IMAGE',
+              url: bgUrl,
+              posterUrl: url(e.backgroundPosterKey),
+            }
+          : null,
+      titleUrl: url(e.titleKey),
+      overlay:
+        e.overlayKey && overlayUrl
+          ? { format: e.overlayKey.endsWith('.json') ? 'LOTTIE' : 'SVGA', url: overlayUrl }
+          : null,
+    };
+  }
+
+  /** v1.97-social (D303): a function giving each prize item its display fields (names from the catalogues). */
+  private async itemNames(
+    all: readonly PrizeItem[],
+    lang: ContentLanguage,
+  ): Promise<(item: PrizeItem) => EventPrizeItemDto> {
+    const bagCodes = [...new Set(all.flatMap((i) => (i.type === 'BAG_ITEM' ? [i.itemCode] : [])))];
+    const tierCodes = [...new Set(all.flatMap((i) => (i.type === 'VIP' ? [i.tierCode] : [])))];
+    const badgeCodes = [...new Set(all.flatMap((i) => (i.type === 'BADGE' ? [i.badgeCode] : [])))];
+    const badges =
+      badgeCodes.length > 0
+        ? await this.prisma.eventBadge.findMany({
+            where: { code: { in: badgeCodes } },
+            include: { levels: true },
+          })
+        : [];
+    const [bag, tiers] = await Promise.all([
+      bagCodes.length > 0 ? this.prisma.bagItem.findMany({ where: { code: { in: bagCodes } } }) : [],
+      tierCodes.length > 0 ? this.prisma.vipTier.findMany({ where: { code: { in: tierCodes } } }) : [],
+    ]);
+    return (item) => {
+      switch (item.type) {
+        case 'COINS':
+        case 'CHERRIES':
+          return {
+            type: item.type,
+            amount: item.amount,
+            days: null,
+            code: null,
+            name: null,
+            category: null,
+            assetKey: null,
+            color: null,
+          };
+        case 'BAG_ITEM': {
+          const b = bag.find((x) => x.code === item.itemCode);
+          return {
+            type: item.type,
+            amount: null,
+            days: item.days,
+            code: item.itemCode,
+            name: b ? (lang === 'ar' ? b.nameAr : b.nameEn) : null,
+            category: b?.category ?? null,
+            assetKey: b?.assetKey ?? null,
+            color: null,
+          };
+        }
+        case 'VIP': {
+          const t = tiers.find((x) => x.code === item.tierCode);
+          return {
+            type: item.type,
+            amount: null,
+            days: item.days,
+            code: item.tierCode,
+            name: t ? (lang === 'ar' ? t.nameAr : t.nameEn) : null,
+            category: 'VIP',
+            assetKey: t?.badgeStill ?? null,
+            color: t?.color ?? null,
+          };
+        }
+        case 'CP_MONEY':
+          return {
+            type: item.type,
+            amount: null,
+            days: null,
+            code: null,
+            name: null,
+            category: null,
+            assetKey: null,
+            color: null,
+            cherries: item.cherries,
+            coins: item.coins,
+          };
+        case 'BADGE': {
+          const b = badges.find((x) => x.code === item.badgeCode);
+          return {
+            type: item.type,
+            amount: null,
+            days: item.days,
+            code: item.badgeCode,
+            name: b ? (lang === 'ar' ? b.nameAr : b.nameEn) : null,
+            category: 'BADGE',
+            assetKey: null,
+            color: null,
+            level: item.level,
+            imageUrl: giftArtUrl(
+              this.storageSettings.current().publicBaseUrl,
+              b?.levels.find((l) => l.level === item.level)?.imageKey ?? null,
+            ),
+          };
+        }
+      }
     };
   }
 
@@ -352,8 +611,19 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
    * results) and the caller's own place. People the caller blocked or who blocked the caller are left
    * out of the list (their ranks stay, so the ranks match the prizes).
    */
-  async leaderboard(me: string, eventId: string): Promise<EventLeaderboardDto> {
+  async leaderboard(
+    me: string,
+    eventId: string,
+    query: unknown = {},
+    lang: ContentLanguage = 'ar',
+  ): Promise<EventLeaderboardDto> {
+    const parsed = leaderboardQuerySchema.safeParse(query ?? {}, { reportInput: true });
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const e = await this.eventOr404(eventId);
+    if (e.metric === 'EVENT_GIFTS') return this.giftLeaderboard(me, e, parsed.data.board, lang);
+    if (parsed.data.board !== undefined) {
+      throw AppException.validation([{ field: 'board', issue: 'invalid_value' }]);
+    }
     const prizes = parseEventPrizes(e.prizes) ?? [];
     const now = this.clock.now();
     let rows: RankRow[];
@@ -412,6 +682,123 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * v1.97-social (D303, §10.114.5): one board of a gift event — the top 100 (live until frozen, then the results), the
+   * board's minimum, each row's bundle, and the caller's place (SENDERS / RECEIVERS / CREATORS: the caller; AGENCIES:
+   * the agency the caller owns; CP: the caller's best couple on the board).
+   */
+  private async giftLeaderboard(
+    me: string,
+    e: Event,
+    wanted: EventBoardKind | undefined,
+    lang: ContentLanguage,
+  ): Promise<EventLeaderboardDto> {
+    const boards = await this.prisma.eventBoard.findMany({
+      where: { eventId: e.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const board = wanted === undefined ? boards[0] : boards.find((b) => b.kind === wanted);
+    if (!board) throw AppException.validation([{ field: 'board', issue: 'invalid_value' }]);
+    const kind = board.kind as EventBoardKind;
+    const lines = parsePrizeLines(board.prizes);
+    const now = this.clock.now();
+    let rows: (BoardRow & { prize?: PrizeItem[] })[];
+    let mine: (BoardRow & { prize?: PrizeItem[] }) | undefined;
+    const isMine = (r: BoardRow) =>
+      kind === 'CP' ? r.user_id === me || r.partner_id === me : r.user_id === me;
+    if (e.frozenAt !== null) {
+      const results = await this.prisma.eventResult.findMany({
+        where: { eventId: e.id, board: kind },
+        orderBy: { rank: 'asc' },
+      });
+      const agencies =
+        kind === 'AGENCIES'
+          ? await this.prisma.agency.findMany({
+              where: { id: { in: results.flatMap((r) => (r.agencyId ? [r.agencyId] : [])) } },
+              select: { id: true, name: true },
+            })
+          : [];
+      rows = results.map((r) => ({
+        entrant_key: r.entrantKey,
+        user_id: r.userId,
+        agency_id: r.agencyId,
+        agency_name: agencies.find((a) => a.id === r.agencyId)?.name ?? null,
+        couple_id: r.coupleId,
+        partner_id: r.partnerId,
+        score: r.score,
+        rank: BigInt(r.rank),
+        prize: parseBundle(r.prize),
+      }));
+      mine = rows.find(isMine);
+    } else if (now < e.startsAt) {
+      rows = [];
+    } else {
+      const to = e.endsAt !== null && e.endsAt < now ? e.endsAt : now;
+      const ranked = boardRankedSql(e, kind, to);
+      rows = await this.prisma.$queryRaw<BoardRow[]>`
+        SELECT * FROM (${ranked}) b ORDER BY b.rank LIMIT ${EVENT_LEADERBOARD_MAX}`;
+      [mine] = await this.prisma.$queryRaw<BoardRow[]>`
+        SELECT * FROM (${ranked}) b
+         WHERE b.user_id = ${me} OR (${kind === 'CP'} AND b.partner_id = ${me})
+         ORDER BY b.rank LIMIT 1`;
+    }
+    const blocked = await this.prisma.userBlock.findMany({
+      where: { OR: [{ blockerId: me }, { blockedId: me }] },
+      select: { blockerId: true, blockedId: true },
+    });
+    const hidden = new Set(blocked.map((b) => (b.blockerId === me ? b.blockedId : b.blockerId)));
+    const shown = rows.filter((r) => !hidden.has(r.user_id) && !(r.partner_id && hidden.has(r.partner_id)));
+    const ids = [...new Set(shown.flatMap((r) => (r.partner_id ? [r.user_id, r.partner_id] : [r.user_id])))];
+    const profiles = await this.prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: USER_SUMMARY_SELECT,
+    });
+    const byId = new Map(profiles.map((u) => [u.id, u]));
+    const minPoints = board.minPoints;
+    const bundleOf = (r: BoardRow & { prize?: PrizeItem[] }) =>
+      r.prize ?? (r.score >= minPoints ? [...bundleForRank(lines, Number(r.rank))] : []);
+    const named = await this.itemNames(
+      lines.flatMap((l) => l.items).concat(rows.flatMap((r) => r.prize ?? [])),
+      lang,
+    );
+    const myBundle = mine ? bundleOf(mine) : [];
+    const myScore = mine?.score ?? 0n;
+    return {
+      eventId: e.id,
+      metric: e.metric,
+      final: e.frozenAt !== null,
+      board: kind,
+      minPoints: Number(minPoints),
+      data: shown.flatMap((r) => {
+        const u = byId.get(r.user_id);
+        if (!u?.profile) return [];
+        const p = r.partner_id ? byId.get(r.partner_id) : undefined;
+        if (r.partner_id && !p?.profile) return [];
+        const bundle = bundleOf(r);
+        return [
+          {
+            rank: Number(r.rank),
+            user: userSummary(u),
+            score: Number(r.score),
+            prizeCoins: bundleCoins(bundle),
+            ...(p ? { partner: userSummary(p) } : {}),
+            ...(r.agency_id ? { agency: { id: r.agency_id, name: r.agency_name } } : {}),
+            qualified: r.score >= minPoints,
+            prize: bundle.map(named),
+          },
+        ];
+      }),
+      me: {
+        rank: mine ? Number(mine.rank) : null,
+        score: Number(myScore),
+        prizeCoins: bundleCoins(myBundle),
+        qualified: mine !== undefined && myScore >= minPoints,
+        pointsToQualify: Number(myScore >= minPoints ? 0n : minPoints - myScore),
+        prize: myBundle.map(named),
+      },
+    };
+  }
+
   // ---------------------------------------------------------------------------------------------
   // The sweeper: freeze ended events, then pay prizes after the review window.
 
@@ -434,6 +821,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       take: 50,
     });
     for (const { id } of toPay) if (await this.payout(id, now)) paid++;
+    // D303 follow-up: event badges a day past their end leave the table (they stopped showing at the end).
+    await this.prisma.userEventBadge.deleteMany({
+      where: { expiresAt: { lt: new Date(now.getTime() - DAY_MS) } },
+    });
     return { frozen, paid };
   }
 
@@ -450,6 +841,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     return this.prisma.$transaction(async (tx) => {
       const e = await this.lockEvent(tx, id);
       if (!e || e.frozenAt !== null || e.endsAt === null || e.endsAt > now) return false;
+      // v1.97-social (D303): a gift event freezes each of its boards and is due at once (paid automatically).
+      if (e.metric === 'EVENT_GIFTS') return freezeGiftEventIn(tx, e, now);
       const prizes = parseEventPrizes(e.prizes) ?? [];
       const ranked = rankedSql(e, e.endsAt);
       const rows = await tx.$queryRaw<RankRow[]>`
@@ -462,6 +855,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
               eventId: e.id,
               rank: Number(r.rank),
               userId: r.user_id,
+              entrantKey: r.user_id,
               score: r.score,
               prizeCoins,
               prizeStatus: prizeCoins > 0 ? 'PENDING' : 'NONE',
@@ -490,6 +884,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       const e = await this.lockEvent(tx, id);
       if (!e || e.frozenAt === null || e.paidAt !== null || e.payoutHold) return false;
       if (e.payoutDueAt === null || e.payoutDueAt > now) return false;
+      if (e.metric === 'EVENT_GIFTS') {
+        await payGiftEventIn(tx, e, now);
+        return true;
+      }
       const pending = await tx.$queryRaw<
         { id: string; user_id: string; prize_coins: number; active: boolean }[]
       >`

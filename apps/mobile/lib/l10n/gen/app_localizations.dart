@@ -26709,6 +26709,228 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'شارة تُمنح تلقائياً حسب الشروط'**
   String get verificationBadgeAbout;
+
+  /// D303: the gift event's gifts section.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الفعالية'**
+  String get eventsGifts;
+
+  /// D303: the points one event gift earns (per recipient).
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} نقطة'**
+  String eventsGiftPoints(String points);
+
+  /// D303: under the event gifts.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل عملة تُرسل بهدية من هدايا الفعالية تعطي نقاطاً'**
+  String get eventsGiftPointsHint;
+
+  /// D303: the gift event's built-in rule 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحتسب النقاط فقط من إرسال هدايا الفعالية خلال مدتها.'**
+  String get eventsRuleOnlyGifts;
+
+  /// D303: rule 2.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب الوصول إلى الحد الأدنى من النقاط للتأهل للجوائز.'**
+  String get eventsRuleMinimum;
+
+  /// D303: rule 3.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُرسل الجوائز تلقائياً بعد انتهاء الفعالية.'**
+  String get eventsRuleAutoPayout;
+
+  /// D303: under the gift event's dates.
+  ///
+  /// In ar, this message translates to:
+  /// **'التواريخ بتوقيتك المحلي'**
+  String get eventsLocalTime;
+
+  /// D303: the SENDERS board tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب الداعمين'**
+  String get eventsBoardSenders;
+
+  /// D303: the RECEIVERS board tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب المضيفين'**
+  String get eventsBoardReceivers;
+
+  /// D303: the CREATORS board tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'صناع المحتوى'**
+  String get eventsBoardCreators;
+
+  /// D303: the AGENCIES board tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكالات'**
+  String get eventsBoardAgencies;
+
+  /// D303: the CP board tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'الثنائيات CP'**
+  String get eventsBoardCp;
+
+  /// D303: a board's qualification minimum.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحد الأدنى للتأهل: {points} نقطة'**
+  String eventsMinPoints(String points);
+
+  /// D303: the caller's missing points.
+  ///
+  /// In ar, this message translates to:
+  /// **'باقي {points} نقطة للتأهل'**
+  String eventsPointsToQualify(String points);
+
+  /// D303: the caller reached the minimum.
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤهّل للجائزة'**
+  String get eventsQualified;
+
+  /// D303: a board row below the minimum.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يتأهل'**
+  String get eventsNotQualified;
+
+  /// D303: a cherries prize.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} كرز'**
+  String eventsPrizeCherries(String amount);
+
+  /// D303: a bag item or VIP prize for some days.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} · {days} يوم'**
+  String eventsPrizeDays(String name, String days);
+
+  /// D303: a VIP prize without a tier name.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة VIP'**
+  String get eventsPrizeVip;
+
+  /// D303: a bag item prize without a name.
+  ///
+  /// In ar, this message translates to:
+  /// **'عنصر'**
+  String get eventsPrizeItem;
+
+  /// D303: an agency row's owner.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوكيل: {name}'**
+  String eventsAgencyOwner(String name);
+
+  /// D303: a CP row's two partners.
+  ///
+  /// In ar, this message translates to:
+  /// **'{a} و{b}'**
+  String eventsCpPair(String a, String b);
+
+  /// D303: the board tabs section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب والجوائز'**
+  String get eventsBoardsTitle;
+
+  /// D303: the CP couple amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{cherries} كرز للمضيف / {coins} كوينز لغيره'**
+  String eventsPrizeCpMoney(String cherries, String coins);
+
+  /// D303: a permanent prize.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} · دائم'**
+  String eventsPrizePermanent(String name);
+
+  /// D303: an event medal level.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} (المستوى {level})'**
+  String eventsPrizeMedalLevel(String name, String level);
+
+  /// D303: countdown to the start.
+  ///
+  /// In ar, this message translates to:
+  /// **'تبدأ بعد {time}'**
+  String eventsCountdownStarts(String time);
+
+  /// D303: countdown to the end.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنتهي بعد {time}'**
+  String eventsCountdownEnds(String time);
+
+  /// D303: after the end.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت الفعالية'**
+  String get eventsCountdownEnded;
+
+  /// D303: the sticky my-rank bar.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركزي: {rank} · {points} نقطة'**
+  String eventsMyBar(String rank, String points);
+
+  /// D303: the sticky bar when not ranked.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تدخل الترتيب بعد · {points} نقطة'**
+  String eventsMyBarNone(String points);
+
+  /// D303: points to the next rank.
+  ///
+  /// In ar, this message translates to:
+  /// **'باقي {points} نقطة للمركز {rank}'**
+  String eventsToNextRank(String points, String rank);
+
+  /// D303: tapping an event gift.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل {name} داخل بث'**
+  String eventsSendGiftTitle(String name);
+
+  /// D303: tapping an event gift outside a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُرسل هدايا الفعالية من لوحة الهدايا داخل أي بث مباشر، وتُحسب نقاطها فوراً.'**
+  String get eventsSendGiftBody;
+
+  /// D303: the button to the Live hub.
+  ///
+  /// In ar, this message translates to:
+  /// **'اذهب إلى البث'**
+  String get eventsGoLive;
+
+  /// D303: the prize preview sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة الجائزة'**
+  String get eventsPrizePreview;
+
+  /// D303: the EVENT_PRIZE_WON notification.
+  ///
+  /// In ar, this message translates to:
+  /// **'مبروك، وصلتك جائزة فعالية'**
+  String get notifEventPrizeWon;
 }
 
 class _AppLocalizationsDelegate

@@ -16,6 +16,7 @@ import { formatDate, formatNumber } from '../format';
 import { Icon } from '../ui/icons';
 import { BadgeChip, BadgePicker, SeasonalNoEndHint, SeasonalNoEndNote } from './BadgePicker';
 import { BannerForm, placementLabelKey } from './BannerForm';
+import { GiftEventForm, GiftEventResults } from './GiftEventForm';
 import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
 export interface GiftDto {
@@ -631,7 +632,10 @@ export function Promo() {
   const [act, setAct] = useState<{ path: string; label: string; danger?: boolean; reload: () => void } | null>(null);
   const [creating, setCreating] = useState(false);
   const [addingBanner, setAddingBanner] = useState(false);
+  // v1.97-social (D303): gift events — create, edit, results; the event commands need `events.manage`.
+  const [giftEvent, setGiftEvent] = useState<{ id?: string; results?: boolean } | null>(null);
   const manage = can('catalog.manage');
+  const manageEvents = can('events.manage');
   return (
     <>
       <div className="page-head">
@@ -692,11 +696,17 @@ export function Promo() {
       <section className="card" style={{ marginTop: 16 }}>
         <div className="card-head">
           <h2>{t('eventsTitle')}</h2>
-          {manage && (
-            <button className="btn primary small" onClick={() => setCreating(true)}>
-              <Icon name="plus" size={16} />
-              {t('eventCreate')}
-            </button>
+          {manageEvents && (
+            <span className="row">
+              <button className="btn primary small" onClick={() => setGiftEvent({})}>
+                <Icon name="plus" size={16} />
+                {t('gevCreate')}
+              </button>
+              <button className="btn small" onClick={() => setCreating(true)}>
+                <Icon name="plus" size={16} />
+                {t('eventCreate')}
+              </button>
+            </span>
           )}
         </div>
         <ErrorAlert error={events.error} />
@@ -729,7 +739,25 @@ export function Promo() {
                     <td className="date small">{e.permanent ? '∞' : formatDate(e.endsAt, lang)}</td>
                     <td className="num">{formatNumber(e.prizes, lang)}</td>
                     <td>
-                      {manage && (
+                      <span className="row">
+                        {e.metric === 'EVENT_GIFTS' && (
+                          <button className="btn small" onClick={() => setGiftEvent({ id: e.id, results: true })}>
+                            {t('gevResults')}
+                          </button>
+                        )}
+                        {manageEvents && e.metric === 'EVENT_GIFTS' && (e.state === 'UPCOMING' || e.state === 'RUNNING') && (
+                          <button className="btn small" onClick={() => setGiftEvent({ id: e.id })}>
+                            {t('gevEdit')}
+                          </button>
+                        )}
+                        {/* D303: a gift event's payout can be held before its end too (suspected fraud). */}
+                        {manageEvents && e.metric === 'EVENT_GIFTS' && !e.payoutHold && (e.state === 'UPCOMING' || e.state === 'RUNNING') && (
+                          <button className="btn small" title={t('gevHoldHint')} onClick={() => setAct({ path: `/admin/events/${e.id}/hold`, label: t('gevHold'), reload: events.reload })}>
+                            {t('gevHold')}
+                          </button>
+                        )}
+                      </span>
+                      {manageEvents && (
                         <span className="row">
                           {e.state === 'RUNNING' && (
                             <button className="btn small danger" onClick={() => setAct({ path: `/admin/events/${e.id}/end`, label: t('eventEnd'), danger: true, reload: events.reload })}>
@@ -778,6 +806,18 @@ export function Promo() {
             setAddingBanner(false);
             toast(t('bannerCreated'));
             banners.reload();
+          }}
+        />
+      )}
+      {giftEvent && giftEvent.results && giftEvent.id && <GiftEventResults eventId={giftEvent.id} onClose={() => setGiftEvent(null)} />}
+      {giftEvent && !giftEvent.results && (
+        <GiftEventForm
+          eventId={giftEvent.id}
+          onClose={() => setGiftEvent(null)}
+          onDone={() => {
+            setGiftEvent(null);
+            toast(t('done'));
+            events.reload();
           }}
         />
       )}

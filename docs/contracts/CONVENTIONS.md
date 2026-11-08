@@ -619,6 +619,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.38-live)* Tables `live_watch`, `live_watch_suggestions` | Backend — `live` module (`LiveWatchService`; the host writes the state, viewers suggest) | CTO |
 | *(v1.40-social)* Tables `dm_conversations`, `dm_participants`, `dm_messages`, `dm_message_hides`; columns `live_gifts.dm_conversation_id`, `privacy_settings.who_can_message`, `reports.target_dm_message_id`, `reports.dm_snapshot` | Backend — `messages` module (gift sends are written by the live module's `LiveGiftsService`; the privacy column by the `safety` module; report snapshots by the `safety` module through `messages/dm-reports.ts`) | CTO; Security reviews privacy, requests and retention (§11.13) |
 | *(v1.44-social)* Tables `task_definitions`, `task_claims`, `daily_check_ins`, `events`, `event_results`; ledger reasons `TASK_REWARD`, `CHECK_IN_REWARD`, `EVENT_PRIZE`; server config `TASK_DAILY_CAP_COINS`, `TASK_CHECK_IN_COINS`, `TASK_CHECK_IN_STREAK_BONUS_COINS`, `EVENT_PRIZE_REVIEW_HOURS`, `EVENTS_SWEEP_INTERVAL_SECONDS`, `SVIP_TIERS`, `SVIP_WINDOW_DAYS`, `SVIP_STATUS_DAYS`, `WALLET_RECHARGE_PACKAGES`, `WALLET_RECHARGE_CURRENCY` | Backend — `programs` module (`TasksService`, `EventsService`, `SvipService`; tasks and events changed only by the `task-admin` / `event-admin` CLIs) | CTO; Security (coin payouts) |
+| *(v1.97-social, D303)* Tables `event_gifts`, `event_boards`, `event_prize_payouts`; columns `events.time_zone`, `events.created_by_id`, `event_results.board` / `.entrant_key` / `.agency_id` / `.couple_id` / `.partner_id` / `.prize`, `home_banners.kind` / `.video_media_id` / `.event_id`, `notifications.event_id`; media kind `BANNER_VIDEO`; capability `events.manage` | Backend — `programs` module (`gift-events.ts`: rules, scoring, freeze, payout; the panel and the app through `AdminGiftEventsService`) and `home` module (banners) | CTO; prize defaults and who holds `events.manage`: the owner (PP-60) |
 | *(v1.47-social)* Tables `user_profile_links`, `follow_requests`; columns `user_profiles.gender`, `show_gender`, `account_category`, `pending_registrations.gender`, `reports.target_profile_link_id`, `reports.link_snapshot` | Backend — `users` module (profile fields; `profile-admin` CLI), `social` module (follow requests; the `safety` module accepts them all when an account turns public and deletes them on a block), `safety` module (link reports) | CTO; Security reviews the link rules and the private-account audit (§10.47) |
 | *(v1.52-social)* Tables `cherry_wallets`, `cherry_ledger`, `agencies`, `agency_hosts`, `agency_earnings`, `agency_months`, `agency_complaints`, `cherry_withdrawals`; server config `CHERRIES_PER_COIN`, `AGENCY_*`, `CHERRY_PAYOUT_RATE`, `CHERRY_PAYOUT_CURRENCY`, `CHERRY_WITHDRAWAL_MIN_MINOR`, `CHERRY_WITHDRAWAL_PAYOUT_DAYS` | Backend — `economy` module (`CherriesService`, `AgencyService`; gift credits written by the gift sends through `creditGiftCherriesIn`; agencies, complaints, payouts and reversals changed only by the `economy-admin` CLI) | CTO; Security (money, payout details) |
 | *(v1.57-social)* Task metric `GIFT_COINS_SENT`; server config `TASK_MONTHLY_CAP_MINOR`, `COIN_RETAIL_USD_PER_MILLION`; the rebalanced task defaults (migration `20261231130000_task_rewards_rebalance`) | Backend — `programs` module (caps, metrics, `task-admin`) | CTO |
@@ -735,6 +736,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
 | v1.94-social (draft) | 2026-11-06 | **D297 (owner: «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف» — Task Center tasks only for content creators, valued like the host tasks):** `ProgramTask.audience` `CREATORS` (creator-programme members only; a member never gets `HOSTS` tasks), `MyTasks.band.creator` (`band.host` = host tasks offered), `ProgramTask.metric` `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`, `NEW_FOLLOWERS`, `SHARES_RECEIVED`; the pool group CREATOR with `task_pool_bands.creator_count`; ten default tasks (six daily, four weekly per band) mirroring the host tasks' rewards under the same daily and monthly caps; `task-admin band --creator-count`; CHECK `events_audience_not_creators`; migrations `20270331090000_creator_tasks_enums`, `20270331090100_creator_tasks`. §10.110. | **Additive** (a new enum value in a response, new metric values — clients map unknown ones to the generic icon —, a new field). |
 | v1.94-social (draft) | 2026-11-06 | **D297 follow-up (owner answers: defaults approved, no anti-fake rule, 6 / 4 weekly tasks; «قم بتوليد 300 ألف مهمة لصانع المحتوى و300 ألف مهمة للمضيف … حسب المستوى وتدريجياً», the level = the charm level):** `ProgramTask.metric` `HOST_LIVE_DAYS`; fixed weekly tasks `CREATOR_WEEKLY_LIKES`, `CREATOR_WEEKLY_STORIES`, `HOST_WEEKLY_LIVE_DAYS`, `HOST_WEEKLY_PK_BATTLES`; the generated catalogue (315 120 tasks per audience, by charm level; 32 template rows `G_CR_…` / `G_HO_…`; `task_assignments.variant` `G.…`), `task-admin generator`; migration `20270331090200_task_generator`. §10.110.1. | **Additive** (a new metric value; generated tasks are ordinary tasks on the wire). |
+| v1.97-social (draft) | 2026-11-07 | **D303 (owner: «فعاليات الهدايا» like a third-party «ملك الكنوز» event page — look and idea only — and an animated promo banner first in the Live home that is an ad or an event; follow-ups: agencies, CP and content-creator boards):** `EventMetric` `EVENT_GIFTS`; `EventDetail.timeZone`, `.gifts` (`EventGift`: points per coin and per gift, `pointsEach`), `.boards` (`EventBoard`: `EventBoardKind` SENDERS / RECEIVERS / CREATORS / AGENCIES / CP, `minPoints`, `EventPrizeLine` of `EventPrizeItem` COINS / CHERRIES / BAG_ITEM / VIP with days); `EventSummary.audience` `CREATORS`; `getEventLeaderboard?board=` with `board`, `minPoints`, per row `qualified`, `prize`, `partner` (CP), `agency` (AGENCIES), `me.qualified` / `pointsToQualify` / `prize`; notification `EVENT_PRIZE_WON` (target `EVENT`); `CherryLedgerReason` `EVENT_PRIZE`; `BagItemSource` `EVENT`; panel `getAdminEventOptions`, `createAdminGiftEvent`, `getAdminGiftEvent`, `updateAdminGiftEvent`, `uploadAdminBannerVideo`, `AdminBannerCreateRequest.videoMediaId` / `.eventId`, `AdminBanner.kind` / `.eventId`, the event commands under `events.manage`; staff `listStaffEvents`, `getStaffEventOptions`, `createStaffGiftEvent`, `getStaffGiftEvent`, `updateStaffGiftEvent`, `changeStaffEvent`; `StaffStatus.capabilities` `events.manage`; `HomeBanner.kind` / `.posterUrl` / `.videoUrl` / `.durationMs` / `.eventId`, links `/events/{eventId}`; migrations `20270404090000_gift_events_enums`, `20270404090100_gift_events`. §10.114. | **Additive** (new optional query parameter, new fields, new enum values clients ignore when unknown; the D166 events and their boards are unchanged). |
 | v1.93-social (draft) | 2026-11-06 | **D296 (owner: a report opens its content for the staff with warn / restrict / ban buttons, a reported message opens the reported chat, «رسائل الإبلاغ غير فعّال»; then: an action resolves only the pressed report, the whole conversation «مثل طريقة نزاع وكيل الشحن», SUPPORT keeps «تعليق مؤقت», the permanent deletions in the app too)** — `getStaffReport` (`StaffReportView`, `StaffReportTarget`: the content whatever its visibility; a DM / a person reported from a conversation with `DmReportThread`, every read audited `moderation.report.dm_read`), `actOnStaffReport` (`StaffReportActionRequest` / `StaffReportActionResult`: WARN, RESTRICT NO_POSTING / NO_LIVE / CHAT_MUTE, SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT with `confirm: DELETE`, each with its panel capability; only the pressed report resolved, `AdminPanelReport.resolutionAction`, the staff's alerts read, 409 on a second action); `CreateReportRequest.dmConversationId`; `StaffStatus.capabilities` gains `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`; `createReport` USER accepts the user's id (the bug). Migration `20270330090000_report_resolution_action`. §10.109. | **Additive** (new operations, fields, enum values). **Behaviour change:** an app action resolves its report; a USER report by id is accepted instead of 404; a DM report keeps the whole conversation (owner's privacy decision). |
 | v1.93-social (draft, follow-up) | 2026-11-07 | **D296 follow-up (owner, on the DM report screen: «عند وصول الإبلاغ عن محادثة يجب أن يكون الإبلاغ مغلقاً، لا يعرض المحادثة على طول، وعندما يضغط الموظف عليه تفتح الشات»)** — `StaffReportTarget.dm.thread` replaced by `threadSummary` (`DmReportThreadSummary`: count, total, truncated, capturedAt; no content), and `getStaffReport` no longer audits; new `getStaffReportDmThread` (`GET /staff/reports/{reportId}/dm-thread`, `reports.view`) returns `StaffReportDmThread` (the people, the reported message, the whole conversation) and audits every opening `moderation.report.dm_read`. App: the conversation shows as a closed card; a tap opens it full screen. §10.109.1, §10.109.3, §10.109.5. | **Breaking within the unreleased v1.93-social draft** (`dm.thread` removed from `getStaffReport`; no app outside this branch reads it); otherwise additive. |
 | v1.92-social (draft) | 2026-11-06 | **D294 (owner, from screenshots of the reels page and the posts page: «اجعل فلتر فقط منشورات وريلز»; v1.90-social and v1.91-social are D293 and D292 on their own branches):** `listFeedReels` `tab=mixed` — the reels page's only feed, the posts home feed's rule (§10.73.1) over reels: 1 Following (followed accounts, the caller's own reels, reels reposted by followed accounts, newest first) : 2 Trending (§11.3 over public reels), one frozen 10-minute list per caller (its own snapshot list `reels-mixed`), a reel once (its Following place), the same exclusions and caps (500 / 500). `following`, `trending` and `nearby` unchanged; the app stops using `nearby` and its country prompt (§11.15). No migration. §10.107, §11.3, §11.14, §11.15. | **Additive** (a new enum value on one operation; nothing else changes shape or behaviour). |
@@ -2152,6 +2154,9 @@ rest are CTO defaults the owner may change (named constants in `families.constan
 
 *v1.59-live (D248):* the carousel follows the grid's first row, a card-size banner (`placement=hub_card`) takes one
 grid cell, and the panel can add banners — §10.90.
+
+*v1.97-social (D303, owner):* the carousel is the **first block** of the Live home again (above the first row), and a
+banner may be ANIMATED (an animated WebP / GIF kept animated) or a short muted VIDEO, and may open an event — §10.114.6.
 
 Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaults.
 
@@ -8433,6 +8438,166 @@ Owner (2026-11-06, answers to PP-56):
   - **Wire (additive):** `ProgramTask.metric` `HOST_LIVE_DAYS`; generated tasks are ordinary `ProgramTask`s (`code` = the
     template, `name` = the generated wording, `pooled` true for daily ones). The app shows creator tasks in their cards
     and host tasks with the host tasks.
+
+### 10.114 Gift events «فعاليات الهدايا» and animated / video banners *(v1.97-social, DRAFT — D303)*
+
+Owner (2026-11-07), from a third-party event page («ملك الكنوز»; the look and the idea only — none of its art, names or
+brand; the screenshot stays out of git, D40): an event of **its own gifts**, points per gift, ranks and prizes (items,
+cherries or coins), and an animated promo banner as the first thing in the Live home that is either an ad or an event.
+Owner decisions are marked *(owner)*; the rest are CTO defaults, changeable by the owner (PP-60).
+
+#### 10.114.1 The event
+
+- `events.metric = EVENT_GIFTS` (new value). The D166 metrics, their boards, the review window and `event-admin` are
+  unchanged. A gift event has 1–12 **event gifts** (`event_gifts`), 1–5 **boards** (`event_boards`, one per kind), an
+  end (never permanent), at most **92 days** long, starting at most **365 days** ahead, and an optional IANA
+  `time_zone` (shown dates; null = `LIVE_RANKINGS_TIME_ZONE`). The instants are stored as given (`timestamptz`), so a
+  date typed in any zone is correct; the apps show them in `EventDetail.timeZone`.
+- `audience` EVERYONE, HOSTS or *(owner)* **CREATORS** (shown to content-creator members only, D295); a creator member
+  does not see HOSTS events (D295). CHECK `events_audience_not_creators` now allows CREATORS for EVENT_GIFTS only.
+- `regions` keep D166's meaning: entrants whose profile country is listed (AGENCIES: the owner's; CP: either partner).
+
+#### 10.114.2 Scoring *(owner: points only from sending the event's gifts)*
+
+- Every recipient of a send of an event gift adds **`coins × points_per_coin + quantity × points_per_gift`** points
+  (`points_per_coin` 0–1000, default 1 — the reference's «points per coin»; `points_per_gift` 0–10^6, default 0; not
+  both 0). `EventGift.pointsEach` = `priceCoins × pointsPerCoin + pointsPerGift` (one gift, one recipient).
+- Counted from the stored sends (`live_gifts`, `live_gift_recipients`) of the window `[startsAt, endsAt)` only, never
+  through a separate counter: **each send counts once by construction** (idempotent per gift transaction), lives and
+  direct-message gifts alike (posts and reels take no gifts). Never a send to oneself; the sender ACTIVE; a send whose
+  cherries the team reversed (`GIFT_REVERSAL`: fraud, a refunded payment) **does not count** — the D166 events never
+  looked at reversals; the gift events do (the tasks' rule, D277). A gift not in the event's list scores nothing.
+
+#### 10.114.3 Boards and prizes
+
+| Kind | Who is ranked | Score | Who wins the bundle |
+|---|---|---|---|
+| SENDERS «ترتيب الداعمين» | the sender | points sent | the sender |
+| RECEIVERS «ترتيب المضيفين» | the recipient who is an **approved host** (a hosting permission) **or a content-creator member** *(owner follow-up: «ان كانت للمضيفين تشمل صناع المحتوى» — overrides D295 for gift events only)*; a guest on a seat counts when they are one; anyone else never enters | points received | the recipient |
+| CREATORS «صناع المحتوى» *(owner)* | content-creator members (`creator_members`) only | points received | the creator |
+| AGENCIES «الوكالات» *(owner)* | the agency the receiving host belonged to **at the time of the gift** (`agency_earnings`, not reversed); the host ACTIVE; the agency OPEN and not suspended now | points its hosts received | **the agency's OWNER** *(owner, decided)* |
+| CP *(owner)* | a CP couple (`cp_couples`, CP-018) | points of the event gifts **the two partners sent each other** while a couple (from `since` to `ended_at`: a breakup ends further scoring; what came before stays) *(owner, decided)*; both partners ACTIVE | **both partners**, each the full bundle *(owner)* |
+
+A creator member is on both RECEIVERS and CREATORS (owner follow-up); a non-host is on neither. AGENCIES are host agencies
+(agency earnings exist for agency hosts only). Ranks: score descending, then the entrant key; ties never share a
+rank. Each board has a **qualification minimum** `minPoints` (0–10^12) *(owner: «حد أدنى للتأهل»)*: a rank below it wins
+nothing (lower ranks have lower scores, so no prize moves down). Prize lines: up to 20 rank ranges within 1–100, in
+order, not overlapping (e.g. 1, 2, 3, 4–5, 6–10 as in the reference), each a **bundle** of 1–6 items, an item at most once:
+
+- **The money of each board** *(owner, decided)*: SENDERS → `COINS`; RECEIVERS and CREATORS → `CHERRIES`; AGENCIES →
+  `COINS` or `CHERRIES` (the event's creator chooses per line); CP → `CP_MONEY` {`cherries`, `coins`}, two amounts set by
+  the creator: each partner who is an approved host or a creator member **at payout time** gets the cherries, another
+  partner the coins — never converted (both ≥ 0, at least one > 0). Another money on a board → 409. Items, medals and
+  VIP on every board.
+- `COINS` 1–10^8 → wallet ledger `EVENT_PRIZE` (existing), reference the payout row.
+- `CHERRIES` 1–10^8 → cherry ledger `EVENT_PRIZE` (new), reference `EVP:<payout>`; **withdrawable as soon as won**
+  *(owner, decided — not in the task-cherry lock)*.
+- `BAG_ITEM` code + 1–365 days **or `null` = permanent «دائم»** *(owner)* (the bag's existing no-expiry row) → the bag's grant path (`addItemTimeIn`, D171): a new item counting from the payout, or
+  the days added to the one owned; never worn by itself; source **`EVENT`** (new), **not transferable** (like a level
+  reward). Frames, entry vehicles (ENTRY_EFFECT), entry banners, chat bubbles, profile cards — every bag category.
+- `VIP` tier code + 1–365 days (**never permanent**: a membership always has an end, `vip_memberships.expires_at`) → none or ended: the tier from now; the same tier: the end moves; a higher tier held:
+  that membership gets the days (a prize never lowers a tier); a lower tier held: the prize tier from now.
+- `BADGE` medal code + `level` + 1–365 days or `null` = permanent → an event medal «وسام فعالية» (§10.114.8).
+- The bag kinds a `BAG_ITEM` can be (all grantable, all with days or permanent): `AVATAR_FRAME` (frame), `ENTRY_EFFECT`
+  (the entrance vehicle), `PROFILE_CARD` («بطاقة تعريفة»), `ENTRY_BANNER` («شريط دخول»), `CHAT_BUBBLE`.
+
+#### 10.114.4 Freeze and automatic payout *(owner: automatic at the end; the hold stays)*
+
+- The events sweeper (`EVENTS_SWEEP_INTERVAL_SECONDS`) freezes an ended gift event: each board's top 100 into
+  `event_results` (`board`, `entrant_key` = user / agency / couple id, `agency_id`, `couple_id` + `partner_id`, `score`,
+  the rank's bundle in `prize` when qualified, `prize_coins` its coins); `payout_due_at = frozen_at` (**no review
+  window**, unlike D166's `EVENT_PRIZE_REVIEW_HOURS`). The same pass pays it unless **held**.
+- **Hold:** `holdAdminEvent` / `changeStaffEvent hold` — before or after the end, until paid — stops the payout;
+  `release` resumes it; once paid → 409. Audited (`event.hold` / `event.release`, via panel or app).
+- **Payout** (one transaction per event, the event row locked): for each pending result and each winner (CP: both) one
+  `event_prize_payouts` row — UNIQUE (result, user): **once per winner per board**, whatever runs again. An account not
+  ACTIVE at payout time → `FORFEITED` (nothing given); otherwise every item, `granted` listing what was given (a bag item
+  or tier gone from the catalogue is listed `skipped`), a notification **`EVENT_PRIZE_WON`** (system, target `EVENT`, no
+  text; pushed «مبروك، وصلتك جائزة فعالية»), then `event.payout` audited (system) with the counts.
+
+#### 10.114.5 Reading
+
+- `getEvent`: `timeZone`, `gifts` (`EventGift`), `boards` (`EventBoard` with the bundles' display fields: names in the
+  request's language, bag category and asset key, VIP colour and still); `prizes` stays D166's (empty here).
+- `getEventLeaderboard?board=<kind>` (default the first board; another kind or any board on a D166 event → 400
+  `board` / `invalid_value`): live top 100 until frozen, then the results; per row `qualified`, `prize`, `prizeCoins`;
+  CP rows `user` + `partner`, AGENCIES rows `user` = the owner + `agency` {id, name}; blocked people hidden (ranks stay);
+  `me`: the caller (AGENCIES: the agency they own; CP: their best couple), `qualified`, `pointsToQualify`, `prize`.
+
+#### 10.114.6 Banners *(owner)*
+
+- `home_banners.kind`: **IMAGE**, **ANIMATED** (the stored picture is an animated WebP — D248c's processing — and keeps
+  a full-size first frame `poster_key` and its loop length `duration_ms`) or **VIDEO** (`video_media_id`, a
+  `BANNER_VIDEO`: MP4 / MOV, H.264 or HEVC, **1–30 s, at most 30 MiB**, checked from the container and stored unchanged —
+  the reels' path, D162; `media_id` is its **poster**, required). VIDEO only for `placement=home`. A banner may open an
+  **event** (`event_id`; the link becomes `/events/<id>`, allowlisted). The panel uploads the video with
+  `uploadAdminBannerVideo` (raw bytes) and names it in `createAdminBanner`.
+- `HomeBanner` adds `kind`, `posterUrl` (the still), `videoUrl`, `durationMs`, `eventId`. Older apps keep showing
+  `imageUrl` (a video's poster). **App:** the carousel is the **first block** of the Live home; ANIMATED plays the WebP;
+  VIDEO plays **muted, looping, only while visible** (paused off screen, when the app is in the background and while
+  another page is shown), the poster until the first frame; with **reduced motion** only `posterUrl` (no animation, no
+  video, no auto-advance). Existing still banners are unchanged.
+- Removing a banner deletes its video and poster objects too.
+
+#### 10.114.7 Creating and editing *(owner: from the panel and from the app)*
+
+- One rule set (`gift-events.ts`), one body (`GiftEventInput`): shape errors → 400 `VALIDATION_FAILED`; rules (dates,
+  length, lead, zone, duplicates, zero points, overlapping ranks, an unknown gift / bag item / VIP tier) → 409
+  `ADMIN_ACTION_REFUSED` with the message. A full edit (`PUT`): before the start anything; while running only the
+  texts, banner URL, calendar style, «رائج» and a **later** end (gifts, boards, prizes, start, audience and regions
+  unchanged, else 409); after the end → 409. Audited `event.create` / `event.update` {metric, gifts, boards, reason, via}.
+- **Capability `events.manage`** (new; **OWNER** by default, PP-60): the panel's gift-event routes and the event
+  commands (end / hold / release, before `catalog.manage` — also OWNER only); the app's staff routes `/staff/events`,
+  `/staff/event-options`, `/staff/gift-events[/{id}]`, `/staff/events/{id}/{command}` — the D273 staff guard (the role
+  held now, every request), not staff work (no shift). `StaffStatus.capabilities` lists it for the app.
+
+#### 10.114.8 Event medals «وسام فعالية» with levels *(owner, D303 follow-ups)*
+
+- `event_badges` (code `^[a-z0-9_]{2,40}$`, names) with `event_badge_levels` (1 … 10, each its own art, a `badge`
+  upload) — reusable across events; made from the panel or the app (`createAdminEventBadge` / `createStaffEventBadge`,
+  `events.manage`, audited `event.badge.create`).
+- A prize line gives one level for N days or permanently; held in `user_event_badges` (one row per person and medal: a
+  new prize adds its days — a permanent prize or row stays permanent — and keeps the higher level while it lasts).
+- Shown with the medals (`ProfileMedals.eventBadges`, `UserMedalList.eventBadges`: the held level's art) until
+  `expiresAt` (null = permanent); rows a day past their end are deleted by the events sweeper.
+
+#### 10.114.9 Event art: the published specs, uploads and the interactive page *(owner, D303 follow-ups)*
+
+One source of truth: `event-media.ts` `EVENT_MEDIA_SPECS` — the server enforces it on every upload
+(`uploadAdminEventMedia` / `uploadStaffEventMedia`, raw bytes, `kind=`), `EventOptions.specs` returns it, and the
+panel / app editor show it beside each field. A file outside it → 409 `ADMIN_ACTION_REFUSED` with
+`{field: file, issue}` (`event_media_format | _size | _bytes | _duration | _transparency | _codec`) and a message.
+
+| Kind | Size (exact shape ±1 %, at least) | Formats | Max file | Max length | Notes |
+|---|---|---|---|---|---|
+| `banner` | 1 500 × 300 (5:1 — the carousel's real shape, D248b; not D124's 3:1) | PNG, JPEG, WebP; animated WebP / GIF | 2 MB still, 5 MB animated | 10 s | text in the centred 900 × 240 px |
+| `banner_video` | 1 500 × 300 | MP4 / MOV, H.264 or HEVC, muted | 30 MB | 30 s | + a `banner` still as poster; Live home only |
+| `background` | 1 080 × 1 920 (9:16) | PNG, JPEG, WebP; animated WebP / GIF | 3 MB still, 8 MB animated | 10 s | top 0–480 px: title art; 520–1 920 px: cards |
+| `background_video` | 1 080 × 1 920 | MP4 / MOV, H.264 or HEVC, muted, looping | 20 MB | 15 s | + a `background` still as poster |
+| `title` | 1 080 × 480 | PNG, WebP, transparent | 1 MB | — | over the background's top |
+| `overlay` | — | SVGA 2.x or Lottie JSON | 2 MB | 10 s a loop | falling coins / sparkles over the page |
+| `badge` | 512 × 512 | PNG, WebP, transparent | 1 MB | — | one per medal level |
+
+Pictures are re-encoded to WebP at the spec size (metadata dropped); videos and overlays are stored unchanged. An
+event names its art (`backgroundKey`, `backgroundPosterKey` — required exactly with a video background —,
+`titleKey`, `overlayKey`; each must be stored); `EventDetail.art` returns the URLs and kinds. A banner for an event
+is a `banner` / `banner_video` upload named in `createAdminBanner` with `eventId`.
+
+**The page (app, this pass):** the background still (a picture; an animated picture plays; a video shows its poster —
+the video itself is not played yet), darkened, with the title art on top; the Lottie overlay looping (paused with
+reduced motion and when the page is hidden; an SVGA overlay is not drawn yet); semi-transparent gold-framed cards with
+gold headings (`ProgramGoldFrame`); a countdown to the start / end; a tab per board; the board reloads every 30 s
+while shown and running; Kabso's own crowns on ranks 1–3; a sticky «مركزي» bar (the place and points, and the points
+to the next rank or to the minimum); a tap on an event gift explains it is sent from a live's gift panel and opens
+the lives; a tap on a prize previews it; pull to refresh. *Not yet:* a share link, the preselected gift panel from
+inside a live, playing a video background, an SVGA overlay. The panel previews the page with the uploaded art before
+publishing.
+
+*Owner decisions recorded (D303 follow-ups):* `events.manage` OWNER only; cherry prizes withdrawable at once; event
+bag items not transferable; reversed sends don't count; banner video 30 s / 30 MB on the Live home only; medals as
+prizes with levels; RECEIVERS includes creators (overrides D295 for gift events only), AGENCIES host agencies; the
+money per board (supporters coins; hosts, creators cherries; agencies either; CP per partner's role); items and medals
+may be permanent, VIP never.
 
 ### 11.1 Media upload
 

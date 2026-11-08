@@ -508,6 +508,188 @@ class EventSummary {
 /// `EventPrize`.
 typedef EventPrize = ({int rankFrom, int rankTo, int coins});
 
+/// v1.97-social (D303, CONVENTIONS §10.114.3): one item of a prize bundle —
+/// coins / cherries ([amount]) or a bag item / VIP card for [days].
+@immutable
+final class EventPrizeItem {
+  const new({
+    required this.type,
+    this.amount,
+    this.days,
+    this.code,
+    this.name,
+    this.category,
+    this.assetKey,
+    this.color,
+    this.imageUrl,
+    this.level,
+    this.cherries,
+    this.coins,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => EventPrizeItem(
+    imageUrl: json['imageUrl'] as String?,
+    level: _intOrNull(json['level']),
+    cherries: _intOrNull(json['cherries']),
+    coins: _intOrNull(json['coins']),
+    type: json['type']! as String,
+    amount: _intOrNull(json['amount']),
+    days: _intOrNull(json['days']),
+    code: json['code'] as String?,
+    name: json['name'] as String?,
+    category: json['category'] as String?,
+    assetKey: json['assetKey'] as String?,
+    color: json['color'] as String?,
+  );
+
+  /// `COINS`, `CHERRIES`, `BAG_ITEM` or `VIP` (others: shown by name).
+  final String type;
+  final int? amount;
+  final int? days;
+  final String? code;
+  final String? name;
+
+  /// A bag item's category (`AVATAR_FRAME`, `ENTRY_EFFECT` …); `VIP`.
+  final String? category;
+  final String? assetKey;
+
+  /// VIP: the tier colour `#RRGGBB`.
+  final String? color;
+
+  /// D303 follow-ups — BADGE: the medal level's art and the level.
+  final String? imageUrl;
+  final int? level;
+
+  /// CP_MONEY: cherries for a host / creator partner, coins for another.
+  final int? cherries;
+  final int? coins;
+
+  /// A bag item or a medal with no end («دائم»).
+  bool get isPermanent =>
+      (type == 'BAG_ITEM' || type == 'BADGE') && days == null;
+}
+
+/// v1.97-social (D303 follow-ups): `EventDetail.art` — the page art.
+@immutable
+final class EventArt {
+  const new({
+    this.backgroundUrl,
+    this.backgroundKind,
+    this.posterUrl,
+    this.titleUrl,
+    this.overlayUrl,
+    this.overlayFormat,
+  });
+
+  factory fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EventArt();
+    final bg = json['background'] as Map<String, dynamic>?;
+    final overlay = json['overlay'] as Map<String, dynamic>?;
+    return EventArt(
+      backgroundUrl: bg?['url'] as String?,
+      backgroundKind: bg?['kind'] as String?,
+      posterUrl: bg?['posterUrl'] as String?,
+      titleUrl: json['titleUrl'] as String?,
+      overlayUrl: overlay?['url'] as String?,
+      overlayFormat: overlay?['format'] as String?,
+    );
+  }
+
+  /// `IMAGE`, `ANIMATED` or `VIDEO`.
+  final String? backgroundKind;
+  final String? backgroundUrl;
+  final String? posterUrl;
+  final String? titleUrl;
+
+  /// `SVGA` or `LOTTIE`.
+  final String? overlayFormat;
+  final String? overlayUrl;
+
+  /// The still to show (a video's poster, else the picture).
+  String? get stillUrl => backgroundKind == 'VIDEO' ? posterUrl : backgroundUrl;
+
+  bool get isEmpty =>
+      backgroundUrl == null && titleUrl == null && overlayUrl == null;
+}
+
+/// `EventPrizeLine` (D303): the bundle of ranks `rankFrom` … `rankTo`.
+typedef EventPrizeLine = ({
+  int rankFrom,
+  int rankTo,
+  List<EventPrizeItem> items,
+});
+
+List<EventPrizeItem> _items(Object? v) => [
+  for (final i in _list(v)) EventPrizeItem.fromJson(i),
+];
+
+/// v1.97-social (D303): a gift event's board kinds, in the server's order.
+enum EventBoardKind {
+  senders('SENDERS'),
+  receivers('RECEIVERS'),
+  creators('CREATORS'),
+  agencies('AGENCIES'),
+  cp('CP');
+
+  new(this.wire);
+
+  final String wire;
+
+  static EventBoardKind? fromWire(Object? wire) =>
+      values.where((k) => k.wire == wire).firstOrNull;
+}
+
+/// `EventBoard` (D303): a board, its qualification minimum and its prizes.
+@immutable
+final class EventBoardInfo {
+  const new({
+    required this.kind,
+    required this.minPoints,
+    required this.prizes,
+  });
+
+  final EventBoardKind kind;
+  final int minPoints;
+  final List<EventPrizeLine> prizes;
+}
+
+/// `EventGift` (D303): an event gift with its price and points.
+@immutable
+final class EventGiftInfo {
+  const new({
+    required this.code,
+    required this.name,
+    required this.priceCoins,
+    required this.assetKey,
+    required this.pointsPerCoin,
+    required this.pointsPerGift,
+    required this.pointsEach,
+    this.imageUrl,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => EventGiftInfo(
+    code: json['code']! as String,
+    name: json['name']! as String,
+    priceCoins: _int(json['priceCoins']),
+    assetKey: json['assetKey']! as String,
+    imageUrl: json['imageUrl'] as String?,
+    pointsPerCoin: _int(json['pointsPerCoin']),
+    pointsPerGift: _int(json['pointsPerGift']),
+    pointsEach: _int(json['pointsEach']),
+  );
+
+  final String code;
+  final String name;
+  final int priceCoins;
+  final String assetKey;
+  final String? imageUrl;
+  final int pointsPerCoin;
+  final int pointsPerGift;
+
+  /// The points of one such gift per recipient.
+  final int pointsEach;
+}
+
 /// `EventDetail`.
 @immutable
 final class EventDetail extends EventSummary {
@@ -527,6 +709,10 @@ final class EventDetail extends EventSummary {
     super.summary,
     super.tone,
     this.paidAt,
+    this.timeZone,
+    this.gifts = const [],
+    this.boards = const [],
+    this.art = const EventArt(),
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -554,12 +740,69 @@ final class EventDetail extends EventSummary {
           ),
       ],
       paidAt: _timeOrNull(json['paidAt']),
+      timeZone: json['timeZone'] as String?,
+      art: EventArt.fromJson(json['art'] as Map<String, dynamic>?),
+      gifts: [for (final g in _list(json['gifts'])) EventGiftInfo.fromJson(g)],
+      boards: [
+        for (final b in _list(json['boards']))
+          if (EventBoardKind.fromWire(b['kind']) case final kind?)
+            EventBoardInfo(
+              kind: kind,
+              minPoints: _int(b['minPoints']),
+              prizes: [
+                for (final l in _list(b['prizes']))
+                  (
+                    rankFrom: _int(l['rankFrom']),
+                    rankTo: _int(l['rankTo']),
+                    items: _items(l['items']),
+                  ),
+              ],
+            ),
+      ],
     );
   }
 
   final String rules;
   final List<EventPrize> prizes;
   final DateTime? paidAt;
+
+  /// v1.97-social (D303): the zone the event's dates are set in.
+  final String? timeZone;
+
+  /// v1.97-social (D303): a gift event's gifts and boards (empty otherwise).
+  final List<EventGiftInfo> gifts;
+  final List<EventBoardInfo> boards;
+
+  /// v1.97-social (D303 follow-ups): the page art.
+  final EventArt art;
+
+  /// A gift event (`EVENT_GIFTS`, D303).
+  bool get isGiftEvent => metric == 'EVENT_GIFTS';
+}
+
+/// v1.97-social (D303): one row of a gift event's board — CP rows have a
+/// [partner], AGENCIES rows the [agencyName] ([user] is its owner).
+@immutable
+final class GiftBoardRow {
+  const new({
+    required this.rank,
+    required this.user,
+    required this.score,
+    required this.qualified,
+    required this.prize,
+    this.partner,
+    this.agencyName,
+    this.isAgency = false,
+  });
+
+  final int rank;
+  final UserSummary user;
+  final UserSummary? partner;
+  final String? agencyName;
+  final bool isAgency;
+  final int score;
+  final bool qualified;
+  final List<EventPrizeItem> prize;
 }
 
 /// `EventLeaderboard` row.
@@ -574,11 +817,38 @@ final class EventLeaderboard {
     required this.myScore,
     required this.myPrize,
     this.myRank,
+    this.board,
+    this.minPoints = 0,
+    this.giftRows = const [],
+    this.myQualified = false,
+    this.pointsToQualify = 0,
+    this.myBundle = const [],
   });
 
   factory fromJson(Map<String, dynamic> json) {
     final me = json['me']! as Map<String, dynamic>;
     return EventLeaderboard(
+      board: EventBoardKind.fromWire(json['board']),
+      minPoints: _int(json['minPoints']),
+      giftRows: [
+        for (final r in _list(json['data']))
+          GiftBoardRow(
+            rank: _int(r['rank']),
+            user: UserSummary.fromJson(r['user']! as Map<String, dynamic>),
+            partner: r['partner'] == null
+                ? null
+                : UserSummary.fromJson(r['partner']! as Map<String, dynamic>),
+            isAgency: r['agency'] != null,
+            agencyName:
+                (r['agency'] as Map<String, dynamic>?)?['name'] as String?,
+            score: _int(r['score']),
+            qualified: r['qualified'] as bool? ?? true,
+            prize: _items(r['prize']),
+          ),
+      ],
+      myQualified: me['qualified'] as bool? ?? false,
+      pointsToQualify: _int(me['pointsToQualify']),
+      myBundle: _items(me['prize']),
       isFinal: json['final']! as bool,
       rows: [
         for (final r in _list(json['data']))
@@ -600,6 +870,15 @@ final class EventLeaderboard {
   final int? myRank;
   final int myScore;
   final int myPrize;
+
+  /// v1.97-social (D303): a gift event's board, its minimum, its rows with
+  /// their bundles, and the caller's qualification.
+  final EventBoardKind? board;
+  final int minPoints;
+  final List<GiftBoardRow> giftRows;
+  final bool myQualified;
+  final int pointsToQualify;
+  final List<EventPrizeItem> myBundle;
 }
 
 /// `EventList.tab`.
@@ -727,8 +1006,8 @@ abstract interface class ProgramsRepository {
   /// `GET /events/{eventId}`.
   Future<EventDetail> event(String eventId);
 
-  /// `GET /events/{eventId}/leaderboard`.
-  Future<EventLeaderboard> leaderboard(String eventId);
+  /// `GET /events/{eventId}/leaderboard` (D303: `?board=` of a gift event).
+  Future<EventLeaderboard> leaderboard(String eventId, {String? board});
 
   /// `GET /wallet/recharge-packages`.
   Future<RechargeOffer> rechargePackages();
@@ -792,11 +1071,14 @@ class ProgramsRepositoryImpl implements ProgramsRepository {
   );
 
   @override
-  Future<EventLeaderboard> leaderboard(String eventId) => guardApiCall(
-    () async => EventLeaderboard.fromJson(
-      await _get('/events/${pathSegment(eventId)}/leaderboard'),
-    ),
-  );
+  Future<EventLeaderboard> leaderboard(String eventId, {String? board}) =>
+      guardApiCall(
+        () async => EventLeaderboard.fromJson(
+          await _get('/events/${pathSegment(eventId)}/leaderboard', {
+            'board': ?board,
+          }),
+        ),
+      );
 
   @override
   Future<RechargeOffer> rechargePackages() => guardApiCall(

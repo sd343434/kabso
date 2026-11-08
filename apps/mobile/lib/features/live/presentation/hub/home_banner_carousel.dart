@@ -7,6 +7,8 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// The live hub's promo banners (D124, CONVENTIONS §10.26): a full-width
 /// 3:1 carousel with rounded corners (the owner's pictures carry their text,
@@ -22,6 +24,11 @@ import 'package:material_ui/material_ui.dart';
 /// - A tap calls [onOpen] for a banner whose link the app can open
 ///   ([canOpen]); others are not buttons.
 /// - Optional overlay text on the banner's empty side.
+/// - v1.97-social (D303): an ANIMATED banner plays its animated WebP; a VIDEO
+///   banner plays muted and looping only while at least half visible, the
+///   app in the foreground and the hub shown ([TickerMode]), its poster until
+///   the first frame (and when it cannot play); the carousel stays on a video
+///   for its length. With reduced motion only the still (`posterUrl`) shows.
 ///
 /// Renders nothing for an empty list (the hub then has no banner).
 class KHomeBannerCarousel extends StatefulWidget {
@@ -75,6 +82,14 @@ class KHomeBannerCarousel extends StatefulWidget {
   @visibleForTesting
   static ImageProvider Function(String url)? imageForTesting;
 
+  /// Tests and goldens: whether a VIDEO banner may start its player (the
+  /// test host has none; the poster is shown either way until it plays).
+  @visibleForTesting
+  static bool playVideos = true;
+
+  static Key videoKey(String id) => Key('homeBanner.video.$id');
+  static Key stillKey(String id) => Key('homeBanner.still.$id');
+
   @override
   State<KHomeBannerCarousel> createState() => _KHomeBannerCarouselState();
 }
@@ -118,12 +133,25 @@ class _KHomeBannerCarouselState extends State<KHomeBannerCarousel> {
     _timer?.cancel();
     _timer = null;
     if (_count <= 1 || MediaQuery.disableAnimationsOf(context)) return;
-    _timer = Timer.periodic(widget.interval, (_) => _advance());
+    // D303: a video stays for its length (at least the usual interval).
+    final banner = widget.banners[_page % _count];
+    final length = banner.isVideo && banner.durationMs != null
+        ? Duration(milliseconds: banner.durationMs!)
+        : Duration.zero;
+    _timer = Timer(
+      length > widget.interval ? length : widget.interval,
+      _advance,
+    );
   }
 
   void _advance() {
-    if (!mounted || _pointers > 0 || !_controller.hasClients) return;
-    if (!TickerMode.valuesOf(context).enabled) return;
+    if (!mounted) return;
+    if (_pointers > 0 ||
+        !_controller.hasClients ||
+        !TickerMode.valuesOf(context).enabled) {
+      _restartTimer();
+      return;
+    }
     _controller.animateToPage(
       _page + 1,
       duration: KMotion.of(context, KMotion.slow),
@@ -216,7 +244,10 @@ class _KHomeBannerCarouselState extends State<KHomeBannerCarousel> {
                 pager: PageView.builder(
                   controller: _controller,
                   itemCount: count <= 1 ? count : count * _loops,
-                  onPageChanged: (page) => setState(() => _page = page),
+                  onPageChanged: (page) {
+                    setState(() => _page = page);
+                    _restartTimer();
+                  },
                   itemBuilder: (context, page) {
                     final index = page % count;
                     final banner = banners[index];
@@ -292,21 +323,33 @@ class _BannerPage extends StatelessWidget {
     final p = context.palette;
     final title = banner.title?.trim();
     final placeholder = ColoredBox(color: p.surfaceRaised);
+    Widget picture(String url, {Key? key}) => Image(
+      key: key,
+      image:
+          KHomeBannerCarousel.imageForTesting?.call(url) ?? NetworkImage(url),
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      frameBuilder: (_, child, frame, sync) =>
+          frame == null && !sync ? placeholder : child,
+      errorBuilder: (_, _, _) => placeholder,
+    );
+    // D303: reduced motion shows the still only (no animation, no video).
+    final still = MediaQuery.disableAnimationsOf(context);
+    final media = still
+        ? picture(banner.stillUrl, key: KHomeBannerCarousel.stillKey(banner.id))
+        : banner.isVideo
+        ? _BannerVideo(
+            key: KHomeBannerCarousel.videoKey(banner.id),
+            url: banner.videoUrl!,
+            poster: picture(banner.stillUrl),
+          )
+        : picture(banner.imageUrl);
     return Material(
       color: p.surfaceRaised,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image(
-            image:
-                KHomeBannerCarousel.imageForTesting?.call(banner.imageUrl) ??
-                NetworkImage(banner.imageUrl),
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            frameBuilder: (_, child, frame, sync) =>
-                frame == null && !sync ? placeholder : child,
-            errorBuilder: (_, _, _) => placeholder,
-          ),
+          media,
           if (title != null && title.isNotEmpty)
             Align(
               alignment: banner.titleSide == HomeBannerTitleSide.left
@@ -340,6 +383,118 @@ class _BannerPage extends StatelessWidget {
               ),
             ),
           if (onTap != null) InkWell(onTap: onTap),
+        ],
+      ),
+    );
+  }
+}
+
+/// D303 (CONVENTIONS §10.114.6): a VIDEO banner — muted, looping, playing only
+/// while at least half of it is visible, the app in the foreground and the
+/// hub shown; the [poster] until the first frame and whenever it cannot play.
+class _BannerVideo extends StatefulWidget {
+  const new({required this.url, required this.poster, super.key});
+
+  final String url;
+  final Widget poster;
+
+  @override
+  State<_BannerVideo> createState() => _BannerVideoState();
+}
+
+class _BannerVideoState extends State<_BannerVideo>
+    with WidgetsBindingObserver {
+  VideoPlayerController? _video;
+  bool _started = false;
+  bool _visible = false;
+  bool _foreground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_started && KHomeBannerCarousel.playVideos) {
+      _started = true;
+      unawaited(_load());
+    }
+    _sync();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _sync();
+  }
+
+  Future<void> _load() async {
+    final url = widget.url;
+    final video = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    );
+    try {
+      await video.initialize();
+      await video.setVolume(0);
+      await video.setLooping(true);
+      if (!mounted || widget.url != url) {
+        await video.dispose();
+        return;
+      }
+      setState(() => _video = video);
+      _sync();
+    } on Object catch (e) {
+      debugPrint('Banner video ($url): $e');
+      await video.dispose();
+    }
+  }
+
+  void _sync() {
+    final video = _video;
+    if (video == null || !mounted) return;
+    final play =
+        _visible && _foreground && TickerMode.valuesOf(context).enabled;
+    if (play && !video.value.isPlaying) {
+      unawaited(video.play());
+    } else if (!play && video.value.isPlaying) {
+      unawaited(video.pause());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_video?.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final video = _video;
+    return VisibilityDetector(
+      key: ValueKey('homeBanner.visibility.${widget.url}'),
+      onVisibilityChanged: (info) {
+        _visible = info.visibleFraction >= 0.5;
+        _sync();
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.poster,
+          if (video != null && video.value.isInitialized)
+            FittedBox(
+              fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: video.value.size.width,
+                height: video.value.size.height,
+                child: VideoPlayer(video),
+              ),
+            ),
         ],
       ),
     );

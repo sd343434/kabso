@@ -15848,4 +15848,152 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get verificationBadgeAbout => 'شارة تُمنح تلقائياً حسب الشروط';
+
+  @override
+  String get eventsGifts => 'هدايا الفعالية';
+
+  @override
+  String eventsGiftPoints(String points) {
+    return '$points نقطة';
+  }
+
+  @override
+  String get eventsGiftPointsHint =>
+      'كل عملة تُرسل بهدية من هدايا الفعالية تعطي نقاطاً';
+
+  @override
+  String get eventsRuleOnlyGifts =>
+      'تُحتسب النقاط فقط من إرسال هدايا الفعالية خلال مدتها.';
+
+  @override
+  String get eventsRuleMinimum =>
+      'يجب الوصول إلى الحد الأدنى من النقاط للتأهل للجوائز.';
+
+  @override
+  String get eventsRuleAutoPayout =>
+      'تُرسل الجوائز تلقائياً بعد انتهاء الفعالية.';
+
+  @override
+  String get eventsLocalTime => 'التواريخ بتوقيتك المحلي';
+
+  @override
+  String get eventsBoardSenders => 'ترتيب الداعمين';
+
+  @override
+  String get eventsBoardReceivers => 'ترتيب المضيفين';
+
+  @override
+  String get eventsBoardCreators => 'صناع المحتوى';
+
+  @override
+  String get eventsBoardAgencies => 'الوكالات';
+
+  @override
+  String get eventsBoardCp => 'الثنائيات CP';
+
+  @override
+  String eventsMinPoints(String points) {
+    return 'الحد الأدنى للتأهل: $points نقطة';
+  }
+
+  @override
+  String eventsPointsToQualify(String points) {
+    return 'باقي $points نقطة للتأهل';
+  }
+
+  @override
+  String get eventsQualified => 'مؤهّل للجائزة';
+
+  @override
+  String get eventsNotQualified => 'لم يتأهل';
+
+  @override
+  String eventsPrizeCherries(String amount) {
+    return '$amount كرز';
+  }
+
+  @override
+  String eventsPrizeDays(String name, String days) {
+    return '$name · $days يوم';
+  }
+
+  @override
+  String get eventsPrizeVip => 'بطاقة VIP';
+
+  @override
+  String get eventsPrizeItem => 'عنصر';
+
+  @override
+  String eventsAgencyOwner(String name) {
+    return 'الوكيل: $name';
+  }
+
+  @override
+  String eventsCpPair(String a, String b) {
+    return '$a و$b';
+  }
+
+  @override
+  String get eventsBoardsTitle => 'الترتيب والجوائز';
+
+  @override
+  String eventsPrizeCpMoney(String cherries, String coins) {
+    return '$cherries كرز للمضيف / $coins كوينز لغيره';
+  }
+
+  @override
+  String eventsPrizePermanent(String name) {
+    return '$name · دائم';
+  }
+
+  @override
+  String eventsPrizeMedalLevel(String name, String level) {
+    return '$name (المستوى $level)';
+  }
+
+  @override
+  String eventsCountdownStarts(String time) {
+    return 'تبدأ بعد $time';
+  }
+
+  @override
+  String eventsCountdownEnds(String time) {
+    return 'تنتهي بعد $time';
+  }
+
+  @override
+  String get eventsCountdownEnded => 'انتهت الفعالية';
+
+  @override
+  String eventsMyBar(String rank, String points) {
+    return 'مركزي: $rank · $points نقطة';
+  }
+
+  @override
+  String eventsMyBarNone(String points) {
+    return 'لم تدخل الترتيب بعد · $points نقطة';
+  }
+
+  @override
+  String eventsToNextRank(String points, String rank) {
+    return 'باقي $points نقطة للمركز $rank';
+  }
+
+  @override
+  String eventsSendGiftTitle(String name) {
+    return 'أرسل $name داخل بث';
+  }
+
+  @override
+  String get eventsSendGiftBody =>
+      'تُرسل هدايا الفعالية من لوحة الهدايا داخل أي بث مباشر، وتُحسب نقاطها فوراً.';
+
+  @override
+  String get eventsGoLive => 'اذهب إلى البث';
+
+  @override
+  String get eventsPrizePreview => 'معاينة الجائزة';
+
+  @override
+  String get notifEventPrizeWon => 'مبروك، وصلتك جائزة فعالية';
 }

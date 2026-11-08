@@ -36,6 +36,7 @@ import { AR_D290, EN_D290 } from './i18n-d290';
 import { AR_D291, EN_D291 } from './i18n-d291';
 import { AR_D293, EN_D293 } from './i18n-d293';
 import { AR_D295, EN_D295 } from './i18n-d295';
+import { AR_D303, EN_D303 } from './i18n-d303';
 
 export type Lang = 'ar' | 'en';
 
@@ -444,6 +445,7 @@ const ar = {
   ...AR_D291,
   ...AR_D293,
   ...AR_D295,
+  ...AR_D303,
 };
 
 export type Key = keyof typeof ar;
@@ -840,6 +842,7 @@ const en: Record<Key, string> = {
   ...EN_D291,
   ...EN_D293,
   ...EN_D295,
+  ...EN_D303,
 };
 
 export const DICTIONARIES: Record<Lang, Record<Key, string>> = { ar, en };

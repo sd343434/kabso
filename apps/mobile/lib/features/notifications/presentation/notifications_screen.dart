@@ -305,6 +305,11 @@ class NotificationRow extends StatelessWidget {
     // D290: the staff member's request decided → their requests; the
     // supporter's level raised → the levels page.
     if (item.type == NotificationType.levelRaised) return AppRoutes.levels;
+    // D303: an event prize → the event.
+    if (item.type == NotificationType.eventPrizeWon) {
+      final id = item.target?.id;
+      return id == null ? AppRoutes.eventCenter : AppRoutes.event(id);
+    }
     if (item.type.isLevelRaise) return AppRoutes.staffLevelRaises;
     final target = item.target;
     if (target == null || item.type == NotificationType.contentRemoved) {
@@ -344,6 +349,7 @@ class NotificationRow extends StatelessWidget {
       // D288: «بلاغات» on that report.
       NotificationTargetType.report => AppRoutes.staffReport(target.id),
       NotificationTargetType.levelRaise => AppRoutes.staffLevelRaises,
+      NotificationTargetType.event => AppRoutes.event(target.id),
     };
   }
 
@@ -485,6 +491,7 @@ class NotificationRow extends StatelessWidget {
       NotificationType.levelRaiseRejected => l10n.notifLevelRaiseRejected(
         KFormat.bidiIsolate('@${item.target?.text ?? ''}'),
       ),
+      NotificationType.eventPrizeWon => l10n.notifEventPrizeWon,
       NotificationType.levelRaised => l10n.notifLevelRaised(
         KFormat.bidiIsolate('${item.target?.level ?? ''}'),
       ),

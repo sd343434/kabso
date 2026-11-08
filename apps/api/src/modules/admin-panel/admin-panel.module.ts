@@ -27,6 +27,7 @@ import { AdminSessionGuard } from './admin-session.guard.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AdminAgenciesService } from './admin-agencies.service.js';
 import { AdminCatalogService } from './admin-catalog.service.js';
+import { AdminGiftEventsService } from './admin-gift-events.service.js';
 import { AdminLiveModerationController } from './admin-live-moderation.controller.js';
 import { AdminLiveModerationService } from './admin-live-moderation.service.js';
 import { AdminStaffShiftsService } from './admin-staff-shifts.service.js';
@@ -118,6 +119,7 @@ import { StaffAppService } from './staff-app.service.js';
     AdminAgenciesService,
     AdminLivesService,
     AdminCatalogService,
+    AdminGiftEventsService,
     AdminMoneyService,
     AdminTeamService,
     AdminProgramsService,

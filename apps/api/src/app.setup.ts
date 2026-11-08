@@ -7,7 +7,13 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { expressErrorHandler } from './common/errors/all-exceptions.filter.js';
 import { requestIdMiddleware } from './common/request-id/request-id.js';
-import { BANNER_UPLOAD_PATH, GIFT_UPLOAD_PATH } from './modules/admin-panel/admin-v2.controller.js';
+import {
+  BANNER_UPLOAD_PATH,
+  BANNER_VIDEO_UPLOAD_PATH,
+  EVENT_UPLOAD_PATH,
+  GIFT_UPLOAD_PATH,
+} from './modules/admin-panel/admin-v2.controller.js';
+import { STAFF_EVENT_UPLOAD_PATH } from './modules/admin-panel/staff-app.controller.js';
 import { LEVEL_RAISE_VIDEO_UPLOAD_PATH } from './modules/level-raise/level-raise.controller.js';
 import { VIP_UPLOAD_PATH } from './modules/admin-panel/admin-vip.controller.js';
 import { STORE_UPLOAD_PATH } from './modules/admin-panel/admin-store.controller.js';
@@ -79,6 +85,14 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
         (req.url ?? '').split('?')[0] ?? '',
       ) && String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
     limit: '26mb',
+  });
+  // v1.97-social (D303, §10.114.6): the panel's banner video (raw bytes, at most 30 MiB, checked by the service).
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      [BANNER_VIDEO_UPLOAD_PATH, EVENT_UPLOAD_PATH, STAFF_EVENT_UPLOAD_PATH].includes(
+        (req.url ?? '').split('?')[0] ?? '',
+      ) && String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: '31mb',
   });
   // v1.89-social (D290, §10.103): the panel's level-raise video (raw bytes, at most 100 MiB, checked by the service).
   app.useBodyParser('raw', {

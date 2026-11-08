@@ -41,6 +41,8 @@ export function isGif(bytes: Buffer): boolean {
 export interface ProcessedBanner {
   readonly large: Buffer;
   readonly thumb: Buffer;
+  /** v1.97-social (D303): the first frame at full size (the still shown with reduced motion). */
+  readonly poster?: Buffer;
   readonly width: number;
   readonly height: number;
   readonly blurhash: string;
@@ -140,11 +142,16 @@ export async function processAnimatedBanner(
     .resize(thumbWidth, thumbHeight, { fit: 'cover', position: 'centre' })
     .webp({ quality: 75 })
     .toBuffer();
+  // v1.97-social (D303, §10.114.6): the first frame at the banner's size, for reduced motion.
+  const poster = await first()
+    .resize(width, height, { fit: 'cover', position: 'centre' })
+    .webp({ quality: 80 })
+    .toBuffer();
   const small = await first()
     .resize(32, 32, { fit: 'inside' })
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
   const blurhash = encode(new Uint8ClampedArray(small.data), small.info.width, small.info.height, 4, 3);
-  return { large, thumb, width, height, blurhash, frames, durationMs };
+  return { large, thumb, poster, width, height, blurhash, frames, durationMs };
 }

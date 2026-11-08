@@ -126,6 +126,10 @@ enum NotificationType {
   levelRaiseApproved('LEVEL_RAISE_APPROVED'),
   levelRaiseRejected('LEVEL_RAISE_REJECTED'),
   levelRaised('LEVEL_RAISED'),
+
+  /// v1.97-social (D303, system; target EVENT): a prize of an event board was
+  /// paid to you — opens the event.
+  eventPrizeWon('EVENT_PRIZE_WON'),
   unknown('');
 
   new(this.wire);
@@ -161,7 +165,8 @@ enum NotificationType {
   bool get isLevelRaise =>
       this == levelRaiseApproved ||
       this == levelRaiseRejected ||
-      this == levelRaised;
+      this == levelRaised ||
+      this == eventPrizeWon;
 
   /// v1.80-kyc (D227): the identity check's result.
   bool get isKyc =>
@@ -221,7 +226,10 @@ enum NotificationTargetType {
 
   /// v1.89-social (D290): a level-raise request (its id; `text` the
   /// supporter's username for the staff member; `level` the approved level).
-  levelRaise('LEVEL_RAISE');
+  levelRaise('LEVEL_RAISE'),
+
+  /// v1.97-social (D303): an event (EVENT_PRIZE_WON).
+  event('EVENT');
 
   new(this.wire);
 

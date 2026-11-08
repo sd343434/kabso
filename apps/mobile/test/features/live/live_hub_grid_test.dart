@@ -189,8 +189,10 @@ void main() {
   });
 
   group('banners (D124)', () {
-    testWidgets('D248: full width after the first row (2 cards), 3:1, the '
-        'indicator bar inside its bottom edge', (tester) async {
+    testWidgets('D303 (owner): full width as the first block, above the '
+        'first row, 5:1, the indicator bar inside its bottom edge', (
+      tester,
+    ) async {
       await _pumpHub(tester, banners: sampleBanners());
       final carousel = find.byKey(KHomeBannerCarousel.carouselKey);
       expect(carousel, findsOneWidget);
@@ -201,12 +203,11 @@ void main() {
       expect(pager.width, moreOrLessEquals(393 - 26));
       // D248b: 5:1 (ref 375).
       expect(pager.height, moreOrLessEquals((393 - 26) / 5));
+      final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
       final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
-      final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
-      // Ref 375: 12 px (6.4 pt) under the first row, 21 px (11.2 pt) above
-      // the next.
-      expect(pager.top - second.bottom, moreOrLessEquals(6.4));
-      expect(third.top - pager.bottom, moreOrLessEquals(11.2));
+      // D303: the carousel comes first; the first row follows it.
+      expect(first.top, greaterThan(pager.bottom));
+      expect(second.top, moreOrLessEquals(first.top));
       final dots = tester.getRect(find.byKey(KHomeBannerCarousel.dotsKey));
       expect(dots.bottom, moreOrLessEquals(pager.bottom - 6.4));
       expect(dots.center.dx, moreOrLessEquals(pager.center.dx));
@@ -214,9 +215,7 @@ void main() {
       expect(dots.height, moreOrLessEquals(2));
     });
 
-    testWidgets('after the last card when there are fewer than 2', (
-      tester,
-    ) async {
+    testWidgets('D303: first even with a single card', (tester) async {
       await _pumpHub(tester, rooms: 1, banners: sampleBanners(count: 1));
       final pager = tester.getRect(
         find.descendant(
@@ -225,15 +224,15 @@ void main() {
         ),
       );
       expect(
-        pager.top,
-        greaterThan(tester.getRect(find.byKey(LiveHubGrid.cardKey(0))).bottom),
+        tester.getRect(find.byKey(LiveHubGrid.cardKey(0))).top,
+        greaterThan(pager.bottom),
       );
       // One banner: no dots.
       expect(find.byKey(KHomeBannerCarousel.dotsKey), findsNothing);
     });
 
-    testWidgets('hidden with no active banner, on a failed request and on '
-        'the empty state', (tester) async {
+    testWidgets('hidden with no active banner and on a failed request; D303: '
+        'shown on the empty state too (the first block)', (tester) async {
       await _pumpHub(tester);
       expect(find.byKey(KHomeBannerCarousel.carouselKey), findsNothing);
       await _pumpHub(
@@ -245,7 +244,7 @@ void main() {
       expect(find.byType(KLiveGridCard), findsWidgets);
       await _pumpHub(tester, rooms: 0, banners: sampleBanners());
       expect(find.byKey(FeedRegion.emptyKey), findsOneWidget);
-      expect(find.byKey(KHomeBannerCarousel.carouselKey), findsNothing);
+      expect(find.byKey(KHomeBannerCarousel.carouselKey), findsOneWidget);
     });
 
     testWidgets('auto-advances every 4 s, wraps forwards, pauses while '
@@ -348,13 +347,14 @@ void main() {
           textScale: scale,
         );
         expect(tester.takeException(), isNull);
+        // D303: the carousel is the first block (then scrolled away).
+        expect(find.byKey(KHomeBannerCarousel.carouselKey), findsOneWidget);
         await tester.drag(
           find.byType(CustomScrollView).first,
           const Offset(0, -500),
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(find.byKey(KHomeBannerCarousel.carouselKey), findsOneWidget);
       });
     }
   });

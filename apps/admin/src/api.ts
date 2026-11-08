@@ -178,6 +178,38 @@ export function uploadBannerPicture(
   return uploadRaw<BannerUpload>(withQuery('/admin/banner-uploads', { placement }), file, onProgress);
 }
 
+/** v1.97-social (D303): what `POST /admin/banner-video-uploads` answers. */
+export interface BannerVideoUpload {
+  mediaId: string;
+  width: number;
+  height: number;
+  durationMs: number;
+  byteSize: number;
+  videoUrl: string | null;
+}
+
+/** v1.97-social (D303, §10.114.6): uploads a home banner's video (MP4 / MOV, 1–30 s, ≤ 30 MiB) as the raw body. */
+export function uploadBannerVideo(file: Blob, onProgress: (fraction: number) => void = () => undefined): Promise<BannerVideoUpload> {
+  return uploadRaw<BannerVideoUpload>('/admin/banner-video-uploads', file, onProgress);
+}
+
+/** v1.97-social (D303 follow-ups): `EventMediaUpload` — a stored piece of event art. */
+export interface EventMediaUpload {
+  kind: string;
+  mediaId: string | null;
+  key: string | null;
+  url: string | null;
+  width: number | null;
+  height: number | null;
+  animated: boolean;
+  durationMs: number | null;
+}
+
+/** v1.97-social (D303 follow-ups, §10.114.9): uploads one piece of an event's art, checked against its spec. */
+export function uploadEventMedia(kind: string, file: Blob, onProgress: (fraction: number) => void = () => undefined): Promise<EventMediaUpload> {
+  return uploadRaw<EventMediaUpload>(withQuery('/admin/event-uploads', { kind }), file, onProgress);
+}
+
 /** v1.83-social (D258): what `POST /admin/vip/uploads` answers for a stored VIP art file. */
 export interface VipUpload {
   kind: 'animation' | 'still';

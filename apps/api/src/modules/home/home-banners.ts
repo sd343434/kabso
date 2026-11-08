@@ -64,6 +64,8 @@ const ROUTE_LINKS: readonly RegExp[] = [
   /^\/live\?tab=(trending|new|following)$/,
   new RegExp(`^/home/room/${UUID}$`),
   /^\/users\/[^/?#]+$/,
+  // v1.97-social (D303): an event page (set by `eventId`).
+  new RegExp(`^/events/${UUID}$`),
 ];
 
 /** Why `link` may not be a banner's link, or null when it may. */
@@ -85,7 +87,7 @@ export function bannerLinkProblem(link: string): string | null {
     return null;
   }
   if (!ROUTE_LINKS.some((pattern) => pattern.test(link))) {
-    return 'The link must be /cp/space, /families, /live?tab=trending|new|following, /home/room/<roomId>, /users/<username> or an https:// URL';
+    return 'The link must be /cp/space, /families, /live?tab=trending|new|following, /home/room/<roomId>, /users/<username>, /events/<eventId> or an https:// URL';
   }
   const user = /^\/users\/(.+)$/.exec(link);
   if (user && !USERNAME_PATTERN.test(user[1]!)) return 'Not a valid username';
@@ -104,6 +106,10 @@ export interface BannerFields {
   readonly enabled: boolean;
   /** v1.27.4-live (D137): `HOME` (default) or `ROOM`; D176 `TASKS`, D177 `WALLET`, D248 `HUB_CARD`. */
   readonly placement?: BannerPlacement;
+  /** v1.97-social (D303, §10.114.6): a HOME banner's `BANNER_VIDEO` (`mediaId` is then its poster). */
+  readonly videoMediaId?: string | null;
+  /** v1.97-social (D303): the event the banner opens; `link` becomes `/events/<id>`. */
+  readonly eventId?: string | null;
 }
 
 /** Every problem with [fields] (empty when they are acceptable). */
@@ -178,7 +184,7 @@ export async function storeBannerImage(
   const frames = type === 'image/webp' || gif ? await bannerFrameCount(bytes) : 1;
   if (frames === null) throw new BannerError('The image could not be read');
   let image: Pick<ProcessedBanner, 'large' | 'thumb' | 'width' | 'height' | 'blurhash'> &
-    Partial<Pick<ProcessedBanner, 'frames' | 'durationMs'>>;
+    Partial<Pick<ProcessedBanner, 'frames' | 'durationMs' | 'poster'>>;
   if (frames > 1) {
     const size = BANNER_SIZES[placement];
     try {
@@ -229,7 +235,7 @@ async function finishBannerImage(
   ownerId: string,
   placement: BannerPlacement,
   image: Pick<ProcessedBanner, 'large' | 'thumb' | 'width' | 'height' | 'blurhash'> &
-    Partial<Pick<ProcessedBanner, 'frames' | 'durationMs'>>,
+    Partial<Pick<ProcessedBanner, 'frames' | 'durationMs' | 'poster'>>,
 ): Promise<StoredBannerImage> {
   const id = uuidv7();
   const largeWidth =
@@ -243,6 +249,10 @@ async function finishBannerImage(
   const cache = 'public, max-age=31536000, immutable';
   await storage.put(largeKey, image.large, 'image/webp', cache);
   await storage.put(thumbKey, image.thumb, 'image/webp', cache);
+  // v1.97-social (D303): an animated picture keeps its first frame at full size and its loop length (ANIMATED kind).
+  const animated = (image.frames ?? 1) > 1;
+  const posterKey = animated && image.poster ? `media/${id}/poster.webp` : null;
+  if (posterKey) await storage.put(posterKey, image.poster!, 'image/webp', cache);
   const asset = await prisma.mediaAsset.create({
     data: {
       id,
@@ -253,6 +263,8 @@ async function finishBannerImage(
       blurhash: image.blurhash,
       largeKey,
       thumbKey,
+      posterKey,
+      durationMs: animated ? Math.min(Math.max(image.durationMs ?? 1, 1), 10_000) : null,
       byteSize: image.large.length,
     },
   });
@@ -274,7 +286,10 @@ export async function addBannerIn(
   by: AdminVia = CLI_VIA,
   reason: string | null = null,
 ): Promise<HomeBanner> {
-  const problems = bannerFieldProblems(fields);
+  // v1.97-social (D303): a banner on an event opens it (`/events/<id>`, whatever link was given).
+  const problems = bannerFieldProblems(
+    fields.eventId ? { ...fields, link: `/events/${fields.eventId.toLowerCase()}` } : fields,
+  );
   if (problems.length > 0) throw new BannerError(problems.join('\n'));
   if (!isUuid(mediaId)) throw new BannerError('--media is a media id (UUID)');
   const id = mediaId.toLowerCase();
@@ -312,6 +327,37 @@ export async function addBannerIn(
         : `Media ${id} is a hub card banner picture (720 × 805); add it with --placement hub_card.`,
     );
   }
+  // v1.97-social (D303, §10.114.6): a video banner (HOME only) names its BANNER_VIDEO beside the poster picture.
+  let videoId: string | null = null;
+  if (fields.videoMediaId) {
+    if (placement !== 'HOME') throw new BannerError('Only a home banner may be a video.');
+    if (!isUuid(fields.videoMediaId)) throw new BannerError('--video is a media id (UUID)');
+    videoId = fields.videoMediaId.toLowerCase();
+    const [video] = await tx.$queryRaw<{ kind: string; attached: boolean; fresh: boolean }[]>`
+      SELECT kind, attached_at IS NOT NULL AS attached, created_at > now() - interval '24 hours' AS fresh
+        FROM media_assets WHERE id = ${videoId}::uuid FOR UPDATE`;
+    if (!video) throw new BannerError(`No media ${videoId}.`);
+    if (video.kind !== 'BANNER_VIDEO')
+      throw new BannerError(`Media ${videoId} is a ${video.kind}, not a banner video.`);
+    if (video.attached) throw new BannerError(`Media ${videoId} is already used.`);
+    if (!video.fresh) throw new BannerError(`Media ${videoId} is older than 24 hours; upload it again.`);
+    await tx.mediaAsset.update({ where: { id: videoId }, data: { attachedAt: new Date() } });
+  }
+  let link = fields.link;
+  let eventId: string | null = null;
+  if (fields.eventId) {
+    if (!isUuid(fields.eventId)) throw new BannerError('The event is an id (UUID).');
+    const event = await tx.event.findUnique({
+      where: { id: fields.eventId.toLowerCase() },
+      select: { id: true },
+    });
+    if (!event) throw new BannerError(`No event ${fields.eventId}.`);
+    eventId = event.id;
+    link = `/events/${event.id}`;
+  }
+  const [picture] = await tx.$queryRaw<{ animated: boolean }[]>`
+    SELECT duration_ms IS NOT NULL AS animated FROM media_assets WHERE id = ${id}::uuid`;
+  const kind = videoId ? 'VIDEO' : picture?.animated ? 'ANIMATED' : 'IMAGE';
   await tx.mediaAsset.update({ where: { id }, data: { attachedAt: new Date() } });
   const banner = await tx.homeBanner.create({
     data: {
@@ -319,12 +365,15 @@ export async function addBannerIn(
       titleAr: fields.titleAr?.trim() ?? null,
       titleEn: fields.titleEn?.trim() ?? null,
       titleSide: fields.titleSide,
-      link: fields.link,
+      link,
       startsAt: fields.startsAt,
       endsAt: fields.endsAt,
       sortOrder: fields.sortOrder,
       enabled: fields.enabled,
       placement,
+      kind,
+      videoMediaId: videoId,
+      eventId,
     },
   });
   await tx.auditLog.create({
@@ -344,6 +393,9 @@ export async function addBannerIn(
         sortOrder: banner.sortOrder,
         enabled: banner.enabled,
         placement: banner.placement,
+        kind: banner.kind,
+        videoMediaId: banner.videoMediaId,
+        eventId: banner.eventId,
         ...(reason ? { reason } : {}),
         via: by.via,
       },
@@ -399,10 +451,12 @@ export async function removeBannerIn(
 ): Promise<string[] | null> {
   if (!isUuid(bannerId)) return null;
   const id = bannerId.toLowerCase();
-  const banner = await tx.homeBanner.findUnique({ where: { id }, include: { media: true } });
+  const banner = await tx.homeBanner.findUnique({ where: { id }, include: { media: true, video: true } });
   if (!banner) return null;
   await tx.homeBanner.delete({ where: { id } });
   await tx.mediaAsset.delete({ where: { id: banner.mediaId } });
+  // v1.97-social (D303): a video banner's video goes with it.
+  if (banner.video) await tx.mediaAsset.delete({ where: { id: banner.video.id } });
   await tx.auditLog.create({
     data: {
       ...auditBy(by),
@@ -412,7 +466,13 @@ export async function removeBannerIn(
       metadata: { mediaId: banner.mediaId, link: banner.link, ...(reason ? { reason } : {}), via: by.via },
     },
   });
-  return [...new Set([banner.media.largeKey, banner.media.thumbKey])];
+  return [
+    ...new Set(
+      [banner.media.largeKey, banner.media.thumbKey, banner.media.posterKey, banner.video?.largeKey].filter(
+        (k): k is string => typeof k === 'string',
+      ),
+    ),
+  ];
 }
 
 /** A banner is shown now: enabled and `startsAt <= now < endsAt` (no end = open). */
