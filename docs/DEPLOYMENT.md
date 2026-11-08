@@ -3354,6 +3354,52 @@ CONVENTIONS §10.48 (owner 2026-11-07).
   `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION` = 1200, now equal to the lowest tier.
 - **Rollback:** set the old value `0:1200,100000000:1195,300000000:1190` and recreate the API.
 
+### 5.86 The founder's page: bilingual bio, no team badge, the video with sound (migration `20270407090000_owner_bio`; D307) — [IMPLEMENTED, draft contract v1.98-social; not deployed, not device-tested]
+
+CONVENTIONS §10.112.1, §10.112.11 (owner 2026-11-08).
+
+- **Migration:** `20270407090000_owner_bio` creates `owner_bios` (one row per owner: `bio_ar`, `bio_en`, each null or
+  1–300 characters; FK to `users`, ON DELETE CASCADE). A new table: runtime grants come from the default privileges
+  (`20261016120000_runtime_role_grants`); no backfill (no row = the app's default founder text). Apply with the API
+  image as usual (`prisma migrate deploy`); older API versions ignore the table.
+- **API:** `PUT /api/v1/owner/bio` (`setOwnerBio`, owner only, audited `owner.bio.update`); `ownerBio` on
+  `GET /users/{username}` and `GET /me` for the owner only. No setting, no env variable.
+- **App:** the founder's page shows no «فريق كابسو» badge, plays the cover video by itself **with sound** (mute button
+  kept; it pauses when the page is left or covered and in the background) and shows the bio in the app's language
+  (else the built-in default text). The owner edits the bio in «لوحة المؤسس» → «بايو المؤسس».
+- **Order:** API (with its migration) first, then the app (an older API sends no `ownerBio`: the app shows the default
+  text). **Rollback:** an older API ignores `owner_bios`; an older app ignores `ownerBio` (it shows the ordinary bio).
+
+### 5.87 Recharge agents' cherry rate 94 500 (no migration; D308) — [IMPLEMENTED; config default only]
+
+CONVENTIONS §10.48 (owner 2026-11-08).
+
+- **Setting:** `RECHARGE_AGENT_CHERRY_RATE` default is now `1000000:94500` (1 000 000 cherries a host sells to an agent
+  → 94 500 coins in the agent's stock, rounded down; was `1000000:93220`). Minimum, step, cap and the host's cash
+  payout (`CHERRY_PAYOUT_RATE`) are unchanged.
+- **Server:** the owner has already set `RECHARGE_AGENT_CHERRY_RATE=1000000:94500` in the API env
+  (`/etc/kabso/api.env`); keep it (or remove it to use the same default). It is read when the container starts:
+  after a change recreate the API (`docker compose up -d api` from `/opt/kabso/infra/deploy`); check with
+  `docker compose exec api printenv RECHARGE_AGENT_CHERRY_RATE`.
+- **Effect:** only requests created after the API restarts use the new rate (`coins` is computed at creation and
+  stored on the request); conversions already confirmed — and open requests created before — keep their stored
+  amounts. The app reads the rate from the server (`coinsPerCherryUnit`), so no app update is needed.
+- **Rollback:** set `1000000:93220` and recreate the API.
+
+### 5.88 The four «first» medals retired (migration `20270407090100_medal_retire_firsts`; D313) — [IMPLEMENTED; no contract change; not deployed]
+
+CONVENTIONS §10.104.8a (owner 2026-11-08).
+
+- **Migration:** `20270407090100_medal_retire_firsts` sets `medals.retired` for `FIRST_LIVE`, `BULLET_FIRST`,
+  `FIRST_FAMILY`, `FIRST_CP`, clears their showcase positions and renumbers each affected person's remaining worn medals
+  (D291's SQL). Data only, idempotent in effect; apply with the API image as usual (`prisma migrate deploy`). Nothing to
+  configure; no backfill (the earned rows stay as history). Run `medals-admin backfill` only as before — it awards
+  nothing retired.
+- **Effect at once:** the medals page, profiles and showcases stop showing the four; nobody is notified. An older API
+  ignores the flag only if rolled back below D291 (not supported).
+- **Rollback:** `UPDATE medals SET retired = false WHERE code IN ('FIRST_LIVE','BULLET_FIRST','FIRST_FAMILY','FIRST_CP');`
+  (the cleared showcase positions are not restored).
+
 ### 5.89 Rooms rank by cherries (migration `20270408090000_live_room_cherries`; D310) — [IMPLEMENTED, draft contract v1.86-live; not deployed, not device-tested]
 
 CONVENTIONS §10.116 (owner 2026-11-08). §5.86–§5.88 are another branch's.

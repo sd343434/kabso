@@ -26,9 +26,9 @@ import {
   awardCharmMedalsIn,
   raiseMedalLevelsIn,
 } from '../src/modules/medals/medal-awards.js';
-import { MEDAL_CATALOGUE, RETIRED_MEDAL_CODES } from '../src/modules/medals/medals.catalogue.js';
+import { MEDAL_CATALOGUE } from '../src/modules/medals/medals.catalogue.js';
 import { panel, type Admin } from './helpers/admin-panel.js';
-import { seedMedalCatalogue } from './helpers/medals.js';
+import { PRE_D313_RETIRED, seedMedalCatalogue } from './helpers/medals.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
 import { expectContract, operations } from './helpers/openapi.js';
 import {
@@ -161,7 +161,7 @@ describe('D291 medal levels', { timeout: 240_000 }, () => {
       },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
-    await seedMedalCatalogue(ctx.prisma);
+    await seedMedalCatalogue(ctx.prisma, { keepFirsts: true });
     owner = await p.makeAdmin(['OWNER']);
   });
   afterAll(async () => {
@@ -251,12 +251,12 @@ describe('D291 medal levels', { timeout: 240_000 }, () => {
     const before = await catalogue(u, 'ar');
     // Only the wearable medals (the five retired name-side icons are left out).
     expect(Object.keys(before).sort()).toEqual(
-      MEDAL_CATALOGUE.filter((m) => !RETIRED_MEDAL_CODES.has(m.code))
+      MEDAL_CATALOGUE.filter((m) => !PRE_D313_RETIRED.has(m.code))
         .map((m) => m.code)
         .sort(),
     );
     const raw = await ctx.http.get('/api/v1/medals').set(auth(u));
-    expect(raw.body).toMatchObject({ total: MEDAL_CATALOGUE.length - RETIRED_MEDAL_CODES.size, owned: 3 });
+    expect(raw.body).toMatchObject({ total: MEDAL_CATALOGUE.length - PRE_D313_RETIRED.size, owned: 3 });
     // The live count is computed from real rooms (none here): the progress reads 0, the level stays 2.
     expect(before.FIRST_LIVE).toMatchObject({
       category: 'ACTIVITY',
@@ -335,7 +335,7 @@ describe('D291 medal levels', { timeout: 240_000 }, () => {
     ]);
     expect(prof.body.medals).toMatchObject({
       owned: 3,
-      total: MEDAL_CATALOGUE.length - RETIRED_MEDAL_CODES.size,
+      total: MEDAL_CATALOGUE.length - PRE_D313_RETIRED.size,
     });
     expect((prof.body.medals.latest as { code: string }[]).map((m) => m.code)).not.toContain('CHARM_10');
     const list = await ctx.http.get(`/api/v1/users/${u.username}/medals`).set(auth(reader));
@@ -459,7 +459,7 @@ describe('D291 medal levels', { timeout: 240_000 }, () => {
       retired: false,
     });
     // The retired name-side icons are listed read-only.
-    for (const code of RETIRED_MEDAL_CODES) expect(medals[code]!.retired, code).toBe(true);
+    for (const code of PRE_D313_RETIRED) expect(medals[code]!.retired, code).toBe(true);
 
     const support = await p.makeAdmin(['SUPPORT']);
     expect((await p.send(support, 'get', '/admin/medals')).status).toBe(200);
@@ -636,7 +636,7 @@ describe('D291 Wealth Kings', { timeout: 240_000 }, () => {
       },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
-    await seedMedalCatalogue(ctx.prisma);
+    await seedMedalCatalogue(ctx.prisma, { keepFirsts: true });
   });
   afterAll(async () => ctx?.close());
 

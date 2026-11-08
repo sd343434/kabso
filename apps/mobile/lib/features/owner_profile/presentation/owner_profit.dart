@@ -205,6 +205,9 @@ class OwnerProfitView extends ConsumerStatefulWidget {
   static const manageCostsKey = Key('owner.profit.manageCosts');
   static const retryKey = Key('owner.profit.retry');
   static const Key incomeNoteKey = FounderDashboardCard.incomeNoteKey;
+
+  /// D307 follow-up: the sheet of [showOwnerProfitSheet].
+  static const sheetKey = Key('owner.profit.sheet');
   static Key deductionKey(ProfitDeductionKey k) =>
       Key('owner.profit.deduction.${k.wire}');
 
@@ -559,6 +562,21 @@ class _PeriodView extends StatelessWidget {
 // ---- «تكاليف ثابتة» ---------------------------------------------------------
 
 /// The owner's fixed monthly costs: the list, add, edit and delete.
+/// D307 follow-up: «الربح» on its own (the founder's Me tab) — the same
+/// view as in «لوحة المؤسس»'s details.
+Future<void> showOwnerProfitSheet(BuildContext context) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => const SingleChildScrollView(
+        key: OwnerProfitView.sheetKey,
+        padding: EdgeInsets.fromLTRB(KSpacing.lg, 0, KSpacing.lg, KSpacing.lg),
+        child: OwnerProfitView(),
+      ),
+    );
+
 Future<void> showFixedCostsEditor(BuildContext context) =>
     showModalBottomSheet<void>(
       context: context,

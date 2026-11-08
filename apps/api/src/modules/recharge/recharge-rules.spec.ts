@@ -66,10 +66,11 @@ describe('D185 recharge rules', () => {
   });
 
   it('converts cherries to stock coins with integer floor, and the host payout', () => {
-    const rate = { cherries: 1_000_000, coins: 93_220 };
-    expect(cherriesToCoins(1_000_000n, rate)).toBe(93_220n);
-    expect(cherriesToCoins(100_000n, rate)).toBe(9_322n);
-    expect(cherriesToCoins(1_234_567n, rate)).toBe(115_086n);
+    // D308 (owner 2026-11-08): 1 000 000 cherries → 94 500 coins (was 93 220).
+    const rate = { cherries: 1_000_000, coins: 94_500 };
+    expect(cherriesToCoins(1_000_000n, rate)).toBe(94_500n);
+    expect(cherriesToCoins(100_000n, rate)).toBe(9_450n);
+    expect(cherriesToCoins(1_234_567n, rate)).toBe(116_666n);
     expect(cherriesPayoutMinor(1_000_000n, 1_000_000, 110)).toBe(110n);
     expect(cherriesPayoutMinor(2_500_000n, 1_000_000, 110)).toBe(275n);
     expect(validCherryAmount(1_000_000n, 1_000_000, 100_000)).toBe(true);

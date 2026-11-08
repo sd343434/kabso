@@ -208,6 +208,15 @@ abstract class PublicProfile with _$PublicProfile {
       includeIfNull: false,
     )
     OwnerCoverVideo? coverVideo,
+
+    /// v1.98-social (D307, §10.112.11): the founder's bilingual bio; null
+    /// when none (the app's default founder text shows).
+    @JsonKey(
+      fromJson: ownerBioFromJson,
+      toJson: ownerBioToJson,
+      includeIfNull: false,
+    )
+    OwnerBio? ownerBio,
   }) = _PublicProfile;
 
   const new _();

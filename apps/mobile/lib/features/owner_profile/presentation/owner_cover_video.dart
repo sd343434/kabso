@@ -19,14 +19,19 @@ ImageProvider Function(String src) ownerPosterImageFor = NetworkImage.new;
 /// video ([OwnerCoverVideo.pick]: the app's Arabic → Arabic, else English;
 /// one → that one), over its poster, with the cover's shades again on top
 /// (the name block stays legible) and, under the top bar at the reading
-/// end (above the name block), the «فيديو» pill (its length) and the mute
-/// button.
+/// end (above the name block), the mute button.
 ///
-/// Muted by default and looping; it plays only while at least half of it is
-/// on screen and the app is in the foreground (paused off-screen, under
-/// another page or in the background). With the system's reduce-motion
-/// setting it never starts by itself: the poster stays and the pill plays
-/// it. The app has no data-saver setting (none to respect).
+/// v1.98-social (D307, owner: «ازل ايقونة فيديو والوقت اجعله يعمل تلقائي
+/// بصوت عند دخول الشخص للصفحة»): no «فيديو» pill (no icon, no length); it
+/// starts by itself **with sound** and loops; the mute button silences it
+/// for this visit. It plays only while at least half of it is on screen,
+/// its page is the current route (not covered by another page, sheet or
+/// dialog), its tickers are on (not an offstage page or tab) and the app is
+/// in the foreground — otherwise it is paused (sound included) and resumes
+/// when all of that holds again. With the system's reduce-motion setting it
+/// never starts by itself: the poster stays with a round play button beside
+/// the mute button (that setting only). The app has no data-saver setting
+/// (none to respect).
 class OwnerCoverVideoLayer extends ConsumerStatefulWidget {
   const new({required this.video, super.key});
 
@@ -35,7 +40,9 @@ class OwnerCoverVideoLayer extends ConsumerStatefulWidget {
   static const layerKey = Key('owner.coverVideo');
   static const posterKey = Key('owner.coverVideo.poster');
   static const surfaceKey = Key('owner.coverVideo.surface');
-  static const pillKey = Key('owner.coverVideo.pill');
+
+  /// D307: the play / pause button — only with reduce motion (no pill).
+  static const playKey = Key('owner.coverVideo.play');
   static const muteKey = Key('owner.coverVideo.mute');
 
   @override
@@ -48,7 +55,12 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
   AppLifecycleListener? _life;
   double _fraction = 0;
   bool _foreground = true;
-  bool _muted = true;
+
+  /// D307: the page is the top route and its tickers run.
+  bool _current = true;
+
+  /// D307: with sound from the start (the button mutes it).
+  bool _muted = false;
   bool _loading = false;
   bool _failed = false;
 
@@ -64,6 +76,20 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
         unawaited(_sync());
       },
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // D307: another page, sheet or dialog over this one, or this page (or
+    // tab) offstage → paused; back on top → resumed.
+    final current =
+        (ModalRoute.isCurrentOf(context) ?? true) &&
+        TickerMode.valuesOf(context).enabled;
+    if (current != _current) {
+      _current = current;
+      unawaited(_sync());
+    }
   }
 
   @override
@@ -100,7 +126,11 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
   bool get _still => MediaQuery.disableAnimationsOf(context);
 
   bool get _wanted =>
-      _foreground && _fraction >= 0.5 && (!_still || _tapped) && !_failed;
+      _foreground &&
+      _current &&
+      _fraction >= 0.5 &&
+      (!_still || _tapped) &&
+      !_failed;
 
   Future<void> _sync() async {
     if (!mounted) return;
@@ -157,11 +187,6 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
     } else {
       unawaited(_sync());
     }
-  }
-
-  static String _length(int ms) {
-    final s = (ms / 1000).round();
-    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
   }
 
   @override
@@ -252,7 +277,8 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
               ),
             ),
           ),
-          // Under the bar, at the reading end: «فيديو» and the sound.
+          // Under the bar, at the reading end: the sound (D307: no «فيديو»
+          // pill; a play button only with reduce motion).
           PositionedDirectional(
             // The page's top padding is the status bar and the bar
             // (`extendBodyBehindAppBar`): just under the bar, above the
@@ -262,71 +288,37 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Semantics(
-                  button: true,
-                  label: playing
-                      ? l10n.ownerCoverVideoPause
-                      : l10n.ownerCoverVideoPlay,
-                  excludeSemantics: true,
-                  child: GestureDetector(
-                    key: OwnerCoverVideoLayer.pillKey,
-                    onTap: _togglePlay,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: const Color(0x8C000000),
-                        borderRadius: BorderRadius.circular(KRadius.pill),
-                        border: Border.all(color: const Color(0x33FFFFFF)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: KSpacing.sm,
-                          vertical: KSpacing.xs,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_loading)
-                              const SizedBox.square(
-                                dimension: 12,
+                if (_still) ...[
+                  Semantics(
+                    button: true,
+                    label: playing
+                        ? l10n.ownerCoverVideoPause
+                        : l10n.ownerCoverVideoPlay,
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      key: OwnerCoverVideoLayer.playKey,
+                      onTap: _togglePlay,
+                      child: _RoundButton(
+                        child: _loading
+                            ? const SizedBox.square(
+                                dimension: 14,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 1.5,
                                   color: white,
                                 ),
                               )
-                            else
-                              Icon(
+                            : Icon(
                                 playing
                                     ? Icons.pause_rounded
                                     : Icons.play_arrow_rounded,
-                                size: 16,
+                                size: 18,
                                 color: white,
                               ),
-                            const SizedBox(width: KSpacing.xxs),
-                            Text(
-                              l10n.ownerCoverVideoPill,
-                              style: context.textStyles.caption.copyWith(
-                                color: white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: KSpacing.xs),
-                            Text(
-                              _length(widget.video.durationMs),
-                              textDirection: TextDirection.ltr,
-                              style: context.textStyles.caption.copyWith(
-                                color: const Color(0xD9FFFFFF),
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: KSpacing.xs),
+                  const SizedBox(width: KSpacing.xs),
+                ],
                 Semantics(
                   button: true,
                   label: _muted
@@ -336,14 +328,7 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
                   child: GestureDetector(
                     key: OwnerCoverVideoLayer.muteKey,
                     onTap: _toggleMute,
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: const Color(0x8C000000),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0x33FFFFFF)),
-                      ),
+                    child: _RoundButton(
                       child: Icon(
                         _muted
                             ? Icons.volume_off_rounded
@@ -361,4 +346,24 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
       ),
     );
   }
+}
+
+/// The cover's round control (32 pt, dark glass, a light rim).
+class _RoundButton extends StatelessWidget {
+  const new({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 32,
+    height: 32,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: const Color(0x8C000000),
+      shape: BoxShape.circle,
+      border: Border.all(color: const Color(0x33FFFFFF)),
+    ),
+    child: child,
+  );
 }

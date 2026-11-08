@@ -157,7 +157,7 @@ All non-2xx responses use one envelope:
 | 409 | `CREATOR_APPLICATION_NOT_ALLOWED` | *(v1.75-live, DRAFT, D285)* `applyForCreatorProgramme` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `MEMBER` (already a creator), `STAFF` (a Kabso Team account), `PENDING` (one open application per user) (§10.96.13). *(v1.82-live, D295)* `HOST` (a host — any hosting permission but a creator's — cannot also be a creator, §10.108). Nothing was kept. |
 | 409 | `AGENCY_ACTIVATION_NOT_ALLOWED` | *(v1.82-live, DRAFT, D295)* `activateMyAgencyMember` refused — `details[0] = {field: member, issue}`: `AGENCY_SUSPENDED` (the team suspended the agency's host agent), `ACCOUNT_NOT_ACTIVE`, `STAFF` (a Kabso Team account), `HOST` (a host cannot be made a creator), `CREATOR` (a creator cannot be made a host) (§10.108). Nothing changed. |
 | 409 | `LEVEL_RAISE_DUPLICATE` | *(v1.89-social, DRAFT, D290)* `createStaffLevelRaise` / `createAdminLevelRaise`: the source account (canonical app + account ID, trimmed, case-insensitive) already has a PENDING or APPROVED level-raise request — `details`: `{field: status, issue: PENDING\|APPROVED}`, `{field: createdAt, issue: <ISO time>}`, `{field: requestedBy, issue: <the staff member's display name>}` (§10.103.8). Nothing was kept. |
-| 403 | `OWNER_ONLY` | *(v1.95-social, DRAFT, D301)* Only the app owner — an ACTIVE account holding the OWNER panel role — may do this: the cover videos (`setMyCoverVideo`, `removeMyCoverVideo`, a `PROFILE_COVER_VIDEO` upload slot), «رحلة Kabso» (`createOwnerJourneyMilestone`, `updateOwnerJourneyMilestone`, `deleteOwnerJourneyMilestone`, `reorderOwnerJourney`), «رسمي» (`markPostOfficial`, `unmarkPostOfficial`) and «لوحة المؤسس» (`getOwnerDashboard`, and «الربح» `getOwnerProfit` with the fixed costs `/owner/fixed-costs`). Nothing changed (§10.112). |
+| 403 | `OWNER_ONLY` | *(v1.95-social, DRAFT, D301)* Only the app owner — an ACTIVE account holding the OWNER panel role — may do this: the cover videos (`setMyCoverVideo`, `removeMyCoverVideo`, a `PROFILE_COVER_VIDEO` upload slot), «رحلة Kabso» (`createOwnerJourneyMilestone`, `updateOwnerJourneyMilestone`, `deleteOwnerJourneyMilestone`, `reorderOwnerJourney`), «رسمي» (`markPostOfficial`, `unmarkPostOfficial`), «لوحة المؤسس» (`getOwnerDashboard`, and «الربح» `getOwnerProfit` with the fixed costs `/owner/fixed-costs`) and *(v1.98-social, D307)* the founder's bilingual bio (`setOwnerBio`). Nothing changed (§10.112). |
 | 409 | `OWNER_JOURNEY_LIMIT` | *(v1.95-social, DRAFT, D301)* `createOwnerJourneyMilestone` when the owner already has 30 milestones in «رحلة Kabso». Nothing was kept (§10.112.3). |
 | 409 | `KYC_NOT_ALLOWED` | *(v1.80-kyc, DRAFT, D227)* `startKycSession` refused — `details[0] = {field: purpose, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED` (an approved check counts for the purpose), `IN_REVIEW` (wait for the review), `DAILY_LIMIT` (the OWNER's sessions per 24 h, default 3; §10.77). Nothing was started. |
 | 503 | `KYC_UNAVAILABLE` | *(v1.80-kyc, DRAFT, D227)* Identity verification (Didit) is off or not configured in the admin panel «التحقق من الهوية (Didit)» — `startKycSession`, `syncKycCheck`; the webhook when no webhook secret is saved (Didit retries); the panel's image fetch without an API key. No `Retry-After`. |
@@ -755,6 +755,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
 | v1.99-social (draft) | 2026-11-08 | **D311 (owner: «يمكنه حذف او حظر او تحذير اي شخص»; no code, no password):** `createOwnerModerationAction` (`POST /owner/users/{userId}/actions`, `OwnerModerationRequest`, `OwnerModerationResult`): WARN / SUSPEND (days) / BAN / DELETE_ACCOUNT by the app owner only, reusing the panel's rules, idempotent by `clientId`, audited `owner.moderation.action`; `RATE_LIMIT_OWNER_MODERATION_USER`. Migration `20270408090300_owner_moderation`. §10.117, §7, §8. | **Additive** (a new operation; no shape change elsewhere). Owner decision recorded: the panel step-up of D286 / D288 is waived for the OWNER in the app only. |
+| v1.98-social (draft) | 2026-11-08 | **D307 (owner, on the founder's page: «ازل شارة فريق كابسو من اسفل الإسم. وضع بايو بالعربي والانجليزي مناسب. بالإضافة ازل ايقونة فيديو والوقت اجعله يعمل تلقائي بصوت عند دخول الشخص للصفحة»):** `PublicProfile.ownerBio` / `Me.ownerBio` (`OwnerBio {ar?, en?}`), `setOwnerBio` (`PUT /owner/bio`, `SetOwnerBioRequest`; owner only, 403 `OWNER_ONLY`), audit `owner.bio.update`; migration `20270407090000_owner_bio`. App only (no wire change): no «فريق كابسو» badge under the founder's name (the special ID «Kabso» and the seal stay; other staff unchanged), the cover video starts by itself **with sound** and has no «فيديو» pill; «اقترح ميزة / أبلغ» outline only and no shadow under «متابعة المؤسس». §4, §10.112.1, §10.112.11. | **Additive** (one new operation, one optional field). |
 | v1.97-social (draft) | 2026-11-07 | **D303 (owner: «فعاليات الهدايا» like a third-party «ملك الكنوز» event page — look and idea only — and an animated promo banner first in the Live home that is an ad or an event; follow-ups: agencies, CP and content-creator boards):** `EventMetric` `EVENT_GIFTS`; `EventDetail.timeZone`, `.gifts` (`EventGift`: points per coin and per gift, `pointsEach`), `.boards` (`EventBoard`: `EventBoardKind` SENDERS / RECEIVERS / CREATORS / AGENCIES / CP, `minPoints`, `EventPrizeLine` of `EventPrizeItem` COINS / CHERRIES / BAG_ITEM / VIP with days); `EventSummary.audience` `CREATORS`; `getEventLeaderboard?board=` with `board`, `minPoints`, per row `qualified`, `prize`, `partner` (CP), `agency` (AGENCIES), `me.qualified` / `pointsToQualify` / `prize`; notification `EVENT_PRIZE_WON` (target `EVENT`); `CherryLedgerReason` `EVENT_PRIZE`; `BagItemSource` `EVENT`; panel `getAdminEventOptions`, `createAdminGiftEvent`, `getAdminGiftEvent`, `updateAdminGiftEvent`, `uploadAdminBannerVideo`, `AdminBannerCreateRequest.videoMediaId` / `.eventId`, `AdminBanner.kind` / `.eventId`, the event commands under `events.manage`; staff `listStaffEvents`, `getStaffEventOptions`, `createStaffGiftEvent`, `getStaffGiftEvent`, `updateStaffGiftEvent`, `changeStaffEvent`; `StaffStatus.capabilities` `events.manage`; `HomeBanner.kind` / `.posterUrl` / `.videoUrl` / `.durationMs` / `.eventId`, links `/events/{eventId}`; migrations `20270404090000_gift_events_enums`, `20270404090100_gift_events`. §10.114. | **Additive** (new optional query parameter, new fields, new enum values clients ignore when unknown; the D166 events and their boards are unchanged). |
 | v1.95-social (draft) | 2026-11-07 | **D301 (owner: «صفحة صاحب البرنامج» — features chosen from five mock-ups; the milestones managed in the app):** `PublicProfile.kabsoOwner` / `Me.kabsoOwner`, `PublicProfile.coverVideo` / `Me.coverVideo` (`OwnerCoverVideo`, `CoverVideoVariant`); `setMyCoverVideo` / `removeMyCoverVideo` (`/me/cover-video/{lang}`); `MediaKind` `PROFILE_COVER_VIDEO` (≤ 60 s, poster) and `OWNER_FEEDBACK_IMAGE` (private); `markPostOfficial` / `unmarkPostOfficial`, `Post.official`, `listUserOfficialPosts`; `listUserJourney`, `createOwnerJourneyMilestone`, `updateOwnerJourneyMilestone`, `deleteOwnerJourneyMilestone`, `reorderOwnerJourney` (`JourneyMilestone`, `JourneyMilestoneList`, `CreateJourneyMilestoneRequest`, `UpdateJourneyMilestoneRequest`, `ReorderJourneyRequest`); `getOwnerDashboard` (`OwnerDashboard`); `createOwnerFeedback` (`CreateOwnerFeedbackRequest`, `OwnerFeedbackReceipt`), `searchOwnerFeedbackStaff` (`OwnerFeedbackStaffList`); panel `listAdminOwnerInbox`, `getAdminOwnerInboxItem`, `updateAdminOwnerInboxStatus`, `getAdminOwnerInboxImage` (`OwnerInboxPage`, `OwnerInboxItem`), capability `owner.inbox` (OWNER); `NotificationType` `OWNER_FEEDBACK_NEW`, `NotificationTarget.type` `OWNER_FEEDBACK` + `feedbackKind`; codes `OWNER_ONLY` (403), `OWNER_JOURNEY_LIMIT` (409); audit `owner.*`, `admin.owner_inbox.*`; migrations `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`. Follow-up (owner, same day): bilingual announcements `createOwnerAnnouncement` / `updateOwnerAnnouncement` (`CreateOwnerAnnouncementRequest`, `UpdateOwnerAnnouncementRequest`), `Post.texts`, the latest announcement first in `listFeedPosts`, `NotificationType` `OWNER_ANNOUNCEMENT` (+ `NotificationTarget.texts`) to every ACTIVE account once by a background fan-out; `getSearchFeatured` (`SearchFeatured`, §10.112.9); owner answers (§10.112.8): `deleteAdminOwnerInboxItem`, `OwnerDashboard.income.otherCurrencies` and the income definition; migrations `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`. «الربح» (owner, same day; §10.112.10): `getOwnerProfit` (`OwnerProfit`, `OwnerProfitPeriod`, `OwnerProfitDeductionKey`), the fixed costs `listOwnerFixedCosts` / `createOwnerFixedCost` / `updateOwnerFixedCost` / `deleteOwnerFixedCost` and panel `listAdminOwnerFixedCosts` / `createAdminOwnerFixedCost` / `updateAdminOwnerFixedCost` / `deleteAdminOwnerFixedCost` (`OwnerFixedCost`, `OwnerFixedCostList`, `CreateOwnerFixedCostRequest`, `UpdateOwnerFixedCostRequest`), capability `owner.costs` (OWNER); migration `20270402090400_owner_profit`. §4, §10.112. | **Additive** (new operations, fields, schemas and enum values; clients ignore notification types they do not know). |
 | v1.94-social (draft) | 2026-11-06 | **D297 (owner: «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف» — Task Center tasks only for content creators, valued like the host tasks):** `ProgramTask.audience` `CREATORS` (creator-programme members only; a member never gets `HOSTS` tasks), `MyTasks.band.creator` (`band.host` = host tasks offered), `ProgramTask.metric` `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`, `NEW_FOLLOWERS`, `SHARES_RECEIVED`; the pool group CREATOR with `task_pool_bands.creator_count`; ten default tasks (six daily, four weekly per band) mirroring the host tasks' rewards under the same daily and monthly caps; `task-admin band --creator-count`; CHECK `events_audience_not_creators`; migrations `20270331090000_creator_tasks_enums`, `20270331090100_creator_tasks`. §10.110. | **Additive** (a new enum value in a response, new metric values — clients map unknown ones to the generic icon —, a new field). |
@@ -3373,7 +3374,7 @@ is server config with the owner's value as default; the owner changes it without
   history, but not of `earnedTotal` / the agencies' month totals (no commission on them).
 - **Not in phase 1 (next, CP-027 §6):** recharge agents «وكيل الشحن» (`coin0001` usernames, the KYC application
   with selfie review, employees and their hours, availability and payment methods), an agent's cherry → coin
-  conversion *(owner: 93 220 coins per 1 000 000 cherries, two-sided confirmation, daily cap)*, coin selling
+  conversion *(owner: 93 220 coins per 1 000 000 cherries — 94 500 since D308 —, two-sided confirmation, daily cap)*, coin selling
   prices and website payments (B5), an admin UI (CLI only), automatic payouts.
 
 #### 10.46.1 Task cherries locked for withdrawal *(v1.53-social, DRAFT — D184)*
@@ -3560,8 +3561,9 @@ withdrawable cherries to an ACTIVE agent, who pays the host cash outside the app
 host's username); the **other side confirms** (or declines; the creator may cancel); it expires after
 `RECHARGE_AGENT_CHERRY_REQUEST_TTL_MINUTES` (30) — read as EXPIRED, never confirmable. One open request per host
 and agent. Minimum `RECHARGE_AGENT_CHERRY_MIN` 1 000 000 cherries, in steps of `RECHARGE_AGENT_CHERRY_STEP`
-100 000; the agent's stock receives floor(cherries × 93 220 / 1 000 000) coins (`RECHARGE_AGENT_CHERRY_RATE`;
-with the step this is exact: 9 322 coins per 100 000). Confirmation is one transaction: the agent row is locked,
+100 000; the agent's stock receives floor(cherries × 94 500 / 1 000 000) coins (`RECHARGE_AGENT_CHERRY_RATE`;
+*owner 2026-11-08, D308: 94 500, was 93 220*; with the step this is exact: 9 450 coins per 100 000). A conversion
+already confirmed keeps the coins it gave (`recharge_cherry_requests.coins` is stored; nothing is recomputed). Confirmation is one transaction: the agent row is locked,
 the day's confirmed cherries (LIVE_RANKINGS_TIME_ZONE) plus this must stay within the agent's **daily cap**
 (`RECHARGE_AGENT_CHERRY_DAILY_CAP`; owner follow-up «حد وكيل مفتوح»: **0 = no cap, the default**;
 `recharge-admin set-cap <agent> <cherries | 0 | default>` per agent, 0 = none, `default` = the server's), the host's
@@ -7875,6 +7877,17 @@ renumbers each affected person's remaining worn medals 1, 2, … in order. The n
 charm level badge (CP-005, from `user_level_states`, not from medals) — unchanged. **No name-side icon for live hours**
 — decided by the owner: the charm icon is enough («تكفي»). Their default levels (§10.104.2) are moot.
 
+**10.104.8a The four «first» medals retired too** *(D313; owner 2026-11-08: «ميداليات موجودة: أول لايف، وأول رسالة
+عامة، وأول عائلة، وأول ثنائي — ازلها»)*. `FIRST_LIVE` «أول لايف», `BULLET_FIRST` «أول رسالة عامة», `FIRST_FAMILY` «أول
+عائلة» and `FIRST_CP` «أول ثنائي» are retired exactly as §10.104.8 (migration `20270407090100_medal_retire_firsts`; the
+same SQL): left out of the medals page, its totals, the lists, the profile, the showcase and the live chat line; never
+awarded again, no `MEDAL_AWARDED` (the live-end, bullet, family and couple events now raise no medal: no medal is left
+on `LIVES_HOSTED`, `BULLETS_SENT`, `FAMILY_JOINED` or `CP_FORMED`); wearing one → 400 `medalCodes` / `invalid_value`; the
+panel lists them read-only with `retired: true` and their holders. Copies already earned: their `user_medals` rows are
+kept as history and shown nowhere but the panel's holder counts; the migration clears their showcase positions and
+renumbers each affected person's remaining worn medals. The wearable medals left: `WEALTH_KINGS`, `LUCKY_MASTER`,
+`CONTENT_SCHOOL`, `DARES_PLAYER`. No wire change (no contract version).
+
 **10.104.9 «سيد الحظ» / Lucky Master** (owner 2026-11-06). One medal (`LUCKY_MASTER`, tab ACHIEVEMENT, sort 110),
 metric `LUCKY_GIFTS_SENT_COINS`: the coin value of the **lucky-category gifts the person sent** — what was sent, **not**
 what was won back (winnings are not counted). The exact complement of `GIFTS_SENT_COINS` (§10.104.7) on the live and
@@ -8620,9 +8633,13 @@ page); «صندوق المؤسس» is a panel page.
   posterUrl, durationMs, width, height}`; present only on an owner's profile with at least one video. The server never
   picks: **the app** shows `ar` when its own language is Arabic, else `en`; when only one exists, everyone sees it; with
   none, the cover picture (`coverUrl`, else the Kabso gradient) as before.
-- **The app.** The cover plays the chosen video muted and looping, only while at least half of it is on screen (paused
-  off-screen, in another tab or with the app in the background), with a mute button and a small «فيديو» pill. With the
-  system's reduce-motion setting it does not start by itself: the poster stays with a play button. The app has no
+- **The app.** The cover plays the chosen video looping, only while at least half of it is on screen (paused
+  off-screen, in another tab or with the app in the background), with a mute button. *(v1.98-social, D307, owner: «ازل
+  ايقونة فيديو والوقت اجعله يعمل تلقائي بصوت عند دخول الشخص للصفحة»)* it starts by itself **with sound** when the page
+  opens (own view and visitors), with no «فيديو» pill (no icon, no length); the mute button silences it for that visit;
+  it pauses — sound included — when the page is left, covered by another page or sheet, scrolled away, or the app goes
+  to the background, and resumes when back. With the system's reduce-motion setting it does not start by itself: the
+  poster stays with a round play button beside the mute button (that setting only). The app has no
   data-saver setting today (none to respect). The owner sets or removes each language's video in «تعديل الملف»
   (shown only to the owner).
 
@@ -8639,6 +8656,13 @@ page); «صندوق المؤسس» is a panel page.
   only), then newest published first. Empty unless the user is an owner (a former owner's flags stay stored, unshown).
 - **The app** lists the first three on the owner's profile (an icon, the post's first line, the relative time, «عرض
   الكل» to the full list); the post's ⋯ menu has «تعيين كإعلان رسمي» / «إزالة من الإعلانات الرسمية» for the owner only.
+  *D307 follow-up (owner, 2026-11-08: «تُعرض الإعلانات كاملة أسفل رحلة Kabso»):* the summary card is gone; after «رحلة
+  Kabso» the page shows «إعلانات رسمية» in full — each announcement as the feed's post card (the caption in the app's
+  language from `Post.texts` when bilingual, else `Post.text`; pictures or video, time, likes, comments), in this
+  list's order, page by page (10 at a time, the next page when the list reaches its end), with loading, empty (the
+  owner's hint; nothing for a visitor) and error (a retry for the owner; nothing for a visitor) states. The owner's
+  own view adds «+» (the composer) and «تعديل» under each bilingual announcement; delete and un-mark stay in the
+  card's ⋯ menu. The full list screen remains for the founder's «أنا» tab (§10.112.12).
 
 #### 10.112.3 «رحلة Kabso» — the journey timeline
 
@@ -8712,7 +8736,8 @@ page); «صندوق المؤسس» is a panel page.
 The D299 header stays (the photo on the cover, the name with the D293 seal, the @handle in the bar), the cover playing
 the video when there is one. Under it: the actions — visitors «متابعة المؤسس» (the follow of §10.6, styled for the page)
 and «اقترح ميزة / أبلغ عن موظف», the owner «تعديل الملف»; the owner's «لوحة المؤسس»; «إعلانات رسمية»; «رحلة Kabso»; then
-the posts as on any profile. The regular-user parts that do not fit — the tags, the family / relationship / medals tiles
+the posts as on any profile. *D307 (2026-11-08) order:* cover → numbers → buttons → bio → joined → (the owner's «لوحة
+المؤسس») → «رحلة Kabso» → «إعلانات رسمية» in full; no posts tabs (§10.112.12). The regular-user parts that do not fit — the tags, the family / relationship / medals tiles
 and the worn medals row — show only when they hold data (as before for every profile); the empty «add» tiles of the bond
 block are not shown on an owner's profile.
 
@@ -8817,6 +8842,62 @@ Owner (2026-11-07): «اريد عند حساب الارباح على صفحتي 
 - **The app:** on «لوحة المؤسس» the income stays blurred until tapped, then shows «قبل» and «بعد» for today; the
   details sheet shows today and this month (a day can be picked), «قبل» with its parts, each deduction (expandable, with
   its cherries), the fixed costs and «بعد» (red when negative), and «تكاليف ثابتة» with add / edit / delete.
+
+#### 10.112.11 The founder's bilingual bio, and no team badge *(v1.98-social, DRAFT — D307)*
+
+Owner (2026-11-08), on the founder's page: «ازل شارة فريق كابسو من اسفل الإسم. وضع بايو بالعربي والانجليزي مناسب.
+بالإضافة ازل ايقونة فيديو والوقت اجعله يعمل تلقائي بصوت عند دخول الشخص للصفحة» (the video: §10.112.1).
+
+- **No «فريق كابسو» badge on the founder's page.** Under the owner's name (own view and visitors) the Kabso Team badge
+  (D282 / D299i) is not shown; the special ID «Kabso» in the bar (D283d) and the D293 seal after the name stay. Every
+  other Kabso Team account keeps its badge unchanged. App only (`PublicProfile.kabsoTeam` is unchanged on the wire).
+- **The bilingual bio.** Table `owner_bios` (one row per owner: `bio_ar`, `bio_en`, each null or 1–300 characters).
+  `PUT /owner/bio` (`setOwnerBio`, *owner*) takes `{ar?, en?}` — at least one (else 400 `required`); each follows the
+  ordinary bio's rules (§10.42: trimmed, NFC, ≤ 300 code points, ≤ 4 line breaks, §6 hygiene; else 400 `ar` / `en`
+  with the issue); null or empty clears that language; a language left out is kept — and answers `OwnerBio {ar?,
+  en?}` (what is stored; a language without text is left out). Audited `owner.bio.update` (`{langs}` that changed,
+  never the text) only when something changed. Read as `PublicProfile.ownerBio` and `Me.ownerBio`: present only on an
+  owner's profile with at least one language (a former owner's row stays stored, unshown).
+- **Which text the app shows** on the founder's page, in place of the ordinary bio: the app's language's (`ar` →
+  Arabic, anything else → English); when that language has none, the app's own default founder text in that language
+  (gen-l10n, never hard-coded and never the other language's) — «مؤسس Kabso Live. بنيتُ هذه المنصة لتجمعنا في البث
+  والمحتوى ومجتمع واحد. اقتراحاتكم تصلني مباشرة، فشاركوني أفكاركم.» / "Founder of Kabso Live. I built this place to
+  bring us together through live streams, content and one community. Your ideas reach me directly, so share yours."
+  The ordinary one-language bio (`PATCH /me`) is not shown on the founder's page (it stays stored and editable). The
+  header shows it where any bio goes, in up to **four** lines on the founder's page («…» after; D299c's two lines would
+  cut the default text, three lines on a phone). *Owner-confirmed (2026-11-08): only the founder bio, never a fallback
+  to the ordinary bio; four lines.*
+- **The name under the photo** *(owner, the same day: «الاسم ما رأيك ان يكون تحت الصورة»)*: on the founder's page the
+  photo (its frames' box) is centred on the picture under the top bar and the name with its seal centred right under
+  it (one line, «…»); the picture grows by that line, so the numbers and buttons move down by it. The special ID
+  plate stays in the bar, the sound / play buttons in their corner. Every other profile keeps D299's row (the photo at
+  the reading start, the name beside it).
+- **The visitor's buttons** *(owner, the same day: «زر اقترح ميزة / ابلاغ اجعله فقط بإطار مفرغ» and «ازل الظلال الذي اسفل
+  زر متابعة المؤسس»)*: «اقترح ميزة / أبلغ» is an outline only (gold border and text, no fill) and «متابعة المؤسس» has no
+  shadow or glow under it; sizes and places unchanged; other profiles' buttons unchanged.
+- **Where the owner edits it:** «لوحة المؤسس» (the details opened from the card) → «بايو المؤسس»: two fields
+  (Arabic, English) with the 300 limit and the defaults as hints; saving refreshes his page. No panel page (D301 edits
+  no profile content in the panel).
+
+#### 10.112.12 The founder's «أنا» tab, no money numbers, no content tabs *(D307 follow-ups, app only)*
+
+Owner (2026-11-08, from a device): «في صفحة المؤسس لا تحتوي على اعداداته بل تحتوي على اعدادات مضيف او وكيل. يظهر عدد
+كرز المستلم والكوينز المرسل وهذا لا يوجد في صفحة المؤسس او موظفين»; «اعدادات خاصة بالمؤسس، تحكم كامل، بدون ازرار
+فعاليات ومحفظة، كل هذا لا يحتاجها المؤسس»; «في صفحة المؤسس لا تحتوي ريلز او بوست او اي اعادة».
+
+- **The founder's «أنا» tab is his control centre:** the header (photo, name, counts) and the gear (settings), then
+  «لوحة المؤسس» (the live card; a tap opens its details), «الربح», «إدارة التكاليف الثابتة», «إعلانات رسمية» (the list),
+  «إعلان رسمي جديد», «رحلة Kabso» (the editor), «بايو المؤسس», «فيديو الغلاف», and «فريق كابسو» (staff tools). No cards
+  (levels, VIP, family, store) and no user / host / agent rows (creator centre, agency, recharge agent, events, wallet,
+  bag, earn, tasks, medals, ranking, relationship, special usernames), even when he holds such a role. «صندوق المؤسس» is
+  a panel page (§10.112.5, the panel session) and has no app entry. Every other account's Me tab is unchanged.
+- **No «الكرز المستلم» / «الكوينز المرسلة»** on the founder's profile nor on any Kabso Team account's (a watch role or a
+  limited staff account), own view and visitors; the server still sends them (§10.74), the app leaves them out.
+- **No content tabs on the founder's page:** no «منشورات» / «ريلز» / «إعادات» / «محفوظات» and no grid; the page ends
+  with «رحلة Kabso» (own view and visitors). His saved posts have no entry (owner: not needed). Other profiles keep
+  their tabs.
+- **Every profile, scrolled:** the top bar turns solid as soon as the list moves past the gap above the photo (D299
+  put the photo right under the bar), so nothing passes under the bar's buttons or the status bar.
 
 ### 10.114 Gift events «فعاليات الهدايا» and animated / video banners *(v1.97-social, DRAFT — D303)*
 
@@ -9648,7 +9729,11 @@ played full screen as is) and side-by-side alpha — chosen per gift. Replaces t
     image, the MP4 — side-by-side composited on a canvas —, the SVGA's bitmaps, the MP3).
 - **The app** downloads `animationUrl` / `audioUrl` on demand into the gift-art cache (D126; small ones prefetched when
   the panel opens) and plays: an SVGA as before; an MP4 with `video_player` (already a dependency) from the cached
-  file, fitted like an SVGA (full width, on the bottom edge), a side-by-side one through the fragment shader
+  file — *(D309, owner from a device: «أليس من المفترض ظهورها بشكل كامل»)* a **plain** one (`NONE`, its own
+  background) fills the **whole live screen** as decided above («played full screen as is»): scaled to cover it,
+  centred, over the header and the chat (a video of another shape loses an equal strip at two opposite edges, never
+  a band of the room; upload it at the phone's shape, e.g. 1080 × 2340, to lose nothing) —, a side-by-side one
+  (transparent) fitted like an SVGA (full width, on the bottom edge) through the fragment shader
   `shaders/gift_alpha_sbs.frag` (`ImageFilter.shader`, Impeller); the MP3 with the effect (or alone, for its length).
   Sound — the SVGA's, the MP4's own (only when there is no MP3), the MP3 — plays only while «المؤثرات الصوتية» is on,
   the live's local sound switch is not muted and the app is in the foreground. What the device cannot play (an

@@ -733,9 +733,14 @@ class _KGiftEffectState extends State<KGiftEffect>
     if (video != null && video.value.isInitialized) {
       final size = video.value.size;
       final sideBySide = _shader != null;
+      // D309: a plain video fills the whole screen (D207: «played full
+      // screen as is»); a side-by-side one stands on the bottom edge.
       return IgnorePointer(
-        child: KGiftMovieFrame(
-          viewBox: giftVideoViewBox(size, sideBySide: sideBySide),
+        child: GiftVideoFrame(
+          video: size,
+          sideBySide: sideBySide,
+          movieFrame: (viewBox, child) =>
+              KGiftMovieFrame(viewBox: viewBox, child: child),
           child: GiftVideoView(controller: video, shader: _shader),
         ),
       );

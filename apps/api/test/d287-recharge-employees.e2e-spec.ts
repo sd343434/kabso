@@ -302,7 +302,7 @@ describe('D287 recharge employees act for the agent', { timeout: 600_000 }, () =
       actions: ['cancel'],
       viewerBlock: null,
       agentCode: agent.code,
-      coins: 186_440,
+      coins: 189_000,
     });
     expect(created.body.agent.id).toBe(agent.id);
     expect(created.body.actedBy.id).toBe(emp.id);
@@ -322,7 +322,7 @@ describe('D287 recharge employees act for the agent', { timeout: 600_000 }, () =
     const confirmed = await cherryAnswer(host, created.body.id as string, 'confirm');
     expect(confirmed.status, JSON.stringify(confirmed.body)).toBe(200);
     expect(confirmed.body.status).toBe('CONFIRMED');
-    expect(await stockOf(agent)).toBe(stockBefore + 186_440n);
+    expect(await stockOf(agent)).toBe(stockBefore + 189_000n);
     expect(await cherriesOf(host)).toBe(1_000_000n);
     await ledgerMatches(agent);
     const row = await ctx.prisma.rechargeCherryRequest.findUniqueOrThrow({ where: { id: created.body.id } });
@@ -343,7 +343,7 @@ describe('D287 recharge employees act for the agent', { timeout: 600_000 }, () =
     const mine = (list.body.data as { user: { id: string }; cherryPurchases: unknown }[]).find(
       (e) => e.user.id === emp.id,
     );
-    expect(mine?.cherryPurchases).toMatchObject({ today: { count: 1, coins: 186_440 } });
+    expect(mine?.cherryPurchases).toMatchObject({ today: { count: 1, coins: 189_000 } });
     // The agent's dashboard counts the day's cherries (whoever acted).
     const me = await ctx.http.get('/api/v1/me/recharge-agent').set(auth(agent));
     expect(me.body.agent.todayCherries).toBe(2_000_000);
@@ -396,7 +396,7 @@ describe('D287 recharge employees act for the agent', { timeout: 600_000 }, () =
     expectContract(ok, 'answerRechargeCherryRequest');
     expect(ok.body).toMatchObject({ status: 'CONFIRMED', actions: [] });
     expect(ok.body.actedBy.id).toBe(on.id);
-    expect(await stockOf(agent)).toBe(stockBefore + 93_220n);
+    expect(await stockOf(agent)).toBe(stockBefore + 94_500n);
     const audit = await ctx.prisma.auditLog.findFirstOrThrow({
       where: { action: 'recharge.cherry.confirm', targetId: id },
     });
@@ -427,7 +427,7 @@ describe('D287 recharge employees act for the agent', { timeout: 600_000 }, () =
       expect([a.status, b.status].sort()).toEqual([200, 409]);
       const loser = a.status === 409 ? a : b;
       expect(loser.body.error.code).toBe('RECHARGE_CHERRY_REQUEST_CLOSED');
-      expect(await stockOf(agent)).toBe(before + 93_220n);
+      expect(await stockOf(agent)).toBe(before + 94_500n);
       expect(await cherriesOf(host)).toBe(0n);
       await ledgerMatches(agent);
       const winner = a.status === 200 ? e1 : e2;
@@ -770,7 +770,7 @@ describe('D287 recharge employees act for the agent', { timeout: 600_000 }, () =
       canBuyCherries: true,
       receivesOrders: true,
       removedAt: null,
-      cherryPurchases: { today: { count: 1, coins: 93_220 } },
+      cherryPurchases: { today: { count: 1, coins: 94_500 } },
     });
     expect(
       (await ctx.http.get(`/api/v1/admin/recharge/agents/${emp.id}/employees`).set('Cookie', cookie)).status,

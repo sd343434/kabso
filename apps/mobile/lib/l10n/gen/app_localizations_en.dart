@@ -16084,7 +16084,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ownerCoverVideoRemoved => 'Cover video removed';
 
   @override
-  String get ownerCoverVideoPill => 'Video';
+  String get ownerBioDefault =>
+      'Founder of Kabso Live. I built this place to bring us together through live streams, content and one community. Your ideas reach me directly, so share yours.';
+
+  @override
+  String get ownerBioTitle => 'Founder bio';
+
+  @override
+  String get ownerBioHint =>
+      'Every visitor sees it in their app\'s language. Leave a field empty to show the default text.';
+
+  @override
+  String get ownerBioArabic => 'Arabic';
+
+  @override
+  String get ownerBioEnglish => 'English';
+
+  @override
+  String get ownerBioSaved => 'Bio saved';
 
   @override
   String get ownerCoverVideoPlay => 'Play the cover video';

@@ -98,6 +98,46 @@ OwnerCoverVideo? ownerCoverVideoFromJson(Object? json) => switch (json) {
 
 Object? ownerCoverVideoToJson(OwnerCoverVideo? value) => value?.toJson();
 
+/// v1.98-social (D307, §10.112.11) `OwnerBio`: the founder's bio per
+/// language (a language without text is null).
+@immutable
+class OwnerBio {
+  const new({this.ar, this.en});
+
+  factory fromJson(Map<String, dynamic> json) =>
+      OwnerBio(ar: _text(json['ar']), en: _text(json['en']));
+
+  static String? _text(Object? v) =>
+      v is String && v.trim().isNotEmpty ? v : null;
+
+  final String? ar;
+  final String? en;
+
+  bool get isEmpty => ar == null && en == null;
+
+  /// §10.112.11: the app's own language decides — Arabic shows [ar], any
+  /// other language [en]; never the other language (null → the app's
+  /// default text).
+  String? pick(String languageCode) => languageCode == 'ar' ? ar : en;
+
+  Map<String, dynamic> toJson() => {'ar': ?ar, 'en': ?en};
+
+  @override
+  bool operator ==(Object other) =>
+      other is OwnerBio && other.ar == ar && other.en == en;
+
+  @override
+  int get hashCode => Object.hash(ar, en);
+}
+
+/// `PublicProfile.ownerBio` from JSON (absent → null).
+OwnerBio? ownerBioFromJson(Object? json) => switch (json) {
+  final Map<String, dynamic> m => OwnerBio.fromJson(m),
+  _ => null,
+};
+
+Object? ownerBioToJson(OwnerBio? value) => value?.toJson();
+
 /// «رحلة Kabso»: the closed set of icons (`JourneyIcon`).
 enum JourneyIcon {
   rocket(Icons.rocket_launch_rounded, Color(0xFFE53935), Color(0xFFFF5A5F)),

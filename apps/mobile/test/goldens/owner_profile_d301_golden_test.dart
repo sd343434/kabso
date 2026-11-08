@@ -1,16 +1,22 @@
 // D301 (owner, §10.112): the app owner's profile «صفحة صاحب البرنامج».
 //
-//   owner.visitor  a visitor: the video cover's poster with «فيديو 0:24» and
-//                  the mute button, «متابعة المؤسس» / «اقترح ميزة / أبلغ»,
-//                  «إعلانات رسمية», the start of «رحلة Kabso»
-//   owner.own      the owner himself: «تعديل الملف» and «لوحة المؤسس» (خاص,
-//                  the income blurred), «إعلانات رسمية»
+//   owner.visitor  a visitor: the video cover's poster with the sound button
+//                  (D307: no «فيديو» pill; the round play button shows only
+//                  because goldens run with reduce motion), the photo centred
+//                  with the name and seal under it, no «فريق كابسو»
+//                  badge, the default bilingual bio, «متابعة المؤسس» (no
+//                  shadow) / «اقترح ميزة / أبلغ» (outline only), «إعلانات
+//                  رسمية», the start of «رحلة Kabso»
+//   owner.own      the owner himself: «تعديل الملف», the default bio and
+//                  «لوحة المؤسس» (خاص, the income blurred), «إعلانات رسمية»
 //   owner.feedTop  D301 follow-up: the posts feed starts with the owner's
 //                  latest announcement («رسمي»), in the app's language
 //   owner.composer D301 follow-up: the bilingual announcement composer
 //   owner.profit   §10.112.10: «الربح» in the dashboard's details — «الدخل
 //                  قبل» opened with its parts, each deduction, «بعد»
-//   owner.costs    §10.112.10: «تكاليف ثابتة», the owner's fixed costs
+//   owner.costs    §10.112.10: «تكاليف ثابتة», the owner's fixed costs (D307:
+//                  the details behind sit at a different scroll offset, as
+//                  «بايو المؤسس» now ends them)
 //   owner.search   §10.112.9: the founder always in search — the card before
 //                  anything is typed and the row pinned above the results
 //
@@ -32,7 +38,7 @@ import 'package:material_ui/material_ui.dart';
 import '../features/owner_profile/founder_search_d301_test.dart'
     show pumpFounderSearch, typeSearch;
 import '../features/owner_profile/owner_profile_d301_test.dart'
-    show pumpComposer, pumpFeedTop, pumpOwnerOwn, pumpOwnerVisitor;
+    show pumpComposer, pumpFeedTop, pumpOwnerOwn, pumpOwnerVisitor, testD301;
 import '../features/owner_profile/owner_profit_d301_test.dart'
     show pumpCostsEditor, pumpProfitDetails;
 import '../features/profile/profile_cover_d278_test.dart' show coverBytes;
@@ -55,7 +61,7 @@ void main() {
   forEachLanguage((language) {
     for (final brightness in Brightness.values) {
       final tag = '${brightness.name}.${language.name}';
-      testWidgets('owner.profit $tag', (tester) async {
+      testD301('owner.profit $tag', (tester) async {
         await pumpProfitDetails(
           tester,
           language: language,
@@ -68,7 +74,7 @@ void main() {
         );
         await tester.pumpWidget(const SizedBox());
       });
-      testWidgets('owner.costs $tag', (tester) async {
+      testD301('owner.costs $tag', (tester) async {
         await pumpCostsEditor(
           tester,
           language: language,
@@ -85,7 +91,7 @@ void main() {
 
     for (final brightness in Brightness.values) {
       final tag = '${brightness.name}.${language.name}';
-      testWidgets('owner.search $tag', (tester) async {
+      testD301('owner.search $tag', (tester) async {
         await pumpFounderSearch(
           tester,
           language: language,
@@ -104,7 +110,7 @@ void main() {
       });
     }
 
-    testWidgets('owner.feedTop ${language.name}', (tester) async {
+    testD301('owner.feedTop ${language.name}', (tester) async {
       await pumpFeedTop(tester, language: language);
       await precacheImages(tester);
       await expectLater(
@@ -114,7 +120,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('owner.composer ${language.name}', (tester) async {
+    testD301('owner.composer ${language.name}', (tester) async {
       await pumpComposer(tester, language: language);
       await precacheImages(tester);
       await expectLater(
@@ -128,7 +134,7 @@ void main() {
 
     for (final brightness in Brightness.values) {
       final tag = '${brightness.name}.${language.name}';
-      testWidgets('owner.visitor $tag', (tester) async {
+      testD301('owner.visitor $tag', (tester) async {
         await pumpOwnerVisitor(
           tester,
           language: language,
@@ -143,7 +149,7 @@ void main() {
         await tester.pumpWidget(const SizedBox());
       });
 
-      testWidgets('owner.own $tag', (tester) async {
+      testD301('owner.own $tag', (tester) async {
         await pumpOwnerOwn(tester, language: language, brightness: brightness);
         await precacheImages(tester);
         expect(find.byKey(FounderDashboardCard.cardKey), findsOneWidget);

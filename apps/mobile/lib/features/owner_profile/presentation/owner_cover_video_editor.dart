@@ -17,6 +17,23 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// D307 follow-up: «فيديو الغلاف» on its own (the founder's Me tab) — the
+/// same section as in «تعديل الملف».
+Future<void> showOwnerCoverVideoEditor(
+  BuildContext context, {
+  required String username,
+}) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  useSafeArea: true,
+  showDragHandle: true,
+  builder: (_) => SingleChildScrollView(
+    key: OwnerCoverVideoEditor.sheetKey,
+    padding: const EdgeInsets.only(bottom: KSpacing.lg),
+    child: OwnerCoverVideoEditor(username: username),
+  ),
+);
+
 /// v1.95-social (D301, §10.112.1): «فيديو الغلاف» in «تعديل الملف» — only
 /// for the app owner. Two rows, Arabic and English: each shows its poster
 /// and length, «اختيار فيديو» (≤ 60 s, ≤ 100 MiB, like a reel; uploaded as
@@ -29,6 +46,9 @@ class OwnerCoverVideoEditor extends ConsumerStatefulWidget {
   final String username;
 
   static const sectionKey = Key('owner.coverVideo.editor');
+
+  /// D307 follow-up: the sheet of [showOwnerCoverVideoEditor].
+  static const sheetKey = Key('owner.coverVideo.editorSheet');
   static Key chooseKey(String lang) => Key('owner.coverVideo.choose.$lang');
   static Key removeKey(String lang) => Key('owner.coverVideo.remove.$lang');
 

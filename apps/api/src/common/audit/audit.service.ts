@@ -199,6 +199,8 @@ export enum AuditAction {
   // v1.95-social (D301, §10.112): the app owner's profile «صفحة صاحب البرنامج» and «صندوق المؤسس».
   OWNER_COVER_VIDEO_SET = 'owner.cover_video.set',
   OWNER_COVER_VIDEO_REMOVE = 'owner.cover_video.remove',
+  // v1.98-social (D307, §10.112.11): the owner's bilingual bio.
+  OWNER_BIO_UPDATE = 'owner.bio.update',
   OWNER_JOURNEY_CREATE = 'owner.journey.create',
   OWNER_JOURNEY_UPDATE = 'owner.journey.update',
   OWNER_JOURNEY_DELETE = 'owner.journey.delete',

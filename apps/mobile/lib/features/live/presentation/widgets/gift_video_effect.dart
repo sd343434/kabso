@@ -116,3 +116,53 @@ class GiftVideoView extends StatelessWidget {
 /// when side by side (the right half is the alpha mask).
 Size giftVideoViewBox(Size video, {required bool sideBySide}) =>
     sideBySide ? Size(video.width / 2, video.height) : video;
+
+/// Where an MP4 effect is drawn on the live screen (the whole
+/// screen: the effects layer is over the room, its header and chat).
+///
+/// D309 (owner, from a device: «ارى ان الهدايا شاشة كاملة تظهر بهذا
+/// الشكل، أليس من المفترض ظهورها بشكل كامل» — a plain 9 : 16 video drawn
+/// full width on the bottom edge of a 9 : 20 phone left the room's header
+/// band above it): a **plain** video (`alpha` NONE: it has its own
+/// background) is played **full screen** as the owner decided in D207
+/// (§10.66: «played full screen as is») — scaled to cover the whole screen,
+/// centred (a video of another shape loses an equal strip at two opposite
+/// edges, never a band of the room). A **side-by-side** one is transparent
+/// and stays fitted like an SVGA (`KGiftMovieFrame`: full width, on the
+/// bottom edge).
+class GiftVideoFrame extends StatelessWidget {
+  const new({
+    required this.video,
+    required this.sideBySide,
+    required this.child,
+    required this.movieFrame,
+    super.key,
+  });
+
+  /// The video's own size (the whole frame, both halves when side by side).
+  final Size video;
+  final bool sideBySide;
+
+  /// The video ([GiftVideoView]).
+  final Widget child;
+
+  /// The SVGA-style frame for a side-by-side video (from the caller, so this
+  /// file does not depend on the SVGA one).
+  final Widget Function(Size viewBox, Widget child) movieFrame;
+
+  static const plainKey = Key('gift.video.fullScreen');
+
+  @override
+  Widget build(BuildContext context) {
+    final box = giftVideoViewBox(video, sideBySide: sideBySide);
+    if (sideBySide || box.isEmpty) return movieFrame(box, child);
+    return SizedBox.expand(
+      key: plainKey,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(width: box.width, height: box.height, child: child),
+      ),
+    );
+  }
+}

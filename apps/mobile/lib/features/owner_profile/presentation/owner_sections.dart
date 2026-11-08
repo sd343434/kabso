@@ -6,16 +6,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart' show DateFormat, NumberFormat;
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
 import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/owner_profile/presentation/announcement_composer.dart';
 import 'package:kabso_live/features/owner_profile/presentation/journey_editor.dart';
-import 'package:kabso_live/features/owner_profile/presentation/official_posts_screen.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_bio_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_profit.dart';
+import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile/profile_screen.dart'
+    show PostGridLoadMore;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -45,10 +51,11 @@ class OwnerProfileSections extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (own) ...[
-          const FounderDashboardCard(),
+          FounderDashboardCard(profile: profile),
           const SizedBox(height: KSpacing.md),
         ],
-        OfficialAnnouncementsCard(username: profile.username, own: own),
+        // D307 follow-up: «رحلة Kabso», then the announcements in full
+        // ([OfficialAnnouncementsFeed], a sliver after this block).
         JourneySection(username: profile.username, own: own),
       ],
     ),
@@ -115,7 +122,13 @@ class _PrivateChip extends StatelessWidget {
 /// marked «خاص» — users online now, lives now and today's income (blurred
 /// until tapped). A tap on the card opens the fuller view.
 class FounderDashboardCard extends ConsumerStatefulWidget {
-  const new({super.key});
+  const new({super.key, this.profile});
+
+  /// v1.98-social (D307): the owner's own profile — the details offer
+  /// «بايو المؤسس» (his bilingual bio) when given.
+  final PublicProfile? profile;
+
+  static const bioKey = Key('owner.dashboard.bio');
 
   static const cardKey = Key('owner.dashboard');
   static const incomeKey = Key('owner.dashboard.income');
@@ -351,6 +364,23 @@ class _FounderDashboardCardState extends ConsumerState<FounderDashboardCard> {
                 ),
                 style: t.caption.copyWith(color: p.textSecondary),
               ),
+              // v1.98-social (D307, §10.112.11): «بايو المؤسس» — the bio in
+              // Arabic and English, shown by each visitor's app language.
+              if (widget.profile case final profile?) ...[
+                const Divider(height: KSpacing.xl),
+                OutlinedButton.icon(
+                  key: FounderDashboardCard.bioKey,
+                  onPressed: () => unawaited(
+                    showOwnerBioEditor(
+                      sheet,
+                      username: profile.username,
+                      bio: profile.ownerBio,
+                    ),
+                  ),
+                  icon: const Icon(Icons.edit_note_rounded, size: 20),
+                  label: Text(l10n.ownerBioTitle),
+                ),
+              ],
             ],
           ),
         ),
@@ -552,121 +582,6 @@ class OfficialPostRow extends StatelessWidget {
                   color: p.textSecondary,
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// «إعلانات رسمية» (mock-up 3): the owner's official posts, pinned first,
-/// then newest — three here, «عرض الكل» for the rest. Hidden for visitors
-/// when there are none; the owner gets a hint to mark one.
-class OfficialAnnouncementsCard extends ConsumerWidget {
-  const new({required this.username, required this.own, super.key});
-
-  final String username;
-  final bool own;
-
-  static const cardKey = Key('owner.official');
-  static const seeAllKey = Key('owner.official.seeAll');
-  static const emptyKey = Key('owner.official.empty');
-
-  /// D301 follow-up: the owner's «إعلان رسمي جديد».
-  static const newKey = Key('owner.official.new');
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final t = context.textStyles;
-    final load = ref.watch(ownerOfficialPostsProvider(username));
-    final posts = load.value;
-    if (posts == null || (posts.isEmpty && !own)) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: KSpacing.md),
-      child: Container(
-        key: cardKey,
-        decoration: ownerCardDecoration(context),
-        padding: const EdgeInsets.fromLTRB(
-          KSpacing.md,
-          KSpacing.sm,
-          KSpacing.md,
-          KSpacing.xs,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.push_pin_rounded,
-                  size: 18,
-                  color: KBrandColors.red500,
-                ),
-                const SizedBox(width: KSpacing.xs),
-                Expanded(
-                  child: Text(
-                    l10n.ownerOfficialTitle,
-                    style: t.bodyStrong.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                ),
-                if (own)
-                  IconButton(
-                    key: newKey,
-                    tooltip: l10n.ownerAnnouncementNew,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => unawaited(
-                      showAnnouncementComposer(context, username: username),
-                    ),
-                    icon: const Icon(
-                      Icons.add_circle_rounded,
-                      color: KBrandColors.red500,
-                    ),
-                  ),
-                if (posts.isNotEmpty)
-                  TextButton(
-                    key: seeAllKey,
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => OfficialPostsScreen(username: username),
-                      ),
-                    ),
-                    child: Text(
-                      l10n.ownerSeeAll,
-                      style: t.caption.copyWith(color: p.textSecondary),
-                    ),
-                  ),
-              ],
-            ),
-            if (posts.isEmpty)
-              Padding(
-                key: emptyKey,
-                padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
-                child: Text(
-                  l10n.ownerOfficialEmptyOwn,
-                  style: t.caption.copyWith(color: p.textSecondary),
-                ),
-              )
-            else
-              for (final (i, post) in posts.indexed) ...[
-                if (i > 0) Divider(height: 1, color: p.border),
-                OfficialPostRow(
-                  post: post,
-                  first: i == 0,
-                  onEdit: own && post.texts != null
-                      ? () => unawaited(
-                          showAnnouncementComposer(
-                            context,
-                            username: username,
-                            post: post,
-                          ),
-                        )
-                      : null,
-                ),
-              ],
           ],
         ),
       ),
@@ -928,6 +843,258 @@ class _Chip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// D307 follow-up (owner: «تُعرض الإعلانات كاملة أسفل رحلة Kabso»): the
+/// founder's official announcements in full, after «رحلة Kabso» — each one
+/// as the feed's post card (its caption in the app's language when it is
+/// bilingual, its pictures or video, time, likes and comments), newest as
+/// the API orders them (pinned first, §10.112.2), page by page from
+/// `listUserOfficialPosts`. A sliver: put it in the profile's scroll view.
+/// The owner's own view adds «+» (compose) and «تعديل» on each bilingual
+/// announcement (delete and «إزالة من الإعلانات الرسمية» are in the card's
+/// menu); a visitor sees nothing while there are none.
+class OfficialAnnouncementsFeed extends ConsumerStatefulWidget {
+  const new({required this.username, required this.own, super.key});
+
+  final String username;
+  final bool own;
+
+  static const sectionKey = Key('owner.official');
+  static const newKey = Key('owner.official.new');
+  static const emptyKey = Key('owner.official.empty');
+  static const errorKey = Key('owner.official.error');
+  static const loadingKey = Key('owner.official.loading');
+  static Key cardKey(String id) => Key('owner.official.card.$id');
+  static Key editKey(String id) => Key('owner.official.edit.$id');
+
+  /// One page of announcements.
+  static const pageSize = 10;
+
+  @override
+  ConsumerState<OfficialAnnouncementsFeed> createState() =>
+      _OfficialAnnouncementsFeedState();
+}
+
+class _OfficialAnnouncementsFeedState
+    extends ConsumerState<OfficialAnnouncementsFeed> {
+  final List<Post> _posts = [];
+  String? _next;
+  bool _loading = false;
+  bool _done = false;
+  bool _loaded = false;
+  Object? _error;
+
+  /// Bumped on a reload so a stale page is dropped.
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_more());
+  }
+
+  Future<void> _reload() async {
+    _generation++;
+    setState(() {
+      _posts.clear();
+      _next = null;
+      _done = false;
+      _loaded = false;
+      _loading = false;
+      _error = null;
+    });
+    await _more();
+  }
+
+  Future<void> _more() async {
+    if (_loading || _done) return;
+    final generation = _generation;
+    setState(() => _loading = true);
+    try {
+      final page = await ref
+          .read(ownerProfileRepositoryProvider)
+          .officialPosts(
+            widget.username,
+            cursor: _next,
+            limit: OfficialAnnouncementsFeed.pageSize,
+          );
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _posts.addAll(page.items);
+        _next = page.next;
+        _done = _next == null;
+        _loaded = true;
+        _error = null;
+      });
+    } on Object catch (e) {
+      if (mounted && generation == _generation) setState(() => _error = e);
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  String _text(Post post, String lang) => switch (post.texts) {
+    final texts? => lang == 'ar' ? texts.ar : texts.en,
+    null => post.text,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final lang = Localizations.localeOf(context).languageCode;
+    // A publish, an edit, a mark or an un-mark elsewhere (the composer, a
+    // post's menu, a pull to refresh) refreshes the list.
+    ref.listen(ownerOfficialPostsProvider(widget.username), (prev, next) {
+      // Only a refresh (invalidated after it had loaded), not its first
+      // load.
+      if ((prev?.hasValue ?? false) && next.isLoading) unawaited(_reload());
+    });
+    final own = widget.own;
+    // A visitor sees nothing while there are none (or they failed: the
+    // journey above is the page's end then).
+    if (!own && _loaded && _posts.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    if (!own && !_loaded && _error != null) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    final header = Padding(
+      key: OfficialAnnouncementsFeed.sectionKey,
+      padding: const EdgeInsets.fromLTRB(
+        KSpacing.lg,
+        KSpacing.sm,
+        KSpacing.sm,
+        KSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.push_pin_rounded,
+            size: 20,
+            color: KBrandColors.red500,
+          ),
+          const SizedBox(width: KSpacing.xs),
+          Expanded(
+            child: Text(
+              l10n.ownerOfficialTitle,
+              style: t.title.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          if (own)
+            IconButton(
+              key: OfficialAnnouncementsFeed.newKey,
+              tooltip: l10n.ownerAnnouncementNew,
+              onPressed: () => unawaited(
+                showAnnouncementComposer(context, username: widget.username),
+              ),
+              icon: const Icon(
+                Icons.add_circle_rounded,
+                color: KBrandColors.red500,
+              ),
+            ),
+        ],
+      ),
+    );
+    Widget card(Post post) => Column(
+      key: OfficialAnnouncementsFeed.cardKey(post.id),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FeedPostTile(post: feedPostOf(post, text: _text(post, lang))),
+        if (own && post.texts != null)
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: KSpacing.sm),
+              child: TextButton.icon(
+                key: OfficialAnnouncementsFeed.editKey(post.id),
+                onPressed: () => unawaited(
+                  showAnnouncementComposer(
+                    context,
+                    username: widget.username,
+                    post: post,
+                  ),
+                ),
+                icon: const Icon(Icons.edit_rounded, size: 18),
+                label: Text(l10n.ownerAnnouncementEdit),
+              ),
+            ),
+          ),
+      ],
+    );
+    Widget state(Widget child) => Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.lg,
+        vertical: KSpacing.md,
+      ),
+      child: child,
+    );
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(child: header),
+        if (_posts.isEmpty && !_loaded && _error == null)
+          SliverToBoxAdapter(
+            child: state(
+              const Center(
+                key: OfficialAnnouncementsFeed.loadingKey,
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          )
+        else if (_posts.isEmpty && _error != null)
+          SliverToBoxAdapter(
+            child: state(
+              Center(
+                key: OfficialAnnouncementsFeed.errorKey,
+                child: TextButton(
+                  onPressed: () => unawaited(_reload()),
+                  child: Text(failureMessage(l10n, toAppFailure(_error!))),
+                ),
+              ),
+            ),
+          )
+        else if (_posts.isEmpty)
+          SliverToBoxAdapter(
+            child: state(
+              Text(
+                l10n.ownerOfficialEmptyOwn,
+                key: OfficialAnnouncementsFeed.emptyKey,
+                style: t.caption.copyWith(color: p.textSecondary),
+              ),
+            ),
+          )
+        else
+          SliverList.builder(
+            itemCount: _posts.length + (_done ? 0 : 1),
+            itemBuilder: (context, i) {
+              if (i < _posts.length) return card(_posts[i]);
+              // The next page, asked for when this row is built (near the
+              // end of the list); a failed page offers a retry.
+              if (_error != null) {
+                return Center(
+                  child: TextButton(
+                    onPressed: () {
+                      setState(() => _error = null);
+                      unawaited(_more());
+                    },
+                    child: Text(l10n.actionRetry),
+                  ),
+                );
+              }
+              return PostGridLoadMore(
+                key: ValueKey('owner.official.more.${_posts.length}'),
+                onVisible: () => unawaited(_more()),
+              );
+            },
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: KSpacing.xl)),
+      ],
     );
   }
 }

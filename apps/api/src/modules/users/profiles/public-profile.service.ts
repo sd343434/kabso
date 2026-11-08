@@ -20,7 +20,11 @@ import { profileStatsTotals } from './profile-stats.js';
 import { isPanelStaff, staffIdentityOf, type LimitedStaffRole } from '../../live/live-staff.js';
 import { staffIdOf } from '../staff-ids.js';
 import { MediaService } from '../../media/media.service.js';
-import { ownerProfileFields, type OwnerCoverVideoDto } from '../../owner-profile/owner-core.js';
+import {
+  ownerProfileFields,
+  type OwnerBioDto,
+  type OwnerCoverVideoDto,
+} from '../../owner-profile/owner-core.js';
 import type { VerificationBadgeValue } from '../../verification/verification-rules.js';
 import type { StaffRegion } from '../../live/staff-regions.js';
 
@@ -119,6 +123,8 @@ export interface PublicProfileDto {
   kabsoOwner?: true;
   /** v1.95-social (D301, §10.112.1): the owner's cover videos per language (only with at least one). */
   coverVideo?: OwnerCoverVideoDto;
+  /** v1.98-social (D307, §10.112.11): the owner's bilingual bio (only with at least one language). */
+  ownerBio?: OwnerBioDto;
 }
 
 /**

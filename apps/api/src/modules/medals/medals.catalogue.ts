@@ -325,6 +325,8 @@ export const CP018_MEDAL_CODES: ReadonlySet<MedalCode> = new Set<MedalCode>([
 /**
  * D291 (owner: «هذه بالأصل ليست ميدالية يمكن ارتداؤها، فقط تكون أيقونة بجانب الاسم»): the charm and live-hours codes
  * are name-side icons, not wearable medals — `medals.retired` (migration 20270325090300_medal_retire_name_icons).
+ * D313 (owner 2026-11-08: «ميداليات موجودة: أول لايف، وأول رسالة عامة، وأول عائلة، وأول ثنائي — ازلها»): the four
+ * «first» medals are retired the same way (migration 20270407090100_medal_retire_firsts).
  */
 export const RETIRED_MEDAL_CODES: ReadonlySet<MedalCode> = new Set<MedalCode>([
   'LIVE_HOURS_10',
@@ -332,6 +334,10 @@ export const RETIRED_MEDAL_CODES: ReadonlySet<MedalCode> = new Set<MedalCode>([
   'CHARM_10',
   'CHARM_50',
   'CHARM_100',
+  'FIRST_LIVE',
+  'BULLET_FIRST',
+  'FIRST_FAMILY',
+  'FIRST_CP',
 ]);
 
 /** The most levels a medal can have (the panel's limit). */

@@ -3,6 +3,7 @@ import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
+import { bioSchema } from '../auth/auth.schemas.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
@@ -26,8 +27,10 @@ import {
   DASHBOARD_ONLINE_MINUTES,
   isKabsoOwner,
   JOURNEY_ICONS,
+  ownerBioOf,
   MAX_JOURNEY_MILESTONES,
   type CoverVideoLang,
+  type OwnerBioDto,
   type OwnerCoverVideoDto,
 } from './owner-core.js';
 
@@ -108,6 +111,13 @@ export const updateMilestoneSchema = z
 export const reorderSchema = z.strictObject({
   ids: z.array(z.string().refine(isUuid)).max(MAX_JOURNEY_MILESTONES),
 });
+/**
+ * v1.98-social (D307, §10.112.11) `PUT /owner/bio`: either language or both, each the ordinary bio's rules (§10.42:
+ * ≤ 300 code points, ≤ 4 line breaks, §6 hygiene); null or empty clears that language; a language left out is kept.
+ */
+export const setOwnerBioSchema = z
+  .strictObject({ ar: bioSchema.optional(), en: bioSchema.optional() })
+  .refine((v) => v.ar !== undefined || v.en !== undefined, { params: { issue: 'required' } });
 const setVideoSchema = z.strictObject({
   mediaId: z.string().refine(isUuid, { params: { issue: 'invalid_value' } }),
 });
@@ -172,6 +182,45 @@ export class OwnerProfileService {
 
   async coverVideo(userId: string): Promise<OwnerCoverVideoDto> {
     return coverVideoOf(this.prisma, userId, this.urlOf);
+  }
+
+  /**
+   * v1.98-social (D307, §10.112.11) `PUT /owner/bio` (`setOwnerBio`, owner only): the bilingual bio of the owner's
+   * profile. Audited `owner.bio.update` with the languages that changed (never the text); nothing changed → no audit.
+   */
+  async setBio(userId: string, body: unknown, meta: OwnerMeta): Promise<OwnerBioDto> {
+    await assertKabsoOwner(this.prisma, userId);
+    const input = parse(setOwnerBioSchema, body);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:owner-bio'), hashtext(${userId}::text))`;
+      const before = await tx.ownerBio.findUnique({
+        where: { userId },
+        select: { bioAr: true, bioEn: true },
+      });
+      const bioAr = input.ar !== undefined ? input.ar : (before?.bioAr ?? null);
+      const bioEn = input.en !== undefined ? input.en : (before?.bioEn ?? null);
+      const changed = [
+        ...(bioAr !== (before?.bioAr ?? null) ? ['ar'] : []),
+        ...(bioEn !== (before?.bioEn ?? null) ? ['en'] : []),
+      ];
+      if (changed.length > 0) {
+        await tx.ownerBio.upsert({
+          where: { userId },
+          create: { userId, bioAr, bioEn },
+          update: { bioAr, bioEn },
+        });
+        await this.audit.recordIn(tx, {
+          action: AuditAction.OWNER_BIO_UPDATE,
+          actorUserId: userId,
+          targetType: 'user',
+          targetId: userId,
+          metadata: { langs: changed },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+      }
+      return ownerBioOf(tx, userId);
+    });
   }
 
   /** `PUT /me/cover-video/{lang}`: the caller's READY, unattached PROFILE_COVER_VIDEO replaces that language's video. */

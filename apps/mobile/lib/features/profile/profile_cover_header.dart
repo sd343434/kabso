@@ -94,6 +94,10 @@ abstract final class KPublicProfile {
   /// D299: between the photo's box and the name block beside it.
   static const double nameGap = KSpacing.xs;
 
+  /// D307 follow-up: on the owner's page, between the photo's box and the
+  /// name block under it (the box already has the frames' margin).
+  static const double ownerNameGap = 0;
+
   /// D299f (owner: «لماذا هكذا اليوزر طويل»): the @username in the bar —
   /// 16 dp bold (not the 18 dp title), its text scale capped at 1.15 so
   /// large text never makes it a headline; at least this wide when the bar
@@ -105,6 +109,11 @@ abstract final class KPublicProfile {
   /// D299c: the bio under the tags shows at most this many lines (no
   /// expand: the profile has none).
   static const int bioLines = 2;
+
+  /// v1.98-social (D307, §10.112.11): the founder's bio may take up to this
+  /// many lines (his default text is three lines on a phone; two would cut
+  /// the text the owner chose).
+  static const int ownerBioLines = 4;
 
   /// D299: the badges under the name wrap onto at most this many lines.
   static const int badgeLines = 2;
@@ -429,13 +438,16 @@ class ProfileCoverHandle extends StatelessWidget {
 
 /// D278: whether the cover has scrolled out from under the top bar — the
 /// bar then turns solid.
-bool profileCoverScrolledAway(BuildContext context, ScrollMetrics metrics) {
-  final media = MediaQuery.of(context);
-  final bar = media.padding.top + kToolbarHeight + KMetrics.statusBarGap;
-  final cover = KPublicProfile.coverHeightFor(bar);
-  return metrics.axis == Axis.vertical &&
-      metrics.pixels > cover - bar - KSpacing.xl;
-}
+///
+/// D307 follow-up (owner, from a device: the photo under the bar's buttons
+/// and the name under the status bar while scrolling): since D299 the photo
+/// starts [KPublicProfile.avatarTopGap] under the bar, so the bar turns
+/// solid as soon as the list has moved that far — before the photo or the
+/// name can pass under the bar (it was solid only once the cover had almost
+/// gone, D278, when the photo sat half off the cover).
+bool profileCoverScrolledAway(BuildContext context, ScrollMetrics metrics) =>
+    metrics.axis == Axis.vertical &&
+    metrics.pixels > KPublicProfile.avatarTopGap;
 
 /// D278: the space of the top bar over the scroll view — it takes no room
 /// (the cover runs under the bar) but pinned headers (the tabs) stop under
@@ -568,6 +580,9 @@ class ProfileCoverHeader extends StatelessWidget {
   static const staffCoverKey = Key('profile.cover.staff');
   static const nameRowKey = Key('profile.cover.nameRow');
 
+  /// D307 follow-up: the owner's photo with the name centred under it.
+  static const ownerStackKey = Key('profile.cover.ownerStack');
+
   /// D292: the worn medals' row under the name line.
   static const medalsKey = Key('profile.cover.medals');
   static const actionsKey = Key('profile.cover.actions');
@@ -577,10 +592,25 @@ class ProfileCoverHeader extends StatelessWidget {
   static const bioKey = Key('profile.cover.bio');
 
   /// The bio shown in the header (none for a Kabso Team account, D283b).
-  String? get _bio => switch (profile.bio) {
-    final bio? when profile.staff == null && bio.trim().isNotEmpty => bio,
-    _ => null,
-  };
+  /// v1.98-social (D307, §10.112.11): on the app owner's page, his bio in
+  /// the app's language, else the app's default founder text in that
+  /// language (never the other language's, never the one-language bio).
+  String? _bioOf(BuildContext context) {
+    if (profile.kabsoOwner) {
+      final lang = Localizations.localeOf(context).languageCode;
+      return profile.ownerBio?.pick(lang) ?? context.l10n.ownerBioDefault;
+    }
+    return switch (profile.bio) {
+      final bio? when profile.staff == null && bio.trim().isNotEmpty => bio,
+      _ => null,
+    };
+  }
+
+  /// D307 follow-up: the app owner or a Kabso Team account (a watch role,
+  /// or a limited staff account) — no money numbers on the profile.
+  bool get _teamOrFounder =>
+      profile.kabsoOwner || profile.kabsoTeam || profile.staff != null;
+
   static const cherriesKey = Key('profile.stat.cherries');
   static const coinsKey = Key('profile.stat.coins');
 
@@ -719,27 +749,58 @@ class ProfileCoverHeader extends StatelessWidget {
     // under the top bar at the reading start; beside it, toward the reading
     // end, the name block. The picture is at least [coverHeight] and grows
     // with a taller name block (large text, the live pill).
+    // D307 follow-up (owner: «الاسم ما رأيك ان يكون تحت الصورة»): on the
+    // app owner's page the photo is centred on the picture and the name
+    // block (the name and the seal) centred right under it; the picture
+    // grows by that block. Every other profile keeps D299's row.
     final band = ConstrainedBox(
       constraints: BoxConstraints(minHeight: coverHeight),
-      child: Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(
-          KPublicProfile.avatarStart,
-          media.padding.top + KPublicProfile.avatarTopGap,
-          KProfile.inset,
-          KPublicProfile.coverBottomGap,
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: slot.width,
-              height: slot.height,
-              child: Center(child: _avatar(context)),
+      child: profile.kabsoOwner
+          ? Padding(
+              key: ownerStackKey,
+              padding: EdgeInsets.fromLTRB(
+                KProfile.inset,
+                media.padding.top + KPublicProfile.avatarTopGap,
+                KProfile.inset,
+                KPublicProfile.coverBottomGap,
+              ),
+              // The full width (the stack lays the band out loosely), so
+              // the photo and the name are centred on the screen.
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: slot.width,
+                      height: slot.height,
+                      child: Center(child: _avatar(context)),
+                    ),
+                    const SizedBox(height: KPublicProfile.ownerNameGap),
+                    _identity(context, centred: true),
+                  ],
+                ),
+              ),
+            )
+          : Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                KPublicProfile.avatarStart,
+                media.padding.top + KPublicProfile.avatarTopGap,
+                KProfile.inset,
+                KPublicProfile.coverBottomGap,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: slot.width,
+                    height: slot.height,
+                    child: Center(child: _avatar(context)),
+                  ),
+                  const SizedBox(width: KPublicProfile.nameGap),
+                  Expanded(child: _identity(context)),
+                ],
+              ),
             ),
-            const SizedBox(width: KPublicProfile.nameGap),
-            Expanded(child: _identity(context)),
-          ],
-        ),
-      ),
     );
     return Stack(
       key: headerKey,
@@ -780,7 +841,7 @@ class ProfileCoverHeader extends StatelessWidget {
   /// levels) on at most two lines; the worn medals (D299b: where the
   /// @username was). The name white with a soft shadow over the scrim, in
   /// both themes.
-  Widget _identity(BuildContext context) {
+  Widget _identity(BuildContext context, {bool centred = false}) {
     final t = context.textStyles;
     final agentCode = profile.rechargeAgentCode;
     final hostCode = profile.hostAgentCode;
@@ -824,7 +885,10 @@ class ProfileCoverHeader extends StatelessWidget {
       // D282: a staff account wears the Kabso Team badge.
       // D292 (owner: «شارة فريق كابسو صغيرة وغير واضحة»); D299i: 44 pt
       // («بحجم اكبر ليكون كلام مكتوب بداخلها واضح»).
-      if (profile.kabsoTeam)
+      // v1.98-social (D307, owner: «ازل شارة فريق كابسو من اسفل الإسم»):
+      // not on the founder's page (his special ID «Kabso» and the seal
+      // stay); every other staff account keeps it.
+      if (profile.kabsoTeam && !profile.kabsoOwner)
         const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight),
       // D292: the crests at one visible size ([KPublicProfile.nameBadge]).
       if (agentCode case final code?)
@@ -854,9 +918,12 @@ class ProfileCoverHeader extends StatelessWidget {
           padding: EdgeInsetsDirectional.zero,
         ),
     ];
+    final cross = centred
+        ? CrossAxisAlignment.center
+        : CrossAxisAlignment.start;
     return Column(
       key: identityKey,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: cross,
       mainAxisSize: MainAxisSize.min,
       children: [
         // D279b: «مباشر» on the picture, at the end, over the name block
@@ -865,13 +932,15 @@ class ProfileCoverHeader extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: KSpacing.xs),
             child: Align(
-              alignment: AlignmentDirectional.centerEnd,
+              alignment: centred
+                  ? Alignment.center
+                  : AlignmentDirectional.centerEnd,
               child: ProfileLivePill(live: live, self: profile.isSelf),
             ),
           ),
         Column(
           key: nameRowKey,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: cross,
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
@@ -925,7 +994,9 @@ class ProfileCoverHeader extends StatelessWidget {
               key: medalsKey,
               medals: profile.medals.showcase,
               size: KPublicProfile.medal,
-              alignment: MainAxisAlignment.start,
+              alignment: centred
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               onTap: () => context.push(
                 profile.isSelf
                     ? AppRoutes.medals
@@ -968,13 +1039,15 @@ class ProfileCoverHeader extends StatelessWidget {
           ),
         // D283b: a Kabso Team account shows the company's official bio card
         // under the header instead, never its typed bio.
-        if (_bio case final bio?)
+        if (_bioOf(context) case final bio?)
           Padding(
             padding: const EdgeInsets.only(top: KSpacing.md),
             child: Text(
               bio,
               key: bioKey,
-              maxLines: KPublicProfile.bioLines,
+              maxLines: profile.kabsoOwner
+                  ? KPublicProfile.ownerBioLines
+                  : KPublicProfile.bioLines,
               overflow: TextOverflow.ellipsis,
               style: t.body.copyWith(color: p.textPrimary),
             ),
@@ -1070,9 +1143,12 @@ class ProfileCoverHeader extends StatelessWidget {
         l10n.liveCardFollowing,
         onOpenFollowing,
       ),
-      if (profile.cherriesReceived case final n?)
+      // D307 follow-up (owner: «يظهر عدد كرز المستلم والكوينز المرسل وهذا
+      // لا يوجد في صفحة المؤسس او موظفين»): never on the founder's page nor
+      // on a Kabso Team account's.
+      if (profile.cherriesReceived case final n? when !_teamOrFounder)
         (cherriesKey, n, l10n.liveCardCherries, null),
-      if (profile.coinsSent case final n?)
+      if (profile.coinsSent case final n? when !_teamOrFounder)
         (coinsKey, n, l10n.liveCardCoinsSent, null),
     ];
     final pending = !countsKnown && !countsFailed;

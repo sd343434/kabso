@@ -93,6 +93,11 @@ abstract interface class OwnerProfileRepository {
   Future<OwnerCoverVideo> setCoverVideo(String lang, String mediaId);
   Future<OwnerCoverVideo> removeCoverVideo(String lang);
 
+  /// v1.98-social (D307, §10.112.11) `PUT /owner/bio` (owner): the
+  /// founder's bilingual bio — a language left null is cleared. Answers
+  /// what is stored now.
+  Future<OwnerBio> setBio({required String? ar, required String? en});
+
   /// `GET /owner/feedback/staff?q=` — the Kabso Team accounts.
   Future<List<FeedbackStaff>> searchStaff(String query);
 
@@ -307,6 +312,16 @@ class OwnerProfileRepositoryImpl implements OwnerProfileRepository {
           data: {'mediaId': mediaId},
         );
         return OwnerCoverVideo.fromJson(res.data!);
+      });
+
+  @override
+  Future<OwnerBio> setBio({required String? ar, required String? en}) =>
+      guardApiCall(() async {
+        final res = await _dio.put<Map<String, dynamic>>(
+          '/owner/bio',
+          data: {'ar': ar, 'en': en},
+        );
+        return OwnerBio.fromJson(res.data!);
       });
 
   @override

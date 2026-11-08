@@ -124,20 +124,39 @@ export async function coverVideoOf(
   return out;
 }
 
+/** v1.98-social (D307, §10.112.11) `OwnerBio`: the owner's bio per language (absent languages are left out). */
+export interface OwnerBioDto {
+  ar?: string;
+  en?: string;
+}
+
+type BioDb = Pick<PrismaService, 'ownerBio'> | Prisma.TransactionClient;
+
+/** The owner's stored bilingual bio (each language left out when it has none). */
+export async function ownerBioOf(db: BioDb, userId: string): Promise<OwnerBioDto> {
+  const row = await db.ownerBio.findUnique({ where: { userId }, select: { bioAr: true, bioEn: true } });
+  return {
+    ...(row?.bioAr ? { ar: row.bioAr } : {}),
+    ...(row?.bioEn ? { en: row.bioEn } : {}),
+  };
+}
+
 /**
- * `PublicProfile.kabsoOwner` / `.coverVideo` and the same on `Me` (§10.112): only for the owner; `coverVideo` only with
- * at least one video.
+ * `PublicProfile.kabsoOwner` / `.coverVideo` / `.ownerBio` and the same on `Me` (§10.112): only for the owner;
+ * `coverVideo` only with at least one video; v1.98-social (D307) `ownerBio` only with at least one language.
  */
 export async function ownerProfileFields(
-  db: Db & CoverDb,
+  db: Db & CoverDb & BioDb,
   userId: string,
   urlOf: (key: string) => string,
-): Promise<{ kabsoOwner?: true; coverVideo?: OwnerCoverVideoDto }> {
+): Promise<{ kabsoOwner?: true; coverVideo?: OwnerCoverVideoDto; ownerBio?: OwnerBioDto }> {
   if (!(await isKabsoOwner(db, userId))) return {};
   const coverVideo = await coverVideoOf(db, userId, urlOf);
+  const ownerBio = await ownerBioOf(db, userId);
   return {
     kabsoOwner: true,
     ...(coverVideo.ar || coverVideo.en ? { coverVideo } : {}),
+    ...(ownerBio.ar || ownerBio.en ? { ownerBio } : {}),
   };
 }
 

@@ -19,6 +19,14 @@ import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/announcement_composer.dart';
+import 'package:kabso_live/features/owner_profile/presentation/journey_editor.dart';
+import 'package:kabso_live/features/owner_profile/presentation/official_posts_screen.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_bio_editor.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video_editor.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_profit.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_badge.dart';
@@ -140,6 +148,18 @@ class MeHubScreen extends ConsumerWidget {
   /// v1.68-live (D273): «فريق كابسو» — staff accounts only.
   static const kabsoTeamKey = Key('meHub.kabsoTeam');
 
+  /// D307 follow-up: «لوحة المؤسس» — the app owner only.
+  static const founderDashboardKey = Key('meHub.founderDashboard');
+
+  /// D307 follow-up: the founder's control rows.
+  static const founderProfitKey = Key('meHub.founder.profit');
+  static const founderCostsKey = Key('meHub.founder.costs');
+  static const founderOfficialKey = Key('meHub.founder.official');
+  static const founderAnnounceKey = Key('meHub.founder.announce');
+  static const founderJourneyKey = Key('meHub.founder.journey');
+  static const founderBioKey = Key('meHub.founder.bio');
+  static const founderVideoKey = Key('meHub.founder.video');
+
   /// D283: the staff-only Me tab's rows and line.
   static const staffAnnouncementKey = Key('meHub.staff.announcement');
   static const staffAnnouncementReelKey = Key('meHub.staff.announcementReel');
@@ -208,8 +228,13 @@ class MeHubScreen extends ConsumerWidget {
     // Team account's Me tab is its profile header, «فريق كابسو», the
     // announcement composer and settings only.
     final staff = user?.staff;
+    // D307 follow-up (owner: «اعدادات خاصة بالمؤسس، تحكم كامل، بدون ازرار
+    // فعاليات ومحفظة، كل هذا لا يحتاجها المؤسس»): the app owner's Me tab is
+    // his control centre — «لوحة المؤسس» and his own tools, «فريق كابسو»
+    // and the settings (the gear); no cards, no user / host / agent rows.
+    final founder = ref.watch(isKabsoOwnerProvider);
 
-    final cards = staff != null
+    final cards = staff != null || founder
         ? const <Widget>[]
         : [
             _HubCard(
@@ -258,7 +283,85 @@ class MeHubScreen extends ConsumerWidget {
         onTap: () => push(AppRoutes.staff),
       ),
     ];
-    final groups = staff != null
+    final founderGroups = <List<Widget>>[
+      [
+        Padding(
+          key: founderDashboardKey,
+          padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+          child: FounderDashboardCard(profile: stats),
+        ),
+      ],
+      [
+        _HubRow(
+          rowKey: founderProfitKey,
+          icon: Icons.trending_up_rounded,
+          hue: p.primary,
+          title: l10n.ownerProfitTitle,
+          onTap: () => unawaited(showOwnerProfitSheet(context)),
+        ),
+        _HubRow(
+          rowKey: founderCostsKey,
+          icon: Icons.receipt_long_rounded,
+          hue: _Hues.orange,
+          title: l10n.ownerCostsManage,
+          onTap: () => unawaited(showFixedCostsEditor(context)),
+        ),
+        _HubRow(
+          rowKey: founderOfficialKey,
+          icon: Icons.push_pin_rounded,
+          hue: p.primary,
+          title: l10n.ownerOfficialTitle,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => OfficialPostsScreen(username: username ?? ''),
+            ),
+          ),
+        ),
+        _HubRow(
+          rowKey: founderAnnounceKey,
+          icon: Icons.campaign_rounded,
+          hue: _Hues.pink,
+          title: l10n.ownerAnnouncementNew,
+          onTap: () => unawaited(
+            showAnnouncementComposer(context, username: username ?? ''),
+          ),
+        ),
+        _HubRow(
+          rowKey: founderJourneyKey,
+          icon: Icons.rocket_launch_rounded,
+          hue: _Hues.teal,
+          title: l10n.ownerJourneyTitle,
+          onTap: () =>
+              unawaited(showJourneyEditor(context, username: username ?? '')),
+        ),
+        _HubRow(
+          rowKey: founderBioKey,
+          icon: Icons.edit_note_rounded,
+          hue: _Hues.blue,
+          title: l10n.ownerBioTitle,
+          onTap: () => unawaited(
+            showOwnerBioEditor(
+              context,
+              username: username ?? '',
+              bio: stats?.ownerBio,
+            ),
+          ),
+        ),
+        _HubRow(
+          rowKey: founderVideoKey,
+          icon: Icons.videocam_rounded,
+          hue: _Hues.gold,
+          title: l10n.ownerCoverVideoTitle,
+          onTap: () => unawaited(
+            showOwnerCoverVideoEditor(context, username: username ?? ''),
+          ),
+        ),
+      ],
+      if (user?.kabsoTeam ?? false) teamRow,
+    ];
+    final groups = founder
+        ? founderGroups
+        : staff != null
         ? <List<Widget>>[
             // D273's panel on the phone (watch roles; FINANCE has none).
             if (user?.kabsoTeam ?? false) teamRow,

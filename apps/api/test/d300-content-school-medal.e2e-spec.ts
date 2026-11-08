@@ -213,7 +213,7 @@ describe('D300 «مدرسة المحتوى» / Content School', { timeout: 600_0
       },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
-    await seedMedalCatalogue(ctx.prisma);
+    await seedMedalCatalogue(ctx.prisma, { keepFirsts: true });
     owner = await p.makeAdmin(['OWNER']);
   });
   afterAll(async () => {

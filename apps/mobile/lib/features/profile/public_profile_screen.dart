@@ -645,10 +645,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             ),
             SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
             // D301: «إعلانات رسمية» and «رحلة Kabso» on the owner's page.
-            if (profile.kabsoOwner && !profile.blockedByMe)
+            if (profile.kabsoOwner && !profile.blockedByMe) ...[
               SliverToBoxAdapter(
                 child: OwnerProfileSections(profile: profile, own: false),
               ),
+              // D307 follow-up: the announcements in full after «رحلة
+              // Kabso».
+              OfficialAnnouncementsFeed(username: profile.username, own: false),
+            ],
             if (profile.blockedByMe)
               SliverToBoxAdapter(
                 child: Padding(
@@ -675,6 +679,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   ),
                 ),
               )
+            // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او بوست
+            // او اي اعادة»): the founder's page ends with «رحلة Kabso».
+            else if (profile.kabsoOwner)
+              const SliverToBoxAdapter(child: SizedBox(height: KSpacing.xl))
             else ...[
               SliverPersistentHeader(
                 pinned: true,
