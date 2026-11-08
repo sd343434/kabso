@@ -13,12 +13,7 @@ export type VideoContentType = (typeof VIDEO_CONTENT_TYPES)[number];
 /** v1.89-social (D290, §10.103): `LEVEL_RAISE_VIDEO` — the source-app profile video of a level-raise request. */
 /** v1.95-social (D301, §10.112.1): `PROFILE_COVER_VIDEO` — the app owner's cover video (like a reel's). */
 export type VideoKind =
-  | 'POST_VIDEO'
-  | 'REEL_VIDEO'
-  | 'LEVEL_RAISE_VIDEO'
-  | 'PROFILE_COVER_VIDEO'
-  | 'BANNER_VIDEO'
-  | 'EVENT_VIDEO';
+  'POST_VIDEO' | 'REEL_VIDEO' | 'LEVEL_RAISE_VIDEO' | 'PROFILE_COVER_VIDEO' | 'BANNER_VIDEO' | 'EVENT_VIDEO';
 
 /**
  * Server-enforced limits per kind (owner D162: reels 100 MiB / 60 s, post videos 200 MiB; owner D168:
