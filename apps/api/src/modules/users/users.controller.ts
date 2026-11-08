@@ -20,7 +20,11 @@ import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 import { isWatchStaff, staffIdentityOf, type LimitedStaffRole } from '../live/live-staff.js';
 import { staffIdOf } from './staff-ids.js';
 import { MediaService } from '../media/media.service.js';
-import { ownerProfileFields, type OwnerCoverVideoDto } from '../owner-profile/owner-core.js';
+import {
+  ownerProfileFields,
+  type OwnerBioDto,
+  type OwnerCoverVideoDto,
+} from '../owner-profile/owner-core.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { StaffRegion } from '../live/staff-regions.js';
 
@@ -48,6 +52,7 @@ export class UsersController {
       staff?: { role: LimitedStaffRole; regions: StaffRegion[]; staffId?: string };
       kabsoOwner?: true;
       coverVideo?: OwnerCoverVideoDto;
+      ownerBio?: OwnerBioDto;
     }
   > {
     const me = await this.users.getMe(auth.userId);

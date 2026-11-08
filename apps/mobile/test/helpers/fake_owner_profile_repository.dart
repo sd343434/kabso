@@ -195,9 +195,18 @@ class FakeOwnerProfileRepository implements OwnerProfileRepository {
     String? cursor,
     int? limit,
   }) async {
-    calls.add('official:$username:${limit ?? ''}');
-    final items = limit == null ? official : official.take(limit).toList();
-    return PageOf(items, const PageInfo(nextCursor: null, hasMore: false));
+    calls.add('official:$username:${limit ?? ''}:${cursor ?? ''}');
+    if (officialFails) throw StateError('offline');
+    // D307: pages by position (the cursor is the next index).
+    final from = int.tryParse(cursor ?? '') ?? 0;
+    final rest = official.skip(from).toList();
+    final items = limit == null ? rest : rest.take(limit).toList();
+    final next = from + items.length;
+    final more = next < official.length;
+    return PageOf(
+      items,
+      PageInfo(nextCursor: more ? '$next' : null, hasMore: more),
+    );
   }
 
   @override
@@ -271,6 +280,25 @@ class FakeOwnerProfileRepository implements OwnerProfileRepository {
   Future<OwnerCoverVideo> setCoverVideo(String lang, String mediaId) async {
     calls.add('setVideo:$lang:$mediaId');
     return const OwnerCoverVideo();
+  }
+
+  /// D307: the announcements fail to load.
+  bool officialFails = false;
+
+  /// D307: the founder's bio as last saved ([setBio]).
+  OwnerBio bio = const OwnerBio();
+
+  /// D307: [setBio] fails (the sheet says so and keeps the texts).
+  bool bioFails = false;
+
+  @override
+  Future<OwnerBio> setBio({required String? ar, required String? en}) async {
+    calls.add('setBio:${ar ?? ''}|${en ?? ''}');
+    if (bioFails) throw StateError('offline');
+    return bio = OwnerBio(
+      ar: ar?.trim().isEmpty ?? true ? null : ar!.trim(),
+      en: en?.trim().isEmpty ?? true ? null : en!.trim(),
+    );
   }
 
   @override

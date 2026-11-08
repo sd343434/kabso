@@ -398,6 +398,12 @@ info:
     search (`getSearchFeatured`, §10.112.9). Owner: «الربح» before and after every share (`getOwnerProfit`) and the
     fixed monthly costs (`/owner/fixed-costs`, panel `/admin/owner-fixed-costs`, `owner.costs`), §10.112.10; migration
     `20270402090400_owner_profit`.
+    **D307 (DRAFT v1.98-social)** the founder's page tweaks (CONVENTIONS §10.112.11; owner 2026-11-08: «ازل شارة فريق
+    كابسو من اسفل الإسم. وضع بايو بالعربي والانجليزي مناسب … ازل ايقونة فيديو والوقت اجعله يعمل تلقائي بصوت»): the
+    owner's bilingual bio `PublicProfile.ownerBio` / `Me.ownerBio` (`OwnerBio {ar?, en?}`, each the ordinary bio's
+    rules) set by the owner with `setOwnerBio` (`PUT /owner/bio`, 403 `OWNER_ONLY`, audited `owner.bio.update`); the
+    app shows its language's, else its own default text. App only: no «فريق كابسو» badge under the founder's name, the
+    cover video starts by itself with sound (no «فيديو» pill). Additive; migration `20270407090000_owner_bio`.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -7381,7 +7387,7 @@ paths:
         The other side confirms (`confirmRechargeCherryRequest`) after the agent paid the host cash outside the
         app (`payoutMinor` at `CHERRY_PAYOUT_RATE`, owner $1.10 per 1 000 000); nothing moves before. The request
         expires after `RECHARGE_AGENT_CHERRY_REQUEST_TTL_MINUTES` (30). `cherries` ≥ `minCherries` (1 000 000) and a
-        multiple of `stepCherries` (100 000); `coins` = floor(cherries × 93 220 / 1 000 000). Order after auth: 400
+        multiple of `stepCherries` (100 000); `coins` = floor(cherries × 94 500 / 1 000 000) (`RECHARGE_AGENT_CHERRY_RATE`; D308, was 93 220). Order after auth: 400
         `Idempotency-Key`, body (exactly one of `agentCode` / `host`) → 404 (unknown or inactive agent / host; a
         block either way; `host` sent by a caller who is not an ACTIVE agent) → 400 `cherries` `invalid_value`
         (below the minimum or off the step) or the agent's own account → the same key again → 200 → 409
@@ -19129,6 +19135,32 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/bio:
+    put:
+      tags: [owner]
+      operationId: setOwnerBio
+      summary: "The founder's bilingual bio on his profile (v1.98-social, D307; owner only)"
+      description: |
+        CONVENTIONS §10.112.11. Owner only (403 `OWNER_ONLY`, nothing changed). `ar` and / or `en` (at least one, else
+        400 `required`): each the ordinary bio's rules (§10.42: trimmed, NFC, ≤ 300 code points, ≤ 4 line breaks, §6
+        hygiene; else 400 `ar` / `en` with the issue); null or empty clears that language; a language left out is kept.
+        Answers what is stored now. Audited `owner.bio.update` (`{langs}` that changed; never the text) when something
+        changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetOwnerBioRequest' }
+      responses:
+        '200':
+          description: The bilingual bio now stored (a language without text is left out).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerBio' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/owner/dashboard:
     get:
       tags: [owner]
@@ -28037,6 +28069,9 @@ components:
         coverVideo:
           $ref: '#/components/schemas/OwnerCoverVideo'
           description: "(v1.95-social, D301, §10.112.1) The owner's cover videos (Arabic, English); present only on an owner's profile with at least one."
+        ownerBio:
+          $ref: '#/components/schemas/OwnerBio'
+          description: "(v1.98-social, D307, §10.112.11) The founder's bilingual bio; present only on an owner's profile with at least one language."
         verification:
           description: "(v1.90-social, D293, §10.105) The caller's automatic verification badge beside the name, or null. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
@@ -28254,6 +28289,21 @@ components:
       properties:
         ar: { $ref: '#/components/schemas/CoverVideoVariant' }
         en: { $ref: '#/components/schemas/CoverVideoVariant' }
+    OwnerBio:
+      type: object
+      additionalProperties: false
+      description: "(v1.98-social, D307, §10.112.11) The founder's bio per language. The app shows `ar` when its language is Arabic, else `en`; when that one is absent, the app's own default founder text (never the other language)."
+      properties:
+        ar: { type: string, minLength: 1, maxLength: 300 }
+        en: { type: string, minLength: 1, maxLength: 300 }
+    SetOwnerBioRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: "(v1.98-social, D307, §10.112.11) Either language or both; null or empty clears it; one left out is kept."
+      properties:
+        ar: { type: [string, 'null'], description: '≤ 300 code points, ≤ 4 line breaks (the ordinary bio rules).' }
+        en: { type: [string, 'null'], description: '≤ 300 code points, ≤ 4 line breaks (the ordinary bio rules).' }
     JourneyIcon:
       type: string
       enum: [rocket, users, agency, globe, sparkles, star, trophy, heart, gift, live, crown, flag]
@@ -28628,6 +28678,9 @@ components:
         coverVideo:
           $ref: '#/components/schemas/OwnerCoverVideo'
           description: "(v1.95-social, D301, §10.112.1) The owner's cover videos (Arabic, English); present only on an owner's profile with at least one."
+        ownerBio:
+          $ref: '#/components/schemas/OwnerBio'
+          description: "(v1.98-social, D307, §10.112.11) The founder's bilingual bio; present only on an owner's profile with at least one language."
         verification:
           description: "(v1.90-social, D293, §10.105) The user's automatic verification badge beside the name, or null — only its type: never an amount, a threshold or which condition was met beyond the badge itself. Also on a private account's profile. Sent by a v1.90-social server (older servers leave it out; clients treat that as null)."
           oneOf:
@@ -35400,7 +35453,7 @@ components:
       properties:
         activationMinCoins: { type: integer, format: int64, description: "The first top-up that activates an agent (owner: 30 000 000)." }
         cherryUnit: { type: integer, format: int64, description: "1 000 000 cherries …" }
-        coinsPerCherryUnit: { type: integer, format: int64, description: "… become 93 220 coins in the agent's stock (rounded down)." }
+        coinsPerCherryUnit: { type: integer, format: int64, description: "… become this many coins in the agent's stock (rounded down); owner default 94 500 (D308, was 93 220)." }
         minCherries: { type: integer, format: int64 }
         stepCherries: { type: integer, format: int64 }
         requestTtlMinutes: { type: integer }

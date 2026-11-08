@@ -339,6 +339,7 @@ model User {
   /// v1.95-social (D301, §10.112): the owner's cover videos, «رحلة Kabso», and «صندوق المؤسس» (sent / about).
   ownerCoverVideos      OwnerCoverVideo[]
   ownerJourney          OwnerJourneyMilestone[]
+  ownerBio              OwnerBio?
   ownerFeedbackSent     OwnerFeedback[]     @relation("OwnerFeedbackSender")
   ownerFeedbackAbout    OwnerFeedback[]     @relation("OwnerFeedbackStaff")
 
@@ -7363,6 +7364,19 @@ model OwnerCoverVideo {
 
   @@id([userId, lang], map: "owner_cover_videos_pkey")
   @@map("owner_cover_videos")
+}
+
+/// v1.98-social (D307, §10.112.11): the owner's bilingual bio (Arabic, English), each ≤ 300 code points or null; shown
+/// only while the account is the owner. CHECK `owner_bios_shape` in the migration.
+model OwnerBio {
+  userId    String   @id(map: "owner_bios_pkey") @map("user_id") @db.Uuid
+  bioAr     String?  @map("bio_ar")
+  bioEn     String?  @map("bio_en")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("owner_bios")
 }
 
 /// «رحلة Kabso»: an owner's milestone (≤ 30 per owner; at most one `latest`). CHECKs in the migration.

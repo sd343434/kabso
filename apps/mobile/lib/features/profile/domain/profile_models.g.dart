@@ -67,6 +67,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       staffId: json['staffId'] as String?,
       kabsoOwner: json['kabsoOwner'] as bool? ?? false,
       coverVideo: ownerCoverVideoFromJson(json['coverVideo']),
+      ownerBio: ownerBioFromJson(json['ownerBio']),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -112,6 +113,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'staffId': ?instance.staffId,
       'kabsoOwner': instance.kabsoOwner,
       'coverVideo': ?ownerCoverVideoToJson(instance.coverVideo),
+      'ownerBio': ?ownerBioToJson(instance.ownerBio),
     };
 
 _ProfileLive _$ProfileLiveFromJson(Map<String, dynamic> json) => _ProfileLive(

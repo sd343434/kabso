@@ -3,8 +3,13 @@
 //
 // - the bilingual video cover (mock-up 4): the app's Arabic → the Arabic
 //   video, anything else → the English one, one → everyone sees it, none →
-//   the cover picture; muted and looping, plays only when half on screen,
-//   the mute button and the «فيديو» pill; reduce motion: never by itself;
+//   the cover picture; looping, plays only when half on screen, the mute
+//   button; D307: with sound from the start, no «فيديو» pill, paused under
+//   another page and in the background; reduce motion: never by itself (a
+//   round play button);
+// - D307: no «فريق كابسو» badge under the founder's name (other staff keep
+//   it); the bilingual bio (the app's language, else the default text) and
+//   «بايو المؤسس» in «لوحة المؤسس»; «اقترح ميزة / أبلغ» outline only;
 // - «رحلة Kabso» (mock-up 5): the timeline in order, in the viewer's
 //   language, the nodes at the reading start, «الأحدث»; the owner edits it
 //   in the app (owner: «في التطبيق») — add, edit, delete, ▲ / ▼;
@@ -34,6 +39,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
@@ -41,8 +47,8 @@ import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/owner_profile/presentation/announcement_composer.dart';
 import 'package:kabso_live/features/owner_profile/presentation/journey_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/official_label.dart';
-import 'package:kabso_live/features/owner_profile/presentation/official_posts_screen.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_bio_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video_editor.dart';
 import 'package:kabso_live/features/owner_profile/presentation/owner_feedback_sheet.dart';
@@ -56,6 +62,7 @@ import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/profile/profile_verification_badge.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -72,6 +79,19 @@ import '../profile/profile_cover_d278_test.dart' show coverBytes, insets;
 
 /// The fixed "now" of the relative times.
 final DateTime d301Now = DateTime.utc(2026, 11, 7, 9, 41);
+
+/// A widget test run wholly at [d301Now] (every build, not only the pumps
+/// inside `withClock`): the relative times («منذ يومين») and the dates do
+/// not move with the real day.
+void testD301(
+  String description,
+  Future<void> Function(WidgetTester tester) body, {
+  Object? tags,
+}) => testWidgets(
+  description,
+  (tester) => withClock(Clock.fixed(d301Now), () => body(tester)),
+  tags: tags,
+);
 
 late Uint8List d301Poster;
 
@@ -185,10 +205,12 @@ Future<FakeOwnerProfileRepository> pumpOwnerOwn(
   Brightness brightness = Brightness.light,
   FakeOwnerProfileRepository? repo,
   bool videos = true,
+  GoldenViewport viewport = GoldenViewport.phone,
+  PublicProfile? stats,
 }) async {
   final ar = language == AppLanguage.ar;
   final r = repo ?? d301Repo(ar: ar);
-  setViewport(tester, GoldenViewport.phone);
+  setViewport(tester, viewport);
   insets(tester);
   await withClock(Clock.fixed(d301Now), () async {
     await pumpScreen(
@@ -200,11 +222,13 @@ Future<FakeOwnerProfileRepository> pumpOwnerOwn(
       overrides: [
         meProvider.overrideWith((ref) => ownerMe(ar: ar)),
         profileStatsProvider.overrideWith(
-          (ref, username) => ownerProfile(
-            ar: ar,
-            self: true,
-            videos: videos ? ownerVideos : null,
-          ),
+          (ref, username) =>
+              stats ??
+              ownerProfile(
+                ar: ar,
+                self: true,
+                videos: videos ? ownerVideos : null,
+              ),
         ),
         ..._common(r),
       ],
@@ -281,8 +305,8 @@ Future<FakeOwnerProfileRepository> pumpComposer(
     language: language,
     brightness: brightness,
   );
-  await _scrollTo(tester, find.byKey(OfficialAnnouncementsCard.newKey));
-  await tester.tap(find.byKey(OfficialAnnouncementsCard.newKey));
+  await _scrollTo(tester, find.byKey(OfficialAnnouncementsFeed.newKey));
+  await tester.tap(find.byKey(OfficialAnnouncementsFeed.newKey));
   await tester.pumpAndSettle();
   if (fill) {
     await tester.enterText(
@@ -412,7 +436,7 @@ void main() {
   group("a visitor on the owner's page", () {
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
-      testWidgets('${language.name}: the poster of the ${language.name} video, '
+      testD301('${language.name}: the poster of the ${language.name} video, '
           'follow and suggest, announcements and the journey; no dashboard', (
         tester,
       ) async {
@@ -423,8 +447,17 @@ void main() {
           find.byKey(OwnerCoverVideoLayer.posterKey),
         );
         expect(poster.image, isA<MemoryImage>());
-        // The pill shows the chosen video's length (Arabic 0:24, English 0:18).
-        expect(find.text(ar ? '0:24' : '0:18'), findsOneWidget);
+        // D307: no «فيديو» pill — neither the word nor the length.
+        expect(find.byKey(const Key('owner.coverVideo.pill')), findsNothing);
+        expect(find.text(ar ? '0:24' : '0:18'), findsNothing);
+        expect(find.text(ar ? 'فيديو' : 'Video'), findsNothing);
+        expect(
+          tester
+              .widget<OwnerCoverVideoLayer>(find.byType(OwnerCoverVideoLayer))
+              .video
+              .url,
+          ar ? ownerVideoAr : ownerVideoEn,
+        );
         expect(find.byKey(OwnerVisitorActions.followKey), findsOneWidget);
         expect(find.byKey(OwnerVisitorActions.feedbackKey), findsOneWidget);
         expect(
@@ -432,17 +465,6 @@ void main() {
           findsOneWidget,
         );
         expect(find.byKey(FounderDashboardCard.cardKey), findsNothing);
-        await _scrollTo(tester, find.byKey(OfficialAnnouncementsCard.cardKey));
-        for (final id in ['o1', 'o2', 'o3']) {
-          expect(find.byKey(OfficialPostRow.rowKey(id)), findsOneWidget);
-        }
-        expect(
-          find.text(
-            ar ? 'إطلاق الإصدار 2.0 من كابسو لايف' : 'Kabso Live 2.0 is here',
-          ),
-          findsOneWidget,
-        );
-        expect(find.text(ar ? 'منذ يومين' : '2 days ago'), findsWidgets);
         await _scrollTo(tester, find.byKey(JourneySection.nodeKey('m5')));
         expect(
           find.text(ar ? 'إطلاق صناع المحتوى' : 'Content creators launch'),
@@ -458,11 +480,40 @@ void main() {
         expect(ar ? node.left > card.right : node.right < card.left, isTrue);
         // No editing for a visitor.
         expect(find.byKey(JourneySection.editKey), findsNothing);
+        // D307 follow-up: then the announcements in full, under the journey,
+        // as feed cards, newest (pinned) first.
+        await _scrollTo(
+          tester,
+          find.byKey(OfficialAnnouncementsFeed.sectionKey),
+        );
+        final journey = tester.getRect(find.byKey(JourneySection.sectionKey));
+        expect(
+          tester.getRect(find.byKey(OfficialAnnouncementsFeed.sectionKey)).top,
+          greaterThan(journey.bottom - 1),
+        );
+        for (final id in ['o1', 'o2', 'o3']) {
+          await _scrollTo(
+            tester,
+            find.byKey(OfficialAnnouncementsFeed.cardKey(id)),
+          );
+          expect(
+            find.descendant(
+              of: find.byKey(OfficialAnnouncementsFeed.cardKey(id)),
+              matching: find.byType(FeedPostTile),
+            ),
+            findsOneWidget,
+          );
+        }
+        expect(find.byKey(OfficialAnnouncementsFeed.newKey), findsNothing);
+        expect(
+          find.byKey(OfficialAnnouncementsFeed.editKey('o1')),
+          findsNothing,
+        );
         await _end(tester);
       });
     }
 
-    testWidgets('only one video: an English viewer sees the Arabic one', (
+    testD301('only one video: an English viewer sees the Arabic one', (
       tester,
     ) async {
       await pumpOwnerVisitor(
@@ -474,13 +525,17 @@ void main() {
         ),
       );
       expect(find.byKey(OwnerCoverVideoLayer.layerKey), findsOneWidget);
-      expect(find.text('0:24'), findsOneWidget);
+      expect(
+        tester
+            .widget<OwnerCoverVideoLayer>(find.byType(OwnerCoverVideoLayer))
+            .video
+            .url,
+        ownerVideoAr,
+      );
       await _end(tester);
     });
 
-    testWidgets('no video: the cover picture, as on any profile', (
-      tester,
-    ) async {
+    testD301('no video: the cover picture, as on any profile', (tester) async {
       await pumpOwnerVisitor(
         tester,
         language: AppLanguage.ar,
@@ -494,9 +549,9 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets(
-      'the video plays muted when on screen, the mute button gives sound, '
-      'and it pauses off-screen',
+    testD301(
+      'D307: the video plays by itself WITH sound when on screen, the mute '
+      'button silences it, and it pauses off-screen',
       (tester) async {
         final videos = FakeInlineVideos();
         await pumpOwnerVisitor(
@@ -510,11 +565,14 @@ void main() {
         expect(videos.created.map((v) => v.url), [ownerVideoAr]);
         final v = videos.created.single;
         expect(v.plays, greaterThan(0));
-        expect(v.volumes.first, 0);
+        expect(v.volumes.first, 1);
         expect(find.byKey(OwnerCoverVideoLayer.surfaceKey), findsOneWidget);
+        // No play button without reduce motion; the sound button says mute.
+        expect(find.byKey(OwnerCoverVideoLayer.playKey), findsNothing);
+        expect(find.bySemanticsLabel('Mute'), findsNothing);
         await tester.tap(find.byKey(OwnerCoverVideoLayer.muteKey));
         await tester.pump();
-        expect(v.volumes.last, 1);
+        expect(v.volumes.last, 0);
         // Scrolled away: paused.
         await tester.drag(
           find.byType(Scrollable).first,
@@ -528,14 +586,14 @@ void main() {
       },
     );
 
-    testWidgets('reduce motion: the poster stays until the pill is tapped', (
-      tester,
-    ) async {
+    testD301('reduce motion: the poster stays until the play button is '
+        'tapped (D307: a round button, not the pill)', (tester) async {
       final videos = FakeInlineVideos();
       await pumpOwnerVisitor(tester, language: AppLanguage.en, videos: videos);
       await tester.pump(const Duration(milliseconds: 600));
       expect(videos.created, isEmpty);
-      await tester.tap(find.byKey(OwnerCoverVideoLayer.pillKey));
+      expect(find.byKey(OwnerCoverVideoLayer.playKey), findsOneWidget);
+      await tester.tap(find.byKey(OwnerCoverVideoLayer.playKey));
       await tester.pump();
       await tester.pump();
       expect(videos.created.map((v) => v.url), [ownerVideoEn]);
@@ -543,7 +601,7 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets('«متابعة المؤسس» follows; then «تتابع المؤسس»', (tester) async {
+    testD301('«متابعة المؤسس» follows; then «تتابع المؤسس»', (tester) async {
       await pumpOwnerVisitor(tester, language: AppLanguage.ar);
       await tester.tap(find.byKey(OwnerVisitorActions.followKey));
       await tester.pumpAndSettle();
@@ -551,31 +609,88 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets('«عرض الكل» opens every announcement', (tester) async {
-      await pumpOwnerVisitor(tester, language: AppLanguage.ar);
-      await _scrollTo(tester, find.byKey(OfficialAnnouncementsCard.seeAllKey));
-      await tester.tap(find.byKey(OfficialAnnouncementsCard.seeAllKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(OfficialPostsScreen.listKey), findsOneWidget);
-      expect(find.byKey(OfficialPostRow.rowKey('o3')), findsOneWidget);
+    testD301('D307 follow-up: the announcements page by page (the next '
+        'page when the list reaches its end), each in the app language', (
+      tester,
+    ) async {
+      final repo = d301Repo(ar: false)
+        ..official = [
+          for (var i = 0; i < 13; i++)
+            Post.fromJson({
+              ...postJson('n$i', text: 'نص $i'),
+              'official': true,
+              'texts': {'ar': 'نص $i', 'en': 'Text $i'},
+            }),
+        ];
+      await pumpOwnerVisitor(tester, language: AppLanguage.en, repo: repo);
+      await _scrollTo(
+        tester,
+        find.byKey(OfficialAnnouncementsFeed.cardKey('n0')),
+      );
+      // The English caption of a bilingual announcement.
+      expect(
+        find.descendant(
+          of: find.byKey(OfficialAnnouncementsFeed.cardKey('n0')),
+          matching: find.textContaining('Text 0'),
+        ),
+        findsOneWidget,
+      );
+      expect(repo.calls, contains('official:kabso:10:'));
+      await _scrollTo(
+        tester,
+        find.byKey(OfficialAnnouncementsFeed.cardKey('n12')),
+      );
+      expect(repo.calls, contains('official:kabso:10:10'));
+      expect(
+        find.byKey(OfficialAnnouncementsFeed.cardKey('n12')),
+        findsOneWidget,
+      );
       await _end(tester);
     });
 
-    testWidgets('an owner with no announcements and no journey: '
+    testD301('D307 follow-up: the announcements fail: a retry for the '
+        'owner, nothing for a visitor', (tester) async {
+      final repo = d301Repo(ar: true)..officialFails = true;
+      await pumpOwnerOwn(tester, language: AppLanguage.ar, repo: repo);
+      await _scrollTo(tester, find.byKey(OfficialAnnouncementsFeed.errorKey));
+      expect(find.byKey(OfficialAnnouncementsFeed.errorKey), findsOneWidget);
+      repo.officialFails = false;
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(OfficialAnnouncementsFeed.errorKey),
+          matching: find.byType(TextButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _scrollTo(
+        tester,
+        find.byKey(OfficialAnnouncementsFeed.cardKey('o1')),
+      );
+      expect(
+        find.byKey(OfficialAnnouncementsFeed.cardKey('o1')),
+        findsOneWidget,
+      );
+      await _end(tester);
+      final visitor = d301Repo(ar: true)..officialFails = true;
+      await pumpOwnerVisitor(tester, language: AppLanguage.ar, repo: visitor);
+      expect(find.byKey(OfficialAnnouncementsFeed.sectionKey), findsNothing);
+      expect(find.byKey(OfficialAnnouncementsFeed.errorKey), findsNothing);
+      await _end(tester);
+    });
+
+    testD301('an owner with no announcements and no journey: '
         'neither section for a visitor', (tester) async {
       await pumpOwnerVisitor(
         tester,
         language: AppLanguage.ar,
         repo: d301Repo(ar: true, empty: true),
       );
-      expect(find.byKey(OfficialAnnouncementsCard.cardKey), findsNothing);
+      expect(find.byKey(OfficialAnnouncementsFeed.sectionKey), findsNothing);
       expect(find.byKey(JourneySection.sectionKey), findsNothing);
       await _end(tester);
     });
 
-    testWidgets('any other profile is unchanged (no owner parts)', (
-      tester,
-    ) async {
+    testD301('any other profile is unchanged (no owner parts)', (tester) async {
       await pumpOwnerVisitor(
         tester,
         language: AppLanguage.ar,
@@ -586,12 +701,265 @@ void main() {
       expect(find.byKey(OwnerVisitorActions.followKey), findsNothing);
       expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
       expect(find.byKey(OwnerCoverVideoLayer.layerKey), findsNothing);
+      // D307: another staff account keeps the «فريق كابسو» badge and its
+      // own bio (no founder default).
+      expect(find.byType(KabsoTeamBadge), findsOneWidget);
+      expect(find.text('مؤسس كابسو لايف'), findsOneWidget);
+      // D307 follow-up: the photo stays at the reading start with the name
+      // beside it (only the owner's page centres them).
+      expect(find.byKey(ProfileCoverHeader.ownerStackKey), findsNothing);
+      final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
+      final name = tester.getRect(find.byKey(const Key('profile.displayName')));
+      expect(name.right, lessThan(photo.left));
+      expect(name.center.dy, closeTo(photo.center.dy, 40));
+      expect(find.textContaining('بنيتُ هذه المنصة'), findsNothing);
       await _end(tester);
+    });
+
+    group('D307', () {
+      testD301('the video pauses under another page and in the background, and '
+          'resumes when back', (tester) async {
+        final videos = FakeInlineVideos();
+        await pumpOwnerVisitor(
+          tester,
+          language: AppLanguage.en,
+          videos: videos,
+          still: false,
+        );
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+        final v = videos.created.single;
+        expect(v.state.playing, isTrue);
+        // Another page over the profile (a sheet or a dialog too).
+        final nav =
+            Navigator.of(tester.element(find.byType(OwnerCoverVideoLayer)))
+              ..push(
+                PageRouteBuilder<void>(
+                  opaque: false,
+                  pageBuilder: (_, _, _) => const SizedBox.expand(),
+                  transitionDuration: Duration.zero,
+                ),
+              );
+        await tester.pump();
+        await tester.pump();
+        expect(v.state.playing, isFalse);
+        nav.pop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+        expect(v.state.playing, isTrue);
+        // The app in the background, then back.
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump();
+        expect(v.state.playing, isFalse);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(v.state.playing, isTrue);
+        // Still with sound: nobody muted it.
+        expect(v.volumes, everyElement(1));
+        await _end(tester);
+      });
+
+      for (final language in AppLanguage.values) {
+        final ar = language == AppLanguage.ar;
+        testD301('${language.name}: no «فريق كابسو» badge under the '
+            "founder's name; the seal and the special ID stay; the default "
+            'bio in the app language (not the one-language bio)', (
+          tester,
+        ) async {
+          await pumpOwnerVisitor(tester, language: language);
+          expect(find.byType(KabsoTeamBadge), findsNothing);
+          expect(find.byType(ProfileVerificationBadge), findsOneWidget);
+          final bio = tester.widget<Text>(
+            find.byKey(ProfileCoverHeader.bioKey),
+          );
+          expect(
+            bio.data,
+            ar
+                ? 'مؤسس Kabso Live. بنيتُ هذه المنصة لتجمعنا في البث والمحتوى '
+                      'ومجتمع واحد. اقتراحاتكم تصلني مباشرة، فشاركوني أفكاركم.'
+                : 'Founder of Kabso Live. I built this place to bring us '
+                      'together through live streams, content and one '
+                      'community. Your ideas reach me directly, so share '
+                      'yours.',
+          );
+          expect(bio.maxLines, KPublicProfile.ownerBioLines);
+          expect(
+            find.text(ar ? 'مؤسس كابسو لايف' : 'Founder of Kabso Live'),
+            findsNothing,
+          );
+          await _end(tester);
+        });
+      }
+
+      for (final language in AppLanguage.values) {
+        for (final viewport in GoldenViewport.values) {
+          testD301('follow-up ${language.name} ${viewport.name}: the photo '
+              'centred, the name and the seal centred under it; a long name '
+              'is cut with «…», nothing overflows', (tester) async {
+            final ar = language == AppLanguage.ar;
+            await pumpOwnerVisitor(
+              tester,
+              language: language,
+              viewport: viewport,
+              profile: ownerProfile(ar: ar).copyWith(
+                displayName: ar
+                    ? 'مؤسس كابسو لايف للبث والمحتوى والمجتمع العربي الكبير'
+                    : 'Kabso Live founder of streams, content and community',
+              ),
+            );
+            expect(tester.takeException(), isNull);
+            final width = viewport.logicalSize.width;
+            expect(
+              find.byKey(ProfileCoverHeader.ownerStackKey),
+              findsOneWidget,
+            );
+            final photo = tester.getRect(
+              find.byKey(ProfileHeaderView.avatarKey),
+            );
+            // The photo's box (the frames' slot) is centred exactly.
+            final slot = tester.getRect(
+              find
+                  .ancestor(
+                    of: find.byKey(ProfileHeaderView.avatarKey),
+                    matching: find.byType(SizedBox),
+                  )
+                  .first,
+            );
+            expect(slot.center.dx, closeTo(width / 2, 0.5));
+            expect(photo.center.dx, closeTo(width / 2, 0.5));
+            final line = tester.getRect(
+              find.byKey(ProfileCoverHeader.nameLineKey),
+            );
+            expect(line.top, greaterThanOrEqualTo(photo.bottom - 1));
+            expect(line.center.dx, closeTo(width / 2, 1));
+            expect(line.left, greaterThanOrEqualTo(0));
+            expect(line.right, lessThanOrEqualTo(width));
+            expect(find.byType(ProfileVerificationBadge), findsOneWidget);
+            final seal = tester.getRect(find.byType(ProfileVerificationBadge));
+            expect(seal.right, lessThanOrEqualTo(width));
+            expect(seal.left, greaterThanOrEqualTo(0));
+            // The name is cut on one line (not wrapped, not clipped away).
+            final name = tester.widget<Text>(
+              find.byKey(const Key('profile.displayName')),
+            );
+            expect(name.maxLines, 1);
+            expect(name.overflow, TextOverflow.ellipsis);
+            // The name block stays on the picture, above the numbers.
+            final cover = tester.getRect(
+              find.byKey(ProfileCoverHeader.coverAreaKey),
+            );
+            expect(line.bottom, lessThanOrEqualTo(cover.bottom));
+            // The sound button keeps its corner, clear of the photo.
+            final mute = tester.getRect(
+              find.byKey(OwnerCoverVideoLayer.muteKey),
+            );
+            expect(mute.overlaps(photo), isFalse);
+            await _end(tester);
+          });
+        }
+      }
+
+      testD301("the owner's text for the app language; the other "
+          "language's text is never shown (the default instead)", (
+        tester,
+      ) async {
+        const owned = OwnerBio(ar: 'أهلاً بكم في صفحتي');
+        await pumpOwnerVisitor(
+          tester,
+          language: AppLanguage.ar,
+          profile: ownerProfile(ar: true).copyWith(ownerBio: owned),
+        );
+        expect(find.text('أهلاً بكم في صفحتي'), findsOneWidget);
+        await _end(tester);
+        await pumpOwnerVisitor(
+          tester,
+          language: AppLanguage.en,
+          profile: ownerProfile(ar: false).copyWith(ownerBio: owned),
+        );
+        expect(find.text('أهلاً بكم في صفحتي'), findsNothing);
+        expect(
+          find.textContaining('Founder of Kabso Live. I built'),
+          findsOneWidget,
+        );
+        await _end(tester);
+      });
+
+      testD301('PublicProfile reads ownerBio (absent → null)', (tester) async {
+        final json = jsonDecode(
+          jsonEncode(
+            ownerProfile(ar: true)
+                .copyWith(
+                  ownerBio: const OwnerBio(ar: 'ع', en: 'E'),
+                )
+                .toJson(),
+          ),
+        ) as Map<String, dynamic>;
+        expect(json['ownerBio'], {'ar': 'ع', 'en': 'E'});
+        expect(
+          PublicProfile.fromJson(json).ownerBio,
+          const OwnerBio(ar: 'ع', en: 'E'),
+        );
+        expect(
+          PublicProfile.fromJson({...json}..remove('ownerBio')).ownerBio,
+          isNull,
+        );
+        expect(const OwnerBio(en: 'E').pick('ar'), isNull);
+        expect(const OwnerBio(en: 'E').pick('fr'), 'E');
+      });
+
+      testD301('«متابعة المؤسس» has no shadow under it', (tester) async {
+        await pumpOwnerVisitor(tester, language: AppLanguage.ar);
+        final box = tester.widget<DecoratedBox>(
+          find
+              .ancestor(
+                of: find.byKey(OwnerVisitorActions.followKey),
+                matching: find.byType(DecoratedBox),
+              )
+              .first,
+        );
+        final decoration = box.decoration as BoxDecoration;
+        expect(decoration.boxShadow, isNull);
+        // Its red gradient stays.
+        expect(decoration.gradient, isNotNull);
+        await _end(tester);
+      });
+
+      testD301('«اقترح ميزة / أبلغ» is an outline only (no fill), in '
+          'light and dark', (tester) async {
+        for (final brightness in Brightness.values) {
+          await pumpOwnerVisitor(
+            tester,
+            language: AppLanguage.ar,
+            brightness: brightness,
+          );
+          final button = tester.widget<OutlinedButton>(
+            find.byKey(OwnerVisitorActions.feedbackKey),
+          );
+          final style = button.style!;
+          expect(style.backgroundColor?.resolve(<WidgetState>{})?.a, 0);
+          final side = style.side?.resolve(<WidgetState>{});
+          expect(side?.color.a, greaterThan(0.5));
+          expect(side?.width, greaterThan(0));
+          await _end(tester);
+        }
+      });
     });
   });
 
   group("the owner's own view", () {
-    testWidgets('ar: «لوحة المؤسس» (خاص) with the income blurred until tapped; '
+    testD301('ar: «لوحة المؤسس» (خاص) with the income blurred until tapped; '
         'a tap on the card opens the fuller view', (tester) async {
       await pumpOwnerOwn(tester, language: AppLanguage.ar);
       expect(tester.takeException(), isNull);
@@ -628,7 +996,7 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets('the dashboard that fails says so (no made-up numbers)', (
+    testD301('the dashboard that fails says so (no made-up numbers)', (
       tester,
     ) async {
       await pumpOwnerOwn(
@@ -641,7 +1009,7 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets(
+    testD301(
       'no announcements yet: the hint to mark one; no journey: «أضف أول محطة»',
       (tester) async {
         await pumpOwnerOwn(
@@ -649,14 +1017,15 @@ void main() {
           language: AppLanguage.ar,
           repo: d301Repo(ar: true, empty: true),
         );
-        await _scrollTo(tester, find.byKey(JourneySection.addFirstKey));
-        expect(find.byKey(OfficialAnnouncementsCard.emptyKey), findsOneWidget);
+        await _scrollTo(tester, find.byKey(OfficialAnnouncementsFeed.emptyKey));
+        expect(find.byKey(OfficialAnnouncementsFeed.emptyKey), findsOneWidget);
+        expect(find.byKey(OfficialAnnouncementsFeed.newKey), findsOneWidget);
         expect(find.byKey(JourneySection.addFirstKey), findsOneWidget);
         await _end(tester);
       },
     );
 
-    testWidgets(
+    testD301(
       '«تعديل» on the journey: ▲ reorders, add, edit and delete go to the API',
       (tester) async {
         final repo = await pumpOwnerOwn(tester, language: AppLanguage.ar);
@@ -713,15 +1082,80 @@ void main() {
       },
     );
 
-    testWidgets(
-      'the own view keeps «تعديل الملف» and has no follow / suggest',
-      (tester) async {
-        await pumpOwnerOwn(tester, language: AppLanguage.en);
-        expect(find.byKey(ProfileScreen.editButtonKey), findsOneWidget);
-        expect(find.byKey(OwnerVisitorActions.followKey), findsNothing);
-        await _end(tester);
-      },
-    );
+    testD301('D307: no «فريق كابسو» badge on his own page either; the '
+        'default bio', (tester) async {
+      await pumpOwnerOwn(tester, language: AppLanguage.ar);
+      expect(find.byType(KabsoTeamBadge), findsNothing);
+      expect(find.textContaining('بنيتُ هذه المنصة'), findsOneWidget);
+      await _end(tester);
+    });
+
+    testD301('D307: «بايو المؤسس» in «لوحة المؤسس» saves both languages '
+        'and refreshes the page', (tester) async {
+      final repo = await pumpOwnerOwn(tester, language: AppLanguage.en);
+      await tester.tap(find.byKey(FounderDashboardCard.onlineKey));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(FounderDashboardCard.bioKey),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byKey(FounderDashboardCard.detailsKey),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.byKey(FounderDashboardCard.bioKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(OwnerBioEditor.sheetKey), findsOneWidget);
+      // The defaults are the hints (an empty field shows the default).
+      expect(
+        find.textContaining('Founder of Kabso Live. I built'),
+        findsWidgets,
+      );
+      await tester.enterText(find.byKey(OwnerBioEditor.arKey), ' مرحباً ');
+      await tester.enterText(find.byKey(OwnerBioEditor.enKey), 'Hello all');
+      await tester.tap(find.byKey(OwnerBioEditor.saveKey));
+      await tester.pumpAndSettle();
+      expect(repo.calls, contains('setBio:مرحباً|Hello all'));
+      expect(find.byKey(OwnerBioEditor.sheetKey), findsNothing);
+      expect(find.text('Bio saved'), findsOneWidget);
+      await _end(tester);
+    });
+
+    testD301('D307: a failed save keeps the sheet and says so', (tester) async {
+      final repo = d301Repo(ar: false)..bioFails = true;
+      await pumpOwnerOwn(tester, language: AppLanguage.en, repo: repo);
+      await tester.tap(find.byKey(FounderDashboardCard.onlineKey));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(FounderDashboardCard.bioKey),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byKey(FounderDashboardCard.detailsKey),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.byKey(FounderDashboardCard.bioKey));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(OwnerBioEditor.enKey), 'Hello');
+      await tester.tap(find.byKey(OwnerBioEditor.saveKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(OwnerBioEditor.sheetKey), findsOneWidget);
+      expect(find.text('Bio saved'), findsNothing);
+      await _end(tester);
+    });
+
+    testD301('the own view keeps «تعديل الملف» and has no follow / suggest', (
+      tester,
+    ) async {
+      await pumpOwnerOwn(tester, language: AppLanguage.en);
+      expect(find.byKey(ProfileScreen.editButtonKey), findsOneWidget);
+      expect(find.byKey(OwnerVisitorActions.followKey), findsNothing);
+      await _end(tester);
+    });
   });
 
   group('«اقترح ميزة / أبلغ عن موظف»', () {
@@ -736,9 +1170,7 @@ void main() {
       return repo;
     }
 
-    testWidgets('a feature suggestion: send waits for the text', (
-      tester,
-    ) async {
+    testD301('a feature suggestion: send waits for the text', (tester) async {
       final repo = await openSheet(tester, language: AppLanguage.ar);
       await tester.tap(find.byKey(OwnerFeedbackSheet.featureKey));
       await tester.pumpAndSettle();
@@ -764,7 +1196,7 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets('a staff report: search by staff ID, the reason, '
+    testD301('a staff report: search by staff ID, the reason, '
         'the confidentiality note', (tester) async {
       final repo = await openSheet(tester, language: AppLanguage.en);
       await tester.tap(find.byKey(OwnerFeedbackSheet.reportKey));
@@ -802,45 +1234,44 @@ void main() {
   });
 
   group('D301 follow-up: bilingual announcements', () {
-    testWidgets(
-      'the owner composes in both languages; publish waits for both',
-      (tester) async {
-        final repo = await pumpComposer(
-          tester,
-          language: AppLanguage.ar,
-          fill: false,
-        );
-        FilledButton publish() => tester.widget<FilledButton>(
-          find.byKey(AnnouncementComposer.publishKey),
-        );
-        expect(publish().onPressed, isNull);
-        await tester.enterText(find.byKey(AnnouncementComposer.arKey), 'إعلان');
-        await tester.pump();
-        expect(publish().onPressed, isNull);
-        await tester.enterText(
-          find.byKey(AnnouncementComposer.enKey),
-          'Announcement',
-        );
-        await tester.pump();
-        expect(publish().onPressed, isNotNull);
-        await tester.ensureVisible(find.byKey(AnnouncementComposer.publishKey));
-        await tester.tap(find.byKey(AnnouncementComposer.publishKey));
-        await tester.pumpAndSettle();
-        expect(repo.announcements.single, {
-          'key': isA<String>(),
-          'ar': 'إعلان',
-          'en': 'Announcement',
-          'media': <String>[],
-        });
-        expect(
-          find.text('نُشر الإعلان، ويصل الإشعار للجميع خلال دقائق.'),
-          findsOneWidget,
-        );
-        await _end(tester);
-      },
-    );
+    testD301('the owner composes in both languages; publish waits for both', (
+      tester,
+    ) async {
+      final repo = await pumpComposer(
+        tester,
+        language: AppLanguage.ar,
+        fill: false,
+      );
+      FilledButton publish() => tester.widget<FilledButton>(
+        find.byKey(AnnouncementComposer.publishKey),
+      );
+      expect(publish().onPressed, isNull);
+      await tester.enterText(find.byKey(AnnouncementComposer.arKey), 'إعلان');
+      await tester.pump();
+      expect(publish().onPressed, isNull);
+      await tester.enterText(
+        find.byKey(AnnouncementComposer.enKey),
+        'Announcement',
+      );
+      await tester.pump();
+      expect(publish().onPressed, isNotNull);
+      await tester.ensureVisible(find.byKey(AnnouncementComposer.publishKey));
+      await tester.tap(find.byKey(AnnouncementComposer.publishKey));
+      await tester.pumpAndSettle();
+      expect(repo.announcements.single, {
+        'key': isA<String>(),
+        'ar': 'إعلان',
+        'en': 'Announcement',
+        'media': <String>[],
+      });
+      expect(
+        find.text('نُشر الإعلان، ويصل الإشعار للجميع خلال دقائق.'),
+        findsOneWidget,
+      );
+      await _end(tester);
+    });
 
-    testWidgets(
+    testD301(
       'a bilingual announcement is edited with both texts, no new notification',
       (tester) async {
         final ar = d301Repo(ar: true)
@@ -852,8 +1283,11 @@ void main() {
             }),
           ];
         await pumpOwnerOwn(tester, language: AppLanguage.en, repo: ar);
-        await _scrollTo(tester, find.byKey(OfficialPostRow.editKey('pb')));
-        await tester.tap(find.byKey(OfficialPostRow.editKey('pb')));
+        await _scrollTo(
+          tester,
+          find.byKey(OfficialAnnouncementsFeed.editKey('pb')),
+        );
+        await tester.tap(find.byKey(OfficialAnnouncementsFeed.editKey('pb')));
         await tester.pumpAndSettle();
         expect(find.text('Editing sends no new notification.'), findsOneWidget);
         expect(
@@ -898,7 +1332,7 @@ void main() {
 
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
-      testWidgets('${language.name}: the feed starts with the announcement '
+      testD301('${language.name}: the feed starts with the announcement '
           'and its «رسمي» label', (tester) async {
         await pumpFeedTop(tester, language: language);
         final top = tester.getRect(find.byType(FeedPostTile).first);
@@ -916,7 +1350,7 @@ void main() {
         await _end(tester);
       });
 
-      testWidgets(
+      testD301(
         '${language.name}: the notification reads the app language caption',
         (tester) async {
           await pumpScreen(
@@ -961,7 +1395,7 @@ void main() {
       );
     }
 
-    testWidgets(
+    testD301(
       'the dashboard says what counts as income, and other currencies apart',
       (tester) async {
         final repo = d301Repo(ar: true)
@@ -1022,7 +1456,7 @@ void main() {
       return (repo, media);
     }
 
-    testWidgets('Arabic set (24 s), English none; choose uploads a '
+    testD301('Arabic set (24 s), English none; choose uploads a '
         'PROFILE_COVER_VIDEO and sets it; remove removes', (tester) async {
       final (repo, media) = await pumpEditor(
         tester,
@@ -1040,7 +1474,7 @@ void main() {
       expect(repo.calls, contains('removeVideo:ar'));
     });
 
-    testWidgets('a video longer than 60 s is refused before any upload', (
+    testD301('a video longer than 60 s is refused before any upload', (
       tester,
     ) async {
       final (repo, media) = await pumpEditor(
@@ -1092,7 +1526,7 @@ void main() {
       return repo;
     }
 
-    testWidgets('the owner marks his post official; the label shows', (
+    testD301('the owner marks his post official; the label shows', (
       tester,
     ) async {
       final repo = await pumpTile(tester, owner: true);
@@ -1106,7 +1540,7 @@ void main() {
       expect(find.text('إزالة من الإعلانات الرسمية'), findsOneWidget);
     });
 
-    testWidgets('nobody else sees it (not the owner, or not his post)', (
+    testD301('nobody else sees it (not the owner, or not his post)', (
       tester,
     ) async {
       await pumpTile(tester, owner: false);
@@ -1117,7 +1551,7 @@ void main() {
     });
   });
 
-  testWidgets('the «رسمي» label', (tester) async {
+  testD301('the «رسمي» label', (tester) async {
     await pumpScreen(
       tester,
       const Scaffold(body: Center(child: OfficialPostLabel())),
@@ -1141,7 +1575,7 @@ void main() {
     }
 
     for (final brightness in Brightness.values) {
-      testWidgets('visitor ar ${brightness.name}', (tester) async {
+      testD301('visitor ar ${brightness.name}', (tester) async {
         await pumpOwnerVisitor(
           tester,
           language: AppLanguage.ar,
@@ -1150,7 +1584,7 @@ void main() {
         await capture(tester, 'visitor.ar.${brightness.name}');
         await _end(tester);
       });
-      testWidgets('own ar ${brightness.name}', (tester) async {
+      testD301('own ar ${brightness.name}', (tester) async {
         await pumpOwnerOwn(
           tester,
           language: AppLanguage.ar,
@@ -1160,12 +1594,12 @@ void main() {
         await _end(tester);
       });
     }
-    testWidgets('visitor en light', (tester) async {
+    testD301('visitor en light', (tester) async {
       await pumpOwnerVisitor(tester, language: AppLanguage.en);
       await capture(tester, 'visitor.en.light');
       await _end(tester);
     });
-    testWidgets('own en dark', (tester) async {
+    testD301('own en dark', (tester) async {
       await pumpOwnerOwn(
         tester,
         language: AppLanguage.en,
@@ -1175,7 +1609,7 @@ void main() {
       await _end(tester);
     });
     for (final brightness in Brightness.values) {
-      testWidgets('journey ar ${brightness.name}', (tester) async {
+      testD301('journey ar ${brightness.name}', (tester) async {
         await pumpOwnerVisitor(
           tester,
           language: AppLanguage.ar,
@@ -1186,20 +1620,25 @@ void main() {
         await _end(tester);
       });
     }
-    testWidgets('announcements ar light', (tester) async {
-      await pumpOwnerVisitor(tester, language: AppLanguage.ar);
-      await _scrollTo(
-        tester,
-        find.byKey(OfficialAnnouncementsCard.cardKey),
-        at: 140,
-      );
-      await capture(tester, 'announcements.ar.light');
-      await tester.tap(find.byKey(OfficialAnnouncementsCard.seeAllKey));
-      await tester.pumpAndSettle();
-      await capture(tester, 'announcements.all.ar.light');
-      await _end(tester);
-    });
-    testWidgets('dashboard details ar dark', (tester) async {
+    for (final language in AppLanguage.values) {
+      testD301('announcements ${language.name} light', (tester) async {
+        await pumpOwnerVisitor(tester, language: language);
+        await _scrollTo(
+          tester,
+          find.byKey(OfficialAnnouncementsFeed.sectionKey),
+          at: 140,
+        );
+        await capture(tester, 'announcements.${language.name}.light');
+        await _scrollTo(
+          tester,
+          find.byKey(OfficialAnnouncementsFeed.cardKey('o3')),
+          at: 140,
+        );
+        await capture(tester, 'announcements.${language.name}.light.more');
+        await _end(tester);
+      });
+    }
+    testD301('dashboard details ar dark', (tester) async {
       await pumpOwnerOwn(
         tester,
         language: AppLanguage.ar,
@@ -1214,7 +1653,7 @@ void main() {
       await _end(tester);
     });
     for (final kind in ['feature', 'report']) {
-      testWidgets('feedback sheet ar $kind', (tester) async {
+      testD301('feedback sheet ar $kind', (tester) async {
         await pumpOwnerVisitor(tester, language: AppLanguage.ar);
         await tester.tap(find.byKey(OwnerVisitorActions.feedbackKey));
         await tester.pumpAndSettle();
@@ -1241,17 +1680,17 @@ void main() {
       });
     }
     for (final language in AppLanguage.values) {
-      testWidgets('feed top ${language.name}', (tester) async {
+      testD301('feed top ${language.name}', (tester) async {
         await pumpFeedTop(tester, language: language);
         await capture(tester, 'feedtop.${language.name}.light');
         await _end(tester);
       });
-      testWidgets('composer ${language.name}', (tester) async {
+      testD301('composer ${language.name}', (tester) async {
         await pumpComposer(tester, language: language);
         await capture(tester, 'announcement.composer.${language.name}.light');
         await _end(tester);
       });
-      testWidgets('notification ${language.name}', (tester) async {
+      testD301('notification ${language.name}', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         await pumpScreen(
           tester,
@@ -1289,7 +1728,7 @@ void main() {
         await _end(tester);
       });
     }
-    testWidgets('journey editor ar light', (tester) async {
+    testD301('journey editor ar light', (tester) async {
       await pumpOwnerOwn(tester, language: AppLanguage.ar);
       await _scrollTo(tester, find.byKey(JourneySection.editKey));
       await tester.tap(find.byKey(JourneySection.editKey));

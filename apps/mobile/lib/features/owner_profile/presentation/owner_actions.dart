@@ -21,9 +21,9 @@ Widget? ownerCoverVideoFor(BuildContext context, PublicProfile profile) {
 }
 
 /// v1.95-social (D301, §10.112.6): the visitor's row on the app owner's page
-/// — «متابعة المؤسس» (Kabso red; «تتابع المؤسس» / «تم الطلب» once done, a
-/// tap asks before undoing), «اقترح ميزة / أبلغ عن موظف» (gold) and the more
-/// button.
+/// — «متابعة المؤسس» (Kabso red, no shadow since D307; «تتابع المؤسس» / «تم الطلب» once done, a
+/// tap asks before undoing), «اقترح ميزة / أبلغ عن موظف» (gold; D307, owner:
+/// «اجعله فقط بإطار مفرغ» — an outline only, no fill) and the more button.
 class OwnerVisitorActions extends StatelessWidget {
   const new({
     required this.following,
@@ -56,15 +56,8 @@ class OwnerVisitorActions extends StatelessWidget {
             : const LinearGradient(
                 colors: [KBrandColors.red400, KBrandColors.red600],
               ),
-        boxShadow: done
-            ? null
-            : const [
-                BoxShadow(
-                  color: Color(0x40E50914),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
-                ),
-              ],
+        // D307 (owner: «ازل الظلال الذي اسفل زر متابعة المؤسس»): no shadow
+        // or glow under it, in either state.
       ),
       child: done
           ? OutlinedButton.icon(
@@ -101,7 +94,8 @@ class OwnerVisitorActions extends StatelessWidget {
         foregroundColor: Theme.of(context).brightness == Brightness.dark
             ? KBrandColors.gold
             : const Color(0xFF9A6B00),
-        backgroundColor: KBrandColors.gold.withValues(alpha: 0.10),
+        // D307: outline only (the page shows through), in both themes.
+        backgroundColor: const Color(0x00000000),
         side: BorderSide(color: KBrandColors.gold.withValues(alpha: 0.85)),
         shape: shape,
         padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),

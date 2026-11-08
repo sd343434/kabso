@@ -27142,11 +27142,41 @@ abstract class AppLocalizations {
   /// **'أُزيل فيديو الغلاف'**
   String get ownerCoverVideoRemoved;
 
-  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The pill on the video cover.
+  /// D307: the founder's page (§10.112.11). The founder's default bio when he has set none for this language.
   ///
   /// In ar, this message translates to:
-  /// **'فيديو'**
-  String get ownerCoverVideoPill;
+  /// **'مؤسس Kabso Live. بنيتُ هذه المنصة لتجمعنا في البث والمحتوى ومجتمع واحد. اقتراحاتكم تصلني مباشرة، فشاركوني أفكاركم.'**
+  String get ownerBioDefault;
+
+  /// D307: the founder's page (§10.112.11). The bio editor's title and its button in «لوحة المؤسس».
+  ///
+  /// In ar, this message translates to:
+  /// **'بايو المؤسس'**
+  String get ownerBioTitle;
+
+  /// D307: the founder's page (§10.112.11). The bio editor's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر لكل زائر بلغة تطبيقه. اترك الحقل فارغاً ليظهر النص الافتراضي.'**
+  String get ownerBioHint;
+
+  /// D307: the founder's page (§10.112.11). The Arabic field's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'بالعربية'**
+  String get ownerBioArabic;
+
+  /// D307: the founder's page (§10.112.11). The English field's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'بالإنجليزية'**
+  String get ownerBioEnglish;
+
+  /// D307: the founder's page (§10.112.11). Snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ البايو'**
+  String get ownerBioSaved;
 
   /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Spoken label.
   ///

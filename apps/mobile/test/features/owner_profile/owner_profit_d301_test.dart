@@ -33,7 +33,7 @@ import '../../helpers/fake_owner_profile_repository.dart';
 import '../../helpers/golden.dart';
 import '../profile/profile_cover_d278_test.dart' show coverBytes;
 import 'owner_profile_d301_test.dart'
-    show d301Now, d301Poster, d301Repo, pumpOwnerOwn;
+    show d301Now, d301Poster, d301Repo, pumpOwnerOwn, testD301;
 
 /// The owner's dashboard details, opened (and «قبل» expanded when [expand]).
 Future<FakeOwnerProfileRepository> pumpProfitDetails(
@@ -170,7 +170,7 @@ void main() {
   for (final language in AppLanguage.values) {
     final l10n = lookupAppLocalizations(language.locale);
     group('«الربح» (${language.name})', () {
-      testWidgets('the card: before → after, blurred until tapped', (
+      testD301('the card: before → after, blurred until tapped', (
         tester,
       ) async {
         await pumpOwnerOwn(tester, language: language);
@@ -194,7 +194,7 @@ void main() {
         await _end(tester);
       });
 
-      testWidgets('the day: before, every deduction, fixed costs, after', (
+      testD301('the day: before, every deduction, fixed costs, after', (
         tester,
       ) async {
         await pumpProfitDetails(tester, language: language);
@@ -264,7 +264,7 @@ void main() {
         await _end(tester);
       });
 
-      testWidgets('the month to date, and a loss in red', (tester) async {
+      testD301('the month to date, and a loss in red', (tester) async {
         final repo = d301Repo(ar: language == AppLanguage.ar)
           ..profitData = ownerProfit(loss: true);
         await pumpProfitDetails(
@@ -288,7 +288,7 @@ void main() {
         await _end(tester);
       });
 
-      testWidgets('a past day can be picked', (tester) async {
+      testD301('a past day can be picked', (tester) async {
         final repo = await pumpProfitDetails(
           tester,
           language: language,
@@ -311,7 +311,7 @@ void main() {
         await _end(tester);
       });
 
-      testWidgets('a failure says so, with a retry (no made-up numbers)', (
+      testD301('a failure says so, with a retry (no made-up numbers)', (
         tester,
       ) async {
         final repo = d301Repo(ar: language == AppLanguage.ar)
@@ -331,7 +331,7 @@ void main() {
         await _end(tester);
       });
 
-      testWidgets('«تكاليف ثابتة»: list, add, edit, delete', (tester) async {
+      testD301('«تكاليف ثابتة»: list, add, edit, delete', (tester) async {
         final repo = await pumpCostsEditor(tester, language: language);
         expect(find.byKey(FixedCostsSheet.sheetKey), findsOneWidget);
         for (final c in ownerFixedCosts) {
@@ -411,7 +411,7 @@ void main() {
 
     for (final language in AppLanguage.values) {
       final lang = language.name;
-      testWidgets('card $lang', (tester) async {
+      testD301('card $lang', (tester) async {
         await pumpOwnerOwn(tester, language: language);
         await tester.tap(find.byKey(FounderProfitStrip.stripKey));
         await tester.pump();
@@ -419,7 +419,7 @@ void main() {
         await _end(tester);
       });
       for (final brightness in Brightness.values) {
-        testWidgets('day $lang ${brightness.name}', (tester) async {
+        testD301('day $lang ${brightness.name}', (tester) async {
           await pumpProfitDetails(
             tester,
             language: language,
@@ -429,7 +429,7 @@ void main() {
           await _end(tester);
         });
       }
-      testWidgets('month loss $lang', (tester) async {
+      testD301('month loss $lang', (tester) async {
         final repo = d301Repo(ar: language == AppLanguage.ar)
           ..profitData = ownerProfit(loss: true);
         await pumpProfitDetails(
@@ -450,7 +450,7 @@ void main() {
         await capture(tester, 'profit.month.loss.$lang.light');
         await _end(tester);
       });
-      testWidgets('costs $lang', (tester) async {
+      testD301('costs $lang', (tester) async {
         await pumpCostsEditor(tester, language: language);
         await capture(tester, 'profit.costs.$lang.light');
         await withClock(Clock.fixed(d301Now), () async {

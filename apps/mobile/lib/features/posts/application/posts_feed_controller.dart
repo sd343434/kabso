@@ -17,7 +17,10 @@ import 'package:material_ui/material_ui.dart';
 /// ratio sizes the media), and a post with several photos carries all of
 /// them. Images load from the media CDN. D162: a video post (or a reel)
 /// shows its poster and plays its file in place.
-FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
+///
+/// [text] replaces the post's own text (D307: an official announcement's
+/// caption in the app's language, from `Post.texts`).
+FeedPostData feedPostOf(Post post, {UserSummary? repostedBy, String? text}) {
   final cover = post.media.isEmpty ? null : post.media.first;
   final video = post.video;
   return FeedPostData(
@@ -34,7 +37,7 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
     },
     postedAt: post.publishedAt ?? post.createdAt,
     location: post.location,
-    text: post.text,
+    text: text ?? post.text,
     media: cover == null ? null : NetworkImage(cover.coverUrl),
     isVideo: video != null,
     videoUrl: video?.url,

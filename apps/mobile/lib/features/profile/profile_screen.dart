@@ -171,10 +171,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
       // D301 (§10.112.6): the app owner's own page — «لوحة المؤسس» (خاص),
       // «إعلانات رسمية» and «رحلة Kabso» with «تعديل».
-      if (profile.kabsoOwner)
+      if (profile.kabsoOwner) ...[
         SliverToBoxAdapter(
           child: OwnerProfileSections(profile: profile, own: true),
         ),
+        // D307 follow-up: the announcements in full after «رحلة Kabso».
+        OfficialAnnouncementsFeed(username: profile.username, own: true),
+      ],
     ];
   }
 
@@ -273,19 +276,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // D278: the cover runs under the bar; the tabs pin under it.
                 const ProfileCoverBarSpace(),
                 ..._ownHeader(value),
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: ProfileTabsDelegate(
-                    tabs: ProfileTab.values,
-                    tab: _tab,
-                    background: p.background,
-                    // Owner (D218, «وحدهما»): the public profile's words, plus
-                    // «محفوظات» (only you see what you saved).
-                    text: true,
-                    onSelect: (t) => setState(() => _tab = t),
+                // D307 follow-up (owner: «في صفحة المؤسس لا تحتوي ريلز او
+                // بوست او اي اعادة»): the founder's page ends with «رحلة
+                // Kabso» — no tabs, no grid (not even «محفوظات»).
+                if (!(ref
+                        .watch(profileStatsProvider(value.username))
+                        .value
+                        ?.kabsoOwner ??
+                    false)) ...[
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: ProfileTabsDelegate(
+                      tabs: ProfileTab.values,
+                      tab: _tab,
+                      background: p.background,
+                      // Owner (D218, «وحدهما»): the public profile's words,
+                      // plus «محفوظات» (only you see what you saved).
+                      text: true,
+                      onSelect: (t) => setState(() => _tab = t),
+                    ),
                   ),
-                ),
-                ProfileGrid(username: value.username, tab: _tab, own: true),
+                  ProfileGrid(username: value.username, tab: _tab, own: true),
+                ] else
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: KSpacing.xl),
+                  ),
               ],
             ),
           ),

@@ -89,6 +89,13 @@ export class OwnerProfileController {
     return this.announcements.update(auth.userId, postId, body, meta(req));
   }
 
+  /** v1.98-social (D307, §10.112.11): the owner's bilingual bio (owner only: 403 `OWNER_ONLY`). */
+  @Put('owner/bio')
+  @HttpCode(200)
+  setBio(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest, @Body() body: unknown) {
+    return this.owner.setBio(auth.userId, body, meta(req));
+  }
+
   @Put('me/cover-video/:lang')
   @HttpCode(200)
   setCoverVideo(

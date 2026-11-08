@@ -16084,7 +16084,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ownerCoverVideoRemoved => 'أُزيل فيديو الغلاف';
 
   @override
-  String get ownerCoverVideoPill => 'فيديو';
+  String get ownerBioDefault =>
+      'مؤسس Kabso Live. بنيتُ هذه المنصة لتجمعنا في البث والمحتوى ومجتمع واحد. اقتراحاتكم تصلني مباشرة، فشاركوني أفكاركم.';
+
+  @override
+  String get ownerBioTitle => 'بايو المؤسس';
+
+  @override
+  String get ownerBioHint =>
+      'يظهر لكل زائر بلغة تطبيقه. اترك الحقل فارغاً ليظهر النص الافتراضي.';
+
+  @override
+  String get ownerBioArabic => 'بالعربية';
+
+  @override
+  String get ownerBioEnglish => 'بالإنجليزية';
+
+  @override
+  String get ownerBioSaved => 'تم حفظ البايو';
 
   @override
   String get ownerCoverVideoPlay => 'تشغيل فيديو الغلاف';
