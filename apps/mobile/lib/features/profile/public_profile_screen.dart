@@ -376,12 +376,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   /// D278: the action row over the cover — «متابعة» in Kabso red (or
   /// متابَع / تم الطلب / إلغاء الحظر), the chat button (the conversation)
   /// and the more button (the same sheet as the bar's dots); your own
-  /// profile gets Edit profile.
+  /// profile gets Edit profile. D316: «متابعة» / «مراسلة» pills and the
+  /// round ⋯ under the centred header (the founder's page keeps D301).
   Widget _actions(PublicProfile profile) {
     final l10n = context.l10n;
     final p = context.palette;
-    final quiet = ProfileCoverButtons.quiet(context);
-    final strong = ProfileCoverButtons.primary(context);
+    final quiet = ProfileCoverButtons.pill(context);
+    final strong = ProfileCoverButtons.pillPrimary(context);
     if (profile.isSelf) {
       return SizedBox(
         width: double.infinity,
@@ -445,54 +446,44 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             onPressed: profile.canFollowOrRequest
                 ? () => _setFollowing(follow: true)
                 : null,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.add_rounded, size: KMetrics.iconMd - 2),
-                  const SizedBox(width: KSpacing.xxs),
-                  Text(l10n.liveFollow, maxLines: 1),
-                ],
-              ),
-            ),
+            child: ProfileCoverButtons.label(l10n.liveFollow),
           );
+    // D316 (the owner's reference: «Message» / «Request» / ⋮): «متابعة»
+    // and «مراسلة» as two equal pills, then the round ⋯ (the bar's sheet).
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: main),
         if (!profile.blockedByMe) ...[
           const SizedBox(width: KSpacing.sm),
-          // D278 (owner: «وايقونات دردشة والشات»): the chat on the cover.
-          ProfileCoverButtons.square(
-            context: context,
-            key: PublicProfileScreen.messageKey,
-            tooltip: l10n.profileMessage,
-            icon: AppIcon(
-              AppIcons.inbox,
-              size: KMetrics.iconMd - 2,
-              color: p.textPrimary,
-            ),
-            onPressed: () => context.push(
-              AppRoutes.chat(profile.username),
-              extra: (
-                displayName: profile.displayName,
-                premiumTier: profile.premiumTier,
+          Expanded(
+            child: OutlinedButton(
+              key: PublicProfileScreen.messageKey,
+              style: quiet,
+              onPressed: () => context.push(
+                AppRoutes.chat(profile.username),
+                extra: (
+                  displayName: profile.displayName,
+                  premiumTier: profile.premiumTier,
+                ),
               ),
+              child: ProfileCoverButtons.label(l10n.profileMessage),
             ),
           ),
         ],
         const SizedBox(width: KSpacing.sm),
-        ProfileCoverButtons.square(
-          context: context,
+        // D316: the page's only ⋯ (the bar has none): [_openMore] — copy,
+        // mute, block, report (and what else that sheet offers). Found by
+        // both [PublicProfileScreen.moreKey] (the bar's key before) and
+        // [PublicProfileScreen.dropdownKey].
+        KeyedSubtree(
           key: PublicProfileScreen.dropdownKey,
-          tooltip: l10n.feedPostMore,
-          icon: AppIcon(
-            AppIcons.chevronDown,
-            size: KMetrics.iconMd - 2,
-            color: p.textPrimary,
+          child: ProfileCoverButtons.round(
+            context: context,
+            key: PublicProfileScreen.moreKey,
+            tooltip: l10n.feedPostMore,
+            onPressed: () => _openMore(profile),
           ),
-          onPressed: () => _openMore(profile),
         ),
       ],
     );
@@ -525,39 +516,52 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     // and the three dots) over the full-bleed cover: no background and the
     // buttons on translucent circles until the cover has scrolled away.
     final solid = _solid || load.value == null;
+    // D316: on every profile but the founder's (no cover under the bar), the
+    // bar's buttons and title take the theme's colours from the start.
+    final faint = !(load.value?.kabsoOwner ?? false);
+    final themed = solid || faint;
     return Scaffold(
       backgroundColor: p.background,
       extendBodyBehindAppBar: true,
       appBar: ProfileCoverBar(
         solid: solid,
+        faint: faint,
         // D299d (owner: «اليوزر اجعله في أعلى الصفحة»): the @username at
         // the top over the cover too (D146: a premium one with its badge;
         // D283c: a staff account's «ID: Kabso01»).
         title: ProfileCoverHandle(
-          solid: solid,
+          solid: themed,
+          start: faint,
           username: load.value?.username ?? widget.username,
           tier: load.value?.premiumTier,
           staffId: load.value?.staffId,
         ),
+        // D316 (owner: «أزل الثلاث نقاط من الأعلى لأنها موجودة بجانب
+        // مراسلة»): the bar's ⋯ only on the founder's page (D301 / D307) and
+        // on your own page seen from here (it has no round ⋯); everyone
+        // else's ⋯ is the round button beside «مراسلة» (the same sheet,
+        // [_openMore], and the same [PublicProfileScreen.moreKey]).
         actions: [
-          IconButton(
-            key: PublicProfileScreen.moreKey,
-            tooltip: l10n.feedPostMore,
-            // Needs the loaded profile (its id and whether it is you).
-            onPressed: switch (load) {
-              AsyncValue(:final value?) => () => _openMore(value),
-              _ => null,
-            },
-            // D292: a plain glyph with a soft shadow over the cover.
-            icon: ProfileCoverBar.glyph(
-              solid: solid,
-              child: AppIcon(
-                AppIcons.moreHoriz,
-                size: KMetrics.iconMd,
-                color: solid ? p.textPrimary : KPalette.dark.textPrimary,
+          if (load.value case final value?
+              when value.kabsoOwner || value.isSelf)
+            IconButton(
+              key: PublicProfileScreen.moreKey,
+              tooltip: l10n.feedPostMore,
+              // Needs the loaded profile (its id and whether it is you).
+              onPressed: switch (load) {
+                AsyncValue(:final value?) => () => _openMore(value),
+                _ => null,
+              },
+              // D292: a plain glyph with a soft shadow over the cover.
+              icon: ProfileCoverBar.glyph(
+                solid: themed,
+                child: AppIcon(
+                  AppIcons.moreHoriz,
+                  size: KMetrics.iconMd,
+                  color: themed ? p.textPrimary : KPalette.dark.textPrimary,
+                ),
               ),
             ),
-          ),
         ],
       ),
       // Until the profile is read, the states sit under the bar.

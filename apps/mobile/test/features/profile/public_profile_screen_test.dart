@@ -66,27 +66,32 @@ Future<FakeProfileRepository> _pump(
 }
 
 void main() {
-  testWidgets('header from GET /users/{username} (D278 layout): the tall '
-      'full-bleed cover (or the Kabso gradient) from the top under our top '
-      'buttons (dots; the @username once scrolled); over its lower part the '
-      'photo with the live ring and badge (a tap opens the room), the name, '
-      'the @username, the level badges, the counts, a red Follow, chat and '
-      'more; the bio under the cover', (tester) async {
+  testWidgets('header from GET /users/{username} (D316 layout): no cover; '
+      'back and the @username in the bar; the photo with the live ring and '
+      'badge (a tap opens the room), the name and the level badges centred; '
+      'then the bio, the counts, Follow and Message pills and a round more', (
+    tester,
+  ) async {
     final repo = await _pump(tester);
     expect(repo.calls, ['GET host0']);
     expect(find.text(KHandle.isolated('host0')), findsNothing);
-    // D299d: the @username once, at the top (the bar's title).
-    expect(find.text('@host0'), findsOneWidget);
+    // D299d: the @username at the top (the bar's title); D316 (owner:
+    // «اليوزر الذي أسفل الاسم أزله لأنه موجود بالأعلى»): only there.
+    expect(
+      find.descendant(
+        of: find.byKey(ProfileCoverHeader.handleKey),
+        matching: find.text('@host0'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('@host0'), findsOneWidget);
     expect(find.text('Sara'), findsOneWidget);
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
     final handle = tester.getRect(find.byKey(ProfileCoverHeader.handleKey));
     expect(handle.bottom, lessThanOrEqualTo(name.top));
-    // D278b: the level badges on the name's line, above the @username.
-    final nameRow = tester.getRect(find.byKey(ProfileCoverHeader.nameRowKey));
+    // D316: the level badges right under the name.
     final levels = tester.getRect(find.byKey(PublicProfileScreen.levelsKey));
-    expect(levels.top, greaterThanOrEqualTo(nameRow.top - 0.5));
-    expect(levels.bottom, lessThanOrEqualTo(nameRow.bottom + 0.5));
-    expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
+    expect(levels.top, greaterThanOrEqualTo(name.bottom));
     expect(find.byType(LivePkRecordLine), findsNothing);
     expect(find.text('Arabic music every evening'), findsOneWidget);
     // D278b: the person card's short numbers.
@@ -95,8 +100,9 @@ void main() {
     final avatar = tester.widget<KAvatar>(find.byType(KAvatar).first);
     expect(avatar.ring, KAvatarRing.live);
     expect(find.byType(KBadge), findsOneWidget);
-    // Our top bar (owner: «استخدم ازراري»): the three dots in the app bar,
-    // no background over the cover.
+    // Our top bar, no background over the cover; D316 (owner: «أزل الثلاث
+    // نقاط من الأعلى لأنها موجودة بجانب مراسلة»): no ⋯ in the bar — the
+    // round ⋯ beside «مراسلة» carries its key and sheet.
     final bar = find.byType(AppBar);
     expect(bar, findsOneWidget);
     expect(
@@ -104,51 +110,46 @@ void main() {
         of: bar,
         matching: find.byKey(PublicProfileScreen.moreKey),
       ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(ProfileCoverHeader.actionsKey),
+        matching: find.byKey(PublicProfileScreen.moreKey),
+      ),
       findsOneWidget,
     );
     expect(tester.widget<AppBar>(bar).backgroundColor, Colors.transparent);
-    // No cover yet: the Kabso gradient, from the very top, full width.
-    expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsOneWidget);
-    final cover = tester.getRect(
-      find.byKey(PublicProfileScreen.coverFallbackKey),
-    );
-    expect(cover.top, 0);
-    expect(cover.width, 393);
-    expect(
-      cover.height,
-      KPublicProfile.coverHeightFor(tester.getRect(bar).bottom),
-    );
-    // D299: the photo (here with the live ring and badge) wholly on the
-    // picture; the name beside it on the picture.
+    // D316 (owner: «بدون غلاف»): no cover and no fallback gradient; the
+    // photo and the name block on the plain page.
+    expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsNothing);
+    expect(find.byKey(PublicProfileScreen.coverKey), findsNothing);
+    final cover = tester.getRect(find.byKey(ProfileCoverHeader.topBlockKey));
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-    expect(photo.top, greaterThan(cover.top));
+    expect(photo.top, greaterThanOrEqualTo(tester.getRect(bar).bottom));
+    expect(photo.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
     expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
-    expect(name.bottom, lessThanOrEqualTo(cover.bottom));
-    expect(name.overlaps(photo), isFalse);
-    // D299c: the bio in the header under the numbers and buttons.
+    expect(name.top, greaterThan(photo.bottom));
+    expect(name.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+    expect(levels.bottom, lessThanOrEqualTo(cover.bottom));
+    // D316: the bio under the badges, then the numbers, then the buttons.
     final bio = tester.getRect(find.text('Arabic music every evening'));
-    expect(
-      bio.top,
-      greaterThanOrEqualTo(
-        tester.getRect(find.byKey(ProfileScreen.statsKey)).bottom,
-      ),
-    );
-    expect(
-      bio.bottom,
-      lessThanOrEqualTo(
-        tester.getRect(find.byKey(ProfileCoverHeader.headerKey)).bottom,
-      ),
-    );
+    final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
+    expect(bio.top, greaterThanOrEqualTo(levels.bottom));
+    expect(stats.top, greaterThanOrEqualTo(bio.bottom));
     expect(find.byKey(PublicProfileScreen.followKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.watchLiveKey), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileWatchLive), findsWidgets);
     expect(find.text(_en.liveFollow), findsOneWidget);
-    // D278: Follow fills the row; chat and more are squares after it.
+    expect(find.text(_en.profileMessage), findsOneWidget);
+    // D316: Follow and Message two equal pills, then the round more.
     final follow = tester.getRect(find.byKey(PublicProfileScreen.followKey));
     final message = tester.getRect(find.byKey(PublicProfileScreen.messageKey));
     final more = tester.getRect(find.byKey(PublicProfileScreen.dropdownKey));
-    expect(message.width, moreOrLessEquals(message.height, epsilon: 0.5));
-    expect(follow.width, greaterThan(2 * message.width));
+    expect(follow.top, greaterThanOrEqualTo(stats.bottom));
+    expect(follow.height, KPublicProfile.centredButtonHeight);
+    expect(follow.width, moreOrLessEquals(message.width, epsilon: 0.5));
+    expect(more.width, moreOrLessEquals(more.height, epsilon: 0.5));
     expect(follow.right, lessThan(message.left));
     expect(message.right, lessThan(more.left));
     expect(
@@ -316,12 +317,12 @@ void main() {
     expect(find.text(_en.profileNotFoundTitle), findsOneWidget);
   });
 
-  testWidgets('RTL: the photo at the right, Follow at the reading start', (
+  testWidgets('RTL (D316): the photo centred, Follow at the reading start', (
     tester,
   ) async {
     await _pump(tester, language: AppLanguage.ar);
     final avatar = tester.getRect(find.byType(KAvatar).first);
-    expect(avatar.center.dx, greaterThan(393 / 2));
+    expect(avatar.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
     final follow = tester.getRect(find.byKey(PublicProfileScreen.followKey));
     final message = tester.getRect(find.byKey(PublicProfileScreen.messageKey));
     expect(follow.left, greaterThan(message.right));
