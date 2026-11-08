@@ -8,6 +8,7 @@ import {
   GIFT_ASSET_KEY_PATTERN,
   GIFT_CATEGORY_CODE_PATTERN,
   GIFT_CODE_PATTERN,
+  GIFT_MAX_PRICE,
 } from '../gifts/gift-catalogue.js';
 import { GIFT_CATEGORY_ICON_KEY_PATTERN } from '../gifts/gift-categories.js';
 import { EVENT_METRICS, EVENT_TONES } from '../programs/event-admin-rules.js';
@@ -138,7 +139,8 @@ const giftFields = {
   category: z.string().regex(GIFT_CATEGORY_CODE_PATTERN),
   nameAr: name,
   nameEn: name,
-  priceCoins: z.number().int().min(0).max(1_000_000),
+  // v1.91-live (D323): up to 100 000 000 coins (`gifts_price_range`).
+  priceCoins: z.number().int().min(0).max(GIFT_MAX_PRICE),
   assetKey,
   animationKey: assetKey.nullable(),
   sortOrder: z.number().int().min(-100_000).max(100_000),

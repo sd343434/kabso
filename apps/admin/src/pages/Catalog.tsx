@@ -19,6 +19,15 @@ import { BannerForm, placementLabelKey } from './BannerForm';
 import { GiftEventForm, GiftEventResults } from './GiftEventForm';
 import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
+/**
+ * v1.91-live (D323, owner: «تاج الافتتاح» at 3 000 000 coins): a gift's price is 0 … 100 000 000 coins (0: a free
+ * quip), as the server (`gifts_price_range`) — was 1 000 000.
+ */
+export const GIFT_PRICE_MAX = 100_000_000;
+
+/** The «السعر بالعملات» input's attributes (the browser's own check uses `max`). */
+export const giftPriceInputProps = { type: 'number', min: 0, max: GIFT_PRICE_MAX, step: 1, className: 'num' } as const;
+
 export interface GiftDto {
   code: string;
   category: string;
@@ -194,7 +203,7 @@ export function giftBody(form: Record<string, string>, before: GiftDto | null): 
   return out;
 }
 
-function GiftForm({
+export function GiftForm({
   gift,
   categories,
   uploads,
@@ -298,7 +307,7 @@ function GiftForm({
         )}
         {input('nameAr', 'giftNameAr', { maxLength: 60, dir: 'rtl' })}
         {input('nameEn', 'giftNameEn', { maxLength: 60, dir: 'ltr' })}
-        {input('priceCoins', 'giftPrice', { type: 'number', min: 0, max: 1000000, className: 'num' })}
+        {input('priceCoins', 'giftPrice', { ...giftPriceInputProps })}
         {input('assetKey', 'giftAssetKey', { className: 'ltr mono', maxLength: 80 })}
         {input('animationKey', 'giftAnimationKey', { className: 'ltr mono', maxLength: 80 })}
         {input('sortOrder', 'giftSort', { type: 'number' })}

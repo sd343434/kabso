@@ -225,7 +225,8 @@ async function giftSumsIn(
            count(*)::int AS sends
       FROM (
         SELECT gr.coins,
-               CASE WHEN g.total_coins > 0 THEN (gr.coins * g.coins_charged) / g.total_coins ELSE 0 END AS charged,
+               -- D323: in numeric — a recipient's coins × the send's charge can pass BIGINT (e.g. 1.3e11 × 3.3e12).
+               CASE WHEN g.total_coins > 0 THEN div(gr.coins::numeric * g.coins_charged, g.total_coins) ELSE 0 END AS charged,
                EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id) AS lucky,
                COALESCE((SELECT sum(l.delta) FROM cherry_ledger l
                           WHERE l.user_id = gr.user_id AND l.reference_id = g.id::text

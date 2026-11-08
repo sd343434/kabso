@@ -64,9 +64,13 @@ export const GIFT_PK_BOOSTERS: readonly PkBoosterKind[] = [
 export const GIFT_CODE_PATTERN = /^[a-z0-9][a-z0-9_]{0,39}$/;
 /** An app asset key (static image or effect): letters, digits, `_`, `-`, `.`, `/`, 1–80 characters. */
 export const GIFT_ASSET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_./-]{0,79}$/;
-/** `gifts_price_range`. */
+/**
+ * `gifts_price_range`. v1.91-live (D323, owner: a 3 000 000-coin gift «تاج الافتتاح»): at most 100 000 000 coins (was
+ * 1 000 000). The largest send, 100 000 000 × LIVE_GIFT_QUANTITY_MAX (9 999) × 25 recipients ≈ 2.5 × 10^13 coins, keeps
+ * every score (× 100) below 2^53 (`giftAmounts`) and every BIGINT product below 2^63 (CONVENTIONS §10.23).
+ */
 export const GIFT_MIN_PRICE = 1;
-export const GIFT_MAX_PRICE = 1_000_000;
+export const GIFT_MAX_PRICE = 100_000_000;
 /** `user_gift_stock_quantity_range`. */
 export const GIFT_STOCK_MAX = 1_000_000_000;
 /** Names: 1–60 characters after trimming. */

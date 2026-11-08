@@ -4,6 +4,8 @@ import {
   catalogueVersion,
   compareGifts,
   GIFT_CODE_PATTERN,
+  GIFT_MAX_PRICE,
+  GIFT_MIN_PRICE,
   GIFT_TAG_CODE_PATTERN,
   giftFieldProblems,
   giftQuipProblem,
@@ -25,6 +27,11 @@ const quipsMigration = readFileSync(
   'utf8',
 );
 
+// v1.91-live (D323): the latest `gifts_price_range`.
+const priceCapMigration = readFileSync(
+  new URL('../../../prisma/migrations/20270408090700_gift_price_cap/migration.sql', import.meta.url),
+  'utf8',
+);
 const luckyMigration = readFileSync(
   new URL('../../../prisma/migrations/20261127090000_lucky_gifts_enums/migration.sql', import.meta.url),
   'utf8',
@@ -55,6 +62,14 @@ const rose = {
 };
 
 describe('gift catalogue (CP-020)', () => {
+  it('D323: the latest price CHECK matches the API bounds (1 … 100 000 000, a free quip 0)', () => {
+    expect(GIFT_MAX_PRICE).toBe(100_000_000);
+    expect(priceCapMigration).toContain('DROP CONSTRAINT "gifts_price_range"');
+    expect(priceCapMigration).toContain(
+      `price_coins BETWEEN ${String(GIFT_MIN_PRICE)} AND ${String(GIFT_MAX_PRICE)} OR (price_coins = 0 AND category = 'QUIPS')`,
+    );
+  });
+
   it('the migration seeds no gift (the owner supplies the art; an empty catalogue is valid)', () => {
     expect(migration).not.toMatch(/INSERT INTO "?gifts"?/i);
     expect(migration).not.toMatch(/INSERT INTO "?user_gift_stock"?/i);
@@ -74,7 +89,11 @@ describe('gift catalogue (CP-020)', () => {
     expect(giftFieldProblems(rose)).toEqual([]);
     expect(giftFieldProblems({})).toEqual([]);
     expect(giftFieldProblems({ priceCoins: 0 })).toHaveLength(1);
-    expect(giftFieldProblems({ priceCoins: 1_000_001 })).toHaveLength(1);
+    // D323: the cap is 100 000 000 coins (was 1 000 000).
+    expect(giftFieldProblems({ priceCoins: 1_000_001 })).toEqual([]);
+    expect(giftFieldProblems({ priceCoins: 3_000_000 })).toEqual([]);
+    expect(giftFieldProblems({ priceCoins: 100_000_000 })).toEqual([]);
+    expect(giftFieldProblems({ priceCoins: 100_000_001 })).toHaveLength(1);
     expect(giftFieldProblems({ priceCoins: 1.5 })).toHaveLength(1);
     expect(giftFieldProblems({ nameAr: '   ' })).toHaveLength(1);
     expect(giftFieldProblems({ nameEn: 'x'.repeat(61) })).toHaveLength(1);

@@ -25299,7 +25299,8 @@ components:
         priceCoins:
           type: integer
           minimum: 0
-          maximum: 1000000
+          maximum: 100000000
+          description: '(v1.91-live, D323) 1 … 100 000 000 coins (was 1 000 000); 0 only for a free QUIPS gift.'
         assetKey:
           type: string
           maxLength: 80
@@ -25407,7 +25408,8 @@ components:
         priceCoins:
           type: integer
           minimum: 0
-          maximum: 1000000
+          maximum: 100000000
+          description: '(v1.91-live, D323) 1 … 100 000 000 coins (was 1 000 000); 0 only for a free QUIPS gift.'
         assetKey:
           type: string
           maxLength: 80

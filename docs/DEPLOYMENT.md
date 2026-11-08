@@ -3508,3 +3508,18 @@ CONVENTIONS §10.124 (owner 2026-11-08).
   interval '400 days') s GROUP BY 1, 2;`
 - **Order:** API first, then the app (an older app keeps its greyed «قريبًا» tab). **Rollback:** an older API ignores the
   tables; a newer app then gets 400 on `board=RICH` and shows the error text on that tab.
+
+### 5.97 Gift prices up to 100 000 000 coins (migration `20270408090700_gift_price_cap`; D323) — [IMPLEMENTED, draft contract v1.91-live; not deployed]
+
+CONVENTIONS §10.23 (owner 2026-11-08: «تاج الافتتاح» at 3 000 000 coins).
+
+- **Migration:** redefines the CHECK `gifts_price_range` as `price_coins BETWEEN 1 AND 100000000 OR (price_coins = 0
+  AND category = 'QUIPS')` (was 1 000 000). A metadata change on `gifts` (a quick table scan under a short lock); no
+  data change, no new config.
+- **Order:** migration, then the API, then the admin panel (an older panel still stops at 1 000 000 in the browser; an
+  older API refuses more than 1 000 000 with 400). Then the owner creates or edits the gift in «الهدايا».
+- **Also in this release:** the host-target and recruit reports compute a recipient's share of a send's charge in
+  `numeric` (a large send to many recipients made them fail with `bigint out of range`).
+- **Rollback:** an older API keeps working with gifts priced above 1 000 000 (it reads and sends them; only its admin
+  validation refuses such a price on an edit). Re-adding the old CHECK fails while such a gift exists — lower those
+  prices first (`gift-admin update <code> --price …`).
