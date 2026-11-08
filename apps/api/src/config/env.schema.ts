@@ -1150,7 +1150,8 @@ export const envSchema = z
      * v1.54-social (D185, CONVENTIONS §10.48): recharge agents. The first top-up that activates an agent (owner:
      * 30 000 000 coins); the owner's wholesale price tiers `minCoins:minorPerMillion,…` (USD cents per 1 000 000
      * coins: $12.15, from 100M $12.10, from 300M $12.00 — owner 2026-11-07, D306; was $12 / $11.95 / $11.90); the
-     * cherry → coin rate for an agent buying a host's cherries `cherries:coins` (owner: 1 000 000 → 93 220), its
+     * cherry → coin rate for an agent buying a host's cherries `cherries:coins` (owner: 1 000 000 → 94 500, 2026-11-08,
+     * D308; was 93 220), its
      * minimum and step, how long a request stays open, the default daily cap per agent (cherries), the most
      * employees per agent, how long a rejected application's private data is kept, and the sweeper (retention;
      * 0 = off, refused in production).
@@ -1175,9 +1176,9 @@ export const envSchema = z
     RECHARGE_AGENT_CHERRY_RATE: z
       .string()
       .trim()
-      .default('1000000:93220')
+      .default('1000000:94500')
       .refine((v) => /^[1-9][0-9]{0,12}:[1-9][0-9]{0,12}$/.test(v), {
-        message: 'must be cherries:coins, e.g. 1000000:93220',
+        message: 'must be cherries:coins, e.g. 1000000:94500',
       })
       .transform((v) => {
         const [cherries, coins] = v.split(':');

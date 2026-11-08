@@ -522,7 +522,7 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     expect(req.body).toMatchObject({
       status: 'PENDING',
       cherries: 2_000_000,
-      coins: 186_440,
+      coins: 189_000,
       payoutMinor: 220,
       currency: 'USD',
       agentCode: code,
@@ -549,7 +549,7 @@ describe('D185 recharge agents', { timeout: 300_000 }, () => {
     });
     expect(row.delta).toBe(-2_000_000n);
     expect((await me(agent)).agent).toMatchObject({
-      stockCoins: 30_000_000 + 186_440,
+      stockCoins: 30_000_000 + 189_000,
       todayCherries: 2_000_000,
       // Owner follow-up («حد وكيل مفتوح»): no daily cap by default (0 = none).
       dailyCherryCap: 0,
