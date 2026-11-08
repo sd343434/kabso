@@ -45,7 +45,13 @@ export type WalletLedgerReason =
   /** v1.83-social (D258): a VIP's daily coins (reference: the `vip_daily_coin_claims` row). */
   | 'VIP_DAILY_COINS'
   /** D270 (§10.98): a store item bought with coins (reference: the `store_purchases` row). */
-  | 'STORE_PURCHASE';
+  | 'STORE_PURCHASE'
+  /**
+   * v1.100-social (D312, §10.118): a custom gift owner's coin share of a send (reference: the send), and its claw-back
+   * when that send is reversed (reference: the send; the balance may go below 0).
+   */
+  | 'GIFT_OWNER_ROYALTY'
+  | 'GIFT_OWNER_ROYALTY_REVERSAL';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;
@@ -127,6 +133,49 @@ export async function reverseTopupIn(
     RETURNING coins`;
   const entry = await tx.walletLedgerEntry.create({
     data: { userId, delta: -amount, balanceAfter: row!.coins, reason: 'CARD_TOPUP_REVERSAL', referenceId },
+    select: { id: true },
+  });
+  return { coins: row!.coins, ledgerId: entry.id };
+}
+
+/**
+ * v1.100-social (D312, §10.118): locks the wallet rows of `userIds` in id order (made first at 0 when missing), inside
+ * the caller's transaction, so a send that changes two wallets (the sender's charge, the custom gift owner's share)
+ * always takes them in the same order.
+ */
+export async function lockWalletsIn(tx: Prisma.TransactionClient, userIds: readonly string[]): Promise<void> {
+  const ids = [...new Set(userIds)].sort();
+  await tx.$executeRaw`
+    INSERT INTO wallets (user_id, coins, updated_at)
+    SELECT t.u, 0, now() FROM unnest(${ids}::uuid[]) AS t(u) ORDER BY t.u
+    ON CONFLICT (user_id) DO NOTHING`;
+  await tx.$queryRaw`SELECT 1 FROM wallets WHERE user_id = ANY(${ids}::uuid[]) ORDER BY user_id FOR UPDATE`;
+}
+
+/**
+ * v1.100-social (D312, §10.118): takes a custom gift owner's coin share of a reversed send back (`GIFT_OWNER_ROYALTY_REVERSAL`,
+ * reference: the send, so at most once) even when it was already spent — like a reversed website purchase, the balance
+ * may go below 0 (a debt the owner's next coins pay first; while in debt they send no gift, `inCoinDebtIn`).
+ */
+export async function reverseRoyaltyIn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: bigint,
+  referenceId: string,
+): Promise<WalletChange> {
+  if (amount <= 0n) throw new RangeError('A reversal is positive');
+  const [row] = await tx.$queryRaw<{ coins: bigint }[]>`
+    INSERT INTO wallets (user_id, coins, updated_at) VALUES (${userId}::uuid, ${-amount}, now())
+    ON CONFLICT (user_id) DO UPDATE SET coins = wallets.coins - ${amount}, updated_at = now()
+    RETURNING coins`;
+  const entry = await tx.walletLedgerEntry.create({
+    data: {
+      userId,
+      delta: -amount,
+      balanceAfter: row!.coins,
+      reason: 'GIFT_OWNER_ROYALTY_REVERSAL',
+      referenceId,
+    },
     select: { id: true },
   });
   return { coins: row!.coins, ledgerId: entry.id };

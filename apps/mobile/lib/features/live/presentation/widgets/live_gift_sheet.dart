@@ -200,6 +200,10 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   static const detailsKey = Key('gift.details');
   static Key priceKey(String code) => Key('gift.price.$code');
 
+  /// D312: a custom gift's owner (avatar) on its tile.
+  static Key giftOwnerKey(String code) => Key('gift.owner.$code');
+  static const giftOwnerDetailsKey = Key('gift.details.owner');
+
   @override
   ConsumerState<KLiveGiftSheet> createState() => _KLiveGiftSheetState();
 }
@@ -776,7 +780,10 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             // conversation, paid ones).
             (c != GiftCategory.quips ||
                 (catalogue != null &&
-                    _offeredOf(catalogue, GiftCategory.quips).isNotEmpty)))
+                    _offeredOf(catalogue, GiftCategory.quips).isNotEmpty)) &&
+            // D312: «مُخصَّص» only when the catalogue has custom gifts.
+            (c != GiftCategory.custom ||
+                (catalogue?.of(GiftCategory.custom).isNotEmpty ?? false)))
           c,
     ];
     final popular = shown.indexOf(GiftCategory.popular);
@@ -896,6 +903,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final selected = cells.where((c) => c.gift.code == _selected).firstOrNull;
     // D154: a quip is sent one at a time, with coins (or free).
     final quipSelected = selected?.gift.category == GiftCategory.quips;
+    // D312: a custom gift is sent with coins only (its owner's share is of
+    // the coins paid).
+    final customSelected = selected?.gift.category == GiftCategory.custom;
     // v1.43-live (D195): a booster goes to the host, one at a time.
     final boosterSelected = selected?.gift.pkBooster != null;
     final isQuipsTab = tab == GiftCategory.quips;
@@ -949,7 +959,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
                       if (chosen.contains(c.username)) c.username,
                   ],
             // A lucky gift is sent with coins only (§10.27); a quip too.
-            source: isBag && !luckySelected && !quipSelected
+            source: isBag && !luckySelected && !quipSelected && !customSelected
                 ? LiveGiftSource.bag
                 : LiveGiftSource.coins,
             lucky: luckySelected,
@@ -2031,6 +2041,8 @@ class _GiftTile extends StatelessWidget {
       selected: selected,
       label: [
         l10n.giftCellSemantics(gift.name, price),
+        if (gift.owner case final owner?)
+          l10n.giftOwnerSemantics(KFormat.bidiIsolate(owner.displayName)),
         if (badge != null) badge.$1,
         for (final b in badges) itemBadgeLabel(l10n, b.code),
         if (bagQuantity != null)
@@ -2130,6 +2142,31 @@ class _GiftTile extends StatelessWidget {
                       key: KLiveGiftSheet.badgesKey(gift.code),
                       badges: badges,
                       height: _Sheet.badgeHeight,
+                    ),
+                  ),
+                ),
+              // D312 (owner: «التطبيق يعرض اسم/صورة صاحب الهدية»): a custom
+              // gift's owner — their picture at the tile's start corner (a
+              // custom gift is never in the bag, so the corner is free).
+              if (gift.owner case final owner? when bagQuantity == null)
+                PositionedDirectional(
+                  top: 3,
+                  start: 3,
+                  child: Tooltip(
+                    message: l10n.giftOwnerBy(owner.displayName),
+                    child: DecoratedBox(
+                      key: KLiveGiftSheet.giftOwnerKey(gift.code),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.fromBorderSide(
+                          BorderSide(color: _Sheet.white),
+                        ),
+                      ),
+                      child: KAvatar(
+                        name: owner.displayName,
+                        imageUrl: owner.avatarUrl,
+                        size: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -2815,6 +2852,32 @@ class KGiftDetails extends StatelessWidget {
                         Text(
                           l10n.giftDetailsLucky,
                           style: t.caption.copyWith(color: _Sheet.name),
+                        ),
+                      ],
+                      // D312: a custom gift's owner, picture and name.
+                      if (gift.owner case final owner?) ...[
+                        const SizedBox(height: KSpacing.xs),
+                        Row(
+                          key: KLiveGiftSheet.giftOwnerDetailsKey,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            KAvatar(
+                              name: owner.displayName,
+                              imageUrl: owner.avatarUrl,
+                              size: 20,
+                            ),
+                            const SizedBox(width: KSpacing.xs),
+                            Flexible(
+                              child: Text(
+                                l10n.giftOwnerBy(
+                                  KFormat.bidiIsolate(owner.displayName),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: t.caption.copyWith(color: _Sheet.name),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

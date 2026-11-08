@@ -135,6 +135,13 @@ export const CHERRY_COST_REASONS: readonly string[] = Object.values(CHERRY_LINES
  */
 export const FREE_COIN_REASONS = ['EVENT_PRIZE', 'TASK_REWARD', 'CHECK_IN_REWARD'] as const;
 
+/**
+ * v1.100-social (D312, CONVENTIONS §10.118; owner: «وتُحسب كتكلفة في الربح»): the custom gift owners' coin shares are coins
+ * Kabso gives away too — counted in COIN_REWARDS, net of their claw-backs (a reversed send's
+ * `GIFT_OWNER_ROYALTY_REVERSAL` is negative), at the same conservative coin value.
+ */
+export const GIFT_OWNER_COIN_REASONS = ['GIFT_OWNER_ROYALTY', 'GIFT_OWNER_ROYALTY_REVERSAL'] as const;
+
 /** Coins' value in US cents at `minorPerMillion` cents per 1 000 000 coins, rounded half up. */
 export function coinMoney(coins: bigint, minorPerMillion: number): bigint {
   if (coins <= 0n) return 0n;

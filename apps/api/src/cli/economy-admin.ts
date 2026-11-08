@@ -414,7 +414,13 @@ async function reverseGift(giftId: string, text: string | null): Promise<void> {
           action: AuditAction.CHERRY_GIFT_REVERSE,
           targetType: 'live_gift',
           targetId: giftId,
-          metadata: { rows: r.rows, cherries: Number(r.cherries), note: text, via: 'cli' },
+          metadata: {
+            rows: r.rows,
+            cherries: Number(r.cherries),
+            ...(r.royaltyCoins > 0n ? { royaltyCoins: Number(r.royaltyCoins) } : {}),
+            note: text,
+            via: 'cli',
+          },
         },
       });
     }

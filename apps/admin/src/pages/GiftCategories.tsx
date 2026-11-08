@@ -9,7 +9,7 @@ import { FileSlot, NO_FILE, previewUrl, type FileValue } from './GiftFiles';
 /** `AdminGiftCategory` (v1.71-social, D207). */
 export interface GiftCategoryDto {
   code: string;
-  kind: 'NORMAL' | 'LUCKY' | 'QUIPS';
+  kind: 'NORMAL' | 'LUCKY' | 'QUIPS' | 'CUSTOM';
   nameAr: string;
   nameEn: string;
   sortOrder: number;

@@ -183,7 +183,7 @@ describe('D207 gift categories and gift files in the panel', { timeout: 600_000 
     vi.useRealTimers();
   });
 
-  it('the five seeded categories, in the old tab order with the app names; read with catalog.view', async () => {
+  it('the seeded categories, in the old tab order with the app names (D312: «مُخصَّص» last); read with catalog.view', async () => {
     const res = await get(support, '/admin/gift-categories');
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expectContract(res, 'listAdminGiftCategories');
@@ -193,6 +193,7 @@ describe('D207 gift categories and gift files in the panel', { timeout: 600_000 
       'FUN',
       'LUCKY',
       'QUIPS',
+      'CUSTOM',
     ]);
     expect(res.body.data.map((c: { nameAr: string }) => c.nameAr)).toEqual([
       'شائعة',
@@ -200,10 +201,11 @@ describe('D207 gift categories and gift files in the panel', { timeout: 600_000 
       'مرح',
       'الحظ',
       'إفيهات',
+      'مُخصَّص',
     ]);
     expect(
       res.body.data.filter((c: { special: boolean }) => c.special).map((c: { kind: string }) => c.kind),
-    ).toEqual(['LUCKY', 'QUIPS']);
+    ).toEqual(['LUCKY', 'QUIPS', 'CUSTOM']);
     // gifts.categories is OWNER only: support / finance are refused before anything changes.
     const body = { code: 'SPORTS', nameAr: 'رياضة', nameEn: 'Sports', reason: 'x' };
     expect((await post(support, '/admin/gift-categories', body)).status).toBe(403);
@@ -613,6 +615,8 @@ describe('D207 gift categories and gift files in the panel', { timeout: 600_000 
       'FUN',
       'LUCKY',
       'QUIPS',
+      // D312: «مُخصَّص», the form's choice for a custom gift.
+      'CUSTOM',
     ]);
     expect(list.body.uploads).toEqual({ storage: false, publicUrls: true });
     // A gift of a category that does not exist.
