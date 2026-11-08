@@ -113,6 +113,8 @@ class Post {
     required this.pendingModeration,
     this.isReel = false,
     this.announcement = false,
+    this.official = false,
+    this.texts,
     this.location,
     this.publishAt,
     this.publishedAt,
@@ -160,6 +162,11 @@ class Post {
       pendingModeration: json['moderation'] == 'PENDING',
       isReel: json['format'] == 'REEL',
       announcement: json['announcement'] == true,
+      official: json['official'] == true,
+      texts: switch (json['texts']) {
+        {'ar': final String ar, 'en': final String en} => (ar: ar, en: en),
+        _ => null,
+      },
       repostedBy: switch (json['repostedBy']) {
         final Map<String, dynamic> by => UserSummary.fromJson(by),
         _ => null,
@@ -208,6 +215,15 @@ class Post {
   /// Team — the feeds label it «إعلان رسمي — فريق كابسو». False from older
   /// servers.
   final bool announcement;
+
+  /// v1.95-social (D301, §10.112.2): the app owner marked it «رسمي» (his
+  /// official announcements). False from older servers.
+  final bool official;
+
+  /// v1.95-social (D301 follow-up, §10.112.7): a bilingual announcement's
+  /// two captions (`text` is the account language's, chosen by the server);
+  /// null on every other post.
+  final ({String ar, String en})? texts;
 
   /// The post's video (a reel's, or a video post's), if it has one.
   MediaAsset? get video =>

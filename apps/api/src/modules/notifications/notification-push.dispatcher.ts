@@ -138,6 +138,7 @@ export class NotificationPushDispatcher implements OnModuleInit, OnModuleDestroy
             moderation: dto.target?.moderation ?? null,
             level: dto.target?.level ?? null,
             medalLevel: dto.target?.medalLevel ?? null,
+            texts: dto.target?.texts ?? null,
           },
           locale,
         );

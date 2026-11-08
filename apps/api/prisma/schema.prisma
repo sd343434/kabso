@@ -332,8 +332,15 @@ model User {
   /// v1.83-social (D258, §10.94.9): who visited this user's profile, and whose profiles this user visited.
   profileVisitsReceived ProfileVisit[]      @relation("ProfileVisitOwner")
   profileVisitsMade     ProfileVisit[]      @relation("ProfileVisitVisitor")
+  /// v1.95-social (D301, §10.112): the owner's cover videos, «رحلة Kabso», and «صندوق المؤسس» (sent / about).
+  ownerCoverVideos      OwnerCoverVideo[]
+  ownerJourney          OwnerJourneyMilestone[]
+  ownerFeedbackSent     OwnerFeedback[]     @relation("OwnerFeedbackSender")
+  ownerFeedbackAbout    OwnerFeedback[]     @relation("OwnerFeedbackStaff")
 
   @@index([createdAt], map: "users_created_at_idx")
+  /// v1.95-social (D301, §10.112.4): «لوحة المؤسس» counts who is online now.
+  @@index([lastActiveAt], map: "users_last_active_idx")
   @@map("users")
 }
 
@@ -1146,6 +1153,8 @@ model WalletLedgerEntry {
 
   @@unique([reason, referenceId], map: "wallet_ledger_reference_once")
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
+  /// D301 follow-up (§10.112.10): «الربح» sums the free coins given in a period (migration 20270402090400_owner_profit).
+  @@index([createdAt], map: "wallet_ledger_free_coins_idx", where: raw("reason IN ('EVENT_PRIZE'::wallet_ledger_reason, 'TASK_REWARD'::wallet_ledger_reason, 'CHECK_IN_REWARD'::wallet_ledger_reason)"))
   @@map("wallet_ledger")
 }
 
@@ -1733,6 +1742,8 @@ model MediaAsset {
   profileCover  UserProfile?     @relation("ProfileCover")
   /// v1.89-social (D290): the video of a level-raise request.
   levelRaise    LevelRaiseRequest?
+  /// v1.95-social (D301): the owner's cover video (one language).
+  ownerCoverVideo OwnerCoverVideo?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -1748,6 +1759,10 @@ model Post {
   /// v1.72-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو» — only the Kabso Team
   /// creates one, and a limited staff account (MODERATION / SUPPORT / FINANCE) creates nothing else. Never changes.
   announcement    Boolean        @default(false)
+  /// v1.95-social (D301, §10.112.2): the app owner marked it «رسمي» (an official announcement on his profile).
+  officialAt      DateTime?      @map("official_at") @db.Timestamptz(3)
+  /// v1.95-social (D301 follow-up, §10.112.7): the official announcement's English caption (`text` is the Arabic one).
+  textEn          String?        @map("text_en") @db.VarChar(2200)
   location        String?        @db.VarChar(80)
   status          PostStatus     @default(PUBLISHED)
   moderation      PostModeration @default(VISIBLE)
@@ -1778,6 +1793,8 @@ model Post {
   views         PostView[]
   shares        PostShareEvent[]
   pin           PostPin?
+  /// D301 follow-up: the announcement's notification fan-out (official posts only).
+  ownerFanout   OwnerAnnouncementFanout?
   hashtags      PostHashtag[]
   mentions      PostMention[]
   comments      Comment[]
@@ -1791,6 +1808,10 @@ model Post {
   @@index([publishAt], map: "posts_scheduled_due_idx", where: raw("status = 'SCHEDULED'::post_status AND deleted_at IS NULL"))
   @@index([authorId, status, createdAt(sort: Desc)], map: "posts_author_status_created_idx")
   @@index([authorId, publishedAt(sort: Desc), id(sort: Desc)], map: "posts_reels_author_published_idx", where: raw("format = 'REEL'::post_format AND status = 'PUBLISHED'::post_status AND deleted_at IS NULL"))
+  /// v1.95-social (D301): the owner's official announcements, newest first.
+  /// D301 follow-up: the latest official announcement (the posts feed's first item).
+  @@index([officialAt(sort: Desc)], map: "posts_official_latest_idx", where: raw("official_at IS NOT NULL"))
+  @@index([authorId, publishedAt(sort: Desc), id(sort: Desc)], map: "posts_official_author_published_idx", where: raw("official_at IS NOT NULL AND status = 'PUBLISHED'::post_status AND deleted_at IS NULL"))
   @@map("posts")
 }
 
@@ -2268,6 +2289,11 @@ enum NotificationType {
   LEVEL_RAISE_APPROVED
   LEVEL_RAISE_REJECTED
   LEVEL_RAISED
+  /// v1.95-social (D301, §10.112.5, system; target OWNER_FEEDBACK): a new item in «صندوق المؤسس» — to the owners only.
+  OWNER_FEEDBACK_NEW
+  /// v1.95-social (D301 follow-up, §10.112.7, system; target POST): the app owner published an official announcement —
+  /// to every ACTIVE account (staff too), written by a background fan-out, once per announcement.
+  OWNER_ANNOUNCEMENT
 
   @@map("notification_type")
 }
@@ -2330,6 +2356,9 @@ model Notification {
   /// v1.89-social (D290): LEVEL_RAISE_APPROVED / LEVEL_RAISE_REJECTED / LEVEL_RAISED.
   levelRaiseRequestId  String?                 @map("level_raise_request_id") @db.Uuid
   levelRaiseRequest    LevelRaiseRequest?      @relation(fields: [levelRaiseRequestId], references: [id], onDelete: Cascade)
+  /// v1.95-social (D301): OWNER_FEEDBACK_NEW — the new inbox item.
+  ownerFeedbackId      String?                 @map("owner_feedback_id") @db.Uuid
+  ownerFeedback        OwnerFeedback?          @relation(fields: [ownerFeedbackId], references: [id], onDelete: Cascade)
 
   recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post          Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2351,6 +2380,9 @@ model Notification {
   @@index([liveRoomId], map: "notifications_live_room_idx", where: raw("live_room_id IS NOT NULL"))
   @@index([reportId], map: "notifications_report_idx", where: raw("report_id IS NOT NULL"))
   @@index([levelRaiseRequestId], map: "notifications_level_raise_idx", where: raw("level_raise_request_id IS NOT NULL"))
+  @@index([ownerFeedbackId], map: "notifications_owner_feedback_idx", where: raw("owner_feedback_id IS NOT NULL"))
+  /// D301 follow-up: one OWNER_ANNOUNCEMENT per person and announcement (the fan-out is idempotent).
+  @@unique([recipientId, postId], map: "notifications_owner_announcement_once", where: raw("type = 'OWNER_ANNOUNCEMENT'::notification_type"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
   @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
@@ -7196,4 +7228,103 @@ model AgencyBan {
 
   @@index([ownerUserId], map: "agency_bans_owner_idx")
   @@map("agency_bans")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.95-social (D301, CONVENTIONS §10.112): the app owner's profile «صفحة صاحب البرنامج». Owner: `owner-profile`.
+
+/// One cover video per owner and language (`ar` / `en`); the asset is a `PROFILE_COVER_VIDEO`.
+model OwnerCoverVideo {
+  userId    String   @map("user_id") @db.Uuid
+  lang      String   @db.VarChar(2)
+  mediaId   String   @unique(map: "owner_cover_videos_media_once") @map("media_id") @db.Uuid
+  setAt     DateTime @default(now()) @map("set_at") @db.Timestamptz(3)
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lang], map: "owner_cover_videos_pkey")
+  @@map("owner_cover_videos")
+}
+
+/// «رحلة Kabso»: an owner's milestone (≤ 30 per owner; at most one `latest`). CHECKs in the migration.
+model OwnerJourneyMilestone {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  titleAr   String   @map("title_ar") @db.VarChar(60)
+  titleEn   String   @map("title_en") @db.VarChar(60)
+  lineAr    String?  @map("line_ar") @db.VarChar(120)
+  lineEn    String?  @map("line_en") @db.VarChar(120)
+  year      Int      @db.SmallInt
+  month     Int      @db.SmallInt
+  icon      String   @db.VarChar(16)
+  latest    Boolean  @default(false)
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, position], map: "owner_journey_owner_position_idx")
+  @@unique([ownerId], map: "owner_journey_one_latest", where: raw("latest"))
+  @@map("owner_journey_milestones")
+}
+
+/// «اقترح ميزة / أبلغ عن موظف» → «صندوق المؤسس» (OWNER only). Pictures are private keys
+/// (`private/owner-feedback/{id}/{n}.webp`). CHECKs in the migration.
+model OwnerFeedback {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  senderId    String    @map("sender_id") @db.Uuid
+  /// `FEATURE` or `STAFF_REPORT`.
+  kind        String    @db.VarChar(16)
+  text        String    @db.VarChar(1000)
+  /// STAFF_REPORT: the Kabso Team account reported (never notified).
+  staffUserId String?   @map("staff_user_id") @db.Uuid
+  category    String?   @db.VarChar(24)
+  imageKeys   String[]  @default([]) @map("image_keys") @db.VarChar(160)
+  /// `NEW`, `READ`, `DONE`.
+  status      String    @default("NEW") @db.VarChar(8)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  readAt      DateTime? @map("read_at") @db.Timestamptz(3)
+  doneAt      DateTime? @map("done_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  sender        User           @relation("OwnerFeedbackSender", fields: [senderId], references: [id], onDelete: Cascade)
+  staff         User?          @relation("OwnerFeedbackStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "owner_feedback_created_idx")
+  @@index([senderId, createdAt], map: "owner_feedback_sender_created_idx")
+  @@map("owner_feedback")
+}
+
+/// v1.95-social (D301 follow-up, §10.112.7): the fan-out of an official announcement's notification to every ACTIVE
+/// account, in batches after the request (`cursor_user_id`: the last account written; resumable and idempotent).
+model OwnerAnnouncementFanout {
+  postId       String    @id @map("post_id") @db.Uuid
+  cursorUserId String?   @map("cursor_user_id") @db.Uuid
+  recipients   Int       @default(0)
+  startedAt    DateTime  @default(now()) @map("started_at") @db.Timestamptz(3)
+  doneAt       DateTime? @map("done_at") @db.Timestamptz(3)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([startedAt], map: "owner_announcement_fanouts_pending_idx", where: raw("done_at IS NULL"))
+  @@map("owner_announcement_fanouts")
+}
+
+/// v1.95-social (D301 follow-up, §10.112.10): the owner's fixed monthly costs «تكاليف ثابتة» (USD), prorated by day in
+/// «الربح». CHECK `owner_fixed_costs_shape` in the migration.
+model OwnerFixedCost {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  name         String    @db.VarChar(60)
+  monthlyMinor BigInt    @map("monthly_minor")
+  currency     String    @default("USD") @db.Char(3)
+  activeFrom   DateTime  @map("active_from") @db.Date
+  activeTo     DateTime? @map("active_to") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([activeFrom, activeTo], map: "owner_fixed_costs_active_idx")
+  @@map("owner_fixed_costs")
 }

@@ -196,6 +196,27 @@ export enum AuditAction {
   LEVEL_RAISE_APP_CREATE = 'level.raise.app.create',
   LEVEL_RAISE_APP_UPDATE = 'level.raise.app.update',
   LEVEL_RAISE_SETTINGS_UPDATE = 'level.raise.settings.update',
+  // v1.95-social (D301, §10.112): the app owner's profile «صفحة صاحب البرنامج» and «صندوق المؤسس».
+  OWNER_COVER_VIDEO_SET = 'owner.cover_video.set',
+  OWNER_COVER_VIDEO_REMOVE = 'owner.cover_video.remove',
+  OWNER_JOURNEY_CREATE = 'owner.journey.create',
+  OWNER_JOURNEY_UPDATE = 'owner.journey.update',
+  OWNER_JOURNEY_DELETE = 'owner.journey.delete',
+  OWNER_JOURNEY_REORDER = 'owner.journey.reorder',
+  OWNER_POST_OFFICIAL = 'owner.post.official',
+  OWNER_POST_UNOFFICIAL = 'owner.post.unofficial',
+  // D301 follow-up (§10.112.7): a bilingual announcement published (its fan-out queued, once) or edited; the fan-out done.
+  OWNER_ANNOUNCEMENT_PUBLISH = 'owner.announcement.publish',
+  OWNER_ANNOUNCEMENT_UPDATE = 'owner.announcement.update',
+  OWNER_ANNOUNCEMENT_FANOUT_DONE = 'owner.announcement.fanout_done',
+  OWNER_FEEDBACK_CREATE = 'owner.feedback.create',
+  /** D301 follow-up (§10.112.10): a fixed monthly cost of «الربح» added, changed or deleted (app or panel). */
+  OWNER_FIXED_COST_CREATE = 'owner.fixed_cost.create',
+  OWNER_FIXED_COST_UPDATE = 'owner.fixed_cost.update',
+  OWNER_FIXED_COST_DELETE = 'owner.fixed_cost.delete',
+  ADMIN_OWNER_INBOX_VIEW = 'admin.owner_inbox.view',
+  ADMIN_OWNER_INBOX_STATUS = 'admin.owner_inbox.status',
+  ADMIN_OWNER_INBOX_DELETE = 'admin.owner_inbox.delete',
   // v1.90-social (D293, §10.105): the automatic verification badge «شارة التوثيق» — a person's badge granted, changed
   // or removed by a recompute (system; {before, after, change, cause}; never an amount); the OWNER's thresholds changed
   // {before, after, reason, via}; the CLI's first-run backfill {granted, changed, removed, kept, via}.

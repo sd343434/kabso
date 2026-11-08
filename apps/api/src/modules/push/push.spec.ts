@@ -253,6 +253,19 @@ describe('push texts', () => {
     ...over,
   });
 
+  it("D301 follow-up: the owner's announcement in each recipient's language, falling back", () => {
+    const a = (texts: NotificationText['texts']) =>
+      n({ type: 'OWNER_ANNOUNCEMENT', actorName: null, actorCount: 0, texts });
+    expect(notificationBody(a({ ar: 'إطلاق الإصدار 2.0', en: 'Kabso Live 2.0 is here' }), 'ar')).toBe(
+      'إعلان رسمي: إطلاق الإصدار 2.0',
+    );
+    expect(notificationBody(a({ ar: 'إطلاق الإصدار 2.0', en: 'Kabso Live 2.0 is here' }), 'en')).toBe(
+      'Official announcement: Kabso Live 2.0 is here',
+    );
+    expect(notificationBody(a({ ar: 'نص واحد', en: null }), 'en')).toBe('Official announcement: نص واحد');
+    expect(notificationBody(a(null), 'ar')).toBe('إعلان رسمي جديد من المؤسس');
+  });
+
   it('the inbox sentences, en and ar', () => {
     expect(notificationBody(n({}), 'en')).toBe('Sara liked your post');
     expect(notificationBody(n({}), 'ar')).toBe('أعجب Sara بمنشورك');

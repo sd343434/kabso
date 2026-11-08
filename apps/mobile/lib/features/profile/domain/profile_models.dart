@@ -14,6 +14,7 @@ import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
+import 'package:kabso_live/features/owner_profile/domain/owner_models.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 
 part 'profile_models.freezed.dart';
@@ -193,6 +194,20 @@ abstract class PublicProfile with _$PublicProfile {
     /// person card show «ID: Kabso01» instead of the @username. Null for
     /// everyone else and from older servers.
     @JsonKey(includeIfNull: false) String? staffId,
+
+    /// v1.95-social (D301, §10.112): the app owner (an ACTIVE account
+    /// holding the OWNER panel role) — the owner's profile layout. False for
+    /// everyone else and from older servers.
+    @Default(false) bool kabsoOwner,
+
+    /// v1.95-social (D301, §10.112.1): the owner's cover videos (Arabic,
+    /// English); null when none (the cover picture shows).
+    @JsonKey(
+      fromJson: ownerCoverVideoFromJson,
+      toJson: ownerCoverVideoToJson,
+      includeIfNull: false,
+    )
+    OwnerCoverVideo? coverVideo,
   }) = _PublicProfile;
 
   const new _();

@@ -26751,6 +26751,942 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{points} نقطة PK'**
   String medalsThresholdPkPoints(String points);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The visitor's follow button on the owner's page.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة المؤسس'**
+  String get ownerFollow;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The follow button once following (a tap asks before unfollowing).
+  ///
+  /// In ar, this message translates to:
+  /// **'تتابع المؤسس'**
+  String get ownerFollowing;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The visitor's button that opens «اقترح ميزة / أبلغ عن موظف».
+  ///
+  /// In ar, this message translates to:
+  /// **'اقترح ميزة / أبلغ'**
+  String get ownerFeedbackButton;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The chip on what only the owner sees.
+  ///
+  /// In ar, this message translates to:
+  /// **'خاص'**
+  String get ownerPrivate;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The edit button of a section.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل'**
+  String get ownerEdit;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Delete a milestone.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get ownerDelete;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Save a milestone.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get ownerSave;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Opens every official announcement.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الكل'**
+  String get ownerSeeAll;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Reorder a milestone.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحريك لأعلى'**
+  String get ownerMoveUp;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Reorder a milestone.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحريك لأسفل'**
+  String get ownerMoveDown;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). A required form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'مطلوب'**
+  String get ownerFieldRequired;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The owner's private dashboard card.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة المؤسس'**
+  String get ownerDashboardTitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard tile: users online now.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستخدم الآن'**
+  String get ownerDashboardOnline;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard details: online users.
+  ///
+  /// In ar, this message translates to:
+  /// **'المستخدمون النشطون آخر {minutes} دقائق'**
+  String ownerDashboardOnlineLong(int minutes);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard tile: live rooms now.
+  ///
+  /// In ar, this message translates to:
+  /// **'بث الآن'**
+  String get ownerDashboardLives;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard tile: money received today.
+  ///
+  /// In ar, this message translates to:
+  /// **'دخل اليوم'**
+  String get ownerDashboardIncome;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Spoken when the income is blurred.
+  ///
+  /// In ar, this message translates to:
+  /// **'مخفي، اضغط للإظهار'**
+  String get ownerDashboardIncomeHidden;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard details: card top-ups.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن الموقع (بطاقات)'**
+  String get ownerDashboardIncomeWebsite;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard details: agents' paid top-ups.
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن الوكلاء'**
+  String get ownerDashboardIncomeAgents;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard details: when the numbers were computed.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر تحديث {time} · يُحدَّث كل دقيقة'**
+  String ownerDashboardUpdated(String time);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Dashboard load failure.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الأرقام — اضغط لإعادة المحاولة'**
+  String get ownerDashboardFailed;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The owner's official announcements section.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعلانات رسمية'**
+  String get ownerOfficialTitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The label on the owner's official post.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسمي'**
+  String get ownerOfficialLabel;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Post menu (owner only).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعيين كإعلان رسمي'**
+  String get ownerOfficialMark;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Post menu (owner only).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة من الإعلانات الرسمية'**
+  String get ownerOfficialUnmark;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Snack after marking.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبح إعلاناً رسمياً في ملفك'**
+  String get ownerOfficialMarked;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Snack after unmarking.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيل من الإعلانات الرسمية'**
+  String get ownerOfficialUnmarked;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The owner's empty section.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا إعلانات رسمية بعد. اختر «تعيين كإعلان رسمي» من قائمة أي منشور لك.'**
+  String get ownerOfficialEmptyOwn;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). An announcement without text.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعلان'**
+  String get ownerOfficialUntitled;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The owner's timeline section.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحلة Kabso'**
+  String get ownerJourneyTitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Under the timeline title.
+  ///
+  /// In ar, this message translates to:
+  /// **'قصة المؤسس والمنصة'**
+  String get ownerJourneySubtitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The latest milestone's mark.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأحدث'**
+  String get ownerJourneyLatest;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Add a milestone.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة محطة'**
+  String get ownerJourneyAdd;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The owner's empty timeline.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف أول محطة في رحلة Kabso'**
+  String get ownerJourneyAddFirst;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The form's title when editing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل المحطة'**
+  String get ownerJourneyEditOne;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The editor sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل رحلة Kabso'**
+  String get ownerJourneyEditorTitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The editor's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب للترتيب أو استخدم الأسهم · حتى {max} محطة'**
+  String ownerJourneyEditorHint(int max);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The editor's empty state.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا محطات بعد — أضف الأولى.'**
+  String get ownerJourneyEmptyOwn;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Confirm a delete.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذه المحطة؟'**
+  String get ownerJourneyDeleteConfirm;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'العنوان (بالعربية)'**
+  String get ownerMilestoneTitleAr;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'العنوان (بالإنجليزية)'**
+  String get ownerMilestoneTitleEn;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'سطر قصير (بالعربية)'**
+  String get ownerMilestoneLineAr;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'سطر قصير (بالإنجليزية)'**
+  String get ownerMilestoneLineEn;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر'**
+  String get ownerMilestoneMonth;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'السنة'**
+  String get ownerMilestoneYear;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Form field.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأيقونة'**
+  String get ownerMilestoneIcon;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The latest switch's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر عليها «الأحدث» (محطة واحدة فقط)'**
+  String get ownerMilestoneLatestHint;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Edit profile section (owner only).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو الغلاف'**
+  String get ownerCoverVideoTitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The section's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو قصير يتكرر بدل صورة الغلاف (حتى 60 ثانية). من لغة تطبيقه العربية يرى الفيديو العربي، والباقون الإنجليزي؛ إن وُجد واحد فقط يراه الجميع.'**
+  String get ownerCoverVideoHint;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Row label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفيديو العربي'**
+  String get ownerCoverVideoArabic;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Row label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفيديو الإنجليزي'**
+  String get ownerCoverVideoEnglish;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). No video for this language.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد'**
+  String get ownerCoverVideoNone;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The video's length.
+  ///
+  /// In ar, this message translates to:
+  /// **'{seconds} ث'**
+  String ownerCoverVideoSeconds(int seconds);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Upload progress.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ الرفع… {percent}%'**
+  String ownerCoverVideoUploading(int percent);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Pick a video.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار فيديو'**
+  String get ownerCoverVideoChoose;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Replace the video.
+  ///
+  /// In ar, this message translates to:
+  /// **'استبدال'**
+  String get ownerCoverVideoReplace;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Remove the video.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الفيديو'**
+  String get ownerCoverVideoRemove;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ فيديو الغلاف'**
+  String get ownerCoverVideoSaved;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيل فيديو الغلاف'**
+  String get ownerCoverVideoRemoved;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The pill on the video cover.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get ownerCoverVideoPill;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Spoken label.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل فيديو الغلاف'**
+  String get ownerCoverVideoPlay;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Spoken label.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف فيديو الغلاف مؤقتاً'**
+  String get ownerCoverVideoPause;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Spoken label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الصوت'**
+  String get ownerCoverVideoMute;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Spoken label.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الصوت'**
+  String get ownerCoverVideoUnmute;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقترح ميزة أو أبلغ عن موظف'**
+  String get ownerFeedbackTitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Under the sheet's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'يصل مباشرة إلى صندوق المؤسس.'**
+  String get ownerFeedbackSubtitle;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Choice 1.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح ميزة'**
+  String get ownerFeedbackFeature;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Choice 2.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن موظف'**
+  String get ownerFeedbackReport;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The suggestion's text hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما الميزة التي تريدها؟'**
+  String get ownerFeedbackFeatureHint;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). The report's text hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ماذا حدث؟ اذكر التفاصيل'**
+  String get ownerFeedbackReportHint;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموظف'**
+  String get ownerFeedbackStaff;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Search hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'@اسم المستخدم أو آيدي الموظف'**
+  String get ownerFeedbackStaffHint;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). No search result.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد موظف بهذا الاسم'**
+  String get ownerFeedbackStaffNone;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Label.
+  ///
+  /// In ar, this message translates to:
+  /// **'السبب'**
+  String get ownerFeedbackCategory;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Suggestion picture.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة صورة'**
+  String get ownerFeedbackImage;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report pictures.
+  ///
+  /// In ar, this message translates to:
+  /// **'صور الإثبات (حتى {count})'**
+  String ownerFeedbackEvidence(int count);
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Bad picture.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الصورة غير مدعومة أو كبيرة جداً'**
+  String get ownerFeedbackImageInvalid;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Confidentiality note.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغك سري: لا يصل إلى الموظف ولا إلى المشرفين، تقرؤه الإدارة العليا فقط.'**
+  String get ownerFeedbackConfidential;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Send button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get ownerFeedbackSend;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصل إلى صندوق المؤسس. شكراً لك.'**
+  String get ownerFeedbackSent;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'إساءة أو تعامل سيئ'**
+  String get ownerCategoryRudeness;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'إساءة استخدام الصلاحيات'**
+  String get ownerCategoryAbuseOfPower;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجراء غير عادل'**
+  String get ownerCategoryUnfairAction;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل أو عدم الرد'**
+  String get ownerCategoryNoResponse;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'رشوة أو فساد'**
+  String get ownerCategoryCorruption;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبب آخر'**
+  String get ownerCategoryOther;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Error OWNER_ONLY.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا متاح لصاحب البرنامج فقط.'**
+  String get errorOwnerOnly;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Error OWNER_JOURNEY_LIMIT.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت رحلة Kabso إلى الحد الأقصى من المحطات.'**
+  String get errorOwnerJourneyLimit;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Notification OWNER_FEEDBACK_NEW (FEATURE).
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح ميزة جديد في صندوق المؤسس'**
+  String get notifOwnerFeedbackFeature;
+
+  /// D301: the app owner's profile «صفحة صاحب البرنامج» (§10.112). Notification OWNER_FEEDBACK_NEW (STAFF_REPORT).
+  ///
+  /// In ar, this message translates to:
+  /// **'بلاغ جديد عن موظف في صندوق المؤسس'**
+  String get notifOwnerFeedbackReport;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The composer's title and the profile button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعلان رسمي جديد'**
+  String get ownerAnnouncementNew;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The composer's title when editing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الإعلان'**
+  String get ownerAnnouncementEdit;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The Arabic caption field.
+  ///
+  /// In ar, this message translates to:
+  /// **'النص بالعربية'**
+  String get ownerAnnouncementTextAr;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The English caption field.
+  ///
+  /// In ar, this message translates to:
+  /// **'النص بالإنجليزية'**
+  String get ownerAnnouncementTextEn;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The composer's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'من لغة تطبيقه العربية يرى النص العربي، والباقون الإنجليزي. يظهر أول منشور عند الجميع حتى تنشر إعلاناً أحدث، ويصلهم إشعار مرة واحدة.'**
+  String get ownerAnnouncementHint;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The composer's note when editing.
+  ///
+  /// In ar, this message translates to:
+  /// **'التعديل لا يرسل إشعاراً جديداً.'**
+  String get ownerAnnouncementEditHint;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The photos button.
+  ///
+  /// In ar, this message translates to:
+  /// **'صور (اختياري)'**
+  String get ownerAnnouncementPhotos;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). Publish button.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر للجميع'**
+  String get ownerAnnouncementPublish;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). Snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'نُشر الإعلان، ويصل الإشعار للجميع خلال دقائق.'**
+  String get ownerAnnouncementPublished;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). Snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظ الإعلان دون إشعار جديد.'**
+  String get ownerAnnouncementSaved;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). The dashboard's income definition.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما يدخل Kabso فقط: شحن المتجر بالبطاقات بعد الاسترداد، وما يدفعه الوكلاء لـ Kabso لشراء رصيدهم. لا يُحسب ما يبيعه الوكيل للمستخدمين.'**
+  String get ownerDashboardIncomeNote;
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). A line of money received in another currency.
+  ///
+  /// In ar, this message translates to:
+  /// **'بعملة أخرى ({currency})'**
+  String ownerDashboardIncomeOther(String currency);
+
+  /// D301 follow-up: the owner's bilingual announcements and the owner's answers (§10.112.7–8). Notification OWNER_ANNOUNCEMENT.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعلان رسمي من المؤسس: {text}'**
+  String notifOwnerAnnouncement(String text);
+
+  /// D301 (§10.112.9): the founder pinned in search — the line under his name.
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤسس Kabso Live'**
+  String get ownerSearchRole;
+
+  /// D301 (§10.112.9): the founder pinned in search — the short follow button (the name stays readable).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get ownerSearchFollow;
+
+  /// D301 (§10.112.9): the founder pinned in search — the button once he is followed.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابَع'**
+  String get ownerSearchFollowing;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the section title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الربح'**
+  String get ownerProfitTitle;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card's strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح اليوم'**
+  String get ownerProfitToday;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card: before every share.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبل'**
+  String get ownerProfitBeforeShort;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card: after every share and the fixed costs.
+  ///
+  /// In ar, this message translates to:
+  /// **'بعد'**
+  String get ownerProfitAfterShort;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the money Kabso received.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدخل قبل'**
+  String get ownerProfitBefore;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — what is left.
+  ///
+  /// In ar, this message translates to:
+  /// **'الربح النهائي بعد'**
+  String get ownerProfitAfter;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the day tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get ownerProfitDay;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the month tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر'**
+  String get ownerProfitMonth;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the day picker button.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار يوم'**
+  String get ownerProfitPickDay;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'شحن المتجر بالبطاقات'**
+  String get ownerProfitCardCharged;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'المبالغ المستردة'**
+  String get ownerProfitRefunds;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'الاعتراضات البنكية'**
+  String get ownerProfitChargebacks;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a part of «قبل».
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء الوكلاء من Kabso'**
+  String get ownerProfitAgents;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the deductions heading.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصومات'**
+  String get ownerProfitDeductions;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction GIFTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'نصيب المضيفين وصنّاع المحتوى من الهدايا'**
+  String get ownerProfitGifts;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction AGENCY_COMMISSIONS.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولات الوكالات'**
+  String get ownerProfitAgencies;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction REFERRAL_REWARDS.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكافآت الدعوات'**
+  String get ownerProfitReferrals;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction TASK_REWARDS.
+  ///
+  /// In ar, this message translates to:
+  /// **'جوائز المهام والأهداف'**
+  String get ownerProfitTasks;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction STAFF_COMMISSIONS.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمولات الموظفين على التجنيد'**
+  String get ownerProfitStaff;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction TEAM_ADJUSTMENTS.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديلات الفريق'**
+  String get ownerProfitTeam;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction CARD_FEES.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسوم البطاقات (تقديرية)'**
+  String get ownerProfitCardFees;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a cherry line's detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكرز: {count}، بسعر السحب {rate} لكل مليون'**
+  String ownerProfitCherries(String count, String rate);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the card fees' detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات: {count}، بنسبة {percent} و{fixed} للطلب'**
+  String ownerProfitFees(String count, String percent, String fixed);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the fixed costs line and the editor's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تكاليف ثابتة'**
+  String get ownerProfitFixed;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a fixed cost's share.
+  ///
+  /// In ar, this message translates to:
+  /// **'أيام: {days} من {monthly} شهرياً'**
+  String ownerProfitFixedShare(String days, String monthly);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — no fixed cost.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تكاليف ثابتة في هذه الفترة'**
+  String get ownerProfitFixedNone;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the current month's note.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى اليوم: الحصة المنقضية من التكاليف الثابتة'**
+  String get ownerProfitPartial;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — another currency's line, never converted.
+  ///
+  /// In ar, this message translates to:
+  /// **'{currency}: قبل {before}، بعد {after}'**
+  String ownerProfitOther(String currency, String before, String after);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حساب الربح'**
+  String get ownerProfitFailed;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — retry.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get ownerProfitRetry;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the editor button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة التكاليف الثابتة'**
+  String get ownerCostsManage;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the editor's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'مبلغ شهري بالدولار يُقسَّم على أيام الشهر'**
+  String get ownerCostsHint;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the empty list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تكاليف ثابتة بعد'**
+  String get ownerCostsEmpty;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the add button.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة تكلفة'**
+  String get ownerCostsAdd;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the form's title when editing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل التكلفة'**
+  String get ownerCostsEdit;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the name field.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم'**
+  String get ownerCostsName;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the name hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثلاً: Claude أو LiveKit أو الخوادم'**
+  String get ownerCostsNameHint;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the amount field.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ الشهري (USD)'**
+  String get ownerCostsMonthly;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the start day.
+  ///
+  /// In ar, this message translates to:
+  /// **'من'**
+  String get ownerCostsFrom;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the end day.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلى (اختياري)'**
+  String get ownerCostsTo;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — no end day.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستمرة'**
+  String get ownerCostsOngoing;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a cost's amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} شهرياً'**
+  String ownerCostsPerMonth(String amount);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — a cost no longer active.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت'**
+  String get ownerCostsEnded;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the form's error.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل اسماً ومبلغاً أكبر من صفر'**
+  String get ownerCostsInvalid;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — delete.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get ownerCostsDelete;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the delete confirmation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف {name}؟ لن تُحسب في الربح بعد الآن.'**
+  String ownerCostsDeleteConfirm(String name);
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get ownerCostsCancel;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت التكلفة'**
+  String get ownerCostsSaved;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — deduction COIN_REWARDS.
+  ///
+  /// In ar, this message translates to:
+  /// **'عملات مُنحت مجاناً (جوائز ومكافآت)'**
+  String get ownerProfitCoins;
+
+  /// D301 follow-up (§10.112.10): «الربح» before and after every share, and the fixed costs — the coin rewards' detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'العملات: {count}، بأقل سعر للوكيل {rate} لكل مليون'**
+  String ownerProfitCoinsDetail(String count, String rate);
 }
 
 class _AppLocalizationsDelegate

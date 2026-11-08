@@ -14,6 +14,9 @@ import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
@@ -151,6 +154,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onOpenFollowing: () => context.push(
             AppRoutes.userFollows(user.username, following: true),
           ),
+          // D301: the owner's cover video, in the app's language.
+          coverVideo: ownerCoverVideoFor(context, profile),
           // D278: «تعديل الملف» in place of follow and chat.
           actions: SizedBox(
             width: double.infinity,
@@ -164,6 +169,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ),
       SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
+      // D301 (§10.112.6): the app owner's own page — «لوحة المؤسس» (خاص),
+      // «إعلانات رسمية» and «رحلة Kabso» with «تعديل».
+      if (profile.kabsoOwner)
+        SliverToBoxAdapter(
+          child: OwnerProfileSections(profile: profile, own: true),
+        ),
     ];
   }
 
@@ -245,7 +256,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ref
                   ..invalidate(meProvider)
                   ..invalidate(profileStatsProvider(value.username))
-                  ..invalidate(profileGridProvider);
+                  ..invalidate(profileGridProvider)
+                  ..invalidate(ownerDashboardProvider)
+                  ..invalidate(ownerJourneyProvider(value.username))
+                  ..invalidate(ownerOfficialPostsProvider(value.username));
                 await ref.read(meProvider.future);
               } on Object catch (e) {
                 if (context.mounted) {

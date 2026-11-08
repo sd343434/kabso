@@ -19,6 +19,8 @@ import { UsersService, type MeDto } from './users.service.js';
 import { ConsentExempt } from '../privacy/consent-exempt.decorator.js';
 import { isWatchStaff, staffIdentityOf, type LimitedStaffRole } from '../live/live-staff.js';
 import { staffIdOf } from './staff-ids.js';
+import { MediaService } from '../media/media.service.js';
+import { ownerProfileFields, type OwnerCoverVideoDto } from '../owner-profile/owner-core.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { StaffRegion } from '../live/staff-regions.js';
 
@@ -34,6 +36,7 @@ export class UsersController {
     private readonly users: UsersService,
     private readonly profiles: ProfileEditService,
     private readonly prisma: PrismaService,
+    private readonly media: MediaService,
   ) {}
 
   @Get('me')
@@ -43,6 +46,8 @@ export class UsersController {
       kabsoTeam?: true;
       staffId?: string;
       staff?: { role: LimitedStaffRole; regions: StaffRegion[]; staffId?: string };
+      kabsoOwner?: true;
+      coverVideo?: OwnerCoverVideoDto;
     }
   > {
     const me = await this.users.getMe(auth.userId);
@@ -58,6 +63,10 @@ export class UsersController {
       ...((await isWatchStaff(this.prisma, auth.userId)) ? { kabsoTeam: true as const } : {}),
       ...(staffId ? { staffId } : {}),
       ...(staff ? { staff: { ...staff, ...(staffId ? { staffId } : {}) } } : {}),
+      // v1.95-social (D301, §10.112): the app owner and the cover videos.
+      ...(await ownerProfileFields(this.prisma, auth.userId, (key) =>
+        this.media.largeUrl({ largeKey: key }),
+      )),
     };
   }
 

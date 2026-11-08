@@ -3113,6 +3113,56 @@ posts and reels).
 - **App:** the art ships in the app (`assets/medals/medal_content_school_l1` … `_l4.webp`,
   `medal_dares_player_l1` … `_l4.webp`); an older app shows the medal's generic icon and «level / next level» progress.
 
+### 5.80 The app owner's profile «صفحة صاحب البرنامج» (migrations `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`, `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`, `20270402090400_owner_profit`; D301) — [IMPLEMENTED, draft contract v1.95-social; not deployed, not device-tested]
+
+CONVENTIONS §10.112. The first migration only adds `notification_type` `OWNER_FEEDBACK_NEW` (it must commit before
+anything uses it); the second replaces the `media_assets` kind / duration / poster CHECKs (adds `PROFILE_COVER_VIDEO`,
+≤ 60 s with a poster), adds `posts.official_at` (+ the partial index `posts_official_author_published_idx`), the
+tables `owner_cover_videos`, `owner_journey_milestones` (CHECKs on the texts, the date and the icon; one «الأحدث» per
+owner) and `owner_feedback` (CHECKs on the status, the text and the shape), `notifications.owner_feedback_id` and
+`users_last_active_idx` (an index on `users.last_active_at`: on a large `users` table it is built while the migration
+holds its lock — a few seconds per million rows). Runtime grants come from the default privileges
+(`20261016120000_runtime_role_grants`); no new setting and no new secret. Deploy the API with the migrations; the app
+needs the new build for the owner's layout (an older app shows the owner's profile like any other).
+
+- **Who is the owner:** an ACTIVE account holding the OWNER panel role (`admin-admin grant`). Every such account gets
+  the layout; revoking the role ends it at once (the stored data stays, unshown).
+- **Storage:** the cover videos are stored unchanged like reels (`media/{id}/video.mp4|.mov` + the poster); the
+  pictures of «اقترح ميزة / أبلغ عن موظف» go to the private prefix `private/owner-feedback/{id}/{n}.webp` (never public;
+  the panel streams them). Nothing deletes them yet (owner question PP-58).
+- **Cache:** «لوحة المؤسس» is one Redis key `owner:dashboard:v1` (60 s; under the API's key prefix).
+- **Checks after deploy:**
+  `SELECT count(*) FROM owner_feedback;` (0), `SELECT conname FROM pg_constraint WHERE conname LIKE 'owner_%';`,
+  `\d+ users` shows `users_last_active_idx`; from the app as the owner, «تعديل الملف» shows «فيديو الغلاف»; from another
+  account, the owner's profile shows «متابعة المؤسس» and «اقترح ميزة / أبلغ»; the panel shows «صندوق المؤسس» to the
+  OWNER only.
+- **Rollback:** the API before D301 ignores the new tables and column; the CHECKs accept every older kind.
+- **Follow-up (owner, same day) — bilingual announcements:** apply `20270402090200_owner_announcement_enums` (only
+  `notification_type` `OWNER_ANNOUNCEMENT`; it must commit first) then `20270402090300_owner_announcements`
+  (`posts.text_en`, `posts_official_latest_idx`, the partial unique index `notifications_owner_announcement_once` — built
+  over `notifications` while the migration holds its lock — and `owner_announcement_fanouts`). **Fan-out load:** an
+  announcement writes one notification row per ACTIVE account, 1 000 per step every 5 s and right after the publish
+  (≈ 1 M rows take ≈ 1 h 25 min at the sweeper's pace; several API instances share the work). The pushes go through the
+  existing outbox (200 rows a round, `PUSH_DISPATCH_INTERVAL_MS`) with the usual per-person gap, so on a large base most
+  people see the row in the app and only part get a push; no new setting. **Checks:**
+  `SELECT post_id, recipients, done_at FROM owner_announcement_fanouts ORDER BY started_at DESC LIMIT 5;` and the audit
+  `owner.announcement.fanout_done`.
+- **Owner answers (PP-58):** the inbox keeps items until the owner deletes them (`deleteAdminOwnerInboxItem` also
+  deletes the private pictures); «دخل اليوم» counts only money Kabso receives (store card top-ups less refunds + agents'
+  stock purchases), other currencies on their own lines.
+- **The founder in search (§10.112.9):** `GET /search/featured` (no migration, no setting): the app's search shows the
+  primary ACTIVE OWNER first (a card before typing, a pinned row while typing). Check: as an ordinary account, the
+  search screen shows the founder's card; as an account blocking him (or blocked by him), nothing.
+- **«الربح» and the fixed costs (§10.112.10):** apply `20270402090400_owner_profit` (the table `owner_fixed_costs` and
+  the small partial index `wallet_ledger_free_coins_idx` — built over `wallet_ledger` while the migration holds its lock;
+  only event-prize, task and check-in coin rows are indexed). Settings read (no secret): `CHERRY_PAYOUT_RATE` (owner:
+  `1000000:110`, $1.10 per 1 000 000 cherries — the same value the withdrawals use), `ADMIN_REPORT_CARD_FEE_BPS` /
+  `_FIXED_MINOR` (owner CP-039 Q3: 290 / 30 — the store records card amounts gross), `ADMIN_DASHBOARD_TIME_ZONE`, and the
+  new `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION` (default 1200: the owner's lowest agent price, $120 per 10 000 000
+  coins; read only by «الربح»). The owner enters the fixed costs himself (app or panel «التكاليف الثابتة»); until then
+  «بعد» counts none. **Checks:** `SELECT count(*) FROM owner_fixed_costs;`; as the owner, `GET /owner/profit` answers
+  with «قبل» equal to the dashboard's income (plus held chargebacks) and «بعد» below it.
+
 ### 5.67 Staff work without a code, and the automatic shift (migration `20270320090000_staff_auto_shift`; D286) — [IMPLEMENTED, draft contract v1.76-live; not deployed, not device-tested]
 
 CONVENTIONS §10.96.14. The migration adds `admin_shifts.started_via` (`panel | app | auto`, CHECK, default `panel` for

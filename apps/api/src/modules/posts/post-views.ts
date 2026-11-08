@@ -19,6 +19,13 @@ export interface PostDto {
   format: 'POST' | 'REEL';
   /** v1.72-live (D283, §10.96.10): an official announcement «إعلان رسمي — فريق كابسو». */
   announcement: boolean;
+  /** v1.95-social (D301, §10.112.2): the app owner marked it «رسمي»; absent otherwise. */
+  official?: true;
+  /**
+   * v1.95-social (D301 follow-up, §10.112.7): a bilingual official announcement's two captions (`text` is the one in
+   * the caller's language: Arabic for an Arabic account, else English, falling back to the one that exists).
+   */
+  texts?: { ar: string; en: string };
   author: UserSummaryDto;
   text: string;
   media: MediaAssetDto[];
@@ -402,6 +409,11 @@ export class PostViews {
     if (ids.length === 0) return [];
     const rows = await db.post.findMany({ where: { id: { in: [...ids] } }, include: include(viewerId) });
     const byId = new Map(rows.map((r) => [r.id, r]));
+    // D301 follow-up: a bilingual announcement is read in the caller's language (the app's, saved with `PATCH /me`).
+    const english =
+      rows.some((r) => r.textEn !== null) &&
+      (await db.userProfile.findUnique({ where: { userId: viewerId }, select: { locale: true } }))?.locale ===
+        'en';
     // D218: whom of these authors the caller follows (the feed's «متابعة» pill).
     const authorIds = [...new Set(rows.map((r) => r.authorId).filter((a) => a !== viewerId))];
     const followed =
@@ -417,7 +429,9 @@ export class PostViews {
           );
     return ids.flatMap((id) => {
       const row = byId.get(id);
-      return row ? [this.toDto(viewerId, row, repostedBy.get(id) ?? null, followed.has(row.authorId))] : [];
+      return row
+        ? [this.toDto(viewerId, row, repostedBy.get(id) ?? null, followed.has(row.authorId), english)]
+        : [];
     });
   }
 
@@ -432,6 +446,7 @@ export class PostViews {
     row: PostRow,
     repostedBy: UserSummaryDto | null,
     followsAuthor: boolean,
+    english = false,
   ): PostDto {
     const isSelf = row.authorId === viewerId;
     // Order follows the text; only linked (stored) entities are returned.
@@ -441,8 +456,10 @@ export class PostViews {
       id: row.id,
       format: row.format,
       announcement: row.announcement,
+      ...(row.officialAt !== null ? { official: true as const } : {}),
+      ...(row.textEn !== null ? { texts: { ar: row.text, en: row.textEn } } : {}),
       author: userSummary(row.author),
-      text: row.text,
+      text: row.textEn !== null && (english || row.text === '') ? row.textEn : row.text,
       media: row.media.map((m) => this.media.toDto(m.mediaAsset)),
       location: row.location,
       hashtags: parseHashtags(row.text).filter((t) => storedTags.has(t)),

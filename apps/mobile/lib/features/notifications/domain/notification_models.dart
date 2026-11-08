@@ -126,6 +126,14 @@ enum NotificationType {
   levelRaiseApproved('LEVEL_RAISE_APPROVED'),
   levelRaiseRejected('LEVEL_RAISE_REJECTED'),
   levelRaised('LEVEL_RAISED'),
+
+  /// v1.95-social (D301, system; target OWNER_FEEDBACK, to the app owners
+  /// only): a new suggestion or staff report in «صندوق المؤسس» (the panel).
+  ownerFeedbackNew('OWNER_FEEDBACK_NEW'),
+
+  /// v1.95-social (D301 follow-up, system; target POST with `texts`): the
+  /// app owner published an official announcement — to everyone, once.
+  ownerAnnouncement('OWNER_ANNOUNCEMENT'),
   unknown('');
 
   new(this.wire);
@@ -155,6 +163,8 @@ enum NotificationType {
       this == liveStaffReport ||
       this == staffReportNew ||
       isLevelRaise ||
+      this == ownerFeedbackNew ||
+      this == ownerAnnouncement ||
       this == referralRewardReversed;
 
   /// v1.89-social (D290): a level-raise request's result.
@@ -221,7 +231,10 @@ enum NotificationTargetType {
 
   /// v1.89-social (D290): a level-raise request (its id; `text` the
   /// supporter's username for the staff member; `level` the approved level).
-  levelRaise('LEVEL_RAISE');
+  levelRaise('LEVEL_RAISE'),
+
+  /// v1.95-social (D301): a «صندوق المؤسس» item (its id; `feedbackKind`).
+  ownerFeedback('OWNER_FEEDBACK');
 
   new(this.wire);
 
@@ -255,6 +268,8 @@ class NotificationTarget {
     this.permanent = false,
     this.level,
     this.medalLevel,
+    this.feedbackKind,
+    this.texts,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -281,7 +296,23 @@ class NotificationTarget {
     permanent: json['permanent'] as bool? ?? false,
     level: (json['level'] as num?)?.toInt(),
     medalLevel: (json['medalLevel'] as num?)?.toInt(),
+    feedbackKind: json['feedbackKind'] as String?,
+    texts: switch (json['texts']) {
+      final Map<String, dynamic> t => (
+        ar: t['ar'] as String?,
+        en: t['en'] as String?,
+      ),
+      _ => null,
+    },
   );
+
+  /// v1.95-social (D301 follow-up): OWNER_ANNOUNCEMENT — both caption
+  /// excerpts (the row shows the app language's).
+  final ({String? ar, String? en})? texts;
+
+  /// v1.95-social (D301) [NotificationTargetType.ownerFeedback]: `FEATURE`
+  /// or `STAFF_REPORT` (never who sent it, about whom or the text).
+  final String? feedbackKind;
 
   /// v1.89-social (D290) [NotificationTargetType.levelRaise]: the support
   /// level approved.

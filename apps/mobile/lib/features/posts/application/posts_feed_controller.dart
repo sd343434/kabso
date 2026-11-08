@@ -58,6 +58,7 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
     announcement: post.announcement,
+    official: post.official,
     repostedBy: (repostedBy ?? post.repostedBy)?.displayName,
     pinned: post.pinned,
     edited: post.editedAt != null,

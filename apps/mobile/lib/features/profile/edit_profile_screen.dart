@@ -12,6 +12,8 @@ import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_cover_video_editor.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_edit_controller.dart';
 import 'package:kabso_live/features/profile/avatar_crop_screen.dart';
@@ -347,6 +349,10 @@ class EditProfileScreen extends ConsumerWidget {
                       GoRouter.maybeOf(context)?.push(AppRoutes.privacy),
                 ),
                 divider(),
+                // D301 (§10.112.1): the app owner's cover videos (Arabic and
+                // English) — only on the owner's own edit page.
+                if (ref.watch(isKabsoOwnerProvider))
+                  OwnerCoverVideoEditor(username: user.username),
               ],
             ),
     );

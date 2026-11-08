@@ -400,6 +400,12 @@ enum ErrorCode {
   /// `createdAt`, `requestedBy`).
   levelRaiseDuplicate('LEVEL_RAISE_DUPLICATE'),
 
+  /// v1.95-social (D301, 403): only the app owner can do this.
+  ownerOnly('OWNER_ONLY'),
+
+  /// v1.95-social (D301, 409): «رحلة Kabso» already has 30 milestones.
+  ownerJourneyLimit('OWNER_JOURNEY_LIMIT'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

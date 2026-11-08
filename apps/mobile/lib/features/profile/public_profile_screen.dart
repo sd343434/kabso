@@ -9,6 +9,9 @@ import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/owner_profile/data/owner_profile_repository.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_actions.dart';
+import 'package:kabso_live/features/owner_profile/presentation/owner_sections.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -389,6 +392,30 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         ),
       );
     }
+    // D301 (§10.112.6): the app owner's page — «متابعة المؤسس» and «اقترح
+    // ميزة / أبلغ عن موظف» (the follow of §10.6, styled for the page).
+    if (profile.kabsoOwner && !profile.blockedByMe) {
+      return OwnerVisitorActions(
+        following: profile.isFollowing,
+        requested: profile.followRequested,
+        onFollow: profile.isFollowing
+            ? () => _confirmUnfollow(profile)
+            : profile.followRequested
+            ? () => _confirmCancelRequest(profile)
+            : () => _setFollowing(follow: true),
+        more: ProfileCoverButtons.square(
+          context: context,
+          key: PublicProfileScreen.dropdownKey,
+          tooltip: l10n.feedPostMore,
+          icon: AppIcon(
+            AppIcons.chevronDown,
+            size: KMetrics.iconMd - 2,
+            color: p.textPrimary,
+          ),
+          onPressed: () => _openMore(profile),
+        ),
+      );
+    }
     final main = profile.blockedByMe
         ? FilledButton(
             key: PublicProfileScreen.unblockKey,
@@ -562,7 +589,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       child: RefreshIndicator(
         edgeOffset: MediaQuery.paddingOf(context).top,
         onRefresh: () {
-          ref.invalidate(profileGridProvider);
+          ref
+            ..invalidate(profileGridProvider)
+            ..invalidate(ownerJourneyProvider(widget.username))
+            ..invalidate(ownerOfficialPostsProvider(widget.username));
           return ref.refresh(publicProfileProvider(widget.username).future);
         },
         child: CustomScrollView(
@@ -574,6 +604,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               child: ProfileCoverHeader(
                 profile: profile,
                 actions: _actions(profile),
+                // D301: the owner's cover video, in the app's language.
+                coverVideo: ownerCoverVideoFor(context, profile),
                 // D121: the lists; a private account's are its followers'
                 // only, so a locked profile keeps the counts plain.
                 onOpenFollowers: hidden
@@ -591,6 +623,11 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               ),
             ),
             SliverToBoxAdapter(child: ProfileInfoBlock(profile: profile)),
+            // D301: «إعلانات رسمية» and «رحلة Kabso» on the owner's page.
+            if (profile.kabsoOwner && !profile.blockedByMe)
+              SliverToBoxAdapter(
+                child: OwnerProfileSections(profile: profile, own: false),
+              ),
             if (profile.blockedByMe)
               SliverToBoxAdapter(
                 child: Padding(

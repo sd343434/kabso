@@ -150,6 +150,9 @@ describe('KL-037 contract coverage', () => {
             'decideLiveWatchSuggestion',
             // v1.42-live (D170): the host's presence; d170-host-away covers it.
             'setLiveHostPresence',
+            // v1.95-social (D301): the owner's journey and official posts; d301-owner-profile covers them.
+            'listUserJourney',
+            'listUserOfficialPosts',
           ].includes(o.operationId),
       )
       .filter(

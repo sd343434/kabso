@@ -181,6 +181,9 @@ describe('ErrorCode', () => {
         'CREATOR_APPLICATION_NOT_ALLOWED',
         // v1.89-social (DRAFT, D290)
         'LEVEL_RAISE_DUPLICATE',
+        // v1.95-social (DRAFT, D301)
+        'OWNER_ONLY',
+        'OWNER_JOURNEY_LIMIT',
         // v1.80-kyc (D227).
         'KYC_NOT_ALLOWED',
         'KYC_UNAVAILABLE',
@@ -295,6 +298,8 @@ describe('ErrorCode', () => {
       HOST_APPLICATION_NOT_ALLOWED: 409,
       CREATOR_APPLICATION_NOT_ALLOWED: 409,
       LEVEL_RAISE_DUPLICATE: 409,
+      OWNER_ONLY: 403,
+      OWNER_JOURNEY_LIMIT: 409,
       INSUFFICIENT_CHERRIES: 409,
       WITHDRAWAL_PENDING: 409,
       TASK_MONTHLY_CAP_REACHED: 409,

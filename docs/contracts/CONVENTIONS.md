@@ -157,6 +157,8 @@ All non-2xx responses use one envelope:
 | 409 | `CREATOR_APPLICATION_NOT_ALLOWED` | *(v1.75-live, DRAFT, D285)* `applyForCreatorProgramme` refused — `details[0] = {field: application, issue}`: `ACCOUNT_NOT_ACTIVE`, `MEMBER` (already a creator), `STAFF` (a Kabso Team account), `PENDING` (one open application per user) (§10.96.13). *(v1.82-live, D295)* `HOST` (a host — any hosting permission but a creator's — cannot also be a creator, §10.108). Nothing was kept. |
 | 409 | `AGENCY_ACTIVATION_NOT_ALLOWED` | *(v1.82-live, DRAFT, D295)* `activateMyAgencyMember` refused — `details[0] = {field: member, issue}`: `AGENCY_SUSPENDED` (the team suspended the agency's host agent), `ACCOUNT_NOT_ACTIVE`, `STAFF` (a Kabso Team account), `HOST` (a host cannot be made a creator), `CREATOR` (a creator cannot be made a host) (§10.108). Nothing changed. |
 | 409 | `LEVEL_RAISE_DUPLICATE` | *(v1.89-social, DRAFT, D290)* `createStaffLevelRaise` / `createAdminLevelRaise`: the source account (canonical app + account ID, trimmed, case-insensitive) already has a PENDING or APPROVED level-raise request — `details`: `{field: status, issue: PENDING\|APPROVED}`, `{field: createdAt, issue: <ISO time>}`, `{field: requestedBy, issue: <the staff member's display name>}` (§10.103.8). Nothing was kept. |
+| 403 | `OWNER_ONLY` | *(v1.95-social, DRAFT, D301)* Only the app owner — an ACTIVE account holding the OWNER panel role — may do this: the cover videos (`setMyCoverVideo`, `removeMyCoverVideo`, a `PROFILE_COVER_VIDEO` upload slot), «رحلة Kabso» (`createOwnerJourneyMilestone`, `updateOwnerJourneyMilestone`, `deleteOwnerJourneyMilestone`, `reorderOwnerJourney`), «رسمي» (`markPostOfficial`, `unmarkPostOfficial`) and «لوحة المؤسس» (`getOwnerDashboard`, and «الربح» `getOwnerProfit` with the fixed costs `/owner/fixed-costs`). Nothing changed (§10.112). |
+| 409 | `OWNER_JOURNEY_LIMIT` | *(v1.95-social, DRAFT, D301)* `createOwnerJourneyMilestone` when the owner already has 30 milestones in «رحلة Kabso». Nothing was kept (§10.112.3). |
 | 409 | `KYC_NOT_ALLOWED` | *(v1.80-kyc, DRAFT, D227)* `startKycSession` refused — `details[0] = {field: purpose, issue}`: `ACCOUNT_NOT_ACTIVE`, `ALREADY_APPROVED` (an approved check counts for the purpose), `IN_REVIEW` (wait for the review), `DAILY_LIMIT` (the OWNER's sessions per 24 h, default 3; §10.77). Nothing was started. |
 | 503 | `KYC_UNAVAILABLE` | *(v1.80-kyc, DRAFT, D227)* Identity verification (Didit) is off or not configured in the admin panel «التحقق من الهوية (Didit)» — `startKycSession`, `syncKycCheck`; the webhook when no webhook secret is saved (Didit retries); the panel's image fetch without an API key. No `Retry-After`. |
 | 409 | `INSUFFICIENT_CHERRIES` | *(v1.52-social, DRAFT, D179)* A withdrawal request larger than the caller's cherry balance (*v1.53-social, D184:* less the task cherries still locked, `withdrawableCherries`, §10.46.1). Nothing was held. |
@@ -651,6 +653,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.89-social)* Tables `level_raise_requests`, `level_raise_source_apps`, `level_raise_settings`; column `notifications.level_raise_request_id`; media kind `LEVEL_RAISE_VIDEO` | Backend — `level-raise` module (the level is raised only through the `levels` module's `LevelProgressService`) | CTO; the OWNER approves the weights and the source-app data (D290) |
 | *(v1.90-social)* Tables `user_verification_badges`, `verification_badge_settings`; type `verification_badge`; capabilities `verification.view` / `verification.settings`; audit `verification.*`; config `VERIFICATION_BADGE_SWEEP_INTERVAL_SECONDS` | Backend — `verification` module (`verification-badges.ts` the only writer of the badges; `VerificationService` the only writer of the settings; `admin-roles`, `creator-applications` and `kyc.service` call the recompute in their transactions); app — `ProfileVerificationBadge`; web — `apps/admin` «شارات التوثيق» and the user page | CTO; the OWNER sets the thresholds (D293) |
 | *(v1.91-social)* Column `user_profiles.tag_icons` (CHECKs `user_profiles_tag_icons_len`, `user_profiles_tag_icons_values`) | Backend — `users` module (`PATCH /me` writes; the profile reads) | CTO |
+| *(v1.95-social)* Tables `owner_cover_videos`, `owner_journey_milestones`, `owner_feedback`; columns `posts.official_at`, `notifications.owner_feedback_id`; (follow-up) column `posts.text_en`, table `owner_announcement_fanouts`, indexes `posts_official_latest_idx`, `notifications_owner_announcement_once`; index `users_last_active_idx`; media kinds `PROFILE_COVER_VIDEO`, `OWNER_FEEDBACK_IMAGE`; capability `owner.inbox`; («الربح») table `owner_fixed_costs`, index `wallet_ledger_free_coins_idx`, capability `owner.costs` | Backend — `owner-profile` module (the posts module serves `Post.official`; the panel reads the inbox through `owner.inbox` only) | CTO; Security (confidential staff reports) |
 
 ## 9. Contract change log
 
@@ -735,6 +738,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.73-live (draft) | 2026-11-05 | **D283c (owner: «ايدي للمشرفين والادارة بحيث ايدي الموظفين يبدأ Kabso01»): the official staff ID** — schema `StaffId` («Kabso01», two digits then 100+); `Me.staffId`, `PublicProfile.staffId`, `UserSummary.staffId`, `KabsoStaffIdentity.staffId`; `AdminTeam` rows `staffId`; `AdminTeamGrantResult.staffId`; `grantAdminTeamRole.account` and the `admin-admin` CLI accept a staff ID; `search` (`type=users`) and `searchAdminUsers` find by it. Every panel role (the OWNER too), given in the grant's transaction (advisory lock, MAX + 1: no duplicate, no gap), retired never reused (a re-grant shows the same one), shown only while a panel role is held. Usernames that look like a staff ID (`kabso` + digits, any case, look-alikes `kabs0` / `k4bso`) are reserved. Migration `20270317090000_staff_ids` (`staff_ids`, read-only for the runtime role; `kabso_assign_staff_id`; `kabso_admin_panel_role` replaced; backfill in first-grant order). §6, §10.96.12. | **Additive** (new optional fields; older apps keep showing the @username). **Behaviour change:** new usernames matching the staff-ID pattern are refused with `USERNAME_TAKEN` (existing ones are kept). |
 | v1.72-live (draft) | 2026-11-05 | **D283 (owner: «الشخص الذي بفريق الادارة لدينا لا يمكنه فتح لايف وليس لديه ليفيلات — فقط سوف يكون له ايقونة التي وضعناها وإطار، بالاضافة لاعداداته وصفحته الشخصية فقط، يمكن ان يقوم بتنزيل بوست اعلان فقط او ريلز اعلان»; «قم بتجزئة الاشراف كل مشرف مسؤول عن دول معينة بما يناسب»; the fixed team picture, frame and covers):** the **limited staff account** (MODERATION / SUPPORT / FINANCE, not OWNER): code `STAFF_ACCOUNT_LIMITED` (403) on `startLiveRoom` (every mode), `createLiveScheduleSlot`, `applyForHosting`, `createFamily`, `requestToJoinFamily`, `buyVip`, `buyStoreItem`, `checkIn` / `claimTask` (and `getMyTasks` lists none), `setMyAvatar` / `removeMyAvatar`, `setMyCover` / `removeMyCover`, `equipBagItem` of an `AVATAR_FRAME`, `createStory`, `repostPost`, `createPost` without `announcement`; the chat topic's `staff-join` data message (the team's entry car); `CreatePostRequest.announcement` and `Post.announcement` (required in responses) «إعلان رسمي — فريق كابسو» (panel roles only); `Me.staff` / `PublicProfile.staff` (`KabsoStaffIdentity`: `role`, `regions`); `getUserLevels` answers an empty `data` for them; `LiveChatAuthorBadges` empty for them; their `avatarUrl` is the team picture `GET /staff/team-avatar.png` (`getKabsoTeamAvatar`, public); `PublicProfile.coverUrl` / `avatarFrame` null and no `vip` / `wear` for them (also on `UserSummary` while it carries the team picture). **Regions** (`StaffRegion`, 13 codes): `listAdminStaffRegions` (`GET /admin/team/regions`), `setAdminTeamRegions` (`PUT /admin/team/{userId}/regions`, OWNER, code + reason, audited `admin.team.regions`, refusal `team_regions_role`); `AdminTeamMember.regions`; `listAdminLives` `region` (a code or `mine`), `AdminLiveRow.hostCountry` / `region`; `listStaffLives` `scope=assigned|regions`, `StaffLive.hostCountry` / `region`, `assignedAt` nullable; the D260 assignment and the D273 report alerts prefer a staff member whose region covers the host's country. Migration `20270316090000_staff_limits_regions` (`posts.announcement`, `user_profiles.staff_avatar` / `staff_saved_avatar_url`, `admin_staff_regions`). §4, §10.96.10–11. | **Additive for apps and the panel** (new optional fields and operations; an older app ignores `staff` and `announcement`). **Behaviour change** for MODERATION / SUPPORT / FINANCE accounts only: they can no longer go live, post anything but announcements, join a family, buy VIP or store items, claim tasks, change their picture, cover or frame; `getUserLevels` may now return no items (was always 4). |
 | v1.71-live (draft) | 2026-11-05 | **D281 (owner: «الأهداف الذكية» — more than 100 000 generated host targets, three a day at three levels chosen from the host's data, a share of the platform profit as the reward):** *D281b:* two tracks (`HostDailyTarget.track`: GIFTS / LUCKY; six targets a day), the lucky kinds `LUCKY_GIFT_COUNT`, `LUCKY_SENDS`, `LUCKY_SUPPORTERS`, `LUCKY_COMBO`, OWNER-editable `newHostDefaults`, catalogue `luckyGifts` / `byTrack`; migration `20270315090200_host_target_tracks`. `LiveHostTargets.daily` (`HostDailyTarget`, `TaskGift`); `CherryLedgerReason.HOST_TARGET_REWARD`; panel `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`, `getAdminHostTargets` (`host_targets.view` / `.edit`, OWNER only). Migrations `20270315090000_host_target_engine_enums`, `20270315090100_host_target_engine`. §10.62.2. | **Additive** (new fields, a new ledger reason, new admin paths); the switch is at the next day boundary after the first read. |
+| v1.95-social (draft) | 2026-11-07 | **D301 (owner: «صفحة صاحب البرنامج» — features chosen from five mock-ups; the milestones managed in the app):** `PublicProfile.kabsoOwner` / `Me.kabsoOwner`, `PublicProfile.coverVideo` / `Me.coverVideo` (`OwnerCoverVideo`, `CoverVideoVariant`); `setMyCoverVideo` / `removeMyCoverVideo` (`/me/cover-video/{lang}`); `MediaKind` `PROFILE_COVER_VIDEO` (≤ 60 s, poster) and `OWNER_FEEDBACK_IMAGE` (private); `markPostOfficial` / `unmarkPostOfficial`, `Post.official`, `listUserOfficialPosts`; `listUserJourney`, `createOwnerJourneyMilestone`, `updateOwnerJourneyMilestone`, `deleteOwnerJourneyMilestone`, `reorderOwnerJourney` (`JourneyMilestone`, `JourneyMilestoneList`, `CreateJourneyMilestoneRequest`, `UpdateJourneyMilestoneRequest`, `ReorderJourneyRequest`); `getOwnerDashboard` (`OwnerDashboard`); `createOwnerFeedback` (`CreateOwnerFeedbackRequest`, `OwnerFeedbackReceipt`), `searchOwnerFeedbackStaff` (`OwnerFeedbackStaffList`); panel `listAdminOwnerInbox`, `getAdminOwnerInboxItem`, `updateAdminOwnerInboxStatus`, `getAdminOwnerInboxImage` (`OwnerInboxPage`, `OwnerInboxItem`), capability `owner.inbox` (OWNER); `NotificationType` `OWNER_FEEDBACK_NEW`, `NotificationTarget.type` `OWNER_FEEDBACK` + `feedbackKind`; codes `OWNER_ONLY` (403), `OWNER_JOURNEY_LIMIT` (409); audit `owner.*`, `admin.owner_inbox.*`; migrations `20270402090000_owner_profile_enums`, `20270402090100_owner_profile`. Follow-up (owner, same day): bilingual announcements `createOwnerAnnouncement` / `updateOwnerAnnouncement` (`CreateOwnerAnnouncementRequest`, `UpdateOwnerAnnouncementRequest`), `Post.texts`, the latest announcement first in `listFeedPosts`, `NotificationType` `OWNER_ANNOUNCEMENT` (+ `NotificationTarget.texts`) to every ACTIVE account once by a background fan-out; `getSearchFeatured` (`SearchFeatured`, §10.112.9); owner answers (§10.112.8): `deleteAdminOwnerInboxItem`, `OwnerDashboard.income.otherCurrencies` and the income definition; migrations `20270402090200_owner_announcement_enums`, `20270402090300_owner_announcements`. «الربح» (owner, same day; §10.112.10): `getOwnerProfit` (`OwnerProfit`, `OwnerProfitPeriod`, `OwnerProfitDeductionKey`), the fixed costs `listOwnerFixedCosts` / `createOwnerFixedCost` / `updateOwnerFixedCost` / `deleteOwnerFixedCost` and panel `listAdminOwnerFixedCosts` / `createAdminOwnerFixedCost` / `updateAdminOwnerFixedCost` / `deleteAdminOwnerFixedCost` (`OwnerFixedCost`, `OwnerFixedCostList`, `CreateOwnerFixedCostRequest`, `UpdateOwnerFixedCostRequest`), capability `owner.costs` (OWNER); migration `20270402090400_owner_profit`. §4, §10.112. | **Additive** (new operations, fields, schemas and enum values; clients ignore notification types they do not know). |
 | v1.94-social (draft) | 2026-11-06 | **D297 (owner: «مهام خاصة بصناع المحتوى، وقيمتها كمهام المضيف» — Task Center tasks only for content creators, valued like the host tasks):** `ProgramTask.audience` `CREATORS` (creator-programme members only; a member never gets `HOSTS` tasks), `MyTasks.band.creator` (`band.host` = host tasks offered), `ProgramTask.metric` `REEL_VIEWS_RECEIVED`, `LIKES_RECEIVED`, `COMMENT_REPLIES`, `NEW_FOLLOWERS`, `SHARES_RECEIVED`; the pool group CREATOR with `task_pool_bands.creator_count`; ten default tasks (six daily, four weekly per band) mirroring the host tasks' rewards under the same daily and monthly caps; `task-admin band --creator-count`; CHECK `events_audience_not_creators`; migrations `20270331090000_creator_tasks_enums`, `20270331090100_creator_tasks`. §10.110. | **Additive** (a new enum value in a response, new metric values — clients map unknown ones to the generic icon —, a new field). |
 | v1.94-social (draft) | 2026-11-06 | **D297 follow-up (owner answers: defaults approved, no anti-fake rule, 6 / 4 weekly tasks; «قم بتوليد 300 ألف مهمة لصانع المحتوى و300 ألف مهمة للمضيف … حسب المستوى وتدريجياً», the level = the charm level):** `ProgramTask.metric` `HOST_LIVE_DAYS`; fixed weekly tasks `CREATOR_WEEKLY_LIKES`, `CREATOR_WEEKLY_STORIES`, `HOST_WEEKLY_LIVE_DAYS`, `HOST_WEEKLY_PK_BATTLES`; the generated catalogue (315 120 tasks per audience, by charm level; 32 template rows `G_CR_…` / `G_HO_…`; `task_assignments.variant` `G.…`), `task-admin generator`; migration `20270331090200_task_generator`. §10.110.1. | **Additive** (a new metric value; generated tasks are ordinary tasks on the wire). |
 | v1.93-social (draft) | 2026-11-06 | **D296 (owner: a report opens its content for the staff with warn / restrict / ban buttons, a reported message opens the reported chat, «رسائل الإبلاغ غير فعّال»; then: an action resolves only the pressed report, the whole conversation «مثل طريقة نزاع وكيل الشحن», SUPPORT keeps «تعليق مؤقت», the permanent deletions in the app too)** — `getStaffReport` (`StaffReportView`, `StaffReportTarget`: the content whatever its visibility; a DM / a person reported from a conversation with `DmReportThread`, every read audited `moderation.report.dm_read`), `actOnStaffReport` (`StaffReportActionRequest` / `StaffReportActionResult`: WARN, RESTRICT NO_POSTING / NO_LIVE / CHAT_MUTE, SUSPEND, BAN, REMOVE_CONTENT, DELETE_CONTENT, DELETE_ACCOUNT with `confirm: DELETE`, each with its panel capability; only the pressed report resolved, `AdminPanelReport.resolutionAction`, the staff's alerts read, 409 on a second action); `CreateReportRequest.dmConversationId`; `StaffStatus.capabilities` gains `reports.act`, `users.restrict`, `users.lock`, `users.ban`, `users.content`, `users.delete`; `createReport` USER accepts the user's id (the bug). Migration `20270330090000_report_resolution_action`. §10.109. | **Additive** (new operations, fields, enum values). **Behaviour change:** an app action resolves its report; a USER report by id is accepted instead of 404; a DM report keeps the whole conversation (owner's privacy decision). |
@@ -8549,6 +8553,229 @@ The sheet words each threshold «1,500 نقطة PK» / "1,500 PK points".
    «هذه ميداليات»).
 Earlier: content creators only, a level kept when the membership ends, current followers plus all-time likes and views
 from ACTIVE accounts never self, posts and reels both — owner-confirmed.
+
+### 10.112 The app owner's profile «صفحة صاحب البرنامج» *(v1.95-social, DRAFT — D301)*
+
+Owner (2026-11-07), after five mock-ups: a combination of features — the video cover of «المسرح» (4), «رحلة Kabso» of
+«الإنجازات» (5), «إعلانات رسمية» of «البطاقة الرسمية» (3), «لوحة المؤسس» of «هوية كابسو» (2), «متابعة المؤسس» and «اقترح
+ميزة / أبلغ عن موظف». Owner, the same day: the milestones are managed **in the app**, from his own profile (no panel
+page); «صندوق المؤسس» is a panel page.
+
+- **The owner.** An ACTIVE account holding the OWNER panel role (`user_admin_permissions`, §10.54.1). Every such account's
+  profile gets the layout; nobody else's profile changes. `PublicProfile.kabsoOwner` and `Me.kabsoOwner` are `true` for
+  it (absent otherwise). Every operation marked *owner* below refuses anyone else with 403 `OWNER_ONLY` (nothing changed);
+  revoking the role ends the powers at once, and the stored data stops showing (the profile is a plain one again).
+
+#### 10.112.1 The video cover «فيديو الغلاف»
+
+- **Media kind `PROFILE_COVER_VIDEO`** — a video like a reel's (§11.14): MP4 or QuickTime, H.264 / HEVC, ≤ 100 MiB,
+  1–60 s, stored unchanged (no transcoding), with its poster (`VIDEO_POSTER`, the first frame made on the phone; `complete`
+  needs `{posterId}`). Only the owner gets an upload slot of this kind (`createMediaUpload` 403 `OWNER_ONLY`).
+- **Two videos**, Arabic and English: `PUT /me/cover-video/{lang}` (`setMyCoverVideo`, *owner*, `lang` `ar` | `en`, body
+  `{mediaId}`: the caller's READY, unattached `PROFILE_COVER_VIDEO` of the last 24 hours, else 400 `mediaId` /
+  `invalid_value`; 503 `MEDIA_UPLOADS_UNAVAILABLE` while uploads are off) replaces that language's video — the old asset
+  is deleted in the transaction, its objects after commit; the same video again changes nothing.
+  `DELETE /me/cover-video/{lang}` (`removeMyCoverVideo`, *owner*, idempotent, uploads may be off). Both answer
+  `OwnerCoverVideo` (what is left) and are audited `owner.cover_video.set` / `owner.cover_video.remove` (`{lang}`).
+- **Wire:** `PublicProfile.coverVideo` and `Me.coverVideo` = `OwnerCoverVideo {ar?, en?}`, each `CoverVideoVariant {url,
+  posterUrl, durationMs, width, height}`; present only on an owner's profile with at least one video. The server never
+  picks: **the app** shows `ar` when its own language is Arabic, else `en`; when only one exists, everyone sees it; with
+  none, the cover picture (`coverUrl`, else the Kabso gradient) as before.
+- **The app.** The cover plays the chosen video muted and looping, only while at least half of it is on screen (paused
+  off-screen, in another tab or with the app in the background), with a mute button and a small «فيديو» pill. With the
+  system's reduce-motion setting it does not start by itself: the poster stays with a play button. The app has no
+  data-saver setting today (none to respect). The owner sets or removes each language's video in «تعديل الملف»
+  (shown only to the owner).
+
+#### 10.112.2 Official announcements «إعلانات رسمية»
+
+- `posts.official_at` (null = not official). `PUT /posts/{postId}/official` (`markPostOfficial`) and
+  `DELETE /posts/{postId}/official` (`unmarkPostOfficial`): *owner*, the caller's own PUBLISHED post or reel (404
+  otherwise), idempotent, audited `owner.post.official` / `owner.post.unofficial`; they answer the `Post`. Pins are
+  separate (§11.2, at most 3): an official post may be pinned or not — pinning alone was not enough (the list keeps more
+  than three, and a pin is not an announcement).
+- `Post.official` (`true`, absent otherwise) — the post's card shows «رسمي».
+- `GET /users/{username}/official-posts` (`listUserOfficialPosts`, `PostPage`, §5 cursor): the user's official posts that
+  the caller may see (the rules of `GET /users/{username}/posts`), **the pinned ones first** (newest pin first, first page
+  only), then newest published first. Empty unless the user is an owner (a former owner's flags stay stored, unshown).
+- **The app** lists the first three on the owner's profile (an icon, the post's first line, the relative time, «عرض
+  الكل» to the full list); the post's ⋯ menu has «تعيين كإعلان رسمي» / «إزالة من الإعلانات الرسمية» for the owner only.
+
+#### 10.112.3 «رحلة Kabso» — the journey timeline
+
+- Table `owner_journey_milestones`: per owner, at most **30** (a 31st: 409 `OWNER_JOURNEY_LIMIT`). Each: `titleAr` and
+  `titleEn` (1–60 characters, trimmed, both required), `lineAr` / `lineEn` (0–120, empty = null), `year` (2020–2100) and
+  `month` (1–12), `icon` from the closed set `rocket`, `users`, `agency`, `globe`, `sparkles`, `star`, `trophy`,
+  `heart`, `gift`, `live`, `crown`, `flag` (else 400 `icon` / `invalid_value`), `latest` («الأحدث»: at most one per owner —
+  setting it clears the others) and `position` (the display order, 0-based).
+- `GET /users/{username}/journey` (`listUserJourney`) → `{data: JourneyMilestone[]}` in order; empty unless the user is
+  an owner; 404 as the profile. Every signed-in viewer reads it; the app shows the viewer's language (`ar` → the Arabic
+  texts, else English).
+- *Owner:* `POST /owner/journey` (`createOwnerJourneyMilestone`, appended last, 201), `PATCH /owner/journey/{milestoneId}`
+  (`updateOwnerJourneyMilestone`, any of the fields), `DELETE /owner/journey/{milestoneId}` (`deleteOwnerJourneyMilestone`,
+  204, the rest renumbered), `PUT /owner/journey/order` (`reorderOwnerJourney`, `{ids}`: exactly the owner's milestones,
+  each once, else 400 `ids` / `invalid_value`) → `{data}`. Another owner's milestone is 404. Audited
+  `owner.journey.create` / `.update` / `.delete` / `.reorder`.
+- **The app** (owner's choice: in the app, no panel page): the vertical timeline (coloured icon nodes, a gradient line,
+  date chips, «الأحدث»); on his own profile «تعديل» opens the editor: add, edit (a sheet form in both languages), delete,
+  and reorder by drag or ▲ / ▼.
+
+#### 10.112.4 «لوحة المؤسس» — the founder dashboard
+
+- `GET /owner/dashboard` (`getOwnerDashboard`, *owner*): `OwnerDashboard {onlineNow, onlineWindowMinutes, liveRoomsNow,
+  income {day, timeZone, currency, amountMinor, websiteMinor, agentsMinor}, generatedAt}`:
+  - `onlineNow` — ACTIVE accounts whose last authenticated request is under 5 minutes old (presence, §10.25:
+    `users.last_active_at`, written at most once a minute; index `users_last_active_idx`);
+  - `liveRoomsNow` — LIVE rooms;
+  - `income` — **only money Kabso itself receives** today (owner, PP-58: «كيف له دخل!!»; the panel's day,
+    `ADMIN_DASHBOARD_TIME_ZONE`, §10.60.1), in **USD** minor units: the store's card top-ups credited today
+    (`topup_orders.amount_minor` minus what was refunded, D190) plus what recharge agents pay Kabso for their coin stock
+    (`recharge_topups.paid_minor`, the wholesale top-up `recharge-admin topup`, D185). An agent's resale of coins to users
+    (`recharge_sales`, paid to the agent in local money) is never counted. Money received in another currency is listed
+    per currency in `otherCurrencies` (never converted). The app's fuller view says this in a line.
+- Cached for **60 s** in Redis (one value for every owner), so a refresh is cheap; `generatedAt` says when it was
+  computed. Never in any public response.
+- **The app:** a red card only the owner sees on his own profile, marked «خاص»; the income is blurred until tapped; a tap
+  on the card opens the fuller view (the three numbers, the breakdown and the time).
+
+#### 10.112.5 «اقترح ميزة / أبلغ عن موظف» and «صندوق المؤسس»
+
+- `POST /owner/feedback` (`createOwnerFeedback`, any ACTIVE signed-in account) → 201 `OwnerFeedbackReceipt {id, kind,
+  createdAt}`:
+  - `{kind: FEATURE, text, imageUploadIds?}` — «اقتراح ميزة»: `text` 1–1 000 characters, at most **one** picture;
+  - `{kind: STAFF_REPORT, staffUserId, category, text, imageUploadIds?}` — «الإبلاغ عن موظف»: `staffUserId` a Kabso Team
+    account (an ACTIVE MODERATION, SUPPORT, FINANCE or BD account — never an OWNER), else 400 `staffUserId` /
+    `invalid_value`; `category` one of `RUDENESS`, `ABUSE_OF_POWER`, `UNFAIR_ACTION`, `NO_RESPONSE`, `CORRUPTION`,
+    `OTHER`; at most **four** evidence pictures.
+  - Pictures are uploads of the private kind `OWNER_FEEDBACK_IMAGE` (an image, ≤ 15 MiB), never completed (404) and
+    consumed into `private/owner-feedback/{id}/{n}.webp` (re-encoded, metadata stripped, never public); an upload that
+    is not the caller's pending one is 400 `imageUploadIds` / `invalid_value` and nothing is kept.
+  - **At most 3 per account in any 24 hours** (counted in the database; a 4th: 429 `RATE_LIMITED` with `Retry-After`).
+  - Audited `owner.feedback.create` (`{kind}`; never the text).
+  - **Notification** `OWNER_FEEDBACK_NEW` to every ACTIVE owner (target `OWNER_FEEDBACK`, `feedbackKind`; never the
+    sender, the staff member or the text). **Confidential:** the reported staff member is never notified and never sees
+    it; no staff route (app or panel) reads it.
+- `GET /owner/feedback/staff?q=` (`searchOwnerFeedbackStaff`) → `{data: OwnerFeedbackStaff[]}` (≤ 20): the Kabso Team
+  accounts above whose @username starts with `q`, whose staff ID is `q` («Kabso01», D283c) or whose name contains it —
+  the id, username, name, photo and staff ID only (already public, D273).
+- **The panel «صندوق المؤسس»** (capability `owner.inbox`, **OWNER only** — the session's authenticator sign-in as
+  every panel page; no code again: nothing moves money): `GET /admin/owner-inbox` (`listAdminOwnerInbox`, `status`,
+  `kind`, cursor; newest first; with the counts per status), `GET /admin/owner-inbox/{feedbackId}`
+  (`getAdminOwnerInboxItem`; a NEW item becomes READ; audited `admin.owner_inbox.view`), `PUT
+  /admin/owner-inbox/{feedbackId}/status` (`updateAdminOwnerInboxStatus`, `{status: NEW | READ | DONE}`, audited
+  `admin.owner_inbox.status`), `DELETE /admin/owner-inbox/{feedbackId}` (`deleteAdminOwnerInboxItem`: the row, its
+  notifications and its private pictures in storage; a confirm dialog; audited `admin.owner_inbox.delete`) and
+  `GET /admin/owner-inbox/{feedbackId}/images/{index}` (the picture, `image/webp`, `private, no-store`). Items and their
+  pictures are kept until the owner deletes them (owner, PP-58). Staff roles get 403 like any capability they lack.
+
+#### 10.112.6 What the owner's profile shows
+
+The D299 header stays (the photo on the cover, the name with the D293 seal, the @handle in the bar), the cover playing
+the video when there is one. Under it: the actions — visitors «متابعة المؤسس» (the follow of §10.6, styled for the page)
+and «اقترح ميزة / أبلغ عن موظف», the owner «تعديل الملف»; the owner's «لوحة المؤسس»; «إعلانات رسمية»; «رحلة Kabso»; then
+the posts as on any profile. The regular-user parts that do not fit — the tags, the family / relationship / medals tiles
+and the worn medals row — show only when they hold data (as before for every profile); the empty «add» tiles of the bond
+block are not shown on an owner's profile.
+
+#### 10.112.7 Bilingual announcements, first in the feed, told to everyone *(D301 follow-up)*
+
+Owner (2026-11-07): «اعلان التي يقوم المؤسس نشرها تكون دائماً في اول منشور ويتم نشرها بلغتين تظهر عند من اعدادته بالعربي
+بالعربي ومن اعدادته بالإنجليزي بالإنجليزي ويصل اشعار لكل المستخدمين لها حتى المشرفين»; answers the same day: the
+announcement stays the first post of every user's posts feed until a newer official announcement replaces it (only the
+latest is on top; the older ones stay in «إعلانات رسمية»); staff get the notification like everyone, in their language.
+
+- **Bilingual (the model).** An official announcement is one official post with two captions: `posts.text` (Arabic) and
+  `posts.text_en` (English), the same pictures for both. `POST /owner/announcements` (`createOwnerAnnouncement`, *owner*,
+  `Idempotency-Key` as `createPost`) takes `{textAr, textEn, mediaIds?}` — both captions required, 1–2 200 characters —
+  and publishes it at once with `official_at` set (the posts rules otherwise: media, mentions and hashtags from the Arabic
+  caption, rate limits). `PATCH /owner/announcements/{postId}` (`updateOwnerAnnouncement`, *owner*, his own official post,
+  404 otherwise) changes either caption; editing never notifies again. Audited `owner.announcement.publish` /
+  `owner.announcement.update`.
+- **Which caption.** `Post.texts {ar, en}` carries both (bilingual announcements only); `Post.text` is the caller's
+  language's — the account's `locale` (the app's language, saved by `PATCH /me`): `ar` → Arabic, anything else →
+  English; a post marked «رسمي» with one caption (§10.112.2) reads the same for everyone. The app shows `texts` in its
+  current language when present.
+- **First in the feed.** `GET /feed/posts`, every tab (`mixed`, `following`, `trending`): the first page starts with the
+  latest official announcement — the greatest `official_at` among the `POST`-format posts of an ACTIVE OWNER that the
+  caller may see (blocks, mutes and hides still apply) — and that post is left out of every page of the list. It is read
+  live, not from the frozen snapshots: a newer announcement replaces it, un-marking removes it, at once. Reels feeds are
+  unchanged.
+- **Told to everyone, once.** The first time a post becomes official (`createOwnerAnnouncement`, or «تعيين كإعلان رسمي»,
+  §10.112.2) a fan-out row (`owner_announcement_fanouts`, keyed by the post: un-marking and marking again never queues a
+  second one) is written in the request's transaction; nothing per user is. A background sweeper (every 5 s, and right
+  after the publish) writes `OWNER_ANNOUNCEMENT` notifications to every ACTIVE account but the owner who published it —
+  staff included — 1 000 accounts per step in `users.id` order with a saved cursor (`FOR UPDATE SKIP LOCKED`: several
+  API instances share the work; resumable after a restart), idempotent through the unique index
+  `notifications_owner_announcement_once`; audited `owner.announcement.fanout_done` with the count. The target is the
+  POST with `texts` (both excerpts); the inbox shows its language's, the push (the D152 outbox, the recipient's account
+  language, its usual per-person gap) reads «إعلان رسمي: …» / "Official announcement: …". The row shows only while the
+  recipient may see the post (§11.10 rules); a system type, always on.
+
+#### 10.112.8 Owner decisions (2026-11-07, PP-58)
+
+1. «صندوق المؤسس»: items and pictures are kept until the owner deletes them («حذف» in the panel, §10.112.5).
+2. «دخل اليوم»: only money Kabso receives — store card top-ups less refunds plus agents' stock purchases; never an
+   agent's resale; other currencies listed separately, unconverted (§10.112.4).
+3. The owner's picture is the account's own photo (no special picture).
+4. The visitor row stays «متابعة المؤسس», «اقترح ميزة / أبلغ» and more — no chat button (the inbox replaces messages).
+5. The timeline's Arabic title is «رحلة Kabso» (the brand in Latin script, T2); English "The Kabso journey".
+
+#### 10.112.9 The founder always in search «مؤسس Kabso Live»
+
+Owner (2026-11-07): «في البحث تظهر صفحة مؤسس البرنامج دائماً». `GET /search/featured` (`getSearchFeatured`, every signed-in
+caller) answers `{owner}`: the primary ACTIVE OWNER — the one holding the staff ID «Kabso» (D283d), else the earliest
+OWNER grant — as a `UserSummary` (with the D293 seal) plus `isFollowing` and `isSelf`; `null` when no ACTIVE account
+holds OWNER or a block stands either way. Nothing is hard-coded in the app. The app's search screen shows it as a card
+before anything is typed (photo, name and seal, «مؤسس Kabso Live», Follow) and as a compact pinned row above the
+results of every tab while typing; when he is also among the people results, he is not listed twice.
+
+#### 10.112.10 «الربح»: before and after every share, and the fixed costs
+
+Owner (2026-11-07): «اريد عند حساب الارباح على صفحتي كمؤسس ان تزيل نسب الجميع لكون ربح نهائي وضعها قبل وبعد. بالاضافة
+هناك تكاليف ثابتة مثلاً اشتراك كلاود و لايف كيت والفلاتر والسيرفرات، هذه التكاليف الشهرية يتم تقسيمها على الشهر».
+
+- **`GET /owner/profit?day=YYYY-MM-DD`** (`getOwnerProfit`, owner only — 403 `OWNER_ONLY`; cached 60 s per day, dropped
+  when a fixed cost changes): the local day (`ADMIN_DASHBOARD_TIME_ZONE`, default today, from 2026-01-01 to today; 400
+  `day` / `out_of_range` or `invalid_value` otherwise) and its month — a past month whole, the current month from its
+  1st to today (`partial`: the fixed costs count their elapsed share, today included).
+- **«الدخل قبل»** (`before`, US cents) = the PP-58 definition: the card top-ups credited in the period
+  (`cardChargedMinor`) − their refunds (Stripe's or the team's, the larger) − their held chargebacks (an open or lost
+  dispute; never more than what is left; a won dispute gives back) + what agents paid Kabso for their coin stock.
+  Refunds and chargebacks are shown inside «قبل», not again as deductions.
+- **Deductions** (`deductions`, every line, zeros included, in this order) from the real ledgers of the period. Every
+  cherry credited to someone is money Kabso owes, valued at the payout rate `CHERRY_PAYOUT_RATE` (owner D179:
+  1 000 000 = $1.10, confirmed 2026-11-07: «كل مليون كرزة يأخذ المضيف ١.١ دولار») and counted when credited, net of its reversals: **GIFTS** (`GIFT_RECEIVED` − `GIFT_REVERSAL`: the
+  hosts' and creators' share of gifts), **AGENCY_COMMISSIONS** (agency + parent commissions − their reversals −
+  `AGENCY_FORFEIT`), **REFERRAL_REWARDS** (− `REFERRAL_REVERSAL`), **TASK_REWARDS** (task and host-target cherries),
+  **STAFF_COMMISSIONS** (recruiters' commissions), **TEAM_ADJUSTMENTS** (the team's cherry adjustments, net — may lower
+  the costs); **COIN_REWARDS**, the coins Kabso gives away (event prizes, task and check-in coins) valued
+  conservatively at the lowest price an agent pays Kabso (owner 2026-11-07: «وكيل الشحن اقل سعر يحصله منا لل ١٠ مليون
+  كوينز هو ١٢٠ دولار» — `OWNER_PROFIT_COIN_VALUE_MINOR_PER_MILLION`, default 1200 = $12 a million; read only here);
+  and **CARD_FEES**, the estimated card fees of the period's card orders (`ADMIN_REPORT_CARD_FEE_BPS` +
+  `_FIXED_MINOR` per order, owner CP-039 Q3: 2.9 % + $0.30; the store amount is recorded gross). Never counted:
+  withdrawals (the cherries were counted when credited), cherries sold to agents or spent in the store (handed back).
+  Recharge agents get no separate margin: their wholesale discount is already in what they paid.
+- **Owner decisions (2026-11-07, «موافق»):** (a) the given-away coins are deducted when given, and the gift cherries they
+  later become are deducted again — a conservative double count, by decision; (b) the agents' discount stays inside what
+  they paid, with no separate line; (c) the card fees stay the estimate 2.9 % + $0.30 per order (labelled so) — pending
+  only the payment provider's real rate.
+- **For information only** (`info`, never deducted): the coins agents bought, at the retail price
+  `COIN_RETAIL_USD_PER_MILLION`. Agents' purchases count in «قبل» at what they really paid (`recharge_topups.paid_minor`),
+  never at a rate.
+- **Fixed costs** (`owner_fixed_costs`: a name, a monthly amount in US cents, active from one local day to another or
+  open-ended): a period's share of a cost = monthly × its active days in the period ÷ the days of that month, rounded
+  half up ($300 a month in a 30-day month = $10 a day; the whole month = $300).
+- **«الربح النهائي بعد»** (`after`) = before − every deduction − the fixed costs; it may be negative.
+- **Other currencies:** money received in another currency is its own line (`otherCurrencies`: before, its card fees,
+  after), never converted; if `CHERRY_PAYOUT_CURRENCY` is not USD, the cherry lines move to that currency's line.
+- **The fixed costs** are managed by the owner in the app (`listOwnerFixedCosts`, `createOwnerFixedCost`,
+  `updateOwnerFixedCost`, `deleteOwnerFixedCost` under `/owner/fixed-costs`; 403 `OWNER_ONLY` for anyone else) and in the
+  panel (`/admin/owner-fixed-costs`, capability `owner.costs`, OWNER only). At most 100 (400 `too_many`); USD only;
+  `activeTo` ≥ `activeFrom`. Audited `owner.fixed_cost.create` / `.update` (before / after) / `.delete`, `via: app` or
+  `panel`.
+- **The app:** on «لوحة المؤسس» the income stays blurred until tapped, then shows «قبل» and «بعد» for today; the
+  details sheet shows today and this month (a day can be picked), «قبل» with its parts, each deduction (expandable, with
+  its cherries), the fixed costs and «بعد» (red when negative), and «تكاليف ثابتة» with add / edit / delete.
 
 ### 11.1 Media upload
 

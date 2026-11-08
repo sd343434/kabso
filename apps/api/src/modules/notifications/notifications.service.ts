@@ -34,7 +34,8 @@ export interface NotificationTargetDto {
     | 'LIVE_MODERATION'
     | 'LIVE_ROOM'
     | 'REPORT'
-    | 'LEVEL_RAISE';
+    | 'LEVEL_RAISE'
+    | 'OWNER_FEEDBACK';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -81,6 +82,13 @@ export interface NotificationTargetDto {
   level?: number;
   /** v1.81-live (D291) MEDAL only: the level announced (1 = earned; more = a level-up); absent on older rows. */
   medalLevel?: number;
+  /** v1.95-social (D301) OWNER_FEEDBACK only: a suggestion or a staff report (never who, about whom or the text). */
+  feedbackKind?: 'FEATURE' | 'STAFF_REPORT';
+  /**
+   * v1.95-social (D301 follow-up) POST of OWNER_ANNOUNCEMENT only: the announcement's two caption excerpts; the app shows
+   * the one of its language (`text` is the Arabic one, else the English).
+   */
+  texts?: { ar: string | null; en: string | null };
 }
 
 /** `Notification`. */
@@ -221,6 +229,10 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
         type: { in: ['LEVEL_RAISE_APPROVED', 'LEVEL_RAISE_REJECTED', 'LEVEL_RAISED'] },
         levelRaiseRequestId: { not: null },
       },
+      // v1.95-social (D301): a new item in «صندوق المؤسس» (to the app owners only; the item is the target).
+      { type: 'OWNER_FEEDBACK_NEW', ownerFeedbackId: { not: null } },
+      // D301 follow-up: the app owner's official announcement (system; the post is the target, as the caller may see it).
+      { type: 'OWNER_ANNOUNCEMENT', post: visiblePostWhere(me) },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -250,6 +262,7 @@ function include(me: string) {
     post: {
       select: {
         text: true,
+        textEn: true,
         media: { orderBy: { position: 'asc' }, take: 1, include: { mediaAsset: true } },
       },
     },
@@ -273,6 +286,7 @@ function include(me: string) {
       },
     },
     report: { select: { id: true, targetType: true, status: true } },
+    ownerFeedback: { select: { id: true, kind: true } },
     levelRaiseRequest: {
       select: {
         id: true,
@@ -358,6 +372,20 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         postId: null,
         thumbUrl: !removed && asset ? this.media.toDto(asset).thumbUrl : null,
         text: removed ? null : excerpt(row.story?.text),
+      };
+    }
+    // D301 follow-up: the owner's announcement — both captions (the app and the push pick by language).
+    if (row.type === 'OWNER_ANNOUNCEMENT' && row.postId !== null) {
+      const asset = row.post?.media[0]?.mediaAsset;
+      const ar = excerpt(row.post?.text);
+      const en = excerpt(row.post?.textEn ?? null) ?? ar;
+      return {
+        type: 'POST',
+        id: row.postId,
+        postId: null,
+        thumbUrl: asset ? this.media.toDto(asset).thumbUrl : null,
+        text: ar ?? en,
+        texts: { ar: ar ?? en, en },
       };
     }
     if (row.postId !== null) {
@@ -475,6 +503,17 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         text: null,
         reportTargetType: row.report.targetType,
         reportOpen: row.report.status === 'OPEN',
+      };
+    }
+    // v1.95-social (D301): a new item in «صندوق المؤسس» — only its kind (the panel shows the rest to the owner).
+    if (row.ownerFeedbackId !== null && row.ownerFeedback) {
+      return {
+        type: 'OWNER_FEEDBACK',
+        id: row.ownerFeedback.id,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        feedbackKind: row.ownerFeedback.kind === 'STAFF_REPORT' ? 'STAFF_REPORT' : 'FEATURE',
       };
     }
     // v1.89-social (D290): a level-raise request — the level approved; the supporter's username for the staff member.

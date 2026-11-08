@@ -15872,4 +15872,511 @@ class AppLocalizationsAr extends AppLocalizations {
   String medalsThresholdPkPoints(String points) {
     return '$points نقطة PK';
   }
+
+  @override
+  String get ownerFollow => 'متابعة المؤسس';
+
+  @override
+  String get ownerFollowing => 'تتابع المؤسس';
+
+  @override
+  String get ownerFeedbackButton => 'اقترح ميزة / أبلغ';
+
+  @override
+  String get ownerPrivate => 'خاص';
+
+  @override
+  String get ownerEdit => 'تعديل';
+
+  @override
+  String get ownerDelete => 'حذف';
+
+  @override
+  String get ownerSave => 'حفظ';
+
+  @override
+  String get ownerSeeAll => 'عرض الكل';
+
+  @override
+  String get ownerMoveUp => 'تحريك لأعلى';
+
+  @override
+  String get ownerMoveDown => 'تحريك لأسفل';
+
+  @override
+  String get ownerFieldRequired => 'مطلوب';
+
+  @override
+  String get ownerDashboardTitle => 'لوحة المؤسس';
+
+  @override
+  String get ownerDashboardOnline => 'مستخدم الآن';
+
+  @override
+  String ownerDashboardOnlineLong(int minutes) {
+    return 'المستخدمون النشطون آخر $minutes دقائق';
+  }
+
+  @override
+  String get ownerDashboardLives => 'بث الآن';
+
+  @override
+  String get ownerDashboardIncome => 'دخل اليوم';
+
+  @override
+  String get ownerDashboardIncomeHidden => 'مخفي، اضغط للإظهار';
+
+  @override
+  String get ownerDashboardIncomeWebsite => 'شحن الموقع (بطاقات)';
+
+  @override
+  String get ownerDashboardIncomeAgents => 'شحن الوكلاء';
+
+  @override
+  String ownerDashboardUpdated(String time) {
+    return 'آخر تحديث $time · يُحدَّث كل دقيقة';
+  }
+
+  @override
+  String get ownerDashboardFailed =>
+      'تعذّر تحميل الأرقام — اضغط لإعادة المحاولة';
+
+  @override
+  String get ownerOfficialTitle => 'إعلانات رسمية';
+
+  @override
+  String get ownerOfficialLabel => 'رسمي';
+
+  @override
+  String get ownerOfficialMark => 'تعيين كإعلان رسمي';
+
+  @override
+  String get ownerOfficialUnmark => 'إزالة من الإعلانات الرسمية';
+
+  @override
+  String get ownerOfficialMarked => 'أصبح إعلاناً رسمياً في ملفك';
+
+  @override
+  String get ownerOfficialUnmarked => 'أُزيل من الإعلانات الرسمية';
+
+  @override
+  String get ownerOfficialEmptyOwn =>
+      'لا إعلانات رسمية بعد. اختر «تعيين كإعلان رسمي» من قائمة أي منشور لك.';
+
+  @override
+  String get ownerOfficialUntitled => 'إعلان';
+
+  @override
+  String get ownerJourneyTitle => 'رحلة Kabso';
+
+  @override
+  String get ownerJourneySubtitle => 'قصة المؤسس والمنصة';
+
+  @override
+  String get ownerJourneyLatest => 'الأحدث';
+
+  @override
+  String get ownerJourneyAdd => 'إضافة محطة';
+
+  @override
+  String get ownerJourneyAddFirst => 'أضف أول محطة في رحلة Kabso';
+
+  @override
+  String get ownerJourneyEditOne => 'تعديل المحطة';
+
+  @override
+  String get ownerJourneyEditorTitle => 'تعديل رحلة Kabso';
+
+  @override
+  String ownerJourneyEditorHint(int max) {
+    return 'اسحب للترتيب أو استخدم الأسهم · حتى $max محطة';
+  }
+
+  @override
+  String get ownerJourneyEmptyOwn => 'لا محطات بعد — أضف الأولى.';
+
+  @override
+  String get ownerJourneyDeleteConfirm => 'حذف هذه المحطة؟';
+
+  @override
+  String get ownerMilestoneTitleAr => 'العنوان (بالعربية)';
+
+  @override
+  String get ownerMilestoneTitleEn => 'العنوان (بالإنجليزية)';
+
+  @override
+  String get ownerMilestoneLineAr => 'سطر قصير (بالعربية)';
+
+  @override
+  String get ownerMilestoneLineEn => 'سطر قصير (بالإنجليزية)';
+
+  @override
+  String get ownerMilestoneMonth => 'الشهر';
+
+  @override
+  String get ownerMilestoneYear => 'السنة';
+
+  @override
+  String get ownerMilestoneIcon => 'الأيقونة';
+
+  @override
+  String get ownerMilestoneLatestHint => 'تظهر عليها «الأحدث» (محطة واحدة فقط)';
+
+  @override
+  String get ownerCoverVideoTitle => 'فيديو الغلاف';
+
+  @override
+  String get ownerCoverVideoHint =>
+      'فيديو قصير يتكرر بدل صورة الغلاف (حتى 60 ثانية). من لغة تطبيقه العربية يرى الفيديو العربي، والباقون الإنجليزي؛ إن وُجد واحد فقط يراه الجميع.';
+
+  @override
+  String get ownerCoverVideoArabic => 'الفيديو العربي';
+
+  @override
+  String get ownerCoverVideoEnglish => 'الفيديو الإنجليزي';
+
+  @override
+  String get ownerCoverVideoNone => 'لا يوجد';
+
+  @override
+  String ownerCoverVideoSeconds(int seconds) {
+    return '$seconds ث';
+  }
+
+  @override
+  String ownerCoverVideoUploading(int percent) {
+    return 'جارٍ الرفع… $percent%';
+  }
+
+  @override
+  String get ownerCoverVideoChoose => 'اختيار فيديو';
+
+  @override
+  String get ownerCoverVideoReplace => 'استبدال';
+
+  @override
+  String get ownerCoverVideoRemove => 'إزالة الفيديو';
+
+  @override
+  String get ownerCoverVideoSaved => 'تم حفظ فيديو الغلاف';
+
+  @override
+  String get ownerCoverVideoRemoved => 'أُزيل فيديو الغلاف';
+
+  @override
+  String get ownerCoverVideoPill => 'فيديو';
+
+  @override
+  String get ownerCoverVideoPlay => 'تشغيل فيديو الغلاف';
+
+  @override
+  String get ownerCoverVideoPause => 'إيقاف فيديو الغلاف مؤقتاً';
+
+  @override
+  String get ownerCoverVideoMute => 'كتم الصوت';
+
+  @override
+  String get ownerCoverVideoUnmute => 'تشغيل الصوت';
+
+  @override
+  String get ownerFeedbackTitle => 'اقترح ميزة أو أبلغ عن موظف';
+
+  @override
+  String get ownerFeedbackSubtitle => 'يصل مباشرة إلى صندوق المؤسس.';
+
+  @override
+  String get ownerFeedbackFeature => 'اقتراح ميزة';
+
+  @override
+  String get ownerFeedbackReport => 'الإبلاغ عن موظف';
+
+  @override
+  String get ownerFeedbackFeatureHint => 'ما الميزة التي تريدها؟';
+
+  @override
+  String get ownerFeedbackReportHint => 'ماذا حدث؟ اذكر التفاصيل';
+
+  @override
+  String get ownerFeedbackStaff => 'الموظف';
+
+  @override
+  String get ownerFeedbackStaffHint => '@اسم المستخدم أو آيدي الموظف';
+
+  @override
+  String get ownerFeedbackStaffNone => 'لا يوجد موظف بهذا الاسم';
+
+  @override
+  String get ownerFeedbackCategory => 'السبب';
+
+  @override
+  String get ownerFeedbackImage => 'إضافة صورة';
+
+  @override
+  String ownerFeedbackEvidence(int count) {
+    return 'صور الإثبات (حتى $count)';
+  }
+
+  @override
+  String get ownerFeedbackImageInvalid => 'هذه الصورة غير مدعومة أو كبيرة جداً';
+
+  @override
+  String get ownerFeedbackConfidential =>
+      'بلاغك سري: لا يصل إلى الموظف ولا إلى المشرفين، تقرؤه الإدارة العليا فقط.';
+
+  @override
+  String get ownerFeedbackSend => 'إرسال';
+
+  @override
+  String get ownerFeedbackSent => 'وصل إلى صندوق المؤسس. شكراً لك.';
+
+  @override
+  String get ownerCategoryRudeness => 'إساءة أو تعامل سيئ';
+
+  @override
+  String get ownerCategoryAbuseOfPower => 'إساءة استخدام الصلاحيات';
+
+  @override
+  String get ownerCategoryUnfairAction => 'إجراء غير عادل';
+
+  @override
+  String get ownerCategoryNoResponse => 'تجاهل أو عدم الرد';
+
+  @override
+  String get ownerCategoryCorruption => 'رشوة أو فساد';
+
+  @override
+  String get ownerCategoryOther => 'سبب آخر';
+
+  @override
+  String get errorOwnerOnly => 'هذا متاح لصاحب البرنامج فقط.';
+
+  @override
+  String get errorOwnerJourneyLimit =>
+      'وصلت رحلة Kabso إلى الحد الأقصى من المحطات.';
+
+  @override
+  String get notifOwnerFeedbackFeature => 'اقتراح ميزة جديد في صندوق المؤسس';
+
+  @override
+  String get notifOwnerFeedbackReport => 'بلاغ جديد عن موظف في صندوق المؤسس';
+
+  @override
+  String get ownerAnnouncementNew => 'إعلان رسمي جديد';
+
+  @override
+  String get ownerAnnouncementEdit => 'تعديل الإعلان';
+
+  @override
+  String get ownerAnnouncementTextAr => 'النص بالعربية';
+
+  @override
+  String get ownerAnnouncementTextEn => 'النص بالإنجليزية';
+
+  @override
+  String get ownerAnnouncementHint =>
+      'من لغة تطبيقه العربية يرى النص العربي، والباقون الإنجليزي. يظهر أول منشور عند الجميع حتى تنشر إعلاناً أحدث، ويصلهم إشعار مرة واحدة.';
+
+  @override
+  String get ownerAnnouncementEditHint => 'التعديل لا يرسل إشعاراً جديداً.';
+
+  @override
+  String get ownerAnnouncementPhotos => 'صور (اختياري)';
+
+  @override
+  String get ownerAnnouncementPublish => 'نشر للجميع';
+
+  @override
+  String get ownerAnnouncementPublished =>
+      'نُشر الإعلان، ويصل الإشعار للجميع خلال دقائق.';
+
+  @override
+  String get ownerAnnouncementSaved => 'حُفظ الإعلان دون إشعار جديد.';
+
+  @override
+  String get ownerDashboardIncomeNote =>
+      'ما يدخل Kabso فقط: شحن المتجر بالبطاقات بعد الاسترداد، وما يدفعه الوكلاء لـ Kabso لشراء رصيدهم. لا يُحسب ما يبيعه الوكيل للمستخدمين.';
+
+  @override
+  String ownerDashboardIncomeOther(String currency) {
+    return 'بعملة أخرى ($currency)';
+  }
+
+  @override
+  String notifOwnerAnnouncement(String text) {
+    return 'إعلان رسمي من المؤسس: $text';
+  }
+
+  @override
+  String get ownerSearchRole => 'مؤسس Kabso Live';
+
+  @override
+  String get ownerSearchFollow => 'متابعة';
+
+  @override
+  String get ownerSearchFollowing => 'متابَع';
+
+  @override
+  String get ownerProfitTitle => 'الربح';
+
+  @override
+  String get ownerProfitToday => 'ربح اليوم';
+
+  @override
+  String get ownerProfitBeforeShort => 'قبل';
+
+  @override
+  String get ownerProfitAfterShort => 'بعد';
+
+  @override
+  String get ownerProfitBefore => 'الدخل قبل';
+
+  @override
+  String get ownerProfitAfter => 'الربح النهائي بعد';
+
+  @override
+  String get ownerProfitDay => 'اليوم';
+
+  @override
+  String get ownerProfitMonth => 'الشهر';
+
+  @override
+  String get ownerProfitPickDay => 'اختيار يوم';
+
+  @override
+  String get ownerProfitCardCharged => 'شحن المتجر بالبطاقات';
+
+  @override
+  String get ownerProfitRefunds => 'المبالغ المستردة';
+
+  @override
+  String get ownerProfitChargebacks => 'الاعتراضات البنكية';
+
+  @override
+  String get ownerProfitAgents => 'شراء الوكلاء من Kabso';
+
+  @override
+  String get ownerProfitDeductions => 'الخصومات';
+
+  @override
+  String get ownerProfitGifts => 'نصيب المضيفين وصنّاع المحتوى من الهدايا';
+
+  @override
+  String get ownerProfitAgencies => 'عمولات الوكالات';
+
+  @override
+  String get ownerProfitReferrals => 'مكافآت الدعوات';
+
+  @override
+  String get ownerProfitTasks => 'جوائز المهام والأهداف';
+
+  @override
+  String get ownerProfitStaff => 'عمولات الموظفين على التجنيد';
+
+  @override
+  String get ownerProfitTeam => 'تعديلات الفريق';
+
+  @override
+  String get ownerProfitCardFees => 'رسوم البطاقات (تقديرية)';
+
+  @override
+  String ownerProfitCherries(String count, String rate) {
+    return 'الكرز: $count، بسعر السحب $rate لكل مليون';
+  }
+
+  @override
+  String ownerProfitFees(String count, String percent, String fixed) {
+    return 'الطلبات: $count، بنسبة $percent و$fixed للطلب';
+  }
+
+  @override
+  String get ownerProfitFixed => 'تكاليف ثابتة';
+
+  @override
+  String ownerProfitFixedShare(String days, String monthly) {
+    return 'أيام: $days من $monthly شهرياً';
+  }
+
+  @override
+  String get ownerProfitFixedNone => 'لا تكاليف ثابتة في هذه الفترة';
+
+  @override
+  String get ownerProfitPartial =>
+      'حتى اليوم: الحصة المنقضية من التكاليف الثابتة';
+
+  @override
+  String ownerProfitOther(String currency, String before, String after) {
+    return '$currency: قبل $before، بعد $after';
+  }
+
+  @override
+  String get ownerProfitFailed => 'تعذّر حساب الربح';
+
+  @override
+  String get ownerProfitRetry => 'إعادة المحاولة';
+
+  @override
+  String get ownerCostsManage => 'إدارة التكاليف الثابتة';
+
+  @override
+  String get ownerCostsHint => 'مبلغ شهري بالدولار يُقسَّم على أيام الشهر';
+
+  @override
+  String get ownerCostsEmpty => 'لا تكاليف ثابتة بعد';
+
+  @override
+  String get ownerCostsAdd => 'إضافة تكلفة';
+
+  @override
+  String get ownerCostsEdit => 'تعديل التكلفة';
+
+  @override
+  String get ownerCostsName => 'الاسم';
+
+  @override
+  String get ownerCostsNameHint => 'مثلاً: Claude أو LiveKit أو الخوادم';
+
+  @override
+  String get ownerCostsMonthly => 'المبلغ الشهري (USD)';
+
+  @override
+  String get ownerCostsFrom => 'من';
+
+  @override
+  String get ownerCostsTo => 'إلى (اختياري)';
+
+  @override
+  String get ownerCostsOngoing => 'مستمرة';
+
+  @override
+  String ownerCostsPerMonth(String amount) {
+    return '$amount شهرياً';
+  }
+
+  @override
+  String get ownerCostsEnded => 'انتهت';
+
+  @override
+  String get ownerCostsInvalid => 'أدخل اسماً ومبلغاً أكبر من صفر';
+
+  @override
+  String get ownerCostsDelete => 'حذف';
+
+  @override
+  String ownerCostsDeleteConfirm(String name) {
+    return 'حذف $name؟ لن تُحسب في الربح بعد الآن.';
+  }
+
+  @override
+  String get ownerCostsCancel => 'إلغاء';
+
+  @override
+  String get ownerCostsSaved => 'حُفظت التكلفة';
+
+  @override
+  String get ownerProfitCoins => 'عملات مُنحت مجاناً (جوائز ومكافآت)';
+
+  @override
+  String ownerProfitCoinsDetail(String count, String rate) {
+    return 'العملات: $count، بأقل سعر للوكيل $rate لكل مليون';
+  }
 }

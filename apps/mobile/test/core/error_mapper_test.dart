@@ -153,6 +153,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.adminLocked: 429,
   ErrorCode.adminActionRefused: 409,
   ErrorCode.levelRaiseDuplicate: 409,
+  ErrorCode.ownerOnly: 403,
+  ErrorCode.ownerJourneyLimit: 409,
 };
 
 DioException _badResponse(
@@ -335,6 +337,9 @@ void main() {
           'ADMIN_ACTION_REFUSED',
           // v1.89-social (D290): a level-raise request's source account taken.
           'LEVEL_RAISE_DUPLICATE',
+          // v1.95-social (D301): the app owner only; «رحلة Kabso» is full.
+          'OWNER_ONLY',
+          'OWNER_JOURNEY_LIMIT',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

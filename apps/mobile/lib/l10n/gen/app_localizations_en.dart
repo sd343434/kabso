@@ -15871,4 +15871,516 @@ class AppLocalizationsEn extends AppLocalizations {
   String medalsThresholdPkPoints(String points) {
     return '$points PK points';
   }
+
+  @override
+  String get ownerFollow => 'Follow the founder';
+
+  @override
+  String get ownerFollowing => 'Following the founder';
+
+  @override
+  String get ownerFeedbackButton => 'Suggest / report';
+
+  @override
+  String get ownerPrivate => 'Private';
+
+  @override
+  String get ownerEdit => 'Edit';
+
+  @override
+  String get ownerDelete => 'Delete';
+
+  @override
+  String get ownerSave => 'Save';
+
+  @override
+  String get ownerSeeAll => 'See all';
+
+  @override
+  String get ownerMoveUp => 'Move up';
+
+  @override
+  String get ownerMoveDown => 'Move down';
+
+  @override
+  String get ownerFieldRequired => 'Required';
+
+  @override
+  String get ownerDashboardTitle => 'Founder dashboard';
+
+  @override
+  String get ownerDashboardOnline => 'Online now';
+
+  @override
+  String ownerDashboardOnlineLong(int minutes) {
+    return 'Users active in the last $minutes minutes';
+  }
+
+  @override
+  String get ownerDashboardLives => 'Lives now';
+
+  @override
+  String get ownerDashboardIncome => 'Today\'s income';
+
+  @override
+  String get ownerDashboardIncomeHidden => 'hidden, tap to show';
+
+  @override
+  String get ownerDashboardIncomeWebsite => 'Website top-ups (cards)';
+
+  @override
+  String get ownerDashboardIncomeAgents => 'Agent top-ups';
+
+  @override
+  String ownerDashboardUpdated(String time) {
+    return 'Updated $time · refreshed every minute';
+  }
+
+  @override
+  String get ownerDashboardFailed =>
+      'Couldn\'t load the numbers — tap to retry';
+
+  @override
+  String get ownerOfficialTitle => 'Official announcements';
+
+  @override
+  String get ownerOfficialLabel => 'Official';
+
+  @override
+  String get ownerOfficialMark => 'Mark as official announcement';
+
+  @override
+  String get ownerOfficialUnmark => 'Remove from official announcements';
+
+  @override
+  String get ownerOfficialMarked =>
+      'Now an official announcement on your profile';
+
+  @override
+  String get ownerOfficialUnmarked => 'Removed from official announcements';
+
+  @override
+  String get ownerOfficialEmptyOwn =>
+      'No official announcements yet. Choose “Mark as official announcement” in any of your posts\' menu.';
+
+  @override
+  String get ownerOfficialUntitled => 'Announcement';
+
+  @override
+  String get ownerJourneyTitle => 'The Kabso journey';
+
+  @override
+  String get ownerJourneySubtitle => 'The founder\'s and the platform\'s story';
+
+  @override
+  String get ownerJourneyLatest => 'Latest';
+
+  @override
+  String get ownerJourneyAdd => 'Add a milestone';
+
+  @override
+  String get ownerJourneyAddFirst => 'Add the first milestone of the journey';
+
+  @override
+  String get ownerJourneyEditOne => 'Edit the milestone';
+
+  @override
+  String get ownerJourneyEditorTitle => 'Edit the Kabso journey';
+
+  @override
+  String ownerJourneyEditorHint(int max) {
+    return 'Drag or use the arrows to reorder · up to $max milestones';
+  }
+
+  @override
+  String get ownerJourneyEmptyOwn => 'No milestones yet — add the first.';
+
+  @override
+  String get ownerJourneyDeleteConfirm => 'Delete this milestone?';
+
+  @override
+  String get ownerMilestoneTitleAr => 'Title (Arabic)';
+
+  @override
+  String get ownerMilestoneTitleEn => 'Title (English)';
+
+  @override
+  String get ownerMilestoneLineAr => 'Short line (Arabic)';
+
+  @override
+  String get ownerMilestoneLineEn => 'Short line (English)';
+
+  @override
+  String get ownerMilestoneMonth => 'Month';
+
+  @override
+  String get ownerMilestoneYear => 'Year';
+
+  @override
+  String get ownerMilestoneIcon => 'Icon';
+
+  @override
+  String get ownerMilestoneLatestHint => 'Marked “Latest” (one milestone only)';
+
+  @override
+  String get ownerCoverVideoTitle => 'Cover video';
+
+  @override
+  String get ownerCoverVideoHint =>
+      'A short looping video instead of the cover picture (up to 60 s). Viewers whose app is in Arabic see the Arabic one, everyone else the English one; with only one, everyone sees it.';
+
+  @override
+  String get ownerCoverVideoArabic => 'Arabic video';
+
+  @override
+  String get ownerCoverVideoEnglish => 'English video';
+
+  @override
+  String get ownerCoverVideoNone => 'None';
+
+  @override
+  String ownerCoverVideoSeconds(int seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String ownerCoverVideoUploading(int percent) {
+    return 'Uploading… $percent%';
+  }
+
+  @override
+  String get ownerCoverVideoChoose => 'Choose a video';
+
+  @override
+  String get ownerCoverVideoReplace => 'Replace';
+
+  @override
+  String get ownerCoverVideoRemove => 'Remove the video';
+
+  @override
+  String get ownerCoverVideoSaved => 'Cover video saved';
+
+  @override
+  String get ownerCoverVideoRemoved => 'Cover video removed';
+
+  @override
+  String get ownerCoverVideoPill => 'Video';
+
+  @override
+  String get ownerCoverVideoPlay => 'Play the cover video';
+
+  @override
+  String get ownerCoverVideoPause => 'Pause the cover video';
+
+  @override
+  String get ownerCoverVideoMute => 'Mute';
+
+  @override
+  String get ownerCoverVideoUnmute => 'Unmute';
+
+  @override
+  String get ownerFeedbackTitle => 'Suggest a feature or report a staff member';
+
+  @override
+  String get ownerFeedbackSubtitle => 'Goes straight to the founder\'s inbox.';
+
+  @override
+  String get ownerFeedbackFeature => 'Suggest a feature';
+
+  @override
+  String get ownerFeedbackReport => 'Report a staff member';
+
+  @override
+  String get ownerFeedbackFeatureHint => 'What would you like to see?';
+
+  @override
+  String get ownerFeedbackReportHint => 'What happened? Give the details';
+
+  @override
+  String get ownerFeedbackStaff => 'Staff member';
+
+  @override
+  String get ownerFeedbackStaffHint => '@username or staff ID';
+
+  @override
+  String get ownerFeedbackStaffNone => 'No staff member matches';
+
+  @override
+  String get ownerFeedbackCategory => 'Reason';
+
+  @override
+  String get ownerFeedbackImage => 'Add a picture';
+
+  @override
+  String ownerFeedbackEvidence(int count) {
+    return 'Evidence pictures (up to $count)';
+  }
+
+  @override
+  String get ownerFeedbackImageInvalid =>
+      'That picture is not supported or too large';
+
+  @override
+  String get ownerFeedbackConfidential =>
+      'Your report is confidential: the staff member and the moderators never see it — only the top management reads it.';
+
+  @override
+  String get ownerFeedbackSend => 'Send';
+
+  @override
+  String get ownerFeedbackSent => 'Sent to the founder\'s inbox. Thank you.';
+
+  @override
+  String get ownerCategoryRudeness => 'Rudeness';
+
+  @override
+  String get ownerCategoryAbuseOfPower => 'Abuse of power';
+
+  @override
+  String get ownerCategoryUnfairAction => 'Unfair action';
+
+  @override
+  String get ownerCategoryNoResponse => 'No response';
+
+  @override
+  String get ownerCategoryCorruption => 'Bribery or corruption';
+
+  @override
+  String get ownerCategoryOther => 'Other';
+
+  @override
+  String get errorOwnerOnly => 'Only the app owner can do this.';
+
+  @override
+  String get errorOwnerJourneyLimit =>
+      'The journey already has the most milestones allowed.';
+
+  @override
+  String get notifOwnerFeedbackFeature =>
+      'A new feature suggestion in the founder\'s inbox';
+
+  @override
+  String get notifOwnerFeedbackReport =>
+      'A new staff report in the founder\'s inbox';
+
+  @override
+  String get ownerAnnouncementNew => 'New official announcement';
+
+  @override
+  String get ownerAnnouncementEdit => 'Edit the announcement';
+
+  @override
+  String get ownerAnnouncementTextAr => 'Text in Arabic';
+
+  @override
+  String get ownerAnnouncementTextEn => 'Text in English';
+
+  @override
+  String get ownerAnnouncementHint =>
+      'Arabic-language apps show the Arabic text, every other language the English one. It is everyone\'s first post until you publish a newer one, and everyone is notified once.';
+
+  @override
+  String get ownerAnnouncementEditHint => 'Editing sends no new notification.';
+
+  @override
+  String get ownerAnnouncementPhotos => 'Photos (optional)';
+
+  @override
+  String get ownerAnnouncementPublish => 'Publish to everyone';
+
+  @override
+  String get ownerAnnouncementPublished =>
+      'Published. Everyone is notified within minutes.';
+
+  @override
+  String get ownerAnnouncementSaved => 'Saved, with no new notification.';
+
+  @override
+  String get ownerDashboardIncomeNote =>
+      'Only money Kabso receives: store card top-ups less refunds, and what agents pay Kabso for their coin stock. An agent\'s sales to users are not counted.';
+
+  @override
+  String ownerDashboardIncomeOther(String currency) {
+    return 'In another currency ($currency)';
+  }
+
+  @override
+  String notifOwnerAnnouncement(String text) {
+    return 'Official announcement from the founder: $text';
+  }
+
+  @override
+  String get ownerSearchRole => 'Founder of Kabso Live';
+
+  @override
+  String get ownerSearchFollow => 'Follow';
+
+  @override
+  String get ownerSearchFollowing => 'Following';
+
+  @override
+  String get ownerProfitTitle => 'Profit';
+
+  @override
+  String get ownerProfitToday => 'Today\'s profit';
+
+  @override
+  String get ownerProfitBeforeShort => 'Before';
+
+  @override
+  String get ownerProfitAfterShort => 'After';
+
+  @override
+  String get ownerProfitBefore => 'Income before';
+
+  @override
+  String get ownerProfitAfter => 'Final profit after';
+
+  @override
+  String get ownerProfitDay => 'Day';
+
+  @override
+  String get ownerProfitMonth => 'Month';
+
+  @override
+  String get ownerProfitPickDay => 'Pick a day';
+
+  @override
+  String get ownerProfitCardCharged => 'Store card top-ups';
+
+  @override
+  String get ownerProfitRefunds => 'Refunds';
+
+  @override
+  String get ownerProfitChargebacks => 'Chargebacks';
+
+  @override
+  String get ownerProfitAgents => 'Agents\' purchases from Kabso';
+
+  @override
+  String get ownerProfitDeductions => 'Deductions';
+
+  @override
+  String get ownerProfitGifts => 'Hosts\' and creators\' share of gifts';
+
+  @override
+  String get ownerProfitAgencies => 'Agency commissions';
+
+  @override
+  String get ownerProfitReferrals => 'Referral rewards';
+
+  @override
+  String get ownerProfitTasks => 'Task and target rewards';
+
+  @override
+  String get ownerProfitStaff => 'Recruiters\' commissions';
+
+  @override
+  String get ownerProfitTeam => 'Team adjustments';
+
+  @override
+  String get ownerProfitCardFees => 'Card fees (estimated)';
+
+  @override
+  String ownerProfitCherries(String count, String rate) {
+    return 'Cherries: $count, at the payout rate of $rate per million';
+  }
+
+  @override
+  String ownerProfitFees(String count, String percent, String fixed) {
+    return 'Orders: $count, at $percent plus $fixed each';
+  }
+
+  @override
+  String get ownerProfitFixed => 'Fixed costs';
+
+  @override
+  String ownerProfitFixedShare(String days, String monthly) {
+    return 'Days: $days of $monthly a month';
+  }
+
+  @override
+  String get ownerProfitFixedNone => 'No fixed costs in this period';
+
+  @override
+  String get ownerProfitPartial =>
+      'To date: the elapsed share of the fixed costs';
+
+  @override
+  String ownerProfitOther(String currency, String before, String after) {
+    return '$currency: before $before, after $after';
+  }
+
+  @override
+  String get ownerProfitFailed => 'Couldn\'t compute the profit';
+
+  @override
+  String get ownerProfitRetry => 'Try again';
+
+  @override
+  String get ownerCostsManage => 'Manage fixed costs';
+
+  @override
+  String get ownerCostsHint =>
+      'A monthly amount in US dollars, split over the days of the month';
+
+  @override
+  String get ownerCostsEmpty => 'No fixed costs yet';
+
+  @override
+  String get ownerCostsAdd => 'Add a cost';
+
+  @override
+  String get ownerCostsEdit => 'Edit the cost';
+
+  @override
+  String get ownerCostsName => 'Name';
+
+  @override
+  String get ownerCostsNameHint => 'e.g. Claude, LiveKit or servers';
+
+  @override
+  String get ownerCostsMonthly => 'Monthly amount (USD)';
+
+  @override
+  String get ownerCostsFrom => 'From';
+
+  @override
+  String get ownerCostsTo => 'To (optional)';
+
+  @override
+  String get ownerCostsOngoing => 'Ongoing';
+
+  @override
+  String ownerCostsPerMonth(String amount) {
+    return '$amount a month';
+  }
+
+  @override
+  String get ownerCostsEnded => 'Ended';
+
+  @override
+  String get ownerCostsInvalid => 'Enter a name and an amount above zero';
+
+  @override
+  String get ownerCostsDelete => 'Delete';
+
+  @override
+  String ownerCostsDeleteConfirm(String name) {
+    return 'Delete $name? It will no longer count in the profit.';
+  }
+
+  @override
+  String get ownerCostsCancel => 'Cancel';
+
+  @override
+  String get ownerCostsSaved => 'Cost saved';
+
+  @override
+  String get ownerProfitCoins => 'Coins given away (prizes and rewards)';
+
+  @override
+  String ownerProfitCoinsDetail(String count, String rate) {
+    return 'Coins: $count, at the lowest agent price of $rate per million';
+  }
 }
