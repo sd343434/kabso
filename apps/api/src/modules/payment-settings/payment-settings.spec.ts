@@ -42,6 +42,7 @@ const env = (over: Partial<ResolveEnv['topup']> = {}, production = false): Resol
     statementDescriptorSuffix: 'ENV',
     disputeAutoSubmit: true,
     appLinkEnabled: true,
+    fee: { grossUp: true, percentBps: 290, fixedMinor: 30 },
     ...over,
   },
 });
@@ -64,6 +65,9 @@ function rowWith(box: AdminSecretBox, over: Partial<PaymentSettingsRow> = {}): P
     statementDescriptorSuffix: null,
     disputeAutoSubmit: null,
     appLinkEnabled: null,
+    stripeFeeGrossUp: null,
+    stripeFeePercentBps: null,
+    stripeFeeFixedMinor: null,
     updatedAt: NOW,
     ...over,
   };
@@ -182,6 +186,23 @@ describe('D196 the source of truth', () => {
       statementDescriptorSuffix: null,
       disputeAutoSubmit: false,
       appLinkEnabled: true,
+      // D344: no panel rate → the server's.
+      fee: { grossUp: true, percentBps: 290, fixedMinor: 30 },
+    });
+  });
+
+  it('D344: the panel Stripe fee settings override the server ones, one by one', () => {
+    const r = (over: Partial<PaymentSettingsRow>) =>
+      resolvePaymentSettings(rowWith(box, over), env(), box, NOW);
+    expect(r({ stripeFeePercentBps: 340 }).options.fee).toEqual({
+      grossUp: true,
+      percentBps: 340,
+      fixedMinor: 30,
+    });
+    expect(r({ stripeFeeFixedMinor: 0, stripeFeeGrossUp: false }).options.fee).toEqual({
+      grossUp: false,
+      percentBps: 290,
+      fixedMinor: 0,
     });
   });
 

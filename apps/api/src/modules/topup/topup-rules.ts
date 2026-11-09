@@ -290,3 +290,65 @@ export function simplePdf(lines: readonly string[]): Buffer {
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(pdf, 'latin1');
 }
+
+/**
+ * v1.109-social (D344, §10.143): whether the app shows «الشحن من الموقع» to a session of `platform` (its sign-in
+ * device). The master switch (`TOPUP_APP_LINK_ENABLED` or the panel's) first; then `TOPUP_APP_LINK_PLATFORMS`
+ * (store payment rules, PP-79). A session of another or no platform sees it only when both stores are listed.
+ */
+export function appLinkShownFor(
+  platform: string | null,
+  enabled: boolean,
+  platforms: readonly ('android' | 'ios')[],
+): boolean {
+  if (!enabled) return false;
+  if (platform === 'android' || platform === 'ios') return platforms.includes(platform);
+  return platforms.includes('android') && platforms.includes('ios');
+}
+
+/** v1.109-social (D344): Stripe's fee as the website price includes it. */
+export interface TopupFee {
+  readonly grossUp: boolean;
+  /** Basis points (290 = 2.9 %), 0–2000. */
+  readonly percentBps: number;
+  /** In the top-up currency's minor unit (USD cents), 0–10000. */
+  readonly fixedMinor: number;
+}
+
+/**
+ * v1.109-social (D344, §10.143.2; owner: «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»): the price to charge
+ * so that after Stripe takes `percent × charged + fixed` Kabso keeps at least `baseMinor`:
+ * `charged = ceil((base + fixed) / (1 − percent))`, in the currency's minor unit (cents; for a zero-decimal currency
+ * the unit itself; for a 3-decimal one its thousandths) — exact integer arithmetic, rounded up.
+ */
+export function grossUpMinor(baseMinor: number, percentBps: number, fixedMinor: number): number {
+  if (!Number.isSafeInteger(baseMinor) || baseMinor < 1) throw new RangeError('baseMinor');
+  if (!Number.isInteger(percentBps) || percentBps < 0 || percentBps > 2000)
+    throw new RangeError('percentBps');
+  if (!Number.isInteger(fixedMinor) || fixedMinor < 0 || fixedMinor > 10_000)
+    throw new RangeError('fixedMinor');
+  const numerator = (BigInt(baseMinor) + BigInt(fixedMinor)) * 10_000n;
+  const denominator = BigInt(10_000 - percentBps);
+  const charged = (numerator + denominator - 1n) / denominator;
+  if (charged > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('charged');
+  return Number(charged);
+}
+
+/** The website price of a package and how it was made (stored on the order). */
+export function topupPriceOf(
+  baseMinor: number,
+  fee: TopupFee,
+): { priceMinor: number; baseMinor: number; percentBps: number; fixedMinor: number } {
+  if (!fee.grossUp) return { priceMinor: baseMinor, baseMinor, percentBps: 0, fixedMinor: 0 };
+  return {
+    priceMinor: grossUpMinor(baseMinor, fee.percentBps, fee.fixedMinor),
+    baseMinor,
+    percentBps: fee.percentBps,
+    fixedMinor: fee.fixedMinor,
+  };
+}
+
+/** What Stripe would take of `chargedMinor` at these rates (rounded as Stripe rounds a fee: half up). */
+export function estimatedFeeMinor(chargedMinor: number, percentBps: number, fixedMinor: number): number {
+  return Math.round((chargedMinor * percentBps) / 10_000) + fixedMinor;
+}

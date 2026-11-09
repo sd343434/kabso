@@ -65,6 +65,10 @@ class FakeStripe implements StripeApi {
   async checkKey() {
     return { ok: true as const, livemode: false, restricted: false };
   }
+  /** D344: no balance transaction in these tests (the fee check is d344's). */
+  async paymentFee() {
+    return null;
+  }
 }
 
 interface TestUser {
@@ -263,6 +267,8 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
         STRIPE_WEBHOOK_SECRET: WEBHOOK_SECRET,
         TOPUP_PUBLIC_BASE_URL: PUBLIC,
         RATE_LIMIT_TOPUP_CHECKOUT_USER: '10000/900',
+        // D344: the Stripe-fee gross-up (on by default) is tested in d344-topup-handoff; these prices are the base.
+        TOPUP_STRIPE_FEE_GROSS_UP: 'false',
       },
       [{ token: STRIPE_API_FACTORY, value: () => stripe }],
     );

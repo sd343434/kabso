@@ -44,6 +44,7 @@ class FakeStripeAccount {
       },
       uploadEvidenceFile: async () => ({ id: `file_e2e_${randomBytes(4).toString('hex')}` }),
       createCustomer: async () => ({ id: `cus_e2e_${randomBytes(4).toString('hex')}` }),
+      paymentFee: async () => null,
       checkKey: async (): Promise<StripeKeyCheck> => {
         this.checks.push(secretKey);
         if (this.unreachable) {
@@ -338,6 +339,10 @@ describe('D196 «الدفع (Stripe)» with no env keys', { timeout: 300_000 }, 
       statementDescriptorSuffix: 'COINS',
       disputeAutoSubmit: true,
       appLinkEnabled: false,
+      // D344: no panel rates → the server's placeholders (2.9 % + 30 ¢, gross-up on).
+      stripeFeeGrossUp: true,
+      stripeFeePercentBps: 290,
+      stripeFeeFixedMinor: 30,
     });
     const go2 = await ctx.http
       .post('/api/v1/topup/checkout')
@@ -357,6 +362,77 @@ describe('D196 «الدفع (Stripe)» with no env keys', { timeout: 300_000 }, 
       .get('/api/v1/wallet/recharge-packages')
       .set('Authorization', `Bearer ${buyer.token}`);
     expect(offer2.body.websiteTopupUrl).toBe(`${PUBLIC}/topup`);
+  });
+
+  it('D344: the OWNER sets Stripe\u2019s fee; the website price includes it (one price, no fee line)', async () => {
+    const before = await get(owner);
+    expect(before.body.feeCurrency).toBe('USD');
+    expect(before.body.options).toMatchObject({
+      stripeFeeGrossUp: null,
+      stripeFeePercentBps: null,
+      stripeFeeFixedMinor: null,
+    });
+    const set = await patch(
+      owner,
+      withCode(owner, { stripeFeePercentBps: 340, stripeFeeFixedMinor: 30, reason: 'my account rates' }),
+    );
+    expect(set.status, JSON.stringify(set.body)).toBe(200);
+    expectContract(set, 'updateAdminPaymentSettings');
+    expect(set.body.effective).toMatchObject({
+      stripeFeeGrossUp: true,
+      stripeFeePercentBps: 340,
+      stripeFeeFixedMinor: 30,
+    });
+    const audit = await ctx.prisma.auditLog.findFirstOrThrow({
+      where: { action: 'payment.settings.update' },
+      orderBy: { createdAt: 'desc' },
+    });
+    const meta = audit.metadata as { changed: string[]; reason: string };
+    expect(meta.changed).toEqual(expect.arrayContaining(['stripeFeePercentBps', 'stripeFeeFixedMinor']));
+    expect(meta.reason).toBe('my account rates');
+    // $12.50 at 3.4 % + 30 ¢: (1250 + 30) / 0.966 = 1325.05… → $13.26.
+    const pk = await ctx.http.get('/api/v1/topup/packages');
+    expect(pk.body.packages.find((x: { id: string }) => x.id === '1000000')).toEqual({
+      id: '1000000',
+      coins: 1_000_000,
+      priceMinor: 1326,
+    });
+    const buyer = await p.signup();
+    const go = await ctx.http
+      .post('/api/v1/topup/checkout')
+      .set('Authorization', `Bearer ${buyer.token}`)
+      .send({ packageId: '1000000', termsAccepted: true, termsVersion: '2026-10-31' });
+    expect(go.status).toBe(201);
+    expect(stripe.sessions.at(-1)!.params.line_items?.[0]?.price_data?.unit_amount).toBe(1326);
+    expect(
+      await ctx.prisma.topupOrder.findUniqueOrThrow({ where: { id: go.body.orderId as string } }),
+    ).toMatchObject({
+      amountMinor: 1326,
+      basePriceMinor: 1250,
+      feePercentBps: 340,
+      feeFixedMinor: 30,
+    });
+    // Switched off from the panel: the base price again; null puts every setting back to the server's.
+    const off = await patch(owner, withCode(owner, { stripeFeeGrossUp: false }));
+    expect(off.body.effective.stripeFeeGrossUp).toBe(false);
+    const pk2 = await ctx.http.get('/api/v1/topup/packages');
+    expect(pk2.body.packages.find((x: { id: string }) => x.id === '1000000').priceMinor).toBe(1250);
+    const bad = await patch(owner, withCode(owner, { stripeFeePercentBps: 2500 }));
+    expect(bad.status).toBe(400);
+    const back = await patch(
+      owner,
+      withCode(owner, { stripeFeeGrossUp: null, stripeFeePercentBps: null, stripeFeeFixedMinor: null }),
+    );
+    expect(back.body.options).toMatchObject({
+      stripeFeeGrossUp: null,
+      stripeFeePercentBps: null,
+      stripeFeeFixedMinor: null,
+    });
+    expect(back.body.effective).toMatchObject({
+      stripeFeeGrossUp: true,
+      stripeFeePercentBps: 290,
+      stripeFeeFixedMinor: 30,
+    });
   });
 
   it('D190 with the keys from the database: the signed webhook credits once; a dispute uses the panel options', async () => {

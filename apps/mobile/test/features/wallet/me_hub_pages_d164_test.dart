@@ -20,10 +20,11 @@ import 'package:kabso_live/features/creator/presentation/creator_stats_screen.da
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
-import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/wallet/data/cherry_repository.dart';
+import 'package:kabso_live/features/wallet/data/topup_website_repository.dart';
 import 'package:kabso_live/features/wallet/data/wallet_repository.dart';
+import 'package:kabso_live/features/wallet/presentation/in_app_browser.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_history_screen.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_parts.dart';
@@ -40,9 +41,15 @@ import '../../helpers/pump_app.dart';
 final AppLocalizations _en = l10nFor(AppLanguage.en);
 final AppLocalizations _ar = l10nFor(AppLanguage.ar);
 
+/// How many times the balance was read (D344: re-read on return).
+int _coinReads = 0;
+
 class _Coins extends LiveCoinsController {
   @override
-  Future<int> build() async => 1250;
+  Future<int> build() async {
+    _coinReads += 1;
+    return 1250;
+  }
 }
 
 final DateTime _at = DateTime.utc(2026, 10, 29, 9, 30);
@@ -165,13 +172,36 @@ class _FakePrograms implements ProgramsRepository {
       throw UnimplementedError();
 }
 
-class _FakeOpener implements ExternalLinkOpener {
+/// D344: the in-app browser tab (Custom Tabs / Safari View Controller).
+class _FakeBrowser implements InAppBrowserOpener {
+  new({this.result = true});
+
+  final bool result;
   final List<Uri> opened = [];
 
   @override
   Future<bool> open(Uri url) async {
     opened.add(url);
-    return true;
+    return result;
+  }
+}
+
+/// D344: `POST /wallet/topup-session`.
+class _FakeTopupWebsite implements TopupWebsiteRepository {
+  new({this.fail = false});
+
+  final bool fail;
+  int calls = 0;
+
+  static final Uri signedIn = Uri.parse(
+    'https://kabso.live/topup?lang=ar#h=${'a' * 43}',
+  );
+
+  @override
+  Future<Uri> websiteSession() async {
+    calls += 1;
+    if (fail) throw const NetworkFailure.offline();
+    return signedIn;
   }
 }
 
@@ -234,7 +264,8 @@ Future<void> _pump(
   FakeHomeBannersRepository? banners,
   _FakePrograms? programs,
   FakeCherryRepository? cherries,
-  ExternalLinkOpener? opener,
+  _FakeBrowser? browser,
+  _FakeTopupWebsite? topupWebsite,
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   double textScale = 1,
@@ -292,8 +323,10 @@ Future<void> _pump(
         homeBannersRepositoryProvider.overrideWithValue(
           banners ?? FakeHomeBannersRepository(),
         ),
-        if (opener != null)
-          externalLinkOpenerProvider.overrideWithValue(opener),
+        if (browser != null)
+          inAppBrowserOpenerProvider.overrideWithValue(browser),
+        if (topupWebsite != null)
+          topupWebsiteRepositoryProvider.overrideWithValue(topupWebsite),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -450,22 +483,104 @@ void main() {
       },
     );
 
-    testWidgets('the website link shows only with the server URL and opens '
-        'the browser', (tester) async {
-      final opener = _FakeOpener();
+    // D344: «الشحن من الموقع» opens inside the app (an in-app browser tab),
+    // signed in with the server's one-time address; never the password.
+    Future<Finder> pumpWebsite(
+      WidgetTester tester, {
+      required _FakeBrowser browser,
+      required _FakeTopupWebsite topupWebsite,
+    }) async {
       await _pump(
         tester,
         AppRoutes.wallet,
         language: AppLanguage.ar,
         programs: _FakePrograms(websiteTopupUrl: 'https://kabso.live/topup'),
-        opener: opener,
+        browser: browser,
+        topupWebsite: topupWebsite,
       );
       final row = find.byKey(WalletScreen.websiteTopupKey);
       await tester.scrollUntilVisible(row, 200);
       expect(find.text(_ar.walletTopupWebsite), findsOneWidget);
+      return row;
+    }
+
+    testWidgets('the website link shows only with the server URL and opens '
+        'it in the app, signed in with the one-time address', (tester) async {
+      final browser = _FakeBrowser();
+      final site = _FakeTopupWebsite();
+      final row = await pumpWebsite(
+        tester,
+        browser: browser,
+        topupWebsite: site,
+      );
       await tester.tap(row);
       await tester.pumpAndSettle();
-      expect(opener.opened, [Uri.parse('https://kabso.live/topup')]);
+      expect(site.calls, 1);
+      expect(browser.opened, [_FakeTopupWebsite.signedIn]);
+    });
+
+    testWidgets('no one-time address (offline, older server): the plain page '
+        'opens and the website asks to sign in', (tester) async {
+      final browser = _FakeBrowser();
+      final row = await pumpWebsite(
+        tester,
+        browser: browser,
+        topupWebsite: _FakeTopupWebsite(fail: true),
+      );
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(browser.opened, [Uri.parse('https://kabso.live/topup')]);
+    });
+
+    testWidgets('back from the website tab, the balance is read again', (
+      tester,
+    ) async {
+      final browser = _FakeBrowser();
+      final row = await pumpWebsite(
+        tester,
+        browser: browser,
+        topupWebsite: _FakeTopupWebsite(),
+      );
+      // Coming back without having opened the tab changes nothing.
+      final before = _coinReads;
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(_coinReads, before);
+
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(browser.opened, hasLength(1));
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      expect(_coinReads, before);
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(_coinReads, before + 1);
+      // Once per opening.
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(_coinReads, before + 1);
+    });
+
+    testWidgets('no browser could open it: «تعذّر فتح الرابط»', (tester) async {
+      final row = await pumpWebsite(
+        tester,
+        browser: _FakeBrowser(result: false),
+        topupWebsite: _FakeTopupWebsite(),
+      );
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.text(_ar.linkOpenFailed), findsOneWidget);
     });
 
     testWidgets('no history: the empty state, never sample rows', (

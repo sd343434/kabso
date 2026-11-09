@@ -115,5 +115,10 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- v1.109-social (D344): «الشحن من الموقع» opens in a Custom Tab (url_launcher inAppBrowserView);
+             Android 11+ needs this query to see the browser that provides Custom Tabs. -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService"/>
+        </intent>
     </queries>
 </manifest>

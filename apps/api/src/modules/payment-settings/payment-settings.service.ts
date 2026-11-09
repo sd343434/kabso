@@ -41,6 +41,10 @@ interface PaymentOptionsDto {
   statementDescriptorSuffix: string | null;
   disputeAutoSubmit: boolean | null;
   appLinkEnabled: boolean | null;
+  /** v1.109-social (D344): Stripe's fee in the website price (null = the server's value). */
+  stripeFeeGrossUp: boolean | null;
+  stripeFeePercentBps: number | null;
+  stripeFeeFixedMinor: number | null;
 }
 
 /** `AdminPaymentSettings` (openapi v1.64-social): never a secret, only fingerprints. */
@@ -61,7 +65,12 @@ export interface AdminPaymentSettingsDto {
     statementDescriptorSuffix: string | null;
     disputeAutoSubmit: boolean;
     appLinkEnabled: boolean;
+    stripeFeeGrossUp: boolean;
+    stripeFeePercentBps: number;
+    stripeFeeFixedMinor: number;
   };
+  /** v1.109-social (D344): the currency of the fixed fee and the prices (the top-up currency). */
+  feeCurrency: string;
   publicBaseUrl: string | null;
   webhookUrl: string | null;
   webhookEvents: string[];
@@ -107,6 +116,9 @@ function summaryOf(row: PaymentSettingsRow | null) {
     statementDescriptorSuffix: row?.statementDescriptorSuffix ?? null,
     disputeAutoSubmit: row?.disputeAutoSubmit ?? null,
     appLinkEnabled: row?.appLinkEnabled ?? null,
+    stripeFeeGrossUp: row?.stripeFeeGrossUp ?? null,
+    stripeFeePercentBps: row?.stripeFeePercentBps ?? null,
+    stripeFeeFixedMinor: row?.stripeFeeFixedMinor ?? null,
   };
 }
 
@@ -207,13 +219,20 @@ export class PaymentSettingsService {
         statementDescriptorSuffix: row?.statementDescriptorSuffix ?? null,
         disputeAutoSubmit: row?.disputeAutoSubmit ?? null,
         appLinkEnabled: row?.appLinkEnabled ?? null,
+        stripeFeeGrossUp: row?.stripeFeeGrossUp ?? null,
+        stripeFeePercentBps: row?.stripeFeePercentBps ?? null,
+        stripeFeeFixedMinor: row?.stripeFeeFixedMinor ?? null,
       },
       effective: {
         bankTransferEnabled: r.options.bankTransfer.enabled,
         statementDescriptorSuffix: r.options.statementDescriptorSuffix,
         disputeAutoSubmit: r.options.disputeAutoSubmit,
         appLinkEnabled: r.options.appLinkEnabled,
+        stripeFeeGrossUp: r.options.fee.grossUp,
+        stripeFeePercentBps: r.options.fee.percentBps,
+        stripeFeeFixedMinor: r.options.fee.fixedMinor,
       },
+      feeCurrency: t.currency,
       publicBaseUrl: t.publicBaseUrl,
       webhookUrl: t.publicBaseUrl ? `${t.publicBaseUrl}${STRIPE_WEBHOOK_PATH}` : null,
       webhookEvents: [...STRIPE_WEBHOOK_EVENTS],
@@ -343,6 +362,9 @@ export class PaymentSettingsService {
         'statementDescriptorSuffix',
         'disputeAutoSubmit',
         'appLinkEnabled',
+        'stripeFeeGrossUp',
+        'stripeFeePercentBps',
+        'stripeFeeFixedMinor',
       ] as const) {
         if (input[k] !== undefined) Object.assign(data, { [k]: input[k] });
       }

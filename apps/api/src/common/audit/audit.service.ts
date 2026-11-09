@@ -316,6 +316,12 @@ export enum AuditAction {
   TOPUP_DISPUTE_EVIDENCE = 'topup.dispute.evidence',
   TOPUP_CASE_OPEN = 'topup.case.open',
   TOPUP_CASE_CLOSE = 'topup.case.close',
+  // v1.109-social (DRAFT, D344, §10.143): the app's one-time website sign-in code (never the code itself).
+  TOPUP_HANDOFF_MINT = 'topup.handoff.mint',
+  TOPUP_HANDOFF_EXCHANGE = 'topup.handoff.exchange',
+  TOPUP_HANDOFF_REFUSED = 'topup.handoff.refused',
+  // v1.109-social (D344, §10.143.2): Stripe took more than the fee folded into the price (coins never change).
+  TOPUP_FEE_EXCEEDED = 'topup.fee.exceeded',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
+import { TopupHandoffService } from './topup-handoff.service.js';
 import { TopupController, TopupWebController } from './topup.controller.js';
 import { TopupService } from './topup.service.js';
 
@@ -7,8 +9,10 @@ import { TopupService } from './topup.service.js';
  * keys, options and the Stripe client come from the global `PaymentSettingsStore` (panel over env, §10.53.1).
  */
 @Module({
+  // v1.109-social (D344): the website handoff issues sessions and access tokens.
+  imports: [AuthModule],
   controllers: [TopupController, TopupWebController],
-  providers: [TopupService],
+  providers: [TopupService, TopupHandoffService],
   exports: [TopupService],
 })
 export class TopupModule {}
