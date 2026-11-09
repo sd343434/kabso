@@ -27,6 +27,8 @@ export interface AdminGiftEvent {
   state: string;
   payoutHold: boolean;
   structureLocked: boolean;
+  /** v1.102-social (D334): content creators count as hosts (false on the events made before it). */
+  creatorsAsHosts?: boolean;
   artUrls?: Partial<Record<'background' | 'backgroundPoster' | 'title' | 'overlay', string | null>>;
   form: Parameters<typeof formFromServer>[0];
   results: {

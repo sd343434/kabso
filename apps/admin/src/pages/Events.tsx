@@ -5,6 +5,8 @@ import { useApp } from '../context';
 import { formatDate, formatNumber } from '../format';
 import {
   BOARD_KINDS,
+  BOARD_SHOWN_DEFAULT,
+  BOARD_SHOWN_MAX,
   BOARD_MONEY,
   COUNTED_GIFTS,
   EVENT_AUDIENCES,
@@ -380,7 +382,7 @@ function Wizard({
     setF((x) => ({
       ...x,
       boards: on
-        ? [...x.boards, { kind, minPoints: '0', prizes: defaultPrizeLines(kind) }].sort(
+        ? [...x.boards, { kind, minPoints: '0', shown: String(BOARD_SHOWN_DEFAULT), prizes: defaultPrizeLines(kind) }].sort(
             (a, b) => BOARD_KINDS.indexOf(a.kind) - BOARD_KINDS.indexOf(b.kind),
           )
         : x.boards.filter((b) => b.kind !== kind),
@@ -507,6 +509,9 @@ function Wizard({
                 </label>
               ))}
               <span className="hint">{t('evAudienceHint')}</span>
+              {server?.creatorsAsHosts === false && f.audience === 'HOSTS' && (
+                <span className="hint">{t('evAudienceOldHosts')}</span>
+              )}
             </fieldset>
             <fieldset disabled={locked}>
               <legend>{t('evScoring')}</legend>
@@ -620,6 +625,26 @@ function Wizard({
         );
       case 'evStepBoards':
         return (
+          <>
+            {locked && f.boards.length > 0 && (
+              // v1.102-social (D334): «عدد المعروضين» is a display setting — editable while the event runs.
+              <fieldset className="span-2" data-testid="ev-shown-running">
+                <legend>{t('evShown')}</legend>
+                {f.boards.map((b, bi) => (
+                  <label key={b.kind} className="small">
+                    {t(`gevBoard_${b.kind}`)}
+                    <input
+                      type="number"
+                      min={1}
+                      max={BOARD_SHOWN_MAX}
+                      value={b.shown ?? String(BOARD_SHOWN_DEFAULT)}
+                      onChange={(e) => setBoard(bi, { shown: e.target.value })}
+                    />
+                  </label>
+                ))}
+                <span className="hint">{t('evShownHint')}</span>
+              </fieldset>
+            )}
           <fieldset className="span-2" disabled={locked}>
             <legend>{t('gevBoards')}</legend>
             <p className="muted small">{t('evTop20')}</p>
@@ -650,6 +675,16 @@ function Wizard({
                           min={0}
                           value={b.minPoints}
                           onChange={(e) => setBoard(bi, { minPoints: e.target.value })}
+                        />
+                      </label>
+                      <label className="small" title={t('evShownHint')}>
+                        {t('evShown')}
+                        <input
+                          type="number"
+                          min={1}
+                          max={BOARD_SHOWN_MAX}
+                          value={b.shown ?? String(BOARD_SHOWN_DEFAULT)}
+                          onChange={(e) => setBoard(bi, { shown: e.target.value })}
                         />
                       </label>
                       {b.prizes.map((l, li) => (
@@ -734,6 +769,7 @@ function Wizard({
               );
             })}
           </fieldset>
+          </>
         );
       case 'evStepMilestones':
         return (
