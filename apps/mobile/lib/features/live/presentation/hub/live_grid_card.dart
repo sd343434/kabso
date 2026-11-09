@@ -5,6 +5,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -55,6 +56,10 @@ abstract final class KLiveGrid {
 ///   Top end: the viewer count with a person icon (owner 2026-11-08: «المعلومات
 ///   على بطاقة البث كثيرة» — one type and the viewers; the «جديد» chip is
 ///   gone, 0 is shown as 0: the real count, never invented).
+/// - D342: a party room (audio, podcast, multi — the party page's grid,
+///   where the three kinds share one list) shows its kind as a chip
+///   ([PartyKindBadge], D342b: small dark glass, its icon in the kind's
+///   colour) in the top start corner, before the live mark.
 /// - A content creator's live: the small creator mark ([CreatorLiveBadge]
 ///   `iconOnly`) under the type.
 /// - Bottom, over a scrim: only the title the host set (the host's name when
@@ -109,6 +114,8 @@ class KLiveGridCard extends StatelessWidget {
         : room.isMulti
         ? l10n.liveCategoryMulti
         : l10n.liveCategoryLive;
+    // D342: a party room's badge (a PK keeps «PK»).
+    final party = room.inPk ? null : PartyKind.of(room);
     final title = room.title.trim().isEmpty ? room.hostName : room.title;
     final base = l10n.liveCardSemantics(
       room.hostName,
@@ -151,36 +158,54 @@ class KLiveGridCard extends StatelessWidget {
                   // down; the count's end 9.4 pt in.
                   PositionedDirectional(
                     top: 6,
-                    start: 10,
+                    // D342b: a party room's chip in the top start corner.
+                    start: party != null ? 6 : 10,
                     end: 9,
                     child: SizedBox(
                       height: 18,
                       child: Row(
                         children: [
-                          const KLiveEqualizer(
-                            color: KLiveGrid.liveMark,
-                            size: 10,
-                          ),
-                          const SizedBox(width: KSpacing.xs),
-                          // D237: the kind takes the room the count leaves
-                          // (not half of it).
-                          Expanded(
-                            child: Align(
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                type,
-                                key: typeKey,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: t.caption.copyWith(
-                                  color: white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  shadows: shadows,
+                          if (party != null) ...[
+                            // D342b: the kind's chip first, then the live
+                            // mark; the count keeps the end.
+                            // A narrow card shrinks the chip (never the
+                            // count), never cuts it.
+                            Flexible(
+                              flex: 4,
+                              child: PartyKindBadge(key: typeKey, kind: party),
+                            ),
+                            const SizedBox(width: KSpacing.xs + 1),
+                            const KLiveEqualizer(
+                              color: KLiveGrid.liveMark,
+                              size: 10,
+                            ),
+                            const Spacer(),
+                          ] else ...[
+                            const KLiveEqualizer(
+                              color: KLiveGrid.liveMark,
+                              size: 10,
+                            ),
+                            const SizedBox(width: KSpacing.xs),
+                            // D237: the kind takes the room the count leaves
+                            // (not half of it).
+                            Expanded(
+                              child: Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: Text(
+                                  type,
+                                  key: typeKey,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.caption.copyWith(
+                                    color: white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    shadows: shadows,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                           const SizedBox(width: KSpacing.xs),
                           Row(
                             key: viewersKey,

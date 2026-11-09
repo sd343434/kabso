@@ -20,7 +20,7 @@ describe('D213 streamer rules', () => {
     expect(LIVE_KIND_MODES.streamer).toEqual(['STREAMER']);
     expect(LIVE_KIND_MODES.solo).toEqual(['SOLO', 'PK', 'STREAMER']);
     expect(LIVE_KIND_MODES.video).toEqual(['SOLO', 'PK', 'MULTI', 'STREAMER']);
-    for (const kind of ['audio', 'multi', 'party', 'podcast'] as const) {
+    for (const kind of ['audio', 'multi', 'party', 'podcast', 'party_all'] as const) {
       expect(LIVE_KIND_MODES[kind]).not.toContain('STREAMER');
     }
   });

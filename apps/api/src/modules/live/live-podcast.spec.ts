@@ -107,10 +107,12 @@ describe('D212 podcast schemas and rules', () => {
     expect(seatPermission('PODCAST', true)).toEqual({ visible: true, sources: [] });
   });
 
-  it('`kind=podcast` is PODCAST only; no other kind lists a podcast', () => {
+  it('`kind=podcast` is PODCAST only; no other kind lists a podcast but D342’s `party_all`', () => {
     expect(LIVE_KINDS).toContain('podcast');
     expect(LIVE_KIND_MODES.podcast).toEqual(['PODCAST']);
-    for (const kind of LIVE_KINDS.filter((k) => k !== 'podcast')) {
+    // v1.107-live (D342): the party page's one mixed list.
+    expect(LIVE_KIND_MODES.party_all).toEqual(['AUDIO', 'PODCAST', 'MULTI']);
+    for (const kind of LIVE_KINDS.filter((k) => k !== 'podcast' && k !== 'party_all')) {
       expect(LIVE_KIND_MODES[kind]).not.toContain('PODCAST');
     }
   });

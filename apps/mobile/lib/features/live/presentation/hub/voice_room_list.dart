@@ -1,10 +1,12 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -47,9 +49,13 @@ abstract final class KVoiceRoomRow {
   static const double chipGap = 6;
   static const double chipFont = 10;
 
-  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M).
+  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M). D342b: the live
+  /// mark stays there; the kind's chip ([PartyKindBadge]) sits in the
+  /// cover's top start corner, [badgeInset] from both edges (the same
+  /// corner as on the grid cards).
   static const double markStart = 6.4;
   static const double markBottom = 4.5;
+  static const double badgeInset = 4;
 
   /// Light theme: the card text (sampled `#282828`), the subtitle grey,
   /// and the count's icon (sampled `#43E7E4`).
@@ -171,13 +177,16 @@ abstract final class VoiceRoomList {
 
 /// One room as a party-page card (D246, the owner's reference): the cover
 /// square at the reading start, rounded, with the live mark and the room's
-/// kind at its bottom («ılı بث صوتي»); the host's country flag and the title
+/// kind — D342: the kind's own chip ([PartyKindBadge], D342b: small dark
+/// glass) in its top start corner, the live mark at its bottom start, since
+/// the three kinds share one list; the host's country flag and the title
 /// in bold (two lines when there is no topic), the host's topic in grey
-/// under it; one line of pills with only what the API says — «رائج»
-/// (`popular`, v1.58-live), «PK» while the room is in a PK (D241), the
-/// host's level (`roomLevel`, the charm badge), «مميز» in a paid slot
-/// (D154b) and the seats; the viewer count at the end with a mic (audio,
-/// podcast) or a camera (multi).
+/// under it (D342: a podcast without one, its episode and topic); one line
+/// of pills with only what the API says — «رائج» (`popular`,
+/// v1.58-live), «PK» while the room is in a PK (D241), the host's level
+/// (`roomLevel`, the charm badge), «مميز» in a paid slot (D154b) and the
+/// seats; the viewer count at the end with
+/// a mic (audio, podcast) or a camera (multi).
 class VoiceRoomRow extends StatelessWidget {
   const new({required this.room, super.key, this.onTap});
 
@@ -229,7 +238,14 @@ class VoiceRoomRow extends StatelessWidget {
       withCategory,
       if (room.roomLevel case final level?) l10n.liveRoomLevelBadge(level),
     ].join(', ');
-    final topic = room.topic?.trim();
+    final partyKind = PartyKind.of(room);
+    final podcast = room.podcast;
+    final own = room.topic?.trim();
+    // D342: a podcast says its episode and topic when the host set none.
+    final topic = (own == null || own.isEmpty) && podcast != null
+        ? '${l10n.podcastEpisode(podcast.episodeNumber)} · '
+              '${podcastTopicLabel(l10n, podcast.topic)}'
+        : own;
     final hasTopic = topic != null && topic.isNotEmpty;
     final seats = room.seatCount;
     final level = room.roomLevel;
@@ -276,45 +292,65 @@ class VoiceRoomRow extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            // The mark sits on a fixed 68.6 lp picture: it
-                            // does not grow with the text size (it would
+                            // The marks sit on a fixed 68.6 lp picture: they
+                            // do not grow with the text size (they would
                             // be cut), the rest of the card does.
-                            PositionedDirectional(
-                              start: KVoiceRoomRow.markStart,
-                              end: 3,
-                              bottom: KVoiceRoomRow.markBottom,
-                              child: MediaQuery.withNoTextScaling(
-                                child: Row(
-                                  key: kindKey,
-                                  children: [
-                                    const KLiveEqualizer(
-                                      color: KLiveGrid.liveMark,
-                                      size: 9,
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Flexible(
-                                      child: Text(
-                                        kind,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: t.caption.copyWith(
-                                          color: white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.1,
-                                          shadows: const [
-                                            Shadow(
-                                              color: Color(0x66000000),
-                                              blurRadius: 3,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                            if (partyKind != null) ...[
+                              const PositionedDirectional(
+                                start: KVoiceRoomRow.markStart,
+                                bottom: KVoiceRoomRow.markBottom,
+                                child: KLiveEqualizer(
+                                  color: KLiveGrid.liveMark,
+                                  size: 9,
                                 ),
                               ),
-                            ),
+                              PositionedDirectional(
+                                start: KVoiceRoomRow.badgeInset,
+                                end: KVoiceRoomRow.badgeInset,
+                                top: KVoiceRoomRow.badgeInset,
+                                child: Align(
+                                  key: kindKey,
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: PartyKindBadge(kind: partyKind),
+                                ),
+                              ),
+                            ] else
+                              PositionedDirectional(
+                                start: KVoiceRoomRow.markStart,
+                                end: 3,
+                                bottom: KVoiceRoomRow.markBottom,
+                                child: MediaQuery.withNoTextScaling(
+                                  child: Row(
+                                    key: kindKey,
+                                    children: [
+                                      const KLiveEqualizer(
+                                        color: KLiveGrid.liveMark,
+                                        size: 9,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Flexible(
+                                        child: Text(
+                                          kind,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: t.caption.copyWith(
+                                            color: white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.1,
+                                            shadows: const [
+                                              Shadow(
+                                                color: Color(0x66000000),
+                                                blurRadius: 3,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),

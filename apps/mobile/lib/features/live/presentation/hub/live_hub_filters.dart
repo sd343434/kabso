@@ -91,8 +91,15 @@ class LiveHubSelection {
   /// and PK; «ستريمر» has no rooms yet), under every filter.
   LiveRoomsQuery get query => _filterQuery.withKind(hubKind);
 
-  /// D240: the same filter's list of one party kind (the party page).
+  /// D240: the same filter's list of one party kind.
   LiveRoomsQuery queryOf(LiveRoomsKind kind) => _filterQuery.withKind(kind);
+
+  /// D342 (owner: «ازل فلاتر بث صوتي بث بوكاست و بث متعدد … ان يكونو بنفس
+  /// الصف»): the party page's one list — every party kind (audio, podcast,
+  /// multi) mixed in this filter's own order, one server list
+  /// (v1.107-live `kind=party_all`), never three lists merged here.
+  LiveRoomsQuery get partyQuery =>
+      _filterQuery.withKind(LiveRoomsKind.partyAll);
 
   /// D239: the main hub's server `kind` (SOLO and PK).
   static const LiveRoomsKind hubKind = LiveRoomsKind.solo;

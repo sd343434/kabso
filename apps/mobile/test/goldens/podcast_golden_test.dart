@@ -36,7 +36,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.d
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/podcast_hub.dart';
-import 'package:kabso_live/features/live/voice_rooms_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
+import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -357,7 +358,8 @@ void main() {
       final live =
           FakeLiveRepository(
               rooms: (r) => apiPage(
-                r.kind == LiveRoomsKind.podcast
+                // D342: the party page's one mixed list (party_all).
+                r.kind == LiveRoomsKind.partyAll
                     ? [
                         for (final (i, t) in [
                           (
@@ -397,6 +399,14 @@ void main() {
                               ],
                             ),
                           ),
+                        apiRooms(1, start: 2, ar: ar).first.copyWith(
+                          mode: LiveRoomMode.audio,
+                          seatCount: 8,
+                        ),
+                        apiRooms(1, start: 3, ar: ar).first.copyWith(
+                          mode: LiveRoomMode.multi,
+                          seatCount: 4,
+                        ),
                       ]
                     : apiRooms(6, ar: ar),
               ),
@@ -431,8 +441,7 @@ void main() {
       await tester.tap(find.byKey(const Key('nav.home')));
       await tester.pumpAndSettle();
       if (podcast) {
-        await _tapTab(tester, LiveHubCategory.podcast);
-        await tester.pumpAndSettle();
+        await _openParty(tester);
       }
       await precacheImages(tester);
     }
@@ -526,9 +535,8 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('nav.home')));
         await tester.pumpAndSettle();
-        await _tapTab(tester, LiveHubCategory.podcast);
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(PodcastHubList.cardKey('room-0')));
+        await _openParty(tester);
+        await tester.tap(find.byKey(VoiceRoomList.rowKey(0)));
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.pump(const Duration(seconds: 1));
@@ -583,10 +591,16 @@ void main() {
       await tester.pump(const Duration(seconds: 12));
     });
 
-    _testGolden('hub: podcast cards ($language)', (tester) async {
+    _testGolden('the party page: podcasts among the party rooms, each with '
+        'its badge (D342) ($language)', (tester) async {
       await hub(tester, podcast: true);
       await _capture(tester, 'hub_podcasts.${language.name}@3x');
-      expect(find.byType(PodcastHubCard), findsNWidgets(2));
+      expect(
+        find.byKey(PartyKindBadge.keyOf(PartyKind.podcast)),
+        findsNWidgets(2),
+      );
+      expect(find.byKey(PartyKindBadge.keyOf(PartyKind.audio)), findsOne);
+      expect(find.byKey(PartyKindBadge.keyOf(PartyKind.multi)), findsOne);
       expect(find.byType(ScheduledPodcastCard), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 12));
@@ -594,14 +608,8 @@ void main() {
   });
 }
 
-/// D237: a live category is a kind tab of the party page (D322: the
-/// «الحفلة» tab).
-Future<void> _tapTab(WidgetTester tester, LiveHubCategory category) async {
+/// D322: the party page is the «الحفلة» tab (D342: one mixed list).
+Future<void> _openParty(WidgetTester tester) async {
   await tester.tap(find.byKey(const Key('nav.party')));
   await tester.pumpAndSettle();
-  // D240: the kinds are the party page's top tabs.
-  final tab = find.byKey(VoiceRoomsScreen.kindKey(category));
-  await tester.ensureVisible(tab);
-  await tester.pumpAndSettle();
-  await tester.tap(tab);
 }

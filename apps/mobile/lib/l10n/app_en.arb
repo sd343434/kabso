@@ -1917,7 +1917,6 @@
   "navMessagesUnreadMany": "more than 99 unread messages",
   "navMomentsNew": "new stories",
   "liveVoiceRoomsTitle": "Voice rooms",
-  "liveVoiceRoomsToLive": "Live",
   "liveHubFilterLabel": "Filters",
   "liveHubFilterFollowing": "Following",
   "livePartyTabFollowing": "Following",
@@ -5315,5 +5314,10 @@
   "eventsAnnounceYourPrize": "Your prize",
   "eventsAnnounceResults": "See the results",
   "eventsAnnounceClose": "Close the announcement",
-  "eventsNotQualifiedYou": "Not qualified"
+  "eventsNotQualifiedYou": "Not qualified",
+  "livePartyKindAudio": "Audio",
+  "livePartyKindPodcast": "Podcast",
+  "livePartyKindMulti": "Multi",
+  "livePartyEmptyTitle": "No party rooms right now",
+  "livePartyEmptyBody": "Check back later or try another tab."
 }

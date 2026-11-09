@@ -8,238 +8,27 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// D212: the hub's announced podcast episodes (`GET /live/podcasts/
-/// scheduled`), refreshed with the podcast tab.
+/// scheduled`), refreshed with the party list (D342).
 final FutureProvider<List<LiveScheduledPodcast>> scheduledPodcastsProvider =
     FutureProvider.autoDispose<List<LiveScheduledPodcast>>(
       (ref) => ref.watch(liveRepositoryProvider).scheduledPodcasts(),
     );
 
-/// D212 geometry of the podcast hub cards (Kabso's own design).
+/// D212 geometry of the announced-podcast cards (Kabso's own design).
 abstract final class KPodcastHub {
   static const double inset = 14;
   static const double gap = 10;
   static const double radius = 16;
-  static const double avatar = 28;
-  static const double avatarOverlap = 9;
 }
 
-/// D212: the «بث بودكاست» tab's list — one full-width card per live
-/// episode.
-abstract final class PodcastHubList {
-  static const listKey = Key('podcastHub.list');
-  static Key cardKey(String id) => Key('podcastHub.card.$id');
-
-  static Widget sliver({
-    required List<LiveRoomCardData> rooms,
-    ValueChanged<LiveRoomCardData>? onOpenRoom,
-  }) => SliverPadding(
-    key: listKey,
-    padding: const EdgeInsets.fromLTRB(
-      KPodcastHub.inset,
-      KSpacing.xs,
-      KPodcastHub.inset,
-      KSpacing.lg,
-    ),
-    sliver: SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, i) => Padding(
-          padding: const EdgeInsets.only(bottom: KPodcastHub.gap),
-          child: PodcastHubCard(
-            room: rooms[i],
-            onOpen: onOpenRoom == null ? null : () => onOpenRoom(rooms[i]),
-          ),
-        ),
-        childCount: rooms.length,
-      ),
-    ),
-  );
-}
-
-/// A live podcast: the live tag and the listener count, the title, the
-/// speakers' pictures stacked with their names, and the topic.
-class PodcastHubCard extends StatelessWidget {
-  const new({required this.room, super.key, this.onOpen});
-
-  final LiveRoomCardData room;
-  final VoidCallback? onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final text = context.textStyles;
-    final podcast = room.podcast;
-    final people = <({String name, String? url})>[
-      (name: room.hostName, url: null),
-      for (final s in podcast?.speakers ?? const <LivePodcastSpeaker>[])
-        (name: s.displayName, url: s.avatarUrl),
-    ];
-    final count = room.viewerCount;
-    final card = Container(
-      key: room.roomId == null ? null : PodcastHubList.cardKey(room.roomId!),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: p.surfaceRaised,
-        borderRadius: BorderRadius.circular(KPodcastHub.radius),
-        border: Border.all(color: p.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: KPodcast.liveTag,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '● ${l10n.podcastLiveTag}',
-                  style: text.caption.copyWith(
-                    color: const Color(0xFFFFFFFF),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.headphones_rounded, size: 15, color: p.textSecondary),
-              const SizedBox(width: 3),
-              Text(
-                KFormat.compact(count, l10n),
-                style: text.caption.copyWith(color: p.textSecondary),
-              ),
-              const Spacer(),
-              if (podcast != null)
-                Flexible(
-                  child: Text(
-                    l10n.podcastEpisode(podcast.episodeNumber),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.caption.copyWith(color: p.textSecondary),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            room.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: text.bodyStrong.copyWith(
-              fontSize: 15,
-              color: p.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _Stack(people: people),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  people.map((e) => e.name).join('، '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.caption.copyWith(color: p.textSecondary),
-                ),
-              ),
-              if (podcast != null) ...[
-                const SizedBox(width: 8),
-                _TopicChip(label: podcastTopicLabel(l10n, podcast.topic)),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-    return Semantics(
-      button: onOpen != null,
-      label: [
-        l10n.podcastLiveTag,
-        room.title,
-        people.map((e) => e.name).join('، '),
-        l10n.podcastListeners(KFormat.compact(count, l10n)),
-      ].join(' · '),
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onOpen,
-        child: card,
-      ),
-    );
-  }
-}
-
-class _Stack extends StatelessWidget {
-  const new({required this.people});
-
-  final List<({String name, String? url})> people;
-
-  @override
-  Widget build(BuildContext context) {
-    final shown = people.take(4).toList();
-    const size = KPodcastHub.avatar;
-    const pitch = size - KPodcastHub.avatarOverlap;
-    return SizedBox(
-      width: size + pitch * (shown.length - 1),
-      height: size,
-      child: Stack(
-        children: [
-          for (final (i, person) in shown.indexed)
-            PositionedDirectional(
-              start: pitch * i,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: context.palette.surfaceRaised,
-                    width: 1.5,
-                  ),
-                ),
-                child: PodcastAvatar(
-                  name: person.name,
-                  url: person.url,
-                  size: size - 3,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TopicChip extends StatelessWidget {
-  const new({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    decoration: BoxDecoration(
-      color: context.palette.surfaceOverlay,
-      borderRadius: BorderRadius.circular(KRadius.pill),
-    ),
-    child: Text(
-      label,
-      style: context.textStyles.caption.copyWith(
-        color: context.palette.textSecondary,
-      ),
-    ),
-  );
-}
-
-/// D212: the announced episodes above the live ones — a heading, then a
+/// D212: the announced episodes above the live ones (D342: above the party
+/// page's mixed list; the podcast tab and its episode cards are gone) — a
+/// heading, then a
 /// dashed card each with «🔔 ذكّرني» (it follows the host: the CP-016 C
 /// reminder reaches the host's followers 15 minutes before). Nothing when
 /// none is announced or the list failed (the live list says the rest).
@@ -467,4 +256,25 @@ class StreamerSoon extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TopicChip extends StatelessWidget {
+  const new({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      color: context.palette.surfaceOverlay,
+      borderRadius: BorderRadius.circular(KRadius.pill),
+    ),
+    child: Text(
+      label,
+      style: context.textStyles.caption.copyWith(
+        color: context.palette.textSecondary,
+      ),
+    ),
+  );
 }

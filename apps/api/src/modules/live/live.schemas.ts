@@ -615,6 +615,7 @@ export const listLiveRoomsQuerySchema = z.strictObject({
   // v1.26.4-live (D129): `audio` = AUDIO rooms, `video` = SOLO, PK and MULTI; absent = all.
   // v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI.
   // v1.47-live (D212): `podcast` = PODCAST (the hub's «بث بودكاست» tab).
+  // v1.107-live (D342): `party_all` = AUDIO, PODCAST and MULTI (the party page's one mixed list).
   kind: z.enum(LIVE_KINDS).optional(),
   // v1.27.1-live (D133): rooms of the caller's country; rooms of featured hosts.
   scope: z.enum(LIVE_SCOPES).optional(),

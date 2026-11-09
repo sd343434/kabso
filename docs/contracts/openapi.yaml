@@ -452,6 +452,10 @@ info:
     content creator's live `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %: → 7 500 000) instead of 70 %; never below the
     share it replaces; agency members keep 65 % / 70 % and the commission on top. No shape change (the stored share is
     the `shareBps` already returned); no migration.
+    **D342 (DRAFT v1.107-live)** the party page «الحفلة» as one mixed list (CONVENTIONS §10.141; owner 2026-11-09:
+    «ازل فلاتر بث صوتي بث بوكاست و بث متعدد … ان يكونو بنفس الصف لكن ميز كل واحده بهم»): `listLiveRooms` gains
+    `kind=party_all` — `AUDIO`, `PODCAST` and `MULTI` rooms in one list in the tab's own order (popular, new, following,
+    nearby / country), one cursor bound to it. Additive; `party` (AUDIO and MULTI) is unchanged. No migration.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -2761,8 +2765,8 @@ paths:
         - name: kind
           in: query
           required: false
-          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind). (v1.56-live, D213) `streamer`: `STREAMER`; a streamer is a video live, so `video` and `solo` list it too. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
-          schema: { type: string, enum: [audio, video, solo, multi, party, podcast, streamer] }
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. (v1.47-live, D212) `podcast`: `PODCAST` (in no other kind but `party_all`). (v1.56-live, D213) `streamer`: `STREAMER`; a streamer is a video live, so `video` and `solo` list it too. (v1.107-live, D342, CONVENTIONS §10.141) `party_all`: `AUDIO`, `PODCAST` and `MULTI` in one list — the mixed list of the party page, in the order of its tab and paged by one cursor (a cursor is bound to its kind like any other); `party` keeps its meaning. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video, solo, multi, party, podcast, streamer, party_all] }
         - name: scope
           in: query
           required: false

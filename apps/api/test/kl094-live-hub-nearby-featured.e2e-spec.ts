@@ -53,10 +53,10 @@ describe('D133 contract coverage', () => {
   it('openapi declares scope, featured and the new kinds on listLiveRooms, and Me.country', () => {
     const op = operations().find((o) => o.operationId === 'listLiveRooms');
     const params = (op?.spec as { parameters?: { name?: string; schema?: unknown }[] }).parameters ?? [];
-    // v1.47-live (D212) adds `podcast` (d212-podcast covers it).
+    // v1.47-live (D212) adds `podcast` (d212-podcast covers it); v1.107-live (D342) `party_all` (d342-party-mixed).
     expect(params.find((p) => p.name === 'kind')?.schema).toEqual({
       type: 'string',
-      enum: [...KINDS, 'podcast', 'streamer'],
+      enum: [...KINDS, 'podcast', 'streamer', 'party_all'],
     });
     expect(params.find((p) => p.name === 'scope')?.schema).toEqual({ type: 'string', enum: ['nearby'] });
     expect(params.find((p) => p.name === 'featured')?.schema).toEqual({

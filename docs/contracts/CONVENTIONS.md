@@ -10658,3 +10658,39 @@ were left for D339 / D340, which landed as §10.132–§10.134, so §10.135–§
 - **Config:** `GIFT_DIRECT_HOST_SHARE_PERCENT` (70), `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75) — a percentage 0–100 with at
   most two decimals (else the API refuses to start). Read once at the send, before its transaction (like the D295 creator
   check): a membership change racing a send applies from the next send.
+
+### 10.141 «الحفلة» — one mixed list, a badge per kind *(v1.107-live, DRAFT — D342)*
+
+Owner (2026-11-09) on the «الحفلة» tab (`VoiceRoomsScreen`, `/live/voice`): «ازل فلاتر بث صوتي بث بوكاست و بث متعدد …
+ان يكونو بنفس الصف لكن ميز كل واحده بهم» and «زر في الاعلى لنقل المستخدم على لايف … ازله». §10.141 follows the
+numbers reserved for the in-flight D339–D341 branches (§10.132–§10.140).
+
+- **API (additive).** `listLiveRooms` gains `kind=party_all` = `AUDIO`, `PODCAST` and `MULTI` (`LIVE_KIND_MODES`). It is
+  an ordinary kind: one SQL list in the tab's own order (popular: cherries, startedAt, id; new; following; nearby /
+  `country`; featured: rank), the D295 host / creator interleave where it applies, one cursor bound to the kind like any
+  other (a `party_all` cursor on another kind, or none, is 400 `cursor`). `party` (AUDIO and MULTI, D133) keeps its
+  meaning; a podcast is in `podcast` and `party_all` only. «رائج» (§10.89) is unchanged (each kind its own top). No
+  migration.
+- **The app.** The party page asks for one list, `LiveHubSelection.partyQuery` (the selected filter's query with
+  `kind=party_all`) — never three paged lists merged on the phone. Gone: the second row's kinds «بث صوتي · بث بودكاست ·
+  بث متعدد» (`voiceRooms.kinds` / `voiceRooms.kind.*`) and the corner Live switch (`VoiceRoomsLiveButton`,
+  `voiceRooms.live`, D139/D240; the bar's «البث» tab is the way to the hub; `returnToLiveHub` and its l10n
+  `liveVoiceRoomsToLive` went with it). The second row now exists only under «القريبة» (its country, D246). The podcast
+  tab's episode cards (`PodcastHubList` / `PodcastHubCard`, `LiveRoomsLayout.podcast`) went with the tab: a podcast is
+  a party card like the others; the announced episodes (`ScheduledPodcastsSection`, D212) stay above «الغرف» when there
+  are any. The list / grid switch, the filters, the banners, the «مميز» pins (now of every party kind) and the in-room
+  swipe (the mixed list, in order) are unchanged.
+- **The badge** (`PartyKindBadge`, `PartyKind.of(room)`; a podcast is checked before audio). D342b (owner on the first
+  captures: «شكل ايقونة صوتي او بودكاست سيء حاول جعلها احترافية واصغر حجماً»): a small dark glass chip, the same in
+  the list and the grid, in the picture's top start corner (list: 4 lp in from the cover's corner, the live equaliser at
+  the cover's bottom start; grid: before the equaliser, the viewer count keeps the end) — 18 lp tall, 6 lp side padding,
+  full pill, black 45 % with a 0.5 lp white 15 % edge (no blur), an 11 lp icon tinted by kind from the tokens (audio
+  `Icons.mic_rounded` `color.dark.info`; podcast `Icons.podcasts_rounded` `color.brand.gold`; multi
+  `Icons.groups_rounded` `color.dark.success`) and a white 10 sp semibold short name («صوتي», «بودكاست», «متعدد» /
+  Audio, Podcast, Multi; letter spacing −0.1; white on ≥ 45 % black is ≥ 4.5 : 1 on any picture). Decorative: not
+  scaled with the text (18 lp at ×1.3) and it shrinks to fit instead of cutting its name (the list cover's «بودكاست» chip
+  is drawn at ≈ 0.9×). The label is kept in the grid too (there is room beside the count; an icon alone would ask
+  people to learn three glyphs). Screen readers hear the card's full kind («بث صوتي», «بث بودكاست», «بث متعدد») in its
+  label. A podcast row without a topic shows «الحلقة N · <topic>» under its title.
+- **Honest states.** Empty: «لا غرف في الحفلة الآن» / "No party rooms right now" with Try again (Popular also offers
+  Explore); loading, error, unavailable and Nearby without a country are the shared ones.

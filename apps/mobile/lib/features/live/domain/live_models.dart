@@ -517,7 +517,11 @@ enum LiveRoomsKind {
   podcast('podcast'),
 
   /// v1.56-live (D213): `STREAMER` (also in [video] and [solo]).
-  streamer('streamer');
+  streamer('streamer'),
+
+  /// v1.107-live (D342): `AUDIO`, `PODCAST` and `MULTI` in one list — the
+  /// party page's mixed list (its kind tabs are gone).
+  partyAll('party_all');
 
   new(this.wire);
 
@@ -542,6 +546,10 @@ enum LiveRoomsKind {
     streamer => mode == LiveRoomMode.streamer,
     multi => mode == LiveRoomMode.multi,
     party => mode == LiveRoomMode.audio || mode == LiveRoomMode.multi,
+    partyAll =>
+      mode == LiveRoomMode.audio ||
+          mode == LiveRoomMode.podcast ||
+          mode == LiveRoomMode.multi,
   };
 
   /// [wire] back to a kind; anything else is `null`.

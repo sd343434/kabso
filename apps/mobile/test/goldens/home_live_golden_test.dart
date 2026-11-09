@@ -293,7 +293,17 @@ void main() {
         // D131: the real hub (ref 165: video lives under the four filters)
         // and the Voice rooms screen behind the party button (ref 166: list
         // rows, and the grid), the server answering `kind` (rooms 0–5
-        // voice, 6–11 video), in the dark and the light theme.
+        // party — D342: audio, podcast and multi mixed, the party page's
+        // one `party_all` list —, 6–11 video), in the dark and the light
+        // theme.
+        const party = [
+          LiveRoomMode.audio,
+          LiveRoomMode.podcast,
+          LiveRoomMode.multi,
+          LiveRoomMode.audio,
+          LiveRoomMode.multi,
+          LiveRoomMode.podcast,
+        ];
         List<LiveRoomSummary> rooms() {
           final ar = language == AppLanguage.ar;
           return [
@@ -304,14 +314,26 @@ void main() {
             ).indexed)
               room.copyWith(
                 mode: i < 6
-                    ? LiveRoomMode.audio
+                    ? party[i]
                     : const [
                         LiveRoomMode.solo,
                         LiveRoomMode.multi,
                         LiveRoomMode.pk,
                       ][i % 3],
-                seatCount: i < 6 ? 8 : null,
-                occupiedSeats: i < 6 ? (i * 3) % 8 : 0,
+                seatCount: i < 6
+                    ? (party[i] == LiveRoomMode.podcast ? 4 : 8)
+                    : null,
+                occupiedSeats: i < 6
+                    ? (i * 3) % (party[i] == LiveRoomMode.podcast ? 4 : 8)
+                    : 0,
+                podcast: i < 6 && party[i] == LiveRoomMode.podcast
+                    ? LivePodcast(
+                        episodeNumber: i + 3,
+                        topic: i == 1
+                            ? PodcastTopic.business
+                            : PodcastTopic.tech,
+                      )
+                    : null,
                 // D246 (v1.58-live): the party cards' «رائج», the host's
                 // level and country (none for some, as the API).
                 popular: i == 0 || i == 2,
