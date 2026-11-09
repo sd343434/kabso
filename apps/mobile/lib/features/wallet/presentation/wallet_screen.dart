@@ -20,6 +20,8 @@ import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/features/recharge/application/recharge_orders_providers.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
+import 'package:kabso_live/features/store_iap/application/store_iap_controller.dart';
+import 'package:kabso_live/features/store_iap/presentation/store_iap_section.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_parts.dart';
@@ -59,8 +61,10 @@ enum WalletTab {
 ///   from the server (`GET /wallet/recharge-packages`: 3 per row, bonus,
 ///   the discount ribbon with the original price struck through, one
 ///   selected); the selected package's rewards (its bonus coins) and the
-///   «احصل على» pill, which stays disabled: «الدفع غير متاح بعد» (B5 — no
-///   payment method, no purchase operation exists).
+///   «احصل على» pill, which stays disabled: «الدفع غير متاح بعد» (those
+///   server packages have no payment of their own); D345's
+///   [StoreIapSection] sells the store packages through Google Play / the
+///   App Store when the server has them on.
 /// - Cherries: [WalletCherryTab].
 class WalletScreen extends ConsumerStatefulWidget {
   const new({super.key, this.initialTab = WalletTab.gold});
@@ -100,7 +104,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     ref
       ..invalidate(liveCoinsProvider)
       ..invalidate(rechargeOfferProvider)
-      ..invalidate(walletBannersProvider);
+      ..invalidate(walletBannersProvider)
+      ..invalidate(storeOfferProvider);
     try {
       await ref.read(rechargeOfferProvider.future);
     } on Object {
@@ -250,6 +255,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
         ),
       WalletSection(title: l10n.walletRechargeTitle, children: packages),
+      // D345: «الشراء من المتجر» — Google Play / App Store packages, verified
+      // by the server; hidden when the store is off (server or phone).
+      const StoreIapSection(),
       // D185: buying coins from a recharge agent (paid outside the app).
       // D150 / D204: never in store builds (until legal confirms).
       if (!ref.watch(storeBuildProvider))

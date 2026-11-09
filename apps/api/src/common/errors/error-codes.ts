@@ -196,6 +196,14 @@ export enum ErrorCode {
   TOPUP_UNAVAILABLE = 'TOPUP_UNAVAILABLE',
   /** v1.59-social (DRAFT, D190): the account is frozen from card purchases after a refund, a fraud warning or a dispute. */
   TOPUP_ACCOUNT_FROZEN = 'TOPUP_ACCOUNT_FROZEN',
+  /** v1.110-social (DRAFT, D345): the store (Google Play / App Store) is not configured on this server; no Retry-After. */
+  STORE_IAP_UNAVAILABLE = 'STORE_IAP_UNAVAILABLE',
+  /** v1.110-social (DRAFT, D345): the store did not confirm the purchase (bad token / signature, wrong product …). */
+  STORE_IAP_VERIFICATION_FAILED = 'STORE_IAP_VERIFICATION_FAILED',
+  /** v1.110-social (DRAFT, D345): the store purchase belongs to another account. */
+  STORE_IAP_PURCHASE_CONFLICT = 'STORE_IAP_PURCHASE_CONFLICT',
+  /** v1.110-social (DRAFT, D345): the store has not completed the payment yet (pending). */
+  STORE_IAP_PENDING = 'STORE_IAP_PENDING',
   /** v1.60-social (DRAFT, D191): the admin panel is off (ADMIN_TOTP_KEY is not set on the server). */
   ADMIN_PANEL_UNAVAILABLE = 'ADMIN_PANEL_UNAVAILABLE',
   /** v1.60-social (DRAFT, D191): too many failed sign-in or code attempts; the admin account is locked a while. */
@@ -465,6 +473,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 409,
   [ErrorCode.TOPUP_UNAVAILABLE]: 503,
   [ErrorCode.TOPUP_ACCOUNT_FROZEN]: 403,
+  [ErrorCode.STORE_IAP_UNAVAILABLE]: 503,
+  [ErrorCode.STORE_IAP_VERIFICATION_FAILED]: 400,
+  [ErrorCode.STORE_IAP_PURCHASE_CONFLICT]: 409,
+  [ErrorCode.STORE_IAP_PENDING]: 409,
   [ErrorCode.ADMIN_PANEL_UNAVAILABLE]: 503,
   [ErrorCode.ADMIN_LOCKED]: 429,
   [ErrorCode.ADMIN_TOTP_INVALID]: 403,
@@ -630,6 +642,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.TASK_MONTHLY_CAP_REACHED]: 'You already got this month’s maximum of task rewards.',
   [ErrorCode.TOPUP_UNAVAILABLE]: 'Card top-up is not enabled (الشحن بالبطاقة غير مفعّل).',
   [ErrorCode.TOPUP_ACCOUNT_FROZEN]: 'Card purchases are frozen on this account.',
+  [ErrorCode.STORE_IAP_UNAVAILABLE]: 'Store purchases are not enabled.',
+  [ErrorCode.STORE_IAP_VERIFICATION_FAILED]: 'The store could not confirm this purchase.',
+  [ErrorCode.STORE_IAP_PURCHASE_CONFLICT]: 'This purchase belongs to another account.',
+  [ErrorCode.STORE_IAP_PENDING]: 'The store has not completed this payment yet.',
   [ErrorCode.ADMIN_PANEL_UNAVAILABLE]: 'The admin panel is not available.',
   [ErrorCode.ADMIN_LOCKED]: 'Too many failed attempts. Try again later.',
   [ErrorCode.ADMIN_TOTP_INVALID]: 'The code is not valid.',

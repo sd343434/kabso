@@ -6,11 +6,14 @@
  */
 export interface AdminVia {
   /** v1.68-live (D273): `app` — a staff member's tools in the app after the step-up (§10.96.6). */
-  readonly via: 'cli' | 'panel' | 'app';
+  readonly via: 'cli' | 'panel' | 'app' | 'system';
   readonly actorUserId: string | null;
   readonly ip?: string | null;
   readonly requestId?: string | null;
 }
+
+/** v1.110-social (D345): the server itself (a store refund's automatic ban): no actor. */
+export const SYSTEM_VIA: AdminVia = { via: 'system', actorUserId: null };
 
 /** The command line: no actor (the operator is on the server). */
 export const CLI_VIA: AdminVia = { via: 'cli', actorUserId: null };

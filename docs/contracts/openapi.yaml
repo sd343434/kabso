@@ -452,6 +452,15 @@ info:
     content creator's live `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %: → 7 500 000) instead of 70 %; never below the
     share it replaces; agency members keep 65 % / 70 % and the commission on top. No shape change (the stored share is
     the `shareBps` already returned); no migration.
+    **D345 (DRAFT v1.110-social)** coins from the stores «الشراء من المتجر» (CONVENTIONS §10.144; owner 2026-11-09): tag
+    `store-iap` — `getStoreIapCatalog`, `verifyStorePurchase` (Google Play `purchases.products.get` + consume; App Store
+    StoreKit 2 JWS verified to Apple's root; one credit per store transaction), `receiveAppleNotification` (App Store
+    Server Notifications v2: REFUND, CONSUMPTION_REQUEST answered only with consent), `receiveGoogleRtdn` (Pub/Sub push
+    that triggers a voided-purchases poll); admin `…/admin/store-iap/*` (overview, settings «شراء واحد لكل حساب وجهاز»,
+    products, purchases, refund bans, OWNER «فك الحظر», voided sync). A refund takes the coins back (`STORE_IAP_REVERSAL`,
+    the balance may go below 0) and bans the account and the device. Ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`;
+    codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409),
+    `STORE_IAP_PENDING` (409). Additive; every store is off until configured.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1112,6 +1121,8 @@ tags:
     description: "(v1.60/v1.61-social DRAFT, D191/D192) The public website kabsolive.com: its settings and the launch waitlist."
   - name: admin-levels
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
+  - name: store-iap
+    description: "(v1.110-social DRAFT, D345) Coins from the stores «الشراء من المتجر»: Google Play Billing and App Store In-App Purchase consumables, verified by the server; refunds claw back and ban (CONVENTIONS §10.144)."
 paths:
   /health/live:
     get:
@@ -20711,6 +20722,405 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.110-social (DRAFT, D345, CONVENTIONS §10.144): coins from the stores «الشراء من المتجر» ----------------------
+  /api/v1/store/iap/catalog:
+    get:
+      tags: [store-iap]
+      operationId: getStoreIapCatalog
+      summary: The store coin packages for the caller's platform, and whether the store option is shown (D345)
+      description: |
+        v1.110-social (DRAFT, §10.144.3). `available: false` hides «الشراء من المتجر»: `unavailableReason` OFF (the store
+        is not configured or has no enabled product), DEVICE_BANNED (the session's device has an active ban),
+        LIMIT_REACHED (the once-per-account+device switch is on and this account or device already bought). The
+        prices are the store's (the app reads them from the store). `accountToken` binds the purchase to the account
+        (iOS `appAccountToken`, Android `obfuscatedAccountId`). Checks 400, 401, 429.
+      parameters:
+        - name: platform
+          in: query
+          required: true
+          schema: { type: string, enum: [ANDROID, IOS] }
+      responses:
+        '200':
+          description: The catalogue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreIapCatalog' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/store/iap/purchases:
+    post:
+      tags: [store-iap]
+      operationId: verifyStorePurchase
+      summary: Verifies a store purchase with the store and credits its coins once (D345)
+      description: |
+        v1.110-social (DRAFT, §10.144.3). The server asks Google Play (`purchases.products.get`) or verifies the App
+        Store's signed transaction (x5c chain to Apple's root, ES256) — the client's word never credits. One credit per
+        store transaction: the same account verifying again gets the stored result (`alreadyProcessed: true`);
+        another account 409 `STORE_IAP_PURCHASE_CONFLICT`. The no-refund consent is required (`consent.accepted`
+        true, the current `consentVersion`; else 400 `VALIDATION_FAILED` `consent.version` `stale`). With the
+        once-per-account+device switch on and the limit reached, a Google purchase is stored `REJECTED`
+        (`ONCE_LIMIT`, not consumed: Google refunds it) and an App Store one is credited. Checks: 400
+        `VALIDATION_FAILED`, 400 `STORE_IAP_VERIFICATION_FAILED` (`purchaseToken` rejected / not_purchased,
+        `signedTransaction` malformed / alg / x5c / root / chain / oid / expired / signature / bundle / type /
+        revoked, `productId` unknown / mismatch, `environment` sandbox), 401, 403 `DEVICE_BANNED`, 409
+        `STORE_IAP_PENDING`, 409 `STORE_IAP_PURCHASE_CONFLICT`, 429, 503 `STORE_IAP_UNAVAILABLE` /
+        `SERVICE_UNAVAILABLE` (the store did not answer; nothing stored).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyStorePurchaseRequest' }
+      responses:
+        '200':
+          description: The purchase as stored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreIapPurchaseResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/payments/apple/notifications:
+    post:
+      tags: [store-iap]
+      operationId: receiveAppleNotification
+      summary: App Store Server Notifications v2 (server to server; not for clients) (D345)
+      description: |
+        v1.110-social (DRAFT, §10.144.4–5). `signedPayload` verified like a transaction (x5c to the configured Apple
+        root, ES256) and its bundle id / app id checked; a bad one is 400 `STORE_IAP_VERIFICATION_FAILED` and changes
+        nothing. Each `notificationUUID` is applied once (a retry answers 200). `REFUND` takes the coins back (the
+        balance may go below 0) and bans the account and the device; `CONSUMPTION_REQUEST` answers Apple's Send
+        Consumption Information (v2 body) only when the buyer consented; `REFUND_DECLINED` / `REFUND_REVERSED` are
+        recorded. Public; 503 `STORE_IAP_UNAVAILABLE` while the App Store is not configured.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signedPayload]
+              properties:
+                signedPayload: { type: string, minLength: 1, maxLength: 200000 }
+      responses:
+        '200':
+          description: Received (applied, or already applied).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreNotificationReceived' }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/payments/google/rtdn:
+    post:
+      tags: [store-iap]
+      operationId: receiveGoogleRtdn
+      summary: Google Play real-time developer notifications (Pub/Sub push; not for clients) (D345)
+      description: |
+        v1.110-social (DRAFT, §10.144.4). The push URL carries the secret `token` (`STORE_IAP_GOOGLE_RTDN_TOKEN`; a wrong
+        one is 403 `AUTH_FORBIDDEN`). Each Pub/Sub `messageId` is applied once. A `voidedPurchaseNotification` only
+        triggers a poll of the Voided Purchases API for the last 3 days (the notification itself is never trusted);
+        everything else is recorded. 503 `STORE_IAP_UNAVAILABLE` while Google Play or the token is not configured.
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: object
+                  properties:
+                    data: { type: string, description: Base64 of the DeveloperNotification JSON. }
+                    messageId: { type: string }
+                    message_id: { type: string }
+                subscription: { type: string }
+      responses:
+        '200':
+          description: Received.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoreNotificationReceived' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/overview:
+    get:
+      tags: [admin-panel]
+      operationId: getAdminStoreIapOverview
+      summary: "«مشتريات المتجر»: the stores' status, the switch and the last voided poll (store_iap.view)"
+      description: (v1.110-social, D345, §10.144.6) No credential is ever shown — only whether each store is configured.
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreIapOverview' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/settings:
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminStoreIapSettings
+      summary: "«شراء واحد لكل حساب وجهاز» on / off (store_iap.manage = OWNER; a reason; audited)"
+      description: (v1.110-social, D345, §10.144.3) Audited `store_iap.settings.update` with before / after.
+      security: [{ adminSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [oncePerAccountDevice, reason]
+              properties:
+                oncePerAccountDevice: { type: boolean }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200':
+          description: The switch now.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [oncePerAccountDevice, updatedAt]
+                properties:
+                  oncePerAccountDevice: { type: boolean }
+                  updatedAt: { type: string, format: date-time }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/products:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminStoreIapProducts
+      summary: "The store products ↔ coins «باقات المتجر» (store_iap.view)"
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminStoreIapProduct' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-panel]
+      operationId: createAdminStoreIapProduct
+      summary: "Maps a store product id to coins (store_iap.manage = OWNER; a reason; audited)"
+      description: (v1.110-social, D345, §10.144.2) 409 `ADMIN_ACTION_REFUSED` `productId` `duplicate` for a store + id that exists.
+      security: [{ adminSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdminStoreIapProductRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreIapProduct' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/products/{productId}:
+    patch:
+      tags: [admin-panel]
+      operationId: updateAdminStoreIapProduct
+      summary: "Changes a store product's coins, reference price, order or enabled (store_iap.manage = OWNER)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: The catalogue row's id (a UUID), not the store's product id.
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAdminStoreIapProductRequest' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreIapProduct' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/purchases:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminStoreIapPurchases
+      summary: "The store purchases (store_iap.view)"
+      description: |
+        (v1.110-social, D345, §10.144.6) Newest first; `q` a username, a store transaction / order id or a product id.
+        The device and the store token are never shown. `format=csv` audited `admin.export.csv`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt, coins], default: createdAt }
+        - name: platform
+          in: query
+          required: false
+          schema: { type: string, enum: [GOOGLE_PLAY, APP_STORE] }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [CREDITED, REJECTED, REFUNDED] }
+        - name: environment
+          in: query
+          required: false
+          schema: { type: string, enum: [PRODUCTION, SANDBOX] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreIapPurchasePage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/refund-bans:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminStoreIapRefundBans
+      summary: "The automatic bans of refunded store purchases, with the reason (store_iap.view)"
+      security: [{ adminSession: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AdminPage'
+        - $ref: '#/components/parameters/AdminPageSize'
+        - $ref: '#/components/parameters/AdminOrder'
+        - $ref: '#/components/parameters/AdminQ'
+        - $ref: '#/components/parameters/AdminFormat'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [createdAt], default: createdAt }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ACTIVE, LIFTED] }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminStoreIapRefundBanPage' }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/refund-bans/{banId}/unban:
+    post:
+      tags: [admin-panel]
+      operationId: unbanAdminStoreIapRefund
+      summary: "«فك الحظر» of a refund ban — the account and/or the device (store_iap.unban = OWNER; the code again)"
+      description: |
+        (v1.110-social, D345, §10.144.4) The authenticator code again (`totpCode`; missing or wrong: 403
+        `ADMIN_TOTP_INVALID`, counted towards the lockout) and a reason. The account goes SUSPENDED → ACTIVE and / or the purchase's device bans are
+        lifted; the coins taken back stay taken. 409 `ADMIN_ACTION_REFUSED` when that part is not banned any more.
+        Audited `store_iap.unban`.
+      security: [{ adminSession: [] }]
+      parameters:
+        - name: banId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account, device, reason]
+              properties:
+                account: { type: boolean }
+                device: { type: boolean }
+                reason: { type: string, minLength: 1, maxLength: 500 }
+                totpCode: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: What is still banned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, accountBanned, deviceBanned, devicesLifted]
+                properties:
+                  id: { type: string, format: uuid }
+                  accountBanned: { type: boolean }
+                  deviceBanned: { type: boolean }
+                  devicesLifted: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/store-iap/google/voided-sync:
+    post:
+      tags: [admin-panel]
+      operationId: syncAdminStoreIapVoided
+      summary: "«مزامنة الاستردادات الآن» — polls Google's Voided Purchases API now (store_iap.manage = OWNER)"
+      description: (v1.110-social, D345, §10.144.4) The window is the last poll's end minus 1 hour (≤ 30 days). Idempotent. 503 when Google Play is not configured or did not answer.
+      security: [{ adminSession: [] }]
+      responses:
+        '200':
+          description: What the poll found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checked, refunded, unknown, from, to]
+                properties:
+                  checked: { type: integer, minimum: 0 }
+                  refunded: { type: integer, minimum: 0 }
+                  unknown: { type: integer, minimum: 0 }
+                  from: { type: string, format: date-time }
+                  to: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -35341,6 +35751,10 @@ components:
         # its claw-back when the send is reversed (the balance may go below 0).
         - GIFT_OWNER_ROYALTY
         - GIFT_OWNER_ROYALTY_REVERSAL
+        # v1.110-social (D345, CONVENTIONS §10.144): coins bought in a store, and taken back after a store refund (the
+        # balance may go below 0).
+        - STORE_IAP
+        - STORE_IAP_REVERSAL
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]
@@ -37598,5 +38012,216 @@ components:
         unitsPerUsd: { type: string, pattern: '^[0-9]{1,9}(\.[0-9]{1,6})?$' }
         digits: { type: integer, minimum: 0, maximum: 3 }
         reason: { type: string, minLength: 1, maxLength: 500 }
+    # ---- v1.110-social (DRAFT, D345, CONVENTIONS §10.144) -------------------------------------------------------------
+    StoreIapCatalog:
+      type: object
+      required: [available, unavailableReason, platform, products, consentVersion, oncePerAccountDevice, accountToken]
+      properties:
+        available: { type: boolean }
+        unavailableReason: { type: [string, 'null'], enum: [OFF, DEVICE_BANNED, LIMIT_REACHED, null] }
+        platform: { type: string, enum: [ANDROID, IOS] }
+        products:
+          type: array
+          items:
+            type: object
+            required: [productId, coins]
+            properties:
+              productId: { type: string, pattern: '^[A-Za-z0-9._]{1,150}$' }
+              coins: { type: integer, minimum: 1 }
+        consentVersion: { type: string }
+        oncePerAccountDevice: { type: boolean }
+        accountToken:
+          type: string
+          description: iOS — the account id (StoreKit 2 `appAccountToken`); Android — SHA-256 hex (`obfuscatedAccountId`).
+    VerifyStorePurchaseRequest:
+      type: object
+      additionalProperties: false
+      required: [platform, productId, consent]
+      properties:
+        platform: { type: string, enum: [ANDROID, IOS] }
+        productId: { type: string, pattern: '^[A-Za-z0-9._]{1,150}$' }
+        purchaseToken: { type: string, minLength: 1, maxLength: 4096, description: ANDROID only (required). }
+        signedTransaction: { type: string, minLength: 1, maxLength: 64000, description: "IOS only (required): StoreKit 2's JWS." }
+        consent:
+          type: object
+          additionalProperties: false
+          required: [accepted, version, shareConsumptionData]
+          properties:
+            accepted: { type: boolean, const: true }
+            version: { type: string, minLength: 1, maxLength: 32 }
+            shareConsumptionData: { type: boolean }
+        device: { $ref: '#/components/schemas/DeviceInfo' }
+    StoreIapPurchaseResult:
+      type: object
+      required: [purchaseId, platform, productId, coins, status, rejectReason, environment, balance, alreadyProcessed]
+      properties:
+        purchaseId: { type: string, format: uuid }
+        platform: { type: string, enum: [ANDROID, IOS] }
+        productId: { type: string }
+        coins: { type: integer, minimum: 1 }
+        status: { type: string, enum: [CREDITED, REJECTED, REFUNDED] }
+        rejectReason: { type: [string, 'null'], description: '`ONCE_LIMIT` when REJECTED.' }
+        environment: { type: string, enum: [PRODUCTION, SANDBOX] }
+        balance: { type: integer, format: int64, minimum: -9007199254740991, maximum: 9007199254740991 }
+        alreadyProcessed: { type: boolean }
+    StoreNotificationReceived:
+      type: object
+      required: [received]
+      properties:
+        received: { type: boolean, const: true }
+    AdminStoreIapOverview:
+      type: object
+      required: [googlePlay, appStore, acceptSandbox, voidedPollHours, consentVersion, endpoints, settings, voided, counts]
+      properties:
+        googlePlay:
+          type: object
+          required: [configured, packageName, rtdnEnabled]
+          properties:
+            configured: { type: boolean }
+            packageName: { type: [string, 'null'] }
+            rtdnEnabled: { type: boolean }
+        appStore:
+          type: object
+          required: [configured, bundleId, roots]
+          properties:
+            configured: { type: boolean }
+            bundleId: { type: [string, 'null'] }
+            roots: { type: integer, minimum: 0 }
+        acceptSandbox: { type: boolean }
+        voidedPollHours: { type: integer, minimum: 0 }
+        consentVersion: { type: string }
+        endpoints:
+          type: object
+          required: [appleNotifications, googleRtdn]
+          properties:
+            appleNotifications: { type: string }
+            googleRtdn: { type: string }
+        settings:
+          type: object
+          required: [oncePerAccountDevice, updatedAt]
+          properties:
+            oncePerAccountDevice: { type: boolean }
+            updatedAt: { type: string, format: date-time }
+        voided:
+          type: object
+          required: [lastRunAt, polledUntil, lastError]
+          properties:
+            lastRunAt: { type: [string, 'null'], format: date-time }
+            polledUntil: { type: [string, 'null'], format: date-time }
+            lastError: { type: [string, 'null'] }
+        counts:
+          type: object
+          required: [purchases, refunds, activeBans]
+          properties:
+            purchases: { type: integer, minimum: 0 }
+            refunds: { type: integer, minimum: 0 }
+            activeBans: { type: integer, minimum: 0 }
+    AdminStoreIapProduct:
+      type: object
+      required: [id, platform, productId, coins, referenceUsdCents, sortOrder, enabled, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        platform: { type: string, enum: [GOOGLE_PLAY, APP_STORE] }
+        productId: { type: string }
+        coins: { type: integer, minimum: 1 }
+        referenceUsdCents: { type: [integer, 'null'], minimum: 1 }
+        sortOrder: { type: integer }
+        enabled: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+    CreateAdminStoreIapProductRequest:
+      type: object
+      additionalProperties: false
+      required: [platform, productId, coins, reason]
+      properties:
+        platform: { type: string, enum: [GOOGLE_PLAY, APP_STORE] }
+        productId: { type: string, pattern: '^[A-Za-z0-9._]{1,150}$' }
+        coins: { type: integer, minimum: 1, maximum: 1000000000000 }
+        referenceUsdCents: { type: [integer, 'null'], minimum: 1, maximum: 100000000 }
+        sortOrder: { type: integer, minimum: -100000, maximum: 100000 }
+        enabled: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    UpdateAdminStoreIapProductRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        coins: { type: integer, minimum: 1, maximum: 1000000000000 }
+        referenceUsdCents: { type: [integer, 'null'], minimum: 1, maximum: 100000000 }
+        sortOrder: { type: integer, minimum: -100000, maximum: 100000 }
+        enabled: { type: boolean }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    AdminStoreIapPerson:
+      type: object
+      required: [id, username, displayName]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+    AdminStoreIapPurchaseRow:
+      type: object
+      required: [id, user, platform, productId, coins, transactionId, environment, status, rejectReason, deviceRecorded, consentVersion, consentShareData, purchasedAt, creditedAt, consumedAt, refundedAt, refundSource, refundReason, refundBanId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/AdminStoreIapPerson' }
+        platform: { type: string, enum: [GOOGLE_PLAY, APP_STORE] }
+        productId: { type: string }
+        coins: { type: integer }
+        transactionId: { type: string }
+        environment: { type: string, enum: [PRODUCTION, SANDBOX] }
+        status: { type: string, enum: [CREDITED, REJECTED, REFUNDED] }
+        rejectReason: { type: [string, 'null'] }
+        deviceRecorded: { type: boolean }
+        consentVersion: { type: string }
+        consentShareData: { type: boolean }
+        purchasedAt: { type: string, format: date-time }
+        creditedAt: { type: [string, 'null'], format: date-time }
+        consumedAt: { type: [string, 'null'], format: date-time }
+        refundedAt: { type: [string, 'null'], format: date-time }
+        refundSource: { type: [string, 'null'] }
+        refundReason: { type: [string, 'null'] }
+        refundBanId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    AdminStoreIapPurchasePage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminStoreIapPurchaseRow' }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    AdminStoreIapRefundBanRow:
+      type: object
+      required: [id, user, accountStatus, purchaseId, platform, productId, coins, transactionId, refundedAt, reason, accountBanned, deviceBanned, devicesBanned, accountLiftedAt, accountLiftReason, deviceLiftedAt, deviceLiftReason, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/AdminStoreIapPerson' }
+        accountStatus: { type: string }
+        purchaseId: { type: string, format: uuid }
+        platform: { type: string, enum: [GOOGLE_PLAY, APP_STORE] }
+        productId: { type: string }
+        coins: { type: integer }
+        transactionId: { type: string }
+        refundedAt: { type: [string, 'null'], format: date-time }
+        reason: { type: string, description: «استرداد عبر Google Play بتاريخ … — طلب …». }
+        accountBanned: { type: boolean, description: Still banned by this refund. }
+        deviceBanned: { type: boolean, description: A device is still banned by this refund. }
+        devicesBanned: { type: integer, minimum: 0 }
+        accountLiftedAt: { type: [string, 'null'], format: date-time }
+        accountLiftReason: { type: [string, 'null'] }
+        deviceLiftedAt: { type: [string, 'null'], format: date-time }
+        deviceLiftReason: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    AdminStoreIapRefundBanPage:
+      type: object
+      required: [data, total, page, pageSize]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AdminStoreIapRefundBanRow' }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
 security:
   - bearerAuth: []

@@ -112,7 +112,11 @@ export type Capability =
   // D301 follow-up (§10.112.10): the fixed monthly costs of «الربح» (OWNER only).
   | 'owner.costs'
   // v1.97-social (D303): gift events «فعاليات الهدايا» (create / edit / hold), OWNER.
-  | 'events.manage';
+  | 'events.manage'
+  // v1.110-social (D345): «مشتريات المتجر».
+  | 'store_iap.view'
+  | 'store_iap.manage'
+  | 'store_iap.unban';
 
 /** v1.90-social (D293, §10.105): the automatic verification badge, highest first. */
 export const VERIFICATION_BADGES = ['OWNER', 'STAFF', 'RECHARGE_AGENT', 'HOST_AGENT', 'CREATOR', 'VERIFIED_HOST'] as const;
@@ -1189,4 +1193,85 @@ export interface AdminPkDareImportResult {
   inserted: number;
   existing: number;
   rejected: { line: number; code: string | null; issues: string[] }[];
+}
+
+// ---- v1.110-social (D345, CONVENTIONS §10.144): «مشتريات المتجر» ------------------------------------------------------
+
+export type IapPlatform = 'GOOGLE_PLAY' | 'APP_STORE';
+
+/** `AdminStoreIapOverview`. */
+export interface StoreIapOverview {
+  googlePlay: { configured: boolean; packageName: string | null; rtdnEnabled: boolean };
+  appStore: { configured: boolean; bundleId: string | null; roots: number };
+  acceptSandbox: boolean;
+  voidedPollHours: number;
+  consentVersion: string;
+  endpoints: { appleNotifications: string; googleRtdn: string };
+  settings: { oncePerAccountDevice: boolean; updatedAt: string };
+  voided: { lastRunAt: string | null; polledUntil: string | null; lastError: string | null };
+  counts: { purchases: number; refunds: number; activeBans: number };
+}
+
+/** `AdminStoreIapProduct`. */
+export interface StoreIapProduct {
+  id: string;
+  platform: IapPlatform;
+  productId: string;
+  coins: number;
+  referenceUsdCents: number | null;
+  sortOrder: number;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+export interface StoreIapPerson {
+  id: string;
+  username: string;
+  displayName: string;
+}
+
+/** `AdminStoreIapPurchaseRow`. */
+export interface StoreIapPurchaseRow {
+  id: string;
+  user: StoreIapPerson;
+  platform: IapPlatform;
+  productId: string;
+  coins: number;
+  transactionId: string;
+  environment: 'PRODUCTION' | 'SANDBOX';
+  status: 'CREDITED' | 'REJECTED' | 'REFUNDED';
+  rejectReason: string | null;
+  deviceRecorded: boolean;
+  consentVersion: string;
+  consentShareData: boolean;
+  purchasedAt: string;
+  creditedAt: string | null;
+  consumedAt: string | null;
+  refundedAt: string | null;
+  refundSource: string | null;
+  refundReason: string | null;
+  refundBanId: string | null;
+  createdAt: string;
+}
+
+/** `AdminStoreIapRefundBanRow`. */
+export interface StoreIapRefundBanRow {
+  id: string;
+  user: StoreIapPerson;
+  accountStatus: string;
+  purchaseId: string;
+  platform: IapPlatform;
+  productId: string;
+  coins: number;
+  transactionId: string;
+  refundedAt: string | null;
+  reason: string;
+  accountBanned: boolean;
+  deviceBanned: boolean;
+  devicesBanned: number;
+  accountLiftedAt: string | null;
+  accountLiftReason: string | null;
+  deviceLiftedAt: string | null;
+  deviceLiftReason: string | null;
+  createdAt: string;
 }

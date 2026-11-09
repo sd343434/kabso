@@ -1509,6 +1509,76 @@ export const envSchema = z
       .regex(/^[A-Za-z0-9._-]{1,32}$/, 'must be 1–32 letters, digits, dots, dashes or underscores')
       .default('2026-10-31'),
     /**
+     * v1.110-social (D345, CONVENTIONS §10.144): coins sold through the stores. Each store is OFF until its whole set is
+     * placed on the server (a partial set refuses to boot); the files are PATHS read at boot (never the secret itself
+     * in the environment, git or chat). Google Play: the package name and the service-account JSON (Android Publisher
+     * API access). App Store: the bundle id, the App Store Connect API key (issuer id, key id, the .p8 file) and Apple's
+     * root certificate(s) the signed transactions chain to (downloaded by the owner from apple.com/certificateauthority).
+     */
+    STORE_IAP_GOOGLE_PACKAGE_NAME: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/, 'must be an Android package name')
+      .optional(),
+    STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE: z.string().trim().min(1).optional(),
+    /** Optional: the secret `?token=` of the Pub/Sub push URL (RTDN); unset = the RTDN endpoint is off. */
+    STORE_IAP_GOOGLE_RTDN_TOKEN: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_-]{32,200}$/, 'must be 32–200 URL-safe characters')
+      .optional(),
+    STORE_IAP_APPLE_BUNDLE_ID: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9.-]{3,155}$/, 'must be a bundle id')
+      .optional(),
+    STORE_IAP_APPLE_ISSUER_ID: z
+      .string()
+      .trim()
+      .regex(
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
+        'must be the App Store Connect issuer id',
+      )
+      .optional(),
+    STORE_IAP_APPLE_KEY_ID: z
+      .string()
+      .trim()
+      .regex(/^[A-Z0-9]{10}$/, 'must be a 10-character App Store Connect key id')
+      .optional(),
+    STORE_IAP_APPLE_PRIVATE_KEY_FILE: z.string().trim().min(1).optional(),
+    STORE_IAP_APPLE_ROOT_CERT_FILES: z
+      .string()
+      .trim()
+      .min(1)
+      .transform((v) =>
+        v
+          .split(',')
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0),
+      )
+      .optional(),
+    /** Optional: the app's numeric Apple ID, checked on the App Store's notifications when set. */
+    STORE_IAP_APPLE_APP_ID: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{1,20}$/, 'must be the numeric Apple ID')
+      .optional(),
+    /** Sandbox / licence-tester purchases are credited (App Review buys in the sandbox) and marked SANDBOX. */
+    STORE_IAP_ACCEPT_SANDBOX: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    /** Google's voided purchases are polled every N hours (0 = only on demand from the panel). */
+    STORE_IAP_VOIDED_POLL_HOURS: intSetting(24, 0, 168),
+    /** The store sweeper's tick (the due voided poll, consumption-request and consume retries); 0 = off. */
+    STORE_IAP_SWEEP_INTERVAL_SECONDS: intSetting(600, 0, 86_400),
+    /** The version of the no-refund consent «سياسة عدم الاسترداد» the app shows before a store purchase. */
+    STORE_IAP_CONSENT_VERSION: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9._-]{1,32}$/, 'must be 1–32 letters, digits, dots, dashes or underscores')
+      .default('2026-11-09'),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */
@@ -1699,6 +1769,34 @@ export const envSchema = z
             message: 'is required when MEDIA_UPLOADS_ENABLED=true',
           });
         }
+      }
+    }
+    // v1.110-social (D345, §10.144.1): each store is all or nothing.
+    {
+      const groups = [
+        ['STORE_IAP_GOOGLE_PACKAGE_NAME', 'STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE'],
+        [
+          'STORE_IAP_APPLE_BUNDLE_ID',
+          'STORE_IAP_APPLE_ISSUER_ID',
+          'STORE_IAP_APPLE_KEY_ID',
+          'STORE_IAP_APPLE_PRIVATE_KEY_FILE',
+          'STORE_IAP_APPLE_ROOT_CERT_FILES',
+        ],
+      ] as const;
+      for (const keys of groups) {
+        const set = keys.filter((k) => env[k] !== undefined);
+        if (set.length > 0 && set.length < keys.length) {
+          for (const k of keys.filter((k) => env[k] === undefined)) {
+            ctx.addIssue({ code: 'custom', path: [k], message: `is required with ${set.join(', ')}` });
+          }
+        }
+      }
+      if (env.STORE_IAP_GOOGLE_RTDN_TOKEN !== undefined && env.STORE_IAP_GOOGLE_PACKAGE_NAME === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['STORE_IAP_GOOGLE_RTDN_TOKEN'],
+          message: 'needs STORE_IAP_GOOGLE_PACKAGE_NAME and STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE',
+        });
       }
     }
     // v1.59-social (D190): card top-ups are all or nothing (a key without the webhook secret would take payments

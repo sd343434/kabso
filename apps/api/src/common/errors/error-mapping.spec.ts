@@ -198,6 +198,11 @@ describe('ErrorCode', () => {
         // v1.59-social (DRAFT, D190)
         'TOPUP_UNAVAILABLE',
         'TOPUP_ACCOUNT_FROZEN',
+        // v1.110-social (D345): store purchases.
+        'STORE_IAP_UNAVAILABLE',
+        'STORE_IAP_VERIFICATION_FAILED',
+        'STORE_IAP_PURCHASE_CONFLICT',
+        'STORE_IAP_PENDING',
         // v1.60-social (D191).
         'ADMIN_PANEL_UNAVAILABLE',
         'ADMIN_LOCKED',

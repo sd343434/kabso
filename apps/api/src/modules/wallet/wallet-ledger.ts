@@ -51,7 +51,13 @@ export type WalletLedgerReason =
    * when that send is reversed (reference: the send; the balance may go below 0).
    */
   | 'GIFT_OWNER_ROYALTY'
-  | 'GIFT_OWNER_ROYALTY_REVERSAL';
+  | 'GIFT_OWNER_ROYALTY_REVERSAL'
+  /**
+   * v1.110-social (D345, §10.144): coins bought in a store (reference: the `iap_purchases` row), and taken back after the
+   * store refunded the purchase (reference: the purchase; the balance may go below 0).
+   */
+  | 'STORE_IAP'
+  | 'STORE_IAP_REVERSAL';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;
@@ -133,6 +139,29 @@ export async function reverseTopupIn(
     RETURNING coins`;
   const entry = await tx.walletLedgerEntry.create({
     data: { userId, delta: -amount, balanceAfter: row!.coins, reason: 'CARD_TOPUP_REVERSAL', referenceId },
+    select: { id: true },
+  });
+  return { coins: row!.coins, ledgerId: entry.id };
+}
+
+/**
+ * v1.110-social (D345, §10.144.4): takes a refunded store purchase's coins back even when they were already spent — like
+ * a reversed website purchase, the balance may go below 0 (a debt the next coins pay first; no gift while below 0).
+ * `STORE_IAP_REVERSAL`, reference: the purchase (so at most once). Inside the caller's transaction.
+ */
+export async function reverseStoreIapIn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amount: bigint,
+  referenceId: string,
+): Promise<WalletChange> {
+  if (amount <= 0n) throw new RangeError('A reversal is positive');
+  const [row] = await tx.$queryRaw<{ coins: bigint }[]>`
+    INSERT INTO wallets (user_id, coins, updated_at) VALUES (${userId}::uuid, ${-amount}, now())
+    ON CONFLICT (user_id) DO UPDATE SET coins = wallets.coins - ${amount}, updated_at = now()
+    RETURNING coins`;
+  const entry = await tx.walletLedgerEntry.create({
+    data: { userId, delta: -amount, balanceAfter: row!.coins, reason: 'STORE_IAP_REVERSAL', referenceId },
     select: { id: true },
   });
   return { coins: row!.coins, ledgerId: entry.id };

@@ -17025,4 +17025,109 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eventsNotQualifiedYou => 'Not qualified';
+
+  @override
+  String get storeIapTitle => 'Buy from the store';
+
+  @override
+  String storeIapVia(String store) {
+    return 'Pay with $store';
+  }
+
+  @override
+  String storeIapCoins(String coins) {
+    return '$coins coins';
+  }
+
+  @override
+  String storeIapBuyLabel(String coins, String price) {
+    return 'Buy $coins coins for $price';
+  }
+
+  @override
+  String get storeIapConsentTitle => 'Before you buy';
+
+  @override
+  String get storeIapConsentDelivery =>
+      'The coins are added to your balance at once and used up as you spend them; they are not refundable after purchase.';
+
+  @override
+  String get storeIapConsentFraud =>
+      'A refund request through the store is treated as fraud: the coins are taken back (your balance may go below zero) and the account and the device are banned.';
+
+  @override
+  String storeIapConsentShare(String store) {
+    return 'If you ask for a refund, Kabso tells $store how much of these coins was used, to help it decide.';
+  }
+
+  @override
+  String get storeIapConsentCheck =>
+      'I agree to the no-refund policy and to sharing usage data if I ask for a refund';
+
+  @override
+  String storeIapConsentContinue(String store) {
+    return 'Continue to $store';
+  }
+
+  @override
+  String storeIapConsentPrice(String coins, String price) {
+    return '$coins coins — $price';
+  }
+
+  @override
+  String get storeIapConsentTerms =>
+      'Details in the Terms of Use: “Store purchases and the no-refund policy”.';
+
+  @override
+  String get storeIapVerifying => 'Confirming the purchase with the store…';
+
+  @override
+  String get storeIapPending =>
+      'The store is still processing the payment. The coins are added when it completes.';
+
+  @override
+  String storeIapSuccess(String coins) {
+    return '$coins coins were added to your balance.';
+  }
+
+  @override
+  String get storeIapRejected =>
+      'No coins were added: one store purchase per account and device. The store refunds you automatically.';
+
+  @override
+  String get storeIapStoreError =>
+      'The purchase was not completed in the store.';
+
+  @override
+  String get storeIapDeviceBanned =>
+      'Store purchases are not available on this device because it is banned.';
+
+  @override
+  String get storeIapLimitReached =>
+      'This account or device already bought from the store. Store purchases are limited to one.';
+
+  @override
+  String get storeIapDismiss => 'OK';
+
+  @override
+  String get errorStoreIapUnavailable =>
+      'Store purchases are not available right now.';
+
+  @override
+  String get errorStoreIapVerificationFailed =>
+      'The store did not confirm this purchase; no coins were added.';
+
+  @override
+  String get errorStoreIapPurchaseConflict =>
+      'This purchase belongs to another account.';
+
+  @override
+  String get errorStoreIapPending =>
+      'The store is still processing the payment.';
+
+  @override
+  String get walletReasonStoreIap => 'Store purchase';
+
+  @override
+  String get walletReasonStoreIapReversal => 'Store refund (coins taken back)';
 }

@@ -64,6 +64,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'vip', pattern: '/vip' },
   // D270: «المتجر».
   { name: 'store', pattern: '/store' },
+  // v1.110-social (D345): «مشتريات المتجر».
+  { name: 'storeIap', pattern: '/store-purchases' },
   { name: 'waitlist', pattern: '/waitlist' },
   { name: 'team', pattern: '/team' },
   { name: 'audit', pattern: '/audit' },

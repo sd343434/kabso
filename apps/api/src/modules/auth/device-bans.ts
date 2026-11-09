@@ -93,6 +93,8 @@ export interface BanDevicesInput {
   readonly endsAt: Date | null;
   readonly sourceUserId: string;
   readonly liveModerationId?: string | null;
+  /** v1.110-social (D345): the refunded store purchase that bans the device (lifted by the OWNER only). */
+  readonly iapPurchaseId?: string | null;
   readonly by: AdminVia;
   readonly now: Date;
 }
@@ -123,6 +125,7 @@ export async function banDevicesIn(
         reason: input.reason,
         sourceUserId: input.sourceUserId,
         liveModerationId: input.liveModerationId ?? null,
+        iapPurchaseId: input.iapPurchaseId ?? null,
         createdById: input.by.actorUserId,
         createdAt: input.now,
         endsAt: input.endsAt,
@@ -156,6 +159,7 @@ export async function banDevicesIn(
         devices: hashes.length,
         sessionsEnded: ids.length,
         ...(input.liveModerationId ? { liveModerationId: input.liveModerationId } : {}),
+        ...(input.iapPurchaseId ? { iapPurchaseId: input.iapPurchaseId } : {}),
         via: input.by.via,
       },
     },
@@ -166,19 +170,37 @@ export async function banDevicesIn(
 /** Why lifting was refused (the panel answers 409 ADMIN_ACTION_REFUSED with the message). */
 export class DeviceBanError extends Error {}
 
-/** Lifts an active ban early, inside the caller's transaction (audited). */
+/** v1.110-social (D345): why the device-ban list refuses a store-refund ban (it is lifted from «مشتريات المتجر»). */
+export const STORE_REFUND_BAN_REFUSAL =
+  'حظر استرداد — يُفك من «مشتريات المتجر» بواسطة المالك (a store-refund ban is lifted by the OWNER from Store purchases).';
+
+/**
+ * Lifts an active ban early, inside the caller's transaction (audited). v1.110-social (D345): a ban made by a store
+ * refund is refused unless `storeRefund` (the OWNER's «فك الحظر» of §10.144.4).
+ */
 export async function liftDeviceBanIn(
   tx: Tx,
   id: string,
   reason: string,
   by: AdminVia,
   now: Date,
+  options: { storeRefund?: boolean } = {},
 ): Promise<void> {
   const [row] = await tx.$queryRaw<
-    { id: string; ends_at: Date | null; lifted_at: Date | null; source_user_id: string | null }[]
-  >`SELECT id::text AS id, ends_at, lifted_at, source_user_id::text AS source_user_id
+    {
+      id: string;
+      ends_at: Date | null;
+      lifted_at: Date | null;
+      source_user_id: string | null;
+      iap_purchase_id: string | null;
+    }[]
+  >`SELECT id::text AS id, ends_at, lifted_at, source_user_id::text AS source_user_id,
+           iap_purchase_id::text AS iap_purchase_id
       FROM device_bans WHERE id = ${id}::uuid FOR UPDATE`;
   if (!row) throw new AppException(ErrorCode.NOT_FOUND);
+  if (row.iap_purchase_id !== null && options.storeRefund !== true) {
+    throw new DeviceBanError(STORE_REFUND_BAN_REFUSAL);
+  }
   if (row.lifted_at !== null || (row.ends_at !== null && row.ends_at <= now)) {
     throw new DeviceBanError('This device ban is no longer active.');
   }

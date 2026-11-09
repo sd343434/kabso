@@ -105,6 +105,11 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.vipPriceChanged => l10n.errorVipPriceChanged,
     ErrorCode.storeUnavailable => l10n.errorStoreUnavailable,
     ErrorCode.storePriceChanged => l10n.errorStorePriceChanged,
+    ErrorCode.storeIapUnavailable => l10n.errorStoreIapUnavailable,
+    ErrorCode.storeIapVerificationFailed =>
+      l10n.errorStoreIapVerificationFailed,
+    ErrorCode.storeIapPurchaseConflict => l10n.errorStoreIapPurchaseConflict,
+    ErrorCode.storeIapPending => l10n.errorStoreIapPending,
     ErrorCode.staffProtected => l10n.errorStaffProtected,
     ErrorCode.liveStaffRefused => l10n.errorLiveStaffRefused,
     ErrorCode.staffStepUpRequired => l10n.errorStaffStepUpRequired,

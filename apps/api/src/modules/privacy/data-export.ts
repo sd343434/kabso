@@ -49,6 +49,8 @@ export const EXPORT_SECTIONS = [
   'gifts',
   'withdrawals',
   'topups',
+  // v1.110-social (D345): coins bought in Google Play / the App Store (no store token, no device).
+  'store_purchases',
   'recharge_agent',
   // v1.70-social (D206): the «افتح وكالة» applications (the person's own KYC) and their pictures.
   'agency_applications',
@@ -642,6 +644,41 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     decidedAt: iso(w.decidedAt),
   }));
 
+  // -- Store purchases (D345, §10.144.7): the purchase and its refund; never the store token or the device.
+  const storePurchases = (
+    await db.iapPurchase.findMany({
+      where: { userId: u },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        platform: true,
+        productId: true,
+        coins: true,
+        transactionId: true,
+        environment: true,
+        status: true,
+        purchasedAt: true,
+        creditedAt: true,
+        refundedAt: true,
+        consentVersion: true,
+        consentShareData: true,
+        consentAt: true,
+      },
+    })
+  ).map((p) => ({
+    id: p.id,
+    store: p.platform,
+    productId: p.productId,
+    coins: str(p.coins),
+    transactionId: p.transactionId,
+    environment: p.environment,
+    status: p.status,
+    purchasedAt: iso(p.purchasedAt),
+    creditedAt: iso(p.creditedAt),
+    refundedAt: iso(p.refundedAt),
+    consent: { version: p.consentVersion, shareConsumptionData: p.consentShareData, at: iso(p.consentAt) },
+  }));
+
   // -- Website card top-ups (D190): the order, never Stripe ids, early-fraud warnings, disputes or freezes.
   const topups = (
     await db.topupOrder.findMany({
@@ -930,6 +967,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     gifts,
     withdrawals,
     topups,
+    store_purchases: storePurchases,
     recharge_agent: rechargeAgent,
     agency_applications: agencyApplications,
     host_applications: hostApplications,
@@ -952,6 +990,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     gifts: gifts.sent.length + gifts.received.length,
     withdrawals: withdrawals.length,
     topups: topups.length,
+    store_purchases: storePurchases.length,
     recharge_agent: rechargeAgent.length,
     agency_applications: agencyApplications.length,
     host_applications: hostApplications.length,
