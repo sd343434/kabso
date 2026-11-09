@@ -432,23 +432,13 @@ class _Picture extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(size * 0.12),
               child: url == null
-                  ? ColoredBox(
-                      color: const Color(0xFF1C1B1F),
-                      child: Center(
-                        child: Text(
-                          name.characters.firstOrNull ?? '',
-                          style: context.textStyles.title.copyWith(
-                            color: const Color(0xFFFFFFFF),
-                            fontSize: size * 0.4,
-                          ),
-                        ),
-                      ),
-                    )
+                  // D337: no photo (or a broken one) → the owner's
+                  // default picture.
+                  ? const KDefaultAvatarImage()
                   : Image.network(
                       url,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          const ColoredBox(color: Color(0xFF1C1B1F)),
+                      errorBuilder: (_, _, _) => const KDefaultAvatarImage(),
                     ),
             ),
           ),

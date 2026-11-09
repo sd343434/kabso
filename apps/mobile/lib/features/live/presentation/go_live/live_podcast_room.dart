@@ -366,7 +366,6 @@ class _Speaker extends StatelessWidget {
           name: d.name,
           url: d.avatarUrl,
           size: KPodcast.speaker,
-          fontSize: 26,
         ),
       ),
     );
@@ -612,47 +611,19 @@ class _MicBadge extends StatelessWidget {
   );
 }
 
-/// A round picture, or the dark seat colour with the initial (as the
-/// mockup's letters).
+/// A round picture, or (D337) the owner's default picture — it replaced
+/// the mockup's initial on the dark seat colour.
 class PodcastAvatar extends StatelessWidget {
-  const new({
-    required this.name,
-    required this.size,
-    super.key,
-    this.url,
-    this.fontSize,
-  });
+  const new({required this.name, required this.size, super.key, this.url});
 
   final String name;
   final String? url;
   final double size;
-  final double? fontSize;
 
   @override
   Widget build(BuildContext context) {
-    final trimmed = name.trim();
-    final initial = trimmed.isEmpty
-        ? '?'
-        : String.fromCharCode(trimmed.runes.first).toUpperCase();
-    final fallback = Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: KPodcast.seatFill,
-      ),
-      child: Text(
-        initial,
-        textScaler: TextScaler.noScaling,
-        style: context.textStyles.title.copyWith(
-          fontSize: fontSize ?? size * 0.38,
-          height: 1,
-          fontWeight: FontWeight.w700,
-          color: KAudioRoom.text,
-        ),
-      ),
-    );
+    // D337: no photo (or a broken one) → the owner's default picture.
+    final fallback = ClipOval(child: KDefaultAvatarImage(size: size));
     final u = url;
     if (u == null || u.isEmpty) return fallback;
     return ClipOval(
@@ -836,7 +807,6 @@ class _Listener extends StatelessWidget {
                             name: d.name,
                             url: d.avatarUrl,
                             size: KPodcast.listener - 3,
-                            fontSize: 17,
                           ),
                         ),
                       ),

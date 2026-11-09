@@ -10213,3 +10213,23 @@ Nothing is seeded. The team makes it when it wants: the panel's «قالب مه�
 art yet), boards SENDERS / RECEIVERS / CREATORS and four SENDERS milestones — the **prize table and milestones are a
 CTO proposal** (coins for supporters, cherries for hosts and creators, festival gift pieces on every rank) for the owner
 to change in the panel. The owner uploads the art, sets the dates and publishes.
+
+### 10.130 The default avatar *(app + panel, D337)*
+
+Owner (2026-11-09, with his own Kabso mascot art): «اجعل هذه الصورة التلقائية لأي حساب». §10.130 is chosen so §10.128–
+§10.129 stay free for the profile (D335) and messages (D336) branches. No contract change: an account without a photo
+still has `avatarUrl: null` on the wire; the picture is drawn by the clients.
+
+- **Where.** Every picture of a person that showed their **initial** when there was no photo — or when the photo failed to
+  load — shows the owner's default picture instead: `KAvatar` (so every avatar built on it: profile headers and their
+  frames, live seats, chat, the DM list and conversations, comments, rankings, the person card, stories, notifications,
+  follow lists, CP), the podcast room's seats and listeners (`PodcastAvatar`), the live hub card with no cover and no
+  host photo, the go-live cover picture, the rankings sheet's square pictures and the caption «@» suggestions. Rings,
+  frames, badges, online dots, sizes and semantics labels (the name) are unchanged; the picture itself is decorative.
+- **The art.** The main mascot cropped from the owner's scene so its head and both headphones sit inside the circle
+  (checked at 24, 40, 64 and 120 dp): `assets/avatar/kabso_default_avatar_192.webp` up to 192 physical pixels (64 dp at
+  3×), `kabso_default_avatar_512.webp` above and for pictures that fill a card (`KDefaultAvatarArt.assetFor`).
+  Provenance in `assets/avatar/PROVENANCE.md`; the full-resolution source is not kept.
+- **Panel.** The panel's `Avatar` (user lists, user cells, the live and search lists, the signed-in admin's menu) shows
+  the same picture (`apps/admin/src/assets/kabso_default_avatar_192.webp`) instead of the initial.
+- Unchanged: the Kabso Team account's fixed picture (§10.96.10).

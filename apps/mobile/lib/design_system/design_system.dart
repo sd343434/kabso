@@ -4,6 +4,7 @@ export 'components/k_bidi_rich_text.dart';
 export 'components/k_button.dart';
 export 'components/k_cherry.dart';
 export 'components/k_chip.dart';
+export 'components/k_default_avatar.dart';
 export 'components/k_item_badge.dart';
 export 'components/k_live_dialog_card.dart';
 export 'components/k_live_icon.dart';

@@ -101,6 +101,8 @@ flutter:
     - assets/levels/support_frames/
     # D74 the owner's 3D coin and gift box.
     - assets/art/
+    # D337 the owner's default avatar (assets/avatar/PROVENANCE.md).
+    - assets/avatar/
     # D84 leaderboard art (Kabso's own, AI-generated; see the board).
     - assets/leaderboard/
     # D125 the owner's family art (assets/families/PROVENANCE.md).

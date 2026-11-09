@@ -25,7 +25,7 @@ bool cpWearsSpecialFrame(ProfileCp? cp) =>
 /// the frame drawn over it. [width] is the frame's width; the box is
 /// trimmed to the art's painted height ([heightFor]), so nothing empty is
 /// reserved above or below. The picture fills the heart (a photo, or the
-/// initial on the usual avatar circle when there is none).
+/// owner's default picture when there is none, D337).
 class CpSpecialFrameAvatar extends StatelessWidget {
   const new({
     required this.width,

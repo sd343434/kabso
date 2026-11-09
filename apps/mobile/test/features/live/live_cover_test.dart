@@ -5,6 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/design_system/components/k_default_avatar.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_cover_repository.dart';
@@ -91,9 +92,19 @@ String? _shownUrl(WidgetTester tester) {
       matching: find.byType(Image),
     ),
   );
-  if (images.isEmpty) return null;
-  return (images.first.image as NetworkImage).url;
+  // D337: with no cover and no photo the owner's default picture (an asset)
+  // is shown; only a network picture has a URL.
+  final network = images.map((i) => i.image).whereType<NetworkImage>();
+  return network.isEmpty ? null : network.first.url;
 }
+
+bool _showsDefault(WidgetTester tester) => find
+    .descendant(
+      of: find.byKey(LiveCoverPicture.pictureKey),
+      matching: find.byType(KDefaultAvatarImage),
+    )
+    .evaluate()
+    .isNotEmpty;
 
 void main() {
   testWidgets('shows Edit on the picture; choosing a photo uploads a '
@@ -102,6 +113,7 @@ void main() {
     expect(find.text('Edit'), findsOneWidget);
     expect(find.bySemanticsLabel('Edit the live cover'), findsOneWidget);
     expect(_shownUrl(tester), isNull);
+    expect(_showsDefault(tester), isTrue);
 
     await tester.tap(find.byKey(LiveCoverPicture.pictureKey));
     await tester.pumpAndSettle();
@@ -133,6 +145,7 @@ void main() {
     expect(media.coverUploads, 0);
     expect(_coverOf(container), isNull);
     expect(_shownUrl(tester), isNull);
+    expect(_showsDefault(tester), isTrue);
     expect(find.text('Cover removed; your picture is shown.'), findsOneWidget);
   });
 
