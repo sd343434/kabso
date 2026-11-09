@@ -504,10 +504,16 @@ async function assertCategoryExistsIn(tx: Tx, code: string): Promise<void> {
   if (!found) throw new GiftFieldsError(`there is no gift category ${code}`);
 }
 
-/** Enables or disables a gift; returns whether it changed, or null when it does not exist. */
+/**
+ * Enables or disables a gift; returns whether it changed, or null when it does not exist. v1.103-social (D338): an
+ * archived gift is not enabled (`GiftFieldsError`; «استعادة» brings it back first).
+ */
 export async function setGiftEnabledIn(tx: Tx, code: string, enabled: boolean): Promise<boolean | null> {
-  const gift = await tx.gift.findUnique({ where: { code }, select: { enabled: true } });
+  const gift = await tx.gift.findUnique({ where: { code }, select: { enabled: true, archivedAt: true } });
   if (!gift) return null;
+  if (enabled && gift.archivedAt !== null) {
+    throw new GiftFieldsError(`${code} is deleted (archived); restore it first`);
+  }
   if (gift.enabled === enabled) return false;
   await tx.gift.update({ where: { code }, data: { enabled } });
   return true;
@@ -676,4 +682,134 @@ export function catalogueVersion(
     ]),
   });
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);
+}
+
+/**
+ * v1.103-social (D338, CONVENTIONS §10.131): everything in the database that points at gift `code` — by foreign key
+ * (sends, bag rows, events' gift lists, PK boosts) or by its code alone (lucky draws, wish lists, daily tasks and host
+ * targets, prize bundles and what they paid). A gift nobody holds pieces of and with no history was never used and may
+ * be deleted for real; any other is archived so history keeps its row. `holders` / `pieces`: people holding pieces now
+ * and how many (owner: «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف» — they are sent until they run out). An emptied
+ * bag row (quantity 0, part of `bagRows`) is not a use by itself: what emptied it is (the sends).
+ */
+export interface GiftUsage {
+  readonly sends: number;
+  readonly luckyDraws: number;
+  readonly bagRows: number;
+  readonly holders: number;
+  readonly pieces: number;
+  readonly events: number;
+  readonly pkBoosts: number;
+  readonly wishes: number;
+  readonly tasks: number;
+  readonly prizes: number;
+}
+
+/** Whether anything in [usage] points at the gift: pieces held now, or history (emptied bag rows are not). */
+export function giftInUse(usage: GiftUsage): boolean {
+  return (
+    usage.sends +
+      usage.luckyDraws +
+      usage.holders +
+      usage.events +
+      usage.pkBoosts +
+      usage.wishes +
+      usage.tasks +
+      usage.prizes >
+    0
+  );
+}
+
+type UsageDb = Pick<Tx, '$queryRaw'>;
+
+/** The {@link GiftUsage} of gift `code` (call inside the transaction that deletes or archives it, after locking it). */
+export async function giftUsageIn(db: UsageDb, code: string): Promise<GiftUsage> {
+  // Prize items name the gift as `giftCode` (GIFT_PIECES) at any depth of the bundle.
+  const rows = await db.$queryRaw<Record<keyof GiftUsage, number>[]>`
+    WITH c AS (SELECT ${code}::varchar AS code, jsonb_build_object('c', ${code}::text) AS v)
+    SELECT
+      (SELECT count(*) FROM live_gifts, c WHERE gift_code = c.code)::int AS "sends",
+      (SELECT count(*) FROM lucky_gift_draws, c WHERE gift_code = c.code)::int AS "luckyDraws",
+      (SELECT count(*) FROM user_gift_stock, c WHERE gift_code = c.code)::int AS "bagRows",
+      (SELECT count(*) FROM user_gift_stock, c WHERE gift_code = c.code AND quantity > 0)::int AS "holders",
+      (SELECT coalesce(sum(quantity), 0) FROM user_gift_stock, c WHERE gift_code = c.code)::int AS "pieces",
+      (SELECT count(*) FROM event_gifts, c WHERE gift_code = c.code)::int AS "events",
+      (SELECT count(*) FROM pk_boosts, c WHERE gift_code = c.code)::int AS "pkBoosts",
+      (SELECT count(*) FROM live_rooms, c WHERE c.code = ANY (wish_gifts))::int AS "wishes",
+      ((SELECT count(*) FROM task_assignments, c WHERE subject = c.code)
+        + (SELECT count(*) FROM host_target_assignments, c WHERE subject = c.code))::int AS "tasks",
+      ((SELECT count(*) FROM events, c WHERE jsonb_path_exists(prizes, '$.**.giftCode ? (@ == $c)', c.v))
+        + (SELECT count(*) FROM event_boards, c WHERE jsonb_path_exists(prizes, '$.**.giftCode ? (@ == $c)', c.v))
+        + (SELECT count(*) FROM event_milestones, c WHERE jsonb_path_exists(prizes, '$.**.giftCode ? (@ == $c)', c.v))
+        + (SELECT count(*) FROM event_results, c WHERE jsonb_path_exists(prize, '$.**.giftCode ? (@ == $c)', c.v))
+        + (SELECT count(*) FROM event_prize_payouts, c
+            WHERE jsonb_path_exists(granted, '$.**.giftCode ? (@ == $c)', c.v))
+        + (SELECT count(*) FROM event_milestone_grants, c
+            WHERE jsonb_path_exists(granted, '$.**.giftCode ? (@ == $c)', c.v)))::int AS "prizes"`;
+  const r = rows[0]!;
+  return {
+    sends: r.sends,
+    luckyDraws: r.luckyDraws,
+    bagRows: r.bagRows,
+    holders: r.holders,
+    pieces: r.pieces,
+    events: r.events,
+    pkBoosts: r.pkBoosts,
+    wishes: r.wishes,
+    tasks: r.tasks,
+    prizes: r.prizes,
+  };
+}
+
+/**
+ * v1.103-social (D338): the codes of the gifts something points at (the {@link giftUsageIn} sources, each read once) —
+ * the panel's list says per gift whether «حذف» deletes or archives it. The server decides again on {@link giftUsageIn}.
+ */
+export async function usedGiftCodesIn(db: UsageDb): Promise<Set<string>> {
+  const rows = await db.$queryRaw<{ code: string }[]>`
+    SELECT g.code FROM gifts g
+     WHERE EXISTS (SELECT 1 FROM live_gifts x WHERE x.gift_code = g.code)
+        OR EXISTS (SELECT 1 FROM user_gift_stock x WHERE x.gift_code = g.code AND x.quantity > 0)
+        OR EXISTS (SELECT 1 FROM event_gifts x WHERE x.gift_code = g.code)
+        OR EXISTS (SELECT 1 FROM pk_boosts x WHERE x.gift_code = g.code)
+    UNION SELECT DISTINCT gift_code FROM lucky_gift_draws
+    UNION SELECT DISTINCT unnest(wish_gifts) FROM live_rooms
+    UNION SELECT DISTINCT subject FROM task_assignments WHERE subject IS NOT NULL
+    UNION SELECT DISTINCT subject FROM host_target_assignments WHERE subject IS NOT NULL
+    UNION SELECT DISTINCT jsonb_path_query(prizes, '$.**.giftCode') #>> '{}' FROM events
+    UNION SELECT DISTINCT jsonb_path_query(prizes, '$.**.giftCode') #>> '{}' FROM event_boards
+    UNION SELECT DISTINCT jsonb_path_query(prizes, '$.**.giftCode') #>> '{}' FROM event_milestones
+    UNION SELECT DISTINCT jsonb_path_query(prize, '$.**.giftCode') #>> '{}' FROM event_results
+    UNION SELECT DISTINCT jsonb_path_query(granted, '$.**.giftCode') #>> '{}' FROM event_prize_payouts
+    UNION SELECT DISTINCT jsonb_path_query(granted, '$.**.giftCode') #>> '{}' FROM event_milestone_grants`;
+  return new Set(rows.map((r) => r.code));
+}
+
+/**
+ * v1.103-social (D338): whether an archived gift may still be sent from [source] — a gift that is on, or (owner: «مخفية
+ * الا ان تنتهي من حقيبة المستخدمين») an archived one's pieces from the bag; never bought with coins again.
+ */
+export function sendableNow(gift: Pick<Gift, 'enabled' | 'archivedAt'>, source: 'COINS' | 'BAG'): boolean {
+  return gift.enabled || (gift.archivedAt !== null && source === 'BAG');
+}
+
+/** v1.103-social (D338): of the uploaded file [keys], those no gift names any more (safe to delete from storage). */
+export async function unusedGiftFileKeysIn(
+  db: Pick<Tx, 'gift'>,
+  keys: readonly (string | null)[],
+): Promise<string[]> {
+  const wanted = [...new Set(keys.filter((k): k is string => k !== null))];
+  if (wanted.length === 0) return [];
+  const still = await db.gift.findMany({
+    where: {
+      OR: [
+        { imageObjectKey: { in: wanted } },
+        { animationObjectKey: { in: wanted } },
+        { audioObjectKey: { in: wanted } },
+      ],
+    },
+    select: { imageObjectKey: true, animationObjectKey: true, audioObjectKey: true },
+  });
+  const kept = new Set(still.flatMap((g) => [g.imageObjectKey, g.animationObjectKey, g.audioObjectKey]));
+  return wanted.filter((k) => !kept.has(k));
 }

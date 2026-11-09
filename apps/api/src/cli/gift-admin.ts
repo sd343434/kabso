@@ -15,7 +15,11 @@
  *                   remove the hosted art]
  *   pnpm gift:admin disable <code>     # hidden from the catalogue and the bag; cannot be sent
  *   pnpm gift:admin enable <code>
- *   pnpm gift:admin list               # every gift, disabled ones marked `-`
+ *   pnpm gift:admin delete <code>      # v1.103-social (D338): never used → deleted for real (and its unused
+ *                                      # files); used → archived (kept for history, hidden everywhere)
+ *   pnpm gift:admin restore <code>     # an archived gift back in the catalogue (switched on)
+ *   pnpm gift:admin finish [<code>]    # archived gifts whose bag pieces ran out: deleted without history, else kept
+ *   pnpm gift:admin list               # every gift, disabled ones marked `-`, archived ones `x`
  *   pnpm gift:admin grant <email> <code> <quantity>   # adds to the user's gift bag
  *   pnpm gift:admin bag <email>        # the user's gift bag
  *   pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]   # latest lucky sends with a win
@@ -56,7 +60,7 @@
  * `--sound-file <file.mp3>|none` a hosted MP3 sound (≤ 1 MB, ≤ 15 s; not for QUIPS).
  *
  * Every change writes an audit_logs row in the same transaction (`gift.add`, `gift.update`,
- * `gift.disable`, `gift.enable`, `gift.grant`). A command that changes nothing exits 0 and says so;
+ * `gift.disable`, `gift.enable`, `gift.grant`; v1.103-social `gift.delete`, `gift.archive`, `gift.restore`). A command that changes nothing exits 0 and says so;
  * a bad argument or an unknown gift or user exits 1.
  */
 import 'dotenv/config';
@@ -102,11 +106,16 @@ import {
   PK_BOOSTER_PACK,
   giftTagProblem,
   grantStockIn,
+  unusedGiftFileKeysIn,
   type GiftFields,
 } from '../modules/gifts/gift-catalogue.js';
 import {
   addGiftByAdminIn,
+  emptiedArchivedGiftsIn,
+  finishArchivedGiftIn,
   giftAuditFields,
+  removeGiftByAdminIn,
+  restoreGiftByAdminIn,
   setGiftEnabledByAdminIn,
   updateGiftByAdminIn,
 } from '../modules/gifts/gift-admin-rules.js';
@@ -132,6 +141,8 @@ const USAGE = [
   '       pnpm gift:admin category-enable|category-disable <CODE>',
   '       pnpm gift:admin category-delete <CODE> [--move-to <CODE>]',
   '       pnpm gift:admin disable|enable <code>',
+  '       pnpm gift:admin delete|restore <code>',
+  '       pnpm gift:admin finish [<code>]',
   '       pnpm gift:admin list',
   '       pnpm gift:admin grant <email> <code> <quantity>',
   '       pnpm gift:admin bag <email>',
@@ -459,10 +470,97 @@ async function update(code: string, args: readonly string[]): Promise<void> {
 }
 
 async function setEnabled(code: string, enabled: boolean): Promise<void> {
-  const changed = await prisma.$transaction((tx) => setGiftEnabledByAdminIn(tx, code, enabled));
+  let changed: boolean | null;
+  try {
+    changed = await prisma.$transaction((tx) => setGiftEnabledByAdminIn(tx, code, enabled));
+  } catch (err) {
+    // v1.103-social (D338): an archived gift is restored, not enabled.
+    if (err instanceof GiftFieldsError) fail(`${err.message}: pnpm gift:admin restore ${code}.`);
+    throw err;
+  }
   if (changed === null) fail(`No gift ${code}.`);
   const state = enabled ? 'enabled' : 'disabled';
   process.stdout.write(changed ? `${code}: ${state}.\n` : `${code} is already ${state}; nothing changed.\n`);
+}
+
+/**
+ * v1.103-social (D338, CONVENTIONS §10.131) «حذف», the panel's rule: nothing ever used the gift → deleted for real
+ * (`gift.delete`), then its uploaded files that no other gift names (with the S3_* settings; without them the files
+ * stay in the bucket and the command says so); otherwise archived (`gift.archive`) — kept for history, hidden from
+ * the catalogue, the lists and the pickers, its bag pieces sent until they run out (`finish`). `restore` brings an
+ * archived gift back.
+ */
+async function remove(code: string): Promise<void> {
+  const done = await prisma.$transaction((tx) => removeGiftByAdminIn(tx, code));
+  if (done === null) fail(`No gift ${code}.`);
+  const uses = Object.entries(done.usage)
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${k}=${String(n)}`)
+    .join(' ');
+  if (done.result === 'ARCHIVED') {
+    process.stdout.write(
+      done.changed
+        ? `${code}: archived (in use: ${uses}); history keeps it` +
+            (done.usage.pieces > 0
+              ? `; ${String(done.usage.pieces)} piece(s) in ${String(done.usage.holders)} bag(s) are sent until they run out`
+              : '') +
+            `. Undo: pnpm gift:admin restore ${code}.\n`
+        : `${code} is archived already; nothing changed.\n`,
+    );
+    return;
+  }
+  const b = done.before;
+  const files = await deleteFiles([b.imageObjectKey, b.animationObjectKey, b.audioObjectKey]);
+  process.stdout.write(`${code}: deleted (never used).${files}\n`);
+}
+
+/** The deleted files of a finished gift (with the S3_* settings), as a sentence for the output. */
+async function deleteFiles(keys: readonly (string | null)[]): Promise<string> {
+  const gone = await unusedGiftFileKeysIn(prisma, keys);
+  if (gone.length === 0) return '';
+  const storage = storageFromEnv();
+  if (!storage) return ` Its ${String(gone.length)} file(s) stay in the bucket (no S3_* settings here).`;
+  try {
+    await storage.delete(gone);
+    return ` ${String(gone.length)} file(s) deleted.`;
+  } catch (err) {
+    return ` Its file(s) could not be deleted (${err instanceof Error ? err.message : String(err)}).`;
+  }
+}
+
+/**
+ * v1.103-social (D338): finishes every archived gift nobody holds a piece of any more (or just `code`) — deleted for
+ * real when it has no history, else kept archived for history; the API's sweeper does the same.
+ */
+async function finish(code: string | undefined): Promise<void> {
+  const codes = code !== undefined ? [code] : await emptiedArchivedGiftsIn(prisma);
+  if (codes.length === 0) {
+    process.stdout.write('No archived gift without pieces.\n');
+    return;
+  }
+  for (const c of codes) {
+    const done = await prisma.$transaction((tx) => finishArchivedGiftIn(tx, c, 'cli'));
+    if (done === null) fail(`No gift ${c}.`);
+    if (done.result === 'DELETED') {
+      const b = done.before;
+      const files = await deleteFiles([b.imageObjectKey, b.animationObjectKey, b.audioObjectKey]);
+      process.stdout.write(`${c}: finished, deleted (no history).${files}\n`);
+    } else if (done.result === 'KEPT')
+      process.stdout.write(`${c}: no pieces left; kept archived for history.\n`);
+    else if (done.result === 'HELD')
+      process.stdout.write(
+        `${c}: ${String(done.usage.pieces)} piece(s) still in ${String(done.usage.holders)} bag(s).\n`,
+      );
+    else process.stdout.write(`${c} is not archived; nothing to finish.\n`);
+  }
+}
+
+async function restore(code: string): Promise<void> {
+  const changed = await prisma.$transaction((tx) => restoreGiftByAdminIn(tx, code));
+  if (changed === null) fail(`No gift ${code}.`);
+  process.stdout.write(
+    changed ? `${code}: restored and enabled.\n` : `${code} is not archived; nothing changed.\n`,
+  );
 }
 
 /** v1.46-live (D207): the category codes in tab order (for sorting lists). */
@@ -483,7 +581,7 @@ async function list(): Promise<void> {
   }
   for (const g of gifts) {
     process.stdout.write(
-      `${g.enabled ? ' ' : '-'} ${g.category} ${String(g.sortOrder)} ${g.code} ${String(g.priceCoins)} coins ` +
+      `${g.archivedAt !== null ? 'x' : g.enabled ? ' ' : '-'} ${g.category} ${String(g.sortOrder)} ${g.code} ${String(g.priceCoins)} coins ` +
         `asset=${g.assetKey} animation=${g.animationKey ?? 'none'} badge=${g.badge} ` +
         `"${g.nameAr}" / "${g.nameEn}" ` +
         `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`} ` +
@@ -510,8 +608,13 @@ async function grant(email: string, code: string, rawQuantity: string | undefine
   }
   const userId = await user(email);
   const total = await prisma.$transaction(async (tx) => {
-    const gift = await tx.gift.findUnique({ where: { code }, select: { code: true, category: true } });
+    const gift = await tx.gift.findUnique({
+      where: { code },
+      select: { code: true, category: true, archivedAt: true },
+    });
     if (!gift) fail(`No gift ${code}.`);
+    // v1.103-social (D338): a deleted (archived) gift is never put in a bag.
+    if (gift.archivedAt !== null) fail(`${code} is deleted (archived); restore it first.`);
     // v1.27-live (D132): lucky gifts are sent with coins only (a bag send would draw for free).
     if (gift.category === 'LUCKY') fail(`${code} is a LUCKY gift; lucky gifts cannot be put in a bag.`);
     // v1.32-live (D154): quips likewise (coins only; the free ones are one per live).
@@ -818,6 +921,18 @@ try {
     case 'enable':
       if (rest.length > 0) fail(USAGE);
       await setEnabled(giftCode(first), command === 'enable');
+      break;
+    case 'delete':
+      if (rest.length > 0) fail(USAGE);
+      await remove(giftCode(first));
+      break;
+    case 'restore':
+      if (rest.length > 0) fail(USAGE);
+      await restore(giftCode(first));
+      break;
+    case 'finish':
+      if (rest.length > 0) fail(USAGE);
+      await finish(first === undefined ? undefined : giftCode(first));
       break;
     case 'list':
       if (first !== undefined) fail(USAGE);

@@ -9,7 +9,13 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { BagAdminError, grantBagItemByAdminIn, revokeBagItemByAdminIn } from '../bag/bag-admin-rules.js';
 import { HOST_FRAME_CODES } from '../bag/bag.catalogue.js';
-import { addGiftByAdminIn, setGiftEnabledByAdminIn, updateGiftByAdminIn } from '../gifts/gift-admin-rules.js';
+import {
+  addGiftByAdminIn,
+  removeGiftByAdminIn,
+  restoreGiftByAdminIn,
+  setGiftEnabledByAdminIn,
+  updateGiftByAdminIn,
+} from '../gifts/gift-admin-rules.js';
 import {
   GiftArtError,
   giftAnimationFile,
@@ -37,7 +43,10 @@ import {
   GIFT_CODE_PATTERN,
   giftFieldProblems,
   GiftFieldsError,
+  unusedGiftFileKeysIn,
+  usedGiftCodesIn,
   type GiftFields,
+  type GiftUsage,
 } from '../gifts/gift-catalogue.js';
 import {
   activeBannerWhere,
@@ -168,7 +177,7 @@ export class AdminCatalogService {
   // ---- gifts ----------------------------------------------------------------------------------------------------
 
   async gifts() {
-    const [rows, sends, tabs] = await Promise.all([
+    const [rows, sends, tabs, used, holders] = await Promise.all([
       // v1.100-social (D312): with a custom gift's owner.
       this.prisma.gift.findMany({
         include: {
@@ -183,8 +192,17 @@ export class AdminCatalogService {
       }),
       this.prisma.liveGift.groupBy({ by: ['giftCode'], _count: true, _sum: { totalCoins: true } }),
       this.prisma.giftCategory.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
+      // v1.103-social (D338): what «حذف» would do (in use → archived) and who holds pieces now.
+      usedGiftCodesIn(this.prisma),
+      this.prisma.userGiftStock.groupBy({
+        by: ['giftCode'],
+        where: { quantity: { gt: 0 } },
+        _count: true,
+        _sum: { quantity: true },
+      }),
     ]);
-    const used = new Map(sends.map((s) => [s.giftCode, s]));
+    const sent = new Map(sends.map((s) => [s.giftCode, s]));
+    const held = new Map(holders.map((h) => [h.giftCode, h]));
     const storage = await this.storageSettings.resolved();
     const base = storage.publicBaseUrl;
     const order = tabs.map((t) => t.code);
@@ -249,8 +267,15 @@ export class AdminCatalogService {
               }
             : null,
           enabled: g.enabled,
-          sends: used.get(g.code)?._count ?? 0,
-          coinsSpent: Number(used.get(g.code)?._sum.totalCoins ?? 0n),
+          sends: sent.get(g.code)?._count ?? 0,
+          coinsSpent: Number(sent.get(g.code)?._sum.totalCoins ?? 0n),
+          // v1.103-social (D338, §10.131): archived («المحذوفة») since; whether anything points at it (pieces held or
+          // history: then «حذف» archives it, else deletes it for real); the people holding pieces now.
+          archivedAt: g.archivedAt?.toISOString() ?? null,
+          inUse: used.has(g.code),
+          holders: held.get(g.code)?._count ?? 0,
+          // v1.103-social (D338): the pieces in bags now — an archived gift's are still sent until they run out.
+          pieces: held.get(g.code)?._sum.quantity ?? 0,
         })),
     };
   }
@@ -630,11 +655,61 @@ export class AdminCatalogService {
   }
 
   async setGiftEnabled(code: string, enabled: boolean, reason: string, ctx: AdminContext) {
-    const changed = await this.prisma.$transaction((tx) =>
-      setGiftEnabledByAdminIn(tx, code, enabled, viaOf(ctx), reason),
+    // v1.103-social (D338): an archived gift is refused (409 ADMIN_ACTION_REFUSED; «استعادة» first).
+    const changed = await rule(() =>
+      this.prisma.$transaction((tx) => setGiftEnabledByAdminIn(tx, code, enabled, viaOf(ctx), reason)),
     );
     if (changed === null) throw new AppException(ErrorCode.NOT_FOUND);
     return { code, enabled, changed };
+  }
+
+  /**
+   * v1.103-social (D338, CONVENTIONS §10.131) «حذف»: nothing ever used the gift → DELETED for real, then its uploaded
+   * files (image, effect, sound) when no other gift names the same key (a storage failure is logged: the gift is gone
+   * already, the file only costs storage); otherwise ARCHIVED (kept for history; out of the catalogue, the bag's send
+   * choices, the panel's normal list and the pickers). Audited `gift.delete` / `gift.archive`.
+   */
+  async removeGift(
+    code: string,
+    reason: string,
+    ctx: AdminContext,
+  ): Promise<{ result: 'DELETED' | 'ARCHIVED'; code: string; usage: GiftUsage; filesDeleted: number }> {
+    const done = await this.prisma.$transaction((tx) => removeGiftByAdminIn(tx, code, viaOf(ctx), reason));
+    if (done === null) throw new AppException(ErrorCode.NOT_FOUND);
+    const filesDeleted =
+      done.result === 'DELETED'
+        ? await this.removeUnusedGiftFiles([
+            done.before.imageObjectKey,
+            done.before.animationObjectKey,
+            done.before.audioObjectKey,
+          ])
+        : 0;
+    return { result: done.result, code, usage: done.usage, filesDeleted };
+  }
+
+  /** The uploaded files no gift names any more, deleted from storage; how many (0 when storage refused). */
+  private async removeUnusedGiftFiles(keys: readonly (string | null)[]): Promise<number> {
+    const gone = await unusedGiftFileKeysIn(this.prisma, keys);
+    if (gone.length === 0) return 0;
+    try {
+      await this.storage.delete(gone);
+      return gone.length;
+    } catch (err) {
+      this.logger.warn(
+        { error: safeErrorLog(err), keys: gone.length },
+        'Deleted gift files could not be removed',
+      );
+      return 0;
+    }
+  }
+
+  /** v1.103-social (D338) «استعادة»: an archived gift back in the list and the catalogue (switched on); audited. */
+  async restoreGift(code: string, reason: string, ctx: AdminContext) {
+    const changed = await this.prisma.$transaction((tx) =>
+      restoreGiftByAdminIn(tx, code, viaOf(ctx), reason),
+    );
+    if (changed === null) throw new AppException(ErrorCode.NOT_FOUND);
+    return { code, restored: true, changed };
   }
 
   // ---- bag items --------------------------------------------------------------------------------------------------

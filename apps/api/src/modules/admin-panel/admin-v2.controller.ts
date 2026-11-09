@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -532,6 +533,33 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.catalog.setGiftEnabled(giftCode(code), true, body.reason, admin);
+  }
+
+  /**
+   * v1.103-social (D338, §10.131) «حذف»: a gift nothing ever used is deleted for real (and its unused files); a used one
+   * is archived — kept for history, out of the catalogue, the bag's send choices, the normal list and the pickers.
+   */
+  @Delete('gifts/:code')
+  @HttpCode(200)
+  @RequireCapability('catalog.manage')
+  removeGift(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.removeGift(giftCode(code), body.reason, admin);
+  }
+
+  /** v1.103-social (D338) «استعادة»: an archived gift back in the list and the catalogue (switched on). */
+  @Post('gifts/:code/restore')
+  @HttpCode(200)
+  @RequireCapability('catalog.manage')
+  restoreGift(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.catalog.restoreGift(giftCode(code), body.reason, admin);
   }
 
   // ---- v1.71-social (D207, §10.66): gift categories and the gift's files ----------------------------------------

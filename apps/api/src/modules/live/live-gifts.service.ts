@@ -12,8 +12,9 @@ import type { LevelCategoryCode, LiveGiftSource, Prisma } from '../../generated/
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { familyLevelAfter } from '../families/families.constants.js';
-import { consumeStockIn, CUSTOM_CATEGORY, stockOf } from '../gifts/gift-catalogue.js';
+import { consumeStockIn, CUSTOM_CATEGORY, sendableNow, stockOf } from '../gifts/gift-catalogue.js';
 import { giftArtDto, GiftsService, LIVE_GIFT_COMBO_WINDOW_SECONDS } from '../gifts/gifts.service.js';
+import { GiftFinishService } from '../gifts/gift-finish.service.js';
 import { LuckyGiftsService, type LuckyRegionInput } from '../gifts/lucky-gifts.service.js';
 import {
   budgetLeft,
@@ -132,6 +133,7 @@ interface SendState {
   wish_gifts: string[];
   price_coins: number | null;
   enabled: boolean | null;
+  archived: boolean | null;
   category: string | null;
   seated: number;
   prev_gift_code: string | null;
@@ -280,6 +282,7 @@ export class LiveGiftsService {
     private readonly quips: LiveQuipsService,
     private readonly pk: LivePkService,
     private readonly levelTicker: LiveLevelTickerService,
+    private readonly finisher: GiftFinishService,
   ) {}
 
   /** D148: the tail of each sender's queue of sends in this process. */
@@ -353,8 +356,10 @@ export class LiveGiftsService {
       where: { code: input.giftCode },
       include: { categoryRef: { select: { enabled: true } } },
     });
-    // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either.
-    if (!gift?.enabled || !gift.categoryRef.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either. v1.103-social (D338,
+    // §10.131): an archived gift's pieces still in bags are sent until they run out (never bought again).
+    if (!gift || !sendableNow(gift, input.source) || !gift.categoryRef.enabled)
+      throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     // v1.101-social (D325, §10.127): an event's own gift is bought only while its event runs; afterwards only the
     // pieces held in the bag are sent.
     if (
@@ -466,7 +471,7 @@ export class LiveGiftsService {
           // with this clientId (the sender's lock makes this check exact), and the lucky streak.
           const [state] = await tx.$queryRaw<SendState[]>`
           SELECT r.host_user_id::text AS host_user_id, r.status::text AS status, r.wish_gifts,
-                 g.price_coins, g.enabled, g.category::text AS category,
+                 g.price_coins, g.enabled, g.archived, g.category::text AS category,
                  (SELECT count(*)::int FROM live_room_seats s
                    WHERE s.room_id = r.id AND s.user_id = ANY(${toIds}::uuid[])
                      AND s.user_id <> r.host_user_id) AS seated,
@@ -482,7 +487,8 @@ export class LiveGiftsService {
                  (SELECT ou.status::text FROM users ou WHERE ou.id = g.owner_user_id) AS owner_status
             FROM (SELECT id, host_user_id, status, wish_gifts, quip_busy_until FROM live_rooms
                    WHERE id = ${row.id}::uuid FOR NO KEY UPDATE) r
-            LEFT JOIN LATERAL (SELECT price_coins, enabled, category, sound_key, sound_ms, quip_text, owner_user_id
+            LEFT JOIN LATERAL (SELECT price_coins, enabled, archived_at IS NOT NULL AS archived, category, sound_key,
+                                      sound_ms, quip_text, owner_user_id
                                  FROM gifts
                                 WHERE code = ${gift.code} AND r.id IS NOT NULL FOR SHARE) g ON true
             LEFT JOIN LATERAL (SELECT gift_code, recipients_key, combo_id, combo_count, combo_quantity, created_at
@@ -499,7 +505,7 @@ export class LiveGiftsService {
           const others = toIds.filter((id) => id !== state.host_user_id);
           if (state.seated !== others.length)
             throw new AppException(ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE);
-          if (state.price_coins === null || !state.enabled)
+          if (state.price_coins === null || !(state.enabled || (state.archived && !isCoins)))
             throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
           // The category was checked before the transaction (lucky gates); a change since → refused.
           if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
@@ -909,6 +915,8 @@ export class LiveGiftsService {
     }
     await this.metadata.scoreChanged(row.id);
     if (created.hostLevelChanged) await this.metadata.infoChanged(row.id);
+    // v1.103-social (D338): a bag send of an archived gift may have taken its last piece — finish it then.
+    if (gift.archivedAt !== null && input.source === 'BAG') await this.finisher.finish(gift.code);
     return {
       created: true,
       result: {
@@ -958,8 +966,10 @@ export class LiveGiftsService {
       where: { code: input.giftCode },
       include: { categoryRef: { select: { enabled: true } } },
     });
-    // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either.
-    if (!gift?.enabled || !gift.categoryRef.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either. v1.103-social (D338,
+    // §10.131): an archived gift's pieces still in bags are sent until they run out (never bought again).
+    if (!gift || !sendableNow(gift, input.source) || !gift.categoryRef.enabled)
+      throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     // v1.101-social (D325, §10.127): an event's own gift is bought only while its event runs; afterwards only the
     // pieces held in the bag are sent.
     if (
@@ -1012,6 +1022,7 @@ export class LiveGiftsService {
           {
             price_coins: number;
             enabled: boolean;
+            archived: boolean;
             category: string;
             family_id: string | null;
             losses: number | null;
@@ -1019,14 +1030,15 @@ export class LiveGiftsService {
             owner_status: string | null;
           }[]
         >`
-          SELECT g.price_coins, g.enabled, g.category::text AS category,
+          SELECT g.price_coins, g.enabled, g.archived_at IS NOT NULL AS archived, g.category::text AS category,
                  g.owner_user_id::text AS owner_id,
                  (SELECT ou.status::text FROM users ou WHERE ou.id = g.owner_user_id) AS owner_status,
                  (SELECT family_id::text FROM family_members
                    WHERE user_id = ${callerId}::uuid AND ${isCoins} FOR SHARE) AS family_id,
                  (SELECT losses FROM lucky_gift_pity WHERE user_id = ${callerId}::uuid) AS losses
             FROM gifts g WHERE g.code = ${gift.code} FOR SHARE`;
-        if (!state?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+        if (!state || !(state.enabled || (state.archived && !isCoins)))
+          throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         if ((state.category === 'QUIPS') !== isQuip) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         if ((state.category === CUSTOM_CATEGORY) !== isCustom)
@@ -1165,6 +1177,8 @@ export class LiveGiftsService {
         return { extra, coins, bagQuantity, luckyResult };
       }, LIVE_TX_OPTIONS),
     );
+    // v1.103-social (D338): a bag send of an archived gift may have taken its last piece — finish it then.
+    if (gift.archivedAt !== null && input.source === 'BAG') await this.finisher.finish(gift.code);
     return {
       extra: done.extra,
       coins: done.coins ?? (await this.wallet.mine(callerId)).coins,

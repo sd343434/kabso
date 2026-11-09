@@ -74,7 +74,12 @@ export function panel(getCtx: () => TestContext) {
     expect(confirm.status, JSON.stringify(confirm.body)).toBe(200);
     return { ...p, secret, cookie: cookieOf(confirm), csrf: confirm.body.session.csrfToken as string };
   };
-  const send = (a: Admin, method: 'get' | 'post' | 'patch' | 'put', path: string, body?: object) => {
+  const send = (
+    a: Admin,
+    method: 'get' | 'post' | 'patch' | 'put' | 'delete',
+    path: string,
+    body?: object,
+  ) => {
     const r = getCtx().http[method](`/api/v1${path}`).set('Cookie', a.cookie);
     return method === 'get' ? r : r.set('X-CSRF-Token', a.csrf).send(body ?? {});
   };

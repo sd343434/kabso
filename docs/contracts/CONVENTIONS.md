@@ -10399,3 +10399,49 @@ still has `avatarUrl: null` on the wire; the picture is drawn by the clients.
 - **Panel.** The panel's `Avatar` (user lists, user cells, the live and search lists, the signed-in admin's menu) shows
   the same picture (`apps/admin/src/assets/kabso_default_avatar_192.webp`) instead of the initial.
 - Unchanged: the Kabso Team account's fixed picture (§10.96.10).
+
+### 10.131 «حذف» of a gift *(v1.103-social, DRAFT — D338)*
+
+Owner (2026-11-09): «أريد زر لإزالتهم وليس فقط إيقافهم» — a delete button for a gift, not only on / off. Gifts are named by
+their code everywhere history lives (sends and their ledgers, bags, events, lucky draws, PK boosts, wish lists, tasks,
+prizes), so a used gift is never removed. §10.131 follows §10.130 (D337); §10.128–§10.129 are left for D335 / D336.
+
+- **One rule** (`removeGiftByAdminIn`, shared by the panel's `deleteAdminGift` — `DELETE /admin/gifts/{code}`,
+  catalog.manage: OWNER, CSRF, reason — and `gift-admin delete <code>`), in the gift's transaction after locking its row.
+  It counts what points at the gift (`GiftUsage`): by foreign key `live_gifts` (live and direct sends), `user_gift_stock`
+  (any bag row, also an emptied one), `event_gifts`, `pk_boosts`; by code only `lucky_gift_draws`,
+  `live_rooms.wish_gifts`, `task_assignments.subject`, `host_target_assignments.subject`, and `giftCode` at any depth of
+  the prize JSON (`events.prizes`, `event_boards.prizes`, `event_milestones.prizes`, `event_results.prize`,
+  `event_prize_payouts.granted`, `event_milestone_grants.granted`). Audit rows (text) do not count.
+  - **nobody holds a piece and no history → DELETED** for real (an emptied bag row, quantity 0, is not history by
+    itself and goes with it; audit `gift.delete` with the gift before); after the commit its uploaded files (image,
+    effect, sound) that no other gift names are removed from storage — best effort, a failure is logged and only leaves
+    the files (`filesDeleted` says how many went). Its code can be used again.
+  - **otherwise → ARCHIVED**: `archived_at` set and `enabled` false (CHECK `gifts_archived_off`; audit `gift.archive` with
+    the usage and whether it was on). It is off, so everything that already filters on `enabled` leaves it out: the app's
+    catalogue, wish lists, PK boosters, host targets and daily tasks; buying it (a send with coins) answers 409
+    `GIFT_UNAVAILABLE`. It also leaves the panel's normal list (shown under «المحذوفة (N)»), the event picker
+    (`getAdminEventOptions`, except for an event that lists it already) and event edits (an archived gift is not added to
+    an event; one already listed stays), and `gift-admin grant` refuses it. History keeps the row: earnings, ledgers,
+    sends, results and reports still show its name and art. Archived already: 200 ARCHIVED, nothing written.
+- **Bag pieces of an archived gift** (owner, 2026-11-09: «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف»): the pieces
+  already in bags **stay listed** (`getMyGiftBag`) **and sendable** (`source: BAG`, live and direct) until they run out;
+  no new piece is bought or granted (`gift-admin grant` refuses it; an event prize already owed still pays its pieces).
+  When nobody holds a piece any more the gift is **finished** (`finishArchivedGiftIn`): with no history at all it is
+  DELETED like above (audit `gift.delete`, `case: finished`, `via: system` or `cli`; its unused files removed), otherwise
+  it stays archived for history only. The check runs right after a bag send of an archived gift, on every events sweep
+  (`EVENTS_SWEEP_INTERVAL_SECONDS`, the `GiftFinishService`) for pieces that left without a send (a deleted account's
+  bag), and with `gift-admin finish [<code>]`. A gift whose pieces were sent has history (the sends), so in practice it
+  stays in «المحذوفة» with `pieces` 0.
+- **«استعادة»** (`restoreAdminGift`, `gift-admin restore <code>`): `archived_at` cleared and the gift switched on (audit
+  `gift.restore`), also while pieces are still out (they are untouched); not archived: `changed` false; finished and
+  deleted: 404. `enableAdminGift` / `gift-admin enable` refuse an archived gift (409
+  `ADMIN_ACTION_REFUSED`: restore it first).
+- **The panel** («الهدايا»): «حذف» on each gift card; one confirm dialog that says which case applies, from the list's
+  `inUse` / `sends` / `holders` / `pieces` («ستُحذف نهائياً …», or «ستُنقل إلى «المحذوفة» لأن لها سجلاً (أُرسلت N مرة) …»
+  and, with pieces out, «ستختفي من المتجر، وتبقى N قطعة في حقائب M مستخدمين حتى تُستخدم …»), the reason
+  required; the toast names what happened. «المحذوفة (N)» shows only archived gifts (badge «محذوفة» with the date, «تبقى N قطعة في حقائب M
+  مستخدمين حتى تُستخدم» or «نفدت القطع؛ باقية للسجل فقط») with «استعادة». `AdminGift.archivedAt`, `inUse`, `holders`,
+  `pieces`; `AdminGiftDeleted`, `AdminGiftRestored`.
+- Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change (the bag already lists
+  what the server returns).

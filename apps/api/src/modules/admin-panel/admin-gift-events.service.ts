@@ -231,7 +231,18 @@ export class AdminGiftEventsService {
     const base = this.storageSettings.current().publicBaseUrl;
     const own = eventId ? [{ eventId: null }, { eventId }] : [{ eventId: null }];
     const [gifts, items, tiers, categories] = await Promise.all([
-      this.prisma.gift.findMany({ where: { OR: own }, orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
+      // v1.103-social (D338): an archived («محذوفة») gift is offered only to the event that lists it already.
+      this.prisma.gift.findMany({
+        where: {
+          OR: own,
+          AND: [
+            {
+              OR: [{ archivedAt: null }, ...(eventId ? [{ eventGifts: { some: { eventId } } }] : [])],
+            },
+          ],
+        },
+        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+      }),
       this.prisma.bagItem.findMany({
         where: { OR: [{ storeItem: null }, { storeItem: { OR: own } }] },
         include: { storeItem: { select: { eventId: true, still: true, animation: true } } },

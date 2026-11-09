@@ -355,7 +355,10 @@ export class GiftsService {
     this.luckyChat = null;
   }
 
-  /** `GET /me/gifts/bag`: the caller's enabled gifts with a quantity above 0, in catalogue order. */
+  /**
+   * `GET /me/gifts/bag`: the caller's enabled gifts with a quantity above 0, in catalogue order; v1.103-social (D338) and
+   * an archived gift's pieces until they run out.
+   */
   async bag(userId: string, lang: ContentLanguage): Promise<GiftBagDto> {
     const listed = (await this.listedCategories()).map((t) => t.code);
     const rows = await this.prisma.userGiftStock.findMany({
@@ -364,8 +367,10 @@ export class GiftsService {
         quantity: { gt: 0 },
         // v1.32-live (D154): quips are sent with coins only, so never listed in the bag; v1.100-social (D312) nor
         // custom gifts.
+        // v1.103-social (D338, §10.131): an archived gift's pieces stay listed until they are sent (owner: «مخفية الا ان
+        // تنتهي من حقيبة المستخدمين ثم تحذف»); a gift only switched off is not.
         gift: {
-          enabled: true,
+          OR: [{ enabled: true }, { archivedAt: { not: null } }],
           category: { in: listed.filter((c) => c !== QUIPS_CATEGORY && c !== CUSTOM_CATEGORY) },
         },
       },

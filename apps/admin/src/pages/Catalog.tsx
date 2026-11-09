@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../api';
 import {
   applyDetection,
@@ -65,6 +65,56 @@ export interface GiftDto {
   enabled: boolean;
   sends: number;
   coinsSpent: number;
+  /** v1.103-social (D338, §10.131): set while archived («المحذوفة», always off). */
+  archivedAt: string | null;
+  /** v1.103-social (D338): something points at it, so «حذف» archives it (else deletes it for real). */
+  inUse: boolean;
+  /** v1.103-social (D338): people holding pieces of it now. */
+  holders: number;
+  /** v1.103-social (D338): the pieces in bags now (an archived gift's are sent until they run out). */
+  pieces: number;
+}
+
+/**
+ * v1.103-social (D338): what «حذف» will do — `delete` (nothing ever used it: gone for good) or `archive` (kept for
+ * history, hidden everywhere). The server decides again on the same rule.
+ */
+export function giftDeleteCase(gift: Pick<GiftDto, 'inUse'>): 'delete' | 'archive' {
+  return gift.inUse ? 'archive' : 'delete';
+}
+
+/** « (sent N times)» — empty when only other records name it (pieces in bags have their own sentence). */
+function archiveDetails(gift: GiftDto, t: ReturnType<typeof useApp>['t'], lang: 'ar' | 'en'): string {
+  const parts = gift.sends > 0 ? [t('giftDeleteSends', { n: formatNumber(gift.sends, lang) })] : [];
+  return parts.length === 0 ? '' : ` (${parts.join(lang === 'ar' ? '، ' : ', ')})`;
+}
+
+/** The confirm dialog's sentence for [gift] (D338). */
+export function GiftDeleteIntro({ gift }: { gift: GiftDto }) {
+  const { t, lang } = useApp();
+  const which = giftDeleteCase(gift);
+  return (
+    <p className={`alert ${which === 'delete' ? 'error' : 'warn'}`} data-gift-delete-case={which}>
+      {which === 'delete'
+        ? t('giftDeleteForever')
+        : gift.pieces > 0
+          ? t('giftDeletePieces', { pieces: formatNumber(gift.pieces, lang), holders: formatNumber(gift.holders, lang) })
+          : t('giftDeleteArchive', { details: archiveDetails(gift, t, lang) })}
+    </p>
+  );
+}
+
+/** D338: the gifts a list shows — the normal list without the archived ones, the «المحذوفة» filter only those. */
+export function giftsShown(
+  gifts: readonly GiftDto[],
+  { cat, noEndOnly, archivedOnly }: { cat: string; noEndOnly: boolean; archivedOnly: boolean },
+): GiftDto[] {
+  return gifts.filter(
+    (g) =>
+      (g.archivedAt !== null) === archivedOnly &&
+      (!cat || g.category === cat) &&
+      (!noEndOnly || seasonalWithoutEnd(g.badges)),
+  );
 }
 
 /** v1.100-social (D312, §10.118): the owner of a custom gift as the panel lists it. */
@@ -392,17 +442,27 @@ export function Gifts() {
   const [cat, setCat] = useState<string>('');
   const [edit, setEdit] = useState<GiftDto | 'new' | null>(null);
   const [toggle, setToggle] = useState<GiftDto | null>(null);
+  // D338: «حذف» (delete or archive), «استعادة», and the «المحذوفة» filter.
+  const [del, setDel] = useState<GiftDto | null>(null);
+  const [back, setBack] = useState<GiftDto | null>(null);
+  const [archivedOnly, setArchivedOnly] = useState(false);
+  const lastDelete = useRef<'DELETED' | 'ARCHIVED'>('ARCHIVED');
   // D289 (owner Q2): the gifts whose «موسمي» has no end yet, and the filter to show only them.
   const [noEndOnly, setNoEndOnly] = useState(false);
-  const noEnd = data?.data.filter((g) => seasonalWithoutEnd(g.badges)).length ?? 0;
-  const shown =
-    data?.data.filter((g) => (!cat || g.category === cat) && (!noEndOnly || seasonalWithoutEnd(g.badges))) ?? [];
+  const live = data?.data.filter((g) => g.archivedAt === null) ?? [];
+  const archivedCount = (data?.data.length ?? 0) - live.length;
+  const noEnd = live.filter((g) => seasonalWithoutEnd(g.badges)).length;
+  const shown = giftsShown(data?.data ?? [], { cat, noEndOnly: noEndOnly && !archivedOnly, archivedOnly });
+  const done = (message: string) => {
+    toast(message);
+    reload();
+  };
   return (
     <>
       <div className="page-head">
         <div>
           <h1>{t('giftsTitle')}</h1>
-          <p className="muted small">{data ? t('giftsSubtitle', { n: formatNumber(data.data.length, lang), usd: String(data.coinRetailUsdPerMillion) }) : ''}</p>
+          <p className="muted small">{data ? t('giftsSubtitle', { n: formatNumber(live.length, lang), usd: String(data.coinRetailUsdPerMillion) }) : ''}</p>
         </div>
         {can('catalog.manage') && (
           <button className="btn primary" onClick={() => setEdit('new')}>
@@ -422,8 +482,26 @@ export function Gifts() {
           </button>
         ))}
       </div>
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          aria-pressed={archivedOnly}
+          className={`btn small ${archivedOnly ? 'primary' : ''}`}
+          onClick={() => setArchivedOnly((a) => !a)}
+          data-gift-archived-filter={archivedOnly ? 'on' : 'off'}
+        >
+          <Icon name="filter" size={14} />
+          {t('giftArchivedFilter', { n: formatNumber(archivedCount, lang) })}
+        </button>
+      </div>
       <ErrorAlert error={error} />
-      <SeasonalNoEndNote count={noEnd} only={noEndOnly} onOnly={setNoEndOnly} />
+      {archivedOnly ? (
+        <p className="muted small" data-gift-archived-note>
+          {t('giftArchivedNote')}
+        </p>
+      ) : (
+        <SeasonalNoEndNote count={noEnd} only={noEndOnly} onOnly={setNoEndOnly} />
+      )}
       {loading && !data && <div className="gift-grid">{Array.from({ length: 8 }, (_, i) => <div key={i} className="gift-card skeleton-card" />)}</div>}
       {data && shown.length === 0 && (
         <div className="card state empty-state">
@@ -433,7 +511,7 @@ export function Gifts() {
       )}
       <div className="gift-grid">
         {shown.map((g) => (
-          <div key={g.code} className={`gift-card${g.enabled ? '' : ' off'}`}>
+          <div key={g.code} className={`gift-card${g.enabled ? '' : ' off'}`} data-gift-card={g.code}>
             <div className="gift-art">
               {/* D207: from the panel's own origin (the CDN may not be reachable from here). */}
               {g.imageObjectKey || g.imageUrl ? (
@@ -464,17 +542,38 @@ export function Gifts() {
             </div>
             {g.owner && <GiftOwnerChip owner={g.owner} />}
             <div className="muted small">{t('giftUse', { n: formatNumber(g.sends, lang) })}</div>
-            {seasonalWithoutEnd(g.badges) && <SeasonalNoEndHint />}
-            {can('catalog.manage') && (
-              <div className="row gift-actions">
-                <button className="btn small" onClick={() => setEdit(g)}>
-                  {t('edit')}
-                </button>
-                <button className={`btn small ${g.enabled ? '' : 'primary'}`} onClick={() => setToggle(g)}>
-                  {g.enabled ? t('disable') : t('enable')}
-                </button>
+            {g.archivedAt && (
+              <div className="small" data-gift-archived={g.code}>
+                <span className="badge warn">{t('giftArchived')}</span>{' '}
+                <span className="muted">{t('giftArchivedSince', { date: formatDate(g.archivedAt, lang) })}</span>
+                <div className="muted" data-gift-pieces={g.pieces}>
+                  {g.pieces > 0
+                    ? t('giftPiecesLeft', { pieces: formatNumber(g.pieces, lang), holders: formatNumber(g.holders, lang) })
+                    : t('giftPiecesDone')}
+                </div>
               </div>
             )}
+            {!g.archivedAt && seasonalWithoutEnd(g.badges) && <SeasonalNoEndHint />}
+            {can('catalog.manage') &&
+              (g.archivedAt ? (
+                <div className="row gift-actions">
+                  <button className="btn small primary" onClick={() => setBack(g)} data-gift-restore={g.code}>
+                    {t('giftRestore')}
+                  </button>
+                </div>
+              ) : (
+                <div className="row gift-actions">
+                  <button className="btn small" onClick={() => setEdit(g)}>
+                    {t('edit')}
+                  </button>
+                  <button className={`btn small ${g.enabled ? '' : 'primary'}`} onClick={() => setToggle(g)}>
+                    {g.enabled ? t('disable') : t('enable')}
+                  </button>
+                  <button className="btn small danger" onClick={() => setDel(g)} data-gift-delete={g.code}>
+                    {t('giftDelete')}
+                  </button>
+                </div>
+              ))}
           </div>
         ))}
       </div>
@@ -488,6 +587,38 @@ export function Gifts() {
             setEdit(null);
             toast(t('done'));
             reload();
+          }}
+        />
+      )}
+      {del && (
+        <FormDialog
+          title={`${t('giftDelete')} · ${lang === 'ar' ? del.nameAr : del.nameEn}`}
+          intro={<GiftDeleteIntro gift={del} />}
+          fields={[reasonField(t)]}
+          confirmLabel={giftDeleteCase(del) === 'delete' ? t('giftDeleteConfirm') : t('giftArchiveConfirm')}
+          danger
+          submit={async (v) => {
+            const r = await api.del<{ result: 'DELETED' | 'ARCHIVED' }>(`/admin/gifts/${del.code}`, { reason: v.reason });
+            lastDelete.current = r.result;
+          }}
+          onClose={() => setDel(null)}
+          onDone={() => {
+            setDel(null);
+            done(lastDelete.current === 'DELETED' ? t('giftDeletedToast') : t('giftArchivedToast'));
+          }}
+        />
+      )}
+      {back && (
+        <FormDialog
+          title={`${t('giftRestore')} · ${lang === 'ar' ? back.nameAr : back.nameEn}`}
+          intro={<p className="muted small">{t('giftRestoreNote')}</p>}
+          fields={[reasonField(t)]}
+          confirmLabel={t('giftRestore')}
+          submit={(v) => api.post(`/admin/gifts/${back.code}/restore`, { reason: v.reason })}
+          onClose={() => setBack(null)}
+          onDone={() => {
+            setBack(null);
+            done(t('done'));
           }}
         />
       )}

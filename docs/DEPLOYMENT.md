@@ -3667,3 +3667,23 @@ CONVENTIONS §10.127.11 (owner answers 2026-11-09). Deploy after §5.99 (it need
   banners are listed to everyone again (unpublish or end a non-EVERYONE event's banner first if that matters), and bag
   prize pieces would credit cherries again — disable those gifts (`gift-admin disable <code>`) before rolling back if
   prize pieces are outstanding. Dropping the columns is not needed.
+
+### 5.101 «حذف» of a gift (migration `20270410090000_gift_archive`; D338) — [IMPLEMENTED, draft contract v1.103-social; not deployed]
+
+CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم وليس فقط إيقافهم»). §5.100 is left for D334.
+
+- **Migration:** `gifts.archived_at` (nullable) and the CHECK `gifts_archived_off` (archived ⇒ off). Metadata only on the
+  small `gifts` table (the CHECK scans it under a short lock); no data change, no new config.
+- **Order:** migration, then the API, then the admin panel (the «حذف» button, the «المحذوفة» filter and «استعادة»). The
+  apps need no update: an archived gift is off (not in the catalogue, not bought), while its pieces already in bags stay
+  in the bag and are sent until they run out (owner: «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف»).
+- **Finishing:** once nobody holds a piece, an archived gift with no history is deleted (with its files), one with
+  history stays archived. This runs right after a bag send of an archived gift and on the events sweeper's interval
+  (`EVENTS_SWEEP_INTERVAL_SECONDS`, already required non-zero in production; no new setting); by hand:
+  `docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js finish`.
+- **Storage:** a real delete (a gift nothing ever used) removes its uploaded files from the bucket when no other gift
+  names them (best effort; a failure is logged and only leaves the files). `gift-admin delete` does the same when the job
+  has the `S3_*` settings, otherwise it says the files stay. Archiving touches no file.
+- **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
+  and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
+  first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.

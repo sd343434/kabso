@@ -3247,8 +3247,8 @@ enum LiveGiftSource {
   @@map("live_gift_source")
 }
 
-/// The gift catalogue, managed only with the `gift-admin` CLI (no gift is seeded). Disabled, never
-/// deleted. CHECKs `gifts_code_format`, `gifts_price_range`, `gifts_names_present`.
+/// The gift catalogue, managed only with the `gift-admin` CLI (no gift is seeded). Disabled; v1.103-social (D338)
+/// deleted for real only when nothing ever used it, otherwise archived (`archived_at`). CHECKs `gifts_code_format`, `gifts_price_range`, `gifts_names_present`.
 model Gift {
   code               String               @id @db.VarChar(40)
   /// v1.46-live (D207): the code of its `gift_categories` row (was the `gift_category` enum).
@@ -3303,6 +3303,10 @@ model Gift {
   /// `gifts_custom_owner`); they earn GIFT_CUSTOM_OWNER_PERCENT of each send's coin value as coins.
   ownerUserId        String?              @map("owner_user_id") @db.Uuid
   enabled            Boolean              @default(true)
+  /// v1.103-social (D338, CONVENTIONS §10.131): «حذف» of a gift that was used — archived instead of deleted: out of the
+  /// app's catalogue, the bag's send choices, the panel's normal list and every picker; history keeps its name and art.
+  /// Always off while set (CHECK `gifts_archived_off`). «استعادة» clears it. Null: a normal gift.
+  archivedAt         DateTime?            @map("archived_at") @db.Timestamptz(3)
   createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

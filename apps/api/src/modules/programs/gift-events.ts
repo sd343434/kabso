@@ -495,10 +495,26 @@ async function checkCatalogueIn(tx: Tx, input: GiftEventInput, eventId: string |
   const giftCodes = input.gifts.map((g) => g.giftCode);
   const gifts = await tx.gift.findMany({
     where: { code: { in: giftCodes } },
-    select: { code: true, eventId: true },
+    select: { code: true, eventId: true, archivedAt: true },
   });
   const missingGift = giftCodes.find((c) => !gifts.some((g) => g.code === c));
   if (missingGift) throw new EventAdminError(`No gift ${missingGift}.`);
+  // v1.103-social (D338): a deleted (archived) gift is not added to an event; one the event lists already stays.
+  const archived = gifts.filter((g) => g.archivedAt !== null).map((g) => g.code);
+  if (archived.length > 0) {
+    const listed = eventId
+      ? new Set(
+          (
+            await tx.eventGift.findMany({
+              where: { eventId, giftCode: { in: archived } },
+              select: { giftCode: true },
+            })
+          ).map((g) => g.giftCode),
+        )
+      : new Set<string>();
+    const added = archived.find((c) => !listed.has(c));
+    if (added) throw new EventAdminError(`Gift ${added} is deleted; it cannot be added to an event.`);
+  }
   // v1.101-social (D325): another event's exclusive gift never scores here.
   const foreign = gifts.find((g) => g.eventId !== null && g.eventId !== eventId);
   if (foreign) throw new EventAdminError(`Gift ${foreign.code} belongs to another event.`);
