@@ -74,7 +74,10 @@ test('«الهدايا»: «حذف» deletes an unused gift, archives a used one
 
   // Held in a bag: moved to «المحذوفة».
   await page.locator('[data-gift-delete="smoke_held"]').click();
-  await expect(dialog.locator('[data-gift-delete-case="archive"]')).toContainText('«المحذوفة»');
+  // Owner: the pieces in bags stay until they are used.
+  await expect(dialog.locator('[data-gift-delete-case="archive"]')).toContainText(
+    'ستختفي من المتجر، وتبقى 3 قطعة في حقائب 1 مستخدمين حتى تُستخدم',
+  );
   await dialog.locator('textarea, input[type=text]').first().fill('لم تعد مطلوبة');
   await capture(page, '03-delete-archive-dialog-ar');
   await dialog.getByRole('button', { name: 'نقل إلى المحذوفة' }).click();
@@ -86,6 +89,8 @@ test('«الهدايا»: «حذف» deletes an unused gift, archives a used one
   await page.locator('[data-gift-archived-filter]').click();
   await expect(page.locator('[data-gift-card]')).toHaveCount(2);
   await expect(page.locator('[data-gift-archived="smoke_held"]')).toContainText('محذوفة');
+  await expect(page.locator('[data-gift-archived="smoke_held"]')).toContainText('تبقى 3 قطعة في حقائب 1 مستخدمين');
+  await expect(page.locator('[data-gift-archived="smoke_old"]')).toContainText('تبقى 1 قطعة في حقائب 1 مستخدمين');
   await capture(page, '05-archived-filter-ar');
   await page.locator('[data-gift-restore="smoke_old"]').click();
   await dialog.locator('textarea, input[type=text]').first().fill('عادت للفعالية');

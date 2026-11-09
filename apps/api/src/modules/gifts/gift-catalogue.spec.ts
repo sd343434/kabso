@@ -200,6 +200,7 @@ describe('v1.102-social (D338) giftInUse', () => {
     luckyDraws: 0,
     bagRows: 0,
     holders: 0,
+    pieces: 0,
     events: 0,
     pkBoosts: 0,
     wishes: 0,
@@ -209,13 +210,22 @@ describe('v1.102-social (D338) giftInUse', () => {
   it('a gift nothing points at is not in use (it may be deleted for real)', () => {
     expect(giftInUse(none)).toBe(false);
   });
-  it('any one reference — by key or by code only — makes it in use (archived instead)', () => {
-    for (const key of Object.keys(none) as (keyof typeof none)[]) {
-      if (key === 'holders') continue;
+  it('pieces held now or any history — by key or by code only — make it in use (archived instead)', () => {
+    for (const key of [
+      'sends',
+      'luckyDraws',
+      'holders',
+      'events',
+      'pkBoosts',
+      'wishes',
+      'tasks',
+      'prizes',
+    ] as const) {
       expect(giftInUse({ ...none, [key]: 1 }), key).toBe(true);
     }
+    expect(giftInUse({ ...none, bagRows: 2, holders: 1, pieces: 3 })).toBe(true);
   });
-  it('an empty bag row (quantity 0) is history too', () => {
-    expect(giftInUse({ ...none, bagRows: 1, holders: 0 })).toBe(true);
+  it('owner «…ثم تحذف»: an emptied bag row alone (quantity 0, no send) does not keep the gift', () => {
+    expect(giftInUse({ ...none, bagRows: 1, holders: 0, pieces: 0 })).toBe(false);
   });
 });

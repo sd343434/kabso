@@ -71,6 +71,8 @@ export interface GiftDto {
   inUse: boolean;
   /** v1.102-social (D338): people holding pieces of it now. */
   holders: number;
+  /** v1.102-social (D338): the pieces in bags now (an archived gift's are sent until they run out). */
+  pieces: number;
 }
 
 /**
@@ -81,12 +83,9 @@ export function giftDeleteCase(gift: Pick<GiftDto, 'inUse'>): 'delete' | 'archiv
   return gift.inUse ? 'archive' : 'delete';
 }
 
-/** « (sent N times, in M users' bags)» — only the parts that are not 0; empty when only other records name it. */
+/** « (sent N times)» — empty when only other records name it (pieces in bags have their own sentence). */
 function archiveDetails(gift: GiftDto, t: ReturnType<typeof useApp>['t'], lang: 'ar' | 'en'): string {
-  const parts = [
-    ...(gift.sends > 0 ? [t('giftDeleteSends', { n: formatNumber(gift.sends, lang) })] : []),
-    ...(gift.holders > 0 ? [t('giftDeleteHolders', { n: formatNumber(gift.holders, lang) })] : []),
-  ];
+  const parts = gift.sends > 0 ? [t('giftDeleteSends', { n: formatNumber(gift.sends, lang) })] : [];
   return parts.length === 0 ? '' : ` (${parts.join(lang === 'ar' ? '، ' : ', ')})`;
 }
 
@@ -98,7 +97,9 @@ export function GiftDeleteIntro({ gift }: { gift: GiftDto }) {
     <p className={`alert ${which === 'delete' ? 'error' : 'warn'}`} data-gift-delete-case={which}>
       {which === 'delete'
         ? t('giftDeleteForever')
-        : t('giftDeleteArchive', { details: archiveDetails(gift, t, lang) })}
+        : gift.pieces > 0
+          ? t('giftDeletePieces', { pieces: formatNumber(gift.pieces, lang), holders: formatNumber(gift.holders, lang) })
+          : t('giftDeleteArchive', { details: archiveDetails(gift, t, lang) })}
     </p>
   );
 }
@@ -545,6 +546,11 @@ export function Gifts() {
               <div className="small" data-gift-archived={g.code}>
                 <span className="badge warn">{t('giftArchived')}</span>{' '}
                 <span className="muted">{t('giftArchivedSince', { date: formatDate(g.archivedAt, lang) })}</span>
+                <div className="muted" data-gift-pieces={g.pieces}>
+                  {g.pieces > 0
+                    ? t('giftPiecesLeft', { pieces: formatNumber(g.pieces, lang), holders: formatNumber(g.holders, lang) })
+                    : t('giftPiecesDone')}
+                </div>
               </div>
             )}
             {!g.archivedAt && seasonalWithoutEnd(g.badges) && <SeasonalNoEndHint />}

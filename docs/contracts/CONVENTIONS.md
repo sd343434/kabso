@@ -10227,25 +10227,35 @@ prizes), so a used gift is never removed. §10.131 follows §10.130 (D337); §10
   `live_rooms.wish_gifts`, `task_assignments.subject`, `host_target_assignments.subject`, and `giftCode` at any depth of
   the prize JSON (`events.prizes`, `event_boards.prizes`, `event_milestones.prizes`, `event_results.prize`,
   `event_prize_payouts.granted`, `event_milestone_grants.granted`). Audit rows (text) do not count.
-  - **all 0 → DELETED** for real (audit `gift.delete` with the gift before); after the commit its uploaded files (image,
+  - **nobody holds a piece and no history → DELETED** for real (an emptied bag row, quantity 0, is not history by
+    itself and goes with it; audit `gift.delete` with the gift before); after the commit its uploaded files (image,
     effect, sound) that no other gift names are removed from storage — best effort, a failure is logged and only leaves
     the files (`filesDeleted` says how many went). Its code can be used again.
   - **otherwise → ARCHIVED**: `archived_at` set and `enabled` false (CHECK `gifts_archived_off`; audit `gift.archive` with
     the usage and whether it was on). It is off, so everything that already filters on `enabled` leaves it out: the app's
-    catalogue, the bag's list, wish lists, PK boosters, host targets and daily tasks; a send (coins or bag) answers 409
+    catalogue, wish lists, PK boosters, host targets and daily tasks; buying it (a send with coins) answers 409
     `GIFT_UNAVAILABLE`. It also leaves the panel's normal list (shown under «المحذوفة (N)»), the event picker
     (`getAdminEventOptions`, except for an event that lists it already) and event edits (an archived gift is not added to
     an event; one already listed stays), and `gift-admin grant` refuses it. History keeps the row: earnings, ledgers,
     sends, results and reports still show its name and art. Archived already: 200 ARCHIVED, nothing written.
-- **Bag pieces of an archived gift** (owner's question, the safest choice): **kept but not shown and not sendable** —
-  the same as a disabled gift since D108; quantities are untouched, so «استعادة» gives them back as they were. Sending
-  them would put a retired gift back on screens; dropping them would destroy what people won or bought.
+- **Bag pieces of an archived gift** (owner, 2026-11-09: «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف»): the pieces
+  already in bags **stay listed** (`getMyGiftBag`) **and sendable** (`source: BAG`, live and direct) until they run out;
+  no new piece is bought or granted (`gift-admin grant` refuses it; an event prize already owed still pays its pieces).
+  When nobody holds a piece any more the gift is **finished** (`finishArchivedGiftIn`): with no history at all it is
+  DELETED like above (audit `gift.delete`, `case: finished`, `via: system` or `cli`; its unused files removed), otherwise
+  it stays archived for history only. The check runs right after a bag send of an archived gift, on every events sweep
+  (`EVENTS_SWEEP_INTERVAL_SECONDS`, the `GiftFinishService`) for pieces that left without a send (a deleted account's
+  bag), and with `gift-admin finish [<code>]`. A gift whose pieces were sent has history (the sends), so in practice it
+  stays in «المحذوفة» with `pieces` 0.
 - **«استعادة»** (`restoreAdminGift`, `gift-admin restore <code>`): `archived_at` cleared and the gift switched on (audit
-  `gift.restore`); not archived: `changed` false. `enableAdminGift` / `gift-admin enable` refuse an archived gift (409
+  `gift.restore`), also while pieces are still out (they are untouched); not archived: `changed` false; finished and
+  deleted: 404. `enableAdminGift` / `gift-admin enable` refuse an archived gift (409
   `ADMIN_ACTION_REFUSED`: restore it first).
 - **The panel** («الهدايا»): «حذف» on each gift card; one confirm dialog that says which case applies, from the list's
-  `inUse` / `sends` / `holders` («ستُحذف نهائياً …» or «ستُنقل إلى «المحذوفة» لأن لها سجلاً (أُرسلت N مرة، في حقائب M
-  مستخدمين) …», only the parts that are not 0), the reason
-  required; the toast names what happened. «المحذوفة (N)» shows only archived gifts (badge «محذوفة» with the date) with
-  «استعادة». `AdminGift.archivedAt`, `inUse`, `holders`; `AdminGiftDeleted`, `AdminGiftRestored`.
-- Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change.
+  `inUse` / `sends` / `holders` / `pieces` («ستُحذف نهائياً …», or «ستُنقل إلى «المحذوفة» لأن لها سجلاً (أُرسلت N مرة) …»
+  and, with pieces out, «ستختفي من المتجر، وتبقى N قطعة في حقائب M مستخدمين حتى تُستخدم …»), the reason
+  required; the toast names what happened. «المحذوفة (N)» shows only archived gifts (badge «محذوفة» with the date, «تبقى N قطعة في حقائب M
+  مستخدمين حتى تُستخدم» or «نفدت القطع؛ باقية للسجل فقط») with «استعادة». `AdminGift.archivedAt`, `inUse`, `holders`,
+  `pieces`; `AdminGiftDeleted`, `AdminGiftRestored`.
+- Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change (the bag already lists
+  what the server returns).

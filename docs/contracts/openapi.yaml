@@ -420,11 +420,15 @@ info:
     kept, `multiplier` added; drafts never reach the app; unknown values ignored).
     **D338 (DRAFT v1.102-social)** «حذف» of a gift in the panel (CONVENTIONS §10.131; owner 2026-11-09: «أريد زر لإزالتهم
     وليس فقط إيقافهم»): `deleteAdminGift` (`DELETE /admin/gifts/{code}`, catalog.manage: OWNER; reason; audited) deletes a
-    gift nothing ever used (row and unused uploaded files; `gift.delete`) and archives a used one (`gift.archive`): off,
-    out of `getGiftCatalogue`, `getGiftBag`, the panel's normal list and `getAdminEventOptions`, never sent, while history
-    keeps its row (`AdminGiftDeleted`); `restoreAdminGift` («استعادة», `gift.restore`) brings it back switched on;
-    `enableAdminGift` refuses an archived gift (409 `ADMIN_ACTION_REFUSED`). `AdminGift.archivedAt`, `inUse`, `holders`.
-    `gift-admin delete|restore <code>`. Migration `20270410090000_gift_archive`. The apps are unchanged.
+    gift nobody holds pieces of and with no history (row and unused uploaded files; `gift.delete`) and archives any other
+    (`gift.archive`): off, out of `getGiftCatalogue`, the panel's normal list and `getAdminEventOptions`, never bought or
+    granted again, while the pieces already in bags stay in `getMyGiftBag` and are sent until they run out (owner: «مخفية
+    الا ان تنتهي من حقيبة المستخدمين ثم تحذف»); then it is finished — deleted when it has no history (`gift.delete`
+    `case: finished`), else kept archived for history — right after the last bag send and by the events sweeper
+    (`AdminGiftDeleted`); `restoreAdminGift` («استعادة», `gift.restore`) brings it back switched on; `enableAdminGift`
+    refuses an archived gift (409 `ADMIN_ACTION_REFUSED`). `AdminGift.archivedAt`, `inUse`, `holders`, `pieces`.
+    `gift-admin delete|restore <code>`, `gift-admin finish`. Migration `20270410090000_gift_archive`. The apps are
+    unchanged.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -9043,7 +9047,8 @@ paths:
       description: |
         CONVENTIONS §10.23. The enabled gifts the caller holds at least one of, in catalogue
         order, with `quantity`. Gifts reach the bag from an admin (`gift-admin grant`) for now.
-        Names follow `Accept-Language`, else the caller's locale.
+        Names follow `Accept-Language`, else the caller's locale. v1.102-social (D338, §10.131): also the pieces of an
+        archived («محذوفة») gift until they are sent — they are no longer in `getGiftCatalogue` or bought with coins.
       responses:
         '200':
           description: The caller's gift bag.
@@ -16776,16 +16781,19 @@ paths:
       tags:
       - admin-panel
       operationId: deleteAdminGift
-      summary: "Deletes a gift nothing ever used, or archives a used one (catalog.manage: OWNER; reason; audited)"
+      summary: "Deletes a gift with no pieces and no history, or archives it (catalog.manage: OWNER; reason; audited)"
       description: |
-        (v1.102-social, D338, §10.131) Owner: «أريد زر لإزالتهم وليس فقط إيقافهم». In the gift's transaction: nothing points
-        at it — no send (live or direct), lucky draw, bag row, event, PK boost, wish list, task / host target or prize
-        bundle — **DELETED** for real, then its uploaded files that no other gift names (a storage failure only leaves the
-        files); audited `gift.delete` with the gift before. Otherwise **ARCHIVED**: `archivedAt` set and off, gone from
-        `getGiftCatalogue`, `getGiftBag` (pieces kept, not sendable), the panel's normal list and `getAdminEventOptions`,
-        never sent (409 `GIFT_UNAVAILABLE`), while every row that points at it keeps working as history; audited
-        `gift.archive` with the usage. Archived already: 200 ARCHIVED, nothing written. `enableAdminGift` refuses an
-        archived gift (409 `ADMIN_ACTION_REFUSED`): `restoreAdminGift` brings it back.
+        (v1.102-social, D338, §10.131) Owner: «أريد زر لإزالتهم وليس فقط إيقافهم». In the gift's transaction: nobody holds
+        pieces and nothing points at it — no send (live or direct), lucky draw, event, PK boost, wish list, task / host
+        target or prize bundle (an emptied bag row does not count) — **DELETED** for real, then its uploaded files that no
+        other gift names (a storage failure only leaves the files); audited `gift.delete` with the gift before. Otherwise
+        **ARCHIVED**: `archivedAt` set and off, gone from `getGiftCatalogue`, the panel's normal list and
+        `getAdminEventOptions`, never bought with coins (409 `GIFT_UNAVAILABLE`) or granted; the pieces already in bags
+        stay in `getMyGiftBag` and are sent (`source: BAG`) until they run out (owner: «مخفية الا ان تنتهي من حقيبة المستخدمين
+        ثم تحذف»). When none is left the gift is finished — right after the last bag send and by the events sweeper:
+        deleted with its files when it has no history (`gift.delete`, `case: finished`), else kept archived for history.
+        Audited `gift.archive` with the usage. Archived already: 200 ARCHIVED, nothing written. `enableAdminGift` refuses
+        an archived gift (409 `ADMIN_ACTION_REFUSED`): `restoreAdminGift` brings it back.
       security:
       - adminSession: []
       parameters:
@@ -25516,6 +25524,10 @@ components:
           type: integer
           minimum: 0
           description: v1.102-social (D338) — people holding pieces of it in their bag now.
+        pieces:
+          type: integer
+          minimum: 0
+          description: v1.102-social (D338) — the pieces in bags now; an archived gift's are sent until they run out.
     AdminGiftList:
       type: object
       required:
@@ -25816,13 +25828,14 @@ components:
         usage:
           type: object
           additionalProperties: false
-          description: What points at the gift (all 0 → DELETED). `holders` is part of `bagRows`.
-          required: [sends, luckyDraws, bagRows, holders, events, pkBoosts, wishes, tasks, prizes]
+          description: What points at the gift. No pieces held and no history (emptied bag rows do not count) → DELETED.
+          required: [sends, luckyDraws, bagRows, holders, pieces, events, pkBoosts, wishes, tasks, prizes]
           properties:
             sends: { type: integer, minimum: 0, description: "Sends (live and direct), ever." }
             luckyDraws: { type: integer, minimum: 0 }
             bagRows: { type: integer, minimum: 0, description: "Bag rows (any quantity, also 0)." }
             holders: { type: integer, minimum: 0, description: "People holding pieces now." }
+            pieces: { type: integer, minimum: 0, description: "Pieces in bags now (sent until they run out)." }
             events: { type: integer, minimum: 0, description: "Events listing it." }
             pkBoosts: { type: integer, minimum: 0 }
             wishes: { type: integer, minimum: 0, description: "Live rooms wishing for it." }

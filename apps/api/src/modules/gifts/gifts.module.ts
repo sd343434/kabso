@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { GiftFinishService } from './gift-finish.service.js';
 import { GiftsController } from './gifts.controller.js';
 import { GiftsService } from './gifts.service.js';
 import { LuckyGiftsService } from './lucky-gifts.service.js';
@@ -12,10 +14,16 @@ import { CRYPTO_LUCKY_RNG, LUCKY_RNG } from './lucky-rng.js';
  * `gift-catalogue.ts`, in the send's transaction).
  */
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, MediaModule],
   controllers: [GiftsController],
   // v1.27-live (D132): lucky gifts; the CSPRNG is the only LUCKY_RNG outside tests.
-  providers: [GiftsService, LuckyGiftsService, { provide: LUCKY_RNG, useValue: CRYPTO_LUCKY_RNG }],
-  exports: [GiftsService, LuckyGiftsService],
+  providers: [
+    GiftsService,
+    LuckyGiftsService,
+    { provide: LUCKY_RNG, useValue: CRYPTO_LUCKY_RNG },
+    // v1.102-social (D338): archived gifts finished once their last bag piece is gone.
+    GiftFinishService,
+  ],
+  exports: [GiftsService, LuckyGiftsService, GiftFinishService],
 })
 export class GiftsModule {}

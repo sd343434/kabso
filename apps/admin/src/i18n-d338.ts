@@ -8,7 +8,10 @@ export const AR_D338 = {
   giftDeleteArchive:
     'ستُنقل إلى «المحذوفة» لأن لها سجلاً{details}. تختفي من التطبيق والقوائم والفعاليات ولا تُرسَل بعد الآن، ويبقى اسمها وصورتها في السجل. يمكن استعادتها.',
   giftDeleteSends: 'أُرسلت {n} مرة',
-  giftDeleteHolders: 'في حقائب {n} مستخدمين',
+  giftDeletePieces:
+    'ستختفي من المتجر، وتبقى {pieces} قطعة في حقائب {holders} مستخدمين حتى تُستخدم؛ لا تُشترى ولا تُمنح بعد الآن. بعد آخر قطعة تُحذف نهائياً إن لم يكن لها سجل، وإلا تبقى في «المحذوفة» للسجل فقط. يمكن استعادتها.',
+  giftPiecesLeft: 'تبقى {pieces} قطعة في حقائب {holders} مستخدمين حتى تُستخدم',
+  giftPiecesDone: 'نفدت القطع؛ باقية للسجل فقط',
   giftDeleteConfirm: 'حذف نهائياً',
   giftArchiveConfirm: 'نقل إلى المحذوفة',
   giftDeletedToast: 'حُذفت الهدية نهائياً.',
@@ -16,7 +19,7 @@ export const AR_D338 = {
   giftArchived: 'محذوفة',
   giftArchivedFilter: 'المحذوفة ({n})',
   giftArchivedNote:
-    'الهدايا المحذوفة لا تظهر في التطبيق ولا في الفعاليات ولا تُرسَل، ومن يملك منها قطعاً في حقيبته لا يراها حتى تُستعاد. يبقى سجلها كما هو.',
+    'الهدايا المحذوفة لا تظهر في المتجر ولا في الفعاليات ولا تُشترى، وتبقى قطعها في حقائب من يملكها ويرسلها حتى تُستخدم. يبقى سجلها كما هو.',
   giftRestore: 'استعادة',
   giftRestoreNote: 'تعود الهدية إلى القائمة والتطبيق وتُفعَّل.',
   giftArchivedSince: 'حُذفت في {date}',
@@ -29,7 +32,10 @@ export const EN_D338: Record<keyof typeof AR_D338, string> = {
   giftDeleteArchive:
     'It will move to “Deleted” because it has a history{details}. It leaves the app, the lists and the events and can no longer be sent; its name and picture stay in the history. It can be restored.',
   giftDeleteSends: 'sent {n} times',
-  giftDeleteHolders: 'in {n} users’ bags',
+  giftDeletePieces:
+    'It leaves the store; {pieces} pieces stay in {holders} users’ bags until they are used, and none is bought or given any more. After the last piece it is deleted for good if it has no history, otherwise it stays in “Deleted” for the history only. It can be restored.',
+  giftPiecesLeft: '{pieces} pieces left in {holders} users’ bags until used',
+  giftPiecesDone: 'No pieces left; kept for the history only',
   giftDeleteConfirm: 'Delete for good',
   giftArchiveConfirm: 'Move to Deleted',
   giftDeletedToast: 'The gift was deleted for good.',
@@ -37,7 +43,7 @@ export const EN_D338: Record<keyof typeof AR_D338, string> = {
   giftArchived: 'Deleted',
   giftArchivedFilter: 'Deleted ({n})',
   giftArchivedNote:
-    'Deleted gifts are not in the app or the events and cannot be sent; pieces in bags are not shown until the gift is restored. Their history stays.',
+    'Deleted gifts are not in the store or the events and cannot be bought; pieces already in bags stay and can be sent until they are used. Their history stays.',
   giftRestore: 'Restore',
   giftRestoreNote: 'The gift goes back to the list and the app, switched on.',
   giftArchivedSince: 'Deleted on {date}',

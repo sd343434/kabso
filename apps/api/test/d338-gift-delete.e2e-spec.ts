@@ -12,6 +12,7 @@ import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
 import { addGiftIn, grantStockIn, type GiftFields } from '../src/modules/gifts/gift-catalogue.js';
+import { GiftFinishService } from '../src/modules/gifts/gift-finish.service.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { OBJECT_STORAGE } from '../src/modules/media/object-storage.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
@@ -39,6 +40,7 @@ interface ListedGift {
   archivedAt: string | null;
   inUse: boolean;
   holders: number;
+  pieces: number;
 }
 
 const run = promisify(execFile);
@@ -298,28 +300,90 @@ describe('D338 «حذف» a gift: deleted when never used, archived otherwise', 
     expect(twice.body).toMatchObject({ restored: true, changed: false });
   });
 
-  it('pieces in a bag keep the gift: archived, the pieces stay but are not listed or sent; restore shows them again', async () => {
+  it('owner «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف»: bag pieces of an archived gift stay listed and sendable until used up; never bought; restore while archived', async () => {
     await gift('d338_bagged');
     await ctx.prisma.$transaction((tx) => grantStockIn(tx, fan.id, 'd338_bagged', 3));
     expect(await bag(fan)).toContain('d338_bagged');
-    expect(await row('d338_bagged')).toMatchObject({ inUse: true, holders: 1 });
+    expect(await row('d338_bagged')).toMatchObject({ inUse: true, holders: 1, pieces: 3 });
 
     const del = await p.send(owner, 'delete', '/admin/gifts/d338_bagged', { reason: 'retired' });
     expect(del.body).toMatchObject({ result: 'ARCHIVED' });
-    expect(del.body.usage).toMatchObject({ sends: 0, bagRows: 1, holders: 1 });
-    expect(await bag(fan)).not.toContain('d338_bagged');
-    const fromBag = await send(roomId, fan, host, 'd338_bagged', 'BAG');
-    expect(fromBag.status).toBe(409);
-    expect(
-      (
-        await ctx.prisma.userGiftStock.findUniqueOrThrow({
-          where: { userId_giftCode: { userId: fan.id, giftCode: 'd338_bagged' } },
-        })
-      ).quantity,
-    ).toBe(3);
-
-    await p.send(owner, 'post', '/admin/gifts/d338_bagged/restore', { reason: 'back' });
+    expect(del.body.usage).toMatchObject({ sends: 0, bagRows: 1, holders: 1, pieces: 3 });
+    // Gone from the catalogue (never bought again), still in the holder's bag.
+    expect(await catalogue(fan)).not.toContain('d338_bagged');
     expect(await bag(fan)).toContain('d338_bagged');
+    const bought = await send(roomId, fan, host, 'd338_bagged', 'COINS');
+    expect(bought.status).toBe(409);
+    expect(bought.body.error.code).toBe('GIFT_UNAVAILABLE');
+    const fromBag = await send(roomId, fan, host, 'd338_bagged', 'BAG');
+    expect([200, 201], JSON.stringify(fromBag.body)).toContain(fromBag.status);
+    expect(await row('d338_bagged')).toMatchObject({ holders: 1, pieces: 2 });
+
+    // «استعادة» still works while pieces are out: back in the catalogue, pieces untouched.
+    const back = await p.send(owner, 'post', '/admin/gifts/d338_bagged/restore', { reason: 'back' });
+    expect(back.body).toMatchObject({ restored: true, changed: true });
+    expect(await catalogue(fan)).toContain('d338_bagged');
+    expect(await row('d338_bagged')).toMatchObject({ archivedAt: null, pieces: 2 });
+  });
+
+  it('the last bag piece sent finishes the archived gift: kept archived for history only (it has sends), gone from the bag', async () => {
+    await gift('d338_last');
+    await ctx.prisma.$transaction((tx) => grantStockIn(tx, fan.id, 'd338_last', 1));
+    const del = await p.send(owner, 'delete', '/admin/gifts/d338_last', { reason: 'retired' });
+    expect(del.body).toMatchObject({ result: 'ARCHIVED' });
+    const last = await send(roomId, fan, host, 'd338_last', 'BAG');
+    expect([200, 201], JSON.stringify(last.body)).toContain(last.status);
+    expect(await bag(fan)).not.toContain('d338_last');
+    const stored = await ctx.prisma.gift.findUnique({ where: { code: 'd338_last' } });
+    expect(stored?.archivedAt).not.toBeNull();
+    expect(await row('d338_last')).toMatchObject({ holders: 0, pieces: 0, inUse: true });
+    const again = await send(roomId, fan, host, 'd338_last', 'BAG');
+    expect(again.status).toBe(409);
+    // History: the send is there and the host's earnings name it.
+    expect(await ctx.prisma.liveGift.count({ where: { giftCode: 'd338_last' } })).toBe(1);
+    expect(await audits('d338_last', 'gift.delete')).toHaveLength(0);
+  });
+
+  it('pieces gone without a send (an emptied bag): the sweeper deletes the archived gift for real, with its file', async () => {
+    const image = await ctx.http
+      .post('/api/v1/admin/gift-uploads?kind=image&code=d338_swept')
+      .set('Cookie', owner.cookie)
+      .set('X-CSRF-Token', owner.csrf)
+      .set('Content-Type', 'application/octet-stream')
+      .send(await png(256, 256));
+    expect(image.status, JSON.stringify(image.body)).toBe(201);
+    const key = image.body.key as string;
+    const created = await p.send(owner, 'post', '/admin/gifts', {
+      code: 'd338_swept',
+      category: 'POPULAR',
+      nameAr: 'مكنوسة',
+      nameEn: 'Swept',
+      priceCoins: 300,
+      imageObjectKey: key,
+      reason: 'new',
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    await ctx.prisma.$transaction((tx) => grantStockIn(tx, host.id, 'd338_swept', 2));
+    const del = await p.send(owner, 'delete', '/admin/gifts/d338_swept', { reason: 'retired' });
+    expect(del.body).toMatchObject({ result: 'ARCHIVED' });
+    expect(del.body.usage).toMatchObject({ sends: 0, holders: 1, pieces: 2 });
+    const finisher = ctx.app.get(GiftFinishService);
+    // Pieces still held: nothing happens.
+    expect(await finisher.finish('d338_swept')).toMatchObject({ result: 'HELD' });
+    // The pieces leave without a send (as with a deleted account's bag).
+    await ctx.prisma.userGiftStock.update({
+      where: { userId_giftCode: { userId: host.id, giftCode: 'd338_swept' } },
+      data: { quantity: 0 },
+    });
+    const swept = await finisher.sweep();
+    expect(swept.deleted).toBeGreaterThanOrEqual(1);
+    expect(await ctx.prisma.gift.findUnique({ where: { code: 'd338_swept' } })).toBeNull();
+    expect(await ctx.prisma.userGiftStock.count({ where: { giftCode: 'd338_swept' } })).toBe(0);
+    expect(storage.objects.has(key)).toBe(false);
+    const [audit] = await audits('d338_swept', 'gift.delete');
+    expect(audit?.metadata).toMatchObject({ case: 'finished', via: 'system' });
+    // A gift with history stays: d338_last is still archived after a sweep.
+    expect((await ctx.prisma.gift.findUnique({ where: { code: 'd338_last' } }))?.archivedAt).not.toBeNull();
   });
 
   it('a reference by code only (a wish list) is a use too: archived, not deleted', async () => {
@@ -376,7 +440,8 @@ describe('D338 «حذف» a gift: deleted when never used, archived otherwise', 
     await gift('d338_cli_used');
     await ctx.prisma.$transaction((tx) => grantStockIn(tx, host.id, 'd338_cli_used', 1));
     const archived = await cli(['delete', 'd338_cli_used']);
-    expect(archived.stdout).toContain('d338_cli_used: archived (in use: bagRows=1 holders=1)');
+    expect(archived.stdout).toContain('d338_cli_used: archived (in use: bagRows=1 holders=1 pieces=1)');
+    expect(archived.stdout).toContain('1 piece(s) in 1 bag(s) are sent until they run out');
     expect((await audits('d338_cli_used', 'gift.archive'))[0]?.metadata).toMatchObject({ via: 'cli' });
     const list = await cli(['list']);
     expect(list.stdout).toMatch(/^x POPULAR 0 d338_cli_used /m);
@@ -391,6 +456,22 @@ describe('D338 «حذف» a gift: deleted when never used, archived otherwise', 
     expect(await ctx.prisma.gift.findUniqueOrThrow({ where: { code: 'd338_cli_used' } })).toMatchObject({
       enabled: true,
       archivedAt: null,
+    });
+    // `finish`: an archived gift whose pieces ran out without history is deleted (via cli).
+    await gift('d338_cli_fin');
+    await ctx.prisma.$transaction((tx) => grantStockIn(tx, host.id, 'd338_cli_fin', 1));
+    await cli(['delete', 'd338_cli_fin']);
+    const held = await cli(['finish', 'd338_cli_fin']);
+    expect(held.stdout).toContain('d338_cli_fin: 1 piece(s) still in 1 bag(s).');
+    await ctx.prisma.userGiftStock.update({
+      where: { userId_giftCode: { userId: host.id, giftCode: 'd338_cli_fin' } },
+      data: { quantity: 0 },
+    });
+    const finished = await cli(['finish']);
+    expect(finished.stdout).toContain('d338_cli_fin: finished, deleted (no history).');
+    expect((await audits('d338_cli_fin', 'gift.delete')).at(-1)?.metadata).toMatchObject({
+      case: 'finished',
+      via: 'cli',
     });
     await expect(cli(['delete', 'd338_cli_nothing'])).rejects.toMatchObject({
       stderr: expect.stringContaining('No gift d338_cli_nothing.'),

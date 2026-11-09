@@ -58,6 +58,7 @@ const gift = (over: Partial<GiftDto>): GiftDto => ({
   archivedAt: null,
   inUse: false,
   holders: 0,
+  pieces: 0,
   ...over,
 });
 
@@ -67,22 +68,24 @@ describe('D338 «حذف» a gift', () => {
     expect(giftDeleteCase(gift({ inUse: true, sends: 0, holders: 1 }))).toBe('archive');
   });
 
-  it('the dialog names the case, with the sends and holders when archiving (ar and en)', () => {
+  it('the dialog names the case (ar and en): delete for good, or archive with the sends', () => {
     const forever = render('ar', <GiftDeleteIntro gift={gift({})} />);
     expect(forever).toContain('data-gift-delete-case="delete"');
     expect(forever).toContain('ستُحذف نهائياً');
-    const archived = render('ar', <GiftDeleteIntro gift={gift({ inUse: true, sends: 1234, holders: 3 })} />);
-    expect(archived).toContain('data-gift-delete-case="archive"');
-    expect(archived).toContain('«المحذوفة»');
-    expect(archived).toContain('3');
-    const en = render('en', <GiftDeleteIntro gift={gift({ inUse: true, sends: 1234, holders: 3 })} />);
-    expect(en).toContain('(sent 1,234 times, in 3 users’ bags)');
-    // Only the parts that are not 0 (a gift held but never sent; one named only by an event).
-    const held = render('en', <GiftDeleteIntro gift={gift({ inUse: true, sends: 0, holders: 1 })} />);
-    expect(held).toContain('history (in 1 users’ bags).');
-    expect(held).not.toContain('sent 0');
+    const sent = render('en', <GiftDeleteIntro gift={gift({ inUse: true, sends: 1234 })} />);
+    expect(sent).toContain('data-gift-delete-case="archive"');
+    expect(sent).toContain('history (sent 1,234 times).');
+    // Named only by another record (an event, a wish list): no numbers.
     const other = render('ar', <GiftDeleteIntro gift={gift({ inUse: true })} />);
     expect(other).toContain('لأن لها سجلاً.');
+  });
+
+  it('owner «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف»: with pieces out the dialog says they stay until used', () => {
+    const ar = render('ar', <GiftDeleteIntro gift={gift({ inUse: true, sends: 5, holders: 3, pieces: 12 })} />);
+    expect(ar).toContain('data-gift-delete-case="archive"');
+    expect(ar).toContain('ستختفي من المتجر، وتبقى 12 قطعة في حقائب 3 مستخدمين حتى تُستخدم');
+    const en = render('en', <GiftDeleteIntro gift={gift({ inUse: true, holders: 1, pieces: 2 })} />);
+    expect(en).toContain('2 pieces stay in 1 users’ bags until they are used');
   });
 
   it('the normal list hides archived gifts; the «المحذوفة» filter shows only them (with the category filter)', () => {

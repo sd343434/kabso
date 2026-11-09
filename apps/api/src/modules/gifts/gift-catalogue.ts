@@ -687,14 +687,17 @@ export function catalogueVersion(
 /**
  * v1.102-social (D338, CONVENTIONS §10.131): everything in the database that points at gift `code` — by foreign key
  * (sends, bag rows, events' gift lists, PK boosts) or by its code alone (lucky draws, wish lists, daily tasks and host
- * targets, prize bundles and what they paid). A gift with all of them 0 was never used and may be deleted for real;
- * any other is archived so history keeps its row. `holders`: people holding pieces now (part of `bagRows`).
+ * targets, prize bundles and what they paid). A gift nobody holds pieces of and with no history was never used and may
+ * be deleted for real; any other is archived so history keeps its row. `holders` / `pieces`: people holding pieces now
+ * and how many (owner: «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف» — they are sent until they run out). An emptied
+ * bag row (quantity 0, part of `bagRows`) is not a use by itself: what emptied it is (the sends).
  */
 export interface GiftUsage {
   readonly sends: number;
   readonly luckyDraws: number;
   readonly bagRows: number;
   readonly holders: number;
+  readonly pieces: number;
   readonly events: number;
   readonly pkBoosts: number;
   readonly wishes: number;
@@ -702,12 +705,12 @@ export interface GiftUsage {
   readonly prizes: number;
 }
 
-/** Whether anything in [usage] points at the gift (`holders` is part of `bagRows`). */
+/** Whether anything in [usage] points at the gift: pieces held now, or history (emptied bag rows are not). */
 export function giftInUse(usage: GiftUsage): boolean {
   return (
     usage.sends +
       usage.luckyDraws +
-      usage.bagRows +
+      usage.holders +
       usage.events +
       usage.pkBoosts +
       usage.wishes +
@@ -729,6 +732,7 @@ export async function giftUsageIn(db: UsageDb, code: string): Promise<GiftUsage>
       (SELECT count(*) FROM lucky_gift_draws, c WHERE gift_code = c.code)::int AS "luckyDraws",
       (SELECT count(*) FROM user_gift_stock, c WHERE gift_code = c.code)::int AS "bagRows",
       (SELECT count(*) FROM user_gift_stock, c WHERE gift_code = c.code AND quantity > 0)::int AS "holders",
+      (SELECT coalesce(sum(quantity), 0) FROM user_gift_stock, c WHERE gift_code = c.code)::int AS "pieces",
       (SELECT count(*) FROM event_gifts, c WHERE gift_code = c.code)::int AS "events",
       (SELECT count(*) FROM pk_boosts, c WHERE gift_code = c.code)::int AS "pkBoosts",
       (SELECT count(*) FROM live_rooms, c WHERE c.code = ANY (wish_gifts))::int AS "wishes",
@@ -748,6 +752,7 @@ export async function giftUsageIn(db: UsageDb, code: string): Promise<GiftUsage>
     luckyDraws: r.luckyDraws,
     bagRows: r.bagRows,
     holders: r.holders,
+    pieces: r.pieces,
     events: r.events,
     pkBoosts: r.pkBoosts,
     wishes: r.wishes,
@@ -764,7 +769,7 @@ export async function usedGiftCodesIn(db: UsageDb): Promise<Set<string>> {
   const rows = await db.$queryRaw<{ code: string }[]>`
     SELECT g.code FROM gifts g
      WHERE EXISTS (SELECT 1 FROM live_gifts x WHERE x.gift_code = g.code)
-        OR EXISTS (SELECT 1 FROM user_gift_stock x WHERE x.gift_code = g.code)
+        OR EXISTS (SELECT 1 FROM user_gift_stock x WHERE x.gift_code = g.code AND x.quantity > 0)
         OR EXISTS (SELECT 1 FROM event_gifts x WHERE x.gift_code = g.code)
         OR EXISTS (SELECT 1 FROM pk_boosts x WHERE x.gift_code = g.code)
     UNION SELECT DISTINCT gift_code FROM lucky_gift_draws
@@ -778,4 +783,33 @@ export async function usedGiftCodesIn(db: UsageDb): Promise<Set<string>> {
     UNION SELECT DISTINCT jsonb_path_query(granted, '$.**.giftCode') #>> '{}' FROM event_prize_payouts
     UNION SELECT DISTINCT jsonb_path_query(granted, '$.**.giftCode') #>> '{}' FROM event_milestone_grants`;
   return new Set(rows.map((r) => r.code));
+}
+
+/**
+ * v1.102-social (D338): whether an archived gift may still be sent from [source] — a gift that is on, or (owner: «مخفية
+ * الا ان تنتهي من حقيبة المستخدمين») an archived one's pieces from the bag; never bought with coins again.
+ */
+export function sendableNow(gift: Pick<Gift, 'enabled' | 'archivedAt'>, source: 'COINS' | 'BAG'): boolean {
+  return gift.enabled || (gift.archivedAt !== null && source === 'BAG');
+}
+
+/** v1.102-social (D338): of the uploaded file [keys], those no gift names any more (safe to delete from storage). */
+export async function unusedGiftFileKeysIn(
+  db: Pick<Tx, 'gift'>,
+  keys: readonly (string | null)[],
+): Promise<string[]> {
+  const wanted = [...new Set(keys.filter((k): k is string => k !== null))];
+  if (wanted.length === 0) return [];
+  const still = await db.gift.findMany({
+    where: {
+      OR: [
+        { imageObjectKey: { in: wanted } },
+        { animationObjectKey: { in: wanted } },
+        { audioObjectKey: { in: wanted } },
+      ],
+    },
+    select: { imageObjectKey: true, animationObjectKey: true, audioObjectKey: true },
+  });
+  const kept = new Set(still.flatMap((g) => [g.imageObjectKey, g.animationObjectKey, g.audioObjectKey]));
+  return wanted.filter((k) => !kept.has(k));
 }

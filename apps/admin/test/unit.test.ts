@@ -241,6 +241,7 @@ describe('gift form', () => {
     archivedAt: null,
     inUse: false,
     holders: 0,
+    pieces: 0,
   };
   const form = (over: Record<string, string>) => ({
     ...Object.fromEntries(Object.entries(before).map(([k, v]) => [k, v === null ? '' : String(v)])),

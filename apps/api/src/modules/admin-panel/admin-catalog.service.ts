@@ -43,6 +43,7 @@ import {
   GIFT_CODE_PATTERN,
   giftFieldProblems,
   GiftFieldsError,
+  unusedGiftFileKeysIn,
   usedGiftCodesIn,
   type GiftFields,
   type GiftUsage,
@@ -193,10 +194,15 @@ export class AdminCatalogService {
       this.prisma.giftCategory.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
       // v1.102-social (D338): what «حذف» would do (in use → archived) and who holds pieces now.
       usedGiftCodesIn(this.prisma),
-      this.prisma.userGiftStock.groupBy({ by: ['giftCode'], where: { quantity: { gt: 0 } }, _count: true }),
+      this.prisma.userGiftStock.groupBy({
+        by: ['giftCode'],
+        where: { quantity: { gt: 0 } },
+        _count: true,
+        _sum: { quantity: true },
+      }),
     ]);
     const sent = new Map(sends.map((s) => [s.giftCode, s]));
-    const held = new Map(holders.map((h) => [h.giftCode, h._count]));
+    const held = new Map(holders.map((h) => [h.giftCode, h]));
     const storage = await this.storageSettings.resolved();
     const base = storage.publicBaseUrl;
     const order = tabs.map((t) => t.code);
@@ -263,11 +269,13 @@ export class AdminCatalogService {
           enabled: g.enabled,
           sends: sent.get(g.code)?._count ?? 0,
           coinsSpent: Number(sent.get(g.code)?._sum.totalCoins ?? 0n),
-          // v1.102-social (D338, §10.131): archived («المحذوفة») since; whether anything points at it (then «حذف»
-          // archives it, else deletes it for real); the people holding pieces now.
+          // v1.102-social (D338, §10.131): archived («المحذوفة») since; whether anything points at it (pieces held or
+          // history: then «حذف» archives it, else deletes it for real); the people holding pieces now.
           archivedAt: g.archivedAt?.toISOString() ?? null,
           inUse: used.has(g.code),
-          holders: held.get(g.code) ?? 0,
+          holders: held.get(g.code)?._count ?? 0,
+          // v1.102-social (D338): the pieces in bags now — an archived gift's are still sent until they run out.
+          pieces: held.get(g.code)?._sum.quantity ?? 0,
         })),
     };
   }
@@ -681,20 +689,7 @@ export class AdminCatalogService {
 
   /** The uploaded files no gift names any more, deleted from storage; how many (0 when storage refused). */
   private async removeUnusedGiftFiles(keys: readonly (string | null)[]): Promise<number> {
-    const wanted = [...new Set(keys.filter((k): k is string => k !== null))];
-    if (wanted.length === 0) return 0;
-    const still = await this.prisma.gift.findMany({
-      where: {
-        OR: [
-          { imageObjectKey: { in: wanted } },
-          { animationObjectKey: { in: wanted } },
-          { audioObjectKey: { in: wanted } },
-        ],
-      },
-      select: { imageObjectKey: true, animationObjectKey: true, audioObjectKey: true },
-    });
-    const kept = new Set(still.flatMap((g) => [g.imageObjectKey, g.animationObjectKey, g.audioObjectKey]));
-    const gone = wanted.filter((k) => !kept.has(k));
+    const gone = await unusedGiftFileKeysIn(this.prisma, keys);
     if (gone.length === 0) return 0;
     try {
       await this.storage.delete(gone);

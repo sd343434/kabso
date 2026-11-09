@@ -3642,7 +3642,12 @@ CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم ولي�
 - **Migration:** `gifts.archived_at` (nullable) and the CHECK `gifts_archived_off` (archived ⇒ off). Metadata only on the
   small `gifts` table (the CHECK scans it under a short lock); no data change, no new config.
 - **Order:** migration, then the API, then the admin panel (the «حذف» button, the «المحذوفة» filter and «استعادة»). The
-  apps need no update: an archived gift is simply off (not in the catalogue or the bag's list).
+  apps need no update: an archived gift is off (not in the catalogue, not bought), while its pieces already in bags stay
+  in the bag and are sent until they run out (owner: «مخفية الا ان تنتهي من حقيبة المستخدمين ثم تحذف»).
+- **Finishing:** once nobody holds a piece, an archived gift with no history is deleted (with its files), one with
+  history stays archived. This runs right after a bag send of an archived gift and on the events sweeper's interval
+  (`EVENTS_SWEEP_INTERVAL_SECONDS`, already required non-zero in production; no new setting); by hand:
+  `docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js finish`.
 - **Storage:** a real delete (a gift nothing ever used) removes its uploaded files from the bucket when no other gift
   names them (best effort; a failure is logged and only leaves the files). `gift-admin delete` does the same when the job
   has the `S3_*` settings, otherwise it says the files stay. Archiving touches no file.

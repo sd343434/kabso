@@ -18,6 +18,7 @@
  *   pnpm gift:admin delete <code>      # v1.102-social (D338): never used → deleted for real (and its unused
  *                                      # files); used → archived (kept for history, hidden everywhere)
  *   pnpm gift:admin restore <code>     # an archived gift back in the catalogue (switched on)
+ *   pnpm gift:admin finish [<code>]    # archived gifts whose bag pieces ran out: deleted without history, else kept
  *   pnpm gift:admin list               # every gift, disabled ones marked `-`, archived ones `x`
  *   pnpm gift:admin grant <email> <code> <quantity>   # adds to the user's gift bag
  *   pnpm gift:admin bag <email>        # the user's gift bag
@@ -105,10 +106,13 @@ import {
   PK_BOOSTER_PACK,
   giftTagProblem,
   grantStockIn,
+  unusedGiftFileKeysIn,
   type GiftFields,
 } from '../modules/gifts/gift-catalogue.js';
 import {
   addGiftByAdminIn,
+  emptiedArchivedGiftsIn,
+  finishArchivedGiftIn,
   giftAuditFields,
   removeGiftByAdminIn,
   restoreGiftByAdminIn,
@@ -138,6 +142,7 @@ const USAGE = [
   '       pnpm gift:admin category-delete <CODE> [--move-to <CODE>]',
   '       pnpm gift:admin disable|enable <code>',
   '       pnpm gift:admin delete|restore <code>',
+  '       pnpm gift:admin finish [<code>]',
   '       pnpm gift:admin list',
   '       pnpm gift:admin grant <email> <code> <quantity>',
   '       pnpm gift:admin bag <email>',
@@ -482,7 +487,8 @@ async function setEnabled(code: string, enabled: boolean): Promise<void> {
  * v1.102-social (D338, CONVENTIONS §10.131) «حذف», the panel's rule: nothing ever used the gift → deleted for real
  * (`gift.delete`), then its uploaded files that no other gift names (with the S3_* settings; without them the files
  * stay in the bucket and the command says so); otherwise archived (`gift.archive`) — kept for history, hidden from
- * the catalogue, the bag's send choices, the lists and the pickers. `restore` brings an archived gift back.
+ * the catalogue, the lists and the pickers, its bag pieces sent until they run out (`finish`). `restore` brings an
+ * archived gift back.
  */
 async function remove(code: string): Promise<void> {
   const done = await prisma.$transaction((tx) => removeGiftByAdminIn(tx, code));
@@ -494,41 +500,59 @@ async function remove(code: string): Promise<void> {
   if (done.result === 'ARCHIVED') {
     process.stdout.write(
       done.changed
-        ? `${code}: archived (in use: ${uses}); history keeps it. Undo: pnpm gift:admin restore ${code}.\n`
+        ? `${code}: archived (in use: ${uses}); history keeps it` +
+            (done.usage.pieces > 0
+              ? `; ${String(done.usage.pieces)} piece(s) in ${String(done.usage.holders)} bag(s) are sent until they run out`
+              : '') +
+            `. Undo: pnpm gift:admin restore ${code}.\n`
         : `${code} is archived already; nothing changed.\n`,
     );
     return;
   }
   const b = done.before;
-  const keys = [...new Set([b.imageObjectKey, b.animationObjectKey, b.audioObjectKey])].filter(
-    (k): k is string => k !== null,
-  );
-  const still = await prisma.gift.findMany({
-    where: {
-      OR: [
-        { imageObjectKey: { in: keys } },
-        { animationObjectKey: { in: keys } },
-        { audioObjectKey: { in: keys } },
-      ],
-    },
-    select: { imageObjectKey: true, animationObjectKey: true, audioObjectKey: true },
-  });
-  const kept = new Set(still.flatMap((g) => [g.imageObjectKey, g.animationObjectKey, g.audioObjectKey]));
-  const gone = keys.filter((k) => !kept.has(k));
-  let files = '';
-  if (gone.length > 0) {
-    const storage = storageFromEnv();
-    if (!storage) files = ` Its ${String(gone.length)} file(s) stay in the bucket (no S3_* settings here).`;
-    else {
-      try {
-        await storage.delete(gone);
-        files = ` ${String(gone.length)} file(s) deleted.`;
-      } catch (err) {
-        files = ` Its file(s) could not be deleted (${err instanceof Error ? err.message : String(err)}); they only cost storage.`;
-      }
-    }
-  }
+  const files = await deleteFiles([b.imageObjectKey, b.animationObjectKey, b.audioObjectKey]);
   process.stdout.write(`${code}: deleted (never used).${files}\n`);
+}
+
+/** The deleted files of a finished gift (with the S3_* settings), as a sentence for the output. */
+async function deleteFiles(keys: readonly (string | null)[]): Promise<string> {
+  const gone = await unusedGiftFileKeysIn(prisma, keys);
+  if (gone.length === 0) return '';
+  const storage = storageFromEnv();
+  if (!storage) return ` Its ${String(gone.length)} file(s) stay in the bucket (no S3_* settings here).`;
+  try {
+    await storage.delete(gone);
+    return ` ${String(gone.length)} file(s) deleted.`;
+  } catch (err) {
+    return ` Its file(s) could not be deleted (${err instanceof Error ? err.message : String(err)}).`;
+  }
+}
+
+/**
+ * v1.102-social (D338): finishes every archived gift nobody holds a piece of any more (or just `code`) — deleted for
+ * real when it has no history, else kept archived for history; the API's sweeper does the same.
+ */
+async function finish(code: string | undefined): Promise<void> {
+  const codes = code !== undefined ? [code] : await emptiedArchivedGiftsIn(prisma);
+  if (codes.length === 0) {
+    process.stdout.write('No archived gift without pieces.\n');
+    return;
+  }
+  for (const c of codes) {
+    const done = await prisma.$transaction((tx) => finishArchivedGiftIn(tx, c, 'cli'));
+    if (done === null) fail(`No gift ${c}.`);
+    if (done.result === 'DELETED') {
+      const b = done.before;
+      const files = await deleteFiles([b.imageObjectKey, b.animationObjectKey, b.audioObjectKey]);
+      process.stdout.write(`${c}: finished, deleted (no history).${files}\n`);
+    } else if (done.result === 'KEPT')
+      process.stdout.write(`${c}: no pieces left; kept archived for history.\n`);
+    else if (done.result === 'HELD')
+      process.stdout.write(
+        `${c}: ${String(done.usage.pieces)} piece(s) still in ${String(done.usage.holders)} bag(s).\n`,
+      );
+    else process.stdout.write(`${c} is not archived; nothing to finish.\n`);
+  }
 }
 
 async function restore(code: string): Promise<void> {
@@ -905,6 +929,10 @@ try {
     case 'restore':
       if (rest.length > 0) fail(USAGE);
       await restore(giftCode(first));
+      break;
+    case 'finish':
+      if (rest.length > 0) fail(USAGE);
+      await finish(first === undefined ? undefined : giftCode(first));
       break;
     case 'list':
       if (first !== undefined) fail(USAGE);
