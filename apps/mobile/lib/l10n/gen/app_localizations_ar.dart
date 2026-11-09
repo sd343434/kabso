@@ -6839,6 +6839,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveStripSwitchHint => 'في جميع البثوث وعلى كل أجهزتك';
 
   @override
+  String get liveStripHideWins => 'إخفاء أشرطة الفوز';
+
+  @override
+  String get liveStripHideWinsHint =>
+      'مكاسب الحظ الكبيرة من اللايفات الأخرى لا تظهر؛ شريط المكسب في هذا البث يبقى';
+
+  @override
   String get liveViewerMenu => 'المزيد';
 
   @override

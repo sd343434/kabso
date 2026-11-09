@@ -5,23 +5,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
+import 'package:kabso_live/features/live/application/live_global_strips.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 
-/// D148: hides the global lucky ticker in every live. Off (shown) by
-/// default; the viewer's ≡ switch for it comes in D151 and sets this.
-class LuckyTickerHidden extends Notifier<bool> {
-  @override
-  bool build() => false;
-
-  // The switch (D151) sets it; true hides the ticker.
-  // ignore: avoid_setters_without_getters, the state is read through the provider.
-  set hidden(bool value) => state = value;
-}
-
-final NotifierProvider<LuckyTickerHidden, bool> luckyTickerHiddenProvider =
-    NotifierProvider<LuckyTickerHidden, bool>(LuckyTickerHidden.new);
+/// D148 / D347 (owner «نعم موافق»: «إخفاء أشرطة الفوز» / "Hide win
+/// banners"): true hides the global lucky banner in every live — the
+/// account's `NotificationSettings.luckyStrip` switched off (every phone;
+/// kept with the D305 strip switches, set from the live's settings sheet).
+/// A guest, or before the settings arrive: shown. This live's own win banner
+/// is not affected.
+final Provider<bool> luckyTickerHiddenProvider = Provider.autoDispose<bool>(
+  (ref) => !ref.watch(globalStripPrefsProvider).lucky,
+);
 
 /// v1.111-live (D347, CONVENTIONS §10.146): one global lucky banner — the
 /// server's `lucky-ticker` ([ticker]) and its gift's art ([gift], null from
@@ -78,6 +75,12 @@ class LiveLuckyTickers extends Notifier<GlobalLuckyBanner?> {
 
   @override
   GlobalLuckyBanner? build() {
+    // D347: switched to hidden → the one on screen and the waiting ones go.
+    ref.listen(luckyTickerHiddenProvider, (_, hidden) {
+      if (!hidden) return;
+      _waiting.clear();
+      _set(null);
+    });
     ref.onDispose(() {
       unawaited(_events?.cancel());
       _timer?.cancel();
@@ -99,6 +102,8 @@ class LiveLuckyTickers extends Notifier<GlobalLuckyBanner?> {
     // Its own live has the room's banner: never twice there.
     if (ticker.room.id == roomId || ticker.win.roomId == roomId) return;
     if (!_seen.add(ticker.win.giftId)) return;
+    // D347: «إخفاء أشرطة الفوز» — not shown, not kept for later.
+    if (ref.read(luckyTickerHiddenProvider)) return;
     if (_blocked(ticker.win.sender.id) || _blocked(ticker.room.host.id)) {
       return;
     }

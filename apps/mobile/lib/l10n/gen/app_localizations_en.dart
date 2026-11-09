@@ -6819,6 +6819,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveStripSwitchHint => 'In every live, on all your devices';
 
   @override
+  String get liveStripHideWins => 'Hide win banners';
+
+  @override
+  String get liveStripHideWinsHint =>
+      'Big lucky wins from other lives are not shown; this live\'s own win banner stays';
+
+  @override
   String get liveViewerMenu => 'More';
 
   @override

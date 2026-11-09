@@ -11785,6 +11785,18 @@ abstract class AppLocalizations {
   /// **'في جميع البثوث وعلى كل أجهزتك'**
   String get liveStripSwitchHint;
 
+  /// D347: hides the global lucky banner (a ×250 / ×500 / ×1000 win in another live) in every live, on every device (the account's luckyStrip off).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء أشرطة الفوز'**
+  String get liveStripHideWins;
+
+  /// D347: under «إخفاء أشرطة الفوز».
+  ///
+  /// In ar, this message translates to:
+  /// **'مكاسب الحظ الكبيرة من اللايفات الأخرى لا تظهر؛ شريط المكسب في هذا البث يبقى'**
+  String get liveStripHideWinsHint;
+
   /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
   ///
   /// In ar, this message translates to:

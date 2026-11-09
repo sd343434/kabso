@@ -2125,6 +2125,8 @@
   "@liveStripShowGames": {"description": "D305: per-account switch, every live's settings sheet and the notification settings."},
   "liveStripSwitchHint": "In every live, on all your devices",
   "@liveStripSwitchHint": {"description": "D305: under the two strip switches."},
+  "liveStripHideWins": "Hide win banners",
+  "liveStripHideWinsHint": "Big lucky wins from other lives are not shown; this live's own win banner stays",
   "liveViewerMenu": "More",
   "@liveViewerMenu": {"description": "D173: the ≡ menu of the live bar for everyone (viewer and moderator items)."},
   "liveToolsModerator": "Moderator tools",

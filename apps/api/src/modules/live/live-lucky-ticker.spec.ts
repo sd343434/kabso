@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BackgroundTasks } from '../../common/background/background-tasks.js';
 import type { AppConfig } from '../../config/app-config.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
-import { LuckyGiftsService } from '../gifts/lucky-gifts.service.js';
 import { LiveLuckyTickerService, tickerRank, type LuckyWinDto } from './live-lucky-ticker.service.js';
 import type { LiveMediaProvider } from './media/live-media.provider.js';
 
@@ -24,7 +23,9 @@ const win = (multiplier: number, coinsWon = multiplier * 10): LuckyWinDto => ({
 });
 const art = { code: 'clover', assetKey: 'gift_clover', imageUrl: 'https://media.example/clover.webp' };
 
-function setup(opts: { reply?: unknown; pending?: string; status?: string; gapMs?: number } = {}) {
+function setup(
+  opts: { reply?: unknown; pending?: string; status?: string; gapMs?: number; panel?: unknown } = {},
+) {
   const evals: unknown[][] = [];
   const redis = {
     eval: vi.fn(async (...args: unknown[]) => {
@@ -52,36 +53,73 @@ function setup(opts: { reply?: unknown; pending?: string; status?: string; gapMs
       })),
       findMany,
     },
+    // v1.111-live (D347): the OWNER's set and gap (the panel), else the configuration below.
+    siteSetting: {
+      findUnique: vi.fn(async () =>
+        opts.panel === undefined ? null : { key: 'globalStrips', value: opts.panel },
+      ),
+    },
   } as unknown as PrismaService;
   const config = {
-    lucky: { globalBannerMultipliers: [250, 500, 1000], globalBannerGapMs: opts.gapMs ?? 10_000 },
+    live: { giftTickerMinCoins: 500_000, gameWinTickerMinTickets: 1_000_000 },
+    lucky: {
+      chatMinMultiplier: 250,
+      globalBannerMultipliers: [250, 500, 1000],
+      globalBannerGapMs: opts.gapMs ?? 10_000,
+      table: { outcomes: [5, 10, 25, 50, 100, 250, 500, 1000].map((multiplier) => ({ multiplier })) },
+    },
   } as unknown as AppConfig;
   const background = { run: vi.fn() } as unknown as BackgroundTasks;
   const service = new LiveLuckyTickerService(prisma, redis as never, media, config, background);
   return { service, evals, broadcasts, findMany, prisma };
 }
 
-describe('LuckyGiftsService.isGlobalBanner (D347)', () => {
-  const lucky = (multipliers: number[]) =>
-    new LuckyGiftsService(
-      {} as never,
-      { lucky: { globalBannerMultipliers: multipliers } } as unknown as AppConfig,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-
-  it('default set ×250 ×500 ×1000: smaller wins stay in their room', () => {
-    const l = lucky([250, 500, 1000]);
-    expect([5, 10, 25, 50, 100].map((m) => l.isGlobalBanner(m))).toEqual([false, false, false, false, false]);
-    expect([250, 500, 1000].map((m) => l.isGlobalBanner(m))).toEqual([true, true, true]);
+describe('the global banner set (D347)', () => {
+  it('default ×250 ×500 ×1000: smaller wins stay in their room (no Redis, no send)', async () => {
+    for (const m of [5, 10, 25, 50, 100]) {
+      const { service, evals, broadcasts } = setup();
+      await service.offer(win(m), art);
+      expect(evals, String(m)).toEqual([]);
+      expect(broadcasts).toEqual([]);
+    }
+    for (const m of [250, 500, 1000]) {
+      const { service, broadcasts } = setup();
+      await service.offer(win(m), art);
+      expect(broadcasts, String(m)).toHaveLength(3);
+    }
   });
 
-  it('a configured set is exactly that set (not a threshold)', () => {
-    const l = lucky([100, 1000]);
-    expect(l.isGlobalBanner(100)).toBe(true);
-    expect(l.isGlobalBanner(250)).toBe(false);
-    expect(l.isGlobalBanner(1000)).toBe(true);
+  it("the panel's set and gap win (a set, not a threshold); an invalid stored value falls back to the configuration", async () => {
+    const panel = setup({
+      panel: {
+        giftMinCoins: 1,
+        gameMinTickets: 1,
+        luckyGlobalMultipliers: [1000, 100],
+        luckyGlobalGapSeconds: 3,
+      },
+    });
+    expect(await panel.service.settings()).toEqual({ multipliers: [100, 1000], gapMs: 3_000 });
+    await panel.service.offer(win(250), art);
+    expect(panel.evals).toEqual([]);
+    await panel.service.offer(win(100), art);
+    expect(panel.evals[0]![6]).toBe('3000');
+
+    const bad = setup({ panel: { luckyGlobalMultipliers: [250, 300], luckyGlobalGapSeconds: 0 } });
+    expect(await bad.service.settings()).toEqual({ multipliers: [250, 500, 1000], gapMs: 10_000 });
+    const dup = setup({ panel: { luckyGlobalMultipliers: [500, 500] } });
+    expect((await dup.service.settings()).multipliers).toEqual([250, 500, 1000]);
+  });
+
+  it('the settings are read once per 30 s (cached), and again after forgetSettings()', async () => {
+    const { service, prisma } = setup();
+    await service.settings();
+    await service.settings();
+    const read = (prisma as unknown as { siteSetting: { findUnique: ReturnType<typeof vi.fn> } }).siteSetting
+      .findUnique;
+    expect(read).toHaveBeenCalledTimes(1);
+    service.forgetSettings();
+    await service.settings();
+    expect(read).toHaveBeenCalledTimes(2);
   });
 });
 

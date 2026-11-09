@@ -223,6 +223,8 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
           // v1.85-live (D305): the global strips' switches.
           giftStrip: true,
           gameStrip: true,
+          // v1.111-live (D347): «إخفاء أشرطة الفوز».
+          luckyStrip: true,
         },
       },
       wallet: { select: { coins: true } },

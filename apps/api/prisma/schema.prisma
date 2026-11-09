@@ -2476,21 +2476,24 @@ model NotificationActor {
 
 /// Per-type in-app notification switches (CP-009); no row = all on.
 model NotificationSettings {
-  userId    String   @id @map("user_id") @db.Uuid
-  likes     Boolean  @default(true)
-  comments  Boolean  @default(true)
-  mentions  Boolean  @default(true)
-  follows   Boolean  @default(true)
-  reposts   Boolean  @default(true)
+  userId     String   @id @map("user_id") @db.Uuid
+  likes      Boolean  @default(true)
+  comments   Boolean  @default(true)
+  mentions   Boolean  @default(true)
+  follows    Boolean  @default(true)
+  reposts    Boolean  @default(true)
   /// CP-016 C: reminders of lives scheduled by hosts you follow.
-  lives     Boolean  @default(true)
+  lives      Boolean  @default(true)
   /// v1.30-live (D152): pushes of new family chat messages.
-  messages  Boolean  @default(true)
+  messages   Boolean  @default(true)
   /// v1.85-live (D305): the gifts strip «شريط الهدايا» shows in the lives this person watches or hosts.
-  giftStrip Boolean  @default(true) @map("gift_strip")
+  giftStrip  Boolean  @default(true) @map("gift_strip")
   /// v1.85-live (D305): the games strip «شريط الألعاب» shows in the lives this person watches or hosts.
-  gameStrip Boolean  @default(true) @map("game_strip")
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  gameStrip  Boolean  @default(true) @map("game_strip")
+  /// v1.111-live (D347): the global lucky banner «شريط المردود» (another live's ×250 / ×500 / ×1000 win) shows in the
+  /// lives this person watches or hosts; false = «إخفاء أشرطة الفوز».
+  luckyStrip Boolean  @default(true) @map("lucky_strip")
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

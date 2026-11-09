@@ -5,6 +5,11 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { REDIS } from '../../redis/redis.module.js';
+import {
+  globalStripsDefaultsOf,
+  luckyMultipliersOf,
+  readGlobalStrips,
+} from '../site-settings/global-strips.rules.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { LUCKY_WIN_TOPIC } from './live-gifts.js';
 import type { UserSummaryDto } from './live-rooms.service.js';
@@ -50,6 +55,15 @@ interface LuckyTickerOffer {
   win: LuckyWinDto;
   gift: LuckyTickerGiftDto;
 }
+
+/** v1.111-live (D347): the global banner's set and gap in use. */
+export interface LuckyGlobalBannerSettings {
+  readonly multipliers: readonly number[];
+  readonly gapMs: number;
+}
+
+/** v1.111-live (D347): the panel's set and gap are read again after this long (as the strips' thresholds). */
+export const LUCKY_GLOBAL_SETTINGS_CACHE_MS = 30_000;
 
 /** A waiting win older than this is dropped (it would no longer be news). */
 export const LUCKY_TICKER_PENDING_TTL_MS = 30_000;
@@ -118,6 +132,7 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
   private readonly logger = new Logger(LiveLuckyTickerService.name);
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
+  private cached: { readonly at: number; readonly value: LuckyGlobalBannerSettings } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -127,9 +142,27 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
     private readonly background: BackgroundTasks,
   ) {}
 
-  /** The gap between two global banners (`LUCKY_GLOBAL_BANNER_GAP_SECONDS`). */
-  private get gapMs(): number {
-    return this.config.lucky.globalBannerGapMs;
+  /**
+   * v1.111-live (D347, owner «نعم موافق»: changeable in the panel without a restart): the set and the gap in use — the
+   * OWNER's (`site_settings` `globalStrips`: `luckyGlobalMultipliers`, `luckyGlobalGapSeconds`), else
+   * LUCKY_GLOBAL_BANNER_MULTIPLIERS / LUCKY_GLOBAL_BANNER_GAP_SECONDS; cached {@link LUCKY_GLOBAL_SETTINGS_CACHE_MS}.
+   */
+  async settings(): Promise<LuckyGlobalBannerSettings> {
+    const now = Date.now();
+    if (this.cached && now - this.cached.at < LUCKY_GLOBAL_SETTINGS_CACHE_MS) return this.cached.value;
+    const strips = await readGlobalStrips(
+      this.prisma,
+      globalStripsDefaultsOf(this.config),
+      luckyMultipliersOf(this.config),
+    );
+    const value = { multipliers: strips.luckyGlobalMultipliers, gapMs: strips.luckyGlobalGapSeconds * 1000 };
+    this.cached = { at: now, value };
+    return value;
+  }
+
+  /** Forgets the cached settings (tests; the next win reads them again). */
+  forgetSettings(): void {
+    this.cached = null;
   }
 
   onModuleDestroy(): void {
@@ -138,9 +171,14 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
     this.timer = null;
   }
 
-  /** Offers a big win: told now, or kept waiting (if it is the biggest), or dropped. */
+  /**
+   * Offers a lucky win: not one of the set → nothing (its room's banner only); else told now, or kept waiting (if it
+   * is the biggest), or dropped.
+   */
   async offer(win: LuckyWinDto, gift: LuckyTickerGiftDto): Promise<void> {
     try {
+      const { multipliers, gapMs } = await this.settings();
+      if (!multipliers.includes(win.multiplier)) return;
       const offer: LuckyTickerOffer = { win, gift };
       const reply = (await this.redis.eval(
         OFFER_SCRIPT,
@@ -149,7 +187,7 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
         PENDING_KEY,
         JSON.stringify(offer),
         String(tickerRank(win)),
-        String(this.gapMs),
+        String(gapMs),
         String(LUCKY_TICKER_PENDING_TTL_MS),
       )) as [string, number];
       if (reply[0] === 'now') await this.tell(offer);
@@ -162,7 +200,8 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
   /** Sends the waiting win when the gap is over (also run by the timer). */
   async flush(): Promise<void> {
     try {
-      const reply = (await this.redis.eval(FLUSH_SCRIPT, 2, GATE_KEY, PENDING_KEY, String(this.gapMs))) as
+      const { gapMs } = await this.settings();
+      const reply = (await this.redis.eval(FLUSH_SCRIPT, 2, GATE_KEY, PENDING_KEY, String(gapMs))) as
         [] | ['go', string] | ['wait', number];
       if (reply[0] === 'go') {
         const raw = reply[1];

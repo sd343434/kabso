@@ -16,6 +16,7 @@ import { Clock } from '../src/common/time/clock.js';
 import { addGiftIn, grantStockIn, type GiftFields } from '../src/modules/gifts/gift-catalogue.js';
 import type { LuckyRng } from '../src/modules/gifts/lucky-odds.js';
 import { LUCKY_RNG } from '../src/modules/gifts/lucky-rng.js';
+import { LiveLuckyTickerService } from '../src/modules/live/live-lucky-ticker.service.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import type { Redis } from 'ioredis';
@@ -1302,6 +1303,53 @@ describe('D347 the global lucky banner in every live', { timeout: 180_000 }, () 
     expect(ticker(other).map((t) => t.win.multiplier)).toEqual([250, 1000]);
     expect(ticker(other)[1]!.win.giftId).toBe(jackpot.body.gift.id);
     expect(await redis.get('lucky:ticker:pending')).toBeNull();
+  });
+
+  it("the OWNER's panel set wins without a restart (v1.111-live): with [100] a ×100 is global and a ×500 is not", async () => {
+    f.newDay();
+    const redis = ctx.app.get<Redis>(REDIS);
+    await redis.del('lucky:ticker:gate', 'lucky:ticker:pending');
+    const tickers = ctx.app.get(LiveLuckyTickerService);
+    await ctx.prisma.siteSetting.upsert({
+      where: { key: 'globalStrips' },
+      create: {
+        key: 'globalStrips',
+        value: {
+          giftMinCoins: 500_000,
+          gameMinTickets: 1_000_000,
+          luckyGlobalMultipliers: [100],
+          luckyGlobalGapSeconds: 2,
+        },
+      },
+      update: {
+        value: {
+          giftMinCoins: 500_000,
+          gameMinTickets: 1_000_000,
+          luckyGlobalMultipliers: [100],
+          luckyGlobalGapSeconds: 2,
+        },
+      },
+    });
+    tickers.forgetSettings();
+    try {
+      const { h, s1, viewer, roomId } = await f.scene();
+      await f.confirmAge(s1);
+      const other = await liveOf('MULTI');
+      const code = await f.gift({ priceCoins: 10 });
+      await budget(s1, roomId, h);
+      rng.script(DRAW.x500);
+      expect((await f.send(roomId, viewer, f.body(code, [h]))).body.luckyResult.topMultiplier).toBe(500);
+      await settle(ctx);
+      expect(ticker(other)).toEqual([]);
+      rng.script(DRAW.x100);
+      const hundred = await f.send(roomId, viewer, f.body(code, [h]));
+      await settle(ctx);
+      expect(ticker(other).map((t) => t.win.giftId)).toEqual([hundred.body.gift.id]);
+    } finally {
+      await ctx.prisma.siteSetting.deleteMany({ where: { key: 'globalStrips' } });
+      tickers.forgetSettings();
+      await new Promise((r) => setTimeout(r, GAP_MS + 200));
+    }
   });
 
   it('a waiting win whose live ended before its turn is dropped', async () => {

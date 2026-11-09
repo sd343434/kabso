@@ -21,10 +21,14 @@ import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_win_banner.dart';
+import 'package:kabso_live/features/notifications/application/notifications_controller.dart';
+import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
+import 'package:kabso_live/features/notifications/domain/notification_models.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_notifications_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -205,6 +209,65 @@ void main() {
     });
   });
 
+  group('«إخفاء أشرطة الفوز» (v1.111-live)', () {
+    test('the account switch hides the global banner: the one on screen '
+        'goes, new ones are not kept; switched back, new ones show', () async {
+      final notifications = FakeNotificationsRepository();
+      final c = ProviderContainer(
+        overrides: [
+          liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
+          safetyRepositoryProvider.overrideWithValue(FakeSafetyRepository()),
+          notificationsRepositoryProvider.overrideWithValue(notifications),
+          currentUserProvider.overrideWithValue(testUser()),
+        ],
+      );
+      addTearDown(c.dispose);
+      c.listen(liveLuckyTickersProvider('room-a'), (_, _) {});
+      await c.read(notificationSettingsProvider.future);
+      final q = c.read(liveLuckyTickersProvider('room-a').notifier)
+        ..show(_ticker())
+        ..show(_ticker(giftId: 'g-2'));
+      expect(c.read(luckyTickerHiddenProvider), isFalse);
+      expect(c.read(liveLuckyTickersProvider('room-a'))?.win.giftId, 'g-1');
+      final settings = c.read(notificationSettingsProvider.notifier);
+      await settings.change(NotificationSetting.luckyStrip, on: false);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(luckyTickerHiddenProvider), isTrue);
+      expect(c.read(liveLuckyTickersProvider('room-a')), isNull);
+      q.show(_ticker(giftId: 'g-3'));
+      expect(c.read(liveLuckyTickersProvider('room-a')), isNull);
+      q.dismiss(); // g-2 was dropped with the line
+      expect(c.read(liveLuckyTickersProvider('room-a')), isNull);
+      await settings.change(NotificationSetting.luckyStrip, on: true);
+      await Future<void>.delayed(Duration.zero);
+      q.show(_ticker(giftId: 'g-4'));
+      expect(c.read(liveLuckyTickersProvider('room-a'))?.win.giftId, 'g-4');
+      expect(notifications.calls, [
+        'settings',
+        'setting:luckyStrip:false',
+        'setting:luckyStrip:true',
+      ]);
+    });
+
+    test('a guest (no account) or an older server (no field): shown', () {
+      final c = ProviderContainer(
+        overrides: [currentUserProvider.overrideWithValue(null)],
+      );
+      addTearDown(c.dispose);
+      expect(c.read(luckyTickerHiddenProvider), isFalse);
+      expect(
+        NotificationSettings.fromJson(const {
+          'likes': true,
+          'comments': true,
+          'mentions': true,
+          'follows': true,
+          'reposts': true,
+        }).luckyStrip,
+        isTrue,
+      );
+    });
+  });
+
   group('the banner', () {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
@@ -272,9 +335,7 @@ void main() {
     }
 
     testWidgets('a host on air (no onOpenRoom): no button, a tap does '
-        'nothing; gone after its time; hidden by the provider flag', (
-      tester,
-    ) async {
+        'nothing; gone after its time', (tester) async {
       final c = await _pumpBar(tester);
       final q = c.read(liveLuckyTickersProvider('room-a').notifier)
         ..show(_ticker());
@@ -292,13 +353,7 @@ void main() {
       await tester.pump(LiveLuckyTickers.showTime);
       expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
 
-      c.read(luckyTickerHiddenProvider.notifier).hidden = true;
       q.show(_ticker(giftId: 'g-2'));
-      await tester.pump();
-      expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
-      c.read(luckyTickerHiddenProvider.notifier).hidden = false;
-      await tester.pump();
-      expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsOneWidget);
       await tester.pump(LiveLuckyTickers.showTime);
     });
 

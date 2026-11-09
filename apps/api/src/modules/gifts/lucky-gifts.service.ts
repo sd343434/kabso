@@ -101,14 +101,6 @@ export class LuckyGiftsService {
     return this.config.lucky.bigWinMultiplier;
   }
 
-  /**
-   * v1.111-live (D347, CONVENTIONS §10.146): whether a send whose best win is ×[multiplier] is the global banner
-   * (`LUCKY_GLOBAL_BANNER_MULTIPLIERS`, default ×250 ×500 ×1000) — told to every other live.
-   */
-  isGlobalBanner(multiplier: number): boolean {
-    return this.config.lucky.globalBannerMultipliers.includes(multiplier);
-  }
-
   /** The daily protection's day for `at` (`YYYY-MM-DD`). */
   dayOf(at: Date): string {
     return dayIn(at, this.config.lucky.dayTimeZone);

@@ -34,5 +34,7 @@ export const updateNotificationSettingsSchema = z
     giftStrip: z.boolean().optional(),
     /** v1.85-live (D305): the global games strip in the lives. */
     gameStrip: z.boolean().optional(),
+    /** v1.111-live (D347): the global lucky banner in the lives (false: «إخفاء أشرطة الفوز»). */
+    luckyStrip: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
