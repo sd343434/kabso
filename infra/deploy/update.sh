@@ -10,6 +10,9 @@
 #    deploy` as the migration role, then restarts the services whose image or configuration
 #    changed. A failed migration stops here and the running API keeps serving
 #    (docs/DEPLOYMENT.md §5); the next run tries again, because the API is still on the old image.
+# 4. D330: at the end of every run, whatever happened above, mirrors the staging test APK from the public
+#    `staging-latest` release into infra/deploy/app/ (mirror-apk.sh; https://live.<domain>/app/, §11.8). Best effort:
+#    its failure is logged and changes neither this run's result nor the API.
 set -euo pipefail
 
 APP_DIR=/opt/kabso
@@ -22,6 +25,20 @@ ln -sfn /etc/kabso/kabso.env infra/deploy/.env
 
 exec 9>/run/kabso-update.lock
 flock -n 9 || { echo "another update is running"; exit 0; }
+
+# D330: the staging APK mirror runs last (an EXIT trap: also after the early "nothing changed" exit and after a failed
+# deploy), so a slow download never delays a deploy; the script's own exit status is kept. Run as a separate process
+# with a time limit; never fatal.
+# shellcheck disable=SC2329 # invoked by the EXIT trap below
+mirror_apk() {
+  if [ -x "$APP_DIR/infra/deploy/mirror-apk.sh" ]; then
+    timeout 600 "$APP_DIR/infra/deploy/mirror-apk.sh" ||
+      echo "staging APK mirror failed (exit $?); the previous APK stays served" >&2
+  fi
+}
+trap mirror_apk EXIT
+# The directory Caddy mounts at /srv/app (git-ignored); created here so Docker never has to create it.
+mkdir -p infra/deploy/app
 
 C=(docker compose -f infra/deploy/docker-compose.yml)
 

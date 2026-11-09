@@ -17,7 +17,7 @@ Authoritative: `.github/workflows/ci.yml`, `docs/DEPLOYMENT.md` (the CI and bran
 | `site` | `scripts/check-site-no-tracking.sh` | — |
 | `secrets` | gitleaks (pinned version and checksum) over the **whole git history** | see below |
 | `ci-ok` | allowlist gate: every job `success` or `skipped` | — |
-| `deploy-image`, `staging-apk` | only on a push to `staging`, after a green run | deployment: never trigger without approval |
+| `deploy-image`, `staging-apk`, `staging-apk-release` (D330) | only on a push to `staging`, after a green run | deployment: never trigger without approval |
 
 ## Reporting results
 

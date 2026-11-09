@@ -48,3 +48,6 @@ apps/admin/playwright-report/
 infra/deploy/studio/
 apps/studio/test-results/
 apps/studio/playwright-report/
+
+# D330: the staging APK mirror on the server (infra/deploy/mirror-apk.sh).
+infra/deploy/app/
