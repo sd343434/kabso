@@ -71,8 +71,12 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // D322: the menu opens from Moments' «+» (the bar has no centre
+    // button any more).
     Future<void> openMenu(WidgetTester tester) async {
-      await tester.tap(find.byKey(const Key('nav.create')));
+      await tester.tap(find.byKey(const Key('nav.reels')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(FeedScreen.createKey));
       await tester.pumpAndSettle();
     }
 
@@ -130,6 +134,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CreateScreen), findsNothing);
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
+      expect(find.byType(FeedScreen), findsOneWidget);
 
       for (final (choice, screen) in [
         (CreateChoice.reel, NewReelScreen),

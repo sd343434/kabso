@@ -408,7 +408,7 @@ class MeHubScreen extends ConsumerWidget {
                 icon: Icons.campaign_rounded,
                 hue: p.primary,
                 title: l10n.meStaffAnnouncement,
-                onTap: () => context.go(AppRoutes.create),
+                onTap: () => push(AppRoutes.create),
               ),
               _HubRow(
                 rowKey: staffAnnouncementReelKey,

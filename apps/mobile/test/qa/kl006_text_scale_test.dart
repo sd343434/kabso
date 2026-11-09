@@ -16,6 +16,7 @@ import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dar
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:material_ui/material_ui.dart';
@@ -143,30 +144,34 @@ void main() {
         testWidgets('$name: tabs and profile have no overflow', (tester) async {
           await signedIn(tester);
           expect(tester.takeException(), isNull, reason: 'home');
+          // D322: Party · Moments · Messages · Me (no Create tab).
           for (final key in const [
+            Key('nav.party'),
             Key('nav.reels'),
-            Key('nav.create'),
             Key('nav.messages'),
             Key('nav.profile'),
           ]) {
             await tester.tap(find.byKey(key));
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull, reason: '$key');
-            // D162: ➕ opens the menu (checked for overflow too); «منشور»
-            // (Post) opens Create.
-            if (key == const Key('nav.create')) {
+            // D162 / D322: Moments' «+» opens the menu (checked for overflow
+            // too); «منشور» (Post) opens Create, full screen; its Close
+            // leaves it.
+            if (key == const Key('nav.reels')) {
+              await tester.tap(find.byKey(FeedScreen.createKey));
+              await tester.pumpAndSettle();
+              expect(tester.takeException(), isNull, reason: 'menu');
               await tester.tap(
                 find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
               );
               await tester.pumpAndSettle();
               expect(tester.takeException(), isNull, reason: 'Create');
-            }
-            // Create is full screen (no bottom bar): its Close leaves it.
-            if (key == const Key('nav.create')) {
               await tester.tap(find.byKey(CreateScreen.closeKey));
               await tester.pumpAndSettle();
             }
           }
+          await tester.tap(find.byKey(const Key('nav.profile')));
+          await tester.pumpAndSettle();
           // D163: the Me tab is the hub; its photo opens the profile.
           await tester.tap(find.byKey(const Key('meHub.avatar')));
           await tester.pumpAndSettle();

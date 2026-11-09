@@ -16569,4 +16569,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get notifEventPrizeWon =>
       'Congratulations, your event prize has arrived';
+
+  @override
+  String get navParty => 'Party';
+
+  @override
+  String get liveHubGoLive => 'Go live';
+
+  @override
+  String get feedCreate => 'Create';
 }

@@ -825,10 +825,10 @@ void main() {
                 .copyWith(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
               body: screen,
-              bottomNavigationBar: KTabBar(
-                items: shellTabItems(context.l10n),
+              bottomNavigationBar: shellNavBar(
+                context.l10n,
                 currentIndex: 3,
-                onSelect: (_) {},
+                onTap: (_) {},
               ),
             ),
           ),
@@ -980,11 +980,11 @@ void main() {
   });
 
   group('navigation regression (KL-047)', () {
-    test('routes and branch order (D48, D86)', () {
+    test('routes and branch order (D48, D86, D322)', () {
       expect(AppRoutes.shellBranches, [
         '/home',
+        '/live/voice',
         '/reels',
-        '/create',
         '/messages',
         '/profile',
       ]);
@@ -992,15 +992,15 @@ void main() {
 
     const keys = [
       Key('nav.home'),
+      Key('nav.party'),
       Key('nav.reels'),
-      Key('nav.create'),
       Key('nav.messages'),
       Key('nav.profile'),
     ];
 
     for (final language in ['en', 'ar']) {
       testWidgets('$language: order mirrors, 48 dp targets, icon sizes, '
-          'Create button', (tester) async {
+          'no centre button (D322)', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         await _pumpApp(tester, language: language);
         final xs = [for (final k in keys) tester.getCenter(find.byKey(k)).dx];
@@ -1012,34 +1012,20 @@ void main() {
           expect(size.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
           expect(size.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
         }
-        // D130: the owner's painted icons (26 dp) and the 52 dp camera button.
+        // D322: the owner's painted icons (28 dp; «أنا» 30 dp) in their
+        // 30 dp box; no Create button.
         for (final k in keys) {
-          if (k == const Key('nav.create')) continue;
           final icon = find.descendant(
             of: find.byKey(k),
-            matching: find.byWidgetPredicate(
-              (w) =>
-                  w is SizedBox &&
-                  w.width == KTabBar.iconSize &&
-                  w.height == KTabBar.iconSize,
-            ),
+            matching: find.byType(CustomPaint),
           );
           expect(
-            tester.getSize(icon),
-            const Size.square(KTabBar.iconSize),
+            tester.getSize(icon.first),
+            Size.square(k == const Key('nav.profile') ? 30 : 28),
             reason: '$k',
           );
         }
-        final plus = find.descendant(
-          of: find.byKey(const Key('nav.create')),
-          matching: find.byWidgetPredicate(
-            (w) =>
-                w is Container &&
-                w.constraints ==
-                    BoxConstraints.tight(const Size.square(KTabBar.createSize)),
-          ),
-        );
-        expect(tester.getSize(plus), const Size.square(KTabBar.createSize));
+        expect(find.byKey(const Key('nav.create')), findsNothing);
         expect(_selected(tester, find.byKey(keys.first)), isTrue);
       });
     }
@@ -1057,7 +1043,7 @@ void main() {
       for (final key in [const Key('nav.home'), const Key('nav.reels')]) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
-        final nav = tester.getRect(find.byType(KTabBar));
+        final nav = tester.getRect(find.byType(KabsoNavBar));
         expect(nav.bottom, 852);
         final visible = find.byWidgetPredicate((w) => w is CustomScrollView);
         final region = tester.getRect(visible.first);

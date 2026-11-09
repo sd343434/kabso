@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
@@ -12,6 +11,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/home_banners_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_swipe.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
@@ -42,9 +42,9 @@ import 'package:material_ui/material_ui.dart';
 /// row; audio / podcast / multi are also the party page's tabs) — which
 /// replaced the
 /// Following · Popular · New tabs, the category chips and D129's "voice
-/// rooms · live" switch. The voice rooms open from the party button
-/// (`VoiceRoomsScreen`, `/live/voice`). D124 stays: the top bar (title,
-/// search, party, bell), the 2-column grid with the promo banners (D248:
+/// rooms · live" switch. The voice rooms are the «الحفلة» tab (D322;
+/// `VoiceRoomsScreen`, `/live/voice`). D124 stays: the top bar (D322: title,
+/// «+», search, bell), the 2-column grid with the promo banners (D248:
 /// the carousel after the first row, a card-size banner in one cell), and
 /// swiping between this list's lives inside a room. All
 /// data comes from the API (`liveRoomsProvider`, `homeBannersProvider`);
@@ -167,13 +167,19 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
 abstract final class KLiveHubTopBar {
   static const double titleSize = 21;
   static const double iconSize = 22;
+
+  /// D130: how long a top-bar icon's pop plays before its page opens (the
+  /// party page's Live switch, D139).
+  static const popLead = Duration(milliseconds: 280);
 }
 
 /// D124: the hub's top bar: the Kabso title at the reading start (D294:
 /// right in Arabic, left in English — it follows the app's direction, never
-/// forced LTR — in the language's own font, the heaviest bundled face), search
-/// (Discover), the party button (D130, D131: opens the voice rooms) and the
-/// notifications bell at the end.
+/// forced LTR — in the language's own font, the heaviest bundled face), then
+/// toward the end D322's order (owner): «+» (go live — the main way in since
+/// the bar's centre button is gone), search (Discover, where the party
+/// button was) and the notifications bell at the end. The party page is a
+/// bottom tab now (D322: «لا تنسى تشيل زر الحفلة من الشريط العلوي»).
 class LiveHubTopBar extends StatelessWidget {
   const new({super.key, this.showNotifications = true});
 
@@ -208,6 +214,8 @@ class LiveHubTopBar extends StatelessWidget {
                 ),
               ),
             ),
+            // D322: «+» opens go-live (drawn like search).
+            const LiveHubGoLiveButton(),
             IconButton(
               key: searchKey,
               tooltip: l10n.feedSearch,
@@ -222,8 +230,6 @@ class LiveHubTopBar extends StatelessWidget {
                 color: p.textPrimary,
               ),
             ),
-            // D130/D131: the owner's party button opens the voice rooms.
-            const LiveHubPartyButton(),
             if (showNotifications) const NotificationsBell(),
           ],
         ),
@@ -232,57 +238,35 @@ class LiveHubTopBar extends StatelessWidget {
   }
 }
 
-/// D130: the owner's party popper in the hub's top bar, beside the bell.
-/// D131 (owner): it opens the voice rooms (`VoiceRoomsScreen`): a tap plays
-/// the pop, then pushes `/live/voice`. Screen readers hear "Voice rooms".
-class LiveHubPartyButton extends StatefulWidget {
+/// D322: the hub's «+» — the main way to go live (the bottom bar has no
+/// centre button any more). Owner follow-ups: «بدون دائرة وبنفس لون باقي
+/// الأزرار» — a plain outline plus drawn like search beside it (same size,
+/// stroke, colour and 48 pt target); «لا تظهر قائمة، فقط تدخل إلى صفحة إنشاء
+/// اللايف» — a tap opens go-live (`/live/new`) directly, on its default mode;
+/// the type is chosen inside go-live as before. Hidden for a Kabso Team
+/// account (D283: no live; `/live/new` is staff-blocked).
+class LiveHubGoLiveButton extends ConsumerWidget {
   const new({super.key});
 
-  static const buttonKey = Key('liveHub.party');
-
-  /// How long the pop plays before the voice rooms open.
-  static const popLead = Duration(milliseconds: 280);
+  static const buttonKey = Key('liveHub.goLive');
 
   @override
-  State<LiveHubPartyButton> createState() => _LiveHubPartyButtonState();
-}
-
-class _LiveHubPartyButtonState extends State<LiveHubPartyButton> {
-  final GlobalKey<KPartyIconState> _icon = GlobalKey();
-  bool _opening = false;
-
-  Future<void> _tap() async {
-    if (_opening) return;
-    _opening = true;
-    unawaited(HapticFeedback.selectionClick());
-    _icon.currentState?.play();
-    final lead = KMotion.of(context, LiveHubPartyButton.popLead);
-    if (lead > Duration.zero) await Future<void>.delayed(lead);
-    _opening = false;
-    if (!mounted) return;
-    unawaited(context.push<void>(AppRoutes.voiceRooms));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final label = context.l10n.liveVoiceRoomsTitle;
-    return Semantics(
-      button: true,
-      label: label,
-      onTap: () => unawaited(_tap()),
-      excludeSemantics: true,
-      child: IconButton(
-        key: LiveHubPartyButton.buttonKey,
-        tooltip: label,
-        // D141 (owner): no grey circle on press — the icon's own animation
-        // is the feedback.
-        style: noInkIconButtonStyle,
-        constraints: const BoxConstraints.tightFor(
-          width: KSizes.minTouchTarget,
-          height: KSizes.minTouchTarget,
-        ),
-        onPressed: () => unawaited(_tap()),
-        icon: KPartyIcon(key: _icon),
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(currentUserProvider)?.staff != null) {
+      return const SizedBox.shrink();
+    }
+    return IconButton(
+      key: buttonKey,
+      tooltip: context.l10n.liveHubGoLive,
+      constraints: const BoxConstraints.tightFor(
+        width: KSizes.minTouchTarget,
+        height: KSizes.minTouchTarget,
+      ),
+      onPressed: () => unawaited(context.push(AppRoutes.goLive)),
+      icon: AppIcon(
+        AppIcons.plusOutline,
+        size: KLiveHubTopBar.iconSize,
+        color: context.palette.textPrimary,
       ),
     );
   }

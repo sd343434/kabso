@@ -27975,6 +27975,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مبروك، وصلتك جائزة فعالية'**
   String get notifEventPrizeWon;
+
+  /// D322: the owner's bottom bar, second tab — the party page (the voice rooms).
+  ///
+  /// In ar, this message translates to:
+  /// **'الحفلة'**
+  String get navParty;
+
+  /// D322: the Live hub top bar's «+» (opens go-live); tooltip and screen-reader name.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ بثاً'**
+  String get liveHubGoLive;
+
+  /// D322: the Moments top bar's «+» (opens the create menu: post, reel, story, live); tooltip and screen-reader name.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء'**
+  String get feedCreate;
 }
 
 class _AppLocalizationsDelegate

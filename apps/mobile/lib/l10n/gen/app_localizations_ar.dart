@@ -16564,4 +16564,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifEventPrizeWon => 'مبروك، وصلتك جائزة فعالية';
+
+  @override
+  String get navParty => 'الحفلة';
+
+  @override
+  String get liveHubGoLive => 'ابدأ بثاً';
+
+  @override
+  String get feedCreate => 'إنشاء';
 }

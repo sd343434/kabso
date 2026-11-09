@@ -18,7 +18,6 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
-import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
@@ -606,7 +605,6 @@ void main() {
 
   group('19. no ink circle on the animated header buttons', () {
     for (final (name, button, key) in [
-      ('hub party', const LiveHubPartyButton(), LiveHubPartyButton.buttonKey),
       (
         'voice rooms Live',
         const VoiceRoomsLiveButton(),

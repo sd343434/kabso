@@ -289,8 +289,8 @@ void main() {
       await tester.pumpAndSettle();
       for (final key in const [
         Key('nav.home'),
+        Key('nav.party'),
         Key('nav.reels'),
-        Key('nav.create'),
         Key('nav.messages'),
         Key('nav.profile'),
       ]) {

@@ -85,6 +85,10 @@ abstract final class AppIcons {
   static const String grid = '$_p/grid_outline.svg';
   static const String gridFilled = '$_p/grid_filled.svg';
   static const String reelsFilled = '$_p/reels_filled.svg';
+
+  /// D322: «+» in the top bars (the Live hub's go-live, Moments' create),
+  /// drawn like the search and bell beside it (24 grid, 2.0 round strokes).
+  static const String plusOutline = '$_p/plus_outline.svg';
 }
 
 /// Renders an [AppIcons] asset, tinted with [color] (or the ambient

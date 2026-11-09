@@ -720,7 +720,7 @@ class _VoiceRoomsLiveButtonState extends State<VoiceRoomsLiveButton> {
     _leaving = true;
     unawaited(HapticFeedback.selectionClick());
     _icon.currentState?.play();
-    final lead = KMotion.of(context, LiveHubPartyButton.popLead);
+    final lead = KMotion.of(context, KLiveHubTopBar.popLead);
     if (lead > Duration.zero) await Future<void>.delayed(lead);
     _leaving = false;
     if (!mounted) return;

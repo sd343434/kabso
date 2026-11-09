@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// A request to show `tab` in a shell tab's `FeedTabsScaffold`; `serial`
@@ -84,3 +88,30 @@ List<String> _leafLocations(List<RouteMatchBase> matches) => [
     else
       match.matchedLocation,
 ];
+
+/// D162 / D322: the create menu (post, reel, story, go live; D283: a Kabso
+/// Team account gets announcements only) and its choice. Opened from
+/// Moments' «+» since the bar's centre button is gone; Create and the other
+/// flows open above the shell, and [from] (the tab under them) is where a
+/// live started from Create returns when minimized (D123).
+Future<void> openCreateMenu(
+  BuildContext context,
+  WidgetRef ref, {
+  String from = AppRoutes.reels,
+}) async {
+  final choice = await showCreateMenu(
+    context,
+    staff: ref.read(currentUserProvider)?.staff != null,
+  );
+  if (choice == null || !context.mounted) return;
+  ref.read(shellReturnTabProvider.notifier).remember(from);
+  unawaited(
+    context.push(switch (choice) {
+      CreateChoice.post => AppRoutes.create,
+      CreateChoice.reel => AppRoutes.newReel,
+      CreateChoice.story => AppRoutes.newStory,
+      // D123: a minimized live returns to the tab under it.
+      CreateChoice.live => AppRoutes.goLive,
+    }),
+  );
+}

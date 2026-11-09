@@ -19,7 +19,6 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
-import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_sheets.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
@@ -695,9 +694,9 @@ Future<void> _openRoomWith(
   await tester.pump(const Duration(seconds: 1));
 }
 
-/// D237: opens the party page from the hub's party button.
+/// D237: opens the party page — D322: the «الحفلة» tab.
 Future<void> _openParty(WidgetTester tester) async {
-  await tester.tap(find.byKey(LiveHubPartyButton.buttonKey));
+  await tester.tap(find.byKey(const Key('nav.party')));
   await tester.pumpAndSettle();
 }
 

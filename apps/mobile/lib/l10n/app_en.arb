@@ -5154,5 +5154,8 @@
   "eventsSendGiftBody": "Event gifts are sent from the gift panel inside any live; their points count at once.",
   "eventsGoLive": "Go to lives",
   "eventsPrizePreview": "Prize preview",
-  "notifEventPrizeWon": "Congratulations, your event prize has arrived"
+  "notifEventPrizeWon": "Congratulations, your event prize has arrived",
+  "navParty": "Party",
+  "liveHubGoLive": "Go live",
+  "feedCreate": "Create"
 }

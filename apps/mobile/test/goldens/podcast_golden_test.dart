@@ -32,7 +32,6 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
-import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_podcast_room.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
@@ -595,10 +594,10 @@ void main() {
   });
 }
 
-/// D237: a live category is a kind tab of the party page (the hub's party
-/// button).
+/// D237: a live category is a kind tab of the party page (D322: the
+/// «الحفلة» tab).
 Future<void> _tapTab(WidgetTester tester, LiveHubCategory category) async {
-  await tester.tap(find.byKey(LiveHubPartyButton.buttonKey));
+  await tester.tap(find.byKey(const Key('nav.party')));
   await tester.pumpAndSettle();
   // D240: the kinds are the party page's top tabs.
   final tab = find.byKey(VoiceRoomsScreen.kindKey(category));
