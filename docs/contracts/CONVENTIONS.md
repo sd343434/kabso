@@ -10918,7 +10918,7 @@ and the recharge agents are unchanged.
   **accepted while `STORE_IAP_ACCEPT_SANDBOX=true`** (default true: App Review and Play pre-launch testing buy in the
   sandbox against the production server) and recorded `environment: SANDBOX` (shown in the panel); false refuses them
   with 400 `STORE_IAP_VERIFICATION_FAILED` `{field: environment, issue: sandbox}`. Production purchases are always
-  `PRODUCTION`.
+  `PRODUCTION`. Owner (int21): keep it on until the App Store approves the app, then turn it off in production (PP-80).
 
 #### 10.144.2 The catalogue «باقات المتجر»
 
