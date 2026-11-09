@@ -5182,5 +5182,8 @@
   "liveRankGamesEmpty": "No game tickets spent yet in this period.",
   "liveRankTickets": "{formatted} tickets",
   "liveRankCoins": "{formatted} coins",
-  "liveRankRichEmpty": "No gifts sent yet in this period."
+  "liveRankRichEmpty": "No gifts sent yet in this period.",
+  "navParty": "Party",
+  "liveHubGoLive": "Go live",
+  "feedCreate": "Create"
 }

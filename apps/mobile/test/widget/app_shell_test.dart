@@ -10,7 +10,9 @@ import 'package:kabso_live/features/auth/presentation/login_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -22,10 +24,11 @@ import '../helpers/fake_http_adapter.dart';
 import '../helpers/fakes.dart';
 import '../helpers/pump_app.dart';
 
+// D322: Live · Party · Moments · Messages · Me (no Create tab).
 const _navKeys = [
   Key('nav.home'),
+  Key('nav.party'),
   Key('nav.reels'),
-  Key('nav.create'),
   Key('nav.messages'),
   Key('nav.profile'),
 ];
@@ -66,8 +69,8 @@ void main() {
         // D155: Messages is the real list (no conversations yet); Discover
         // left the bar (D86).
         const Key('nav.messages'): l10n.conversationsEmptyTitle,
-        // KL-060: Create is the post composer.
-        const Key('nav.create'): l10n.createTitle,
+        // D322: «الحفلة», the voice rooms (hosting off in the fake).
+        const Key('nav.party'): l10n.liveVoiceRoomsTitle,
         // KL-060: the posts API with no posts yet.
         const Key('nav.reels'): l10n.homeEmptyTitle,
         const Key('nav.home'): l10n.liveHubPopularUnavailableTitle,
@@ -75,23 +78,30 @@ void main() {
       for (final MapEntry(:key, :value) in expected.entries) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
-        // D162: ➕ opens the menu; «منشور» (Post) opens Create.
-        if (key == const Key('nav.create')) {
-          await tester.tap(
-            find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
-          );
-          await tester.pumpAndSettle();
+        if (key == const Key('nav.party')) {
+          expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+          expect(find.bySemanticsLabel(value), findsWidgets, reason: '$key');
+          continue;
         }
         expect(find.text(value), findsOneWidget, reason: '$key');
-        // KL-060: Create is full screen (owner's reference): no bottom bar;
-        // its Close returns to Posts.
-        if (key == const Key('nav.create')) {
-          expect(find.byKey(const Key('nav.home')), findsNothing);
-          await tester.tap(find.byKey(CreateScreen.closeKey));
-          await tester.pumpAndSettle();
-          expect(find.byKey(const Key('nav.home')), findsOneWidget);
-        }
       }
+      // D322: Create is reached from Moments' «+» (the menu's «منشور»);
+      // full screen (owner's reference): no bottom bar; Close returns to
+      // Moments.
+      await tester.tap(find.byKey(const Key('nav.reels')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(FeedScreen.createKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.createTitle), findsOneWidget);
+      expect(find.byKey(const Key('nav.home')), findsNothing);
+      await tester.tap(find.byKey(CreateScreen.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('nav.home')), findsOneWidget);
+      expect(find.text(l10n.homeEmptyTitle), findsOneWidget);
     });
 
     testWidgets('Me tab: the hub shows the user from GET /me; its photo '
@@ -189,7 +199,7 @@ void main() {
           for (final k in _navKeys) tester.getCenter(find.byKey(k)).dx,
         ];
         if (dir == TextDirection.rtl) {
-          // Home at the right edge, Profile at the left; Create centered.
+          // Home at the right edge, Profile at the left.
           expect(tester.getCenter(home).dx, greaterThan(400));
           expect(tester.getCenter(profile).dx, lessThan(400));
           expect(

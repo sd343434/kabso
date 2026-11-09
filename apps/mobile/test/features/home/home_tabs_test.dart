@@ -286,9 +286,9 @@ void main() {
   });
 
   group('header (D218 follow-up: the bar of before)', () {
-    testWidgets('48 dp: Search at the start, the bell at the end (48 dp '
-        'targets), «Posts» centred with the «Reels» switch word after it; no '
-        'avatar or name, no Create', (tester) async {
+    testWidgets('48 dp: Search at the start, the bell at the end with «+» '
+        '(D322) beside it (48 dp targets), «Posts» centred with the «Reels» '
+        'switch word after it; no avatar or name', (tester) async {
       await _pump(
         tester,
         overrides: [currentUserProvider.overrideWithValue(testUser())],
@@ -329,7 +329,11 @@ void main() {
         findsNothing,
       );
       expect(find.text(testUser().displayName), findsNothing);
-      expect(find.byTooltip(_en.navCreate), findsNothing);
+      // D322: «+» (the create menu) right beside the bell.
+      final create = tester.getRect(find.byKey(FeedScreen.createKey));
+      expect(create.size, const Size.square(KSizes.minTouchTarget));
+      expect(create.right, moreOrLessEquals(bell.left));
+      expect(find.byTooltip(_en.feedCreate), findsOneWidget);
       expect(find.byType(AppBar), findsNothing);
       expect(find.text(_en.homeEmptyTitle), findsOneWidget);
     });
@@ -996,10 +1000,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       final xs = <double>[
+        // D322: Live · Party · Moments · Messages · Me.
         for (final key in const [
           'nav.home',
+          'nav.party',
           'nav.reels',
-          'nav.create',
           'nav.messages',
           'nav.profile',
         ])
@@ -1031,12 +1036,11 @@ void main() {
       expect(find.byType(DiscoverScreen), findsOneWidget);
     });
 
-    testWidgets('Create is reached from the bottom bar, not the header', (
-      tester,
-    ) async {
+    testWidgets("D322: Create is reached from the header's «+» (the bar has "
+        'no centre button any more)', (tester) async {
       await openReelsTab(tester);
-      expect(find.byTooltip(_en.navCreate), findsNothing);
-      await tester.tap(find.byKey(const Key('nav.create')));
+      expect(find.byKey(const Key('nav.create')), findsNothing);
+      await tester.tap(find.byKey(FeedScreen.createKey));
       await tester.pumpAndSettle();
       // D162: ➕ opens the menu; «منشور» (Post) opens Create.
       await tester.tap(

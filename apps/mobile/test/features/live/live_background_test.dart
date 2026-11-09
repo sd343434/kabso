@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
+import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -117,33 +118,51 @@ Future<void> _toForeground(WidgetTester tester) async {
 }
 
 /// The real shell (AppShell, five branches) with Create opening Go live
-/// the way Create's LIVE mode does (a push over the shell).
+/// the way Create's LIVE mode does (a push over the shell, D123).
 GoRouter _shellRouter() {
-  Widget page(String name) => Scaffold(body: Center(child: Text(name)));
+  // D322: no Create tab — each tab page opens the create menu (Moments'
+  // «+» in the app); Create is a full-screen page above the shell.
+  Widget page(String location) => Consumer(
+    builder: (context, ref, _) => Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('tab:$location'),
+            TextButton(
+              key: const Key('tab.create'),
+              onPressed: () =>
+                  unawaited(openCreateMenu(context, ref, from: location)),
+              child: const Text('+'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
   return GoRouter(
     initialLocation: AppRoutes.home,
     routes: [
       GoRoute(path: AppRoutes.goLive, builder: (_, _) => const GoLiveScreen()),
+      GoRoute(
+        path: AppRoutes.create,
+        builder: (context, _) => Scaffold(
+          body: Center(
+            child: TextButton(
+              key: const Key('create.live'),
+              onPressed: () => context.push(AppRoutes.goLive),
+              child: const Text('create'),
+            ),
+          ),
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => AppShell(navigationShell: shell),
         branches: [
           for (final location in AppRoutes.shellBranches)
             StatefulShellBranch(
               routes: [
-                GoRoute(
-                  path: location,
-                  builder: (context, _) => location == AppRoutes.create
-                      ? Scaffold(
-                          body: Center(
-                            child: TextButton(
-                              key: const Key('create.live'),
-                              onPressed: () => context.push(AppRoutes.goLive),
-                              child: const Text('create'),
-                            ),
-                          ),
-                        )
-                      : page('tab:$location'),
-                ),
+                GoRoute(path: location, builder: (_, _) => page(location)),
               ],
             ),
         ],
@@ -201,12 +220,14 @@ _pumpApp(WidgetTester tester, GoRouter router) async {
   return (repo, camera, service);
 }
 
-/// D162: ➕ opens the menu; «بث مباشر» (Go live) pushes Go live over the
-/// tab the person is on.
+/// D162 / D322: the create menu's «منشور» opens Create over the tab the
+/// person is on; Create's LIVE pushes Go live over it.
 Future<void> _openGoLiveFromCreate(WidgetTester tester) async {
-  await tester.tap(find.byKey(const Key('nav.create')));
+  await tester.tap(find.byKey(const Key('tab.create')).hitTestable());
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(CreateMenuSheet.choiceKey(CreateChoice.live)));
+  await tester.tap(find.byKey(CreateMenuSheet.choiceKey(CreateChoice.post)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('create.live')));
   await tester.pumpAndSettle();
   expect(find.byType(GoLiveScreen), findsOneWidget);
 }

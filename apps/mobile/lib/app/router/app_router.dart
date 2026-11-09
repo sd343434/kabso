@@ -303,10 +303,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.liveSecondCamera,
         builder: (_, _) => const SecondCameraScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.voiceRooms,
-        builder: (_, _) => const VoiceRoomsScreen(),
-      ),
+      // D322: Create (KL-060) is full screen above the shell — opened from
+      // Moments' «+» (the bar's centre button is gone); its Close and its
+      // publish go to Moments.
+      GoRoute(path: AppRoutes.create, builder: (_, _) => const CreateScreen()),
       GoRoute(
         path: AppRoutes.storyArchive,
         builder: (_, _) => const StoryArchiveScreen(),
@@ -700,20 +700,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // D86: Posts · Reels, the second tab.
+          // D322: «الحفلة» (the voice rooms, D131/D246), the second tab.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.voiceRooms,
+                builder: (_, _) => const VoiceRoomsScreen(),
+              ),
+            ],
+          ),
+          // D86: Posts · Reels — D322: the third tab, «اللحظات».
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: AppRoutes.reels,
                 builder: (_, _) => const FeedScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.create,
-                builder: (_, _) => const CreateScreen(),
               ),
             ],
           ),

@@ -169,7 +169,8 @@ abstract final class AppRoutes {
   /// D201: join the caller's own live as its second camera (device B).
   static const liveSecondCamera = '/live/second-camera';
 
-  /// D131: the voice rooms (the Live hub's party button), above the shell.
+  /// D131: the voice rooms — D322: «الحفلة», the second shell tab (the Live
+  /// hub's party button is gone).
   static const voiceRooms = '/live/voice';
 
   /// CP-008: your story archive.
@@ -454,12 +455,14 @@ abstract final class AppRoutes {
     passwordChange,
   };
 
-  /// Shell branches, in navigation order (start → end). D86 (owner): Live ·
-  /// Posts · Create · Messages · Me; Discover opens from the search buttons.
+  /// Shell branches, in navigation order (start → end). D322 (owner's bar):
+  /// Live · Party (the voice rooms, [voiceRooms]) · Moments · Messages · Me;
+  /// no Create tab (D86's centre button is gone: Create opens above the
+  /// shell from Moments' «+»). Discover opens from the search buttons.
   static const List<String> shellBranches = [
     home,
+    voiceRooms,
     reels,
-    create,
     messages,
     profile,
   ];

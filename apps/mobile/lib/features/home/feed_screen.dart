@@ -40,9 +40,10 @@ import 'package:material_ui/material_ui.dart';
 /// - Both pages stay alive in an [IndexedStack]: each keeps its scroll
 ///   position (and the reels pager its page), and its provider is not
 ///   re-fetched on a switch. Switching is by tap only, so nothing competes
-///   with vertical scrolling or the reels pager. There is no Create button
-///   here: Create is the centre button of the bottom bar on every tab
-///   (D52). Search sits at the start (owner, D55) and opens Discover.
+///   with vertical scrolling or the reels pager. D322: the bottom bar has
+///   no centre Create button any more, so «+» beside the bell opens the
+///   create menu (post, reel, story, live). Search sits at the start
+///   (owner, D55) and opens Discover.
 /// - Posts are flat and full width (D54), under the stories tray (CP-008:
 ///   your entry first — open your stories or add one — then followed
 ///   accounts; a ring opens the story viewer); D294: no line between posts.
@@ -78,6 +79,9 @@ class FeedScreen extends StatefulWidget {
   static const reelsScrimKey = Key('home.reels.scrim');
   static const tabsKey = Key('home.tabs');
   static const searchKey = Key('home.search');
+
+  /// D322: «+» — the create menu.
+  static const createKey = Key('home.create');
 
   /// The other page's word in the toggle: «الريلز» on Posts, «المنشورات» on
   /// Reels (D53, D294).
@@ -296,8 +300,9 @@ class _ModeTopBar extends StatelessWidget {
   final bool showNotifications;
   final VoidCallback onSwitch;
 
-  /// Equal side insets keep the words centred on the screen.
-  static const double _searchSlot = KSizes.minTouchTarget + KSpacing.xs;
+  /// Equal side insets keep the words centred on the screen (D322: two
+  /// buttons at the end — «+» and the bell).
+  static const double _endSlot = 2 * KSizes.minTouchTarget + KSpacing.xs;
 
   @override
   Widget build(BuildContext context) {
@@ -310,11 +315,7 @@ class _ModeTopBar extends StatelessWidget {
         children: [
           Positioned.fill(
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: showSearch || showNotifications
-                    ? _searchSlot
-                    : KSpacing.xs,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: _endSlot),
               child: KPrimaryTabs(
                 key: FeedScreen.tabsKey,
                 centered: true,
@@ -355,17 +356,43 @@ class _ModeTopBar extends StatelessWidget {
                 ),
               ),
             ),
-          if (showNotifications)
-            const PositionedDirectional(
-              end: KSpacing.xs,
-              top: 0,
-              bottom: 0,
-              child: NotificationsBell(),
+          PositionedDirectional(
+            end: KSpacing.xs,
+            top: 0,
+            bottom: 0,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _CreateButton(),
+                if (showNotifications) const NotificationsBell(),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
+}
+
+/// D322: Moments' «+» — the create menu ([openCreateMenu]).
+class _CreateButton extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => IconButton(
+    key: FeedScreen.createKey,
+    tooltip: context.l10n.feedCreate,
+    constraints: const BoxConstraints.tightFor(
+      width: KSizes.minTouchTarget,
+      height: KSizes.minTouchTarget,
+    ),
+    onPressed: () => unawaited(openCreateMenu(context, ref)),
+    icon: AppIcon(
+      AppIcons.plusOutline,
+      size: KMetrics.iconMd,
+      color: context.palette.textPrimary,
+    ),
+  );
 }
 
 /// D218: the posts page — the stories tray above the server's 1 Following

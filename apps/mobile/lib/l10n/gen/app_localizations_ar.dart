@@ -16680,4 +16680,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveRankRichEmpty => 'لم يُرسل أحد هدايا بعد في هذه الفترة.';
+
+  @override
+  String get navParty => 'الحفلة';
+
+  @override
+  String get liveHubGoLive => 'ابدأ بثاً';
+
+  @override
+  String get feedCreate => 'إنشاء';
 }

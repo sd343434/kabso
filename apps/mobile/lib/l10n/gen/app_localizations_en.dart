@@ -16681,4 +16681,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveRankRichEmpty => 'No gifts sent yet in this period.';
+
+  @override
+  String get navParty => 'Party';
+
+  @override
+  String get liveHubGoLive => 'Go live';
+
+  @override
+  String get feedCreate => 'Create';
 }

@@ -1,7 +1,7 @@
 // D139: the Live button in the voice rooms' top bar (the mirror of the
-// hub's party button) returns to the live hub.
-
-import 'dart:async';
+// hub's party button) returns to the live hub. D322: the voice rooms are
+// the «الحفلة» tab (the hub's party button is gone); the switch takes the
+// person to the «البث» tab.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -53,9 +53,9 @@ GoRouter _router(WidgetTester tester) =>
 String _location(WidgetTester tester) =>
     _router(tester).routerDelegate.currentConfiguration.uri.toString();
 
-/// Opens the voice rooms the way the owner does: the hub's party button.
-Future<void> _openFromHub(WidgetTester tester) async {
-  await tester.tap(find.byKey(LiveHubPartyButton.buttonKey));
+/// D322: opens the voice rooms the way the owner does: the «الحفلة» tab.
+Future<void> _openFromTab(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('nav.party')));
   await tester.pumpAndSettle();
   expect(find.byType(VoiceRoomsScreen), findsOneWidget);
 }
@@ -67,10 +67,9 @@ void main() {
       testWidgets("D240: the party page's corner switch, 48 pt, the Live "
           "icon (the size of the hub's party icon), labelled", (tester) async {
         await _pumpApp(tester, language);
-        final partySize = tester
-            .widget<KPartyIcon>(find.byType(KPartyIcon))
-            .size;
-        await _openFromHub(tester);
+        // D130's party popper was 24 pt (KSpacing.xl); D322 removed it.
+        const partySize = KSpacing.xl;
+        await _openFromTab(tester);
 
         final button = find.byKey(VoiceRoomsLiveButton.buttonKey);
         expect(button, findsOneWidget);
@@ -96,7 +95,8 @@ void main() {
         } else {
           expect(rect.right, closeTo(width, 0.5));
         }
-        // D240: no search on the party page; the back arrow stays.
+        // D240: no search on the party page; D322: a tab, so no back
+        // arrow.
         expect(
           find.descendant(
             of: find.byType(VoiceRoomsScreen),
@@ -104,20 +104,25 @@ void main() {
           ),
           findsNothing,
         );
-        expect(find.byKey(VoiceRoomsScreen.backKey), findsOneWidget);
+        expect(find.byKey(VoiceRoomsScreen.backKey), findsNothing);
 
+        // D322: the bar's «البث» tab is also on screen (English: "Live" for
+        // both), so the page's own switch is looked up inside the page.
         expect(
-          find.bySemanticsLabel(l10n.liveVoiceRoomsToLive),
+          find.descendant(
+            of: find.byType(VoiceRoomsScreen),
+            matching: find.bySemanticsLabel(l10n.liveVoiceRoomsToLive),
+          ),
           findsOneWidget,
         );
         expect(find.byTooltip(l10n.liveVoiceRoomsToLive), findsOneWidget);
       });
 
-      testWidgets('opened from the hub: a tap plays the house, then pops '
-          'back to the hub', (tester) async {
+      testWidgets('the party tab: a tap plays the house, then switches to '
+          'the Live tab', (tester) async {
         await _pumpApp(tester, language);
-        await _openFromHub(tester);
-        expect(_router(tester).canPop(), isTrue);
+        await _openFromTab(tester);
+        expect(_location(tester), AppRoutes.voiceRooms);
 
         await tester.tap(find.byKey(VoiceRoomsLiveButton.buttonKey));
         await tester.pump();
@@ -126,14 +131,10 @@ void main() {
           tester.state<KLiveIconState>(find.byType(KLiveIcon)).playing,
           isTrue,
         );
-        // Still on the voice rooms: nothing popped yet.
-        expect(_router(tester).canPop(), isTrue);
-        expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+        expect(_location(tester), AppRoutes.voiceRooms);
         await tester.pumpAndSettle();
-        expect(find.byType(VoiceRoomsScreen), findsNothing);
         expect(find.byType(LiveScreen), findsOneWidget);
         expect(_location(tester), AppRoutes.home);
-        // A pop: nothing left above the hub.
         expect(_router(tester).canPop(), isFalse);
       });
 
@@ -153,23 +154,6 @@ void main() {
         expect(_location(tester), AppRoutes.home);
       });
 
-      testWidgets('opened over another page (not the hub): goes to the hub, '
-          'not to that page', (tester) async {
-        await _pumpApp(tester, language);
-        await _openFromHub(tester);
-        // push() completes when the page pops: not awaited.
-        unawaited(_router(tester).push<void>(AppRoutes.voiceRooms));
-        await tester.pumpAndSettle();
-        expect(find.byType(VoiceRoomsScreen), findsOneWidget);
-
-        await tester.tap(find.byKey(VoiceRoomsLiveButton.buttonKey));
-        await tester.pumpAndSettle();
-        expect(find.byType(VoiceRoomsScreen), findsNothing);
-        expect(find.byType(LiveScreen), findsOneWidget);
-        expect(_location(tester), AppRoutes.home);
-        expect(_router(tester).canPop(), isFalse);
-      });
-
       testWidgets('reduced motion: no animation, the hub comes back at once', (
         tester,
       ) async {
@@ -179,11 +163,11 @@ void main() {
           tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
         );
         await _pumpApp(tester, language);
-        await _openFromHub(tester);
+        await _openFromTab(tester);
 
         await tester.tap(find.byKey(VoiceRoomsLiveButton.buttonKey));
-        // No lead: the pop happens with the tap.
-        expect(_router(tester).canPop(), isFalse);
+        // No lead: the switch happens with the tap.
+        expect(_location(tester), AppRoutes.home);
         expect(
           tester.state<KLiveIconState>(find.byType(KLiveIcon)).playing,
           isFalse,
@@ -203,13 +187,12 @@ void main() {
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         await loadAppFonts();
         await _pumpApp(tester, language);
-        await _openFromHub(tester);
+        await _openFromTab(tester);
         expect(tester.takeException(), isNull);
-        final back = tester.getRect(find.byKey(VoiceRoomsScreen.backKey));
         final live = tester.getRect(find.byKey(VoiceRoomsLiveButton.buttonKey));
-        // D246: the filters sit whole between the back arrow and the Live
-        // switch (no search, no bell; they shrink to fit); the kinds are
-        // the row under them, on screen.
+        // D246: the filters sit whole between the screen's start edge (D322:
+        // no back arrow on the tab) and the Live switch (no search, no
+        // bell; they shrink to fit); the kinds are the row under them.
         expect(
           find.descendant(
             of: find.byType(VoiceRoomsScreen),
@@ -226,10 +209,10 @@ void main() {
         for (final f in VoiceRoomsScreen.filters) {
           final tab = tester.getRect(find.byKey(VoiceRoomsScreen.filterKey(f)));
           if (language == AppLanguage.ar) {
-            expect(tab.right, lessThanOrEqualTo(back.left));
+            expect(tab.right, lessThanOrEqualTo(360));
             expect(tab.left, greaterThanOrEqualTo(live.right));
           } else {
-            expect(tab.left, greaterThanOrEqualTo(back.right));
+            expect(tab.left, greaterThanOrEqualTo(0));
             expect(tab.right, lessThanOrEqualTo(live.left));
           }
         }

@@ -272,53 +272,51 @@ void main() {
     });
   });
 
-  group('KTabBar (D130 styling)', () {
+  group('KabsoNavBar (D322 styling)', () {
     Future<void> pumpNav(WidgetTester tester, int index) => pumpComponent(
       tester,
       Align(
         alignment: Alignment.bottomCenter,
-        child: KTabBar(
-          items: shellTabItems(l10nFor(AppLanguage.en)),
+        child: shellNavBar(
+          l10nFor(AppLanguage.en),
           currentIndex: index,
-          onSelect: (_) {},
+          onTap: (_) {},
         ),
       ),
     );
 
-    testWidgets('D130: the selected label is primaryText, the others '
-        'textTertiary, on surfaceRaised; no dot or badge without a source', (
+    testWidgets('D322: the selected label is primaryText, the others '
+        'textSecondary, on surfaceRaised; no dot or badge without a source', (
       tester,
     ) async {
       await pumpNav(tester, 0);
       const p = KPalette.dark;
       Color labelColor(String label) =>
-          tester.widget<Text>(find.text(label)).style!.color!;
-      // D86/D130: Live · Moments · Create · Messages · Me.
+          DefaultTextStyle.of(tester.element(find.text(label))).style.color!;
+      // D322: Live · Party · Moments · Messages · Me.
       expect(labelColor('Live'), p.primaryText);
-      for (final label in ['Moments', 'Messages', 'Me']) {
-        expect(labelColor(label), p.textTertiary);
+      for (final label in ['Party', 'Moments', 'Messages', 'Me']) {
+        expect(labelColor(label), p.textSecondary);
       }
-      final bar = tester.widget<DecoratedBox>(
+      final bar = tester.widget<Container>(
         find
             .descendant(
-              of: find.byType(KTabBar),
-              matching: find.byType(DecoratedBox),
+              of: find.byType(KabsoNavBar),
+              matching: find.byType(Container),
             )
             .first,
       );
-      expect((bar.decoration as BoxDecoration).color, p.surfaceRaised);
-      expect(find.byKey(KTabBarKeys.dot), findsNothing);
-      expect(find.byKey(KTabBarKeys.badge), findsNothing);
+      expect((bar.decoration! as BoxDecoration).color, p.surfaceRaised);
+      expect(find.byKey(KabsoNavBar.dotKey), findsNothing);
+      expect(find.byKey(KabsoNavBar.badgeKey), findsNothing);
     });
 
-    testWidgets('Create keeps its label-less + with a "Create" name', (
-      tester,
-    ) async {
-      await pumpNav(tester, 2);
-      expect(find.text('Create'), findsNothing);
+    testWidgets('no Create tab: five labelled buttons', (tester) async {
+      await pumpNav(tester, 1);
+      expect(find.byKey(const Key('nav.create')), findsNothing);
       expect(
-        tester.getSemantics(find.byKey(const Key('nav.create'))),
-        isSemantics(label: 'Create', isSelected: true, isButton: true),
+        tester.getSemantics(find.byKey(const Key('nav.party'))),
+        isSemantics(label: 'Party', isSelected: true, isButton: true),
       );
     });
   });

@@ -28,7 +28,6 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
@@ -53,7 +52,8 @@ import '../helpers/golden.dart';
 /// Home is shell branch 0, Live is branch 3.
 // D48: Home (index 0) is the live hub; Reels (index 3) is the feed.
 const _liveIndex = 0;
-const _reelsIndex = 3;
+const _partyIndex = 1;
+const _reelsIndex = 2;
 
 Future<void> _pumpShellTab(
   WidgetTester tester, {
@@ -85,13 +85,13 @@ Future<void> _pumpShellTab(
       child: Builder(
         builder: (context) => Scaffold(
           body: screen,
-          // D131: the Voice rooms screen sits above the shell (no bar).
+          // D322: the owner's bar (the voice rooms are its «الحفلة» tab).
           bottomNavigationBar: navIndex == null
               ? null
-              : KTabBar(
-                  items: shellTabItems(context.l10n),
+              : shellNavBar(
+                  context.l10n,
                   currentIndex: navIndex,
-                  onSelect: (_) {},
+                  onTap: (_) {},
                 ),
         ),
       ),
@@ -365,7 +365,7 @@ void main() {
               'voice_rooms$suffix',
               brightness: brightness,
               screen: const VoiceRoomsScreen(),
-              navIndex: null,
+              navIndex: _partyIndex,
               overrides: server(),
             );
           });

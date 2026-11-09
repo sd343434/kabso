@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
@@ -87,12 +86,12 @@ class ProfilePreviewScreen extends StatelessWidget {
           ? const EditProfileScreen()
           : Scaffold(
               body: const ProfileScreen(),
-              bottomNavigationBar: KTabBar(
+              bottomNavigationBar: shellNavBar(
+                context.l10n,
                 currentIndex: AppRoutes.shellBranches.indexOf(
                   AppRoutes.profile,
                 ),
-                onSelect: (i) => context.go(AppRoutes.shellBranches[i]),
-                items: shellTabItems(context.l10n),
+                onTap: (i) => context.go(AppRoutes.shellBranches[i]),
               ),
             ),
     );

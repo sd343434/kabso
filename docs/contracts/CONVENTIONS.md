@@ -10062,6 +10062,41 @@ Team's car, §10.96.10), SVGA or MP4.
 - Unchanged: once per join (D280), «إخفاء تأثيرات الدخول» (D225), the sound (D272), reduced motion (the car does not
   play, no sound). No contract change.
 
+### 10.126 The app shell: the owner's bottom bar, the «الحفلة» tab and the Live hub's «+» *(app only, D322)*
+
+Owner (2026-11-08, with his own bar's code — his design, used as supplied): five tabs, start → end (Arabic: right →
+left) **البث · الحفلة · اللحظات · الرسائل · أنا**, every icon drawn in code with its own tap animation, **no centre
+button**; «لا تنسى تشيل زر الحفلة من الشريط العلوي». §10.126 is chosen above wt-303's §10.116–§10.124 (§10.125 left free
+for its follow-ups). No contract change.
+
+- **The bar** is `KabsoNavBar` (`lib/design_system/components/kabso_nav_bar.dart`, credited to the owner; replaces
+  D130's `KTabBar` and its camera button, which are deleted, and D130's `KPartyIcon`). Kept from his file: the icons,
+  their animations (750 ms; a re-tap replays the selected tab's), sizes (64 pt + the bottom safe area, 28 pt icons —
+  «أنا» 30 —, 13 sp labels, heavy when selected), his art colours (confetti, stars, blush) and the selection haptic.
+  Adapted: labels from gen-l10n (`navLive`, `navParty`, `navMoments`, `navMessages`, `navProfile`); the order follows
+  the app's direction (his file forced RTL; English reads left → right); colours from the palette, light and dark (bar
+  `surfaceRaised`, hairline light `surfaceOverlay` / dark `border`, red `primary`, sheen `red500` / dark `red400`,
+  selected ink `textPrimary`, idle icons `borderStrong`, labels `textSecondary`, selected label `primaryText`, glyphs
+  on red `onPrimary`); the app's font with the text scale capped at 1.15; one semantics button per tab (label,
+  selected, the unread count); reduced motion → no animation. The Messages badge is the real unread count
+  (`unreadMessagesProvider`, «99+» above 99); the D130 dot for a followed account's unseen story stays on «اللحظات».
+- **Routing** (`AppRoutes.shellBranches`): `/home` (Live hub) · **`/live/voice`** (the voice rooms, D131 / D246 — now a
+  branch, so the party page has the bar and no back arrow; its corner switch to the Live hub stays) · `/reels` ·
+  `/messages` · `/profile`. Tapping another tab keeps each tab's state (an indexed stack, as before); tapping the selected
+  one replays its animation and returns that tab to its first page. Deep links are unchanged; `/live/voice` now selects
+  «الحفلة». **`/create`** is no longer a branch: a full-screen page above the shell (its Close / publish go to Moments, as
+  before), opened from **Moments' «+»** beside the bell, which opens the D162 menu (post, reel, story, live; D283: a
+  Kabso Team account gets announcements only). A live started from there and minimized returns to the tab it came from
+  (D123).
+- **The Live hub's top bar** (start → end): «كابسو لايف» · **«+»** · search (where the party button was) · bell. Owner
+  follow-ups (same day): «بدون دائرة وبنفس لون باقي الأزرار» — «+» is a plain outline plus drawn like search beside it
+  (`AppIcons.plusOutline`, 2.0 strokes on the 24 grid like search and the bell; the same size, `textPrimary`, 48 pt
+  target; no disc) — and «لا تظهر قائمة، فقط تدخل إلى صفحة إنشاء اللايف كما كان سابقًا»: a tap opens go-live
+  (`/live/new`) directly, on its default mode; the live type is chosen inside go-live as before (no sheet, no `?mode=`).
+  It is the main way to go live and is hidden for a Kabso Team account (D283). Moments' «+» uses the same plain plus. The
+  other ways into go-live are unchanged: the create menu's «بث مباشر», Create's LIVE mode, the creator centre, the agency
+  page, the creator application, the task centre and the floating window.
+
 ### 10.127 Events v2 «الفعاليات» — one events system *(v1.101-social, DRAFT — D325)*
 
 Owner (2026-11-08 / 11-09): the D303 events «لم تكن مضبوطة»; one events system in the panel section «الفعاليات», built

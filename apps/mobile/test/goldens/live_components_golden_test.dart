@@ -264,17 +264,20 @@ void main() {
         await expectScreenGolden('states_compact', language: language);
       });
 
-      testWidgets('bottom nav: Home, Create and Live active', (tester) async {
+      testWidgets('bottom nav (D322): Live, Party and Messages active', (
+        tester,
+      ) async {
         final l10n = lookupAppLocalizations(language.locale);
         await pumpGolden(
           tester,
           Column(
             children: [
-              for (final index in [0, 2, 3]) ...[
-                KTabBar(
-                  items: shellTabItems(l10n),
+              for (final index in [0, 1, 3]) ...[
+                shellNavBar(
+                  l10n,
                   currentIndex: index,
-                  onSelect: (_) {},
+                  onTap: (_) {},
+                  unreadMessages: 3,
                 ),
                 const SizedBox(height: KSpacing.lg),
               ],

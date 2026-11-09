@@ -14523,5 +14523,11 @@
   "liveRankCoins": "{formatted} كوينز",
   "@liveRankCoins": {"description": "D320: coins sent as gifts on «الأغنى», for screen readers.", "placeholders": {"formatted": {"type": "String"}}},
   "liveRankRichEmpty": "لم يُرسل أحد هدايا بعد في هذه الفترة.",
-  "@liveRankRichEmpty": {"description": "D320: an empty «الأغنى» board."}
+  "@liveRankRichEmpty": {"description": "D320: an empty «الأغنى» board."},
+  "navParty": "الحفلة",
+  "@navParty": {"description": "D322: the owner's bottom bar, second tab — the party page (the voice rooms)."},
+  "liveHubGoLive": "ابدأ بثاً",
+  "@liveHubGoLive": {"description": "D322: the Live hub top bar's «+» (opens go-live); tooltip and screen-reader name."},
+  "feedCreate": "إنشاء",
+  "@feedCreate": {"description": "D322: the Moments top bar's «+» (opens the create menu: post, reel, story, live); tooltip and screen-reader name."}
 }
