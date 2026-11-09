@@ -324,6 +324,17 @@ export enum AuditAction {
   TOPUP_HANDOFF_REFUSED = 'topup.handoff.refused',
   // v1.109-social (D344, §10.143.2): Stripe took more than the fee folded into the price (coins never change).
   TOPUP_FEE_EXCEEDED = 'topup.fee.exceeded',
+  /** v1.110-social (D345, §10.144): store purchases — a credit, a refund (claw-back + bans), an owner unban. */
+  STORE_IAP_CREDIT = 'store_iap.credit',
+  STORE_IAP_REJECT = 'store_iap.reject',
+  STORE_IAP_REFUND = 'store_iap.refund',
+  STORE_IAP_REFUND_RECORDED = 'store_iap.refund_recorded',
+  STORE_IAP_CONSUMPTION = 'store_iap.consumption',
+  STORE_IAP_UNBAN = 'store_iap.unban',
+  STORE_IAP_PRODUCT_CREATE = 'store_iap.product.create',
+  STORE_IAP_PRODUCT_UPDATE = 'store_iap.product.update',
+  STORE_IAP_SETTINGS_UPDATE = 'store_iap.settings.update',
+  STORE_IAP_VOIDED_SYNC = 'store_iap.voided_sync',
   TOPUP_EVENT_UNMATCHED = 'topup.event.unmatched',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',

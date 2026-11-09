@@ -324,6 +324,9 @@ model User {
   // v1.59-social (D190): card top-ups on the website.
   topupTermsAcceptances  TopupTermsAcceptance[]
   topupOrders            TopupOrder[]
+  /// v1.110-social (D345, §10.144): coins bought through Google Play / the App Store, and the bans their refunds made.
+  iapPurchases           IapPurchase[]
+  iapRefundBans          IapRefundBan[]
   topupFreeze            TopupFreeze?
   /// v1.109-social (D344): the app's one-time website sign-in codes.
   topupHandoffs          TopupHandoff[]
@@ -1183,6 +1186,10 @@ enum WalletLedgerReason {
   /// the coin value; reference: the send), and its claw-back when the send is reversed (the balance may go below 0).
   GIFT_OWNER_ROYALTY
   GIFT_OWNER_ROYALTY_REVERSAL
+  /// v1.110-social (D345, §10.144): coins bought in a store (reference: the `store_purchases` row) and taken back after
+  /// the store refunded them (reference: the purchase; the balance may go below 0).
+  STORE_IAP
+  STORE_IAP_REVERSAL
 
   @@map("wallet_ledger_reason")
 }
@@ -7006,7 +7013,10 @@ model DeviceBan {
   liftedAt         DateTime? @map("lifted_at") @db.Timestamptz(3)
   liftedById       String?   @map("lifted_by_id") @db.Uuid
   liftReason       String?   @map("lift_reason") @db.VarChar(500)
+  /// v1.110-social (D345, §10.144.4): the refunded store purchase that banned the device (lifted by the OWNER only).
+  iapPurchaseId    String?   @map("iap_purchase_id") @db.Uuid
 
+  iapPurchase    IapPurchase?          @relation(fields: [iapPurchaseId], references: [id], onDelete: SetNull)
   sourceUser     User?                 @relation("DeviceBanSource", fields: [sourceUserId], references: [id], onDelete: SetNull)
   liveModeration LiveModerationAction? @relation(fields: [liveModerationId], references: [id], onDelete: SetNull)
   createdBy      User?                 @relation("DeviceBanCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -8000,4 +8010,192 @@ model GiftCoinsSentMonthly {
   @@id([userId, monthStart], map: "gift_coins_sent_monthly_pkey")
   @@index([monthStart], map: "gift_coins_sent_monthly_month_idx")
   @@map("gift_coins_sent_monthly")
+}
+
+// ---- v1.110-social (D345, CONVENTIONS §10.144): coins from the stores «الشراء من المتجر» ------------------------------
+
+/// D345: the store a purchase was made in.
+enum IapPlatform {
+  GOOGLE_PLAY
+  APP_STORE
+
+  @@map("iap_platform")
+}
+
+/// D345: a real purchase, or a sandbox / licence-tester one (accepted while STORE_IAP_ACCEPT_SANDBOX).
+enum IapEnvironment {
+  PRODUCTION
+  SANDBOX
+
+  @@map("iap_environment")
+}
+
+/// D345: CREDITED (coins given), REJECTED (verified but not credited: the once-per-account+device rule on Google),
+/// REFUNDED (the store refunded it; the coins were taken back).
+enum IapPurchaseStatus {
+  CREDITED
+  REJECTED
+  REFUNDED
+
+  @@map("iap_purchase_status")
+}
+
+/// D345: what became of an Apple CONSUMPTION_REQUEST.
+enum IapConsumptionStatus {
+  PENDING
+  SENT
+  SKIPPED_NO_CONSENT
+  SKIPPED_UNKNOWN
+  FAILED
+
+  @@map("iap_consumption_status")
+}
+
+/// D345: a store product id (Play Console / App Store Connect) and the coins it gives. Managed by the OWNER; never
+/// deleted (switched off).
+model IapProduct {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  platform          IapPlatform
+  productId         String      @map("product_id") @db.VarChar(150)
+  coins             BigInt
+  /// The reference price in US cents (the panel; the lifetime amounts of a consumption request's context).
+  referenceUsdCents Int?        @map("reference_usd_cents")
+  sortOrder         Int         @default(0) @map("sort_order")
+  enabled           Boolean     @default(true)
+  createdById       String?     @map("created_by_id") @db.Uuid
+  updatedById       String?     @map("updated_by_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  purchases IapPurchase[]
+
+  @@unique([platform, productId], map: "iap_products_platform_product_key")
+  @@map("iap_products")
+}
+
+/// D345: one verified store purchase (one row per store transaction: Google orderId or the token hash, Apple
+/// transactionId). Kept with the ledger (financial / anti-fraud record).
+model IapPurchase {
+  id                    String            @id @db.Uuid
+  userId                String            @map("user_id") @db.Uuid
+  platform              IapPlatform
+  storeProductId        String            @map("store_product_id") @db.Uuid
+  productId             String            @map("product_id") @db.VarChar(150)
+  coins                 BigInt
+  /// Google `orderId` (or `token:<sha256>` for a test purchase without one); Apple `transactionId`.
+  transactionId         String            @map("transaction_id") @db.VarChar(200)
+  originalTransactionId String?           @map("original_transaction_id") @db.VarChar(200)
+  /// Google's purchase token (needed to consume it and to match a void) and its SHA-256.
+  purchaseToken         String?           @map("purchase_token")
+  purchaseTokenHash     String?           @map("purchase_token_hash") @db.Char(64)
+  environment           IapEnvironment
+  status                IapPurchaseStatus
+  rejectReason          String?           @map("reject_reason") @db.VarChar(32)
+  /// D223's device HMAC of the buyer's phone (never shown).
+  deviceHash            String?           @map("device_hash") @db.Char(64)
+  priceMilli            BigInt?           @map("price_milli")
+  currency              String?           @db.Char(3)
+  purchasedAt           DateTime          @map("purchased_at") @db.Timestamptz(3)
+  creditedAt            DateTime?         @map("credited_at") @db.Timestamptz(3)
+  consumedAt            DateTime?         @map("consumed_at") @db.Timestamptz(3)
+  consentVersion        String            @map("consent_version") @db.VarChar(32)
+  consentAt             DateTime          @map("consent_at") @db.Timestamptz(3)
+  consentShareData      Boolean           @map("consent_share_data")
+  consentLocale         String?           @map("consent_locale") @db.VarChar(8)
+  refundedAt            DateTime?         @map("refunded_at") @db.Timestamptz(3)
+  refundSource          String?           @map("refund_source") @db.VarChar(32)
+  refundReason          String?           @map("refund_reason") @db.VarChar(500)
+  refundDetail          Json?             @map("refund_detail")
+  coinsReversed         BigInt            @default(0) @map("coins_reversed")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime          @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  product      IapProduct              @relation(fields: [storeProductId], references: [id], onDelete: Restrict)
+  refundBan    IapRefundBan?
+  deviceBans   DeviceBan[]
+  consumptions IapConsumptionRequest[]
+
+  @@unique([platform, transactionId], map: "iap_purchases_transaction_key")
+  @@unique([platform, purchaseTokenHash], map: "iap_purchases_token_key")
+  @@index([userId, createdAt(sort: Desc)], map: "iap_purchases_user_idx")
+  @@index([deviceHash], map: "iap_purchases_device_idx", where: raw("device_hash IS NOT NULL"))
+  @@index([createdAt(sort: Desc)], map: "iap_purchases_created_idx")
+  @@index([platform, consumedAt], map: "iap_purchases_unconsumed_idx", where: raw("consumed_at IS NULL AND status = 'CREDITED'"))
+  @@map("iap_purchases")
+}
+
+/// D345: a store server notification applied once (Apple notificationUUID, Google Pub/Sub messageId).
+model IapNotification {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  platform       IapPlatform
+  notificationId String      @map("notification_id") @db.VarChar(200)
+  type           String      @db.VarChar(64)
+  subtype        String?     @db.VarChar(64)
+  transactionId  String?     @map("transaction_id") @db.VarChar(200)
+  outcome        String      @db.VarChar(64)
+  receivedAt     DateTime    @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@unique([platform, notificationId], map: "iap_notifications_once")
+  @@index([receivedAt(sort: Desc)], map: "iap_notifications_received_idx")
+  @@map("iap_notifications")
+}
+
+/// D345: an Apple CONSUMPTION_REQUEST and the consumption information answered (only with the buyer's consent).
+model IapConsumptionRequest {
+  id             String               @id @default(uuid(7)) @db.Uuid
+  notificationId String               @unique(map: "iap_consumption_requests_notification_key") @map("notification_id") @db.VarChar(200)
+  purchaseId     String?              @map("purchase_id") @db.Uuid
+  transactionId  String               @map("transaction_id") @db.VarChar(200)
+  status         IapConsumptionStatus
+  payload        Json?
+  context        Json?
+  attempts       Int                  @default(0)
+  lastError      String?              @map("last_error") @db.VarChar(300)
+  receivedAt     DateTime             @map("received_at") @db.Timestamptz(3)
+  deadlineAt     DateTime             @map("deadline_at") @db.Timestamptz(3)
+  sentAt         DateTime?            @map("sent_at") @db.Timestamptz(3)
+
+  purchase IapPurchase? @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+
+  @@index([status, deadlineAt], map: "iap_consumption_requests_pending_idx", where: raw("status = 'PENDING'"))
+  @@map("iap_consumption_requests")
+}
+
+/// D345: the automatic ban of a refunded store purchase — the account (SUSPENDED) and the device (`device_bans`). The
+/// reason is the panel's «استرداد عبر … بتاريخ … طلب …». Lifted by the OWNER only («فك الحظر»).
+model IapRefundBan {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  purchaseId        String    @unique(map: "iap_refund_bans_purchase_key") @map("purchase_id") @db.Uuid
+  reason            String    @db.VarChar(500)
+  accountBanned     Boolean   @map("account_banned")
+  devicesBanned     Int       @default(0) @map("devices_banned")
+  accountLiftedAt   DateTime? @map("account_lifted_at") @db.Timestamptz(3)
+  accountLiftedBy   String?   @map("account_lifted_by") @db.Uuid
+  accountLiftReason String?   @map("account_lift_reason") @db.VarChar(500)
+  deviceLiftedAt    DateTime? @map("device_lifted_at") @db.Timestamptz(3)
+  deviceLiftedBy    String?   @map("device_lifted_by") @db.Uuid
+  deviceLiftReason  String?   @map("device_lift_reason") @db.VarChar(500)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  purchase IapPurchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@index([userId], map: "iap_refund_bans_user_idx")
+  @@index([createdAt(sort: Desc)], map: "iap_refund_bans_created_idx")
+  @@map("iap_refund_bans")
+}
+
+/// D345: the store settings (one row, id 1): the once-per-account+device switch and the voided-purchases poll state.
+model IapSettings {
+  id                   Int       @id @default(1)
+  oncePerAccountDevice Boolean   @default(false) @map("once_per_account_device")
+  updatedById          String?   @map("updated_by_id") @db.Uuid
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  voidedPolledUntil    DateTime? @map("voided_polled_until") @db.Timestamptz(3)
+  voidedLastRunAt      DateTime? @map("voided_last_run_at") @db.Timestamptz(3)
+  voidedLastError      String?   @map("voided_last_error") @db.VarChar(300)
+
+  @@map("iap_settings")
 }

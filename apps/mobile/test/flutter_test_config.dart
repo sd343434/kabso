@@ -30,12 +30,15 @@ import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
+import 'package:kabso_live/features/store_iap/data/store_billing.dart';
 import 'package:kabso_live/features/vip/presentation/vip_parts.dart';
 import 'package:kabso_live/features/vip/presentation/vip_svga.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
+  // D345: no store plugin in widget tests (tests pass a fake billing).
+  InAppPurchaseBilling.enabled = false;
   // D333: no automatic upload retries unless a test sets the waits.
   ComposeController.retryDelays = const [];
   KabsoBattleEmoji.enabled = false;

@@ -48,6 +48,9 @@ import { AdminDeviceSignupsService } from './admin-device-signups.service.js';
 import { AdminVipController } from './admin-vip.controller.js';
 import { AdminStoreController } from './admin-store.controller.js';
 import { AdminMedalsController } from './admin-medals.controller.js';
+import { AdminIapController } from './admin-iap.controller.js';
+import { AdminIapService } from './admin-iap.service.js';
+import { IapModule } from '../store-iap/iap.module.js';
 
 /**
  * v1.60-social (D191, CONVENTIONS §10.54): the admin panel «لوحة الإدارة» API behind its own cookie session with a
@@ -67,6 +70,8 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
 
 @Module({
   imports: [
+    // v1.110-social (D345): «مشتريات المتجر».
+    IapModule,
     AuthModule,
     MediaModule,
     SafetyModule,
@@ -84,6 +89,7 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     MedalsModule,
   ],
   controllers: [
+    AdminIapController,
     AdminAuthController,
     AdminUsersController,
     AdminFinanceController,
@@ -111,6 +117,7 @@ import { OwnerModerationController, OwnerModerationService } from './owner-moder
     OwnerModerationController,
   ],
   providers: [
+    AdminIapService,
     AdminAuthService,
     StaffReportActionsService,
     OwnerModerationService,

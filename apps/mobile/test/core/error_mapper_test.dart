@@ -148,6 +148,10 @@ const Map<ErrorCode, int> _statusFor = {
   // D270.
   ErrorCode.storeUnavailable: 409,
   ErrorCode.storePriceChanged: 409,
+  ErrorCode.storeIapUnavailable: 503,
+  ErrorCode.storeIapVerificationFailed: 400,
+  ErrorCode.storeIapPurchaseConflict: 409,
+  ErrorCode.storeIapPending: 409,
   // v1.68-live (D273).
   ErrorCode.staffProtected: 403,
   ErrorCode.liveStaffRefused: 403,
@@ -335,6 +339,10 @@ void main() {
           'VIP_PRICE_CHANGED',
           'STORE_UNAVAILABLE',
           'STORE_PRICE_CHANGED',
+          'STORE_IAP_UNAVAILABLE',
+          'STORE_IAP_VERIFICATION_FAILED',
+          'STORE_IAP_PURCHASE_CONFLICT',
+          'STORE_IAP_PENDING',
           // v1.68-live (D273): the staff tools in the app.
           'STAFF_PROTECTED',
           'LIVE_STAFF_REFUSED',

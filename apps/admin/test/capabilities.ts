@@ -97,4 +97,7 @@ export const CAPABILITY_ROLES: Partial<Record<Capability, readonly PanelRole[]>>
   'owner.inbox': ['OWNER'],
   'owner.costs': ['OWNER'],
   'events.manage': ['OWNER'],
+  'store_iap.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  'store_iap.manage': ['OWNER'],
+  'store_iap.unban': ['OWNER'],
 };

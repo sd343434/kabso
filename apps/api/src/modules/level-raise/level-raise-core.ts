@@ -25,6 +25,9 @@ export const RECHARGE_REASONS = [
   'CARD_TOPUP_RESTORE',
   'RECHARGE_PURCHASE',
   'RECHARGE_ORDER',
+  // v1.110-social (D345): coins bought in a store and their claw-back.
+  'STORE_IAP',
+  'STORE_IAP_REVERSAL',
 ] as const;
 
 export async function settingsRowIn(db: Db): Promise<LevelRaiseSettings> {

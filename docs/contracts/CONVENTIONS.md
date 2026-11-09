@@ -220,6 +220,10 @@ All non-2xx responses use one envelope:
 | 409 | `REFERRAL_NOT_ALLOWED` | *(v1.74-social, DRAFT, D217)* The caller may not enter a code now; `details: [{field: "referral", issue: "ALREADY_REFERRED" \| "WINDOW_CLOSED"}]` (one inviter per person, ever; within `applyWindowDays` of sign-up). §10.71. |
 | 409 | `DEVICE_ACCOUNT_LIMIT` | *(v1.78-social, DRAFT, D223)* `register` / `registerVerify`: this device (`DeviceInfo.deviceKey`) already created `SIGNUP_MAX_ACCOUNTS_PER_DEVICE` accounts (deleted ones included; an OWNER exception may raise it); `details: [{field: "device", issue: "<the limit, decimal>"}]`. Signing in is never limited. §10.75. |
 | 403 | `DEVICE_BANNED` | *(v1.60-live, DRAFT, D250)* `register`, `registerVerify`, `login` (after the right password) and `startLiveRoom`: the team banned this device «حظر جهاز» (`DeviceInfo.deviceKey`, or the device the session signed in with) for every account; `details: [{field: "until", issue: <ISO 8601 time> \| "permanent"}, {field: "reason", issue: <the team's reason>}]`. §10.91.6. |
+| 503 | `STORE_IAP_UNAVAILABLE` | *(v1.110-social, DRAFT, D345)* `verifyStorePurchase` and the store notification endpoints: that store (Google Play / App Store) is not configured on this server (the catalogue says `available: false` instead). No `Retry-After`. §10.144.1. |
+| 400 | `STORE_IAP_VERIFICATION_FAILED` | *(v1.110-social, DRAFT, D345)* The store did not confirm the purchase, or its signed data is not valid: `details: [{field: purchaseToken \| signedTransaction \| signedPayload \| productId \| environment, issue: …}]` (§10.144.3). Nothing stored. |
+| 409 | `STORE_IAP_PURCHASE_CONFLICT` | *(v1.110-social, DRAFT, D345)* The store purchase was already verified for another account, or is bound to another account (`obfuscatedAccountId` / `appAccountToken`). §10.144.3. |
+| 409 | `STORE_IAP_PENDING` | *(v1.110-social, DRAFT, D345)* Google Play has not completed the payment yet (`purchaseState` pending); nothing stored, retry when the store says it is purchased. §10.144.3. |
 | 409 | `VIP_UNAVAILABLE` | *(v1.82-social, DRAFT, D252)* `buyVip`: the tier cannot be bought by the caller now; `details: [{field: "tier", issue: "tier_off" \| "downgrade" \| "renewal_limit"}]` — the tier is switched off, it ranks below the caller's active tier, or a renewal would run past `VIP_MAX_AHEAD_DAYS` (400) days from now. Nothing was charged. §10.93. *(v1.83-social, D258)* `claimVipDailyCoins`: `{field: "perk", issue: "no_perk"}` — the caller holds no DAILY_COINS perk now (§10.94.5). |
 | 409 | `VIP_PRICE_CHANGED` | *(v1.82-social, DRAFT, D252)* `buyVip`: `priceCoins` differs from the tier's price now (the owner changed it in the panel). Nothing was charged; the app reloads the tiers and shows the new price. §10.93. |
 | 409 | `STORE_UNAVAILABLE` | *(v1.84-social, DRAFT, D270)* `buyStoreItem`: the item cannot be bought now — `details: [{field: "item", issue: "item_off" \| "owned_permanent"}]` (switched off in the panel; the recipient holds it with no end) or `[{field: "days", issue: "not_priced" \| "too_far"}]` (no price for that currency and duration; the end would pass 3 650 days from now). Nothing was charged. §10.98. |
@@ -762,6 +766,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.110-social (draft) | 2026-11-09 | **D345 (owner: «بيع العملات عبر المتاجر … الاسترداد احتيال: سحب العملات وحظر الحساب والجهاز تلقائياً … سياسة لمنع الاسترداد وفي حالة الاسترداد النظام يخاطب الجهة»):** tag `store-iap` — `getStoreIapCatalog`, `verifyStorePurchase`, `receiveAppleNotification` (App Store Server Notifications v2), `receiveGoogleRtdn` (Pub/Sub push); tag `admin-panel` — `getAdminStoreIapOverview`, `updateAdminStoreIapSettings`, `listAdminStoreIapProducts`, `createAdminStoreIapProduct`, `updateAdminStoreIapProduct`, `listAdminStoreIapPurchases`, `listAdminStoreIapRefundBans`, `unbanAdminStoreIapRefund`, `syncAdminStoreIapVoided`; capabilities `store_iap.view` (OWNER, MODERATION, SUPPORT, FINANCE), `store_iap.manage`, `store_iap.unban` (OWNER); codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409), `STORE_IAP_PENDING` (409); ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`; a refund ban is lifted only by the OWNER (the general unban and the device-ban list answer 409 `ADMIN_ACTION_REFUSED`); audit `store_iap.*`; migrations `20270417090000_store_iap_enums`, `20270417090100_store_iap`. §4, §10.144. | **Additive** (new operations, codes, enum values); **behaviour change** only for the panel: a store-refund ban cannot be lifted from the user page or the device-ban list. Off until the owner places the store credentials on the server. |
 | v1.109-social (draft) | 2026-11-09 | **D344 (owner: «زر الشحن من الموقع يدخلك متصفح خارج التطبيق ويطلب اليوزر والباسورد. اريد جعل الشحن من الموقع يفتح من نفس التطبيق ويدخل اليوزر والباسورد تلقائي دون ملاحظة الشخص»; then «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»):** tag `topup` — `createTopupWebsiteSession` (`POST /wallet/topup-session`), `exchangeTopupHandoff` (`POST /topup/handoff`, public); schemas `TopupWebsiteSession`, `TopupHandoffRequest`, `TopupHandoffSession`; `RechargePackages.websiteTopupUrl` also per store (`TOPUP_APP_LINK_PLATFORMS`); `TopupPackages.priceMinor` and the Checkout amount include Stripe's fee (gross-up); `AdminPaymentSettings.options` / `effective` `stripeFeeGrossUp`, `stripeFeePercentBps`, `stripeFeeFixedMinor`, `feeCurrency`, and the same three in `UpdateAdminPaymentSettingsRequest`; audit `topup.handoff.mint|exchange|refused`, `topup.fee.exceeded`; migrations `20270416090000_topup_handoffs`, `20270416090100_topup_stripe_fee`. §7, §10.53, §10.143. | **Additive** on the wire (new operations and fields). **Behaviour change**: the website's package prices are higher by Stripe's fee while the gross-up is on (the default); the coins are unchanged. |
 | v1.108-social (draft) | 2026-11-09 | **D343 (owner: «في انشاء الحساب هناك صندوق يدخل شخص اما رمز الدعوة او رمز المشرف … النظام يعرف ان كان الشخص قام بتحميل التطبيق قبل»):** `RegisterRequest.referralCode` also takes a supervisor's staff ID; `register` 400 `referralCode` `not_found`; `checkSignupCode` (`POST /auth/signup-code/check`, public); `StaffRecruitList.signupCode` / `signupLink` / `signups`; `listAdminSignupRecruits`, `AdminSignupRecruit`, `SignupCreditStatus`; referral reject reasons `DEVICE_HAD_ACCOUNT`, `EMAIL_HAD_ACCOUNT`; settings SIGNUP_IDENTITY_RETENTION_DAYS (365), RATE_LIMIT_SIGNUP_CODE_IP (30/600). Migration `20270415090000_signup_codes`. §10.142. | **Additive**, except: an unknown code at sign-up is now a 400 on `referralCode` (was a silent 202 without a referral). |
 | v1.106-social (draft) | 2026-11-09 | **D341 (owner: «لو مضيف تفعل من خلالنا دون وكيل تصبح نسبته ٧٢٪ — ولو صانع المحتوى تفعل من خلالنا تصبح نسبته ٧٥٪»; corrected by the owner: the direct host **70 %**, the direct creator 75 %):** a normal gift (not quips, lucky or custom) sent in a live whose recipients are **all direct** — the hosting permission (`live_hosts`) and no ACTIVE agency membership (`agency_hosts`) at the send — stores `live_gifts.host_share_bps` = `GIFT_DIRECT_HOST_SHARE_PERCENT` (70: 1 000 000 coins → 7 000 000 cherries) instead of the category share (65 %), and in a creator's live (the D295 creator send) `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75: → 7 500 000) instead of the creator share (70 %); never below the share it replaces. Agency members keep 65 % / 70 % and the agency commission on top. No wire change (the stored share is already returned as `shareBps` where shown), no migration. §10.140. | **Behaviour change, no shape change** (higher stored shares for direct recipients; everything reading the stored share follows). |
@@ -10853,3 +10858,172 @@ formula is the same for a zero-decimal or a three-decimal currency), rounded up 
   conversion). Best effort: a failure is logged, never fails the webhook, and **never changes the coins**. A bank
   transfer's fee is lower than a card's; the same price applies.
 - Migration `20270416090100_topup_stripe_fee` (the three settings with CHECKs; the four order columns with a CHECK).
+
+### 10.144 Coins from the stores «الشراء من المتجر» — Google Play Billing and App Store In-App Purchase *(v1.110-social, DRAFT — D345)*
+
+Owner (2026-11-09): sell coins through the stores (consumable packages); store purchases are **open** (no cap), with a
+server switch «شراء واحد لكل حساب وجهاز» (default **off**). **A refund is fraud:** any store refund, void or chargeback
+takes the coins back (the balance may go below 0), **bans the account and the device** automatically with the reason
+shown in the panel, and only the OWNER lifts it («فك الحظر», audited, with a reason). A **no-refund policy** is shown
+before every purchase with explicit consent and in the terms; the server **answers the store** — Apple's
+`CONSUMPTION_REQUEST` with the consumption information (only with the buyer's consent), Google's voided purchases polled
+daily and on demand (Google has no consumption API and decides refunds itself). §10.141–§10.143 are left for D342–D344.
+
+This replaces §10.53's «never inside the app» for the **stores' own billing only**: the website's card top-up (§10.53)
+and the recharge agents are unchanged.
+
+#### 10.144.1 Off unless configured
+
+- **Per store.** Google Play is on when `STORE_IAP_GOOGLE_PACKAGE_NAME` and `STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE` (the
+  service-account JSON's **path**, read at boot) are set; the App Store when `STORE_IAP_APPLE_BUNDLE_ID`,
+  `STORE_IAP_APPLE_ISSUER_ID`, `STORE_IAP_APPLE_KEY_ID`, `STORE_IAP_APPLE_PRIVATE_KEY_FILE` (the `.p8` path) and
+  `STORE_IAP_APPLE_ROOT_CERT_FILES` (Apple's root certificate(s), DER or PEM, comma-separated paths) are set. A partial
+  set, an unreadable file or a key of the wrong kind **refuses to boot**. No secret is ever in git, chat, a response, a
+  log or an audit row. Optional: `STORE_IAP_APPLE_APP_ID` (the numeric Apple ID; checked on notifications when set),
+  `STORE_IAP_GOOGLE_RTDN_TOKEN` (≥ 32 characters; switches the RTDN endpoint on).
+- A store that is off: `getStoreIapCatalog` says `available: false, unavailableReason: OFF` (the app hides «الشراء من
+  المتجر»), `verifyStorePurchase` and that store's notification endpoint answer 503 **`STORE_IAP_UNAVAILABLE`** (no
+  `Retry-After`).
+- **Sandbox.** Apple's `Sandbox` / Xcode environments and Google test purchases (`purchaseType` 0, licence testers) are
+  **accepted while `STORE_IAP_ACCEPT_SANDBOX=true`** (default true: App Review and Play pre-launch testing buy in the
+  sandbox against the production server) and recorded `environment: SANDBOX` (shown in the panel); false refuses them
+  with 400 `STORE_IAP_VERIFICATION_FAILED` `{field: environment, issue: sandbox}`. Production purchases are always
+  `PRODUCTION`.
+
+#### 10.144.2 The catalogue «باقات المتجر»
+
+`iap_products` (panel, `store_iap.manage` = OWNER; audited `store_iap.product.create|update` with a reason): one row per
+**store and product id** (the id created in Play Console / App Store Connect, `[A-Za-z0-9._]{1,150}`) → **coins**
+(1 … 10^12), an optional **reference price in US cents** (shown in the panel; used only for the lifetime amounts below),
+a sort order and **enabled**. Never deleted (switched off), so purchases keep their product. The price the buyer pays is
+the store's (localized by the store); the app shows the store's price string. A product id the server does not know, or
+a disabled one, is never credited at verification (400 `STORE_IAP_VERIFICATION_FAILED` `{field: productId}`) — a product
+switched off after the purchase started is still credited (the buyer paid; `enabled` only hides it).
+
+#### 10.144.3 The app's flow
+
+1. `GET /store/iap/catalog?platform=ANDROID|IOS` (`getStoreIapCatalog`) → `{available, unavailableReason, platform,
+   products: [{productId, coins}], consentVersion, oncePerAccountDevice, accountToken}`. `unavailableReason`: `OFF`,
+   `DEVICE_BANNED` (the session's device has an active ban, §10.91.6), `LIMIT_REACHED` (the switch is on and this account
+   or this device already bought), else null. `accountToken` binds a purchase to the account: iOS sends it as StoreKit 2's
+   `appAccountToken` (the account id, a UUID); Android as `obfuscatedAccountId` (SHA-256 hex of
+   `kabso-live/store-account/v1|<account id>`).
+2. The **consent sheet** (every purchase, before the store sheet): the package, «تُسلَّم العملات فوراً وتُستهلك عند
+   استخدامها، ولا تُسترد بعد الشراء.», «طلب استرداد عبر المتجر يعدّ احتيالاً: تُسحب العملات ويُحظر الحساب والجهاز.», and
+   «أوافق على مشاركة بيانات استخدام هذه العملات مع Apple/Google عند طلب استرداد.» — the purchase button stays disabled until
+   the box «أوافق على سياسة عدم الاسترداد» is ticked (English mirrors it). Both statements are one consent (the owner's
+   «الموافقة تشمل ذلك»): `consent: {accepted: true, version, shareConsumptionData: true}` (a different version: 400
+   `{field: consent.version, issue: stale}`; `accepted` not true: 400 `{field: consent.accepted}`).
+3. The store sheet (`in_app_purchase`); then `POST /store/iap/purchases` (`verifyStorePurchase`) `{platform, productId,
+   purchaseToken (ANDROID) | signedTransaction (IOS, StoreKit 2's JWS), consent, device?}`. A **pending** purchase
+   (Google `purchaseState` 2, a slow card / cash) answers 409 `STORE_IAP_PENDING` and nothing is stored; the app shows
+   «قيد المعالجة» and retries when the store says it is purchased. On success the app finishes the transaction
+   (`completePurchase`); an unfinished one is delivered again by the store and verified the next time the wallet is
+   open («استعادة»). Android finishes only what the server credited (an unacknowledged Google purchase is refunded by
+   Google after 3 days); iOS also finishes a definitive refusal (else it would come back forever).
+
+**Server verification** (never the client's word):
+- **Google:** `purchases.products.get` (Android Publisher v3, the service account's OAuth token, scope
+  `androidpublisher`) for `packageName / productId / token`: `purchaseState` 0, the `obfuscatedExternalAccountId` equal to
+  the caller's token when present (else 409 `STORE_IAP_PURCHASE_CONFLICT`), `orderId` (test purchases may have none: the
+  token's SHA-256 is used). After the credit's commit: `consume` (a consumable: consuming also acknowledges); a failed
+  consume is retried by the sweeper (`consumed_at` null) — an unacknowledged purchase is refunded by Google after 3 days.
+- **Apple:** the JWS is verified locally — header `alg` ES256, `x5c` leaf → intermediate → a configured root (each
+  issued and signed by the next, valid at the transaction's `signedDate`, the leaf carrying OID 1.2.840.113635.100.6.11.1
+  and the intermediate 1.2.840.113635.100.6.2.1, the root byte-equal to a configured root), then the signature with the
+  leaf key. Then `bundleId`, `type: Consumable`, `productId` equal to the request's, no `revocationDate`, the
+  `appAccountToken` equal to the caller's when present, the environment allowed. The transaction id is the key.
+- **Idempotency:** one row per `(store, transaction)` — Google `orderId` (or the token hash), Apple `transactionId`;
+  the token hash is unique too. A second verification of the same purchase by the **same** account returns the stored
+  result (`alreadyProcessed: true`, 200, nothing credited again); by **another** account 409
+  `STORE_IAP_PURCHASE_CONFLICT`. The ledger's `(STORE_IAP, purchase id)` key backs it.
+- **The credit:** `STORE_IAP` (reference: the purchase), the D187 recharge-badge hook (source `STORE_IAP`) and the D217
+  first-recharge hook, in the purchase row's transaction; audited `store_iap.credit` (no token). The purchase keeps the
+  device (the session's `device_hash`, else the request's `device.deviceKey` HMAC, D223's key), the consent (version,
+  time, locale, `shareConsumptionData`), the environment, Apple's `price` / `currency` when given.
+- **Device ban:** a banned device (the session's or the request's) gets 403 `DEVICE_BANNED` before the store is called
+  (§10.91.6). A suspended account has no session (401).
+- **«شراء واحد لكل حساب وجهاز»** (`iap_settings.once_per_account_device`, default **false**, OWNER, audited
+  `store_iap.settings.update` with a reason): while on, an account that already has a credited store purchase, or a
+  device that has one (any account), gets `LIMIT_REACHED` in the catalogue; a purchase that still reaches verification
+  (a race, an old app) is **not credited on Google** (`REJECTED`, reason `ONCE_LIMIT`; not consumed, so Google refunds
+  it within 3 days — such a refund never bans) and **credited on Apple** with `limitExceeded` in the audit (Apple cannot
+  refund automatically; the buyer paid). Off: no limit.
+
+#### 10.144.4 A refund «استرداد» — claw-back and ban
+
+Detected by (a) Google's **Voided Purchases API** (`voidedpurchases.list`, `type=0`, a window ≤ 30 days: from the last
+poll's end minus 1 hour, first run 30 days, paged; every `STORE_IAP_VOIDED_POLL_HOURS` (24, 0 = off) by the sweeper and
+on demand from the panel), (b) **RTDN** (`POST /payments/google/rtdn?token=…`, Pub/Sub push; a `voidedPurchaseNotification`
+only *triggers* a poll of the last 3 days — the notification itself is never trusted), (c) Apple's **App Store Server
+Notifications v2** `REFUND` (`POST /payments/apple/notifications`, `{signedPayload}`, verified as above; the
+notification's and the transaction's bundle id, app id and environment checked). Each notification is applied once
+(`iap_notifications`, Apple `notificationUUID` / Pub/Sub `messageId`).
+
+For a **credited** purchase, once (`refunded_at`), in one transaction:
+- **claw-back:** the purchase's coins taken back (`STORE_IAP_REVERSAL`, reference: the purchase), **the balance may go
+  below 0** (spent coins stay a debt, §10.53's rule: no gift while below 0); host cherries are not taken back
+  automatically (the FIFO attribution is kept in `refund_detail` for the team, §10.53);
+- **account ban:** an ACTIVE account becomes SUSPENDED (the panel's «حظر», D191: the live ends, seats are freed, every
+  session ends; sign-in answers 403 `ACCOUNT_SUSPENDED`);
+- **device ban:** the purchase's device (else the devices seen for the account, ≤ 20, §10.91.6) is banned
+  **permanently** (`device_bans.iap_purchase_id`), ending every session on it;
+- **the reason** (≤ 500, shown in the panel and, on the device, as `DEVICE_BANNED`'s reason): «استرداد عبر Google Play
+  بتاريخ YYYY-MM-DD — طلب GPA.…» / «استرداد عبر App Store بتاريخ YYYY-MM-DD — معاملة …» (+ Google's `voidedReason`
+  name when given: `remorse`, `chargeback`, `fraud` …);
+- `iap_refund_bans` (one per purchase) and audit `store_iap.refund` {purchase, coins, balance, source,
+  accountBanned, devicesBanned}.
+
+Not a ban: a Google void whose `voidedSource` is **developer** (the team refunded in Play Console: the coins are taken
+back, no ban — as §10.53's team refund), a purchase that was never credited (`REJECTED`), Apple `REFUND_DECLINED`
+(recorded) and `REFUND_REVERSED` (recorded; nothing changes automatically — the owner decides, see D345). A refund of a
+purchase the server never saw is recorded and ignored.
+
+**«فك الحظر»** (`store_iap.unban` = **OWNER only**; `POST /admin/store-iap/refund-bans/{banId}/unban` `{account,
+device, reason, totpCode}` — the authenticator code again): lifts the account (SUSPENDED → ACTIVE) and/or the device
+ban; the coins already taken stay taken; audited `store_iap.unban` {account, device, reason, before, after}. The general
+«فك الحظر» of a user (`users.ban`) and the device-ban list's «رفع» refuse a store-refund ban (409 `ADMIN_ACTION_REFUSED`,
+«حظر استرداد — يُفك من «مشتريات المتجر» بواسطة المالك»), so a MODERATION role cannot lift it.
+
+#### 10.144.5 Answering the store
+
+- **Apple `CONSUMPTION_REQUEST`** → `iap_consumption_requests` (once per notification; deadline = received + 12 h).
+  Only when the purchase's consent has `shareConsumptionData: true` (Apple requires `customerConsented: true`; without it
+  nothing is sent, `SKIPPED_NO_CONSENT`). The body is Apple's current **`ConsumptionRequest`** for
+  `PUT /inApps/v2/transactions/consumption/{transactionId}` (App Store Server API ≥ 1.19; production or sandbox host by
+  the transaction's environment, ES256 JWT `iss` issuer, `kid`, `aud: appstoreconnect-v1`, `bid`, ≤ 20 min):
+  `{customerConsented: true, consumptionPercentage, deliveryStatus: "DELIVERED", refundPreference: "DECLINE",
+  sampleContentProvided: false}` — `consumptionPercentage` in milliunits (0 … 100 000) is the purchase's coins already
+  spent, FIFO (§10.53's attribution: the older coins go first); a purchase not credited is `UNDELIVERED_OTHER` with 0 and
+  no preference. **Note:** the fields the owner listed (account tenure, play time, lifetime dollars purchased / refunded,
+  user status, platform) belong to Apple's older `ConsumptionRequestV1`, which Apple now documents for the Advanced
+  Commerce API only; they are computed and stored in the row's `context` (tenure bucket, lifetime purchased / refunded
+  buckets from the reference prices, user status) for the team and for a switch back if Apple asks, but not sent.
+  A failure is retried by the sweeper until the deadline (`FAILED` after it).
+- **Google:** no consumption API. Refunds are decided by Google (and the card networks); the server consumes every
+  credited purchase (the coins were delivered), polls voided purchases and claws back. Documented for the owner.
+
+#### 10.144.6 The panel «مشتريات المتجر»
+
+Capabilities: `store_iap.view` (OWNER, MODERATION, SUPPORT, FINANCE) — the overview, the purchases and the refund bans;
+`store_iap.manage` (OWNER) — products, the switch, «مزامنة الاستردادات الآن»; `store_iap.unban` (OWNER). Routes under
+`/admin/store-iap`: `GET overview` (each store: configured, sandbox accepted, RTDN on, the Apple notification and RTDN
+paths; the switch; the last voided poll), `PATCH settings`, `GET|POST products`, `PATCH products/{id}`, `GET purchases`
+(table: `q` user / order, `platform`, `status`, `environment`), `GET refund-bans` (table: `status` ACTIVE / LIFTED; the
+reason, the user, the order, coins, whether the account and the device are still banned), `POST
+refund-bans/{id}/unban`, `POST google/voided-sync`. The device is never shown (only that one was banned).
+
+#### 10.144.7 Data and privacy
+
+`iap_purchases` keeps the store token (needed to consume and to match voids) and its SHA-256, the order /
+transaction ids, the device HMAC, the consent and the price; it is financial and anti-fraud data kept with the ledger
+(7 years, §10.56); the account's purge keeps the rows (the user id stays a tombstone). The data export gains the section `store_purchases`
+(store, product, coins, the store's transaction id, environment, status, dates, the consent; no token, no device). The privacy policy names the
+store-purchase data and the sharing of consumption data with Apple on a refund request (with consent).
+
+#### 10.144.8 Migrations
+
+`20270417090000_store_iap_enums` (`wallet_ledger_reason` `STORE_IAP`, `STORE_IAP_REVERSAL`) and
+`20270417090100_store_iap` (the enums `iap_platform`, `iap_environment`, `iap_purchase_status`,
+`iap_consumption_status`; `iap_products`, `iap_purchases`, `iap_notifications`, `iap_consumption_requests`,
+`iap_refund_bans`, `iap_settings` (one row); `device_bans.iap_purchase_id`; the ledger's sign rule).

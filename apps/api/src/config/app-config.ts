@@ -384,6 +384,26 @@ export interface AppConfig {
     readonly fee: { readonly grossUp: boolean; readonly percentBps: number; readonly fixedMinor: number };
     readonly termsVersion: string;
   };
+  /** v1.110-social (D345, CONVENTIONS §10.144): coins from the stores (paths only; the files are read at boot). */
+  readonly storeIap: {
+    readonly google: {
+      readonly packageName: string;
+      readonly serviceAccountFile: string;
+      readonly rtdnToken: string | null;
+    } | null;
+    readonly apple: {
+      readonly bundleId: string;
+      readonly issuerId: string;
+      readonly keyId: string;
+      readonly privateKeyFile: string;
+      readonly rootCertFiles: readonly string[];
+      readonly appAppleId: string | null;
+    } | null;
+    readonly acceptSandbox: boolean;
+    readonly voidedPollHours: number;
+    readonly sweepIntervalSeconds: number;
+    readonly consentVersion: string;
+  };
   /** v1.81-social (D245, §10.87): automatic exchange rates (the paid key is in the panel, never here). */
   readonly fx: {
     readonly freeUrl: string;
@@ -942,6 +962,35 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         fixedMinor: e.TOPUP_STRIPE_FEE_FIXED_MINOR,
       },
       termsVersion: e.TOPUP_TERMS_VERSION,
+    },
+    storeIap: {
+      google:
+        e.STORE_IAP_GOOGLE_PACKAGE_NAME !== undefined && e.STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE !== undefined
+          ? {
+              packageName: e.STORE_IAP_GOOGLE_PACKAGE_NAME,
+              serviceAccountFile: e.STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE,
+              rtdnToken: e.STORE_IAP_GOOGLE_RTDN_TOKEN ?? null,
+            }
+          : null,
+      apple:
+        e.STORE_IAP_APPLE_BUNDLE_ID !== undefined &&
+        e.STORE_IAP_APPLE_ISSUER_ID !== undefined &&
+        e.STORE_IAP_APPLE_KEY_ID !== undefined &&
+        e.STORE_IAP_APPLE_PRIVATE_KEY_FILE !== undefined &&
+        e.STORE_IAP_APPLE_ROOT_CERT_FILES !== undefined
+          ? {
+              bundleId: e.STORE_IAP_APPLE_BUNDLE_ID,
+              issuerId: e.STORE_IAP_APPLE_ISSUER_ID,
+              keyId: e.STORE_IAP_APPLE_KEY_ID,
+              privateKeyFile: e.STORE_IAP_APPLE_PRIVATE_KEY_FILE,
+              rootCertFiles: e.STORE_IAP_APPLE_ROOT_CERT_FILES,
+              appAppleId: e.STORE_IAP_APPLE_APP_ID ?? null,
+            }
+          : null,
+      acceptSandbox: e.STORE_IAP_ACCEPT_SANDBOX,
+      voidedPollHours: e.STORE_IAP_VOIDED_POLL_HOURS,
+      sweepIntervalSeconds: e.STORE_IAP_SWEEP_INTERVAL_SECONDS,
+      consentVersion: e.STORE_IAP_CONSENT_VERSION,
     },
     adminPanel: {
       totpKey: e.ADMIN_TOTP_KEY ?? null,

@@ -28899,6 +28899,162 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يُحتسب من كان له حساب على الجهاز نفسه أو سجّل بالبريد نفسه من قبل.'**
   String get staffSignupWithheldNote;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشراء من المتجر'**
+  String get storeIapTitle;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدفع عبر {store}'**
+  String storeIapVia(String store);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String storeIapCoins(String coins);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء {coins} عملة بسعر {price}'**
+  String storeIapBuyLabel(String coins, String price);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'قبل الشراء'**
+  String get storeIapConsentTitle;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُسلَّم العملات فوراً إلى رصيدك وتُستهلك عند استخدامها، ولا تُسترد بعد الشراء.'**
+  String get storeIapConsentDelivery;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب استرداد عبر المتجر يُعدّ احتيالاً: تُسحب العملات (وقد يصبح رصيدك سالباً) ويُحظر الحساب والجهاز.'**
+  String get storeIapConsentFraud;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'عند طلب استرداد، يرسل Kabso إلى {store} مقدار ما استُهلك من هذه العملات ليقرّر الطلب.'**
+  String storeIapConsentShare(String store);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوافق على سياسة عدم الاسترداد وعلى مشاركة بيانات الاستخدام عند طلب استرداد'**
+  String get storeIapConsentCheck;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة إلى {store}'**
+  String storeIapConsentContinue(String store);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة — {price}'**
+  String storeIapConsentPrice(String coins, String price);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'التفاصيل في شروط الاستخدام: «مشتريات المتاجر وسياسة عدم الاسترداد».'**
+  String get storeIapConsentTerms;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تأكيد الشراء مع المتجر…'**
+  String get storeIapVerifying;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدفع قيد المعالجة لدى المتجر. تُضاف العملات عند اكتماله.'**
+  String get storeIapPending;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيفت {coins} عملة إلى رصيدك.'**
+  String storeIapSuccess(String coins);
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُضف العملات: الشراء من المتجر مرة واحدة لكل حساب وجهاز. يعيد المتجر المبلغ تلقائياً.'**
+  String get storeIapRejected;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يكتمل الشراء في المتجر.'**
+  String get storeIapStoreError;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشراء من المتجر غير متاح على هذا الجهاز لأنه محظور.'**
+  String get storeIapDeviceBanned;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشتريت من المتجر من قبل على هذا الحساب أو الجهاز. الشراء من المتجر مرة واحدة فقط.'**
+  String get storeIapLimitReached;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسناً'**
+  String get storeIapDismiss;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشراء من المتجر غير متاح حالياً.'**
+  String get errorStoreIapUnavailable;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يؤكد المتجر هذا الشراء، ولم تُضف عملات.'**
+  String get errorStoreIapVerificationFailed;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الشراء مرتبط بحساب آخر.'**
+  String get errorStoreIapPurchaseConflict;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدفع قيد المعالجة لدى المتجر.'**
+  String get errorStoreIapPending;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء من المتجر'**
+  String get walletReasonStoreIap;
+
+  /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
+  ///
+  /// In ar, this message translates to:
+  /// **'استرداد عبر المتجر (سُحبت العملات)'**
+  String get walletReasonStoreIapReversal;
 }
 
 class _AppLocalizationsDelegate

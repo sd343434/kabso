@@ -17098,4 +17098,106 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get staffSignupWithheldNote =>
       'لا يُحتسب من كان له حساب على الجهاز نفسه أو سجّل بالبريد نفسه من قبل.';
+
+  @override
+  String get storeIapTitle => 'الشراء من المتجر';
+
+  @override
+  String storeIapVia(String store) {
+    return 'الدفع عبر $store';
+  }
+
+  @override
+  String storeIapCoins(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
+  String storeIapBuyLabel(String coins, String price) {
+    return 'شراء $coins عملة بسعر $price';
+  }
+
+  @override
+  String get storeIapConsentTitle => 'قبل الشراء';
+
+  @override
+  String get storeIapConsentDelivery =>
+      'تُسلَّم العملات فوراً إلى رصيدك وتُستهلك عند استخدامها، ولا تُسترد بعد الشراء.';
+
+  @override
+  String get storeIapConsentFraud =>
+      'طلب استرداد عبر المتجر يُعدّ احتيالاً: تُسحب العملات (وقد يصبح رصيدك سالباً) ويُحظر الحساب والجهاز.';
+
+  @override
+  String storeIapConsentShare(String store) {
+    return 'عند طلب استرداد، يرسل Kabso إلى $store مقدار ما استُهلك من هذه العملات ليقرّر الطلب.';
+  }
+
+  @override
+  String get storeIapConsentCheck =>
+      'أوافق على سياسة عدم الاسترداد وعلى مشاركة بيانات الاستخدام عند طلب استرداد';
+
+  @override
+  String storeIapConsentContinue(String store) {
+    return 'متابعة إلى $store';
+  }
+
+  @override
+  String storeIapConsentPrice(String coins, String price) {
+    return '$coins عملة — $price';
+  }
+
+  @override
+  String get storeIapConsentTerms =>
+      'التفاصيل في شروط الاستخدام: «مشتريات المتاجر وسياسة عدم الاسترداد».';
+
+  @override
+  String get storeIapVerifying => 'جارٍ تأكيد الشراء مع المتجر…';
+
+  @override
+  String get storeIapPending =>
+      'الدفع قيد المعالجة لدى المتجر. تُضاف العملات عند اكتماله.';
+
+  @override
+  String storeIapSuccess(String coins) {
+    return 'أُضيفت $coins عملة إلى رصيدك.';
+  }
+
+  @override
+  String get storeIapRejected =>
+      'لم تُضف العملات: الشراء من المتجر مرة واحدة لكل حساب وجهاز. يعيد المتجر المبلغ تلقائياً.';
+
+  @override
+  String get storeIapStoreError => 'لم يكتمل الشراء في المتجر.';
+
+  @override
+  String get storeIapDeviceBanned =>
+      'الشراء من المتجر غير متاح على هذا الجهاز لأنه محظور.';
+
+  @override
+  String get storeIapLimitReached =>
+      'اشتريت من المتجر من قبل على هذا الحساب أو الجهاز. الشراء من المتجر مرة واحدة فقط.';
+
+  @override
+  String get storeIapDismiss => 'حسناً';
+
+  @override
+  String get errorStoreIapUnavailable => 'الشراء من المتجر غير متاح حالياً.';
+
+  @override
+  String get errorStoreIapVerificationFailed =>
+      'لم يؤكد المتجر هذا الشراء، ولم تُضف عملات.';
+
+  @override
+  String get errorStoreIapPurchaseConflict => 'هذا الشراء مرتبط بحساب آخر.';
+
+  @override
+  String get errorStoreIapPending => 'الدفع قيد المعالجة لدى المتجر.';
+
+  @override
+  String get walletReasonStoreIap => 'شراء من المتجر';
+
+  @override
+  String get walletReasonStoreIapReversal =>
+      'استرداد عبر المتجر (سُحبت العملات)';
 }

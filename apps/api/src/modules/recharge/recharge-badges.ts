@@ -12,7 +12,7 @@ import { dayKey } from './recharge-rules.js';
  */
 
 /** What credited the coins. `WEBSITE_TOPUP`: the hook for the future website top-up (no flow yet). */
-export type RechargeSource = 'AGENT_SALE' | 'WEBSITE_TOPUP';
+export type RechargeSource = 'AGENT_SALE' | 'WEBSITE_TOPUP' | 'STORE_IAP';
 
 export interface RechargeBadgeRules {
   /** The minimum coins in one day for tiers 1…5, increasing. */

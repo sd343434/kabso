@@ -11,6 +11,7 @@ import { LiveBoostPrices } from './pages/LiveBoostPrices';
 import { Medals } from './pages/Medals';
 import { Vip } from './pages/Vip';
 import { Store } from './pages/Store';
+import { StoreIap } from './pages/StoreIap';
 import { Hosts, Lives } from './pages/Lives';
 import { DeviceBans } from './pages/LiveModeration';
 import { LiveWatch } from './pages/LiveWatch';
@@ -291,6 +292,9 @@ export function App() {
           break;
         case 'store':
           page = <Store />;
+          break;
+        case 'storeIap':
+          page = <StoreIap />;
           break;
         case 'report':
           page = <Report />;

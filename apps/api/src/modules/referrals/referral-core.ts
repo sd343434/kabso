@@ -374,7 +374,7 @@ export async function attachReferralIn(tx: Tx, input: AttachInput): Promise<Atta
 }
 
 /** The coin ledger reasons of a recharge (a website top-up, an agent's sale, a recharge order). */
-export type RechargeLedgerReason = 'CARD_TOPUP' | 'RECHARGE_PURCHASE' | 'RECHARGE_ORDER';
+export type RechargeLedgerReason = 'CARD_TOPUP' | 'RECHARGE_PURCHASE' | 'RECHARGE_ORDER' | 'STORE_IAP';
 
 /**
  * The first-recharge hook, in the recharge's transaction (all three paths call it right after crediting the coins).

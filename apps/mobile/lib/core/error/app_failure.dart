@@ -379,6 +379,19 @@ enum ErrorCode {
   /// charged; the app reloads the items.
   storePriceChanged('STORE_PRICE_CHANGED'),
 
+  /// v1.110-social (D345, §10.144, 503): the store (Google Play / App Store)
+  /// is not set up on this server.
+  storeIapUnavailable('STORE_IAP_UNAVAILABLE'),
+
+  /// v1.110-social (D345, 400): the store did not confirm the purchase.
+  storeIapVerificationFailed('STORE_IAP_VERIFICATION_FAILED'),
+
+  /// v1.110-social (D345, 409): the purchase belongs to another account.
+  storeIapPurchaseConflict('STORE_IAP_PURCHASE_CONFLICT'),
+
+  /// v1.110-social (D345, 409): the store has not completed the payment yet.
+  storeIapPending('STORE_IAP_PENDING'),
+
   /// v1.68-live (D273, §10.96.7, 403): the person holds a panel role — the
   /// app never acts on «فريق كابسو» (kick, mute, message, seat, family).
   staffProtected('STAFF_PROTECTED'),

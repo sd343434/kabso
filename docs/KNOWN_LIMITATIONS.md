@@ -600,3 +600,28 @@
   (`/i/<code>` does not open an installed app). The Android channel and the library are not built or device-tested here
   (no Android SDK in this environment).
 - **Agency invite codes are not accepted at sign-up** (they attach an existing host to an agency, D179).
+
+## Coins from the stores «الشراء من المتجر» (v1.110-social draft, D345)
+
+- **Not tested against a real store.** Google Play's and Apple's APIs are behind ports; the tests use fakes and a
+  throwaway certificate chain shaped like Apple's. The first real sandbox purchase on each store is a release gate (PP-80).
+- **A refund ban is per account and per device**, with D250's device limits: a factory reset, a reinstall that loses the
+  iOS Keychain item, or a rooted / jailbroken phone gives a new device id; a purchase from an app older than D223 has
+  no device, so the devices seen for the account are banned instead.
+- **Apple's consumption information** is Apple's current `ConsumptionRequest` (consumption percentage, delivery,
+  refund preference «DECLINE», no sample). The older fields the owner listed (account tenure, play time, lifetime
+  dollars, user status) are Apple's V1 body, now documented for the Advanced Commerce API only; they are computed and
+  kept with the request for the team but not sent. There is no reliable «play time» metric; it is stored as undeclared.
+- **Google has no consumption API**; Google decides refunds and only tells us afterwards (voided purchases ≤ 30 days back,
+  polled daily; RTDN only triggers a poll).
+- **A Google void the team made in Play Console** takes the coins back without a ban (the API cannot tell a goodwill
+  refund from a mistaken one); Apple's `REFUND_REVERSED` and `REFUND_DECLINED` are recorded, nothing changes
+  automatically.
+- **Host cherries** earned from coins that were later refunded are not taken back automatically (as §10.53); the
+  purchase's FIFO detail is kept for the team.
+- **«شراء واحد لكل حساب وجهاز»** is checked before the store sheet; a purchase racing it is not credited on Google
+  (Google refunds the unacknowledged purchase within 3 days) but is credited on Apple (flagged), which cannot refund
+  automatically.
+- **Restored (re-delivered) transactions** are verified while the wallet is open, not at app start.
+- **Store-review risk:** the wallet still shows «الشحن من الموقع» when the website top-up link is on (§10.53); Apple's
+  and Google's rules on links to outside payment must be checked before submission (PP-35 / PP-80).

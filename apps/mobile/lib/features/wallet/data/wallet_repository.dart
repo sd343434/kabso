@@ -34,6 +34,10 @@ enum WalletLedgerReason {
   vipDailyCoins('VIP_DAILY_COINS'),
   // D270: a store item bought with coins.
   storePurchase('STORE_PURCHASE'),
+  // D345: coins bought in Google Play / the App Store, and taken back after
+  // the store refunded them.
+  storeIap('STORE_IAP'),
+  storeIapReversal('STORE_IAP_REVERSAL'),
   other('');
 
   new(this.wire);

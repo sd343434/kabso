@@ -3818,3 +3818,78 @@ CONVENTIONS §10.143 (owner 2026-11-09). §5.102–§5.106 are left for the work
   `topup_orders.stripe_fee_minor` is filled and no `topup.fee.exceeded` row appears with the real rates.
 - **Rollback:** an older API ignores the new table and columns (prices go back to the base); an older app ignores the
   new endpoints. Dropping them is not needed.
+
+### 5.108 Coins from the stores «الشراء من المتجر» (migrations `20270417090000_store_iap_enums`, `20270417090100_store_iap`; D345) — [IMPLEMENTED, draft contract v1.110-social; not deployed, not device-tested, no real store tested]
+
+CONVENTIONS §10.144 (owner 2026-11-09: sell coins through Google Play and the App Store; a refund is fraud → claw-back +
+account and device ban; a no-refund policy with consent; the server answers the store). §5.105–§5.107 are left for
+D342–D344. **Every store stays OFF** (the app hides «الشراء من المتجر») until its whole set of settings below is on the
+server; a partial set stops the API at boot. Never put a credential in git, chat, a ticket or the panel: only the
+**paths** go into the environment; the files live on the server (`chmod 600`, owned by the API user, outside the repo
+and the web roots).
+
+**1. Apply the migrations** (the migration role, as usual): `pnpm --filter @kabso/api prisma:migrate:deploy`. They add the
+ledger reasons `STORE_IAP` / `STORE_IAP_REVERSAL`, the `iap_*` tables, `device_bans.iap_purchase_id` and the ledger's
+sign rule. Nothing changes for anyone until a store is configured.
+
+**2. Google Play (Android)** — the owner, in Play Console and Google Cloud:
+1. *Monetize → Products → In-app products*: create one **consumable** managed product per package (ids like
+   `kabso.coins.1m`; letters, digits, `.` and `_` only), set the prices, activate them.
+2. *Google Cloud → IAM*: create a **service account** in the project linked to Play Console; create a **JSON key** and
+   copy the file to the server (e.g. `/etc/kabso/play-service-account.json`). *Play Console → Users and permissions*:
+   invite the service account's email with **View financial data** and **Manage orders and subscriptions** for the
+   app (needed for `purchases.products.get`, `consume` and the Voided Purchases API). Permission changes can take up to
+   24 h to apply.
+3. Server env: `STORE_IAP_GOOGLE_PACKAGE_NAME=<the applicationId, e.g. com.kabso.live>`,
+   `STORE_IAP_GOOGLE_SERVICE_ACCOUNT_FILE=/etc/kabso/play-service-account.json`.
+4. *Optional — RTDN (faster refund detection; the daily poll works without it)*: create a Pub/Sub **topic**, grant
+   `google-play-developer-notifications@system.gserviceaccount.com` the *Pub/Sub Publisher* role on it, set it in *Play
+   Console → Monetization setup → Real-time developer notifications*, and create a **push subscription** to
+   `https://api.<domain>/api/v1/payments/google/rtdn?token=<RTDN token>` where the token is a fresh random value
+   (`openssl rand -base64 36 | tr '+/' '-_' | tr -d '='`, 32–200 characters) also set as `STORE_IAP_GOOGLE_RTDN_TOKEN`.
+   Send a test notification from Play Console: the panel's overview then shows RTDN on; the audit has nothing to do
+   with it (a notification only triggers a poll).
+5. **Google decides refunds itself** (no consumption API). The server consumes every credited purchase, polls voided
+   purchases every `STORE_IAP_VOIDED_POLL_HOURS` (24) and on «مزامنة الاستردادات الآن», and claws back + bans.
+
+**3. App Store (iOS)** — the owner, in App Store Connect:
+1. *Monetization → In-App Purchases*: create one **Consumable** per package (product ids as above), prices, review
+   screenshot; submit them with the build.
+2. *Users and Access → Integrations → In-App Purchase*: generate an **In-App Purchase key** (or an App Store Connect
+   API key with access to the App Store Server API). Note the **Issuer ID** and **Key ID**; download the `.p8` once and
+   copy it to the server (e.g. `/etc/kabso/appstore-iap.p8`).
+3. Download **Apple Root CA – G3** from <https://www.apple.com/certificateauthority/> (`AppleRootCA-G3.cer`), check its
+   SHA-256 fingerprint against the one Apple publishes on that page, and copy it to the server
+   (e.g. `/etc/kabso/AppleRootCA-G3.cer`). The API never downloads it itself.
+4. *App Information → App Store Server Notifications*: **Version 2**, Production URL **and** Sandbox URL
+   `https://api.<domain>/api/v1/payments/apple/notifications`; then «Request a Test Notification» (recorded as `TEST`).
+5. Server env: `STORE_IAP_APPLE_BUNDLE_ID=<bundle id>`, `STORE_IAP_APPLE_ISSUER_ID=<issuer id>`,
+   `STORE_IAP_APPLE_KEY_ID=<10 characters>`, `STORE_IAP_APPLE_PRIVATE_KEY_FILE=/etc/kabso/appstore-iap.p8`,
+   `STORE_IAP_APPLE_ROOT_CERT_FILES=/etc/kabso/AppleRootCA-G3.cer`; optional `STORE_IAP_APPLE_APP_ID=<numeric Apple ID>`.
+6. The app uses **StoreKit 2** (`in_app_purchase_storekit` 0.4.15's default): the server receives the signed
+   transaction (JWS) and verifies it locally against that root.
+
+**4. Other settings** (all optional): `STORE_IAP_ACCEPT_SANDBOX` (default **true** — App Review and Play testers buy in
+the sandbox against the production server; their purchases are credited and marked «اختبار» in the panel; set `false`
+after review if you prefer), `STORE_IAP_VOIDED_POLL_HOURS` (24; 0 = only on demand), `STORE_IAP_SWEEP_INTERVAL_SECONDS`
+(600: the due voided poll, Apple consumption-request retries within their 12 h, Google consume retries),
+`STORE_IAP_CONSENT_VERSION` (2026-11-09 — change it when the consent text changes; older app versions then get 400
+`consent.version stale` and must update).
+
+**5. In the panel** (OWNER), «مشتريات المتجر»: check both stores show **مفعّل**; in «باقات المتجر» add each store product id
+with its coins (and a reference price in US cents — used only for the team's figures); leave «شراء واحد لكل حساب وجهاز»
+**off** (the owner's default: purchases are open) unless decided otherwise.
+
+**6. Legal before release (PP-80):** the terms' §8a «مشتريات المتاجر وسياسة عدم الاسترداد» and the privacy additions are
+**drafts** (`legalReviewed` stays false); have them reviewed, then publish new versions (`legal-admin publish …`, §5 of
+D198) — the consent version shown in the app should then match.
+
+**Verify (sandbox):** a Play licence tester / an App Store sandbox account buys one package → the panel's purchases list
+shows it «أضيفت» with «اختبار», the coin history shows «شراء من المتجر»; refund it (Play Console *Order management →
+Refund*, which is a **developer** void: coins back, **no ban**; or Apple's sandbox refund via `beginRefundRequest` in a
+test build) → the coins go back, and for a customer refund the account is suspended and the device banned with the
+reason «استرداد عبر … بتاريخ … طلب …» in «حظر الاسترداد»; the OWNER's «فك الحظر» (code + reason) restores them.
+
+**Rollback:** unset the store variables (the store disappears from the app at once; verification and notifications
+answer 503 — Apple and Google retry notifications for days). The tables stay (additive); purchases already credited
+stay credited.

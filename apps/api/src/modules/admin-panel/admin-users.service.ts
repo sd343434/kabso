@@ -1,3 +1,4 @@
+import { STORE_REFUND_BAN_REFUSAL } from '../auth/device-bans.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
@@ -391,6 +392,12 @@ export class AdminUsersService {
 
   async unban(id: string, reason: string, ctx: AdminContext): Promise<{ status: 'ACTIVE' }> {
     await this.target(id, ctx);
+    // v1.110-social (D345, §10.144.4): a store-refund ban is lifted only by the OWNER from «مشتريات المتجر».
+    const refundBan = await this.prisma.iapRefundBan.findFirst({
+      where: { userId: id, accountBanned: true, accountLiftedAt: null },
+      select: { id: true },
+    });
+    if (refundBan) throw refused(STORE_REFUND_BAN_REFUSAL);
     await this.prisma.$transaction(async (tx) => {
       if (!(await this.lifecycle.unsuspendIn(tx, id))) throw refused('The account is not SUSPENDED.');
       await this.audit.recordIn(tx, {

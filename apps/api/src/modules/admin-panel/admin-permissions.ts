@@ -236,6 +236,13 @@ export const CAPABILITIES = {
    * from the app. OWNER only by default (owner to widen; PP-60).
    */
   'events.manage': ['OWNER'],
+  // ---- v1.110-social (D345, CONVENTIONS §10.144.6): coins from the stores «مشتريات المتجر» ----------------------------
+  /** The stores' status, the store purchases and the refund bans (read). */
+  'store_iap.view': ['OWNER', 'MODERATION', 'SUPPORT', 'FINANCE'],
+  /** The store products ↔ coins, the once-per-account+device switch, «مزامنة الاستردادات الآن». OWNER only. */
+  'store_iap.manage': ['OWNER'],
+  /** «فك الحظر» of a refund ban (account and/or device; the code again and a reason). OWNER only (owner D345). */
+  'store_iap.unban': ['OWNER'],
 } as const satisfies Record<string, readonly PanelRole[]>;
 
 export type Capability = keyof typeof CAPABILITIES;
