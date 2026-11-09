@@ -144,19 +144,17 @@ Future<void> _pumpOwn(
   await tester.pumpAndSettle();
 }
 
-/// D316 (owner: «بدون غلاف»): no cover any more — the photo and the name
-/// block at the top of the page ([ProfileCoverHeader.topBlockKey]).
+/// D335: the cover is back (the default Kabso one here: no cover URL).
 Rect _cover(WidgetTester tester) {
-  expect(find.byKey(ProfileCoverHeader.coverFallbackKey), findsNothing);
-  expect(find.byKey(ProfileCoverHeader.coverKey), findsNothing);
-  return tester.getRect(find.byKey(ProfileCoverHeader.topBlockKey));
+  expect(find.byKey(ProfileCoverHeader.coverFallbackKey), findsOneWidget);
+  return tester.getRect(find.byKey(ProfileCoverHeader.coverAreaKey));
 }
 
-/// D316 (was D299: at the reading start, the name beside it): the photo
-/// and its frame (the avatar's box: the frames' common slot when a frame,
-/// the live ring or a team frame is worn) wholly in the top block,
-/// centred under the bar; the name centred under it, never under the photo
-/// or its frame.
+/// D335 (was D316: centred, no cover): the photo and its frame (the frames'
+/// common slot when a frame, the live ring or a team frame is worn) at the
+/// reading start, centred [KPublicProfile.avatarLift] above the cover's
+/// bottom edge; the name under the photo's box at the reading start, never
+/// under the photo or its frame.
 void _expectInside(
   WidgetTester tester, {
   required bool rtl,
@@ -164,27 +162,34 @@ void _expectInside(
 }) {
   expect(tester.takeException(), isNull);
   final cover = _cover(tester);
+  final bar = tester.getRect(find.byType(AppBar));
   final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
-  // The avatar's box (frame included) is at most the frames' common slot,
-  // wholly on the cover.
+  // The avatar's box (frame included) is at most the frames' common slot.
   expect(photo.width, lessThanOrEqualTo(KPublicProfile.avatarSlot.width + 0.5));
   expect(
     photo.height,
     lessThanOrEqualTo(KPublicProfile.avatarSlot.height + 0.5),
   );
-  expect(photo.top, greaterThanOrEqualTo(cover.top));
-  expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+  expect(photo.top, greaterThanOrEqualTo(bar.bottom));
   expect(photo.left, greaterThanOrEqualTo(0));
   expect(photo.right, lessThanOrEqualTo(width));
-  // Centred, in both directions ([rtl] mirrors nothing here).
-  expect(photo.center.dx, moreOrLessEquals(width / 2, epsilon: 0.5));
+  // At the reading start, its centre above the cover's edge.
+  const centre = KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2;
+  expect(
+    rtl ? width - photo.center.dx : photo.center.dx,
+    moreOrLessEquals(centre, epsilon: 0.5),
+  );
+  expect(
+    photo.center.dy,
+    moreOrLessEquals(cover.bottom - KPublicProfile.avatarLift, epsilon: 0.5),
+  );
   final name = find.byKey(const Key('profile.displayName'));
   final nameRect = tester.getRect(name);
-  // The name under the photo's box on the cover, so never under the photo
-  // or its frame; centred (a long one is cut with «…»).
-  expect(nameRect.bottom, lessThanOrEqualTo(cover.bottom));
+  // The name under the photo's box, so never under the photo or its frame
+  // (a long one is cut with «…»).
   expect(nameRect.overlaps(photo), isFalse);
   expect(nameRect.top, greaterThanOrEqualTo(photo.bottom));
+  expect(nameRect.top, greaterThan(cover.bottom));
   expect(nameRect.left, greaterThanOrEqualTo(0));
   expect(nameRect.right, lessThanOrEqualTo(width));
 }
@@ -192,21 +197,22 @@ void _expectInside(
 void main() {
   setUpAll(loadAppFonts);
 
-  test("the photo slot is the frames' common box; the cover picture "
-      'holds the whole slot under the bar (D299)', () {
+  test("the photo slot is the frames' common box; D335: the cover runs "
+      '184 dp under the bar and the slot fits between the bar and the '
+      'screen edge', () {
     final slot = KPublicProfile.avatarSlot;
     expect(slot.width, closeTo(1.6 * KProfile.avatar, 0.01));
     expect(slot.height, greaterThanOrEqualTo(1.4 * KProfile.avatar));
-    // D299: the bar, a gap, the whole slot and a margin.
+    expect(KPublicProfile.coverHeightFor(125), 125 + 184);
+    // The slot, centred where the plain photo is, stays on the screen and
+    // under the bar.
+    const centre = KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2;
+    expect(centre - slot.width / 2, greaterThanOrEqualTo(0));
     expect(
-      KPublicProfile.coverHeightFor(125),
-      moreOrLessEquals(
-        125 +
-            KPublicProfile.avatarTopGap +
-            slot.height +
-            KPublicProfile.coverBottomGap,
-        epsilon: 0.5,
-      ),
+      KPublicProfile.coverBelowBar -
+          KPublicProfile.avatarLift -
+          slot.height / 2,
+      greaterThan(0),
     );
   });
 
@@ -282,11 +288,10 @@ void main() {
                   rtl: language == AppLanguage.ar,
                   width: 393,
                 );
-                // D316: no cover on the page, so no cover button (it is
-                // set in the edit screen).
+                // D335: the cover is back, a button on the own page (D218).
                 expect(
                   find.byKey(ProfileCoverHeader.coverButtonKey),
-                  findsNothing,
+                  findsOneWidget,
                 );
               },
             );

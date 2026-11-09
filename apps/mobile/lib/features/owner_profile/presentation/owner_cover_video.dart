@@ -238,8 +238,9 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
                 child: video.buildView(),
               ),
             ),
-          // The cover's own shades again, over the video (D299: the white
-          // @username in the bar and the name block stay legible).
+          // The cover's shade under the bar again, over the video (the
+          // white @username stays legible). D335: no bottom scrim — nothing
+          // is written on the cover's lower part any more.
           const Align(
             alignment: Alignment.topCenter,
             child: FractionallySizedBox(
@@ -251,27 +252,6 @@ class _OwnerCoverVideoLayerState extends ConsumerState<OwnerCoverVideoLayer> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [KPublicProfile.topShade, Color(0x00000000)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: FractionallySizedBox(
-              heightFactor: KPublicProfile.scrimShare,
-              widthFactor: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      KPublicProfile.scrimBottom,
-                      KPublicProfile.scrimMiddle,
-                      Color(0x00000000),
-                    ],
-                    stops: [0, 0.5, 1],
                   ),
                 ),
               ),

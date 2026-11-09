@@ -341,14 +341,14 @@ void main() {
     expect(find.byKey(KabsoTeamPicture.pictureKey), findsNWidgets(2));
   });
 
-  testWidgets('a staff profile: no region cover on the page (D316: «بدون '
-      'غلاف»; the region keeps its cover art), the team frame and badge, '
-      'the region line and no levels', (tester) async {
+  testWidgets('a staff profile: its region cover (D335: the cover is back; '
+      'D316 had none), the team frame and badge, the region line and no '
+      'levels', (tester) async {
     await withClock(Clock.fixed(d283Now), () async {
       await pumpOther(tester, staffProfile(ar: true), language: AppLanguage.ar);
     });
     expect(tester.takeException(), isNull);
-    expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsNothing);
+    expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsOneWidget);
     expect(
       StaffCovers.assetFor(staffProfile(ar: true).staff!.primaryRegion),
       'assets/staff/covers/arab_world.webp',
@@ -360,25 +360,32 @@ void main() {
     // D283d: the region line only in the official bio card's header.
     expect(staffBioTitle(tester), contains('مشرف للوطن العربي'));
     expect(find.text('مشرف للوطن العربي'), findsNothing);
-    // D316: the photo centred under the bar, in the top block (was at the
-    // cover's bottom-start, D283).
+    // D335: the team frame at the reading start (right in Arabic) over the
+    // cover's bottom edge, under the bar (was centred, D316).
     final photo = tester.getRect(find.byKey(KabsoTeamAvatar.frameKey));
-    final area = tester.getRect(find.byKey(ProfileCoverHeader.topBlockKey));
+    final cover = tester.getRect(find.byKey(ProfileCoverHeader.coverAreaKey));
     final bar = tester.getRect(find.byType(AppBar));
     expect(photo.top, greaterThanOrEqualTo(bar.bottom));
-    expect(photo.bottom, lessThanOrEqualTo(area.bottom));
-    expect(photo.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+    expect(photo.top, lessThan(cover.bottom));
+    expect(photo.bottom, greaterThan(cover.bottom));
+    expect(
+      393 - photo.center.dx,
+      moreOrLessEquals(
+        KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2,
+        epsilon: 0.5,
+      ),
+    );
   });
 
-  testWidgets('a staff profile of another region (D316: its cover art is '
-      'not on the page)', (tester) async {
+  testWidgets('a staff profile of another region: its own region cover '
+      '(D335)', (tester) async {
     await pumpOther(
       tester,
       staffProfile(ar: false, staff: europeSupport),
       language: AppLanguage.en,
     );
-    // D316: no cover on the page; the region's art stays mapped.
-    expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsNothing);
+    // D335: the region's cover on the page.
+    expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsOneWidget);
     expect(
       StaffCovers.assetFor(europeSupport.primaryRegion),
       'assets/staff/covers/international.webp',
@@ -539,7 +546,8 @@ void main() {
   // مكتوب بداخلها واضح»): the badge at 44 pt on the profile and the Me tab,
   // in both languages, at 393 × 852 and 360 × 800, at text scale 1.3 and with
   // a long name — inside the screen, never over the name, nothing overflows
-  // (the badge wraps to its own line rather than shrink).
+  // (the badge wraps to its own line rather than shrink). D335 follow-up: on
+  // the profile, beside the name at the name line's height instead.
   group('D299i: the larger badge fits', () {
     for (final viewport in GoldenViewport.values) {
       for (final language in AppLanguage.values) {
@@ -547,11 +555,15 @@ void main() {
         final longName = ar
             ? 'سارة عبد الرحمن الهاشمية من الإسكندرية'
             : 'Sara Abdulrahman Al-Hashimi of Alexandria';
-        void expectBadge(WidgetTester tester, Finder name) {
+        void expectBadge(
+          WidgetTester tester,
+          Finder name, {
+          double height = KabsoTeamBadge.profileHeight,
+        }) {
           final width = viewport.logicalSize.width;
           final badge = find.byKey(KabsoTeamBadge.badgeKey).first;
           final b = tester.getRect(badge);
-          expect(b.height, KabsoTeamBadge.profileHeight);
+          expect(b.height, height);
           expect(b.left, greaterThanOrEqualTo(0));
           expect(b.right, lessThanOrEqualTo(width));
           final n = tester.getRect(name);
@@ -585,12 +597,26 @@ void main() {
               );
             });
             expect(tester.takeException(), isNull);
+            // D335 follow-up (owner: «اجعل الأيقونة (فريق كابسو) بجانب
+            // الاسم»): on the profile the badge sits on the name line, as
+            // tall as that line (D299i's 44 pt stays on the Me tab).
             final badge = find.descendant(
-              of: find.byKey(ProfileCoverHeader.nameRowKey),
+              of: find.byKey(ProfileCoverHeader.nameLineKey),
               matching: find.byKey(KabsoTeamBadge.badgeKey),
             );
             expect(badge, findsOneWidget);
-            expectBadge(tester, find.byKey(const Key('profile.displayName')));
+            expectBadge(
+              tester,
+              find.byKey(const Key('profile.displayName')),
+              height: KPublicProfile.teamBadgeInline,
+            );
+            final nameRect = tester.getRect(
+              find.byKey(const Key('profile.displayName')),
+            );
+            expect(
+              tester.getRect(badge).center.dy,
+              moreOrLessEquals(nameRect.center.dy, epsilon: 3),
+            );
           });
 
           testWidgets('Me tab: $label', (tester) async {

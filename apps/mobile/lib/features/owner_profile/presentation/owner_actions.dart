@@ -21,22 +21,25 @@ Widget? ownerCoverVideoFor(BuildContext context, PublicProfile profile) {
 }
 
 /// v1.95-social (D301, §10.112.6): the visitor's row on the app owner's page
-/// — «متابعة المؤسس» (Kabso red, no shadow since D307; «تتابع المؤسس» / «تم الطلب» once done, a
-/// tap asks before undoing), «اقترح ميزة / أبلغ عن موظف» (gold; D307, owner:
-/// «اجعله فقط بإطار مفرغ» — an outline only, no fill) and the more button.
+/// — «متابعة المؤسس» (Kabso red, no shadow since D307; «تتابع المؤسس» / «تم
+/// الطلب» once done, a tap asks before undoing), «اقترح ميزة / أبلغ عن موظف»
+/// (gold; D307, owner: «اجعله فقط بإطار مفرغ» — an outline only, no fill)
+/// and [more]. D335: the profile's stadium pills (the follow on the
+/// Kabso-red gradient, still without a shadow); [more] is the header's
+/// bonds chevron (the ⋯ moved to the top bar).
 class OwnerVisitorActions extends StatelessWidget {
   const new({
     required this.following,
     required this.requested,
     required this.onFollow,
-    required this.more,
     super.key,
+    this.more,
   });
 
   final bool following;
   final bool requested;
   final VoidCallback onFollow;
-  final Widget more;
+  final Widget? more;
 
   static const followKey = Key('owner.follow');
   static const feedbackKey = Key('owner.feedbackButton');
@@ -44,17 +47,17 @@ class OwnerVisitorActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(KRadius.sm + 2),
-    );
+    const shape = StadiumBorder();
     final done = following || requested;
     final follow = DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KRadius.sm + 2),
+      decoration: ShapeDecoration(
+        shape: shape,
         gradient: done
             ? null
             : const LinearGradient(
-                colors: [KBrandColors.red400, KBrandColors.red600],
+                begin: AlignmentDirectional.centerStart,
+                end: AlignmentDirectional.centerEnd,
+                colors: KPublicProfile.gradient,
               ),
         // D307 (owner: «ازل الظلال الذي اسفل زر متابعة المؤسس»): no shadow
         // or glow under it, in either state.
@@ -62,8 +65,7 @@ class OwnerVisitorActions extends StatelessWidget {
       child: done
           ? OutlinedButton.icon(
               key: followKey,
-              style: ProfileCoverButtons.quiet(context)
-                  .copyWith(shape: WidgetStatePropertyAll(shape)),
+              style: ProfileCoverButtons.pill(context),
               onPressed: onFollow,
               icon: Icon(
                 requested ? Icons.schedule_rounded : Icons.check_rounded,
@@ -81,7 +83,7 @@ class OwnerVisitorActions extends StatelessWidget {
                 foregroundColor: const Color(0xFFFFFFFF),
                 shape: shape,
                 padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
-                textStyle: context.textStyles.bodyStrong,
+                textStyle: ProfileCoverButtons.pillText(context),
               ),
               onPressed: onFollow,
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
@@ -99,7 +101,7 @@ class OwnerVisitorActions extends StatelessWidget {
         side: BorderSide(color: KBrandColors.gold.withValues(alpha: 0.85)),
         shape: shape,
         padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
-        textStyle: context.textStyles.bodyStrong,
+        textStyle: ProfileCoverButtons.pillText(context),
       ),
       onPressed: () => unawaited(showOwnerFeedbackSheet(context)),
       icon: const Icon(Icons.forum_rounded, size: 18),
@@ -109,10 +111,12 @@ class OwnerVisitorActions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: follow),
-        const SizedBox(width: KSpacing.sm),
+        const SizedBox(width: KPublicProfile.buttonGap),
         Expanded(child: feedback),
-        const SizedBox(width: KSpacing.sm),
-        more,
+        if (more case final more?) ...[
+          const SizedBox(width: KSpacing.sm),
+          more,
+        ],
       ],
     );
   }

@@ -705,13 +705,13 @@ void main() {
       // own bio (no founder default).
       expect(find.byType(KabsoTeamBadge), findsOneWidget);
       expect(find.text('مؤسس كابسو لايف'), findsOneWidget);
-      // D316: every other profile has its own centred header (the owner's
-      // D307 stack stays his): the name centred under the photo.
-      expect(find.byKey(ProfileCoverHeader.ownerStackKey), findsNothing);
-      final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
+      // D335: every profile (the founder's too) has the same header: the
+      // name under the photo, both at the reading start (right in Arabic).
+      final photo = tester.getRect(find.byKey(ProfileCoverHeader.photoKey));
       final name = tester.getRect(find.byKey(const Key('profile.displayName')));
       expect(name.top, greaterThan(photo.bottom));
-      expect(name.center.dx, closeTo(photo.center.dx, 20));
+      expect(photo.center.dx, greaterThan(393 / 2));
+      expect(name.right, closeTo(393 - KPublicProfile.inset, 0.5));
       expect(find.textContaining('بنيتُ هذه المنصة'), findsNothing);
       await _end(tester);
     });
@@ -805,9 +805,10 @@ void main() {
 
       for (final language in AppLanguage.values) {
         for (final viewport in GoldenViewport.values) {
-          testD301('follow-up ${language.name} ${viewport.name}: the photo '
-              'centred, the name and the seal centred under it; a long name '
-              'is cut with «…», nothing overflows', (tester) async {
+          testD301('D335 ${language.name} ${viewport.name}: the photo at the '
+              "reading start over the cover's edge, the name and the seal "
+              'under it at the start; a long name is cut with «…», nothing '
+              'overflows', (tester) async {
             final ar = language == AppLanguage.ar;
             await pumpOwnerVisitor(
               tester,
@@ -821,46 +822,60 @@ void main() {
             );
             expect(tester.takeException(), isNull);
             final width = viewport.logicalSize.width;
-            expect(
-              find.byKey(ProfileCoverHeader.ownerStackKey),
-              findsOneWidget,
+            final cover = tester.getRect(
+              find.byKey(ProfileCoverHeader.coverAreaKey),
             );
             final photo = tester.getRect(
-              find.byKey(ProfileHeaderView.avatarKey),
+              find.byKey(ProfileCoverHeader.photoKey),
             );
-            // The photo's box (the frames' slot) is centred exactly.
-            final slot = tester.getRect(
-              find
-                  .ancestor(
-                    of: find.byKey(ProfileHeaderView.avatarKey),
-                    matching: find.byType(SizedBox),
-                  )
-                  .first,
+            const centre =
+                KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2;
+            expect(
+              ar ? width - photo.center.dx : photo.center.dx,
+              closeTo(centre, 0.5),
             );
-            expect(slot.center.dx, closeTo(width / 2, 0.5));
-            expect(photo.center.dx, closeTo(width / 2, 0.5));
+            expect(
+              photo.center.dy,
+              closeTo(cover.bottom - KPublicProfile.avatarLift, 0.5),
+            );
             final line = tester.getRect(
               find.byKey(ProfileCoverHeader.nameLineKey),
             );
             expect(line.top, greaterThanOrEqualTo(photo.bottom - 1));
-            expect(line.center.dx, closeTo(width / 2, 1));
+            expect(
+              ar ? width - line.right : line.left,
+              closeTo(KPublicProfile.inset, 0.5),
+            );
             expect(line.left, greaterThanOrEqualTo(0));
             expect(line.right, lessThanOrEqualTo(width));
+            // His seal after the name and (D335, owner 2) the same seal's
+            // art on the photo's corner (read once, with the name).
             expect(find.byType(ProfileVerificationBadge), findsOneWidget);
             final seal = tester.getRect(find.byType(ProfileVerificationBadge));
             expect(seal.right, lessThanOrEqualTo(width));
             expect(seal.left, greaterThanOrEqualTo(0));
+            final corner = tester.getRect(
+              find.byKey(ProfileCoverHeader.avatarBadgeKey),
+            );
+            expect(corner.center.dy, greaterThan(photo.center.dy));
+            expect(
+              ar
+                  ? corner.center.dx < photo.center.dx
+                  : corner.center.dx > photo.center.dx,
+              isTrue,
+            );
             // The name is cut on one line (not wrapped, not clipped away).
             final name = tester.widget<Text>(
               find.byKey(const Key('profile.displayName')),
             );
             expect(name.maxLines, 1);
             expect(name.overflow, TextOverflow.ellipsis);
-            // The name block stays on the picture, above the numbers.
-            final cover = tester.getRect(
-              find.byKey(ProfileCoverHeader.coverAreaKey),
+            // The name block on the page under the cover, above the numbers.
+            expect(line.top, greaterThan(cover.bottom));
+            expect(
+              line.bottom,
+              lessThan(tester.getRect(find.byKey(ProfileScreen.statsKey)).top),
             );
-            expect(line.bottom, lessThanOrEqualTo(cover.bottom));
             // The sound button keeps its corner, clear of the photo.
             final mute = tester.getRect(
               find.byKey(OwnerCoverVideoLayer.muteKey),
@@ -929,10 +944,14 @@ void main() {
               )
               .first,
         );
-        final decoration = box.decoration as BoxDecoration;
-        expect(decoration.boxShadow, isNull);
-        // Its red gradient stays.
-        expect(decoration.gradient, isNotNull);
+        // D335: a stadium pill (ShapeDecoration has no shadow at all).
+        final decoration = box.decoration as ShapeDecoration;
+        expect(decoration.shadows, isNull);
+        // Its red gradient stays (D335: the profile's Kabso-red one).
+        expect(
+          (decoration.gradient! as LinearGradient).colors,
+          KPublicProfile.gradient,
+        );
         await _end(tester);
       });
 

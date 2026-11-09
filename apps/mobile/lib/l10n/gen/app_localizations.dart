@@ -2474,6 +2474,18 @@ abstract class AppLocalizations {
   /// **'الملف العام'**
   String get previewsHubUserProfile;
 
+  /// D335: the chevron beside «مراسلة» / «تعديل الملف» that opens the family, couple and medals tiles.
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار العائلة والعلاقة والميداليات'**
+  String get profileBondsShow;
+
+  /// D335: the same chevron while the tiles are open (closes them).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء العائلة والعلاقة والميداليات'**
+  String get profileBondsHide;
+
   /// D61: Message button / not-connected chat.
   ///
   /// In ar, this message translates to:

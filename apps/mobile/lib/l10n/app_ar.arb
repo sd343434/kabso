@@ -1224,6 +1224,14 @@
   "@previewsHubUserProfile": {
     "description": "D60: debug hub entry."
   },
+  "profileBondsShow": "إظهار العائلة والعلاقة والميداليات",
+  "profileBondsHide": "إخفاء العائلة والعلاقة والميداليات",
+  "@profileBondsShow": {
+    "description": "D335: the chevron beside «مراسلة» / «تعديل الملف» that opens the family, couple and medals tiles."
+  },
+  "@profileBondsHide": {
+    "description": "D335: the same chevron while the tiles are open (closes them)."
+  },
   "profileMessage": "مراسلة",
   "chatUnavailable": "الرسائل الخاصة غير متاحة بعد. عند توفرها ستظهر محادثتكما هنا.",
   "@profileMessage": {

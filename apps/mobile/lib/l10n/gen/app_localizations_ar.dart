@@ -1468,6 +1468,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get previewsHubUserProfile => 'الملف العام';
 
   @override
+  String get profileBondsShow => 'إظهار العائلة والعلاقة والميداليات';
+
+  @override
+  String get profileBondsHide => 'إخفاء العائلة والعلاقة والميداليات';
+
+  @override
   String get profileMessage => 'مراسلة';
 
   @override

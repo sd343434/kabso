@@ -5591,7 +5591,7 @@ told): the profile's main button is then «إلغاء الحظر» (`DELETE /use
 - **Story viewer.** A reply «اكتب رسالة…» and the heart («❤️») go to the author as direct messages (§11.13,
   `POST /dm/messages`); the DM carries no reference to the story (a later contract can add one).
 
-#### 10.73.6 The profile pages' centred layout *(D316, app only — no wire change)*
+#### 10.73.6 The profile pages' centred layout *(D316, app only — no wire change; **superseded by §10.73.7, D335**, except where §10.73.7 keeps it)*
 
 Owner (2026-11-08), from a third-party reference (a Dribbble composite; the middle phone only — its layout, never its
 photos, names, icons or brand; the image stays out of git, D40): «التصميم الذي في المنتصف … لصفحات المستخدمين، نطبقه
@@ -5631,6 +5631,77 @@ and staff accounts' — except the founder's page (D301 / D307 unchanged, §10.1
   blocked, missing, loading and error states are unchanged.
 - **Measured from the reference:** it is ≈ 207 px wide for a 393 dp phone (0.527 px/dp), so every size above is an
   estimate (±2 dp) or a Kabso token; the comparison is advisory (`cross_environment`), never pixel-exact.
+
+#### 10.73.7 The profile pages' cover layout *(D335, app only — no wire change; supersedes most of §10.73.6)*
+
+Owner (2026-11-09), from a third-party reference (a Dribbble composite of three phones; the **right** phone only — its
+layout, never its photos, names, «blink» wordmark, icons or text; the image stays out of git, D40): «أريده مطابق».
+Owner decisions: **(1)** the cover is back (reverses D316's «بدون غلاف») — the person's cover picture, else an
+original default Kabso cover; **(2)** the badge on the photo is the verification seal (none for unverified accounts),
+and the seal after the name stays; **(3)** «متابعة» on a Kabso-red gradient (not the reference's pink → orange), its
+other states kept, and «مراسلة» with the send icon; **(4)** the special-ID plate / @username / staff ID stays in the bar
+beside back; the levels row is the reference's subtitle line under the name, the worn medals under it, then the bio;
+the four numbers stay (the money ones hidden per D307); the family / couple / medals tiles leave the page flow for a
+chevron beside «مراسلة» that opens and closes them; the ⋯ moves back to the cover's bar; **(5)** the founder's page
+gets the same header with every D301 / D307 rule kept. Applies to every profile: the own «أنا» view, other people's,
+staff accounts' and the founder's.
+
+Measured on the reference at 1.333 px/dp (its phone is 524 px wide for 393 dp; ≈ 4 % anisotropy, so vertical values
+are ± 4 %): **M** measured, **E** estimated.
+
+- **Cover:** full-bleed from the screen's top under the status bar and the bar, its bottom edge 184 dp under the bar
+  (M: 288 dp from the top), rounded bottom corners (E 18 dp). What it shows, in order: a staff account's region cover
+  (D283), else the person's `coverUrl`, else the **default Kabso cover** — the brand red gradient (light: red400 →
+  red500 → red700; dark: red500 → red700 → near black) with a faint lattice of «K» monograms and a soft light at the
+  top end, painted in code (`ProfileDefaultCover`; original, no image file, nothing taken from the reference). The
+  founder's cover video (D301 / D307: autoplay with sound, pauses off-screen) lies over it. D299e's shade under the bar
+  stays; there is no bottom scrim any more (nothing is written on the cover's lower part). The own page's cover is a
+  button again («صورة الغلاف», D218).
+- **Top bar:** back on a 46 dp translucent white circle (M 46.5; a 48 dp target) 18 dp from the edge (M 17.6), the
+  @username / special-ID plate / staff ID right beside it (D316), white with a soft shadow over the cover; at the end
+  the ⋯ on the same circle — the page's **only** ⋯ (`_openMore`: copy, mute, block, report, «إجراءات المؤسس»; keys
+  `PublicProfileScreen.moreKey` / `dropdownKey`) — or, on the own page, drafts and settings. The bar turns the page
+  colour (circles in the chip colour, glyphs in the theme's) once the list moves (D307's threshold, unchanged).
+- **Photo:** at the reading start (its centre 73 dp from the start edge; M start edge 16.5), its centre 38 dp above
+  the cover's edge (M) — two thirds on the cover. A plain photo is 100 dp (M) in a 4 dp Kabso-red gradient ring and a
+  3 dp page-coloured rim, 114 dp in all (M ≈ 115). A worn frame, the live ring, an agent / CP / VIP frame or a staff
+  frame keeps the frames' common box (D244) on the same centre, and the name starts under that box. The verification
+  seal (D293's art, 26 dp in a 3 dp page rim) sits on the photo's edge at 45° toward the bottom end; it is decorative
+  (the seal after the name is the one read aloud).
+- **Under the cover, start-aligned, 20 dp margins (M):** the name (22 dp bold, E; one line «…») with the 20 dp seal 6
+  dp after it and «مباشر» at the line's end when live; the badges (VIP, Kabso Team — never on the founder's page —
+  the crests, the levels) on at most two lines; the worn medals (28 dp art, a 44 dp tap row; none on staff); the bio
+  (14 dp × 1.4, E; the secondary colour; two lines, the founder's four bilingual lines per §10.112.11); the tags and
+  the links; the numbers 22.5 dp under them.
+- **Numbers:** Followers | Following | «الكرز المستلم» | «الكوينز المرسلة» with 1 dp dividers 41 dp tall (M). Two
+  numbers: 163 dp columns centred (M), 26 dp bold numbers (E; the reference's cap height is 20 dp) and 15 dp labels;
+  four: equal columns over the width, 21 dp numbers and 13 dp labels on up to two lines. Staff and the founder never
+  show the money numbers (D307).
+- **Buttons (41 dp stadium pills, M; 12 dp apart, M; 18.5 dp under the labels' ink, M):** another person's page —
+  «متابعة» on the Kabso-red gradient (red500 → red400, start → end, no shadow; «تتابعه» / «تم الطلب» in the chip colour,
+  «إلغاء الحظر» on the gradient) a little wider than «مراسلة» (11 : 10; M 178.5 : 162), «مراسلة» in the chip colour with
+  the send icon (mirrored in RTL); the own page — «تعديل الملف»; the founder's page (visitors) — «متابعة المؤسس» (the
+  gradient pill, no shadow, D307) and the gold outline «اقترح ميزة / أبلغ» (D307) as pills. Then the **chevron**: a 41
+  dp round chip-coloured button that opens / closes the family, couple and medals tiles (`ProfileBondsBlock`) under the
+  buttons, animated (240 ms; at once with reduce motion), its label «إظهار / إخفاء العائلة والعلاقة والميداليات», an
+  expanded state, never remembered; not shown when there is nothing to open (staff; the founder when he holds no
+  family, couple or medal).
+- **Staff accounts** *(owner, the same day, on the staff capture: «مشرف كابسو: اجعل الأيقونة (فريق كابسو) بجانب الاسم،
+  وضع أسفلهم بعد ذلك صندوق البايو»)*: the «فريق كابسو» badge sits on the name line after the name (and seal), 26 dp
+  tall (E, the line's height; the name is cut first on a narrow line), not in the badges row; the official bio card
+  (D283b) comes right under the name block, before the numbers and the buttons. Order: cover → photo → name + team
+  badge → official card → numbers → buttons → tabs / grid. Other Kabso Team accounts without a staff identity keep the
+  badge in the badges row; D299i's 44 pt badge stays on the Me tab.
+- **Under the header:** the facts, start-aligned (`ProfileInfoBlock`, no bond tiles or staff card any more); then the tabs — the words over the screen less 11 dp a side (M), the selected one semibold with a 2.5 dp
+  Kabso-red gradient line 0.76 of the tab wide (M) on a hairline; the founder's page still has no tabs (D307), only
+  «رحلة Kabso» and the announcements; then the grid — 13 dp from the edges (M 12.75), 3 dp gaps (M), 9 dp under the
+  tabs' line (M), square post tiles (M) with 9 dp corners (E), reels 9:16. Loading, error, private, blocked and
+  missing states are unchanged.
+- **Fidelity (honest):** compared with `visual_diff` against the right phone resampled to 393 × 852 @3 (status bar and
+  the harness's debug banner masked), advisory `cross_environment`: it FAILS the profile's thresholds because the
+  reference's photos, avatar and grid pictures are third-party content we do not copy; the geometry of the bar, cover
+  edge, photo, name, bio, numbers, buttons, tabs and grid rows lies within ≈ 1–2 dp vertically of the reference. Not
+  pixel-perfect.
 
 ### 10.74 The person card's lifetime totals and their privacy switches *(v1.77-social, DRAFT — D220)*
 
@@ -8928,7 +8999,9 @@ Owner (2026-11-08), on the founder's page: «ازل شارة فريق كابسو
   photo (its frames' box) is centred on the picture under the top bar and the name with its seal centred right under
   it (one line, «…»); the picture grows by that line, so the numbers and buttons move down by it. The special ID
   plate stays in the bar, the sound / play buttons in their corner. Every other profile has D316's centred header
-  (§10.73.6).
+  (§10.73.6). *D335 (§10.73.7): the founder's page now has the same cover header as every profile — the photo at the
+  reading start over the cover's edge, the name under it; his video cover, the bilingual bio, no team badge, no money
+  numbers, no tabs and the D307 buttons are kept.*
 - **The visitor's buttons** *(owner, the same day: «زر اقترح ميزة / ابلاغ اجعله فقط بإطار مفرغ» and «ازل الظلال الذي اسفل
   زر متابعة المؤسس»)*: «اقترح ميزة / أبلغ» is an outline only (gold border and text, no fill) and «متابعة المؤسس» has no
   shadow or glow under it; sizes and places unchanged; other profiles' buttons unchanged.
