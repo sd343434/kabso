@@ -596,6 +596,9 @@ export const envSchema = z
     RATE_LIMIT_DM_SEND_USER: rateLimit('30/60'),
     RATE_LIMIT_DM_REQUEST_USER: rateLimit('20/3600'),
     RATE_LIMIT_DM_WRITE_USER: rateLimit('300/3600'),
+    // v1.104-social (D339, CONVENTIONS §7, §10.133): new groups «رسائل جماعية», per user (their messages count in
+    // RATE_LIMIT_DM_SEND_USER, the other group writes in RATE_LIMIT_DM_WRITE_USER).
+    RATE_LIMIT_DM_GROUP_CREATE_USER: rateLimit('2/86400'),
     // v1.48-social (D171, CONVENTIONS §7, §10.45): bag item sends, per user.
     RATE_LIMIT_BAG_SEND_USER: rateLimit('30/3600'),
     /** v1.54-social (D185, §10.48): coin sales by a recharge agent or employee, and the other recharge writes. */
@@ -1055,6 +1058,8 @@ export const envSchema = z
     DM_REQUEST_MAX_MESSAGES: intSetting(3, 1, 20),
     /** D155: one's own message may be deleted for everyone within this many seconds of sending it. */
     DM_DELETE_FOR_EVERYONE_SECONDS: intSetting(3600, 0, 86400),
+    /** v1.104-social (D339): the most members a group «رسائل جماعية» may have, its creator included. */
+    DM_GROUP_MAX_MEMBERS: intSetting(100, 3, 256),
     /**
      * D155 (owner: 50 %): the share of a (non-lucky) gift's coin value counted for the recipient's
      * charm when it is sent in a direct conversation. Lucky gifts keep LUCKY_GIFT_HOST_SHARE_PERCENT.

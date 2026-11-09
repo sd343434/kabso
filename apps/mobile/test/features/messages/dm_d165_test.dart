@@ -166,7 +166,7 @@ void main() {
       await tester.enterText(find.byKey(DmInboxScreen.searchFieldKey), '@Sa');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
-      expect(dm.calls, contains('conversations:inbox:q=Sa'));
+      expect(dm.calls, contains('chats:chats:q=Sa'));
       expect(_row('c-sara_2026'), findsOneWidget);
       expect(_row('c-lina'), findsNothing);
 

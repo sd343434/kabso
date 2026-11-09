@@ -370,6 +370,20 @@ export class StaffReportActionsService {
       out.state = live ? 'VISIBLE' : 'EXPIRED';
       return out;
     }
+    if (r.targetType === 'DM_GROUP') {
+      // v1.104-social (D339): a group — the frozen snapshot (its name and the messages the reporter could read).
+      out.text = base.text;
+      out.dm = {
+        snapshot: null,
+        recipient: await this.summaryOf(r.reporterId),
+        threadSummary: threadSummaryOf(r.dmSnapshot),
+      };
+      const g = r.targetDmGroupId
+        ? await this.prisma.dmGroup.findUnique({ where: { id: r.targetDmGroupId }, select: { status: true } })
+        : null;
+      out.state = !g ? 'GONE' : g.status === 'ACTIVE' ? 'VISIBLE' : 'HIDDEN';
+      return out;
+    }
     if (r.targetUserId && r.targetType === 'USER') {
       const u = await this.prisma.user.findUnique({
         where: { id: r.targetUserId },
@@ -398,7 +412,9 @@ export class StaffReportActionsService {
   async dmThread(reportId: string, ctx: AdminContext): Promise<StaffReportDmThreadDto> {
     const r = await this.prisma.report.findUnique({ where: { id: reportId } });
     const dmReport = r?.targetType === 'DM_MESSAGE';
-    if (!r || (!dmReport && (r.targetType !== 'USER' || r.dmSnapshot === null)))
+    // v1.104-social (D339): a group report keeps the group's messages the same way.
+    const groupReport = r?.targetType === 'DM_GROUP';
+    if (!r || (!dmReport && !groupReport && (r.targetType !== 'USER' || r.dmSnapshot === null)))
       throw new AppException(ErrorCode.NOT_FOUND);
     const reportedId = dmReport ? (await this.queue.targetOf(this.prisma, r)).authorId : r.targetUserId;
     const snapshot = dmReport ? dmSnapshotDto(r.dmSnapshot, this.media.publicBaseUrl) : null;
@@ -407,8 +423,8 @@ export class StaffReportActionsService {
     await this.audit.record({
       action: AuditAction.MODERATION_REPORT_DM_READ,
       actorUserId: ctx.userId,
-      targetType: dmReport ? 'dm_message' : 'user',
-      targetId: r.targetDmMessageId ?? r.targetUserId ?? undefined,
+      targetType: dmReport ? 'dm_message' : groupReport ? 'dm_group' : 'user',
+      targetId: r.targetDmMessageId ?? r.targetDmGroupId ?? r.targetUserId ?? undefined,
       metadata: {
         reportId,
         purged: snapshot?.purged ?? thread === null,

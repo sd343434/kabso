@@ -138,14 +138,14 @@ describe('D165 direct message buttons', { timeout: 240_000 }, () => {
     await friends(me, peer);
     const sent = await text(peer, me, 'hi');
     const conversationId = sent.message.conversationId;
-    expect(await unread(me)).toEqual({ messages: 1, conversations: 1, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 1, conversations: 1, requests: 0, groups: 0 });
 
     const read = await ctx.http
       .post(`/api/v1/dm/conversations/${conversationId}/read`)
       .set(auth(me))
       .send({ lastMessageId: sent.message.id });
     expect(read.status).toBe(204);
-    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
 
     // Mark unread: 204, idempotent; counts as one; the peer sees nothing.
     for (let i = 0; i < 2; i += 1) {
@@ -155,13 +155,13 @@ describe('D165 direct message buttons', { timeout: 240_000 }, () => {
     let row = (await list(me)).data[0];
     expect(row?.markedUnread).toBe(true);
     expect(row?.unreadCount).toBe(0);
-    expect(await unread(me)).toEqual({ messages: 1, conversations: 1, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 1, conversations: 1, requests: 0, groups: 0 });
     expect((await list(peer)).data[0]?.markedUnread).toBe(false);
-    expect(await unread(peer)).toEqual({ messages: 0, conversations: 0, requests: 0 });
+    expect(await unread(peer)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
 
     // A new message does not count twice.
     await text(peer, me, 'again');
-    expect(await unread(me)).toEqual({ messages: 1, conversations: 1, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 1, conversations: 1, requests: 0, groups: 0 });
 
     // Reading clears the mark.
     const last = (await list(me)).data[0]?.lastMessage?.id ?? '';
@@ -172,7 +172,7 @@ describe('D165 direct message buttons', { timeout: 240_000 }, () => {
     expect(again.status).toBe(204);
     row = (await list(me)).data[0];
     expect(row?.markedUnread).toBe(false);
-    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
 
     // DELETE clears it too (idempotent).
     await ctx.http.put(`/api/v1/dm/conversations/${conversationId}/unread`).set(auth(me));
@@ -185,7 +185,7 @@ describe('D165 direct message buttons', { timeout: 240_000 }, () => {
     // A muted conversation is not in the badge, marked or not.
     await ctx.http.put(`/api/v1/dm/conversations/${conversationId}/unread`).set(auth(me));
     await ctx.http.put(`/api/v1/dm/conversations/${conversationId}/mute`).set(auth(me));
-    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
   });
 
   it('counts a marked request in requests; strangers and unknown ids get 404', async () => {
@@ -197,10 +197,10 @@ describe('D165 direct message buttons', { timeout: 240_000 }, () => {
       .post(`/api/v1/dm/conversations/${conversationId}/read`)
       .set(auth(me))
       .send({ lastMessageId: sent.message.id });
-    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0 });
+    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 0, groups: 0 });
     const res = await ctx.http.put(`/api/v1/dm/conversations/${conversationId}/unread`).set(auth(me));
     expect(res.status).toBe(204);
-    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 1 });
+    expect(await unread(me)).toEqual({ messages: 0, conversations: 0, requests: 1, groups: 0 });
     expect((await list(me, '?box=REQUESTS')).data[0]?.markedUnread).toBe(true);
 
     const outsider = await signup();

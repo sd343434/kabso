@@ -538,9 +538,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!(ok ?? false) || !mounted) return;
     await _run(() async {
       await ref.read(dmChatProvider(username).notifier).deleteConversation();
-      ref
-        ..invalidate(dmInboxProvider(false))
-        ..invalidate(dmInboxProvider(true));
+      invalidateDmBoxes(ref);
       unawaited(ref.read(dmUnreadProvider.notifier).refresh());
       if (mounted && context.canPop()) context.pop();
     });
@@ -554,9 +552,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       name: name,
     );
     if (!blocked || !mounted) return;
-    ref
-      ..invalidate(dmInboxProvider(false))
-      ..invalidate(dmInboxProvider(true));
+    invalidateDmBoxes(ref);
     unawaited(ref.read(dmUnreadProvider.notifier).refresh());
     if (context.canPop()) context.pop();
   }
@@ -769,9 +765,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             name: display,
             onAccept: () => _run(() async {
               await ref.read(dmChatProvider(username).notifier).accept();
-              ref
-                ..invalidate(dmInboxProvider(false))
-                ..invalidate(dmInboxProvider(true));
+              invalidateDmBoxes(ref);
               unawaited(ref.read(dmUnreadProvider.notifier).refresh());
             }),
             onDecline: _deleteConversation,

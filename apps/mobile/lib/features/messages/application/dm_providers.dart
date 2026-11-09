@@ -100,7 +100,20 @@ class DmUnreadController extends Notifier<DmUnread> {
 final NotifierProvider<DmUnreadController, DmUnread> dmUnreadProvider =
     NotifierProvider.autoDispose(DmUnreadController.new);
 
-/// The conversation list of one box (the inbox, or the message requests).
+/// The boxes of the Messages tab (D155; D339: «المؤرشفة»).
+enum DmBox {
+  /// «الدردشات»: accepted conversations, requests the caller sent, and the
+  /// caller's groups (D339), newest first.
+  chats,
+
+  /// «طلبات المراسلة»: requests waiting for the caller.
+  requests,
+
+  /// «المؤرشفة» (D339): what the caller archived.
+  archived,
+}
+
+/// The rows of one box: conversations and (D339) groups.
 @immutable
 class DmInboxState {
   const new({
@@ -109,14 +122,14 @@ class DmInboxState {
     this.loadingMore = false,
   });
 
-  final List<DmConversation> items;
+  final List<DmChat> items;
   final String? nextCursor;
   final bool loadingMore;
 
   bool get hasMore => nextCursor != null;
 
   DmInboxState copyWith({
-    List<DmConversation>? items,
+    List<DmChat>? items,
     String? nextCursor,
     bool clearCursor = false,
     bool? loadingMore,
@@ -127,47 +140,66 @@ class DmInboxState {
   );
 }
 
-/// `GET /dm/conversations` for the inbox (`false`) or the requests (`true`),
-/// newest message first. [refresh] reads the first page again (polling,
-/// pull-to-refresh, a `dm` push); [loadMore] pages on.
+/// One box: `GET /dm/chats` (D339: «الدردشات» and «المؤرشفة», groups mixed
+/// in) or `GET /dm/conversations?box=REQUESTS`, newest first. [refresh]
+/// reads the first page again (polling, pull-to-refresh, a `dm` push);
+/// [loadMore] pages on.
 class DmInboxController extends AsyncNotifier<DmInboxState> {
-  // The provider family's argument (the requests box or not).
-  // ignore: avoid_positional_boolean_parameters
-  new(this.requests, [this.query]);
+  new(this.box, [this.query]);
 
-  final bool requests;
+  final DmBox box;
 
-  /// D165: only the conversations whose peer's username or display name
-  /// starts with it (null: the whole box).
+  /// D165: only the rows whose peer's (or group's) name starts with it
+  /// (null: the whole box).
   final String? query;
 
   DmRepository get _repo => ref.read(dmRepositoryProvider);
 
+  Future<({List<DmChat> data, String? next})> _page(
+    DmRepository repo, {
+    String? cursor,
+  }) async {
+    if (box == DmBox.requests) {
+      final page = await repo.conversations(
+        requests: true,
+        query: query,
+        cursor: cursor,
+      );
+      return (
+        data: [for (final c in page.data) DmChat.direct(c)],
+        next: page.nextCursor,
+      );
+    }
+    final page = await repo.chats(
+      archived: box == DmBox.archived,
+      query: query,
+      cursor: cursor,
+    );
+    return (data: page.data, next: page.nextCursor);
+  }
+
   @override
   Future<DmInboxState> build() async {
     ref.watch(currentUserProvider.select((u) => u?.id));
-    final page = await ref
-        .watch(dmRepositoryProvider)
-        .conversations(requests: requests, query: query);
-    return DmInboxState(items: page.data, nextCursor: page.nextCursor);
+    final page = await _page(ref.watch(dmRepositoryProvider));
+    return DmInboxState(items: page.data, nextCursor: page.next);
   }
 
   Future<void> refresh() async {
     try {
-      final page = await _repo.conversations(requests: requests, query: query);
+      final page = await _page(_repo);
       if (!ref.mounted) return;
       final first = {for (final c in page.data) c.id};
       final rest = [
-        for (final c
-            in state.value?.items.skip(page.data.length) ?? <DmConversation>[])
+        for (final c in state.value?.items.skip(page.data.length) ?? <DmChat>[])
           if (!first.contains(c.id)) c,
       ];
       state = AsyncData(
         DmInboxState(
-          items: [...page.data, if (page.nextCursor != null) ...rest],
-          nextCursor: page.nextCursor == null
+          items: [...page.data, if (page.next != null) ...rest],
+          nextCursor: page.next == null
               ? null
-              : (state.value?.nextCursor ?? page.nextCursor),
+              : (state.value?.nextCursor ?? page.next),
         ),
       );
     } on Object {
@@ -180,11 +212,7 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
     if (s == null || !s.hasMore || s.loadingMore) return;
     state = AsyncData(s.copyWith(loadingMore: true));
     try {
-      final page = await _repo.conversations(
-        requests: requests,
-        query: query,
-        cursor: s.nextCursor,
-      );
+      final page = await _page(_repo, cursor: s.nextCursor);
       if (!ref.mounted) return;
       final known = {for (final c in s.items) c.id};
       state = AsyncData(
@@ -194,7 +222,7 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
             for (final c in page.data)
               if (!known.contains(c.id)) c,
           ],
-          nextCursor: page.nextCursor,
+          nextCursor: page.next,
         ),
       );
     } on Object {
@@ -213,33 +241,53 @@ class DmInboxController extends AsyncNotifier<DmInboxState> {
       s.copyWith(
         items: [
           for (final c in s.items)
-            if (c.id == conversationId) change(c) else c,
+            if (c.conversation case final conv? when conv.id == conversationId)
+              DmChat.direct(change(conv))
+            else
+              c,
         ],
       ),
     );
   }
 
-  /// A conversation left this box here (deleted, accepted, blocked).
-  void drop(String conversationId) {
+  /// D339: [groupId] changed here (read, muted).
+  void patchGroup(String groupId, DmGroup Function(DmGroup g) change) {
     final s = state.value;
     if (s == null) return;
     state = AsyncData(
       s.copyWith(
         items: [
           for (final c in s.items)
-            if (c.id != conversationId) c,
+            if (c.group case final g? when g.id == groupId)
+              DmChat.group(change(g))
+            else
+              c,
+        ],
+      ),
+    );
+  }
+
+  /// A row left this box here (deleted, accepted, blocked, archived, left).
+  void drop(String id) {
+    final s = state.value;
+    if (s == null) return;
+    state = AsyncData(
+      s.copyWith(
+        items: [
+          for (final c in s.items)
+            if (c.id != id) c,
         ],
       ),
     );
   }
 }
 
-final AsyncNotifierProviderFamily<DmInboxController, DmInboxState, bool>
+final AsyncNotifierProviderFamily<DmInboxController, DmInboxState, DmBox>
 dmInboxProvider = AsyncNotifierProvider.autoDispose
-    .family<DmInboxController, DmInboxState, bool>(DmInboxController.new);
+    .family<DmInboxController, DmInboxState, DmBox>(DmInboxController.new);
 
-/// D165: a search of one box (`listDmConversations?q=`).
-typedef DmInboxSearch = ({bool requests, String query});
+/// D165: a search of one box.
+typedef DmInboxSearch = ({DmBox box, String query});
 
 final AsyncNotifierProviderFamily<
   DmInboxController,
@@ -248,8 +296,16 @@ final AsyncNotifierProviderFamily<
 >
 dmInboxSearchProvider = AsyncNotifierProvider.autoDispose
     .family<DmInboxController, DmInboxState, DmInboxSearch>(
-      (search) => DmInboxController(search.requests, search.query),
+      (search) => DmInboxController(search.box, search.query),
     );
+
+/// Every box reads the server again (after a change made elsewhere: a
+/// conversation or group opened, archived, left, blocked).
+void invalidateDmBoxes(WidgetRef ref) {
+  for (final box in DmBox.values) {
+    ref.invalidate(dmInboxProvider(box));
+  }
+}
 
 /// One conversation as the screen shows it: the peer (and whether the
 /// caller may write), the conversation once it exists, and its messages

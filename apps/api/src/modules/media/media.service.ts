@@ -113,6 +113,9 @@ export const MEDIA_KINDS = [
   // slot) and a private picture of «اقترح ميزة / أبلغ عن موظف» (consumed into `private/owner-feedback/<id>/`).
   'PROFILE_COVER_VIDEO',
   'OWNER_FEEDBACK_IMAGE',
+  // v1.104-social (D339, §10.133): a group conversation's photo (a centre-cropped square, like a family emblem); attached
+  // only by `createDmGroup` / `updateDmGroup`.
+  'DM_GROUP_PHOTO',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -433,7 +436,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     const shape: ImageShape =
       kind === 'HOME_BANNER'
         ? 'banner'
-        : kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM' || kind === 'AVATAR'
+        : kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM' || kind === 'AVATAR' || kind === 'DM_GROUP_PHOTO'
           ? 'square'
           : 'inside';
     const side =

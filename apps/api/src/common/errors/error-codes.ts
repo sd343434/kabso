@@ -88,6 +88,10 @@ export enum ErrorCode {
   DM_REQUEST_LIMIT = 'DM_REQUEST_LIMIT',
   DM_REQUEST_TEXT_ONLY = 'DM_REQUEST_TEXT_ONLY',
   DM_DELETE_WINDOW_PASSED = 'DM_DELETE_WINDOW_PASSED',
+  // v1.104-social (DRAFT, D339): archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  DM_NOT_ARCHIVABLE = 'DM_NOT_ARCHIVABLE',
+  DM_GROUP_FULL = 'DM_GROUP_FULL',
+  DM_GROUP_MEMBER_NOT_ALLOWED = 'DM_GROUP_MEMBER_NOT_ALLOWED',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
   CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
   /** v1.21-live (DRAFT, CP-018): the caller already has a pending CP request. */
@@ -406,6 +410,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.DM_REQUEST_LIMIT]: 403,
   [ErrorCode.DM_REQUEST_TEXT_ONLY]: 403,
   [ErrorCode.DM_DELETE_WINDOW_PASSED]: 409,
+  [ErrorCode.DM_NOT_ARCHIVABLE]: 409,
+  [ErrorCode.DM_GROUP_FULL]: 409,
+  [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 403,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
   [ErrorCode.CP_REQUEST_PENDING]: 409,
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 409,
@@ -567,6 +574,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.DM_REQUEST_LIMIT]: 'Wait for a reply before sending more messages.',
   [ErrorCode.DM_REQUEST_TEXT_ONLY]: 'Only text, emojis and gifts can be sent until the request is accepted.',
   [ErrorCode.DM_DELETE_WINDOW_PASSED]: 'This message can no longer be deleted for everyone.',
+  [ErrorCode.DM_NOT_ARCHIVABLE]: 'A message request cannot be archived; accept or delete it.',
+  [ErrorCode.DM_GROUP_FULL]: 'This group has reached its member limit.',
+  [ErrorCode.DM_GROUP_MEMBER_NOT_ALLOWED]: 'Some of these people cannot be added to a group by you.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
   [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 'The CP request is no longer pending.',

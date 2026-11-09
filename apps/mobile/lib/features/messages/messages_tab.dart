@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
@@ -14,8 +15,11 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/messages/application/dm_providers.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
+import 'package:kabso_live/features/messages/data/dm_groups_repository.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
+import 'package:kabso_live/features/messages/group_chat_screen.dart';
+import 'package:kabso_live/features/messages/widgets/dm_group_row.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
 import 'package:kabso_live/features/messages/widgets/dm_story_cards.dart';
 import 'package:kabso_live/features/profile/profile_verification_badge.dart';
@@ -65,6 +69,26 @@ abstract final class KDmList {
   /// The boxes button's chevron and its requests count.
   static const double boxesIcon = 28;
   static const double boxesBadge = 16;
+
+  /// D339: the «+» new-group glyph beside the boxes button.
+  static const double newGroupIcon = 26;
+
+  /// The rows' geometry, shared with the group rows (D339).
+  static const geometry = DmRowGeometry(
+    rowHeight: rowHeight,
+    avatar: avatar,
+    startInset: startInset,
+    avatarGap: avatarGap,
+    endInset: endInset,
+    nameSize: nameSize,
+    previewSize: previewSize,
+    timeSize: timeSize,
+    timeMaxWidth: timeMaxWidth,
+    unreadBadge: unreadBadge,
+    timeToBadge: timeToBadge,
+    timeTop: timeTop,
+    mutedIcon: mutedIcon,
+  );
 }
 
 /// `/messages` — the Messages tab (D86; D155: real direct messages). Two
@@ -85,6 +109,11 @@ abstract final class KDmList {
 /// story cards ([DmStoryCards]), then «الرسائل» with search, the two boxes
 /// and the rows (64 dp picture, name, preview, time, the red unread count
 /// under it). Everything scrolls together.
+///
+/// D339 (§10.132–§10.133): «الدردشات» mixes the groups in by recency
+/// (`listDmChats`); the boxes panel adds «المؤرشفة»; a «+» before the boxes
+/// button opens «مجموعة جديدة»; a row swipes to archive (and back) and its
+/// long press offers archive / unarchive too.
 class MessagesTab extends ConsumerWidget {
   const new({super.key});
 
@@ -104,6 +133,14 @@ class DmInboxScreen extends ConsumerStatefulWidget {
   static const inboxTabKey = Key('dm.tab.inbox');
   static const privacyKey = Key('dm.privacy');
   static const requestsTabKey = Key('dm.tab.requests');
+
+  /// D339: «المؤرشفة», the new-group button and the archive actions.
+  static const archivedTabKey = Key('dm.tab.archived');
+  static const archivedHintKey = Key('dm.archived.hint');
+  static const newGroupKey = Key('dm.group.new');
+  static const actionArchiveKey = Key('dm.action.archive');
+  static const actionLeaveKey = Key('dm.action.leave');
+  static Key swipeKey(String id) => Key('dm.swipe.$id');
   static const listKey = Key('dm.list');
   static const emptyKey = Key('dm.empty');
   static const requestsHintKey = Key('dm.requests.hint');
@@ -138,7 +175,7 @@ class DmInboxScreen extends ConsumerStatefulWidget {
 }
 
 class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
-  bool _requests = false;
+  DmBox _box = DmBox.chats;
 
   /// D336 follow-up: the boxes panel under «الرسائل» is open.
   bool _boxesOpen = false;
@@ -167,14 +204,12 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
 
   void _refresh() {
     if (!mounted) return;
-    unawaited(ref.read(dmInboxProvider(_requests).notifier).refresh());
+    unawaited(ref.read(dmInboxProvider(_box).notifier).refresh());
     final q = _query;
     if (q != null) {
       unawaited(
         ref
-            .read(
-              dmInboxSearchProvider((requests: _requests, query: q)).notifier,
-            )
+            .read(dmInboxSearchProvider((box: _box, query: q)).notifier)
             .refresh(),
       );
     }
@@ -298,7 +333,11 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
                 : Semantics(
                     header: true,
                     child: Text(
-                      _requests ? l10n.dmTabRequests : l10n.conversationsTitle,
+                      switch (_box) {
+                        DmBox.chats => l10n.conversationsTitle,
+                        DmBox.requests => l10n.dmTabRequests,
+                        DmBox.archived => l10n.dmTabArchived,
+                      },
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.headline.copyWith(
@@ -309,6 +348,18 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
                     ),
                   ),
           ),
+          // D339: a new group.
+          if (!_searching)
+            IconButton(
+              key: DmInboxScreen.newGroupKey,
+              tooltip: l10n.dmNewGroup,
+              onPressed: () => context.push(AppRoutes.newGroup),
+              icon: Icon(
+                Icons.group_add_outlined,
+                size: KDmList.newGroupIcon,
+                color: p.textPrimary,
+              ),
+            ),
           // D336 follow-up (owner): the boxes open from here (also while
           // searching: each box is searched on its own), with the pending
           // requests on the button so they are not missed.
@@ -361,10 +412,10 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
         messagesHeader,
         _BoxesPanel(
           open: _boxesOpen,
-          requestsSelected: _requests,
+          selected: _box,
           requests: requests,
           onSelect: (box) => setState(() {
-            _requests = box;
+            _box = box;
             _boxesOpen = false;
           }),
         ),
@@ -374,7 +425,7 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
       backgroundColor: p.background,
       body: KTopSafeArea(
         child: _Box(
-          requests: _requests,
+          box: _box,
           query: _query,
           header: header,
           onRefresh: () async {
@@ -388,13 +439,13 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
 
 class _Box extends ConsumerWidget {
   const new({
-    required this.requests,
+    required this.box,
     required this.header,
     required this.onRefresh,
     this.query,
   });
 
-  final bool requests;
+  final DmBox box;
 
   /// D336: the page's top (stories, «الرسائل», the boxes): it scrolls with
   /// the list in every state.
@@ -411,13 +462,17 @@ class _Box extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final q = query;
+    final requests = box == DmBox.requests;
+    final archived = box == DmBox.archived;
     final provider = q == null
-        ? dmInboxProvider(requests)
-        : dmInboxSearchProvider((requests: requests, query: q));
-    final box = ref.watch(provider);
-    final hint = requests && q == null
+        ? dmInboxProvider(box)
+        : dmInboxSearchProvider((box: box, query: q));
+    final rows = ref.watch(provider);
+    final hint = (requests || archived) && q == null
         ? Padding(
-            key: DmInboxScreen.requestsHintKey,
+            key: requests
+                ? DmInboxScreen.requestsHintKey
+                : DmInboxScreen.archivedHintKey,
             padding: const EdgeInsetsDirectional.fromSTEB(
               KDmList.startInset,
               KSpacing.xs,
@@ -425,7 +480,7 @@ class _Box extends ConsumerWidget {
               KSpacing.sm,
             ),
             child: Text(
-              l10n.dmRequestsHint,
+              requests ? l10n.dmRequestsHint : l10n.dmArchivedHint,
               style: context.textStyles.caption.copyWith(
                 color: p.textSecondary,
               ),
@@ -447,7 +502,7 @@ class _Box extends ConsumerWidget {
         ],
       ),
     );
-    return switch (box) {
+    return switch (rows) {
       AsyncValue(:final value?) when value.items.isEmpty => scroll([
         SliverToBoxAdapter(
           child: Padding(
@@ -464,13 +519,19 @@ class _Box extends ConsumerWidget {
                   )
                 : KEmptyState(
                     key: DmInboxScreen.emptyKey,
-                    icon: Icons.chat_bubble_outline_rounded,
-                    title: requests
-                        ? l10n.dmRequestsEmptyTitle
-                        : l10n.conversationsEmptyTitle,
-                    message: requests
-                        ? l10n.dmRetentionNotice
-                        : l10n.conversationsEmptyBody,
+                    icon: archived
+                        ? Icons.archive_outlined
+                        : Icons.chat_bubble_outline_rounded,
+                    title: switch (box) {
+                      DmBox.chats => l10n.conversationsEmptyTitle,
+                      DmBox.requests => l10n.dmRequestsEmptyTitle,
+                      DmBox.archived => l10n.dmArchivedEmptyTitle,
+                    },
+                    message: switch (box) {
+                      DmBox.chats => l10n.conversationsEmptyBody,
+                      DmBox.requests => l10n.dmRetentionNotice,
+                      DmBox.archived => l10n.dmRetentionNotice,
+                    },
                   ),
           ),
         ),
@@ -486,17 +547,35 @@ class _Box extends ConsumerWidget {
           SliverList.list(
             children: [
               for (final c in value.items)
-                DmConversationRow(
-                  item: c,
-                  onLongPress: () => unawaited(
-                    _conversationActions(
-                      context,
-                      ref,
-                      c,
-                      requests: requests,
-                      query: q,
-                    ),
+                _Swipe(
+                  chat: c,
+                  enabled: !requests,
+                  archived: archived,
+                  onSwiped: () => unawaited(
+                    _setArchived(context, ref, c, box: box, query: q),
                   ),
+                  child: switch (c) {
+                    DmChat(group: final g?) => DmGroupRow(
+                      group: g,
+                      geometry: KDmList.geometry,
+                      onLongPress: () => unawaited(
+                        _groupActions(context, ref, g, box: box, query: q),
+                      ),
+                    ),
+                    DmChat(conversation: final conv?) => DmConversationRow(
+                      item: conv,
+                      onLongPress: () => unawaited(
+                        _conversationActions(
+                          context,
+                          ref,
+                          conv,
+                          box: box,
+                          query: q,
+                        ),
+                      ),
+                    ),
+                    _ => const SizedBox.shrink(),
+                  },
                 ),
               if (value.loadingMore)
                 const Padding(
@@ -610,22 +689,22 @@ class _BoxesToggle extends StatelessWidget {
   }
 }
 
-/// D336 follow-up: the boxes — «الدردشات» and «طلبات المراسلة» (D155, with
-/// its count) — as rows in a panel that opens under «الرسائل»; a row opens
-/// its box and closes the panel. (The app has no archived or group
-/// conversations: no row for them.)
+/// D336 follow-up: the boxes — «الدردشات», «طلبات المراسلة» (D155, with
+/// its count) and (D339) «المؤرشفة» — as rows in a panel that opens under
+/// «الرسائل»; a row opens its box and closes the panel. Groups are mixed
+/// into «الدردشات» (no box of their own).
 class _BoxesPanel extends StatelessWidget {
   const new({
     required this.open,
-    required this.requestsSelected,
+    required this.selected,
     required this.requests,
     required this.onSelect,
   });
 
   final bool open;
-  final bool requestsSelected;
+  final DmBox selected;
   final int requests;
-  final ValueChanged<bool> onSelect;
+  final ValueChanged<DmBox> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -637,106 +716,119 @@ class _BoxesPanel extends StatelessWidget {
       required Key key,
       required IconData icon,
       required String label,
-      required bool selected,
-      required bool box,
+      required DmBox box,
       int count = 0,
-    }) => Semantics(
-      button: true,
-      selected: selected,
-      label: count > 0
-          ? l10n.dmTabRequestsCount(KFormat.compact(count, l10n))
-          : label,
-      excludeSemantics: true,
-      child: InkWell(
-        key: key,
-        onTap: () => onSelect(box),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.only(
-              start: KDmList.startInset,
-              end: KDmList.endInset,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: selected ? p.primary : p.textSecondary,
-                ),
-                const SizedBox(width: KSpacing.md),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.bodyStrong.copyWith(
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: p.textPrimary,
-                    ),
+    }) {
+      final isSelected = selected == box;
+      return Semantics(
+        button: true,
+        selected: isSelected,
+        label: count > 0
+            ? l10n.dmTabRequestsCount(KFormat.compact(count, l10n))
+            : label,
+        excludeSemantics: true,
+        child: InkWell(
+          key: key,
+          onTap: () => onSelect(box),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(
+                start: KDmList.startInset,
+                end: KDmList.endInset,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 22,
+                    color: isSelected ? p.primary : p.textSecondary,
                   ),
-                ),
-                if (count > 0)
-                  Container(
-                    constraints: const BoxConstraints(
-                      minWidth: KDmList.unreadBadge,
-                    ),
-                    height: KDmList.unreadBadge,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: p.primary,
-                      borderRadius: BorderRadius.circular(KRadius.pill),
-                    ),
+                  const SizedBox(width: KSpacing.md),
+                  Expanded(
                     child: Text(
-                      count >= 99 ? '99+' : KFormat.compact(count, l10n),
-                      style: t.caption.copyWith(
-                        fontSize: 12,
-                        height: 1,
-                        fontWeight: FontWeight.w700,
-                        color: p.onPrimary,
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: p.textPrimary,
                       ),
                     ),
                   ),
-                if (selected) ...[
-                  const SizedBox(width: KSpacing.sm),
-                  Icon(Icons.check_rounded, size: 20, color: p.primary),
+                  if (count > 0)
+                    Container(
+                      constraints: const BoxConstraints(
+                        minWidth: KDmList.unreadBadge,
+                      ),
+                      height: KDmList.unreadBadge,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.primary,
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
+                      child: Text(
+                        count >= 99 ? '99+' : KFormat.compact(count, l10n),
+                        style: t.caption.copyWith(
+                          fontSize: 12,
+                          height: 1,
+                          fontWeight: FontWeight.w700,
+                          color: p.onPrimary,
+                        ),
+                      ),
+                    ),
+                  if (isSelected) ...[
+                    const SizedBox(width: KSpacing.sm),
+                    Icon(Icons.check_rounded, size: 20, color: p.primary),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    final panel = open
+        ? Column(
+            key: DmInboxScreen.boxesPanelKey,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              row(
+                key: DmInboxScreen.inboxTabKey,
+                icon: Icons.chat_bubble_outline_rounded,
+                label: l10n.dmTabChats,
+                box: DmBox.chats,
+              ),
+              row(
+                key: DmInboxScreen.requestsTabKey,
+                icon: Icons.mark_email_unread_outlined,
+                label: l10n.dmTabRequests,
+                box: DmBox.requests,
+                count: requests,
+              ),
+              row(
+                key: DmInboxScreen.archivedTabKey,
+                icon: Icons.archive_outlined,
+                label: l10n.dmTabArchived,
+                box: DmBox.archived,
+              ),
+              Divider(height: KSpacing.sm, color: p.border),
+            ],
+          )
+        : const SizedBox(width: double.infinity);
+    // With reduced motion the panel opens at once (an AnimatedSize with a
+    // zero duration re-lays itself out during layout, D339 fix).
+    if (reduce) return panel;
     return AnimatedSize(
-      duration: reduce ? Duration.zero : KMotion.base,
+      duration: KMotion.base,
       curve: KMotion.standard,
       alignment: AlignmentDirectional.topStart,
-      child: open
-          ? Column(
-              key: DmInboxScreen.boxesPanelKey,
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                row(
-                  key: DmInboxScreen.inboxTabKey,
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: l10n.dmTabChats,
-                  selected: !requestsSelected,
-                  box: false,
-                ),
-                row(
-                  key: DmInboxScreen.requestsTabKey,
-                  icon: Icons.mark_email_unread_outlined,
-                  label: l10n.dmTabRequests,
-                  selected: requestsSelected,
-                  box: true,
-                  count: requests,
-                ),
-                Divider(height: KSpacing.sm, color: p.border),
-              ],
-            )
-          : const SizedBox(width: double.infinity),
+      child: panel,
     );
   }
 }
@@ -967,9 +1059,10 @@ Future<void> _conversationActions(
   BuildContext context,
   WidgetRef ref,
   DmConversation item, {
-  required bool requests,
+  required DmBox box,
   required String? query,
 }) async {
+  final requests = box == DmBox.requests;
   final l10n = context.l10n;
   final last = item.lastMessage;
   // Reading a request from the list would tell the sender (the chat does not
@@ -1008,6 +1101,18 @@ Future<void> _conversationActions(
             title: Text(item.muted ? l10n.dmUnmute : l10n.dmMute),
             onTap: () => Navigator.of(sheet).pop('mute'),
           ),
+          // D339: a request is accepted or deleted, never archived.
+          if (!requests)
+            ListTile(
+              key: DmInboxScreen.actionArchiveKey,
+              leading: Icon(
+                item.archived
+                    ? Icons.unarchive_outlined
+                    : Icons.archive_outlined,
+              ),
+              title: Text(item.archived ? l10n.dmUnarchive : l10n.dmArchive),
+              onTap: () => Navigator.of(sheet).pop('archive'),
+            ),
           ListTile(
             key: DmInboxScreen.actionDeleteKey,
             leading: const Icon(Icons.delete_outline),
@@ -1028,20 +1133,28 @@ Future<void> _conversationActions(
     ),
   );
   if (action == null || !context.mounted) return;
+  if (action == 'archive') {
+    await _setArchived(
+      context,
+      ref,
+      DmChat.direct(item),
+      box: box,
+      query: query,
+    );
+    return;
+  }
   final repo = ref.read(dmRepositoryProvider);
-  final box = ref.read(dmInboxProvider(requests).notifier);
+  final list = ref.read(dmInboxProvider(box).notifier);
   final search = query == null
       ? null
-      : ref.read(
-          dmInboxSearchProvider((requests: requests, query: query)).notifier,
-        );
+      : ref.read(dmInboxSearchProvider((box: box, query: query)).notifier);
   void patch(DmConversation Function(DmConversation c) change) {
-    box.patch(item.id, change);
+    list.patch(item.id, change);
     search?.patch(item.id, change);
   }
 
   void drop() {
-    box.drop(item.id);
+    list.drop(item.id);
     search?.drop(item.id);
   }
 
@@ -1105,5 +1218,218 @@ Future<void> _conversationActions(
     if (context.mounted) {
       KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
     }
+  }
+}
+
+/// D339: archives (or, in «المؤرشفة», unarchives) [chat] for the caller —
+/// it leaves this box at once and the other boxes read again.
+Future<void> _setArchived(
+  BuildContext context,
+  WidgetRef ref,
+  DmChat chat, {
+  required DmBox box,
+  required String? query,
+}) async {
+  final l10n = context.l10n;
+  final archive = box != DmBox.archived;
+  final list = ref.read(dmInboxProvider(box).notifier);
+  final search = query == null
+      ? null
+      : ref.read(dmInboxSearchProvider((box: box, query: query)).notifier);
+  list.drop(chat.id);
+  search?.drop(chat.id);
+  try {
+    if (chat.group case final g?) {
+      await ref
+          .read(dmGroupsRepositoryProvider)
+          .setArchived(g.id, archived: archive);
+    } else {
+      await ref
+          .read(dmRepositoryProvider)
+          .setArchived(chat.id, archived: archive);
+    }
+    if (context.mounted) {
+      KSnack.success(
+        context,
+        archive ? l10n.dmArchivedDone : l10n.dmUnarchivedDone,
+      );
+    }
+  } on Object catch (e) {
+    if (context.mounted) {
+      KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    }
+  }
+  for (final b in DmBox.values) {
+    if (b != DmBox.requests) {
+      unawaited(ref.read(dmInboxProvider(b).notifier).refresh());
+    }
+  }
+  unawaited(ref.read(dmUnreadProvider.notifier).refresh());
+}
+
+/// D339: the long-press menu of a group row — mark read, mute, archive /
+/// unarchive and leave.
+Future<void> _groupActions(
+  BuildContext context,
+  WidgetRef ref,
+  DmGroup group, {
+  required DmBox box,
+  required String? query,
+}) async {
+  final l10n = context.l10n;
+  final last = group.lastMessage;
+  final canRead = group.unreadCount > 0 && last != null && !last.mine;
+  final action = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheet) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (canRead)
+            ListTile(
+              key: DmInboxScreen.actionReadKey,
+              leading: const Icon(Icons.mark_chat_read_outlined),
+              title: Text(l10n.dmMarkRead),
+              onTap: () => Navigator.of(sheet).pop('read'),
+            ),
+          ListTile(
+            key: DmInboxScreen.actionMuteKey,
+            leading: Icon(
+              group.muted
+                  ? Icons.volume_up_outlined
+                  : Icons.volume_off_outlined,
+            ),
+            title: Text(group.muted ? l10n.dmUnmute : l10n.dmMute),
+            onTap: () => Navigator.of(sheet).pop('mute'),
+          ),
+          ListTile(
+            key: DmInboxScreen.actionArchiveKey,
+            leading: Icon(
+              group.archived
+                  ? Icons.unarchive_outlined
+                  : Icons.archive_outlined,
+            ),
+            title: Text(group.archived ? l10n.dmUnarchive : l10n.dmArchive),
+            onTap: () => Navigator.of(sheet).pop('archive'),
+          ),
+          ListTile(
+            key: DmInboxScreen.actionLeaveKey,
+            leading: Icon(Icons.logout_rounded, color: sheet.palette.error),
+            title: Text(
+              l10n.dmGroupLeave,
+              style: TextStyle(color: sheet.palette.error),
+            ),
+            onTap: () => Navigator.of(sheet).pop('leave'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (action == null || !context.mounted) return;
+  if (action == 'archive') {
+    await _setArchived(
+      context,
+      ref,
+      DmChat.group(group),
+      box: box,
+      query: query,
+    );
+    return;
+  }
+  final repo = ref.read(dmGroupsRepositoryProvider);
+  final list = ref.read(dmInboxProvider(box).notifier);
+  final search = query == null
+      ? null
+      : ref.read(dmInboxSearchProvider((box: box, query: query)).notifier);
+  void patch(DmGroup Function(DmGroup g) change) {
+    list.patchGroup(group.id, change);
+    search?.patchGroup(group.id, change);
+  }
+
+  try {
+    switch (action) {
+      case 'read':
+        await repo.markRead(group.id, last!.id);
+        patch((g) => g.copyWith(unreadCount: 0));
+      case 'mute':
+        await repo.setMuted(group.id, muted: !group.muted);
+        patch((g) => g.copyWith(muted: !group.muted));
+        if (context.mounted) {
+          KSnack.success(context, group.muted ? l10n.dmUnmuted : l10n.dmMuted);
+        }
+      case 'leave':
+        if (!await confirmLeaveGroup(context)) return;
+        await repo.leave(group.id);
+        list.drop(group.id);
+        search?.drop(group.id);
+    }
+    unawaited(ref.read(dmUnreadProvider.notifier).refresh());
+  } on Object catch (e) {
+    if (context.mounted) {
+      KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    }
+  }
+}
+
+/// D339: a row swipes towards the reading start to archive it (in
+/// «المؤرشفة»: to move it back), with the archive glyph behind it; the swipe
+/// mirrors in Arabic. Requests do not swipe (a request is never archived).
+class _Swipe extends StatelessWidget {
+  const new({
+    required this.chat,
+    required this.enabled,
+    required this.archived,
+    required this.onSwiped,
+    required this.child,
+  });
+
+  final DmChat chat;
+  final bool enabled;
+  final bool archived;
+  final VoidCallback onSwiped;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    final p = context.palette;
+    final l10n = context.l10n;
+    return Semantics(
+      customSemanticsActions: {
+        CustomSemanticsAction(
+          label: archived ? l10n.dmUnarchive : l10n.dmArchive,
+        ): onSwiped,
+      },
+      child: Dismissible(
+        key: DmInboxScreen.swipeKey(chat.id),
+        // Towards the reading start: right-to-left in English, left-to-right
+        // in Arabic (Dismissible's directions follow the text direction).
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => onSwiped(),
+        background: Container(
+          color: p.primary,
+          alignment: AlignmentDirectional.centerEnd,
+          padding: const EdgeInsetsDirectional.only(end: KDmList.endInset),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                archived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                color: p.onPrimary,
+              ),
+              const SizedBox(width: KSpacing.xs),
+              Text(
+                archived ? l10n.dmUnarchive : l10n.dmArchive,
+                style: context.textStyles.bodyStrong.copyWith(
+                  color: p.onPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        child: child,
+      ),
+    );
   }
 }

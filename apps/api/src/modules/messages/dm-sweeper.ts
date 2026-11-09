@@ -24,7 +24,8 @@ export interface DmSweepResult {
  * it was deleted for everyone or removed by moderation — with its picture or voice objects, in
  * bounded batches every `DM_SWEEP_INTERVAL_SECONDS` (it cannot be off in production). Files go
  * first: a storage failure throws, the rows stay and the next sweep retries (reads already hide
- * them). Also clears the snapshots of `DM_MESSAGE` reports resolved more than 30 days ago.
+ * them). Also clears the snapshots of `DM_MESSAGE` reports resolved more than 30 days ago. v1.104-social (D339): group
+ * messages (`dm_group_messages`) the same way, and `DM_GROUP` report snapshots.
  */
 @Injectable()
 export class DmSweeper implements OnModuleInit, OnModuleDestroy {
@@ -91,6 +92,28 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
       messages += deleted.count;
       if (due.length < BATCH) break;
     }
+    // v1.104-social (D339, §10.133): group messages live as long, and go the same way.
+    for (;;) {
+      const due = await this.prisma.$queryRaw<{ id: string; media_id: string | null }[]>`
+        SELECT id::text AS id, media_id::text AS media_id FROM dm_group_messages
+         WHERE expires_at <= ${now}::timestamptz
+         ORDER BY expires_at
+         LIMIT ${BATCH}`;
+      if (due.length === 0) break;
+      const mediaIds = due.map((d) => d.media_id).filter((id): id is string => id !== null);
+      if (mediaIds.length > 0) {
+        const assets = await this.prisma.mediaAsset.findMany({
+          where: { id: { in: mediaIds } },
+          select: { id: true, largeKey: true, thumbKey: true },
+        });
+        media += await this.media.purgeAssets(assets);
+      }
+      const deleted = await this.prisma.dmGroupMessage.deleteMany({
+        where: { id: { in: due.map((d) => d.id) }, expiresAt: { lte: now } },
+      });
+      messages += deleted.count;
+      if (due.length < BATCH) break;
+    }
     const snapshots = await this.purgeSnapshots(now);
     return { messages, media, snapshots };
   }
@@ -104,7 +127,8 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
     // v1.93-social (D296): a USER report made from a conversation keeps a thread too; the thread's files go with it.
     const rows = await this.prisma.$queryRaw<{ id: string; dm_snapshot: unknown }[]>`
       SELECT id::text AS id, dm_snapshot FROM reports
-       WHERE target_type IN ('DM_MESSAGE'::report_target_type, 'USER'::report_target_type)
+       WHERE target_type IN ('DM_MESSAGE'::report_target_type, 'USER'::report_target_type,
+                             'DM_GROUP'::report_target_type)
          AND status <> 'OPEN'::report_status
          AND resolved_at < ${before}::timestamptz
          AND dm_snapshot IS NOT NULL AND COALESCE((dm_snapshot->>'purged')::boolean, false) = false
@@ -117,6 +141,10 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
          SET dm_snapshot = dm_snapshot
              || '{"purged": true, "text": null, "token": null, "mediaKey": null, "thread": null}'::jsonb
        WHERE id = ANY(${rows.map((r) => r.id)}::uuid[])`;
+    // v1.104-social (D339): a group's snapshot also drops its members' names.
+    await this.prisma.$executeRaw`
+      UPDATE reports SET dm_snapshot = dm_snapshot || '{"members": []}'::jsonb
+       WHERE id = ANY(${rows.map((r) => r.id)}::uuid[]) AND target_type = 'DM_GROUP'::report_target_type`;
     return rows.length;
   }
 }

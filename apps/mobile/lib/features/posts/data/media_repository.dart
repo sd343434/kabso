@@ -76,6 +76,10 @@ abstract interface class MediaRepository {
   /// CP-022: a family's cover (`FAMILY_COVER`, processed like a post image).
   Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType);
 
+  /// v1.104-social (D339): a group conversation's photo (`DM_GROUP_PHOTO`,
+  /// a centre-cropped square like a family emblem).
+  Future<MediaAsset> uploadDmGroupPhoto(Uint8List bytes, String contentType);
+
   /// v1.45-social (D168): the profile photo (`AVATAR`, a 640 px square like
   /// the live cover); [onProgress] gets 0–1.
   Future<MediaAsset> uploadAvatar(
@@ -162,6 +166,10 @@ class MediaRepositoryImpl implements MediaRepository {
   @override
   Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType) =>
       _upload(bytes, contentType, kind: 'FAMILY_COVER');
+
+  @override
+  Future<MediaAsset> uploadDmGroupPhoto(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'DM_GROUP_PHOTO');
 
   @override
   Future<MediaAsset> uploadAvatar(

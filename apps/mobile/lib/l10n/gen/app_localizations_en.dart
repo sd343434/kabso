@@ -16800,4 +16800,157 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dmBoxes => 'Message boxes';
+
+  @override
+  String get dmTabArchived => 'Archived';
+
+  @override
+  String get dmArchive => 'Archive';
+
+  @override
+  String get dmUnarchive => 'Unarchive';
+
+  @override
+  String get dmArchivedDone => 'Archived';
+
+  @override
+  String get dmUnarchivedDone => 'Moved back to Chats';
+
+  @override
+  String get dmArchivedEmptyTitle => 'No archived chats';
+
+  @override
+  String get dmArchivedHint =>
+      'Chats you archive show here, only for you. They move back to Chats when a new reply arrives.';
+
+  @override
+  String get dmNewGroup => 'New group';
+
+  @override
+  String get dmGroupNameLabel => 'Group name';
+
+  @override
+  String get dmGroupNameHint => 'e.g. Uni friends';
+
+  @override
+  String get dmGroupNameRequired => 'Enter a group name';
+
+  @override
+  String get dmGroupAddPhoto => 'Add photo';
+
+  @override
+  String get dmGroupChangePhoto => 'Change photo';
+
+  @override
+  String get dmGroupRemovePhoto => 'Remove photo';
+
+  @override
+  String get dmGroupPhoto => 'Group photo';
+
+  @override
+  String get dmGroupPickMembers => 'Choose members';
+
+  @override
+  String get dmGroupPickHint =>
+      'You can add people you follow who follow you back.';
+
+  @override
+  String get dmGroupPickAtLeastOne => 'Choose at least one person';
+
+  @override
+  String dmGroupSelected(String count) {
+    return 'Selected: $count';
+  }
+
+  @override
+  String get dmGroupSearchPeople => 'Search people';
+
+  @override
+  String get dmGroupCreate => 'Create';
+
+  @override
+  String get dmGroupCandidatesEmpty => 'No one to add yet';
+
+  @override
+  String get dmGroupCandidatesEmptyBody =>
+      'Follow people who follow you back to add them to a group.';
+
+  @override
+  String dmGroupMembersCount(String count) {
+    return 'Members: $count';
+  }
+
+  @override
+  String get dmGroupInfo => 'Group info';
+
+  @override
+  String get dmGroupMembers => 'Members';
+
+  @override
+  String get dmGroupAddMembers => 'Add members';
+
+  @override
+  String get dmGroupMembersAdded => 'Members added';
+
+  @override
+  String get dmGroupAdmin => 'Admin';
+
+  @override
+  String get dmGroupCreator => 'Creator';
+
+  @override
+  String get dmGroupYou => 'You';
+
+  @override
+  String get dmGroupMakeAdmin => 'Make admin';
+
+  @override
+  String get dmGroupRemoveAdmin => 'Remove as admin';
+
+  @override
+  String get dmGroupRemoveMember => 'Remove from group';
+
+  @override
+  String get dmGroupRename => 'Rename';
+
+  @override
+  String get dmGroupSave => 'Save';
+
+  @override
+  String get dmGroupLeave => 'Leave group';
+
+  @override
+  String get dmGroupLeaveTitle => 'Leave the group?';
+
+  @override
+  String get dmGroupLeaveBody =>
+      'You won\'t get its messages any more. An admin can add you again.';
+
+  @override
+  String get dmGroupReport => 'Report group';
+
+  @override
+  String get dmGroupUnavailable => 'This group is no longer available';
+
+  @override
+  String get dmGroupUnknownSender => 'Unavailable account';
+
+  @override
+  String dmPreviewSender(String name, String text) {
+    return '$name: $text';
+  }
+
+  @override
+  String get dmGroupNoGifts => 'Gifts can\'t be sent in groups';
+
+  @override
+  String get errorDmNotArchivable =>
+      'A message request can\'t be archived. Accept or delete it.';
+
+  @override
+  String get errorDmGroupFull => 'This group has reached its member limit.';
+
+  @override
+  String get errorDmGroupMemberNotAllowed =>
+      'You can\'t add some of these people to a group.';
 }

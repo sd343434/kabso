@@ -126,7 +126,7 @@ class PushController {
     if (!_realUser) return;
     if (push.isMessage) {
       // D155: the badge, the list and the open conversation read at once.
-      if (push.kind == PushPayload.kindDm) {
+      if (push.isDirectMessage) {
         _ref.read(dmActivityProvider.notifier).ping();
       }
       final conversation = push.conversation;

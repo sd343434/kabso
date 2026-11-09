@@ -39,6 +39,37 @@ class FakeDmRepository implements DmRepository {
 
   DmUnread unreadCounts = const DmUnread();
 
+  /// v1.104-social (D339): the caller's groups by id (in «الدردشات» or
+  /// «المؤرشفة» with the conversations).
+  final Map<String, DmGroup> groups = {};
+
+  /// Adds a group the caller is in.
+  DmGroup addGroup(
+    String name, {
+    String? id,
+    int members = 3,
+    int unread = 0,
+    bool muted = false,
+    bool archived = false,
+    DmGroupMessage? last,
+    DateTime? at,
+    DmGroupRole role = DmGroupRole.member,
+  }) {
+    final groupId = id ?? 'g-${groups.length + 1}';
+    return groups[groupId] = DmGroup(
+      id: groupId,
+      name: name,
+      memberCount: members,
+      role: role,
+      unreadCount: unread,
+      muted: muted,
+      archived: archived,
+      lastMessage: last,
+      lastActivityAt: at ?? last?.createdAt ?? now,
+      createdAt: now.subtract(const Duration(days: 1)),
+    );
+  }
+
   /// What `peer` answers about writing.
   bool canMessage = true;
   DmBlockedReason? reason;
@@ -61,6 +92,7 @@ class FakeDmRepository implements DmRepository {
     int unread = 0,
     bool muted = false,
     bool markedUnread = false,
+    bool archived = false,
     bool canSend = true,
     int? requestLeft,
   }) {
@@ -75,6 +107,7 @@ class FakeDmRepository implements DmRepository {
       unreadCount: unread,
       muted: muted,
       markedUnread: markedUnread,
+      archived: archived,
       lastMessage: messages.isEmpty ? null : messages.first,
       canSend: canSend,
       requestMessagesLeft: requestLeft,
@@ -137,6 +170,46 @@ class FakeDmRepository implements DmRepository {
           c,
     ]..sort((a, b) => b.lastActivityAt.compareTo(a.lastActivityAt));
     return DmConversationPage(list, null);
+  }
+
+  @override
+  Future<DmChatPage> chats({
+    bool archived = false,
+    String? cursor,
+    String? query,
+  }) async {
+    _step(
+      'chats:${archived ? 'archived' : 'chats'}'
+      '${query == null ? '' : ':q=$query'}',
+    );
+    final q = query?.toLowerCase();
+    final list = <DmChat>[
+      for (final c in byPeer.values)
+        if (c.status != DmConversationStatus.requestReceived &&
+            c.archived == archived &&
+            (q == null ||
+                c.peer.username.toLowerCase().startsWith(q) ||
+                c.peer.displayName.toLowerCase().startsWith(q)))
+          DmChat.direct(c),
+      for (final g in groups.values)
+        if (g.archived == archived &&
+            (q == null || g.name.toLowerCase().startsWith(q)))
+          DmChat.group(g),
+    ]..sort((a, b) => b.lastActivityAt.compareTo(a.lastActivityAt));
+    return DmChatPage(list, null);
+  }
+
+  @override
+  Future<void> setArchived(
+    String conversationId, {
+    required bool archived,
+  }) async {
+    _step('archive:$conversationId:$archived');
+    for (final e in byPeer.entries.toList()) {
+      if (e.value.id == conversationId) {
+        byPeer[e.key] = e.value.copyWith(archived: archived);
+      }
+    }
   }
 
   @override

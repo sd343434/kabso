@@ -23,12 +23,14 @@ import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { blockedEitherWayIn, lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
+import { DmGroupsService, type DmGroupDto } from './dm-groups.service.js';
 import { DmPush } from './dm-push.js';
 import { allowedInRequest, decideDm, pairOf, type DmDecision, type DmFacts } from './dm-rules.js';
 import {
   dmGiftSendSchema,
   dmReadSchema,
   dmSendSchema,
+  type DmChatsQuery,
   type DmConversationsQuery,
   type DmDeleteMessageQuery,
   type DmMessagesQuery,
@@ -74,6 +76,8 @@ export interface DmConversationDto {
   muted: boolean;
   /** v1.43.1-social (D165). */
   markedUnread: boolean;
+  /** v1.104-social (D339): the caller archived it «المؤرشفة». */
+  archived: boolean;
   unreadCount: number;
   lastMessage: DmMessageDto | null;
   lastActivityAt: string;
@@ -90,6 +94,17 @@ export interface DmUnreadDto {
   messages: number;
   conversations: number;
   requests: number;
+  /** v1.104-social (D339): unread messages in the caller's groups that are not muted or archived (≤ 99). */
+  groups: number;
+}
+
+/** v1.104-social (D339): one row of «الدردشات» / «المؤرشفة» — a direct conversation or a group. */
+export interface DmChatDto {
+  type: 'DIRECT' | 'GROUP';
+  id: string;
+  lastActivityAt: string;
+  conversation: DmConversationDto | null;
+  group: DmGroupDto | null;
 }
 
 export interface DmPeerDto {
@@ -195,6 +210,7 @@ export class DmService {
     private readonly clock: Clock,
     private readonly background: BackgroundTasks,
     private readonly push: DmPush,
+    private readonly groups: DmGroupsService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -353,6 +369,7 @@ export class DmService {
         status,
         muted: p.muted,
         markedUnread: p.markedUnread,
+        archived: p.archivedAt !== null,
         unreadCount: Math.min(UNREAD_CAP, stat?.unread ?? 0),
         lastMessage: last ? this.messageDto(last, callerId, peerReadAt) : null,
         lastActivityAt: p.lastMessageAt.toISOString(),
@@ -411,6 +428,8 @@ export class DmService {
         JOIN users u ON u.id = p.peer_id AND u.status = 'ACTIVE'::user_status
        WHERE p.user_id = ${callerId}::uuid
          AND p.status = ${status}::dm_participant_status
+         -- v1.104-social (D339): archived conversations leave the inbox («المؤرشفة», listDmChats).
+         AND p.archived_at IS NULL
          AND (${prefix === null} OR EXISTS (
                SELECT 1 FROM user_profiles up
                 WHERE up.user_id = p.peer_id
@@ -451,12 +470,12 @@ export class DmService {
     const [row] = await this.prisma.$queryRaw<
       { messages: number; conversations: number; requests: number }[]
     >`
-      SELECT COALESCE(sum(t.u) FILTER (WHERE t.status = 'ACCEPTED' AND NOT t.muted), 0)::int AS messages,
-             count(*) FILTER (WHERE t.status = 'ACCEPTED' AND NOT t.muted AND t.u > 0)::int AS conversations,
+      SELECT COALESCE(sum(t.u) FILTER (WHERE t.status = 'ACCEPTED' AND NOT t.muted AND NOT t.archived), 0)::int AS messages,
+             count(*) FILTER (WHERE t.status = 'ACCEPTED' AND NOT t.muted AND NOT t.archived AND t.u > 0)::int AS conversations,
              count(*) FILTER (WHERE t.status = 'REQUEST' AND t.u > 0)::int AS requests
         FROM (
           -- v1.43.1-social (D165): a conversation marked unread without unread messages counts as one.
-          SELECT p.status::text AS status, p.muted,
+          SELECT p.status::text AS status, p.muted, (p.archived_at IS NOT NULL) AS archived,
                  GREATEST(CASE WHEN p.marked_unread THEN 1 ELSE 0 END, (SELECT count(*) FROM (
                     SELECT 1 FROM dm_messages m
                      WHERE m.conversation_id = p.conversation_id AND m.recipient_id = p.user_id
@@ -472,10 +491,107 @@ export class DmService {
              AND NOT EXISTS (SELECT 1 FROM user_blocks b
                               WHERE (b.blocker_id = p.user_id AND b.blocked_id = p.peer_id)
                                  OR (b.blocker_id = p.peer_id AND b.blocked_id = p.user_id))) t`;
+    const [groups] = await this.prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM (
+        SELECT 1 FROM dm_group_members m
+          JOIN dm_groups g ON g.id = m.group_id AND g.status = 'ACTIVE'::dm_group_status
+          JOIN dm_group_messages msg ON msg.group_id = m.group_id
+         WHERE m.user_id = ${callerId}::uuid AND NOT m.muted AND m.archived_at IS NULL
+           AND msg.sender_id <> m.user_id
+           AND msg.expires_at > ${now}::timestamptz AND msg.created_at >= m.joined_at
+           AND (m.read_at IS NULL OR msg.created_at > m.read_at)
+           AND EXISTS (SELECT 1 FROM users su WHERE su.id = msg.sender_id AND su.status = 'ACTIVE'::user_status)
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                            WHERE (b.blocker_id = m.user_id AND b.blocked_id = msg.sender_id)
+                               OR (b.blocker_id = msg.sender_id AND b.blocked_id = m.user_id))
+         LIMIT ${UNREAD_CAP}) x`;
     return {
       messages: Math.min(UNREAD_CAP, row?.messages ?? 0),
       conversations: Math.min(UNREAD_CAP, row?.conversations ?? 0),
       requests: Math.min(UNREAD_CAP, row?.requests ?? 0),
+      groups: Math.min(UNREAD_CAP, groups?.n ?? 0),
+    };
+  }
+
+  /**
+   * v1.104-social (D339, CONVENTIONS §10.132–§10.133): `GET /dm/chats` — «الدردشات» (CHATS: accepted conversations,
+   * the requests the caller sent, and their groups) or «المؤرشفة» (ARCHIVED), newest activity first, one keyset cursor
+   * over both kinds. `q`: a prefix of the peer's username or display name, or of the group's name.
+   */
+  async chats(callerId: string, query: DmChatsQuery): Promise<PageDto<DmChatDto>> {
+    const scope = `dm-chats:${query.box}:${callerId}${query.q === undefined ? '' : `:q=${query.q.toLowerCase()}`}`;
+    const prefix = query.q === undefined ? null : likePrefix(query.q.toLowerCase());
+    let after = null;
+    if (query.cursor !== undefined) {
+      after = this.cursors.decode(query.cursor, scope);
+      if (!after) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+    }
+    const archived = query.box === 'ARCHIVED';
+    const rows = await this.prisma.$queryRaw<{ t: 'DIRECT' | 'GROUP'; id: string; at: Date }[]>`
+      SELECT x.t, x.id::text AS id, x.at FROM (
+        SELECT 'DIRECT' AS t, p.conversation_id AS id, p.last_message_at AS at
+          FROM dm_participants p
+          JOIN users u ON u.id = p.peer_id AND u.status = 'ACTIVE'::user_status
+         WHERE p.user_id = ${callerId}::uuid
+           AND p.status = 'ACCEPTED'::dm_participant_status
+           AND (p.archived_at IS NOT NULL) = ${archived}
+           AND (${prefix === null} OR EXISTS (
+                 SELECT 1 FROM user_profiles up
+                  WHERE up.user_id = p.peer_id
+                    AND (lower(up.username) LIKE ${prefix ?? ''} ESCAPE '\\'
+                         OR lower(up.display_name) LIKE ${prefix ?? ''} ESCAPE '\\')))
+           AND (p.cleared_at IS NULL OR p.last_message_at > p.cleared_at)
+           AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                            WHERE (b.blocker_id = p.user_id AND b.blocked_id = p.peer_id)
+                               OR (b.blocker_id = p.peer_id AND b.blocked_id = p.user_id))
+        UNION ALL
+        SELECT 'GROUP' AS t, g.id AS id, GREATEST(g.last_message_at, m.joined_at) AS at
+          FROM dm_group_members m
+          JOIN dm_groups g ON g.id = m.group_id AND g.status = 'ACTIVE'::dm_group_status
+         WHERE m.user_id = ${callerId}::uuid
+           AND (m.archived_at IS NOT NULL) = ${archived}
+           AND (${prefix === null} OR lower(g.name) LIKE ${prefix ?? ''} ESCAPE '\\')
+      ) x
+       WHERE (${after === null} OR (x.at, x.id)
+                                   < (${after?.at ?? new Date(0)}::timestamptz, ${after?.id ?? '00000000-0000-0000-0000-000000000000'}::uuid))
+       ORDER BY x.at DESC, x.id DESC
+       LIMIT ${query.limit + 1}`;
+    const hasMore = rows.length > query.limit;
+    const page = rows.slice(0, query.limit);
+    const directIds = page.filter((r) => r.t === 'DIRECT').map((r) => r.id);
+    const groupIds = page.filter((r) => r.t === 'GROUP').map((r) => r.id);
+    const parts =
+      directIds.length === 0
+        ? []
+        : await this.prisma.dmParticipant.findMany({
+            where: { userId: callerId, conversationId: { in: directIds } },
+          });
+    const [conversations, groups] = await Promise.all([
+      this.conversationDtos(callerId, parts),
+      this.groups.groupDtos(callerId, groupIds),
+    ]);
+    const conversationOf = new Map(conversations.map((c) => [c.id, c]));
+    const groupOf = new Map(groups.map((g) => [g.id, g]));
+    const data: DmChatDto[] = [];
+    for (const r of page) {
+      const conversation = r.t === 'DIRECT' ? (conversationOf.get(r.id) ?? null) : null;
+      const group = r.t === 'GROUP' ? (groupOf.get(r.id) ?? null) : null;
+      if (!conversation && !group) continue;
+      data.push({
+        type: r.t,
+        id: r.id,
+        lastActivityAt: (conversation?.lastActivityAt ?? group?.lastActivityAt)!,
+        conversation,
+        group,
+      });
+    }
+    const last = page[page.length - 1];
+    return {
+      data,
+      page: {
+        hasMore,
+        nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.at, id: last.id }) : null,
+      },
     };
   }
 
@@ -653,7 +769,9 @@ export class DmService {
               ${asRequest ? 'REQUEST' : 'ACCEPTED'}::dm_participant_status, ${at}::timestamptz, ${at}::timestamptz)
       ON CONFLICT (conversation_id, user_id) DO UPDATE
          SET status = CASE WHEN ${asRequest} THEN dm_participants.status ELSE 'ACCEPTED'::dm_participant_status END,
-             last_message_at = GREATEST(dm_participants.last_message_at, EXCLUDED.last_message_at)`;
+             last_message_at = GREATEST(dm_participants.last_message_at, EXCLUDED.last_message_at),
+             -- v1.104-social (D339): a message from the peer brings an archived conversation back «المؤرشفة».
+             archived_at = NULL`;
     const id = uuidv7();
     const c = input.content;
     await tx.dmMessage.create({
@@ -907,6 +1025,20 @@ export class DmService {
     await this.prisma.dmParticipant.update({
       where: { conversationId_userId: { conversationId: mine.conversationId, userId: callerId } },
       data: { muted },
+    });
+  }
+
+  /**
+   * v1.104-social (D339): `PUT` / `DELETE /dm/conversations/{id}/archive` «المؤرشفة», for the caller only (idempotent).
+   * A message request waiting for the caller cannot be archived (409 `DM_NOT_ARCHIVABLE`: accept or delete it).
+   */
+  async setArchived(callerId: string, conversationId: string, archived: boolean): Promise<void> {
+    const mine = await this.access(callerId, conversationId);
+    if (archived && mine.status === 'REQUEST') throw new AppException(ErrorCode.DM_NOT_ARCHIVABLE);
+    if ((mine.archivedAt !== null) === archived) return;
+    await this.prisma.dmParticipant.update({
+      where: { conversationId_userId: { conversationId: mine.conversationId, userId: callerId } },
+      data: { archivedAt: archived ? this.clock.now() : null },
     });
   }
 

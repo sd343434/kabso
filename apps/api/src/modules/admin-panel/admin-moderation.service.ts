@@ -63,7 +63,14 @@ function resolverDto(
 }
 type Db = Pick<
   PrismaService,
-  'post' | 'comment' | 'story' | 'liveRoom' | 'liveChatMessage' | 'cpConfession' | 'familyChatMessage'
+  | 'post'
+  | 'comment'
+  | 'story'
+  | 'liveRoom'
+  | 'liveChatMessage'
+  | 'cpConfession'
+  | 'familyChatMessage'
+  | 'dmGroup'
 >;
 
 /**
@@ -325,6 +332,16 @@ export class AdminModerationService {
         text: typeof s.text === 'string' ? s.text : null,
         mediaUrl: null,
         gone: false,
+      };
+    }
+    if (r.targetDmGroupId) {
+      // v1.104-social (D339): a group — its name as it was when reported (the snapshot; the group may be gone since).
+      const s = (r.dmSnapshot ?? {}) as { creatorId?: unknown; name?: unknown };
+      return {
+        authorId: typeof s.creatorId === 'string' ? s.creatorId : null,
+        text: typeof s.name === 'string' ? s.name : null,
+        mediaUrl: null,
+        gone: (await db.dmGroup.count({ where: { id: r.targetDmGroupId, status: 'ACTIVE' } })) === 0,
       };
     }
     if (r.targetProfileLinkId) {

@@ -308,3 +308,149 @@ export function dmThreadDto(
     })),
   };
 }
+
+// ---- v1.104-social (D339, CONVENTIONS §10.133): a group conversation reported ---------------------------------------
+
+/** What a `DM_GROUP` report keeps (`reports.dm_snapshot`), taken once when the report is filed. */
+export interface DmGroupSnapshot {
+  groupId: string;
+  name: string;
+  memberCount: number;
+  creatorId: string | null;
+  /** Every member then (≤ DM_GROUP_MAX_MEMBERS), the username as it was. */
+  members: { userId: string; username: string | null; role: string }[];
+  /**
+   * The newest {@link DM_REPORT_THREAD_MAX_MESSAGES} messages the reporter could read then (`conversationId` is the
+   * group's id), oldest first; files are not copied (`mediaMissing`). Null once purged.
+   */
+  thread: DmThreadSnapshot | null;
+  purged: boolean;
+}
+
+/** `DmGroupReportSnapshot` (admin views only). */
+export interface DmGroupSnapshotDto {
+  name: string | null;
+  memberCount: number;
+  members: string[];
+  thread: DmThreadDto | null;
+  purged: boolean;
+}
+
+/**
+ * A group `readerId` belongs to (ACTIVE, not removed), frozen as a report keeps it: its name, members and the messages
+ * the reader can read now (not expired, since they joined, by ACTIVE accounts with no block either way); else 404.
+ */
+export async function reportableDmGroup(
+  db: Pick<Prisma.TransactionClient, 'dmGroup' | 'dmGroupMember' | 'dmGroupMessage'>,
+  groupId: string,
+  readerId: string,
+  now: Date,
+): Promise<DmGroupSnapshot> {
+  const me = await db.dmGroupMember.findFirst({
+    where: { groupId, userId: readerId, group: { status: 'ACTIVE' } },
+    include: {
+      group: {
+        include: {
+          members: {
+            orderBy: [{ joinedAt: 'asc' }, { userId: 'asc' }],
+            include: { user: { select: { profile: { select: { username: true } } } } },
+          },
+        },
+      },
+    },
+  });
+  if (!me) throw new AppException(ErrorCode.NOT_FOUND);
+  const where: Prisma.DmGroupMessageWhereInput = {
+    groupId,
+    expiresAt: { gt: now },
+    createdAt: { gte: me.joinedAt },
+    sender: {
+      status: 'ACTIVE',
+      blocking: { none: { blockedId: readerId } },
+      blockedBy: { none: { blockerId: readerId } },
+    },
+  };
+  const [total, newest] = await Promise.all([
+    db.dmGroupMessage.count({ where }),
+    db.dmGroupMessage.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: DM_REPORT_THREAD_MAX_MESSAGES,
+    }),
+  ]);
+  return {
+    groupId,
+    name: me.group.name,
+    memberCount: me.group.members.length,
+    creatorId: me.group.createdById,
+    members: me.group.members.map((m) => ({
+      userId: m.userId,
+      username: m.user.profile?.username ?? null,
+      role: m.role,
+    })),
+    thread: {
+      conversationId: groupId,
+      capturedAt: now.toISOString(),
+      total,
+      truncated: total > newest.length,
+      messages: newest.reverse().map((m) => ({
+        id: m.id,
+        senderId: m.senderId,
+        kind: m.kind,
+        text: m.text,
+        token: m.token,
+        sentAt: m.createdAt.toISOString(),
+        mediaKey: null,
+        mediaMissing: m.mediaId !== null,
+        giftCode: null,
+        quantity: null,
+        reported: false,
+      })),
+    },
+    purged: false,
+  };
+}
+
+/**
+ * Report action `REMOVE_TARGET` on a `DM_GROUP`, inside the caller's transaction: the group is REMOVED for everyone
+ * (it leaves every list; every read → 404) and its messages expire now (the sweeper deletes them and their files).
+ * Returns the group's photo to purge after the commit, if any.
+ */
+export async function removeDmGroupIn(
+  tx: Prisma.TransactionClient,
+  groupId: string,
+  at: Date,
+): Promise<{ removed: boolean; photoMediaId: string | null }> {
+  const group = await tx.dmGroup.findUnique({
+    where: { id: groupId },
+    select: { status: true, photoMediaId: true },
+  });
+  if (!group || group.status !== 'ACTIVE') return { removed: false, photoMediaId: null };
+  await tx.dmGroup.update({
+    where: { id: groupId },
+    data: { status: 'REMOVED', removedAt: at, photoMediaId: null },
+  });
+  await tx.$executeRaw`
+    UPDATE dm_group_messages SET expires_at = GREATEST(created_at, ${at}::timestamptz)
+     WHERE group_id = ${groupId}::uuid AND expires_at > ${at}::timestamptz`;
+  return { removed: true, photoMediaId: group.photoMediaId };
+}
+
+/** The admin view of a stored group snapshot (tolerates a malformed value). */
+export function dmGroupSnapshotDto(
+  raw: unknown,
+  publicBaseUrl: string | undefined,
+): DmGroupSnapshotDto | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const s = raw as Partial<DmGroupSnapshot>;
+  const members = Array.isArray(s.members) ? s.members : [];
+  const usernames = new Map<string, string>();
+  for (const m of members) if (typeof m.username === 'string') usernames.set(m.userId, m.username);
+  return {
+    name: typeof s.name === 'string' ? s.name : null,
+    memberCount: typeof s.memberCount === 'number' ? s.memberCount : members.length,
+    members: members.map((m) => m.username ?? '').filter((u) => u !== ''),
+    thread: dmThreadDto(raw, publicBaseUrl, usernames, null),
+    purged: s.purged === true,
+  };
+}

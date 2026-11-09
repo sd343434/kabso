@@ -16,6 +16,10 @@ class PushPayload {
   /// `senderUsername`).
   static const kindDm = 'dm';
 
+  /// v1.104-social (D339): a group message, or being added to a group
+  /// (`groupId`, `messageId` for a message, `senderUsername`).
+  static const kindDmGroup = 'dm_group';
+
   String? get kind => data['kind'];
 
   /// The chat a `messages` push belongs to (the same id the open chat
@@ -25,13 +29,22 @@ class PushPayload {
       final id = data['conversationId'];
       return id == null || id.isEmpty ? null : dmConversation(id);
     }
+    if (kind == kindDmGroup) {
+      final id = data['groupId'];
+      return id == null || id.isEmpty ? null : dmGroupConversation(id);
+    }
     final family = data['familyId'];
     return kind == kindFamilyChat && family != null && family.isNotEmpty
         ? familyConversation(family)
         : null;
   }
 
-  bool get isMessage => kind == kindFamilyChat || kind == kindDm;
+  bool get isMessage =>
+      kind == kindFamilyChat || kind == kindDm || kind == kindDmGroup;
+
+  /// A direct or (D339) group message: the Messages badge and lists read
+  /// the server again.
+  bool get isDirectMessage => kind == kindDm || kind == kindDmGroup;
 
   /// v1.78-live (D288): a new report in the shared queue (channel `staff`).
   bool get isStaffReport =>
@@ -52,6 +65,11 @@ class PushPayload {
         return sender == null || sender.isEmpty
             ? AppRoutes.messages
             : AppRoutes.chat(sender);
+      case kindDmGroup:
+        final group = data['groupId'];
+        return group == null || group.isEmpty
+            ? AppRoutes.messages
+            : AppRoutes.groupChat(group);
       case kindNotification:
         return _notificationRoute() ?? AppRoutes.notifications;
       default:
@@ -118,3 +136,7 @@ String familyConversation(String familyId) => 'family:$familyId';
 /// D155: the conversation id of a direct conversation (the server's
 /// Android tag).
 String dmConversation(String conversationId) => 'dm:$conversationId';
+
+/// v1.104-social (D339): the conversation id of a group (the server's
+/// Android tag `dmg:<id>`).
+String dmGroupConversation(String groupId) => 'dmg:$groupId';

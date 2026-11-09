@@ -27,6 +27,7 @@ import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/data/live_sticker_repository.dart';
 import 'package:kabso_live/features/live/data/live_watch_repository.dart';
 import 'package:kabso_live/features/live/data/youtube_player.dart';
+import 'package:kabso_live/features/messages/data/dm_groups_repository.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -38,6 +39,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_dm_groups_repository.dart';
 import 'fake_dm_repository.dart';
 import 'fake_home_banners_repository.dart';
 import 'fake_inline_video.dart';
@@ -95,6 +97,7 @@ Future<void> pumpKabsoApp(
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
   DmRepository? dmRepository,
+  DmGroupsRepository? dmGroupsRepository,
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
@@ -165,6 +168,10 @@ Future<void> pumpKabsoApp(
         // D155: never the network (no conversations).
         dmRepositoryProvider.overrideWithValue(
           dmRepository ?? FakeDmRepository(),
+        ),
+        // D339: never the network (no groups).
+        dmGroupsRepositoryProvider.overrideWithValue(
+          dmGroupsRepository ?? FakeDmGroupsRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(
@@ -252,6 +259,7 @@ Future<void> pumpScreen(
   FakeYoutubePlayers? youtubePlayers,
   HomeBannersRepository? homeBannersRepository,
   DmRepository? dmRepository,
+  DmGroupsRepository? dmGroupsRepository,
   FakeInlineVideos? inlineVideos,
   RechargeRepository? rechargeRepository,
   FakeLivePkRepository? livePkRepository,
@@ -304,6 +312,10 @@ Future<void> pumpScreen(
         // D155: never the network (no conversations).
         dmRepositoryProvider.overrideWithValue(
           dmRepository ?? FakeDmRepository(),
+        ),
+        // D339: never the network (no groups).
+        dmGroupsRepositoryProvider.overrideWithValue(
+          dmGroupsRepository ?? FakeDmGroupsRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(

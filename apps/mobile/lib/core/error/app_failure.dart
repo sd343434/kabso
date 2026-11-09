@@ -188,6 +188,15 @@ enum ErrorCode {
   /// v1.40-social (D155, §11.13, 409): deleting for everyone after an hour.
   dmDeleteWindowPassed('DM_DELETE_WINDOW_PASSED'),
 
+  /// v1.104-social (D339): a message request cannot be archived.
+  dmNotArchivable('DM_NOT_ARCHIVABLE'),
+
+  /// v1.104-social (D339): the group would pass its member cap.
+  dmGroupFull('DM_GROUP_FULL'),
+
+  /// v1.104-social (D339): someone the caller may not add to a group.
+  dmGroupMemberNotAllowed('DM_GROUP_MEMBER_NOT_ALLOWED'),
+
   /// v1.32-live (D154, §10.33, 409): the caller's one free quip of this
   /// live was sent; paid quips are still available.
   quipFreeUsed('QUIP_FREE_USED'),

@@ -10,6 +10,20 @@ export function dmTag(conversationId: string): string {
   return `dm:${conversationId}`;
 }
 
+/** v1.104-social (D339): the Android tag (and the group id in the app) of a group conversation. */
+export function dmGroupTag(groupId: string): string {
+  return `dmg:${groupId}`;
+}
+
+export interface DmGroupPushInput {
+  readonly groupId: string;
+  readonly messageId: string;
+  readonly senderId: string;
+  readonly kind: 'TEXT' | 'IMAGE' | 'VOICE' | 'EMOJI';
+  /** TEXT: the stored (masked) text. */
+  readonly text: string | null;
+}
+
 export interface DmPushInput {
   readonly conversationId: string;
   readonly messageId: string;
@@ -66,6 +80,108 @@ export class DmPush {
     private readonly throttle: PushThrottle,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /**
+   * v1.104-social (D339, CONVENTIONS §10.133): a new group message to every other member who is ACTIVE, keeps
+   * `messages` on, has not muted the group or the sender, and has no block either way with the sender; one per member
+   * per group per `PUSH_MESSAGES_GAP_SECONDS`. Title: the group's name; body: «<sender>: <message>». Returns how many
+   * devices accepted it.
+   */
+  async newGroupMessage(input: DmGroupPushInput): Promise<number> {
+    if (!this.push.enabled) return 0;
+    const { groupId, senderId } = input;
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT u.id::text AS id
+        FROM dm_group_members m
+        JOIN users u ON u.id = m.user_id AND u.status = 'ACTIVE'::user_status
+        LEFT JOIN notification_settings ns ON ns.user_id = u.id
+       WHERE m.group_id = ${groupId}::uuid
+         AND m.user_id <> ${senderId}::uuid
+         AND NOT m.muted
+         AND COALESCE(ns.messages, true)
+         AND EXISTS (SELECT 1 FROM device_tokens d WHERE d.user_id = u.id)
+         AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                          WHERE (b.blocker_id = u.id AND b.blocked_id = ${senderId}::uuid)
+                             OR (b.blocker_id = ${senderId}::uuid AND b.blocked_id = u.id))
+         AND NOT EXISTS (SELECT 1 FROM user_mutes um
+                          WHERE um.muter_id = u.id AND um.muted_id = ${senderId}::uuid)`;
+    if (rows.length === 0) return 0;
+    const tag = dmGroupTag(groupId);
+    const allowed: string[] = [];
+    for (const r of rows) {
+      if (await this.throttle.allow(`m:${tag}:${r.id}`, this.config.push.messagesGapSeconds))
+        allowed.push(r.id);
+    }
+    if (allowed.length === 0) return 0;
+    const [sender, group] = await Promise.all([
+      this.prisma.userProfile.findUnique({
+        where: { userId: senderId },
+        select: { displayName: true, username: true },
+      }),
+      this.prisma.dmGroup.findUnique({ where: { id: groupId }, select: { name: true } }),
+    ]);
+    if (!sender || !group) return 0;
+    return this.push.deliver({
+      userIds: allowed,
+      channel: 'messages',
+      tag,
+      data: {
+        kind: 'dm_group',
+        channel: 'messages',
+        groupId,
+        messageId: input.messageId,
+        senderUsername: sender.username,
+      },
+      text: (locale) => ({
+        title: group.name,
+        body: clip(
+          `${sender.displayName}: ${dmPushBody({ ...input, quantity: null, asRequest: false }, locale)}`,
+        ),
+      }),
+    });
+  }
+
+  /**
+   * v1.104-social (D339): «<adder> أضافك إلى <group>» / "<adder> added you to <group>" to the people just added (ACTIVE,
+   * `messages` on). Returns how many devices accepted it.
+   */
+  async addedToGroup(input: {
+    groupId: string;
+    adderId: string;
+    userIds: readonly string[];
+  }): Promise<number> {
+    if (!this.push.enabled || input.userIds.length === 0) return 0;
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT u.id::text AS id
+        FROM users u
+        LEFT JOIN notification_settings ns ON ns.user_id = u.id
+       WHERE u.id = ANY(${[...input.userIds]}::uuid[])
+         AND u.status = 'ACTIVE'::user_status
+         AND COALESCE(ns.messages, true)`;
+    if (rows.length === 0) return 0;
+    const [adder, group] = await Promise.all([
+      this.prisma.userProfile.findUnique({
+        where: { userId: input.adderId },
+        select: { displayName: true, username: true },
+      }),
+      this.prisma.dmGroup.findUnique({ where: { id: input.groupId }, select: { name: true } }),
+    ]);
+    if (!adder || !group) return 0;
+    return this.push.deliver({
+      userIds: rows.map((r) => r.id),
+      channel: 'messages',
+      tag: dmGroupTag(input.groupId),
+      data: { kind: 'dm_group', channel: 'messages', groupId: input.groupId, senderUsername: adder.username },
+      text: (locale) => ({
+        title: group.name,
+        body: clip(
+          locale === 'ar'
+            ? `${adder.displayName} أضافك إلى المجموعة`
+            : `${adder.displayName} added you to the group`,
+        ),
+      }),
+    });
+  }
 
   /** Returns how many devices accepted it. */
   async newMessage(input: DmPushInput): Promise<number> {

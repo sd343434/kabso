@@ -28365,6 +28365,288 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'صناديق الرسائل'**
   String get dmBoxes;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤرشفة'**
+  String get dmTabArchived;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرشفة'**
+  String get dmArchive;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الأرشفة'**
+  String get dmUnarchive;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الأرشفة'**
+  String get dmArchivedDone;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُعيدت إلى الدردشات'**
+  String get dmUnarchivedDone;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد دردشات مؤرشفة'**
+  String get dmArchivedEmptyTitle;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشات التي تؤرشفها تظهر هنا فقط لك، وتعود إلى الدردشات عندما يصلك رد جديد.'**
+  String get dmArchivedHint;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'مجموعة جديدة'**
+  String get dmNewGroup;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المجموعة'**
+  String get dmGroupNameLabel;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'مثال: أصدقاء الجامعة'**
+  String get dmGroupNameHint;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب اسمًا للمجموعة'**
+  String get dmGroupNameRequired;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة صورة'**
+  String get dmGroupAddPhoto;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الصورة'**
+  String get dmGroupChangePhoto;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الصورة'**
+  String get dmGroupRemovePhoto;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة المجموعة'**
+  String get dmGroupPhoto;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الأعضاء'**
+  String get dmGroupPickMembers;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك إضافة من تتابعهم ويتابعونك.'**
+  String get dmGroupPickHint;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر شخصًا واحدًا على الأقل'**
+  String get dmGroupPickAtLeastOne;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'المختارون: {count}'**
+  String dmGroupSelected(String count);
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن شخص'**
+  String get dmGroupSearchPeople;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء'**
+  String get dmGroupCreate;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد أحد لإضافته بعد'**
+  String get dmGroupCandidatesEmpty;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'تابِع أشخاصًا يتابعونك لتضيفهم إلى مجموعة.'**
+  String get dmGroupCandidatesEmptyBody;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأعضاء: {count}'**
+  String dmGroupMembersCount(String count);
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'معلومات المجموعة'**
+  String get dmGroupInfo;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأعضاء'**
+  String get dmGroupMembers;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة أعضاء'**
+  String get dmGroupAddMembers;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيف الأعضاء'**
+  String get dmGroupMembersAdded;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف'**
+  String get dmGroupAdmin;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشئ'**
+  String get dmGroupCreator;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت'**
+  String get dmGroupYou;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعيين مشرفًا'**
+  String get dmGroupMakeAdmin;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الإشراف'**
+  String get dmGroupRemoveAdmin;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة من المجموعة'**
+  String get dmGroupRemoveMember;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الاسم'**
+  String get dmGroupRename;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get dmGroupSave;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة المجموعة'**
+  String get dmGroupLeave;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة المجموعة؟'**
+  String get dmGroupLeaveTitle;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'لن تصلك رسائلها بعد الآن، ويمكن لمشرف إضافتك من جديد.'**
+  String get dmGroupLeaveBody;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن المجموعة'**
+  String get dmGroupReport;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه المجموعة لم تعد متاحة'**
+  String get dmGroupUnavailable;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'حساب غير متاح'**
+  String get dmGroupUnknownSender;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: {text}'**
+  String dmPreviewSender(String name, String text);
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تُرسل الهدايا في المجموعات'**
+  String get dmGroupNoGifts;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن أرشفة طلب مراسلة. اقبله أو احذفه.'**
+  String get errorDmNotArchivable;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت المجموعة إلى الحد الأقصى من الأعضاء.'**
+  String get errorDmGroupFull;
+
+  /// D339: archived chats and group messages (CONVENTIONS §10.132, §10.133).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك إضافة بعض هؤلاء الأشخاص إلى مجموعة.'**
+  String get errorDmGroupMemberNotAllowed;
 }
 
 class _AppLocalizationsDelegate

@@ -71,6 +71,29 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
+  /// v1.104-social (D339): how many group photos were uploaded.
+  int groupPhotoUploads = 0;
+
+  @override
+  Future<MediaAsset> uploadDmGroupPhoto(
+    Uint8List bytes,
+    String contentType,
+  ) async {
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    groupPhotoUploads++;
+    final id = 'g$groupPhotoUploads';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/640.webp',
+      thumbUrl: 'https://media.example.test/media/$id/320.webp',
+      width: 640,
+      height: 640,
+    );
+  }
+
   /// CP-022: how many family covers were uploaded.
   int familyCoverUploads = 0;
 
