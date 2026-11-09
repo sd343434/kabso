@@ -17,6 +17,7 @@ import {
   globalStripsDefaultsOf,
   luckyMultipliersOf,
   readGlobalStrips,
+  validLuckyGlobalMultipliers,
   type AdminGlobalStripsDto,
   type GlobalStripsSettingsDto,
   type UpdateGlobalStripsInput,
@@ -237,6 +238,13 @@ export class SiteSettingsService {
     ) {
       throw AppException.validation([{ field: 'luckyChatMinMultiplier', issue: 'invalid_value' }]);
     }
+    // v1.111-live (D347): the global banner's set — distinct lucky multipliers (the env rules).
+    if (
+      input.luckyGlobalMultipliers !== undefined &&
+      !validLuckyGlobalMultipliers(input.luckyGlobalMultipliers, luckyMultipliersOf(this.config))
+    ) {
+      throw AppException.validation([{ field: 'luckyGlobalMultipliers', issue: 'invalid_value' }]);
+    }
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
       const before = await this.getGlobalStrips(tx);
@@ -244,11 +252,18 @@ export class SiteSettingsService {
         giftMinCoins: input.giftMinCoins,
         gameMinTickets: input.gameMinTickets,
         luckyChatMinMultiplier: input.luckyChatMinMultiplier ?? before.luckyChatMinMultiplier,
+        luckyGlobalMultipliers:
+          input.luckyGlobalMultipliers !== undefined
+            ? [...input.luckyGlobalMultipliers].sort((x, y) => x - y)
+            : before.luckyGlobalMultipliers,
+        luckyGlobalGapSeconds: input.luckyGlobalGapSeconds ?? before.luckyGlobalGapSeconds,
       };
       const value = {
         giftMinCoins: after.giftMinCoins,
         gameMinTickets: after.gameMinTickets,
         luckyChatMinMultiplier: after.luckyChatMinMultiplier,
+        luckyGlobalMultipliers: after.luckyGlobalMultipliers,
+        luckyGlobalGapSeconds: after.luckyGlobalGapSeconds,
       };
       await tx.siteSetting.upsert({
         where: { key: GLOBAL_STRIPS_SETTING_KEY },

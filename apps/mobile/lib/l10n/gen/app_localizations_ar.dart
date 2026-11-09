@@ -6836,6 +6836,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveStripSwitchHint => 'في جميع البثوث وعلى كل أجهزتك';
 
   @override
+  String get liveStripHideWins => 'إخفاء أشرطة الفوز';
+
+  @override
+  String get liveStripHideWinsHint =>
+      'مكاسب الحظ الكبيرة من اللايفات الأخرى لا تظهر؛ شريط المكسب في هذا البث يبقى';
+
+  @override
   String get liveViewerMenu => 'المزيد';
 
   @override
@@ -7599,6 +7606,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name ربح ×$multiplier في غرفة $room';
   }
+
+  @override
+  String liveLuckyGlobalIn(String room) {
+    return 'في $room';
+  }
+
+  @override
+  String liveLuckyGlobalLeaveSeat(String room) {
+    return 'ستترك مقعدك وتنتقل إلى $room. هل تريد المتابعة؟';
+  }
+
+  @override
+  String get liveLuckyGlobalGo => 'انتقال';
 
   @override
   String get dmTabChats => 'الدردشات';

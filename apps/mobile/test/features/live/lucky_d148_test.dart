@@ -24,7 +24,6 @@ import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:material_ui/material_ui.dart';
@@ -101,47 +100,6 @@ ProviderContainer _container({List<UserSummary> blocked = const []}) {
   );
   addTearDown(c.dispose);
   return c;
-}
-
-/// The ticker bar of live `room-a` alone on a dark screen.
-Future<ProviderContainer> _pumpBar(
-  WidgetTester tester, {
-  AppLanguage language = AppLanguage.en,
-  GoldenViewport viewport = GoldenViewport.android,
-  ValueChanged<String>? onOpenRoom,
-}) async {
-  setViewport(tester, viewport);
-  await pumpScreen(
-    tester,
-    Scaffold(
-      backgroundColor: const Color(0xFF101018),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned(
-            top: 96,
-            left: 16,
-            right: 16,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: LiveLuckyTickerBar(
-                roomId: 'room-a',
-                onOpenRoom: onOpenRoom,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-    language: language,
-    overrides: [
-      liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
-      currentUserProvider.overrideWithValue(testUser()),
-    ],
-  );
-  return ProviderScope.containerOf(
-    tester.element(find.byType(LiveLuckyTickerBar)),
-  );
 }
 
 void main() {
@@ -315,114 +273,8 @@ void main() {
       expect(order, [1000, 500, 250, 0]);
     });
 
-    for (final language in AppLanguage.values) {
-      for (final viewport in GoldenViewport.values) {
-        testWidgets('${language.name} ${viewport.name}: a compact gold line '
-            '«name won ×N in room», on screen; a tap opens that live', (
-          tester,
-        ) async {
-          final opened = <String>[];
-          final c = await _pumpBar(
-            tester,
-            language: language,
-            viewport: viewport,
-            onOpenRoom: opened.add,
-          );
-          expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
-          c
-              .read(liveLuckyTickersProvider('room-a').notifier)
-              .show(
-                _ticker(
-                  multiplier: 1000,
-                  sender: _user('u-oz', 'Oz Nabulsi with a long name'),
-                  title: 'A very long live title that goes on and on',
-                ),
-              );
-          await tester.pumpAndSettle();
-          final bar = find.byKey(LiveLuckyTickerBar.tickerKey);
-          expect(bar, findsOneWidget);
-          final l10n = l10nFor(language);
-          final text = tester
-              .widgetList<Text>(
-                find.descendant(of: bar, matching: find.byType(Text)),
-              )
-              .map((t) => t.data ?? '')
-              .singleWhere((t) => t.contains('×'));
-          expect(text, contains('×1,000'));
-          expect(text, contains('Oz Nabulsi'));
-          expect(
-            text,
-            l10n.liveLuckyTicker(
-              '\u2068Oz Nabulsi with a long name\u2069',
-              '1,000',
-              '\u2068A very long live title that goes on and on\u2069',
-            ),
-          );
-          final rect = tester.getRect(bar);
-          expect(rect.height, lessThanOrEqualTo(48));
-          expect(rect.width, lessThanOrEqualTo(LiveLuckyTickerBar.maxWidth));
-          expect(
-            (Offset.zero & viewport.logicalSize).contains(rect.topLeft),
-            isTrue,
-          );
-          expect(
-            (Offset.zero & viewport.logicalSize).contains(rect.bottomRight),
-            isTrue,
-          );
-          expect(tester.takeException(), isNull);
-          await tester.tap(bar);
-          await tester.pumpAndSettle();
-          expect(opened, ['room-b']);
-          expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
-        });
-      }
-    }
-
-    testWidgets('gone after its time; not a button without onOpenRoom (the '
-        'host on air); hidden by the provider flag', (tester) async {
-      final c = await _pumpBar(tester);
-      final tickers = c.read(liveLuckyTickersProvider('room-a').notifier)
-        ..show(_ticker());
-      await tester.pumpAndSettle();
-      expect(
-        tester.getSemantics(find.byKey(const ValueKey('ticker.g-1'))),
-        isNot(isSemantics(isButton: true)),
-      );
-      await tester.pump(LiveLuckyTickers.showTime);
-      await tester.pumpAndSettle();
-      expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
-
-      c.read(luckyTickerHiddenProvider.notifier).hidden = true;
-      tickers.show(_ticker(giftId: 'g-2'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
-      c.read(luckyTickerHiddenProvider.notifier).hidden = false;
-      await tester.pumpAndSettle();
-      expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsOneWidget);
-      await tester.pump(LiveLuckyTickers.showTime);
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('reduced motion: it appears without sliding', (tester) async {
-      tester.platformDispatcher.accessibilityFeaturesTestValue =
-          const FakeAccessibilityFeatures(disableAnimations: true);
-      addTearDown(
-        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
-      );
-      final c = await _pumpBar(tester, onOpenRoom: (_) {});
-      c.read(liveLuckyTickersProvider('room-a').notifier).show(_ticker());
-      await tester.pump();
-      final bar = find.byKey(LiveLuckyTickerBar.tickerKey);
-      expect(bar, findsOneWidget);
-      // At its place at once (no slide in progress).
-      final y = tester.getRect(bar).top;
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(tester.getRect(bar).top, y);
-      expect(
-        tester.getSemantics(find.byKey(const ValueKey('ticker.g-1'))),
-        isSemantics(isButton: true),
-      );
-      await tester.pump(LiveLuckyTickers.showTime);
-    });
+    // D347 (CONVENTIONS §10.146): the ticker is now the room's win banner
+    // with the live's name — its widget tests are in
+    // lucky_global_banner_d347_test.dart.
   });
 }

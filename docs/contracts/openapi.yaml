@@ -494,6 +494,17 @@ info:
     the account's sign-ups and sessions). Ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`;
     codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409),
     `STORE_IAP_PENDING` (409). Additive; every store is off until configured.
+    **D347 (DRAFT v1.111-live)** the global lucky banner «شريط المردود في كل اللايفات» (CONVENTIONS §10.146; owner
+    2026-11-09: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»): a lucky send whose best win is one of
+    `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (server setting, default ×250 ×500 ×1000; was every win ≥ `bigWinMultiplier`) is told
+    to every other LIVE room of every mode as the data message `lucky-ticker` (topic `lucky`), which gains `gift`
+    (`{code, assetKey, imageUrl}`) and `room.mode`; at most one per `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10 s) for the whole
+    service (so per room), the biggest waiting win next, and a waiting win whose live ended is dropped.
+    `bigWinMultiplier` of `getLuckyGiftOdds` no longer decides the global message. *Follow-up (owner «نعم موافق»):* the
+    OWNER changes the set and the gap in the panel without a restart (`GlobalStripsSettings.luckyGlobalMultipliers` /
+    `luckyGlobalGapSeconds`, optional in `UpdateGlobalStripsRequest`; 400 `luckyGlobalMultipliers` / `invalid_value`;
+    audited; the env values are the defaults), and a viewer hides the banner with `NotificationSettings.luckyStrip`
+    (false = «إخفاء أشرطة الفوز»; migration `20270418090000_lucky_strip_setting`). Additive.
     **int21 (DRAFT v1.112-social)** «الشحن من الموقع» only in the direct APK (CONVENTIONS §10.143.3; owner «موافق على
     الاقتراحات», D345 #7 + D344): `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in)
     and in the `refresh` body (kept on the session; migration `20270418090000_session_install_source`);
@@ -4047,7 +4058,9 @@ paths:
         level counts the full value (CP-005). A retry returns the first send with the same
         `luckyResult` and never draws again. A send whose best win is at least `bigWinMultiplier`
         also goes to the room as a `lucky-win` data message on topic `lucky`, and (v1.31-live,
-        D148) to every other live room as a `lucky-ticker` data message (at most one every 10 s).
+        D148) to every other live room as a `lucky-ticker` data message (at most one every 10 s). v1.111-live (D347):
+        the `lucky-ticker` goes out only for a best win in `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default ×250 ×500 ×1000),
+        to every other LIVE room of every mode (CONVENTIONS §10.146).
         v1.31-live (D148): after 15 losing lucky draws in a row by the caller (any room) the next
         draw pays at least ×5 (`luckyResult.guaranteed`).
         **v1.32-live (D154), quips** (`Gift.category` `QUIPS`, CONVENTIONS §10.33): after 409
@@ -28907,13 +28920,15 @@ components:
     GlobalStripsSettings:
       type: object
       additionalProperties: false
-      required: [giftMinCoins, gameMinTickets, luckyChatMinMultiplier, luckyMultipliers]
-      description: "v1.85-live (D305, CONVENTIONS §10.115) — the thresholds of the global strips; v1.89-live (D318, §10.121) and the lucky chat threshold."
+      required: [giftMinCoins, gameMinTickets, luckyChatMinMultiplier, luckyGlobalMultipliers, luckyGlobalGapSeconds, luckyMultipliers]
+      description: "v1.85-live (D305, CONVENTIONS §10.115) — the thresholds of the global strips; v1.89-live (D318, §10.121) and the lucky chat threshold; v1.111-live (D347, §10.146) and the global lucky banner's set and gap."
       properties:
         giftMinCoins: { type: integer, minimum: 1, maximum: 1000000000, examples: [500000], description: "A gift whose unit price (one gift, not the send) is at least this many coins is the gifts strip. 500 000 until the OWNER sets it." }
         gameMinTickets: { type: integer, minimum: 1, maximum: 1000000000000, examples: [1000000], description: "A game prize of at least this many tickets is the games strip. 1 000 000 until the OWNER sets it." }
         luckyChatMinMultiplier: { type: integer, minimum: 1, maximum: 10000, examples: [250], description: "v1.89-live (D318): a lucky win puts its line in the live chat only from this multiplier (one of `luckyMultipliers`). `LUCKY_CHAT_MIN_MULTIPLIER` (250) until the OWNER sets it." }
-        luckyMultipliers: { type: array, items: { type: integer, minimum: 1 }, description: "v1.89-live (D318): the lucky multipliers (`LUCKY_GIFT_MULTIPLIERS`, ascending, read-only) — the choices for `luckyChatMinMultiplier`." }
+        luckyGlobalMultipliers: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: integer, minimum: 1, maximum: 10000 }, examples: [[250, 500, 1000]], description: "v1.111-live (D347): a lucky send whose best win is one of these (ascending; each one of `luckyMultipliers`) is the global lucky banner in every other live. `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (250, 500, 1000) until the OWNER sets it; applies within 30 s, no restart." }
+        luckyGlobalGapSeconds: { type: integer, minimum: 1, maximum: 600, examples: [10], description: "v1.111-live (D347): at most one global lucky banner per this many seconds for the whole service (so per room). `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) until the OWNER sets it." }
+        luckyMultipliers: { type: array, items: { type: integer, minimum: 1 }, description: "v1.89-live (D318): the lucky multipliers (`LUCKY_GIFT_MULTIPLIERS`, ascending, read-only) — the choices for `luckyChatMinMultiplier` and (v1.111-live) `luckyGlobalMultipliers`." }
     UpdateGlobalStripsRequest:
       type: object
       additionalProperties: false
@@ -28922,6 +28937,8 @@ components:
         giftMinCoins: { type: integer, minimum: 1, maximum: 1000000000 }
         gameMinTickets: { type: integer, minimum: 1, maximum: 1000000000000 }
         luckyChatMinMultiplier: { type: integer, minimum: 1, maximum: 10000, description: "v1.89-live (D318): optional (absent: unchanged); one of the lucky multipliers, else 400 `luckyChatMinMultiplier` / `invalid_value`." }
+        luckyGlobalMultipliers: { type: array, minItems: 1, maxItems: 32, items: { type: integer, minimum: 1, maximum: 10000 }, description: "v1.111-live (D347): optional (absent: unchanged); distinct lucky multipliers (stored ascending), else 400 `luckyGlobalMultipliers` / `invalid_value`." }
+        luckyGlobalGapSeconds: { type: integer, minimum: 1, maximum: 600, description: "v1.111-live (D347): optional (absent: unchanged)." }
         reason: { type: string, minLength: 1, maxLength: 500 }
     UpdateSiteSettingsRequest:
       type: object
@@ -33607,7 +33624,7 @@ components:
         all: { type: boolean, const: true }
     NotificationSettings:
       type: object
-      required: [likes, comments, mentions, follows, reposts, lives, messages, giftStrip, gameStrip]
+      required: [likes, comments, mentions, follows, reposts, lives, messages, giftStrip, gameStrip, luckyStrip]
       properties:
         likes: { type: boolean }
         comments: { type: boolean, description: Comments on your posts and replies to your comments. }
@@ -33618,6 +33635,7 @@ components:
         messages: { type: boolean, description: "(v1.30-live, D152) Push notifications of new messages in your family chat and (v1.40-social, D155) of direct messages. In-app reading is not affected." }
         giftStrip: { type: boolean, description: "(v1.85-live, D305) The global gifts strip «شريط الهدايا» (`gift-ticker`) shows in the lives this account watches or hosts. Off: the app hides it; the server still sends it (CONVENTIONS §10.115)." }
         gameStrip: { type: boolean, description: "(v1.85-live, D305) The global games strip «شريط الألعاب» (`game-win-ticker`) shows in the lives this account watches or hosts. Off: the app hides it; the server still sends it (CONVENTIONS §10.115)." }
+        luckyStrip: { type: boolean, description: "(v1.111-live, D347) The global lucky banner «شريط المردود» (`lucky-ticker`: a ×250 / ×500 / ×1000 win in another live) shows in the lives this account watches or hosts. Off = «إخفاء أشرطة الفوز»: the app hides it; the server still sends it; the live's own win banner is unaffected (CONVENTIONS §10.146). Absent from older servers: shown." }
     UpdateNotificationSettingsRequest:
       type: object
       additionalProperties: false
@@ -33632,6 +33650,7 @@ components:
         messages: { type: boolean }
         giftStrip: { type: boolean, description: "(v1.85-live, D305)" }
         gameStrip: { type: boolean, description: "(v1.85-live, D305)" }
+        luckyStrip: { type: boolean, description: "(v1.111-live, D347) false = «إخفاء أشرطة الفوز»." }
     RegisterPushTokenRequest:
       type: object
       additionalProperties: false
@@ -35757,7 +35776,7 @@ components:
           description: The winning outcomes, by multiplier ascending.
         noWinChancePerMillion: { type: integer, minimum: 0, maximum: 1000000 }
         noWinProbability: { type: number, minimum: 0, maximum: 1 }
-        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier are announced to the room (`lucky-win`) and, v1.30-live, to every other live room (`lucky-ticker`)." }
+        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier get the room's big card. v1.30-live it also decided the `lucky-ticker` to every other live; v1.111-live (D347) that is the server's own set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default ×250 ×500 ×1000), not this value." }
         pity:
           description: v1.31-live (D148). The per-sender guarantee, or null when it is off.
           oneOf:

@@ -372,6 +372,10 @@ export interface GlobalStripsSettings {
   luckyChatMinMultiplier?: number;
   /** v1.89-live (D318): the lucky multipliers the threshold may be (absent from an older API). */
   luckyMultipliers?: number[];
+  /** v1.111-live (D347): the global lucky banner's multipliers (absent from an older API). */
+  luckyGlobalMultipliers?: number[];
+  /** v1.111-live (D347): the global lucky banner's gap, seconds (absent from an older API). */
+  luckyGlobalGapSeconds?: number;
 }
 
 /** v1.64-social (D196): `PaymentKeyInfo` — all the panel ever sees of a Stripe secret. */

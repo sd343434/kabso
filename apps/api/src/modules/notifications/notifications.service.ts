@@ -118,6 +118,8 @@ export interface NotificationSettingsDto {
   giftStrip: boolean;
   /** v1.85-live (D305): the global games strip shows in the lives (the app hides it when off). */
   gameStrip: boolean;
+  /** v1.111-live (D347): the global lucky banner shows in the lives (the app hides it when off). */
+  luckyStrip: boolean;
 }
 
 /** Retention (owner, D92): latest activity older than this is deleted. */
@@ -137,6 +139,7 @@ const DEFAULT_SETTINGS: NotificationSettingsDto = {
   messages: true,
   giftStrip: true,
   gameStrip: true,
+  luckyStrip: true,
 };
 const ACTOR_TYPES: NotificationType[] = [
   'LIKE_POST',
@@ -738,5 +741,6 @@ function pickSettings(row: NotificationSettingsDto): NotificationSettingsDto {
     messages: row.messages,
     giftStrip: row.giftStrip,
     gameStrip: row.gameStrip,
+    luckyStrip: row.luckyStrip,
   };
 }

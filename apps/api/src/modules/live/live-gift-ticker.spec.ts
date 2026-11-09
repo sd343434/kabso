@@ -68,6 +68,9 @@ function setup(
     // v1.89-live (D318): the lucky chat threshold shares the panel's row.
     lucky: {
       chatMinMultiplier: 250,
+      // v1.111-live (D347): the global lucky banner's defaults share the row too.
+      globalBannerMultipliers: [250, 500, 1000],
+      globalBannerGapMs: 10_000,
       table: { outcomes: [5, 10, 25, 50, 100, 250, 500, 1000].map((multiplier) => ({ multiplier })) },
     },
   } as unknown as AppConfig;
@@ -192,6 +195,8 @@ describe('D305 global strips (D178 gift ticker extended)', () => {
       giftMinCoins: 1_000,
       gameMinTickets: 50,
       luckyChatMinMultiplier: 500,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
     });
     await service.offer(gift(1_000));
     expect(evals).toHaveLength(1);
@@ -205,6 +210,8 @@ describe('D305 global strips (D178 gift ticker extended)', () => {
       giftMinCoins: 500_000,
       gameMinTickets: 1_000_000,
       luckyChatMinMultiplier: 250,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
     });
   });
 });

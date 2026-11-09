@@ -551,6 +551,33 @@ abstract class LuckyWin with _$LuckyWin {
   factory fromJson(Map<String, dynamic> json) => _$LuckyWinFromJson(json);
 }
 
+/// v1.111-live (D347, CONVENTIONS §10.146): the gift of a global lucky
+/// banner (`lucky-ticker.gift`) — its code and art, so the banner shows the
+/// gift even to a viewer whose catalogue has no lucky gifts (the name comes
+/// from the catalogue, else «هدية»). Absent from older servers.
+@immutable
+class LuckyTickerGift {
+  const new({required this.code, required this.assetKey, this.imageUrl});
+
+  /// Null when [json] is not the contract's shape (an older server).
+  static LuckyTickerGift? tryParse(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    final code = json['code'];
+    final assetKey = json['assetKey'];
+    final imageUrl = json['imageUrl'];
+    if (code is! String || assetKey is! String) return null;
+    return LuckyTickerGift(
+      code: code,
+      assetKey: assetKey,
+      imageUrl: imageUrl is String ? imageUrl : null,
+    );
+  }
+
+  final String code;
+  final String assetKey;
+  final String? imageUrl;
+}
+
 /// The `gift-ticker` data message (topic `gift`, v1.41-live, D178): a send
 /// of at least the server's `GIFT_GLOBAL_TICKER_MIN_COINS` (v1.85-live,
 /// D305: 500 000 by default) in any live — its own too since v1.85-live —

@@ -18,6 +18,12 @@ import 'package:material_ui/material_ui.dart';
 /// `NotificationSettings.giftStrip` / `gameStrip` (every live, every phone;
 /// also in the app's notification settings). None for a guest (no account:
 /// the strips always show).
+///
+/// D347 (owner «نعم موافق»): «إخفاء أشرطة الفوز» / "Hide win banners" — the
+/// account's `NotificationSettings.luckyStrip` (on = hidden): the global
+/// lucky banner of another live's ×250 / ×500 / ×1000 win. The gifts and
+/// games strips keep their own switches above; this live's own win banner
+/// is not affected.
 List<LiveSettingsItem> liveStripSwitches(BuildContext context, WidgetRef ref) {
   if (ref.watch(currentUserProvider) == null) return const [];
   final l10n = context.l10n;
@@ -56,6 +62,16 @@ List<LiveSettingsItem> liveStripSwitches(BuildContext context, WidgetRef ref) {
       value: prefs.games,
       onChanged: loaded
           ? (on) => change(NotificationSetting.gameStrip, on: on)
+          : null,
+    ),
+    LiveSettingsSwitch(
+      id: 'luckyStrip',
+      icon: Icons.visibility_off_outlined,
+      label: l10n.liveStripHideWins,
+      hint: l10n.liveStripHideWinsHint,
+      value: !prefs.lucky,
+      onChanged: loaded
+          ? (hide) => change(NotificationSetting.luckyStrip, on: !hide)
           : null,
     ),
   ];

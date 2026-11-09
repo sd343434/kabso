@@ -439,6 +439,7 @@ describe('CP-009 notifications', () => {
         messages: true,
         giftStrip: true,
         gameStrip: true,
+        luckyStrip: true,
       });
       const patch = await ctx.http
         .patch('/api/v1/me/notification-settings')
@@ -456,6 +457,7 @@ describe('CP-009 notifications', () => {
         messages: true,
         giftStrip: true,
         gameStrip: true,
+        luckyStrip: true,
       });
       const p = await post(me);
       await like(b, p);

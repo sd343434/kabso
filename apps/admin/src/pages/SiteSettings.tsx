@@ -314,7 +314,16 @@ export function globalStripsBody(
   reason: string,
   /** D318: the lucky chat threshold (omitted: not sent, an older API's form) and the multipliers it may be. */
   luckyChat?: { value: string; multipliers: readonly number[] },
-): { giftMinCoins: number; gameMinTickets: number; luckyChatMinMultiplier?: number; reason?: string } | null {
+  /** D347: the global lucky banner's chosen multipliers and gap (omitted: not sent, an older API's form). */
+  luckyGlobal?: LuckyGlobalForm,
+): {
+  giftMinCoins: number;
+  gameMinTickets: number;
+  luckyChatMinMultiplier?: number;
+  luckyGlobalMultipliers?: number[];
+  luckyGlobalGapSeconds?: number;
+  reason?: string;
+} | null {
   const gift = wholeUpTo(giftMinCoins, 1_000_000_000);
   const game = wholeUpTo(gameMinTickets, 1_000_000_000_000);
   if (gift === null || game === null) return null;
@@ -324,12 +333,36 @@ export function globalStripsBody(
     if (n === null || !luckyChat.multipliers.includes(n)) return null;
     lucky = n;
   }
+  let global: { luckyGlobalMultipliers: number[]; luckyGlobalGapSeconds: number } | undefined;
+  if (luckyGlobal) {
+    const gap = wholeUpTo(luckyGlobal.gap, 600);
+    if (luckyGlobalProblem(luckyGlobal) !== null || gap === null) return null;
+    global = {
+      luckyGlobalMultipliers: [...new Set(luckyGlobal.chosen)].sort((a, b) => a - b),
+      luckyGlobalGapSeconds: gap,
+    };
+  }
   return {
     giftMinCoins: gift,
     gameMinTickets: game,
     ...(lucky !== undefined ? { luckyChatMinMultiplier: lucky } : {}),
+    ...(global ?? {}),
     ...(reason.trim() ? { reason: reason.trim() } : {}),
   };
+}
+
+/** D347: the global lucky banner's part of the form — the multipliers ticked among [multipliers] and the gap text. */
+export interface LuckyGlobalForm {
+  multipliers: readonly number[];
+  chosen: readonly number[];
+  gap: string;
+}
+
+/** D347: what is wrong with [form] (the server's rules: ≥ 1 distinct lucky multiplier, a gap 1–600 s), or null. */
+export function luckyGlobalProblem(form: LuckyGlobalForm): 'multipliers' | 'gap' | null {
+  if (form.chosen.length === 0 || form.chosen.some((m) => !form.multipliers.includes(m))) return 'multipliers';
+  if (wholeUpTo(form.gap, 600) === null) return 'gap';
+  return null;
 }
 
 /** D305: the form of «شريطا الهدايا والألعاب» (the global strips' thresholds), pure for the tests. */
@@ -344,19 +377,23 @@ export function GlobalStripsView(props: {
   onSave: () => void;
   /** D318: the lucky chat threshold and the multipliers to choose from (absent: an older API, no field). */
   luckyChat?: { value: string; multipliers: readonly number[]; onChange: (value: string) => void };
+  /** D347: the global lucky banner's multipliers and gap (absent: an older API, no fields). */
+  luckyGlobal?: LuckyGlobalForm & { onToggle: (multiplier: number, on: boolean) => void; onGap: (value: string) => void };
 }) {
   const { t } = useApp();
   const invalid = globalStripsBody(props.giftMinCoins, props.gameMinTickets, '') === null;
   const lucky = props.luckyChat;
   const luckyInvalid =
     lucky !== undefined && globalStripsBody('1', '1', '', { value: lucky.value, multipliers: lucky.multipliers }) === null;
+  const global = props.luckyGlobal;
+  const globalProblem = global ? luckyGlobalProblem(global) : null;
   return (
     <form
       className="card"
       style={{ maxWidth: 640, marginTop: 16 }}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!invalid && !luckyInvalid) props.onSave();
+        if (!invalid && !luckyInvalid && globalProblem === null) props.onSave();
       }}
     >
       <h2>{t('gsTitle')}</h2>
@@ -409,11 +446,50 @@ export function GlobalStripsView(props: {
           <span className="hint">{luckyInvalid ? t('gsLuckyChatInvalid') : t('gsLuckyChatHint')}</span>
         </div>
       )}
+      {global && (
+        <>
+          <fieldset className="field" aria-invalid={globalProblem === 'multipliers'}>
+            <legend>{t('gsLuckyGlobal')}</legend>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              {global.multipliers.map((m) => (
+                <label key={m} className="ltr" htmlFor={`gs-lucky-global-${m}`}>
+                  <input
+                    id={`gs-lucky-global-${m}`}
+                    type="checkbox"
+                    checked={global.chosen.includes(m)}
+                    onChange={(e) => global.onToggle(m, e.target.checked)}
+                  />{' '}
+                  ×{m}
+                </label>
+              ))}
+            </div>
+            <span className="hint">
+              {globalProblem === 'multipliers' ? t('gsLuckyGlobalInvalid') : t('gsLuckyGlobalHint')}
+            </span>
+          </fieldset>
+          <div className="field">
+            <label htmlFor="gs-lucky-gap">{t('gsLuckyGlobalGap')}</label>
+            <input
+              id="gs-lucky-gap"
+              type="number"
+              className="ltr"
+              min={1}
+              max={600}
+              step={1}
+              inputMode="numeric"
+              value={global.gap}
+              aria-invalid={globalProblem === 'gap'}
+              onChange={(e) => global.onGap(e.target.value)}
+            />
+            <span className="hint">{globalProblem === 'gap' ? t('gsLuckyGlobalGapInvalid') : t('gsLuckyGlobalGapHint')}</span>
+          </div>
+        </>
+      )}
       <div className="field">
         <label htmlFor="gs-reason">{t('reason')}</label>
         <textarea id="gs-reason" maxLength={500} value={props.reason} onChange={(e) => props.onReason(e.target.value)} />
       </div>
-      <button className="btn primary" disabled={props.busy || invalid || luckyInvalid}>
+      <button className="btn primary" disabled={props.busy || invalid || luckyInvalid || globalProblem !== null}>
         {t('gsSave')}
       </button>
     </form>
@@ -426,6 +502,8 @@ function GlobalStripsCard() {
   const [gift, setGift] = useState('500000');
   const [game, setGame] = useState('1000000');
   const [luckyChat, setLuckyChat] = useState('250');
+  const [globalChosen, setGlobalChosen] = useState<number[]>([250, 500, 1000]);
+  const [globalGap, setGlobalGap] = useState('10');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -434,11 +512,16 @@ function GlobalStripsCard() {
       setGift(String(data.giftMinCoins));
       setGame(String(data.gameMinTickets));
       if (data.luckyChatMinMultiplier !== undefined) setLuckyChat(String(data.luckyChatMinMultiplier));
+      if (data.luckyGlobalMultipliers) setGlobalChosen(data.luckyGlobalMultipliers);
+      if (data.luckyGlobalGapSeconds !== undefined) setGlobalGap(String(data.luckyGlobalGapSeconds));
     }
   }, [data]);
   // D318: the lucky chat field only with an API that sends the multipliers.
   const multipliers = data?.luckyMultipliers;
   const lucky = multipliers?.length ? { value: luckyChat, multipliers } : undefined;
+  // D347: the global banner's fields only with an API that sends them.
+  const global =
+    multipliers?.length && data?.luckyGlobalMultipliers ? { multipliers, chosen: globalChosen, gap: globalGap } : undefined;
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorAlert error={error} />;
   return (
@@ -453,8 +536,18 @@ function GlobalStripsCard() {
         onGameMinTickets={setGame}
         onReason={setReason}
         {...(lucky ? { luckyChat: { ...lucky, onChange: setLuckyChat } } : {})}
+        {...(global
+          ? {
+              luckyGlobal: {
+                ...global,
+                onToggle: (m: number, on: boolean) =>
+                  setGlobalChosen((c) => (on ? [...c.filter((x) => x !== m), m] : c.filter((x) => x !== m))),
+                onGap: setGlobalGap,
+              },
+            }
+          : {})}
         onSave={() => {
-          const body = globalStripsBody(gift, game, reason, lucky);
+          const body = globalStripsBody(gift, game, reason, lucky, global);
           if (!body) return;
           setBusy(true);
           setSaveError(null);
@@ -464,6 +557,8 @@ function GlobalStripsCard() {
               setGift(String(saved.giftMinCoins));
               setGame(String(saved.gameMinTickets));
               if (saved.luckyChatMinMultiplier !== undefined) setLuckyChat(String(saved.luckyChatMinMultiplier));
+              if (saved.luckyGlobalMultipliers) setGlobalChosen(saved.luckyGlobalMultipliers);
+              if (saved.luckyGlobalGapSeconds !== undefined) setGlobalGap(String(saved.luckyGlobalGapSeconds));
               setReason('');
               toast(t('saved'));
             },

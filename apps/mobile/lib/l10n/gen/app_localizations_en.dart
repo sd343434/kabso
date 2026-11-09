@@ -6816,6 +6816,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveStripSwitchHint => 'In every live, on all your devices';
 
   @override
+  String get liveStripHideWins => 'Hide win banners';
+
+  @override
+  String get liveStripHideWinsHint =>
+      'Big lucky wins from other lives are not shown; this live\'s own win banner stays';
+
+  @override
   String get liveViewerMenu => 'More';
 
   @override
@@ -7554,6 +7561,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name won ×$multiplier in $room';
   }
+
+  @override
+  String liveLuckyGlobalIn(String room) {
+    return 'in $room';
+  }
+
+  @override
+  String liveLuckyGlobalLeaveSeat(String room) {
+    return 'You will leave your seat and go to $room. Continue?';
+  }
+
+  @override
+  String get liveLuckyGlobalGo => 'Go';
 
   @override
   String get dmTabChats => 'Chats';

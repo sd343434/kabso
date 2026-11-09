@@ -327,7 +327,11 @@ void main() {
     final strips = c.read(liveGlobalStripsProvider('room-a').notifier);
     final settings = c.read(notificationSettingsProvider.notifier);
     await settings.change(NotificationSetting.giftStrip, on: false);
-    expect(c.read(globalStripPrefsProvider), (gifts: false, games: true));
+    expect(c.read(globalStripPrefsProvider), (
+      gifts: false,
+      games: true,
+      lucky: true,
+    ));
     strips.show(GiftStrip(_gift()));
     expect(_on(c, StripLane.gifts), isNull);
     strips.show(GameWinStrip(_game()));
@@ -358,7 +362,11 @@ void main() {
       ],
     );
     addTearDown(c.dispose);
-    expect(c.read(globalStripPrefsProvider), (gifts: true, games: true));
+    expect(c.read(globalStripPrefsProvider), (
+      gifts: true,
+      games: true,
+      lucky: true,
+    ));
     expect(notifications.calls, isEmpty);
   });
 
@@ -653,10 +661,9 @@ void main() {
       }, tags: goldenTag);
     }
 
-    testWidgets('the switches «إظهار شريط الهدايا» / «إظهار شريط الألعاب» in '
-        "the viewer's settings sheet: on, saved to the account ($language)", (
-      tester,
-    ) async {
+    testWidgets('the switches «إظهار شريط الهدايا» / «إظهار شريط الألعاب» and '
+        "(D347) «إخفاء أشرطة الفوز» in the viewer's settings sheet: saved to "
+        'the account ($language)', (tester) async {
       final notifications = FakeNotificationsRepository();
       await loadAppFonts();
       setViewport(tester, GoldenViewport.phone);
@@ -738,6 +745,27 @@ void main() {
       await tester.tap(games);
       await tester.pumpAndSettle();
       expect(notifications.current.gameStrip, isFalse);
+      // D347 (owner «نعم موافق»): «إخفاء أشرطة الفوز» — off (shown) by
+      // default; on hides the global lucky banner (luckyStrip false).
+      final wins = find.byKey(LiveSettingsSheet.itemKey('luckyStrip'));
+      await tester.ensureVisible(wins);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: wins, matching: find.text(l10n.liveStripHideWins)),
+        findsOneWidget,
+      );
+      expect(on(wins), isFalse);
+      await tester.tap(wins);
+      await tester.pumpAndSettle();
+      expect(on(wins), isTrue);
+      expect(notifications.calls, contains('setting:luckyStrip:false'));
+      expect(notifications.current.luckyStrip, isFalse);
+      await expectLater(
+        find.byKey(LiveSettingsSheet.sheetKey),
+        matchesGoldenFile(
+          'png/live_settings.hide_win_banners.${language.name}.png',
+        ),
+      );
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 10));
     }, tags: goldenTag);

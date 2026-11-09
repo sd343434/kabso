@@ -1423,6 +1423,103 @@ void main() {
                   .copyWith(mode: mode, seatCount: count, theme: 'ice-palace'),
         )..seatState = seats(mode: mode, count: count);
 
+    // v1.111-live (D347, CONVENTIONS §10.146): the global lucky banner of a
+    // ×250 / ×500 / ×1000 win in another live opens it — checked first.
+    LuckyTickerReceived globalWin() => LuckyTickerReceived(
+      LuckyTicker(
+        win: LuckyWin(
+          giftId: 'g-347',
+          roomId: 'room-b',
+          giftCode: 'lucky_clover',
+          sender: omar,
+          multiplier: 500,
+          coinsWon: 5000,
+          createdAt: DateTime.utc(2026, 11, 9, 12),
+        ),
+        room: const LuckyTickerRoom(
+          id: 'room-b',
+          title: 'Friday night',
+          host: UserSummary(
+            id: 'u-sara',
+            username: 'sara',
+            displayName: 'Sara',
+            avatarUrl: null,
+          ),
+        ),
+      ),
+      gift: const LuckyTickerGift(
+        code: 'lucky_clover',
+        assetKey: 'gift_lucky_clover',
+      ),
+    );
+
+    testWidgets('D347: a tap on the global lucky banner of a live that ended '
+        'says so (a toast) and stays in this live', (tester) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final repo = FakeLiveRepository(
+        room: (id) => id == 'room-b'
+            ? apiRoom(id: id, status: LiveRoomStatus.ended)
+            : apiRoom(id: id),
+      );
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      engine.chat.add(globalWin());
+      // The message arrives, the banner builds, then slides in (0.5 s).
+      for (var i = 0; i < 9; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final banner = find.byKey(LiveLuckyTickerBar.tickerKey);
+      expect(banner, findsOneWidget);
+      expect(find.byKey(LiveWinBanner.roomKey), findsOneWidget);
+      await tester.tap(banner);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(repo.roomRequests.last, 'room-b');
+      expect(find.text(l10n.errorLiveRoomEnded), findsOneWidget);
+      expect(find.byType(LiveRoomScreen), findsOneWidget);
+      expect(find.byKey(LiveLuckyTickerBar.tickerKey), findsNothing);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('D347: a seated guest is asked before the global lucky banner '
+        'takes them out of their seat; «Cancel» keeps them here', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final repo =
+          FakeLiveRepository(
+              room: (id) =>
+                  apiRoom(id: id)
+                      .copyWith(mode: LiveRoomMode.audio, seatCount: 10),
+            )
+            ..seatState = seats(
+              mode: LiveRoomMode.audio,
+              count: 10,
+              mine: const LiveSeatsMine(
+                role: LiveSeatRole.seated,
+                seatIndex: 1,
+                request: null,
+                invite: null,
+              ),
+            );
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      engine.chat.add(globalWin());
+      // The message arrives, the banner builds, then slides in (0.5 s).
+      for (var i = 0; i < 9; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.tap(find.byKey(LiveLuckyTickerBar.tickerKey));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(l10n.liveLuckyGlobalLeaveSeat('Arabic music night')),
+        findsOneWidget,
+      );
+      expect(find.byKey(LiveRoomScreen.openOtherLiveKey), findsOneWidget);
+      await tester.tap(find.text(l10n.actionCancel));
+      await tester.pumpAndSettle();
+      expect(find.byType(LiveRoomScreen), findsOneWidget);
+      expect(find.byKey(LiveRoomScreen.openOtherLiveKey), findsNothing);
+    });
+
     testWidgets('audio room: tapping the empty stage cheers (the seats area '
         'scrolls, it must not swallow the tap); a seat tap does not', (
       tester,

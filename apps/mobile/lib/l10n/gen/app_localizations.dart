@@ -11779,6 +11779,18 @@ abstract class AppLocalizations {
   /// **'في جميع البثوث وعلى كل أجهزتك'**
   String get liveStripSwitchHint;
 
+  /// D347: hides the global lucky banner (a ×250 / ×500 / ×1000 win in another live) in every live, on every device (the account's luckyStrip off).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء أشرطة الفوز'**
+  String get liveStripHideWins;
+
+  /// D347: under «إخفاء أشرطة الفوز».
+  ///
+  /// In ar, this message translates to:
+  /// **'مكاسب الحظ الكبيرة من اللايفات الأخرى لا تظهر؛ شريط المكسب في هذا البث يبقى'**
+  String get liveStripHideWinsHint;
+
   /// D173: the ≡ menu of the live bar for everyone (viewer and moderator items).
   ///
   /// In ar, this message translates to:
@@ -13032,6 +13044,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{name} ربح ×{multiplier} في غرفة {room}'**
   String liveLuckyTicker(String name, String multiplier, String room);
+
+  /// D347: the tag under the global lucky banner (a ×250 / ×500 / ×1000 win in another live): the live it happened in; a tap opens it.
+  ///
+  /// In ar, this message translates to:
+  /// **'في {room}'**
+  String liveLuckyGlobalIn(String room);
+
+  /// D347: a seated guest tapped the global lucky banner; going there leaves their seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستترك مقعدك وتنتقل إلى {room}. هل تريد المتابعة؟'**
+  String liveLuckyGlobalLeaveSeat(String room);
+
+  /// D347: confirms moving to the live of the global lucky banner.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتقال'**
+  String get liveLuckyGlobalGo;
 
   /// D155: direct messages (CONVENTIONS §11.13).
   ///

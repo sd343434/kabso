@@ -767,6 +767,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
 | v1.112-social (draft) | 2026-11-09 | **int21 (owner «موافق على الاقتراحات» on D345 #7 + D344): «الشحن من الموقع» only in the direct APK.** `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in) and the `refresh` body, kept on the session (`sessions.install_source`, migration `20270418090000_session_install_source`); `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow `TOPUP_APP_LINK_SOURCES` (default SIDELOAD) on top of `TOPUP_APP_LINK_PLATFORMS`. Also (D345 #5): a store refund bans every device seen for the account (no shape change). §10.143.3, §10.144. | **Additive** in shape; **behaviour change**: a session that reported no install source (an app older than this) no longer gets the website link; a refund bans more devices. |
+| v1.111-live (draft) | 2026-11-09 | **D347 (owner: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»):** the global lucky banner — the data message `lucky-ticker` (topic `lucky`) goes to every other LIVE room (every mode) only for a send whose best win is in the server set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default `250,500,1000`; was every win ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, 100); it gains `gift` `{code, assetKey, imageUrl}` and `room.mode`; the gap `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) is configurable; a waiting win whose live ended is dropped. The app draws it as the room's win banner with the live's name and a tap target. *Follow-up (owner «نعم موافق»):* `GlobalStripsSettings.luckyGlobalMultipliers` / `luckyGlobalGapSeconds` (the panel, optional in `UpdateGlobalStripsRequest`, 400 `luckyGlobalMultipliers` / `invalid_value`), `NotificationSettings.luckyStrip` («إخفاء أشرطة الفوز»); migration `20270418090000_lucky_strip_setting`. §10.27, §10.146, §10.146.1. | **Additive** (new message fields older apps ignore); **behaviour change**: ×100 wins are no longer told to other lives. New fields are additive. |
 | v1.110-social (draft) | 2026-11-09 | **D345 (owner: «بيع العملات عبر المتاجر … الاسترداد احتيال: سحب العملات وحظر الحساب والجهاز تلقائياً … سياسة لمنع الاسترداد وفي حالة الاسترداد النظام يخاطب الجهة»):** tag `store-iap` — `getStoreIapCatalog`, `verifyStorePurchase`, `receiveAppleNotification` (App Store Server Notifications v2), `receiveGoogleRtdn` (Pub/Sub push); tag `admin-panel` — `getAdminStoreIapOverview`, `updateAdminStoreIapSettings`, `listAdminStoreIapProducts`, `createAdminStoreIapProduct`, `updateAdminStoreIapProduct`, `listAdminStoreIapPurchases`, `listAdminStoreIapRefundBans`, `unbanAdminStoreIapRefund`, `syncAdminStoreIapVoided`; capabilities `store_iap.view` (OWNER, MODERATION, SUPPORT, FINANCE), `store_iap.manage`, `store_iap.unban` (OWNER); codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409), `STORE_IAP_PENDING` (409); ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`; a refund ban is lifted only by the OWNER (the general unban and the device-ban list answer 409 `ADMIN_ACTION_REFUSED`); audit `store_iap.*`; migrations `20270417090000_store_iap_enums`, `20270417090100_store_iap`. §4, §10.144. | **Additive** (new operations, codes, enum values); **behaviour change** only for the panel: a store-refund ban cannot be lifted from the user page or the device-ban list. Off until the owner places the store credentials on the server. |
 | v1.109-social (draft) | 2026-11-09 | **D344 (owner: «زر الشحن من الموقع يدخلك متصفح خارج التطبيق ويطلب اليوزر والباسورد. اريد جعل الشحن من الموقع يفتح من نفس التطبيق ويدخل اليوزر والباسورد تلقائي دون ملاحظة الشخص»; then «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»):** tag `topup` — `createTopupWebsiteSession` (`POST /wallet/topup-session`), `exchangeTopupHandoff` (`POST /topup/handoff`, public); schemas `TopupWebsiteSession`, `TopupHandoffRequest`, `TopupHandoffSession`; `RechargePackages.websiteTopupUrl` also per store (`TOPUP_APP_LINK_PLATFORMS`); `TopupPackages.priceMinor` and the Checkout amount include Stripe's fee (gross-up); `AdminPaymentSettings.options` / `effective` `stripeFeeGrossUp`, `stripeFeePercentBps`, `stripeFeeFixedMinor`, `feeCurrency`, and the same three in `UpdateAdminPaymentSettingsRequest`; audit `topup.handoff.mint|exchange|refused`, `topup.fee.exceeded`; migrations `20270416090000_topup_handoffs`, `20270416090100_topup_stripe_fee`. §7, §10.53, §10.143. | **Additive** on the wire (new operations and fields). **Behaviour change**: the website's package prices are higher by Stripe's fee while the gross-up is on (the default); the coins are unchanged. |
 | v1.108-social (draft) | 2026-11-09 | **D343 (owner: «في انشاء الحساب هناك صندوق يدخل شخص اما رمز الدعوة او رمز المشرف … النظام يعرف ان كان الشخص قام بتحميل التطبيق قبل»):** `RegisterRequest.referralCode` also takes a supervisor's staff ID; `register` 400 `referralCode` `not_found`; `checkSignupCode` (`POST /auth/signup-code/check`, public); `StaffRecruitList.signupCode` / `signupLink` / `signups`; `listAdminSignupRecruits`, `AdminSignupRecruit`, `SignupCreditStatus`; referral reject reasons `DEVICE_HAD_ACCOUNT`, `EMAIL_HAD_ACCOUNT`; settings SIGNUP_IDENTITY_RETENTION_DAYS (365), RATE_LIMIT_SIGNUP_CODE_IP (30/600). Migration `20270415090000_signup_codes`. §10.142. | **Additive**, except: an unknown code at sign-up is now a 400 on `referralCode` (was a silent 202 without a referral). |
@@ -2430,6 +2431,9 @@ change in the server configuration (no app update). Odds, the age gate and the r
   server down → no ticker, never a failed send. Blocks are applied by the app (it hides a ticker
   whose sender or host the viewer blocked, from the block list the room's chat loads); a viewer
   switch to hide tickers comes in D151 (the app already has the flag). Older apps ignore the type.
+  *v1.111-live (D347, §10.146):* the global copy goes out only for a best win in `LUCKY_GLOBAL_BANNER_MULTIPLIERS`
+  (default ×250 ×500 ×1000), the gap is `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10), the message gains `gift` and
+  `room.mode`, and a waiting win whose live ended is dropped.
 - **The odds** (`GET /live/gifts/lucky/odds`, guests too) *(owner: publish the odds; store
   loot-box rules)*: `{enabled, drawsPerGift: 1, returnPercent, hostSharePercent, outcomes:
   [{multiplier, chancePerMillion, probability}], noWinChancePerMillion, noWinProbability,
@@ -11098,3 +11102,78 @@ Owner (2026-11-09, device test of the staging APK `809063b`): «في بث ستر
 - **PK is a SOLO live's only** (owner: «بث الستريمر لا يحتاج زر pk»): `KHostBar.showPk` is false on a streamer live (no
   button, not even «قريباً»); an incoming invitation is shown over a SOLO room only; viewers of a streamer have no PK
   entry. The server's SOLO-only rule stands.
+
+### 10.146 The global lucky banner «شريط المردود في كل اللايفات» *(v1.111-live, DRAFT — D347)*
+
+Owner (2026-11-09, approved design): «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000». §10.146 follows the
+numbers reserved by in-flight work (§10.132–§10.145).
+
+- **Which wins** *(owner)*: a lucky send (§10.27) whose best paid multiplier (`luckyResult.topMultiplier`, after the daily
+  protection) is **one of** `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (API env, default `250,500,1000`; each must be one of
+  `LUCKY_GIFT_MULTIPLIERS`, distinct, else the server refuses to start). It is a set, not a threshold: a new ×2000 tier
+  is global only when listed. Smaller wins keep today's behaviour — the `lucky-win` banner in their own room only.
+  `LUCKY_GIFT_BIG_WIN_MULTIPLIER` no longer decides it (it stays the odds' `bigWinMultiplier`).
+- **Where:** every **other** room whose status is `LIVE` — every mode: SOLO / PK (video), MULTI, AUDIO, PODCAST,
+  STREAMER — newest first, at most 5 000 rooms. The room the win happened in is excluded by the server and, again, by
+  the app (it shows its own `lucky-win` banner; never the global copy twice).
+- **Delivery** *(CTO, D347)*: server-side fan-out, the existing pattern of every global strip (D148, D178, D254, D305):
+  one reliable LiveKit data message per room through the server SDK (`SendData`, the media provider's
+  `broadcastData`, with §10.123's retry of a briefly missing room), 8 rooms at a time. At ~500 live rooms that is
+  ~500 small calls per banner and, with the gap, at most ~50 calls a second for the whole service — no client
+  polling, no new connection, no database write. LiveKit has no multi-room send; a poll by every viewer would cost
+  far more at the same latency.
+- **Rate limit and queue** *(owner: at most one per room every 10 s)*: at most **one global banner per
+  `LUCKY_GLOBAL_BANNER_GAP_SECONDS`** (API env, default 10, 1–600) for the whole service (Redis gate
+  `lucky:ticker:gate`, shared by all API instances) — every live room gets each banner, so this is also one per room.
+  A win offered inside the gap waits in **one** slot (`lucky:ticker:pending`, at most 30 s): a bigger win (multiplier,
+  then coins) replaces the waiting one, a smaller or equal one is dropped; when the gap ends the waiting win goes out.
+  A waiting win whose live is **no longer LIVE** when its turn comes is dropped (its tap would lead nowhere). The app
+  keeps its own small line too: one banner at a time (the room banner's 3.5 s and a breath), at most 3 waiting, the
+  biggest first (the smallest dropped when full), none older than 30 s, a send seen before never again.
+- **The message** (`lucky-ticker`, topic `lucky`; additive fields):
+  `{"type":"lucky-ticker","win":{giftId, roomId, giftCode, sender: UserSummary, multiplier, coinsWon, createdAt},
+  "gift":{"code","assetKey","imageUrl"},"room":{"id","title","mode","host":UserSummary}}` — `gift` is the gift's art
+  as the send's `LiveGift` carries it (the app names it from its catalogue, else «هدية»; the art lets a viewer whose
+  catalogue has no lucky gifts still see it), `room.mode` the live's `LiveRoomMode`. An older app ignores both.
+- **The app** *(owner: reuse «شريط المردود»)*: the banner is the room's own win banner (D159's tier frames, timeline,
+  ×N, «فلان أرسل …» / «ربح ×N وحصل على …») with a tag under it: the winner's avatar, «في {room title}» (ellipsis), the
+  gift's picture and, when it opens the live, a chevron toward the reading end. It sits under the header with the
+  global strips (it steps aside while this live's own win banner shows). Reduced motion: still.
+- **Tap** *(owner)*: a viewer's tap opens that live — the app first reads it (`getLiveRoom`): ended or gone → the
+  toast «انتهى هذا البث.» and nothing moves; a **seated guest** (on a mic) is asked first («ستترك مقعدك وتنتقل إلى
+  …»); then the live opens through the normal join (its own rules: guests, bans, kicks). The same check now applies to
+  the other global strips' taps. A **host on air** (the go-live screen) sees the banner but it is **not a button**
+  (never pulled out of their own live).
+- **Privacy:** Kabso has no «mystery» / invisible / hidden-identity mode today (checked: no such setting in the schema
+  or the contract), so the winner's public `UserSummary` (as in the room's own banner) is shown. Blocks apply as for
+  every strip (a viewer never sees a banner about someone they blocked, or in a live of someone they blocked). When a
+  hidden-identity mode is added, the server must mask `win.sender` here (and in `lucky-win`).
+- **Best effort:** Redis or the media server down → no banner, never a failed send.
+
+#### 10.146.1 Follow-up: the panel setting and «إخفاء أشرطة الفوز» *(v1.111-live, DRAFT — D347; owner «نعم موافق», 2026-11-09)*
+
+The owner approved the five D347 decisions (×100 stays in its room; the defaults ×250 / ×500 / ×1000 and 10 s; the
+placement) and asked for the two follow-ups below.
+
+- **Panel setting** (the D305 / D318 pattern): the set and the gap are part of the `site_settings` row `globalStrips`
+  (`luckyGlobalMultipliers`, `luckyGlobalGapSeconds`), edited in «إعدادات الموقع» → «شريطا الهدايا والألعاب»
+  (`GET|PUT /admin/global-strips`, capability `site.settings` — the OWNER, as for D305 / D318; CSRF; audited
+  `site.settings.update` with before / after and the optional reason in the same transaction). Both fields are
+  optional in the PUT (absent: unchanged — an older panel keeps them) and validated like the env: the set is 1–32
+  distinct whole numbers, each one of `LUCKY_GIFT_MULTIPLIERS` (else 400 `luckyGlobalMultipliers` / `invalid_value`;
+  stored ascending), the gap a whole number 1–600 s (else 400). A stored value that is no longer valid reads as the
+  configuration's. `LUCKY_GLOBAL_BANNER_MULTIPLIERS` / `LUCKY_GLOBAL_BANNER_GAP_SECONDS` stay the defaults. The ticker
+  service reads the values per win through a 30 s cache (also the flush of a waiting win), so a change applies within
+  30 s on every instance, no restart. Every lucky win is now offered to the ticker service, which decides.
+- **«إخفاء أشرطة الفوز» / "Hide win banners"**: a per-account switch `NotificationSettings.luckyStrip` (default true =
+  shown; `PATCH /me/notification-settings` `{luckyStrip: false}` hides), stored with D305's `giftStrip` / `gameStrip`
+  so it follows the account to every phone (migration `20270418090000_lucky_strip_setting`, `notification_settings.
+  lucky_strip`). It is in every live's settings sheet — the viewer's «إعدادات المشاهدة» and the host's — under the
+  strip switches, worded as the owner said (on = hidden). Off for a guest (no account) and with an older server. When
+  hidden, the app drops the global lucky banner (the one on screen goes, new ones are not queued); the server still
+  sends it (one message per room, not per person). **Included:** only the global lucky banner (`lucky-ticker`). **Not
+  included, on purpose:** the gifts and games strips (`gift-ticker`, `game-win-ticker`) — they already have their own
+  switches «إظهار شريط الهدايا» / «إظهار شريط الألعاب» on the same path, and folding them in would make one switch
+  silently override two others; the level banner (`level-ticker`, D254) is not a win; the live's own win banner
+  (`lucky-win`) always shows. D151's hide flag (`luckyTickerHiddenProvider`) is now this switch.
+

@@ -580,6 +580,10 @@ export interface AppConfig {
     /** The validated odds (the server refuses to start on an invalid table). */
     readonly table: LuckyTable;
     readonly bigWinMultiplier: number;
+    /** v1.111-live (D347): the best-win multipliers that make the global banner (`lucky-ticker`), ascending. */
+    readonly globalBannerMultipliers: readonly number[];
+    /** v1.111-live (D347): at most one global banner per this many ms (all instances, so per room too). */
+    readonly globalBannerGapMs: number;
     /** v1.89-live (D318): the smallest win multiplier with a chat line (the panel's value wins). */
     readonly chatMinMultiplier: number;
     readonly dayTimeZone: string;
@@ -1072,6 +1076,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         luckyPityOf(e),
       ) as LuckyTable,
       bigWinMultiplier: e.LUCKY_GIFT_BIG_WIN_MULTIPLIER,
+      globalBannerMultipliers: Object.freeze([...e.LUCKY_GLOBAL_BANNER_MULTIPLIERS].sort((a, b) => a - b)),
+      globalBannerGapMs: e.LUCKY_GLOBAL_BANNER_GAP_SECONDS * 1000,
       chatMinMultiplier: e.LUCKY_CHAT_MIN_MULTIPLIER,
       dayTimeZone: e.LUCKY_GIFT_DAY_TIME_ZONE,
       disabledCountries: e.LUCKY_GIFTS_DISABLED_COUNTRIES,

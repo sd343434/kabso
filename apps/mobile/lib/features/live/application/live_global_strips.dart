@@ -78,14 +78,21 @@ final class GameWinStrip extends GlobalStrip {
 /// account's `NotificationSettings.giftStrip` / `gameStrip` (every phone);
 /// a guest, or before the settings arrive, or when they cannot be read:
 /// both on.
-typedef GlobalStripPrefs = ({bool gifts, bool games});
+///
+/// v1.111-live (D347): `lucky` — the global lucky banner
+/// (`NotificationSettings.luckyStrip`; false = «إخفاء أشرطة الفوز»).
+typedef GlobalStripPrefs = ({bool gifts, bool games, bool lucky});
 
 final Provider<GlobalStripPrefs> globalStripPrefsProvider =
     Provider.autoDispose<GlobalStripPrefs>((ref) {
       final me = ref.watch(currentUserProvider.select((u) => u?.id));
-      if (me == null) return (gifts: true, games: true);
+      if (me == null) return (gifts: true, games: true, lucky: true);
       final s = ref.watch(notificationSettingsProvider).value;
-      return (gifts: s?.giftStrip ?? true, games: s?.gameStrip ?? true);
+      return (
+        gifts: s?.giftStrip ?? true,
+        games: s?.gameStrip ?? true,
+        lucky: s?.luckyStrip ?? true,
+      );
     });
 
 /// D178 (owner: «والهدايا يجب أن تظهر في شريط في جميع البثوث») and D305

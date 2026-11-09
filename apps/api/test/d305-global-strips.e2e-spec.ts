@@ -166,6 +166,8 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
       giftMinCoins: 500_000,
       gameMinTickets: 1_000_000,
       luckyChatMinMultiplier: 250,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
     });
   });
 
@@ -332,7 +334,7 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
     const get = await ctx.http.get('/api/v1/me/notification-settings').set(auth(u));
     expect(get.status).toBe(200);
     expectContract(get, 'getNotificationSettings');
-    expect(get.body).toMatchObject({ giftStrip: true, gameStrip: true });
+    expect(get.body).toMatchObject({ giftStrip: true, gameStrip: true, luckyStrip: true });
     const off = await ctx.http
       .patch('/api/v1/me/notification-settings')
       .set(auth(u))
@@ -368,6 +370,8 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
       giftMinCoins: 500_000,
       gameMinTickets: 1_000_000,
       luckyChatMinMultiplier: 250,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
       luckyMultipliers: [5, 10, 25, 50, 100, 250, 500, 1000],
     });
     expect((await p.send(moderator, 'get', '/admin/global-strips')).status).toBe(403);
@@ -404,6 +408,8 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
       giftMinCoins: 20_000,
       gameMinTickets: 300,
       luckyChatMinMultiplier: 250,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
       luckyMultipliers: [5, 10, 25, 50, 100, 250, 500, 1000],
     });
     const audit = await ctx.prisma.auditLog.findMany({
@@ -421,6 +427,8 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
       giftMinCoins: 20_000,
       gameMinTickets: 300,
       luckyChatMinMultiplier: 250,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
       luckyMultipliers: [5, 10, 25, 50, 100, 250, 500, 1000],
     });
   });
@@ -432,6 +440,8 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
       giftMinCoins: 20_000,
       gameMinTickets: 300,
       luckyChatMinMultiplier: 250,
+      luckyGlobalMultipliers: [250, 500, 1000],
+      luckyGlobalGapSeconds: 10,
     });
     await gapOver();
     const before = giftStrips(roomB).length;
@@ -490,5 +500,81 @@ describe('D305 global strips', { timeout: 120_000 }, () => {
     });
     gifts.forgetLuckyChat();
     expect((await catalogue()).body.luckyChatMinMultiplier).toBe(250);
+  });
+
+  it('D347: the global lucky banner — the OWNER sets its multipliers and gap (validated like the env, audited, a PUT without them keeps them); the viewer switch `luckyStrip`', async () => {
+    const ticker = ctx.app.get(
+      (await import('../src/modules/live/live-lucky-ticker.service.js')).LiveLuckyTickerService,
+    );
+    await ctx.prisma.siteSetting.deleteMany({ where: { key: 'globalStrips' } });
+    ticker.forgetSettings();
+    expect(await ticker.settings()).toEqual({ multipliers: [250, 500, 1000], gapMs: 10_000 });
+    const base = { giftMinCoins: 20_000, gameMinTickets: 300 };
+    for (const bad of [
+      { luckyGlobalMultipliers: [] },
+      { luckyGlobalMultipliers: [250, 300] },
+      { luckyGlobalMultipliers: [500, 500] },
+      { luckyGlobalMultipliers: [1.5] },
+      { luckyGlobalMultipliers: '250' },
+      { luckyGlobalGapSeconds: 0 },
+      { luckyGlobalGapSeconds: 601 },
+      { luckyGlobalGapSeconds: 2.5 },
+    ]) {
+      const res = await p.send(owner, 'put', '/admin/global-strips', { ...base, ...bad });
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+      expectContract(res, 'updateAdminGlobalStrips');
+    }
+    const denied = await p.send(moderator, 'put', '/admin/global-strips', {
+      ...base,
+      luckyGlobalMultipliers: [100],
+    });
+    expect(denied.status).toBe(403);
+    const put = await p.send(owner, 'put', '/admin/global-strips', {
+      ...base,
+      luckyGlobalMultipliers: [1000, 100],
+      luckyGlobalGapSeconds: 30,
+      reason: 'test week',
+    });
+    expect(put.status, JSON.stringify(put.body)).toBe(200);
+    expectContract(put, 'updateAdminGlobalStrips');
+    expect(put.body).toMatchObject({ luckyGlobalMultipliers: [100, 1000], luckyGlobalGapSeconds: 30 });
+    const audit = await ctx.prisma.auditLog.findFirst({
+      where: { action: 'site.settings.update', actorUserId: owner.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit?.metadata).toMatchObject({
+      key: 'globalStrips',
+      before: { luckyGlobalMultipliers: [250, 500, 1000], luckyGlobalGapSeconds: 10 },
+      after: { luckyGlobalMultipliers: [100, 1000], luckyGlobalGapSeconds: 30 },
+      reason: 'test week',
+    });
+    // No restart: the ticker reads it (after its ≤ 30 s cache).
+    ticker.forgetSettings();
+    expect(await ticker.settings()).toEqual({ multipliers: [100, 1000], gapMs: 30_000 });
+    // An older panel (neither field) keeps them.
+    const older = await p.send(owner, 'put', '/admin/global-strips', base);
+    expect(older.body).toMatchObject({ luckyGlobalMultipliers: [100, 1000], luckyGlobalGapSeconds: 30 });
+    const get = await p.send(owner, 'get', '/admin/global-strips');
+    expectContract(get, 'getAdminGlobalStrips');
+    expect(get.body).toMatchObject({ luckyGlobalMultipliers: [100, 1000], luckyGlobalGapSeconds: 30 });
+    await ctx.prisma.siteSetting.deleteMany({ where: { key: 'globalStrips' } });
+    ticker.forgetSettings();
+
+    // «إخفاء أشرطة الفوز»: a per-account switch, on (shown) by default, kept.
+    const viewerAuth = { Authorization: `Bearer ${user.token}` };
+    const off = await ctx.http
+      .patch('/api/v1/me/notification-settings')
+      .set(viewerAuth)
+      .send({ luckyStrip: false });
+    expect(off.status).toBe(200);
+    expectContract(off, 'updateNotificationSettings');
+    expect(off.body).toMatchObject({ luckyStrip: false, giftStrip: true });
+    const again = await ctx.http.get('/api/v1/me/notification-settings').set(viewerAuth);
+    expect(again.body.luckyStrip).toBe(false);
+    const bad = await ctx.http
+      .patch('/api/v1/me/notification-settings')
+      .set(viewerAuth)
+      .send({ luckyStrip: 'no' });
+    expect(bad.status).toBe(400);
   });
 });

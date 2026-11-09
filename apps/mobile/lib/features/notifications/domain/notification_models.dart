@@ -442,6 +442,7 @@ class NotificationSettings {
     this.messages = true,
     this.giftStrip = true,
     this.gameStrip = true,
+    this.luckyStrip = true,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationSettings(
@@ -457,6 +458,8 @@ class NotificationSettings {
     // v1.85-live (D305); an older server does not send them (on).
     giftStrip: json['giftStrip'] as bool? ?? true,
     gameStrip: json['gameStrip'] as bool? ?? true,
+    // v1.111-live (D347); an older server does not send it (shown).
+    luckyStrip: json['luckyStrip'] as bool? ?? true,
   );
 
   final bool likes;
@@ -480,6 +483,10 @@ class NotificationSettings {
   /// v1.85-live (D305): the global games strip «شريط الألعاب».
   final bool gameStrip;
 
+  /// v1.111-live (D347): the global lucky banner «شريط المردود» (a ×250 /
+  /// ×500 / ×1000 win in another live); false = «إخفاء أشرطة الفوز».
+  final bool luckyStrip;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationSettings &&
@@ -491,7 +498,8 @@ class NotificationSettings {
       other.lives == lives &&
       other.messages == messages &&
       other.giftStrip == giftStrip &&
-      other.gameStrip == gameStrip;
+      other.gameStrip == gameStrip &&
+      other.luckyStrip == luckyStrip;
 
   @override
   int get hashCode => Object.hash(
@@ -504,6 +512,7 @@ class NotificationSettings {
     messages,
     giftStrip,
     gameStrip,
+    luckyStrip,
   );
 }
 
@@ -519,7 +528,10 @@ enum NotificationSetting {
 
   /// v1.85-live (D305): the global strips in the lives.
   giftStrip,
-  gameStrip;
+  gameStrip,
+
+  /// v1.111-live (D347): the global lucky banner (false: hidden).
+  luckyStrip;
 
   bool of(NotificationSettings s) => switch (this) {
     likes => s.likes,
@@ -531,6 +543,7 @@ enum NotificationSetting {
     messages => s.messages,
     giftStrip => s.giftStrip,
     gameStrip => s.gameStrip,
+    luckyStrip => s.luckyStrip,
   };
 
   NotificationSettings set(NotificationSettings s, {required bool on}) =>
@@ -544,5 +557,6 @@ enum NotificationSetting {
         messages: this == messages ? on : s.messages,
         giftStrip: this == giftStrip ? on : s.giftStrip,
         gameStrip: this == gameStrip ? on : s.gameStrip,
+        luckyStrip: this == luckyStrip ? on : s.luckyStrip,
       );
 }

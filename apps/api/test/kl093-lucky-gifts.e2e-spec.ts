@@ -16,6 +16,7 @@ import { Clock } from '../src/common/time/clock.js';
 import { addGiftIn, grantStockIn, type GiftFields } from '../src/modules/gifts/gift-catalogue.js';
 import type { LuckyRng } from '../src/modules/gifts/lucky-odds.js';
 import { LUCKY_RNG } from '../src/modules/gifts/lucky-rng.js';
+import { LiveLuckyTickerService } from '../src/modules/live/live-lucky-ticker.service.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import type { Redis } from 'ioredis';
@@ -1111,9 +1112,12 @@ describe('D148 lucky gifts: eight tiers, the guarantee, the global ticker', { ti
           coinsWon: 2_500,
           createdAt: first.body.gift.createdAt,
         },
+        // v1.111-live (D347): the gift's art and the live's mode.
+        gift: { code, assetKey: `gift_${code}`, imageUrl: null },
         room: {
           id: roomId,
           title: 'Lucky',
+          mode: 'AUDIO',
           host: expect.objectContaining({ id: h.id, username: h.username }),
         },
       },
@@ -1122,7 +1126,7 @@ describe('D148 lucky gifts: eight tiers, the guarantee, the global ticker', { ti
     expect(ticker(roomId)).toEqual([]);
     expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(roomWins + 1);
 
-    // Within 10 s: a ×100 and then a ×1000 wait; the ×1000 replaces the ×100, which is dropped.
+    // Within 10 s: a ×100 (v1.111-live, D347: not a global banner at all) and then a ×1000, which waits.
     rng.script(DRAW.x100);
     expect((await f.send(roomId, s1, f.body(code, [h]))).body.luckyResult.topMultiplier).toBe(100);
     rng.script(DRAW.x1000);
@@ -1141,6 +1145,240 @@ describe('D148 lucky gifts: eight tiers, the guarantee, the global ticker', { ti
   it('D148 load: the same check with the guarantee on (every send writes the streak)', async () => {
     f.newDay();
     await loadCheck(ctx, f, 'D148 load');
+  });
+});
+
+/**
+ * v1.111-live (D347, CONVENTIONS §10.146; owner «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»): the
+ * global lucky banner — only ×250 / ×500 / ×1000 (LUCKY_GLOBAL_BANNER_MULTIPLIERS), to every other LIVE room of every
+ * mode, never twice in its own room, at most one per LUCKY_GLOBAL_BANNER_GAP_SECONDS (2 s here), and a waiting win
+ * whose live ended is dropped.
+ */
+describe('D347 the global lucky banner in every live', { timeout: 180_000 }, () => {
+  const clock = new FakeClock();
+  const media = new MemoryLiveMedia();
+  const rng = new ScriptedRng();
+  let ctx: TestContext;
+  const f = fixtures(() => ctx, clock);
+  const GAP_MS = 2_000;
+  const ticker = (room: string) =>
+    media.broadcastsOf(room, 'lucky-ticker') as {
+      win: { multiplier: number; giftId: string; roomId: string };
+      room: { id: string; mode: string };
+    }[];
+  /** A LIVE room of [mode] with its own host (made in the database: the fan-out reads only the status). */
+  const liveOf = async (
+    mode: 'SOLO' | 'MULTI' | 'AUDIO' | 'PODCAST' | 'STREAMER',
+    status: 'LIVE' | 'ENDED' = 'LIVE',
+  ) => {
+    const host = await f.signup();
+    const extra =
+      mode === 'MULTI'
+        ? { seatCount: 4 }
+        : mode === 'AUDIO'
+          ? { seatCount: 10 }
+          : mode === 'PODCAST'
+            ? { seatCount: 4, episodeNumber: 1, podcastTopic: 'general' }
+            : mode === 'STREAMER'
+              ? {
+                  streamerOrientation: 'PORTRAIT',
+                  streamerCameraVisible: true,
+                  streamerCameraCorner: 'TOP_RIGHT',
+                  streamerMain: 'SCREEN',
+                }
+              : {};
+    const room = await ctx.prisma.liveRoom.create({
+      data: {
+        hostUserId: host.id,
+        title: `${mode} live`,
+        mode,
+        status,
+        ...(status === 'ENDED'
+          ? {
+              startedAt: new Date(Date.now() - 120_000),
+              endedAt: new Date(Date.now() - 60_000),
+              endReason: 'HOST_ENDED',
+            }
+          : {}),
+        ...extra,
+      },
+    });
+    return room.id;
+  };
+  /** A day's budget for the wins (as in D148's test): 1 314 gifts of 100 from the seated guest to the host. */
+  const budget = async (s1: TestUser, roomId: string, h: TestUser) => {
+    const filler = await f.gift({ priceCoins: 100 });
+    rng.script();
+    expect((await f.send(roomId, s1, f.body(filler, [h], { quantity: 1314 }))).status).toBe(201);
+    await settle(ctx);
+  };
+
+  beforeAll(async () => {
+    ctx = await createTestApp(
+      {
+        LIVE_HOSTING_ENABLED: 'true',
+        LIVE_HEARTBEAT_STALE_SECONDS: '3600',
+        LUCKY_GIFTS_ENABLED: 'true',
+        LUCKY_GLOBAL_BANNER_GAP_SECONDS: String(GAP_MS / 1000),
+      },
+      [
+        { token: Clock, value: clock },
+        { token: LIVE_MEDIA_PROVIDER, value: media },
+        { token: LUCKY_RNG, value: rng },
+      ],
+    );
+  });
+  afterAll(async () => ctx?.close());
+
+  it('×250 / ×500 / ×1000 reach every other live of every mode, ×100 and below stay in their room, never the origin twice, never an ended live', async () => {
+    f.newDay();
+    const redis = ctx.app.get<Redis>(REDIS);
+    await redis.del('lucky:ticker:gate', 'lucky:ticker:pending');
+    const { h, s1, viewer, roomId } = await f.scene();
+    await f.confirmAge(s1);
+    const others = {
+      SOLO: await liveOf('SOLO'),
+      MULTI: await liveOf('MULTI'),
+      AUDIO: await liveOf('AUDIO'),
+      PODCAST: await liveOf('PODCAST'),
+      STREAMER: await liveOf('STREAMER'),
+    };
+    const ended = await liveOf('SOLO', 'ENDED');
+    const code = await f.gift({ priceCoins: 10 });
+    await budget(s1, roomId, h);
+    const before = media.broadcastsOf(roomId, 'lucky-win').length;
+
+    // ×100 (and every smaller win): its own room's banner only.
+    rng.script(DRAW.x100);
+    const small = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(small.body.luckyResult.topMultiplier).toBe(100);
+    await settle(ctx);
+    for (const id of Object.values(others)) expect(ticker(id)).toEqual([]);
+    expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(before + 1);
+    expect(await redis.get('lucky:ticker:gate')).toBeNull();
+
+    // ×500: every other LIVE room, each mode, once; not its own room (it has the lucky-win), not the ended one.
+    rng.script(DRAW.x500);
+    const big = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(big.body.luckyResult.topMultiplier).toBe(500);
+    await settle(ctx);
+    for (const [mode, id] of Object.entries(others)) {
+      expect(ticker(id), mode).toHaveLength(1);
+      expect(ticker(id)[0]).toMatchObject({
+        win: { giftId: big.body.gift.id, multiplier: 500, roomId },
+        room: { id: roomId, mode: 'AUDIO' },
+      });
+    }
+    expect(ticker(roomId)).toEqual([]);
+    expect(ticker(ended)).toEqual([]);
+    expect(media.broadcastsOf(roomId, 'lucky-win')).toHaveLength(before + 2);
+  });
+
+  it('at most one per gap per room: inside it a bigger win waits and replaces a smaller waiting one; after it, it goes out', async () => {
+    f.newDay();
+    const redis = ctx.app.get<Redis>(REDIS);
+    await redis.del('lucky:ticker:gate', 'lucky:ticker:pending');
+    const { h, s1, viewer, roomId } = await f.scene();
+    await f.confirmAge(s1);
+    const other = await liveOf('SOLO');
+    const code = await f.gift({ priceCoins: 10 });
+    await budget(s1, roomId, h);
+
+    rng.script(DRAW.x250);
+    const first = await f.send(roomId, viewer, f.body(code, [h]));
+    rng.script(DRAW.x250);
+    const second = await f.send(roomId, s1, f.body(code, [h]));
+    rng.script(DRAW.x1000);
+    const jackpot = await f.send(roomId, viewer, f.body(code, [h]));
+    rng.script(DRAW.x500);
+    await f.send(roomId, s1, f.body(code, [h]));
+    expect([first, second, jackpot].map((r) => r.body.luckyResult.topMultiplier as number)).toEqual([
+      250, 250, 1000,
+    ]);
+    await settle(ctx);
+    // Only the first now; the ×250 that came second was replaced by the ×1000, and the ×500 after it was dropped.
+    expect(ticker(other).map((t) => t.win.giftId)).toEqual([first.body.gift.id]);
+    await new Promise((r) => setTimeout(r, GAP_MS + 400));
+    await settle(ctx);
+    expect(ticker(other).map((t) => t.win.multiplier)).toEqual([250, 1000]);
+    expect(ticker(other)[1]!.win.giftId).toBe(jackpot.body.gift.id);
+    expect(await redis.get('lucky:ticker:pending')).toBeNull();
+  });
+
+  it("the OWNER's panel set wins without a restart (v1.111-live): with [100] a ×100 is global and a ×500 is not", async () => {
+    f.newDay();
+    const redis = ctx.app.get<Redis>(REDIS);
+    await redis.del('lucky:ticker:gate', 'lucky:ticker:pending');
+    const tickers = ctx.app.get(LiveLuckyTickerService);
+    await ctx.prisma.siteSetting.upsert({
+      where: { key: 'globalStrips' },
+      create: {
+        key: 'globalStrips',
+        value: {
+          giftMinCoins: 500_000,
+          gameMinTickets: 1_000_000,
+          luckyGlobalMultipliers: [100],
+          luckyGlobalGapSeconds: 2,
+        },
+      },
+      update: {
+        value: {
+          giftMinCoins: 500_000,
+          gameMinTickets: 1_000_000,
+          luckyGlobalMultipliers: [100],
+          luckyGlobalGapSeconds: 2,
+        },
+      },
+    });
+    tickers.forgetSettings();
+    try {
+      const { h, s1, viewer, roomId } = await f.scene();
+      await f.confirmAge(s1);
+      const other = await liveOf('MULTI');
+      const code = await f.gift({ priceCoins: 10 });
+      await budget(s1, roomId, h);
+      rng.script(DRAW.x500);
+      expect((await f.send(roomId, viewer, f.body(code, [h]))).body.luckyResult.topMultiplier).toBe(500);
+      await settle(ctx);
+      expect(ticker(other)).toEqual([]);
+      rng.script(DRAW.x100);
+      const hundred = await f.send(roomId, viewer, f.body(code, [h]));
+      await settle(ctx);
+      expect(ticker(other).map((t) => t.win.giftId)).toEqual([hundred.body.gift.id]);
+    } finally {
+      await ctx.prisma.siteSetting.deleteMany({ where: { key: 'globalStrips' } });
+      tickers.forgetSettings();
+      await new Promise((r) => setTimeout(r, GAP_MS + 200));
+    }
+  });
+
+  it('a waiting win whose live ended before its turn is dropped', async () => {
+    f.newDay();
+    const redis = ctx.app.get<Redis>(REDIS);
+    await redis.del('lucky:ticker:gate', 'lucky:ticker:pending');
+    const { h, s1, viewer, roomId } = await f.scene();
+    await f.confirmAge(s1);
+    const other = await liveOf('AUDIO');
+    const code = await f.gift({ priceCoins: 10 });
+    await budget(s1, roomId, h);
+
+    // Another live's win takes the gate; this live's ×1000 waits, then this live ends.
+    const busy = await f.scene();
+    await f.confirmAge(busy.s1);
+    await budget(busy.s1, busy.roomId, busy.h);
+    rng.script(DRAW.x250);
+    expect((await f.send(busy.roomId, busy.viewer, f.body(code, [busy.h]))).status).toBe(201);
+    rng.script(DRAW.x1000);
+    const waiting = await f.send(roomId, viewer, f.body(code, [h]));
+    expect(waiting.body.luckyResult.topMultiplier).toBe(1000);
+    await settle(ctx);
+    expect(await redis.get('lucky:ticker:pending')).not.toBeNull();
+    await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(f.auth(h)).expect(200);
+
+    await new Promise((r) => setTimeout(r, GAP_MS + 400));
+    await settle(ctx);
+    expect(ticker(other).map((t) => t.win.roomId)).toEqual([busy.roomId]);
+    expect(await redis.get('lucky:ticker:pending')).toBeNull();
   });
 });
 

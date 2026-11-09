@@ -941,6 +941,18 @@ export const envSchema = z
      */
     LUCKY_GIFT_BIG_WIN_MULTIPLIER: intSetting(100, 2, 10_000),
     /**
+     * v1.111-live (D347, owner «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»): a lucky send whose best win is
+     * one of these multipliers is the global banner — a `lucky-ticker` to every other LIVE room (every mode). Each must
+     * be one of LUCKY_GIFT_MULTIPLIERS (else the server refuses to start). Replaces LUCKY_GIFT_BIG_WIN_MULTIPLIER for
+     * that decision (which now only names the odds' `bigWinMultiplier`).
+     */
+    LUCKY_GLOBAL_BANNER_MULTIPLIERS: wholeNumberList('250,500,1000'),
+    /**
+     * v1.111-live (D347): at most one global lucky banner per this many seconds for the whole service — so at most one
+     * per room in that time (every room gets each banner); a win inside the gap waits (the biggest one only).
+     */
+    LUCKY_GLOBAL_BANNER_GAP_SECONDS: intSetting(10, 1, 600),
+    /**
      * v1.89-live (D318, owner «لا يظهر في التكست إلا المكسب x250 وx500 وx1000»): a lucky win puts its line in the live's
      * chat only when its multiplier is at least this (one of LUCKY_GIFT_MULTIPLIERS); smaller wins keep everything
      * else. The OWNER's panel value (`site_settings` `globalStrips`) wins; this is the fallback.
@@ -1758,6 +1770,17 @@ export const envSchema = z
           code: 'custom',
           path: ['LUCKY_GIFT_BIG_WIN_MULTIPLIER'],
           message: 'must be one of LUCKY_GIFT_MULTIPLIERS',
+        });
+      }
+      const globalBanner = env.LUCKY_GLOBAL_BANNER_MULTIPLIERS;
+      if (
+        globalBanner.some((m) => !env.LUCKY_GIFT_MULTIPLIERS.includes(m)) ||
+        new Set(globalBanner).size !== globalBanner.length
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LUCKY_GLOBAL_BANNER_MULTIPLIERS'],
+          message: 'must be distinct values of LUCKY_GIFT_MULTIPLIERS',
         });
       }
       if (!env.LUCKY_GIFT_MULTIPLIERS.includes(env.LUCKY_CHAT_MIN_MULTIPLIER)) {
