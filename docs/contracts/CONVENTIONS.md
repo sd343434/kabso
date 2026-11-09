@@ -10467,14 +10467,17 @@ numbers reserved for the in-flight D339–D341 branches (§10.132–§10.140).
   a party card like the others; the announced episodes (`ScheduledPodcastsSection`, D212) stay above «الغرف» when there
   are any. The list / grid switch, the filters, the banners, the «مميز» pins (now of every party kind) and the in-room
   swipe (the mixed list, in order) are unchanged.
-- **The badge** (`PartyKindBadge`, `PartyKind.of(room)`; a podcast is checked before audio): on every party card's
-  picture — the list row's cover (bottom start; the live equalizer moves to its top start) and the grid card's top start
-  (a PK keeps «PK») — an icon and a short name on the kind's own colour from the tokens, the same in both themes (it
-  sits on the picture): audio `Icons.mic_rounded` «صوتي» / "Audio" on `color.light.info` (white, 5.8 : 1); podcast
-  `Icons.podcasts_rounded` «بودكاست» / "Podcast" on `color.brand.gold` (`color.onStatus`, 12.1 : 1); multi
-  `Icons.groups_rounded` «متعدد» / "Multi" on `color.light.success` (white, 5.4 : 1). 10 sp heavy, 16 lp tall, not
-  scaled with the text (fixed picture; it shrinks to fit rather than cut its name); screen readers hear the card's
-  full kind («بث صوتي», «بث بودكاست», «بث متعدد») in its label as before. A podcast row without a topic shows «الحلقة N ·
-  <topic>» under its title.
+- **The badge** (`PartyKindBadge`, `PartyKind.of(room)`; a podcast is checked before audio). D342b (owner on the first
+  captures: «شكل ايقونة صوتي او بودكاست سيء حاول جعلها احترافية واصغر حجماً»): a small dark glass chip, the same in
+  the list and the grid, in the picture's top start corner (list: 4 lp in from the cover's corner, the live equaliser at
+  the cover's bottom start; grid: before the equaliser, the viewer count keeps the end) — 18 lp tall, 6 lp side padding,
+  full pill, black 45 % with a 0.5 lp white 15 % edge (no blur), an 11 lp icon tinted by kind from the tokens (audio
+  `Icons.mic_rounded` `color.dark.info`; podcast `Icons.podcasts_rounded` `color.brand.gold`; multi
+  `Icons.groups_rounded` `color.dark.success`) and a white 10 sp semibold short name («صوتي», «بودكاست», «متعدد» /
+  Audio, Podcast, Multi; letter spacing −0.1; white on ≥ 45 % black is ≥ 4.5 : 1 on any picture). Decorative: not
+  scaled with the text (18 lp at ×1.3) and it shrinks to fit instead of cutting its name (the list cover's «بودكاست» chip
+  is drawn at ≈ 0.9×). The label is kept in the grid too (there is room beside the count; an icon alone would ask
+  people to learn three glyphs). Screen readers hear the card's full kind («بث صوتي», «بث بودكاست», «بث متعدد») in its
+  label. A podcast row without a topic shows «الحلقة N · <topic>» under its title.
 - **Honest states.** Empty: «لا غرف في الحفلة الآن» / "No party rooms right now" with Try again (Popular also offers
   Explore); loading, error, unavailable and Nearby without a country are the shared ones.

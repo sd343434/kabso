@@ -798,21 +798,52 @@ void main() {
         findsNothing,
       );
       expect(inCard('p', find.text('Episode 12 · Business')), findsOneWidget);
-      // Three different colours, from the tokens.
-      Color fill(PartyKind k) =>
-          (tester
-                      .widget<Container>(
-                        find.descendant(
-                          of: find.byKey(PartyKindBadge.keyOf(k)),
-                          matching: find.byType(Container),
-                        ),
-                      )
-                      .decoration!
-                  as BoxDecoration)
-              .color!;
-      expect(fill(PartyKind.audio), KPalette.light.info);
-      expect(fill(PartyKind.podcast), KBrandColors.gold);
-      expect(fill(PartyKind.multi), KPalette.light.success);
+      // D342b: one dark glass chip for every kind, 18 lp tall; the icon
+      // carries the kind's colour (tokens), the label is white.
+      for (final (k, tint) in [
+        (PartyKind.audio, KPalette.dark.info),
+        (PartyKind.podcast, KBrandColors.gold),
+        (PartyKind.multi, KPalette.dark.success),
+      ]) {
+        final chip = find.descendant(
+          of: find.byKey(PartyKindBadge.keyOf(k)),
+          matching: find.byType(Container),
+        );
+        final box = tester.widget<Container>(chip).decoration! as BoxDecoration;
+        expect(box.color, PartyKindBadge.glass);
+        expect(box.border, Border.all(color: PartyKindBadge.edge, width: 0.5));
+        expect(tester.getSize(chip).height, PartyKindBadge.height);
+        expect(
+          tester
+              .widget<Icon>(
+                find.descendant(
+                  of: find.byKey(PartyKindBadge.keyOf(k)),
+                  matching: find.byType(Icon),
+                ),
+              )
+              .color,
+          tint,
+        );
+        expect(
+          tester
+              .widget<Text>(
+                find.descendant(
+                  of: find.byKey(PartyKindBadge.keyOf(k)),
+                  matching: find.byType(Text),
+                ),
+              )
+              .style!
+              .color,
+          const Color(0xFFFFFFFF),
+        );
+      }
+      // In the cover's top start corner.
+      final cover = tester.getRect(find.byKey(const Key('a')));
+      final badge = tester.getRect(
+        find.byKey(PartyKindBadge.keyOf(PartyKind.audio)),
+      );
+      expect(badge.top - cover.top, closeTo(KVoiceRoomRow.badgeInset, 0.5));
+      expect(badge.left - cover.left, closeTo(KVoiceRoomRow.badgeInset, 0.5));
       expect(tester.getSize(find.byKey(const Key('a'))).height, 68.6);
       expect(tester.getSize(find.byKey(const Key('p'))).height, 68.6);
     });

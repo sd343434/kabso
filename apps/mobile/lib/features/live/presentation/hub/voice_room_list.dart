@@ -49,11 +49,13 @@ abstract final class KVoiceRoomRow {
   static const double chipGap = 6;
   static const double chipFont = 10;
 
-  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M). D342: the kind's
-  /// badge there ([PartyKindBadge]), the live mark at the top.
+  /// The cover's kind mark: 6.4 lp in, 4.5 lp up (M). D342b: the live
+  /// mark stays there; the kind's chip ([PartyKindBadge]) sits in the
+  /// cover's top start corner, [badgeInset] from both edges (the same
+  /// corner as on the grid cards).
   static const double markStart = 6.4;
   static const double markBottom = 4.5;
-  static const double markTop = 5;
+  static const double badgeInset = 4;
 
   /// Light theme: the card text (sampled `#282828`), the subtitle grey,
   /// and the count's icon (sampled `#43E7E4`).
@@ -175,14 +177,15 @@ abstract final class VoiceRoomList {
 
 /// One room as a party-page card (D246, the owner's reference): the cover
 /// square at the reading start, rounded, with the live mark and the room's
-/// kind — D342: the live mark at its top, the kind's own badge (icon and
-/// colour, [PartyKindBadge]) at its bottom, since the three kinds share one
-/// list; the host's country flag and the title in bold (two lines when
-/// there is no topic), the host's topic in grey under it (D342: a podcast
-/// without one, its episode and topic); one line of pills with only what
-/// the API says — «رائج» (`popular`, v1.58-live), «PK» while the room is
-/// in a PK (D241), the host's level (`roomLevel`, the charm badge), «مميز»
-/// in a paid slot (D154b) and the seats; the viewer count at the end with
+/// kind — D342: the kind's own chip ([PartyKindBadge], D342b: small dark
+/// glass) in its top start corner, the live mark at its bottom start, since
+/// the three kinds share one list; the host's country flag and the title
+/// in bold (two lines when there is no topic), the host's topic in grey
+/// under it (D342: a podcast without one, its episode and topic); one line
+/// of pills with only what the API says — «رائج» (`popular`,
+/// v1.58-live), «PK» while the room is in a PK (D241), the host's level
+/// (`roomLevel`, the charm badge), «مميز» in a paid slot (D154b) and the
+/// seats; the viewer count at the end with
 /// a mic (audio, podcast) or a camera (multi).
 class VoiceRoomRow extends StatelessWidget {
   const new({required this.room, super.key, this.onTap});
@@ -295,16 +298,16 @@ class VoiceRoomRow extends StatelessWidget {
                             if (partyKind != null) ...[
                               const PositionedDirectional(
                                 start: KVoiceRoomRow.markStart,
-                                top: KVoiceRoomRow.markTop,
+                                bottom: KVoiceRoomRow.markBottom,
                                 child: KLiveEqualizer(
                                   color: KLiveGrid.liveMark,
                                   size: 9,
                                 ),
                               ),
                               PositionedDirectional(
-                                start: KVoiceRoomRow.markStart - 2,
-                                end: 3,
-                                bottom: KVoiceRoomRow.markBottom,
+                                start: KVoiceRoomRow.badgeInset,
+                                end: KVoiceRoomRow.badgeInset,
+                                top: KVoiceRoomRow.badgeInset,
                                 child: Align(
                                   key: kindKey,
                                   alignment: AlignmentDirectional.centerStart,

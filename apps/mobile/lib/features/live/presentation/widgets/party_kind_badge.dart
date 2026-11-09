@@ -40,22 +40,25 @@ enum PartyKind {
     multi => Icons.groups_rounded,
   };
 
-  /// The badge's fill and ink, from the design tokens (v1.1), the same in
-  /// both themes (the badge sits on the room's picture): audio
-  /// `color.light.info` blue, podcast `color.brand.gold` with
-  /// `color.onStatus`, multi `color.light.success` green. Contrast of the
-  /// label: 5.8:1, 12.1:1 and 5.4:1.
-  (Color fill, Color ink) get colors => switch (this) {
-    audio => (KPalette.light.info, KPalette.light.onPrimary),
-    podcast => (KBrandColors.gold, KStatusColors.onStatus),
-    multi => (KPalette.light.success, KPalette.light.onPrimary),
+  /// The icon's tint on the dark glass, from the design tokens (v1.1,
+  /// the dark palette: they are drawn on black): audio `color.dark.info`
+  /// blue, podcast `color.brand.gold`, multi `color.dark.success` green.
+  Color get tint => switch (this) {
+    audio => KPalette.dark.info,
+    podcast => KBrandColors.gold,
+    multi => KPalette.dark.success,
   };
 }
 
-/// D342: a party room's kind on its picture — its icon and short name on
-/// its own colour ([PartyKind.colors]). It never grows with the text size
-/// (the picture has a fixed size; the card's label carries the kind), and
-/// shrinks to fit a narrow cover instead of cutting its name.
+/// D342: a party room's kind on its picture. D342b (owner: «شكل ايقونة
+/// صوتي او بودكاست سيء حاول جعلها احترافية واصغر حجماً»): a small dark
+/// glass chip instead of a saturated block — black 45 % with a 0.5 lp
+/// white 15 % edge, the kind's icon in its colour ([PartyKind.tint]) and a
+/// white 10 sp semibold name (≥ 4.5 : 1 on any picture: the glass is at
+/// least 45 % black over the card's scrim). 18 lp tall in the list and the
+/// grid, at the picture's top start. Decorative: it never grows with the
+/// text size and shrinks to fit a narrow cover instead of cutting its
+/// name; the card's label carries the kind for screen readers.
 class PartyKindBadge extends StatelessWidget {
   const new({required this.kind, super.key});
 
@@ -63,13 +66,16 @@ class PartyKindBadge extends StatelessWidget {
 
   static Key keyOf(PartyKind kind) => Key('partyKind.${kind.name}');
 
-  /// The badge's height (lp).
-  static const double height = 16;
+  /// The chip's height (lp).
+  static const double height = 18;
+
+  /// Its glass and edge.
+  static const Color glass = Color(0x73000000);
+  static const Color edge = Color(0x26FFFFFF);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final (fill, ink) = kind.colors;
     return Semantics(
       label: kind.semanticLabel(l10n),
       excludeSemantics: true,
@@ -80,26 +86,25 @@ class PartyKindBadge extends StatelessWidget {
           alignment: AlignmentDirectional.centerStart,
           child: Container(
             height: height,
-            padding: const EdgeInsetsDirectional.only(start: 4, end: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: BoxDecoration(
-              color: fill,
+              color: glass,
               borderRadius: BorderRadius.circular(KRadius.pill),
-              boxShadow: const [
-                BoxShadow(color: Color(0x40000000), blurRadius: 3),
-              ],
+              border: Border.all(color: edge, width: 0.5),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(kind.icon, size: 11, color: ink),
-                const SizedBox(width: 2),
+                Icon(kind.icon, size: 11, color: kind.tint),
+                const SizedBox(width: 3),
                 Text(
                   kind.label(l10n),
                   maxLines: 1,
                   style: context.textStyles.caption.copyWith(
-                    color: ink,
+                    color: const Color(0xFFFFFFFF),
                     fontSize: 10,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.1,
                     height: 1.1,
                   ),
                 ),

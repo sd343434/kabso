@@ -234,7 +234,10 @@ void main() {
               matching: find.byType(PartyKindBadge),
             ),
           );
-          // On the cover, at the reading start.
+          // On the cover, in its top start corner; D342b: the decorative
+          // chip keeps its 18 lp at text ×1.3.
+          expect(badge.height, lessThanOrEqualTo(PartyKindBadge.height));
+          expect(badge.top - row.top, closeTo(4, 0.5));
           if (language == AppLanguage.ar) {
             expect(badge.right, lessThanOrEqualTo(row.right));
             expect(badge.left, greaterThanOrEqualTo(row.right - 68.6));
@@ -247,6 +250,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.byType(PartyKindBadge), findsWidgets);
+        for (final chip in find.byType(PartyKindBadge).evaluate()) {
+          expect(
+            tester.getSize(find.byWidget(chip.widget)).height,
+            lessThanOrEqualTo(PartyKindBadge.height),
+          );
+        }
         await _close(tester);
       });
     });
