@@ -78,6 +78,7 @@
    <li>الجلسات: اسم الجهاز ونظامه وإصدار التطبيق وعنوان IP ونوع المتصفح/التطبيق.</li>
    <li>رمز الإشعارات للجهاز (عبر Firebase Cloud Messaging من Google) لإرسال الإشعارات التي تختارها.</li>
    <li>معرّفات الجهاز لمنع إساءة الاستخدام: معرّف عشوائي لكل تثبيت للتطبيق (لقواعد الدعوات)، ومعرّف ثابت للجهاز عند إنشاء الحساب فقط (لأن الجهاز الواحد لا يُنشئ أكثر من حسابين). لا يغادر المعرّف الأصلي هاتفك: يرسل التطبيق بصمة مشفّرة منه (تجزئة SHA-256)، ونحفظ نحن تجزئة أخرى منها بمفتاح سرّي لدينا، ولا نستخدمها لأي إعلان أو تتبّع.</li>
+   <li>رمز الدعوة أو رمز المشرف عند إنشاء الحساب: نحفظ من دعاك أو المشرف الذي استقطبك. لنعرف إن كنت شخصاً جديداً (فلا تُحتسب الدعوة أو الاستقطاب لمن كان له حساب سابق) نقارن بصمة الجهاز أعلاه، وبصمة مشفّرة من بريدك (تجزئة بمفتاح سرّي لدينا، لا البريد نفسه). لا نقارن عنوان IP ولا نوع المتصفح لهذا الغرض. عند التثبيت من Google Play عبر رابط دعوة يقرأ التطبيق مرة واحدة الرمز الذي يحمله الرابط من Google Play، ولا يقرأ الحافظة إلا حين تضغط «لصق الرمز».</li>
    <li>سجلات أمنية: تسجيل الدخول، الحدّ من المحاولات المتكررة، وسجل تدقيق لإجراءات الفريق.</li>
    <li>البلاغات والحظر والكتم.</li>
   </ul>
@@ -133,6 +134,7 @@
    <li>الرسائل المباشرة: ٢٤ ساعة (عدا المُبلَّغ عنها). القصص: ٢٤ ساعة للعرض، وتبقى في أرشيفك حتى تحذفها أو تحذف حسابك.</li>
    <li>سجلات الموافقة: ما دام الحساب قائماً، ثم دون عنوان IP ونوع الجهاز حتى نهاية فترة السبع سنوات.</li>
    <li><b>بصمة الجهاز الذي أُنشئ منه الحساب</b> ومعرّف التثبيت المرتبط بالدعوات: تبقى بعد حذف الحساب مع سجلّه المجهول الهوية، حتى لا يُستعمل الحذف لتجاوز حدّ الحسابين لكل جهاز أو قواعد الدعوات.</li>
+   <li><b>بصمة البريد المشفّرة</b> (لقاعدة «الشخص الجديد» في الدعوات والاستقطاب): ما دام الحساب قائماً، ثم سنة واحدة بعد حذفه، ثم تُحذف.</li>
    <li>ملف «تنزيل بياناتي»: يُحذف بعد تنزيله أو بعد ٧ أيام.</li>
    <li><b>قائمة «أبلغني عند الإطلاق»</b>: حتى إرسال رسالة الإطلاق أو حتى تلغي اشتراكك.</li>
   </ul>
@@ -213,6 +215,7 @@
    <li>Sessions: device name, platform, app version, IP address and user agent.</li>
    <li>Your device's push token (Firebase Cloud Messaging by Google), to send the notifications you choose.</li>
    <li>Device identifiers against abuse: a random id for each install of the app (for the invite rules), and a stable device id when an account is created only (one device creates at most two accounts). The original id never leaves your phone: the app sends a one-way hash of it (SHA-256) and we keep a further hash of that under a secret key of ours; we never use it for advertising or tracking.</li>
+   <li>The invite or supervisor code given at sign-up: we keep who invited you or which supervisor brought you. To know whether you are a new person (an invite or a recruit is not counted for someone who had an account before) we compare the device hash above and a keyed hash of your email address (never the address itself). We do not match IP addresses or browser types for this. When the app is installed from Google Play through an invite link, it reads the code the link carries from Google Play once; it reads the clipboard only when you tap “Paste code”.</li>
    <li>Security logs: sign-ins, rate limiting, and an audit trail of our team's actions.</li>
    <li>Reports, blocks and mutes.</li>
   </ul>
@@ -268,6 +271,7 @@
    <li>Direct messages: 24 hours (except reported ones). Stories: shown for 24 hours, kept in your archive until you delete them or your account.</li>
    <li>Consent records: while the account exists, then without the IP address and device type until the end of the 7-year period.</li>
    <li><b>The hash of the device an account was created on</b>, and the install id kept with an invite: kept after the account is deleted, with its anonymised record, so deleting an account cannot be used to get around the two-accounts-per-device limit or the invite rules.</li>
+   <li><b>The keyed hash of your email address</b> (for the “new person” rule of invites and recruitment): while the account exists, then one year after it is deleted, then deleted.</li>
    <li>“Download my data” files: deleted once downloaded, or after 7 days.</li>
    <li><b>The launch waitlist</b>: until the launch email is sent or you unsubscribe.</li>
   </ul>

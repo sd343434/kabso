@@ -28791,6 +28791,114 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عد لاحقًا أو جرّب تبويبًا آخر.'**
   String get livePartyEmptyBody;
+
+  /// D343: the sign-up's collapsed code field.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك رمز دعوة؟'**
+  String get signupCodeToggle;
+
+  /// D343: the sign-up code field's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدعوة أو رمز المشرف (اختياري)'**
+  String get signupCodeLabel;
+
+  /// D343: the sign-up code field's helper.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز صديق دعاك، أو رمز المشرف الذي استقطبك. لا يمكن تغييره بعد التسجيل.'**
+  String get signupCodeHelper;
+
+  /// D343: the button that reads the clipboard (on tap only).
+  ///
+  /// In ar, this message translates to:
+  /// **'لصق الرمز'**
+  String get signupCodePaste;
+
+  /// D343: clears a pre-filled code.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الرمز'**
+  String get signupCodeRemove;
+
+  /// D343: the code came from the Play install referrer.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُضيف تلقائياً من رابط الدعوة. يمكنك إزالته.'**
+  String get signupCodeFromLink;
+
+  /// D343: the live check is running.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التحقق من الرمز…'**
+  String get signupCodeChecking;
+
+  /// D343: the live check found an invite code.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز دعوة من صديق'**
+  String get signupCodeInviteOk;
+
+  /// D343: the live check found a supervisor's staff ID.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز المشرف {code}'**
+  String signupCodeSupervisorOk(String code);
+
+  /// D343: unknown code (live check or the 400 at sign-up).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز غير صحيح. تأكد منه أو اتركه فارغاً.'**
+  String get signupCodeNotFound;
+
+  /// D343: paste found no code.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد رمز في الحافظة'**
+  String get signupCodeClipboardEmpty;
+
+  /// D343: the supervisor's share link card.
+  ///
+  /// In ar, this message translates to:
+  /// **'رابطك الشخصي'**
+  String get staffSignupLinkTitle;
+
+  /// D343: the supervisor's share link card.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسله لمن تستقطبه: يحمّل التطبيق ويُضاف رمزك {code} عند إنشاء حسابه.'**
+  String staffSignupLinkBody(String code);
+
+  /// D343.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ الرابط'**
+  String get staffSignupLinkCopy;
+
+  /// D343.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get staffSignupLinkShare;
+
+  /// D343.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ الرابط'**
+  String get staffSignupLinkCopied;
+
+  /// D343: accounts created with the supervisor's code.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّلوا برمزك: {granted} · لم يُحتسبوا: {withheld}'**
+  String staffSignupCounts(int granted, int withheld);
+
+  /// D343.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يُحتسب من كان له حساب على الجهاز نفسه أو سجّل بالبريد نفسه من قبل.'**
+  String get staffSignupWithheldNote;
 }
 
 class _AppLocalizationsDelegate

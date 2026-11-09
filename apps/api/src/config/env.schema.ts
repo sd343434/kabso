@@ -503,6 +503,8 @@ export const envSchema = z
     RATE_LIMIT_LOGIN_ACCOUNT: rateLimit('20/900'),
     RATE_LIMIT_LOGIN_IP: rateLimit('50/900'),
     RATE_LIMIT_REGISTER_IP: rateLimit('5/3600'),
+    /** v1.108-social (D343): `checkSignupCode` («رمز الدعوة أو رمز المشرف» live check) per IP. */
+    RATE_LIMIT_SIGNUP_CODE_IP: rateLimit('30/600'),
     RATE_LIMIT_FORGOT_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_FORGOT_IP: rateLimit('10/3600'),
     RATE_LIMIT_REFRESH_SESSION: rateLimit('60/900'),
@@ -1537,6 +1539,11 @@ export const envSchema = z
      * An OWNER may raise it for one device in the panel.
      */
     SIGNUP_MAX_ACCOUNTS_PER_DEVICE: intSetting(2, 1, 100),
+    /**
+     * v1.108-social (D343, CONVENTIONS §10.142): days a purged account's mailbox mark (a keyed hash, never the address)
+     * is kept so that signing up again with it earns no invite or recruit credit. Then the referral sweeper deletes it.
+     */
+    SIGNUP_IDENTITY_RETENTION_DAYS: intSetting(365, 30, 2557),
     /**
      * v1.78-social (D223): optional dedicated source of the HMAC key (HKDF, info `signup-device/v1`) under which the
      * device keys are stored. When unset, the key is derived from RATE_LIMIT_KEY_SECRET with that label. Changing the

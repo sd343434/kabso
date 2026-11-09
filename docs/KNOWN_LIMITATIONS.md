@@ -585,3 +585,18 @@
   With many more tiers a scrolling tab strip is a later refinement.
 - The app bar keeps the page's own name «شراء VIP» (the reference's bare «VIP»); the composition otherwise matches.
 - Not verified on a device.
+
+## «رمز الدعوة أو رمز المشرف» and the «new person» rule (v1.108-social draft, D343)
+
+- **The device half needs a device key.** A sign-up from the website or an app older than D223 has no device id, so
+  `DEVICE_HAD_ACCOUNT` cannot apply; a factory reset, erasing an iPhone, a rooted phone or an emulator gives a new id.
+  The mailbox half still runs (alias-folded like D217), but a genuinely different mailbox on a reset phone counts as new.
+  There is deliberately no IP / user-agent matching (owner: privacy).
+- **Accounts older than D343** get their mailbox mark from the referral sweeper (500 per run): until then an alias of
+  such an account is not recognised. A mailbox purged before the migration left no mark (its address was already gone).
+- **Deferred attribution only through Google Play.** The Play Install Referrer carries the code only when the app is
+  installed from the Play listing reached through the link (`config.json` `apps.playListed`); the direct APK and iOS
+  rely on «نسخ الرمز» on the page and «لصق الرمز» in the app (no silent clipboard read, by design). There is no app link
+  (`/i/<code>` does not open an installed app). The Android channel and the library are not built or device-tested here
+  (no Android SDK in this environment).
+- **Agency invite codes are not accepted at sign-up** (they attach an existing host to an agency, D179).

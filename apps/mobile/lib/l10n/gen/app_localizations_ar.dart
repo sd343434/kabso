@@ -17035,4 +17035,67 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get livePartyEmptyBody => 'عد لاحقًا أو جرّب تبويبًا آخر.';
+
+  @override
+  String get signupCodeToggle => 'لديك رمز دعوة؟';
+
+  @override
+  String get signupCodeLabel => 'رمز الدعوة أو رمز المشرف (اختياري)';
+
+  @override
+  String get signupCodeHelper =>
+      'رمز صديق دعاك، أو رمز المشرف الذي استقطبك. لا يمكن تغييره بعد التسجيل.';
+
+  @override
+  String get signupCodePaste => 'لصق الرمز';
+
+  @override
+  String get signupCodeRemove => 'إزالة الرمز';
+
+  @override
+  String get signupCodeFromLink =>
+      'أُضيف تلقائياً من رابط الدعوة. يمكنك إزالته.';
+
+  @override
+  String get signupCodeChecking => 'جارٍ التحقق من الرمز…';
+
+  @override
+  String get signupCodeInviteOk => 'رمز دعوة من صديق';
+
+  @override
+  String signupCodeSupervisorOk(String code) {
+    return 'رمز المشرف $code';
+  }
+
+  @override
+  String get signupCodeNotFound => 'الرمز غير صحيح. تأكد منه أو اتركه فارغاً.';
+
+  @override
+  String get signupCodeClipboardEmpty => 'لا يوجد رمز في الحافظة';
+
+  @override
+  String get staffSignupLinkTitle => 'رابطك الشخصي';
+
+  @override
+  String staffSignupLinkBody(String code) {
+    return 'أرسله لمن تستقطبه: يحمّل التطبيق ويُضاف رمزك $code عند إنشاء حسابه.';
+  }
+
+  @override
+  String get staffSignupLinkCopy => 'نسخ الرابط';
+
+  @override
+  String get staffSignupLinkShare => 'مشاركة';
+
+  @override
+  String get staffSignupLinkCopied => 'تم نسخ الرابط';
+
+  @override
+  String staffSignupCounts(int granted, int withheld) {
+    return 'سجّلوا برمزك: $granted · لم يُحتسبوا: $withheld';
+  }
+
+  @override
+  String get staffSignupWithheldNote =>
+      'لا يُحتسب من كان له حساب على الجهاز نفسه أو سجّل بالبريد نفسه من قبل.';
 }

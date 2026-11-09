@@ -459,6 +459,10 @@ export async function purgeAccountIn(
   // v1.74-social (D217): a referral keeps the install id and the mailbox hash (the one-reward-per-device and alias
   // checks), never the IP.
   await tx.$executeRaw`UPDATE referrals SET invitee_ip = NULL WHERE invitee_user_id = ${u}`;
+  // v1.108-social (D343, §10.142): the mailbox's keyed hash stays SIGNUP_IDENTITY_RETENTION_DAYS from now (signing up
+  // again with it earns no invite or recruit credit), then the referral sweeper deletes it. A supervisor attribution
+  // (`staff_signup_recruits`) stays with the tombstone like the recruitments (no personal data in it).
+  await tx.$executeRaw`UPDATE signup_email_marks SET purged_at = COALESCE(purged_at, ${at}::timestamptz) WHERE user_id = ${u}`;
   // Withdrawals stay for accounting; the payout details keep only their last 4 characters (to match bank records).
   await tx.$executeRaw`
     UPDATE cherry_withdrawals

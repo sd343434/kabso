@@ -95,6 +95,10 @@ const listQuery = z.strictObject({
   recruiter: z.uuid().optional(),
   type: z.enum(RECRUIT_TYPES).optional(),
 });
+const signupsQuery = z.strictObject({
+  recruiter: z.uuid().optional(),
+  status: z.enum(['GRANTED', 'WITHHELD']).optional(),
+});
 const reassignBody = z.strictObject({ recruiter: z.string().trim().min(1).max(64), reason, totpCode });
 const bps = z.number().int().min(0).max(MAX_RECRUIT_BPS);
 const settingsBody = z
@@ -167,6 +171,13 @@ export class AdminRecruitsController {
   @RequireCapability('recruits.view')
   async list(@Query(new ZodValidationPipe(listQuery)) q: z.infer<typeof listQuery>) {
     return { data: await this.recruits.recruits(q.recruiter ?? null, q.type) };
+  }
+
+  /** v1.108-social (D343, §10.142): «التسجيل برمز المشرف» — accounts created with a staff ID, credited or withheld. */
+  @Get('recruits/signups')
+  @RequireCapability('recruits.view')
+  async signups(@Query(new ZodValidationPipe(signupsQuery)) q: z.infer<typeof signupsQuery>) {
+    return { data: await this.recruits.signupRecruits(q) };
   }
 
   /** Per staff member: the recruits by type, the profit they generated and the commissions paid. */

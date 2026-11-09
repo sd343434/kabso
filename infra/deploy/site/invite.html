@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>دعوة إلى Kabso Live</title>
-<meta name="description" content="صديقك يدعوك إلى كابسو لايف. أدخل كود الدعوة عند التسجيل في التطبيق.">
+<meta name="description" content="دعوة إلى كابسو لايف: حمّل التطبيق وأدخل رمز الدعوة أو رمز المشرف عند إنشاء الحساب.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0F0F0F">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kabso Live">
-<meta property="og:title" content="صديقك يدعوك إلى Kabso Live">
+<meta property="og:title" content="دعوة إلى Kabso Live">
 <meta property="og:image" content="https://kabsolive.com/assets/og-image.jpg">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
@@ -23,7 +23,7 @@
 </head>
 <body data-page="invite">
 <!-- v1.74-social (D217, CONVENTIONS §10.71): /i/<code> (Caddy rewrites it here). The code is read from the address by
-     invite.js and only shown; nothing is sent anywhere. -->
+     invite.js and only shown; nothing is sent anywhere (only the store links carry it, when the visitor taps one). -->
 <header>
  <a class="brand" data-internal="/" href="/"><img src="/assets/logo.webp" alt="" width="127" height="160"><span><b>KABSO</b><small>Live &amp; Podcast</small></span></a>
  <div class="hr">
@@ -31,16 +31,37 @@
  </div>
 </header>
 <main>
- <article lang="ar" dir="rtl" data-lang="ar">
-  <h1>صديقك يدعوك إلى كابسو لايف</h1>
-  <p>حمّل التطبيق، وعند التسجيل أدخل كود الدعوة في خانة «كود الدعوة». يمكنك إدخاله لاحقاً من الإعدادات خلال أيام قليلة من تسجيلك.</p>
-  <p class="invite-code" data-invite-box hidden><span>كود الدعوة:</span> <b class="ltr" data-invite-code></b> <button class="chip" type="button" data-invite-copy>نسخ</button> <span class="note" data-invite-copied hidden>تم النسخ</span></p>
-  <p class="note" data-invite-missing hidden>هذا الرابط لا يحمل كود دعوة صالحاً.</p>
+ <!-- v1.108-social (D343, CONVENTIONS §10.142): the same page for a friend's invite code and a supervisor's staff ID
+      («Kabso07»). Download buttons come from config.json `apps`: Google Play carries the code to the app
+      (`&referrer=kabso_code%3D<code>`, read once by the app with the Play Install Referrer API); the direct APK and the
+      App Store cannot, so the page offers «نسخ الرمز» and the app's sign-up offers «لصق الرمز». No tracker, no cookie,
+      no third-party script: the buttons are plain links. -->
+ <article lang="ar" dir="rtl" data-lang="ar" class="invite">
+  <img class="invite-logo" src="/assets/logo.webp" alt="Kabso Live" width="96" height="121">
+  <h1 data-invite-title-friend>صديقك يدعوك إلى كابسو لايف</h1>
+  <h1 data-invite-title-supervisor hidden>مشرف من كابسو لايف يدعوك</h1>
+  <p>حمّل التطبيق وأنشئ حسابك. يُضاف الرمز تلقائياً عند التحميل من Google Play، وإلا فانسخه والصقه في «لديك رمز دعوة؟» عند إنشاء الحساب.</p>
+  <p class="invite-code" data-invite-box hidden><span>الرمز:</span> <b class="ltr" data-invite-code></b> <button class="chip" type="button" data-invite-copy>نسخ الرمز</button> <span class="note-inline" data-invite-copied hidden>تم النسخ</span></p>
+  <div class="stores" data-invite-stores hidden>
+   <a class="store" data-store="play" href="#" hidden>تحميل من Google Play</a>
+   <a class="store" data-store="ios" href="#" hidden>تحميل من App Store</a>
+   <a class="store alt" data-store="apk" href="#" hidden>تحميل ملف التطبيق (Android)</a>
+  </div>
+  <p class="note" data-invite-apk-note hidden>بعد تثبيت ملف التطبيق: افتح Kabso Live، اختر «إنشاء حساب»، ثم «لديك رمز دعوة؟» و«لصق الرمز».</p>
+  <p class="note" data-invite-missing hidden>هذا الرابط لا يحمل رمز دعوة صالحاً.</p>
  </article>
- <article lang="en" dir="ltr" data-lang="en" hidden>
-  <h1>A friend invites you to Kabso Live</h1>
-  <p>Get the app and enter the invite code in “Invite code” when you sign up. You can also enter it later in Settings within a few days of signing up.</p>
-  <p class="invite-code" data-invite-box hidden><span>Invite code:</span> <b class="ltr" data-invite-code></b> <button class="chip" type="button" data-invite-copy>Copy</button> <span class="note" data-invite-copied hidden>Copied</span></p>
+ <article lang="en" dir="ltr" data-lang="en" class="invite" hidden>
+  <img class="invite-logo" src="/assets/logo.webp" alt="Kabso Live" width="96" height="121">
+  <h1 data-invite-title-friend>A friend invites you to Kabso Live</h1>
+  <h1 data-invite-title-supervisor hidden>A Kabso Live supervisor invites you</h1>
+  <p>Get the app and create your account. From Google Play the code is added for you; otherwise copy it and paste it under “Have an invite code?” when you sign up.</p>
+  <p class="invite-code" data-invite-box hidden><span>Code:</span> <b class="ltr" data-invite-code></b> <button class="chip" type="button" data-invite-copy>Copy code</button> <span class="note-inline" data-invite-copied hidden>Copied</span></p>
+  <div class="stores" data-invite-stores hidden>
+   <a class="store" data-store="play" href="#" hidden>Get it on Google Play</a>
+   <a class="store" data-store="ios" href="#" hidden>Download on the App Store</a>
+   <a class="store alt" data-store="apk" href="#" hidden>Download the app file (Android)</a>
+  </div>
+  <p class="note" data-invite-apk-note hidden>After installing the app file: open Kabso Live, choose “Create account”, then “Have an invite code?” and “Paste code”.</p>
   <p class="note" data-invite-missing hidden>This link has no valid invite code.</p>
  </article>
 </main>

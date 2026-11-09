@@ -102,6 +102,14 @@ export async function recruiterOfForm(
   raw: string | null | undefined,
   applicantId: string,
 ): Promise<string | null> {
+  // v1.108-social (D343, §10.142): an account created with a supervisor's staff ID (GRANTED) has that supervisor as its
+  // recruiter for good — the form's field is not read («لا يمكن تغيير الرمز بعد التسجيل») while they can still recruit.
+  const signup = await db.staffSignupRecruit.findUnique({
+    where: { userId: applicantId },
+    select: { status: true, recruiterUserId: true },
+  });
+  if (signup?.status === 'GRANTED' && (await recruiterRoleOf(db, signup.recruiterUserId)) !== null)
+    return signup.recruiterUserId;
   if (raw === undefined || raw === null || raw.trim() === '') return null;
   const found = await findRecruiter(db, raw);
   if (!found) throw AppException.validation([{ field: 'recruiter', issue: 'not_found' }]);

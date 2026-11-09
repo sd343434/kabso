@@ -456,6 +456,19 @@ info:
     «ازل فلاتر بث صوتي بث بوكاست و بث متعدد … ان يكونو بنفس الصف لكن ميز كل واحده بهم»): `listLiveRooms` gains
     `kind=party_all` — `AUDIO`, `PODCAST` and `MULTI` rooms in one list in the tab's own order (popular, new, following,
     nearby / country), one cursor bound to it. Additive; `party` (AUDIO and MULTI) is unchanged. No migration.
+    **D343 (DRAFT v1.108-social)** the sign-up code «رمز الدعوة أو رمز المشرف» and the personal link (CONVENTIONS
+    §10.142; owner 2026-11-09): `RegisterRequest.referralCode` also takes a supervisor's staff ID («Kabso07», an ACTIVE
+    MODERATION or BD staff member, D285) and `register` answers 400 `referralCode` `not_found` for a code nobody can use
+    now (it depends on the code only, never on the email); the public live check `checkSignupCode`
+    (`POST /auth/signup-code/check` → `SignupCodeCheck` {kind INVITE | SUPERVISOR, code}). An account created with a
+    staff ID is attributed to that supervisor (`AdminSignupRecruit`, `SignupCreditStatus`), who becomes the recruiter of
+    its later host / creator / agency / recharge-agent application. Credit only for a new person: the invite reward or
+    the recruit is withheld (`DEVICE_HAD_ACCOUNT`: the app's stable device id had another account — created or signed in
+    on it; `EMAIL_HAD_ACCOUNT`: the mailbox was registered before, kept as a keyed hash
+    SIGNUP_IDENTITY_RETENTION_DAYS after a purge) and the account is created all the same. `StaffRecruitList`
+    `signupCode` / `signupLink` (`<APP_PUBLIC_URL>/i/<staffId>`) / `signups`; panel `listAdminSignupRecruits`. Migration
+    `20270415090000_signup_codes`. Additive, except that an unknown code at sign-up is now a 400 instead of a silent
+    202.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1228,6 +1241,33 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/signup-code/check:
+    post:
+      tags: [auth]
+      operationId: checkSignupCode
+      summary: "(v1.108-social, D343) The sign-up field «رمز الدعوة أو رمز المشرف»: an invite code or a supervisor's staff ID?"
+      description: |
+        CONVENTIONS §10.142. Public. `code`: an invite code (D217), a supervisor's staff ID («Kabso07», `@` optional,
+        any case) or an invite link `…/i/<code>`. 200 `{kind, code}` (the stored form) when someone can use it now —
+        the code of an ACTIVE account (`INVITE`), or an ACTIVE MODERATION or BD staff member (`SUPERVISOR`, D285); 400
+        `VALIDATION_FAILED` `code` `invalid_format` (it can be neither) or `not_found` (anything else — unknown, a
+        closed account, someone who left the team or cannot recruit: never told apart). Nothing about the code's owner
+        is returned. Rate limit `signup_code:ip` (RATE_LIMIT_SIGNUP_CODE_IP, 30 / 10 min).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckSignupCodeRequest' }
+      responses:
+        '200':
+          description: The code can be used.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SignupCodeCheck' }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/register/resend:
     post:
@@ -6826,6 +6866,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AdminRecruitStaffList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/recruits/signups:
+    get:
+      tags: [admin-panel]
+      operationId: listAdminSignupRecruits
+      summary: "(v1.108-social, D343) Accounts created with a supervisor's staff ID — credited or withheld and why (recruits.view; OWNER)"
+      description: "CONVENTIONS §10.142. Newest first, at most 500. `withholdReason`: DEVICE_HAD_ACCOUNT, EMAIL_HAD_ACCOUNT, RECRUITER_INACTIVE."
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: recruiter, in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/SignupCreditStatus' } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminSignupRecruit' }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -21623,7 +21689,7 @@ components:
         status: { $ref: '#/components/schemas/ReferralStatus' }
         source: { type: string, enum: [SIGNUP, LATER] }
         code: { type: string }
-        rejectReason: { type: [string, 'null'], description: "SELF_EMAIL, SELF_DEVICE, SELF_IP, DUPLICATE_DEVICE, DUPLICATE_EMAIL (kept after the team approves or voids)." }
+        rejectReason: { type: [string, 'null'], description: "SELF_EMAIL, SELF_DEVICE, SELF_IP, DUPLICATE_DEVICE, DUPLICATE_EMAIL; v1.108-social (D343) DEVICE_HAD_ACCOUNT, EMAIL_HAD_ACCOUNT — not a new person (kept after the team approves or voids)." }
         voidReason: { type: [string, 'null'], description: "INVITEE_BANNED|DELETED|FLAGGED, INVITER_…, or the team's reason." }
         inviter: { $ref: '#/components/schemas/AdminReferralPerson' }
         invitee: { $ref: '#/components/schemas/AdminReferralPerson' }
@@ -22847,10 +22913,57 @@ components:
       type: object
       required: [counts, data]
       properties:
+        signupCode:
+          type: [string, 'null']
+          description: "v1.108-social (D343, §10.142): the supervisor's staff ID — what a new person types in «رمز الدعوة أو رمز المشرف» (null: none)."
+        signupLink:
+          type: [string, 'null']
+          format: uri
+          description: "v1.108-social (D343): the personal link `<APP_PUBLIC_URL>/i/<staffId>` (the website shows the code and how to get the app; the Android Play link carries it to the app)."
+        signups:
+          type: object
+          required: [granted, withheld]
+          description: "v1.108-social (D343): accounts created with the caller's staff ID — counted, or withheld (not a new person)."
+          properties:
+            granted: { type: integer, minimum: 0 }
+            withheld: { type: integer, minimum: 0 }
         counts: { $ref: '#/components/schemas/StaffRecruitCounts' }
         data:
           type: array
           items: { $ref: '#/components/schemas/StaffRecruit' }
+    CheckSignupCodeRequest:
+      type: object
+      required: [code]
+      additionalProperties: false
+      description: v1.108-social (D343, §10.142).
+      properties:
+        code: { type: string, minLength: 1, maxLength: 200, description: "An invite code, a supervisor's staff ID or an invite link `…/i/<code>`." }
+    SignupCodeCheck:
+      type: object
+      required: [kind, code]
+      additionalProperties: false
+      description: v1.108-social (D343, §10.142). What a sign-up code is; nothing about its owner.
+      properties:
+        kind: { type: string, enum: [INVITE, SUPERVISOR], description: "INVITE: a friend's invite code (D217); SUPERVISOR: a supervisor's staff ID (D285)." }
+        code: { type: string, maxLength: 16, description: "The stored form: the invite code in upper case, or the staff ID «Kabso07»." }
+    SignupCreditStatus:
+      type: string
+      enum: [GRANTED, WITHHELD]
+      description: "v1.108-social (D343): GRANTED — the recruit counts; WITHHELD — not credited, with `withholdReason`."
+    AdminSignupRecruit:
+      type: object
+      required: [user, recruiter, code, status, withholdReason, createdAt]
+      description: v1.108-social (D343, §10.142). One account created with a supervisor's staff ID.
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        recruiter: { $ref: '#/components/schemas/UserSummary' }
+        code: { type: string, description: The staff ID typed at sign-up. }
+        status: { $ref: '#/components/schemas/SignupCreditStatus' }
+        withholdReason:
+          type: [string, 'null']
+          enum: [DEVICE_HAD_ACCOUNT, EMAIL_HAD_ACCOUNT, RECRUITER_INACTIVE, null]
+          description: "WITHHELD only: the device already had a Kabso account; the mailbox was registered before; the supervisor could not recruit any more at the account's creation."
+        createdAt: { type: string, format: date-time }
     StaffEarnings:
       type: object
       required: [wallet, totalCherries, last30DaysCherries, bps, byRecruit, history]
@@ -29032,10 +29145,15 @@ components:
           maxLength: 200
           description: |
             v1.74-social (D217, CONVENTIONS §10.71). An invite code (or invite link `…/i/<code>`) typed at sign-up;
-            spaces and dashes are ignored, letters are read in upper case. Only its format is checked here (400
-            `referralCode` `invalid_format`); the answer stays the same 202 whether the code exists or not. It is
-            applied when the account is created (`registerVerify`): an unknown code, or the programme switched off,
-            creates the account without a referral; a fraud rule records a REJECTED referral (no reward).
+            spaces and dashes are ignored, letters are read in upper case. It is applied when the account is created
+            (`registerVerify`): the programme switched off creates the account without a referral; a fraud rule
+            records a REJECTED referral (no reward). v1.108-social (D343, §10.142): «رمز الدعوة أو رمز المشرف» — also a
+            supervisor's staff ID («Kabso07», `@` optional, any case; an ACTIVE MODERATION or BD staff member): the new
+            account is attributed to that supervisor (`AdminSignupRecruit`). 400 `referralCode` `invalid_format` (it can
+            be neither) or `not_found` (nobody can use it now, as `checkSignupCode`) before the email is looked at; the
+            answer never depends on the email. The credit (invite rewards, the recruit) is withheld when the person is
+            not new — the device had another Kabso account (`DEVICE_HAD_ACCOUNT`) or the mailbox was registered before
+            (`EMAIL_HAD_ACCOUNT`) — and the account is created all the same. Cannot be changed after sign-up.
     DisplayName:
       type: string
       minLength: 1

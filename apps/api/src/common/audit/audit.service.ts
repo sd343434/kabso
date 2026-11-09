@@ -182,6 +182,8 @@ export enum AuditAction {
   // after, reason}, the shares changed {before, after, reason}; the creator programme's applications.
   STAFF_RECRUIT_ATTRIBUTE = 'staff.recruit.attribute',
   STAFF_RECRUIT_SKIP = 'staff.recruit.skip',
+  /** v1.108-social (D343): an account created with a supervisor's staff ID — {recruiter, status, reason}. */
+  STAFF_RECRUIT_SIGNUP = 'staff.recruit.signup',
   STAFF_RECRUIT_REASSIGN = 'staff.recruit.reassign',
   STAFF_RECRUIT_SETTINGS_UPDATE = 'staff.recruit.settings.update',
   CREATOR_APPLICATION_SUBMIT = 'creator.application.submit',

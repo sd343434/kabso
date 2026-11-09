@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerStateListener
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -52,6 +54,18 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        // v1.108-social (D343, CONVENTIONS §10.142): the Play Install Referrer
+        // of this install — the referrer string Google Play kept from the
+        // personal link (`kabso_code=<code>`), or null (installed from another
+        // store, the APK, the service unavailable). Answered once per call;
+        // the app asks once per install and keeps the answer.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kabso/install_referrer")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "read" -> readInstallReferrer(result)
+                    else -> result.notImplemented()
+                }
+            }
         // D223 (CONVENTIONS §10.75): the stable device id for «at most 2
         // accounts created per device». ANDROID_ID is per app-signing key,
         // user and device (Android 8+), survives a reinstall and changes on a
@@ -71,6 +85,42 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** D343: one connection to the Play referrer service; always answers [result] exactly once. */
+    private fun readInstallReferrer(result: MethodChannel.Result) {
+        val client = InstallReferrerClient.newBuilder(this).build()
+        var answered = false
+        fun answer(value: String?) {
+            if (answered) return
+            answered = true
+            runOnUiThread { result.success(value) }
+            try {
+                client.endConnection()
+            } catch (e: Exception) {
+                // already closed
+            }
+        }
+        try {
+            client.startConnection(object : InstallReferrerStateListener {
+                override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                    if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
+                        val referrer = try {
+                            client.installReferrer.installReferrer
+                        } catch (e: Exception) {
+                            null
+                        }
+                        answer(referrer)
+                    } else {
+                        answer(null)
+                    }
+                }
+
+                override fun onInstallReferrerServiceDisconnected() = answer(null)
+            })
+        } catch (e: Exception) {
+            answer(null)
+        }
     }
 
     /** D251: this Activity's window flag, or null when it is going away. */

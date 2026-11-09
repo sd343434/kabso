@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +9,10 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
+import 'package:kabso_live/features/auth/data/signup_code.dart';
 import 'package:kabso_live/features/auth/domain/auth_failures.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
@@ -29,8 +33,15 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const displayNameKey = Key('register.displayName');
   static const passwordKey = Key('register.password');
 
-  /// D217: the optional invite code «كود الدعوة».
+  /// D217: the optional invite code «كود الدعوة»; v1.108-social (D343):
+  /// «رمز الدعوة أو رمز المشرف», collapsed under «لديك رمز دعوة؟» unless
+  /// pre-filled.
   static const referralKey = Key('register.referral');
+  static const referralToggleKey = Key('register.referral.toggle');
+  static const referralPasteKey = Key('register.referral.paste');
+  static const referralRemoveKey = Key('register.referral.remove');
+  static const referralStatusKey = Key('register.referral.status');
+  static const referralFromLinkKey = Key('register.referral.fromLink');
   static const submitKey = Key('register.submit');
   static const usernameStatusKey = Key('register.usernameStatus');
   static const usernameLostKey = Key('register.usernameLost');
@@ -62,10 +73,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _displayName = TextEditingController();
   final _password = TextEditingController();
 
-  /// D217: an invite code from a friend (optional; the app has no deep link
-  /// yet, so it is typed or pasted — a pasted invite link works too).
+  /// D217: an invite code from a friend (optional; typed or pasted — a
+  /// pasted invite link works too). v1.108-social (D343, §10.142): or a
+  /// supervisor's staff ID; pre-filled from the Play install referrer.
   final _referral = TextEditingController();
   String? _referralError;
+
+  /// D343: the code field is shown (opened, or pre-filled).
+  bool _codeOpen = false;
+
+  /// D343: the code came from the invite link (install referrer).
+  bool _codeFromLink = false;
+
+  /// D343: the live check of the code (null: nothing to say).
+  SignupCodeCheck? _codeCheck;
+  bool _codeChecking = false;
+  Timer? _codeTimer;
+  int _codeGeneration = 0;
 
   /// D175 (owner): chosen at sign-up, required; «أفضّل عدم الذكر» is one of
   /// the three choices.
@@ -109,6 +133,97 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     }
     _displayName.addListener(_onDisplayNameChanged);
+    // D343: the invite link's code (Android, Google Play), once per install.
+    unawaited(_prefillFromReferrer());
+  }
+
+  Future<void> _prefillFromReferrer() async {
+    String? code;
+    try {
+      code = await ref.read(pendingSignupCodeProvider.future);
+    } on Object {
+      code = null;
+    }
+    if (!mounted || code == null || _referral.text.isNotEmpty) return;
+    setState(() {
+      _referral.text = code!;
+      _codeOpen = true;
+      _codeFromLink = true;
+    });
+    _scheduleCodeCheck(immediate: true);
+  }
+
+  /// D343: asks the server what the code is, after a pause in typing.
+  void _scheduleCodeCheck({bool immediate = false}) {
+    _codeTimer?.cancel();
+    final generation = ++_codeGeneration;
+    final code = _referral.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _codeCheck = null;
+        _codeChecking = false;
+      });
+      return;
+    }
+    setState(() {
+      _codeCheck = null;
+      _codeChecking = true;
+    });
+    _codeTimer = Timer(
+      immediate ? Duration.zero : ref.read(signupCodeDebounceProvider),
+      () async {
+        SignupCodeCheck? result;
+        try {
+          result = await ref.read(signupCodeRepositoryProvider).check(code);
+        } on Object {
+          // Offline or a server problem: say nothing, the sign-up decides.
+          result = null;
+        }
+        if (!mounted || generation != _codeGeneration) return;
+        setState(() {
+          _codeChecking = false;
+          _codeCheck = result;
+        });
+      },
+    );
+  }
+
+  void _onCodeChanged(String _) {
+    if (_referralError != null) setState(() => _referralError = null);
+    if (_codeFromLink) setState(() => _codeFromLink = false);
+    _scheduleCodeCheck();
+  }
+
+  /// D343: «لصق الرمز» — the clipboard is read only now, on the tap.
+  Future<void> _pasteCode() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted) return;
+    final code = extractSignupCode(data?.text ?? '');
+    if (code == null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(context.l10n.signupCodeClipboardEmpty)),
+      );
+      return;
+    }
+    setState(() {
+      _referral.text = code;
+      _referralError = null;
+      _codeFromLink = false;
+    });
+    _scheduleCodeCheck(immediate: true);
+  }
+
+  void _removeCode() {
+    _codeTimer?.cancel();
+    _codeGeneration++;
+    setState(() {
+      _referral.clear();
+      _referralError = null;
+      _codeFromLink = false;
+      _codeCheck = null;
+      _codeChecking = false;
+    });
+    unawaited(forgetPendingSignupCode(ref.read(sharedPreferencesProvider)));
   }
 
   void _onDisplayNameChanged() => setState(() {});
@@ -126,6 +241,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _displayName.dispose();
     _password.dispose();
     _referral.dispose();
+    _codeTimer?.cancel();
     super.dispose();
   }
 
@@ -251,6 +367,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
     if (!mounted) return;
     if (ok) {
+      // D343: the invite link's code was used; it is not offered again.
+      if (_referral.text.trim().isNotEmpty) {
+        unawaited(forgetPendingSignupCode(ref.read(sharedPreferencesProvider)));
+      }
       // 202: code entry. The draft keeps the form for "Change email".
       // maybeOf: the screen is also hosted without a router (widget tests).
       await GoRouter.maybeOf(context)?.push(AppRoutes.registerCode);
@@ -262,10 +382,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final failure = submission.failure;
     final l10n = context.l10n;
     setState(() {
-      // D217: only the code's format is checked at sign-up.
+      // D343: an unknown or malformed «رمز الدعوة أو رمز المشرف».
       if (failure is ServerFailure &&
           failure.details.any((d) => d.field == 'referralCode')) {
-        _referralError = l10n.errorReferralCodeInvalid;
+        _referralError = l10n.signupCodeNotFound;
+        _codeOpen = true;
+        _codeCheck = null;
       }
       for (final MapEntry(key: field, value: issue)
           in failure.authFieldIssues.entries) {
@@ -309,8 +431,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ? submission.failure
         : null;
 
+    // D343 (owner): a simpler page without Kabi — the wordmark, the title and
+    // the fields (login keeps its own design).
     return AuthScaffold(
-      hero: true,
       showBack: Navigator.canPop(context),
       title: l10n.registerTitle,
       subtitle: l10n.registerSubtitle,
@@ -465,24 +588,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 validator: (v) =>
                     validationMessage(l10n, AuthValidators.password(v)),
               ),
-              const SizedBox(height: KSpacing.lg),
-              KTextField(
-                fieldKey: RegisterScreen.referralKey,
-                controller: _referral,
-                label: l10n.registerReferralLabel,
-                helperText: l10n.registerReferralHelper,
-                textInputAction: TextInputAction.done,
-                textDirection: TextDirection.ltr,
-                maxLength: 200,
-                enabled: !submitting,
-                errorText: _referralError,
-                onChanged: (_) {
-                  if (_referralError != null) {
-                    setState(() => _referralError = null);
-                  }
-                },
-              ),
               const SizedBox(height: KSpacing.md),
+              _SignupCodeSection(
+                open: _codeOpen || _referral.text.isNotEmpty,
+                controller: _referral,
+                enabled: !submitting,
+                fromLink: _codeFromLink,
+                checking: _codeChecking,
+                check: _codeCheck,
+                errorText: _referralError,
+                onOpen: () => setState(() => _codeOpen = true),
+                onChanged: _onCodeChanged,
+                onPaste: _pasteCode,
+                onRemove: _removeCode,
+              ),
+              const SizedBox(height: KSpacing.sm),
               FormField<bool>(
                 key: RegisterScreen.legalKey,
                 initialValue: _legalAccepted,
@@ -523,6 +643,161 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// v1.108-social (D343, §10.142): «رمز الدعوة أو رمز المشرف» — a text
+/// button «لديك رمز دعوة؟» until opened or pre-filled; then the field with
+/// «لصق الرمز» (the clipboard is read on that tap only), the live check and,
+/// for a code from the invite link, a note and «إزالة الرمز».
+class _SignupCodeSection extends StatelessWidget {
+  const new({
+    required this.open,
+    required this.controller,
+    required this.enabled,
+    required this.fromLink,
+    required this.checking,
+    required this.check,
+    required this.errorText,
+    required this.onOpen,
+    required this.onChanged,
+    required this.onPaste,
+    required this.onRemove,
+  });
+
+  final bool open;
+  final TextEditingController controller;
+  final bool enabled;
+  final bool fromLink;
+  final bool checking;
+  final SignupCodeCheck? check;
+  final String? errorText;
+  final VoidCallback onOpen;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onPaste;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    if (!open) {
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          key: RegisterScreen.referralToggleKey,
+          onPressed: enabled ? onOpen : null,
+          icon: const Icon(Icons.card_giftcard_rounded, size: 20),
+          label: Text(l10n.signupCodeToggle),
+        ),
+      );
+    }
+    final check = this.check;
+    final status = errorText != null
+        ? null
+        : checking
+        ? (null, p.textSecondary, l10n.signupCodeChecking)
+        : switch (check) {
+            SignupCodeValid(kind: SignupCodeKind.supervisor, :final code) => (
+              Icons.check_circle_rounded,
+              p.success,
+              l10n.signupCodeSupervisorOk(code),
+            ),
+            SignupCodeValid() => (
+              Icons.check_circle_rounded,
+              p.success,
+              l10n.signupCodeInviteOk,
+            ),
+            SignupCodeNotFound() => (
+              Icons.error_outline_rounded,
+              p.error,
+              l10n.signupCodeNotFound,
+            ),
+            null => null,
+          };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KTextField(
+          fieldKey: RegisterScreen.referralKey,
+          controller: controller,
+          label: l10n.signupCodeLabel,
+          helperText: l10n.signupCodeHelper,
+          textInputAction: TextInputAction.done,
+          textDirection: TextDirection.ltr,
+          maxLength: 200,
+          enabled: enabled,
+          errorText: errorText,
+          onChanged: onChanged,
+          suffix: controller.text.isEmpty
+              ? IconButton(
+                  key: RegisterScreen.referralPasteKey,
+                  tooltip: l10n.signupCodePaste,
+                  onPressed: enabled ? onPaste : null,
+                  icon: const Icon(Icons.content_paste_rounded),
+                )
+              : IconButton(
+                  key: RegisterScreen.referralRemoveKey,
+                  tooltip: l10n.signupCodeRemove,
+                  onPressed: enabled ? onRemove : null,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+          status: status == null
+              ? null
+              : Semantics(
+                  key: RegisterScreen.referralStatusKey,
+                  liveRegion: true,
+                  child: Row(
+                    children: [
+                      if (status.$1 == null)
+                        SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: status.$2,
+                          ),
+                        )
+                      else
+                        Icon(status.$1, size: 16, color: status.$2),
+                      const SizedBox(width: KSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          status.$3,
+                          style: context.textStyles.caption.copyWith(
+                            color: status.$2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+        if (fromLink) ...[
+          const SizedBox(height: KSpacing.xs),
+          Padding(
+            // Aligned with the field's helper and status lines.
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: KSpacing.lg,
+            ),
+            child: Row(
+              key: RegisterScreen.referralFromLinkKey,
+              children: [
+                Icon(Icons.link_rounded, size: 16, color: p.textSecondary),
+                const SizedBox(width: KSpacing.xs),
+                Expanded(
+                  child: Text(
+                    l10n.signupCodeFromLink,
+                    style: context.textStyles.caption.copyWith(
+                      color: p.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

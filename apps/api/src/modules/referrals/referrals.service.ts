@@ -6,6 +6,7 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { ReferralRewardKind, ReferralStatus } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { emailMarkKey, emailMarkOf, sweepSignupMarksIn, type SignupMarkSweep } from './signup-codes.js';
 import {
   attachReferralIn,
   ensureReferralCodeIn,
@@ -223,6 +224,11 @@ export class ReferralsService {
           email: me.email,
           now,
           requestId: meta.requestId,
+          emailMark: emailMarkOf(
+            emailMarkKey(this.config.registration.deviceKey ?? this.config.rateLimitKeySecret),
+            me.email,
+          ),
+          retentionDays: this.config.registration.identityRetentionDays,
         }),
       );
     } catch (err) {
@@ -301,6 +307,20 @@ export class ReferralSweeper implements OnModuleInit, OnModuleDestroy {
     return sweepReferrals(this.prisma, now);
   }
 
+  /**
+   * v1.108-social (D343, §10.142): the mailbox marks — the retention after a purge, and the marks of accounts made
+   * before the migration (500 per run).
+   */
+  sweepSignupMarks(now: Date = this.clock.now()): Promise<SignupMarkSweep> {
+    const r = this.config.registration;
+    return sweepSignupMarksIn(
+      this.prisma,
+      emailMarkKey(r.deviceKey ?? this.config.rateLimitKeySecret),
+      now,
+      r.identityRetentionDays,
+    );
+  }
+
   private schedule(): void {
     this.timer = setTimeout(() => {
       this.inFlight = this.sweep()
@@ -311,6 +331,13 @@ export class ReferralSweeper implements OnModuleInit, OnModuleDestroy {
         })
         .catch((err: unknown) => {
           this.logger.error({ error: safeErrorLog(err) }, 'Referral sweep failed');
+        })
+        .then(() => this.sweepSignupMarks())
+        .then((m) => {
+          if (m && m.backfilled + m.expired > 0) this.logger.log(m, 'Sign-up mailbox marks swept');
+        })
+        .catch((err: unknown) => {
+          this.logger.error({ error: safeErrorLog(err) }, 'Sign-up mailbox mark sweep failed');
         })
         .finally(() => {
           this.inFlight = null;

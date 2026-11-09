@@ -21,6 +21,14 @@ import { hashesEqual } from './tokens.js';
 import { recordRegistrationConsentsIn, type RegistrationConsent } from '../privacy/legal.js';
 import { attachReferralIn } from '../referrals/referral-core.js';
 import {
+  attachSupervisorSignupIn,
+  emailMarkKey,
+  emailMarkOf,
+  parseSignupCode,
+  recordEmailMarkIn,
+  resolveSignupCodeIn,
+} from '../referrals/signup-codes.js';
+import {
   deviceAllowanceIn,
   deviceHashOf,
   deviceHmacKey,
@@ -103,6 +111,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
   private readonly codeKey: Buffer;
   /** v1.78-social (D223): the HMAC key of the stored device keys. */
   private readonly deviceKey: Buffer;
+  /** v1.108-social (D343): the HMAC key of the mailbox marks. */
+  private readonly emailKey: Buffer;
   private cleanupTimer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -131,6 +141,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       ),
     );
     this.deviceKey = deviceHmacKey(config.registration.deviceKey ?? config.rateLimitKeySecret);
+    this.emailKey = emailMarkKey(config.registration.deviceKey ?? config.rateLimitKeySecret);
   }
 
   onModuleInit(): void {
@@ -180,6 +191,13 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         throw deviceLimitError(allowance.max);
       }
     }
+    // v1.108-social (D343, §10.142): «رمز الدعوة أو رمز المشرف» must belong to someone who can use it now (an ACTIVE
+    // inviter, a supervisor who can recruit). The answer depends on the code only, never on the email.
+    if (
+      input.referralCode !== undefined &&
+      (await resolveSignupCodeIn(this.prisma, input.referralCode)) === null
+    )
+      throw AppException.validation([{ field: 'referralCode', issue: 'not_found' }]);
     if (
       containsReservedTerm(
         input.displayName,
@@ -439,11 +457,16 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         // v1.66-social (D198, §10.61.2): the terms, the privacy policy and the 18+ statement accepted at sign-up.
         if (pending.legal_consent) await recordRegistrationConsentsIn(tx, created.id, pending.legal_consent);
         if (deviceHash) await recordDeviceSignupIn(tx, created.id, deviceHash, device.platform ?? null, now);
+        // v1.108-social (D343): the mailbox's keyed hash, for the «not a new person» rule of later sign-ups.
+        await recordEmailMarkIn(tx, created.id, emailMarkOf(this.emailKey, input.email), now);
         const issued = await this.sessions.create(tx, created.id, this.auth.client(device, meta), now);
         return { user: created, session: issued };
       });
-      if (pending.referral_code)
-        await this.attachReferral(user.id, input.email, pending, device.installId, meta, now);
+      if (pending.referral_code) {
+        if (parseSignupCode(pending.referral_code)?.kind === 'SUPERVISOR')
+          await this.attachSupervisor(user.id, input.email, pending.referral_code, meta, now);
+        else await this.attachReferral(user.id, input.email, pending, device.installId, meta, now);
+      }
       return { user: toMeDto(user), tokens: await this.auth.tokenPair(user.id, session) };
     } catch (err) {
       if (err instanceof DeviceLimitReached) {
@@ -500,6 +523,8 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
           email,
           now,
           requestId: meta.requestId,
+          emailMark: emailMarkOf(this.emailKey, email),
+          retentionDays: this.config.registration.identityRetentionDays,
         }),
       );
       if (result.kind !== 'ATTACHED')
@@ -507,6 +532,44 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       this.logger.error({ error: safeErrorLog(err) }, 'Sign-up invite code failed');
     }
+  }
+
+  /**
+   * v1.108-social (D343, §10.142): the supervisor's staff ID typed at sign-up, applied once the account exists, in a
+   * transaction of its own (like the invite code: no attribution problem ever fails a sign-up). The credit is
+   * withheld, with the reason, for a person who is not new (`attachSupervisorSignupIn`).
+   */
+  private async attachSupervisor(
+    userId: string,
+    email: string,
+    code: string,
+    meta: RequestMeta,
+    now: Date,
+  ): Promise<void> {
+    try {
+      const result = await this.prisma.$transaction((tx) =>
+        attachSupervisorSignupIn(tx, {
+          userId,
+          code,
+          emailHash: emailMarkOf(this.emailKey, email),
+          now,
+          retentionDays: this.config.registration.identityRetentionDays,
+          ip: meta.ip,
+          requestId: meta.requestId,
+        }),
+      );
+      if (result.kind !== 'GRANTED')
+        this.logger.log({ result: result.kind }, 'Sign-up supervisor code not credited');
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err) }, 'Sign-up supervisor code failed');
+    }
+  }
+
+  /** v1.108-social (D343): `checkSignupCode` — what a code is, or 400 `code` `not_found`. */
+  async checkSignupCode(code: string): Promise<{ kind: 'INVITE' | 'SUPERVISOR'; code: string }> {
+    const found = await resolveSignupCodeIn(this.prisma, code);
+    if (!found) throw AppException.validation([{ field: 'code', issue: 'not_found' }]);
+    return { kind: found.kind, code: found.code };
   }
 
   /** v1.78-social (D223): the audit row of a sign-up refused for its device (no email, no device hash). */

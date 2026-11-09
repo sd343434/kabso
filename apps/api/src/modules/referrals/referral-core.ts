@@ -11,6 +11,7 @@ import type {
 import { creditReferralCherriesIn, reverseReferralCherriesIn } from '../economy/cherry-ledger.js';
 import { Notifier } from '../notifications/notifier.js';
 import { uuidv7 } from '../levels/uuidv7.js';
+import { emailHadAccountIn, otherAccountsOnDeviceIn } from './signup-codes.js';
 import {
   canonicalEmail,
   firstRechargeCherries,
@@ -186,6 +187,12 @@ export interface AttachInput {
   readonly email: string;
   readonly now: Date;
   readonly requestId?: string | null;
+  /**
+   * v1.108-social (D343): the keyed hash of the invitee's mailbox (`emailMarkOf`) and the marks' retention, for the
+   * «not a new person» rule. Without them (the CLI) only the device half of the rule runs.
+   */
+  readonly emailMark?: string | null;
+  readonly retentionDays?: number;
 }
 
 export type AttachResult =
@@ -212,6 +219,9 @@ export async function attachReferralIn(tx: Tx, input: AttachInput): Promise<Atta
   if (inviterId === input.inviteeUserId) return { kind: 'OWN_CODE' };
   if ((await tx.referral.count({ where: { inviteeUserId: input.inviteeUserId } })) > 0)
     return { kind: 'ALREADY' };
+  // v1.108-social (D343): an account created with a supervisor's staff ID has its attribution already.
+  if ((await tx.staffSignupRecruit.count({ where: { userId: input.inviteeUserId } })) > 0)
+    return { kind: 'ALREADY' };
 
   const now = input.now;
   const email = canonicalEmail(input.email);
@@ -220,6 +230,9 @@ export async function attachReferralIn(tx: Tx, input: AttachInput): Promise<Atta
   const installId = input.installId;
   let reject: ReferralRejectReason | null = null;
   if (canonicalEmail(owner.email) === email) reject = 'SELF_EMAIL';
+  // v1.108-social (D343): the accounts the invitee's stable device id knew (created or signed in on it).
+  const onDevice = await otherAccountsOnDeviceIn(tx, input.inviteeUserId);
+  if (reject === null && onDevice.includes(inviterId)) reject = 'SELF_DEVICE';
   if (reject === null && installId !== null) {
     const own = await tx.session.count({ where: { userId: inviterId, installId } });
     const ownReferral = await tx.referral.count({
@@ -239,6 +252,19 @@ export async function attachReferralIn(tx: Tx, input: AttachInput): Promise<Atta
   if (reject === null && (await tx.referral.count({ where: { inviteeEmailHash: emailHash } })) > 0) {
     reject = 'DUPLICATE_EMAIL';
   }
+  // v1.108-social (D343, §10.142): not a new person.
+  if (reject === null && onDevice.length > 0) reject = 'DEVICE_HAD_ACCOUNT';
+  if (
+    reject === null &&
+    (await emailHadAccountIn(
+      tx,
+      input.inviteeUserId,
+      input.emailMark ?? null,
+      now,
+      input.retentionDays ?? 365,
+    ))
+  )
+    reject = 'EMAIL_HAD_ACCOUNT';
 
   const referralId = uuidv7();
   const holdUntil = new Date(now.getTime() + settings.holdHours * HOUR_MS);
