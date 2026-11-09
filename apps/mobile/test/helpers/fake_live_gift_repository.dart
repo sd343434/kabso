@@ -40,6 +40,10 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   /// codes only) and gifts beyond [codes] (e.g. of a managed category).
   List<Map<String, Object?>>? tabs;
   List<Map<String, Object?>> extraGifts = const [];
+
+  /// v1.89-live (D318): the catalogue's `luckyChatMinMultiplier` (null: an
+  /// older API's, every win has its chat line).
+  int? luckyChatMinMultiplier;
   final Map<String, int> held;
   int coins;
   final bool ar;
@@ -99,6 +103,7 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
         extra: extraGifts,
       ),
       'tabs': ?tabs,
+      'luckyChatMinMultiplier': ?luckyChatMinMultiplier,
     });
   }
 

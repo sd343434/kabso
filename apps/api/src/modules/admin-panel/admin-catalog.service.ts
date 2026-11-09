@@ -32,6 +32,7 @@ import {
 } from '../gifts/gift-categories.js';
 import {
   compareGifts,
+  CUSTOM_CATEGORY,
   GIFT_CATEGORY_CODE_PATTERN,
   GIFT_CODE_PATTERN,
   giftFieldProblems,
@@ -104,6 +105,8 @@ export interface GiftInput {
   animationObjectKey?: string | null | undefined;
   animationAlpha?: 'NONE' | 'SIDE_BY_SIDE' | undefined;
   audioObjectKey?: string | null | undefined;
+  /** v1.100-social (D312): a custom gift's owner — a username (Kabso ID), lower-cased; null removes. */
+  owner?: string | null | undefined;
 }
 
 export interface GiftCategoryInput {
@@ -124,6 +127,7 @@ function given(input: GiftInput): Partial<GiftFields> {
     animationAlpha: _al,
     audioObjectKey: _s,
     badges: _b,
+    owner: _o,
     ...rest
   } = input;
   return Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
@@ -163,7 +167,18 @@ export class AdminCatalogService {
 
   async gifts() {
     const [rows, sends, tabs] = await Promise.all([
-      this.prisma.gift.findMany(),
+      // v1.100-social (D312): with a custom gift's owner.
+      this.prisma.gift.findMany({
+        include: {
+          owner: {
+            select: {
+              id: true,
+              status: true,
+              profile: { select: { username: true, displayName: true, avatarUrl: true } },
+            },
+          },
+        },
+      }),
       this.prisma.liveGift.groupBy({ by: ['giftCode'], _count: true, _sum: { totalCoins: true } }),
       this.prisma.giftCategory.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
     ]);
@@ -221,6 +236,16 @@ export class AdminCatalogService {
           soundKey: g.soundKey,
           soundMs: g.soundMs,
           quipText: g.quipText,
+          // v1.100-social (D312, §10.118): «صاحب الهدية» of a custom gift (null otherwise), and their status now.
+          owner: g.owner?.profile
+            ? {
+                id: g.owner.id,
+                username: g.owner.profile.username,
+                displayName: g.owner.profile.displayName,
+                avatarUrl: g.owner.profile.avatarUrl,
+                status: g.owner.status,
+              }
+            : null,
           enabled: g.enabled,
           sends: used.get(g.code)?._count ?? 0,
           coinsSpent: Number(used.get(g.code)?._sum.totalCoins ?? 0n),
@@ -510,6 +535,8 @@ export class AdminCatalogService {
       soundKey: rest.soundKey ?? null,
       soundMs: rest.soundMs ?? null,
       quipText: rest.quipText ?? null,
+      // v1.100-social (D312): «صاحب الهدية» by Kabso ID (checked: an existing ACTIVE account).
+      ownerUserId: await this.ownerId(rest.owner ?? null),
     };
     const problems = giftFieldProblems(fields);
     if (problems.length > 0) throw refused(problems.join('; '));
@@ -526,7 +553,18 @@ export class AdminCatalogService {
     const { reason, ...rest } = input;
     const now = new Date();
     const badges = panelBadges(rest.badges, now);
-    const fields: Partial<GiftFields> = { ...given(rest), ...(badges !== undefined ? { badges } : {}) };
+    // v1.100-social (D312): a new owner by Kabso ID; a gift moved out of «مُخصَّص» loses its owner.
+    const ownerUserId =
+      rest.owner !== undefined
+        ? await this.ownerId(rest.owner)
+        : rest.category !== undefined && rest.category !== CUSTOM_CATEGORY
+          ? null
+          : undefined;
+    const fields: Partial<GiftFields> = {
+      ...given(rest),
+      ...(badges !== undefined ? { badges } : {}),
+      ...(ownerUserId !== undefined ? { ownerUserId } : {}),
+    };
     const problems = giftFieldProblems(fields);
     if (problems.length > 0) throw refused(problems.join('; '));
     if (rest.imageObjectKey === null)
@@ -537,6 +575,22 @@ export class AdminCatalogService {
     );
     if (changed === null) throw new AppException(ErrorCode.NOT_FOUND);
     return { code, changed };
+  }
+
+  /**
+   * v1.100-social (D312, §10.118): the account a custom gift's «صاحب الهدية» names — by Kabso ID (the username); 409 when
+   * there is none or it is not ACTIVE. Null stays null.
+   */
+  private async ownerId(username: string | null): Promise<string | null> {
+    if (username === null) return null;
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { username },
+      select: { userId: true, user: { select: { status: true } } },
+    });
+    if (!profile) throw refused(`There is no account @${username}.`, 'owner_not_found', 'owner');
+    if (profile.user.status !== 'ACTIVE')
+      throw refused(`@${username} is not an active account.`, 'owner_not_active', 'owner');
+    return profile.userId;
   }
 
   async setGiftEnabled(code: string, enabled: boolean, reason: string, ctx: AdminContext) {

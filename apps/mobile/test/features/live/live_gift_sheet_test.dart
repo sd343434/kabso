@@ -981,4 +981,104 @@ void main() {
       expect(find.byKey(KLiveGiftSheet.luckyOddsKey), findsOneWidget);
     });
   });
+
+  group('D312 custom gifts «مُخصَّص»', () {
+    FakeLiveGiftRepository custom({
+      bool withGift = true,
+    }) => FakeLiveGiftRepository(codes: giftFixtureCodes)
+      ..categories = const ['POPULAR', 'EVENT', 'FUN', 'CUSTOM']
+      ..tabs = [
+        {
+          'code': 'POPULAR',
+          'kind': 'NORMAL',
+          'name': 'Popular',
+          'iconUrl': null,
+        },
+        {'code': 'EVENT', 'kind': 'NORMAL', 'name': 'Events', 'iconUrl': null},
+        {'code': 'FUN', 'kind': 'NORMAL', 'name': 'Fun', 'iconUrl': null},
+        {'code': 'CUSTOM', 'kind': 'CUSTOM', 'name': 'Custom', 'iconUrl': null},
+      ]
+      ..extraGifts = [
+        if (withGift)
+          {
+            ...giftJson('crown', ar: false),
+            'code': 'star',
+            'category': 'CUSTOM',
+            'owner': {
+              'id': 'user-designer',
+              'username': 'designer',
+              'displayName': 'Designer',
+              'avatarUrl': null,
+            },
+          },
+      ];
+
+    test('Gift.owner: read, and null for every other gift', () {
+      final gift = Gift.fromJson({
+        ...giftJson('crown', ar: false),
+        'category': 'CUSTOM',
+        'owner': {
+          'id': 'user-designer',
+          'username': 'designer',
+          'displayName': 'Designer',
+          'avatarUrl': null,
+        },
+      });
+      expect(gift.owner?.displayName, 'Designer');
+      expect(Gift.fromJson(giftJson('crown', ar: false)).owner, isNull);
+      expect(
+        GiftTab.fromJson(const {
+          'code': 'CUSTOM',
+          'kind': 'CUSTOM',
+          'name': 'Custom',
+          'iconUrl': null,
+        }).kind,
+        GiftCategoryKind.custom,
+      );
+    });
+
+    testWidgets("the owner's picture on the tile and the name in the details; "
+        'sent with coins', (tester) async {
+      final h = await _pump(tester, gifts: custom());
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('CUSTOM')));
+      expect(_cell('star'), findsOneWidget);
+      expect(find.byKey(KLiveGiftSheet.giftOwnerKey('star')), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp('Custom gift by .*Designer')),
+        findsOneWidget,
+      );
+      // Other gifts carry no owner.
+      expect(find.byKey(KLiveGiftSheet.giftOwnerKey('crown')), findsNothing);
+      await _tap(tester, _cell('star'));
+      await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+      expect(h.gifts.sends.single.giftCode, 'star');
+      expect(h.gifts.sends.single.source, LiveGiftSource.coins);
+      await pumpGolden(
+        tester,
+        KGiftDetails(
+          gift: Gift.fromJson({
+            ...giftJson('crown', ar: false),
+            'code': 'star',
+            'category': 'CUSTOM',
+            'owner': {
+              'id': 'user-designer',
+              'username': 'designer',
+              'displayName': 'Designer',
+              'avatarUrl': null,
+            },
+          }),
+        ),
+        language: AppLanguage.en,
+      );
+      await tester.pump();
+      expect(find.byKey(KLiveGiftSheet.giftOwnerDetailsKey), findsOneWidget);
+      expect(find.textContaining('Designer'), findsOneWidget);
+    });
+
+    testWidgets('no custom gift: no «مُخصَّص» tab', (tester) async {
+      await _pump(tester, gifts: custom(withGift: false));
+      expect(find.byKey(KLiveGiftSheet.tabKey('CUSTOM')), findsNothing);
+      expect(find.text('Custom'), findsNothing);
+    });
+  });
 }

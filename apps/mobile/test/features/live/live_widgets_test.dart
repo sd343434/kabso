@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/creator_live_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
@@ -33,7 +34,7 @@ void main() {
       );
       expect(
         find.bySemanticsLabel(
-          'Sara, live, 12,345 viewers, Arabic music night, Music',
+          'Sara, live, 12,345 viewers, Arabic music night, LIVE, Music',
         ),
         findsOneWidget,
       );
@@ -87,16 +88,38 @@ void main() {
       expect(badge(KBadgeVariant.live), findsNothing);
     });
 
-    testWidgets('CP-012: the score chip shows once the live has points', (
+    testWidgets('owner 2026-11-08: one type, the viewers, the title only — '
+        'no points, cherries, host row or category on the card', (
       tester,
     ) async {
-      const plain = LiveRoomCardData(
+      const room = LiveRoomCardData(
         hostName: 'Sara',
         title: 'Night',
         viewerCount: 4,
+        score: 12400,
+        categoryName: 'Music',
       );
-      await pumpComponent(tester, card(plain));
+      await pumpComponent(tester, card(room));
       expect(find.byType(KScoreChip), findsNothing);
+      expect(find.byType(KCherryIcon), findsNothing);
+      expect(find.byType(KPointsIcon), findsNothing);
+      expect(find.text('Music'), findsNothing);
+      expect(find.text('Sara'), findsNothing);
+      expect(find.byKey(KLiveCoverCard.titleKey), findsOneWidget);
+      expect(badge(KBadgeVariant.live), findsOneWidget);
+      expect(find.byType(KViewerCountChip), findsOneWidget);
+      // The screen reader still hears the host, the type, the viewers and the
+      // category.
+      expect(
+        find.bySemanticsLabel(
+          RegExp('Sara, live, 4 viewers, Night, LIVE, Music'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('owner 2026-11-08: one type badge per kind; a creator mark; a '
+        'long title in 2 lines; an empty title shows the host', (tester) async {
       await pumpComponent(
         tester,
         card(
@@ -104,63 +127,102 @@ void main() {
             hostName: 'Sara',
             title: 'Night',
             viewerCount: 4,
-            score: 12400,
+            inPk: true,
+            hostIsCreator: true,
           ),
         ),
       );
-      expect(
-        find.descendant(
-          of: find.byType(KScoreChip),
-          matching: find.text('12.4K'),
-        ),
-        findsOneWidget,
-      );
-      expect(find.bySemanticsLabel(RegExp('12.4K points')), findsOneWidget);
-    });
-
-    testWidgets('VG-11: 0 viewers shows "New", 1 viewer shows "1"', (
-      tester,
-    ) async {
-      const room = LiveRoomCardData(hostName: 'a', title: 'b', viewerCount: 0);
-      await pumpComponent(tester, card(room));
-      expect(badge(KBadgeVariant.newRoom), findsOneWidget);
-      expect(find.text('New'), findsOneWidget);
-      expect(find.byType(KViewerCountChip), findsNothing);
-      expect(find.bySemanticsLabel('a, live, New, b'), findsOneWidget);
-
+      expect(badge(KBadgeVariant.pk), findsOneWidget);
+      expect(badge(KBadgeVariant.live), findsNothing);
+      expect(find.byKey(CreatorLiveBadge.iconKey), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Creator')), findsOneWidget);
       await pumpComponent(
         tester,
-        card(const LiveRoomCardData(hostName: 'a', title: 'b', viewerCount: 1)),
+        card(
+          const LiveRoomCardData(
+            hostName: 'Sara',
+            title: 'Night',
+            viewerCount: 4,
+            guestCount: 3,
+          ),
+        ),
       );
-      expect(badge(KBadgeVariant.newRoom), findsNothing);
-      expect(find.text('1'), findsOneWidget);
-
-      await pumpComponent(tester, card(room), language: AppLanguage.ar);
-      expect(find.text('جديد'), findsOneWidget);
+      expect(badge(KBadgeVariant.multiGuest), findsOneWidget);
+      expect(badge(KBadgeVariant.live), findsNothing);
+      expect(find.byKey(CreatorLiveBadge.iconKey), findsNothing);
+      await pumpComponent(
+        tester,
+        card(
+          const LiveRoomCardData(
+            hostName: 'Sara',
+            title: 'Night',
+            viewerCount: 4,
+            isAudio: true,
+          ),
+        ),
+      );
+      expect(find.text('Voice live'), findsNothing);
+      expect(find.byKey(KLiveCoverCard.typeKey), findsOneWidget);
+      expect(badge(KBadgeVariant.live), findsNothing);
+      const long =
+          'A very long live title that goes on and on about the evening '
+          'music and the guests who will join later tonight';
+      await pumpComponent(
+        tester,
+        card(
+          const LiveRoomCardData(hostName: 'Sara', title: long, viewerCount: 4),
+        ),
+      );
+      final title = tester.widget<Text>(find.byKey(KLiveCoverCard.titleKey));
+      expect((title.maxLines, title.overflow), (2, TextOverflow.ellipsis));
+      expect(tester.takeException(), isNull);
+      await pumpComponent(
+        tester,
+        card(
+          const LiveRoomCardData(hostName: 'Sara', title: '  ', viewerCount: 4),
+        ),
+      );
+      expect(
+        tester.widget<Text>(find.byKey(KLiveCoverCard.titleKey)).data,
+        'Sara',
+      );
     });
 
-    testWidgets('PK rooms show the solid PK tag at the top end', (
-      tester,
-    ) async {
+    testWidgets('owner 2026-11-08: the real viewer count, 0 too (no «جديد» '
+        'chip; VG-11: never invented)', (tester) async {
+      const room = LiveRoomCardData(hostName: 'a', title: 'b', viewerCount: 0);
+      await pumpComponent(tester, card(room));
+      expect(badge(KBadgeVariant.newRoom), findsNothing);
+      expect(find.text('New'), findsNothing);
+      expect(find.byType(KViewerCountChip), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('a, live, 0 viewers, b, LIVE'),
+        findsOneWidget,
+      );
+      await pumpComponent(tester, card(room), language: AppLanguage.ar);
+      expect(find.text('جديد'), findsNothing);
+    });
+
+    testWidgets('PK rooms show the solid PK tag as the one type, before '
+        'the viewers', (tester) async {
       await pumpComponent(tester, card(liveRooms(AppLanguage.en)[1]));
       final pk = badge(KBadgeVariant.pk);
       expect(pk, findsOneWidget);
+      expect(badge(KBadgeVariant.live), findsNothing);
       final viewers = find.byType(KViewerCountChip);
-      expect(
-        tester.getCenter(pk).dx,
-        greaterThan(tester.getCenter(viewers).dx),
-      );
-      expect(find.bySemanticsLabel(RegExp(r', PK$')), findsOneWidget);
+      expect(tester.getCenter(pk).dx, lessThan(tester.getCenter(viewers).dx));
+      expect(find.bySemanticsLabel(RegExp(r', PK($|, )')), findsOneWidget);
 
       await pumpComponent(
         tester,
         card(liveRooms(AppLanguage.ar)[1]),
         language: AppLanguage.ar,
       );
-      // RTL: the mode tag is at the top-left, the viewer chip top-right.
+      // RTL: the type at the top-right, the viewers after it (to its left).
       expect(
         tester.getCenter(badge(KBadgeVariant.pk)).dx,
-        lessThan(tester.getCenter(find.byType(KViewerCountChip)).dx),
+        greaterThan(tester.getCenter(find.byType(KViewerCountChip)).dx),
       );
     });
 
@@ -208,8 +270,8 @@ void main() {
       expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
     });
 
-    testWidgets('D39: a card with a cover shows a small host avatar and '
-        'the host name', (tester) async {
+    testWidgets('owner 2026-11-08: a card with a cover shows no host avatar '
+        'or name (the title only; the host is announced)', (tester) async {
       final room = LiveRoomCardData(
         hostName: 'Sara',
         title: 't',
@@ -218,10 +280,9 @@ void main() {
       );
       await pumpComponent(tester, card(room));
       await precacheImages(tester);
-      final avatar = tester.widget<KAvatar>(find.byType(KAvatar));
-      expect(avatar.size, KSizes.avatarSm);
-      expect(avatar.name, 'Sara');
-      expect(find.text('Sara'), findsOneWidget);
+      expect(find.byType(KAvatar), findsNothing);
+      expect(find.text('Sara'), findsNothing);
+      expect(find.bySemanticsLabel(RegExp('^Sara, live')), findsOneWidget);
     });
 
     testWidgets('VG-44: press scales to 0.98, instant with reduce motion', (

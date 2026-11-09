@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_host_controller.dart'
+    show liveConfigProvider;
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -17,6 +20,7 @@ abstract final class LiveRankingsKeys {
   static const countdown = Key('rankings.countdown');
   static const me = Key('rankings.me');
   static Key period(LiveRankingPeriod p) => Key('rankings.period.${p.name}');
+  static Key tab(LiveRankingBoard b) => Key('rankings.tab.${b.name}');
   static Key entry(String hostId) => Key('rankings.entry.$hostId');
 }
 
@@ -84,9 +88,12 @@ class LiveRankChip extends StatelessWidget {
 
 /// The popularity board (CP-016 A, owner ref 74, measured at 430 pt): a
 /// white sheet, the board tab (Rich waits for L3, greyed "Soon"), This hour /
-/// Today / This week, the countdown to the window's end, the top three on a
-/// podium, the rest as rows, and — for a host — their own row pinned at the
-/// bottom. One region for everyone (owner D99).
+/// Today / This week / This month / This year (D314), the countdown to the
+/// window's end, the top three on a podium, the rest as rows, and — for a
+/// host — their own row pinned at the bottom. One region for everyone (owner
+/// D99). D315: a third tab «مجنون اللعب» (players by the game tickets they
+/// spent) shows only while `LiveConfig.gamesEnabled` — never an empty or
+/// "Soon" tab.
 Future<void> showLiveRankings(BuildContext context) =>
     showModalBottomSheet<void>(
       context: context,
@@ -113,7 +120,23 @@ class _RankingsSheet extends ConsumerStatefulWidget {
 
 class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
   LiveRankingPeriod _period = LiveRankingPeriod.hour;
+  LiveRankingBoard _board = LiveRankingBoard.popularity;
   Timer? _tick;
+
+  bool get _gamesEnabled =>
+      ref.watch(liveConfigProvider).value?.gamesEnabled ?? false;
+
+  /// The board on screen: the games board only while games are on.
+  LiveRankingBoard get _shown =>
+      _board == LiveRankingBoard.games && !_gamesEnabled
+      ? LiveRankingBoard.popularity
+      : _board;
+
+  FutureProvider<LiveRankings> _provider(LiveRankingBoard b) => switch (b) {
+    LiveRankingBoard.games => liveGameRankingsProvider(_period),
+    LiveRankingBoard.rich => liveRichRankingsProvider(_period),
+    LiveRankingBoard.popularity => liveRankingsProvider(_period),
+  };
 
   @override
   void initState() {
@@ -121,9 +144,10 @@ class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
     // The countdown moves each 20 s; at the window's end the board reloads.
     _tick = Timer.periodic(const Duration(seconds: 20), (_) {
       if (!mounted) return;
-      final board = ref.read(liveRankingsProvider(_period)).value;
+      final provider = _provider(_shown);
+      final board = ref.read(provider).value;
       if (board != null && !DateTime.now().isBefore(board.endsAt)) {
-        ref.invalidate(liveRankingsProvider(_period));
+        ref.invalidate(provider);
       }
       setState(() {});
     });
@@ -150,9 +174,45 @@ class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    final board = ref.watch(liveRankingsProvider(_period));
+    final shown = _shown;
+    final board = ref.watch(_provider(shown));
     final me = ref.watch(currentUserProvider);
     final tabStyle = text.title.copyWith(fontSize: 18, height: 1.2);
+    Widget tab(LiveRankingBoard b, String label) {
+      final selected = b == shown;
+      return Semantics(
+        key: LiveRankingsKeys.tab(b),
+        header: selected,
+        button: true,
+        selected: selected,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _board = b),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: tabStyle.copyWith(
+                  color: selected ? _Ink.text : _Ink.soft,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: 8,
+                height: 3.3,
+                decoration: BoxDecoration(
+                  color: selected ? _Ink.text : const Color(0x00000000),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       key: LiveRankingsKeys.sheet,
       height: MediaQuery.sizeOf(context).height * 0.75,
@@ -168,59 +228,29 @@ class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
             padding: const EdgeInsetsDirectional.fromSTEB(21, 14, 6, 0),
             child: Row(
               children: [
-                Column(
-                  children: [
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        l10n.liveRankTitle,
-                        style: tabStyle.copyWith(
-                          color: _Ink.text,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      width: 8,
-                      height: 3.3,
-                      decoration: BoxDecoration(
-                        color: _Ink.text,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 28),
-                // Rich (spenders) waits for coins (L3).
-                Semantics(
-                  label: '${l10n.liveRankRich}, ${l10n.liveSoon}',
-                  excludeSemantics: true,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 7),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: l10n.liveRankRich,
-                            style: tabStyle.copyWith(
-                              color: _Ink.soft.withValues(alpha: 0.6),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          TextSpan(
-                            text: ' ${l10n.liveSoon}',
-                            style: text.caption.copyWith(
-                              color: _Ink.soft,
-                              fontSize: 11,
-                            ),
-                          ),
+                // Three tabs (D315) shrink to fit rather than clip (360 pt,
+                // Arabic, large text); two keep the measured 18 pt.
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        tab(LiveRankingBoard.popularity, l10n.liveRankTitle),
+                        SizedBox(width: _gamesEnabled ? 22 : 28),
+                        // D320 (owner): «الأغنى» — users by the coins they
+                        // sent as gifts (was a greyed "Soon").
+                        tab(LiveRankingBoard.rich, l10n.liveRankRich),
+                        // D315: «مجنون اللعب», only while a game is on.
+                        if (_gamesEnabled) ...[
+                          const SizedBox(width: 22),
+                          tab(LiveRankingBoard.games, l10n.liveRankGames),
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
-                const Spacer(),
                 IconButton(
                   tooltip: l10n.liveClose,
                   onPressed: () => Navigator.of(context).maybePop(),
@@ -234,23 +264,28 @@ class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
             ),
           ),
           const SizedBox(height: 10),
-          // This hour · Today · This week: pills 26 pt tall on #F5F7FB.
-          Padding(
+          // This hour · Today · This week · This month · This year (D314):
+          // pills 26 pt tall on #F5F7FB, scrolling sideways when they do not
+          // fit (360 pt, large text).
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsetsDirectional.symmetric(horizontal: 16),
             child: Row(
               children: [
                 for (final p in LiveRankingPeriod.values) ...[
+                  if (p != LiveRankingPeriod.hour) const SizedBox(width: 8),
                   _PeriodPill(
                     key: LiveRankingsKeys.period(p),
                     label: switch (p) {
                       LiveRankingPeriod.hour => l10n.liveRankHour,
                       LiveRankingPeriod.day => l10n.liveRankDay,
                       LiveRankingPeriod.week => l10n.liveRankWeek,
+                      LiveRankingPeriod.month => l10n.liveRankMonth,
+                      LiveRankingPeriod.year => l10n.liveRankYear,
                     },
                     selected: p == _period,
                     onTap: () => setState(() => _period = p),
                   ),
-                  const SizedBox(width: 12),
                 ],
               ],
             ),
@@ -268,16 +303,21 @@ class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
           Expanded(
             child: switch (board) {
               AsyncData(:final value) when value.entries.isEmpty => Center(
-                child: Text(
-                  l10n.liveRankEmpty,
-                  style: text.body.copyWith(color: _Ink.soft),
-                ),
+                child: Text(switch (shown) {
+                  LiveRankingBoard.games => l10n.liveRankGamesEmpty,
+                  LiveRankingBoard.rich => l10n.liveRankRichEmpty,
+                  LiveRankingBoard.popularity => l10n.liveRankEmpty,
+                }, style: text.body.copyWith(color: _Ink.soft)),
               ),
               AsyncData(:final value) => ListView(
                 padding: const EdgeInsets.only(bottom: 12),
                 children: [
-                  _Podium(entries: value.entries.take(3).toList()),
-                  for (final e in value.entries.skip(3)) _Row.of(e, context),
+                  _Podium(
+                    entries: value.entries.take(3).toList(),
+                    board: shown,
+                  ),
+                  for (final e in value.entries.skip(3))
+                    _Row.of(e, context, board: shown),
                 ],
               ),
               AsyncError(:final error) => Center(
@@ -299,6 +339,7 @@ class _RankingsSheetState extends ConsumerState<_RankingsSheet> {
               points: b.myPoints,
               name: me.displayName,
               url: me.liveCoverUrl ?? me.avatarUrl,
+              board: shown,
             ),
         ],
       ),
@@ -323,7 +364,15 @@ class _PeriodPill extends StatelessWidget {
     button: true,
     selected: selected,
     child: GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        onTap();
+        // D314: five pills scroll sideways; bring the chosen one into view.
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 200),
+        );
+      },
       child: Container(
         height: 26,
         padding: const EdgeInsets.symmetric(horizontal: 12.6),
@@ -434,17 +483,44 @@ class _Picture extends StatelessWidget {
   }
 }
 
+/// The [amount] of points, or — on «مجنون اللعب» (D315) — of game tickets,
+/// or — on «الأغنى» (D320) — of coins sent (D182 art beside each).
+String _amountLabel(
+  BuildContext context,
+  int amount, {
+  required LiveRankingBoard board,
+}) => switch (board) {
+  LiveRankingBoard.games => context.l10n.liveRankTickets(
+    KFormat.grouped(amount),
+  ),
+  LiveRankingBoard.rich => context.l10n.liveRankCoins(KFormat.grouped(amount)),
+  LiveRankingBoard.popularity => context.l10n.liveScore(
+    amount,
+    KFormat.grouped(amount),
+  ),
+};
+
 class _Points extends StatelessWidget {
-  const new({required this.points, this.size = 15});
+  const new({
+    required this.points,
+    this.size = 15,
+    this.board = LiveRankingBoard.popularity,
+  });
 
   final int points;
   final double size;
+  final LiveRankingBoard board;
 
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      KPointsIcon(size: size + 1),
+      switch (board) {
+        LiveRankingBoard.games => KabsoArtIcon(KabsoArt.ticket, size: size + 3),
+        // D320 (owner: «والأيقونة التي بجانب أرقامهم كوينز»).
+        LiveRankingBoard.rich => KabsoArtIcon(KabsoArt.coin, size: size + 2),
+        LiveRankingBoard.popularity => KPointsIcon(size: size + 1),
+      },
       const SizedBox(width: 2),
       Text(
         KFormat.compact(points, context.l10n),
@@ -535,9 +611,10 @@ class _FramedPicture extends StatelessWidget {
 }
 
 class _Podium extends StatelessWidget {
-  const new({required this.entries});
+  const new({required this.entries, this.board = LiveRankingBoard.popularity});
 
   final List<LiveRankingEntry> entries;
+  final LiveRankingBoard board;
 
   @override
   Widget build(BuildContext context) {
@@ -551,7 +628,7 @@ class _Podium extends StatelessWidget {
               label: context.l10n.liveRankRow(
                 e.rank,
                 e.host.displayName,
-                context.l10n.liveScore(e.points, KFormat.grouped(e.points)),
+                _amountLabel(context, e.points, board: board),
               ),
               excludeSemantics: true,
               child: Container(
@@ -583,7 +660,7 @@ class _Podium extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    _Points(points: e.points, size: 14),
+                    _Points(points: e.points, size: 14, board: board),
                   ],
                 ),
               ),
@@ -613,28 +690,34 @@ class _Row extends StatelessWidget {
     required this.picture,
     required this.points,
     required this.semantics,
+    this.board = LiveRankingBoard.popularity,
     super.key,
   });
 
-  new of(LiveRankingEntry e, BuildContext context)
-    : this(
-        key: LiveRankingsKeys.entry(e.host.id),
-        rankLabel: '${e.rank}',
-        name: e.host.displayName,
-        picture: _Picture.of(e, size: 44),
-        points: e.points,
-        semantics: context.l10n.liveRankRow(
-          e.rank,
-          e.host.displayName,
-          context.l10n.liveScore(e.points, KFormat.grouped(e.points)),
-        ),
-      );
+  new of(
+    LiveRankingEntry e,
+    BuildContext context, {
+    LiveRankingBoard board = LiveRankingBoard.popularity,
+  }) : this(
+         key: LiveRankingsKeys.entry(e.host.id),
+         rankLabel: '${e.rank}',
+         name: e.host.displayName,
+         picture: _Picture.of(e, size: 44),
+         points: e.points,
+         board: board,
+         semantics: context.l10n.liveRankRow(
+           e.rank,
+           e.host.displayName,
+           _amountLabel(context, e.points, board: board),
+         ),
+       );
 
   final String rankLabel;
   final String name;
   final Widget picture;
   final int points;
   final String semantics;
+  final LiveRankingBoard board;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -671,7 +754,7 @@ class _Row extends StatelessWidget {
                 ),
               ),
             ),
-            _Points(points: points),
+            _Points(points: points, board: board),
           ],
         ),
       ),
@@ -679,19 +762,22 @@ class _Row extends StatelessWidget {
   );
 }
 
-/// The caller's own row (a host), pinned under the list.
+/// The caller's own row (a host; on «مجنون اللعب» any signed-in player),
+/// pinned under the list.
 class _MeRow extends StatelessWidget {
   const new({
     required this.rank,
     required this.points,
     required this.name,
     required this.url,
+    this.board = LiveRankingBoard.popularity,
   });
 
   final int? rank;
   final int points;
   final String name;
   final String? url;
+  final LiveRankingBoard board;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -714,10 +800,11 @@ class _MeRow extends StatelessWidget {
         name: name,
         picture: _Picture(name: name, url: url, isLive: false, size: 44),
         points: points,
+        board: board,
         semantics: context.l10n.liveRankRow(
           rank ?? 0,
           name,
-          context.l10n.liveScore(points, KFormat.grouped(points)),
+          _amountLabel(context, points, board: board),
         ),
       ),
     ),

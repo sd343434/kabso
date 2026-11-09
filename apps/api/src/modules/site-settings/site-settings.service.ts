@@ -14,7 +14,10 @@ import {
 } from './camera-fx.rules.js';
 import {
   GLOBAL_STRIPS_SETTING_KEY,
+  globalStripsDefaultsOf,
+  luckyMultipliersOf,
   readGlobalStrips,
+  type AdminGlobalStripsDto,
   type GlobalStripsSettingsDto,
   type UpdateGlobalStripsInput,
 } from './global-strips.rules.js';
@@ -203,17 +206,19 @@ export class SiteSettingsService {
 
   /** D305: the server's configuration — the thresholds when the OWNER has set none. */
   get globalStripsDefaults(): GlobalStripsSettingsDto {
-    return {
-      giftMinCoins: this.config.live.giftTickerMinCoins,
-      gameMinTickets: this.config.live.gameWinTickerMinTickets,
-    };
+    return globalStripsDefaultsOf(this.config);
+  }
+
+  /** D318: [value] with the lucky multipliers the chat threshold may be (the panel's choice list). */
+  withLuckyMultipliers(value: GlobalStripsSettingsDto): AdminGlobalStripsDto {
+    return { ...value, luckyMultipliers: [...luckyMultipliersOf(this.config)] };
   }
 
   /** D305: the global strips' thresholds (the gift's unit price, the prize in tickets). */
   async getGlobalStrips(
     db: Pick<Prisma.TransactionClient, 'siteSetting'> = this.prisma,
   ): Promise<GlobalStripsSettingsDto> {
-    return readGlobalStrips(db, this.globalStripsDefaults);
+    return readGlobalStrips(db, this.globalStripsDefaults, luckyMultipliersOf(this.config));
   }
 
   /**
@@ -225,14 +230,26 @@ export class SiteSettingsService {
     input: UpdateGlobalStripsInput,
     actor: SiteSettingsActor,
   ): Promise<GlobalStripsSettingsDto> {
+    // v1.89-live (D318): the chat threshold is one of the lucky multipliers.
+    if (
+      input.luckyChatMinMultiplier !== undefined &&
+      !luckyMultipliersOf(this.config).includes(input.luckyChatMinMultiplier)
+    ) {
+      throw AppException.validation([{ field: 'luckyChatMinMultiplier', issue: 'invalid_value' }]);
+    }
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('site_settings'))`;
       const before = await this.getGlobalStrips(tx);
       const after: GlobalStripsSettingsDto = {
         giftMinCoins: input.giftMinCoins,
         gameMinTickets: input.gameMinTickets,
+        luckyChatMinMultiplier: input.luckyChatMinMultiplier ?? before.luckyChatMinMultiplier,
       };
-      const value = { giftMinCoins: after.giftMinCoins, gameMinTickets: after.gameMinTickets };
+      const value = {
+        giftMinCoins: after.giftMinCoins,
+        gameMinTickets: after.gameMinTickets,
+        luckyChatMinMultiplier: after.luckyChatMinMultiplier,
+      };
       await tx.siteSetting.upsert({
         where: { key: GLOBAL_STRIPS_SETTING_KEY },
         create: { key: GLOBAL_STRIPS_SETTING_KEY, value, updatedById: actor.userId },

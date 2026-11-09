@@ -1,5 +1,6 @@
 import type { CherryLedgerReason, Prisma } from '../../generated/prisma/client.js';
 import { uuidv7 } from '../levels/uuidv7.js';
+import { reverseRoyaltyIn } from '../wallet/wallet-ledger.js';
 import {
   agencyCommissionPaid,
   agencyRateBps,
@@ -14,6 +15,7 @@ import {
   type EconomyRules,
   type TaskCherryLock,
 } from './economy-math.js';
+import { takeBackGiftCoinsSentIn } from '../live/gift-coins-sent.js';
 
 /**
  * The cherry ledger (v1.52-social, D179, CONVENTIONS §10.46): every change of a cherry balance is a
@@ -243,6 +245,8 @@ export interface GiftReversal {
   readonly reversed: boolean;
   readonly rows: number;
   readonly cherries: bigint;
+  /** v1.100-social (D312): the custom gift owner's coins taken back with the send (0: none). */
+  readonly royaltyCoins: bigint;
 }
 
 /**
@@ -250,7 +254,8 @@ export interface GiftReversal {
  * — the recipients' `GIFT_RECEIVED` and the agencies' commissions — as `GIFT_REVERSAL`,
  * `AGENCY_COMMISSION_REVERSAL`, `PARENT_COMMISSION_REVERSAL` rows, marks the agency rows reversed and takes
  * them out of the agencies' month totals. A balance may go below 0 (cherries already withdrawn: a debt).
- * Once only: a second call changes nothing. The sender's coins and points are not touched.
+ * Once only: a second call changes nothing. The sender's coins and points are not touched; v1.100-social (D312) a custom
+ * gift owner's coin share of the send is taken back (`GIFT_OWNER_ROYALTY_REVERSAL`).
  */
 export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): Promise<GiftReversal> {
   const credits = await tx.cherryLedgerEntry.findMany({
@@ -267,7 +272,7 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
       reason: { in: ['GIFT_REVERSAL', 'AGENCY_COMMISSION_REVERSAL', 'PARENT_COMMISSION_REVERSAL'] },
     },
   });
-  if (credits.length === 0 || done > 0) return { reversed: false, rows: 0, cherries: 0n };
+  if (credits.length === 0 || done > 0) return { reversed: false, rows: 0, cherries: 0n, royaltyCoins: 0n };
   // v1.63-live (D259, §10.95): a live send's reversed host credit leaves the live's host cherries too (never
   // below 0), so the host pill keeps showing what the balance holds from this live.
   const [live] = await tx.$queryRaw<{ room_id: string; host_user_id: string }[]>`
@@ -275,6 +280,16 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
       FROM live_gifts g JOIN live_rooms r ON r.id = g.room_id
      WHERE g.id = ${giftId}::uuid`;
   if (live) {
+    // v1.86-live (D310, §10.116): the reversed credits of every recipient (host and seated guests) leave the room's
+    // cherries too (never below 0). The room row first, then its score row — a send's own lock order (it locks the
+    // room, then writes the score), so a reversal and a send in the same room never wait on each other in a cycle.
+    const roomCredit = credits
+      .filter((c) => c.reason === 'GIFT_RECEIVED')
+      .reduce((sum, c) => sum + c.delta, 0n);
+    if (roomCredit > 0n) {
+      await tx.$executeRaw`
+        UPDATE live_rooms SET cherries = GREATEST(cherries - ${roomCredit}, 0) WHERE id = ${live.room_id}::uuid`;
+    }
     const hostCredit = credits
       .filter((c) => c.reason === 'GIFT_RECEIVED' && c.userId === live.host_user_id)
       .reduce((sum, c) => sum + c.delta, 0n);
@@ -282,6 +297,23 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
       await tx.$executeRaw`
         UPDATE live_room_scores SET host_cherries = GREATEST(host_cherries - ${hostCredit}, 0)
          WHERE room_id = ${live.room_id}::uuid`;
+    }
+  }
+  // v1.100-social (D312, §10.118): a custom gift's owner share (coins) is taken back with the send — once (the reversal
+  // row's reference is the send), even when already spent (the balance may go below 0: a debt). Before the agency and
+  // cherry rows, as a send writes them (the coin wallets, then the agency months, then the cherry wallets).
+  let royaltyCoins = 0n;
+  const royalty = await tx.walletLedgerEntry.findFirst({
+    where: { reason: 'GIFT_OWNER_ROYALTY', referenceId: giftId },
+    select: { userId: true, delta: true },
+  });
+  if (royalty && royalty.delta > 0n) {
+    const back = await tx.walletLedgerEntry.count({
+      where: { reason: 'GIFT_OWNER_ROYALTY_REVERSAL', referenceId: giftId },
+    });
+    if (back === 0) {
+      await reverseRoyaltyIn(tx, royalty.userId, royalty.delta, giftId);
+      royaltyCoins = royalty.delta;
     }
   }
   const earnings = await tx.$queryRaw<
@@ -345,7 +377,16 @@ export async function reverseGiftCherriesIn(tx: Tx, giftId: string, now: Date): 
     .filter((c) => c.reason === 'GIFT_RECEIVED' || !forfeited.has(c.userId))
     .map((c) => ({ userId: c.userId, reason: MIRROR[c.reason]!, delta: -c.delta }));
   await applyMovementsIn(tx, movements, giftId, now);
-  return { reversed: true, rows: movements.length, cherries: credits.reduce((s, c) => s + c.delta, 0n) };
+  // v1.90-live (D320, §10.124): the send leaves «الأغنى» — its coins off the sender's hour and month of the send.
+  const [sent] = await tx.$queryRaw<{ sender_id: string; total_coins: bigint; created_at: Date }[]>`
+    SELECT sender_id::text AS sender_id, total_coins, created_at FROM live_gifts WHERE id = ${giftId}::uuid`;
+  if (sent) await takeBackGiftCoinsSentIn(tx, sent.sender_id, sent.total_coins, sent.created_at);
+  return {
+    reversed: true,
+    rows: movements.length,
+    cherries: credits.reduce((s, c) => s + c.delta, 0n),
+    royaltyCoins,
+  };
 }
 
 /**

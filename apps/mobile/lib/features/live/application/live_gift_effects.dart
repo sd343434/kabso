@@ -188,8 +188,16 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// waiting, and a win no bigger than any of a full queue is dropped.
   void _queueLucky(LuckyWin win) {
     if (!_seen.add('lucky:${win.giftId}')) return;
-    // D178: its chat line, for everyone in the room.
-    _chat((chat) => chat.addLuckyWin(win));
+    // D178: its chat line, for everyone in the room — v1.89-live (D318,
+    // owner «لا يظهر في التكست إلا المكسب x250 وx500 وx1000») only from the
+    // catalogue's `luckyChatMinMultiplier`; a smaller win keeps its banner.
+    final chatFrom = ref
+        .read(giftCatalogueProvider)
+        .value
+        ?.luckyChatMinMultiplier;
+    if (chatFrom == null || win.multiplier >= chatFrom) {
+      _chat((chat) => chat.addLuckyWin(win));
+    }
     if (state.lucky == null) {
       _setLucky(win);
       return;

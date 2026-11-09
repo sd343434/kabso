@@ -6,7 +6,12 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { REDIS } from '../../redis/redis.module.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
-import { readGlobalStrips, type GlobalStripsSettingsDto } from '../site-settings/global-strips.rules.js';
+import {
+  globalStripsDefaultsOf,
+  luckyMultipliersOf,
+  readGlobalStrips,
+  type GlobalStripsSettingsDto,
+} from '../site-settings/global-strips.rules.js';
 import { LIVE_GIFT_TOPIC } from './live-gifts.js';
 import type { UserSummaryDto } from './live-rooms.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
@@ -180,10 +185,11 @@ export class LiveGiftTickerService implements OnModuleDestroy {
   async thresholds(): Promise<GlobalStripsSettingsDto> {
     const now = Date.now();
     if (this.cached && now - this.cached.at < GLOBAL_STRIPS_CACHE_MS) return this.cached.value;
-    const value = await readGlobalStrips(this.prisma, {
-      giftMinCoins: this.config.live.giftTickerMinCoins,
-      gameMinTickets: this.config.live.gameWinTickerMinTickets,
-    });
+    const value = await readGlobalStrips(
+      this.prisma,
+      globalStripsDefaultsOf(this.config),
+      luckyMultipliersOf(this.config),
+    );
     this.cached = { at: now, value };
     return value;
   }

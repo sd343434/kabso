@@ -205,7 +205,8 @@ describe('CP-016 A the popularity board (UTC)', () => {
     expect((await board('HOUR', fan)).data.map((e) => e.host.id)).toEqual([a.id]);
     await t.get().prisma.user.update({ where: { id: a.id }, data: { status: 'SUSPENDED' } });
     expect((await board('HOUR')).data.map((e) => e.host.id)).toEqual([b.id]);
-    const bad = await t.get().http.get('/api/v1/live/rankings?period=MONTH');
+    // v1.87-live (D314): MONTH and YEAR are periods now; an unknown one is still 400.
+    const bad = await t.get().http.get('/api/v1/live/rankings?period=DECADE');
     expect(bad.status).toBe(400);
     expectContract(bad, 'listLiveRankings');
   });

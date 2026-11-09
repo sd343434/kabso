@@ -30,6 +30,7 @@ const _$GiftCategoryKindEnumMap = {
   GiftCategoryKind.normal: 'NORMAL',
   GiftCategoryKind.lucky: 'LUCKY',
   GiftCategoryKind.quips: 'QUIPS',
+  GiftCategoryKind.custom: 'CUSTOM',
 };
 
 _GiftTag _$GiftTagFromJson(Map<String, dynamic> json) =>
@@ -51,6 +52,21 @@ Map<String, dynamic> _$GiftQuipToJson(_GiftQuip instance) => <String, dynamic>{
   'durationMs': instance.durationMs,
   'text': instance.text,
 };
+
+_GiftOwner _$GiftOwnerFromJson(Map<String, dynamic> json) => _GiftOwner(
+  id: json['id'] as String,
+  username: json['username'] as String,
+  displayName: json['displayName'] as String,
+  avatarUrl: json['avatarUrl'] as String?,
+);
+
+Map<String, dynamic> _$GiftOwnerToJson(_GiftOwner instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'username': instance.username,
+      'displayName': instance.displayName,
+      'avatarUrl': instance.avatarUrl,
+    };
 
 _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   code: json['code'] as String,
@@ -91,6 +107,9 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
       ? null
       : GiftQuip.fromJson(json['quip'] as Map<String, dynamic>),
   pkBooster: pkBoosterFromJson(json['pkBooster']),
+  owner: json['owner'] == null
+      ? null
+      : GiftOwner.fromJson(json['owner'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
@@ -114,6 +133,7 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'audioDurationMs': instance.audioDurationMs,
   'quip': instance.quip,
   'pkBooster': pkBoosterToJson(instance.pkBooster),
+  'owner': instance.owner,
 };
 
 const _$GiftBadgeEnumMap = {
@@ -147,6 +167,7 @@ _GiftCatalogue _$GiftCatalogueFromJson(Map<String, dynamic> json) =>
       data: (json['data'] as List<dynamic>)
           .map((e) => Gift.fromJson(e as Map<String, dynamic>))
           .toList(),
+      luckyChatMinMultiplier: (json['luckyChatMinMultiplier'] as num?)?.toInt(),
       tabs:
           (json['tabs'] as List<dynamic>?)
               ?.map((e) => GiftTab.fromJson(e as Map<String, dynamic>))
@@ -162,6 +183,7 @@ Map<String, dynamic> _$GiftCatalogueToJson(_GiftCatalogue instance) =>
       'maxRecipients': instance.maxRecipients,
       'comboWindowSeconds': instance.comboWindowSeconds,
       'data': instance.data,
+      'luckyChatMinMultiplier': instance.luckyChatMinMultiplier,
       'tabs': instance.tabs,
     };
 

@@ -37,6 +37,10 @@ abstract final class GiftCategory {
   /// played to the whole room, one at a time.
   static const quips = 'QUIPS';
 
+  /// v1.100-social (D312, §10.118): «مُخصَّص» — gifts that name their owner
+  /// ([Gift.owner]); sent with coins only.
+  static const custom = 'CUSTOM';
+
   /// The seeded tabs, in their order (an older API's, and a guest's).
   static const values = <String>[popular, event, fun, lucky, quips];
 
@@ -56,6 +60,10 @@ enum GiftCategoryKind {
   lucky,
   @JsonValue('QUIPS')
   quips,
+
+  /// v1.100-social (D312): «مُخصَّص» (custom gifts with an owner).
+  @JsonValue('CUSTOM')
+  custom,
 }
 
 /// `GiftCategoryTab` (v1.46-live, D207): a gift panel tab — its code, kind,
@@ -138,6 +146,20 @@ abstract class GiftQuip with _$GiftQuip {
   factory fromJson(Map<String, dynamic> json) => _$GiftQuipFromJson(json);
 }
 
+/// `GiftOwner` (v1.100-social, D312, §10.118): who a custom «مُخصَّص» gift
+/// belongs to — the gift panel shows the name and the avatar on the gift.
+@freezed
+abstract class GiftOwner with _$GiftOwner {
+  const factory({
+    required String id,
+    required String username,
+    required String displayName,
+    String? avatarUrl,
+  }) = _GiftOwner;
+
+  factory fromJson(Map<String, dynamic> json) => _$GiftOwnerFromJson(json);
+}
+
 /// `Gift`: one gift of the catalogue. [name] follows the app language;
 /// [assetKey] / [animationKey] name the app's bundled files, [imageUrl] /
 /// [animationUrl] the art hosted on the server (D126), which wins.
@@ -189,6 +211,10 @@ abstract class Gift with _$Gift {
     /// in the «PK» tab during a PK battle), or null: an ordinary gift.
     @JsonKey(fromJson: pkBoosterFromJson, toJson: pkBoosterToJson)
     PkBoosterKind? pkBooster,
+
+    /// v1.100-social (D312): a custom gift's owner «صاحب الهدية»; null for
+    /// every other gift (and from an older API).
+    GiftOwner? owner,
   }) = _Gift;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
@@ -218,6 +244,11 @@ abstract class GiftCatalogue with _$GiftCatalogue {
     required int maxRecipients,
     required int comboWindowSeconds,
     required List<Gift> data,
+
+    /// v1.89-live (D318, owner «لا يظهر في التكست إلا المكسب x250 وx500
+    /// وx1000»): a lucky win has its chat line only from this multiplier;
+    /// null from an older server (every win has its line).
+    int? luckyChatMinMultiplier,
 
     /// v1.46-live (D207): the tabs with their names and icons, in order
     /// (empty from an older API: [categories] with the app's names).

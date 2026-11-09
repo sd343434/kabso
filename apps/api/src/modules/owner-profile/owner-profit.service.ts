@@ -24,6 +24,7 @@ import {
   coinMoney,
   fixedCostShare,
   FREE_COIN_REASONS,
+  GIFT_OWNER_COIN_REASONS,
   isDayKey,
   periodsOf,
   PROFIT_DEDUCTIONS,
@@ -244,7 +245,7 @@ export class OwnerProfitService {
   private async period(p: ProfitPeriod, costs: Row[]): Promise<ProfitPeriodDto> {
     const gte = dayBound(p.from, false, this.zone)!;
     const lt = dayBound(p.to, true, this.zone)!;
-    const [cards, agents, cherries, free] = await Promise.all([
+    const [cards, agents, cherries, free, royalties] = await Promise.all([
       // The store's card orders credited in the period, by currency: charged, refunded (the team's or Stripe's,
       // whichever is larger), held by an open or lost dispute (never more than what is left), and their count.
       this.prisma.$queryRaw<
@@ -275,6 +276,11 @@ export class OwnerProfitService {
       this.prisma.$queryRaw<{ n: bigint | null }[]>`
         SELECT sum(delta)::bigint AS n FROM wallet_ledger
          WHERE reason IN (${Prisma.join(FREE_COIN_REASONS.map((r) => Prisma.sql`${r}::wallet_ledger_reason`))})
+           AND created_at >= ${gte} AND created_at < ${lt}`,
+      // v1.100-social (D312): the custom gift owners' coin shares, net of claw-backs (`wallet_ledger_gift_owner_idx`).
+      this.prisma.$queryRaw<{ n: bigint | null }[]>`
+        SELECT sum(delta)::bigint AS n FROM wallet_ledger
+         WHERE reason IN (${Prisma.join(GIFT_OWNER_COIN_REASONS.map((r) => Prisma.sql`${r}::wallet_ledger_reason`))})
            AND created_at >= ${gte} AND created_at < ${lt}`,
     ]);
     const e = this.config.economy;
@@ -324,7 +330,7 @@ export class OwnerProfitService {
 
     const usd = byCurrency.get('USD') ?? line('USD');
     const usdFees = cardFees(usd.charged, usd.orders, fee);
-    const freeCoins = BigInt(free[0]?.n ?? 0n);
+    const freeCoins = BigInt(free[0]?.n ?? 0n) + BigInt(royalties[0]?.n ?? 0n);
     const coinValue = coinMoney(freeCoins, this.config.adminPanel.ownerProfitCoinMinorPerMillion);
     const deductions: ProfitPeriodDto['deductions'] = PROFIT_DEDUCTIONS.map((key) => {
       if (key === 'CARD_FEES')

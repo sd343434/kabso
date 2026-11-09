@@ -18,11 +18,15 @@ class ProfileBadgeWrap extends MultiChildRenderObjectWidget {
     super.key,
     this.spacing = 0,
     this.runSpacing = 0,
+    this.centre = false,
   }) : assert(maxLines > 0, 'at least one line');
 
   final int maxLines;
   final double spacing;
   final double runSpacing;
+
+  /// D316: each line centred in the box (the centred profile header).
+  final bool centre;
 
   @override
   RenderProfileBadgeWrap createRenderObject(BuildContext context) =>
@@ -31,6 +35,7 @@ class ProfileBadgeWrap extends MultiChildRenderObjectWidget {
         spacing: spacing,
         runSpacing: runSpacing,
         textDirection: Directionality.of(context),
+        centre: centre,
       );
 
   @override
@@ -42,6 +47,7 @@ class ProfileBadgeWrap extends MultiChildRenderObjectWidget {
       ..maxLines = maxLines
       ..spacing = spacing
       ..runSpacing = runSpacing
+      ..centre = centre
       ..textDirection = Directionality.of(context);
   }
 }
@@ -62,7 +68,16 @@ class RenderProfileBadgeWrap extends RenderBox
     required this._spacing,
     required this._runSpacing,
     required this._textDirection,
+    this._centre = false,
   });
+
+  bool _centre;
+  bool get centre => _centre;
+  set centre(bool value) {
+    if (value == _centre) return;
+    _centre = value;
+    markNeedsLayout();
+  }
 
   int _maxLines;
   int get maxLines => _maxLines;
@@ -196,7 +211,11 @@ class RenderProfileBadgeWrap extends RenderBox
           for (var k = 0; k < count; k++) {
             h = math.max(h, sizes[i + k].height);
           }
-          var x = 0.0;
+          var lineWidth = 0.0;
+          for (var k = 0; k < count; k++) {
+            lineWidth += sizes[i + k].width + (k > 0 ? spacing : 0);
+          }
+          var x = centre ? (size.width - lineWidth) / 2 : 0.0;
           for (var k = 0; k < count; k++) {
             final s = sizes[i + k];
             children[i + k].parentData! as ProfileBadgeWrapParentData

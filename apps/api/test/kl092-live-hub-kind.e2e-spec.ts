@@ -195,10 +195,16 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
     const rival = await goLive(other, { mode: 'AUDIO', seatCount: 10 });
     for (const fan of fans) expect((await tap(first, fan, 10)).accepted).toBe(10);
     expect((await tap(rival, fans[0]!, 3)).accepted).toBe(3);
+    // v1.86-live (D310): the ranking is the room's cherries (from gifts; written directly here, d310 covers sends).
+    await ctx.prisma.liveRoom.update({ where: { id: first }, data: { cherries: 650 } });
+    await ctx.prisma.liveRoom.update({ where: { id: rival }, data: { cherries: 65 } });
 
     expect(await ids('tab=popular&kind=audio')).toEqual([first, rival]);
     const ranked = await list('tab=popular&kind=audio');
-    expect(ranked.body.data.map((r: { score: number }) => r.score)).toEqual([30, 3]);
+    expect(ranked.body.data.map((r: { score: number; cherries: number }) => [r.cherries, r.score])).toEqual([
+      [650, 30],
+      [65, 3],
+    ]);
 
     // The host ends the live: the room leaves the hub at once; the rival leads.
     const ended = await end(first, top);
@@ -210,13 +216,19 @@ describe('D129 the hub kind filter and the per-live ranking', { timeout: 120_000
     const again = await goLive(top, { mode: 'AUDIO', seatCount: 10 });
     expect(again).not.toBe(first);
     const hub = await list('tab=popular&kind=audio');
-    expect(hub.body.data.map((r: { id: string; score: number }) => [r.id, r.score])).toEqual([
-      [rival, 3],
+    expect(hub.body.data.map((r: { id: string; cherries: number }) => [r.id, r.cherries])).toEqual([
+      [rival, 65],
       [again, 0],
     ]);
     const detail = await ctx.http.get(`/api/v1/live/rooms/${again}`);
     expect(detail.status).toBe(200);
-    expect(detail.body.scoreParts).toEqual({ total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0 });
+    expect(detail.body.scoreParts).toEqual({
+      total: 0,
+      tapPoints: 0,
+      supportPoints: 0,
+      hostCherries: 0,
+      roomCherries: 0,
+    });
 
     // The ended room keeps its own final score (history), and only there.
     const old = await ctx.http.get(`/api/v1/live/rooms/${first}`);

@@ -16571,6 +16571,118 @@ class AppLocalizationsEn extends AppLocalizations {
       'Congratulations, your event prize has arrived';
 
   @override
+  String get founderActionsTitle => 'Founder actions';
+
+  @override
+  String founderActionsFor(String name) {
+    return 'Founder actions · $name';
+  }
+
+  @override
+  String get founderActionWarn => 'Warn';
+
+  @override
+  String get founderActionSuspend => 'Temporary ban';
+
+  @override
+  String get founderActionBan => 'Permanent ban';
+
+  @override
+  String get founderActionDelete => 'Delete account';
+
+  @override
+  String get founderActionWarnHint =>
+      'The person gets a warning notification; their account stays as it is.';
+
+  @override
+  String get founderActionSuspendHint =>
+      'They cannot log in until it ends; their live, if any, ends now.';
+
+  @override
+  String get founderActionBanHint =>
+      'The account stays banned until it is lifted in the admin panel.';
+
+  @override
+  String get founderActionDeleteHint =>
+      'The account enters its deletion grace period (they can restore it by logging in), then it is deleted for good.';
+
+  @override
+  String get founderActionReason => 'Reason';
+
+  @override
+  String get founderActionReasonHint => 'Required — kept in the audit log';
+
+  @override
+  String get founderActionDuration => 'Duration';
+
+  @override
+  String founderActionDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '$count day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String founderActionConfirmTitle(String action, String name) {
+    return '$action — $name';
+  }
+
+  @override
+  String get founderActionConfirm => 'Confirm';
+
+  @override
+  String founderActionDone(String action) {
+    return 'Done: $action';
+  }
+
+  @override
+  String get founderActionNotActive =>
+      'Refused: the account is not active or already has a pending action.';
+
+  @override
+  String get founderActionSelfOrOwner =>
+      'This action cannot be done on this account.';
+
+  @override
+  String giftOwnerBy(String name) {
+    return 'By $name';
+  }
+
+  @override
+  String giftOwnerSemantics(String name) {
+    return 'Custom gift by $name';
+  }
+
+  @override
+  String get liveRankMonth => 'This month';
+
+  @override
+  String get liveRankYear => 'This year';
+
+  @override
+  String get liveRankGames => 'Game Crazy';
+
+  @override
+  String get liveRankGamesEmpty => 'No game tickets spent yet in this period.';
+
+  @override
+  String liveRankTickets(String formatted) {
+    return '$formatted tickets';
+  }
+
+  @override
+  String liveRankCoins(String formatted) {
+    return '$formatted coins';
+  }
+
+  @override
+  String get liveRankRichEmpty => 'No gifts sent yet in this period.';
+
+  @override
   String get navParty => 'Party';
 
   @override

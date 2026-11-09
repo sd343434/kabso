@@ -11,7 +11,7 @@ import type { LevelCategoryCode, LiveGiftSource, Prisma } from '../../generated/
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { familyLevelAfter } from '../families/families.constants.js';
-import { consumeStockIn, stockOf } from '../gifts/gift-catalogue.js';
+import { consumeStockIn, CUSTOM_CATEGORY, stockOf } from '../gifts/gift-catalogue.js';
 import { giftArtDto, GiftsService, LIVE_GIFT_COMBO_WINDOW_SECONDS } from '../gifts/gifts.service.js';
 import { LuckyGiftsService, type LuckyRegionInput } from '../gifts/lucky-gifts.service.js';
 import {
@@ -30,7 +30,7 @@ import { creditGiftCherriesIn, type GiftCherryCredit } from '../economy/cherry-l
 import { uuidv7 } from '../levels/uuidv7.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
-import { inCoinDebtIn } from '../wallet/wallet-ledger.js';
+import { creditIn, inCoinDebtIn, lockWalletsIn } from '../wallet/wallet-ledger.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import {
   comboFor,
@@ -60,6 +60,7 @@ import { LivePkService, type PkGiftCredit } from './live-pk.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 import { assertNotRestricted } from '../users/account-control.js';
 import { addGiftsSentIn, addLuckyGiftsSentIn } from '../medals/medal-awards.js';
+import { addGiftCoinsSentIn } from './gift-coins-sent.js';
 
 // ---- Response shapes (openapi v1.23-live, CP-020) ----------------------------------------------
 
@@ -145,6 +146,23 @@ interface SendState {
   sound_key: string | null;
   sound_ms: number | null;
   quip_text: string | null;
+  /** v1.100-social (D312): a CUSTOM gift's owner and their account status now. */
+  owner_id: string | null;
+  owner_status: string | null;
+}
+
+/**
+ * v1.100-social (D312, CONVENTIONS §10.118): a custom gift's owner share of a send, in coins — floor(coin value ×
+ * GIFT_CUSTOM_OWNER_PERCENT), 0 when the owner sends their own gift (owner: «إذا أرسل صاحب الهدية هديته فلا 3٪»).
+ */
+export function giftOwnerRoyalty(
+  totalCoins: number,
+  ownerBps: number,
+  ownerId: string | null,
+  senderId: string,
+): bigint {
+  if (ownerId === null || ownerId === senderId) return 0n;
+  return (BigInt(totalCoins) * BigInt(ownerBps)) / 10_000n;
 }
 
 /** A send with this clientId was stored while this one waited for the sender's lock. */
@@ -338,6 +356,10 @@ export class LiveGiftsService {
       if (input.quantity !== 1)
         throw AppException.validation([{ field: 'quantity', issue: 'invalid_value' }]);
     }
+    // v1.100-social (D312, §10.118): a custom gift — paid with coins only (its owner's share is of the coins paid).
+    const isCustom = gift.category === CUSTOM_CATEGORY;
+    if (isCustom && input.source !== 'COINS')
+      throw AppException.validation([{ field: 'source', issue: 'invalid_value' }]);
     // D145c (§7): a lucky streak (MAX X) has its own burst limit; normal gifts keep theirs. A retry
     // with the same clientId was answered above and is not counted here.
     await this.limiter.consume(
@@ -376,13 +398,16 @@ export class LiveGiftsService {
     // v1.82-live (D295, §10.108): in a creator's live, a send to creators only takes the creator share (70 %, quips 60 %).
     const creatorSend =
       gift.category !== 'LUCKY' &&
+      !isCustom &&
       (await this.prisma.creatorMember.count({
         where: { userId: { in: [...new Set([row.host_user_id, ...toIds])] } },
       })) === new Set([row.host_user_id, ...toIds]).size;
     const hostShareBps =
       gift.category === 'LUCKY'
         ? table.hostShareBps
-        : liveShareBpsOf(this.config, gift.category, creatorSend);
+        : isCustom
+          ? this.config.gifts.customShareBps
+          : liveShareBpsOf(this.config, gift.category, creatorSend);
     let created: {
       dto: LiveGiftDto;
       coins: number | null;
@@ -429,10 +454,13 @@ export class LiveGiftsService {
                  (SELECT true FROM live_gifts d
                    WHERE d.sender_id = ${callerId}::uuid AND d.client_id = ${clientId}::uuid) AS replay,
                  (SELECT losses FROM lucky_gift_pity WHERE user_id = ${callerId}::uuid) AS losses,
-                 r.quip_busy_until, g.sound_key, g.sound_ms, g.quip_text
+                 r.quip_busy_until, g.sound_key, g.sound_ms, g.quip_text,
+                 g.owner_user_id::text AS owner_id,
+                 (SELECT ou.status::text FROM users ou WHERE ou.id = g.owner_user_id) AS owner_status
             FROM (SELECT id, host_user_id, status, wish_gifts, quip_busy_until FROM live_rooms
                    WHERE id = ${row.id}::uuid FOR NO KEY UPDATE) r
-            LEFT JOIN LATERAL (SELECT price_coins, enabled, category, sound_key, sound_ms, quip_text FROM gifts
+            LEFT JOIN LATERAL (SELECT price_coins, enabled, category, sound_key, sound_ms, quip_text, owner_user_id
+                                 FROM gifts
                                 WHERE code = ${gift.code} AND r.id IS NOT NULL FOR SHARE) g ON true
             LEFT JOIN LATERAL (SELECT gift_code, recipients_key, combo_id, combo_count, combo_quantity, created_at
                                  FROM live_gifts
@@ -453,6 +481,10 @@ export class LiveGiftsService {
           // The category was checked before the transaction (lucky gates); a change since → refused.
           if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
           if ((state.category === 'QUIPS') !== isQuip) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+          // v1.100-social (D312): a custom gift is sent only while its owner is an ACTIVE account.
+          if ((state.category === CUSTOM_CATEGORY) !== isCustom)
+            throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+          if (isCustom && state.owner_status !== 'ACTIVE') throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
           const unitPrice = state.price_coins;
           // v1.32-live (D154, §10.33): a quip takes the next slot of the room's one queue (the room row
           // is locked); a free one (price 0) is the sender's one free quip of this live.
@@ -465,6 +497,12 @@ export class LiveGiftsService {
             if (!slot) throw new AppException(ErrorCode.QUIP_QUEUE_FULL);
           }
           const amounts = giftAmounts(unitPrice, input.quantity, to.length);
+          // v1.100-social (D312): the owner's wallet is locked with the sender's in id order before either changes, so
+          // two custom sends whose senders own each other's gifts never wait on each other in opposite orders.
+          const royalty = isCustom
+            ? giftOwnerRoyalty(amounts.totalCoins, this.config.gifts.customOwnerBps, state.owner_id, callerId)
+            : 0n;
+          if (royalty > 0n) await lockWalletsIn(tx, [callerId, state.owner_id!]);
           // v1.27-live (D132): a lucky gift counts its host share (10 %) for everyone but the sender's
           // Wizard level (CP-005: the value of lucky gifts sent).
           const shareBps = isLucky ? table.hostShareBps : 10_000;
@@ -598,6 +636,17 @@ export class LiveGiftsService {
             ON CONFLICT (host_user_id, hour_start) DO UPDATE
                SET points = live_host_points_hourly.points + EXCLUDED.points
             RETURNING 1),
+          -- v1.87-live (D314, §10.119): the same points in the host's local month (the month / year boards).
+          host_points_month AS (
+            INSERT INTO live_host_points_monthly (host_user_id, month_start, points)
+            SELECT ${state.host_user_id}::uuid,
+                   (date_trunc('month', ${at}::timestamptz AT TIME ZONE ${this.config.live.rankingsTimeZone}::text)
+                     AT TIME ZONE ${this.config.live.rankingsTimeZone}::text),
+                   ${counted.scorePoints}::bigint
+             WHERE NOT ${freeQuip} AND ${counted.scorePoints}::bigint > 0
+            ON CONFLICT (host_user_id, month_start) DO UPDATE
+               SET points = live_host_points_monthly.points + EXCLUDED.points
+            RETURNING 1),
           tapper AS (
             INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at, support_coins, points, points_at)
             SELECT ${row.id}::uuid, ${callerId}::uuid, 0, NULL, ${counted.supportCoins}, ${counted.scorePoints},
@@ -629,6 +678,14 @@ export class LiveGiftsService {
           if (isLucky && amounts.totalCoins > 0) {
             await addLuckyGiftsSentIn(tx, callerId, BigInt(amounts.totalCoins), now);
           }
+          // v1.90-live (D320, §10.124): «الأغنى» — every send's coin value (lucky too), once, in this transaction.
+          await addGiftCoinsSentIn(
+            tx,
+            callerId,
+            BigInt(amounts.totalCoins),
+            now,
+            this.config.live.rankingsTimeZone,
+          );
           let coins: number | null = charged ? Number(written!.coins) : null;
           if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
             // D200: the stored level is a floor (a family never drops a level).
@@ -674,7 +731,18 @@ export class LiveGiftsService {
                 ON CONFLICT (room_id) DO UPDATE
                    SET host_cherries = live_room_scores.host_cherries + EXCLUDED.host_cherries`;
             }
+            // v1.86-live (D310, §10.116; owner: «ترتيب الغرف اجعله بالكرز»): the room's cherries — every recipient's
+            // real credit of this send (the host AND the seated guests; each send's stored share), which `popular`
+            // orders by and the hub chip and the host pill show. The room row is already locked by this send.
+            const roomCherries = credit.recipients.reduce((sum, r) => sum + r.cherries, 0n);
+            if (roomCherries > 0n) {
+              await tx.$executeRaw`
+                UPDATE live_rooms SET cherries = cherries + ${roomCherries} WHERE id = ${row.id}::uuid`;
+            }
           }
+          // v1.100-social (D312, §10.118): the custom gift owner's share, as coins, in this transaction (reference: the
+          // send — the ledger allows it once; a reversal of the send takes it back).
+          if (royalty > 0n) await creditIn(tx, state.owner_id!, royalty, 'GIFT_OWNER_ROYALTY', giftId);
           // v1.43-live (D195, §10.58): PK points — the send's REAL coin value (lucky gifts too) × the
           // side's booster, in their own tables only (money, cherries, scores and levels above all used
           // the real value). A refused booster rolls the whole send back.
@@ -880,6 +948,11 @@ export class LiveGiftsService {
       if (input.quantity !== 1)
         throw AppException.validation([{ field: 'quantity', issue: 'invalid_value' }]);
     }
+    // v1.100-social (D312, §10.118): a custom gift in a conversation too — coins only, the custom share (60 %, not the DM
+    // share) and its owner's coin share.
+    const isCustom = gift.category === CUSTOM_CATEGORY;
+    if (isCustom && input.source !== 'COINS')
+      throw AppException.validation([{ field: 'source', issue: 'invalid_value' }]);
     if (isLucky) {
       if (!this.lucky.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
       if (input.source !== 'COINS')
@@ -910,9 +983,13 @@ export class LiveGiftsService {
             category: string;
             family_id: string | null;
             losses: number | null;
+            owner_id: string | null;
+            owner_status: string | null;
           }[]
         >`
           SELECT g.price_coins, g.enabled, g.category::text AS category,
+                 g.owner_user_id::text AS owner_id,
+                 (SELECT ou.status::text FROM users ou WHERE ou.id = g.owner_user_id) AS owner_status,
                  (SELECT family_id::text FROM family_members
                    WHERE user_id = ${callerId}::uuid AND ${isCoins} FOR SHARE) AS family_id,
                  (SELECT losses FROM lucky_gift_pity WHERE user_id = ${callerId}::uuid) AS losses
@@ -920,13 +997,25 @@ export class LiveGiftsService {
         if (!state?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         if ((state.category === 'QUIPS') !== isQuip) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+        if ((state.category === CUSTOM_CATEGORY) !== isCustom)
+          throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+        if (isCustom && state.owner_status !== 'ACTIVE') throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         const unitPrice = state.price_coins;
         // A quip made free since the check above: still refused (no free sends in a conversation).
         if (unitPrice === 0) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
         const amounts = giftAmounts(unitPrice, input.quantity, 1);
         // The recipient's share (charm, and the stored host_share_bps): the DM share for every
         // non-lucky category (quips included), the lucky host share for a lucky gift.
-        const shareBps = isLucky ? table.hostShareBps : this.config.dm.giftRecipientSharePercent * 100;
+        // v1.100-social (D312): a custom gift keeps the custom share (owner's default: 60 % wherever it is sent).
+        const shareBps = isLucky
+          ? table.hostShareBps
+          : isCustom
+            ? this.config.gifts.customShareBps
+            : this.config.dm.giftRecipientSharePercent * 100;
+        const royalty = isCustom
+          ? giftOwnerRoyalty(amounts.totalCoins, this.config.gifts.customOwnerBps, state.owner_id, callerId)
+          : 0n;
+        if (royalty > 0n) await lockWalletsIn(tx, [callerId, state.owner_id!]);
         const charmCoins = shareOf(amounts.perRecipientCoins, shareBps);
         // v1.59-social (D190): no gift while the balance is a debt (a reversed website purchase).
         if (await inCoinDebtIn(tx, callerId)) throw new AppException(ErrorCode.TOPUP_ACCOUNT_FROZEN);
@@ -993,6 +1082,14 @@ export class LiveGiftsService {
         if (isLucky && amounts.totalCoins > 0) {
           await addLuckyGiftsSentIn(tx, callerId, BigInt(amounts.totalCoins), now);
         }
+        // v1.90-live (D320, §10.124): «الأغنى» counts a direct-conversation gift too.
+        await addGiftCoinsSentIn(
+          tx,
+          callerId,
+          BigInt(amounts.totalCoins),
+          now,
+          this.config.live.rankingsTimeZone,
+        );
         let coins: number | null = isCoins ? Number(written!.coins) : null;
         if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
           // D200: the stored level is a floor (a family never drops a level).
@@ -1013,6 +1110,8 @@ export class LiveGiftsService {
         });
         // v1.52-social (D179, §10.46): the recipient's cherries and their agency's commissions.
         await this.creditCherries(tx, giftId, now);
+        // v1.100-social (D312): the custom gift owner's coin share (reference: the send).
+        if (royalty > 0n) await creditIn(tx, state.owner_id!, royalty, 'GIFT_OWNER_ROYALTY', giftId);
         let luckyResult: LuckyGiftResultDto | null = null;
         if (isLucky) {
           const lucky = await this.settleLucky(tx, {

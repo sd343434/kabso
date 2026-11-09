@@ -295,7 +295,8 @@ export class HostTargetsService {
              EXISTS (SELECT 1 FROM lucky_gift_draws d WHERE d.gift_id = g.id) AS lucky,
              (g.sender_id = ${host}::uuid) AS self, g.sender_id::text AS sender_id, g.quantity,
              g.combo_quantity AS combo, gr.coins,
-             CASE WHEN g.total_coins > 0 THEN (gr.coins * g.coins_charged) / g.total_coins ELSE 0 END::bigint AS charged,
+             -- D323: in numeric — a recipient's coins × the send's charge can pass BIGINT (e.g. 1.3e11 × 3.3e12).
+             CASE WHEN g.total_coins > 0 THEN div(gr.coins::numeric * g.coins_charged, g.total_coins) ELSE 0 END::bigint AS charged,
              COALESCE((SELECT sum(l.delta) FROM cherry_ledger l
                         WHERE l.user_id = gr.user_id AND l.reference_id = g.id::text
                           AND l.reason IN ('GIFT_RECEIVED', 'GIFT_REVERSAL')), 0)::bigint AS cherries,

@@ -114,10 +114,11 @@ describe('D133 nearby, featured and kinds', { timeout: 240_000 }, () => {
       .send({ title: 'Hub', ...body, ...(category ? { categorySlug: category } : {}) });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const id = res.body.id as string;
-    // PK has no start route yet (a battle turns a live into PK); the score orders `popular`.
+    // PK has no start route yet (a battle turns a live into PK); the room cherries order `popular` (D310).
     await ctx.prisma.liveRoom.update({
       where: { id },
-      data: { score: BigInt(score), ...(mode === 'PK' ? { mode: 'PK' } : {}) },
+      // v1.86-live (D310): `popular` orders by the room cherries; the fixture sets both to the same value.
+      data: { score: BigInt(score), cherries: BigInt(score), ...(mode === 'PK' ? { mode: 'PK' } : {}) },
     });
     return id;
   };

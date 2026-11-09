@@ -12,7 +12,7 @@ import {
 } from './camera-fx.rules.js';
 import {
   updateGlobalStripsSchema,
-  type GlobalStripsSettingsDto,
+  type AdminGlobalStripsDto,
   type UpdateGlobalStripsInput,
 } from './global-strips.rules.js';
 import {
@@ -130,6 +130,8 @@ export class AdminLevelTickerController {
 /**
  * v1.85-live (D305): `GET|PUT /admin/global-strips` — the OWNER's thresholds of the global strips «شريط الهدايا»
  * (one gift's price, coins) and «شريط الألعاب» (a prize, tickets), audited; the configuration is the default.
+ * v1.89-live (D318): also the lucky chat threshold `luckyChatMinMultiplier`, answered with the multipliers it may be
+ * (`luckyMultipliers`, read-only: `LUCKY_GIFT_MULTIPLIERS`).
  */
 @Public()
 @Controller('admin/global-strips')
@@ -140,20 +142,22 @@ export class AdminGlobalStripsController {
 
   @Get()
   @RequireCapability('site.settings')
-  get(): Promise<GlobalStripsSettingsDto> {
-    return this.settings.getGlobalStrips();
+  async get(): Promise<AdminGlobalStripsDto> {
+    return this.settings.withLuckyMultipliers(await this.settings.getGlobalStrips());
   }
 
   @Put()
   @RequireCapability('site.settings')
-  put(
+  async put(
     @Body(new ZodValidationPipe(updateGlobalStripsSchema)) body: UpdateGlobalStripsInput,
     @CurrentAdmin() admin: AdminContext,
-  ): Promise<GlobalStripsSettingsDto> {
-    return this.settings.updateGlobalStrips(body, {
-      userId: admin.userId,
-      ip: admin.ip,
-      requestId: admin.requestId,
-    });
+  ): Promise<AdminGlobalStripsDto> {
+    return this.settings.withLuckyMultipliers(
+      await this.settings.updateGlobalStrips(body, {
+        userId: admin.userId,
+        ip: admin.ip,
+        requestId: admin.requestId,
+      }),
+    );
   }
 }

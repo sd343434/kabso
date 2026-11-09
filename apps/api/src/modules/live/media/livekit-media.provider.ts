@@ -6,6 +6,7 @@ import {
   WebhookReceiver,
   type ParticipantInfo,
 } from 'livekit-server-sdk';
+import { DataRetry } from './data-retry.js';
 import type {
   LiveMediaEvent,
   LiveMediaParticipant,
@@ -68,6 +69,8 @@ function isNotFound(err: unknown): boolean {
 export class LiveKitMediaProvider implements LiveMediaProvider {
   private readonly rooms: RoomServiceClient;
   private readonly webhooks: WebhookReceiver;
+  /** D319: data messages retried through LiveKit's short «room not open / no response» windows. */
+  private readonly data: DataRetry;
 
   constructor(
     readonly url: string,
@@ -77,6 +80,16 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
     // The room service speaks HTTP(S) on the same host as the client WebSocket.
     this.rooms = new RoomServiceClient(url.replace(/^ws/, 'http'), apiKey, apiSecret);
     this.webhooks = new WebhookReceiver(apiKey, apiSecret);
+    this.data = new DataRetry((room, topic, payload) =>
+      this.rooms
+        .sendData(room, new TextEncoder().encode(payload), DataPacket_Kind.RELIABLE, { topic })
+        .then(() => undefined),
+    );
+  }
+
+  /** Drops the data retries still waiting (the app is closing). */
+  onModuleDestroy(): void {
+    this.data.stop();
   }
 
   async issueToken(input: LiveMediaTokenInput): Promise<string> {
@@ -164,8 +177,12 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
     });
   }
 
+  /**
+   * D319: a 503 «no response from servers» or a 404 «room does not exist» (LiveKit closed the room for a few seconds
+   * while it is LIVE here) is retried in the background for ≈ 12 s ({@link DataRetry}); the caller is not held.
+   */
   async broadcastData(room: string, topic: string, payload: string): Promise<void> {
-    await this.rooms.sendData(room, new TextEncoder().encode(payload), DataPacket_Kind.RELIABLE, { topic });
+    await this.data.deliver(room, topic, payload);
   }
 
   async setParticipantAttributes(

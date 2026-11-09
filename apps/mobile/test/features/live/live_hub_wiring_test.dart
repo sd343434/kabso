@@ -316,9 +316,8 @@ void main() {
   });
 
   group('grid (D124)', () {
-    testWidgets('creator identity and "New" from the API room (D39)', (
-      tester,
-    ) async {
+    testWidgets('creator identity and the real viewer count from the API '
+        'room (D39; owner 2026-11-08: 0, no «جديد»)', (tester) async {
       await _pump(
         tester,
         FakeLiveRepository(rooms: (_) => apiPage(apiRooms(1))),
@@ -327,12 +326,18 @@ void main() {
       expect(card, findsOneWidget);
       // D131 (ref 165): the host's name is announced, the title drawn.
       expect(
-        find.bySemanticsLabel(RegExp('^Sara, live, New, Arabic music night')),
+        find.bySemanticsLabel(
+          RegExp('^Sara, live, 0 viewers, Arabic music night'),
+        ),
         findsOneWidget,
       );
       expect(find.text('Arabic music night'), findsOneWidget);
       expect(
         find.descendant(of: card, matching: find.text(l10n.liveCardNew)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('0')),
         findsOneWidget,
       );
       // No cover and no avatar in the fixture: the host's initial.

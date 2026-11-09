@@ -226,7 +226,7 @@ void main() {
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
       testWidgets('right after the name, the VIP badge under it '
-          '(D299, ${language.name})', (tester) async {
+          '(D299; D316: the centred name, ${language.name})', (tester) async {
         await pumpOther(
           tester,
           otherProfile(ar: ar)
@@ -244,7 +244,7 @@ void main() {
         expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
         expect(
           seal.width,
-          ProfileVerificationBadge.sizeForFont(KPublicProfile.nameFont),
+          ProfileVerificationBadge.sizeForFont(KPublicProfile.centredNameFont),
         );
         if (ar) {
           // Right to left: the seal is to the left of the name.

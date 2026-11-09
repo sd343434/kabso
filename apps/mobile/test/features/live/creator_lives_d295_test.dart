@@ -82,9 +82,11 @@ void main() {
         language: language,
       );
       expect(find.byType(CreatorLiveBadge), findsOneWidget);
-      expect(find.text(label), findsOneWidget);
+      // Owner 2026-11-08 («المعلومات على بطاقة البث كثيرة»): on the card, the
+      // small mark (the purple and the sparkle), not the worded pill.
+      expect(find.text(label), findsNothing);
       final badge = tester.widget<Container>(
-        find.byKey(CreatorLiveBadge.badgeKey),
+        find.byKey(CreatorLiveBadge.iconKey),
       );
       expect(
         (badge.decoration! as BoxDecoration).color,

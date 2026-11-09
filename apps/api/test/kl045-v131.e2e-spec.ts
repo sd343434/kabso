@@ -356,8 +356,8 @@ describe('KL-045 v1.3.1 behaviour', () => {
     it('validly signed cursors at the bounds return 200; beyond them 400 (never 500)', async () => {
       const viewer = await signup(ctx);
       const id = '0192f1d0-0000-7000-8000-000000000000';
-      // v2 (CP-012, v1.8-live): `n` is the score (int8).
-      const base = { v: 2, c: null, u: null, i: id };
+      // v3 (v1.86-live, D310): `n` is the room cherries (int8; v2, CP-012: the score).
+      const base = { v: 3, c: null, u: null, i: id };
       for (const tab of ['popular', 'new'] as const) {
         for (const [n, s] of [
           [CURSOR_MAX_SCORE, CURSOR_MAX_STARTED_AT_MS],

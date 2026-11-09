@@ -35,6 +35,11 @@ export type GiftCategoryCode = string;
 /** The codes of the special categories (their kind). */
 export const LUCKY_CATEGORY: GiftCategoryCode = 'LUCKY';
 export const QUIPS_CATEGORY: GiftCategoryCode = 'QUIPS';
+/**
+ * v1.100-social (D312, CONVENTIONS §10.118): «مُخصَّص» / Custom — every gift in it names its owner (`ownerUserId`), who
+ * earns GIFT_CUSTOM_OWNER_PERCENT of each send as coins; sent with coins only.
+ */
+export const CUSTOM_CATEGORY: GiftCategoryCode = 'CUSTOM';
 /** `gift_categories_code_format`: upper-case letters, digits and `_`, 1–40 characters, starting with a letter. */
 export const GIFT_CATEGORY_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,39}$/;
 /** The five categories the migration seeded, in their order (tests and the CLI's help). */
@@ -45,7 +50,7 @@ export const SEEDED_GIFT_CATEGORIES: readonly GiftCategoryCode[] = [
   'LUCKY',
   'QUIPS',
 ];
-export const GIFT_CATEGORY_KINDS: readonly GiftCategoryKind[] = ['NORMAL', 'LUCKY', 'QUIPS'];
+export const GIFT_CATEGORY_KINDS: readonly GiftCategoryKind[] = ['NORMAL', 'LUCKY', 'QUIPS', 'CUSTOM'];
 export const GIFT_BADGES: readonly GiftBadge[] = ['NONE', 'NEW', 'EVENT'];
 /** v1.43-live (D195): the PK boosters a gift may activate (`--pk-booster`). */
 export const GIFT_PK_BOOSTERS: readonly PkBoosterKind[] = [
@@ -59,9 +64,13 @@ export const GIFT_PK_BOOSTERS: readonly PkBoosterKind[] = [
 export const GIFT_CODE_PATTERN = /^[a-z0-9][a-z0-9_]{0,39}$/;
 /** An app asset key (static image or effect): letters, digits, `_`, `-`, `.`, `/`, 1–80 characters. */
 export const GIFT_ASSET_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_./-]{0,79}$/;
-/** `gifts_price_range`. */
+/**
+ * `gifts_price_range`. v1.91-live (D323, owner: a 3 000 000-coin gift «تاج الافتتاح»): at most 100 000 000 coins (was
+ * 1 000 000). The largest send, 100 000 000 × LIVE_GIFT_QUANTITY_MAX (9 999) × 25 recipients ≈ 2.5 × 10^13 coins, keeps
+ * every score (× 100) below 2^53 (`giftAmounts`) and every BIGINT product below 2^63 (CONVENTIONS §10.23).
+ */
 export const GIFT_MIN_PRICE = 1;
-export const GIFT_MAX_PRICE = 1_000_000;
+export const GIFT_MAX_PRICE = 100_000_000;
 /** `user_gift_stock_quantity_range`. */
 export const GIFT_STOCK_MAX = 1_000_000_000;
 /** Names: 1–60 characters after trimming. */
@@ -126,6 +135,11 @@ export interface GiftFields {
    * LUCKY or QUIPS gift), or null / absent: an ordinary gift.
    */
   readonly pkBooster?: PkBoosterKind | null;
+  /**
+   * v1.100-social (D312, §10.118): the owner «صاحب الهدية» of a CUSTOM gift — an ACTIVE account's id (checked in the
+   * write's transaction). Set exactly for CUSTOM (`gifts_custom_owner`). Absent: none on add, unchanged on update.
+   */
+  readonly ownerUserId?: string | null;
 }
 
 /**
@@ -190,6 +204,26 @@ export function giftPkBoosterProblem(gift: Pick<GiftFields, 'category' | 'pkBoos
   if (gift.category === LUCKY_CATEGORY || gift.category === QUIPS_CATEGORY)
     return 'a PK booster gift cannot be LUCKY or QUIPS';
   return null;
+}
+
+/**
+ * v1.100-social (D312): a CUSTOM gift names its owner and is no PK booster; any other gift has no owner — or null.
+ */
+export function giftCustomProblem(
+  gift: Pick<GiftFields, 'category' | 'ownerUserId' | 'pkBooster'>,
+): string | null {
+  const custom = gift.category === CUSTOM_CATEGORY;
+  const owner = (gift.ownerUserId ?? null) !== null;
+  if (custom && !owner) return 'a custom gift needs its owner «صاحب الهدية»';
+  if (!custom && owner) return 'only a custom gift has an owner';
+  if (custom && (gift.pkBooster ?? null) !== null) return 'a custom gift cannot be a PK booster';
+  return null;
+}
+
+/** v1.100-social (D312): a custom gift's owner must be an ACTIVE account (the FK would only check that it exists). */
+async function assertOwnerActiveIn(tx: Tx, userId: string): Promise<void> {
+  const owner = await tx.user.findUnique({ where: { id: userId }, select: { status: true } });
+  if (owner?.status !== 'ACTIVE') throw new GiftFieldsError('the gift owner must be an active account');
 }
 
 /**
@@ -353,9 +387,11 @@ export async function addGiftIn(
     giftTagProblem(fields) ??
     giftQuipProblem(fields) ??
     giftPkBoosterProblem(fields) ??
+    giftCustomProblem(fields) ??
     giftMediaProblem(fields);
   if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
   await assertCategoryExistsIn(tx, fields.category);
+  if (fields.ownerUserId) await assertOwnerActiveIn(tx, fields.ownerUserId);
   const inserted = await tx.gift.createMany({
     data: [
       {
@@ -383,6 +419,7 @@ export async function addGiftIn(
         soundMs: fields.soundMs ?? null,
         quipText: fields.quipText?.trim() ?? null,
         pkBooster: fields.pkBooster ?? null,
+        ownerUserId: fields.ownerUserId ?? null,
       },
     ],
     skipDuplicates: true,
@@ -421,6 +458,15 @@ export async function updateGiftIn(
     pkBooster: fields.pkBooster !== undefined ? fields.pkBooster : before.pkBooster,
   });
   if (boosterProblem !== null) throw new GiftFieldsError(boosterProblem);
+  const customProblem = giftCustomProblem({
+    category: fields.category ?? before.category,
+    ownerUserId: fields.ownerUserId !== undefined ? fields.ownerUserId : before.ownerUserId,
+    pkBooster: fields.pkBooster !== undefined ? fields.pkBooster : before.pkBooster,
+  });
+  if (customProblem !== null) throw new GiftFieldsError(customProblem);
+  if (fields.ownerUserId && fields.ownerUserId !== before.ownerUserId) {
+    await assertOwnerActiveIn(tx, fields.ownerUserId);
+  }
   const pick = <K extends keyof GiftFields & keyof Gift>(k: K) =>
     (fields[k] !== undefined ? fields[k] : before[k]) as Gift[K];
   const mediaProblem = giftMediaProblem({
@@ -563,7 +609,10 @@ export function catalogueVersion(
     | 'quipText'
   > &
     Partial<Pick<Gift, 'animationFormat' | 'animationAlpha' | 'audioObjectKey'>> &
-    Partial<ItemBadgeColumns>)[],
+    Partial<ItemBadgeColumns> & {
+      /** v1.100-social (D312): a custom gift's owner as the app shows it (a rename or a new avatar reloads). */
+      readonly ownerShown?: readonly (string | null)[] | null;
+    })[],
   quantities: readonly number[],
   comboWindowSeconds: number,
   tabs?: readonly {
@@ -573,6 +622,8 @@ export function catalogueVersion(
     readonly iconObjectKey: string | null;
   }[],
   now = new Date(),
+  /** v1.89-live (D318): the lucky chat threshold (a change reloads the app's catalogue); undefined: not hashed. */
+  luckyChatMinMultiplier?: number,
 ): string {
   // v1.79-live (D289): the badges running at `now` (a badge's end changes the version, so the app reloads the
   // catalogue); a gift without badges keeps its old hash part ('NONE' where the single badge was).
@@ -591,6 +642,7 @@ export function catalogueVersion(
   const canonical = JSON.stringify({
     q: quantities,
     c: comboWindowSeconds,
+    ...(luckyChatMinMultiplier !== undefined ? { l: luckyChatMinMultiplier } : {}),
     // v1.27-live (D132): the tabs; v1.46-live (D207): with both names and the icon (they are managed now).
     ...(tabs ? { t: tabs.map((t) => [t.code, t.nameAr, t.nameEn, t.iconObjectKey]) } : {}),
     g: gifts.map((g) => [
@@ -619,6 +671,8 @@ export function catalogueVersion(
       // v1.46-live (D207): an MP4 effect's transparency and the hosted MP3 (appended only when set).
       ...(g.animationFormat === 'MP4' ? ['mp4', g.animationAlpha] : []),
       ...(g.audioObjectKey ? ['mp3', g.audioObjectKey] : []),
+      // v1.100-social (D312): a custom gift's owner (appended only when set).
+      ...(g.ownerShown ? ['owner', ...g.ownerShown] : []),
     ]),
   });
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);

@@ -6,11 +6,27 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 
-/// `LiveRankingPeriod` (CP-016 A).
+/// `LiveRankingPeriod` (CP-016 A); D314 (v1.87-live): this month and this
+/// year (local calendar month / year in the server's ranking zone).
 enum LiveRankingPeriod {
   hour('HOUR'),
   day('DAY'),
-  week('WEEK');
+  week('WEEK'),
+  month('MONTH'),
+  year('YEAR');
+
+  new(this.wire);
+  final String wire;
+}
+
+/// `LiveRankingBoard` (v1.88-live, D315): «ترتيب الشعبية» (hosts by points)
+/// or «مجنون اللعب» (players by game tickets spent).
+enum LiveRankingBoard {
+  popularity('POPULARITY'),
+  games('GAMES'),
+
+  /// v1.90-live (D320): «الأغنى» — users by the coins they sent as gifts.
+  rich('RICH');
 
   new(this.wire);
   final String wire;
@@ -95,8 +111,12 @@ class LiveRankings {
 /// The popularity board (CP-016 A, CONVENTIONS §10.15). Throws an
 /// `AppFailure`.
 abstract interface class LiveRankingsRepository {
-  /// `GET /live/rankings?period=…`.
-  Future<LiveRankings> board(LiveRankingPeriod period);
+  /// `GET /live/rankings?period=…&board=…` (D315: `board` only for GAMES,
+  /// so an older server still answers the popularity board).
+  Future<LiveRankings> board(
+    LiveRankingPeriod period, {
+    LiveRankingBoard board = LiveRankingBoard.popularity,
+  });
 }
 
 class LiveRankingsRepositoryImpl implements LiveRankingsRepository {
@@ -105,24 +125,49 @@ class LiveRankingsRepositoryImpl implements LiveRankingsRepository {
   final Dio _api;
 
   @override
-  Future<LiveRankings> board(LiveRankingPeriod period) =>
-      guardApiCall(() async {
-        final res = await _api.get<Map<String, dynamic>>(
-          '/live/rankings',
-          queryParameters: {'period': period.wire},
-        );
-        return LiveRankings.fromJson(res.data!);
-      });
+  Future<LiveRankings> board(
+    LiveRankingPeriod period, {
+    LiveRankingBoard board = LiveRankingBoard.popularity,
+  }) => guardApiCall(() async {
+    final res = await _api.get<Map<String, dynamic>>(
+      '/live/rankings',
+      queryParameters: {
+        'period': period.wire,
+        if (board != LiveRankingBoard.popularity) 'board': board.wire,
+      },
+    );
+    return LiveRankings.fromJson(res.data!);
+  });
 }
 
 final liveRankingsRepositoryProvider = Provider<LiveRankingsRepository>(
   (ref) => LiveRankingsRepositoryImpl(ref.watch(apiDioProvider)),
 );
 
-/// The board of [LiveRankingPeriod] (reloaded when invalidated or when its
-/// window ends).
+/// The popularity board of [LiveRankingPeriod] (reloaded when invalidated or
+/// when its window ends).
 final FutureProviderFamily<LiveRankings, LiveRankingPeriod>
 liveRankingsProvider = FutureProvider.autoDispose
     .family<LiveRankings, LiveRankingPeriod>(
       (ref, period) => ref.watch(liveRankingsRepositoryProvider).board(period),
+    );
+
+/// D320: the «الأغنى» board of [LiveRankingPeriod] (users by the coins they
+/// sent as gifts, top 20).
+final FutureProviderFamily<LiveRankings, LiveRankingPeriod>
+liveRichRankingsProvider = FutureProvider.autoDispose
+    .family<LiveRankings, LiveRankingPeriod>(
+      (ref, period) => ref
+          .watch(liveRankingsRepositoryProvider)
+          .board(period, board: LiveRankingBoard.rich),
+    );
+
+/// D315: the «مجنون اللعب» board of [LiveRankingPeriod] (players by game
+/// tickets spent).
+final FutureProviderFamily<LiveRankings, LiveRankingPeriod>
+liveGameRankingsProvider = FutureProvider.autoDispose
+    .family<LiveRankings, LiveRankingPeriod>(
+      (ref, period) => ref
+          .watch(liveRankingsRepositoryProvider)
+          .board(period, board: LiveRankingBoard.games),
     );

@@ -141,6 +141,8 @@ model User {
   notificationActs       NotificationActor[]
   notificationPrefs      NotificationSettings?
   livePointsHourly       LiveHostPointsHourly[]     @relation("LiveHostPointsHourly")
+  /// v1.87-live (D314, §10.119): the same points per local month (the month / year boards).
+  livePointsMonthly      LiveHostPointsMonthly[]    @relation("LiveHostPointsMonthly")
   liveScheduleSlots      LiveScheduleSlot[]         @relation("LiveScheduleSlots")
   wallet                 Wallet?
   walletLedger           WalletLedgerEntry[]
@@ -342,6 +344,17 @@ model User {
   ownerBio              OwnerBio?
   ownerFeedbackSent     OwnerFeedback[]     @relation("OwnerFeedbackSender")
   ownerFeedbackAbout    OwnerFeedback[]     @relation("OwnerFeedbackStaff")
+  /// v1.100-social (D312, §10.118): the custom gifts this user owns «صاحب الهدية».
+  ownedGifts            Gift[]              @relation("GiftOwner")
+  /// v1.99-social (D311, §10.117): the founder's moderation actions taken by / on this user.
+  ownerActionsTaken     OwnerModerationAction[] @relation("OwnerModerationActor")
+  ownerActionsReceived  OwnerModerationAction[] @relation("OwnerModerationTarget")
+  /// v1.88-live (D315, §10.120): game tickets spent «مجنون اللعب» (the ledger and its rollups).
+  gameTicketSpends       GameTicketSpend[]
+  gameTicketSpendsHourly GameTicketSpendHourly[]
+  gameTicketSpendsMonthly GameTicketSpendMonthly[]
+  giftCoinsSentHourly    GiftCoinsSentHourly[]
+  giftCoinsSentMonthly   GiftCoinsSentMonthly[]
 
   @@index([createdAt], map: "users_created_at_idx")
   /// v1.95-social (D301, §10.112.4): «لوحة المؤسس» counts who is online now.
@@ -740,8 +753,14 @@ model LiveRoom {
   /// CP-011: increases on every change of the room's seats, requests, invitations or moderators.
   seatsVersion          Int                @default(0) @map("seats_version")
   /// CP-012: the room's total score (tap + support points), kept equal to the room's
-  /// `live_room_scores` row in the same transaction; `popular` orders by it (CONVENTIONS §10.4).
+  /// `live_room_scores` row in the same transaction. v1.86-live (D310): points only (PK, boards, charm);
+  /// `popular` no longer orders by it.
   score                 BigInt             @default(0)
+  /// v1.86-live (D310, CONVENTIONS §10.116): the room's cherries — what the cherry ledger credited the host AND the
+  /// seated guests for gifts received in this live (each send's stored share; taps never), added in the send's own
+  /// transaction right after the ledger credit, taken back by a reversal (never below 0; CHECK
+  /// `live_rooms_cherries_nonneg`). `popular` orders by it (§10.4) and the hub chip and the host pill show it.
+  cherries              BigInt             @default(0)
   /// CP-013: false when the host turned the room chat off (a new live starts with it on).
   chatEnabled           Boolean            @default(true) @map("chat_enabled")
   /// CP-014: the live's topic (1–100 code points, CHECK `live_rooms_topic_length`); null = none.
@@ -826,9 +845,9 @@ model LiveRoom {
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@unique([hostUserId, episodeNumber], map: "live_rooms_host_episode_key")
-  @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([cherries(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_cherries_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_new_idx", where: raw("status = 'LIVE'::live_room_status"))
-  @@index([categoryId, score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([categoryId, cherries(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_cherries_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([categoryId, startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_new_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([lastHeartbeatAt], map: "live_rooms_live_heartbeat_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([hostAwaySince], map: "live_rooms_live_host_away_idx", where: raw("status = 'LIVE'::live_room_status AND host_away_since IS NOT NULL"))
@@ -965,6 +984,22 @@ model LiveHostPointsHourly {
   @@id([hostUserId, hourStart], map: "live_host_points_hourly_pkey")
   @@index([hourStart], map: "live_host_points_hourly_hour_idx")
   @@map("live_host_points_hourly")
+}
+
+/// v1.87-live (D314, CONVENTIONS §10.119): the popularity points of a host per LOCAL month (`month_start` = the instant
+/// the month begins in LIVE_RANKINGS_TIME_ZONE), written in the same statement as the hourly row — the month and year
+/// boards sum at most 12 rows per host instead of the hourly rows (kept 15 days). Rows older than 400 days are removed
+/// by the live sweeper. CHECK `live_host_points_monthly_points` (>= 0).
+model LiveHostPointsMonthly {
+  hostUserId String   @map("host_user_id") @db.Uuid
+  monthStart DateTime @map("month_start") @db.Timestamptz(3)
+  points     BigInt   @default(0)
+
+  host User @relation("LiveHostPointsMonthly", fields: [hostUserId], references: [id], onDelete: Cascade)
+
+  @@id([hostUserId, monthStart], map: "live_host_points_monthly_pkey")
+  @@index([monthStart], map: "live_host_points_monthly_month_idx")
+  @@map("live_host_points_monthly")
 }
 
 /// CP-016 C (D99): a live the host announced (CONVENTIONS §10.16). Followers get
@@ -1124,6 +1159,10 @@ enum WalletLedgerReason {
   VIP_DAILY_COINS
   /// D270 (§10.98): a store item bought with coins (reference: the `store_purchases` row).
   STORE_PURCHASE
+  /// v1.100-social (D312, §10.118): a custom gift's owner share of a send, as coins (GIFT_CUSTOM_OWNER_PERCENT, 3 % of
+  /// the coin value; reference: the send), and its claw-back when the send is reversed (the balance may go below 0).
+  GIFT_OWNER_ROYALTY
+  GIFT_OWNER_ROYALTY_REVERSAL
 
   @@map("wallet_ledger_reason")
 }
@@ -1160,6 +1199,8 @@ model WalletLedgerEntry {
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
   /// D301 follow-up (§10.112.10): «الربح» sums the free coins given in a period (migration 20270402090400_owner_profit).
   @@index([createdAt], map: "wallet_ledger_free_coins_idx", where: raw("reason IN ('EVENT_PRIZE'::wallet_ledger_reason, 'TASK_REWARD'::wallet_ledger_reason, 'CHECK_IN_REWARD'::wallet_ledger_reason)"))
+  /// v1.100-social (D312): «الربح» reads the custom gift owners' coin shares per day.
+  @@index([createdAt], map: "wallet_ledger_gift_owner_idx", where: raw("reason IN ('GIFT_OWNER_ROYALTY'::wallet_ledger_reason, 'GIFT_OWNER_ROYALTY_REVERSAL'::wallet_ledger_reason)"))
   @@map("wallet_ledger")
 }
 
@@ -3114,6 +3155,9 @@ enum GiftCategoryKind {
   NORMAL
   LUCKY
   QUIPS
+  /// v1.100-social (D312, CONVENTIONS §10.118): «مُخصَّص» / Custom — gifts that name an owner user, who earns a share
+  /// of every send as coins; the recipients' share is GIFT_CUSTOM_SHARE_PERCENT (60 %).
+  CUSTOM
 
   @@map("gift_category_kind")
 }
@@ -3248,11 +3292,15 @@ model Gift {
   soundKey           String?              @map("sound_key") @db.VarChar(80)
   soundMs            Int?                 @map("sound_ms")
   quipText           String?              @map("quip_text") @db.VarChar(200)
+  /// v1.100-social (D312, §10.118): the owner of a CUSTOM gift «صاحب الهدية» (set exactly for CUSTOM, CHECK
+  /// `gifts_custom_owner`); they earn GIFT_CUSTOM_OWNER_PERCENT of each send's coin value as coins.
+  ownerUserId        String?              @map("owner_user_id") @db.Uuid
   enabled            Boolean              @default(true)
   createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   categoryRef GiftCategory    @relation(fields: [category], references: [code], onDelete: Restrict, onUpdate: Restrict, map: "gifts_category_fkey")
+  owner       User?           @relation("GiftOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, map: "gifts_owner_user_id_fkey")
   stock       UserGiftStock[]
   pkBoosts    PkBoost[]
   sends       LiveGift[]
@@ -3260,6 +3308,7 @@ model Gift {
   eventGifts  EventGift[]
 
   @@index([category, sortOrder], map: "gifts_category_sort_idx")
+  @@index([ownerUserId], map: "gifts_owner_idx")
   @@map("gifts")
 }
 
@@ -7509,4 +7558,107 @@ model UserEventBadge {
   @@id([userId, badgeCode], map: "user_event_badges_pkey")
   @@index([expiresAt], map: "user_event_badges_expires_idx")
   @@map("user_event_badges")
+}
+
+/// v1.99-social (D311, CONVENTIONS §10.117; owner: «يمكنه حذف او حظر او تحذير اي شخص»): «إجراءات المؤسس» — one row per
+/// founder action taken in the app (WARN, SUSPEND «حظر مؤقت», BAN «حظر دائم», DELETE_ACCOUNT), keyed by the request's
+/// `clientId` so a retry returns the first result instead of acting twice. The audit trail (`owner.moderation.action` and
+/// the reused panel actions' own rows) is in `audit_logs`. CHECKs `owner_moderation_actions_shape`.
+model OwnerModerationAction {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  actorId    String    @map("actor_id") @db.Uuid
+  targetId   String    @map("target_id") @db.Uuid
+  clientId   String    @map("client_id") @db.Uuid
+  /// WARN | SUSPEND | BAN | DELETE_ACCOUNT.
+  action     String    @db.VarChar(20)
+  reason     String    @db.VarChar(500)
+  /// SUSPEND only: the length in days, and its end.
+  days       Int?
+  endsAt     DateTime? @map("ends_at") @db.Timestamptz(3)
+  /// DELETE_ACCOUNT only: when the grace period ends and the account is purged.
+  purgeAfter DateTime? @map("purge_after") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor  User @relation("OwnerModerationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  target User @relation("OwnerModerationTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([actorId, clientId], map: "owner_moderation_actions_client_once")
+  @@index([targetId, createdAt(sort: Desc)], map: "owner_moderation_actions_target_idx")
+  @@index([actorId, createdAt(sort: Desc)], map: "owner_moderation_actions_actor_idx")
+  @@map("owner_moderation_actions")
+}
+
+/// v1.88-live (D315, CONVENTIONS §10.120; owner: «مجنون اللعب»): game tickets «التذاكر» SPENT in a game — the ledger the
+/// first game writes through `recordGameTicketSpendIn` (once per `(game_code, reference)`, in the game's own
+/// transaction that debits the tickets). No game exists yet; the board reads the rollups below. CHECK
+/// `game_ticket_spends_shape` (tickets > 0, codes and references well-formed).
+model GameTicketSpend {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  gameCode  String   @map("game_code") @db.VarChar(40)
+  tickets   BigInt
+  reference String   @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameCode, reference], map: "game_ticket_spends_reference_once")
+  @@index([userId, createdAt(sort: Desc)], map: "game_ticket_spends_user_idx")
+  @@map("game_ticket_spends")
+}
+
+/// v1.88-live (D315): tickets spent per user and UTC hour (the hour / day / week boards; kept 15 days, like
+/// `live_host_points_hourly`). CHECK `game_ticket_spends_hourly_tickets` (>= 0).
+model GameTicketSpendHourly {
+  userId    String   @map("user_id") @db.Uuid
+  hourStart DateTime @map("hour_start") @db.Timestamptz(3)
+  tickets   BigInt   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, hourStart], map: "game_ticket_spends_hourly_pkey")
+  @@index([hourStart], map: "game_ticket_spends_hourly_hour_idx")
+  @@map("game_ticket_spends_hourly")
+}
+
+/// v1.88-live (D315): tickets spent per user and local month (the month / year boards; kept 400 days). CHECK
+/// `game_ticket_spends_monthly_tickets` (>= 0).
+model GameTicketSpendMonthly {
+  userId     String   @map("user_id") @db.Uuid
+  monthStart DateTime @map("month_start") @db.Timestamptz(3)
+  tickets    BigInt   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, monthStart], map: "game_ticket_spends_monthly_pkey")
+  @@index([monthStart], map: "game_ticket_spends_monthly_month_idx")
+  @@map("game_ticket_spends_monthly")
+}
+
+/// v1.90-live (D320, CONVENTIONS §10.124): the coin value of the gifts a user SENT per UTC hour — «الأغنى» (the
+/// Richest board); kept 15 days. CHECK `gift_coins_sent_hourly_coins` (>= 0).
+model GiftCoinsSentHourly {
+  userId    String   @map("user_id") @db.Uuid
+  hourStart DateTime @map("hour_start") @db.Timestamptz(3)
+  coins     BigInt   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, hourStart], map: "gift_coins_sent_hourly_pkey")
+  @@index([hourStart], map: "gift_coins_sent_hourly_hour_idx")
+  @@map("gift_coins_sent_hourly")
+}
+
+/// v1.90-live (D320): the same per local month (the month / year boards; kept 400 days). CHECK
+/// `gift_coins_sent_monthly_coins` (>= 0).
+model GiftCoinsSentMonthly {
+  userId     String   @map("user_id") @db.Uuid
+  monthStart DateTime @map("month_start") @db.Timestamptz(3)
+  coins      BigInt   @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, monthStart], map: "gift_coins_sent_monthly_pkey")
+  @@index([monthStart], map: "gift_coins_sent_monthly_month_idx")
+  @@map("gift_coins_sent_monthly")
 }

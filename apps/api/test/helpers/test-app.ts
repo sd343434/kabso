@@ -300,7 +300,8 @@ export async function withMigrationClient<T>(fn: (client: PrismaClient) => Promi
 }
 
 /**
- * v1.46-live (D207): the gift categories the migration seeds (`20270127090000_gift_categories`), put back after every
+ * v1.46-live (D207): the gift categories the migrations seed (`20270127090000_gift_categories`, D312's
+ * `20270408090200_custom_gifts`), put back after every
  * reset — gifts reference them, as on a real database.
  */
 export const SEED_GIFT_CATEGORIES_SQL = `
@@ -309,7 +310,9 @@ export const SEED_GIFT_CATEGORIES_SQL = `
     ('EVENT', 'NORMAL', 'مناسبات', 'Events', 20),
     ('FUN', 'NORMAL', 'مرح', 'Fun', 30),
     ('LUCKY', 'LUCKY', 'الحظ', 'Lucky', 40),
-    ('QUIPS', 'QUIPS', 'إفيهات', 'Quips', 50)
+    ('QUIPS', 'QUIPS', 'إفيهات', 'Quips', 50),
+    -- v1.100-social (D312): «مُخصَّص», seeded by 20270408090200_custom_gifts.
+    ('CUSTOM', 'CUSTOM', 'مُخصَّص', 'Custom', 60)
   ON CONFLICT (code) DO NOTHING`;
 
 /**

@@ -298,6 +298,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         },
         // v1.49-live (D228): the camera effects engine, DeepAR by default.
         cameraFxEngine: 'DEEPAR',
+        // v1.88-live (D315): no game is on (LIVE_GAMES_ENABLED default false).
+        gamesEnabled: false,
       });
     });
 
@@ -367,6 +369,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         theme: 'classic',
         // CP-012 (v1.8-live): a new live starts at 0 points.
         score: 0,
+        cherries: 0,
         // v1.47-live (D212): not a podcast.
         podcast: null,
         // v1.54-live (D241): a new SOLO live is not in a PK.
@@ -376,7 +379,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         // v1.58-live (D246): the only live of its kind is in its top N; the host set no country, so no
         // `hostCountry` key (roomLevel is below).
         popular: true,
-        scoreParts: { total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0 },
+        scoreParts: { total: 0, tapPoints: 0, supportPoints: 0, hostCherries: 0, roomCherries: 0 },
         // CP-013 (v1.9-live): a new live starts with the chat on; the host is never muted.
         chatEnabled: true,
         chatMuted: false,
@@ -674,7 +677,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         const newTab = await allPages(viewer, { tab: 'new' }, limit);
         expect(newTab.ids).toEqual(byNew);
         expect(newTab.pages).toBe(Math.max(1, Math.ceil(9 / limit)));
-        // popular ≡ new while every score is 0 (CP-012, §10.4).
+        // popular ≡ new while every room has 0 cherries (v1.86-live, D310, §10.4).
         expect((await allPages(viewer, { tab: 'popular' }, limit)).ids).toEqual(byNew);
         const followed = new Set(created.slice(0, 6).map((r) => r.id));
         expect((await allPages(viewer, { tab: 'following' }, limit)).ids).toEqual(
@@ -682,11 +685,12 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         );
       }
 
-      // CP-012 (v1.8-live): popular orders by score first (fixture written directly; kl065 covers
-      // scores reached by tapping). The viewer count no longer orders it.
-      await ctx.prisma.liveRoom.update({ where: { id: created[0]!.id }, data: { score: BigInt(5) } });
-      await ctx.prisma.liveRoom.update({ where: { id: created[4]!.id }, data: { score: BigInt(5) } });
-      await ctx.prisma.liveRoom.update({ where: { id: created[8]!.id }, data: { score: BigInt(2) } });
+      // v1.86-live (D310): popular orders by the room cherries first (fixture written directly; d310 covers cherries
+      // reached by gifts). Neither the score (CP-012) nor the viewer count orders it.
+      await ctx.prisma.liveRoom.update({ where: { id: created[0]!.id }, data: { cherries: BigInt(5) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[4]!.id }, data: { cherries: BigInt(5) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[8]!.id }, data: { cherries: BigInt(2) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[2]!.id }, data: { score: BigInt(900) } });
       await ctx.prisma.liveRoom.update({ where: { id: created[1]!.id }, data: { viewerCount: 50 } });
       const top = [created[4]!, created[0]!].sort(
         (a, b) => b.startedAt - a.startedAt || (a.id < b.id ? 1 : -1),
@@ -701,14 +705,17 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
       }
       const page = await list(viewer, { tab: 'popular', limit: 1 });
       expect(page.body.data[0]).toMatchObject({
-        score: 5,
+        cherries: 5,
+        score: 0,
         viewerCount: 0,
         mode: 'SOLO',
         coverUrl: null,
         category: null,
       });
       expect(page.body.data[0].startedAt).toMatch(ISO_Z);
-      await ctx.prisma.liveRoom.updateMany({ data: { viewerCount: 0, score: BigInt(0) } });
+      await ctx.prisma.liveRoom.updateMany({
+        data: { viewerCount: 0, score: BigInt(0), cherries: BigInt(0) },
+      });
     });
 
     it('filters every tab by category; unknown/inactive slug → 200 empty; malformed → 400', async () => {

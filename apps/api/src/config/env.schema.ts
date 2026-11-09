@@ -515,6 +515,8 @@ export const envSchema = z
     RATE_LIMIT_STAFF_APP_USER: rateLimit('300/900'),
     /** … and the step-up (the authenticator code) per user, on top of the lockout. */
     RATE_LIMIT_STAFF_STEP_UP_USER: rateLimit('10/900'),
+    /** v1.99-social (D311, §10.117): «إجراءات المؤسس» — the app owner's moderation actions per user (a retry is free). */
+    RATE_LIMIT_OWNER_MODERATION_USER: rateLimit('30/900'),
     // v1.2 (CONVENTIONS §7)
     RATE_LIMIT_REGISTER_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_VERIFY_IP: rateLimit('10/900'),
@@ -737,6 +739,14 @@ export const envSchema = z
      * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
      * midnight and the week on Monday there; the hour is the same everywhere.
      */
+    /**
+     * v1.88-live (D315, CONVENTIONS §10.120): at least one game is on in the app — the «مجنون اللعب» board's tab shows
+     * only then (`LiveConfig.gamesEnabled`). No game exists yet, so off; the first game's release turns it on.
+     */
+    LIVE_GAMES_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
     LIVE_RANKINGS_TIME_ZONE: z
       .string()
       .trim()
@@ -771,6 +781,18 @@ export const envSchema = z
      */
     GIFT_CREATOR_SHARE_PERCENT: percentSetting('70'),
     GIFT_CREATOR_QUIP_SHARE_PERCENT: percentSetting('60'),
+    /**
+     * v1.100-social (D312, CONVENTIONS §10.118, owner: «يأخذ المضيف 60٪ … 100 ألف → 600 ألف كرزة»): the recipients' share
+     * of a custom «مُخصَّص» gift wherever it is sent — any live (a host's or a content creator's: the creator rate does not
+     * apply) and a direct conversation (100 000 coins → 600 000 cherries at CHERRIES_PER_COIN 10).
+     */
+    GIFT_CUSTOM_SHARE_PERCENT: percentSetting('60'),
+    /**
+     * v1.100-social (D312, owner: «وصاحب الهدية يأخذ 3٪ لكن كوينزات»): the custom gift owner's share of each send's coin
+     * value, credited to them as coins (100 000 → 3 000; floor) in the send's transaction — never when they send their
+     * own gift.
+     */
+    GIFT_CUSTOM_OWNER_PERCENT: percentSetting('3'),
     /**
      * v1.82-live (D295, owner 2026-11-06: decided YES): an agency earns its usual commission on the gifts its creator
      * members receive, as with its hosts (from the platform's part, never out of the creator's 70 %). "false" stops it.
@@ -895,6 +917,12 @@ export const envSchema = z
      * D148). v1.41-live (D178): every win (×1 and up) is announced to its own room (`lucky-win`).
      */
     LUCKY_GIFT_BIG_WIN_MULTIPLIER: intSetting(100, 2, 10_000),
+    /**
+     * v1.89-live (D318, owner «لا يظهر في التكست إلا المكسب x250 وx500 وx1000»): a lucky win puts its line in the live's
+     * chat only when its multiplier is at least this (one of LUCKY_GIFT_MULTIPLIERS); smaller wins keep everything
+     * else. The OWNER's panel value (`site_settings` `globalStrips`) wins; this is the fallback.
+     */
+    LUCKY_CHAT_MIN_MULTIPLIER: intSetting(250, 1, 10_000),
     /**
      * v1.41-live (D178, owner): a gift send is told to every live as a `gift-ticker` strip (one at a
      * time, the newest first). v1.85-live (D305, owner «٥٠٠ ألف كوينز وأكثر»): from a gift whose unit price
@@ -1573,12 +1601,21 @@ export const envSchema = z
       for (const problem of lucky) {
         ctx.addIssue({ code: 'custom', path: ['LUCKY_GIFT_MULTIPLIERS'], message: problem });
       }
-    } else if (!env.LUCKY_GIFT_MULTIPLIERS.includes(env.LUCKY_GIFT_BIG_WIN_MULTIPLIER)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['LUCKY_GIFT_BIG_WIN_MULTIPLIER'],
-        message: 'must be one of LUCKY_GIFT_MULTIPLIERS',
-      });
+    } else {
+      if (!env.LUCKY_GIFT_MULTIPLIERS.includes(env.LUCKY_GIFT_BIG_WIN_MULTIPLIER)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LUCKY_GIFT_BIG_WIN_MULTIPLIER'],
+          message: 'must be one of LUCKY_GIFT_MULTIPLIERS',
+        });
+      }
+      if (!env.LUCKY_GIFT_MULTIPLIERS.includes(env.LUCKY_CHAT_MIN_MULTIPLIER)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LUCKY_CHAT_MIN_MULTIPLIER'],
+          message: 'must be one of LUCKY_GIFT_MULTIPLIERS',
+        });
+      }
     }
     if (env.LUCKY_GIFTS_DISABLED_COUNTRIES.length > 0 && env.LUCKY_GIFTS_COUNTRY_HEADER === undefined) {
       ctx.addIssue({

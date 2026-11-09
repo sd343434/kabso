@@ -312,11 +312,24 @@ export function globalStripsBody(
   giftMinCoins: string,
   gameMinTickets: string,
   reason: string,
-): { giftMinCoins: number; gameMinTickets: number; reason?: string } | null {
+  /** D318: the lucky chat threshold (omitted: not sent, an older API's form) and the multipliers it may be. */
+  luckyChat?: { value: string; multipliers: readonly number[] },
+): { giftMinCoins: number; gameMinTickets: number; luckyChatMinMultiplier?: number; reason?: string } | null {
   const gift = wholeUpTo(giftMinCoins, 1_000_000_000);
   const game = wholeUpTo(gameMinTickets, 1_000_000_000_000);
   if (gift === null || game === null) return null;
-  return { giftMinCoins: gift, gameMinTickets: game, ...(reason.trim() ? { reason: reason.trim() } : {}) };
+  let lucky: number | undefined;
+  if (luckyChat) {
+    const n = wholeUpTo(luckyChat.value, 10_000);
+    if (n === null || !luckyChat.multipliers.includes(n)) return null;
+    lucky = n;
+  }
+  return {
+    giftMinCoins: gift,
+    gameMinTickets: game,
+    ...(lucky !== undefined ? { luckyChatMinMultiplier: lucky } : {}),
+    ...(reason.trim() ? { reason: reason.trim() } : {}),
+  };
 }
 
 /** D305: the form of «شريطا الهدايا والألعاب» (the global strips' thresholds), pure for the tests. */
@@ -329,16 +342,21 @@ export function GlobalStripsView(props: {
   onGameMinTickets: (value: string) => void;
   onReason: (reason: string) => void;
   onSave: () => void;
+  /** D318: the lucky chat threshold and the multipliers to choose from (absent: an older API, no field). */
+  luckyChat?: { value: string; multipliers: readonly number[]; onChange: (value: string) => void };
 }) {
   const { t } = useApp();
   const invalid = globalStripsBody(props.giftMinCoins, props.gameMinTickets, '') === null;
+  const lucky = props.luckyChat;
+  const luckyInvalid =
+    lucky !== undefined && globalStripsBody('1', '1', '', { value: lucky.value, multipliers: lucky.multipliers }) === null;
   return (
     <form
       className="card"
       style={{ maxWidth: 640, marginTop: 16 }}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!invalid) props.onSave();
+        if (!invalid && !luckyInvalid) props.onSave();
       }}
     >
       <h2>{t('gsTitle')}</h2>
@@ -372,11 +390,30 @@ export function GlobalStripsView(props: {
         />
         <span className="hint">{invalid ? t('gsInvalid') : t('gsHint')}</span>
       </div>
+      {lucky && (
+        <div className="field">
+          <label htmlFor="gs-lucky-chat">{t('gsLuckyChat')}</label>
+          <select
+            id="gs-lucky-chat"
+            className="ltr"
+            value={lucky.value}
+            aria-invalid={luckyInvalid}
+            onChange={(e) => lucky.onChange(e.target.value)}
+          >
+            {lucky.multipliers.map((m) => (
+              <option key={m} value={String(m)}>
+                ×{m}
+              </option>
+            ))}
+          </select>
+          <span className="hint">{luckyInvalid ? t('gsLuckyChatInvalid') : t('gsLuckyChatHint')}</span>
+        </div>
+      )}
       <div className="field">
         <label htmlFor="gs-reason">{t('reason')}</label>
         <textarea id="gs-reason" maxLength={500} value={props.reason} onChange={(e) => props.onReason(e.target.value)} />
       </div>
-      <button className="btn primary" disabled={props.busy || invalid}>
+      <button className="btn primary" disabled={props.busy || invalid || luckyInvalid}>
         {t('gsSave')}
       </button>
     </form>
@@ -388,6 +425,7 @@ function GlobalStripsCard() {
   const { data, error, loading } = useAsync(() => api.get<GlobalStripsSettings>('/admin/global-strips'), []);
   const [gift, setGift] = useState('500000');
   const [game, setGame] = useState('1000000');
+  const [luckyChat, setLuckyChat] = useState('250');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -395,8 +433,12 @@ function GlobalStripsCard() {
     if (data) {
       setGift(String(data.giftMinCoins));
       setGame(String(data.gameMinTickets));
+      if (data.luckyChatMinMultiplier !== undefined) setLuckyChat(String(data.luckyChatMinMultiplier));
     }
   }, [data]);
+  // D318: the lucky chat field only with an API that sends the multipliers.
+  const multipliers = data?.luckyMultipliers;
+  const lucky = multipliers?.length ? { value: luckyChat, multipliers } : undefined;
   if (loading && !data) return <Loading />;
   if (!data) return <ErrorAlert error={error} />;
   return (
@@ -410,8 +452,9 @@ function GlobalStripsCard() {
         onGiftMinCoins={setGift}
         onGameMinTickets={setGame}
         onReason={setReason}
+        {...(lucky ? { luckyChat: { ...lucky, onChange: setLuckyChat } } : {})}
         onSave={() => {
-          const body = globalStripsBody(gift, game, reason);
+          const body = globalStripsBody(gift, game, reason, lucky);
           if (!body) return;
           setBusy(true);
           setSaveError(null);
@@ -420,6 +463,7 @@ function GlobalStripsCard() {
               setBusy(false);
               setGift(String(saved.giftMinCoins));
               setGame(String(saved.gameMinTickets));
+              if (saved.luckyChatMinMultiplier !== undefined) setLuckyChat(String(saved.luckyChatMinMultiplier));
               setReason('');
               toast(t('saved'));
             },

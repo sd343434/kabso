@@ -278,6 +278,66 @@ class KGiftMovieFrame extends StatelessWidget {
   );
 }
 
+/// D317 (owner, from a device: the 500 000-coin «الملاك المحارب»
+/// `angel_warrior`, an SVGA, showed the room's header above it and looked
+/// cropped — «the full-screen gift must appear filling the whole screen»):
+/// a **full-screen** SVGA (the gift's «شاشة كاملة» badge, D289, or a
+/// portrait canvas at least 1.5 times as tall as wide — the panel's own
+/// [looksFullScreen] rule) is drawn like D309's plain MP4: its own canvas
+/// (the view box) scaled to **cover** the whole live screen, centred, its
+/// aspect kept — a canvas of another shape loses equal strips at two
+/// opposite edges, never leaves a band of the room. What the movie leaves
+/// transparent stays transparent. Other effects keep [KGiftMovieFrame].
+class KGiftFullScreenFrame extends StatelessWidget {
+  const new({required this.viewBox, required this.child, super.key});
+
+  /// The movie's canvas (SVGA `viewBoxWidth` × `viewBoxHeight`).
+  final Size viewBox;
+
+  /// The movie, drawn into the view box.
+  final Widget child;
+
+  static const frameKey = Key('gift.effect.fullScreen');
+
+  /// The panel's «شاشة كاملة» rule (`looksFullscreen`, D289): a portrait
+  /// canvas at least this many times as tall as wide.
+  static const minAspect = 1.5;
+
+  /// Whether a canvas of [viewBox] is a full-screen one by its shape.
+  static bool looksFullScreen(Size viewBox) =>
+      !viewBox.isEmpty && viewBox.height >= viewBox.width * minAspect;
+
+  /// The view box's rect on a [screen]: scaled to cover it, centred.
+  static Rect layout(Size viewBox, Size screen) {
+    if (viewBox.isEmpty || screen.isEmpty) return Offset.zero & screen;
+    final scale = math.max(
+      screen.width / viewBox.width,
+      screen.height / viewBox.height,
+    );
+    final w = viewBox.width * scale;
+    final h = viewBox.height * scale;
+    return Rect.fromLTWH((screen.width - w) / 2, (screen.height - h) / 2, w, h);
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox.expand(
+    key: frameKey,
+    child: LayoutBuilder(
+      builder: (context, box) => ClipRect(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fromRect(
+              rect: layout(viewBox, box.biggest),
+              child: child,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// The full-screen effect of an animated gift: its SVGA — the hosted
 /// [animationUrl] (D126, from the device cache or downloaded now) or the
 /// bundled [animationKey] — plays once over the room, full width and
@@ -314,11 +374,16 @@ class KGiftEffect extends StatefulWidget {
     this.audioUrl,
     this.audioDurationMs,
     this.soundOn = true,
+    this.fullScreen = false,
     this.onHold,
     this.onDone,
   });
 
   final String? animationKey;
+
+  /// D317: the gift is marked «شاشة كاملة» (D289): its SVGA covers the
+  /// whole screen ([KGiftFullScreenFrame]); a portrait canvas does anyway.
+  final bool fullScreen;
   final String? animationUrl;
 
   /// v1.46-live (D207): [animationUrl]'s format (null: an older API, SVGA)
@@ -684,21 +749,29 @@ class _KGiftEffectState extends State<KGiftEffect>
     if (doc == null) return const SizedBox.shrink();
     final svga = _svga;
     final reader = _reader;
+    final movie = svga != null
+        ? SVGAImage(svga)
+        : CustomPaint(
+            painter: SvgaFramePainter(
+              doc: doc,
+              frame: _frame,
+              pictures: reader?.pictures ?? const {},
+            ),
+          );
+    // D317: a full-screen gift covers the whole live screen.
+    if (widget.fullScreen ||
+        KGiftFullScreenFrame.looksFullScreen(doc.viewBox)) {
+      return IgnorePointer(
+        child: KGiftFullScreenFrame(viewBox: doc.viewBox, child: movie),
+      );
+    }
     return IgnorePointer(
       child: KGiftMovieFrame(
         viewBox: doc.viewBox,
         bounds: doc.bounds,
         // The frame clips at the drawn area; the clip may draw past the
         // view box into it.
-        child: svga != null
-            ? SVGAImage(svga)
-            : CustomPaint(
-                painter: SvgaFramePainter(
-                  doc: doc,
-                  frame: _frame,
-                  pictures: reader?.pictures ?? const {},
-                ),
-              ),
+        child: movie,
       ),
     );
   }

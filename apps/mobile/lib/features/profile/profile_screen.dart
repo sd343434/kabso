@@ -41,6 +41,17 @@ abstract final class KProfile {
   /// A reels cell is portrait; a posts cell is square.
   static const double reelAspect = 9 / 16;
 
+  /// D316 (the owner's reference): the profile grid sits 16 dp in from the
+  /// screen's edges (≈ 15 dp measured), 4 dp between the cells (≈ 4 dp),
+  /// and a posts cell is a little taller than wide (≈ 117 × 130 dp: 0.9).
+  /// Reels keep [reelAspect].
+  static const double pageGridInset = KSpacing.lg;
+  static const double pageGridGap = KSpacing.xs;
+  static const double postAspect = 0.9;
+
+  /// D316: the selected tab's short bar under its word.
+  static const double tabIndicatorWidth = 24;
+
   /// Header buttons (Edit profile, Follow, Watch live).
   static const double buttonHeight = KSizes.minTouchTarget - KSpacing.sm;
 }
@@ -161,7 +172,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             width: double.infinity,
             child: OutlinedButton(
               key: ProfileScreen.editButtonKey,
-              style: ProfileCoverButtons.quiet(context),
+              // D316: the centred header's pill (the founder's page keeps
+              // D307's button).
+              style: profile.kabsoOwner
+                  ? ProfileCoverButtons.quiet(context)
+                  : ProfileCoverButtons.pill(context),
               onPressed: () => context.push(AppRoutes.editProfile),
               child: ProfileCoverButtons.label(l10n.profileEditShort),
             ),
@@ -210,16 +225,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // drafts and settings) over the full-bleed cover: no background and the
     // buttons on translucent circles until the cover has scrolled away.
     final solid = _solid || me.value == null;
-    final fg = solid ? p.textPrimary : KPalette.dark.textPrimary;
+    // D316: on every profile but the founder's (no cover under the bar), the
+    // bar's buttons and title take the theme's colours from the start.
+    final owner = switch (me.value?.username) {
+      final name? => ref.watch(profileStatsProvider(name)).value?.kabsoOwner,
+      null => null,
+    };
+    final faint = !(owner ?? false);
+    final themed = solid || faint;
+    final fg = themed ? p.textPrimary : KPalette.dark.textPrimary;
     return Scaffold(
       backgroundColor: p.background,
       extendBodyBehindAppBar: true,
       appBar: ProfileCoverBar(
         solid: solid,
+        faint: faint,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
         // the tab label). D299d: over the cover too, white.
         title: ProfileCoverHandle(
-          solid: solid,
+          solid: themed,
+          start: faint,
           username: username,
           tier: tier,
           staffId: staffId,
@@ -237,7 +262,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             tooltip: l10n.settingsTitle,
             // D292: a plain glyph with a soft shadow over the cover.
             icon: ProfileCoverBar.glyph(
-              solid: solid,
+              solid: themed,
               child: AppIcon(
                 AppIcons.settings,
                 size: KMetrics.iconMd,
@@ -582,6 +607,8 @@ class ProfileAvatar extends StatelessWidget {
     this.hostAgentCode,
     this.avatarFrame,
     this.outline,
+    this.outlineWidth = KMetrics.strokeLarge,
+    this.outlineGap = 0,
   });
 
   final String displayName;
@@ -595,6 +622,11 @@ class ProfileAvatar extends StatelessWidget {
   /// D218: a plain photo (no frame, not live) gets a 3 dp ring of this
   /// colour (the page's, over the cover).
   final Color? outline;
+
+  /// The ring's width, and (D316) a page-coloured gap between the ring and
+  /// the photo; the whole stays [KProfile.avatar] wide.
+  final double outlineWidth;
+  final double outlineGap;
 
   static const Key agentFrameKey = ProfileHeaderView.agentFrameKey;
   static const Key avatarFrameKey = ProfileHeaderView.avatarFrameKey;
@@ -658,13 +690,19 @@ class ProfileAvatar extends StatelessWidget {
           )
         : outline != null && !live
         ? DecoratedBox(
-            decoration: BoxDecoration(shape: BoxShape.circle, color: outline),
+            decoration: outlineGap > 0
+                ? BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: context.palette.background,
+                    border: Border.all(color: outline!, width: outlineWidth),
+                  )
+                : BoxDecoration(shape: BoxShape.circle, color: outline),
             child: Padding(
-              padding: const EdgeInsets.all(KMetrics.strokeLarge),
+              padding: EdgeInsets.all(outlineWidth + outlineGap),
               child: KAvatar(
                 name: displayName,
                 imageUrl: avatarUrl,
-                size: KProfile.avatar - 2 * KMetrics.strokeLarge,
+                size: KProfile.avatar - 2 * (outlineWidth + outlineGap),
               ),
             ),
           )
@@ -719,35 +757,58 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
             key: ProfileScreen.tabKey(t),
             onTap: () => onSelect(t),
             child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: selected ? p.textPrimary : p.border,
-                    width: selected ? KMetrics.stroke : KMetrics.hairline,
-                  ),
-                ),
-              ),
-              child: Center(
-                child: text
-                    ? Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textScaler: MediaQuery.textScalerOf(context)
-                            .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale),
-                        style: context.textStyles.label.copyWith(
-                          fontSize: 14,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: selected ? p.textPrimary : p.textTertiary,
+              // D316: the words keep no rule under them; the selected one
+              // has a short rounded bar (the reference has no tabs; owner:
+              // keep ours, styled to fit).
+              decoration: text
+                  ? const BoxDecoration()
+                  : BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: selected ? p.textPrimary : p.border,
+                          width: selected ? KMetrics.stroke : KMetrics.hairline,
                         ),
-                      )
-                    : AppIcon(
-                        selected ? filled : outline,
-                        size: KMetrics.iconMd,
-                        color: selected ? p.textPrimary : p.textTertiary,
                       ),
+                    ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (text && selected)
+                    Positioned(
+                      bottom: KSpacing.xs,
+                      child: Container(
+                        width: KProfile.tabIndicatorWidth,
+                        height: KMetrics.stroke + 1,
+                        decoration: BoxDecoration(
+                          color: p.textPrimary,
+                          borderRadius: BorderRadius.circular(KRadius.pill),
+                        ),
+                      ),
+                    ),
+                  Center(
+                    child: text
+                        ? Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textScaler: MediaQuery.textScalerOf(context).clamp(
+                              maxScaleFactor: KMetrics.topBarMaxTextScale,
+                            ),
+                            style: context.textStyles.label.copyWith(
+                              fontSize: 14,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: selected ? p.textPrimary : p.textTertiary,
+                            ),
+                          )
+                        : AppIcon(
+                            selected ? filled : outline,
+                            size: KMetrics.iconMd,
+                            color: selected ? p.textPrimary : p.textTertiary,
+                          ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -824,8 +885,9 @@ class ProfileGrid extends ConsumerWidget {
     final l10n = context.l10n;
     final reels = tab == ProfileTab.reels;
     final saved = tab == ProfileTab.saved;
-    // Saved mixes posts and reels: square cells, reels marked with play.
-    final aspect = reels ? KProfile.reelAspect : 1.0;
+    // Saved mixes posts and reels: post-shaped cells (D316), reels marked
+    // with play.
+    final aspect = reels ? KProfile.reelAspect : KProfile.postAspect;
     Widget state(String title, String body) => SliverToBoxAdapter(
       child: Padding(
         key: stateKey,
@@ -843,16 +905,20 @@ class ProfileGrid extends ConsumerWidget {
         ),
       ),
     );
-    Widget grid(int count, Widget Function(int) cell) => SliverGrid.builder(
-      key: gridKey,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: KProfile.gridGap,
-        crossAxisSpacing: KProfile.gridGap,
-        childAspectRatio: aspect,
+    // D316: inset from the screen's edges, 4 dp apart.
+    Widget grid(int count, Widget Function(int) cell) => SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: KProfile.pageGridInset),
+      sliver: SliverGrid.builder(
+        key: gridKey,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: KProfile.pageGridGap,
+          crossAxisSpacing: KProfile.pageGridGap,
+          childAspectRatio: aspect,
+        ),
+        itemCount: count,
+        itemBuilder: (_, i) => cell(i),
       ),
-      itemCount: count,
-      itemBuilder: (_, i) => cell(i),
     );
     final key = (username: username, tab: tab);
     // A reload (pull to refresh, a new page) keeps the cells on screen.

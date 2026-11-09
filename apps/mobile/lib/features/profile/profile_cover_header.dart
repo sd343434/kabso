@@ -30,6 +30,7 @@ import 'package:kabso_live/features/bag/presentation/avatar_frame_art.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_team_badge.dart';
+import 'package:kabso_live/features/medals/domain/medal_models.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_badge_wrap.dart';
@@ -195,6 +196,64 @@ abstract final class KPublicProfile {
   /// photo, under the badges, 28 — five of them (5 × 28 + 4 × 6 = 164) fit
   /// the name block's 187 dp at 360 wide; a narrower block shrinks the row.
   static const double medal = 28;
+
+  // D316 (owner, after a third-party reference: «التصميم الذي في المنتصف …
+  // لصفحات المستخدمين، نطبقه 100٪»): every profile but the founder's is
+  // centred on the plain page (owner, later: «بدون غلاف») — the photo, the
+  // name and its seal, the badges; the worn medals (the art alone), the bio,
+  // the numbers, «متابعة» / «مراسلة» / ⋯, then the tabs and the grid. The reference is ≈ 207 px wide for a 393 dp phone
+  // (0.527 px/dp), so every value below is an estimate (±2 dp) measured
+  // on it (docs/contracts/CONVENTIONS.md, the D316 app note).
+
+  /// D316: from the top bar's bottom to the photo (the reference's photo
+  /// starts ≈ 29 dp under its back button's centre — our bar's bottom).
+  static const double centredTopGap = 0;
+
+  /// D316: the side margin of the centred header (≈ 21 dp in the
+  /// reference: its buttons start there).
+  static const double centredInset = 20;
+
+  /// D316: the photo's ring (≈ 2 dp) and the page-coloured gap inside it;
+  /// with the ring the plain photo stays [KProfile.avatar] wide (≈ 87 dp).
+  static const double centredRing = 2;
+  static const double centredRingGap = 2;
+
+  /// D316: the photo → the name (≈ 11 dp).
+  static const double centredNameGap = 10;
+
+  /// D316: the name (≈ 12 dp cap height → ≈ 17–18 dp bold).
+  static const double centredNameFont = 18;
+
+  /// D316: the space under the badges, before the medals.
+  static const double centredIdentityBottom = KSpacing.sm;
+
+  /// D316: the bio (≈ 12–13 dp, ≈ 18 dp line pitch), centred.
+  static const double centredBioFont = 13;
+  static const double centredBioHeight = 1.4;
+
+  /// D316: the worn medals where the reference has its icon row (≈ 42 dp
+  /// apart). Owner, later: «الميداليات داخل فقاعة، أزلها» — the art alone,
+  /// no round chip behind it, a little larger than D299b's [medal] (32) to
+  /// keep the row's weight, 10 apart (42 between centres); the row is a
+  /// 44 dp tall tap target (the art centred in it).
+  static const double centredMedal = 32;
+  static const double centredMedalGap = 10;
+  static const double centredMedalTap = 44;
+
+  /// D316: each number's column (the two columns' centres ≈ 114 dp apart)
+  /// and the line between them (as tall as the number and its label).
+  static const double statColumn = 114;
+  static const double centredStatDivider = 28;
+
+  /// D316: the pill buttons (≈ 36 dp) and the round ⋯.
+  static const double centredButtonHeight = 36;
+
+  /// D316: the vertical rhythm of the centred header (≈ 8 / 10 / 10 / 14
+  /// dp in the reference).
+  static const double centredBioGap = KSpacing.sm;
+  static const double centredMedalsGap = 10;
+  static const double centredStatsGap = 10;
+  static const double centredActionsGap = 14;
 }
 
 /// D278: the top bar of the profile pages over the full-bleed cover — our
@@ -216,10 +275,20 @@ class ProfileCoverBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     required this.actions,
     super.key,
+    this.faint = false,
   });
 
   /// The cover has scrolled away: the page colour and the title.
   final bool solid;
+
+  /// D316: every profile but the founder's (no cover under the bar): the
+  /// buttons and title in the theme's colours from the start, no shadow,
+  /// back with the @username beside it; the background stays clear until
+  /// [solid].
+  final bool faint;
+
+  /// Whether the bar's glyphs and title take the theme's colours.
+  bool get themed => solid || faint;
   final Widget title;
   final List<Widget> actions;
 
@@ -284,11 +353,15 @@ class ProfileCoverBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = solid ? p.textPrimary : KPalette.dark.textPrimary;
+    final fg = themed ? p.textPrimary : KPalette.dark.textPrimary;
     final canPop = ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
     // D292 (owner: «الرجوع والثلاث نقاط جنب بعضهم»): back, then the page's
     // buttons, side by side at the reading start; the other side is empty.
     final group = [if (canPop) BackButton(color: fg), ...actions];
+    // D316 (owner: «اليوزر بجانب السهم»): on these pages the bar is
+    // the reference's — back at the reading start and the @username right
+    // beside it (not centred); the page's buttons, if any, at the end.
+    final start = faint;
     // D292 (owner: «واجعل السهم زر رجوع بشكل أفضل»): the back button draws
     // the app's own back chevron (`AppIcons.back`, the 1.8 stroke the app's
     // other bars use), 24 dp, pointing to the reading start (mirrored in
@@ -297,7 +370,7 @@ class ProfileCoverBar extends StatelessWidget implements PreferredSizeWidget {
     return ActionIconTheme(
       data: ActionIconThemeData(
         backButtonIconBuilder: (_) => glyph(
-          solid: solid,
+          solid: themed,
           child: Transform.flip(
             flipX: rtl,
             child: AppIcon(AppIcons.back, size: KMetrics.iconMd, color: fg),
@@ -305,24 +378,37 @@ class ProfileCoverBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       child: IconTheme.merge(
-        data: IconThemeData(shadows: solid ? null : coverShadow),
+        data: IconThemeData(shadows: themed ? null : coverShadow),
         child: KAppBar(
           backgroundColor: solid ? p.background : Colors.transparent,
           foregroundColor: fg,
           elevation: 0,
           scrolledUnderElevation: 0,
-          centerTitle: true,
+          centerTitle: !start,
           automaticallyImplyLeading: false,
           // The status bar's icons: light over the cover, the theme's after.
-          systemOverlayStyle: !solid || dark
+          systemOverlayStyle: !themed || dark
               ? SystemUiOverlayStyle.light.copyWith(
                   statusBarColor: Colors.transparent,
                 )
               : SystemUiOverlayStyle.dark.copyWith(
                   statusBarColor: Colors.transparent,
                 ),
-          leadingWidth: group.isEmpty ? null : _groupWidth(group.length),
-          leading: group.isEmpty
+          leadingWidth: start
+              ? (canPop ? KSpacing.xs + KPublicProfile.barButton : null)
+              : group.isEmpty
+              ? null
+              : _groupWidth(group.length),
+          leading: start
+              ? (canPop
+                    ? Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          start: KSpacing.xs,
+                        ),
+                        child: BackButton(color: fg),
+                      )
+                    : null)
+              : group.isEmpty
               ? null
               : Padding(
                   padding: const EdgeInsetsDirectional.only(start: KSpacing.xs),
@@ -343,11 +429,16 @@ class ProfileCoverBar extends StatelessWidget implements PreferredSizeWidget {
           // cut in the middle instead of drifting aside; with three buttons
           // the end keeps less, so the title still has
           // [KPublicProfile.barTitleMinWidth].
-          titleSpacing: KSpacing.xs,
-          actions: [
-            if (group.isNotEmpty)
-              SizedBox(width: _endReserve(context, group.length)),
-          ],
+          titleSpacing: start && !canPop ? KSpacing.lg : KSpacing.xs,
+          actions: start
+              ? [
+                  ...actions,
+                  if (actions.isNotEmpty) const SizedBox(width: KSpacing.xs),
+                ]
+              : [
+                  if (group.isNotEmpty)
+                    SizedBox(width: _endReserve(context, group.length)),
+                ],
         ),
       ),
     );
@@ -370,10 +461,14 @@ class ProfileCoverHandle extends StatelessWidget {
     this.tier,
     this.staffId,
     this.textKey,
+    this.start = false,
   });
 
   final bool solid;
   final String username;
+
+  /// D316: at the reading start beside back (not centred).
+  final bool start;
   final PremiumTier? tier;
   final String? staffId;
 
@@ -407,7 +502,9 @@ class ProfileCoverHandle extends StatelessWidget {
           staffId!,
           key: ProfileCoverHeader.staffIdKey,
           height: KStaffIdText.bar,
-          alignment: Alignment.center,
+          alignment: start
+              ? AlignmentDirectional.centerStart
+              : Alignment.center,
           semanticHint: l10n.profileStaffIdHint,
           // D299l: the tier's full motion in the profile bar.
           effects: KSpecialIdEffects.full,
@@ -616,6 +713,9 @@ class ProfileCoverHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // D316: every profile but the founder's has the centred header, with
+    // no cover (owner, later: «بدون غلاف»).
+    if (!profile.kabsoOwner) return _centred(context);
     final l10n = context.l10n;
     final media = MediaQuery.of(context);
     final slot = KPublicProfile.avatarSlot;
@@ -835,6 +935,312 @@ class ProfileCoverHeader extends StatelessWidget {
     );
   }
 
+  /// D316: the photo and the name block at the top of the centred header.
+  static const topBlockKey = Key('profile.centred.top');
+
+  /// D316: the centred header of every profile but the founder's (owner:
+  /// «التصميم الذي في المنتصف … نطبقه 100٪»; later «بدون غلاف»): on the
+  /// plain page, the photo, the name with its seal and the badges (the
+  /// @username / special ID is the bar's title only); under them the worn
+  /// medals (owner 3a, before the bio), the bio, the tags, the links, the
+  /// numbers and [actions].
+  Widget _centred(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final page = context.palette.background;
+    return Stack(
+      key: headerKey,
+      children: [
+        Positioned.fill(child: ColoredBox(color: page)),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              key: topBlockKey,
+              padding: EdgeInsets.fromLTRB(
+                KPublicProfile.centredInset,
+                media.padding.top + KPublicProfile.centredTopGap,
+                KPublicProfile.centredInset,
+                KPublicProfile.centredIdentityBottom,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _centredAvatar(context),
+                    const SizedBox(height: KPublicProfile.centredNameGap),
+                    _centredIdentity(context),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KPublicProfile.centredInset,
+                0,
+                KPublicProfile.centredInset,
+                KSpacing.md,
+              ),
+              child: _centredBelow(context),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// D316: the plain photo in a box as wide as itself (≈ 87 dp in the
+  /// reference, ring included); a worn frame (or the live ring and its
+  /// badge, or a staff account's team frame) keeps the frames' common box
+  /// (D244), so the frame never covers the name.
+  Widget _centredAvatar(BuildContext context) => Consumer(
+    builder: (context, ref, _) {
+      final live = profile.liveRoomId != null;
+      final cp = cpFrame ?? cpWearsSpecialFrame(profile.cp);
+      final vip =
+          !live &&
+              profile.rechargeAgentCode == null &&
+              profile.hostAgentCode == null &&
+              profile.avatarFrame == null
+          ? profile.vip
+          : null;
+      final framed =
+          live ||
+          profile.staff != null ||
+          isTeamAvatarUrl(profile.avatarUrl) ||
+          profile.rechargeAgentCode != null ||
+          profile.hostAgentCode != null ||
+          AvatarFrameArt.of(profile.avatarFrame) != null ||
+          cp ||
+          VipAvatarFrame.shows(ref, vip);
+      final slot = KPublicProfile.avatarSlot;
+      return framed
+          ? SizedBox(
+              width: slot.width,
+              height: slot.height,
+              child: Center(child: _avatar(context, centred: true)),
+            )
+          : SizedBox.square(
+              dimension: KProfile.avatar,
+              child: Center(child: _avatar(context, centred: true)),
+            );
+    },
+  );
+
+  /// D316: the name and its seal and the badges, centred, in the theme's
+  /// colours (owner: «اليوزر الذي أسفل الاسم أزله لأنه موجود بالأعلى» — the
+  /// @username, special-ID plate or staff ID is the bar's title).
+  Widget _centredIdentity(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final nameStyle = t.title.copyWith(
+      color: p.textPrimary,
+      fontSize: KPublicProfile.centredNameFont,
+      // D258: the special colour at semi-bold (owner).
+      fontWeight: (profile.vip?.member ?? false)
+          ? FontWeight.w600
+          : FontWeight.w700,
+    );
+    final badges = _badges(context);
+    return Column(
+      key: identityKey,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // D279b: «مباشر» (never across a block).
+        if (profile.live case final live? when !profile.blockedByMe)
+          Padding(
+            padding: const EdgeInsets.only(bottom: KSpacing.xs),
+            child: ProfileLivePill(live: live, self: profile.isSelf),
+          ),
+        Column(
+          key: nameRowKey,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              key: nameLineKey,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: VipNameShimmer(
+                    vip: profile.vip,
+                    child: Text(
+                      profile.displayName,
+                      key: const Key('profile.displayName'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textWidthBasis: TextWidthBasis.longestLine,
+                      style: nameStyle,
+                    ),
+                  ),
+                ),
+                // D293: the automatic verification badge right after the name.
+                if (profile.verification case final badge?) ...[
+                  const SizedBox(width: KSpacing.xs),
+                  ProfileVerificationBadge(
+                    badge: badge,
+                    size: ProfileVerificationBadge.sizeForFont(
+                      KPublicProfile.centredNameFont,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (badges.isNotEmpty) ...[
+              const SizedBox(height: KSpacing.xs + 2),
+              ProfileBadgeWrap(
+                key: badgesKey,
+                spacing: KSpacing.sm,
+                runSpacing: KSpacing.xs,
+                maxLines: KPublicProfile.badgeLines,
+                centre: true,
+                children: badges,
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// D316: under the name block — the worn medals (owner 3a: the
+  /// reference's icon row; «الميداليات قبل البايو»), the bio, the tags, the
+  /// links, the numbers and the buttons, centred.
+  Widget _centredBelow(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final medals = profile.staff == null
+        ? profile.medals.showcase
+        : const <ProfileMedal>[];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Owner 3a: the reference's icon row is the medals the person
+        // chose to show (D292), the art alone (no chip: «الميداليات داخل
+        // فقاعة، أزلها»); nothing when none are worn. The 44 dp row keeps
+        // the art 10 dp under the name block ([centredMedalsGap]).
+        if (medals.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(
+              top:
+                  KPublicProfile.centredMedalsGap -
+                  (KPublicProfile.centredMedalTap -
+                          KPublicProfile.centredMedal) /
+                      2,
+            ),
+            child: SizedBox(
+              height: KPublicProfile.centredMedalTap,
+              child: MedalShowcaseRow(
+                key: medalsKey,
+                medals: medals,
+                size: KPublicProfile.centredMedal,
+                spacing: KPublicProfile.centredMedalGap,
+                onTap: () => context.push(
+                  profile.isSelf
+                      ? AppRoutes.medals
+                      : AppRoutes.userMedals(profile.username),
+                ),
+              ),
+            ),
+          ),
+        // D283b: a Kabso Team account shows the official bio card under
+        // the header instead, never its typed bio.
+        if (_bioOf(context) case final bio?)
+          Padding(
+            padding: const EdgeInsets.only(top: KPublicProfile.centredBioGap),
+            child: Text(
+              bio,
+              key: bioKey,
+              maxLines: KPublicProfile.bioLines,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: t.body.copyWith(
+                color: p.textSecondary,
+                fontSize: KPublicProfile.centredBioFont,
+                height: KPublicProfile.centredBioHeight,
+              ),
+            ),
+          ),
+        if (profile.tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: KSpacing.sm),
+            child: ProfileTagChips(
+              tags: profile.tags,
+              icons: ProfileTagIcon.listFor(profile.tags, profile.tagIcons),
+              alignment: WrapAlignment.center,
+            ),
+          ),
+        if (profile.links.isNotEmpty)
+          KeyedSubtree(
+            key: linksKey,
+            child: ProfileLinksRow(
+              links: profile.links,
+              reportable: !profile.isSelf,
+              alignment: WrapAlignment.center,
+            ),
+          ),
+        const SizedBox(height: KPublicProfile.centredStatsGap),
+        _stats(context, centred: true),
+        const SizedBox(height: KPublicProfile.centredActionsGap),
+        SizedBox(
+          key: actionsKey,
+          height: KPublicProfile.centredButtonHeight,
+          child: actions,
+        ),
+      ],
+    );
+  }
+
+  /// D316: the fill of the pill buttons and the round ⋯ — the reference's
+  /// ≈ #161616 on its near-black page is our dark surface; on light, the
+  /// overlay grey (the light surface is too close to white).
+  static Color _chipColor(BuildContext context) {
+    final p = context.palette;
+    return Theme.of(context).brightness == Brightness.dark
+        ? p.surface
+        : p.surfaceOverlay;
+  }
+
+  /// The badges under the name: VIP, Kabso Team, the crests, the levels.
+  List<Widget> _badges(BuildContext context) {
+    final agentCode = profile.rechargeAgentCode;
+    final hostCode = profile.hostAgentCode;
+    return [
+      if (profile.vip?.member ?? false)
+        VipNameBadge(vip: profile.vip, height: 20),
+      // D282 / D299i: a staff account wears the Kabso Team badge (D307:
+      // never on the founder's page).
+      if (profile.kabsoTeam && !profile.kabsoOwner)
+        const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight),
+      // D292: the crests at one visible size ([KPublicProfile.nameBadge]).
+      if (agentCode case final code?)
+        RechargeAgentBadge(
+          key: ProfileHeaderView.agentBadgeKey,
+          code: code,
+          height: KPublicProfile.rechargeAgentNameBadge,
+        ),
+      if (hostCode case final code?)
+        HostAgentBadge(
+          key: ProfileHeaderView.hostAgentBadgeKey,
+          code: code,
+          height: KPublicProfile.hostAgentNameBadge,
+        ),
+      if (rechargeBadgeShows(profile.rechargeBadge))
+        RechargeTierBadge(
+          key: ProfileHeaderView.rechargeBadgeKey,
+          badge: profile.rechargeBadge,
+          height: KPublicProfile.nameBadge,
+        ),
+      // D283: a Kabso Team account shows no levels.
+      if (profile.staff == null)
+        ProfileLevels(
+          key: levelsKey,
+          username: profile.isSelf ? null : profile.username,
+          onOpen: profile.isSelf ? () => context.push(AppRoutes.levels) : null,
+          padding: EdgeInsetsDirectional.zero,
+        ),
+    ];
+  }
+
   /// D299: the name block on the picture beside the photo — «مباشر» (D279b)
   /// at its top end; the name with the verification seal right after it
   /// (one line, cut with «…»); the badges (VIP, Kabso Team, the crests, the
@@ -843,8 +1249,6 @@ class ProfileCoverHeader extends StatelessWidget {
   /// both themes.
   Widget _identity(BuildContext context, {bool centred = false}) {
     final t = context.textStyles;
-    final agentCode = profile.rechargeAgentCode;
-    final hostCode = profile.hostAgentCode;
     final light = KPalette.dark.textPrimary;
     const shadow = ProfileCoverBar.coverShadow;
     final nameStyle = t.title.copyWith(
@@ -879,45 +1283,7 @@ class ProfileCoverHeader extends StatelessWidget {
       textWidthBasis: TextWidthBasis.longestLine,
       textScaler: MediaQuery.textScalerOf(context),
     );
-    final badges = <Widget>[
-      if (profile.vip?.member ?? false)
-        VipNameBadge(vip: profile.vip, height: 20),
-      // D282: a staff account wears the Kabso Team badge.
-      // D292 (owner: «شارة فريق كابسو صغيرة وغير واضحة»); D299i: 44 pt
-      // («بحجم اكبر ليكون كلام مكتوب بداخلها واضح»).
-      // v1.98-social (D307, owner: «ازل شارة فريق كابسو من اسفل الإسم»):
-      // not on the founder's page (his special ID «Kabso» and the seal
-      // stay); every other staff account keeps it.
-      if (profile.kabsoTeam && !profile.kabsoOwner)
-        const KabsoTeamBadge(height: KabsoTeamBadge.profileHeight),
-      // D292: the crests at one visible size ([KPublicProfile.nameBadge]).
-      if (agentCode case final code?)
-        RechargeAgentBadge(
-          key: ProfileHeaderView.agentBadgeKey,
-          code: code,
-          height: KPublicProfile.rechargeAgentNameBadge,
-        ),
-      if (hostCode case final code?)
-        HostAgentBadge(
-          key: ProfileHeaderView.hostAgentBadgeKey,
-          code: code,
-          height: KPublicProfile.hostAgentNameBadge,
-        ),
-      if (rechargeBadgeShows(profile.rechargeBadge))
-        RechargeTierBadge(
-          key: ProfileHeaderView.rechargeBadgeKey,
-          badge: profile.rechargeBadge,
-          height: KPublicProfile.nameBadge,
-        ),
-      // D283: a Kabso Team account shows no levels.
-      if (profile.staff == null)
-        ProfileLevels(
-          key: levelsKey,
-          username: profile.isSelf ? null : profile.username,
-          onOpen: profile.isSelf ? () => context.push(AppRoutes.levels) : null,
-          padding: EdgeInsetsDirectional.zero,
-        ),
-    ];
+    final badges = _badges(context);
     final cross = centred
         ? CrossAxisAlignment.center
         : CrossAxisAlignment.start;
@@ -1064,7 +1430,7 @@ class ProfileCoverHeader extends StatelessWidget {
     );
   }
 
-  Widget _avatar(BuildContext context) {
+  Widget _avatar(BuildContext context, {bool centred = false}) {
     final l10n = context.l10n;
     final room = profile.liveRoomId;
     final live = room != null;
@@ -1113,7 +1479,17 @@ class ProfileCoverHeader extends StatelessWidget {
                       hostAgentCode: profile.hostAgentCode,
                       avatarFrame: profile.avatarFrame,
                       // A thin light ring sets the plain photo off the picture.
-                      outline: framed ? null : KPalette.dark.textPrimary,
+                      // D316: a thin ring in the theme's secondary text
+                      // colour with a page-coloured gap inside it.
+                      outline: framed
+                          ? null
+                          : centred
+                          ? context.palette.textSecondary
+                          : KPalette.dark.textPrimary,
+                      outlineWidth: centred
+                          ? KPublicProfile.centredRing
+                          : KMetrics.strokeLarge,
+                      outlineGap: centred ? KPublicProfile.centredRingGap : 0,
                     ),
                   );
                 },
@@ -1126,7 +1502,7 @@ class ProfileCoverHeader extends StatelessWidget {
   /// the person card's numbers and format (D220: short Latin numbers, equal
   /// columns, a thin line between two; a number the person hides is left
   /// out by the server and the others share the row).
-  Widget _stats(BuildContext context) {
+  Widget _stats(BuildContext context, {bool centred = false}) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
@@ -1153,7 +1529,9 @@ class ProfileCoverHeader extends StatelessWidget {
     ];
     final pending = !countsKnown && !countsFailed;
     String number(int v) => countsFailed ? '\u2013' : KFormat.compactLatin(v);
-    return IntrinsicHeight(
+    // D316: the reference's numbers — equal columns (≈ 114 dp each) centred
+    // on the page, the label in the tertiary text colour.
+    final row = IntrinsicHeight(
       child: Row(
         key: ProfileScreen.statsKey,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1163,7 +1541,9 @@ class ProfileCoverHeader extends StatelessWidget {
               Center(
                 child: Container(
                   width: 1,
-                  height: KPublicProfile.statDivider,
+                  height: centred
+                      ? KPublicProfile.centredStatDivider
+                      : KPublicProfile.statDivider,
                   color: p.textPrimary.withValues(alpha: 0.18),
                 ),
               ),
@@ -1209,7 +1589,7 @@ class ProfileCoverHeader extends StatelessWidget {
                             maxLines: 1,
                             textAlign: TextAlign.center,
                             style: t.caption.copyWith(
-                              color: p.textSecondary,
+                              color: centred ? p.textTertiary : p.textSecondary,
                               fontSize: 12,
                               height: 1.2,
                             ),
@@ -1225,6 +1605,15 @@ class ProfileCoverHeader extends StatelessWidget {
         ],
       ),
     );
+    if (!centred) return row;
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: stats.length * KPublicProfile.statColumn,
+        ),
+        child: row,
+      ),
+    );
   }
 }
 
@@ -1238,9 +1627,17 @@ class ProfileCoverHeader extends StatelessWidget {
 /// (≈ 24 dp), on ONE line — what does not fit shows as «+n» — and hollow:
 /// no fill, a thin Kabso-red outline, the text red as D279b.
 class ProfileTagChips extends StatelessWidget {
-  const new({required this.tags, super.key, this.icons = const []});
+  const new({
+    required this.tags,
+    super.key,
+    this.icons = const [],
+    this.alignment = WrapAlignment.start,
+  });
 
   final List<String> tags;
+
+  /// D316: centred under the centred header's bio.
+  final WrapAlignment alignment;
 
   /// The icon of each tag (missing entries draw none).
   final List<ProfileTagIcon> icons;
@@ -1405,6 +1802,7 @@ class ProfileTagChips extends StatelessWidget {
         );
         return Wrap(
           key: wrapKey,
+          alignment: alignment,
           spacing: spacing,
           runSpacing: spacing,
           children: [
@@ -1488,6 +1886,68 @@ abstract final class ProfileCoverButtons {
     ),
   );
 
+  /// D316: the centred header's pill buttons — «متابعة» (and «إلغاء
+  /// الحظر») in Kabso red as a [FilledButton]; the others («مراسلة»,
+  /// «تتابعه», «تم الطلب», «تعديل الملف») filled with the chip colour as
+  /// an [OutlinedButton] without a border. Fully round, ≈ 36 dp tall.
+  static ButtonStyle pillPrimary(BuildContext context) =>
+      primary(context).copyWith(
+        shape: const WidgetStatePropertyAll(StadiumBorder()),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: KSpacing.md),
+        ),
+        textStyle: WidgetStatePropertyAll(_pillText(context)),
+        elevation: const WidgetStatePropertyAll(0),
+      );
+
+  static ButtonStyle pill(BuildContext context) {
+    final p = context.palette;
+    return OutlinedButton.styleFrom(
+      foregroundColor: p.textPrimary,
+      backgroundColor: ProfileCoverHeader._chipColor(context),
+      side: BorderSide.none,
+      padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+      shape: const StadiumBorder(),
+      textStyle: _pillText(context),
+    );
+  }
+
+  static TextStyle _pillText(BuildContext context) =>
+      context.textStyles.bodyStrong.copyWith(fontSize: 14);
+
+  /// D316: the round ⋯ at the end of the pills (the reference's vertical
+  /// dots).
+  static Widget round({
+    required BuildContext context,
+    required Key key,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) => SizedBox.square(
+    dimension: KPublicProfile.centredButtonHeight,
+    child: Tooltip(
+      message: tooltip,
+      child: OutlinedButton(
+        key: key,
+        style: pill(context).copyWith(
+          padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+          shape: const WidgetStatePropertyAll(CircleBorder()),
+        ),
+        onPressed: onPressed,
+        child: Semantics(
+          label: tooltip,
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: AppIcon(
+              AppIcons.moreHoriz,
+              size: KMetrics.iconMd - 4,
+              color: context.palette.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
   /// The label of a row button: one line, shrunk rather than cut.
   static Widget label(String text) =>
       FittedBox(fit: BoxFit.scaleDown, child: Text(text, maxLines: 1));
@@ -1545,8 +2005,12 @@ class ProfileInfoBlock extends StatelessWidget {
         KProfile.inset,
         KSpacing.md,
       ),
+      // D316: centred under the centred header (the founder's page keeps
+      // its start-aligned facts).
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: profile.kabsoOwner
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           ProfileFieldsLine(category: profile.category, gender: profile.gender),
           // D283b: a Kabso Team account shows the company's official bio
@@ -1560,6 +2024,9 @@ class ProfileInfoBlock extends StatelessWidget {
             const SizedBox(height: KSpacing.sm),
             Wrap(
               key: ProfileInfoBlock.factsKey,
+              alignment: profile.kabsoOwner
+                  ? WrapAlignment.start
+                  : WrapAlignment.center,
               spacing: KSpacing.lg,
               runSpacing: KSpacing.xs,
               children: [

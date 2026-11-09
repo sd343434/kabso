@@ -13,8 +13,18 @@ import type {
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { giftArtUrl } from './gift-art.js';
-import { catalogueVersion, QUIPS_CATEGORY, type GiftCategoryCode } from './gift-catalogue.js';
+import {
+  catalogueVersion,
+  CUSTOM_CATEGORY,
+  QUIPS_CATEGORY,
+  type GiftCategoryCode,
+} from './gift-catalogue.js';
 import { activeItemBadges, legacyGiftBadge, type ItemBadgeDto } from './item-badges.js';
+import {
+  globalStripsDefaultsOf,
+  luckyMultipliersOf,
+  readGlobalStrips,
+} from '../site-settings/global-strips.rules.js';
 
 /**
  * A send within this many seconds of the sender's previous send of the same gift to the same
@@ -81,9 +91,51 @@ export interface GiftDto extends GiftArtDto {
   quip: GiftQuipDto | null;
   /** v1.43-live (D195): the PK booster this gift activates (shown in the «PK» tab during a PK only). */
   pkBooster: PkBoosterKind | null;
+  /**
+   * v1.100-social (D312, §10.118): a CUSTOM gift's owner «صاحب الهدية» (name and avatar on the gift); absent for every
+   * other gift.
+   */
+  owner?: GiftOwnerDto;
+}
+
+/** `GiftOwner` (v1.100-social, D312): who a custom gift belongs to, as the gift panel shows it. */
+export interface GiftOwnerDto {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+/** The owner columns the catalogue reads with a gift. */
+export const GIFT_OWNER_INCLUDE = {
+  owner: {
+    select: { id: true, profile: { select: { username: true, displayName: true, avatarUrl: true } } },
+  },
+} as const;
+
+type GiftOwnerRow = {
+  owner?: {
+    id: string;
+    profile: { username: string; displayName: string; avatarUrl: string | null } | null;
+  } | null;
+};
+
+/** The owner of a gift read with {@link GIFT_OWNER_INCLUDE}, or undefined. */
+export function giftOwnerDto(gift: GiftOwnerRow): GiftOwnerDto | undefined {
+  const o = gift.owner;
+  if (!o?.profile) return undefined;
+  return {
+    id: o.id,
+    username: o.profile.username,
+    displayName: o.profile.displayName,
+    avatarUrl: o.profile.avatarUrl,
+  };
 }
 
 /** `GiftCatalogue`. */
+/** v1.89-live (D318): how long the lucky chat threshold is cached (as the strips', D305). */
+const LUCKY_CHAT_CACHE_MS = 30_000;
+
 export interface GiftCatalogueDto {
   version: string;
   /** The tab codes in order (kept for apps before v1.46-live). */
@@ -93,6 +145,8 @@ export interface GiftCatalogueDto {
   quantities: number[];
   maxRecipients: number;
   comboWindowSeconds: number;
+  /** v1.89-live (D318, §10.121): a lucky win has a chat line from this multiplier (the panel's value, else the config). */
+  luckyChatMinMultiplier: number;
   data: GiftDto[];
 }
 
@@ -159,12 +213,13 @@ export function giftCategoryTabDto(
 }
 
 export function giftDto(
-  gift: Gift,
+  gift: Gift & GiftOwnerRow,
   lang: ContentLanguage,
   publicBaseUrl: string | undefined,
   now = new Date(),
 ): GiftDto {
   const badges = activeItemBadges(gift, now);
+  const owner = giftOwnerDto(gift);
   return {
     code: gift.code,
     category: gift.category,
@@ -182,6 +237,7 @@ export function giftDto(
         ? null
         : { soundKey: gift.soundKey, durationMs: gift.soundMs, text: gift.quipText },
     pkBooster: gift.pkBooster,
+    ...(owner ? { owner } : {}),
   };
 }
 
@@ -228,25 +284,72 @@ export class GiftsService {
     return rows;
   }
 
-  /** `GET /gifts/catalogue`: enabled gifts of the listed tabs, by tab, then sort order, then code. */
+  /**
+   * `GET /gifts/catalogue`: enabled gifts of the listed tabs, by tab, then sort order, then code. v1.100-social (D312):
+   * the «مُخصَّص» tab only when it holds a listed gift (an older app shows an unknown kind as a plain, empty tab).
+   */
   async catalogue(lang: ContentLanguage): Promise<GiftCatalogueDto> {
-    const tabs = await this.listedCategories();
-    const categories = tabs.map((t) => t.code);
+    const listed = await this.listedCategories();
+    const categories0 = listed.map((t) => t.code);
     const gifts = await this.prisma.gift.findMany({
-      where: { enabled: true, category: { in: categories } },
+      // v1.100-social (D312): a custom gift is listed while its owner is an ACTIVE account (it is not sendable otherwise).
+      where: {
+        enabled: true,
+        category: { in: categories0 },
+        OR: [{ ownerUserId: null }, { owner: { status: 'ACTIVE' } }],
+      },
+      include: GIFT_OWNER_INCLUDE,
       orderBy: [...CATALOGUE_ORDER],
     });
+    const tabs = listed.filter((t) => t.kind !== 'CUSTOM' || gifts.some((g) => g.category === t.code));
+    const categories = tabs.map((t) => t.code);
     const quantities = [...this.quantities];
     const now = new Date();
+    const versioned = gifts.map((g) => {
+      const o = giftOwnerDto(g);
+      return { ...g, ownerShown: o ? [o.id, o.username, o.displayName, o.avatarUrl] : null };
+    });
+    const luckyChatMinMultiplier = await this.luckyChatMinMultiplier();
     return {
-      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS, tabs, now),
+      version: catalogueVersion(
+        versioned,
+        quantities,
+        LIVE_GIFT_COMBO_WINDOW_SECONDS,
+        tabs,
+        now,
+        luckyChatMinMultiplier,
+      ),
       categories,
       tabs: tabs.map((t) => giftCategoryTabDto(t, lang, this.publicBaseUrl)),
       quantities,
       maxRecipients: LIVE_GIFT_MAX_RECIPIENTS,
       comboWindowSeconds: LIVE_GIFT_COMBO_WINDOW_SECONDS,
+      luckyChatMinMultiplier,
       data: gifts.map((g) => giftDto(g, lang, this.publicBaseUrl, now)),
     };
+  }
+
+  private luckyChat: { readonly at: number; readonly value: number } | null = null;
+
+  /**
+   * v1.89-live (D318): the lucky chat threshold — the OWNER's (`site_settings` `globalStrips`, the panel), else
+   * `LUCKY_CHAT_MIN_MULTIPLIER`; cached 30 s like the strips' thresholds.
+   */
+  async luckyChatMinMultiplier(): Promise<number> {
+    const now = Date.now();
+    if (this.luckyChat && now - this.luckyChat.at < LUCKY_CHAT_CACHE_MS) return this.luckyChat.value;
+    const { luckyChatMinMultiplier: value } = await readGlobalStrips(
+      this.prisma,
+      globalStripsDefaultsOf(this.config),
+      luckyMultipliersOf(this.config),
+    );
+    this.luckyChat = { at: now, value };
+    return value;
+  }
+
+  /** Forgets the cached lucky chat threshold (tests). */
+  forgetLuckyChat(): void {
+    this.luckyChat = null;
   }
 
   /** `GET /me/gifts/bag`: the caller's enabled gifts with a quantity above 0, in catalogue order. */
@@ -256,8 +359,12 @@ export class GiftsService {
       where: {
         userId,
         quantity: { gt: 0 },
-        // v1.32-live (D154): quips are sent with coins only, so never listed in the bag.
-        gift: { enabled: true, category: { in: listed.filter((c) => c !== QUIPS_CATEGORY) } },
+        // v1.32-live (D154): quips are sent with coins only, so never listed in the bag; v1.100-social (D312) nor
+        // custom gifts.
+        gift: {
+          enabled: true,
+          category: { in: listed.filter((c) => c !== QUIPS_CATEGORY && c !== CUSTOM_CATEGORY) },
+        },
       },
       include: { gift: true },
       orderBy: [

@@ -136,7 +136,9 @@ void main() {
     final name = language.name;
 
     testWidgets('the profile title: the gold pill «Kabso01», the bar size, '
-        'centred, over the cover and once solid ($name)', (tester) async {
+        'beside back (D316), over the cover and once solid ($name)', (
+      tester,
+    ) async {
       await withClock(Clock.fixed(d283Now), () async {
         await pumpOther(tester, staffIdProfile(ar: ar), language: language);
       });
@@ -152,7 +154,16 @@ void main() {
       final pill = tester.getRect(
         find.descendant(of: id, matching: find.byType(KSpecialUsername)),
       );
-      expect(pill.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+      // D316 (owner: «اليوزر بجانب السهم»): at the reading start, right
+      // beside back.
+      final back = tester.getRect(find.byType(BackButton));
+      if (ar) {
+        expect(pill.right, lessThanOrEqualTo(back.left + 0.5));
+        expect(back.left - pill.right, lessThan(16));
+      } else {
+        expect(pill.left, greaterThanOrEqualTo(back.right - 0.5));
+        expect(pill.left - back.right, lessThan(16));
+      }
       expect(pill.bottom, lessThanOrEqualTo(bar.bottom));
       expect(find.textContaining('@Kabso01'), findsNothing);
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -500));

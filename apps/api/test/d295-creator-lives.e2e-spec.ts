@@ -382,12 +382,13 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     const expected = [h3, c2, h2, c1, h1].map((u) => u.username);
     for (const limit of [1, 2, 3, 50])
       expect(await walk({ tab: 'new', limit }), `limit ${limit}`).toEqual(expected);
-    // Popular (all scores 0 → like new, per group) and a kind filter.
+    // Popular (all cherries 0 → like new, per group) and a kind filter.
     expect(await walk({ tab: 'popular', limit: 2 })).toEqual(expected);
     expect(await walk({ tab: 'popular', kind: 'solo', limit: 2 })).toEqual(expected);
-    // Popular orders by score within each group: the score moves h1 first among the hosts and c1 among the creators.
-    await ctx.prisma.liveRoom.update({ where: { id: rooms.get(h1.id)! }, data: { score: 500 } });
-    await ctx.prisma.liveRoom.update({ where: { id: rooms.get(c1.id)! }, data: { score: 100 } });
+    // Popular orders by the room cherries within each group (v1.86-live, D310; was the score): they move h1 first among
+    // the hosts and c1 among the creators.
+    await ctx.prisma.liveRoom.update({ where: { id: rooms.get(h1.id)! }, data: { cherries: 500 } });
+    await ctx.prisma.liveRoom.update({ where: { id: rooms.get(c1.id)! }, data: { cherries: 100 } });
     expect(await walk({ tab: 'popular', limit: 2 })).toEqual([h1, c1, h3, c2, h2].map((u) => u.username));
     // Nearby: the same interleave over the caller's country.
     await ctx.prisma.userProfile.updateMany({
@@ -427,7 +428,8 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
     const h3Room = await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: rooms.get(h3.id)! } });
     const key = Buffer.from(hkdfSync('sha256', ctx.config.live.cursorKey, 'kabso', 'live-cursor/v1', 32));
     const body = Buffer.from(
-      JSON.stringify({ v: 2, t: 'new', c: null, u: null, n: 0, s: h3Room.startedAt.getTime(), i: h3Room.id }),
+      // (format v3 since v1.86-live, D310; the merge-less shape is what this checks)
+      JSON.stringify({ v: 3, t: 'new', c: null, u: null, n: 0, s: h3Room.startedAt.getTime(), i: h3Room.id }),
     ).toString('base64url');
     const tag = createHmac('sha256', key).update(`live-cursor\u0000${body}`).digest().subarray(0, 16);
     const legacy = await ctx.http

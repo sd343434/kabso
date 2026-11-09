@@ -5,6 +5,7 @@
 // a small win's banner for everyone, the global gift strip.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -60,6 +61,7 @@ LuckyWin _win(String id, int multiplier, int coins) => LuckyWin(
 Future<(FakeLiveMediaEngine, List<String>)> _pump(
   WidgetTester tester, {
   AppLanguage language = AppLanguage.en,
+  int? luckyChatMinMultiplier,
 }) async {
   setViewport(tester, GoldenViewport.phone);
   final engine = FakeLiveMediaEngine()..present.add('user-0');
@@ -69,7 +71,8 @@ Future<(FakeLiveMediaEngine, List<String>)> _pump(
     const LiveRoomScreen(roomId: 'room-0'),
     language: language,
     liveMediaEngine: engine,
-    liveGiftRepository: FakeLiveGiftRepository(codes: giftFixtureCodes),
+    liveGiftRepository: FakeLiveGiftRepository(codes: giftFixtureCodes)
+      ..luckyChatMinMultiplier = luckyChatMinMultiplier,
     overrides: [
       liveRepositoryProvider.overrideWithValue(
         FakeLiveRepository(room: (id) => apiRoom(id: id)),
@@ -141,6 +144,46 @@ void main() {
     );
     await _leave(tester);
   });
+
+  for (final language in AppLanguage.values) {
+    testWidgets("D318 (${language.name}): from the catalogue's threshold "
+        '(×250) only ×250 and up write a chat line; a ×5 or ×100 win keeps '
+        'its banner', (tester) async {
+      final l10n = l10nFor(language);
+      final (engine, _) = await _pump(
+        tester,
+        language: language,
+        luckyChatMinMultiplier: 250,
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(LiveRoomScreen)),
+      );
+      String line(int x, int coins) => l10n.liveChatLuckyLine(
+        '\u2068Omar\u2069',
+        KFormat.grouped(x),
+        KFormat.grouped(coins),
+      );
+      for (final (id, x, coins) in [('w1', 5, 50), ('w2', 100, 1000)]) {
+        engine.chat.add(LuckyWinReceived(_win(id, x, coins)));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        // The win still shows (the banner, now or waiting) …
+        final effects = container.read(liveGiftEffectsProvider('room-0'));
+        expect(effects.lucky, isNotNull);
+        // … but no chat line.
+        expect(find.text(line(x, coins)), findsNothing);
+      }
+      engine.chat.add(LuckyWinReceived(_win('w3', 250, 2500)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(line(250, 2500)), findsOneWidget);
+      engine.chat.add(LuckyWinReceived(_win('w4', 1000, 10000)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text(line(1000, 10000)), findsOneWidget);
+      await _leave(tester);
+    });
+  }
 
   testWidgets('a big gift is the global strip (D305: 2.9 s, this live '
       'too)', (tester) async {

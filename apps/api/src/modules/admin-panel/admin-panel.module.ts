@@ -63,6 +63,7 @@ import { AdminMedalsController } from './admin-medals.controller.js';
 import { StaffAppController, StaffTeamAvatarController } from './staff-app.controller.js';
 import { StaffAppGuard } from './staff-app.guard.js';
 import { StaffAppService } from './staff-app.service.js';
+import { OwnerModerationController, OwnerModerationService } from './owner-moderation.service.js';
 
 @Module({
   imports: [
@@ -106,10 +107,13 @@ import { StaffAppService } from './staff-app.service.js';
     // v1.68-live (D273, §10.96.6): «أدوات فريق كابسو» in the app.
     StaffTeamAvatarController,
     StaffAppController,
+    // v1.99-social (D311, §10.117): «إجراءات المؤسس» — the app owner's moderation actions in the app.
+    OwnerModerationController,
   ],
   providers: [
     AdminAuthService,
     StaffReportActionsService,
+    OwnerModerationService,
     AdminSessionGuard,
     AdminUsersService,
     AdminFinanceService,

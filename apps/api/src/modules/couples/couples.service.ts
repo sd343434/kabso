@@ -12,6 +12,7 @@ import { creditFamilyForSpendIn } from '../families/family-points.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
 import { addGiftsSentIn, awardCoupleMedalsIn } from '../medals/medal-awards.js';
+import { addGiftCoinsSentIn } from '../live/gift-coins-sent.js';
 import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
@@ -600,6 +601,8 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
         // D291 «ملوك الثروة»: a CP gift is a gift sent to a user too; once per send (this transaction).
         await addGiftsSentIn(tx, callerId, BigInt(amount), now);
+        // v1.90-live (D320, §10.124): «الأغنى» counts a CP gift too.
+        await addGiftCoinsSentIn(tx, callerId, BigInt(amount), now, this.config.live.rankingsTimeZone);
         const points = couple.points + BigInt(amount);
         const level = cpLevelFor(points);
         await tx.cpCouple.update({

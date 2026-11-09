@@ -327,11 +327,15 @@ describe('CP-010 live video', () => {
         (await ctx.http.get('/api/v1/live/rooms?tab=popular&limit=50')).body.data.map(
           (r: { id: string }) => r.id,
         ) as string[];
-      // CP-012 (v1.8-live): Popular orders by the score, no longer by viewers: with both scores at
-      // 0 the newer room comes first despite its 0 viewers; a viewer's taps lift the watched room.
+      // CP-012 (v1.8-live): Popular is no longer ordered by viewers: with nothing else the newer room comes first despite
+      // its 0 viewers. v1.86-live (D310): a viewer's taps no longer lift the watched room (the order is the room's
+      // cherries, from gifts); its cherries do.
       let ids = await popularIds();
       expect(ids.indexOf(quiet)).toBeLessThan(ids.indexOf(roomId));
       await ctx.http.post(`/api/v1/live/rooms/${roomId}/taps`).set(auth(a)).send({ count: 3 }).expect(200);
+      ids = await popularIds();
+      expect(ids.indexOf(quiet)).toBeLessThan(ids.indexOf(roomId));
+      await ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { cherries: 65 } });
       ids = await popularIds();
       expect(ids.indexOf(roomId)).toBeLessThan(ids.indexOf(quiet));
 

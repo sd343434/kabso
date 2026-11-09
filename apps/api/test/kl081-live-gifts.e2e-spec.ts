@@ -231,6 +231,8 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
         quantities: [1, 10, 66, 99, 188, 520, 1314],
         maxRecipients: 25,
         comboWindowSeconds: 5,
+        // v1.89-live (D318): a lucky win's chat line from ×250 (LUCKY_CHAT_MIN_MULTIPLIER).
+        luckyChatMinMultiplier: 250,
         data: [],
       });
     });

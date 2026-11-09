@@ -1,6 +1,7 @@
 /**
  * CP-020 (D108, CONVENTIONS §10.23): the arithmetic of live gifts, as pure functions.
  */
+import { AppException } from '../../common/errors/app-exception.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 
 /** The media data topic of gift data messages. */
@@ -20,11 +21,17 @@ export interface GiftAmounts {
   readonly scorePoints: number;
 }
 
-/** What a send of `quantity` gifts priced `unitPrice` to `recipients` people is worth. */
+/**
+ * What a send of `quantity` gifts priced `unitPrice` to `recipients` people is worth. v1.91-live (D323): a send whose
+ * score points (coins × 100) would not be a safe integer is refused with 400 `quantity` / `too_big` before anything
+ * is written — unreachable with the 100 000 000 price cap (at most ≈ 2.5 × 10^15 points), kept as the guard.
+ */
 export function giftAmounts(unitPrice: number, quantity: number, recipients: number): GiftAmounts {
   const perRecipientCoins = unitPrice * quantity;
   const totalCoins = perRecipientCoins * recipients;
-  if (!Number.isSafeInteger(totalCoins * POINTS_PER_SUPPORT_COIN)) throw new RangeError('gift too large');
+  if (!Number.isSafeInteger(totalCoins * POINTS_PER_SUPPORT_COIN)) {
+    throw AppException.validation([{ field: 'quantity', issue: 'too_big' }]);
+  }
   return {
     perRecipientCoins,
     totalCoins,

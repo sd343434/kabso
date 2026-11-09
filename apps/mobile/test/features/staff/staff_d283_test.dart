@@ -341,17 +341,16 @@ void main() {
     expect(find.byKey(KabsoTeamPicture.pictureKey), findsNWidgets(2));
   });
 
-  testWidgets('a staff profile: the region cover, the team frame and badge, '
+  testWidgets('a staff profile: no region cover on the page (D316: «بدون '
+      'غلاف»; the region keeps its cover art), the team frame and badge, '
       'the region line and no levels', (tester) async {
     await withClock(Clock.fixed(d283Now), () async {
       await pumpOther(tester, staffProfile(ar: true), language: AppLanguage.ar);
     });
     expect(tester.takeException(), isNull);
-    final cover = tester.widget<Image>(
-      find.byKey(ProfileCoverHeader.staffCoverKey),
-    );
+    expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsNothing);
     expect(
-      (cover.image as AssetImage).assetName,
+      StaffCovers.assetFor(staffProfile(ar: true).staff!.primaryRegion),
       'assets/staff/covers/arab_world.webp',
     );
     expect(find.byKey(ProfileCoverHeader.coverKey), findsNothing);
@@ -361,25 +360,27 @@ void main() {
     // D283d: the region line only in the official bio card's header.
     expect(staffBioTitle(tester), contains('مشرف للوطن العربي'));
     expect(find.text('مشرف للوطن العربي'), findsNothing);
-    // The photo sits at the cover's bottom-start, under the title.
+    // D316: the photo centred under the bar, in the top block (was at the
+    // cover's bottom-start, D283).
     final photo = tester.getRect(find.byKey(KabsoTeamAvatar.frameKey));
-    final area = tester.getRect(find.byKey(ProfileCoverHeader.coverAreaKey));
-    expect(photo.top, greaterThan(area.top + area.height * 0.4));
+    final area = tester.getRect(find.byKey(ProfileCoverHeader.topBlockKey));
+    final bar = tester.getRect(find.byType(AppBar));
+    expect(photo.top, greaterThanOrEqualTo(bar.bottom));
+    expect(photo.bottom, lessThanOrEqualTo(area.bottom));
+    expect(photo.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
   });
 
-  testWidgets('a staff profile of another region: the international cover', (
-    tester,
-  ) async {
+  testWidgets('a staff profile of another region (D316: its cover art is '
+      'not on the page)', (tester) async {
     await pumpOther(
       tester,
       staffProfile(ar: false, staff: europeSupport),
       language: AppLanguage.en,
     );
-    final cover = tester.widget<Image>(
-      find.byKey(ProfileCoverHeader.staffCoverKey),
-    );
+    // D316: no cover on the page; the region's art stays mapped.
+    expect(find.byKey(ProfileCoverHeader.staffCoverKey), findsNothing);
     expect(
-      (cover.image as AssetImage).assetName,
+      StaffCovers.assetFor(europeSupport.primaryRegion),
       'assets/staff/covers/international.webp',
     );
     expect(staffBioTitle(tester), contains('Support — Europe'));

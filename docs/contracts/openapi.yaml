@@ -2683,6 +2683,11 @@ paths:
         listed). It needs no token, combines with every tab, `kind`, `category` and `featured`, wins over
         `scope=nearby` (the caller's country is then not read and `emptyReason` is null), and the cursor
         is bound to it (a cursor of another country → 400).
+        *(v1.86-live, D310, CONVENTIONS §10.116)* **`popular` orders by the room's cherries**
+        (`LiveRoomSummary.cherries`: what the cherry ledger credited the host and the seated guests for this live's
+        gifts), then startedAt desc, id desc — and so do `featured=true` after the feature rank and «رائج»
+        (`LiveRoomSummary.popular`). Taps no longer move a room (they stay points). The cursor format moves to v3
+        (the cherries key): a cursor issued before (v2, the score) → 400 `cursor`, and the app reloads the list.
       parameters:
         - name: tab
           in: query
@@ -4033,18 +4038,29 @@ paths:
     get:
       tags: [live]
       operationId: listLiveRankings
-      summary: "The popularity board: hosts by points this hour, today or this week (CP-016 A)"
+      summary: "The popularity board: hosts by points this hour, today, this week, this month or this year (CP-016 A); the «مجنون اللعب» board (v1.88-live)"
       description: |
         CONVENTIONS §10.15. Up to 50 hosts with points in the current window, highest first (ties
         by user id), ACTIVE only; a signed-in reader never sees people they blocked or who blocked
         them. Guests may read it (rate limited per IP). `me` is present for a signed-in host: the
         caller's exact rank (null with 0 points) and points.
+        *(v1.87-live, D314, §10.119)* `period` also takes MONTH and YEAR (local calendar month / year).
+        *(v1.88-live, D315, §10.120)* `board=GAMES` «مجنون اللعب»: players by the game tickets they SPENT in games in the
+        window (`host` is the player, `points` the tickets); `me` for any signed-in caller. The app shows that tab only
+        while `LiveConfig.gamesEnabled`.
+        *(v1.90-live, D320, §10.124)* `board=RICH` «الأغنى»: the **top 20** users by the coin value of the gifts they SENT in
+        the window (every gift path: a live, a direct conversation, a CP gift; lucky, custom and bag sends at their coin
+        value; a reversed send taken back) — `host` is the sender, `points` the coins; `me` for any signed-in caller.
       security: [{}, { bearerAuth: [] }]
       parameters:
         - name: period
           in: query
           required: false
           schema: { $ref: '#/components/schemas/LiveRankingPeriod' }
+        - name: board
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/LiveRankingBoard' }
       responses:
         '200':
           description: The board.
@@ -19205,6 +19221,50 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/owner/users/{userId}/actions:
+    post:
+      tags: [owner]
+      operationId: createOwnerModerationAction
+      summary: "«إجراءات المؤسس»: warn, ban for N days, ban for good or delete an account — the app owner only, no code (v1.99-social, D311)"
+      description: |
+        CONVENTIONS §10.117 (owner: «يمكنه حذف او حظر او تحذير اي شخص»; he chose no authenticator code and no password for
+        these, a confirmation dialog only). Only the app owner (an ACTIVE account holding the OWNER panel role, read now):
+        403 `OWNER_ONLY` for everyone else, the other staff roles included (their tools are unchanged). Never on the
+        owner's own account (409 `ADMIN_ACTION_REFUSED`, detail field `rule`, issue `self`) or on another OWNER (issue
+        `owner_target`); a DELETED or unknown account → 404. Each action runs the panel's own rule — WARN the report
+        queue's warning (the person gets the `MODERATION_WARNING` notification), SUSPEND «حظر مؤقت» a LOCK of `days`
+        (1–365; sessions revoked, the person told, their live ended), BAN «حظر دائم» the panel's ban (SUSPENDED), and
+        DELETE_ACCOUNT the D193 deletion with its grace period (still cancellable at sign-in until `purgeAfter`; 409
+        `ACCOUNT_DELETION_BLOCKED` with the blockers) — audited with `via: app` and the action row
+        `owner.moderation.action` (actor, target, action, reason). Idempotent: a retry with the same `clientId` → 200 with
+        the first result (`replayed: true`), nothing done twice. Rate limit `RATE_LIMIT_OWNER_MODERATION_USER` (30 / 15 min).
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnerModerationRequest' }
+      responses:
+        '201':
+          description: Done.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerModerationResult' }
+        '200':
+          description: A retry of an action already taken (the first result; nothing done again).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OwnerModerationResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/owner/fixed-costs:
     get:
       tags: [owner]
@@ -25159,6 +25219,18 @@ components:
           type:
           - string
           - 'null'
+        owner:
+          description: v1.100-social (D312, §10.118) — «صاحب الهدية» of a CUSTOM gift and their account status now; null for every other gift.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, username, displayName, avatarUrl, status]
+              properties:
+                id: { type: string, format: uuid }
+                username: { type: string }
+                displayName: { type: string }
+                avatarUrl: { type: [string, 'null'] }
+                status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING_DELETION, DELETED] }
         enabled:
           type: boolean
         sends:
@@ -25183,7 +25255,7 @@ components:
             required: [code, kind, nameAr, nameEn, enabled]
             properties:
               code: { type: string }
-              kind: { type: string, enum: [NORMAL, LUCKY, QUIPS] }
+              kind: { type: string, enum: [NORMAL, LUCKY, QUIPS, CUSTOM] }
               nameAr: { type: string }
               nameEn: { type: string }
               enabled: { type: boolean }
@@ -25227,7 +25299,8 @@ components:
         priceCoins:
           type: integer
           minimum: 0
-          maximum: 1000000
+          maximum: 100000000
+          description: '(v1.91-live, D323) 1 … 100 000 000 coins (was 1 000 000); 0 only for a free QUIPS gift.'
         assetKey:
           type: string
           maxLength: 80
@@ -25301,6 +25374,13 @@ components:
           - string
           - 'null'
           maxLength: 200
+        owner:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 31
+          description: v1.100-social (D312, §10.118) — a CUSTOM gift's owner «صاحب الهدية» by Kabso ID (the username; a leading @ and any case accepted); required for a CUSTOM gift, refused on any other (409 `ADMIN_ACTION_REFUSED`, also for an unknown or non-ACTIVE account — detail field `owner`, issue `owner_not_found` / `owner_not_active`). null removes it (a gift moved out of «مُخصَّص» loses it automatically).
         reason:
           type: string
           minLength: 1
@@ -25328,7 +25408,8 @@ components:
         priceCoins:
           type: integer
           minimum: 0
-          maximum: 1000000
+          maximum: 100000000
+          description: '(v1.91-live, D323) 1 … 100 000 000 coins (was 1 000 000); 0 only for a free QUIPS gift.'
         assetKey:
           type: string
           maxLength: 80
@@ -25401,6 +25482,13 @@ components:
           - string
           - 'null'
           maxLength: 200
+        owner:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 31
+          description: v1.100-social (D312, §10.118) — a CUSTOM gift's owner «صاحب الهدية» by Kabso ID (the username; a leading @ and any case accepted); required for a CUSTOM gift, refused on any other (409 `ADMIN_ACTION_REFUSED`, also for an unknown or non-ACTIVE account — detail field `owner`, issue `owner_not_found` / `owner_not_active`). null removes it (a gift moved out of «مُخصَّص» loses it automatically).
         reason:
           type: string
           minLength: 1
@@ -25449,7 +25537,7 @@ components:
       required: [code, kind, nameAr, nameEn, sortOrder, enabled, iconObjectKey, iconUrl, gifts, enabledGifts, special]
       properties:
         code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,39}$' }
-        kind: { type: string, enum: [NORMAL, LUCKY, QUIPS] }
+        kind: { type: string, enum: [NORMAL, LUCKY, QUIPS, CUSTOM] }
         nameAr: { type: string }
         nameEn: { type: string }
         sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
@@ -27217,11 +27305,13 @@ components:
     GlobalStripsSettings:
       type: object
       additionalProperties: false
-      required: [giftMinCoins, gameMinTickets]
-      description: "v1.85-live (D305, CONVENTIONS §10.115) — the thresholds of the global strips."
+      required: [giftMinCoins, gameMinTickets, luckyChatMinMultiplier, luckyMultipliers]
+      description: "v1.85-live (D305, CONVENTIONS §10.115) — the thresholds of the global strips; v1.89-live (D318, §10.121) and the lucky chat threshold."
       properties:
         giftMinCoins: { type: integer, minimum: 1, maximum: 1000000000, examples: [500000], description: "A gift whose unit price (one gift, not the send) is at least this many coins is the gifts strip. 500 000 until the OWNER sets it." }
         gameMinTickets: { type: integer, minimum: 1, maximum: 1000000000000, examples: [1000000], description: "A game prize of at least this many tickets is the games strip. 1 000 000 until the OWNER sets it." }
+        luckyChatMinMultiplier: { type: integer, minimum: 1, maximum: 10000, examples: [250], description: "v1.89-live (D318): a lucky win puts its line in the live chat only from this multiplier (one of `luckyMultipliers`). `LUCKY_CHAT_MIN_MULTIPLIER` (250) until the OWNER sets it." }
+        luckyMultipliers: { type: array, items: { type: integer, minimum: 1 }, description: "v1.89-live (D318): the lucky multipliers (`LUCKY_GIFT_MULTIPLIERS`, ascending, read-only) — the choices for `luckyChatMinMultiplier`." }
     UpdateGlobalStripsRequest:
       type: object
       additionalProperties: false
@@ -27229,6 +27319,7 @@ components:
       properties:
         giftMinCoins: { type: integer, minimum: 1, maximum: 1000000000 }
         gameMinTickets: { type: integer, minimum: 1, maximum: 1000000000000 }
+        luckyChatMinMultiplier: { type: integer, minimum: 1, maximum: 10000, description: "v1.89-live (D318): optional (absent: unchanged); one of the lucky multipliers, else 400 `luckyChatMinMultiplier` / `invalid_value`." }
         reason: { type: string, minLength: 1, maxLength: 500 }
     UpdateSiteSettingsRequest:
       type: object
@@ -28514,6 +28605,46 @@ components:
               agentsMinor: { type: integer, minimum: 0 }
               deductionsMinor: { type: integer }
               afterMinor: { type: integer }
+    OwnerModerationRequest:
+      type: object
+      description: v1.99-social (D311, CONVENTIONS §10.117). One founder action.
+      required: [action, reason, clientId]
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum: [WARN, SUSPEND, BAN, DELETE_ACCOUNT]
+          description: WARN «تحذير», SUSPEND «حظر مؤقت», BAN «حظر دائم», DELETE_ACCOUNT «حذف الحساب».
+        reason: { type: string, minLength: 1, maxLength: 500, description: "Trimmed; kept in the audit log." }
+        days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: SUSPEND only, and required there (another action with it → 400 `days` / `invalid_value`).
+        clientId: { type: string, format: uuid, description: "The app's id of this action (a retry sends the same one)." }
+    OwnerModerationResult:
+      type: object
+      description: v1.99-social (D311). What was done.
+      required: [id, action, target, reason, days, endsAt, purgeAfter, createdAt, replayed]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, enum: [WARN, SUSPEND, BAN, DELETE_ACCOUNT] }
+        target:
+          type: object
+          required: [id, username, displayName]
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: string }
+            displayName: { type: string }
+        reason: { type: string }
+        days: { type: [integer, 'null'] }
+        endsAt: { type: [string, 'null'], format: date-time, description: "SUSPEND: when the ban ends." }
+        purgeAfter:
+          type: [string, 'null']
+          format: date-time
+          description: "DELETE_ACCOUNT: when the grace period ends and the account is purged."
+        createdAt: { type: string, format: date-time }
+        replayed: { type: boolean, description: "True for a retry with the same clientId." }
     OwnerProfit:
       type: object
       required: [timeZone, currency, today, day, month, rates, generatedAt]
@@ -29045,6 +29176,9 @@ components:
       properties:
         cameraFxEngine:
           $ref: '#/components/schemas/CameraFxEngine'
+        gamesEnabled:
+          type: boolean
+          description: v1.88-live (D315, CONVENTIONS §10.120) — at least one game is on (`LIVE_GAMES_ENABLED`); the ranking page's «مجنون اللعب» tab shows only then. Absent from older servers (read as false).
         hostingEnabled:
           type: boolean
           description: Server config `LIVE_HOSTING_ENABLED` (default false until a media provider exists, B1).
@@ -29233,7 +29367,18 @@ components:
           type: integer
           format: int64
           minimum: 0
-          description: CP-012 — the live's points (taps + support); `popular` orders by it.
+          description: CP-012 — the live's points (taps + support). v1.86-live (D310) — points only (PK, the boards); `popular` orders by `cherries`, and the apps never draw the score as the room's number on a card.
+        cherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            v1.86-live (D310, CONVENTIONS §10.116). The room's cherries: what the cherry ledger credited the host AND
+            the guests seated in this live for the gifts they received here (per send floor(coins × the send's stored
+            share × CHERRIES_PER_COIN): a normal gift 6.5 a coin, a content creator's live 7, a lucky gift 1, quips
+            their share), less reversed credits (never below 0). Taps never count. `popular` orders by it (the
+            hub card does not draw it, owner 2026-11-08; the room's host pill shows `LiveScore.roomCherries`). Older
+            servers omit it.
         podcast:
           description: v1.47-live (D212) — PODCAST lives only; null otherwise. Clients that do not know the field ignore it.
           oneOf:
@@ -30303,6 +30448,15 @@ components:
             they received in this live: per send floor(coins × the send's stored host share × CHERRIES_PER_COIN),
             exactly the cherry ledger's GIFT_RECEIVED credit (§10.46). Not points: the apps show this (not
             `total`) beside the cherry icon. Older servers omit it (read as 0).
+        roomCherries:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            v1.86-live (D310, CONVENTIONS §10.116). `LiveRoomSummary.cherries` — the host's AND the seated guests'
+            cherries of this live (the room's ranking value). The host pill shows it (D259's `hostCherries` stays
+            the host's own share, for the host's data pages). Older servers omit it (the app falls back to
+            `hostCherries`).
         total: { type: integer, format: int64, minimum: 0, description: tapPoints + supportPoints. }
         tapPoints: { type: integer, format: int64, minimum: 0, description: 1 per counted tap. }
         supportPoints:
@@ -30358,9 +30512,9 @@ components:
     # ---- v1.13-live (DRAFT, CP-016 A) — popularity board --------------------------------------
     LiveRankingPeriod:
       type: string
-      enum: [HOUR, DAY, WEEK]
+      enum: [HOUR, DAY, WEEK, MONTH, YEAR]
       default: HOUR
-      description: The current hour, day (from midnight) or week (from Monday) in the server's ranking time zone.
+      description: The current hour, day (from midnight) or week (from Monday) in the server's ranking time zone; v1.87-live (D314, CONVENTIONS §10.119) also the current month (from the 1st at midnight) and year (from 1 January at midnight) in that zone. Older apps never send MONTH / YEAR.
     LiveRankingEntry:
       type: object
       required: [rank, host, points, liveRoom]
@@ -30378,10 +30532,17 @@ components:
                 id: { type: string, format: uuid }
                 title: { type: string }
                 coverUrl: { type: [string, 'null'], format: uri }
+    LiveRankingBoard:
+      type: string
+      enum: [POPULARITY, GAMES, RICH]
+      default: POPULARITY
+      description: v1.88-live (D315, CONVENTIONS §10.120). POPULARITY «ترتيب الشعبية» (hosts by points); GAMES «مجنون اللعب» (players by game tickets spent); v1.90-live (D320, §10.124) RICH «الأغنى» (users by the coin value of the gifts they sent, top 20).
     LiveRankings:
       type: object
       required: [period, startsAt, endsAt, data]
       properties:
+        board:
+          $ref: '#/components/schemas/LiveRankingBoard'
         period: { $ref: '#/components/schemas/LiveRankingPeriod' }
         startsAt: { type: string, format: date-time }
         endsAt: { type: string, format: date-time, description: The countdown ends here; a new board starts. }
@@ -33223,8 +33384,8 @@ components:
       description: "A gift panel tab's code. Until v1.46-live the fixed values POPULAR (شائعة), EVENT (مناسبات), FUN (مرح); v1.27-live (D132) LUCKY (الحظ): lucky gifts (CONVENTIONS §10.27), listed only while lucky gifts are on; v1.32-live (D154) QUIPS (إفيهات): a sound and its line played to the whole room (CONVENTIONS §10.33). v1.46-live (D207, §10.66): any code of a category managed in the admin panel (`GiftCatalogue.tabs` names it); the special ones keep the codes LUCKY and QUIPS (their `kind`). The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
     GiftCategoryKind:
       type: string
-      enum: [NORMAL, LUCKY, QUIPS]
-      description: v1.46-live (D207). What a tab does besides listing gifts. NORMAL a plain tab; LUCKY lucky gifts (§10.27); QUIPS quips (§10.33). Unknown values are NORMAL.
+      enum: [NORMAL, LUCKY, QUIPS, CUSTOM]
+      description: v1.46-live (D207). What a tab does besides listing gifts. NORMAL a plain tab; LUCKY lucky gifts (§10.27); QUIPS quips (§10.33); v1.100-social (D312, §10.118) CUSTOM «مُخصَّص» — gifts that name their owner (`Gift.owner`), sent with coins only; the recipients get 60 % (GIFT_CUSTOM_SHARE_PERCENT) and the owner 3 % of the coin value as coins. Unknown values are NORMAL.
     GiftCategoryTab:
       type: object
       description: v1.46-live (D207, CONVENTIONS §10.66). A gift panel tab, managed in the admin panel.
@@ -33400,6 +33561,20 @@ components:
           oneOf:
             - $ref: '#/components/schemas/PkBoosterKind'
             - type: 'null'
+        owner:
+          $ref: '#/components/schemas/GiftOwner'
+    GiftOwner:
+      type: object
+      description: |
+        v1.100-social (D312, CONVENTIONS §10.118). The owner «صاحب الهدية» of a CUSTOM «مُخصَّص» gift — present exactly on
+        a CUSTOM gift (absent on every other one). The gift panel shows the name and avatar on the gift. A custom gift is
+        listed (and sendable) only while its owner is an ACTIVE account.
+      required: [id, username, displayName, avatarUrl]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'], format: uri }
     GiftQuip:
       type: object
       description: v1.32-live (D154). The sound of a QUIPS gift, bundled in the app.
@@ -33452,6 +33627,15 @@ components:
           type: integer
           minimum: 1
           description: A send within this many seconds of the same gift to the same recipients continues the combo (5).
+        luckyChatMinMultiplier:
+          type: integer
+          minimum: 1
+          description: |
+            v1.89-live (D318, CONVENTIONS §10.121; owner «لا يظهر في التكست إلا المكسب x250 وx500 وx1000»): a lucky win
+            (`lucky-win`, or the sender's own `luckyResult`) puts its line in the live chat only when its multiplier is
+            at least this; everything else about a smaller win stays (coins, banner, the sender's result). The OWNER's
+            panel value, else `LUCKY_CHAT_MIN_MULTIPLIER` (250). Absent from older servers (every win has its line).
+            A change changes `version`.
         data:
           type: array
           items: { $ref: '#/components/schemas/Gift' }
@@ -34151,6 +34335,10 @@ components:
         - VIP_PURCHASE
         - VIP_DAILY_COINS
         - STORE_PURCHASE
+        # v1.100-social (D312, CONVENTIONS §10.118): a custom gift's owner share of a send (coins, spendable only), and
+        # its claw-back when the send is reversed (the balance may go below 0).
+        - GIFT_OWNER_ROYALTY
+        - GIFT_OWNER_ROYALTY_REVERSAL
     WalletLedgerEntry:
       type: object
       required: [id, reason, delta, balanceAfter, createdAt]

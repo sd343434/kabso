@@ -19,6 +19,15 @@ import { BannerForm, placementLabelKey } from './BannerForm';
 import { GiftEventForm, GiftEventResults } from './GiftEventForm';
 import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
+/**
+ * v1.91-live (D323, owner: «تاج الافتتاح» at 3 000 000 coins): a gift's price is 0 … 100 000 000 coins (0: a free
+ * quip), as the server (`gifts_price_range`) — was 1 000 000.
+ */
+export const GIFT_PRICE_MAX = 100_000_000;
+
+/** The «السعر بالعملات» input's attributes (the browser's own check uses `max`). */
+export const giftPriceInputProps = { type: 'number', min: 0, max: GIFT_PRICE_MAX, step: 1, className: 'num' } as const;
+
 export interface GiftDto {
   code: string;
   category: string;
@@ -52,15 +61,26 @@ export interface GiftDto {
   soundKey: string | null;
   soundMs: number | null;
   quipText: string | null;
+  /** v1.100-social (D312): «صاحب الهدية» of a CUSTOM gift and their status now; null otherwise. */
+  owner?: GiftOwnerDto | null;
   enabled: boolean;
   sends: number;
   coinsSpent: number;
 }
 
+/** v1.100-social (D312, §10.118): the owner of a custom gift as the panel lists it. */
+export interface GiftOwnerDto {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  status: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
+}
+
 /** v1.71-social (D207): a category as the gift list answers it (the form's choice and the tabs). */
 export interface GiftCategoryChoice {
   code: string;
-  kind: 'NORMAL' | 'LUCKY' | 'QUIPS';
+  kind: 'NORMAL' | 'LUCKY' | 'QUIPS' | 'CUSTOM';
   nameAr: string;
   nameEn: string;
   enabled: boolean;
@@ -129,6 +149,31 @@ export function autoOn(state: BadgeState): ItemBadgeCode[] {
   return (Object.keys(state) as ItemBadgeCode[]).filter((c) => state[c].auto && state[c].on);
 }
 
+/** v1.100-social (D312): whether `category` is the special CUSTOM «مُخصَّص» one (the form then asks for the owner). */
+export function isCustomCategory(category: string, categories: readonly GiftCategoryChoice[]): boolean {
+  return categories.find((c) => c.code === category)?.kind === 'CUSTOM';
+}
+
+/** A typed Kabso ID as the server reads it: trimmed, without a leading @, lower-case ('' when empty). */
+export function ownerHandle(text: string): string {
+  return text.trim().replace(/^@/, '').toLowerCase();
+}
+
+/**
+ * v1.100-social (D312): the owner part of the body — on create the handle of a CUSTOM gift; on an edit only a changed
+ * handle (moving a gift out of «مُخصَّص» drops the owner on the server, so nothing is sent then).
+ */
+export function ownerPart(
+  ownerText: string,
+  custom: boolean,
+  before: GiftDto | null,
+): { owner?: string } {
+  const handle = ownerHandle(ownerText);
+  if (!custom || handle === '') return {};
+  if (before === null) return { owner: handle };
+  return before.owner?.username === handle ? {} : { owner: handle };
+}
+
 /** The gift form's fields → the request body: only what changed on an edit, nulls for cleared optional fields. */
 export function giftBody(form: Record<string, string>, before: GiftDto | null): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -158,7 +203,7 @@ export function giftBody(form: Record<string, string>, before: GiftDto | null): 
   return out;
 }
 
-function GiftForm({
+export function GiftForm({
   gift,
   categories,
   uploads,
@@ -185,15 +230,25 @@ function GiftForm({
       ? Object.fromEntries(Object.entries(gift).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)]))
       : { category: 'POPULAR', sortOrder: '0' },
   );
+  const [ownerText, setOwnerText] = useState(gift?.owner?.username ?? '');
+  const custom = isCustomCategory(form.category ?? '', categories);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const body = { ...giftBody(form, gift), ...filesBody(files, gift), ...badgesPart(badges, gift) };
+  const body = {
+    ...giftBody(form, gift),
+    ...filesBody(files, gift),
+    ...badgesPart(badges, gift),
+    ...ownerPart(ownerText, custom, gift),
+  };
+  // D312: a CUSTOM gift always has its owner (a gift moved into «مُخصَّص» needs one too).
+  const ownerOk = !custom || ownerHandle(ownerText) !== '';
   const badgesOk = badgeProblems(badges, now).length === 0;
   const code = gift?.code ?? (/^[a-z0-9][a-z0-9_]{0,39}$/.test((form.code ?? '').trim()) ? (form.code ?? '').trim() : '');
   const ok =
     badgesOk &&
+    ownerOk &&
     reason.trim() !== '' &&
     (gift
       ? Object.keys(body).length > 0
@@ -234,9 +289,25 @@ function GiftForm({
             ))}
           </select>
         </div>
+        {custom && (
+          <div className="field span-2" data-gift-owner-field>
+            <label htmlFor="gf-owner">{t('giftOwner')}</label>
+            <input
+              id="gf-owner"
+              type="text"
+              className="ltr mono"
+              maxLength={31}
+              placeholder="@username"
+              value={ownerText}
+              onChange={(e) => setOwnerText(e.target.value)}
+              aria-invalid={!ownerOk}
+            />
+            <span className="hint">{ownerOk ? t('giftOwnerHint') : t('giftOwnerRequired')}</span>
+          </div>
+        )}
         {input('nameAr', 'giftNameAr', { maxLength: 60, dir: 'rtl' })}
         {input('nameEn', 'giftNameEn', { maxLength: 60, dir: 'ltr' })}
-        {input('priceCoins', 'giftPrice', { type: 'number', min: 0, max: 1000000, className: 'num' })}
+        {input('priceCoins', 'giftPrice', { ...giftPriceInputProps })}
         {input('assetKey', 'giftAssetKey', { className: 'ltr mono', maxLength: 80 })}
         {input('animationKey', 'giftAnimationKey', { className: 'ltr mono', maxLength: 80 })}
         {input('sortOrder', 'giftSort', { type: 'number' })}
@@ -300,6 +371,18 @@ function GiftForm({
         </div>
       </form>
     </Dialog>
+  );
+}
+
+/** v1.100-social (D312): «صاحب الهدية» on a custom gift's card (a warning when the account is not ACTIVE). */
+export function GiftOwnerChip({ owner }: { owner: GiftOwnerDto }) {
+  const { t } = useApp();
+  return (
+    <div className="small gift-owner" data-gift-owner={owner.username}>
+      {/* The string isolates «@name» (FSI … PDI) so it reads left-to-right inside Arabic text. */}
+      <span className="badge info">{t('giftOwnerBy', { username: owner.username })}</span>
+      {owner.status !== 'ACTIVE' && <span className="badge warn">{t('giftOwnerInactive')}</span>}
+    </div>
   );
 }
 
@@ -380,6 +463,7 @@ export function Gifts() {
               <strong className="num">{formatNumber(g.priceCoins, lang)}</strong>
               <span className="muted small ltr">${g.priceUsd}</span>
             </div>
+            {g.owner && <GiftOwnerChip owner={g.owner} />}
             <div className="muted small">{t('giftUse', { n: formatNumber(g.sends, lang) })}</div>
             {seasonalWithoutEnd(g.badges) && <SeasonalNoEndHint />}
             {can('catalog.manage') && (

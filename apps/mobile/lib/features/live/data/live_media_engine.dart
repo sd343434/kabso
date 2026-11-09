@@ -352,6 +352,11 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// metadata (`hostCherries`, left out at 0); null before any metadata.
   int? get hostCherries;
 
+  /// D310 (§10.116): the room's cherries (host and seated guests) from the
+  /// media room's metadata (`roomCherries`, left out at 0); null before any
+  /// metadata and from an older server (the pill then uses [hostCherries]).
+  int? get roomCherries;
+
   /// `roomInfoVersion` from the media room's metadata (CP-014 §10.12): the
   /// title, category or topic changed.
   int? get roomInfoVersion;
@@ -413,6 +418,7 @@ class LiveKitMediaEngine
   int? _seatsVersion;
   int? _score;
   int? _hostCherries;
+  int? _roomCherries;
   int? _roomInfoVersion;
   bool _removed = false;
 
@@ -1159,6 +1165,13 @@ class LiveKitMediaEngine
         _hostCherries = value['hostCherries'] is int
             ? value['hostCherries'] as int
             : 0;
+        // D310: left out at 0; an older server never sends it, so it stays
+        // null until a server that does has written it once.
+        if (value['roomCherries'] is int) {
+          _roomCherries = value['roomCherries'] as int;
+        } else if (_roomCherries != null) {
+          _roomCherries = 0;
+        }
       }
       if (value is Map && value['roomInfoVersion'] is int) {
         _roomInfoVersion = value['roomInfoVersion'] as int;
@@ -1501,6 +1514,9 @@ class LiveKitMediaEngine
 
   @override
   int? get hostCherries => _hostCherries;
+
+  @override
+  int? get roomCherries => _roomCherries;
 
   @override
   int? get roomInfoVersion => _roomInfoVersion;

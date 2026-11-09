@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { comboFor, giftAmounts, recipientsKey, type PreviousSend } from './live-gifts.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { GIFT_MAX_PRICE } from '../gifts/gift-catalogue.js';
 
 describe('live gift amounts (CP-020)', () => {
   it('multiplies price, quantity and recipients; 100 score points a coin', () => {
@@ -24,6 +26,31 @@ describe('live gift amounts (CP-020)', () => {
     expect(a.totalCoins).toBe(249_975_000_000);
     expect(a.scorePoints).toBe(24_997_500_000_000);
     expect(Number.isSafeInteger(a.scorePoints)).toBe(true);
+  });
+
+  it('D323: stays exact at the largest send with the 100 000 000 cap (× 9 999 × 25), cherries and level points in BIGINT', () => {
+    const a = giftAmounts(GIFT_MAX_PRICE, 9_999, 25);
+    expect(GIFT_MAX_PRICE).toBe(100_000_000);
+    expect(a.perRecipientCoins).toBe(999_900_000_000);
+    expect(a.totalCoins).toBe(24_997_500_000_000);
+    expect(a.scorePoints).toBe(2_499_750_000_000_000);
+    expect(Number.isSafeInteger(a.scorePoints)).toBe(true);
+    // The largest per-recipient value × the largest level multiplier (10^6, scaled 10^6) still fits a BIGINT.
+    expect(BigInt(a.perRecipientCoins) * 1_000_000n < 9_223_372_036_854_775_807n).toBe(true);
+    // A recipient's coins × the send's charge passes BIGINT — why host targets and recruits compute it in numeric.
+    expect(BigInt(a.perRecipientCoins) * BigInt(a.totalCoins) > 9_223_372_036_854_775_807n).toBe(true);
+  });
+
+  it('D323: a send whose score points would leave the safe integers is a 400, not a crash', () => {
+    let caught: unknown = null;
+    try {
+      giftAmounts(400_000_000, 9_999, 25);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(AppException);
+    expect((caught as AppException).status).toBe(400);
+    expect((caught as AppException).details).toEqual([{ field: 'quantity', issue: 'too_big' }]);
   });
 });
 

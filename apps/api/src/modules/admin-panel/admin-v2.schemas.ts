@@ -8,6 +8,7 @@ import {
   GIFT_ASSET_KEY_PATTERN,
   GIFT_CATEGORY_CODE_PATTERN,
   GIFT_CODE_PATTERN,
+  GIFT_MAX_PRICE,
 } from '../gifts/gift-catalogue.js';
 import { GIFT_CATEGORY_ICON_KEY_PATTERN } from '../gifts/gift-categories.js';
 import { EVENT_METRICS, EVENT_TONES } from '../programs/event-admin-rules.js';
@@ -138,7 +139,8 @@ const giftFields = {
   category: z.string().regex(GIFT_CATEGORY_CODE_PATTERN),
   nameAr: name,
   nameEn: name,
-  priceCoins: z.number().int().min(0).max(1_000_000),
+  // v1.91-live (D323): up to 100 000 000 coins (`gifts_price_range`).
+  priceCoins: z.number().int().min(0).max(GIFT_MAX_PRICE),
   assetKey,
   animationKey: assetKey.nullable(),
   sortOrder: z.number().int().min(-100_000).max(100_000),
@@ -157,6 +159,15 @@ const giftFields = {
   animationObjectKey: z.string().regex(GIFT_ANIMATION_OBJECT_KEY_PATTERN).nullable(),
   animationAlpha: z.enum(['NONE', 'SIDE_BY_SIDE']),
   audioObjectKey: z.string().regex(GIFT_AUDIO_OBJECT_KEY_PATTERN).nullable(),
+  // v1.100-social (D312, §10.118): a custom gift's owner «صاحب الهدية» — their Kabso ID (username, an optional leading
+  // @, any case); null removes (moving the gift out of «مُخصَّص»).
+  owner: z
+    .string()
+    .trim()
+    .min(1)
+    .max(31)
+    .transform((v) => v.replace(/^@/, '').toLowerCase())
+    .nullable(),
 };
 
 export const createGiftBody = z
@@ -183,6 +194,7 @@ export const createGiftBody = z
     soundKey: giftFields.soundKey.optional(),
     soundMs: giftFields.soundMs.optional(),
     quipText: giftFields.quipText.optional(),
+    owner: giftFields.owner.optional(),
     reason,
   })
   .refine((v) => v.badge === undefined || v.badges === undefined, {
@@ -213,6 +225,7 @@ export const updateGiftBody = z
     animationObjectKey: giftFields.animationObjectKey.optional(),
     animationAlpha: giftFields.animationAlpha.optional(),
     audioObjectKey: giftFields.audioObjectKey.optional(),
+    owner: giftFields.owner.optional(),
     reason,
   })
   .refine((v) => Object.keys(v).length > 1, { message: 'nothing to change', path: ['reason'] })

@@ -65,6 +65,11 @@ function setup(
   } as unknown as PrismaService;
   const config = {
     live: { giftTickerMinCoins: 500_000, gameWinTickerMinTickets: 1_000_000 },
+    // v1.89-live (D318): the lucky chat threshold shares the panel's row.
+    lucky: {
+      chatMinMultiplier: 250,
+      table: { outcomes: [5, 10, 25, 50, 100, 250, 500, 1000].map((multiplier) => ({ multiplier })) },
+    },
   } as unknown as AppConfig;
   const background = { run: vi.fn() } as unknown as BackgroundTasks;
   const service = new LiveGiftTickerService(prisma, redis as never, media, config, background);
@@ -180,15 +185,26 @@ describe('D305 global strips (D178 gift ticker extended)', () => {
   });
 
   it("the panel's thresholds win over the configuration (cached 30 s); invalid values fall back", async () => {
-    const { service, evals, prisma } = setup({ panel: { giftMinCoins: 1_000, gameMinTickets: 50 } });
-    expect(await service.thresholds()).toEqual({ giftMinCoins: 1_000, gameMinTickets: 50 });
+    const { service, evals, prisma } = setup({
+      panel: { giftMinCoins: 1_000, gameMinTickets: 50, luckyChatMinMultiplier: 500 },
+    });
+    expect(await service.thresholds()).toEqual({
+      giftMinCoins: 1_000,
+      gameMinTickets: 50,
+      luckyChatMinMultiplier: 500,
+    });
     await service.offer(gift(1_000));
     expect(evals).toHaveLength(1);
     await service.offerGameWin(win({ tickets: 50 }));
     expect(evals).toHaveLength(2);
     // One read for all of them (the cache).
     expect(vi.mocked(prisma.siteSetting.findUnique)).toHaveBeenCalledTimes(1);
-    const bad = setup({ panel: { giftMinCoins: 0, gameMinTickets: 'x' } });
-    expect(await bad.service.thresholds()).toEqual({ giftMinCoins: 500_000, gameMinTickets: 1_000_000 });
+    // D318: a stored multiplier that is not one of LUCKY_GIFT_MULTIPLIERS falls back too.
+    const bad = setup({ panel: { giftMinCoins: 0, gameMinTickets: 'x', luckyChatMinMultiplier: 7 } });
+    expect(await bad.service.thresholds()).toEqual({
+      giftMinCoins: 500_000,
+      gameMinTickets: 1_000_000,
+      luckyChatMinMultiplier: 250,
+    });
   });
 });

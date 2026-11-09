@@ -705,13 +705,13 @@ void main() {
       // own bio (no founder default).
       expect(find.byType(KabsoTeamBadge), findsOneWidget);
       expect(find.text('مؤسس كابسو لايف'), findsOneWidget);
-      // D307 follow-up: the photo stays at the reading start with the name
-      // beside it (only the owner's page centres them).
+      // D316: every other profile has its own centred header (the owner's
+      // D307 stack stays his): the name centred under the photo.
       expect(find.byKey(ProfileCoverHeader.ownerStackKey), findsNothing);
       final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
       final name = tester.getRect(find.byKey(const Key('profile.displayName')));
-      expect(name.right, lessThan(photo.left));
-      expect(name.center.dy, closeTo(photo.center.dy, 40));
+      expect(name.top, greaterThan(photo.bottom));
+      expect(name.center.dx, closeTo(photo.center.dx, 20));
       expect(find.textContaining('بنيتُ هذه المنصة'), findsNothing);
       await _end(tester);
     });
