@@ -1203,6 +1203,9 @@ been live, the viewers, the score and «انضم».
 - **Media server:** LiveKit (D3) behind a `LiveMediaProvider` port. Config `LIVEKIT_URL`,
   `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`: `LIVE_HOSTING_ENABLED=true` requires all three,
   and production requires `wss://`. A LiveKit room is named by the live room's id.
+  *(D350, deployment only — no client-visible change)* `LIVEKIT_URL` is the **public** URL every media token response
+  returns; optional `LIVEKIT_API_URL` is where the API itself calls LiveKit (default `LIVEKIT_URL`; production:
+  `https`/`wss`, or `http` to a private IPv4 only).
 - **Hosting permission** (`live_hosts`, `Me.canHost`):
   - `startLiveRoom` needs it, else 403 `LIVE_HOSTING_NOT_ALLOWED` (checked after
     `LIVE_HOSTING_ENABLED`);
@@ -1233,6 +1236,9 @@ been live, the viewers, the score and «انضم».
 - **Presence and counts:**
   - the media server's signed webhook (`POST /internal/livekit/webhook`, not public API)
     records joins and leaves in `live_room_viewers`, one row per room and identity;
+    *(D350)* the same handler also answers `POST /livekit/webhook` (machine-to-machine, not public API) when
+    `LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true`, for a media node outside the API's network; off by default (404
+    `NOT_FOUND`); on both paths a missing or wrong signature is 401 `AUTH_UNAUTHENTICATED`;
   - the sweeper reconciles with the media server;
   - `viewerCount` = connected identities other than the host, guests included;
   - `popular` orders by it;

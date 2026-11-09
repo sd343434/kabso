@@ -114,6 +114,8 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
       { path: 'health/live', method: RequestMethod.GET },
       { path: 'health/ready', method: RequestMethod.GET },
       { path: 'internal/livekit/webhook', method: RequestMethod.POST },
+      // D350: the same signed webhook on a public path (served only with LIVEKIT_PUBLIC_WEBHOOK_ENABLED=true).
+      { path: 'livekit/webhook', method: RequestMethod.POST },
       // v1.59-social (D190): the top-up website's pages and assets.
       { path: 'topup', method: RequestMethod.GET },
       { path: 'topup/success', method: RequestMethod.GET },

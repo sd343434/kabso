@@ -1,0 +1,16 @@
+#cloud-config
+# Kabso Live — EMERGENCY cloud media node (D350, SURGE_AND_OVERFLOW_PLAN.md). Rendered by hcloud-create.sh.
+# NO SECRET in this file: Hetzner stores user-data and any process on the server can read it from the metadata
+# service. The node's media.env (with the LiveKit key pair) is copied over SSH by hcloud-create.sh after boot.
+#
+# What it does at first boot: installs git, fetches the public repository at ${KABSO_REF} (only infra/media), and runs
+# install.sh, which installs Docker, the kernel settings, SSH hardening and fail2ban, then stops at
+# "fill /etc/kabso-media/media.env".
+package_update: true
+packages:
+  - git
+  - ca-certificates
+runcmd:
+  - [bash, -c, "set -euo pipefail; rm -rf /opt/kabso-src; git clone --depth 1 --filter=blob:none --sparse --branch '${KABSO_REF}' '${KABSO_REPO_URL}' /opt/kabso-src"]
+  - [bash, -c, "cd /opt/kabso-src && git sparse-checkout set infra/media"]
+  - [bash, -c, "bash /opt/kabso-src/infra/media/install.sh > /var/log/kabso-media-install.log 2>&1; touch /var/lib/kabso-media-bootstrap.done"]

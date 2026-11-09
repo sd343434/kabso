@@ -613,8 +613,18 @@ export interface AppConfig {
     readonly sweepBatchSize: number;
     /** Source of the cursor HMAC key (HKDF `live-cursor/v1`): LIVE_CURSOR_KEY, else rateLimitKeySecret. */
     readonly cursorKey: string;
-    /** CP-010: the LiveKit media server, or null when not configured (hosting must then be off). */
-    readonly livekit: { readonly url: string; readonly apiKey: string; readonly apiSecret: string } | null;
+    /**
+     * CP-010: the LiveKit media server, or null when not configured (hosting must then be off). `url` is the public
+     * URL clients get; D350 `apiUrl` is where the API's own server calls go (LIVEKIT_API_URL, else `url`).
+     */
+    readonly livekit: {
+      readonly url: string;
+      readonly apiUrl: string;
+      readonly apiKey: string;
+      readonly apiSecret: string;
+    } | null;
+    /** D350: `POST /livekit/webhook` (public, signed) is served (LIVEKIT_PUBLIC_WEBHOOK_ENABLED). */
+    readonly publicWebhookEnabled: boolean;
     /** Source of the guest-number HMAC key (HKDF `live-guest/v1`): rateLimitKeySecret. */
     readonly guestKey: string;
     /** CP-016 A: the popularity boards' time zone (day and week boundaries). */
@@ -1123,8 +1133,14 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cursorKey: e.LIVE_CURSOR_KEY ?? rateLimitKeySecret,
       livekit:
         e.LIVEKIT_URL !== undefined && e.LIVEKIT_API_KEY !== undefined && e.LIVEKIT_API_SECRET !== undefined
-          ? { url: e.LIVEKIT_URL, apiKey: e.LIVEKIT_API_KEY, apiSecret: e.LIVEKIT_API_SECRET }
+          ? {
+              url: e.LIVEKIT_URL,
+              apiUrl: e.LIVEKIT_API_URL ?? e.LIVEKIT_URL,
+              apiKey: e.LIVEKIT_API_KEY,
+              apiSecret: e.LIVEKIT_API_SECRET,
+            }
           : null,
+      publicWebhookEnabled: e.LIVEKIT_PUBLIC_WEBHOOK_ENABLED,
       guestKey: rateLimitKeySecret,
       rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
       gamesEnabled: e.LIVE_GAMES_ENABLED,

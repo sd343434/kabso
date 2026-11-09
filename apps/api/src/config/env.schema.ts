@@ -426,6 +426,19 @@ const trustProxy = z
     return entries;
   });
 
+/**
+ * D350: `https://` / `wss://`, or plain `http://` / `ws://` to a private IPv4 literal (10/8, 172.16/12, 192.168/16) —
+ * the media node's vSwitch address, never a public host.
+ */
+export function isSecureOrPrivateUrl(value: string): boolean {
+  const url = new URL(value);
+  if (url.protocol === 'https:' || url.protocol === 'wss:') return true;
+  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(url.hostname)?.slice(1).map(Number);
+  if (!octets || octets.some((o) => o > 255)) return false;
+  const [a, b] = octets as [number, number, number, number];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -1015,6 +1028,28 @@ export const envSchema = z
       .optional(),
     LIVEKIT_API_KEY: z.string().min(1).max(128).optional(),
     LIVEKIT_API_SECRET: z.string().min(1).max(512).optional(),
+    /**
+     * D350: where the API makes its server calls to LiveKit (RoomService: permissions, data, participant lists).
+     * LIVEKIT_URL stays the PUBLIC URL every client receives in its media token response. Unset (the default) = the
+     * API also uses LIVEKIT_URL, exactly as before. Set it when the media node is reachable on a closer address
+     * (Phase 2: its private vSwitch address, e.g. http://10.0.1.11:7880). `ws`/`wss` are mapped to `http`/`https`.
+     * Production: https/wss, or plain http to a private IPv4 address only.
+     */
+    LIVEKIT_API_URL: z
+      .string()
+      .url({ protocol: /^(https?|wss?)$/ })
+      .transform((v) => v.replace(/\/+$/, ''))
+      .optional(),
+    /**
+     * D350: also accept LiveKit's signed webhook on the PUBLIC path `POST /livekit/webhook`, for a media node that is
+     * not on the API's docker network (the internal `POST /internal/livekit/webhook` stays as it is and is still
+     * hidden by Caddy). The signature over the raw body is the authentication on both paths. Default off: the public
+     * path then answers 404 NOT_FOUND like any unknown route.
+     */
+    LIVEKIT_PUBLIC_WEBHOOK_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
 
     /**
      * v1.5-social (CONVENTIONS §11.1, B12): uploads are refused with 503
@@ -1929,6 +1964,13 @@ export const envSchema = z
     if (env.NODE_ENV === 'production') {
       if (env.LIVEKIT_URL !== undefined && !env.LIVEKIT_URL.startsWith('wss://')) {
         ctx.addIssue({ code: 'custom', path: ['LIVEKIT_URL'], message: 'must use wss in production' });
+      }
+      if (env.LIVEKIT_API_URL !== undefined && !isSecureOrPrivateUrl(env.LIVEKIT_API_URL)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LIVEKIT_API_URL'],
+          message: 'must use https/wss in production (plain http only to a private IPv4 address)',
+        });
       }
       if (env.STRIPE_SECRET_KEY !== undefined && /^(sk|rk)_test_/.test(env.STRIPE_SECRET_KEY)) {
         if (!env.STRIPE_ALLOW_TEST_KEYS_IN_PRODUCTION) {
