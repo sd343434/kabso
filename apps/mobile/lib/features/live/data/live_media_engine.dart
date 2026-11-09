@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
+import 'package:kabso_live/features/live/application/streamer_diagnostics.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
@@ -1308,12 +1309,19 @@ class LiveKitMediaEngine
     final local = _room?.localParticipant;
     if (local == null) throw StateError('publish() first');
     if (_screen != null) return;
-    final track = await lk.LocalVideoTrack.createScreenShareTrack(
-      const lk.ScreenShareCaptureOptions(
-        maxFrameRate: 30,
-        params: _screenParams,
-      ),
-    );
+    // D346: the capture and the publish fail with their own step, so the
+    // host is told which (and the report names it).
+    final lk.LocalVideoTrack track;
+    try {
+      track = await lk.LocalVideoTrack.createScreenShareTrack(
+        const lk.ScreenShareCaptureOptions(
+          maxFrameRate: 30,
+          params: _screenParams,
+        ),
+      );
+    } on Object catch (e) {
+      throw StreamerStartException(StreamerFailure.of(StreamerStep.capture, e));
+    }
     try {
       await local.publishVideoTrack(
         track,
@@ -1326,10 +1334,10 @@ class LiveKitMediaEngine
           simulcast: false,
         ),
       );
-    } on Object {
+    } on Object catch (e) {
       await track.stop();
       await track.dispose();
-      rethrow;
+      throw StreamerStartException(StreamerFailure.of(StreamerStep.publish, e));
     }
     _screen = track;
     _changes.ping();

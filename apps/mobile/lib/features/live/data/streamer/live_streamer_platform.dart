@@ -146,7 +146,12 @@ sealed class StreamerPlatformEvent {
 /// The person stopped the screen capture from the system (Android 14's
 /// status-bar chip, the cast tile): the screen track is over.
 final class StreamerProjectionStopped extends StreamerPlatformEvent {
-  const new();
+  const new({this.serviceForeground});
+
+  /// D346: whether the live's foreground service was still in the
+  /// foreground when it stopped — false: Android ended the capture because
+  /// the service was gone (not the host); null: not told.
+  final bool? serviceForeground;
 }
 
 /// The phone's screen went off or on.
@@ -189,6 +194,14 @@ abstract interface class StreamerPlatform {
   /// type (Android 14).
   Future<StreamerConsent> requestCapture();
 
+  /// D346: right before the capture starts — null when it may, otherwise
+  /// the native reason (`no_service`, `consent_used`, `no_consent`,
+  /// `unsupported_os`). The consent counts as spent when it may.
+  Future<String?> captureCheck();
+
+  /// D346: the phone's facts for the problem report (no personal data).
+  Future<Map<Object?, Object?>> diagnostics();
+
   /// Once the screen track runs: joins the published microphone (the voice
   /// and the game muted separately), watches the capture and, with
   /// [gameAudio] on Android 10+, mixes the game sound in.
@@ -226,7 +239,12 @@ class ChannelStreamerPlatform implements StreamerPlatform {
     final map = args is Map ? args : const <Object?, Object?>{};
     switch (call.method) {
       case 'projectionStopped':
-        _events.add(const StreamerProjectionStopped());
+        final service = map['serviceForeground'];
+        _events.add(
+          StreamerProjectionStopped(
+            serviceForeground: service is bool ? service : null,
+          ),
+        );
       case 'screen':
         _events.add(StreamerScreenPower(on: map['on'] == true));
       case 'call':
@@ -270,6 +288,18 @@ class ChannelStreamerPlatform implements StreamerPlatform {
       return StreamerConsent.failed(StreamerConsent.code(e.runtimeType));
     }
   }
+
+  @override
+  Future<String?> captureCheck() async {
+    final res = await _channel.invokeMapMethod<String, Object?>('captureCheck');
+    if (res == null || res['ok'] == true) return null;
+    return StreamerConsent.code(res['reason']);
+  }
+
+  @override
+  Future<Map<Object?, Object?>> diagnostics() async =>
+      (await _channel.invokeMapMethod<Object?, Object?>('diagnostics')) ??
+      const {};
 
   @override
   Future<({bool projection, StreamerGameAudio gameAudio})> attach({

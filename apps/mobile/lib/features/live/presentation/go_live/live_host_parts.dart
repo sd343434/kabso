@@ -32,7 +32,12 @@ class KHostBar extends StatelessWidget {
     this.chatKey = defaultChatKey,
     this.onMic,
     this.micOn = true,
+    this.showPk = true,
   });
+
+  /// D346 (owner: «بث الستريمر لا يحتاج زر pk»): false hides the PK
+  /// button (a streamer live); SOLO and the other video lives keep it.
+  final bool showPk;
 
   /// D225 (owner): the host's microphone, one tap away (after ≡); null: no
   /// button.
@@ -152,14 +157,15 @@ class KHostBar extends StatelessWidget {
           badge: requests > 0,
           onTap: onGuests,
         ),
-        button(
-          key: pkKey,
-          // D135: the owner's colourful PK art (boxing gloves).
-          asset: 'assets/live_bar/bar_pk.png',
-          art: true,
-          label: l10n.goLivePk,
-          onTap: onPk,
-        ),
+        if (showPk)
+          button(
+            key: pkKey,
+            // D135: the owner's colourful PK art (boxing gloves).
+            asset: 'assets/live_bar/bar_pk.png',
+            art: true,
+            label: l10n.goLivePk,
+            onTap: onPk,
+          ),
         if (onBox != null)
           button(
             key: boxKey,

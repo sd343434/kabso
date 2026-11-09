@@ -26,6 +26,8 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_streamer_host.dart';
+import 'package:kabso_live/features/live/application/streamer_diagnostics.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
@@ -291,6 +293,32 @@ void main() {
       await tester.pumpAndSettle();
       await expectScreenGolden('streamer.setup', language: language);
       await _capture(tester, 'setup.${language.name}.393x852@3x');
+    });
+
+    // D346: a failed start — its own message and «نسخ تقرير المشكلة».
+    _testGolden('streamer setup after a failed start ($language)', (
+      tester,
+    ) async {
+      final repo = FakeLiveRepository();
+      final engine = _ShowEngine();
+      await _pump(
+        tester,
+        const GoLiveScreen(),
+        language: language,
+        overrides: hostOverrides(repo, engine, FakeStreamerPlatform()),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(GoLiveScreen)),
+      );
+      await container
+          .read(liveHostControllerProvider.notifier)
+          .setMode(LiveRoomMode.streamer);
+      await container
+          .read(liveStreamerHostProvider.notifier)
+          .recordFailure(StreamerFailure.blocked('no_service'));
+      await tester.pumpAndSettle();
+      await expectScreenGolden('streamer.setup_failed', language: language);
+      await _capture(tester, 'setup_failed.${language.name}.393x852@3x');
     });
 
     _testGolden('streamer host on air ($language)', (tester) async {

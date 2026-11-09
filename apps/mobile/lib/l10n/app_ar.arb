@@ -12274,6 +12274,52 @@
   "@streamerShareAgainFailed": {
     "description": "D262: allowed, but the screen could not start again («شارك الشاشة من جديد»)."
   },
+  "streamerFailServiceDenied": "لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو من جديد وحاول مرة أخرى",
+  "@streamerFailServiceDenied": {
+    "description": "D346: the live's foreground service (type mediaProjection) could not start or was not running when the screen capture started."
+  },
+  "streamerFailSecurity": "رفض أندرويد تصوير الشاشة لأسباب أمان. اضغط «ابدأ البث» من جديد واختر «بدء» في نافذة أندرويد",
+  "@streamerFailSecurity": {
+    "description": "D346: Android threw a SecurityException for the screen capture (e.g. a spent consent)."
+  },
+  "streamerFailStoppedBySystem": "أوقف أندرويد تصوير الشاشة لأن خدمة البث توقفت",
+  "@streamerFailStoppedBySystem": {
+    "description": "D346: the system stopped the MediaProjection because the live's foreground service was gone."
+  },
+  "streamerFailUnsupportedOs": "إصدار أندرويد على هذا الهاتف لا يدعم مشاركة الشاشة",
+  "@streamerFailUnsupportedOs": {
+    "description": "D346: the Android version cannot capture the screen."
+  },
+  "streamerFailCapture": "تعذّر بدء تصوير الشاشة ({code})",
+  "@streamerFailCapture": {
+    "description": "D346: the screen capture could not start; code is a short technical reason.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "streamerFailPublish": "تعذّر إرسال الشاشة إلى البث ({code})",
+  "@streamerFailPublish": {
+    "description": "D346: the screen track could not be published; code is a short technical reason.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "streamerCopyReport": "نسخ تقرير المشكلة",
+  "@streamerCopyReport": {
+    "description": "D346 (owner): the button that copies the short streamer problem report (no personal data)."
+  },
+  "streamerReportCopied": "نُسخ التقرير، أرسله لنا",
+  "@streamerReportCopied": {
+    "description": "D346: snack after the report was copied."
+  },
+  "streamerReportTitle": "لم تبدأ مشاركة الشاشة",
+  "@streamerReportTitle": {
+    "description": "D346: the title of the streamer problem card."
+  },
   "streamerOnAir": "شاشتك على الهواء",
   "@streamerOnAir": {
     "description": "D213 (the streamer live «بث ستريمر»)."

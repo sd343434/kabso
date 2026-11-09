@@ -12798,6 +12798,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t share the screen again, try once more';
 
   @override
+  String get streamerFailServiceDenied =>
+      'Android didn\'t allow the live service, so the screen can\'t be captured. Reopen Kabso Live and try again';
+
+  @override
+  String get streamerFailSecurity =>
+      'Android refused the screen capture for security reasons. Tap Go LIVE again and choose \"Start\" in Android\'s window';
+
+  @override
+  String get streamerFailStoppedBySystem =>
+      'Android stopped the screen capture because the live service stopped';
+
+  @override
+  String get streamerFailUnsupportedOs =>
+      'This phone\'s Android version can\'t share the screen';
+
+  @override
+  String streamerFailCapture(String code) {
+    return 'Couldn\'t start the screen capture ($code)';
+  }
+
+  @override
+  String streamerFailPublish(String code) {
+    return 'Couldn\'t send the screen to the live ($code)';
+  }
+
+  @override
+  String get streamerCopyReport => 'Copy problem report';
+
+  @override
+  String get streamerReportCopied => 'Report copied — send it to us';
+
+  @override
+  String get streamerReportTitle => 'Screen sharing didn\'t start';
+
+  @override
   String get streamerOnAir => 'Your screen is live';
 
   @override

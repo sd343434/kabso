@@ -3687,3 +3687,15 @@ CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم ولي�
 - **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
   and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
   first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.
+
+### 5.109 The streamer's screen capture fix (D346) — [IMPLEMENTED; app + `kabso_streamer` only; not deployed; NOT tested on a phone]
+
+CONVENTIONS §10.145. §5.102–§5.108 are left for in-flight work. No migration, no API or config change.
+
+- **Ship:** a new app build only (the next staging APK). The live's foreground service now stays on when the host leaves
+  Kabso (it stops when the app is swiped away, as before). Nothing on the server.
+- **Play Console:** unchanged (PP-43's `FOREGROUND_SERVICE_MEDIA_PROJECTION` / `_CAMERA` declarations); the service now
+  really runs in the background during every live — the demo video for the declaration should show it.
+- **Support:** a host whose screen will not share taps «نسخ تقرير المشكلة» and pastes the report; the logcat filter is
+  `adb logcat -v threadtime -s KabsoStreamer:V FlutterWebRTCPlugin:V ForegroundService:V ActivityManager:W AndroidRuntime:E`.
+- **Rollback:** the previous APK (the service then stops again when the host leaves the app — the screen stops with it).

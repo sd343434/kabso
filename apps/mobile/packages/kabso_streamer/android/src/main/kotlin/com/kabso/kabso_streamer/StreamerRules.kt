@@ -194,6 +194,68 @@ object StreamerRules {
             else -> "refused" to null
         }
 
+    /**
+     * D346: Android 10 (Q) and later stop — or refuse to start — a
+     * MediaProjection whose app has no running foreground service of type
+     * `mediaProjection` (targetSdk ≥ 29): `MediaProjection.start` throws
+     * SecurityException «Media projections require a foreground service of
+     * type ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION», and the
+     * system ends a running projection as soon as that service stops.
+     */
+    const val SDK_PROJECTION_NEEDS_SERVICE = 29
+
+    /** D346: `MediaProjectionManager` exists from Android 5 (21). */
+    const val SDK_MIN_CAPTURE = 21
+
+    /**
+     * D346: checked right before flutter_webrtc's `getDisplayMedia` spends
+     * the consent (Android 14 lets one consent start ONE projection; a reused
+     * one throws SecurityException). Null: the capture may start. Otherwise
+     * the reason: `unsupported_os` (below Android 5), `no_consent` (our
+     * consent was not handed to flutter_webrtc — it would ask again with its
+     * own dialog), `consent_used` (that consent already started a capture: a
+     * new one must be asked), `no_service` (Android 10+: the live's
+     * foreground service is not in the foreground, so the projection would
+     * be refused or stopped at once).
+     */
+    fun captureBlocker(
+        sdkInt: Int,
+        serviceForeground: Boolean,
+        consentHanded: Boolean,
+        consentUsed: Boolean,
+    ): String? =
+        when {
+            sdkInt < SDK_MIN_CAPTURE -> "unsupported_os"
+            !consentHanded -> "no_consent"
+            consentUsed -> "consent_used"
+            sdkInt >= SDK_PROJECTION_NEEDS_SERVICE && !serviceForeground -> "no_service"
+            else -> null
+        }
+
+    /** D346: whether a consent Intent sits in flutter_webrtc behind [root] (along [CONSENT_PATH]). */
+    fun consentHanded(root: Any?): Boolean {
+        var at: Any? = root
+        for (name in CONSENT_PATH) {
+            at = field(at, name) ?: return false
+        }
+        return field(at, CONSENT_FIELD) != null
+    }
+
+    /**
+     * D346: `ServiceInfo.FOREGROUND_SERVICE_TYPE_*` bits as names, for the
+     * diagnostics report (what the live's service was started with).
+     */
+    val SERVICE_TYPE_NAMES =
+        linkedMapOf(
+            0x40 to "camera",
+            0x80 to "microphone",
+            0x02 to "mediaPlayback",
+            0x20 to "mediaProjection",
+        )
+
+    fun serviceTypeNames(bits: Int): List<String> =
+        if (bits < 0) listOf("manifest") else SERVICE_TYPE_NAMES.filterKeys { bits and it != 0 }.values.toList()
+
     /** A declared field of [obj]'s class or a superclass (private too). */
     fun field(obj: Any?, name: String): Any? {
         if (obj == null) return null

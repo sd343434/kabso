@@ -319,17 +319,27 @@ class LiveBackgroundKeeper {
     _queue = _queue.then((_) => _apply(want));
   }
 
+  /// D346: why the last start failed (the error or a [TimeoutException]);
+  /// null once a start succeeded (or a stop ran). A streamer live checks it
+  /// before the screen capture: Android 10+ refuses a projection without the
+  /// `mediaProjection` service.
+  Object? get lastStartFailure => _lastStartFailure;
+  Object? _lastStartFailure;
+
   Future<void> _apply(LiveBackgroundSpec? want) async {
     final Future<void> call;
     try {
       call = want == null ? _service.stop() : _service.start(want);
-    } on Object {
+    } on Object catch (e) {
+      if (want != null) _lastStartFailure = e;
       _unavailable(want);
       return;
     }
     try {
       await call.timeout(stepTimeout);
-    } on TimeoutException {
+      _lastStartFailure = null;
+    } on TimeoutException catch (e) {
+      if (want != null) _lastStartFailure = e;
       _unavailable(want);
       unawaited(
         call.then((_) {
@@ -338,8 +348,9 @@ class LiveBackgroundKeeper {
           if (now != want) _queue = _queue.then((_) => _apply(now));
         }, onError: (Object _) {}),
       );
-    } on Object {
+    } on Object catch (e) {
       // Best effort: the live goes on in the foreground either way.
+      if (want != null) _lastStartFailure = e;
       _unavailable(want);
     }
   }
@@ -399,6 +410,18 @@ class LiveBackgroundKeeper {
     _shown = null;
     unawaited(_service.stop().then((_) {}, onError: (_) {}));
   }
+}
+
+/// D346: the live's foreground service did not start ([error] is the
+/// plugin's own, e.g. `ServiceTimeoutException` when Android refused
+/// `startForeground` with the asked types).
+class LiveBackgroundStartException implements Exception {
+  const new(this.error);
+  final Object error;
+
+  @override
+  String toString() =>
+      'LiveBackgroundStartException(${error.runtimeType}: $error)';
 }
 
 /// The platform service: Android's foreground service, a no-op elsewhere.

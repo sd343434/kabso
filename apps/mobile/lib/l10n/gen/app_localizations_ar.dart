@@ -12810,6 +12810,41 @@ class AppLocalizationsAr extends AppLocalizations {
       'تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى';
 
   @override
+  String get streamerFailServiceDenied =>
+      'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو من جديد وحاول مرة أخرى';
+
+  @override
+  String get streamerFailSecurity =>
+      'رفض أندرويد تصوير الشاشة لأسباب أمان. اضغط «ابدأ البث» من جديد واختر «بدء» في نافذة أندرويد';
+
+  @override
+  String get streamerFailStoppedBySystem =>
+      'أوقف أندرويد تصوير الشاشة لأن خدمة البث توقفت';
+
+  @override
+  String get streamerFailUnsupportedOs =>
+      'إصدار أندرويد على هذا الهاتف لا يدعم مشاركة الشاشة';
+
+  @override
+  String streamerFailCapture(String code) {
+    return 'تعذّر بدء تصوير الشاشة ($code)';
+  }
+
+  @override
+  String streamerFailPublish(String code) {
+    return 'تعذّر إرسال الشاشة إلى البث ($code)';
+  }
+
+  @override
+  String get streamerCopyReport => 'نسخ تقرير المشكلة';
+
+  @override
+  String get streamerReportCopied => 'نُسخ التقرير، أرسله لنا';
+
+  @override
+  String get streamerReportTitle => 'لم تبدأ مشاركة الشاشة';
+
+  @override
   String get streamerOnAir => 'شاشتك على الهواء';
 
   @override

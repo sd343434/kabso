@@ -11,6 +11,7 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_streamer_host.dart';
+import 'package:kabso_live/features/live/application/streamer_diagnostics.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
@@ -765,6 +766,15 @@ class LiveHostController extends Notifier<GoLiveState> {
         stage = 'service';
         _holdBackground(background);
         await _keeper.settled;
+        // D346: a service that did not start is told as such (the capture
+        // would only fail later with a SecurityException).
+        if (_keeper.lastStartFailure case final why?) {
+          streamer.mark(StreamerStep.service, ok: false);
+          throw StreamerStartException(
+            StreamerFailure.of(StreamerStep.service, why),
+          );
+        }
+        streamer.mark(StreamerStep.service);
       }
       config = await _repo.getConfig();
       // The count sent is the one previewed: a count the server no longer
@@ -840,6 +850,15 @@ class LiveHostController extends Notifier<GoLiveState> {
         _endQuietly(room.id);
       }
       if (streamer != null) {
+        // D346: every failed streamer start keeps its precise failure and
+        // the «نسخ تقرير المشكلة» report.
+        await streamer.recordFailure(
+          StreamerFailure.of(switch (stage) {
+            'service' => StreamerStep.service,
+            'screen' => StreamerStep.capture,
+            _ => StreamerStep.room,
+          }, e),
+        );
         _keeper.release(this);
         await streamer.finish();
       }

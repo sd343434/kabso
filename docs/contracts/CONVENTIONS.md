@@ -10445,3 +10445,42 @@ prizes), so a used gift is never removed. §10.131 follows §10.130 (D337); §10
   `pieces`; `AdminGiftDeleted`, `AdminGiftRestored`.
 - Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change (the bag already lists
   what the server returns).
+
+### 10.145 The streamer's screen capture: the service, the order, the failures and the problem report *(app + `kabso_streamer`, D346)*
+
+Owner (2026-11-09, device test of the staging APK `809063b`): «في بث ستريمر لا يمكن مشاركة الشاشة». No API change.
+§10.145 follows the numbers reserved by in-flight work (§10.132–§10.144). Extends §10.86 (D213) and D262 / D262b.
+
+- **The live's foreground service survives leaving Kabso.** flutter_foreground_task 11.0.3's `stopWithTask: true` installs
+  `TrackVisibilityUtils`, which stops the service on the first `onActivityPaused` with no resumed Activity — as soon as
+  the host goes to the game. Android 10+ (targetSdk ≥ 29) ends a MediaProjection whose app has no running service of
+  type `mediaProjection`, so the screen stopped the moment it was meant to be seen (and Android 14 cut the background
+  microphone of every live, D123). The app passes `stopWithTask: false`; the manifest's `android:stopWithTask="true"`
+  still stops the service when the task is swiped away. Never turn the option back on.
+- **Order (Android 10–15), one consent per capture session, one projection:** consent (`kabso_streamer`
+  `requestCapture`, handed to this engine's flutter_webrtc) → the service started again with
+  `microphone|mediaPlayback|mediaProjection|camera` — its failure stops the start (`LiveBackgroundKeeper.lastStartFailure`;
+  `LiveBackgroundStartException`) → room, token, camera / microphone → **`captureCheck`** → `getDisplayMedia` (the one
+  `getMediaProjection`) → publish → `attach` (the game sound's `AudioPlaybackCapture` on that same projection — never a
+  second one). «شارك الشاشة من جديد» asks a new consent and passes the same check.
+- **`captureCheck`** (native, right before the capture): `unsupported_os` (< Android 5), `no_consent` (our consent never
+  reached flutter_webrtc — it would ask with its own dialog), `consent_used` (that consent already started a capture —
+  Android 14 throws on reuse), `no_service` (Android 10+: the live's service is not in the foreground). A capture that
+  would fail is never started; when it may, the consent is marked used.
+- **Each failure its own message** (`StreamerProblem` → `streamerFailureMessage`, ar + en): `refused`, `consentFailed`
+  (D262's code), `serviceDenied`, `security` (a SecurityException), `stoppedBySystem` (the projection ended while the
+  service was not in the foreground — `projectionStopped {serviceForeground: false}`; a stop with the service still
+  in front is the host's own, from the status-bar chip, and only offers «شارك الشاشة من جديد»), `unsupportedOs`,
+  `captureFailed` / `publishFailed` (with the exception's short code). A failure of the usual go-live steps (`other`)
+  keeps the usual message. Never a generic «try again».
+- **«نسخ تقرير المشكلة»** (`StreamerProblemCard`, in the setup panel and on the host's stage under «شارك الشاشة من
+  جديد»): copies a short English report — app version, Android release / SDK, maker and model, the step, the problem,
+  the exception class and a scrubbed message (no URLs, e-mails, paths, tokens or long numbers; one line ≤ 160), the
+  service's state and types, the consent's state, the steps so far, a UTC time. No account, no user, no room, no title.
+  `kabso_streamer` `diagnostics` gives the device facts; the steps are logged (`AppLogger`, debug builds) and natively
+  in logcat (`KabsoStreamer`: `consent: …`, `capture check: …`, `projection stopped (service …)`).
+- **R8:** the plugin reads flutter_webrtc members by name; its own `consumer-rules.pro` keeps exactly those (flutter_webrtc's
+  rules keep its whole package today). The staging APK is a `--profile` build (Flutter: `initWith(debug)`, no R8).
+- **PK is a SOLO live's only** (owner: «بث الستريمر لا يحتاج زر pk»): `KHostBar.showPk` is false on a streamer live (no
+  button, not even «قريباً»); an incoming invitation is shown over a SOLO room only; viewers of a streamer have no PK
+  entry. The server's SOLO-only rule stands.
