@@ -81,9 +81,17 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
         allowWifiLock: true,
         // A process the system killed has no live left to keep.
         allowAutoRestart: false,
-        // Stops with the app's task (swiped away): the live then times out
-        // on the server like any lost host.
-        stopWithTask: true,
+        // D346 — the streamer's real root cause (D251 had flagged it):
+        // flutter_foreground_task 11.0.3's `stopWithTask: true` installs
+        // `TrackVisibilityUtils`, which STOPS the service on the first
+        // `onActivityPaused` with no resumed Activity — i.e. as soon as the
+        // host leaves Kabso (goes to the game, opens the shade). Android 10+
+        // then ends the screen capture (a projection needs a running
+        // `mediaProjection` service) and Android 14 cuts the background
+        // microphone. Off: the manifest's `android:stopWithTask="true"`
+        // still stops the service when the app's task is swiped away (the
+        // live then times out on the server like any lost host).
+        stopWithTask: false,
       ),
     );
   }
@@ -153,7 +161,10 @@ class AndroidLiveBackgroundService implements LiveBackgroundService {
       callback: liveBackgroundTaskStart,
     );
     if (result case ServiceRequestFailure(:final error)) {
-      throw StateError('Live foreground service: $error');
+      // D346: the error's own type (ServiceTimeoutException: Android
+      // refused `startForeground` — the plugin swallows the
+      // SecurityException and never reports running).
+      throw LiveBackgroundStartException(error);
     }
     _runningMic = spec.microphone;
     _runningScreen = spec.screen;

@@ -1,6 +1,7 @@
 package com.kabso.kabso_streamer
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -62,6 +63,13 @@ import io.flutter.plugin.common.PluginRegistry
  *   `superseded`, `activity_gone`, `no_data`, `instant_cancel`,
  *   `no_webrtc`. flutter_webrtc's own request (a deprecated framework
  *   Fragment) answered «refused» without ever showing the dialog.
+ * - `captureCheck` (D346): right before the screen capture starts — whether
+ *   it may ([StreamerRules.captureBlocker]): `{ok, reason, sdk,
+ *   serviceForeground, serviceTypes}`. A capture that would fail is never
+ *   started, so the consent is not spent on a SecurityException.
+ * - `diagnostics` (D346): what the host's «نسخ تقرير المشكلة» report needs —
+ *   Android release / SDK, maker and model, the live service's state and
+ *   types, the consent's state. No account, no ids.
  * - `headset`: whether a wired, USB or Bluetooth headset is an output now
  *   (`AudioManager.getDevices`, no permission) — the setup's «use
  *   headphones» tip.
@@ -84,6 +92,9 @@ class KabsoStreamerPlugin :
     private var activityBinding: ActivityPluginBinding? = null
     private var consent: MethodChannel.Result? = null
     private var consentAskedAt = 0L
+
+    /** D346: the consent handed to flutter_webrtc already started a capture. */
+    private var consentUsed = true
     private val main = Handler(Looper.getMainLooper())
 
     private val mixer = StreamerMixer()
@@ -117,10 +128,15 @@ class KabsoStreamerPlugin :
     private val projectionCallback =
         object : MediaProjection.Callback() {
             override fun onStop() {
+                // D346: whether the live service was still in the foreground
+                // tells a stop from the system's chip (it was) from one the
+                // lost service caused (it was not).
+                val service = serviceState().first
+                Log.w(TAG, "projection stopped (service ${if (service) "foreground" else "off"})")
                 main.post {
                     stopGame()
                     projection = null
-                    emit("projectionStopped", null)
+                    emit("projectionStopped", mapOf("serviceForeground" to service))
                 }
             }
         }
@@ -188,6 +204,8 @@ class KabsoStreamerPlugin :
             "moveToBack" -> result.success(activity?.moveTaskToBack(true) ?: false)
             // D262b: the whole screen unless told otherwise.
             "requestCapture" -> requestCapture(call.argument<Boolean>("fullScreenOnly") ?: true, result)
+            "captureCheck" -> result.success(captureCheck())
+            "diagnostics" -> result.success(diagnostics())
             else -> result.notImplemented()
         }
     }
@@ -245,6 +263,9 @@ class KabsoStreamerPlugin :
             if (!handed) {
                 outcome = "failed"
                 reason = "no_webrtc"
+            } else {
+                // D346: a fresh consent; one capture may start from it.
+                consentUsed = false
             }
         }
         Log.i(TAG, "consent: $outcome (${reason ?: "-"}), code $resultCode after ${elapsed}ms")
@@ -259,6 +280,85 @@ class KabsoStreamerPlugin :
     }
 
     private fun consentAnswer(outcome: String, reason: String?) = mapOf("outcome" to outcome, "reason" to reason)
+
+    /**
+     * D346: the capture may start now? Marks the consent as used when it may
+     * (flutter_webrtc's `getDisplayMedia` follows at once), so a second
+     * capture never reuses it (Android 14: SecurityException).
+     */
+    private fun captureCheck(): Map<String, Any?> {
+        val sdk = Build.VERSION.SDK_INT
+        val service = serviceState()
+        val handed = webrtcPlugins().any { StreamerRules.consentHanded(it) }
+        val reason =
+            StreamerRules.captureBlocker(
+                sdk,
+                serviceForeground = service.first,
+                consentHanded = handed,
+                consentUsed = consentUsed,
+            )
+        if (reason == null) consentUsed = true
+        Log.i(
+            TAG,
+            "capture check: ${reason ?: "ok"} (sdk $sdk, service ${if (service.first) "foreground" else "off"} " +
+                "${service.second.joinToString("|")}, consent ${if (handed) "handed" else "none"})",
+        )
+        return mapOf(
+            "ok" to (reason == null),
+            "reason" to reason,
+            "sdk" to sdk,
+            "serviceForeground" to service.first,
+            "serviceTypes" to service.second,
+        )
+    }
+
+    /** D346: the device facts of the host's problem report (no personal data). */
+    private fun diagnostics(): Map<String, Any?> {
+        val service = serviceState()
+        return mapOf(
+            "sdk" to Build.VERSION.SDK_INT,
+            "release" to Build.VERSION.RELEASE,
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "serviceForeground" to service.first,
+            "serviceTypes" to service.second,
+            "consentHanded" to webrtcPlugins().any { StreamerRules.consentHanded(it) },
+            "consentUsed" to consentUsed,
+            "projection" to (projection != null),
+        )
+    }
+
+    /**
+     * D346: whether this app's live service (flutter_foreground_task's) runs in
+     * the foreground now, and the types it was started with (its own
+     * preferences; cleared when it stops). `getRunningServices` still lists
+     * the caller's own services.
+     */
+    private fun serviceState(): Pair<Boolean, List<String>> {
+        val ctx = context ?: return false to emptyList()
+        val foreground =
+            try {
+                val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                @Suppress("DEPRECATION")
+                am?.getRunningServices(Int.MAX_VALUE)?.any {
+                    it.service.packageName == ctx.packageName && it.service.className == LIVE_SERVICE && it.foreground
+                } ?: false
+            } catch (_: RuntimeException) {
+                false
+            }
+        val types =
+            try {
+                val prefs = ctx.getSharedPreferences(SERVICE_TYPES_PREFS, Context.MODE_PRIVATE)
+                if (prefs.contains(SERVICE_TYPES_KEY)) {
+                    StreamerRules.serviceTypeNames(prefs.getInt(SERVICE_TYPES_KEY, 0))
+                } else {
+                    emptyList()
+                }
+            } catch (_: RuntimeException) {
+                emptyList()
+            }
+        return foreground to types
+    }
 
     /** D232: this engine's flutter_webrtc first, then the singleton. */
     private fun webrtcPlugins(): List<FlutterWebRTCPlugin> {
@@ -440,5 +540,10 @@ class KabsoStreamerPlugin :
 
         /** D262: our consent's request code (flutter_webrtc uses its own). */
         private const val CONSENT_REQUEST = 0x4B53
+
+        /** D346: the live's foreground service (flutter_foreground_task 11.0.3) and where it keeps its types. */
+        private const val LIVE_SERVICE = "com.pravera.flutter_foreground_task.service.ForegroundService"
+        private const val SERVICE_TYPES_PREFS = "com.pravera.flutter_foreground_task.prefs.FOREGROUND_SERVICE_TYPES"
+        private const val SERVICE_TYPES_KEY = "serviceTypes"
     }
 }

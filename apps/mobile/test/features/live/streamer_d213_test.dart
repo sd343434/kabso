@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -24,6 +25,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/streamer/streamer_widgets.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
@@ -54,14 +56,16 @@ Future<_Host> _goLive(
   WidgetTester tester, {
   AppLanguage language = AppLanguage.ar,
   FakeStreamerPlatform? platform,
+  FakeBackground? background,
   bool start = true,
+  LiveRoomMode mode = LiveRoomMode.streamer,
 }) async {
   final repo = FakeLiveRepository(
     categories: const [LiveCategory(slug: 'games', name: 'Games')],
   );
   final engine = FakeLiveMediaEngine();
   final native = platform ?? FakeStreamerPlatform();
-  final service = FakeBackground();
+  final service = background ?? FakeBackground();
   setViewport(tester, GoldenViewport.phone);
   await pumpScreen(
     tester,
@@ -85,7 +89,7 @@ Future<_Host> _goLive(
     ],
   );
   await tester.pumpAndSettle();
-  final tab = find.byKey(GoLiveKeys.mode(LiveRoomMode.streamer));
+  final tab = find.byKey(GoLiveKeys.mode(mode));
   await tester.ensureVisible(tab);
   await tester.pumpAndSettle();
   await tester.tap(tab);
@@ -116,6 +120,36 @@ Future<void> _toForeground(WidgetTester tester) async {
     AppLifecycleState.resumed,
   ].forEach(tester.binding.handleAppLifecycleStateChanged);
   await tester.pumpAndSettle();
+}
+
+/// D346: goes live with [failure] thrown by the screen's capture.
+Future<_Host> _goLiveWithScreenFailure(
+  WidgetTester tester,
+  Exception failure,
+) async {
+  final h = await _goLive(tester, start: false);
+  h.engine.screenFailure = failure;
+  await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'ببجي');
+  await tester.tap(find.byKey(GoLiveScreen.startKey));
+  await tester.pumpAndSettle();
+  return h;
+}
+
+/// D346: a streamer failure is said once in the snack and kept on the
+/// problem card (with «نسخ تقرير المشكلة»).
+void _said(String text) {
+  expect(
+    find.descendant(of: find.byType(SnackBar), matching: find.text(text)),
+    findsOneWidget,
+  );
+  expect(
+    find.descendant(
+      of: find.byKey(StreamerProblemCard.cardKey),
+      matching: find.text(text),
+    ),
+    findsOneWidget,
+  );
+  expect(find.byKey(StreamerProblemCard.copyKey), findsOneWidget);
 }
 
 Future<void> _leave(WidgetTester tester) async {
@@ -422,10 +456,7 @@ void main() {
       expect(h.platform.consents, 1);
       expect(h.repo.startRequests, isEmpty);
       expect(h.engine.screenPublishes, 0);
-      expect(
-        find.text('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'),
-        findsOneWidget,
-      );
+      _said('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث');
       await _leave(tester);
     });
 
@@ -440,10 +471,7 @@ void main() {
       expect(h.repo.startRequests, isEmpty);
       expect(h.service.starts, isEmpty);
       expect(h.engine.screenPublishes, 0);
-      expect(
-        find.text('تعذّر طلب إذن تصوير الشاشة (instant_cancel)'),
-        findsOneWidget,
-      );
+      _said('تعذّر طلب إذن تصوير الشاشة (instant_cancel)');
       expect(
         find.text('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'),
         findsNothing,
@@ -471,10 +499,7 @@ void main() {
         platform: FakeStreamerPlatform()..throwOnConsent = true,
       );
       expect(h.repo.startRequests, isEmpty);
-      expect(
-        find.text('تعذّر طلب إذن تصوير الشاشة (stateerror)'),
-        findsOneWidget,
-      );
+      _said('تعذّر طلب إذن تصوير الشاشة (stateerror)');
       await _leave(tester);
     });
 
@@ -595,10 +620,7 @@ void main() {
 
       h.platform.consentAnswer = StreamerConsent.refused;
       await stopAndShare();
-      expect(
-        find.text('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث'),
-        findsOneWidget,
-      );
+      _said('لم تسمح بتصوير الشاشة، لذلك لم يبدأ البث');
       expect(h.engine.screenPublishes, 1);
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
@@ -606,10 +628,7 @@ void main() {
       h.platform.consentAnswer = const StreamerConsent.failed('no_activity');
       await tester.tap(find.byKey(StreamerHostStage.shareAgainKey));
       await tester.pumpAndSettle();
-      expect(
-        find.text('تعذّر طلب إذن تصوير الشاشة (no_activity)'),
-        findsOneWidget,
-      );
+      _said('تعذّر طلب إذن تصوير الشاشة (no_activity)');
       expect(h.engine.screenPublishes, 1);
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
@@ -619,10 +638,9 @@ void main() {
       await tester.tap(find.byKey(StreamerHostStage.shareAgainKey));
       await tester.pumpAndSettle();
       expect(h.engine.screenPublishes, 2);
-      expect(
-        find.text('تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى'),
-        findsOneWidget,
-      );
+      // D346: the capture's own failure (its class as the code), with the
+      // report — no longer the generic «try again».
+      _said('تعذّر بدء تصوير الشاشة (exception)');
       expect(find.text('توقفت مشاركة الشاشة'), findsOneWidget);
       h.engine.screenFailure = null;
       await _leave(tester);
@@ -655,6 +673,201 @@ void main() {
       expect(find.byKey(StreamerHostStage.gameKey), findsNothing);
       // No game sound: no headphones tip either.
       expect(find.byKey(StreamerHostStage.headphonesKey), findsNothing);
+      await _leave(tester);
+    });
+  });
+
+  // D346: the real root cause (the live's service stopped as soon as the
+  // host left Kabso) is native; here: the order, the precise messages, the
+  // problem report and the PK button.
+  group('D346', () {
+    /// The clipboard's last text (the report).
+    String? copied;
+    setUp(() {
+      copied = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          });
+    });
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    Future<void> copyReport(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(StreamerProblemCard.copyKey));
+      await tester.tap(find.byKey(StreamerProblemCard.copyKey));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('consent → the service with mediaProjection → the capture '
+        'check → the screen, in that order', (tester) async {
+      final log = <String>[];
+      final h = await _goLive(
+        tester,
+        platform: FakeStreamerPlatform()..log = log,
+        background: FakeBackground()..log = log,
+      );
+      expect(log, ['consent', 'service:screen', 'captureCheck']);
+      expect(h.engine.screenPublishes, 1);
+      expect(find.byKey(StreamerProblemCard.cardKey), findsNothing);
+      final trail = ProviderScope.containerOf(
+        tester.element(find.byType(GoLiveScreen)),
+      ).read(liveStreamerHostProvider.notifier).trail;
+      expect(trail, [
+        'consent ok',
+        'service ok',
+        'capture ok',
+        'publish ok',
+        'attach ok',
+      ]);
+      await _leave(tester);
+    });
+
+    testWidgets('the service could not start → no capture, no room; its own '
+        'message and «نسخ تقرير المشكلة» copies the report', (tester) async {
+      final h = await _goLive(
+        tester,
+        background: FakeBackground()
+          ..failStart = const LiveBackgroundStartException('refused'),
+      );
+      expect(h.platform.captureChecks, 0);
+      expect(h.engine.screenPublishes, 0);
+      expect(h.repo.startRequests, isEmpty);
+      _said(
+        'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو '
+        'من جديد وحاول مرة أخرى',
+      );
+      expect(find.text('نسخ تقرير المشكلة'), findsOneWidget);
+      await copyReport(tester);
+      final report = copied!;
+      expect(report, contains('android: 14 (SDK 34)'));
+      expect(report, contains('device: Google Pixel 8'));
+      expect(report, contains('step: service'));
+      expect(report, contains('problem: serviceDenied'));
+      expect(report, contains('error: LiveBackgroundStartException(String)'));
+      expect(
+        report,
+        contains(
+          'service: foreground=yes '
+          'types=microphone|mediaPlayback|mediaProjection|camera',
+        ),
+      );
+      expect(report, contains('steps: consent ok > service FAILED'));
+      expect(report, startsWith('Kabso Live — streamer problem report'));
+      // No personal data: not the title, the user or a room.
+      expect(report, isNot(contains('ببجي')));
+      expect(report, isNot(contains(testUser().username)));
+      expect(report, isNot(contains('room-')));
+      expect(find.text('نُسخ التقرير، أرسله لنا'), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('the capture check refuses (the service is not in the '
+        'foreground) → never captured, the room ended, said', (tester) async {
+      final h = await _goLive(
+        tester,
+        platform: FakeStreamerPlatform()..blocker = 'no_service',
+      );
+      expect(h.platform.captureChecks, 1);
+      expect(h.engine.screenPublishes, 0);
+      expect(h.repo.startRequests, hasLength(1));
+      expect(find.byKey(StreamerHostStage.stageKey), findsNothing);
+      _said(
+        'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو '
+        'من جديد وحاول مرة أخرى',
+      );
+      await copyReport(tester);
+      expect(copied, contains('step: capture'));
+      expect(copied, contains('error: CaptureBlocked'));
+      expect(copied, contains('detail: no_service'));
+      await _leave(tester);
+    });
+
+    testWidgets('a SecurityException from the capture → the security '
+        'message (not a generic one)', (tester) async {
+      final engineFailure = PlatformException(
+        code: 'error',
+        message:
+            "Don't re-use the resultData to retrieve the same projection "
+            'instance',
+        details: "java.lang.SecurityException: Don't re-use the resultData",
+      );
+      final h = await _goLiveWithScreenFailure(tester, engineFailure);
+      expect(h.engine.screenPublishes, 1);
+      _said(
+        'رفض أندرويد تصوير الشاشة لأسباب أمان. اضغط «ابدأ البث» من جديد '
+        'واختر «بدء» في نافذة أندرويد',
+      );
+      await copyReport(tester);
+      expect(
+        copied,
+        contains('error: PlatformException(error) java.lang.SecurityException'),
+      );
+      expect(copied, contains('problem: security'));
+      await _leave(tester);
+    });
+
+    testWidgets('Android stops the capture because the service is gone → '
+        'said on the stage, with the report', (tester) async {
+      final h = await _goLive(tester);
+      h.platform.emit(
+        const StreamerProjectionStopped(serviceForeground: false),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(StreamerHostStage.shareAgainKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(StreamerProblemCard.cardKey),
+          matching: find.text('أوقف أندرويد تصوير الشاشة لأن خدمة البث توقفت'),
+        ),
+        findsOneWidget,
+      );
+      await copyReport(tester);
+      expect(copied, contains('problem: stoppedBySystem'));
+      await _leave(tester);
+    });
+
+    testWidgets('stopped by the host from the status bar → share again, no '
+        'problem card', (tester) async {
+      final h = await _goLive(tester);
+      h.platform.emit(const StreamerProjectionStopped(serviceForeground: true));
+      await tester.pumpAndSettle();
+      expect(find.byKey(StreamerHostStage.shareAgainKey), findsOneWidget);
+      expect(find.byKey(StreamerProblemCard.cardKey), findsNothing);
+      await _leave(tester);
+    });
+
+    testWidgets('owner: no PK button on a streamer live (host)', (
+      tester,
+    ) async {
+      await _goLive(tester);
+      expect(find.byKey(GoLiveScreen.hostBarKey), findsOneWidget);
+      expect(find.byKey(KHostBar.pkKey), findsNothing);
+      expect(find.byKey(KHostBar.giftKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('a SOLO live keeps its PK button', (tester) async {
+      await _goLive(
+        tester,
+        mode: LiveRoomMode.solo,
+        background: FakeBackground(),
+      );
+      expect(find.byKey(GoLiveScreen.hostBarKey), findsOneWidget);
+      expect(find.byKey(KHostBar.pkKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('no PK entry for a streamer viewer either', (tester) async {
+      await _watch(tester, language: AppLanguage.ar);
+      expect(find.byKey(StreamerViewerStage.stageKey), findsOneWidget);
+      expect(find.byKey(KHostBar.pkKey), findsNothing);
+      expect(find.text('تحدي PK'), findsNothing);
       await _leave(tester);
     });
   });

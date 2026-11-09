@@ -7,6 +7,9 @@ import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.da
 
 /// The native side, recorded.
 class FakeStreamerPlatform implements StreamerPlatform {
+  /// D346: a log shared with [FakeBackground] (the order of the steps).
+  List<String>? log;
+
   int sdk = 34;
   bool allowCapture = true;
   StreamerGameAudio answer = StreamerGameAudio.ok;
@@ -44,10 +47,42 @@ class FakeStreamerPlatform implements StreamerPlatform {
   @override
   Future<StreamerConsent> requestCapture() async {
     consents++;
+    log?.add('consent');
     if (throwOnConsent) throw StateError('consent');
     return consentAnswer ??
         (allowCapture ? StreamerConsent.granted : StreamerConsent.refused);
   }
+
+  /// D346: what `captureCheck` answers (null: the capture may start).
+  String? blocker;
+  int captureChecks = 0;
+
+  /// D346: what `diagnostics` answers.
+  Map<Object?, Object?> device = const {
+    'sdk': 34,
+    'release': '14',
+    'manufacturer': 'Google',
+    'model': 'Pixel 8',
+    'serviceForeground': true,
+    'serviceTypes': [
+      'microphone',
+      'mediaPlayback',
+      'mediaProjection',
+      'camera',
+    ],
+    'consentHanded': true,
+    'consentUsed': true,
+  };
+
+  @override
+  Future<String?> captureCheck() async {
+    captureChecks++;
+    log?.add('captureCheck');
+    return blocker;
+  }
+
+  @override
+  Future<Map<Object?, Object?>> diagnostics() async => device;
 
   @override
   Future<({bool projection, StreamerGameAudio gameAudio})> attach({
@@ -87,9 +122,17 @@ class FakeBackground implements LiveBackgroundService {
   final List<LiveBackgroundSpec> starts = [];
   final _actions = StreamController<LiveBackgroundAction>.broadcast();
 
+  /// D346: a log shared with [FakeStreamerPlatform].
+  List<String>? log;
+
+  /// D346: thrown by [start] while set (Android refused the service).
+  Exception? failStart;
+
   @override
   Future<void> start(LiveBackgroundSpec spec) async {
     starts.add(spec);
+    log?.add(spec.screen ? 'service:screen' : 'service');
+    if (failStart case final e?) throw e;
     running = spec;
   }
 

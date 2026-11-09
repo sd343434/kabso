@@ -44,6 +44,7 @@ import 'package:kabso_live/features/live/data/live_host_targets_repository.dart'
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
@@ -475,6 +476,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // D210: the generic message names the failed step and error type.
       final why = _host.lastStartFailure;
       setState(() => _startFailure = why);
+      // D346: a streamer start that failed at its own steps says exactly
+      // what (the setup shows it again with «نسخ تقرير المشكلة»).
+      final streamerFailure = ref.read(liveStreamerHostProvider).failure;
+      if (ref.read(liveHostControllerProvider).mode == LiveRoomMode.streamer &&
+          streamerFailure != null) {
+        final precise = streamerFailureMessage(context.l10n, streamerFailure);
+        if (precise != null) {
+          KSnack.error(context, precise);
+          return;
+        }
+      }
       final failure = toAppFailure(e);
       final message = failureMessage(context.l10n, failure);
       // The generic message carries the details too; a known server answer
@@ -536,7 +548,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ? () => unawaited(() async {
               final asked = await notifier.shareAgain();
               if (asked == null || !mounted) return;
-              final message = streamerConsentMessage(context.l10n, asked);
+              // D346: a screen that could not start again says why.
+              final failure = ref.read(liveStreamerHostProvider).failure;
+              final message =
+                  (asked.reason == StreamerConsent.startFailed &&
+                          failure != null
+                      ? streamerFailureMessage(context.l10n, failure)
+                      : null) ??
+                  streamerConsentMessage(context.l10n, asked);
               if (message != null) KSnack.info(context, message);
             }())
           : null,
@@ -2556,7 +2575,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     // D135: the host's own charm level (`GET /levels/me`) stays loaded for
     // the data page (≡ → data) — D232 took its chip off the screen.
     ref.watch(myLevelsProvider);
-    final incoming = pk.incoming;
+    // D346 (owner: «بث الستريمر لا يحتاج زر pk»): PK is a SOLO live's only —
+    // no invitation is shown over any other room.
+    final incoming = room.mode == LiveRoomMode.solo ? pk.incoming : null;
     // D256: the viewers' faces by this live's support.
     final ranked = rankViewersBySupport(
       viewers?.items ?? const [],
@@ -2791,6 +2812,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         _openViewers(room.id, liveSeats, guests: true),
                       )
                     : () => KSnack.info(context, l10n.liveHostGuestsSoon),
+                // D346 (owner): no PK button on a streamer live at all.
+                showPk: room.mode != LiveRoomMode.streamer,
                 // v1.43-live (D195): the PK sheet (invite, random, end).
                 onPk: live && room.mode == LiveRoomMode.solo
                     ? () => unawaited(showLivePkSheet(context, roomId: room.id))

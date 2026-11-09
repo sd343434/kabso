@@ -39,6 +39,8 @@ android {
 
     defaultConfig {
         minSdkVersion 23
+        // D346: keep the flutter_webrtc members read by name under R8.
+        consumerProguardFiles 'consumer-rules.pro'
     }
 }
 

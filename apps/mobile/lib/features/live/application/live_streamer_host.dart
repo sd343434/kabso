@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
+import 'package:kabso_live/features/live/application/streamer_diagnostics.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
@@ -39,7 +42,16 @@ class StreamerHostState {
     this.stopped = false,
     this.headset,
     this.headsetTipSeen = false,
+    this.failure,
+    this.report,
   });
+
+  /// D346: the last failure of starting (or sharing again) the screen —
+  /// its own message and the «نسخ تقرير المشكلة» button; null: none.
+  final StreamerFailure? failure;
+
+  /// D346: the short text that button copies (null until it is built).
+  final String? report;
 
   /// The camera bubble shown (setup and live).
   final bool cameraVisible;
@@ -111,6 +123,9 @@ class StreamerHostState {
     bool? stopped,
     bool? headset,
     bool? headsetTipSeen,
+    StreamerFailure? failure,
+    String? report,
+    bool clearFailure = false,
   }) => StreamerHostState(
     cameraVisible: cameraVisible ?? this.cameraVisible,
     corner: corner ?? this.corner,
@@ -124,6 +139,8 @@ class StreamerHostState {
     stopped: stopped ?? this.stopped,
     headset: headset ?? this.headset,
     headsetTipSeen: headsetTipSeen ?? this.headsetTipSeen,
+    failure: clearFailure ? null : failure ?? this.failure,
+    report: clearFailure ? null : report ?? this.report,
   );
 }
 
@@ -142,6 +159,13 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
 
   /// The native side was touched (secure window, mixer) and is not undone.
   bool _native = false;
+
+  /// D346: the steps of this start so far (`consent ok`, `service ok`,
+  /// `capture FAILED`…) — the report's «steps» line.
+  final List<String> _trail = [];
+
+  /// D346: the steps so far (tests).
+  List<String> get trail => List.unmodifiable(_trail);
 
   StreamerPlatform get _platform => ref.read(streamerPlatformProvider);
   LiveRepository get _repo => ref.read(liveRepositoryProvider);
@@ -233,6 +257,9 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
   /// granted, refused by the person, or failed with a short code — logged
   /// (no ids) so a dialog that never showed is told apart from a «no».
   Future<StreamerConsent> consent() async {
+    // D346: a new start (or share again): a new trail, no old failure.
+    _trail.clear();
+    if (state.failure != null) state = state.copyWith(clearFailure: true);
     StreamerConsent answer;
     try {
       answer = await _platform.requestCapture();
@@ -244,7 +271,91 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
     } else {
       AppLogger.info('streamer: consent $answer');
     }
+    mark(StreamerStep.consent, ok: answer.isGranted);
+    if (!answer.isGranted) {
+      await recordFailure(
+        StreamerFailure(
+          step: StreamerStep.consent,
+          problem: answer.outcome == StreamerConsentOutcome.refused
+              ? StreamerProblem.refused
+              : StreamerProblem.consentFailed,
+          errorClass: 'consent ${answer.outcome.name}',
+          detail: answer.reason ?? '',
+          code: answer.reason ?? answer.outcome.name,
+        ),
+      );
+    }
     return answer;
+  }
+
+  /// D346: [step] ended ([ok] or failed) — the report's trail and the log.
+  void mark(StreamerStep step, {bool ok = true}) {
+    _trail.add('${step.name} ${ok ? 'ok' : 'FAILED'}');
+    AppLogger.info('streamer: step ${step.name} ${ok ? 'ok' : 'failed'}');
+  }
+
+  /// D346: keeps [failure] for the host (its own message and «نسخ تقرير
+  /// المشكلة») and builds the report: the app version, Android, the model,
+  /// the step, the exception's class and scrubbed message, the service's
+  /// types. Never throws.
+  Future<void> recordFailure(StreamerFailure failure) async {
+    AppLogger.warning(
+      'streamer: failed at ${failure.step.name} '
+      '(${failure.problem.name}, ${failure.errorClass})',
+    );
+    if (!ref.mounted) return;
+    // The new failure, without the old one's report.
+    state = state.copyWith(clearFailure: true).copyWith(failure: failure);
+    var device = const StreamerDeviceInfo();
+    try {
+      device = StreamerDeviceInfo.parse(await _platform.diagnostics());
+    } on Object {
+      // No native side (tests, another platform): the report says «?».
+    }
+    var version = '?';
+    try {
+      version = ref.read(appConfigProvider).appVersion;
+    } on Object {
+      // No config (some tests).
+    }
+    if (!ref.mounted || state.failure != failure) return;
+    state = state.copyWith(
+      report: streamerReport(
+        failure: failure,
+        appVersion: version,
+        device: device,
+        trail: _trail,
+        at: clock.now(),
+      ),
+    );
+  }
+
+  /// D346: the host closed the problem card.
+  void clearFailure() {
+    if (state.failure != null) state = state.copyWith(clearFailure: true);
+  }
+
+  /// D346: the capture may start now (the native check), else the precise
+  /// failure is thrown — the consent is never spent on a SecurityException.
+  Future<void> _captureChecked(LiveScreenShare share) async {
+    String? blocker;
+    try {
+      blocker = await _platform.captureCheck();
+    } on Object catch (e) {
+      // An older native side without the check: go on (the capture's own
+      // error is still told precisely).
+      AppLogger.warning('streamer: capture check off (${e.runtimeType})');
+    }
+    if (blocker != null) {
+      throw StreamerStartException(StreamerFailure.blocked(blocker));
+    }
+    try {
+      await share.publishScreen();
+    } on StreamerStartException {
+      rethrow;
+    } on Object catch (e) {
+      throw StreamerStartException(StreamerFailure.of(StreamerStep.capture, e));
+    }
   }
 
   /// On air: publishes the screen (throws when it cannot start), joins the
@@ -259,7 +370,14 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
     _engine = engine;
     _share = share;
     _roomId = room.id;
-    await share.publishScreen();
+    try {
+      await _captureChecked(share);
+    } on StreamerStartException catch (e) {
+      mark(e.failure.step, ok: false);
+      rethrow;
+    }
+    mark(StreamerStep.capture);
+    mark(StreamerStep.publish);
     await share.setScreenPaused(paused: true);
     _native = true;
     state = state.copyWith(
@@ -272,6 +390,7 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
     try {
       final attached = await _platform.attach(gameAudio: state.gameAudioOn);
       _micMixed = true;
+      mark(StreamerStep.attach);
       if (ref.mounted) state = state.copyWith(gameAudio: attached.gameAudio);
     } on Object catch (e) {
       // The microphone still works the usual way; no game sound.
@@ -329,15 +448,22 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
     final asked = await consent();
     if (!asked.isGranted) return asked;
     try {
-      await share.publishScreen();
+      await _captureChecked(share);
+      mark(StreamerStep.capture);
       await share.setScreenPaused(paused: state.paused);
       final attached = await _platform.attach(gameAudio: state.gameAudioOn);
+      mark(StreamerStep.attach);
       if (ref.mounted) {
         state = state.copyWith(stopped: false, gameAudio: attached.gameAudio);
       }
       return StreamerConsent.granted;
     } on Object catch (e) {
       AppLogger.warning('streamer: share again failed (${e.runtimeType})');
+      // D346: the precise failure (its message and the report), not «try
+      // again».
+      final failure = StreamerFailure.of(StreamerStep.capture, e);
+      mark(failure.step, ok: false);
+      await recordFailure(failure);
       return const StreamerConsent.failed(StreamerConsent.startFailed);
     }
   }
@@ -363,16 +489,35 @@ class LiveStreamerHost extends Notifier<StreamerHostState> {
         gameAudioOn: state.gameAudioOn,
         sdkInt: state.sdkInt,
         headset: state.headset,
+        // D346: a failed start keeps its message and report on the setup.
+        failure: state.failure,
+        report: state.report,
       );
     }
   }
 
   void _onEvent(StreamerPlatformEvent event) {
     switch (event) {
-      case StreamerProjectionStopped():
+      case StreamerProjectionStopped(:final serviceForeground):
         state = state.copyWith(stopped: true);
         final share = _share;
         if (share != null) unawaited(_quiet(share.unpublishScreen));
+        // D346: Android ended it because the live's service was gone (not
+        // the host from the status bar): say so, with the report.
+        if (serviceForeground == false) {
+          _trail.add('stopped by system');
+          unawaited(
+            recordFailure(
+              const StreamerFailure(
+                step: StreamerStep.stopped,
+                problem: StreamerProblem.stoppedBySystem,
+                errorClass: 'ProjectionStopped',
+                detail: 'service not in foreground',
+                code: 'stopped',
+              ),
+            ),
+          );
+        }
       case StreamerPhoneCall(:final active):
         _setPause(StreamerPause.call, on: active);
       case StreamerScreenPower(:final on):

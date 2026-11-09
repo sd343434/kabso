@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_streamer_host.dart';
+import 'package:kabso_live/features/live/application/streamer_diagnostics.dart';
 import 'package:kabso_live/features/live/data/streamer/live_screen_share.dart';
 import 'package:kabso_live/features/live/data/streamer/live_streamer_platform.dart';
 import 'package:kabso_live/features/live/domain/live_streamer.dart';
@@ -29,6 +30,99 @@ String? streamerConsentMessage(AppLocalizations l10n, StreamerConsent c) =>
         c.reason ?? 'unknown',
       ),
     };
+
+/// D346: the host's message for a failed streamer start — one per
+/// problem, never a generic fallback; null for [StreamerProblem.other] (the
+/// usual go-live message stands; the report is still offered).
+String? streamerFailureMessage(AppLocalizations l10n, StreamerFailure f) =>
+    switch (f.problem) {
+      StreamerProblem.refused => l10n.streamerConsentRefused,
+      StreamerProblem.consentFailed => l10n.streamerConsentFailed(f.code),
+      StreamerProblem.serviceDenied => l10n.streamerFailServiceDenied,
+      StreamerProblem.security => l10n.streamerFailSecurity,
+      StreamerProblem.stoppedBySystem => l10n.streamerFailStoppedBySystem,
+      StreamerProblem.unsupportedOs => l10n.streamerFailUnsupportedOs,
+      StreamerProblem.captureFailed => l10n.streamerFailCapture(f.code),
+      StreamerProblem.publishFailed => l10n.streamerFailPublish(f.code),
+      StreamerProblem.other => null,
+    };
+
+/// D346 (owner): a failed streamer start — its own message and «نسخ تقرير
+/// المشكلة», which copies the short report (no personal data) to paste to
+/// us. Shown in the setup panel and on the host's stage.
+class StreamerProblemCard extends StatelessWidget {
+  const new({required this.failure, required this.report, super.key});
+
+  final StreamerFailure failure;
+
+  /// The text copied (null while it is being built: the button waits).
+  final String? report;
+
+  static const cardKey = Key('streamer.problem');
+  static const copyKey = Key('streamer.problem.copy');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    const white = Color(0xFFFFFFFF);
+    final message =
+        streamerFailureMessage(l10n, failure) ?? l10n.streamerReportTitle;
+    final copy = report;
+    return Container(
+      key: cardKey,
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 8, 6, 4),
+      decoration: BoxDecoration(
+        color: const Color(0x33E5484D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x66FF8A8F)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: white, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  message,
+                  style: text.caption.copyWith(
+                    color: white,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              key: copyKey,
+              onPressed: copy == null
+                  ? null
+                  : () => unawaited(() async {
+                      await Clipboard.setData(ClipboardData(text: copy));
+                      if (context.mounted) {
+                        KSnack.info(context, l10n.streamerReportCopied);
+                      }
+                    }()),
+              style: TextButton.styleFrom(
+                foregroundColor: white,
+                minimumSize: const Size(0, KSizes.minTouchTarget),
+              ),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: Text(l10n.streamerCopyReport),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Sizes of the streamer's pieces.
 abstract final class KStreamer {
@@ -328,6 +422,12 @@ class GoLiveStreamerPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // D346: why the last start failed, with the report to copy.
+          if (host.failure case final failure?)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 6, bottom: 8),
+              child: StreamerProblemCard(failure: failure, report: host.report),
+            ),
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 6),
             child: Row(
@@ -647,6 +747,18 @@ class StreamerHostStage extends StatelessWidget {
                   icon: const Icon(Icons.screen_share_rounded),
                   label: Text(l10n.streamerShareAgain),
                 ),
+                // D346: why it stopped / could not start again, and the
+                // report to copy.
+                if (host.failure case final failure?) ...[
+                  const SizedBox(height: KSpacing.md),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: StreamerProblemCard(
+                      failure: failure,
+                      report: host.report,
+                    ),
+                  ),
+                ],
               ] else ...[
                 Row(
                   mainAxisSize: MainAxisSize.min,

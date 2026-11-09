@@ -21736,6 +21736,60 @@ abstract class AppLocalizations {
   /// **'تعذّر تشغيل مشاركة الشاشة، حاول مرة أخرى'**
   String get streamerShareAgainFailed;
 
+  /// D346: the live's foreground service (type mediaProjection) could not start or was not running when the screen capture started.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو من جديد وحاول مرة أخرى'**
+  String get streamerFailServiceDenied;
+
+  /// D346: Android threw a SecurityException for the screen capture (e.g. a spent consent).
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض أندرويد تصوير الشاشة لأسباب أمان. اضغط «ابدأ البث» من جديد واختر «بدء» في نافذة أندرويد'**
+  String get streamerFailSecurity;
+
+  /// D346: the system stopped the MediaProjection because the live's foreground service was gone.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوقف أندرويد تصوير الشاشة لأن خدمة البث توقفت'**
+  String get streamerFailStoppedBySystem;
+
+  /// D346: the Android version cannot capture the screen.
+  ///
+  /// In ar, this message translates to:
+  /// **'إصدار أندرويد على هذا الهاتف لا يدعم مشاركة الشاشة'**
+  String get streamerFailUnsupportedOs;
+
+  /// D346: the screen capture could not start; code is a short technical reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر بدء تصوير الشاشة ({code})'**
+  String streamerFailCapture(String code);
+
+  /// D346: the screen track could not be published; code is a short technical reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إرسال الشاشة إلى البث ({code})'**
+  String streamerFailPublish(String code);
+
+  /// D346 (owner): the button that copies the short streamer problem report (no personal data).
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ تقرير المشكلة'**
+  String get streamerCopyReport;
+
+  /// D346: snack after the report was copied.
+  ///
+  /// In ar, this message translates to:
+  /// **'نُسخ التقرير، أرسله لنا'**
+  String get streamerReportCopied;
+
+  /// D346: the title of the streamer problem card.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تبدأ مشاركة الشاشة'**
+  String get streamerReportTitle;
+
   /// D213 (the streamer live «بث ستريمر»).
   ///
   /// In ar, this message translates to:

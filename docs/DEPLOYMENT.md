@@ -3893,3 +3893,15 @@ reason «استرداد عبر … بتاريخ … طلب …» in «حظر ا�
 **Rollback:** unset the store variables (the store disappears from the app at once; verification and notifications
 answer 503 — Apple and Google retry notifications for days). The tables stay (additive); purchases already credited
 stay credited.
+
+### 5.109 The streamer's screen capture fix (D346) — [IMPLEMENTED; app + `kabso_streamer` only; not deployed; NOT tested on a phone]
+
+CONVENTIONS §10.145. §5.102–§5.108 are left for in-flight work. No migration, no API or config change.
+
+- **Ship:** a new app build only (the next staging APK). The live's foreground service now stays on when the host leaves
+  Kabso (it stops when the app is swiped away, as before). Nothing on the server.
+- **Play Console:** unchanged (PP-43's `FOREGROUND_SERVICE_MEDIA_PROJECTION` / `_CAMERA` declarations); the service now
+  really runs in the background during every live — the demo video for the declaration should show it.
+- **Support:** a host whose screen will not share taps «نسخ تقرير المشكلة» and pastes the report; the logcat filter is
+  `adb logcat -v threadtime -s KabsoStreamer:V FlutterWebRTCPlugin:V ForegroundService:V ActivityManager:W AndroidRuntime:E`.
+- **Rollback:** the previous APK (the service then stops again when the host leaves the app — the screen stops with it).

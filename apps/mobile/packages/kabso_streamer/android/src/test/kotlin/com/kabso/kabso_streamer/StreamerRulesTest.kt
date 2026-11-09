@@ -197,4 +197,58 @@ class StreamerRulesTest {
         assertEquals("refused" to null, StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 400))
         assertEquals("refused" to null, StreamerRules.consentOutcome(0, hasData = false, elapsedMs = 8000))
     }
+
+    // D346: the capture starts only with a fresh consent and, on Android 10+,
+    // the live's foreground service in the foreground.
+    @Test
+    fun captureStartsOnlyWhenItCanSucceed() {
+        // Android 14 with everything in place.
+        assertNull(StreamerRules.captureBlocker(34, serviceForeground = true, consentHanded = true, consentUsed = false))
+        // The service was lost (flutter_foreground_task stopped it): Android 10+ refuses the projection.
+        for (sdk in intArrayOf(29, 33, 34, 35, 36)) {
+            assertEquals(
+                "no_service",
+                StreamerRules.captureBlocker(sdk, serviceForeground = false, consentHanded = true, consentUsed = false),
+            )
+        }
+        // Android 9 and below need no service.
+        assertNull(StreamerRules.captureBlocker(28, serviceForeground = false, consentHanded = true, consentUsed = false))
+        // The consent is spent: Android 14 forbids reusing it.
+        assertEquals(
+            "consent_used",
+            StreamerRules.captureBlocker(34, serviceForeground = true, consentHanded = true, consentUsed = true),
+        )
+        // Our consent never reached flutter_webrtc (it would ask with its own dialog).
+        assertEquals(
+            "no_consent",
+            StreamerRules.captureBlocker(34, serviceForeground = true, consentHanded = false, consentUsed = false),
+        )
+        assertEquals(
+            "unsupported_os",
+            StreamerRules.captureBlocker(19, serviceForeground = true, consentHanded = true, consentUsed = false),
+        )
+    }
+
+    @Test
+    fun consentHandedIsReadBack() {
+        val media = ConsentUserMedia()
+        val plugin = ConsentPlugin(ConsentHandler(media))
+        assertFalse(StreamerRules.consentHanded(plugin))
+        assertTrue(StreamerRules.putConsent(plugin, ProjectionIntent()))
+        assertTrue(StreamerRules.consentHanded(plugin))
+        assertFalse(StreamerRules.consentHanded(null))
+        assertFalse(StreamerRules.consentHanded(ConsentPlugin(ConsentHandler(Any()))))
+    }
+
+    @Test
+    fun serviceTypesAreNamed() {
+        // microphone | mediaPlayback | mediaProjection | camera (D213's streamer service).
+        assertEquals(
+            listOf("camera", "microphone", "mediaPlayback", "mediaProjection"),
+            StreamerRules.serviceTypeNames(0x80 or 0x02 or 0x20 or 0x40),
+        )
+        assertEquals(listOf("microphone", "mediaPlayback"), StreamerRules.serviceTypeNames(0x82))
+        assertEquals(listOf("manifest"), StreamerRules.serviceTypeNames(-1))
+        assertEquals(emptyList<String>(), StreamerRules.serviceTypeNames(0))
+    }
 }
