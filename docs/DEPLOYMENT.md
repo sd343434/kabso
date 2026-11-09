@@ -3523,3 +3523,36 @@ CONVENTIONS §10.23 (owner 2026-11-08: «تاج الافتتاح» at 3 000 000 
 - **Rollback:** an older API keeps working with gifts priced above 1 000 000 (it reads and sends them; only its admin
   validation refuses such a price on an edit). Re-adding the old CHECK fails while such a gift exists — lower those
   prices first (`gift-admin update <code> --price …`).
+
+
+### 5.99 Events v2 «الفعاليات» (migrations `20270409090000_events_v2_enums`, `20270409090100_events_v2`; D325) — [IMPLEMENTED, draft contract v1.101-social; not deployed, not device-tested]
+
+CONVENTIONS §10.127 (owner 2026-11-08 / 11-09: one events system; phase A — server and panel). §5.98 is left for D324.
+
+- **Migrations:** (1) a new enum `event_audience` and the notification type `EVENT_STARTED` (their own migration: enum
+  values are used by the next one). (2) `events` gains `status` (every existing row `PUBLISHED`), `recurrence`
+  (`NONE`), `period` / `period_starts_at` / `period_ends_at`, `scoring` (`MULTIPLIER`), `counted_gifts`
+  (`EVENT_GIFTS`), `banner_media_id`, `start_notified_at` and `published_at` (both set to `created_at` on existing rows,
+  so **no start notification is sent for an event that already exists**); `starts_at` becomes nullable (drafts only,
+  CHECK `events_shape`); `events.audience` moves to `event_audience` (same values plus AGENCIES, CP);
+  `event_gifts.points_per_coin` becomes NUMERIC(7,2) (the integers keep their value); `event_results.period` (0) with
+  its unique keys rebuilt; new tables `event_periods` (filled with period 0 of every frozen event), `event_milestones`,
+  `event_milestone_grants`; `gifts.event_id`, `store_items.event_id` (FK RESTRICT, partial indexes, CHECKs
+  `gifts_event_plain`, `store_items_event_exclusive`); a partial unique index on `notifications`. Table rewrites:
+  `events` and `event_gifts` (`ALTER COLUMN … TYPE`; small tables) — a short lock; `event_results` index rebuild.
+- **Behaviour once deployed:** running D166 / D303 events go on under their rules (verified by their e2e suites). The
+  events sweeper (`EVENTS_SWEEP_INTERVAL_SECONDS`) now also announces each published event's start once to its
+  audience (one `INSERT … SELECT` of up to every ACTIVE account — EVERYONE events write one notification row per
+  account; pushed by the general outbox within its 10-minute window), rolls recurring periods over, and gives
+  milestones. No new config. A gift event's board shows the top 20 (was 100).
+- **Order:** migrations, then the API, then the admin panel (the new «الفعاليات» page; an older panel keeps its D303
+  editor, which sends published bodies only). The app needs no update (drafts never reach it; new fields are additive).
+- **Launch festival:** nothing is seeded. When the owner asks: «الفعاليات» › «قالب مهرجان الانطلاقة» in the panel, or
+  `docker compose --profile jobs run --rm migrate node dist/cli/event-admin.js festival-draft --reason "<why>"`
+  (creates the DRAFT and its four gifts without art; the owner uploads the art, reviews the proposed prizes, sets the
+  dates and publishes in the panel).
+- **Rollback:** an older API ignores the new columns but would treat a DRAFT as a published event without dates (its code
+  reads `starts_at` as non-null) — before rolling back, delete or publish every draft (`SELECT id FROM events WHERE
+  status = 'DRAFT'`); recurring events would stop rolling over (their current period freezes at the series end only);
+  event-exclusive gifts would be listed and bought at any time (unlist them: `gift-admin disable <code>`). Reverting the
+  migration is not supported (data in the new tables); restore from the pre-release backup if needed.
