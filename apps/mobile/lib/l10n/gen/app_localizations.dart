@@ -28993,7 +28993,7 @@ abstract class AppLocalizations {
   /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.
   ///
   /// In ar, this message translates to:
-  /// **'طلب استرداد عبر المتجر يُعدّ احتيالاً: تُسحب العملات (وقد يصبح رصيدك سالباً) ويُحظر الحساب والجهاز.'**
+  /// **'طلب استرداد عبر المتجر يُعدّ احتيالاً: تُسحب العملات (وقد يصبح رصيدك سالباً) ويُحظر الحساب وكل أجهزته.'**
   String get storeIapConsentFraud;
 
   /// D345: coins from the stores (Google Play / App Store), the no-refund consent and the states.

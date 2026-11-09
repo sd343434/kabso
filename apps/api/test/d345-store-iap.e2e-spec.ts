@@ -454,9 +454,14 @@ describe('D345 store purchases', { timeout: 600_000 }, () => {
     expect(await ctx.prisma.iapPurchase.count({ where: { userId: u.id } })).toBe(1);
   });
 
-  it('Google refund (voided purchases) → coins back below 0, account and device banned, the panel shows the reason', async () => {
+  it('Google refund (voided purchases) → coins back below 0, account and every device banned, the panel shows the reason', async () => {
     const u = await signup();
     const sameDevice = await signup(u.deviceKey);
+    // Owner (int21, D345 #5): a device the account only signed in on (sessions.device_hash history) is banned too.
+    const tablet = newDeviceKey();
+    const onTablet = await login(u, tablet);
+    expect(onTablet.status, JSON.stringify(onTablet.body)).toBe(200);
+    const tabletOwner = await signup(tablet);
     const g = await buyGoogle(u);
     await spend(u, 600_000n);
     google.voided.push(voidOf(g));
@@ -476,9 +481,18 @@ describe('D345 store purchases', { timeout: 600_000 }, () => {
     const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id: u.id } });
     expect(user.status).toBe('SUSPENDED');
     const bans = await ctx.prisma.deviceBan.findMany({ where: { iapPurchaseId: g.purchaseId } });
-    expect(bans).toHaveLength(1);
-    expect(bans[0]!.endsAt).toBeNull();
-    expect(bans[0]!.reason).toBe(purchase.refundReason);
+    expect(bans).toHaveLength(2);
+    for (const b of bans) {
+      expect(b.endsAt).toBeNull();
+      expect(b.reason).toBe(purchase.refundReason);
+    }
+    expect(new Set(bans.map((b) => b.deviceHash.trim())).size).toBe(2);
+    const refundBan = await ctx.prisma.iapRefundBan.findFirstOrThrow({ where: { purchaseId: g.purchaseId } });
+    expect(refundBan.devicesBanned).toBe(2);
+    // The tablet's own account is refused there too.
+    const tabletLogin = await login(tabletOwner);
+    expect(tabletLogin.status).toBe(403);
+    expect(tabletLogin.body.error.code).toBe('DEVICE_BANNED');
     // Signing in: the account is suspended; another account on the banned device is refused with the reason.
     const own = await login(u);
     expect(own.status).toBe(403);
@@ -521,7 +535,7 @@ describe('D345 store purchases', { timeout: 600_000 }, () => {
     const audit = await ctx.prisma.auditLog.findFirst({
       where: { action: 'store_iap.refund', targetId: g.purchaseId },
     });
-    expect(audit?.metadata).toMatchObject({ accountBanned: true, devicesBanned: 1, ban: true });
+    expect(audit?.metadata).toMatchObject({ accountBanned: true, devicesBanned: 2, ban: true });
   });
 
   it('only the OWNER lifts a refund ban (the code again, a reason, audited); the general unban and the device list refuse it', async () => {

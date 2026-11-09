@@ -10969,8 +10969,10 @@ For a **credited** purchase, once (`refunded_at`), in one transaction:
   automatically (the FIFO attribution is kept in `refund_detail` for the team, §10.53);
 - **account ban:** an ACTIVE account becomes SUSPENDED (the panel's «حظر», D191: the live ends, seats are freed, every
   session ends; sign-in answers 403 `ACCOUNT_SUSPENDED`);
-- **device ban:** the purchase's device (else the devices seen for the account, ≤ 20, §10.91.6) is banned
-  **permanently** (`device_bans.iap_purchase_id`), ending every session on it;
+- **device ban:** the purchase's device **and every device seen for the account** — its sign-ups (`device_signups`)
+  and its sessions' history (`sessions.device_hash`, ended sessions included), newest first, ≤ 100
+  (`STORE_REFUND_MAX_DEVICES`), §10.91.6 — are banned **permanently** (`device_bans.iap_purchase_id`), ending every
+  session on them (owner, int21: «موافق على الاقتراحات», D345 #5; was the purchase's device only);
 - **the reason** (≤ 500, shown in the panel and, on the device, as `DEVICE_BANNED`'s reason): «استرداد عبر Google Play
   بتاريخ YYYY-MM-DD — طلب GPA.…» / «استرداد عبر App Store بتاريخ YYYY-MM-DD — معاملة …» (+ Google's `voidedReason`
   name when given: `remorse`, `chargeback`, `fraud` …);

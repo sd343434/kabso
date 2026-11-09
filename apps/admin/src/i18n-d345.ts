@@ -7,7 +7,7 @@ export const AR_D345 = {
   navStoreIap: 'مشتريات المتجر',
   iapTitle: 'مشتريات المتجر',
   iapSubtitle:
-    'العملات المبيعة عبر Google Play وApp Store. كل شراء يتحقق منه الخادم مع المتجر، ويُسجَّل مرة واحدة. الاسترداد يعدّ احتيالاً: تُسحب العملات (قد يصبح الرصيد سالباً) ويُحظر الحساب والجهاز تلقائياً.',
+    'العملات المبيعة عبر Google Play وApp Store. كل شراء يتحقق منه الخادم مع المتجر، ويُسجَّل مرة واحدة. الاسترداد يعدّ احتيالاً: تُسحب العملات (قد يصبح الرصيد سالباً) ويُحظر الحساب وكل أجهزته تلقائياً.',
   iapTabOverview: 'الحالة',
   iapTabProducts: 'باقات المتجر',
   iapTabPurchases: 'المشتريات',
@@ -78,7 +78,7 @@ export const EN_D345: Record<keyof typeof AR_D345, string> = {
   navStoreIap: 'Store purchases',
   iapTitle: 'Store purchases',
   iapSubtitle:
-    'Coins sold through Google Play and the App Store. Every purchase is verified by the server with the store and recorded once. A refund is treated as fraud: the coins are taken back (the balance may go below 0) and the account and the device are banned automatically.',
+    'Coins sold through Google Play and the App Store. Every purchase is verified by the server with the store and recorded once. A refund is treated as fraud: the coins are taken back (the balance may go below 0) and the account and all its devices are banned automatically.',
   iapTabOverview: 'Status',
   iapTabProducts: 'Store packages',
   iapTabPurchases: 'Purchases',

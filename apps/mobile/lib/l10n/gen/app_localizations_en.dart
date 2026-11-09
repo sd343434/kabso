@@ -17164,7 +17164,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storeIapConsentFraud =>
-      'A refund request through the store is treated as fraud: the coins are taken back (your balance may go below zero) and the account and the device are banned.';
+      'A refund request through the store is treated as fraud: the coins are taken back (your balance may go below zero) and the account and all its devices are banned.';
 
   @override
   String storeIapConsentShare(String store) {

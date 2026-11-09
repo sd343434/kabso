@@ -606,8 +606,8 @@
 - **Not tested against a real store.** Google Play's and Apple's APIs are behind ports; the tests use fakes and a
   throwaway certificate chain shaped like Apple's. The first real sandbox purchase on each store is a release gate (PP-80).
 - **A refund ban is per account and per device**, with D250's device limits: a factory reset, a reinstall that loses the
-  iOS Keychain item, or a rooted / jailbroken phone gives a new device id; a purchase from an app older than D223 has
-  no device, so the devices seen for the account are banned instead.
+  iOS Keychain item, or a rooted / jailbroken phone gives a new device id. Every device seen for the account is banned
+  (sign-ups and the sessions' history, at most 100); a device the account never used is not.
 - **Apple's consumption information** is Apple's current `ConsumptionRequest` (consumption percentage, delivery,
   refund preference «DECLINE», no sample). The older fields the owner listed (account tenure, play time, lifetime
   dollars, user status) are Apple's V1 body, now documented for the Advanced Commerce API only; they are computed and

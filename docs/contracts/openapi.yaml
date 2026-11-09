@@ -21197,7 +21197,7 @@ paths:
       summary: "«فك الحظر» of a refund ban — the account and/or the device (store_iap.unban = OWNER; the code again)"
       description: |
         (v1.110-social, D345, §10.144.4) The authenticator code again (`totpCode`; missing or wrong: 403
-        `ADMIN_TOTP_INVALID`, counted towards the lockout) and a reason. The account goes SUSPENDED → ACTIVE and / or the purchase's device bans are
+        `ADMIN_TOTP_INVALID`, counted towards the lockout) and a reason. The account goes SUSPENDED → ACTIVE and / or the refund's device bans (every device seen for the account) are
         lifted; the coins taken back stay taken. 409 `ADMIN_ACTION_REFUSED` when that part is not banned any more.
         Audited `store_iap.unban`.
       security: [{ adminSession: [] }]

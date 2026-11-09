@@ -5353,7 +5353,7 @@
   "storeIapBuyLabel": "Buy {coins} coins for {price}",
   "storeIapConsentTitle": "Before you buy",
   "storeIapConsentDelivery": "The coins are added to your balance at once and used up as you spend them; they are not refundable after purchase.",
-  "storeIapConsentFraud": "A refund request through the store is treated as fraud: the coins are taken back (your balance may go below zero) and the account and the device are banned.",
+  "storeIapConsentFraud": "A refund request through the store is treated as fraud: the coins are taken back (your balance may go below zero) and the account and all its devices are banned.",
   "storeIapConsentShare": "If you ask for a refund, Kabso tells {store} how much of these coins was used, to help it decide.",
   "storeIapConsentCheck": "I agree to the no-refund policy and to sharing usage data if I ask for a refund",
   "storeIapConsentContinue": "Continue to {store}",

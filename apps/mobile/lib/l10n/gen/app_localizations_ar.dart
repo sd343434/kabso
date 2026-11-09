@@ -17161,7 +17161,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get storeIapConsentFraud =>
-      'طلب استرداد عبر المتجر يُعدّ احتيالاً: تُسحب العملات (وقد يصبح رصيدك سالباً) ويُحظر الحساب والجهاز.';
+      'طلب استرداد عبر المتجر يُعدّ احتيالاً: تُسحب العملات (وقد يصبح رصيدك سالباً) ويُحظر الحساب وكل أجهزته.';
 
   @override
   String storeIapConsentShare(String store) {

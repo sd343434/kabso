@@ -19,6 +19,8 @@ type Tx = Prisma.TransactionClient;
 
 /** `sessions.revoked_reason` of the sessions a refund ban ends. */
 export const STORE_REFUND_REVOKED_REASON = 'STORE_REFUND_BANNED';
+/** The most devices one refund bans (newest first): every device seen for the account in practice. */
+export const STORE_REFUND_MAX_DEVICES = 100;
 
 export interface IapSettingsView {
   readonly oncePerAccountDevice: boolean;
@@ -229,8 +231,8 @@ export interface RefundResult {
 /**
  * A store refund of a CREDITED purchase, once (§10.144.4): the coins back (`STORE_IAP_REVERSAL`, the balance may go
  * below 0), the purchase REFUNDED with the reason and the FIFO detail; with `ban`, the ACTIVE account SUSPENDED
- * (`suspendIn`: the live ends, seats are freed) and its sessions ended, the purchase's device (else the devices seen for
- * the account) banned permanently, and the `iap_refund_bans` row. Anything else (already refunded, REJECTED): nothing.
+ * (`suspendIn`: the live ends, seats are freed) and its sessions ended, the purchase's device and every device seen for
+ * the account (sign-ups and the sessions' `device_hash` history) banned permanently, and the `iap_refund_bans` row. Anything else (already refunded, REJECTED): nothing.
  */
 export async function refundPurchaseIn(
   tx: Tx,
@@ -272,7 +274,10 @@ export async function refundPurchaseIn(
   if (input.ban) {
     accountBanned = await suspendIn(tx, purchase.userId);
     await endSessionsIn(tx, purchase.userId, STORE_REFUND_REVOKED_REASON, now);
-    const hashes = purchase.deviceHash ? [purchase.deviceHash] : await devicesOfUserIn(tx, purchase.userId);
+    // Owner (int21, D345 #5): every device seen for the account — its sign-ups and its sessions' history
+    // (`sessions.device_hash`, ended sessions included) — and the purchase's own device, not only the latter.
+    const seen = await devicesOfUserIn(tx, purchase.userId, STORE_REFUND_MAX_DEVICES);
+    const hashes = [...new Set([...(purchase.deviceHash ? [purchase.deviceHash.trim()] : []), ...seen])];
     const bans = await banDevicesIn(tx, {
       hashes,
       reason: input.reasonText,
