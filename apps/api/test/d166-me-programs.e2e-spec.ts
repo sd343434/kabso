@@ -85,9 +85,22 @@ describe('D166 contract coverage', () => {
     // Purchases stay blocked (B5): no purchase operation exists.
     // D252 adds `buyVip POST /me/vip/purchases` (VIP bought with coins) and D270 `POST /me/store/purchases`
     // (store items bought with coins or cherries); neither is a B5 money purchase, so both are excluded here.
+    // v1.110-social (D345, §10.144) is B5 for the stores only: Google Play / App Store purchases under
+    // `/store/iap/` and the panel's `/admin/store-iap/` (int21: excluded by path; nothing else may buy coins).
     expect(
-      ids.some((id) => /recharge-packages\/|purchase/i.test(id) && !/\/me\/(vip|store)\//.test(id)),
-    ).toBe(false);
+      ids.filter(
+        (id) =>
+          /recharge-packages\/|purchase/i.test(id) &&
+          !/\/me\/(vip|store)\//.test(id) &&
+          !/ \/api\/v1\/(store\/iap|admin\/store-iap)\//.test(id),
+      ),
+    ).toEqual([]);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'verifyStorePurchase POST /api/v1/store/iap/purchases',
+        'listAdminStoreIapPurchases GET /api/v1/admin/store-iap/purchases',
+      ]),
+    );
   });
 });
 
