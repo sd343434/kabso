@@ -6246,9 +6246,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveVoiceRoomsTitle => 'الغرف الصوتية';
 
   @override
-  String get liveVoiceRoomsToLive => 'البث المباشر';
-
-  @override
   String get liveHubFilterLabel => 'عوامل التصفية';
 
   @override
@@ -16799,4 +16796,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dmBoxes => 'صناديق الرسائل';
+
+  @override
+  String get livePartyKindAudio => 'صوتي';
+
+  @override
+  String get livePartyKindPodcast => 'بودكاست';
+
+  @override
+  String get livePartyKindMulti => 'متعدد';
+
+  @override
+  String get livePartyEmptyTitle => 'لا غرف في الحفلة الآن';
+
+  @override
+  String get livePartyEmptyBody => 'عد لاحقًا أو جرّب تبويبًا آخر.';
 }

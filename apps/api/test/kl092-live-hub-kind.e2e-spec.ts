@@ -36,8 +36,12 @@ describe('D129 contract coverage', () => {
       expect.objectContaining({
         in: 'query',
         required: false,
-        // v1.27.1-live (D133) adds solo, multi and party (kl094 covers them); v1.47-live (D212) podcast.
-        schema: { type: 'string', enum: ['audio', 'video', 'solo', 'multi', 'party', 'podcast', 'streamer'] },
+        // v1.27.1-live (D133) adds solo, multi and party (kl094 covers them); v1.47-live (D212) podcast;
+        // v1.107-live (D342) party_all (d342-party-mixed covers it).
+        schema: {
+          type: 'string',
+          enum: ['audio', 'video', 'solo', 'multi', 'party', 'podcast', 'streamer', 'party_all'],
+        },
       }),
     );
   });

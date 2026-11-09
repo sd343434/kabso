@@ -25,7 +25,6 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
-import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -603,48 +602,8 @@ void main() {
     });
   });
 
-  group('19. no ink circle on the animated header buttons', () {
-    for (final (name, button, key) in [
-      (
-        'voice rooms Live',
-        const VoiceRoomsLiveButton(),
-        VoiceRoomsLiveButton.buttonKey,
-      ),
-    ]) {
-      testWidgets('$name: pressing paints no highlight or splash', (
-        tester,
-      ) async {
-        await _pumpBare(tester, Center(child: button));
-        final gesture = await tester.startGesture(
-          tester.getCenter(find.byKey(key)),
-        );
-        await tester.pump(const Duration(milliseconds: 200));
-        // The ink layers inside the button (Material's private
-        // `_InkFeatures`).
-        final layers = find.descendant(
-          of: find.byKey(key),
-          matching: find.byWidgetPredicate(
-            (w) => w.runtimeType.toString() == '_InkFeatures',
-          ),
-        );
-        expect(layers, findsWidgets);
-        final ink = <InkFeature>[
-          for (final e in layers.evaluate())
-            // A test-only getter on a private type.
-            ...?(e.renderObject! as dynamic).debugInkFeatures
-                as List<InkFeature>?,
-        ];
-        for (final f in ink) {
-          expect(f, isNot(isA<InkSplash>()));
-          expect(f, isNot(isA<InkRipple>()));
-          expect(f, isNot(isA<InkSparkle>()));
-          if (f is InkHighlight) expect(f.color.a, 0);
-        }
-        await gesture.cancel();
-        await tester.pumpAndSettle();
-      });
-    }
-  });
+  // 19. (D141) the no-ink Live switch of the party page: removed by D342
+  // (owner: «زر في الاعلى لنقل المستخدم على لايف … ازله»).
 
   group('20. camera flip', () {
     test('before the camera starts, Flip picks the other camera and the '

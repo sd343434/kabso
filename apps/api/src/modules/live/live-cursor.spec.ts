@@ -231,7 +231,7 @@ describe('D133 (v1.27.1-live): nearby, featured and the new kinds', () => {
     expect(decoded).not.toHaveProperty('sc');
   });
 
-  it.each(['solo', 'multi', 'party'] as const)('binds kind %s', (kind) => {
+  it.each(['solo', 'multi', 'party', 'party_all'] as const)('binds kind %s', (kind) => {
     const cursor = codec2.encode(cursorScope('popular', undefined, USER, kind), position);
     expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, kind))).toEqual(position);
     expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, 'audio'))).toBeNull();

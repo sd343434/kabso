@@ -7634,8 +7634,6 @@
   "@navMomentsNew": {"description": "D130: the Moments tab's dot (unseen stories from followed accounts), read by screen readers."},
   "liveVoiceRoomsTitle": "الغرف الصوتية",
   "@liveVoiceRoomsTitle": {"description": "D131: the Voice rooms screen title and the Live hub party button's name (it opens the voice rooms)."},
-  "liveVoiceRoomsToLive": "البث المباشر",
-  "@liveVoiceRoomsToLive": {"description": "D139: the Live button in the Voice rooms top bar (the owner's animated Live icon, a screen with a LIVE badge), which returns to the live hub; its tooltip and screen-reader name."},
   "liveHubFilterLabel": "عوامل التصفية",
   "@liveHubFilterLabel": {"description": "D131: the Live hub filter row, announced as a group."},
   "liveHubFilterFollowing": "المتابَعين",
@@ -14601,5 +14599,15 @@
   "relativeShortDays": "{n}ي",
   "@relativeShortDays": {"description": "D336: compact time since, in days.", "placeholders": {"n": {"type": "int"}}},
   "dmBoxes": "صناديق الرسائل",
-  "@dmBoxes": {"description": "D336: the button beside search that opens the Messages boxes (chats, requests)."}
+  "@dmBoxes": {"description": "D336: the button beside search that opens the Messages boxes (chats, requests)."},
+  "livePartyKindAudio": "صوتي",
+  "@livePartyKindAudio": {"description": "D342: the badge on a party card's picture: an audio room (short; the card's screen-reader label says «بث صوتي»)."},
+  "livePartyKindPodcast": "بودكاست",
+  "@livePartyKindPodcast": {"description": "D342: the badge on a party card's picture: a podcast (short)."},
+  "livePartyKindMulti": "متعدد",
+  "@livePartyKindMulti": {"description": "D342: the badge on a party card's picture: a multi-guest live (short)."},
+  "livePartyEmptyTitle": "لا غرف في الحفلة الآن",
+  "@livePartyEmptyTitle": {"description": "D342: the party page's one mixed list (audio, podcast, multi) is empty."},
+  "livePartyEmptyBody": "عد لاحقًا أو جرّب تبويبًا آخر.",
+  "@livePartyEmptyBody": {"description": "D342: under livePartyEmptyTitle (the other tabs are Following, Popular, Explore, Nearby)."}
 }

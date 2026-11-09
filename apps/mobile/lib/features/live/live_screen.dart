@@ -167,10 +167,6 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
 abstract final class KLiveHubTopBar {
   static const double titleSize = 21;
   static const double iconSize = 22;
-
-  /// D130: how long a top-bar icon's pop plays before its page opens (the
-  /// party page's Live switch, D139).
-  static const popLead = Duration(milliseconds: 280);
 }
 
 /// D124: the hub's top bar: the Kabso title at the reading start (D294:
@@ -273,9 +269,9 @@ class LiveHubGoLiveButton extends ConsumerWidget {
 }
 
 /// How a room list is laid out: the hub's 2-column grid, or the Voice
-/// rooms' list rows (ref 166).
-/// D212: [podcast] — the podcast tab's full-width episode cards.
-enum LiveRoomsLayout { grid, list, podcast }
+/// rooms' list rows (ref 166). D342: the podcast tab's episode cards went
+/// with the tab — a podcast is a party card with its badge.
+enum LiveRoomsLayout { grid, list }
 
 /// Which empty and unavailable copy a list shows.
 enum LiveListKind { following, popular, explore, nearby, featured }
@@ -370,6 +366,7 @@ class LiveRoomsPage extends ConsumerWidget {
       kind: _kind,
       voice: query.kind == LiveRoomsKind.audio,
       podcast: query.kind == LiveRoomsKind.podcast,
+      party: query.kind == LiveRoomsKind.partyAll,
       layout: layout,
       header: header,
       content: liveHubContent(async, pinned: _pinned(ref)),
@@ -387,8 +384,9 @@ class LiveRoomsPage extends ConsumerWidget {
           : () => select(const LiveHubSelection(filter: LiveHubFilter.explore)),
       onRefresh: () {
         // The banners reload with the list (a failure there shows none).
-        // D212: and the announced podcasts.
-        if (layout == LiveRoomsLayout.podcast) {
+        // D212: and the announced podcasts (D342: above the party list).
+        if (query.kind == LiveRoomsKind.partyAll ||
+            query.kind == LiveRoomsKind.podcast) {
           ref.invalidate(scheduledPodcastsProvider);
         }
         ref
@@ -473,6 +471,7 @@ class LiveHubBody extends StatelessWidget {
     super.key,
     this.voice = false,
     this.podcast = false,
+    this.party = false,
     this.layout = LiveRoomsLayout.grid,
     this.header,
     this.countryNotSet = false,
@@ -505,6 +504,9 @@ class LiveHubBody extends StatelessWidget {
 
   /// D212: the podcast tab (its empty copy names podcasts).
   final bool podcast;
+
+  /// D342: the party page's mixed list (audio, podcast, multi).
+  final bool party;
   final LiveRoomsLayout layout;
   final Widget? header;
 
@@ -542,12 +544,16 @@ class LiveHubBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final emptyTitle = podcast
+    final emptyTitle = party
+        ? l10n.livePartyEmptyTitle
+        : podcast
         ? l10n.livePodcastEmptyTitle
         : voice
         ? l10n.liveVoiceEmptyTitle
         : l10n.liveHubEmptyTitle;
-    final emptyBody = podcast
+    final emptyBody = party
+        ? l10n.livePartyEmptyBody
+        : podcast
         ? l10n.livePodcastEmptyBody
         : voice
         ? l10n.liveVoiceEmptyBody
@@ -699,9 +705,7 @@ class LiveHubBody extends StatelessWidget {
           ? VoiceRoomList.skeletonSliver()
           : LiveHubGrid.skeletonSliver(),
       footerLoadingSliver: LiveHubGrid.loadingMoreSliver(context),
-      itemsSliver: (rooms) => layout == LiveRoomsLayout.podcast
-          ? PodcastHubList.sliver(rooms: rooms, onOpenRoom: onOpenRoom)
-          : list
+      itemsSliver: (rooms) => list
           ? VoiceRoomList.sliver(
               rooms: rooms,
               banner: banner,
@@ -716,11 +720,3 @@ class LiveHubBody extends StatelessWidget {
     );
   }
 }
-
-/// D141: an icon button with no ink — no highlight, splash or hover circle
-/// (the hub's party button and the voice rooms' Live button animate their
-/// own icon instead).
-const noInkIconButtonStyle = ButtonStyle(
-  overlayColor: WidgetStatePropertyAll(Color(0x00000000)),
-  splashFactory: NoSplash.splashFactory,
-);

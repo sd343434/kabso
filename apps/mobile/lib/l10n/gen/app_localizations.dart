@@ -10736,12 +10736,6 @@ abstract class AppLocalizations {
   /// **'الغرف الصوتية'**
   String get liveVoiceRoomsTitle;
 
-  /// D139: the Live button in the Voice rooms top bar (the owner's animated Live icon, a screen with a LIVE badge), which returns to the live hub; its tooltip and screen-reader name.
-  ///
-  /// In ar, this message translates to:
-  /// **'البث المباشر'**
-  String get liveVoiceRoomsToLive;
-
   /// D131: the Live hub filter row, announced as a group.
   ///
   /// In ar, this message translates to:
@@ -28365,6 +28359,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'صناديق الرسائل'**
   String get dmBoxes;
+
+  /// D342: the badge on a party card's picture: an audio room (short; the card's screen-reader label says «بث صوتي»).
+  ///
+  /// In ar, this message translates to:
+  /// **'صوتي'**
+  String get livePartyKindAudio;
+
+  /// D342: the badge on a party card's picture: a podcast (short).
+  ///
+  /// In ar, this message translates to:
+  /// **'بودكاست'**
+  String get livePartyKindPodcast;
+
+  /// D342: the badge on a party card's picture: a multi-guest live (short).
+  ///
+  /// In ar, this message translates to:
+  /// **'متعدد'**
+  String get livePartyKindMulti;
+
+  /// D342: the party page's one mixed list (audio, podcast, multi) is empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا غرف في الحفلة الآن'**
+  String get livePartyEmptyTitle;
+
+  /// D342: under livePartyEmptyTitle (the other tabs are Following, Popular, Explore, Nearby).
+  ///
+  /// In ar, this message translates to:
+  /// **'عد لاحقًا أو جرّب تبويبًا آخر.'**
+  String get livePartyEmptyBody;
 }
 
 class _AppLocalizationsDelegate

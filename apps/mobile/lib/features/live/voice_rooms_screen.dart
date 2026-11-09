@@ -1,10 +1,7 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -32,23 +29,20 @@ abstract final class KVoiceRoomsHeader {
   static const double dashGap = 1;
   static const double dashGapArabic = 5;
 
-  /// Second row (the kinds and Nearby's country): cap 22 px = 9.4 lp →
-  /// 13 sp; the selected one bold `#2E3132`, the others `#C3C6CE`.
+  /// Second row (D342: only Nearby's country; the kinds are gone): cap
+  /// 22 px = 9.4 lp → 13 sp.
   static const double subTab = 13;
 
-  /// Gaps between top tabs (37–40 px = 16.5 lp) and second-row tabs
-  /// (72–87 px; E 32 lp).
+  /// Gap between top tabs (37–40 px = 16.5 lp).
   static const double tabGap = 16.5;
-  static const double subTabGap = 32;
 
   /// Start insets: top row 16.6 lp, second row 21.3 lp.
   static const double tabInset = 16.6;
   static const double subTabInset = 21.3;
 
   /// The rows' heights. The ref's rows are ≈ 30 and 25 lp; ours keep the
-  /// 48 lp top bar (the Live switch's touch target, as every top bar) and
-  /// a 30 lp second row under D142's 10 lp status-bar gap, so the header
-  /// ends ≈ 23 lp lower than the ref's (124 lp).
+  /// 48 lp top bar (as every top bar) and, with «القريبة» only (D342), a
+  /// 30 lp second row under D142's 10 lp status-bar gap.
   static const double topRow = KMetrics.topBarHeight;
   static const double subRow = 30;
 
@@ -63,7 +57,6 @@ abstract final class KVoiceRoomsHeader {
 
   static const Color lightInk = Color(0xFF2E3132);
   static const Color lightGrey = Color(0xFF8D919C);
-  static const Color lightSubGrey = Color(0xFFC3C6CE);
 
   /// The page under the header (sampled `#F4F6FA`); white right under the
   /// header for 25 lp, faded into the page by 81 lp (sampled).
@@ -76,8 +69,20 @@ abstract final class KVoiceRoomsHeader {
 }
 
 /// D131: `/live/voice` — the party page, opened by the Live hub's party
-/// button (owner, ref 166). D237: three kinds, each its own
-/// `GET /live/rooms?kind=` list with its real empty / error states.
+/// button (owner, ref 166); D322: the «الحفلة» tab. D237: three kinds, each
+/// its own `GET /live/rooms?kind=` list — until D342.
+///
+/// D342 (owner 2026-11-09: «ازل فلاتر بث صوتي بث بوكاست و بث متعدد … ان
+/// يكونو بنفس الصف لكن ميز كل واحده بهم» and «زر في الاعلى لنقل المستخدم
+/// على لايف … ازله»):
+/// - No kinds row and no Live switch in the corner (the bar's «البث» tab
+///   is the way to the hub).
+/// - One list of every party room — audio, podcast and multi mixed, in the
+///   selected filter's own order: one server list (`kind=party_all`,
+///   v1.107-live) paged by one cursor, never three lists merged here; each
+///   card says its kind with its own badge (`PartyKindBadge`: icon and
+///   colour) on its picture. The announced podcasts (D212) stay above
+///   "Rooms" when there are any.
 ///
 /// D246 (owner, a reference: «اجعله بتصميم مطابق من حيث الأيقونات والحجم،
 /// واجعل تصنيفات بث صوتي بودكاست متعدد في الأسفل وبخط أصغر، ومحلهم متابعة
@@ -85,17 +90,14 @@ abstract final class KVoiceRoomsHeader {
 /// - Top row: back (when pushed), the filters as big tabs «المتابَعة ·
 ///   الرائج · استكشاف · القريبة» (the hub's own queries: following,
 ///   popular, explore, nearby; Popular first selected), the selected one
-///   heavy with a dash under it; in the corner only the party ⇄ live
-///   switch (D240).
-/// - Second row, smaller: the kinds «بث صوتي · بث بودكاست · بث متعدد»
-///   (audio first). With «القريبة» selected, the row starts with the
-///   viewer's country «🇯🇴 الأردن ▾» (the ref's «Jordan» slot): a tap opens
-///   the D240 picker (a choice on this device; the profile country first).
+///   heavy with a dash under it. D342: nothing in the corner.
+/// - Second row, smaller, with «القريبة» only (D342): the viewer's country
+///   «🇯🇴 الأردن ▾» (the ref's «Jordan» slot): a tap opens the D240 picker
+///   (a choice on this device; the profile country first).
 /// - Removed: D240's pill row, its separate country row and Popular's
 ///   category menu. «المميزة» has no tab: the paid «مميز» lives already
 ///   pin first in «الرائج» and «استكشاف», and their cards say «مميز».
-/// - "Rooms" with the list/grid switch (audio and multi); no filter icon
-///   (nothing behind it). The podcast tab keeps its episode cards.
+/// - "Rooms" with the list/grid switch; no filter icon (nothing behind it).
 /// - The promo banners after the 4th room and swiping between this list's
 ///   rooms inside a room, like the hub.
 class VoiceRoomsScreen extends ConsumerStatefulWidget {
@@ -118,12 +120,7 @@ class VoiceRoomsScreen extends ConsumerStatefulWidget {
     LiveHubFilter.nearby,
   ];
 
-  /// D237: the kind tabs (audio, podcast, multi); D246: the second row.
-  static const kindsKey = Key('voiceRooms.kinds');
-  static Key kindKey(LiveHubCategory kind) =>
-      Key('voiceRooms.kind.${kind.name}');
-
-  /// D246: Nearby's country at the start of the second row.
+  /// D246: Nearby's country, the second row (D342: its only tab).
   static const countryKey = Key('voiceRooms.nearbyCountry');
 
   @override
@@ -134,14 +131,12 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
   /// D246: the selected filter (Popular first, as the hub; never a
   /// category: the party page has no category menu).
   LiveHubSelection _selection = const LiveHubSelection();
-
-  /// D237: the kind shown (audio rooms first, as before).
-  LiveHubCategory _kind = LiveHubCategory.audio;
   LiveRoomsLayout _layout = LiveRoomsLayout.list;
   late final AppLifecycleListener _lifecycle;
   DateTime? _leftAt;
 
-  LiveRoomsQuery get _query => _selection.queryOf(_kind.kind!);
+  /// D342: every party kind in one list, in the filter's own order.
+  LiveRoomsQuery get _query => _selection.partyQuery;
 
   @override
   void initState() {
@@ -177,11 +172,6 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
         .catchError((Object _) {}),
   );
 
-  void _selectKind(LiveHubCategory kind) {
-    if (kind == _kind) return _refreshShown();
-    setState(() => _kind = kind);
-  }
-
   void _select(LiveHubSelection next) {
     // The party page has no category menu (an empty state's «الرائج»).
     final plain = LiveHubSelection(filter: next.filter);
@@ -198,20 +188,23 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
       query: _query,
       selection: _selection,
       onSelect: _select,
-      layout: _kind == LiveHubCategory.podcast
-          // D212: the podcast's episode cards and announced episodes.
-          ? LiveRoomsLayout.podcast
-          : _layout,
-      header: _kind == LiveHubCategory.podcast
-          ? const ScheduledPodcastsSection()
-          : _SectionRow(
-              layout: _layout,
-              onToggle: () => setState(
-                () => _layout = _layout == LiveRoomsLayout.list
-                    ? LiveRoomsLayout.grid
-                    : LiveRoomsLayout.list,
-              ),
+      layout: _layout,
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // D212: the announced episodes (nothing when none); D342: above
+          // the mixed list, as they were above the podcast tab's.
+          const ScheduledPodcastsSection(),
+          _SectionRow(
+            layout: _layout,
+            onToggle: () => setState(
+              () => _layout = _layout == LiveRoomsLayout.list
+                  ? LiveRoomsLayout.grid
+                  : LiveRoomsLayout.list,
             ),
+          ),
+        ],
+      ),
     );
     return Scaffold(
       backgroundColor: light ? KVoiceRoomsHeader.lightPage : p.background,
@@ -219,9 +212,7 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
         children: [
           _Header(
             filter: _selection.filter,
-            kind: _kind,
             onFilter: (f) => _select(LiveHubSelection(filter: f)),
-            onKind: _selectKind,
           ),
           Expanded(
             child: light
@@ -285,17 +276,10 @@ class _VoiceRoomsScreenState extends ConsumerState<VoiceRoomsScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const new({
-    required this.filter,
-    required this.kind,
-    required this.onFilter,
-    required this.onKind,
-  });
+  const new({required this.filter, required this.onFilter});
 
   final LiveHubFilter filter;
-  final LiveHubCategory kind;
   final ValueChanged<LiveHubFilter> onFilter;
-  final ValueChanged<LiveHubCategory> onKind;
 
   static String filterLabel(AppLocalizations l10n, LiveHubFilter f) =>
       switch (f) {
@@ -361,6 +345,7 @@ class _Header extends StatelessWidget {
                         child: Padding(
                           padding: EdgeInsetsDirectional.only(
                             start: pushed ? 0 : KVoiceRoomsHeader.tabInset,
+                            end: KVoiceRoomsHeader.tabInset,
                           ),
                           child: FittedBox(
                             key: VoiceRoomsScreen.filtersKey,
@@ -391,49 +376,26 @@ class _Header extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: KSpacing.xs),
-                    // D240: only the party ⇄ live switch in the corner; D246:
-                    // in the ref's bell slot (its centre 23.4 lp from the
-                    // edge: the 48 lp target at the edge).
-                    const VoiceRoomsLiveButton(),
+                    // D342 (owner: «زر في الاعلى لنقل المستخدم على لايف …
+                    // ازله»): no Live switch in the corner any more.
                   ],
                 ),
               ),
-              SizedBox(
-                height: KVoiceRoomsHeader.subRow,
-                child: Semantics(
-                  container: true,
-                  explicitChildNodes: true,
-                  label: l10n.liveCategoryRowLabel,
-                  child: SingleChildScrollView(
-                    key: VoiceRoomsScreen.kindsKey,
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsetsDirectional.only(
+              // D342: the kinds row is gone; «القريبة» keeps its country.
+              if (filter == LiveHubFilter.nearby)
+                const SizedBox(
+                  height: KVoiceRoomsHeader.subRow,
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(
                       start: KVoiceRoomsHeader.subTabInset,
                       end: KVoiceRoomsHeader.subTabInset,
                     ),
-                    child: Row(
-                      children: [
-                        if (filter == LiveHubFilter.nearby) ...[
-                          const _NearbyCountryTab(),
-                          const SizedBox(width: KVoiceRoomsHeader.subTabGap),
-                        ],
-                        for (final (i, k)
-                            in LiveHubCategory.partyPage.indexed) ...[
-                          if (i > 0)
-                            const SizedBox(width: KVoiceRoomsHeader.subTabGap),
-                          _SubTab(
-                            key: VoiceRoomsScreen.kindKey(k),
-                            label: k.label(l10n),
-                            selected: k == kind,
-                            onTap: () => onKind(k),
-                          ),
-                        ],
-                      ],
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: _NearbyCountryTab(),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -501,56 +463,6 @@ class _TopTab extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A second-row tab: smaller, the selected one bold and dark, the others
-/// light grey (no dash, as the ref).
-class _SubTab extends StatelessWidget {
-  const new({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final light = Theme.of(context).brightness == Brightness.light;
-    final ink = light ? KVoiceRoomsHeader.lightInk : p.textPrimary;
-    final grey = light ? KVoiceRoomsHeader.lightSubGrey : p.textTertiary;
-    return Semantics(
-      button: true,
-      selected: selected,
-      inMutuallyExclusiveGroup: true,
-      label: label,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          height: KVoiceRoomsHeader.subRow,
-          child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              style: context.textStyles.label.copyWith(
-                color: selected ? ink : grey,
-                fontSize: KVoiceRoomsHeader.subTab,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                height: 1.2,
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -689,69 +601,6 @@ class _SectionRow extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// D139 (owner: «اعمل أيقونة هناك ترجعنا للبث بنفس الطريقة»): the mirror of
-/// the hub's party button (D130/D131) in the voice rooms' top bar, in the
-/// party button's place (between search and the bell, same 48 pt target,
-/// same 24 pt icon). A tap plays the owner's animated Live icon (a screen
-/// with a LIVE badge, `KLiveIcon`) with the same light haptic, waits the
-/// same lead, then returns to the live hub ([returnToLiveHub]: a pop when
-/// the hub is under this page, else a `go`). Screen readers hear "Live".
-class VoiceRoomsLiveButton extends StatefulWidget {
-  const new({super.key});
-
-  static const buttonKey = Key('voiceRooms.live');
-
-  @override
-  State<VoiceRoomsLiveButton> createState() => _VoiceRoomsLiveButtonState();
-}
-
-class _VoiceRoomsLiveButtonState extends State<VoiceRoomsLiveButton> {
-  final GlobalKey<KLiveIconState> _icon = GlobalKey();
-  bool _leaving = false;
-
-  Future<void> _tap() async {
-    if (_leaving) return;
-    _leaving = true;
-    unawaited(HapticFeedback.selectionClick());
-    _icon.currentState?.play();
-    final lead = KMotion.of(context, KLiveHubTopBar.popLead);
-    if (lead > Duration.zero) await Future<void>.delayed(lead);
-    _leaving = false;
-    if (!mounted) return;
-    returnToLiveHub(GoRouter.of(context));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final label = context.l10n.liveVoiceRoomsToLive;
-    final p = context.palette;
-    final light = Theme.of(context).brightness == Brightness.light;
-    return Semantics(
-      button: true,
-      label: label,
-      onTap: () => unawaited(_tap()),
-      excludeSemantics: true,
-      child: IconButton(
-        key: VoiceRoomsLiveButton.buttonKey,
-        tooltip: label,
-        // D141 (owner): no grey circle on press — the icon's own animation
-        // is the feedback.
-        style: noInkIconButtonStyle,
-        constraints: const BoxConstraints.tightFor(
-          width: KSizes.minTouchTarget,
-          height: KSizes.minTouchTarget,
-        ),
-        onPressed: () => unawaited(_tap()),
-        // The screen's inside is the header's own surface.
-        icon: KLiveIcon(
-          key: _icon,
-          surfaceColor: light ? p.surfaceRaised : p.surface,
         ),
       ),
     );

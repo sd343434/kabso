@@ -6219,9 +6219,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveVoiceRoomsTitle => 'Voice rooms';
 
   @override
-  String get liveVoiceRoomsToLive => 'Live';
-
-  @override
   String get liveHubFilterLabel => 'Filters';
 
   @override
@@ -16800,4 +16797,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dmBoxes => 'Message boxes';
+
+  @override
+  String get livePartyKindAudio => 'Audio';
+
+  @override
+  String get livePartyKindPodcast => 'Podcast';
+
+  @override
+  String get livePartyKindMulti => 'Multi';
+
+  @override
+  String get livePartyEmptyTitle => 'No party rooms right now';
+
+  @override
+  String get livePartyEmptyBody => 'Check back later or try another tab.';
 }

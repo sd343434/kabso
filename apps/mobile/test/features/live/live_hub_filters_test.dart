@@ -3,7 +3,8 @@
 // (Following, All, the categories), D133's Nearby without a country, the
 // banner after the first row (D248), and the layout in Arabic and English,
 // small screens and large text. D131 (ref 166): the Voice rooms screen
-// behind the party button (`kind=audio`).
+// behind the party button (`kind=audio`); D342: one mixed list of every
+// party kind (`kind=party_all`), each card with its kind's badge.
 
 import 'dart:ui' show Tristate;
 
@@ -11,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -27,6 +29,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_nearby_country.da
 import 'package:kabso_live/features/live/presentation/hub/voice_room_list.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/party_kind_badge.dart';
 import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -37,6 +40,12 @@ import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
+
+/// The mode of fixture room [i]: 0–3 voice rooms (D342: room 1 a podcast),
+/// 4–11 video lives (solo, multi, PK).
+LiveRoomMode _mode(int i) => i < 4
+    ? (i == 1 ? LiveRoomMode.podcast : LiveRoomMode.audio)
+    : const [LiveRoomMode.solo, LiveRoomMode.multi, LiveRoomMode.pk][i % 3];
 
 /// Rooms 0–3 are voice rooms, 4–11 video lives (solo, multi, PK); the
 /// handler answers like the server: `kind` filters, a category too,
@@ -51,26 +60,11 @@ LiveRoomPage Function(RoomsRequest) _server({String? country}) => (r) {
   }
   return apiPage([
     for (final (i, room) in apiRooms(12, categories: apiCategories()).indexed)
-      if ((r.kind == null ||
-              r.kind!.includes(
-                i < 4
-                    ? LiveRoomMode.audio
-                    : const [
-                        LiveRoomMode.solo,
-                        LiveRoomMode.multi,
-                        LiveRoomMode.pk,
-                      ][i % 3],
-              )) &&
+      if ((r.kind == null || r.kind!.includes(_mode(i))) &&
           (r.category == null || room.category?.slug == r.category) &&
           (!r.featured || i == 4 || i == 5))
         room.copyWith(
-          mode: i < 4
-              ? LiveRoomMode.audio
-              : const [
-                  LiveRoomMode.solo,
-                  LiveRoomMode.multi,
-                  LiveRoomMode.pk,
-                ][i % 3],
+          mode: _mode(i),
           seatCount: i < 4 ? 8 : null,
           occupiedSeats: i < 4 ? i + 1 : 0,
           viewerCount: 10 + i,
@@ -392,7 +386,8 @@ void main() {
       expect(featured().map((e) => e.$1), isNot(contains(4)));
       await tester.pumpWidget(const SizedBox.shrink());
       await _pump(tester, screen: const VoiceRoomsScreen(), boosted: boosted);
-      // The party page (audio): the rocket audio room is pinned there.
+      // The party page (D342: every party kind): the rocket audio room is
+      // pinned there.
       expect(find.byType(VoiceRoomRow).evaluate(), isNotEmpty);
       expect(
         tester
@@ -464,16 +459,20 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('the filters are the big top tabs (Popular selected), the '
-        'kinds the smaller row under them (audio); no pill row, no country '
-        'row, no category menu; cards with seats and a mic count; only the '
-        'Live switch', (tester) async {
+    testWidgets('D342: the filters are the big top tabs (Popular selected); '
+        'no Live switch and no kinds row; one mixed list of every party '
+        'kind (kind=party_all) in the server order, each card with its '
+        "kind's badge; cards with seats and a count", (tester) async {
       final live = await _pump(tester, screen: const VoiceRoomsScreen());
       final r = live.requests.last;
-      expect(r.kind, LiveRoomsKind.audio);
+      expect(r.kind, LiveRoomsKind.partyAll);
       expect(r.tab, LiveRoomsTab.popular);
       expect(r.nearby, isFalse);
       expect(r.category, isNull);
+      // One list: no other kind was asked for.
+      expect(live.requests.map((e) => e.kind).toSet(), {
+        LiveRoomsKind.partyAll,
+      });
       expect(find.byType(LiveHubFilterBar), findsNothing);
       expect(find.byType(LiveHubCategoryBar), findsNothing);
       expect(find.byType(LiveNearbyCountryRow), findsNothing);
@@ -486,94 +485,127 @@ void main() {
         find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.featured)),
         findsNothing,
       );
-      expect(find.byKey(VoiceRoomsLiveButton.buttonKey), findsOneWidget);
+      // D342 (owner: «زر في الاعلى لنقل المستخدم على لايف … ازله»): no
+      // Live switch (its key and its name), no bell, no search.
+      expect(find.byKey(const Key('voiceRooms.live')), findsNothing);
+      expect(find.byType(KLiveIcon), findsNothing);
+      expect(find.byTooltip(en.liveCategoryLive), findsNothing);
       expect(find.byType(NotificationsBell), findsNothing);
       expect(find.byTooltip(en.feedSearch), findsNothing);
+      // D342 (owner: «ازل فلاتر بث صوتي بث بوكاست و بث متعدد»): no kinds
+      // row and none of its tabs.
+      expect(find.byKey(const Key('voiceRooms.kinds')), findsNothing);
+      for (final k in LiveHubCategory.values) {
+        expect(find.byKey(Key('voiceRooms.kind.${k.name}')), findsNothing);
+      }
+      // The header is the filters' row only: the section row right under.
+      expect(
+        tester.getRect(find.byKey(VoiceRoomsScreen.layoutKey)).top -
+            tester.getRect(find.byKey(VoiceRoomsScreen.filtersKey)).bottom,
+        lessThan(KVoiceRoomsHeader.subRow),
+      );
       // Not pushed here: no back button.
       expect(find.byKey(VoiceRoomsScreen.backKey), findsNothing);
-      expect(find.byType(VoiceRoomRow), findsNWidgets(4));
-      expect(find.byKey(VoiceRoomRow.seatsKey), findsNWidgets(4));
-      expect(find.byKey(VoiceRoomRow.kindKey), findsNWidgets(4));
+      // Every party room of the server's page, in its order — audio,
+      // podcast and multi mixed — and no video live.
+      const expected = [0, 1, 2, 3, 4, 7, 10];
+      final shown = [
+        for (final row in tester.widgetList<VoiceRoomRow>(
+          find.byType(VoiceRoomRow),
+        ))
+          int.parse(row.room.roomId!.split('-').last),
+      ];
+      expect(shown, expected.take(shown.length).toList());
+      expect(shown.length, greaterThanOrEqualTo(5));
+      // Each card's badge says its own kind.
+      for (final (i, n) in shown.indexed) {
+        final kind = switch (_mode(n)) {
+          LiveRoomMode.podcast => PartyKind.podcast,
+          LiveRoomMode.multi => PartyKind.multi,
+          _ => PartyKind.audio,
+        };
+        final row = find.byKey(VoiceRoomList.rowKey(i));
+        expect(
+          find.descendant(
+            of: row,
+            matching: find.byKey(PartyKindBadge.keyOf(kind)),
+          ),
+          findsOneWidget,
+          reason: 'row $i (room $n)',
+        );
+        for (final other in PartyKind.values.where((k) => k != kind)) {
+          expect(
+            find.descendant(
+              of: row,
+              matching: find.byKey(PartyKindBadge.keyOf(other)),
+            ),
+            findsNothing,
+          );
+        }
+      }
+      for (final kind in PartyKind.values) {
+        expect(find.byKey(PartyKindBadge.keyOf(kind)), findsWidgets);
+      }
+      // The voice rooms (0–3) have seats; the first's 1/8.
       expect(find.text('1/8'), findsOneWidget);
+      expect(find.byKey(VoiceRoomRow.kindKey), findsNWidgets(shown.length));
       // No level or "Popular" pill: the summary has no such data.
       expect(find.text('Lv.'), findsNothing);
       // Measured geometry: cards 68.6 tall, 12.8 from the sides.
       final row = tester.getRect(find.byKey(VoiceRoomList.rowKey(0)));
       expect(row.height, closeTo(68.6, 0.5));
       expect(row.left, closeTo(12.8, 0.1));
-      // The kinds' row is smaller than the filters' row.
       final popular = tester.widget<Text>(
         find.descendant(
           of: find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.popular)),
           matching: find.byType(Text),
         ),
       );
-      final audio = tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
-          matching: find.byType(Text),
-        ),
-      );
       expect(popular.style!.fontSize, KVoiceRoomsHeader.tabSelected);
-      expect(audio.style!.fontSize, KVoiceRoomsHeader.subTab);
       expect(
-        tester.getCenter(find.byKey(VoiceRoomsScreen.kindsKey)).dy,
-        greaterThan(
-          tester.getCenter(find.byKey(VoiceRoomsScreen.filtersKey)).dy,
+        tester.getSemantics(
+          find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.popular)),
+        ),
+        matchesSemantics(
+          label: en.liveHubFilterPopular,
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: true,
+          isInMutuallyExclusiveGroup: true,
+          hasTapAction: true,
         ),
       );
-      for (final (key, label) in [
-        (VoiceRoomsScreen.kindKey(LiveHubCategory.audio), en.liveCategoryAudio),
-        (
-          VoiceRoomsScreen.filterKey(LiveHubFilter.popular),
-          en.liveHubFilterPopular,
-        ),
-      ]) {
-        expect(
-          tester.getSemantics(find.byKey(key)),
-          matchesSemantics(
-            label: label,
-            isButton: true,
-            hasSelectedState: true,
-            isSelected: true,
-            isInMutuallyExclusiveGroup: true,
-            hasTapAction: true,
-          ),
-        );
-      }
+      // A screen reader hears each card's kind in full.
+      expect(
+        tester.getSemantics(find.byKey(VoiceRoomList.rowKey(1))).label,
+        contains(en.liveCategoryPodcast),
+      );
     });
 
-    testWidgets('each kind × each filter is one server list; Nearby sends '
-        'the country and shows it first in the kinds row; the switch shows '
-        'the grid', (tester) async {
+    testWidgets('D342: each filter is one party_all list; Nearby sends the '
+        'country and shows it in its own row; the switch shows the grid '
+        'with the same badges', (tester) async {
       final live = await _pump(
         tester,
         screen: const VoiceRoomsScreen(),
         country: 'JO',
       );
-      for (final (kind, wire) in [
-        (LiveHubCategory.multi, LiveRoomsKind.multi),
-        (LiveHubCategory.podcast, LiveRoomsKind.podcast),
-      ]) {
-        await tester.tap(find.byKey(VoiceRoomsScreen.kindKey(kind)));
-        await tester.pumpAndSettle();
-        expect(live.requests.last.kind, wire);
-      }
-      await tester.tap(
-        find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
-      );
-      await tester.pumpAndSettle();
       await tapFilter(tester, LiveHubFilter.following);
       expect(live.requests.last.tab, LiveRoomsTab.following);
-      expect(live.requests.last.kind, LiveRoomsKind.audio);
+      expect(live.requests.last.kind, LiveRoomsKind.partyAll);
       await tapFilter(tester, LiveHubFilter.explore);
       expect(live.requests.last.tab, LiveRoomsTab.latest);
       expect(live.requests.last.featured, isFalse);
+      expect(live.requests.last.kind, LiveRoomsKind.partyAll);
+      final filtersRow = tester.getRect(
+        find.byKey(VoiceRoomsScreen.filtersKey),
+      );
       await tapFilter(tester, LiveHubFilter.nearby);
       expect(live.requests.last.nearby, isTrue);
       expect(live.requests.last.country, 'JO');
-      expect(live.requests.last.kind, LiveRoomsKind.audio);
-      // The country at the start of the kinds row (the ref's «Jordan»).
+      expect(live.requests.last.kind, LiveRoomsKind.partyAll);
+      // The country under the filters (the ref's «Jordan»), the only tab of
+      // the second row.
       expect(
         find.descendant(
           of: find.byKey(VoiceRoomsScreen.countryKey),
@@ -581,16 +613,9 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(
-        tester.getCenter(find.byKey(VoiceRoomsScreen.countryKey)).dx,
-        lessThan(
-          tester
-              .getCenter(
-                find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
-              )
-              .dx,
-        ),
-      );
+      final country = tester.getRect(find.byKey(VoiceRoomsScreen.countryKey));
+      expect(country.top, greaterThanOrEqualTo(filtersRow.bottom - 0.5));
+      expect(country.left, closeTo(KVoiceRoomsHeader.subTabInset, 0.5));
       // A tap opens the local picker; a choice reloads Nearby with it.
       await tester.tap(find.byKey(VoiceRoomsScreen.countryKey));
       await tester.pumpAndSettle();
@@ -601,13 +626,65 @@ void main() {
       await tester.tap(find.byKey(CountryPickerSheet.rowKey('EG')));
       await tester.pumpAndSettle();
       expect(live.requests.last.country, 'EG');
-      expect(live.requests.last.kind, LiveRoomsKind.audio);
+      expect(live.requests.last.kind, LiveRoomsKind.partyAll);
       await tapFilter(tester, LiveHubFilter.following);
       expect(find.byKey(VoiceRoomsScreen.countryKey), findsNothing);
+      await tapFilter(tester, LiveHubFilter.popular);
       await tester.tap(find.byKey(VoiceRoomsScreen.layoutKey));
       await tester.pumpAndSettle();
       expect(find.byType(VoiceRoomRow), findsNothing);
       expect(find.byType(KLiveGridCard), findsWidgets);
+      // The grid keeps the list (no new request) and its badges.
+      expect(live.requests.last.kind, LiveRoomsKind.partyAll);
+      for (final card in tester.widgetList<KLiveGridCard>(
+        find.byType(KLiveGridCard),
+      )) {
+        final n = int.parse(card.room.roomId!.split('-').last);
+        final kind = switch (_mode(n)) {
+          LiveRoomMode.podcast => PartyKind.podcast,
+          LiveRoomMode.multi => PartyKind.multi,
+          _ => PartyKind.audio,
+        };
+        expect(
+          tester
+              .widget<PartyKindBadge>(
+                find.descendant(
+                  of: find.byWidget(card),
+                  matching: find.byKey(KLiveGridCard.typeKey),
+                ),
+              )
+              .kind,
+          kind,
+          reason: 'room $n',
+        );
+      }
+    });
+
+    testWidgets('D342: the empty mixed list says so honestly (no voice-only '
+        'copy) and offers Try again', (tester) async {
+      setViewport(tester, GoldenViewport.phone);
+      final live = FakeLiveRepository(
+        rooms: (_) => apiPage(const []),
+        categories: apiCategories(),
+      );
+      await pumpScreen(
+        tester,
+        const VoiceRoomsScreen(),
+        overrides: [
+          ...liveOverrides(live),
+          currentUserProvider.overrideWithValue(testUser()),
+        ],
+      );
+      await tester.pumpAndSettle();
+      expect(live.requests.last.kind, LiveRoomsKind.partyAll);
+      expect(find.text(en.livePartyEmptyTitle), findsOneWidget);
+      expect(find.text(en.livePartyEmptyBody), findsOneWidget);
+      expect(find.text(en.liveVoiceEmptyTitle), findsNothing);
+      expect(find.byType(VoiceRoomRow), findsNothing);
+      final before = live.requests.length;
+      await tester.tap(find.text(en.actionRetry).first);
+      await tester.pumpAndSettle();
+      expect(live.requests.length, greaterThan(before));
     });
 
     testWidgets('cards show only the API facts: «رائج» (popular), «PK» '
@@ -644,6 +721,20 @@ void main() {
                   isMulti: true,
                 ),
               ),
+              VoiceRoomRow(
+                key: Key('p'),
+                room: LiveRoomCardData(
+                  hostName: 'Lina',
+                  title: 'Startup talk',
+                  viewerCount: 40,
+                  isAudio: true,
+                  isPodcast: true,
+                  podcast: LivePodcast(
+                    episodeNumber: 12,
+                    topic: PodcastTopic.business,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -653,8 +744,14 @@ void main() {
       expect(inCard('a', find.byKey(VoiceRoomRow.pkKey)), findsOneWidget);
       expect(inCard('a', find.byKey(VoiceRoomRow.featuredKey)), findsOneWidget);
       expect(inCard('a', find.text('welcome')), findsOneWidget);
-      expect(inCard('a', find.text(en.liveCategoryAudio)), findsOneWidget);
-      expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsOneWidget);
+      // D342: each kind its own badge (icon and colour) on the picture.
+      expect(
+        inCard('a', find.byKey(PartyKindBadge.keyOf(PartyKind.audio))),
+        findsOneWidget,
+      );
+      expect(inCard('a', find.text(en.livePartyKindAudio)), findsOneWidget);
+      // The badge's mic and the count's mic.
+      expect(inCard('a', find.byIcon(Icons.mic_rounded)), findsNWidgets(2));
       // D246 (v1.58-live): «رائج», the host's level and flag — from the API.
       expect(inCard('a', find.byKey(VoiceRoomRow.popularKey)), findsOneWidget);
       expect(inCard('a', find.text(en.liveCardPopular)), findsOneWidget);
@@ -684,13 +781,46 @@ void main() {
       expect(inCard('m', find.byKey(VoiceRoomRow.featuredKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.topicKey)), findsNothing);
       expect(inCard('m', find.byKey(VoiceRoomRow.seatsKey)), findsNothing);
-      expect(inCard('m', find.text(en.liveCategoryMulti)), findsOneWidget);
+      expect(
+        inCard('m', find.byKey(PartyKindBadge.keyOf(PartyKind.multi))),
+        findsOneWidget,
+      );
+      expect(inCard('m', find.byIcon(Icons.groups_rounded)), findsOneWidget);
       expect(inCard('m', find.byIcon(Icons.videocam_rounded)), findsOneWidget);
+      // A podcast: its badge, and its episode and topic under the title.
+      expect(
+        inCard('p', find.byKey(PartyKindBadge.keyOf(PartyKind.podcast))),
+        findsOneWidget,
+      );
+      expect(inCard('p', find.byIcon(Icons.podcasts_rounded)), findsOneWidget);
+      expect(
+        inCard('p', find.byKey(PartyKindBadge.keyOf(PartyKind.audio))),
+        findsNothing,
+      );
+      expect(inCard('p', find.text('Episode 12 · Business')), findsOneWidget);
+      // Three different colours, from the tokens.
+      Color fill(PartyKind k) =>
+          (tester
+                      .widget<Container>(
+                        find.descendant(
+                          of: find.byKey(PartyKindBadge.keyOf(k)),
+                          matching: find.byType(Container),
+                        ),
+                      )
+                      .decoration!
+                  as BoxDecoration)
+              .color!;
+      expect(fill(PartyKind.audio), KPalette.light.info);
+      expect(fill(PartyKind.podcast), KBrandColors.gold);
+      expect(fill(PartyKind.multi), KPalette.light.success);
       expect(tester.getSize(find.byKey(const Key('a'))).height, 68.6);
+      expect(tester.getSize(find.byKey(const Key('p'))).height, 68.6);
     });
 
-    testWidgets('Arabic: «المتابَعة» and audio at the reading start, the '
-        'Live switch at the end', (tester) async {
+    testWidgets('Arabic: «المتابَعة» at the reading start; the badges in '
+        'Arabic at the start of each picture; nothing in the corner', (
+      tester,
+    ) async {
       await _pump(
         tester,
         screen: const VoiceRoomsScreen(),
@@ -705,17 +835,26 @@ void main() {
         find.byKey(VoiceRoomsScreen.filterKey(LiveHubFilter.nearby)),
       );
       expect(following.dx, greaterThan(nearby.dx));
-      final audio = tester.getCenter(
-        find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.audio)),
+      expect(find.byKey(const Key('voiceRooms.live')), findsNothing);
+      expect(find.byKey(const Key('voiceRooms.kinds')), findsNothing);
+      for (final (kind, label) in [
+        (PartyKind.audio, ar.livePartyKindAudio),
+        (PartyKind.podcast, ar.livePartyKindPodcast),
+        (PartyKind.multi, ar.livePartyKindMulti),
+      ]) {
+        final badge = find.byKey(PartyKindBadge.keyOf(kind)).first;
+        expect(
+          find.descendant(of: badge, matching: find.text(label)),
+          findsOneWidget,
+        );
+      }
+      // RTL: the cover (and its badge) at the right of the card.
+      final row = tester.getRect(find.byKey(VoiceRoomList.rowKey(1)));
+      final badge = tester.getRect(
+        find.byKey(PartyKindBadge.keyOf(PartyKind.podcast)).first,
       );
-      final multi = tester.getCenter(
-        find.byKey(VoiceRoomsScreen.kindKey(LiveHubCategory.multi)),
-      );
-      expect(audio.dx, greaterThan(multi.dx));
-      expect(
-        tester.getCenter(find.byKey(VoiceRoomsLiveButton.buttonKey)).dx,
-        lessThan(nearby.dx),
-      );
+      expect(badge.right, lessThanOrEqualTo(row.right));
+      expect(badge.left, greaterThan(row.right - KVoiceRoomRow.height));
     });
   });
 
