@@ -228,11 +228,19 @@ describe('D325 events v2', { timeout: 900_000 }, () => {
       User,
       User,
     ];
-    await withMigrationClient((db) =>
-      db.cpCouple.create({
-        data: { userAId: cpA.id, userBId: cpB.id, since: new Date(Date.now() - DAY_MS) },
-      }),
-    );
+    // cp_couples_ordered: user_a_id < user_b_id, so the pair is stored sorted (as the CP service does).
+    const [lo, hi] = [cpA, cpB].sort((x, y) => (x.id < y.id ? -1 : 1)) as [User, User];
+    await withMigrationClient(async (db) => {
+      const couple = await db.cpCouple.create({
+        data: { userAId: lo.id, userBId: hi.id, since: new Date(Date.now() - DAY_MS) },
+      });
+      await db.cpPartner.createMany({
+        data: [
+          { userId: lo.id, coupleId: couple.id, partnerId: hi.id },
+          { userId: hi.id, coupleId: couple.id, partnerId: lo.id },
+        ],
+      });
+    });
     await ctx.prisma.liveHost.create({ data: { userId: host.id, source: 'ADMIN' } });
     const room = await ctx.http.post('/api/v1/live/rooms').set(auth(host)).send({ title: 'D325' });
     expect(room.status, JSON.stringify(room.body)).toBe(201);
@@ -807,9 +815,12 @@ describe('D325 events v2', { timeout: 900_000 }, () => {
     const inbox = await ctx.http.get('/api/v1/notifications').set(auth(cpA));
     expect(inbox.status).toBe(200);
     expectContract(inbox, 'listNotifications');
-    expect(inbox.body.data.find((n: { type: string }) => n.type === 'EVENT_STARTED')).toMatchObject({
-      target: { type: 'EVENT', id },
-    });
+    // cpA also holds the EVERYONE events' starts (see the end of this test): pick this event's.
+    expect(
+      inbox.body.data.find(
+        (n: { type: string; target?: { id?: string } }) => n.type === 'EVENT_STARTED' && n.target?.id === id,
+      ),
+    ).toMatchObject({ target: { type: 'EVENT', id } });
     const forCp = await ctx.http.get('/api/v1/events').set(auth(cpA));
     expect(forCp.body.data.map((e: { id: string }) => e.id)).toContain(id);
     expectContract(forCp, 'listEvents');
