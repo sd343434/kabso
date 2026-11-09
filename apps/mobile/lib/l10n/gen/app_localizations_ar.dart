@@ -16769,4 +16769,28 @@ class AppLocalizationsAr extends AppLocalizations {
   String createSuggestionPosts(String count) {
     return '$count منشور';
   }
+
+  @override
+  String get dmStoriesTitle => 'القصص';
+
+  @override
+  String get dmStoriesAdd => 'أضف قصة';
+
+  @override
+  String relativeShortMinutes(int n) {
+    return '$nد';
+  }
+
+  @override
+  String relativeShortHours(int n) {
+    return '$nس';
+  }
+
+  @override
+  String relativeShortDays(int n) {
+    return '$nي';
+  }
+
+  @override
+  String get dmBoxes => 'صناديق الرسائل';
 }

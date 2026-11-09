@@ -38,6 +38,30 @@ abstract final class KFormat {
         : l10n.profileLiveMinutes(m);
   }
 
+  /// D336: [relative] in its compact form («5د», "5m"; «3س», "3h";
+  /// «2ي», "2d") for the Messages tab's rows and story cards; `null` under
+  /// a minute; beyond 7 days a short date — "28 Oct" in the same year,
+  /// "28/10/25" otherwise.
+  static String? relativeShort(
+    DateTime value,
+    DateTime now,
+    AppLocalizations l10n,
+    String localeTag,
+  ) {
+    final diff = now.difference(value);
+    if (diff.inMinutes < 1) return null;
+    if (diff.inHours < 1) return l10n.relativeShortMinutes(diff.inMinutes);
+    if (diff.inDays < 1) return l10n.relativeShortHours(diff.inHours);
+    if (diff.inDays <= 7) return l10n.relativeShortDays(diff.inDays);
+    final local = value.toLocal();
+    return _latin(
+      DateFormat(
+        local.year == now.toLocal().year ? 'd MMM' : 'd/M/yy',
+        localeTag,
+      ),
+    ).format(local);
+  }
+
   /// Relative time for "last active" (PHASE1_SCREENS §9.3): `null` means
   /// "just now" (under a minute); minutes, hours and days up to 7 days; the
   /// absolute [date] beyond that.

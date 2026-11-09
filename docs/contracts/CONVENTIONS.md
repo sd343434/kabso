@@ -9664,6 +9664,41 @@ configuration (`DM_*`).
   replies/quotes, forwarding and share-to-DM, video messages, captions on pictures, read-receipt
   opt-out, keeping a message beyond 24 h, end-to-end encryption, iOS pushes.
 
+#### 11.13.1 The Messages tab's layout *(D336, app only — no wire change)*
+
+Owner (2026-11-09), from a third-party reference (a Dribbble composite; the middle phone only — its layout, never
+its photos, names, logo or texts; the image stays out of git, D40): «اجعلها مثل هذا التصميم مطابق 100٪». Sizes
+were measured on the reference (533 px phone = 393 dp, 1.356 px/dp); colours are Kabso's tokens (red, not the
+reference's blue / pink), light and dark; Arabic RTL mirrors English LTR. One scrolling page, top to bottom:
+
+- **«القصص» / "Stories"** — the page title (30 sp bold, at 23 dp from the reading start) with a dark «+» disc
+  (a new story, `/story/new`) and the paper plane (`AppIcons.send`, mirrored in Arabic; «رسالة جديدة», the D165
+  sheet) at the reading end, on a 48 dp row under the status bar gap (D142).
+- **Story cards** from `GET /feed/stories` (CP-008, the same tray as the posts page): the caller's card first —
+  «أضف قصة» / "Add story" (89 × 152 dp, a faint red tint, their picture with a red «+»; a tap adds a story), or
+  «قصتك» / "Your story" while they have one (a tap opens it; the «+» still adds) — then the followed accounts with
+  active stories in the tray's order (97 × 152 dp, radius 12, 7 dp apart): their picture blurred behind, the
+  ringed picture (red-to-gold while unseen, faint once seen), the name and the compact time of the newest story; a
+  tap opens their stories. The tray carries no story media, so a card shows the account's own picture (red
+  gradient without one). Loading, an empty tray or a failed tray show the caller's card alone — nothing is
+  guessed. Followed accounts that are only live are not cards here (the posts page keeps D218's live ring).
+  The stories step aside while the conversation search is open.
+- **«الرسائل» / "Messages"** (23 sp bold) with, at the reading end, the **boxes button**, «من يستطيع مراسلتك»
+  (D155) and search (D165, the field takes the title's place). *Owner follow-up (2026-11-09): «الدردشات، طلبات
+  المراسلة، المؤرشفة، رسائل جماعية — يمكن وضع بجانب الفلتر خانة تفتحها، وأزلها كأيقونات».* No row of boxes in the
+  page: the boxes button (a chevron that turns; «صناديق الرسائل» / "Message boxes"; also shown while searching —
+  each box is searched on its own) carries the pending requests as a red count and opens a panel under the header
+  (animated; instant with reduced motion) listing the boxes as rows — «الدردشات» and «طلبات المراسلة» with its
+  count (D155). A row opens its box and closes the panel; tapping the button again closes it; the title names the
+  requests box while it is open. The app has **no archived and no group conversations** (not in the contract), so
+  the panel has no row for them.
+- **Rows** (80.5 dp pitch): a 64 dp round picture at 23 dp, 20 dp to the text; the name (16 sp, medium; semibold
+  while unread) with the verification seal (D293) and the muted icon; the preview (14.5 sp, tertiary grey, one
+  line — pictures, voice, stickers and gifts as before); at the reading end the **compact time** («5د» / "5m",
+  «3س» / "3h", «2ي» / "2d", a short date beyond 7 days; in words for screen readers) and under it the **red
+  unread count** (24 dp, «99+» from 99; grey when muted; a dot when only marked unread). Long press keeps the
+  D165 menu.
+
 ### 11.14 Video posts and reels *(v1.41-social, DRAFT — D162, CP-023; CP-006 M2 without transcoding)*
 
 - **Kinds and limits** (server-enforced): `POST_VIDEO` — `video/mp4` or `video/quicktime`, at most
