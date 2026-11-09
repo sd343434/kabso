@@ -662,6 +662,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.87-live)* Table `live_host_points_monthly` (CHECK `live_host_points_monthly_points`, index `live_host_points_monthly_month_idx`) | Backend — `live` module (written with the hourly row by gifts and taps; read by `LiveRankingsService`; swept after 400 days) | CTO |
 | *(v1.88-live)* Tables `game_ticket_spends` (unique `(game_code, reference)`), `game_ticket_spends_hourly`, `game_ticket_spends_monthly`; setting `LIVE_GAMES_ENABLED` | Backend — `live` module (`recordGameTicketSpendIn`, the only writer, called by a game in its own transaction; the board; the sweeper) | CTO; Security (money-adjacent: tickets) |
 | *(v1.90-live)* Tables `gift_coins_sent_hourly`, `gift_coins_sent_monthly` (CHECKs `…_coins` ≥ 0) | Backend — `live` module (`addGiftCoinsSentIn` from the live / DM sends and `couples` CP gifts; `takeBackGiftCoinsSentIn` from `economy` `reverseGiftCherriesIn`; the board; the sweeper) | CTO |
+| *(v1.101-social)* Enum `event_audience` (`events.audience`, was `program_audience`: + AGENCIES, CP); columns `events.status`, `recurrence`, `period`, `period_starts_at`, `period_ends_at`, `scoring`, `counted_gifts`, `banner_media_id`, `start_notified_at`, `published_at` (CHECKs `events_shape` — a draft may have no dates —, `events_v2_shape`, `events_audience_not_creators`, `events_art_keys`); `event_gifts.points_per_coin` NUMERIC(7,2); `event_results.period` (unique keys with the period); tables `event_periods`, `event_milestones`, `event_milestone_grants`; columns `gifts.event_id` (CHECK `gifts_event_plain`), `store_items.event_id` (CHECK `store_items_event_exclusive`); notification `EVENT_STARTED` (unique `notifications_event_started_once`) | Backend — `programs` module (`gift-events.ts` the only writer of the event structure, periods, milestones and payouts; `events.service.ts` the sweeper and the reads); `gifts` / `live` (an event gift's listing and sale), `store` (event items) | CTO; Security (money: automatic prizes and free gift pieces; mass start notification) |
 
 ## 9. Contract change log
 
@@ -754,6 +755,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.101-social (draft) | 2026-11-09 | **D325 (owner: «الفعاليات … لم تكن مضبوطة» — events v2, one events system; phase A server + panel):** `GiftEventForm` `status` DRAFT / PUBLISHED, nullable dates for a draft, `permanent`, `recurrence`, `scoring` COINS / MULTIPLIER (`pointsPerCoin` a decimal), `countedGifts`, `milestones`, `bannerMediaId`; `EventAudience` (+ AGENCIES, CP); prize type `GIFT_PIECES`, `displayKey` on every prize item (`uploadAdminEventMedia` kind `prize`); `createAdminGift.eventId`, `createAdminStoreItem.eventId`, `listAdminStoreItems?eventId=`, `getAdminEventOptions?eventId=`; `publishAdminEvent`, `unpublishAdminEvent`, `discardAdminEvent`, `changeStaffEvent` publish / unpublish / discard; `createAdminLaunchFestival`; `getRunningEvents`, `getEventMilestones`, `getEventLeaderboard?period=previous`, `EventLeaderboard.period`, a gift event's board top 20; `EventDetail` `recurrence`, `scoring`, `countedGifts`, `period`, `milestones`, `art.titleFormat`, overlay `MP4`; `EventGift` `multiplier`, `exclusive`, `animationUrl`, `fullscreen`; `EventPrizeItem` `GIFT_PIECES`, `count`, `displayUrl`, `stillUrl`, `animationUrl`; notification `EVENT_STARTED`. Migrations `20270409090000_events_v2_enums`, `20270409090100_events_v2`. §10.127 (extends §10.114). | **Additive** for the app (drafts never reach it; whole-number `pointsPerCoin` kept; new values ignored by clients). **Panel:** a published body without gifts or boards stays a 400; a draft body is new. |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
 | v1.99-social (draft) | 2026-11-08 | **D311 (owner: «يمكنه حذف او حظر او تحذير اي شخص»; no code, no password):** `createOwnerModerationAction` (`POST /owner/users/{userId}/actions`, `OwnerModerationRequest`, `OwnerModerationResult`): WARN / SUSPEND (days) / BAN / DELETE_ACCOUNT by the app owner only, reusing the panel's rules, idempotent by `clientId`, audited `owner.moderation.action`; `RATE_LIMIT_OWNER_MODERATION_USER`. Migration `20270408090300_owner_moderation`. §10.117, §7, §8. | **Additive** (a new operation; no shape change elsewhere). Owner decision recorded: the panel step-up of D286 / D288 is waived for the OWNER in the app only. |
 | v1.98-social (draft) | 2026-11-08 | **D307 (owner, on the founder's page: «ازل شارة فريق كابسو من اسفل الإسم. وضع بايو بالعربي والانجليزي مناسب. بالإضافة ازل ايقونة فيديو والوقت اجعله يعمل تلقائي بصوت عند دخول الشخص للصفحة»):** `PublicProfile.ownerBio` / `Me.ownerBio` (`OwnerBio {ar?, en?}`), `setOwnerBio` (`PUT /owner/bio`, `SetOwnerBioRequest`; owner only, 403 `OWNER_ONLY`), audit `owner.bio.update`; migration `20270407090000_owner_bio`. App only (no wire change): no «فريق كابسو» badge under the founder's name (the special ID «Kabso» and the seal stay; other staff unchanged), the cover video starts by itself **with sound** and has no «فيديو» pill; «اقترح ميزة / أبلغ» outline only and no shadow under «متابعة المؤسس». §4, §10.112.1, §10.112.11. | **Additive** (one new operation, one optional field). |
@@ -8953,6 +8955,9 @@ Owner (2026-11-08, from a device): «في صفحة المؤسس لا تحتوي 
 
 ### 10.114 Gift events «فعاليات الهدايا» and animated / video banners *(v1.97-social, DRAFT — D303)*
 
+> *v1.101-social (D325):* extended by **§10.127 Events v2** — drafts, recurrence, the scoring method, counted gifts,
+> gifts and prizes uploaded inside the event, gift pieces, milestones, audiences AGENCIES / CP and the start notification.
+
 Owner (2026-11-07), from a third-party event page («ملك الكنوز»; the look and the idea only — none of its art, names or
 brand; the screenshot stays out of git, D40): an event of **its own gifts**, points per gift, ranks and prizes (items,
 cherries or coins), and an animated promo banner as the first thing in the Live home that is either an ad or an event.
@@ -10025,3 +10030,120 @@ gifts**, the same five periods (§10.119), «والأيقونة التي بجا�
 - **App:** the tab is a normal tab now (no «قريبًا»), the podium and rows like the other boards, the **coin** art (D182
   `KabsoArt.coin`) beside every number, `liveRankCoins` «{n} كوينز» / "{n} coins" for screen readers, the caller's own row
   pinned; empty: «لم يُرسل أحد هدايا بعد في هذه الفترة.» / "No gifts sent yet in this period."
+
+### 10.127 Events v2 «الفعاليات» — one events system *(v1.101-social, DRAFT — D325)*
+
+Owner (2026-11-08 / 11-09): the D303 events «لم تكن مضبوطة»; one events system in the panel section «الفعاليات», built
+step by step; phase A (server + panel) now, the app page later (phase B). Decisions marked *(owner)*; the rest are CTO
+defaults the owner may change (PP-71). It **extends §10.114** (every D303 rule holds unless changed here). Excluded by the
+owner: a points shop and daily missions.
+
+#### 10.127.1 One system, drafts and publishing
+
+- Every new event is a gift event (`metric = EVENT_GIFTS`) made in the panel's «الفعاليات» (the D166 create —
+  `createAdminEvent`, `event-admin create` — stays for existing tools but the panel no longer offers it). D166 metric
+  events and D303 gift events **keep working to their end under their rules** (migration: every existing row is
+  `PUBLISHED`, recurrence NONE, scoring MULTIPLIER — D303's whole `points_per_coin` keep their value as a multiplier —,
+  counted EVENT_GIFTS, already announced; frozen events get their `event_periods` row).
+- `status` **DRAFT** *(owner: «prepare now, set dates at launch»)*: dates may be null, gifts and boards empty; never shown
+  in the app (404), never scored, notified or swept. **PUBLISHED**: every rule (a start; an end unless `permanent`; 1–12
+  gifts unless every gift counts; 1–5 boards). A published body without gifts or boards stays a 400 (D303's shape); a
+  missing date → 409 with the message.
+- Commands (OWNER, `events.manage`, reason, audited): `publishAdminEvent` (a draft through every rule; then its first
+  period, its Live home banner and, at its start, the notification), `unpublishAdminEvent` (a published event that has
+  not started back to a draft; its banner removed), `discardAdminEvent` (a draft and its own gifts and items, refused
+  once any is used or held); `changeStaffEvent` takes the same three. Editing (`PUT`) as §10.114.7, plus: once running,
+  recurrence, scoring, counted gifts, milestones and `permanent` are locked too.
+
+#### 10.127.2 Scoring *(owner: per event — points = coins, or custom points per gift; «method 2»: a multiplier)*
+
+- `scoring` **COINS**: each counted recipient row scores its coins. **MULTIPLIER**: an event gift scores
+  `floor(coins × points_per_coin) + quantity × points_per_gift` — `points_per_coin` is a decimal multiplier (0–1000, two
+  decimals: ×1, ×1.2, ×1.5) — and a gift not listed (ALL_GIFTS only) its coins × 1.
+- `countedGifts` **EVENT_GIFTS** (only the listed gifts) or **ALL_GIFTS** (every gift). Every D303 exclusion stays (no
+  send to oneself; the sender ACTIVE; reversed sends out). New: the event's **own** exclusive gift sent **from the bag**
+  never scores (a prize must not become points).
+- `EventGift.multiplier` (the decimal), `pointsEach = floor(price × multiplier) + pointsPerGift`; `pointsPerCoin` stays the
+  whole part for older apps.
+
+#### 10.127.3 Recurrence *(owner: optional per event)*
+
+- `recurrence` NONE / **WEEKLY** / **MONTHLY**: periods of 7 days / one calendar month **in the event's zone** from
+  `startsAt` (`(start AT TIME ZONE zone + n) AT TIME ZONE zone`; 31 January + 1 month = 28 / 29 February). `endsAt` ends
+  the series (the last period is cut there) or `permanent` (no end; `end` stops it). A recurring event lasts at least one
+  whole period; the 92-day limit is for NONE.
+- The current period is on the row (`period`, `period_starts_at`, `period_ends_at`). When it ends the sweeper (once, row
+  locked) gives its last milestones, **freezes its boards** (`event_results.period`, an `event_periods` row), makes it due
+  (paid in the same pass unless held) and starts the next period (the boards start again from 0). The last period is frozen
+  like a D303 event (`frozen_at`). A held payout keeps every period's results PENDING; `release` pays them all.
+- `getEventLeaderboard?period=previous`: the last frozen period before the current one (`final: true`, `period.previous`),
+  `period` null when none; `EventDetail.period` {index, startsAt, endsAt, hasPrevious}. On a D166 event → 400.
+
+#### 10.127.4 Gifts and prizes uploaded inside the event *(owner)*
+
+- **Event gifts** (`createAdminGift` with `eventId`, the D207 uploads and checks — picture, SVGA / MP4 effect, MP3, the
+  badges incl. «شاشة كاملة», a price): plain gifts (never lucky, a quip, custom or a PK booster; CHECK
+  `gifts_event_plain`), in an ordinary tab. While the published event runs **everyone may buy and send them** (the usual
+  65 % host / 70 % creator share) and they score; before and after they are **not listed and not bought** (409
+  `GIFT_UNAVAILABLE`); afterwards the winners send the **free pieces** won as prizes from the bag *(owner 1b)*.
+- **Prize items** (`createAdminStoreItem` with `eventId`, the D270 art uploads): a frame, an entrance (vehicle), an entry
+  banner, a chat bubble, a profile card «خلفية الملف» — a bag catalogue item that is **never sold**: no prices, always off
+  and hidden from the store (CHECK `store_items_event_exclusive`; enable / restore → 409), listed with its event only
+  (`listAdminStoreItems?eventId=`, `getAdminEventOptions?eventId=`); another event never uses it. The existing grant path
+  gives it (source EVENT, not transferable, days or permanent).
+- **Prize types** (every board; the board's money as §10.114.3): COINS, CHERRIES, CP_MONEY, BAG_ITEM (days 1–365 or
+  permanent), VIP (days), BADGE (an event medal on the winner's profile; days or permanent), and new **GIFT_PIECES**
+  `{giftCode, count 1–100 000}` — pieces of one of **this event's own** gifts added to the winner's gift bag
+  (`user_gift_stock`; a full bag is listed `skipped: bag_full`). Each item may carry `displayKey`, its **display picture**
+  on the event page (`uploadAdminEventMedia` kind `prize`, 512 × 512 PNG / JPEG / WebP ≤ 1 MB); `EventPrizeItem.displayUrl`,
+  and for an event item its hosted `stillUrl` / `animationUrl`.
+
+#### 10.127.5 Boards *(owner: one or more per event; top 20 shown)*
+
+The five D303 kinds, each with its minimum and prize lines (ranks 1–100 frozen as before). A gift event's board **shows
+its top 20** (`data` ≤ 20) and `me` the caller's place whatever it is (the sticky «مركزي»).
+
+#### 10.127.6 Milestones «مراحل» *(owner: optional)*
+
+`milestones` (0–10): `{board, points, prizes}` — every entrant of that board (CP: both partners; AGENCIES: the owner)
+whose points in the period reach `points` gets the bundle **once per milestone, person and period**
+(`event_milestone_grants_once`), only ACTIVE accounts (others FORFEITED), with `EVENT_PRIZE_WON`. Given by the sweeper
+within a pass of being reached, and once more for the final scores at each freeze; **not while the payout is held**
+(given at the release for the frozen periods). `getEventMilestones`: each milestone with the caller's score, `reached`,
+`granted`.
+
+#### 10.127.7 Design *(owner: uploaded per event, previewed before publishing)*
+
+The §10.114.9 specs, extended: the **title** may be a still or **animated** WebP / GIF (≤ 3 MB, ≤ 10 s) or a **Lottie** JSON
+(≤ 1 MB, the 9 : 4 canvas, ≤ 10 s); the **overlay** may also be an **alpha MP4** (side-by-side alpha, H.264 / HEVC, ≤ 8 MB,
+≤ 10 s); a **prize** picture (above). `EventDetail.art.titleFormat` (IMAGE / ANIMATED / LOTTIE), overlay `format` MP4. The
+**banner** (1 500 × 300, `bannerMediaId`) becomes, at publish, a HOME banner opening the event, shown from its start to
+its end (EVERYONE events — the Live home is the same for everyone; other audiences find it in «الفعاليات»).
+
+#### 10.127.8 Shown and announced *(owner: Live home, inside lives, Event Center, a notification)*
+
+- Live home: the banner above. Event Center: `listEvents` / `getEvent` (published only; the audience below).
+  Inside lives: `getRunningEvents` — the published gift events running now that the caller may see, with their gift
+  codes (the app's strip and gift panel, phase B).
+- **Audience** (`EventAudience`): EVERYONE; HOSTS (not shown to content creators, D295); CREATORS (creator members);
+  **AGENCIES** (owners and active member hosts of an open agency); **CP** (people in a couple now). It decides who sees
+  the event in the lists and who is notified; the boards still rank by their kind.
+- At the start the sweeper sends **`EVENT_STARTED`** (system, target EVENT, pushed «بدأت فعالية جديدة، شارك الآن») to
+  every ACTIVE account of the audience and regions — one `INSERT … SELECT`, once per person and event
+  (`notifications_event_started_once`), the event marked announced in the same transaction; pushed through the outbox
+  (§11.12: within its 10-minute window).
+
+#### 10.127.9 The end *(D303 kept)*
+
+Results frozen, prizes paid automatically by the sweeper — once per result and winner (`event_prize_payouts_once`),
+milestones once per key, so a pass run again pays nothing — the hold / release, the winner notification, the panel's
+results (per period). Drafts are never swept.
+
+#### 10.127.10 «مهرجان انطلاقة Kabso» — the launch festival as a draft *(owner)*
+
+Nothing is seeded. The team makes it when it wants: the panel's «قالب مهرجان الانطلاقة» (`createAdminLaunchFestival`) or
+`event-admin festival-draft --reason …`. It is a **DRAFT** without dates: the four exclusive gifts *(owner)* «شعلة
+الانطلاق» 50 000 ×1, «صاروخ Kabso» 250 000 ×1, «تاج الافتتاح» 1 000 000 ×1.2, «ليلة المهرجان» 3 000 000 ×1.5 (tab EVENT, no
+art yet), boards SENDERS / RECEIVERS / CREATORS and four SENDERS milestones — the **prize table and milestones are a
+CTO proposal** (coins for supporters, cherries for hosts and creators, festival gift pieces on every rank) for the owner
+to change in the panel. The owner uploads the art, sets the dates and publishes.
