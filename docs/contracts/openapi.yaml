@@ -437,6 +437,13 @@ info:
     refuses an archived gift (409 `ADMIN_ACTION_REFUSED`). `AdminGift.archivedAt`, `inUse`, `holders`, `pieces`.
     `gift-admin delete|restore <code>`, `gift-admin finish`. Migration `20270410090000_gift_archive`. The apps are
     unchanged.
+    **D347 (DRAFT v1.111-live)** the global lucky banner «شريط المردود في كل اللايفات» (CONVENTIONS §10.146; owner
+    2026-11-09: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»): a lucky send whose best win is one of
+    `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (server setting, default ×250 ×500 ×1000; was every win ≥ `bigWinMultiplier`) is told
+    to every other LIVE room of every mode as the data message `lucky-ticker` (topic `lucky`), which gains `gift`
+    (`{code, assetKey, imageUrl}`) and `room.mode`; at most one per `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10 s) for the whole
+    service (so per room), the biggest waiting win next, and a waiting win whose live ended is dropped. No HTTP shape
+    changes; `bigWinMultiplier` of `getLuckyGiftOdds` no longer decides the global message. Additive for the app.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -3941,7 +3948,9 @@ paths:
         level counts the full value (CP-005). A retry returns the first send with the same
         `luckyResult` and never draws again. A send whose best win is at least `bigWinMultiplier`
         also goes to the room as a `lucky-win` data message on topic `lucky`, and (v1.31-live,
-        D148) to every other live room as a `lucky-ticker` data message (at most one every 10 s).
+        D148) to every other live room as a `lucky-ticker` data message (at most one every 10 s). v1.111-live (D347):
+        the `lucky-ticker` goes out only for a best win in `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default ×250 ×500 ×1000),
+        to every other LIVE room of every mode (CONVENTIONS §10.146).
         v1.31-live (D148): after 15 losing lucky draws in a row by the caller (any room) the next
         draw pays at least ×5 (`luckyResult.guaranteed`).
         **v1.32-live (D154), quips** (`Gift.category` `QUIPS`, CONVENTIONS §10.33): after 409
@@ -34623,7 +34632,7 @@ components:
           description: The winning outcomes, by multiplier ascending.
         noWinChancePerMillion: { type: integer, minimum: 0, maximum: 1000000 }
         noWinProbability: { type: number, minimum: 0, maximum: 1 }
-        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier are announced to the room (`lucky-win`) and, v1.30-live, to every other live room (`lucky-ticker`)." }
+        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier get the room's big card. v1.30-live it also decided the `lucky-ticker` to every other live; v1.111-live (D347) that is the server's own set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default ×250 ×500 ×1000), not this value." }
         pity:
           description: v1.31-live (D148). The per-sender guarantee, or null when it is off.
           oneOf:

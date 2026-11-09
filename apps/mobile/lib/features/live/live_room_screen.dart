@@ -128,6 +128,9 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// CP-012: the live's points next to the viewer count.
   static const scoreKey = Key('room.score');
+
+  /// D347: the confirm of moving to another live from a global banner.
+  static const openOtherLiveKey = Key('room.openOtherLive');
   static const rechargeKey = Key('room.recharge');
 
   /// D131: the host pill's taps line and the bar's gift button.
@@ -427,6 +430,49 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (!mounted) return;
     }
     widget.onClose();
+  }
+
+  /// D148 / D178 / D254 / D305 / D347: a global banner or strip opens the
+  /// live it is about (like a swipe to another live: this one is left). D347
+  /// (CONVENTIONS §10.146): it is read first — a live that ended (or is
+  /// gone) says so and nothing moves; a seated guest (on a mic) is asked
+  /// before leaving their seat; then the normal join of that live (its own
+  /// rules: guests, bans, kicks) runs as for any opened live.
+  Future<void> _openOtherLive(String roomId) async {
+    if (roomId == _room.id) return;
+    final l10n = context.l10n;
+    final LiveRoom target;
+    try {
+      target = await ref.read(liveRepositoryProvider).getRoom(roomId);
+    } on Object catch (e) {
+      if (!mounted) return;
+      final failure = toAppFailure(e);
+      if (failure.code == ErrorCode.notFound ||
+          failure.code == ErrorCode.liveRoomEnded) {
+        KSnack.info(context, l10n.errorLiveRoomEnded);
+      } else {
+        KSnack.error(context, failureMessage(l10n, failure));
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (target.status != LiveRoomStatus.live) {
+      KSnack.info(context, l10n.errorLiveRoomEnded);
+      return;
+    }
+    final seated =
+        ref.read(liveRoomSessionProvider(_room.id)).mine?.seatIndex != null;
+    if (seated) {
+      final go = await showKLiveConfirm(
+        context,
+        title: l10n.liveLuckyGlobalLeaveSeat(target.title),
+        confirmKey: LiveRoomScreen.openOtherLiveKey,
+        confirmLabel: l10n.liveLuckyGlobalGo,
+        cancelLabel: l10n.actionCancel,
+      );
+      if (!go || !mounted) return;
+    }
+    context.pushReplacement(AppRoutes.liveRoom(roomId));
   }
 
   /// D181 (owner «زر التصغير لا يظهر للمشاهد»): a viewer or a seated guest
@@ -1209,10 +1255,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveGiftEffectsLayer(
                 roomId: room.id,
                 onSender: (u) => _person(u.username),
-                // D148: the gold ticker opens the live of the win (like a
-                // swipe to another live: this one is left).
-                onOpenRoom: (id) =>
-                    context.pushReplacement(AppRoutes.liveRoom(id)),
+                // D148 / D347: the global banners open the live they are
+                // about (checked first: ended → a toast; seated → asked).
+                onOpenRoom: (id) => unawaited(_openOtherLive(id)),
                 // D145c: the strips centred at the reading start in audio
                 // and video alike; beside a video live's wish column.
                 stripsStart: LiveGiftEffectsLayer.videoStripsStart(

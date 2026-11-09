@@ -832,7 +832,9 @@ a `CONNECTION LIMIT`.
   | `LUCKY_PITY_AFTER` | `15` (D148) | losing draws in a row before a sender's guaranteed draw; `0` turns the guarantee off |
   | `LUCKY_PITY_MULTIPLIER` | `5` (D148) | what the guaranteed draw pays at least (one of the multipliers) |
   | ~~`LUCKY_GIFT_RTP_SHARES`~~ | — | **removed in D148**: set → the API refuses to start |
-  | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | wins from this multiplier are told to every other live («لحظة الحظ»); D178: every win is announced to its own room |
+  | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | the odds' `bigWinMultiplier` (the room's big card); D347: no longer decides the global message; D178: every win is announced to its own room |
+  | `LUCKY_GLOBAL_BANNER_MULTIPLIERS` | `250,500,1000` (D347) | best wins told to every other live as the global lucky banner (each one of the multipliers) |
+  | `LUCKY_GLOBAL_BANNER_GAP_SECONDS` | `10` (D347) | at most one global lucky banner per this many seconds for the whole service (1–600) |
   | `GIFT_GLOBAL_TICKER_MIN_COINS` | `500000` (D305, owner «٥٠٠ ألف كوينز وأكثر»; was `1000` in D178) | a gift whose **unit price** (one gift — owner, D305; D178 counted the send) is at least this many coins shows as the gifts strip in every live, its own too (one every 3 s, the newest first). See D178, D305 and §5.84. **The OWNER sets it in the panel** («إعدادات الموقع» → «شريطا الهدايا والألعاب», no restart, ≤ 30 s); this variable is only the fallback (`.env`, restart the API) |
   | `GAME_WIN_TICKER_MIN_TICKETS` | `1000000` (D305, owner «١ مليون وأकثر») | a game prize worth at least this many tickets shows as the games strip in every live (§5.84); the panel's value wins (as above). No game pays ticket prizes yet |
   | `LUCKY_GIFT_DAY_TIME_ZONE` | `UTC` | the daily protection's day |
@@ -3687,3 +3689,20 @@ CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم ولي�
 - **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
   and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
   first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.
+
+### 5.110 The global lucky banner (D347; no migration) — [IMPLEMENTED, draft contract v1.111-live; not deployed, not device-tested]
+
+CONVENTIONS §10.146 (owner 2026-11-09: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»). §5.102–§5.109 are
+left for in-flight work.
+
+- **New optional settings (API env):** `LUCKY_GLOBAL_BANNER_MULTIPLIERS=250,500,1000` — every value must be one of
+  `LUCKY_GIFT_MULTIPLIERS` and distinct (the API refuses to start otherwise; check it when changing the multipliers);
+  `LUCKY_GLOBAL_BANNER_GAP_SECONDS=10` (1–600). Both are read at start (a change needs a restart).
+- **Behaviour change on deploy:** ×100 lucky wins are no longer told to the other lives (only ×250 / ×500 / ×1000 with
+  the defaults). `LUCKY_GIFT_BIG_WIN_MULTIPLIER` no longer decides it.
+- **Load:** per banner, one LiveKit `SendData` per LIVE room (8 at a time; ~500 calls at 500 rooms), at most one banner
+  per gap — watch the media server's API rate and the `Could not send a lucky ticker` warnings after the deploy.
+- **Order:** API, then the app (an older app shows the new messages as its compact gold line, ignoring `gift` and
+  `room.mode`; the new app reads an older server's message without them). **Rollback:** the older API sends ×100+ again
+  with the 10 s gap; the new app shows those too.
+

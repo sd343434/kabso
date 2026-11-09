@@ -907,9 +907,12 @@ export class LiveGiftsService {
         await this.broadcastLuckyWin(row.id, { type: 'lucky-win', win });
       });
       // v1.30-live (D148): «لحظة الحظ» — every other live room hears about a big one (rate-limited).
-      if (luckyResult.topMultiplier >= this.lucky.bigWinMultiplier) {
+      // v1.111-live (D347, owner «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»): only the
+      // multipliers of LUCKY_GLOBAL_BANNER_MULTIPLIERS (was every win ≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER).
+      if (this.lucky.isGlobalBanner(luckyResult.topMultiplier)) {
+        const art = { code: dto.giftCode, assetKey: dto.assetKey, imageUrl: dto.imageUrl };
         this.background.run('lucky global ticker', async () => {
-          await this.ticker.offer(win);
+          await this.ticker.offer(win, art);
         });
       }
     }

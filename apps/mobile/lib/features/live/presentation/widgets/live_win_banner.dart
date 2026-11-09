@@ -7,6 +7,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -156,15 +157,36 @@ List<(String, int?)> _pieces(String formatted) {
 /// reduced motion it shows still — no slide, rays, coins, sweep, pop or
 /// sparkles, the whole amount at once — and fades out at the end. Never
 /// takes taps; screen readers hear it once.
+///
+/// v1.111-live (D347, owner «شريط المردود يظهر في كل لايفات للشريط x250 /
+/// x500 / x1000»): the same banner is the global lucky banner in every other
+/// live — with [roomTitle] it carries a tag under the frame (the winner's
+/// avatar, «في {room}», the gift's picture and, when [onTap] is set, a
+/// chevron) that moves with the frame; then the whole banner takes taps
+/// ([onTap]: open that live), else it stays out of the way.
 class LiveWinBanner extends StatefulWidget {
   const new({
     required this.win,
     super.key,
     this.giftName,
     this.width = maxWidth,
+    this.roomTitle,
+    this.gift,
+    this.onTap,
   });
 
   final LuckyWin win;
+
+  /// D347: the live the win happened in (the global banner), or null (the
+  /// room's own banner).
+  final String? roomTitle;
+
+  /// D347: the gift's art for the tag (the server's `lucky-ticker.gift`,
+  /// else the catalogue's); null: the tag has no picture.
+  final LuckyTickerGift? gift;
+
+  /// D347: opens the live of the win; null: no taps (a host on air).
+  final VoidCallback? onTap;
 
   /// The gift's name from the catalogue; null: «هدية» / "a gift".
   final String? giftName;
@@ -190,6 +212,9 @@ class LiveWinBanner extends StatefulWidget {
   static const labelKey = Key('gift.lucky.label');
   static const numberKey = Key('gift.lucky.number');
   static const coinsKey = Key('gift.lucky.coins');
+
+  /// D347: the global banner's tag (the live's name).
+  static const roomKey = Key('gift.lucky.room');
 
   @override
   State<LiveWinBanner> createState() => _LiveWinBannerState();
@@ -271,17 +296,27 @@ class _LiveWinBannerState extends State<LiveWinBanner>
       ),
     );
     if (!rtl) frame = Transform.flip(flipX: true, child: frame);
+    final room = widget.roomTitle;
+    final onTap = widget.onTap;
+    final name = KFormat.bidiIsolate(win.sender.displayName);
+    final times = KFormat.grouped(win.multiplier);
+    final where = room == null ? null : KFormat.bidiIsolate(room);
     return Semantics(
       container: true,
       liveRegion: true,
       excludeSemantics: true,
-      label: l10n.liveWinBannerSemantics(
-        label,
-        KFormat.bidiIsolate(win.sender.displayName),
-        KFormat.grouped(win.multiplier),
-        KFormat.bidiIsolate('+${KFormat.grouped(win.coinsWon)}'),
-      ),
+      button: onTap != null,
+      onTap: onTap,
+      label: room == null
+          ? l10n.liveWinBannerSemantics(
+              label,
+              name,
+              times,
+              KFormat.bidiIsolate('+${KFormat.grouped(win.coinsWon)}'),
+            )
+          : '$label: ${l10n.liveLuckyTicker(name, times, where!)}',
       child: IgnorePointer(
+        ignoring: onTap == null,
         child: AnimatedBuilder(
           animation: _c,
           builder: (context, _) {
@@ -300,139 +335,145 @@ class _LiveWinBannerState extends State<LiveWinBanner>
               opacity: fade,
               child: Transform.translate(
                 offset: Offset(dx, 0),
-                child: SizedBox(
+                child: _withTag(
+                  art: art,
                   width: w,
-                  height: h,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _BackFxPainter(
-                            t,
-                            art.glow,
-                            m,
-                            mr,
-                            still: still,
-                            rtl: rtl,
-                          ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: still
-                            ? frame
-                            : ShaderMask(
-                                blendMode: BlendMode.srcATop,
-                                shaderCallback: (r) => _sweep(r, t, rtl: rtl),
-                                child: frame,
-                              ),
-                      ),
-                      Positioned.fromRect(
-                        rect: panel,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(panel.height / 2),
+                  frame: SizedBox(
+                    width: w,
+                    height: h,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
                           child: CustomPaint(
-                            painter: _PanelFxPainter(t, still: still),
+                            painter: _BackFxPainter(
+                              t,
+                              art.glow,
+                              m,
+                              mr,
+                              still: still,
+                              rtl: rtl,
+                            ),
                           ),
                         ),
-                      ),
-                      // The medallion: the flash, ×N and the tier's label.
-                      if (flash < 1)
+                        Positioned.fill(
+                          child: still
+                              ? frame
+                              : ShaderMask(
+                                  blendMode: BlendMode.srcATop,
+                                  shaderCallback: (r) => _sweep(r, t, rtl: rtl),
+                                  child: frame,
+                                ),
+                        ),
+                        Positioned.fromRect(
+                          rect: panel,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              panel.height / 2,
+                            ),
+                            child: CustomPaint(
+                              painter: _PanelFxPainter(t, still: still),
+                            ),
+                          ),
+                        ),
+                        // The medallion: the flash, ×N and the tier's label.
+                        if (flash < 1)
+                          Positioned(
+                            left: m.dx - mr * 1.8,
+                            top: m.dy - mr * 1.8,
+                            width: mr * 3.6,
+                            height: mr * 3.6,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  radius: .5 * (.15 + .85 * _eo(flash)),
+                                  colors: [
+                                    const Color(0xFFFFF5C8)
+                                        .withValues(alpha: 1 - flash),
+                                    const Color(0x00FFC850),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         Positioned(
-                          left: m.dx - mr * 1.8,
-                          top: m.dy - mr * 1.8,
-                          width: mr * 3.6,
-                          height: mr * 3.6,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: RadialGradient(
-                                radius: .5 * (.15 + .85 * _eo(flash)),
-                                colors: [
-                                  const Color(0xFFFFF5C8)
-                                      .withValues(alpha: 1 - flash),
-                                  const Color(0x00FFC850),
-                                ],
+                          left: m.dx - mr * .9,
+                          top: m.dy - mr * .78,
+                          width: mr * 1.8,
+                          height: mr * 1.2,
+                          child: Opacity(
+                            opacity: pop > 0 ? 1 : 0,
+                            child: Transform.scale(
+                              scale: 1 + 1.2 * (1 - _eob(pop)),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: _Multiplier(
+                                  multiplier: win.multiplier,
+                                  k: k,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      Positioned(
-                        left: m.dx - mr * .9,
-                        top: m.dy - mr * .78,
-                        width: mr * 1.8,
-                        height: mr * 1.2,
-                        child: Opacity(
-                          opacity: pop > 0 ? 1 : 0,
-                          child: Transform.scale(
-                            scale: 1 + 1.2 * (1 - _eob(pop)),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: _Multiplier(
-                                multiplier: win.multiplier,
-                                k: k,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: m.dx - mr,
-                        top: m.dy + mr * .5 - 7 * k,
-                        width: mr * 2,
-                        height: 14 * k,
-                        child: Opacity(
-                          opacity: still ? 1 : _seg(t, 650, 850),
-                          child: Center(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                label,
-                                key: LiveWinBanner.labelKey,
-                                maxLines: 1,
-                                textScaler: TextScaler.noScaling,
-                                style: context.textStyles.label.copyWith(
-                                  fontSize: 8 * k,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1,
-                                  color: const Color(0xFF8A0A12),
-                                  shadows: _outline(
-                                    const Color(0xF2FFFAE6),
-                                    1.1 * k,
+                        Positioned(
+                          left: m.dx - mr,
+                          top: m.dy + mr * .5 - 7 * k,
+                          width: mr * 2,
+                          height: 14 * k,
+                          child: Opacity(
+                            opacity: still ? 1 : _seg(t, 650, 850),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  label,
+                                  key: LiveWinBanner.labelKey,
+                                  maxLines: 1,
+                                  textScaler: TextScaler.noScaling,
+                                  style: context.textStyles.label.copyWith(
+                                    fontSize: 8 * k,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1,
+                                    color: const Color(0xFF8A0A12),
+                                    shadows: _outline(
+                                      const Color(0xF2FFFAE6),
+                                      1.1 * k,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      if (!still) ..._coinBurst(m, mr, t, k, rtl: rtl),
-                      // The message.
-                      Positioned.fromRect(
-                        rect: Rect.fromLTRB(
-                          panel.left + panel.height * .5,
-                          panel.top,
-                          panel.right - panel.height * .5,
-                          panel.bottom,
-                        ),
-                        child: Opacity(
-                          opacity: still ? 1 : _seg(t, 380, 620),
-                          child: _Message(
-                            name: win.sender.displayName,
-                            gift: gift,
-                            multiplier: win.multiplier,
-                            coins: coins,
-                            k: k,
+                        if (!still) ..._coinBurst(m, mr, t, k, rtl: rtl),
+                        // The message.
+                        Positioned.fromRect(
+                          rect: Rect.fromLTRB(
+                            panel.left + panel.height * .5,
+                            panel.top,
+                            panel.right - panel.height * .5,
+                            panel.bottom,
+                          ),
+                          child: Opacity(
+                            opacity: still ? 1 : _seg(t, 380, 620),
+                            child: _Message(
+                              name: win.sender.displayName,
+                              gift: gift,
+                              multiplier: win.multiplier,
+                              coins: coins,
+                              k: k,
+                            ),
                           ),
                         ),
-                      ),
-                      if (!still)
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: _SparklePainter(t, rtl: rtl),
+                        if (!still)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _SparklePainter(t, rtl: rtl),
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -440,6 +481,40 @@ class _LiveWinBannerState extends State<LiveWinBanner>
           },
         ),
       ),
+    );
+  }
+
+  /// D347: the frame alone (the room's own banner), or the frame over the
+  /// global banner's tag — «في {room}» with the winner and the gift — as
+  /// one tappable piece when [LiveWinBanner.onTap] is set.
+  Widget _withTag({
+    required LuckyWinTierArt art,
+    required double width,
+    required Widget frame,
+  }) {
+    final room = widget.roomTitle;
+    if (room == null) return frame;
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        frame,
+        _RoomTag(
+          key: LiveWinBanner.roomKey,
+          room: room,
+          win: widget.win,
+          gift: widget.gift,
+          art: art,
+          k: width / 370,
+          tappable: widget.onTap != null,
+        ),
+      ],
+    );
+    final onTap = widget.onTap;
+    if (onTap == null) return column;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: column,
     );
   }
 
@@ -505,6 +580,96 @@ class _LiveWinBannerState extends State<LiveWinBanner>
       colors: const [Color(0x00FFFAE1), Color(0xB3FFFAE1), Color(0x00FFFAE1)],
       stops: [_c01(c - .07), _c01(c), _c01(c + .07)],
     ).createShader(r);
+  }
+}
+
+/// D347: the global banner's tag under the frame — the winner's avatar,
+/// «في {room}» (cut with an ellipsis), the gift's picture and, when it opens
+/// the live, a chevron toward the reading end. In the tier's colours.
+class _RoomTag extends StatelessWidget {
+  const new({
+    required this.room,
+    required this.win,
+    required this.gift,
+    required this.art,
+    required this.k,
+    required this.tappable,
+    super.key,
+  });
+
+  final String room;
+  final LuckyWin win;
+  final LuckyTickerGift? gift;
+  final LuckyWinTierArt art;
+  final double k;
+  final bool tappable;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.15);
+    final h = 24 * k;
+    final g = gift;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Container(
+        height: h,
+        constraints: BoxConstraints(maxWidth: 300 * k),
+        padding: EdgeInsetsDirectional.fromSTEB(2 * k, 2 * k, 8 * k, 2 * k),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(h / 2),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              art.panelTop.withValues(alpha: .92),
+              art.panelBottom.withValues(alpha: .92),
+            ],
+          ),
+          border: Border.all(color: LuckyWinTierArt.gold),
+          boxShadow: [
+            BoxShadow(color: art.glow.withValues(alpha: .45), blurRadius: 10),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KAvatar(
+              name: win.sender.displayName,
+              imageUrl: win.sender.avatarUrl,
+              size: h - 4 * k,
+            ),
+            SizedBox(width: 5 * k),
+            Flexible(
+              child: Text(
+                l10n.liveLuckyGlobalIn(KFormat.bidiIsolate(room)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: scaler,
+                style: context.textStyles.label.copyWith(
+                  fontSize: 11 * k,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: LuckyWinTierArt.gold,
+                  shadows: _outline(const Color(0xD9280000), k),
+                ),
+              ),
+            ),
+            if (g != null) ...[
+              SizedBox(width: 4 * k),
+              KGiftImage(g.assetKey, imageUrl: g.imageUrl, size: h - 6 * k),
+            ],
+            if (tappable)
+              Icon(
+                rtl ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+                size: 16 * k,
+                color: LuckyWinTierArt.gold,
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

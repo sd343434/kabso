@@ -13039,6 +13039,24 @@ abstract class AppLocalizations {
   /// **'{name} ربح ×{multiplier} في غرفة {room}'**
   String liveLuckyTicker(String name, String multiplier, String room);
 
+  /// D347: the tag under the global lucky banner (a ×250 / ×500 / ×1000 win in another live): the live it happened in; a tap opens it.
+  ///
+  /// In ar, this message translates to:
+  /// **'في {room}'**
+  String liveLuckyGlobalIn(String room);
+
+  /// D347: a seated guest tapped the global lucky banner; going there leaves their seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستترك مقعدك وتنتقل إلى {room}. هل تريد المتابعة؟'**
+  String liveLuckyGlobalLeaveSeat(String room);
+
+  /// D347: confirms moving to the live of the global lucky banner.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتقال'**
+  String get liveLuckyGlobalGo;
+
   /// D155: direct messages (CONVENTIONS §11.13).
   ///
   /// In ar, this message translates to:

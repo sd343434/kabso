@@ -225,6 +225,8 @@ describe('D148 lucky odds: eight tiers, chances per million, the guarantee (CONV
       enabled: false,
       table: DEFAULT,
       bigWinMultiplier: 100,
+      globalBannerMultipliers: [250, 500, 1000],
+      globalBannerGapMs: 10_000,
       chatMinMultiplier: 250,
       dayTimeZone: 'UTC',
       disabledCountries: [],
@@ -234,6 +236,23 @@ describe('D148 lucky odds: eight tiers, chances per million, the guarantee (CONV
     expect(loadConfig({ ...base, LUCKY_CHAT_MIN_MULTIPLIER: '500' }).lucky.chatMinMultiplier).toBe(500);
     expect(() => loadConfig({ ...base, LUCKY_CHAT_MIN_MULTIPLIER: '300' })).toThrow(
       /LUCKY_CHAT_MIN_MULTIPLIER/,
+    );
+    // v1.111-live (D347): the global banner's set is made of multipliers (sorted), its gap 1–600 s.
+    expect(
+      loadConfig({
+        ...base,
+        LUCKY_GLOBAL_BANNER_MULTIPLIERS: '1000,100',
+        LUCKY_GLOBAL_BANNER_GAP_SECONDS: '30',
+      }).lucky,
+    ).toMatchObject({ globalBannerMultipliers: [100, 1000], globalBannerGapMs: 30_000 });
+    expect(() => loadConfig({ ...base, LUCKY_GLOBAL_BANNER_MULTIPLIERS: '250,300' })).toThrow(
+      /LUCKY_GLOBAL_BANNER_MULTIPLIERS/,
+    );
+    expect(() => loadConfig({ ...base, LUCKY_GLOBAL_BANNER_MULTIPLIERS: '250,250' })).toThrow(
+      /LUCKY_GLOBAL_BANNER_MULTIPLIERS/,
+    );
+    expect(() => loadConfig({ ...base, LUCKY_GLOBAL_BANNER_GAP_SECONDS: '0' })).toThrow(
+      /LUCKY_GLOBAL_BANNER_GAP_SECONDS/,
     );
     expect(loadConfig({ ...base, LUCKY_PITY_AFTER: '0' }).lucky.table.pity).toBeNull();
     expect(loadConfig({ ...base, LUCKY_PITY_AFTER: '20' }).lucky.table.pity).toEqual({

@@ -756,6 +756,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.111-live (draft) | 2026-11-09 | **D347 (owner: «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000»):** the global lucky banner — the data message `lucky-ticker` (topic `lucky`) goes to every other LIVE room (every mode) only for a send whose best win is in the server set `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (default `250,500,1000`; was every win ≥ `LUCKY_GIFT_BIG_WIN_MULTIPLIER`, 100); it gains `gift` `{code, assetKey, imageUrl}` and `room.mode`; the gap `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10) is configurable; a waiting win whose live ended is dropped. The app draws it as the room's win banner with the live's name and a tap target. No HTTP shape change, no migration. §10.27, §10.146. | **Additive** (new message fields older apps ignore); **behaviour change**: ×100 wins are no longer told to other lives. |
 | v1.102-social (draft) | 2026-11-09 | **D334 (owner answers to the events v2 questions, 2026-11-09):** `EventAudience` HOSTS counts content creators as hosts on the events made after D334 (`AdminGiftEvent.creatorsAsHosts`; older events keep D295); `listHomeBanners` lists an event's banner to that event's audience only (any audience may have one; a guest: EVERYONE only); free pieces of an event's own gift sent from the bag credit the recipients nothing (`LiveGift` share 0); `GiftEventForm.boards[].shown` «عدد المعروضين» (1–100, default 20; editable while running), `EventBoard.shown`, `EventLeaderboard.shown`; the launch festival's gifts «هدية المهرجان 1…4» with FULLSCREEN on the 1 000 000 / 3 000 000 gifts; held milestones of an event without board prizes wait for the release. Migration `20270409090200_events_v2_followups`. §10.127.11. | **Additive** for the app (new optional fields; a HOSTS event's audience grows by content creators; a creator now sees a new HOSTS event's banner). **Panel:** `shown` optional; an older panel omits it (kept). |
 | v1.101-social (draft) | 2026-11-09 | **D325 (owner: «الفعاليات … لم تكن مضبوطة» — events v2, one events system; phase A server + panel):** `GiftEventForm` `status` DRAFT / PUBLISHED, nullable dates for a draft, `permanent`, `recurrence`, `scoring` COINS / MULTIPLIER (`pointsPerCoin` a decimal), `countedGifts`, `milestones`, `bannerMediaId`; `EventAudience` (+ AGENCIES, CP); prize type `GIFT_PIECES`, `displayKey` on every prize item (`uploadAdminEventMedia` kind `prize`); `createAdminGift.eventId`, `createAdminStoreItem.eventId`, `listAdminStoreItems?eventId=`, `getAdminEventOptions?eventId=`; `publishAdminEvent`, `unpublishAdminEvent`, `discardAdminEvent`, `changeStaffEvent` publish / unpublish / discard; `createAdminLaunchFestival`; `getRunningEvents`, `getEventMilestones`, `getEventLeaderboard?period=previous`, `EventLeaderboard.period`, a gift event's board top 20; `EventDetail` `recurrence`, `scoring`, `countedGifts`, `period`, `milestones`, `art.titleFormat`, overlay `MP4`; `EventGift` `multiplier`, `exclusive`, `animationUrl`, `fullscreen`; `EventPrizeItem` `GIFT_PIECES`, `count`, `displayUrl`, `stillUrl`, `animationUrl`; notification `EVENT_STARTED`. Migrations `20270409090000_events_v2_enums`, `20270409090100_events_v2`. §10.127 (extends §10.114). | **Additive** for the app (drafts never reach it; whole-number `pointsPerCoin` kept; new values ignored by clients). **Panel:** a published body without gifts or boards stays a 400; a draft body is new. |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
@@ -2414,6 +2415,9 @@ change in the server configuration (no app update). Odds, the age gate and the r
   server down → no ticker, never a failed send. Blocks are applied by the app (it hides a ticker
   whose sender or host the viewer blocked, from the block list the room's chat loads); a viewer
   switch to hide tickers comes in D151 (the app already has the flag). Older apps ignore the type.
+  *v1.111-live (D347, §10.146):* the global copy goes out only for a best win in `LUCKY_GLOBAL_BANNER_MULTIPLIERS`
+  (default ×250 ×500 ×1000), the gap is `LUCKY_GLOBAL_BANNER_GAP_SECONDS` (10), the message gains `gift` and
+  `room.mode`, and a waiting win whose live ended is dropped.
 - **The odds** (`GET /live/gifts/lucky/odds`, guests too) *(owner: publish the odds; store
   loot-box rules)*: `{enabled, drawsPerGift: 1, returnPercent, hostSharePercent, outcomes:
   [{multiplier, chancePerMillion, probability}], noWinChancePerMillion, noWinProbability,
@@ -10445,3 +10449,51 @@ prizes), so a used gift is never removed. §10.131 follows §10.130 (D337); §10
   `pieces`; `AdminGiftDeleted`, `AdminGiftRestored`.
 - Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change (the bag already lists
   what the server returns).
+
+### 10.146 The global lucky banner «شريط المردود في كل اللايفات» *(v1.111-live, DRAFT — D347)*
+
+Owner (2026-11-09, approved design): «شريط المردود يظهر في كل لايفات للشريط x250 / x500 / x1000». §10.146 follows the
+numbers reserved by in-flight work (§10.132–§10.145).
+
+- **Which wins** *(owner)*: a lucky send (§10.27) whose best paid multiplier (`luckyResult.topMultiplier`, after the daily
+  protection) is **one of** `LUCKY_GLOBAL_BANNER_MULTIPLIERS` (API env, default `250,500,1000`; each must be one of
+  `LUCKY_GIFT_MULTIPLIERS`, distinct, else the server refuses to start). It is a set, not a threshold: a new ×2000 tier
+  is global only when listed. Smaller wins keep today's behaviour — the `lucky-win` banner in their own room only.
+  `LUCKY_GIFT_BIG_WIN_MULTIPLIER` no longer decides it (it stays the odds' `bigWinMultiplier`).
+- **Where:** every **other** room whose status is `LIVE` — every mode: SOLO / PK (video), MULTI, AUDIO, PODCAST,
+  STREAMER — newest first, at most 5 000 rooms. The room the win happened in is excluded by the server and, again, by
+  the app (it shows its own `lucky-win` banner; never the global copy twice).
+- **Delivery** *(CTO, D347)*: server-side fan-out, the existing pattern of every global strip (D148, D178, D254, D305):
+  one reliable LiveKit data message per room through the server SDK (`SendData`, the media provider's
+  `broadcastData`, with §10.123's retry of a briefly missing room), 8 rooms at a time. At ~500 live rooms that is
+  ~500 small calls per banner and, with the gap, at most ~50 calls a second for the whole service — no client
+  polling, no new connection, no database write. LiveKit has no multi-room send; a poll by every viewer would cost
+  far more at the same latency.
+- **Rate limit and queue** *(owner: at most one per room every 10 s)*: at most **one global banner per
+  `LUCKY_GLOBAL_BANNER_GAP_SECONDS`** (API env, default 10, 1–600) for the whole service (Redis gate
+  `lucky:ticker:gate`, shared by all API instances) — every live room gets each banner, so this is also one per room.
+  A win offered inside the gap waits in **one** slot (`lucky:ticker:pending`, at most 30 s): a bigger win (multiplier,
+  then coins) replaces the waiting one, a smaller or equal one is dropped; when the gap ends the waiting win goes out.
+  A waiting win whose live is **no longer LIVE** when its turn comes is dropped (its tap would lead nowhere). The app
+  keeps its own small line too: one banner at a time (the room banner's 3.5 s and a breath), at most 3 waiting, the
+  biggest first (the smallest dropped when full), none older than 30 s, a send seen before never again.
+- **The message** (`lucky-ticker`, topic `lucky`; additive fields):
+  `{"type":"lucky-ticker","win":{giftId, roomId, giftCode, sender: UserSummary, multiplier, coinsWon, createdAt},
+  "gift":{"code","assetKey","imageUrl"},"room":{"id","title","mode","host":UserSummary}}` — `gift` is the gift's art
+  as the send's `LiveGift` carries it (the app names it from its catalogue, else «هدية»; the art lets a viewer whose
+  catalogue has no lucky gifts still see it), `room.mode` the live's `LiveRoomMode`. An older app ignores both.
+- **The app** *(owner: reuse «شريط المردود»)*: the banner is the room's own win banner (D159's tier frames, timeline,
+  ×N, «فلان أرسل …» / «ربح ×N وحصل على …») with a tag under it: the winner's avatar, «في {room title}» (ellipsis), the
+  gift's picture and, when it opens the live, a chevron toward the reading end. It sits under the header with the
+  global strips (it steps aside while this live's own win banner shows). Reduced motion: still.
+- **Tap** *(owner)*: a viewer's tap opens that live — the app first reads it (`getLiveRoom`): ended or gone → the
+  toast «انتهى هذا البث.» and nothing moves; a **seated guest** (on a mic) is asked first («ستترك مقعدك وتنتقل إلى
+  …»); then the live opens through the normal join (its own rules: guests, bans, kicks). The same check now applies to
+  the other global strips' taps. A **host on air** (the go-live screen) sees the banner but it is **not a button**
+  (never pulled out of their own live).
+- **Privacy:** Kabso has no «mystery» / invisible / hidden-identity mode today (checked: no such setting in the schema
+  or the contract), so the winner's public `UserSummary` (as in the room's own banner) is shown. Blocks apply as for
+  every strip (a viewer never sees a banner about someone they blocked, or in a live of someone they blocked). When a
+  hidden-identity mode is added, the server must mask `win.sender` here (and in `lucky-win`).
+- **Best effort:** Redis or the media server down → no banner, never a failed send.
+

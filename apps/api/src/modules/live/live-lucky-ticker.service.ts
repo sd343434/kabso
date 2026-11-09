@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { REDIS } from '../../redis/redis.module.js';
@@ -20,21 +21,39 @@ export interface LuckyWinDto {
   createdAt: string;
 }
 
+/** v1.111-live (D347): the gift of a global banner — its code and art (the app names it from its catalogue). */
+export interface LuckyTickerGiftDto {
+  code: string;
+  assetKey: string;
+  imageUrl: string | null;
+}
+
 /**
  * v1.30-live (D148, CONVENTIONS §10.27): the data message of topic `lucky` that every other live
  * room receives for a big win — «فلان ربح ×500 في غرفة …»; the app opens `room.id` on a tap.
+ * v1.111-live (D347, §10.146): the global lucky banner — also `gift` (its art) and `room.mode`.
  */
 export interface LuckyTickerData {
   readonly type: 'lucky-ticker';
   readonly win: LuckyWinDto;
-  readonly room: { readonly id: string; readonly title: string; readonly host: UserSummaryDto };
+  readonly gift: LuckyTickerGiftDto;
+  readonly room: {
+    readonly id: string;
+    readonly title: string;
+    readonly mode: string;
+    readonly host: UserSummaryDto;
+  };
 }
 
-/** At most one global ticker per this many milliseconds (all API instances together). */
-export const LUCKY_TICKER_GAP_MS = 10_000;
+/** What waits in Redis: the win and its gift's art. */
+interface LuckyTickerOffer {
+  win: LuckyWinDto;
+  gift: LuckyTickerGiftDto;
+}
+
 /** A waiting win older than this is dropped (it would no longer be news). */
 export const LUCKY_TICKER_PENDING_TTL_MS = 30_000;
-/** Rooms told at once (each is one media-server call). */
+/** Rooms told at once (each is one media-server call; ~500 rooms → 63 rounds). */
 const BROADCAST_CONCURRENCY = 8;
 /** Never more rooms than this per ticker (a bound on one ticker's media-server calls). */
 export const LUCKY_TICKER_MAX_ROOMS = 5_000;
@@ -82,9 +101,14 @@ export function tickerRank(win: Pick<LuckyWinDto, 'multiplier' | 'coinsWon'>): n
 }
 
 /**
- * v1.30-live (D148, owner «لحظة الحظ»): a big lucky win (≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER) is told
- * to every other LIVE room as a `lucky-ticker` data message on topic `lucky` — at most one ticker
- * per {@link LUCKY_TICKER_GAP_MS} across all API instances (Redis). A win offered inside the gap
+ * v1.30-live (D148, owner «لحظة الحظ»): a big lucky win is told to every other LIVE room as a `lucky-ticker` data
+ * message on topic `lucky` — at most one ticker per gap across all API instances (Redis). v1.111-live (D347): the
+ * wins of LUCKY_GLOBAL_BANNER_MULTIPLIERS (default ×250 ×500 ×1000; was ≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER), the gap
+ * LUCKY_GLOBAL_BANNER_GAP_SECONDS (default 10 s).
+ *
+ * Delivery (D347, CONVENTIONS §10.146): one LiveKit data message per LIVE room through the server SDK (the media
+ * provider), {@link BROADCAST_CONCURRENCY} rooms at a time, newest first, at most {@link LUCKY_TICKER_MAX_ROOMS}; with
+ * the gap that is at most ~50 media calls a second at 500 rooms and no client polling. A win offered inside the gap
  * waits; while it waits a bigger win replaces it (a smaller one is dropped); when the gap ends the
  * waiting win goes out. Best effort, like every data message: Redis or the media server down → no
  * ticker, never a failed send.
@@ -99,8 +123,14 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
     private readonly prisma: PrismaService,
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly background: BackgroundTasks,
   ) {}
+
+  /** The gap between two global banners (`LUCKY_GLOBAL_BANNER_GAP_SECONDS`). */
+  private get gapMs(): number {
+    return this.config.lucky.globalBannerGapMs;
+  }
 
   onModuleDestroy(): void {
     this.stopped = true;
@@ -109,19 +139,20 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
   }
 
   /** Offers a big win: told now, or kept waiting (if it is the biggest), or dropped. */
-  async offer(win: LuckyWinDto): Promise<void> {
+  async offer(win: LuckyWinDto, gift: LuckyTickerGiftDto): Promise<void> {
     try {
+      const offer: LuckyTickerOffer = { win, gift };
       const reply = (await this.redis.eval(
         OFFER_SCRIPT,
         2,
         GATE_KEY,
         PENDING_KEY,
-        JSON.stringify(win),
+        JSON.stringify(offer),
         String(tickerRank(win)),
-        String(LUCKY_TICKER_GAP_MS),
+        String(this.gapMs),
         String(LUCKY_TICKER_PENDING_TTL_MS),
       )) as [string, number];
-      if (reply[0] === 'now') await this.tell(win);
+      if (reply[0] === 'now') await this.tell(offer);
       else this.flushIn(reply[1]);
     } catch (err) {
       this.logger.warn({ error: safeErrorLog(err) }, 'Could not offer a lucky ticker');
@@ -131,16 +162,11 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
   /** Sends the waiting win when the gap is over (also run by the timer). */
   async flush(): Promise<void> {
     try {
-      const reply = (await this.redis.eval(
-        FLUSH_SCRIPT,
-        2,
-        GATE_KEY,
-        PENDING_KEY,
-        String(LUCKY_TICKER_GAP_MS),
-      )) as [] | ['go', string] | ['wait', number];
+      const reply = (await this.redis.eval(FLUSH_SCRIPT, 2, GATE_KEY, PENDING_KEY, String(this.gapMs))) as
+        [] | ['go', string] | ['wait', number];
       if (reply[0] === 'go') {
         const raw = reply[1];
-        await this.tell(JSON.parse(raw.slice(raw.indexOf('|') + 1)) as LuckyWinDto);
+        await this.tell(JSON.parse(raw.slice(raw.indexOf('|') + 1)) as LuckyTickerOffer);
       } else if (reply[0] === 'wait') {
         this.flushIn(reply[1]);
       }
@@ -159,17 +185,23 @@ export class LiveLuckyTickerService implements OnModuleDestroy {
     this.timer.unref();
   }
 
-  /** The `lucky-ticker` message to every LIVE room but the win's own (it has the big card). */
-  private async tell(win: LuckyWinDto): Promise<void> {
+  /**
+   * The `lucky-ticker` message to every LIVE room but the win's own (it has the room's banner), every mode.
+   * v1.111-live (D347): a win whose live ended before its turn (it waited in the gap) is dropped — its tap would
+   * lead nowhere.
+   */
+  private async tell(offer: LuckyTickerOffer): Promise<void> {
+    const { win } = offer;
     const origin = await this.prisma.liveRoom.findUnique({
       where: { id: win.roomId },
-      select: { id: true, title: true, host: { select: USER_SUMMARY_SELECT } },
+      select: { id: true, title: true, status: true, mode: true, host: { select: USER_SUMMARY_SELECT } },
     });
-    if (!origin) return;
+    if (origin?.status !== 'LIVE') return;
     const data: LuckyTickerData = {
       type: 'lucky-ticker',
       win,
-      room: { id: origin.id, title: origin.title, host: userSummary(origin.host) },
+      gift: offer.gift,
+      room: { id: origin.id, title: origin.title, mode: origin.mode, host: userSummary(origin.host) },
     };
     const payload = JSON.stringify(data);
     const rooms = await this.prisma.liveRoom.findMany({

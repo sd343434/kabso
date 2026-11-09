@@ -10,7 +10,6 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_viewer_prefs.dart';
-import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
@@ -241,12 +240,15 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
   }
 }
 
-/// D148 («لحظة الحظ», owner): the compact gold ticker of a big lucky win
-/// in another live — «فلان ربح ×500 في غرفة …» — under the room's header,
-/// for [LiveLuckyTickers.showTime]. A tap opens that live ([onOpenRoom];
-/// none: not a button). Slides down and fades in; with reduced motion it
-/// just appears. Hidden while [luckyTickerHiddenProvider] says so (the
-/// viewer's switch comes in D151).
+/// D148 («لحظة الحظ», owner) and D347 (owner: «شريط المردود يظهر في كل
+/// لايفات للشريط x250 / x500 / x1000», CONVENTIONS §10.146): the global lucky
+/// banner — a ×250 / ×500 / ×1000 win in another live — drawn as the room's
+/// own win banner «شريط المردود» ([LiveWinBanner], the same frames and
+/// timeline) with a tag under it: the winner, «في {room}» and the gift. A tap
+/// opens that live ([onOpenRoom]; the caller checks it is still live and
+/// asks a seated guest first); none (a host on air): it takes no taps. With
+/// reduced motion it shows still. Hidden while [luckyTickerHiddenProvider]
+/// says so (the viewer's switch comes in D151).
 class LiveLuckyTickerBar extends ConsumerWidget {
   const new({required this.roomId, super.key, this.onOpenRoom});
 
@@ -255,135 +257,43 @@ class LiveLuckyTickerBar extends ConsumerWidget {
 
   static const tickerKey = Key('gift.lucky.ticker');
 
-  /// The bar's widest (narrower screens: their width less the margins).
-  static const double maxWidth = 340;
-
-  static const _gold = [
-    Color(0xFFFFF3B0),
-    Color(0xFFFFC93C),
-    Color(0xFFFF9F1E),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Always watched (the controller keeps its subscription while hidden).
     final current = ref.watch(liveLuckyTickersProvider(roomId));
-    final ticker = ref.watch(luckyTickerHiddenProvider) ? null : current;
-    final still = MediaQuery.disableAnimationsOf(context);
-    return AnimatedSwitcher(
-      duration: still ? Duration.zero : const Duration(milliseconds: 320),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween(
-            begin: const Offset(0, -0.6),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-          child: child,
-        ),
-      ),
-      child: ticker == null
-          ? const SizedBox.shrink()
-          : _bar(context, ref, ticker),
-    );
-  }
-
-  Widget _bar(BuildContext context, WidgetRef ref, LuckyTicker ticker) {
-    final l10n = context.l10n;
-    final styles = context.textStyles;
-    final win = ticker.win;
-    final scaler = MediaQuery.textScalerOf(context)
-        .clamp(minScaleFactor: 1, maxScaleFactor: 1.3);
+    final banner = ref.watch(luckyTickerHiddenProvider) ? null : current;
+    if (banner == null) return const SizedBox.shrink();
+    final win = banner.win;
+    final catalogue = ref.watch(giftCatalogueProvider).value;
+    final known = catalogue?.byCode(win.giftCode);
+    final art =
+        banner.gift ??
+        (known == null
+            ? null
+            : LuckyTickerGift(
+                code: known.code,
+                assetKey: known.assetKey,
+                imageUrl: known.imageUrl,
+              ));
     final open = onOpenRoom;
-    final text = l10n.liveLuckyTicker(
-      KFormat.bidiIsolate(win.sender.displayName),
-      KFormat.grouped(win.multiplier),
-      KFormat.bidiIsolate(ticker.room.title),
-    );
-    // D159: the line takes its win's tier colours (the frame's jewel and
-    // glow) in the gold rim.
-    final art = LuckyWinTierArt.of(LuckyWinTier.of(win.multiplier));
-    final bar = Container(
-      constraints: const BoxConstraints(maxWidth: maxWidth, minHeight: 36),
-      padding: const EdgeInsetsDirectional.fromSTEB(3, 3, KSpacing.md, 3),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KRadius.pill),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            art.panelTop.withValues(alpha: .95),
-            art.panelBottom.withValues(alpha: .95),
-          ],
-        ),
-        border: Border.all(color: const Color(0xFFFFC93C), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: art.glow.withValues(alpha: .5), blurRadius: 14),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(1.5),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(colors: _gold),
-            ),
-            child: KAvatar(
-              name: win.sender.displayName,
-              imageUrl: win.sender.avatarUrl,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: KSpacing.sm),
-          Flexible(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: scaler,
-              style: styles.label.copyWith(
-                color: const Color(0xFFFFE27A),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          if (open != null) ...[
-            const SizedBox(width: KSpacing.xs),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: Color(0xFFFFC93C),
-            ),
-          ],
-        ],
+    return KeyedSubtree(
+      key: tickerKey,
+      child: LiveWinBanner(
+        // A new banner restarts the timeline.
+        key: ValueKey('ticker.${win.giftId}'),
+        win: win,
+        giftName: known?.name,
+        width: LiveWinBanner.widthOn(MediaQuery.sizeOf(context).width),
+        roomTitle: banner.room.title,
+        gift: art,
+        onTap: open == null
+            ? null
+            : () {
+                ref.read(liveLuckyTickersProvider(roomId).notifier).dismiss();
+                open(banner.room.id);
+              },
       ),
     );
-    return Semantics(
-      key: ValueKey('ticker.${win.giftId}'),
-      container: true,
-      liveRegion: true,
-      button: open != null,
-      label: text,
-      excludeSemantics: true,
-      onTap: open == null ? null : () => _open(ref, ticker, open),
-      child: KeyedSubtree(
-        key: tickerKey,
-        child: open == null
-            ? bar
-            : GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _open(ref, ticker, open),
-                child: bar,
-              ),
-      ),
-    );
-  }
-
-  void _open(WidgetRef ref, LuckyTicker ticker, ValueChanged<String> open) {
-    ref.read(liveLuckyTickersProvider(roomId).notifier).dismiss();
-    open(ticker.room.id);
   }
 }
 

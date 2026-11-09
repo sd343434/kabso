@@ -7559,6 +7559,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveLuckyGlobalIn(String room) {
+    return 'in $room';
+  }
+
+  @override
+  String liveLuckyGlobalLeaveSeat(String room) {
+    return 'You will leave your seat and go to $room. Continue?';
+  }
+
+  @override
+  String get liveLuckyGlobalGo => 'Go';
+
+  @override
   String get dmTabChats => 'Chats';
 
   @override
