@@ -9981,8 +9981,12 @@ Owner (2026-11-08): «عند لعب محظوظ تظهر مكاسب صغيرة ف
 Owner (2026-11-08, from a device: the 500 000-coin «الملاك المحارب» `angel_warrior`, an SVGA, showed the room's header
 above it and looked cropped): «the full-screen gift must appear filling the whole screen».
 
-- A gift effect is **full screen** when the gift carries the «شاشة كاملة» badge (`FULLSCREEN`, D289) **or** its SVGA
-  canvas is portrait at least 1.5 : 1 (the panel's own `looksFullscreen` rule; `angel_warrior` is 750 × 1624). Its own
+- *(D324, owner «نعم»: full screen **only** with the badge — the shape rule below is withdrawn.)* A gift's SVGA effect
+  is **full screen** when, and only when, the gift carries the «شاشة كاملة» badge (`FULLSCREEN`, D289, running), set by
+  the admin in the panel. A portrait canvas without the badge (D317 also counted any canvas ≥ 1.5 : 1, e.g.
+  `angel_warrior`'s 750 × 1624) keeps the normal fit. The panel's `looksFullscreen` (§10.102.3) still only
+  **pre-selects** the badge on upload («تلقائي»); the admin decides and saves it. A **plain** MP4 (`alpha` NONE) is
+  unchanged: it is always full screen by D207's owner answer («played full screen as is», §10.66, D309). Its own
   canvas (`viewBoxWidth` × `viewBoxHeight`) is then scaled to **cover** the whole live screen, centred, its aspect kept —
   a canvas of another shape loses equal strips at two opposite edges, never leaves a band of the room — on the effects
   layer above the header and the chat; what the movie leaves transparent stays transparent. The same rule as D309's

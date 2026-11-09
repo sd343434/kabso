@@ -1,10 +1,12 @@
 // D317 (owner, from a device: the 500 000-coin «الملاك المحارب»
 // `angel_warrior` — an SVGA — showed the room's header above it and looked
 // cropped; «the full-screen gift must appear filling the whole screen»): a
-// full-screen SVGA (the gift's «شاشة كاملة» badge, D289, or a portrait
-// canvas ≥ 1.5 : 1) covers the whole live screen with its own canvas,
+// full-screen SVGA covers the whole live screen with its own canvas,
 // centred, its aspect kept — like D309's plain MP4. Other effects keep the
 // D145d fit (full width on the bottom edge).
+//
+// D324 (owner: «نعم»): full screen ONLY with the gift's «شاشة كاملة» badge
+// (D289); a portrait canvas without the badge keeps the normal fit.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,21 +29,6 @@ import '../../helpers/pump_app.dart';
 const _movieKey = Key('d317.movie');
 
 void main() {
-  test("the «شاشة كاملة» shape rule (the panel's looksFullscreen)", () {
-    expect(KGiftFullScreenFrame.looksFullScreen(const Size(750, 1624)), isTrue);
-    expect(KGiftFullScreenFrame.looksFullScreen(const Size(720, 1080)), isTrue);
-    expect(
-      KGiftFullScreenFrame.looksFullScreen(const Size(750, 1000)),
-      isFalse,
-    );
-    expect(KGiftFullScreenFrame.looksFullScreen(const Size(750, 750)), isFalse);
-    expect(
-      KGiftFullScreenFrame.looksFullScreen(const Size(1624, 750)),
-      isFalse,
-    );
-    expect(KGiftFullScreenFrame.looksFullScreen(Size.zero), isFalse);
-  });
-
   for (final language in AppLanguage.values) {
     for (final viewport in GoldenViewport.values) {
       final screen = Offset.zero & viewport.logicalSize;
@@ -91,6 +78,61 @@ void main() {
           expect(tester.takeException(), isNull);
         });
       }
+
+      testWidgets('$tag: D324 — a portrait 750 × 1624 canvas WITHOUT the '
+          'badge keeps the normal fit (full width, on the bottom edge)', (
+        tester,
+      ) async {
+        setViewport(tester, viewport);
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: language == AppLanguage.ar
+                ? TextDirection.rtl
+                : TextDirection.ltr,
+            child: giftSvgaFrame(
+              viewBox: const Size(750, 1624),
+              fullScreen: false,
+              child: const SizedBox.expand(key: _movieKey),
+            ),
+          ),
+        );
+        expect(find.byKey(KGiftFullScreenFrame.frameKey), findsNothing);
+        expect(find.byType(KGiftMovieFrame), findsOneWidget);
+        final drawn = tester.getRect(find.byKey(_movieKey));
+        expect(drawn.left, closeTo(0, 0.01));
+        expect(drawn.width, closeTo(screen.width, 0.01));
+        expect(drawn.height, closeTo(screen.width * 1624 / 750, 0.01));
+        expect(drawn.bottom, closeTo(screen.bottom, 0.01));
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('$tag: D324 — the same canvas WITH the badge covers the '
+          'whole screen', (tester) async {
+        setViewport(tester, viewport);
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: language == AppLanguage.ar
+                ? TextDirection.rtl
+                : TextDirection.ltr,
+            child: giftSvgaFrame(
+              viewBox: const Size(750, 1624),
+              fullScreen: true,
+              child: const SizedBox.expand(key: _movieKey),
+            ),
+          ),
+        );
+        expect(
+          tester.getRect(find.byKey(KGiftFullScreenFrame.frameKey)),
+          screen,
+        );
+        final drawn = tester.getRect(find.byKey(_movieKey));
+        expect(drawn.left, lessThanOrEqualTo(0.01));
+        expect(drawn.top, lessThanOrEqualTo(0.01));
+        expect(drawn.right, greaterThanOrEqualTo(screen.right - 0.01));
+        expect(drawn.bottom, greaterThanOrEqualTo(screen.bottom - 0.01));
+        expect(drawn.center.dy, closeTo(screen.center.dy, 0.01));
+        expect(tester.takeException(), isNull);
+      });
 
       testWidgets('$tag: a non-full-screen effect keeps the D145d fit (full '
           'width, on the bottom edge)', (tester) async {
@@ -164,7 +206,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('a gift without the badge keeps the shape rule only', (
+    testWidgets('a gift without the badge is not full screen (D324)', (
       tester,
     ) async {
       await play(tester, badge: false);
