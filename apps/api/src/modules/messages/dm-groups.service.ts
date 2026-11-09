@@ -30,7 +30,7 @@ import {
   type DmMessagesQuery,
 } from './dm.schemas.js';
 
-// ---- Response shapes (openapi v1.103-social, D339, CONVENTIONS §10.133) -----------------------------------------
+// ---- Response shapes (openapi v1.104-social, D339, CONVENTIONS §10.133) -----------------------------------------
 
 export type DmGroupRoleDto = 'ADMIN' | 'MEMBER';
 

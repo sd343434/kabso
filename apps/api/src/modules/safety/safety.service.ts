@@ -94,7 +94,7 @@ export interface ReportDto {
   reporter?: UserSummaryDto;
   /** v1.40-social (D155): admin views of DM_MESSAGE reports. */
   dmSnapshot?: DmSnapshotDto;
-  /** v1.103-social (D339): admin views of DM_GROUP reports — the group as it was when reported. */
+  /** v1.104-social (D339): admin views of DM_GROUP reports — the group as it was when reported. */
   dmGroupSnapshot?: DmGroupSnapshotDto;
   /** v1.47-social (D175): admin views of PROFILE_LINK reports — what the link was. */
   linkSnapshot?: ProfileLinkSnapshot;
@@ -376,7 +376,7 @@ export class SafetyService {
     // v1.47-social (D175): a profile link is kept as a snapshot (its owner may edit it away).
     const link =
       input.targetType === 'PROFILE_LINK' ? await this.reportableLink(reporterId, input.targetId) : null;
-    // v1.103-social (D339): a group the reporter belongs to, kept as a snapshot (its messages live 24 h).
+    // v1.104-social (D339): a group the reporter belongs to, kept as a snapshot (its messages live 24 h).
     let group: DmGroupSnapshot | null = null;
     if (input.targetType === 'DM_GROUP') {
       if (!isUuid(input.targetId)) throw new AppException(ErrorCode.NOT_FOUND);
@@ -789,7 +789,7 @@ export class SafetyService {
           await removeDmMessageIn(tx, report.targetDmMessageId, new Date());
         }
         if (report.targetDmGroupId) {
-          // v1.103-social (D339): the group is removed for everyone and its messages expire now; the report keeps its
+          // v1.104-social (D339): the group is removed for everyone and its messages expire now; the report keeps its
           // snapshot. The photo's files go after the commit.
           const removed = await removeDmGroupIn(tx, report.targetDmGroupId, new Date());
           if (removed.photoMediaId) removedGroupPhotos.push(removed.photoMediaId);

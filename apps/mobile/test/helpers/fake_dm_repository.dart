@@ -39,7 +39,7 @@ class FakeDmRepository implements DmRepository {
 
   DmUnread unreadCounts = const DmUnread();
 
-  /// v1.103-social (D339): the caller's groups by id (in «الدردشات» or
+  /// v1.104-social (D339): the caller's groups by id (in «الدردشات» or
   /// «المؤرشفة» with the conversations).
   final Map<String, DmGroup> groups = {};
 

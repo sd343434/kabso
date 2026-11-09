@@ -25,7 +25,7 @@ import {
 const DM_SEND = { bucket: 'dm:send', rule: 'dmSendUser', key: byUserId, replacesDefault: true } as const;
 /** D155 (§7): the other writes, 300 / hour per user. */
 const DM_WRITE = { bucket: 'dm:write', rule: 'dmWriteUser', key: byUserId, replacesDefault: true } as const;
-/** v1.103-social (D339, §7): new groups, 10 / day per user. */
+/** v1.104-social (D339, §7): new groups, 2 / day per user (owner, D339). */
 const DM_GROUP_CREATE = {
   bucket: 'dm:group',
   rule: 'dmGroupCreateUser',
@@ -34,7 +34,7 @@ const DM_GROUP_CREATE = {
 } as const;
 
 /**
- * Group messages «رسائل جماعية» (contract v1.103-social draft, D339, CONVENTIONS §10.133). Every route needs a token;
+ * Group messages «رسائل جماعية» (contract v1.104-social draft, D339, CONVENTIONS §10.133). Every route needs a token;
  * reads use the per-user default rate limit.
  */
 @Controller('dm')

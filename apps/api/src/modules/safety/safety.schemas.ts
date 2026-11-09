@@ -46,7 +46,7 @@ export const createReportSchema = z.strictObject({
     'DM_MESSAGE',
     // v1.47-social (D175): a link on someone's profile (`targetId` the link's id, §10.47).
     'PROFILE_LINK',
-    // v1.103-social (D339): a group conversation the reporter belongs to (`targetId` the group's id, §10.133).
+    // v1.104-social (D339): a group conversation the reporter belongs to (`targetId` the group's id, §10.133).
     'DM_GROUP',
   ]),
   targetId: z.string().min(1).max(64),

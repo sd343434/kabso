@@ -205,7 +205,7 @@ class DmConversation {
   /// v1.43.1-social (D165): the caller marked it unread (a dot until read).
   final bool markedUnread;
 
-  /// v1.103-social (D339): the caller archived it «المؤرشفة».
+  /// v1.104-social (D339): the caller archived it «المؤرشفة».
   final bool archived;
 
   /// Unread for the caller: unread messages or the mark (D165).
@@ -302,7 +302,7 @@ class DmUnread {
   final int conversations;
   final int requests;
 
-  /// v1.103-social (D339): unread group messages (not muted or archived).
+  /// v1.104-social (D339): unread group messages (not muted or archived).
   final int groups;
 
   /// The tab badge: direct and group messages, capped at 99.
@@ -410,7 +410,7 @@ final class DmOutgoingMedia extends DmOutgoing {
   final bool voice;
 }
 
-// ---- v1.103-social (DRAFT, D339): archived chats and group messages ------
+// ---- v1.104-social (DRAFT, D339): archived chats and group messages ------
 // (CONVENTIONS §10.132, §10.133).
 
 /// `DmGroupRole`.

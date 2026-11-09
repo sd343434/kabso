@@ -367,6 +367,26 @@ void main() {
     });
   });
 
+  group('the daily limit (owner: 2 new groups a day)', () {
+    testWidgets('a 3rd group the same day is refused by the server (429): '
+        'the screen says so, stays, and creates nothing', (tester) async {
+      final groups = _groups()
+        ..failNext['create'] = FakeDmRepository().failure(
+          ErrorCode.rateLimited,
+          status: 429,
+        );
+      await _pump(tester, const NewGroupScreen(), groups: groups);
+      await tester.enterText(find.byKey(NewGroupScreen.nameKey), 'Third');
+      await tester.tap(find.byKey(NewGroupScreen.personKey('nour')));
+      await tester.tap(find.byKey(NewGroupScreen.submitKey));
+      await tester.pumpAndSettle();
+      expect(groups.calls, contains('create:Third:nour:-'));
+      expect(find.text(en.errorRateLimited), findsOneWidget);
+      expect(_visited, isEmpty);
+      expect(find.byType(NewGroupScreen), findsOneWidget);
+    });
+  });
+
   group('a group conversation', () {
     for (final language in AppLanguage.values) {
       testWidgets("the name and member count, the sender over the others' "

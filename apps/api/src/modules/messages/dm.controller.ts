@@ -51,7 +51,7 @@ export class DmController {
     return this.dm.list(auth.userId, query);
   }
 
-  /** v1.103-social (D339): «الدردشات» / «المؤرشفة» — conversations and groups together. */
+  /** v1.104-social (D339): «الدردشات» / «المؤرشفة» — conversations and groups together. */
   @Get('chats')
   chats(
     @CurrentAuth() auth: AuthContext,
@@ -151,7 +151,7 @@ export class DmController {
     return this.dm.setMuted(auth.userId, conversationId, false);
   }
 
-  /** v1.103-social (D339): archive the conversation for the caller «المؤرشفة». */
+  /** v1.104-social (D339): archive the conversation for the caller «المؤرشفة». */
   @Put('conversations/:conversationId/archive')
   @HttpCode(204)
   @RateLimit(DM_WRITE)

@@ -21,7 +21,7 @@ abstract interface class DmRepository {
     String? query,
   });
 
-  /// v1.103-social (D339): `GET /dm/chats?box=CHATS|ARCHIVED` — the
+  /// v1.104-social (D339): `GET /dm/chats?box=CHATS|ARCHIVED` — the
   /// conversations and groups of «الدردشات» (or «المؤرشفة» with
   /// [archived]), newest first; [query] a prefix of a peer's or a group's
   /// name.
@@ -31,7 +31,7 @@ abstract interface class DmRepository {
     String? query,
   });
 
-  /// v1.103-social (D339): `PUT` / `DELETE /dm/conversations/{id}/archive`.
+  /// v1.104-social (D339): `PUT` / `DELETE /dm/conversations/{id}/archive`.
   Future<void> setArchived(String conversationId, {required bool archived});
 
   /// `GET /dm/unread`: the Messages tab badge and the requests count.

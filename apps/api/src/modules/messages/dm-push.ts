@@ -10,7 +10,7 @@ export function dmTag(conversationId: string): string {
   return `dm:${conversationId}`;
 }
 
-/** v1.103-social (D339): the Android tag (and the group id in the app) of a group conversation. */
+/** v1.104-social (D339): the Android tag (and the group id in the app) of a group conversation. */
 export function dmGroupTag(groupId: string): string {
   return `dmg:${groupId}`;
 }
@@ -82,7 +82,7 @@ export class DmPush {
   ) {}
 
   /**
-   * v1.103-social (D339, CONVENTIONS §10.133): a new group message to every other member who is ACTIVE, keeps
+   * v1.104-social (D339, CONVENTIONS §10.133): a new group message to every other member who is ACTIVE, keeps
    * `messages` on, has not muted the group or the sender, and has no block either way with the sender; one per member
    * per group per `PUSH_MESSAGES_GAP_SECONDS`. Title: the group's name; body: «<sender>: <message>». Returns how many
    * devices accepted it.
@@ -142,7 +142,7 @@ export class DmPush {
   }
 
   /**
-   * v1.103-social (D339): «<adder> أضافك إلى <group>» / "<adder> added you to <group>" to the people just added (ACTIVE,
+   * v1.104-social (D339): «<adder> أضافك إلى <group>» / "<adder> added you to <group>" to the people just added (ACTIVE,
    * `messages` on). Returns how many devices accepted it.
    */
   async addedToGroup(input: {

@@ -335,7 +335,7 @@ export class AdminModerationService {
       };
     }
     if (r.targetDmGroupId) {
-      // v1.103-social (D339): a group — its name as it was when reported (the snapshot; the group may be gone since).
+      // v1.104-social (D339): a group — its name as it was when reported (the snapshot; the group may be gone since).
       const s = (r.dmSnapshot ?? {}) as { creatorId?: unknown; name?: unknown };
       return {
         authorId: typeof s.creatorId === 'string' ? s.creatorId : null,

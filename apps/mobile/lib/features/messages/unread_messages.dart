@@ -5,7 +5,7 @@ import 'package:kabso_live/features/messages/application/dm_providers.dart';
 /// unread direct messages in accepted conversations that are not muted
 /// (`GET /dm/unread`, capped at 99; the bar shows "99+"). Message requests
 /// are counted apart (`DmUnread.requests`) and never badge the tab. 0 when
-/// signed out or with demo data (no server). v1.103-social (D339): unread
+/// signed out or with demo data (no server). v1.104-social (D339): unread
 /// group messages count too (`DmUnread.groups`); archived chats do not.
 final Provider<int> unreadMessagesProvider = Provider<int>(
   (ref) => ref.watch(dmUnreadProvider.select((u) => u.badge)),

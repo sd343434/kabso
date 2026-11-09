@@ -371,7 +371,7 @@ export class StaffReportActionsService {
       return out;
     }
     if (r.targetType === 'DM_GROUP') {
-      // v1.103-social (D339): a group — the frozen snapshot (its name and the messages the reporter could read).
+      // v1.104-social (D339): a group — the frozen snapshot (its name and the messages the reporter could read).
       out.text = base.text;
       out.dm = {
         snapshot: null,
@@ -412,7 +412,7 @@ export class StaffReportActionsService {
   async dmThread(reportId: string, ctx: AdminContext): Promise<StaffReportDmThreadDto> {
     const r = await this.prisma.report.findUnique({ where: { id: reportId } });
     const dmReport = r?.targetType === 'DM_MESSAGE';
-    // v1.103-social (D339): a group report keeps the group's messages the same way.
+    // v1.104-social (D339): a group report keeps the group's messages the same way.
     const groupReport = r?.targetType === 'DM_GROUP';
     if (!r || (!dmReport && !groupReport && (r.targetType !== 'USER' || r.dmSnapshot === null)))
       throw new AppException(ErrorCode.NOT_FOUND);

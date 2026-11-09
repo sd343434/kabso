@@ -6,7 +6,7 @@ import 'package:kabso_live/features/messages/data/dm_groups_repository.dart';
 import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:material_ui/material_ui.dart' show immutable;
 
-/// v1.103-social (D339, CONVENTIONS §10.133): one group as its screen shows
+/// v1.104-social (D339, CONVENTIONS §10.133): one group as its screen shows
 /// it — the group's state for the caller and its messages, newest first.
 @immutable
 class DmGroupChatState {

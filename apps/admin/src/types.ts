@@ -326,7 +326,7 @@ export interface PanelReport {
   reporter?: { id: string; username: string; displayName: string; avatarUrl: string | null };
   dmSnapshot?: { text: string | null; sender: string | null; mediaUrl: string | null };
   linkSnapshot?: { username: string; url: string; label: string | null };
-  /** v1.103-social (D339): a DM_GROUP report — the group as it was when reported. */
+  /** v1.104-social (D339): a DM_GROUP report — the group as it was when reported. */
   dmGroupSnapshot?: {
     name: string | null;
     memberCount: number;

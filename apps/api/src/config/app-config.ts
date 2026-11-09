@@ -191,7 +191,7 @@ export interface AppConfig {
     readonly dmSendUser: RateLimitRule;
     readonly dmRequestUser: RateLimitRule;
     readonly dmWriteUser: RateLimitRule;
-    /** v1.103-social (D339): new groups (per user). */
+    /** v1.104-social (D339): new groups (per user). */
     readonly dmGroupCreateUser: RateLimitRule;
     /** v1.48-social (D171): bag item sends (per user). */
     readonly bagSendUser: RateLimitRule;
@@ -477,7 +477,7 @@ export interface AppConfig {
     readonly deleteForEveryoneSeconds: number;
     /** Percent of a non-lucky gift's value counted for the recipient's charm. */
     readonly giftRecipientSharePercent: number;
-    /** v1.103-social (D339): the most members of a group, its creator included. */
+    /** v1.104-social (D339): the most members of a group, its creator included. */
     readonly groupMaxMembers: number;
   };
   /** v1.48-social (D171) the bag (CONVENTIONS §10.45). */

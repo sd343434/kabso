@@ -76,7 +76,7 @@ export interface DmConversationDto {
   muted: boolean;
   /** v1.43.1-social (D165). */
   markedUnread: boolean;
-  /** v1.103-social (D339): the caller archived it «المؤرشفة». */
+  /** v1.104-social (D339): the caller archived it «المؤرشفة». */
   archived: boolean;
   unreadCount: number;
   lastMessage: DmMessageDto | null;
@@ -94,11 +94,11 @@ export interface DmUnreadDto {
   messages: number;
   conversations: number;
   requests: number;
-  /** v1.103-social (D339): unread messages in the caller's groups that are not muted or archived (≤ 99). */
+  /** v1.104-social (D339): unread messages in the caller's groups that are not muted or archived (≤ 99). */
   groups: number;
 }
 
-/** v1.103-social (D339): one row of «الدردشات» / «المؤرشفة» — a direct conversation or a group. */
+/** v1.104-social (D339): one row of «الدردشات» / «المؤرشفة» — a direct conversation or a group. */
 export interface DmChatDto {
   type: 'DIRECT' | 'GROUP';
   id: string;
@@ -428,7 +428,7 @@ export class DmService {
         JOIN users u ON u.id = p.peer_id AND u.status = 'ACTIVE'::user_status
        WHERE p.user_id = ${callerId}::uuid
          AND p.status = ${status}::dm_participant_status
-         -- v1.103-social (D339): archived conversations leave the inbox («المؤرشفة», listDmChats).
+         -- v1.104-social (D339): archived conversations leave the inbox («المؤرشفة», listDmChats).
          AND p.archived_at IS NULL
          AND (${prefix === null} OR EXISTS (
                SELECT 1 FROM user_profiles up
@@ -514,7 +514,7 @@ export class DmService {
   }
 
   /**
-   * v1.103-social (D339, CONVENTIONS §10.132–§10.133): `GET /dm/chats` — «الدردشات» (CHATS: accepted conversations,
+   * v1.104-social (D339, CONVENTIONS §10.132–§10.133): `GET /dm/chats` — «الدردشات» (CHATS: accepted conversations,
    * the requests the caller sent, and their groups) or «المؤرشفة» (ARCHIVED), newest activity first, one keyset cursor
    * over both kinds. `q`: a prefix of the peer's username or display name, or of the group's name.
    */
@@ -770,7 +770,7 @@ export class DmService {
       ON CONFLICT (conversation_id, user_id) DO UPDATE
          SET status = CASE WHEN ${asRequest} THEN dm_participants.status ELSE 'ACCEPTED'::dm_participant_status END,
              last_message_at = GREATEST(dm_participants.last_message_at, EXCLUDED.last_message_at),
-             -- v1.103-social (D339): a message from the peer brings an archived conversation back «المؤرشفة».
+             -- v1.104-social (D339): a message from the peer brings an archived conversation back «المؤرشفة».
              archived_at = NULL`;
     const id = uuidv7();
     const c = input.content;
@@ -1029,7 +1029,7 @@ export class DmService {
   }
 
   /**
-   * v1.103-social (D339): `PUT` / `DELETE /dm/conversations/{id}/archive` «المؤرشفة», for the caller only (idempotent).
+   * v1.104-social (D339): `PUT` / `DELETE /dm/conversations/{id}/archive` «المؤرشفة», for the caller only (idempotent).
    * A message request waiting for the caller cannot be archived (409 `DM_NOT_ARCHIVABLE`: accept or delete it).
    */
   async setArchived(callerId: string, conversationId: string, archived: boolean): Promise<void> {

@@ -231,7 +231,7 @@ model User {
   dmSent                 DmMessage[]                @relation("DmMessageSender")
   dmReceived             DmMessage[]                @relation("DmMessageRecipient")
   dmHides                DmMessageHide[]
-  // v1.103-social (D339): group messages «رسائل جماعية».
+  // v1.104-social (D339): group messages «رسائل جماعية».
   dmGroupsCreated        DmGroup[]                  @relation("DmGroupCreator")
   dmGroupMemberships     DmGroupMember[]            @relation("DmGroupMemberUser")
   dmGroupMessagesSent    DmGroupMessage[]           @relation("DmGroupMessageSender")
@@ -1700,7 +1700,7 @@ enum ReportTargetType {
   DM_MESSAGE
   /// v1.47-social (D175): a link on someone's profile (kept as a snapshot: links can be edited).
   PROFILE_LINK
-  /// v1.103-social (D339): a group conversation (kept as a snapshot: its messages live 24 h).
+  /// v1.104-social (D339): a group conversation (kept as a snapshot: its messages live 24 h).
   DM_GROUP
 
   @@map("report_target_type")
@@ -1790,7 +1790,7 @@ model MediaAsset {
   homeBannerVideo HomeBanner?        @relation("HomeBannerVideo")
   /// D155: a direct message's picture or voice clip.
   dmMessage       DmMessage?
-  /// v1.103-social (D339): a group message's picture or voice clip, and a group's photo.
+  /// v1.104-social (D339): a group message's picture or voice clip, and a group's photo.
   dmGroupMessage  DmGroupMessage?
   dmGroupPhoto    DmGroup?           @relation("DmGroupPhoto")
   /// D168: a profile photo.
@@ -2126,7 +2126,7 @@ model Report {
   /// the report keeps `dm_snapshot` (cleared 30 days after the report is resolved).
   targetDmMessageId         String?          @map("target_dm_message_id") @db.Uuid
   dmSnapshot                Json?            @map("dm_snapshot")
-  /// v1.103-social (D339): a group conversation — no foreign key (like a direct message); `dm_snapshot` keeps the
+  /// v1.104-social (D339): a group conversation — no foreign key (like a direct message); `dm_snapshot` keeps the
   /// group as it was when reported (name, members, its newest messages), cleared 30 days after resolution.
   targetDmGroupId           String?          @map("target_dm_group_id") @db.Uuid
   /// v1.47-social (D175): a profile link — no foreign key (the owner may edit it away); the report
@@ -3946,7 +3946,7 @@ model DmParticipant {
   muted          Boolean             @default(false)
   /// v1.43.1-social (D165): the user marked it unread (cleared by reading it).
   markedUnread   Boolean             @default(false) @map("marked_unread")
-  /// v1.103-social (D339): archived by this user «المؤرشفة» (null: not archived); a message from the peer clears it.
+  /// v1.104-social (D339): archived by this user «المؤرشفة» (null: not archived); a message from the peer clears it.
   archivedAt     DateTime?           @map("archived_at") @db.Timestamptz(3)
   hasSent        Boolean             @default(false) @map("has_sent")
   requestSent    Int                 @default(0) @map("request_sent")
@@ -4012,7 +4012,7 @@ model DmMessageHide {
 }
 
 // ---------------------------------------------------------------------------------------------
-// v1.103-social (DRAFT, D339, CONVENTIONS §10.133): group messages «رسائل جماعية». CHECKs in migration
+// v1.104-social (DRAFT, D339, CONVENTIONS §10.133): group messages «رسائل جماعية». CHECKs in migration
 // 20270411090100_dm_archive_groups.
 
 /// D339: a member's place in a group (ADMIN: add / remove members, rename, the photo, roles).

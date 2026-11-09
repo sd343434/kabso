@@ -261,7 +261,7 @@ const ar = {
   typeFAMILY_CHAT_MESSAGE: 'رسالة عائلة',
   typeDM_MESSAGE: 'رسالة خاصة',
   typePROFILE_LINK: 'رابط في الملف',
-  // v1.103-social (D339): a group conversation «رسائل جماعية».
+  // v1.104-social (D339): a group conversation «رسائل جماعية».
   typeDM_GROUP: 'مجموعة رسائل',
   repGroupMembers: 'الأعضاء ({n}): {names}',
   repGroupMessages: 'آخر الرسائل وقت البلاغ ({n})',

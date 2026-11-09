@@ -81,7 +81,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.dmRequestLimit: 403,
   ErrorCode.dmRequestTextOnly: 403,
   ErrorCode.dmDeleteWindowPassed: 409,
-  // v1.103-social (D339).
+  // v1.104-social (D339).
   ErrorCode.dmNotArchivable: 409,
   ErrorCode.dmGroupFull: 409,
   ErrorCode.dmGroupMemberNotAllowed: 403,
@@ -262,7 +262,7 @@ void main() {
           'DM_REQUEST_LIMIT',
           'DM_REQUEST_TEXT_ONLY',
           'DM_DELETE_WINDOW_PASSED',
-          // v1.103-social (D339)
+          // v1.104-social (D339)
           'DM_NOT_ARCHIVABLE',
           'DM_GROUP_FULL',
           'DM_GROUP_MEMBER_NOT_ALLOWED',

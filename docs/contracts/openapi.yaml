@@ -968,7 +968,7 @@ info:
     panel: `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`,
     `getAdminHostTargets` (`host_targets.view` / `host_targets.edit`, OWNER only, audited). Additive (CONVENTIONS
     §10.62.2, §10.41.4).
-    **D339 (DRAFT v1.103-social)**: archived chats «المؤرشفة» and group messages «رسائل جماعية» in the Messages tab
+    **D339 (DRAFT v1.104-social)**: archived chats «المؤرشفة» and group messages «رسائل جماعية» in the Messages tab
     (owner 2026-11-09). `archiveDmConversation` / `unarchiveDmConversation` (`PUT` / `DELETE
     /dm/conversations/{id}/archive`, per user; a message from the peer brings it back; `DmConversation.archived`;
     archived conversations leave `listDmConversations?box=INBOX`), `listDmChats` (`GET /dm/chats?box=CHATS|ARCHIVED`:
@@ -978,7 +978,7 @@ info:
     `unarchiveDmGroup`, `listDmGroupCandidates` (mutual follows who accept messages); `DmUnread.groups`; media kind
     `DM_GROUP_PHOTO`; report target `DM_GROUP` (`Report.dmGroupSnapshot`, admin views); codes `DM_NOT_ARCHIVABLE`,
     `DM_GROUP_FULL` (409), `DM_GROUP_MEMBER_NOT_ALLOWED` (403); config `DM_GROUP_MAX_MEMBERS` (100) and
-    `RATE_LIMIT_DM_GROUP_CREATE_USER` (10 a day). Additive for old apps, except that an archived conversation leaves
+    `RATE_LIMIT_DM_GROUP_CREATE_USER` (2 a day, owner). Additive for old apps, except that an archived conversation leaves
     their inbox (only a newer app archives) (CONVENTIONS §10.132, §10.133).
 servers:
   - url: http://localhost:3000
@@ -1049,7 +1049,7 @@ tags:
   - name: notifications
     description: "In-app notifications: inbox, unread count, mark read and settings (v1.5-social DRAFT, CP-009); the device's push token (v1.30-live DRAFT, D152)."
   - name: messages
-    description: "Direct messages: conversations, message requests, receipts, unread counts, gifts in a conversation; every message lives 24 hours (v1.40-social DRAFT, D155). Archived chats and group messages (v1.103-social DRAFT, D339)."
+    description: "Direct messages: conversations, message requests, receipts, unread counts, gifts in a conversation; every message lives 24 hours (v1.40-social DRAFT, D155). Archived chats and group messages (v1.104-social DRAFT, D339)."
   - name: safety
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
@@ -10600,7 +10600,7 @@ paths:
     put:
       tags: [messages]
       operationId: archiveDmConversation
-      summary: "Archive a conversation for the caller «المؤرشفة» (v1.103-social, D339)"
+      summary: "Archive a conversation for the caller «المؤرشفة» (v1.104-social, D339)"
       description: |
         The conversation leaves «الدردشات» (`listDmChats?box=CHATS`, and `listDmConversations?box=INBOX`) and shows in
         `listDmChats?box=ARCHIVED`; it is not counted in `getDmUnread.messages`. Only the caller's side: the peer sees
@@ -10617,7 +10617,7 @@ paths:
     delete:
       tags: [messages]
       operationId: unarchiveDmConversation
-      summary: "Move an archived conversation back to the chats (v1.103-social, D339)"
+      summary: "Move an archived conversation back to the chats (v1.104-social, D339)"
       description: Idempotent.
       parameters:
         - $ref: '#/components/parameters/DmConversationIdPath'
@@ -10653,12 +10653,12 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
-  # ---- v1.103-social (DRAFT, D339) — archived chats and group messages (CONVENTIONS §10.132, §10.133) ----------
+  # ---- v1.104-social (DRAFT, D339) — archived chats and group messages (CONVENTIONS §10.132, §10.133) ----------
   /api/v1/dm/chats:
     get:
       tags: [messages]
       operationId: listDmChats
-      summary: "«الدردشات» or «المؤرشفة»: the caller's conversations and groups together, newest first (v1.103-social, D339)"
+      summary: "«الدردشات» or «المؤرشفة»: the caller's conversations and groups together, newest first (v1.104-social, D339)"
       description: |
         `box=CHATS` (default): accepted conversations, the requests the caller sent, and the caller's groups — not
         archived; `box=ARCHIVED`: the ones the caller archived. Message requests waiting for the caller stay in
@@ -10692,7 +10692,7 @@ paths:
     get:
       tags: [messages]
       operationId: listDmGroupCandidates
-      summary: "People the caller may add to a group: mutual follows who accept messages (v1.103-social, D339)"
+      summary: "People the caller may add to a group: mutual follows who accept messages (v1.104-social, D339)"
       description: |
         Accounts the caller follows **and** that follow the caller, ACTIVE, with no block either way and whose «من يستطيع
         مراسلتك» is not `NOBODY` — exactly the people `createDmGroup` / `addDmGroupMembers` accept from the caller. Newest
@@ -10723,11 +10723,11 @@ paths:
     post:
       tags: [messages]
       operationId: createDmGroup
-      summary: "Create a group conversation «رسالة جماعية» (v1.103-social, D339)"
+      summary: "Create a group conversation «رسالة جماعية» (v1.104-social, D339)"
       description: |
         The caller becomes the group's creator and ADMIN; `members` join as MEMBER. Each member must be someone the
         caller may add (`listDmGroupCandidates`: a mutual follow, ACTIVE, no block either way, not `whoCanMessage:
-        NOBODY`). Order (after auth and the rate limit, 10 a day, §7): 400 body → a retry with the same `clientId` → 200
+        NOBODY`). Order (after auth and the rate limit, 2 a day — the 3rd → 429, §7): 400 body → a retry with the same `clientId` → 200
         with the first group → 400 `members.<i>` / `invalid_value` (oneself) → 409 `DM_GROUP_FULL` (more than
         `DM_GROUP_MAX_MEMBERS` with the caller) → 403 `DM_GROUP_MEMBER_NOT_ALLOWED` (`details` names each refused entry,
         `members.<i>` / `not_allowed`, whatever the reason) → 400 `photoMediaId` / `invalid_value` (not the caller's
@@ -10759,7 +10759,7 @@ paths:
     get:
       tags: [messages]
       operationId: getDmGroup
-      summary: "A group: its state for the caller, the members and the cap (v1.103-social, D339)"
+      summary: "A group: its state for the caller, the members and the cap (v1.104-social, D339)"
       parameters:
         - $ref: '#/components/parameters/DmGroupIdPath'
       responses:
@@ -10774,7 +10774,7 @@ paths:
     patch:
       tags: [messages]
       operationId: updateDmGroup
-      summary: "Rename a group or change its photo — admins (v1.103-social, D339)"
+      summary: "Rename a group or change its photo — admins (v1.104-social, D339)"
       description: |
         `name` and / or `photoMediaId` (`null` removes the photo; a replaced photo's files are deleted). A member who is not
         an ADMIN → 403 `AUTH_FORBIDDEN`; 400 `photoMediaId` / `invalid_value` (not the caller's unattached `DM_GROUP_PHOTO`).
@@ -10800,7 +10800,7 @@ paths:
     post:
       tags: [messages]
       operationId: addDmGroupMembers
-      summary: "Add members — admins (v1.103-social, D339)"
+      summary: "Add members — admins (v1.104-social, D339)"
       description: |
         The rules of `createDmGroup` for each new member (403 `DM_GROUP_MEMBER_NOT_ALLOWED`; 409 `DM_GROUP_FULL` when the
         group would pass `DM_GROUP_MAX_MEMBERS`); people already in it are ignored. A member who is not an ADMIN → 403
@@ -10828,7 +10828,7 @@ paths:
     delete:
       tags: [messages]
       operationId: removeDmGroupMember
-      summary: "Remove a member — admins (v1.103-social, D339)"
+      summary: "Remove a member — admins (v1.104-social, D339)"
       description: |
         Not oneself (400 `username` / `invalid_value`: use `leaveDmGroup`), not the creator (403 `AUTH_FORBIDDEN`); a
         member who is not an ADMIN → 403 `AUTH_FORBIDDEN`; someone not in the group → 404. With no admin left the member
@@ -10847,7 +10847,7 @@ paths:
     put:
       tags: [messages]
       operationId: setDmGroupMemberRole
-      summary: "Make a member an admin, or an admin a member — admins (v1.103-social, D339)"
+      summary: "Make a member an admin, or an admin a member — admins (v1.104-social, D339)"
       description: |
         Not oneself (400 `username`), not the creator (403 `AUTH_FORBIDDEN`); a member who is not an ADMIN → 403
         `AUTH_FORBIDDEN`; someone not in the group → 404. Idempotent.
@@ -10870,7 +10870,7 @@ paths:
     post:
       tags: [messages]
       operationId: leaveDmGroup
-      summary: "Leave a group (v1.103-social, D339)"
+      summary: "Leave a group (v1.104-social, D339)"
       description: |
         The caller leaves (the creator too). With no admin left the member who joined first becomes one; when the last
         member leaves, the group ends: its messages and photo are deleted and it cannot be opened again.
@@ -10885,7 +10885,7 @@ paths:
     get:
       tags: [messages]
       operationId: listDmGroupMessages
-      summary: "A group's messages, newest first (v1.103-social, D339)"
+      summary: "A group's messages, newest first (v1.104-social, D339)"
       description: |
         Messages not expired (24 h), sent since the caller joined, by ACTIVE accounts with no block either way with the
         caller; `limit` default 30. `group` carries the caller's state.
@@ -10906,7 +10906,7 @@ paths:
     post:
       tags: [messages]
       operationId: sendDmGroupMessage
-      summary: "Send a message to a group (v1.103-social, D339)"
+      summary: "Send a message to a group (v1.104-social, D339)"
       description: |
         Order (after auth and the rate limit — the `dm:send` bucket, 30 a minute, §7): 400 body → a retry with the same
         `clientId` → 200 with the first message → 403 `ACCOUNT_RESTRICTED` → 404 → 400 `mediaId` / `invalid_value` →
@@ -10940,7 +10940,7 @@ paths:
     post:
       tags: [messages]
       operationId: markDmGroupRead
-      summary: "Mark a group read up to a message (v1.103-social, D339)"
+      summary: "Mark a group read up to a message (v1.104-social, D339)"
       description: |
         The caller's read pointer moves to `lastMessageId` (a message of this group the caller can read; else 400
         `lastMessageId` / `invalid_value`) and never back; the senders see it in `DmGroupMessage.readCount`. Idempotent.
@@ -10961,7 +10961,7 @@ paths:
     delete:
       tags: [messages]
       operationId: deleteDmGroupMessage
-      summary: "Delete a group message for everyone (v1.103-social, D339)"
+      summary: "Delete a group message for everyone (v1.104-social, D339)"
       description: |
         `scope=everyone` (required: 400 `scope` otherwise): one's own within `DM_DELETE_FOR_EVERYONE_SECONDS` (1 hour;
         later → 409 `DM_DELETE_WINDOW_PASSED`), or any message by an ADMIN; someone else's by a member → 403
@@ -10988,7 +10988,7 @@ paths:
     put:
       tags: [messages]
       operationId: muteDmGroup
-      summary: "Mute a group for the caller: no push, not in the badge (v1.103-social, D339)"
+      summary: "Mute a group for the caller: no push, not in the badge (v1.104-social, D339)"
       parameters:
         - $ref: '#/components/parameters/DmGroupIdPath'
       responses:
@@ -10999,7 +10999,7 @@ paths:
     delete:
       tags: [messages]
       operationId: unmuteDmGroup
-      summary: "Unmute a group (v1.103-social, D339)"
+      summary: "Unmute a group (v1.104-social, D339)"
       parameters:
         - $ref: '#/components/parameters/DmGroupIdPath'
       responses:
@@ -11011,7 +11011,7 @@ paths:
     put:
       tags: [messages]
       operationId: archiveDmGroup
-      summary: "Archive a group for the caller «المؤرشفة» (v1.103-social, D339)"
+      summary: "Archive a group for the caller «المؤرشفة» (v1.104-social, D339)"
       description: |
         Leaves «الدردشات» for `listDmChats?box=ARCHIVED` and the badge; a message from another member brings it back.
         Idempotent.
@@ -11025,7 +11025,7 @@ paths:
     delete:
       tags: [messages]
       operationId: unarchiveDmGroup
-      summary: "Move an archived group back to the chats (v1.103-social, D339)"
+      summary: "Move an archived group back to the chats (v1.104-social, D339)"
       description: |
         Idempotent.
       parameters:
@@ -20613,7 +20613,7 @@ components:
       name: groupId
       in: path
       required: true
-      description: (v1.103-social, D339) A malformed or unknown id, a group the caller is not in, or one removed by moderation → 404.
+      description: (v1.104-social, D339) A malformed or unknown id, a group the caller is not in, or one removed by moderation → 404.
       schema: { type: string, format: uuid }
     UsernamePath:
       name: username
@@ -31776,7 +31776,7 @@ components:
       type: string
       enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE, DM_GROUP_PHOTO]
       description: |
-        (v1.103-social, D339, §10.133) `DM_GROUP_PHOTO`: a group conversation's photo (a centre-cropped square like `FAMILY_EMBLEM`; attached by `createDmGroup` / `updateDmGroup`).
+        (v1.104-social, D339, §10.133) `DM_GROUP_PHOTO`: a group conversation's photo (a centre-cropped square like `FAMILY_EMBLEM`; attached by `createDmGroup` / `updateDmGroup`).
         (v1.95-social, D301, §10.112) `PROFILE_COVER_VIDEO`: the owner's cover video (like a reel's: ≤ 100 MiB, ≤ 60 s, a poster; owner only, else 403 `OWNER_ONLY`); `OWNER_FEEDBACK_IMAGE`: a private picture of «اقترح ميزة / أبلغ عن موظف» (never completed, consumed by `createOwnerFeedback`).
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -32463,7 +32463,7 @@ components:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message, (v1.47-social, D175) profile link (`ProfileLink.id`) or (v1.103-social, D339) group (`DmGroup.id`, a group the reporter belongs to; else 404) id, or a username for USER — (v1.93-social, D296) or the user's id.
+          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message, (v1.47-social, D175) profile link (`ProfileLink.id`) or (v1.104-social, D339) group (`DmGroup.id`, a group the reporter belongs to; else 404) id, or a username for USER — (v1.93-social, D296) or the user's id.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
         liveRoomId:
@@ -32498,7 +32498,7 @@ components:
           description: (v1.47-social, D175) Admin views of `PROFILE_LINK` reports only.
           $ref: '#/components/schemas/ProfileLinkSnapshot'
         dmGroupSnapshot:
-          description: (v1.103-social, D339) Admin views of `DM_GROUP` reports only.
+          description: (v1.104-social, D339) Admin views of `DM_GROUP` reports only.
           $ref: '#/components/schemas/DmGroupReportSnapshot'
     ReportPage:
       type: object
@@ -34650,7 +34650,7 @@ components:
         status: { $ref: '#/components/schemas/DmConversationStatus' }
         muted: { type: boolean }
         markedUnread: { type: boolean, description: "(v1.43.1-social, D165) The caller marked it unread (`markDmUnread`); cleared by `markDmRead` or `clearDmUnread`." }
-        archived: { type: boolean, description: "(v1.103-social, D339) The caller archived it «المؤرشفة» (`archiveDmConversation`); a message from the peer clears it." }
+        archived: { type: boolean, description: "(v1.104-social, D339) The caller archived it «المؤرشفة» (`archiveDmConversation`); a message from the peer clears it." }
         unreadCount: { type: integer, minimum: 0, maximum: 99 }
         lastMessage:
           description: The newest message the caller can still read (null after 24 h or deletion).
@@ -34683,10 +34683,10 @@ components:
       description: "(v1.43.1-social, D165) A conversation marked unread with no unread message counts as one in `messages` and `conversations` (accepted, not muted) or in `requests`."
       required: [messages, conversations, requests, groups]
       properties:
-        messages: { type: integer, minimum: 0, maximum: 99, description: "(v1.103-social, D339) Archived conversations are not counted." }
+        messages: { type: integer, minimum: 0, maximum: 99, description: "(v1.104-social, D339) Archived conversations are not counted." }
         conversations: { type: integer, minimum: 0, maximum: 99 }
         requests: { type: integer, minimum: 0, maximum: 99 }
-        groups: { type: integer, minimum: 0, maximum: 99, description: "(v1.103-social, D339) Unread messages in the caller's groups that are neither muted nor archived (the app adds them to the badge)." }
+        groups: { type: integer, minimum: 0, maximum: 99, description: "(v1.104-social, D339) Unread messages in the caller's groups that are neither muted nor archived (the app adds them to the badge)." }
     DmPeer:
       type: object
       required: [user, conversation, canMessage, reason, asRequest]
@@ -34910,7 +34910,7 @@ components:
         giftCode: { type: [string, 'null'] }
         quantity: { type: [integer, 'null'] }
         purged: { type: boolean, description: The retention period ended; text and file were cleared. }
-    # ---- v1.103-social (DRAFT, D339) — archived chats and group messages (CONVENTIONS §10.132, §10.133) ------------
+    # ---- v1.104-social (DRAFT, D339) — archived chats and group messages (CONVENTIONS §10.132, §10.133) ------------
     DmChat:
       type: object
       description: "(D339) One row of «الدردشات» / «المؤرشفة»: a direct conversation (`type: DIRECT`, `conversation`) or a group (`type: GROUP`, `group`)."

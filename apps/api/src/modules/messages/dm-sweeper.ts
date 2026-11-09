@@ -24,7 +24,7 @@ export interface DmSweepResult {
  * it was deleted for everyone or removed by moderation — with its picture or voice objects, in
  * bounded batches every `DM_SWEEP_INTERVAL_SECONDS` (it cannot be off in production). Files go
  * first: a storage failure throws, the rows stay and the next sweep retries (reads already hide
- * them). Also clears the snapshots of `DM_MESSAGE` reports resolved more than 30 days ago. v1.103-social (D339): group
+ * them). Also clears the snapshots of `DM_MESSAGE` reports resolved more than 30 days ago. v1.104-social (D339): group
  * messages (`dm_group_messages`) the same way, and `DM_GROUP` report snapshots.
  */
 @Injectable()
@@ -92,7 +92,7 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
       messages += deleted.count;
       if (due.length < BATCH) break;
     }
-    // v1.103-social (D339, §10.133): group messages live as long, and go the same way.
+    // v1.104-social (D339, §10.133): group messages live as long, and go the same way.
     for (;;) {
       const due = await this.prisma.$queryRaw<{ id: string; media_id: string | null }[]>`
         SELECT id::text AS id, media_id::text AS media_id FROM dm_group_messages
@@ -141,7 +141,7 @@ export class DmSweeper implements OnModuleInit, OnModuleDestroy {
          SET dm_snapshot = dm_snapshot
              || '{"purged": true, "text": null, "token": null, "mediaKey": null, "thread": null}'::jsonb
        WHERE id = ANY(${rows.map((r) => r.id)}::uuid[])`;
-    // v1.103-social (D339): a group's snapshot also drops its members' names.
+    // v1.104-social (D339): a group's snapshot also drops its members' names.
     await this.prisma.$executeRaw`
       UPDATE reports SET dm_snapshot = dm_snapshot || '{"members": []}'::jsonb
        WHERE id = ANY(${rows.map((r) => r.id)}::uuid[]) AND target_type = 'DM_GROUP'::report_target_type`;

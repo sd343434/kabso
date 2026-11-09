@@ -1,6 +1,6 @@
 /**
  * D339 (owner 2026-11-09: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية»): archived chats and group messages, end to
- * end against PostgreSQL + Redis with the API as the DML-only runtime role (openapi v1.103-social DRAFT, CONVENTIONS
+ * end against PostgreSQL + Redis with the API as the DML-only runtime role (openapi v1.104-social DRAFT, CONVENTIONS
  * §10.132, §10.133), a fake clock, in-memory object storage and a fake push sender. Covers: archiving per user (the
  * inbox, «المؤرشفة», the badge, a message from the peer brings it back, one's own does not, requests refused); groups —
  * who may be added (mutual follows, blocks, «من يستطيع مراسلتك», oneself), the member cap, idempotent create, the
@@ -826,5 +826,57 @@ describe('D339 archived chats and group messages', { timeout: 300_000 }, () => {
       await ctx.app.get(DmSweeper).sweep();
       expect(await ctx.prisma.dmGroupMessage.count({ where: { groupId: id } })).toBe(0);
     });
+  });
+});
+
+describe('D339 the new-group limit (owner: 2 a day)', { timeout: 120_000 }, () => {
+  let ctx: TestContext;
+
+  beforeAll(async () => {
+    // The production default (src/config/env.schema.ts; app-config.spec asserts it) — the shared test config is
+    // generous for every bucket.
+    ctx = await createTestApp({ RATE_LIMIT_DM_GROUP_CREATE_USER: '2/86400' });
+  });
+  afterAll(async () => ctx?.close());
+
+  it('refuses the 3rd group of the day with 429; refused attempts count; another user is not affected', async () => {
+    const auth = (u: { token: string }) => ({ Authorization: `Bearer ${u.token}` });
+    const signup = async () => {
+      const { res } = await registerVerified(ctx);
+      expect(res.status).toBe(201);
+      return {
+        username: res.body.user.username as string,
+        token: res.body.tokens.accessToken as string,
+      };
+    };
+    const [me, a, other] = [await signup(), await signup(), await signup()];
+    for (const [x, y] of [
+      [me, a],
+      [a, me],
+      [other, a],
+      [a, other],
+    ] as const) {
+      const res = await ctx.http.put(`/api/v1/users/${y.username}/follow`).set(auth(x));
+      expect(res.status).toBeLessThan(300);
+    }
+    const create = (u: { token: string }, members: string[]) =>
+      ctx.http
+        .post('/api/v1/dm/groups')
+        .set(auth(u))
+        .send({ name: 'Limit', members, clientId: randomUUID() });
+
+    // A refused attempt (oneself as a member, 400) uses one of the two.
+    expect((await create(me, [me.username])).status).toBe(400);
+    expect((await create(me, [a.username])).status).toBe(201);
+    const third = await create(me, [a.username]);
+    expect(third.status).toBe(429);
+    expectContract(third, 'createDmGroup');
+    expect(third.body.error.code).toBe('RATE_LIMITED');
+    expect(await ctx.prisma.dmGroup.count({ where: { name: 'Limit', members: { some: {} } } })).toBe(1);
+
+    // Two for someone else, then the third refused for them too.
+    expect((await create(other, [a.username])).status).toBe(201);
+    expect((await create(other, [a.username])).status).toBe(201);
+    expect((await create(other, [a.username])).status).toBe(429);
   });
 });

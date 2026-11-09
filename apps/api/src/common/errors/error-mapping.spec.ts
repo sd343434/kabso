@@ -157,7 +157,7 @@ describe('ErrorCode', () => {
         'DM_REQUEST_LIMIT',
         'DM_REQUEST_TEXT_ONLY',
         'DM_DELETE_WINDOW_PASSED',
-        // v1.103-social (D339).
+        // v1.104-social (D339).
         'DM_NOT_ARCHIVABLE',
         'DM_GROUP_FULL',
         'DM_GROUP_MEMBER_NOT_ALLOWED',

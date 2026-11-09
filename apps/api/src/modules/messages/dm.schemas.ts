@@ -106,7 +106,7 @@ export const dmDeleteMessageQuerySchema = z.strictObject({
 });
 export type DmDeleteMessageQuery = z.output<typeof dmDeleteMessageQuerySchema>;
 
-// ---- v1.103-social (DRAFT, D339): archived chats and group messages (CONVENTIONS §10.132, §10.133) -------------
+// ---- v1.104-social (DRAFT, D339): archived chats and group messages (CONVENTIONS §10.132, §10.133) -------------
 
 /** `listDmChats`: the conversations and groups of «الدردشات» (CHATS) or «المؤرشفة» (ARCHIVED), newest first. */
 export const dmChatsQuerySchema = z.strictObject({

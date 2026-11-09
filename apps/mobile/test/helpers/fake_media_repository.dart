@@ -71,7 +71,7 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
-  /// v1.103-social (D339): how many group photos were uploaded.
+  /// v1.104-social (D339): how many group photos were uploaded.
   int groupPhotoUploads = 0;
 
   @override

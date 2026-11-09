@@ -113,7 +113,7 @@ export const MEDIA_KINDS = [
   // slot) and a private picture of «اقترح ميزة / أبلغ عن موظف» (consumed into `private/owner-feedback/<id>/`).
   'PROFILE_COVER_VIDEO',
   'OWNER_FEEDBACK_IMAGE',
-  // v1.103-social (D339, §10.133): a group conversation's photo (a centre-cropped square, like a family emblem); attached
+  // v1.104-social (D339, §10.133): a group conversation's photo (a centre-cropped square, like a family emblem); attached
   // only by `createDmGroup` / `updateDmGroup`.
   'DM_GROUP_PHOTO',
 ] as const;

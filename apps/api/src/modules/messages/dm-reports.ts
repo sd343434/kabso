@@ -309,7 +309,7 @@ export function dmThreadDto(
   };
 }
 
-// ---- v1.103-social (D339, CONVENTIONS §10.133): a group conversation reported ---------------------------------------
+// ---- v1.104-social (D339, CONVENTIONS §10.133): a group conversation reported ---------------------------------------
 
 /** What a `DM_GROUP` report keeps (`reports.dm_snapshot`), taken once when the report is filed. */
 export interface DmGroupSnapshot {

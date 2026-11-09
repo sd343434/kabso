@@ -10,7 +10,7 @@ import 'package:kabso_live/features/posts/domain/post_models.dart'
 /// A page of people the caller may add to a group.
 typedef DmCandidatePage = ({List<UserSummary> data, String? nextCursor});
 
-/// Group messages «رسائل جماعية» (docs/contracts/openapi.yaml v1.103-social
+/// Group messages «رسائل جماعية» (docs/contracts/openapi.yaml v1.104-social
 /// DRAFT, tag `messages`, D339; CONVENTIONS §10.133). Every method throws an
 /// `AppFailure`.
 abstract interface class DmGroupsRepository {

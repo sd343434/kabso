@@ -76,7 +76,7 @@ abstract interface class MediaRepository {
   /// CP-022: a family's cover (`FAMILY_COVER`, processed like a post image).
   Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType);
 
-  /// v1.103-social (D339): a group conversation's photo (`DM_GROUP_PHOTO`,
+  /// v1.104-social (D339): a group conversation's photo (`DM_GROUP_PHOTO`,
   /// a centre-cropped square like a family emblem).
   Future<MediaAsset> uploadDmGroupPhoto(Uint8List bytes, String contentType);
 

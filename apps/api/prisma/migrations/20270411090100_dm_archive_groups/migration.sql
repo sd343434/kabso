@@ -1,4 +1,4 @@
--- v1.103-social (D339, owner 2026-11-09: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية»): archived chats and group
+-- v1.104-social (D339, owner 2026-11-09: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية»): archived chats and group
 -- messages, CONVENTIONS §10.132 and §10.133. Owned by the `messages` module. The runtime role gets DML through the
 -- default privileges (20261016130000_per_database_runtime_group), so this migration contains no GRANT.
 --

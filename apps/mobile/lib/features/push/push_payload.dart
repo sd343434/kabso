@@ -16,7 +16,7 @@ class PushPayload {
   /// `senderUsername`).
   static const kindDm = 'dm';
 
-  /// v1.103-social (D339): a group message, or being added to a group
+  /// v1.104-social (D339): a group message, or being added to a group
   /// (`groupId`, `messageId` for a message, `senderUsername`).
   static const kindDmGroup = 'dm_group';
 
@@ -137,6 +137,6 @@ String familyConversation(String familyId) => 'family:$familyId';
 /// Android tag).
 String dmConversation(String conversationId) => 'dm:$conversationId';
 
-/// v1.103-social (D339): the conversation id of a group (the server's
+/// v1.104-social (D339): the conversation id of a group (the server's
 /// Android tag `dmg:<id>`).
 String dmGroupConversation(String groupId) => 'dmg:$groupId';
