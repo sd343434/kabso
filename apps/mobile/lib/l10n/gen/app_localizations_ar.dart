@@ -16680,4 +16680,84 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveRankRichEmpty => 'لم يُرسل أحد هدايا بعد في هذه الفترة.';
+
+  @override
+  String get photoEditTitle => 'تعديل الصورة';
+
+  @override
+  String get photoEditDone => 'تم';
+
+  @override
+  String get photoEditCancel => 'إلغاء';
+
+  @override
+  String get photoEditPreview => 'الصورة بعد التعديل';
+
+  @override
+  String get photoEditRotate => 'تدوير';
+
+  @override
+  String get photoEditFailed => 'تعذّر تعديل هذه الصورة';
+
+  @override
+  String get photoToolCrop => 'قص';
+
+  @override
+  String get photoToolFilters => 'فلاتر';
+
+  @override
+  String get photoToolAdjust => 'ضبط';
+
+  @override
+  String get photoAspectOriginal => 'الأصلي';
+
+  @override
+  String get photoFilterNormal => 'عادي';
+
+  @override
+  String get photoFilterVivid => 'زاهٍ';
+
+  @override
+  String get photoFilterWarm => 'دافئ';
+
+  @override
+  String get photoFilterCool => 'بارد';
+
+  @override
+  String get photoFilterMono => 'أحادي';
+
+  @override
+  String get photoFilterFade => 'باهت';
+
+  @override
+  String get photoAdjustBrightness => 'السطوع';
+
+  @override
+  String get photoAdjustContrast => 'التباين';
+
+  @override
+  String get createKindPost => 'منشور';
+
+  @override
+  String get createKindReel => 'ريلز';
+
+  @override
+  String get createKindStory => 'ستوري';
+
+  @override
+  String get createEditPhoto => 'تعديل';
+
+  @override
+  String get createSuggestions => 'اقتراحات';
+
+  @override
+  String get uploadRetrying => 'انقطع الاتصال — نعيد المحاولة…';
+
+  @override
+  String get uploadView => 'عرض';
+
+  @override
+  String createSuggestionPosts(String count) {
+    return '$count منشور';
+  }
 }

@@ -20,14 +20,17 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/compose_upload_bar.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
+import 'package:kabso_live/features/create/photo_editor.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -313,7 +316,11 @@ void main() {
           GoRoute(path: '/create', builder: (_, _) => const CreateScreen()),
           GoRoute(
             path: '/reels',
-            builder: (_, _) => const Scaffold(body: Text('posts tab')),
+            // D333: the shell's upload bar sits above the tab bar.
+            builder: (_, _) => const Scaffold(
+              body: Text('posts tab'),
+              bottomNavigationBar: ComposeUploadBar(),
+            ),
           ),
         ],
       );
@@ -372,13 +379,6 @@ void main() {
       ),
     );
     bool shareEnabled(WidgetTester tester) => shareInk(tester).onTap != null;
-    bool shareBusy() => find
-        .descendant(
-          of: find.byKey(CreateScreen.shareKey),
-          matching: find.byType(CircularProgressIndicator),
-        )
-        .evaluate()
-        .isNotEmpty;
 
     testWidgets('Share is off for an empty draft; a text post is shared and '
         'Posts opens with a message', (tester) async {
@@ -418,28 +418,58 @@ void main() {
       expect(find.text(_en.createPostedInReview), findsNothing);
     });
 
-    testWidgets('progress while uploading; failure banner with Retry keeps '
-        'the draft', (tester) async {
+    testWidgets('D333: Share leaves Create at once; the upload bar shows '
+        'the progress, a failure with Retry keeps the draft, and Retry '
+        'makes one post', (tester) async {
       final (media, posts, _, router) = await pump(tester, picks: [jpegBytes]);
       await tester.enterText(find.byKey(CreateScreen.textKey), 'Dead Sea');
       media.failWith = _uploadsOff;
       await tester.tap(find.byKey(CreateScreen.shareKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(CreateScreen.failureKey), findsOneWidget);
+      // Create is left at once; the failure is on the upload bar.
+      expect(router.state.uri.path, '/reels');
+      expect(find.byKey(ComposeUploadBar.failureKey), findsOneWidget);
       expect(find.text(_en.createUploadsUnavailable), findsOneWidget);
-      expect(find.text('Dead Sea'), findsOneWidget);
-      expect(router.state.uri.path, '/create');
+      expect(posts.created, isEmpty);
+      // The draft (photo) is kept for the retry.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ComposeUploadBar)),
+      );
+      expect(container.read(composeControllerProvider).photos, hasLength(1));
 
+      media.failWith = null;
       final gate = media.gate = Completer<void>();
-      await tester.tap(find.byKey(CreateScreen.retryKey));
+      await tester.tap(find.byKey(ComposeUploadBar.retryKey));
       await tester.pump();
-      expect(find.byKey(CreateScreen.progressKey), findsOneWidget);
+      expect(find.byKey(ComposeUploadBar.progressKey), findsOneWidget);
       expect(find.text(_en.createUploading(1, 1)), findsOneWidget);
-      expect(shareBusy(), isTrue);
+      expect(find.byKey(ComposeUploadBar.retryKey), findsNothing);
       gate.complete();
       await tester.pumpAndSettle();
       expect(posts.created.single.text, 'Dead Sea');
-      expect(router.state.uri.path, '/reels');
+      // Done: the bar is gone and the message offers the post.
+      expect(find.byKey(ComposeUploadBar.barKey), findsNothing);
+      expect(find.text(_en.createPosted), findsOneWidget);
+      expect(find.text(_en.uploadView), findsOneWidget);
+    });
+
+    testWidgets('D333: a lost connection is retried by itself (no second '
+        'post)', (tester) async {
+      final saved = ComposeController.retryDelays;
+      ComposeController.retryDelays = const [Duration(seconds: 2)];
+      addTearDown(() => ComposeController.retryDelays = saved);
+      final (media, posts, _, _) = await pump(tester, picks: [jpegBytes]);
+      media.failWith = const NetworkFailure.offline();
+      await tester.tap(find.byKey(CreateScreen.shareKey));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(_en.uploadRetrying), findsOneWidget);
+      expect(find.byKey(ComposeUploadBar.retryKey), findsNothing);
+      media.failWith = null;
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      expect(posts.created, hasLength(1));
+      expect(find.text(_en.createPosted), findsOneWidget);
     });
 
     // ReorderableListView splits `padding` between header and list as if
@@ -502,6 +532,108 @@ void main() {
       await tester.pumpAndSettle();
       // Uploaded in the new order: a1 is the first photo of the post.
       expect(posts.created.single.mediaIds, ['a1', 'a2', 'a3', 'a4', 'a5']);
+    });
+
+    testWidgets('D333: the picker — Post · Reels · Story tabs, album order '
+        'numbers on the tiles, the last photo large with Edit', (tester) async {
+      final library = FakeMediaLibrary(
+        access: LibraryAccess.granted,
+        ids: ['p0', 'p1', 'p2'],
+      );
+      await pump(tester, library: library, details: false);
+      for (final kind in CreateKind.values) {
+        expect(find.byKey(CreateKindTabs.tabKey(kind)), findsOneWidget);
+      }
+      for (final (kind, label) in [
+        (CreateKind.post, _en.createKindPost),
+        (CreateKind.reel, _en.createKindReel),
+        (CreateKind.story, _en.createKindStory),
+      ]) {
+        expect(
+          find.descendant(
+            of: find.byKey(CreateKindTabs.tabKey(kind)),
+            matching: find.text(label),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(find.byKey(CreateMediaStep.previewKey), findsNothing);
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p2')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p0')));
+      await tester.pumpAndSettle();
+      Finder order(String id, String n) => find.descendant(
+        of: find.byKey(CreateMediaStep.itemKey(id)),
+        matching: find.text(n),
+      );
+      expect(order('p2', '1'), findsOneWidget);
+      expect(order('p0', '2'), findsOneWidget);
+      expect(order('p1', '1'), findsNothing);
+      // The last one added is shown large, with Edit.
+      expect(find.byKey(CreateMediaStep.previewKey), findsOneWidget);
+      expect(find.byKey(CreateMediaStep.editKey), findsOneWidget);
+      // Removing the first renumbers the rest.
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p2')));
+      await tester.pumpAndSettle();
+      expect(order('p0', '1'), findsOneWidget);
+      // Edit opens the photo editor; Cancel keeps the photo.
+      await tester.tap(find.byKey(CreateMediaStep.editKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(PhotoEditorScreen), findsOneWidget);
+      await tester.tap(find.byKey(PhotoEditorScreen.cancelKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(PhotoEditorScreen), findsNothing);
+      expect(find.byKey(CreateMediaStep.previewKey), findsOneWidget);
+    });
+
+    testWidgets('D333: #tag and @friend suggestions while typing complete '
+        'the word', (tester) async {
+      final (_, posts, _, _) = await pump(tester);
+      posts
+        ..tags = const [Hashtag(tag: 'kabsolive', postCount: 1200)]
+        ..people = const [
+          UserSummary(
+            id: 'u-sara',
+            username: 'sara',
+            displayName: 'Sara',
+            avatarUrl: null,
+          ),
+        ];
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'Hi #kab');
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.byKey(CaptionSuggestions.rowKey), findsOneWidget);
+      await tester.tap(find.byKey(CaptionSuggestions.tagKey('kabsolive')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(CreateScreen.textKey))
+            .controller!
+            .text,
+        'Hi #kabsolive ',
+      );
+      expect(find.byKey(CaptionSuggestions.rowKey), findsNothing);
+
+      await tester.enterText(
+        find.byKey(CreateScreen.textKey),
+        'Hi #kabsolive with @sa',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CaptionSuggestions.userKey('sara')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(find.byKey(CreateScreen.textKey))
+            .controller!
+            .text,
+        'Hi #kabsolive with @sara ',
+      );
+      // Plain words suggest nothing.
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'Hello');
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.byKey(CaptionSuggestions.rowKey), findsNothing);
     });
 
     testWidgets('caption tools: # inserts a tag that appears in the hashtag '
@@ -773,10 +905,25 @@ void main() {
           library: library,
           details: false,
         );
+        final gridScrollable = find
+            .descendant(
+              of: find.byKey(CreateMediaStep.gridKey),
+              matching: find.byType(Scrollable),
+            )
+            .first;
         for (final id in ['p0', 'p1', 'p2', 'p3']) {
+          // D333: the big preview above the grid moves the tiles down.
+          await tester.scrollUntilVisible(
+            find.byKey(CreateMediaStep.itemKey(id)),
+            100,
+            scrollable: gridScrollable,
+          );
           await tester.tap(find.byKey(CreateMediaStep.itemKey(id)));
           await tester.pumpAndSettle();
         }
+        tester.state<ScrollableState>(gridScrollable).position.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(find.byKey(CreateMediaStep.previewKey), findsOneWidget);
         final grid = tester
             .state<ScrollableState>(
               find
@@ -788,7 +935,7 @@ void main() {
             )
             .position;
         await tester.drag(
-          find.byKey(CreateMediaStep.itemKey('p4')),
+          find.byKey(CreateMediaStep.gridKey),
           const Offset(0, -300),
         );
         await tester.pumpAndSettle();
@@ -912,6 +1059,15 @@ void main() {
       expect(library.calls, isNot(contains('bytes:p10')));
 
       library.bytes = null;
+      // D333: the big preview scrolls with the grid; back to the top.
+      await tester.scrollUntilVisible(
+        find.byKey(CreateMediaStep.itemKey('p0')),
+        -100,
+        scrollable: find.descendant(
+          of: find.byKey(CreateMediaStep.gridKey),
+          matching: find.byType(Scrollable),
+        ),
+      );
       await tester.tap(find.byKey(CreateMediaStep.itemKey('p0')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(CreateMediaStep.itemKey('p0')));

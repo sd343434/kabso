@@ -21,6 +21,7 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/compose_upload_bar.dart';
 import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
@@ -30,6 +31,7 @@ import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
+import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
@@ -172,7 +174,11 @@ void main() {
           GoRoute(path: '/create', builder: (_, _) => const CreateScreen()),
           GoRoute(
             path: '/reels',
-            builder: (_, _) => const Scaffold(body: Text('moments')),
+            // D333: the shell's upload bar sits above the tab bar.
+            builder: (_, _) => const Scaffold(
+              body: Text('moments'),
+              bottomNavigationBar: ComposeUploadBar(),
+            ),
           ),
         ],
       );
@@ -250,7 +256,10 @@ void main() {
       media.gate = Completer<void>();
       await tester.tap(find.byKey(CreateScreen.shareKey));
       await tester.pump();
-      // The upload's progress, from the storage PUT.
+      await tester.pump();
+      // The upload's progress, from the storage PUT — D333: on the upload
+      // bar, Create being left at once.
+      expect(find.byKey(ComposeUploadBar.progressKey), findsOneWidget);
       expect(find.text(en.createUploadingVideo(100)), findsOneWidget);
       expect(media.videoProgress, [0, 0.5, 1]);
       media.gate!.complete();
@@ -306,6 +315,11 @@ void main() {
       await tester.tap(find.byKey(CreateMediaStep.itemKey('p2')));
       await tester.pumpAndSettle();
       expect(find.text(en.createVideoOrPhotos), findsOneWidget);
+      // D333: without the bottom mode bar the tray sits lower, under the
+      // message; it is dismissed before the tray is used.
+      ScaffoldMessenger.of(tester.element(find.byType(CreateMediaStep)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(CreateMediaStep.trayVideoRemoveKey));
       await tester.pumpAndSettle();
       expect(find.byKey(CreateMediaStep.trayVideoKey), findsNothing);
@@ -324,13 +338,19 @@ void main() {
       media.failWith = _unavailable;
       await tester.tap(find.byKey(CreateScreen.shareKey));
       await tester.pumpAndSettle();
-      expect(find.byKey(CreateScreen.failureKey), findsOneWidget);
+      // D333: the failure is on the upload bar (Create is left at once);
+      // the video stays in the draft.
+      expect(find.byKey(ComposeUploadBar.failureKey), findsOneWidget);
       expect(find.text(en.createVideoUploadsUnavailable), findsOneWidget);
       expect(find.text(en.createPosted), findsNothing);
       expect(posts.created, isEmpty);
-      expect(find.byKey(const Key('create.video')), findsOneWidget);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ComposeUploadBar)),
+      );
+      expect(container.read(composeControllerProvider).video, isNotNull);
       // Retry when it works again: one video, one post.
-      await tester.tap(find.byKey(CreateScreen.retryKey));
+      media.failWith = null;
+      await tester.tap(find.byKey(ComposeUploadBar.retryKey));
       await tester.pumpAndSettle();
       expect(media.videoUploads, hasLength(1));
       expect(posts.created, hasLength(1));

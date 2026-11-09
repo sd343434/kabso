@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_rocket_art.da
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_battle_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_power/pk_power_banner.dart';
+import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/push_messaging.dart';
@@ -35,6 +36,8 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
+  // D333: no automatic upload retries unless a test sets the waits.
+  ComposeController.retryDelays = const [];
   KabsoBattleEmoji.enabled = false;
   KGiftEffect.animate = false;
   // D272b: no art read ahead as gifts arrive (no downloads in tests).

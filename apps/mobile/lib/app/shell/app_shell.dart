@@ -6,6 +6,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/compose_upload_bar.dart';
 import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/messages/unread_messages.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
@@ -79,16 +80,24 @@ class AppShell extends ConsumerWidget {
       body: navigationShell,
       bottomNavigationBar: creating
           ? null
-          : KTabBar(
-              currentIndex: navigationShell.currentIndex,
-              onSelect: (index) => unawaited(_onSelect(context, ref, index)),
-              items: shellTabItems(
-                context.l10n,
-                // D130: real sources only — unread direct messages (D155)
-                // and unseen stories of followed accounts.
-                unreadMessages: ref.watch(unreadMessagesProvider),
-                newStories: ref.watch(unseenFollowedStoriesProvider),
-              ),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // D333: a post still uploading in the background.
+                const ComposeUploadBar(),
+                KTabBar(
+                  currentIndex: navigationShell.currentIndex,
+                  onSelect: (index) =>
+                      unawaited(_onSelect(context, ref, index)),
+                  items: shellTabItems(
+                    context.l10n,
+                    // D130: real sources only — unread direct messages (D155)
+                    // and unseen stories of followed accounts.
+                    unreadMessages: ref.watch(unreadMessagesProvider),
+                    newStories: ref.watch(unseenFollowedStoriesProvider),
+                  ),
+                ),
+              ],
             ),
     );
   }

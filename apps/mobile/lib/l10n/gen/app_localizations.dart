@@ -28143,6 +28143,162 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يُرسل أحد هدايا بعد في هذه الفترة.'**
   String get liveRankRichEmpty;
+
+  /// D333: the photo editor's title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الصورة'**
+  String get photoEditTitle;
+
+  /// D333: apply the photo edit.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get photoEditDone;
+
+  /// D333: leave the photo editor without changes.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get photoEditCancel;
+
+  /// D333: the editor's preview, for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصورة بعد التعديل'**
+  String get photoEditPreview;
+
+  /// D333: turn the photo a quarter clockwise.
+  ///
+  /// In ar, this message translates to:
+  /// **'تدوير'**
+  String get photoEditRotate;
+
+  /// D333: the edit could not be applied.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تعديل هذه الصورة'**
+  String get photoEditFailed;
+
+  /// D333: the crop tool.
+  ///
+  /// In ar, this message translates to:
+  /// **'قص'**
+  String get photoToolCrop;
+
+  /// D333: the looks.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلاتر'**
+  String get photoToolFilters;
+
+  /// D333: brightness and contrast.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضبط'**
+  String get photoToolAdjust;
+
+  /// D333: keep the photo's own shape.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأصلي'**
+  String get photoAspectOriginal;
+
+  /// D333: no look.
+  ///
+  /// In ar, this message translates to:
+  /// **'عادي'**
+  String get photoFilterNormal;
+
+  /// D333: more colour.
+  ///
+  /// In ar, this message translates to:
+  /// **'زاهٍ'**
+  String get photoFilterVivid;
+
+  /// D333: warmer.
+  ///
+  /// In ar, this message translates to:
+  /// **'دافئ'**
+  String get photoFilterWarm;
+
+  /// D333: cooler.
+  ///
+  /// In ar, this message translates to:
+  /// **'بارد'**
+  String get photoFilterCool;
+
+  /// D333: black and white.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحادي'**
+  String get photoFilterMono;
+
+  /// D333: soft, lifted blacks.
+  ///
+  /// In ar, this message translates to:
+  /// **'باهت'**
+  String get photoFilterFade;
+
+  /// D333: the brightness slider.
+  ///
+  /// In ar, this message translates to:
+  /// **'السطوع'**
+  String get photoAdjustBrightness;
+
+  /// D333: the contrast slider.
+  ///
+  /// In ar, this message translates to:
+  /// **'التباين'**
+  String get photoAdjustContrast;
+
+  /// D333: Create's top tab — a post.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشور'**
+  String get createKindPost;
+
+  /// D333: Create's top tab — a reel.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز'**
+  String get createKindReel;
+
+  /// D333: Create's top tab — a story.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستوري'**
+  String get createKindStory;
+
+  /// D333: open the photo editor on the big preview.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل'**
+  String get createEditPhoto;
+
+  /// D333: the hashtag and people suggestions under the caption, for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراحات'**
+  String get createSuggestions;
+
+  /// D333: the upload waits to retry by itself.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقطع الاتصال — نعيد المحاولة…'**
+  String get uploadRetrying;
+
+  /// D333: open the new post.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض'**
+  String get uploadView;
+
+  /// D333: a suggested hashtag's post count (already compact).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} منشور'**
+  String createSuggestionPosts(String count);
 }
 
 class _AppLocalizationsDelegate

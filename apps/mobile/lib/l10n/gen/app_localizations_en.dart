@@ -16681,4 +16681,84 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveRankRichEmpty => 'No gifts sent yet in this period.';
+
+  @override
+  String get photoEditTitle => 'Edit photo';
+
+  @override
+  String get photoEditDone => 'Done';
+
+  @override
+  String get photoEditCancel => 'Cancel';
+
+  @override
+  String get photoEditPreview => 'The edited photo';
+
+  @override
+  String get photoEditRotate => 'Rotate';
+
+  @override
+  String get photoEditFailed => 'Couldn\'t edit this photo';
+
+  @override
+  String get photoToolCrop => 'Crop';
+
+  @override
+  String get photoToolFilters => 'Filters';
+
+  @override
+  String get photoToolAdjust => 'Adjust';
+
+  @override
+  String get photoAspectOriginal => 'Original';
+
+  @override
+  String get photoFilterNormal => 'Normal';
+
+  @override
+  String get photoFilterVivid => 'Vivid';
+
+  @override
+  String get photoFilterWarm => 'Warm';
+
+  @override
+  String get photoFilterCool => 'Cool';
+
+  @override
+  String get photoFilterMono => 'Mono';
+
+  @override
+  String get photoFilterFade => 'Fade';
+
+  @override
+  String get photoAdjustBrightness => 'Brightness';
+
+  @override
+  String get photoAdjustContrast => 'Contrast';
+
+  @override
+  String get createKindPost => 'Post';
+
+  @override
+  String get createKindReel => 'Reels';
+
+  @override
+  String get createKindStory => 'Story';
+
+  @override
+  String get createEditPhoto => 'Edit';
+
+  @override
+  String get createSuggestions => 'Suggestions';
+
+  @override
+  String get uploadRetrying => 'Connection lost — trying again…';
+
+  @override
+  String get uploadView => 'View';
+
+  @override
+  String createSuggestionPosts(String count) {
+    return '$count posts';
+  }
 }
