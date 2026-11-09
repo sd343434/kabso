@@ -47,6 +47,8 @@ export const ROUTES: readonly { name: string; pattern: string }[] = [
   { name: 'giftCategories', pattern: '/gift-categories' },
   { name: 'items', pattern: '/items' },
   { name: 'promo', pattern: '/promo' },
+  // v1.101-social (D325): «الفعاليات».
+  { name: 'events', pattern: '/events' },
   // v1.51-live (D233): «صواريخ الزيارات».
   { name: 'boostPrices', pattern: '/live-boost-prices' },
   // v1.81-live (D291): «الميداليات».

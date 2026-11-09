@@ -2666,3 +2666,43 @@ fieldset.plain {
   max-width: 100%;
   text-align: start;
 }
+
+/* v1.101-social (D325): «الفعاليات» — the step-by-step editor. */
+.ev-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.ev-step {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: inherit; font: inherit; font-size: 13px; cursor: pointer;
+}
+.ev-step.on { border-color: var(--red-500); color: var(--red-500); font-weight: 600; }
+.ev-step.done { border-color: var(--border-strong); }
+.ev-step-n {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--border); font-size: 12px;
+}
+.ev-step.on .ev-step-n { background: var(--red-500); color: #fff; }
+.ev-body { min-height: 260px; }
+.ev-actions { position: sticky; bottom: 0; padding-top: 8px; }
+.ev-summary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+.ev-summary dt { font-weight: 600; }
+.ev-summary dd { margin: 0; }
+.ev-banner-preview { width: 100%; max-width: 500px; aspect-ratio: 5 / 1; object-fit: cover; border-radius: 8px; }
+.ev-item-thumb, .gev-display-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 6px; }
+.gev-display { display: inline-flex; align-items: center; gap: 6px; }
+.gev-display input[type='file'] { max-width: 150px; }
+.ev-milestone { align-items: center; }
+table.events-v2 td .row { flex-wrap: wrap; }
+.dialog:has(.ev-steps) { width: min(1080px, 100%); }
+.ev-body .gev-board { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.ev-body .gev-line, .ev-body .gev-gift, .ev-body .gev-item, .ev-body .gev-line > .row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0;
+}
+.ev-body .gev-line input, .ev-body .gev-line select, .ev-body .gev-gift input, .ev-body .gev-gift select,
+.ev-body .gev-board > label input[type='number'] { width: auto; min-width: 0; }
+.ev-body .gev-line input[type='number'], .ev-body .gev-gift input[type='number'],
+.ev-body .gev-board > label input[type='number'] { width: 110px; }
+.ev-body .gev-line select, .ev-body .gev-gift select { max-width: 260px; }
+.ev-body fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.ev-body fieldset .check { margin-inline-end: 14px; }
+@media (max-width: 720px) {
+  .ev-body .gev-line input[type='number'], .ev-body .gev-gift input[type='number'] { width: 80px; }
+}

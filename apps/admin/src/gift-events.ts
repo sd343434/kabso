@@ -26,7 +26,25 @@ const MONEY: readonly PrizeType[] = ['COINS', 'CHERRIES', 'CP_MONEY'];
 export function prizeTypesFor(kind: BoardKind): PrizeType[] {
   return PRIZE_TYPES.filter((t) => !MONEY.includes(t) || BOARD_MONEY[kind].includes(t));
 }
-export type PrizeType = (typeof PRIZE_TYPES)[number];
+/** v1.101-social (D325): the types the v2 editor offers — D303's and free pieces of the event's own gift. */
+export function prizeTypesV2For(kind: BoardKind): PrizeType[] {
+  return [...prizeTypesFor(kind), 'GIFT_PIECES'];
+}
+export type PrizeType = (typeof PRIZE_TYPES)[number] | 'GIFT_PIECES';
+
+/** v1.101-social (D325, §10.127): the v2 choices. */
+export const EVENT_AUDIENCES = ['EVERYONE', 'HOSTS', 'CREATORS', 'AGENCIES', 'CP'] as const;
+export type EventAudience = (typeof EVENT_AUDIENCES)[number];
+export const RECURRENCES = ['NONE', 'WEEKLY', 'MONTHLY'] as const;
+export const SCORINGS = ['MULTIPLIER', 'COINS'] as const;
+export const COUNTED_GIFTS = ['EVENT_GIFTS', 'ALL_GIFTS'] as const;
+
+/** v1.101-social (D325): a milestone «مرحلة» as edited. */
+export interface MilestoneForm {
+  board: BoardKind;
+  points: string;
+  items: PrizeItemForm[];
+}
 
 export interface PrizeItemForm {
   type: PrizeType;
@@ -41,6 +59,9 @@ export interface PrizeItemForm {
   /** CP_MONEY: the two amounts (a host / creator partner gets the cherries, another the coins). */
   cherries?: string;
   coins?: string;
+  /** v1.101-social (D325): the prize's display picture (an uploaded `prize` key) and its preview URL. */
+  displayKey?: string;
+  displayUrl?: string;
 }
 export interface PrizeLineForm {
   rankFrom: string;
@@ -66,8 +87,17 @@ export interface GiftEventFormState {
   startsAt: string;
   endsAt: string;
   timeZone: string;
-  audience: 'EVERYONE' | 'HOSTS' | 'CREATORS';
+  audience: EventAudience;
   featured: boolean;
+  /** v1.101-social (D325, §10.127): the lifecycle, the time shape, the scoring method and the counted gifts. */
+  status: 'DRAFT' | 'PUBLISHED';
+  permanent: boolean;
+  recurrence: (typeof RECURRENCES)[number];
+  scoring: (typeof SCORINGS)[number];
+  countedGifts: (typeof COUNTED_GIFTS)[number];
+  /** The Live home banner (a `banner` upload's media id), "" for none. */
+  bannerMediaId: string;
+  milestones: MilestoneForm[];
   bannerUrl: string;
   /** D303 follow-ups: the uploaded page art (keys from `POST /admin/event-uploads`), "" for none. */
   backgroundKey?: string;
@@ -123,13 +153,23 @@ export interface EventOptions {
     nameEn: string;
     priceCoins: number;
     enabled: boolean;
+    /** v1.101-social (D325): the event this exclusive gift belongs to. */
+    eventId?: string | null;
+    imageUrl?: string | null;
+    fullscreen?: boolean;
+    hasEffect?: boolean;
   }[];
   bagItems: {
     code: string;
     category: string;
     nameAr: string;
     nameEn: string;
+    /** v1.101-social (D325): an event-exclusive prize item's event and its still. */
+    eventId?: string | null;
+    stillUrl?: string | null;
   }[];
+  /** v1.101-social (D325): the ordinary tabs an event's own gift may go in. */
+  giftCategories?: { code: string; nameAr: string; nameEn: string }[];
   vipTiers: {
     code: string;
     nameAr: string;
@@ -185,6 +225,13 @@ export function emptyGiftEvent(timeZone: string): GiftEventFormState {
     timeZone,
     audience: 'EVERYONE',
     featured: false,
+    status: 'PUBLISHED',
+    permanent: false,
+    recurrence: 'NONE',
+    scoring: 'MULTIPLIER',
+    countedGifts: 'EVENT_GIFTS',
+    bannerMediaId: '',
+    milestones: [],
     bannerUrl: '',
     gifts: [{ giftCode: '', pointsPerCoin: '1', pointsPerGift: '0' }],
     boards: [
@@ -234,16 +281,46 @@ export function isoToZoned(iso: string, zone: string): string {
   return wall.toISOString().slice(0, 16);
 }
 
+/** One prize item of the form as its `PrizeItemInput` (the display picture only when set). */
+export function prizeItemBody(i: PrizeItemForm): Record<string, unknown> {
+  const int = (v: string) => Number.parseInt(v, 10);
+  const base =
+    i.type === 'COINS' || i.type === 'CHERRIES'
+      ? { type: i.type, amount: int(i.value) }
+      : i.type === 'CP_MONEY'
+        ? { type: i.type, cherries: int(i.cherries ?? '0'), coins: int(i.coins ?? '0') }
+        : i.type === 'BAG_ITEM'
+          ? { type: i.type, itemCode: i.code, days: i.permanent ? null : int(i.value) }
+          : i.type === 'BADGE'
+            ? { type: i.type, badgeCode: i.code, level: int(i.level ?? '1'), days: i.permanent ? null : int(i.value) }
+            : i.type === 'GIFT_PIECES'
+              ? { type: i.type, giftCode: i.code, count: int(i.value) }
+              : { type: i.type, tierCode: i.code, days: int(i.value) };
+  return i.displayKey ? { ...base, displayKey: i.displayKey } : base;
+}
+
+/** v1.101-social (D325): a local wall time, or null when empty (a draft without dates). */
+function instantOrNull(local: string, zone: string): string | null {
+  return local ? zonedToIso(local, zone) : null;
+}
+
 /** The `GiftEventInput` body (openapi) of the form. */
 export function giftEventBody(f: GiftEventFormState) {
   const int = (v: string) => Number.parseInt(v, 10);
   return {
+    status: f.status,
+    permanent: f.permanent,
+    recurrence: f.recurrence,
+    scoring: f.scoring,
+    countedGifts: f.countedGifts,
+    bannerMediaId: f.bannerMediaId || null,
+    milestones: f.milestones.map((m) => ({ board: m.board, points: int(m.points), prizes: m.items.map(prizeItemBody) })),
     titleAr: f.titleAr.trim(),
     titleEn: f.titleEn.trim(),
     rulesAr: f.rulesAr.trim(),
     rulesEn: f.rulesEn.trim(),
-    startsAt: zonedToIso(f.startsAt, f.timeZone),
-    endsAt: zonedToIso(f.endsAt, f.timeZone),
+    startsAt: instantOrNull(f.startsAt, f.timeZone),
+    endsAt: f.permanent ? null : instantOrNull(f.endsAt, f.timeZone),
     timeZone: f.timeZone,
     audience: f.audience,
     featured: f.featured,
@@ -252,41 +329,21 @@ export function giftEventBody(f: GiftEventFormState) {
     backgroundPosterKey: f.backgroundPosterKey || null,
     titleKey: f.titleKey || null,
     overlayKey: f.overlayKey || null,
-    gifts: f.gifts.map((g) => ({
-      giftCode: g.giftCode,
-      pointsPerCoin: int(g.pointsPerCoin),
-      pointsPerGift: int(g.pointsPerGift),
-    })),
+    gifts: f.gifts
+      .filter((g) => f.status === 'PUBLISHED' || g.giftCode !== '')
+      .map((g) => ({
+        giftCode: g.giftCode,
+        // v1.101-social (D325): a decimal multiplier (×1.2).
+        pointsPerCoin: Math.round(Number(g.pointsPerCoin) * 100) / 100,
+        pointsPerGift: int(g.pointsPerGift),
+      })),
     boards: f.boards.map((b) => ({
       kind: b.kind,
       minPoints: int(b.minPoints),
       prizes: b.prizes.map((l) => ({
         rankFrom: int(l.rankFrom),
         rankTo: int(l.rankTo),
-        items: l.items.map((i) =>
-          i.type === 'COINS' || i.type === 'CHERRIES'
-            ? { type: i.type, amount: int(i.value) }
-            : i.type === 'CP_MONEY'
-              ? {
-                  type: i.type,
-                  cherries: int(i.cherries ?? '0'),
-                  coins: int(i.coins ?? '0'),
-                }
-              : i.type === 'BAG_ITEM'
-                ? {
-                    type: i.type,
-                    itemCode: i.code,
-                    days: i.permanent ? null : int(i.value),
-                  }
-                : i.type === 'BADGE'
-                  ? {
-                      type: i.type,
-                      badgeCode: i.code,
-                      level: int(i.level ?? '1'),
-                      days: i.permanent ? null : int(i.value),
-                    }
-                  : { type: i.type, tierCode: i.code, days: int(i.value) },
-        ),
+        items: l.items.map(prizeItemBody),
       })),
     })),
     reason: f.reason.trim(),
@@ -300,12 +357,19 @@ export function formFromServer(
     titleEn: string;
     rulesAr: string;
     rulesEn: string;
-    startsAt: string;
+    startsAt: string | null;
     endsAt: string | null;
     timeZone: string | null;
     audience: string;
     featured: boolean;
     bannerUrl: string | null;
+    status?: string;
+    permanent?: boolean;
+    recurrence?: string;
+    scoring?: string;
+    countedGifts?: string;
+    bannerMediaId?: string | null;
+    milestones?: { board: string; points: number; prizes: Record<string, unknown>[] }[];
     backgroundKey?: string | null;
     backgroundPosterKey?: string | null;
     titleKey?: string | null;
@@ -329,11 +393,22 @@ export function formFromServer(
     titleEn: form.titleEn,
     rulesAr: form.rulesAr,
     rulesEn: form.rulesEn,
-    startsAt: isoToZoned(form.startsAt, zone),
+    startsAt: form.startsAt ? isoToZoned(form.startsAt, zone) : '',
     endsAt: form.endsAt ? isoToZoned(form.endsAt, zone) : '',
     timeZone: zone,
     audience: (form.audience as GiftEventFormState['audience']) ?? 'EVERYONE',
     featured: form.featured,
+    status: form.status === 'DRAFT' ? 'DRAFT' : 'PUBLISHED',
+    permanent: form.permanent ?? false,
+    recurrence: (form.recurrence as GiftEventFormState['recurrence']) ?? 'NONE',
+    scoring: (form.scoring as GiftEventFormState['scoring']) ?? 'MULTIPLIER',
+    countedGifts: (form.countedGifts as GiftEventFormState['countedGifts']) ?? 'EVENT_GIFTS',
+    bannerMediaId: form.bannerMediaId ?? '',
+    milestones: (form.milestones ?? []).map((m) => ({
+      board: m.board as BoardKind,
+      points: String(m.points),
+      items: m.prizes.map(itemFromServer),
+    })),
     bannerUrl: form.bannerUrl ?? '',
     backgroundKey: form.backgroundKey ?? '',
     backgroundPosterKey: form.backgroundPosterKey ?? '',
@@ -350,17 +425,23 @@ export function formFromServer(
       prizes: b.prizes.map((l) => ({
         rankFrom: String(l.rankFrom),
         rankTo: String(l.rankTo),
-        items: l.items.map((i) => ({
-          type: i.type as PrizeType,
-          value: String(i.amount ?? i.days ?? ''),
-          code: String(i.itemCode ?? i.tierCode ?? i.badgeCode ?? ''),
-          ...((i.type === 'BAG_ITEM' || i.type === 'BADGE') && i.days === null ? { permanent: true } : {}),
-          ...(i.type === 'BADGE' ? { level: String(i.level ?? 1) } : {}),
-          ...(i.type === 'CP_MONEY' ? { cherries: String(i.cherries ?? 0), coins: String(i.coins ?? 0) } : {}),
-        })),
+        items: l.items.map(itemFromServer),
       })),
     })),
     reason: '',
+  };
+}
+
+/** A stored prize item back into the form. */
+function itemFromServer(i: Record<string, unknown>): PrizeItemForm {
+  return {
+    type: i.type as PrizeType,
+    value: String(i.amount ?? i.count ?? i.days ?? ''),
+    code: String(i.itemCode ?? i.tierCode ?? i.badgeCode ?? i.giftCode ?? ''),
+    ...((i.type === 'BAG_ITEM' || i.type === 'BADGE') && i.days === null ? { permanent: true } : {}),
+    ...(i.type === 'BADGE' ? { level: String(i.level ?? 1) } : {}),
+    ...(i.type === 'CP_MONEY' ? { cherries: String(i.cherries ?? 0), coins: String(i.coins ?? 0) } : {}),
+    ...(typeof i.displayKey === 'string' ? { displayKey: i.displayKey } : {}),
   };
 }
 
@@ -368,21 +449,27 @@ export function formFromServer(
 export function giftEventProblems(f: GiftEventFormState): string[] {
   const out: string[] = [];
   const whole = (v: string, min: number) => /^\d+$/.test(v.trim()) && Number(v) >= min;
+  // v1.101-social (D325): a multiplier with at most two decimals (×1.2).
+  const decimal = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim()) && Number(v) <= 1000;
+  // v1.101-social (D325): a draft may wait for its dates, gifts and boards.
+  const draft = f.status === 'DRAFT';
+  const gifts = draft ? f.gifts.filter((g) => g.giftCode !== '') : f.gifts;
   if (!f.titleAr.trim() || !f.titleEn.trim()) out.push('gevNeedTitles');
-  if (!f.startsAt || !f.endsAt) out.push('gevNeedDates');
-  else if (f.endsAt <= f.startsAt) out.push('gevEndAfterStart');
-  if (f.gifts.length === 0 || f.gifts.some((g) => !g.giftCode)) out.push('gevNeedGifts');
-  if (new Set(f.gifts.map((g) => g.giftCode)).size !== f.gifts.length) out.push('gevGiftTwice');
+  if (!draft && (!f.startsAt || (!f.endsAt && !f.permanent))) out.push('gevNeedDates');
+  else if (f.startsAt && f.endsAt && !f.permanent && f.endsAt <= f.startsAt) out.push('gevEndAfterStart');
+  if (!draft && f.countedGifts === 'EVENT_GIFTS' && (gifts.length === 0 || gifts.some((g) => !g.giftCode)))
+    out.push('gevNeedGifts');
+  if (new Set(gifts.map((g) => g.giftCode)).size !== gifts.length) out.push('gevGiftTwice');
   if (
-    f.gifts.some(
+    gifts.some(
       (g) =>
-        !whole(g.pointsPerCoin, 0) ||
+        !decimal(g.pointsPerCoin) ||
         !whole(g.pointsPerGift, 0) ||
-        (Number(g.pointsPerCoin) === 0 && Number(g.pointsPerGift) === 0),
+        (f.scoring === 'MULTIPLIER' && Number(g.pointsPerCoin) === 0 && Number(g.pointsPerGift) === 0),
     )
   )
     out.push('gevBadPoints');
-  if (f.boards.length === 0) out.push('gevNeedBoard');
+  if (!draft && f.boards.length === 0) out.push('gevNeedBoard');
   for (const b of f.boards) {
     if (!whole(b.minPoints, 0)) out.push('gevBadMin');
     let last = 0;
@@ -407,6 +494,7 @@ export function giftEventProblems(f: GiftEventFormState): string[] {
           );
         }
         if (i.type === 'COINS' || i.type === 'CHERRIES') return !whole(i.value, 1);
+        if (i.type === 'GIFT_PIECES') return !i.code || !whole(i.value, 1) || Number(i.value) > 100000;
         if (!i.code) return true;
         if (i.type === 'BADGE' && !(whole(i.level ?? '', 1) && Number(i.level) <= 10)) return true;
         if (i.permanent && i.type !== 'VIP') return false;
@@ -417,6 +505,22 @@ export function giftEventProblems(f: GiftEventFormState): string[] {
         break;
       }
     }
+  }
+  // v1.101-social (D325): milestones — a board the event has, whole points, distinct, and valid items.
+  const kinds = f.boards.map((b) => b.kind);
+  const steps = f.milestones.map((m) => `${m.board}:${m.points.trim()}`);
+  if (new Set(steps).size !== steps.length) out.push('evMilestoneTwice');
+  for (const m of f.milestones) {
+    if (!whole(m.points, 1) || (!draft && !kinds.includes(m.board))) out.push('evBadMilestone');
+    else if (
+      m.items.length === 0 ||
+      m.items.some(
+        (i) =>
+          (MONEY.includes(i.type) && !BOARD_MONEY[m.board].includes(i.type)) ||
+          (i.type === 'GIFT_PIECES' ? !i.code || !whole(i.value, 1) : !i.code && !MONEY.includes(i.type)),
+      )
+    )
+      out.push('evBadMilestone');
   }
   if (f.reason.trim().length < 3) out.push('gevNeedReason');
   return [...new Set(out)];
