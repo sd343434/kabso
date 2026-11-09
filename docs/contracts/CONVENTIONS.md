@@ -6770,6 +6770,7 @@ content-addressed under `media/vip/<tier>/`; the answer's `url` goes into the ti
   colour with the VIP badge. An agent's own bar (§10.48, §10.52) wins over it.
 - **ENTRY_EFFECT**: the perk's SVGA plays **once**, centred across the room, then leaves (at most 10 s; reduced
   motion or a broken file: nothing). Downloaded once through the gift art cache (D126) and kept on the device.
+  *(D331, §10.125: its whole length, at most 15.5 s, and a portrait or square car covers the whole screen.)*
 - D272 (owner: «مؤثر الدخول يتوقف يعلق ولا يحتوي على صوت»): the owner's car (`peacock`, 13.8 MB: 75 full-canvas
   563 × 1000 PNG frames at 12 fps, 6.25 s, and a 6.75 s MP3) froze the room — the file was inflated, parsed and every
   picture decoded **full size** (169 MB) on the UI isolate, then all 75 frames drawn at once (177 MB, over the whole
@@ -10034,6 +10035,32 @@ gifts**, the same five periods (§10.119), «والأيقونة التي بجا�
 - **App:** the tab is a normal tab now (no «قريبًا»), the podium and rows like the other boards, the **coin** art (D182
   `KabsoArt.coin`) beside every number, `liveRankCoins` «{n} كوينز» / "{n} coins" for screen readers, the caller's own row
   pinned; empty: «لم يُرسل أحد هدايا بعد في هذه الفترة.» / "No gifts sent yet in this period."
+
+### 10.125 The entry car: the whole screen, the whole length *(app only, D331)*
+
+Owner (2026-11-09, from a device): «سيارة الدخلة لا تُعرض بشاشة كاملة، بالإضافة لا تُعرض كاملة، يتم اقتصاص من
+وقتها». It applies to every entry car (`ENTRY_EFFECT`: a VIP tier's perk, a worn store item, §10.98, and the Kabso
+Team's car, §10.96.10), SVGA or MP4.
+
+- **Its whole length.** The car plays its file's own length (an SVGA's frames ÷ fps, an MP4's duration) from the moment
+  it **starts** (D272: once it can play), then leaves with the file's end. The layer's safety cap is **15.5 s** — the
+  panel's upload limit for an animated entrance (MP4 ≤ 15 s + the 0.5 s tolerance, §10.98.5; an SVGA has no length check
+  there and is cut at the cap). It was 10 s, which cut every longer car, and an **MP4** car's 10 s counted from the
+  `join`, so its download ate into its length; an MP4 now starts its clock when it starts playing, like an SVGA (8 s to
+  get ready, else skipped, as D272). An MP4 car's end now draws a frame by itself (it stayed on its last frame until
+  something else drew).
+- **Queue, never cut.** Entrances play one after another; the next waits until the one playing has ended (car and
+  banner). At most **5 wait**; a burst beyond that drops the newest (five cars already hold over a minute). The layer
+  keeps its own key in the live screen's stack, so another layer coming or going never builds it anew (which dropped
+  the car playing, never played again).
+- **The whole screen.** The entrance layer is over the whole live screen, above the header, the chat and the gift
+  effects. A **portrait or square** car canvas (an SVGA's view box, an MP4's picture, the still's panel size) is scaled to
+  **cover** it, its aspect kept — equal strips cut at the two sides, or its top — with its drawn bottom on the screen's
+  bottom (D280: the rows it never draws below the art left out); never a band of the room left above it. A **landscape**
+  (banner-shaped) canvas keeps D280's full width on the bottom edge (covering would cut most of its art away). What the
+  art leaves transparent stays transparent. Arabic and English alike (the art is never mirrored).
+- Unchanged: once per join (D280), «إخفاء تأثيرات الدخول» (D225), the sound (D272), reduced motion (the car does not
+  play, no sound). No contract change.
 
 ### 10.127 Events v2 «الفعاليات» — one events system *(v1.101-social, DRAFT — D325)*
 

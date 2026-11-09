@@ -2027,7 +2027,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // D258: a VIP's entry banner and entry car.
                 // D265: and the host's own entrance when on air.
                 if (onAir && room != null)
-                  LiveVipEntranceLayer(roomId: room.id, self: room.host),
+                  LiveVipEntranceLayer(
+                    key: LiveVipEntranceLayer.layerKey,
+                    roomId: room.id,
+                    self: room.host,
+                  ),
                 // D144a: DeepAR's diagnostics for the owner's screenshots —
                 // debug/profile builds with the camera processor only.
                 if (LiveFxDiagnostics.enabled &&
