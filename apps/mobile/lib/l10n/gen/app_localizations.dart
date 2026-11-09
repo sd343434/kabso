@@ -21769,7 +21769,7 @@ abstract class AppLocalizations {
   /// D346: the live's foreground service (type mediaProjection) could not start or was not running when the screen capture started.
   ///
   /// In ar, this message translates to:
-  /// **'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو من جديد وحاول مرة أخرى'**
+  /// **'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح Kabso Live من جديد وحاول مرة أخرى'**
   String get streamerFailServiceDenied;
 
   /// D346: Android threw a SecurityException for the screen capture (e.g. a spent consent).

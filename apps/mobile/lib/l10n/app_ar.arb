@@ -12282,7 +12282,7 @@
   "@streamerShareAgainFailed": {
     "description": "D262: allowed, but the screen could not start again («شارك الشاشة من جديد»)."
   },
-  "streamerFailServiceDenied": "لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو من جديد وحاول مرة أخرى",
+  "streamerFailServiceDenied": "لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح Kabso Live من جديد وحاول مرة أخرى",
   "@streamerFailServiceDenied": {
     "description": "D346: the live's foreground service (type mediaProjection) could not start or was not running when the screen capture started."
   },

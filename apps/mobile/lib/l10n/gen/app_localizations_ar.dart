@@ -12828,7 +12828,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get streamerFailServiceDenied =>
-      'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح كابسو من جديد وحاول مرة أخرى';
+      'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح Kabso Live من جديد وحاول مرة أخرى';
 
   @override
   String get streamerFailSecurity =>
