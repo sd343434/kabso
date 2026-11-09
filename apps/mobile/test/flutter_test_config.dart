@@ -5,6 +5,7 @@
 
 import 'dart:async';
 
+import 'package:kabso_live/core/ids/install_source.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
@@ -39,6 +40,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
   // D345: no store plugin in widget tests (tests pass a fake billing).
   InAppPurchaseBilling.enabled = false;
+  // int21: no installer-package platform call (a test passes its own reader).
+  PlatformInstallSourceReader.enabled = false;
   // D333: no automatic upload retries unless a test sets the waits.
   ComposeController.retryDelays = const [];
   KabsoBattleEmoji.enabled = false;

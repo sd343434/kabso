@@ -17,6 +17,7 @@ import {
   forgotPasswordSchema,
   loginSchema,
   refreshSchema,
+  type RefreshInput,
   registerResendSchema,
   registerSchema,
   registerVerifySchema,
@@ -158,10 +159,10 @@ export class AuthController {
   @HttpCode(200)
   @RateLimit({ bucket: 'refresh:session', rule: 'refreshSession', key: refreshSubject })
   refresh(
-    @Body(new ZodValidationPipe(refreshSchema)) body: { refreshToken: string },
+    @Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput,
     @Req() req: AppRequest,
   ): Promise<TokenPairDto> {
-    return this.auth.refresh(body.refreshToken, requestMeta(req));
+    return this.auth.refresh(body.refreshToken, requestMeta(req), body.installSource ?? null);
   }
 
   @Post('logout')

@@ -3818,6 +3818,14 @@ CONVENTIONS §10.143 (owner 2026-11-09). §5.102–§5.106 are left for the work
   `topup_orders.stripe_fee_minor` is filled and no `topup.fee.exceeded` row appears with the real rates.
 - **Rollback:** an older API ignores the new table and columns (prices go back to the base); an older app ignores the
   new endpoints. Dropping them is not needed.
+- **int21 — the link only in the direct APK** (CONVENTIONS §10.143.3, v1.112-social; migration
+  `20270418090000_session_install_source`: the nullable `sessions.install_source` with a CHECK, no backfill, no rewrite):
+  new optional setting `TOPUP_APP_LINK_SOURCES` (default `SIDELOAD`; `PLAY`, `APP_STORE`, `SIDELOAD` comma-separated,
+  empty = none), checked with `TOPUP_APP_LINK_PLATFORMS`. **Behaviour from this deploy:** a session whose app has not
+  reported an install source (every app older than this build) gets no «الشحن من الموقع» until the person updates the
+  APK (the new build reports at its next token refresh, ≤ 15 min, or sign-in). Deploy the API before the app (an older
+  API refuses the new refresh field with a 400). Check after deploy: `SELECT install_source, count(*) FROM sessions WHERE
+  revoked_at IS NULL GROUP BY 1`; on a direct-APK phone the link shows; on a Play / TestFlight build it does not.
 
 ### 5.108 Coins from the stores «الشراء من المتجر» (migrations `20270417090000_store_iap_enums`, `20270417090100_store_iap`; D345) — [IMPLEMENTED, draft contract v1.110-social; not deployed, not device-tested, no real store tested]
 

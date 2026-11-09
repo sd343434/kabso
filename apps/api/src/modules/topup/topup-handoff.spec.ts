@@ -32,16 +32,56 @@ describe('D344 website link per store (TOPUP_APP_LINK_PLATFORMS)', () => {
 
   it('shows the link by the session platform, after the master switch', () => {
     const both = ['android', 'ios'] as const;
-    expect(appLinkShownFor('android', true, both)).toBe(true);
-    expect(appLinkShownFor('ios', true, both)).toBe(true);
-    expect(appLinkShownFor('ios', false, both)).toBe(false);
-    expect(appLinkShownFor('ios', true, ['android'])).toBe(false);
-    expect(appLinkShownFor('android', true, ['android'])).toBe(true);
-    expect(appLinkShownFor('android', true, [])).toBe(false);
+    const rules = (enabled: boolean, platforms: readonly ('android' | 'ios')[]) => ({
+      enabled,
+      platforms,
+      sources: ['SIDELOAD'] as const,
+    });
+    const s = (platform: string | null) => ({ platform, installSource: 'SIDELOAD' });
+    expect(appLinkShownFor(s('android'), rules(true, both))).toBe(true);
+    expect(appLinkShownFor(s('ios'), rules(true, both))).toBe(true);
+    expect(appLinkShownFor(s('ios'), rules(false, both))).toBe(false);
+    expect(appLinkShownFor(s('ios'), rules(true, ['android']))).toBe(false);
+    expect(appLinkShownFor(s('android'), rules(true, ['android']))).toBe(true);
+    expect(appLinkShownFor(s('android'), rules(true, []))).toBe(false);
     // Another or no platform: only when no store hides it.
-    expect(appLinkShownFor(null, true, both)).toBe(true);
-    expect(appLinkShownFor('web', true, both)).toBe(true);
-    expect(appLinkShownFor('other', true, ['android'])).toBe(false);
+    expect(appLinkShownFor(s(null), rules(true, both))).toBe(true);
+    expect(appLinkShownFor(s('web'), rules(true, both))).toBe(true);
+    expect(appLinkShownFor(s('other'), rules(true, ['android']))).toBe(false);
+  });
+});
+
+describe('int21 website link per install source (TOPUP_APP_LINK_SOURCES)', () => {
+  it('defaults to SIDELOAD (the direct APK) and parses a list or none', () => {
+    expect(loadConfig(base).topup.appLinkSources).toEqual(['SIDELOAD']);
+    expect(
+      loadConfig({ ...base, TOPUP_APP_LINK_SOURCES: 'SIDELOAD,PLAY,SIDELOAD' }).topup.appLinkSources,
+    ).toEqual(['SIDELOAD', 'PLAY']);
+    expect(loadConfig({ ...base, TOPUP_APP_LINK_SOURCES: '' }).topup.appLinkSources).toEqual([]);
+    for (const bad of ['sideload', 'TESTFLIGHT', 'PLAY;SIDELOAD', 'PLAY,']) {
+      expect(() => loadConfig({ ...base, TOPUP_APP_LINK_SOURCES: bad }), bad).toThrow(ConfigValidationError);
+    }
+  });
+
+  it('offers the link only to a session whose reported source is listed', () => {
+    const both = ['android', 'ios'] as const;
+    const on = { enabled: true, platforms: both, sources: ['SIDELOAD'] as const };
+    expect(appLinkShownFor({ platform: 'android', installSource: 'SIDELOAD' }, on)).toBe(true);
+    expect(appLinkShownFor({ platform: 'android', installSource: 'PLAY' }, on)).toBe(false);
+    expect(appLinkShownFor({ platform: 'ios', installSource: 'APP_STORE' }, on)).toBe(false);
+    // Not reported (an older app, the website), or no session: never.
+    expect(appLinkShownFor({ platform: 'android', installSource: null }, on)).toBe(false);
+    expect(appLinkShownFor(null, on)).toBe(false);
+    // Configurable: the stores too, or nobody.
+    const stores = { ...on, sources: ['PLAY', 'APP_STORE', 'SIDELOAD'] as const };
+    expect(appLinkShownFor({ platform: 'ios', installSource: 'APP_STORE' }, stores)).toBe(true);
+    expect(appLinkShownFor({ platform: 'android', installSource: 'SIDELOAD' }, { ...on, sources: [] })).toBe(
+      false,
+    );
+    // TOPUP_APP_LINK_PLATFORMS still applies on top.
+    expect(
+      appLinkShownFor({ platform: 'android', installSource: 'SIDELOAD' }, { ...on, platforms: ['ios'] }),
+    ).toBe(false);
   });
 });
 

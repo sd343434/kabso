@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/ids/device_key.dart';
+import 'package:kabso_live/core/ids/install_source.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/core/network/token_manager.dart';
@@ -100,6 +101,7 @@ class AccountDeletionRepositoryImpl implements AccountDeletionRepository {
     required this._tokens,
     required this._device,
     this._deviceKey,
+    this._installSource,
   });
 
   final Dio _dio;
@@ -110,6 +112,9 @@ class AccountDeletionRepositoryImpl implements AccountDeletionRepository {
   /// v1.60-live (D250): the device key sent with a sign-in (null: none).
   final DeviceKeySource? _deviceKey;
 
+  /// v1.112-social (int21, §10.143.3): the install source sent with a sign-in.
+  final InstallSourceReader? _installSource;
+
   @override
   Future<User> cancelAndSignIn({
     required String identifier,
@@ -119,7 +124,9 @@ class AccountDeletionRepositoryImpl implements AccountDeletionRepository {
       LoginRequestDto(
         identifier: identifier.trim(),
         password: password,
-        device: _device.withDeviceKey(await _deviceKey?.read()),
+        device: _device
+            .withDeviceKey(await _deviceKey?.read())
+            .withInstallSource(await _installSource?.read()),
       ),
       cancelDeletion: true,
     );
@@ -159,6 +166,7 @@ final accountDeletionRepositoryProvider = Provider<AccountDeletionRepository>((
       appVersion: config.appVersion,
     ),
     deviceKey: ref.watch(deviceKeySourceProvider),
+    installSource: ref.watch(installSourceReaderProvider),
   );
 });
 

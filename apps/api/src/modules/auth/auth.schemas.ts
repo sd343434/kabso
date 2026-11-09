@@ -77,6 +77,11 @@ export const regularUsernameSchema = z
 
 export const localeSchema = z.enum(['ar', 'en']);
 
+/** v1.112-social (§10.143.3): `InstallSource`. */
+export const INSTALL_SOURCES = ['PLAY', 'APP_STORE', 'SIDELOAD'] as const;
+export type InstallSource = (typeof INSTALL_SOURCES)[number];
+export const installSourceSchema = z.enum(INSTALL_SOURCES);
+
 export const deviceInfoSchema = z.strictObject({
   name: safeText(0, 100).optional(),
   platform: z.enum(['android', 'ios', 'web', 'other']).optional(),
@@ -92,6 +97,13 @@ export const deviceInfoSchema = z.strictObject({
    * SIGNUP_MAX_ACCOUNTS_PER_DEVICE accounts created per device); stored only as an HMAC under the server's key.
    */
   deviceKey: deviceKeySchema.optional(),
+  /**
+   * v1.112-social (int21, D344/D345, §10.143.3): where this copy of the app was installed from — `PLAY` (Android,
+   * installer `com.android.vending`), `APP_STORE` (iOS, TestFlight included) or `SIDELOAD` (Android, any other or no
+   * installer: the direct APK). Kept on the session; «الشحن من الموقع» is offered only to the sources in
+   * TOPUP_APP_LINK_SOURCES (default SIDELOAD).
+   */
+  installSource: installSourceSchema.optional(),
 });
 
 /**
@@ -164,7 +176,12 @@ export type LoginInput = z.output<typeof loginSchema>;
 
 const opaqueToken = z.string().min(10).max(200);
 
-export const refreshSchema = z.strictObject({ refreshToken: opaqueToken });
+export const refreshSchema = z.strictObject({
+  refreshToken: opaqueToken,
+  /** v1.112-social (§10.143.3): the app's install source, kept on the session (a session signed in earlier gets it). */
+  installSource: installSourceSchema.optional(),
+});
+export type RefreshInput = z.output<typeof refreshSchema>;
 export const verifyEmailSchema = z.strictObject({ token: opaqueToken });
 export const forgotPasswordSchema = z.strictObject({ email: emailSchema });
 

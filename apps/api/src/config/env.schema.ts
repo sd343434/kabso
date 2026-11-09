@@ -1522,6 +1522,23 @@ export const envSchema = z
       })
       .transform((v) => (v === '' ? [] : [...new Set(v.split(','))]) as ('android' | 'ios')[]),
     /**
+     * v1.112-social (int21, §10.143.3; owner: the link only in the direct APK, never in a store build): which install
+     * sources see «الشحن من الموقع» — comma-separated `PLAY`, `APP_STORE`, `SIDELOAD`; empty = none. The source is the
+     * one the app reported for the caller's session (`DeviceInfo.installSource` at sign-in, `RefreshRequest` after);
+     * a session that reported none (an older app, the website) never sees it. Checked with TOPUP_APP_LINK_PLATFORMS
+     * (both must allow it). Default: SIDELOAD.
+     */
+    TOPUP_APP_LINK_SOURCES: z
+      .string()
+      .trim()
+      .default('SIDELOAD')
+      .refine((v) => v === '' || v.split(',').every((s) => ['PLAY', 'APP_STORE', 'SIDELOAD'].includes(s)), {
+        message: 'must be a comma-separated list of PLAY, APP_STORE, SIDELOAD, or empty',
+      })
+      .transform(
+        (v) => (v === '' ? [] : [...new Set(v.split(','))]) as ('PLAY' | 'APP_STORE' | 'SIDELOAD')[],
+      ),
+    /**
      * v1.109-social (D344, §10.143.2; owner: «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»): the website price
      * includes Stripe's fee, charged = ceil((base + fixed) / (1 − percent)), so Kabso nets the base price. One
      * all-inclusive price (never a separate fee line). The OWNER may override all three in the panel «الدفع (Stripe)».

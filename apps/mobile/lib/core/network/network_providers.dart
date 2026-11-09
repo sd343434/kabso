@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/config/app_config.dart';
+import 'package:kabso_live/core/ids/install_source.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/core/network/consent_required.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -50,12 +51,19 @@ Dio createBaseDio({
 }
 
 /// `POST /auth/refresh` on a Dio without the auth interceptor (no recursion).
-RefreshTokensCall refreshCallFor(Dio bareDio) {
+/// v1.112-social (int21, §10.143.3): with [installSource] (where the app was
+/// installed from) when it is known, so a session signed in before an update
+/// gets it; the server keeps the stored one when it is omitted.
+RefreshTokensCall refreshCallFor(
+  Dio bareDio, {
+  InstallSourceReader? installSource,
+}) {
   return (refreshToken) async {
+    final source = await installSource?.read();
     try {
       final response = await bareDio.post<Map<String, dynamic>>(
         '/auth/refresh',
-        data: {'refreshToken': refreshToken},
+        data: {'refreshToken': refreshToken, 'installSource': ?source},
         options: publicEndpoint(),
       );
       return AuthTokens.fromJson(response.data!);
@@ -79,7 +87,10 @@ final bareDioProvider = Provider<Dio>((ref) {
 final tokenManagerProvider = Provider<TokenManager>((ref) {
   final manager = TokenManager(
     store: ref.watch(secureTokenStoreProvider),
-    refreshCall: refreshCallFor(ref.watch(bareDioProvider)),
+    refreshCall: refreshCallFor(
+      ref.watch(bareDioProvider),
+      installSource: ref.watch(installSourceReaderProvider),
+    ),
   );
   ref.onDispose(manager.dispose);
   return manager;

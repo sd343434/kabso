@@ -29,20 +29,41 @@ interface AppUser {
   readonly username: string;
   readonly token: string;
   readonly sessionId: string;
+  readonly refreshToken: string;
 }
 
 const sha256 = (v: string) => createHash('sha256').update(v, 'utf8').digest('hex');
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 const codeOf = (url: string) => /#h=([A-Za-z0-9_-]{43})$/.exec(url)?.[1] ?? '';
 
-async function signup(ctx: TestContext, platform: 'android' | 'ios' = 'android'): Promise<AppUser> {
+type InstallSource = 'PLAY' | 'APP_STORE' | 'SIDELOAD';
+
+/** int21 (§10.143.3): signs up from `platform`, reporting `installSource` (the direct APK unless said; null: none). */
+async function signup(
+  ctx: TestContext,
+  platform: 'android' | 'ios' = 'android',
+  installSource: InstallSource | null = 'SIDELOAD',
+): Promise<AppUser> {
   const { res } = await registerVerified(ctx, {
-    device: { name: 'Phone', platform, appVersion: '1.0.0', deviceKey: randomBytes(32).toString('hex') },
+    device: {
+      name: 'Phone',
+      platform,
+      appVersion: '1.0.0',
+      deviceKey: randomBytes(32).toString('hex'),
+      ...(installSource ? { installSource } : {}),
+    },
   });
   expect(res.status, JSON.stringify(res.body)).toBe(201);
   const token = res.body.tokens.accessToken as string;
-  const sessionId = (res.body.tokens.refreshToken as string).split('.')[0]!;
-  return { id: res.body.user.id as string, username: res.body.user.username as string, token, sessionId };
+  const refreshToken = res.body.tokens.refreshToken as string;
+  const sessionId = refreshToken.split('.')[0]!;
+  return {
+    id: res.body.user.id as string,
+    username: res.body.user.username as string,
+    token,
+    sessionId,
+    refreshToken,
+  };
 }
 
 describe('D344 contract coverage', () => {
@@ -316,6 +337,123 @@ class FeeStripe {
     return this.fee;
   }
 }
+
+describe('int21 the website link only for the direct APK (install source)', { timeout: 300_000 }, () => {
+  let ctx: TestContext;
+  beforeAll(async () => {
+    ctx = await createTestApp(STRIPE_ENV, STUB);
+  });
+  afterAll(async () => ctx?.close());
+
+  const offer = async (u: AppUser) => {
+    const res = await ctx.http.get('/api/v1/wallet/recharge-packages').set(bearer(u.token));
+    expect(res.status).toBe(200);
+    expectContract(res, 'listRechargePackages');
+    return res.body.websiteTopupUrl as string | null;
+  };
+  const mintStatus = async (u: AppUser) =>
+    (await ctx.http.post('/api/v1/wallet/topup-session').set(bearer(u.token))).status;
+  const refresh = (u: AppUser, body: Record<string, unknown> = {}) =>
+    ctx.http.post('/api/v1/auth/refresh').send({ refreshToken: u.refreshToken, ...body });
+  const sourceOf = async (sessionId: string) =>
+    (await ctx.prisma.session.findUniqueOrThrow({ where: { id: sessionId } })).installSource;
+
+  it('a direct APK (SIDELOAD) gets the link and a code; a Play, App Store or unreported install does not', async () => {
+    const apk = await signup(ctx, 'android', 'SIDELOAD');
+    expect(await sourceOf(apk.sessionId)).toBe('SIDELOAD');
+    expect(await offer(apk)).toBe(`${PUBLIC}/topup`);
+    expect(await mintStatus(apk)).toBe(201);
+
+    for (const [platform, source] of [
+      ['android', 'PLAY'],
+      ['ios', 'APP_STORE'],
+      ['android', null],
+    ] as const) {
+      const u = await signup(ctx, platform, source);
+      expect(await sourceOf(u.sessionId)).toBe(source);
+      expect(await offer(u), `${platform} ${source}`).toBeNull();
+      const refused = await ctx.http.post('/api/v1/wallet/topup-session').set(bearer(u.token));
+      expect(refused.status).toBe(503);
+      expectContract(refused, 'createTopupWebsiteSession');
+      expect(refused.body.error.code).toBe('TOPUP_UNAVAILABLE');
+    }
+  });
+
+  it('a sign-in reports it too; a refresh reports it for a session signed in earlier and keeps it when omitted', async () => {
+    // Signed in by an app that reported nothing (an older app): no link until it reports.
+    const old = await signup(ctx, 'android', null);
+    expect(await offer(old)).toBeNull();
+    const r1 = await refresh(old, { installSource: 'SIDELOAD' });
+    expect(r1.status, JSON.stringify(r1.body)).toBe(200);
+    expectContract(r1, 'refresh');
+    const updated: AppUser = {
+      ...old,
+      token: r1.body.accessToken as string,
+      refreshToken: r1.body.refreshToken as string,
+    };
+    expect(await sourceOf(old.sessionId)).toBe('SIDELOAD');
+    expect(await offer(updated)).toBe(`${PUBLIC}/topup`);
+    // Omitted: the stored source is kept.
+    const r2 = await refresh(updated);
+    expect(r2.status).toBe(200);
+    expect(await sourceOf(old.sessionId)).toBe('SIDELOAD');
+    // The same phone now runs the Play build (reinstalled from the store): the link goes.
+    const r3 = await refresh(
+      { ...updated, refreshToken: r2.body.refreshToken as string },
+      { installSource: 'PLAY' },
+    );
+    expect(r3.status).toBe(200);
+    expect(await sourceOf(old.sessionId)).toBe('PLAY');
+    expect(await offer({ ...updated, token: r3.body.accessToken as string })).toBeNull();
+    // An unknown value is a 400 (the token is not spent).
+    const bad = await refresh(
+      { ...updated, refreshToken: r3.body.refreshToken as string },
+      { installSource: 'TESTFLIGHT' },
+    );
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('VALIDATION_FAILED');
+
+    // Login carries it in DeviceInfo.
+    const { res, payload } = await registerVerified(ctx);
+    expect(res.status).toBe(201);
+    const login = await ctx.http.post('/api/v1/auth/login').send({
+      identifier: payload.email,
+      password: payload.password,
+      device: { platform: 'android', installSource: 'SIDELOAD' },
+    });
+    expect(login.status, JSON.stringify(login.body)).toBe(200);
+    expectContract(login, 'login');
+    const sid = (login.body.tokens.refreshToken as string).split('.')[0]!;
+    expect(await sourceOf(sid)).toBe('SIDELOAD');
+    const badLogin = await ctx.http.post('/api/v1/auth/login').send({
+      identifier: payload.email,
+      password: payload.password,
+      device: { platform: 'android', installSource: 'sideload' },
+    });
+    expect(badLogin.status).toBe(400);
+  });
+});
+
+describe('int21 TOPUP_APP_LINK_SOURCES set to the stores too', { timeout: 300_000 }, () => {
+  let ctx: TestContext;
+  beforeAll(async () => {
+    ctx = await createTestApp({ ...STRIPE_ENV, TOPUP_APP_LINK_SOURCES: 'PLAY,APP_STORE,SIDELOAD' }, STUB);
+  });
+  afterAll(async () => ctx?.close());
+
+  it('then a store install sees the link; a session that reported nothing still does not', async () => {
+    for (const [platform, source, shown] of [
+      ['android', 'PLAY', true],
+      ['ios', 'APP_STORE', true],
+      ['android', 'SIDELOAD', true],
+      ['android', null, false],
+    ] as const) {
+      const u = await signup(ctx, platform, source);
+      const res = await ctx.http.get('/api/v1/wallet/recharge-packages').set(bearer(u.token));
+      expect(res.body.websiteTopupUrl, `${platform} ${source}`).toBe(shown ? `${PUBLIC}/topup` : null);
+    }
+  });
+});
 
 describe('D344 Stripe fee in the website price', { timeout: 300_000 }, () => {
   const stripe = new FeeStripe();

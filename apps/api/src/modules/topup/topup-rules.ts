@@ -291,19 +291,36 @@ export function simplePdf(lines: readonly string[]): Buffer {
   return Buffer.from(pdf, 'latin1');
 }
 
+/** The session facts the website link depends on (`sessions.platform`, `sessions.install_source`). */
+export interface AppLinkSession {
+  readonly platform: string | null;
+  readonly installSource: string | null;
+}
+
+/** The app-link settings: the master switch, TOPUP_APP_LINK_PLATFORMS and TOPUP_APP_LINK_SOURCES. */
+export interface AppLinkRules {
+  readonly enabled: boolean;
+  readonly platforms: readonly ('android' | 'ios')[];
+  readonly sources: readonly ('PLAY' | 'APP_STORE' | 'SIDELOAD')[];
+}
+
 /**
  * v1.109-social (D344, §10.143): whether the app shows «الشحن من الموقع» to a session of `platform` (its sign-in
  * device). The master switch (`TOPUP_APP_LINK_ENABLED` or the panel's) first; then `TOPUP_APP_LINK_PLATFORMS`
- * (store payment rules, PP-79). A session of another or no platform sees it only when both stores are listed.
+ * (store payment rules, PP-79). A session of another or no platform passes that step only when both stores are
+ * listed. v1.112-social (int21, §10.143.3): then the install source the app reported for the session must be in
+ * `TOPUP_APP_LINK_SOURCES` (default SIDELOAD: the direct APK only); a session with no reported source never sees it.
  */
-export function appLinkShownFor(
-  platform: string | null,
-  enabled: boolean,
-  platforms: readonly ('android' | 'ios')[],
-): boolean {
-  if (!enabled) return false;
-  if (platform === 'android' || platform === 'ios') return platforms.includes(platform);
-  return platforms.includes('android') && platforms.includes('ios');
+export function appLinkShownFor(session: AppLinkSession | null, rules: AppLinkRules): boolean {
+  if (!rules.enabled) return false;
+  const platform = session?.platform ?? null;
+  const platformOk =
+    platform === 'android' || platform === 'ios'
+      ? rules.platforms.includes(platform)
+      : rules.platforms.includes('android') && rules.platforms.includes('ios');
+  if (!platformOk) return false;
+  const source = session?.installSource ?? null;
+  return source !== null && (rules.sources as readonly string[]).includes(source);
 }
 
 /** v1.109-social (D344): Stripe's fee as the website price includes it. */

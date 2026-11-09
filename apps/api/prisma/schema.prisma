@@ -513,6 +513,9 @@ model Session {
   /// v1.60-live (D250, §10.91): the HMAC of the `DeviceInfo.deviceKey` the session signed in with (D223's key), so a
   /// device ban refuses going live and ends the device's sessions. NULL: none sent (website, older app).
   deviceHash                String?   @map("device_hash") @db.Char(64)
+  /// v1.112-social (int21, §10.143.3): where the app was installed from — PLAY | APP_STORE | SIDELOAD (CHECK); NULL:
+  /// not reported (website, an older app). «الشحن من الموقع» is offered only to TOPUP_APP_LINK_SOURCES (default SIDELOAD).
+  installSource             String?   @map("install_source") @db.VarChar(16)
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// v1.30-live (D152): at most one push token per session.

@@ -82,9 +82,25 @@ class MainActivity : FlutterActivity() {
                         }
                         result.success(id)
                     }
+                    // v1.112-social (int21, CONVENTIONS §10.143.3): who installed this app —
+                    // "com.android.vending" for Google Play, null for the direct APK
+                    // (browser, file manager, adb). The app sends only PLAY / SIDELOAD.
+                    "installerPackage" -> result.success(installerPackage())
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** int21: the package that installed this app (null when unknown or none). Needs no permission. */
+    private fun installerPackage(): String? = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            packageManager.getInstallSourceInfo(packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getInstallerPackageName(packageName)
+        }
+    } catch (e: Exception) {
+        null
     }
 
     /** D343: one connection to the Play referrer service; always answers [result] exactly once. */

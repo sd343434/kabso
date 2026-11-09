@@ -623,5 +623,8 @@
   (Google refunds the unacknowledged purchase within 3 days) but is credited on Apple (flagged), which cannot refund
   automatically.
 - **Restored (re-delivered) transactions** are verified while the wallet is open, not at app start.
-- **Store-review risk:** the wallet still shows «الشحن من الموقع» when the website top-up link is on (§10.53); Apple's
-  and Google's rules on links to outside payment must be checked before submission (PP-35 / PP-80).
+- **Store builds no longer show «الشحن من الموقع»** (int21, §10.143.3): the link is offered only to the install sources
+  in `TOPUP_APP_LINK_SOURCES` (default SIDELOAD, the direct APK). The source is what the app reports (installer package
+  on Android, always the App Store on iOS): a modified APK could claim otherwise — a display rule for store review, not
+  a security boundary. An app older than this build shows no link until updated. Store-policy review stays in PP-35 /
+  PP-80.

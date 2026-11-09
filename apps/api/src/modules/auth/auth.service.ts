@@ -14,7 +14,7 @@ import { activeRestrictionOf } from '../users/account-control.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
 import { AccessTokenService } from './access-token.service.js';
 import { AccountDeletionService } from './account-deletion.service.js';
-import type { DeviceInfo, LoginInput } from './auth.schemas.js';
+import type { DeviceInfo, InstallSource, LoginInput } from './auth.schemas.js';
 import { PasswordHasher } from './password-hasher.service.js';
 import {
   RevokedReason,
@@ -243,8 +243,12 @@ export class AuthService {
     return { user: me, tokens: await this.tokenPair(candidate.id, session) };
   }
 
-  async refresh(refreshToken: string, meta: RequestMeta): Promise<TokenPairDto> {
-    const outcome = await this.sessions.rotate(refreshToken);
+  async refresh(
+    refreshToken: string,
+    meta: RequestMeta,
+    installSource: InstallSource | null = null,
+  ): Promise<TokenPairDto> {
+    const outcome = await this.sessions.rotate(refreshToken, new Date(), installSource);
     if (outcome.kind === 'reuse') {
       await this.audit.record({
         action: AuditAction.REFRESH_REUSE,

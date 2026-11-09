@@ -142,8 +142,9 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
   let ctx: TestContext;
   let host: TestUser;
 
-  const signup = async (): Promise<TestUser> => {
-    const { res, payload } = await registerVerified(ctx);
+  /** `device`: int21 (§10.143.3) — e.g. a direct APK's `installSource: 'SIDELOAD'`, which the website link needs. */
+  const signup = async (device?: Record<string, unknown>): Promise<TestUser> => {
+    const { res, payload } = await registerVerified(ctx, device ? { device } : {});
     expect(res.status).toBe(201);
     return {
       id: res.body.user.id as string,
@@ -310,8 +311,9 @@ describe('D190 card top-ups', { timeout: 300_000 }, () => {
       en: 'Coins are digital and non-refundable',
     });
     expect(res.body.bankTransfer).toBe(true); // owner CP-033 Q3: on by default
-    // Owner CP-033 Q4: the app link is on by default (a server switch): the website's page.
-    const u = await signup();
+    // Owner CP-033 Q4: the app link is on by default (a server switch): the website's page — int21 (§10.143.3): for
+    // the direct APK (the install source the app reports); a store install or an unreported one gets none.
+    const u = await signup({ platform: 'android', installSource: 'SIDELOAD' });
     const offer = await ctx.http.get('/api/v1/wallet/recharge-packages').set(auth(u));
     expect(offer.body.websiteTopupUrl).toBe(`${PUBLIC}/topup`);
   });

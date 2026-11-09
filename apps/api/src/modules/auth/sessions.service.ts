@@ -4,7 +4,7 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type { DeviceInfo } from './auth.schemas.js';
+import type { DeviceInfo, InstallSource } from './auth.schemas.js';
 import { deviceHashOf, deviceHmacKey } from './device-signups.js';
 import { formatRefreshToken, generateSecret, hashesEqual, parseRefreshToken, sha256Hex } from './tokens.js';
 
@@ -109,6 +109,8 @@ export class SessionsService {
         installId: client.device?.installId ?? null,
         // v1.60-live (D250, §10.91): the device it signed in with, as D223's HMAC (a device ban ends it).
         deviceHash: this.deviceHashOf(client.device?.deviceKey),
+        // v1.112-social (§10.143.3): where the app was installed from (the website link is offered by it).
+        installSource: client.device?.installSource ?? null,
         ip: client.ip?.slice(0, 64) ?? null,
         userAgent: client.userAgent,
         createdAt: now,
@@ -132,7 +134,12 @@ export class SessionsService {
    * (REFRESH_REUSE, contract v1.2 SEC-022); a secret never issued for the session is refused
    * without revoking (SEC-001).
    */
-  async rotate(refreshToken: string, now: Date = new Date()): Promise<RotationOutcome> {
+  async rotate(
+    refreshToken: string,
+    now: Date = new Date(),
+    /** v1.112-social (§10.143.3): the app's install source, written when given (else the stored one is kept). */
+    installSource: InstallSource | null = null,
+  ): Promise<RotationOutcome> {
     const parsed = parseRefreshToken(refreshToken);
     if (!parsed) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
 
@@ -204,7 +211,8 @@ export class SessionsService {
             (array_prepend(${presentedHash}::char(64), COALESCE("rotated_refresh_token_hashes", '{}')))[1:${ROTATED_HISTORY_SIZE}::int],
           "rotation_counter" = "rotation_counter" + 1,
           "last_used_at" = ${now},
-          "expires_at" = ${expiresAt}
+          "expires_at" = ${expiresAt},
+          "install_source" = COALESCE(${installSource}::varchar, "install_source")
       WHERE "id" = ${session.id}::uuid
         AND "refresh_token_hash" = ${presentedHash}
         AND "revoked_at" IS NULL`;

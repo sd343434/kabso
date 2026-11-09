@@ -5,6 +5,7 @@ import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/ids/device_key.dart';
+import 'package:kabso_live/core/ids/install_source.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -55,6 +56,8 @@ final changePasswordAtSignInProvider = Provider<ChangePasswordAtSignIn>((ref) {
   final config = ref.watch(appConfigProvider);
   // v1.60-live (D250): sign-in sends the device key too (a banned device).
   final deviceKey = ref.watch(deviceKeySourceProvider);
+  // v1.112-social (int21): and where the app was installed from.
+  final installSource = ref.watch(installSourceReaderProvider);
   return ({
     required identifier,
     required password,
@@ -64,10 +67,13 @@ final changePasswordAtSignInProvider = Provider<ChangePasswordAtSignIn>((ref) {
       LoginRequestDto(
         identifier: identifier.trim(),
         password: password,
-        device: DeviceInfoDto(
-          platform: clientPlatform(),
-          appVersion: config.appVersion,
-        ).withDeviceKey(await deviceKey.read()),
+        device:
+            DeviceInfoDto(
+                  platform: clientPlatform(),
+                  appVersion: config.appVersion,
+                )
+                .withDeviceKey(await deviceKey.read())
+                .withInstallSource(await installSource.read()),
       ),
       newPassword: newPassword,
     );

@@ -323,6 +323,8 @@ describe('D196 «الدفع (Stripe)» with no env keys', { timeout: 300_000 }, 
       .send({ packageId: '1000000', termsAccepted: true, termsVersion: '2026-10-31' });
     expect(go.status, JSON.stringify(go.body)).toBe(201);
     expect(stripe.made.at(-1)).toBe(SK);
+    // int21 (§10.143.3): the website link is offered to the direct APK only — this buyer's app reported SIDELOAD.
+    await ctx.prisma.session.updateMany({ where: { userId: buyer.id }, data: { installSource: 'SIDELOAD' } });
     expect(stripe.sessions.at(-1)!.key).toBe(SK);
     // Options: no bank transfer, a statement suffix, the app link off — from the panel.
     const opts = await patch(

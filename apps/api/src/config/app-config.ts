@@ -378,6 +378,8 @@ export interface AppConfig {
     readonly appLinkEnabled: boolean;
     /** v1.109-social (D344): the app platforms that show «الشحن من الموقع» (TOPUP_APP_LINK_PLATFORMS). */
     readonly appLinkPlatforms: readonly ('android' | 'ios')[];
+    /** v1.112-social (§10.143.3): the install sources that show «الشحن من الموقع» (TOPUP_APP_LINK_SOURCES). */
+    readonly appLinkSources: readonly ('PLAY' | 'APP_STORE' | 'SIDELOAD')[];
     /**
      * v1.109-social (D344): Stripe's fee folded into the website price (TOPUP_STRIPE_FEE_*); the panel may override.
      */
@@ -956,6 +958,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       disputeAutoSubmit: e.STRIPE_DISPUTE_AUTO_SUBMIT,
       appLinkEnabled: e.TOPUP_APP_LINK_ENABLED,
       appLinkPlatforms: e.TOPUP_APP_LINK_PLATFORMS,
+      appLinkSources: e.TOPUP_APP_LINK_SOURCES,
       fee: {
         grossUp: e.TOPUP_STRIPE_FEE_GROSS_UP,
         percentBps: e.TOPUP_STRIPE_FEE_PERCENT,

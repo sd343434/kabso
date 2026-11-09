@@ -74,15 +74,15 @@ export class TopupHandoffService {
     const resolved = await this.payments.resolved();
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
-      select: { platform: true },
+      select: { platform: true, installSource: true },
     });
     if (
       !resolved.stripe ||
-      !appLinkShownFor(
-        session?.platform ?? null,
-        resolved.options.appLinkEnabled,
-        this.config.topup.appLinkPlatforms,
-      )
+      !appLinkShownFor(session, {
+        enabled: resolved.options.appLinkEnabled,
+        platforms: this.config.topup.appLinkPlatforms,
+        sources: this.config.topup.appLinkSources,
+      })
     ) {
       throw new AppException(ErrorCode.TOPUP_UNAVAILABLE);
     }

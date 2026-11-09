@@ -86,6 +86,7 @@ DeviceInfoDto _$DeviceInfoDtoFromJson(Map<String, dynamic> json) =>
       appVersion: json['appVersion'] as String?,
       installId: json['installId'] as String?,
       deviceKey: json['deviceKey'] as String?,
+      installSource: json['installSource'] as String?,
     );
 
 Map<String, dynamic> _$DeviceInfoDtoToJson(DeviceInfoDto instance) =>
@@ -95,6 +96,7 @@ Map<String, dynamic> _$DeviceInfoDtoToJson(DeviceInfoDto instance) =>
       'appVersion': ?instance.appVersion,
       'installId': ?instance.installId,
       'deviceKey': ?instance.deviceKey,
+      'installSource': ?instance.installSource,
     };
 
 LoginRequestDto _$LoginRequestDtoFromJson(Map<String, dynamic> json) =>

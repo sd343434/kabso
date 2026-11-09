@@ -28,7 +28,8 @@ export interface RechargePackagesDto {
    * v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link — only while
    * TOPUP_APP_LINK_ENABLED (store policy; on by default) and card top-ups are configured; else null. v1.109-social
    * (D344): also only on the platforms in TOPUP_APP_LINK_PLATFORMS. The app opens it through `POST
-   * /wallet/topup-session` (signed in), this plain URL being the fallback (the website's own sign-in).
+   * /wallet/topup-session` (signed in), this plain URL being the fallback (the website's own sign-in). v1.112-social
+   * (§10.143.3): and only for the install sources in TOPUP_APP_LINK_SOURCES (default SIDELOAD: the direct APK).
    */
   websiteTopupUrl: string | null;
   packages: {
@@ -68,15 +69,16 @@ export class WalletController {
     // v1.109-social (D344): per store (TOPUP_APP_LINK_PLATFORMS), by the platform the session signed in on.
     const session = await this.prisma.session.findUnique({
       where: { id: auth.sessionId },
-      select: { platform: true },
+      select: { platform: true, installSource: true },
     });
+    // int21 (§10.143.3): and by the install source the app reported (TOPUP_APP_LINK_SOURCES, default SIDELOAD).
     const shown =
       topup.stripe !== null &&
-      appLinkShownFor(
-        session?.platform ?? null,
-        topup.options.appLinkEnabled,
-        this.config.topup.appLinkPlatforms,
-      );
+      appLinkShownFor(session, {
+        enabled: topup.options.appLinkEnabled,
+        platforms: this.config.topup.appLinkPlatforms,
+        sources: this.config.topup.appLinkSources,
+      });
     return {
       currency: rechargeCurrency,
       purchasesEnabled: false,

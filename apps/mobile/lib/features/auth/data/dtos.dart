@@ -193,6 +193,7 @@ class DeviceInfoDto {
     this.appVersion,
     this.installId,
     this.deviceKey,
+    this.installSource,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$DeviceInfoDtoFromJson(json);
@@ -213,6 +214,11 @@ class DeviceInfoDto {
   /// device the team banned is refused).
   final String? deviceKey;
 
+  /// v1.112-social (int21, §10.143.3): `PLAY | APP_STORE | SIDELOAD` — where
+  /// the app was installed from (`installSourceReaderProvider`); the server
+  /// offers «الشحن من الموقع» by it.
+  final String? installSource;
+
   /// This device info with [key] as its `deviceKey` (null keeps none).
   DeviceInfoDto withDeviceKey(String? key) => key == null
       ? this
@@ -222,6 +228,19 @@ class DeviceInfoDto {
           appVersion: appVersion,
           installId: installId,
           deviceKey: key,
+          installSource: installSource,
+        );
+
+  /// This device info with [source] as its `installSource` (null keeps none).
+  DeviceInfoDto withInstallSource(String? source) => source == null
+      ? this
+      : DeviceInfoDto(
+          name: name,
+          platform: platform,
+          appVersion: appVersion,
+          installId: installId,
+          deviceKey: deviceKey,
+          installSource: source,
         );
 
   Map<String, dynamic> toJson() => _$DeviceInfoDtoToJson(this);

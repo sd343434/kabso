@@ -3,6 +3,7 @@ import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/ids/device_key.dart';
 import 'package:kabso_live/core/ids/install_id.dart';
+import 'package:kabso_live/core/ids/install_source.dart';
 import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/core/models/profile_fields.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
@@ -19,6 +20,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required this._tokens,
     required this._device,
     this._deviceKey,
+    this._installSource,
   });
 
   final AuthRemoteDataSource _remote;
@@ -31,8 +33,13 @@ class AuthRepositoryImpl implements AuthRepository {
   /// null sends none.
   final DeviceKeySource? _deviceKey;
 
-  Future<DeviceInfoDto> _signupDevice() async =>
-      _device.withDeviceKey(await _deviceKey?.read());
+  /// v1.112-social (int21, §10.143.3): where the app was installed from,
+  /// sent with every sign-in; null sends none.
+  final InstallSourceReader? _installSource;
+
+  Future<DeviceInfoDto> _signupDevice() async => _device
+      .withDeviceKey(await _deviceKey?.read())
+      .withInstallSource(await _installSource?.read());
 
   @override
   Future<User?> restoreSession() async {
@@ -179,5 +186,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     ),
     // v1.78-social (D223): at most 2 accounts created per device.
     deviceKey: ref.watch(deviceKeySourceProvider),
+    // v1.112-social (int21): the wallet's website link follows it.
+    installSource: ref.watch(installSourceReaderProvider),
   );
 });

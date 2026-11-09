@@ -490,9 +490,16 @@ info:
     Server Notifications v2: REFUND, CONSUMPTION_REQUEST answered only with consent), `receiveGoogleRtdn` (Pub/Sub push
     that triggers a voided-purchases poll); admin `…/admin/store-iap/*` (overview, settings «شراء واحد لكل حساب وجهاز»,
     products, purchases, refund bans, OWNER «فك الحظر», voided sync). A refund takes the coins back (`STORE_IAP_REVERSAL`,
-    the balance may go below 0) and bans the account and the device. Ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`;
+    the balance may go below 0) and bans the account and every device seen for it (int21: the purchase's device and
+    the account's sign-ups and sessions). Ledger reasons `STORE_IAP`, `STORE_IAP_REVERSAL`;
     codes `STORE_IAP_UNAVAILABLE` (503), `STORE_IAP_VERIFICATION_FAILED` (400), `STORE_IAP_PURCHASE_CONFLICT` (409),
     `STORE_IAP_PENDING` (409). Additive; every store is off until configured.
+    **int21 (DRAFT v1.112-social)** «الشحن من الموقع» only in the direct APK (CONVENTIONS §10.143.3; owner «موافق على
+    الاقتراحات», D345 #7 + D344): `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in)
+    and in the `refresh` body (kept on the session; migration `20270418090000_session_install_source`);
+    `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow TOPUP_APP_LINK_SOURCES (default SIDELOAD)
+    on top of TOPUP_APP_LINK_PLATFORMS. Additive in shape; **behaviour change**: a session that reported no source (an
+    app older than this) no longer gets the link.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -1379,6 +1386,8 @@ paths:
               additionalProperties: false
               properties:
                 refreshToken: { type: string, minLength: 10, maxLength: 200 }
+                installSource:
+                  $ref: '#/components/schemas/InstallSource'
       responses:
         '200':
           description: New token pair (refresh token rotated).
@@ -11678,7 +11687,7 @@ paths:
         code voids the session's previous unused one. The app opens the URL in an in-app browser tab. The password is
         never involved. Audited `topup.handoff.mint` (never the code). Checks: 401, 429
         (`RATE_LIMIT_TOPUP_HANDOFF_USER`), 503 `TOPUP_UNAVAILABLE` (top-ups off, or the link off for the session's
-        platform — the same rule as `RechargePackages.websiteTopupUrl`).
+        platform or install source — the same rule as `RechargePackages.websiteTopupUrl`; v1.112-social §10.143.3).
       responses:
         '201':
           description: The page address with the code.
@@ -29617,6 +29626,20 @@ components:
             key. Optional: without it (the website, an older app) the sign-up is not counted. v1.60-live (D250,
             §10.91.6): `login` reads it too — the session keeps its HMAC, and a device the team banned «حظر جهاز» cannot
             sign up, sign in or go live (403 `DEVICE_BANNED`).
+        installSource:
+          $ref: '#/components/schemas/InstallSource'
+    InstallSource:
+      type: string
+      enum: [PLAY, APP_STORE, SIDELOAD]
+      description: |
+        v1.112-social (int21, CONVENTIONS §10.143.3; owner «موافق على الاقتراحات», D345 #7 + D344). Where this copy of
+        the app was installed from, as the app reports it: **PLAY** — Android, installer package `com.android.vending`;
+        **SIDELOAD** — Android, any other installer or none (the direct APK); **APP_STORE** — iOS (TestFlight counts as
+        APP_STORE). Sent in `DeviceInfo` at sign-in and in the `refresh` body on each refresh; the session keeps the
+        latest one (omitted: kept). «الشحن من الموقع» (`RechargePackages.websiteTopupUrl`, `createTopupWebsiteSession`)
+        is offered only to the sources in TOPUP_APP_LINK_SOURCES (default SIDELOAD); a session that never reported one
+        (an older app, the website) is not offered it. Client-reported: a store-policy display rule, not a security
+        boundary.
     RegisterRequest:
       type: object
       required: [email, password, username, displayName, gender]
@@ -36891,7 +36914,7 @@ components:
         websiteTopupUrl:
           type: [string, 'null']
           format: uri
-          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (on by default, a per-environment server switch) and card top-ups are on; else null. The app never takes a card payment itself. v1.109-social (D344, §10.143): also only when the caller's session platform is in `TOPUP_APP_LINK_PLATFORMS` (default `android,ios`; another or no platform only when both are listed). The app opens the page signed in through `createTopupWebsiteSession`; this plain URL is the fallback (the website's own sign-in)."
+          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (on by default, a per-environment server switch) and card top-ups are on; else null. The app never takes a card payment itself. v1.109-social (D344, §10.143): also only when the caller's session platform is in `TOPUP_APP_LINK_PLATFORMS` (default `android,ios`; another or no platform only when both are listed). v1.112-social (int21, §10.143.3): and only when the install source the app reported for the session (`InstallSource`) is in `TOPUP_APP_LINK_SOURCES` (default `SIDELOAD`: the direct APK; never for a session that reported none). The app opens the page signed in through `createTopupWebsiteSession`; this plain URL is the fallback (the website's own sign-in)."
         packages:
           type: array
           items:
