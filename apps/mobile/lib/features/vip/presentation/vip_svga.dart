@@ -651,9 +651,14 @@ class VipSvga extends StatefulWidget {
     this.resolution = 1,
     this.alignment = Alignment.center,
     this.trimBottom = false,
+    this.fitFor,
   });
 
   final String url;
+
+  /// D331: the fit for the clip's own canvas (its view box), in place of
+  /// [fit] once it is read (the entry car: a portrait one covers the screen).
+  final BoxFit Function(Size canvas)? fitFor;
 
   /// D280: where the fitted clip sits in its box (the entry car: at the
   /// bottom).
@@ -869,7 +874,7 @@ class _VipSvgaState extends State<VipSvga> with SingleTickerProviderStateMixin {
         painter: _ClipPainter(
           clip: clip,
           frame: _frame.clamp(0, math.max(0, clip.frameCount - 1)),
-          fit: widget.fit,
+          fit: widget.fitFor?.call(clip.viewBox) ?? widget.fit,
           nine: widget.nine,
           reader: _reader,
           alignment: widget.alignment,

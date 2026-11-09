@@ -76,19 +76,21 @@ Future<Uint8List> _png(int w, int h) async {
 /// plus a sound `s` from frame 2 (120 ms in) to 6, and `t` without an end.
 /// [vector]: frame 0 has a clip path. D280: [drawHeight] — the pictures
 /// are 100 × [drawHeight] at the canvas's top (a car whose canvas has empty
-/// rows below its art).
+/// rows below its art). D331: [width] — a canvas (and pictures) [width]
+/// wide instead of 100 (a square or landscape car).
 Future<Uint8List> svgaFixture({
   int frames = 8,
   int fps = 20,
   bool vector = false,
   int drawHeight = 200,
+  int width = 100,
 }) async {
-  final png = await _png(100, drawHeight);
+  final png = await _png(width, drawHeight);
   final pb = _Pb()
     ..string(1, '2.0.0')
     ..message(2, (m) {
       m
-        ..float(1, 100)
+        ..float(1, width.toDouble())
         ..float(2, 200)
         ..int32(3, fps)
         ..int32(4, frames);
@@ -111,7 +113,7 @@ Future<Uint8List> svgaFixture({
               ..float(1, 1)
               ..message(2, (l) {
                 l
-                  ..float(3, 100)
+                  ..float(3, width.toDouble())
                   ..float(4, drawHeight.toDouble());
               })
               ..message(3, (t) {

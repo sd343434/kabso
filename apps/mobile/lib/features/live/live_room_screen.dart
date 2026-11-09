@@ -1245,7 +1245,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             // D185: a recharge agent's entrance bar.
             if (!entrancesHidden) LiveRechargeEntranceLayer(roomId: room.id),
             // D258: a VIP's entry banner and entry car.
-            if (!entrancesHidden) LiveVipEntranceLayer(roomId: room.id),
+            if (!entrancesHidden)
+              LiveVipEntranceLayer(
+                key: LiveVipEntranceLayer.layerKey,
+                roomId: room.id,
+              ),
             // D273: «أدوات فريق كابسو» while in the live as staff.
             if (session.staff != null && room.status == LiveRoomStatus.live)
               PositionedDirectional(

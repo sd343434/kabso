@@ -30,7 +30,8 @@ import 'package:material_ui/material_ui.dart';
 /// art is read ahead as it is queued ([VipSvgaCache.warm], off the UI
 /// isolate); the car starts only when it can play ([carWait] to get
 /// there, else it is skipped — its file stays read for the next time) and
-/// then has its own length (at most [carLimit]); its SVGA's own sound
+/// then has its own length (D331: the whole file, at most [carLimit], an
+/// MP4 too; full screen, [carFitFor]); its SVGA's own sound
 /// plays with it while «المؤثرات الصوتية» is on (the banner's, when there
 /// is no car); one entrance's sound at a time, none with reduced motion.
 class LiveVipEntranceLayer extends ConsumerStatefulWidget {
@@ -52,6 +53,12 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   static const nameKey = Key('live.vipEntrance.name');
   static const carKey = Key('live.vipEntrance.car');
 
+  /// D331: the layer's own key in the live screen's stack, so a sibling
+  /// layer coming or going (the host's hint, diagnostics, the tap layer)
+  /// never builds it anew — that dropped the car mid-way, and it was not
+  /// played again.
+  static const layerKey = Key('live.vipEntrance.layer');
+
   /// v1.72-live (D283, owner: «سيارة دخولية للمشرفين والإدارة»): the Kabso
   /// Team's own entry car (assets/staff/PROVENANCE.md), the only entrance a
   /// limited staff account ever has (no VIP or store car, banner or effect).
@@ -62,18 +69,51 @@ class LiveVipEntranceLayer extends ConsumerStatefulWidget {
   static const duration = Duration(milliseconds: 3200);
   static const stillDuration = Duration(milliseconds: 2200);
 
-  /// The car never plays longer than this.
-  static const carLimit = Duration(seconds: 10);
+  /// D331 (owner: «سيارة الدخلة … يتم اقتصاص من وقتها»): the car plays
+  /// its file's own length; this is only the safety cap — the panel's
+  /// upload limit for an animated entrance (an MP4 ≤ 15 s plus its 0.5 s
+  /// tolerance, §10.98.5), so no file the panel accepts is ever cut (was
+  /// 10 s, which cut every car longer than that, and an MP4 car counted
+  /// it from its download).
+  static const carLimit = Duration(milliseconds: 15500);
+
+  /// D331: a moment after the file's own end before the layer takes the
+  /// car away itself (the player ends it at its length).
+  static const carGrace = Duration(seconds: 1);
 
   /// D272: how long the car may take to be ready (download, read, the
-  /// first second decoded) before it is skipped.
+  /// first second decoded; an MP4 too, D331) before it is skipped. It
+  /// never counts against the car's own length.
   static const carWait = Duration(seconds: 8);
+
+  /// Entrances waiting behind the one playing: each plays whole after the
+  /// one before (never cut short by the next); a burst beyond this drops
+  /// the newest (D331: a full queue already holds over a minute of cars).
   static const maxQueued = 5;
 
-  /// D280: the car covers the screen's width, its bottom on the screen's
-  /// bottom.
-  static const BoxFit carFit = BoxFit.fitWidth;
+  /// D331 (owner: «سيارة الدخلة لا تُعرض بشاشة كاملة»): a portrait or
+  /// square car **covers the whole live screen** like a full-screen gift
+  /// (D317), its aspect kept: equal strips cut at the two sides, or its top
+  /// cut — never a band of the room left. D280 stays: its drawn bottom on
+  /// the screen's bottom (the rows it never draws left out). What the art
+  /// leaves transparent stays transparent.
+  static const BoxFit carFit = BoxFit.cover;
   static const Alignment carAlignment = Alignment.bottomCenter;
+
+  /// D331: the fit for a car's canvas: [carFit] for a portrait or square
+  /// one; a landscape (banner-shaped) one keeps D280's full width at the
+  /// bottom — covering would cut most of its art away.
+  static BoxFit carFitFor(Size canvas) =>
+      canvas.isEmpty || canvas.width <= canvas.height
+      ? carFit
+      : BoxFit.fitWidth;
+
+  /// D331: how long after it starts the layer lets a car of [length] play
+  /// (its length and [carGrace], at most [carLimit]).
+  static Duration carTimeout(Duration length) {
+    final timeout = length + carGrace;
+    return timeout < carLimit ? timeout : carLimit;
+  }
 
   @override
   ConsumerState<LiveVipEntranceLayer> createState() =>
@@ -229,14 +269,9 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
     _carDone = entry.car == null;
     _carLimit?.cancel();
     if (!_carDone) {
-      // An SVGA car says when it starts (then has its own length); an MP4
-      // (D270) keeps the overall limit.
-      _carLimit = Timer(
-        entry.car?.video == null
-            ? LiveVipEntranceLayer.carWait
-            : LiveVipEntranceLayer.carLimit,
-        _onCarDone,
-      );
+      // The car says when it starts (then has its own length). D331: an
+      // MP4 (D270) too — its download no longer eats into its length.
+      _carLimit = Timer(LiveVipEntranceLayer.carWait, _onCarDone);
     }
     setState(() => _current = entry);
     if (!_bannerDone) {
@@ -251,13 +286,7 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
   void _onCarStarted(Duration length) {
     if (_carDone) return;
     _carLimit?.cancel();
-    final limit = length + const Duration(seconds: 1);
-    _carLimit = Timer(
-      limit < LiveVipEntranceLayer.carLimit
-          ? limit
-          : LiveVipEntranceLayer.carLimit,
-      _onCarDone,
-    );
+    _carLimit = Timer(LiveVipEntranceLayer.carTimeout(length), _onCarDone);
   }
 
   void _onCarDone() {
@@ -298,9 +327,11 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
         children: [
           if (car != null && !_carDone)
             // D280 (owner: «تبدأ من اسفل الشاشة بحيث لا يظهر فراغ من
-            // اسفل»): the car fills the screen's width with its art's
-            // bottom (the rows it never draws left out) on the screen's
-            // bottom edge, under the bars; a taller one loses its top.
+            // اسفل»): its art's bottom (the rows it never draws left out)
+            // on the screen's bottom edge. D331 (owner: «لا تُعرض بشاشة
+            // كاملة»): over the whole live screen (this layer is above the
+            // room's header, chat and gifts), a portrait or square car
+            // covering it ([LiveVipEntranceLayer.carFitFor]).
             Positioned.fill(
               key: LiveVipEntranceLayer.carKey,
               child: ClipRect(
@@ -309,7 +340,11 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
                   animation: car.animation,
                   still: car.still,
                   video: car.video,
-                  fit: LiveVipEntranceLayer.carFit,
+                  // The still's (and an unread file's) fit by the art's
+                  // size from the panel; the file's own canvas decides
+                  // once it is read.
+                  fit: LiveVipEntranceLayer.carFitFor(_artSize(car)),
+                  fitFor: LiveVipEntranceLayer.carFitFor,
                   alignment: LiveVipEntranceLayer.carAlignment,
                   trimBottom: true,
                   once: true,
@@ -370,6 +405,15 @@ class _LiveVipEntranceLayerState extends ConsumerState<LiveVipEntranceLayer>
       child: bar,
     );
   }
+}
+
+/// The art's size from the panel (empty when unknown).
+Size _artSize(VipPerk perk) {
+  final w = perk.artWidth;
+  final h = perk.artHeight;
+  return w != null && h != null && w > 0 && h > 0
+      ? Size(w.toDouble(), h.toDouble())
+      : Size.zero;
 }
 
 double _aspect(VipPerk perk, double fallback) {

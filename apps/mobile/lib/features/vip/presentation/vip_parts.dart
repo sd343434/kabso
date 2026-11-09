@@ -92,9 +92,15 @@ class VipAnimatedArt extends StatefulWidget {
     this.sound = false,
     this.alignment = Alignment.center,
     this.trimBottom = false,
+    this.fitFor,
   });
 
   final String? animation;
+
+  /// D331: the fit for the file's own canvas once it is read (the entry
+  /// car: a portrait one covers the screen, a landscape one fits its
+  /// width); [fit] until then and for the still.
+  final BoxFit Function(Size canvas)? fitFor;
 
   /// D280: see [VipSvga.alignment] (an MP4 and the still too) and
   /// [VipSvga.trimBottom] (the entry car: at the screen's bottom).
@@ -165,9 +171,11 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
         video: widget.video!,
         still: still,
         fit: widget.fit,
+        fitFor: widget.fitFor,
         alignment: widget.alignment,
         once: widget.once,
         onDone: _finish,
+        onStarted: widget.onStarted,
       );
     }
     if (widget._canPlay) {
@@ -183,6 +191,7 @@ class _VipAnimatedArtState extends State<VipAnimatedArt> {
         sound: widget.sound,
         alignment: widget.alignment,
         trimBottom: widget.trimBottom,
+        fitFor: widget.fitFor,
       );
     }
     return _stillOf(widget.still, widget.fit, alignment: widget.alignment) ??

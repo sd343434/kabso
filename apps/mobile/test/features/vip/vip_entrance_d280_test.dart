@@ -3,7 +3,9 @@
 // to the room, not again when the minimized live opens again (its screen,
 // and the entrance layer, are built anew). And «سيارة الدخول يجب ان تبدأ من
 // اسفل الشاشة بحيث لا يظهر فراغ من اسفل»: the car covers the screen's width
-// with its art's bottom on the screen's bottom edge.
+// with its art's bottom on the screen's bottom edge. D331 (owner: «سيارة
+// الدخلة لا تُعرض بشاشة كاملة»): a portrait car now covers the whole screen
+// (its bottom still on the screen's bottom; vip_entrance_d331_test.dart).
 //
 // The owner's peacock (not in the repo) is drawn too when
 // VIP_ENTRY_SVGA=<path to peacock_000.svga>; D280_OUT=<dir> keeps the
@@ -393,7 +395,7 @@ void main() {
       return (top, bottom);
     }
 
-    testWidgets('the art covers the width with its bottom on the '
+    testWidgets('the art covers the screen with its bottom on the '
         "screen's bottom — the canvas's empty rows below it left out", (
       tester,
     ) async {
@@ -403,10 +405,11 @@ void main() {
       );
       expect(SvgaDoc.parse(file).area, const Rect.fromLTRB(0, 0, 100, 150));
       final (:image, :data) = await draw(tester, const Size(393, 852));
-      // 393 wide: the art (150 rows of 100) is 589.5 high, at the bottom.
+      // D331: the art (150 rows of 100) covers 393 × 852 (568 × 852, its
+      // sides cut) — no band above it any more (D280 left 262.5 rows).
       final (top, bottom) = rows(data, 393, 852, 196);
       expect(bottom, 851);
-      expect(top, closeTo(852 - 589.5, 1.5));
+      expect(top, 0);
       // The whole width.
       expect(alphaAt(data, 393, 0, 840), greaterThanOrEqualTo(40));
       expect(alphaAt(data, 393, 392, 840), greaterThanOrEqualTo(40));

@@ -25,7 +25,16 @@ class ArtVideoPlayer extends StatefulWidget {
     this.alignment = Alignment.center,
     this.once = false,
     this.onDone,
+    this.onStarted,
+    this.fitFor,
   });
+
+  /// D331: runs when the video starts playing, with its length (the entry
+  /// car's length counts from here, never from its download).
+  final ValueChanged<Duration>? onStarted;
+
+  /// D331: the fit for the video's own picture size, in place of [fit].
+  final BoxFit Function(Size picture)? fitFor;
 
   /// D280: where the fitted video sits in its box (the entry car: at the
   /// bottom).
@@ -73,9 +82,14 @@ class _ArtVideoPlayerState extends State<ArtVideoPlayer> {
   void _finishSoon() {
     if (_done || !widget.once) return;
     _done = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onDone?.call();
-    });
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) {
+        if (mounted) widget.onDone?.call();
+      })
+      // D331: the video's end schedules no frame of its own (its texture
+      // draws without one): without this the car stayed on its last frame
+      // until something else drew.
+      ..ensureVisualUpdate();
   }
 
   Future<void> _load() async {
@@ -121,6 +135,9 @@ class _ArtVideoPlayerState extends State<ArtVideoPlayer> {
         _shader = shader;
       });
       await controller.play();
+      if (mounted && !_done && identical(_video, controller)) {
+        widget.onStarted?.call(controller.value.duration);
+      }
     } on Object catch (e) {
       debugPrint('ArtVideoPlayer($url): $e');
       shader?.dispose();
@@ -155,7 +172,7 @@ class _ArtVideoPlayerState extends State<ArtVideoPlayer> {
     );
     return IgnorePointer(
       child: FittedBox(
-        fit: widget.fit,
+        fit: widget.fitFor?.call(box) ?? widget.fit,
         alignment: widget.alignment,
         clipBehavior: Clip.hardEdge,
         child: SizedBox(
