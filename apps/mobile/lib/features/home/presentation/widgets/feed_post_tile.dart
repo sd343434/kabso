@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:flutter/gestures.dart';
@@ -204,9 +205,21 @@ abstract final class KPostCard {
   /// The filled "Follow" box in the author row.
   static const double followHeight = KSpacing.xxl;
 
-  /// The action icons and the gap after each count (D218: 22 dp icons).
+  /// The action icons (D218: 22 dp).
   static const double actionIcon = 22;
-  static const double actionGap = 6;
+
+  /// D332: an action icon and its count, one tight unit.
+  static const double countGap = KSpacing.xs;
+
+  /// D332: each side of an action unit's target — two of them (16 dp) sit
+  /// between two units; they shrink to [unitPadMin] before the row wraps.
+  static const double unitPad = 8;
+  static const double unitPadMin = 2;
+
+  /// D332: the save button's 48 dp target ends 9 dp in, so the bookmark
+  /// sits 22 dp from the edge like the heart at the start (the heart ends
+  /// its own 48 dp target, before the count gap).
+  static const double saveEndPad = 9;
 }
 
 /// One post, flat and full width (D54; D218 the owner's reference order):
@@ -372,9 +385,10 @@ class _FeedPostTileState extends State<FeedPostTile> {
           },
         if (post.postId case final id?)
           Padding(
-            // The 48 dp targets carry their own air: the row starts and
-            // ends close to the edges so like … views fit on one line.
-            padding: const EdgeInsetsDirectional.only(start: KSpacing.xs),
+            // D332: the 48 dp targets carry their own air, so the row runs
+            // edge to edge; the heart sits at the end of its target (22 dp
+            // in) and the bookmark 22 dp from the other edge.
+            padding: EdgeInsetsDirectional.zero,
             child: _Actions(key: _actions, postId: id, post: post),
           )
         else if (likes != null && comments != null && shares != null)
@@ -1003,8 +1017,8 @@ class _ExpandableTextState extends State<_ExpandableText> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final direction = Directionality.of(context);
-        final scaler = MediaQuery.textScalerOf(context);
         final locale = Localizations.maybeLocaleOf(context);
+        final scaler = MediaQuery.textScalerOf(context);
         bool fits(String s, {InlineSpan? tail}) {
           final painter = TextPainter(
             text: caption(s, tail: tail),
@@ -1301,13 +1315,14 @@ class _Counts extends StatelessWidget {
     final style = context.textStyles.bodyStrong.copyWith(color: p.textPrimary);
     Widget icon(String asset) =>
         AppIcon(asset, size: KPostCard.actionIcon, color: p.textPrimary);
+    // D332: each icon and its count a tight unit, the units 16 dp apart
+    // like the real post's row; save alone at the end.
     Widget counter(String asset, int value) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         icon(asset),
-        const SizedBox(width: KSpacing.xs),
+        const SizedBox(width: KPostCard.countGap),
         Text(KFormat.compact(value, l10n), style: style),
-        const SizedBox(width: KPostCard.actionGap),
       ],
     );
     return Semantics(
@@ -1325,6 +1340,7 @@ class _Counts extends StatelessWidget {
           // Wraps instead of clipping when large text no longer fits.
           Expanded(
             child: Wrap(
+              spacing: 2 * KPostCard.unitPad,
               runSpacing: KSpacing.xs,
               children: [
                 counter(AppIcons.heart, likes),
@@ -1494,190 +1510,246 @@ class _ActionsState extends ConsumerState<_Actions> {
       fontWeight: FontWeight.w500,
     );
     final likes = _likes;
+    final shares = widget.post.shares ?? 0;
+    final views = widget.post.views;
+    final repost = !widget.post.isSelf;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    final locale = Localizations.maybeLocaleOf(context);
+    final inherited = DefaultTextStyle.of(context).style;
     Widget count(int value) => Text(KFormat.compact(value, l10n), style: style);
-    Widget shown(String asset, int value, String label) => Semantics(
-      container: true,
-      label: label,
-      excludeSemantics: true,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
-        child: Row(
+    // D332 (owner: «زر الإعجاب بعيد عن باقي الأزرار»): like · comment ·
+    // share · repost · views are one group at the start, each icon and its
+    // count a tight unit; the units are [KPostCard.unitPad] … pad apart
+    // (each side belongs to the unit's own ≥ 48 dp target), shrinking towards
+    // [KPostCard.unitPadMin] only when the counts would not fit on one
+    // line, and wrapping (never clipping) after that. Save stays alone at
+    // the end.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The width a count takes as laid out below (the same style, text
+        // scale, direction and locale).
+        double width(int value) {
+          final painter = TextPainter(
+            text: TextSpan(
+              text: KFormat.compact(value, l10n),
+              style: inherited.merge(style),
+            ),
+            textDirection: direction,
+            textScaler: textScaler,
+            locale: locale,
+            maxLines: 1,
+          )..layout();
+          final w = painter.width.ceilToDouble();
+          painter.dispose();
+          return w;
+        }
+
+        // The padded units after the like: comment, share, repost, views.
+        final units = [
+          width(_comments),
+          width(shares),
+          if (repost) width(_reposts),
+          if (views != null) width(views),
+        ];
+        double unit(double text, double pad) => math.max(
+          KSizes.minTouchTarget,
+          KPostCard.actionIcon + KPostCard.countGap + text + 2 * pad,
+        );
+        double row(double pad) =>
+            KSizes.minTouchTarget + // the heart
+            (likes == null ? 0 : width(likes) + pad) +
+            units.fold(0, (sum, text) => sum + unit(text, pad));
+        final available =
+            constraints.maxWidth - KSizes.minTouchTarget - KPostCard.saveEndPad;
+        var pad = KPostCard.unitPad;
+        // 1 dp to spare for the sub-pixel rounding of the laid-out text.
+        while (pad > KPostCard.unitPadMin && row(pad) > available - 1) {
+          pad -= 1;
+        }
+        // Wrapping anyway (very large counts or text): keep the full air.
+        if (row(pad) > available - 1) pad = KPostCard.unitPad;
+        Widget unitBox({required Widget child}) => ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: KSizes.minTouchTarget,
+            minWidth: KSizes.minTouchTarget,
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: pad),
+            child: Center(widthFactor: 1, child: child),
+          ),
+        );
+        Widget iconCount(Widget icon, Widget label) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppIcon(asset, size: KPostCard.actionIcon, color: p.textPrimary),
-            const SizedBox(width: KSpacing.xs),
-            count(value),
-            const SizedBox(width: KPostCard.actionGap),
+            icon,
+            const SizedBox(width: KPostCard.countGap),
+            label,
           ],
-        ),
-      ),
-    );
-    return Row(
-      children: [
-        Expanded(
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Semantics(
-                button: true,
-                toggled: _liked,
-                label: _liked ? l10n.feedPostUnlike : l10n.feedPostLike,
-                value: likes == null ? null : KFormat.compact(likes, l10n),
-                onTap: _toggleLike,
-                excludeSemantics: true,
-                child: InkWell(
-                  key: FeedPostTile.likeKey,
-                  borderRadius: BorderRadius.circular(KRadius.sm),
-                  onTap: _toggleLike,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: KSizes.minTouchTarget,
-                      minWidth: KSizes.minTouchTarget,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppIcon(
-                          _liked ? AppIcons.heartFilled : AppIcons.heart,
-                          size: KPostCard.actionIcon,
-                          color: _liked ? p.primary : p.textPrimary,
+        );
+        Widget shown(String asset, int value, String label) => Semantics(
+          container: true,
+          label: label,
+          excludeSemantics: true,
+          child: unitBox(
+            child: iconCount(
+              AppIcon(asset, size: KPostCard.actionIcon, color: p.textPrimary),
+              count(value),
+            ),
+          ),
+        );
+        return Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Semantics(
+                    button: true,
+                    toggled: _liked,
+                    label: _liked ? l10n.feedPostUnlike : l10n.feedPostLike,
+                    value: likes == null ? null : KFormat.compact(likes, l10n),
+                    onTap: _toggleLike,
+                    excludeSemantics: true,
+                    child: InkWell(
+                      key: FeedPostTile.likeKey,
+                      borderRadius: BorderRadius.circular(KRadius.sm),
+                      onTap: _toggleLike,
+                      // A 48 dp target whose heart sits at its end, so the
+                      // count follows it as closely as in the other units.
+                      child: SizedBox(
+                        width: KSizes.minTouchTarget,
+                        height: KSizes.minTouchTarget,
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            end: KPostCard.countGap,
+                          ),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: AppIcon(
+                              _liked ? AppIcons.heartFilled : AppIcons.heart,
+                              size: KPostCard.actionIcon,
+                              color: _liked ? p.primary : p.textPrimary,
+                            ),
+                          ),
                         ),
-                        if (likes == null)
-                          const SizedBox(width: KPostCard.actionGap),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // The count opens who liked it (CONVENTIONS §11.4).
-              if (likes != null)
-                Semantics(
-                  button: true,
-                  label: l10n.likersOpen,
-                  value: KFormat.compact(likes, l10n),
-                  onTap: _openLikers,
-                  excludeSemantics: true,
-                  child: InkWell(
-                    key: FeedPostTile.likersKey,
-                    borderRadius: BorderRadius.circular(KRadius.sm),
-                    onTap: _openLikers,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minHeight: KSizes.minTouchTarget,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsetsDirectional.only(
-                          end: KPostCard.actionGap,
-                        ),
-                        child: Center(widthFactor: 1, child: count(likes)),
                       ),
                     ),
                   ),
-                ),
-              // Opens the comments (CONVENTIONS §11.5); the count follows
-              // what the sheet adds or removes.
-              Semantics(
-                button: true,
-                label: l10n.commentsOpen,
-                value: l10n.feedPostCommentCount(
-                  KFormat.compact(_comments, l10n),
-                ),
-                onTap: _openComments,
-                excludeSemantics: true,
-                child: InkWell(
-                  key: FeedPostTile.commentKey,
-                  borderRadius: BorderRadius.circular(KRadius.sm),
-                  onTap: _openComments,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: KSizes.minTouchTarget,
-                      minWidth: KSizes.minTouchTarget,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppIcon(
-                          AppIcons.comment,
-                          size: KPostCard.actionIcon,
-                          color: p.textPrimary,
+                  // The count opens who liked it (CONVENTIONS §11.4).
+                  if (likes != null)
+                    Semantics(
+                      button: true,
+                      label: l10n.likersOpen,
+                      value: KFormat.compact(likes, l10n),
+                      onTap: _openLikers,
+                      excludeSemantics: true,
+                      child: InkWell(
+                        key: FeedPostTile.likersKey,
+                        borderRadius: BorderRadius.circular(KRadius.sm),
+                        onTap: _openLikers,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: KSizes.minTouchTarget,
+                          ),
+                          child: Padding(
+                            padding: EdgeInsetsDirectional.only(end: pad),
+                            child: Center(widthFactor: 1, child: count(likes)),
+                          ),
                         ),
-                        const SizedBox(width: KSpacing.xs),
-                        count(_comments),
-                        const SizedBox(width: KPostCard.actionGap),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              shown(
-                AppIcons.send,
-                widget.post.shares ?? 0,
-                l10n.feedPostShareCount(
-                  KFormat.compact(widget.post.shares ?? 0, l10n),
-                ),
-              ),
-              if (!widget.post.isSelf)
-                Semantics(
-                  button: true,
-                  toggled: _reposted,
-                  label: _reposted
-                      ? l10n.feedPostUnrepost
-                      : l10n.feedPostRepost,
-                  value: KFormat.compact(_reposts, l10n),
-                  onTap: _toggleRepost,
-                  excludeSemantics: true,
-                  child: InkWell(
-                    key: FeedPostTile.repostKey,
-                    borderRadius: BorderRadius.circular(KRadius.sm),
-                    onTap: _toggleRepost,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minHeight: KSizes.minTouchTarget,
-                        minWidth: KSizes.minTouchTarget,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                    ),
+                  // Opens the comments (CONVENTIONS §11.5); the count
+                  // follows what the sheet adds or removes.
+                  Semantics(
+                    button: true,
+                    label: l10n.commentsOpen,
+                    value: l10n.feedPostCommentCount(
+                      KFormat.compact(_comments, l10n),
+                    ),
+                    onTap: _openComments,
+                    excludeSemantics: true,
+                    child: InkWell(
+                      key: FeedPostTile.commentKey,
+                      borderRadius: BorderRadius.circular(KRadius.sm),
+                      onTap: _openComments,
+                      child: unitBox(
+                        child: iconCount(
                           AppIcon(
-                            AppIcons.repost,
+                            AppIcons.comment,
                             size: KPostCard.actionIcon,
-                            color: _reposted ? p.primary : p.textPrimary,
+                            color: p.textPrimary,
                           ),
-                          const SizedBox(width: KSpacing.xs),
-                          Text(
-                            KFormat.compact(_reposts, l10n),
-                            style: _reposted
-                                ? style.copyWith(color: p.primary)
-                                : style,
-                          ),
-                          const SizedBox(width: KPostCard.actionGap),
-                        ],
+                          count(_comments),
+                        ),
                       ),
                     ),
                   ),
+                  shown(
+                    AppIcons.send,
+                    shares,
+                    l10n.feedPostShareCount(KFormat.compact(shares, l10n)),
+                  ),
+                  if (repost)
+                    Semantics(
+                      button: true,
+                      toggled: _reposted,
+                      label: _reposted
+                          ? l10n.feedPostUnrepost
+                          : l10n.feedPostRepost,
+                      value: KFormat.compact(_reposts, l10n),
+                      onTap: _toggleRepost,
+                      excludeSemantics: true,
+                      child: InkWell(
+                        key: FeedPostTile.repostKey,
+                        borderRadius: BorderRadius.circular(KRadius.sm),
+                        onTap: _toggleRepost,
+                        child: unitBox(
+                          child: iconCount(
+                            AppIcon(
+                              AppIcons.repost,
+                              size: KPostCard.actionIcon,
+                              color: _reposted ? p.primary : p.textPrimary,
+                            ),
+                            Text(
+                              KFormat.compact(_reposts, l10n),
+                              style: _reposted
+                                  ? style.copyWith(color: p.primary)
+                                  : style,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // D218: views close the row (`viewCount`).
+                  if (views != null)
+                    shown(
+                      AppIcons.eye,
+                      views,
+                      l10n.feedPostViewCount(KFormat.compact(views, l10n)),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(
+                end: KPostCard.saveEndPad,
+              ),
+              child: IconButton(
+                key: FeedPostTile.saveKey,
+                tooltip: _saved ? l10n.feedPostUnsave : l10n.feedPostSave,
+                isSelected: _saved,
+                onPressed: _toggleSave,
+                icon: AppIcon(
+                  _saved ? AppIcons.bookmarkFilled : AppIcons.bookmark,
+                  size: KPostCard.actionIcon,
+                  color: p.textPrimary,
                 ),
-              // D218: views close the row (`viewCount`).
-              if (widget.post.views case final views?)
-                shown(
-                  AppIcons.eye,
-                  views,
-                  l10n.feedPostViewCount(KFormat.compact(views, l10n)),
-                ),
-            ],
-          ),
-        ),
-        IconButton(
-          key: FeedPostTile.saveKey,
-          tooltip: _saved ? l10n.feedPostUnsave : l10n.feedPostSave,
-          isSelected: _saved,
-          onPressed: _toggleSave,
-          icon: AppIcon(
-            _saved ? AppIcons.bookmarkFilled : AppIcons.bookmark,
-            size: KPostCard.actionIcon,
-            color: p.textPrimary,
-          ),
-        ),
-      ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
