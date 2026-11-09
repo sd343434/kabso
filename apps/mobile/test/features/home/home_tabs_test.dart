@@ -21,6 +21,8 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/compose_upload_bar.dart';
+import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/create/create_menu_sheet.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
@@ -1049,6 +1051,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(FeedScreen), findsNothing);
       expect(find.byType(CreateScreen), findsOneWidget);
+      // D333 on D322's full-screen Create: Post · Reels · Story at its top
+      // (going live is the Live hub's «+», not a Create tab), and the shell's
+      // upload bar is not drawn over Create.
+      for (final kind in CreateKind.values) {
+        expect(find.byKey(CreateKindTabs.tabKey(kind)), findsOneWidget);
+      }
+      expect(find.byType(ComposeUploadBar), findsNothing);
+      // Reels from the top tabs opens the reel flow above Create.
+      await tester.tap(find.byKey(CreateKindTabs.tabKey(CreateKind.reel)));
+      await tester.pumpAndSettle();
+      expect(find.byType(CreateScreen), findsNothing);
     });
   });
 
