@@ -336,7 +336,8 @@ describe('D325 events v2', { timeout: 900_000 }, () => {
       endsAt: iso(Date.now() + 9 * DAY_MS),
     });
     expect(dated.status, JSON.stringify(dated.body)).toBe(200);
-    const published = await p.send(owner, 'post', `/admin/events/${id}/publish`, { reason: 'launch' });
+    // A panel reason may be one or two characters.
+    const published = await p.send(owner, 'post', `/admin/events/${id}/publish`, { reason: 'go' });
     expect(published.status, JSON.stringify(published.body)).toBe(200);
     expectContract(published, 'publishAdminEvent');
     expect(published.body.status).toBe('PUBLISHED');

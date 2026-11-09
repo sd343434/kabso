@@ -954,7 +954,11 @@ export async function lifecycleIn(
     });
   if (command === 'publish') {
     if (e.status === 'PUBLISHED') throw new EventAdminError('The event is already published.');
-    const input = { ...(await inputOfIn(tx, eventId, reason)), status: 'PUBLISHED' as const };
+    // The panel's reason may be shorter than an edit's (1 character); the edit's audit keeps it in full.
+    const input = {
+      ...(await inputOfIn(tx, eventId, reason.trim().length >= 3 ? reason : `${reason.trim()} (publish)`)),
+      status: 'PUBLISHED' as const,
+    };
     await updateGiftEventIn(tx, eventId, input, now, by, zone);
     await audit('event.publish', { startsAt: input.startsAt, endsAt: input.endsAt });
     return { id: eventId, status: 'PUBLISHED' };
