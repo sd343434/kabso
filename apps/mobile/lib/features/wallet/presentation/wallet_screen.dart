@@ -14,13 +14,14 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
-import 'package:kabso_live/features/profile/profile_fields_view.dart';
 import 'package:kabso_live/features/programs/application/programs_providers.dart';
 import 'package:kabso_live/features/programs/data/programs_repository.dart';
 import 'package:kabso_live/features/programs/presentation/program_parts.dart';
 import 'package:kabso_live/features/recharge/application/recharge_orders_providers.dart';
 import 'package:kabso_live/features/recharge/presentation/recharge_widgets.dart';
 import 'package:kabso_live/features/wallet/application/wallet_providers.dart';
+import 'package:kabso_live/features/wallet/data/topup_website_repository.dart';
+import 'package:kabso_live/features/wallet/presentation/in_app_browser.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_cherry_tab.dart';
 import 'package:kabso_live/features/wallet/presentation/wallet_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -91,6 +92,59 @@ class WalletScreen extends ConsumerStatefulWidget {
 class _WalletScreenState extends ConsumerState<WalletScreen> {
   late WalletTab _tab = widget.initialTab;
   String? _selected;
+
+  /// D344: the website top-up tab is open (or opening); the balance is
+  /// re-read when the app comes back to the front.
+  bool _awaitingTopupReturn = false;
+  bool _openingTopup = false;
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _onResume);
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  void _onResume() {
+    if (!_awaitingTopupReturn || !mounted) return;
+    _awaitingTopupReturn = false;
+    // Coins bought on the website arrive through Stripe's webhook.
+    ref.invalidate(liveCoinsProvider);
+  }
+
+  /// D190 / D344 «الشحن من الموقع»: a one-time sign-in address from the
+  /// server, opened in an in-app browser tab (Custom Tabs / Safari View
+  /// Controller). When the code cannot be had (offline, an older server),
+  /// the plain page [fallback] opens and the website asks to sign in.
+  Future<void> _openWebsiteTopup(String fallback) async {
+    if (_openingTopup) return;
+    _openingTopup = true;
+    try {
+      Uri target;
+      try {
+        target = await ref
+            .read(topupWebsiteRepositoryProvider)
+            .websiteSession();
+      } on Object {
+        target = Uri.parse(fallback);
+      }
+      if (!mounted) return;
+      _awaitingTopupReturn = true;
+      final opened = await ref.read(inAppBrowserOpenerProvider).open(target);
+      if (!opened) {
+        _awaitingTopupReturn = false;
+        if (mounted) KSnack.error(context, context.l10n.linkOpenFailed);
+      }
+    } finally {
+      _openingTopup = false;
+    }
+  }
 
   Future<void> _refresh() async {
     if (_tab == WalletTab.cherries) {
@@ -276,7 +330,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
         ),
       // D190: «الشحن من الموقع» — only when the server sends the website's
-      // URL (a server flag, on by default); it opens the browser.
+      // URL (a server flag, on by default; D344: per store). D344: it opens
+      // in an in-app browser tab, already signed in.
       if (offer.value?.websiteTopupUrl case final url?)
         Padding(
           padding: const EdgeInsets.only(top: KSpacing.sm),
@@ -285,9 +340,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             icon: Icons.language_rounded,
             title: l10n.walletTopupWebsite,
             subtitle: l10n.walletTopupWebsiteHint,
-            onTap: () => unawaited(
-              ref.read(externalLinkOpenerProvider).open(Uri.parse(url)),
-            ),
+            onTap: () => unawaited(_openWebsiteTopup(url)),
           ),
         ),
     ];

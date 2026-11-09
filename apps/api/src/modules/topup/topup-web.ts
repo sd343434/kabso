@@ -4,6 +4,10 @@
  * `/topup/cancel` (the order's status, polled) — Arabic RTL by default, English with `?lang=en`. Plain HTML, CSS
  * and vanilla JS served by the API from the same origin; CSP `script-src 'self'` (no inline script runs: the page
  * data is a JSON block), no secret on the page. The access token lives in the tab's sessionStorage only.
+ * v1.109-social (D344, §10.143): opened from the app, the address carries a one-time code in its fragment
+ * (`/topup?lang=ar#h=<code>`; a fragment never reaches a server, a log or a Referer). The script removes it from the
+ * address at once (`history.replaceState`) and exchanges it once (`POST /api/v1/topup/handoff`) for the same kind of
+ * tab session; an expired or used code simply shows the normal sign-in.
  */
 import { TOPUP_TERMS, type TopupLocale } from './topup-rules.js';
 
@@ -346,6 +350,18 @@ export const TOPUP_JS = String.raw`(function () {
   var NAME = 'kabso.topup.name';
   var nf = new Intl.NumberFormat('en-US');
   var state = { packages: [], termsVersion: null, selected: null, frozen: false, busy: false };
+  // D344: the app's one-time code, taken out of the address before anything else runs.
+  var handoff = takeHandoff();
+
+  function takeHandoff() {
+    var hash = window.location.hash || '';
+    if (hash.indexOf('#h=') !== 0) return null;
+    try {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (e) { window.location.hash = ''; }
+    var m = /^#h=([A-Za-z0-9_-]{43})$/.exec(hash);
+    return m ? m[1] : null;
+  }
 
   function $(id) { return document.getElementById(id); }
   function show(id, on) { var el = $(id); if (el) el.hidden = !on; }
@@ -357,9 +373,9 @@ export const TOPUP_JS = String.raw`(function () {
   function fill(text, key, value) { return text.split('{' + key + '}').join(value); }
   function error(id, text) { var el = $(id); if (!el) return; el.textContent = text || ''; el.hidden = !text; }
 
-  function api(method, path, body) {
+  function api(method, path, body, anonymous) {
     var headers = { 'Accept': 'application/json', 'Accept-Language': data.lang };
-    var token = read(TOKEN);
+    var token = anonymous ? null : read(TOKEN);
     if (token) headers['Authorization'] = 'Bearer ' + token;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     return fetch('/api/v1' + path, {
@@ -420,12 +436,31 @@ export const TOPUP_JS = String.raw`(function () {
     });
   }
 
+  // D344: the code once for a tab session; any refusal (expired, used, signed out in the app) → the normal sign-in.
+  function exchange(code) {
+    handoff = null;
+    function fallback() {
+      if (read(TOKEN)) return loadMe();
+      show('signin', true);
+    }
+    return api('POST', '/topup/handoff', { handoff: code }, true).then(function (res) {
+      if (res.status === 200 && res.body && res.body.accessToken) {
+        write(TOKEN, res.body.accessToken);
+        write(NAME, '@' + res.body.username);
+        return loadMe();
+      }
+      if (res.status === 503) { show('disabled', true); return; }
+      return fallback();
+    }, fallback);
+  }
+
   function initMain() {
     api('GET', '/topup/packages').then(function (res) {
       if (res.status !== 200) { show('disabled', true); return; }
       state.packages = res.body.packages;
       state.termsVersion = res.body.terms.version;
       show('bank-note', !!res.body.bankTransfer);
+      if (handoff) return exchange(handoff);
       if (read(TOKEN)) return loadMe();
       show('signin', true);
     }).catch(function () { show('disabled', false); show('signin', true); error('signin-error', t.network); });

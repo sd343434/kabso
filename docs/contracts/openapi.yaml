@@ -469,6 +469,21 @@ info:
     `signupCode` / `signupLink` (`<APP_PUBLIC_URL>/i/<staffId>`) / `signups`; panel `listAdminSignupRecruits`. Migration
     `20270415090000_signup_codes`. Additive, except that an unknown code at sign-up is now a 400 instead of a silent
     202.
+    **D344 (DRAFT v1.109-social)** the app's «الشحن من الموقع» opens the website signed in, inside the app (CONVENTIONS
+    §10.143; owner 2026-11-09: «اريد جعل الشحن من الموقع يفتح من نفس التطبيق ويدخل اليوزر والباسورد تلقائي»):
+    `createTopupWebsiteSession` (`POST /wallet/topup-session`) mints a one-time code (32 random bytes, SHA-256 stored,
+    60 s, single use, bound to the account and the minting session) returned inside `websiteUrl`'s fragment
+    (`#h=…`, never sent to a server); `exchangeTopupHandoff` (`POST /topup/handoff`, public) redeems it once for a new
+    web session (`TopupHandoffSession`: an access token only). Never a password, never a lasting token in a URL; any
+    refusal is 410 `TOKEN_EXPIRED` (the page shows its own sign-in). `RechargePackages.websiteTopupUrl` is also per
+    store: `TOPUP_APP_LINK_PLATFORMS` (default both). Migration `20270416090000_topup_handoffs`. Additive.
+    Also (owner: «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe», §10.143.2): `TopupPackages.priceMinor` and the
+    Checkout amount include Stripe's fee — `ceil((base + fixed) / (1 − percent))`, one all-inclusive price, never a
+    fee line; the coins are unchanged — with the OWNER's rates in «الدفع (Stripe)» (`stripeFeeGrossUp`,
+    `stripeFeePercentBps`, `stripeFeeFixedMinor`, `feeCurrency`; env `TOPUP_STRIPE_FEE_*`, placeholder 2.9 % + 30 ¢).
+    Each order keeps its base price and rates; after the credit the fee Stripe really took is read and a larger one is
+    audited (`topup.fee.exceeded`). Migration `20270416090100_topup_stripe_fee`. **Behaviour change** on the website
+    prices (on by default).
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -11639,6 +11654,62 @@ paths:
               schema: { $ref: '#/components/schemas/RechargePackages' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/wallet/topup-session:
+    post:
+      tags: [topup]
+      operationId: createTopupWebsiteSession
+      summary: A one-time code that opens the website top-up page signed in (D344)
+      description: |
+        v1.109-social (DRAFT, D344, CONVENTIONS §10.143). For the app's «الشحن من الموقع»: a single-use code (32 random
+        bytes; the server keeps only its SHA-256) valid **60 seconds**, bound to the caller and to the calling session,
+        inside `websiteUrl`'s fragment (`<TOPUP_PUBLIC_BASE_URL>/topup?lang=ar|en#h=<code>`; `lang` from
+        `Accept-Language`). A fragment is never sent to a server, so the code is in no access log or Referer. A new
+        code voids the session's previous unused one. The app opens the URL in an in-app browser tab. The password is
+        never involved. Audited `topup.handoff.mint` (never the code). Checks: 401, 429
+        (`RATE_LIMIT_TOPUP_HANDOFF_USER`), 503 `TOPUP_UNAVAILABLE` (top-ups off, or the link off for the session's
+        platform — the same rule as `RechargePackages.websiteTopupUrl`).
+      responses:
+        '201':
+          description: The page address with the code.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopupWebsiteSession' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/topup/handoff:
+    post:
+      tags: [topup]
+      operationId: exchangeTopupHandoff
+      summary: The website redeems the app's one-time code for its web session (D344)
+      description: |
+        v1.109-social (DRAFT, D344, §10.143). Public (the page is not signed in yet; an `Authorization` header is
+        ignored). The page reads the code from its fragment, removes it from the address (`history.replaceState`) and
+        sends it here once. Redeemed atomically: of concurrent requests exactly one succeeds. Honoured only while the
+        minting session is live (not signed out, revoked or expired), the account ACTIVE and not locked and the
+        session's device not banned — so those void every pending code. Success creates a new session (platform
+        `web`, the app session's device) like the website's own sign-in and answers its access token only (the page
+        keeps it in the tab's sessionStorage; no cookie, no refresh token). Every refusal — unknown, used, expired,
+        voided — is the same 410 `TOKEN_EXPIRED`; the page then shows its normal sign-in. Audited
+        `topup.handoff.exchange` / `topup.handoff.refused` (reason; never the code). Checks: 400 `VALIDATION_FAILED`
+        (`handoff` not 43 base64url characters, unknown fields), 410, 429 (`RATE_LIMIT_TOPUP_HANDOFF_IP`, per IP),
+        503 `TOPUP_UNAVAILABLE`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TopupHandoffRequest' }
+      responses:
+        '200':
+          description: Signed in on the website.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopupHandoffSession' }
+        '400': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
   /api/v1/topup/packages:
     get:
       tags: [topup]
@@ -11647,7 +11718,8 @@ paths:
       description: |
         v1.59-social (DRAFT, D190, CONVENTIONS §10.53). Public (the website shows them before sign-in). Server
         config `TOPUP_PACKAGES` priced from `COIN_RETAIL_USD_PER_MILLION` (owner: 1 000 000 coins = $12.50) in USD
-        cents; a package's `id` is the only thing a checkout sends — never a price. `terms`: the statement the buyer
+        cents; a package's `id` is the only thing a checkout sends — never a price. v1.109-social (D344, §10.143.2): that is the
+        base price; `priceMinor` is what is charged, with Stripe's fee folded in (one price, no fee line). `terms`: the statement the buyer
         must accept and its version. 503 `TOPUP_UNAVAILABLE` while the Stripe keys are missing.
       security: []
       responses:
@@ -28478,7 +28550,7 @@ components:
       type: object
       additionalProperties: false
       description: "(v1.64-social, D196) The «الدفع (Stripe)» section: fingerprints, options, the webhook to configure in Stripe."
-      required: [source, configured, mode, secretKey, webhookSecret, previousWebhookSecretValidUntil, panelKeys, envKeys, panelKeysIgnored, publishableKey, options, effective, publicBaseUrl, webhookUrl, webhookEvents, testKeysAllowed, connectionTestSkippable]
+      required: [source, configured, mode, secretKey, webhookSecret, previousWebhookSecretValidUntil, panelKeys, envKeys, panelKeysIgnored, publishableKey, options, effective, feeCurrency, publicBaseUrl, webhookUrl, webhookEvents, testKeysAllowed, connectionTestSkippable]
       properties:
         source: { type: string, enum: [panel, env, none], description: "Which keys card top-ups use now (`none`: 503 `TOPUP_UNAVAILABLE`)." }
         configured: { type: boolean, description: "Keys and `TOPUP_PUBLIC_BASE_URL` are there: top-ups can run." }
@@ -28494,22 +28566,29 @@ components:
           type: object
           additionalProperties: false
           description: "The panel's values; null = the server's (see `effective`)."
-          required: [bankTransferEnabled, statementDescriptorSuffix, disputeAutoSubmit, appLinkEnabled]
+          required: [bankTransferEnabled, statementDescriptorSuffix, disputeAutoSubmit, appLinkEnabled, stripeFeeGrossUp, stripeFeePercentBps, stripeFeeFixedMinor]
           properties:
             bankTransferEnabled: { type: [boolean, 'null'] }
             statementDescriptorSuffix: { type: [string, 'null'], maxLength: 10, description: '"" = explicitly none.' }
             disputeAutoSubmit: { type: [boolean, 'null'] }
             appLinkEnabled: { type: [boolean, 'null'] }
+            stripeFeeGrossUp: { type: [boolean, 'null'], description: "v1.109-social (D344, §10.143.2): the website price includes Stripe's fee." }
+            stripeFeePercentBps: { type: [integer, 'null'], minimum: 0, maximum: 2000, description: "v1.109-social (D344): Stripe's percent in basis points (290 = 2.9 %)." }
+            stripeFeeFixedMinor: { type: [integer, 'null'], minimum: 0, maximum: 10000, description: "v1.109-social (D344): Stripe's fixed fee in `feeCurrency` minor units (cents)." }
         effective:
           type: object
           additionalProperties: false
           description: What top-ups use now.
-          required: [bankTransferEnabled, statementDescriptorSuffix, disputeAutoSubmit, appLinkEnabled]
+          required: [bankTransferEnabled, statementDescriptorSuffix, disputeAutoSubmit, appLinkEnabled, stripeFeeGrossUp, stripeFeePercentBps, stripeFeeFixedMinor]
           properties:
             bankTransferEnabled: { type: boolean }
             statementDescriptorSuffix: { type: [string, 'null'] }
             disputeAutoSubmit: { type: boolean }
             appLinkEnabled: { type: boolean }
+            stripeFeeGrossUp: { type: boolean }
+            stripeFeePercentBps: { type: integer, minimum: 0, maximum: 2000 }
+            stripeFeeFixedMinor: { type: integer, minimum: 0, maximum: 10000 }
+        feeCurrency: { type: string, pattern: '^[A-Z]{3}$', description: "v1.109-social (D344): the currency of the fixed fee and of the website prices (USD)." }
         publicBaseUrl: { type: [string, 'null'], description: "`TOPUP_PUBLIC_BASE_URL` (server infrastructure, read-only)." }
         webhookUrl: { type: [string, 'null'], description: "The endpoint to add in Stripe (Developers → Webhooks)." }
         webhookEvents: { type: array, items: { type: string }, description: "The events to subscribe it to." }
@@ -28528,6 +28607,9 @@ components:
         statementDescriptorSuffix: { type: [string, 'null'], pattern: '^([A-Za-z0-9 ]{1,10})?$', description: 'Letters, digits, spaces; "" = none; null = the server value.' }
         disputeAutoSubmit: { type: [boolean, 'null'] }
         appLinkEnabled: { type: [boolean, 'null'], description: "The app's «الشحن من الموقع» link." }
+        stripeFeeGrossUp: { type: [boolean, 'null'], description: "v1.109-social (D344, §10.143.2): fold Stripe's fee into the website price; null = `TOPUP_STRIPE_FEE_GROSS_UP`." }
+        stripeFeePercentBps: { type: [integer, 'null'], minimum: 0, maximum: 2000, description: "v1.109-social (D344): the account's Stripe percent in basis points; null = `TOPUP_STRIPE_FEE_PERCENT`." }
+        stripeFeeFixedMinor: { type: [integer, 'null'], minimum: 0, maximum: 10000, description: "v1.109-social (D344): the account's Stripe fixed fee in cents; null = `TOPUP_STRIPE_FEE_FIXED_MINOR`." }
         skipConnectionTest: { type: boolean, description: "Only for a test key when NODE_ENV is not production." }
         totpCode: { type: string, pattern: '^[0-9]{6}$', writeOnly: true }
         reason: { type: string, minLength: 1, maxLength: 500 }
@@ -36395,7 +36477,7 @@ components:
         websiteTopupUrl:
           type: [string, 'null']
           format: uri
-          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (on by default, a per-environment server switch) and card top-ups are on; else null. The app never takes a card payment itself."
+          description: "v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link, only while `TOPUP_APP_LINK_ENABLED` (on by default, a per-environment server switch) and card top-ups are on; else null. The app never takes a card payment itself. v1.109-social (D344, §10.143): also only when the caller's session platform is in `TOPUP_APP_LINK_PLATFORMS` (default `android,ios`; another or no platform only when both are listed). The app opens the page signed in through `createTopupWebsiteSession`; this plain URL is the fallback (the website's own sign-in)."
         packages:
           type: array
           items:
@@ -36407,6 +36489,33 @@ components:
               bonusCoins: { type: integer, minimum: 0 }
               priceMinor: { type: integer, minimum: 1, description: In the currency's minor unit (cents). }
               originalPriceMinor: { type: [integer, 'null'], minimum: 1, description: The price before a discount (the «عرض» ribbon). }
+    TopupWebsiteSession:
+      type: object
+      description: v1.109-social (DRAFT, D344, §10.143). Open `websiteUrl` once, in an in-app browser tab.
+      required: [websiteUrl, expiresAt]
+      additionalProperties: false
+      properties:
+        websiteUrl:
+          type: string
+          format: uri
+          description: '`<TOPUP_PUBLIC_BASE_URL>/topup?lang=ar|en#h=<code>` — the code only in the fragment.'
+        expiresAt: { type: string, format: date-time, description: The code is refused after this (60 s after minting). }
+    TopupHandoffRequest:
+      type: object
+      description: v1.109-social (DRAFT, D344).
+      required: [handoff]
+      additionalProperties: false
+      properties:
+        handoff: { type: string, pattern: '^[A-Za-z0-9_-]{43}$', description: The code from the page address's fragment. }
+    TopupHandoffSession:
+      type: object
+      description: v1.109-social (DRAFT, D344). The website's tab session — an access token only (no refresh token).
+      required: [accessToken, accessTokenExpiresAt, username]
+      additionalProperties: false
+      properties:
+        accessToken: { type: string }
+        accessTokenExpiresAt: { type: string, format: date-time }
+        username: { type: string, description: The account the code belongs to (shown as @username on the page). }
     TopupPackages:
       type: object
       description: v1.59-social (DRAFT, D190, §10.53). USD only; prices in cents, from the server.
@@ -36421,7 +36530,7 @@ components:
             properties:
               id: { type: string, description: The package id a checkout sends (the coin amount as text). }
               coins: { type: integer, minimum: 1 }
-              priceMinor: { type: integer, minimum: 50, description: USD cents. }
+              priceMinor: { type: integer, minimum: 50, description: "USD cents. v1.109-social (D344, §10.143.2): the one all-inclusive price charged — the package's base price with Stripe's fee folded in (`ceil((base + fixed) / (1 − percent))`, the rates of «الدفع (Stripe)»), never shown or charged as a separate fee; the base price itself while the gross-up is off." }
         bankTransfer: { type: boolean, description: 'US bank transfers are offered next to the card (STRIPE_BANK_TRANSFER_ENABLED, on by default); credited only when the transfer arrives.' }
         terms:
           type: object

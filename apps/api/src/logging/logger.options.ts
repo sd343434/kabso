@@ -18,12 +18,17 @@ export const REDACT_PATHS = [
   'token',
   'refreshToken',
   'accessToken',
+  // v1.109-social (D344): the one-time website sign-in code (`POST /topup/handoff` body, the minted URL).
+  'handoff',
+  'websiteUrl',
   '*.password',
   '*.newPassword',
   '*.passwordHash',
   '*.token',
   '*.refreshToken',
   '*.accessToken',
+  '*.handoff',
+  '*.websiteUrl',
   '*.secret',
   // v1.64-social (D196): the Stripe keys the OWNER types into the panel and the code re-entered with them.
   'secretKey',

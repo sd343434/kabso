@@ -28,7 +28,15 @@ import {
   openCaseIn,
   reconcileOrderIn,
 } from './topup-core.js';
-import { buildEvidence, findPackage, simplePdf, TOPUP_TERMS, type TopupLocale } from './topup-rules.js';
+import {
+  buildEvidence,
+  estimatedFeeMinor,
+  findPackage,
+  simplePdf,
+  TOPUP_TERMS,
+  topupPriceOf,
+  type TopupLocale,
+} from './topup-rules.js';
 import { recordStatementConsentIn } from '../privacy/legal.js';
 
 /** `TopupPackages` (openapi v1.59-social). */
@@ -120,7 +128,12 @@ export class TopupService {
     const t = this.config.topup;
     return {
       currency: t.currency,
-      packages: t.packages.map((p) => ({ ...p })),
+      // D344: one all-inclusive price per package (Stripe's fee folded in; never shown as a separate fee).
+      packages: t.packages.map((p) => ({
+        id: p.id,
+        coins: p.coins,
+        priceMinor: topupPriceOf(p.priceMinor, s.options.fee).priceMinor,
+      })),
       bankTransfer: s.options.bankTransfer.enabled,
       terms: { version: t.termsVersion, ar: TOPUP_TERMS.ar, en: TOPUP_TERMS.en },
     };
@@ -179,6 +192,8 @@ export class TopupService {
     const locale: TopupLocale = input.locale;
     const o = s.options;
     const methods = o.bankTransfer.enabled ? ['card', 'customer_balance'] : ['card'];
+    // D344: the price includes Stripe's fee (gross-up); the parts are kept on the order.
+    const price = topupPriceOf(pkg.priceMinor, o.fee);
     const customer = o.bankTransfer.enabled ? await this.customerFor(userId, user.email, s.api) : null;
     const now = this.clock.now();
     const orderId = uuidv7();
@@ -211,7 +226,10 @@ export class TopupService {
           termsAcceptanceId: termsId,
           packageId: pkg.id,
           coins: BigInt(pkg.coins),
-          amountMinor: pkg.priceMinor,
+          amountMinor: price.priceMinor,
+          basePriceMinor: price.baseMinor,
+          feePercentBps: price.percentBps,
+          feeFixedMinor: price.fixedMinor,
           currency: t.currency,
           paymentMethodTypes: methods,
           createdAt: now,
@@ -229,7 +247,7 @@ export class TopupService {
           quantity: 1,
           price_data: {
             currency: t.currency.toLowerCase(),
-            unit_amount: pkg.priceMinor,
+            unit_amount: price.priceMinor,
             product_data: {
               name: `${pkg.coins.toLocaleString('en-US')} Kabso Live coins`,
               description: `${TOPUP_TERMS.en}.`,
@@ -287,7 +305,10 @@ export class TopupService {
           metadata: {
             package: pkg.id,
             coins: pkg.coins,
-            amountMinor: pkg.priceMinor,
+            amountMinor: price.priceMinor,
+            basePriceMinor: price.baseMinor,
+            feePercentBps: price.percentBps,
+            feeFixedMinor: price.fixedMinor,
             currency: t.currency,
             methods,
             terms: termsId,
@@ -359,6 +380,8 @@ export class TopupService {
       });
       return result;
     });
+    // D344: once the coins are credited, compare the fee Stripe really took with the one folded into the price.
+    if (step?.outcome === 'credited' && step.orderId) await this.checkFee(step.orderId, s.api);
     if (!step || step.followUps.length === 0) return { received: true };
     try {
       for (const f of step.followUps) {
@@ -377,6 +400,51 @@ export class TopupService {
       data: { processedAt: this.clock.now() },
     });
     return { received: true };
+  }
+
+  /**
+   * v1.109-social (D344, §10.143.2): records the fee Stripe took (`stripe_fee_minor`) and, when it is more than the
+   * price added over the base, logs it and audits `topup.fee.exceeded` — the owner's rates in «الدفع (Stripe)» are
+   * then too low. Never changes coins; best effort (a failure is logged and never fails the webhook).
+   */
+  private async checkFee(orderId: string, api: StripeApi): Promise<void> {
+    try {
+      const order = await this.prisma.topupOrder.findUnique({ where: { id: orderId } });
+      if (!order?.stripePaymentIntentId || order.basePriceMinor === null) return;
+      const fee = await api.paymentFee(order.stripePaymentIntentId);
+      if (!fee || fee.currency !== order.currency) return;
+      await this.prisma.topupOrder.update({ where: { id: orderId }, data: { stripeFeeMinor: fee.feeMinor } });
+      const margin = order.amountMinor - order.basePriceMinor;
+      if (fee.feeMinor > margin) {
+        this.logger.warn(
+          { order: orderId, feeMinor: fee.feeMinor, marginMinor: margin },
+          'Stripe fee above the fee in the price: check the rates in «الدفع (Stripe)»',
+        );
+        await this.prisma.auditLog.create({
+          data: {
+            action: AuditAction.TOPUP_FEE_EXCEEDED,
+            actorUserId: null,
+            targetType: 'topup_order',
+            targetId: orderId,
+            metadata: {
+              stripeFeeMinor: fee.feeMinor,
+              marginMinor: margin,
+              estimatedFeeMinor: estimatedFeeMinor(
+                order.amountMinor,
+                order.feePercentBps ?? 0,
+                order.feeFixedMinor ?? 0,
+              ),
+              basePriceMinor: order.basePriceMinor,
+              amountMinor: order.amountMinor,
+              feePercentBps: order.feePercentBps,
+              feeFixedMinor: order.feeFixedMinor,
+            },
+          },
+        });
+      }
+    } catch (err) {
+      this.logger.warn({ error: safeErrorLog(err), order: orderId }, 'Stripe fee check failed');
+    }
   }
 
   /** The database step of one event (inside its transaction). */

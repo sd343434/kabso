@@ -3792,3 +3792,29 @@ CONVENTIONS §10.142. §5.102–§5.105 are left for the work in flight.
   error there).
 - **Rollback:** an older API ignores the tables; a staff ID typed at sign-up then fails the format check of the old
   rule only if it is not 6–16 letters/digits («Kabso07» passes and is silently ignored).
+
+### 5.107 «الشحن من الموقع» inside the app, signed in; Stripe's fee in the website price (migrations `20270416090000_topup_handoffs`, `20270416090100_topup_stripe_fee`; D344) — [IMPLEMENTED, draft contract v1.109-social; not deployed, not device-tested]
+
+CONVENTIONS §10.143 (owner 2026-11-09). §5.102–§5.106 are left for the work in flight.
+
+- **Migrations:** a new table `topup_handoffs` (one-time codes, only their SHA-256, 60 s; CASCADE with the session and
+  the user); three nullable columns on the one-row `payment_settings` and four nullable columns on `topup_orders`, each
+  with a CHECK (the `topup_orders` CHECK scans the table under a short lock; it is small). No data change.
+- **New settings (all optional):** `TOPUP_APP_LINK_PLATFORMS` (default `android,ios` — D190's behaviour; empty hides
+  the link on both), `RATE_LIMIT_TOPUP_HANDOFF_USER` (`10/600`), `RATE_LIMIT_TOPUP_HANDOFF_IP` (`30/600`),
+  `TOPUP_STRIPE_FEE_GROSS_UP` (`true`), `TOPUP_STRIPE_FEE_PERCENT` (`2.9`), `TOPUP_STRIPE_FEE_FIXED_MINOR` (`30`).
+  **The fee defaults are placeholders:** before live payments the OWNER enters the account's real rates in «الدفع
+  (Stripe)» (or the env), else the website prices are computed from Stripe's US list price. With the gross-up on, the
+  website prices go up by the fee from this deploy on (1 000 000 coins: $12.50 → $13.19 with the placeholders).
+- **Order:** migrations, then the API (the website page is served by it), then the admin panel (the fee fields), then
+  an app build (in-app tab + one-time sign-in; Android manifest gains the Custom Tabs `<queries>` entry). An older app
+  keeps opening the plain page in the browser (the website's own sign-in still works).
+- **Logs:** the code is in the URL **fragment** only (never sent to Caddy or the API); `handoff` / `websiteUrl` are
+  redacted keys. Caddy has no access log configured for `api.<domain>`; nothing to change there.
+- **Check after deploy:** on a phone, «الشحن من الموقع» opens a Custom Tab / Safari sheet already signed in; the address
+  bar shows `/topup?lang=ar` without `#h=`; closing it returns to the wallet and, after a paid test top-up, the balance
+  updates; reopening the same old address shows the sign-in form; signing out in the app then opening a code minted
+  before → the sign-in form. The packages page shows one price per package (no fee line); a test-mode payment's
+  `topup_orders.stripe_fee_minor` is filled and no `topup.fee.exceeded` row appears with the real rates.
+- **Rollback:** an older API ignores the new table and columns (prices go back to the base); an older app ignores the
+  new endpoints. Dropping them is not needed.

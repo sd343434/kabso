@@ -527,6 +527,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /me/bag/transfers` *(v1.48-social, D171)* | 30 / hour per user (bucket `bag:send`, `RATE_LIMIT_BAG_SEND_USER`). **Replaces** the per-user default |
 | `POST /me/store/purchases` *(v1.84-social, D270)* | 30 / hour per user (bucket `store:buy`, the bag send's numbers, `RATE_LIMIT_BAG_SEND_USER`). **Replaces** the per-user default; `GET /store/items` uses the default |
 | `POST /me/recharge-agent/sales` *(v1.54-social, D185)* | 120 / hour per user (bucket `recharge:sell`, `RATE_LIMIT_RECHARGE_SELL_USER`). **Replaces** the per-user default |
+| `POST /wallet/topup-session` *(v1.109-social, D344)* | 10 / 10 min per user (bucket `topup:handoff:user`, `RATE_LIMIT_TOPUP_HANDOFF_USER`). **Replaces** the per-user default |
+| `POST /topup/handoff` *(v1.109-social, D344)* | 30 / 10 min per client IP (bucket `topup:handoff:ip`, `RATE_LIMIT_TOPUP_HANDOFF_IP`; public, no account yet). **Replaces** the default |
 | `POST /topup/checkout` *(v1.59-social, D190)* | 20 / hour per user (bucket `topup:checkout`, `RATE_LIMIT_TOPUP_CHECKOUT_USER`). **Replaces** the per-user default; the other top-up reads use it; `POST /payments/stripe/webhook` has **no** rate limit (signed by Stripe) |
 | `PUT /me/host-frame/style` *(v1.55-social, D186)* | 60 / hour per user (bucket `host-frame:style`, the family-write numbers like `PUT /me/bag/equipped`). **Replaces** the per-user default; `GET /me/host-frame` uses the per-user default |
 | `POST /me/recharge-agent/application`, `PUT /me/recharge-agent/availability`, `POST`/`PUT`/`DELETE /me/recharge-agent/employees…`, `POST /recharge-cherry-requests`, `POST /recharge-cherry-requests/{id}/{action}` *(v1.54-social, D185)* | 60 / hour per user, one bucket (`recharge:write`, `RATE_LIMIT_RECHARGE_WRITE_USER`). **Replaces** the per-user default |
@@ -760,6 +762,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.109-social (draft) | 2026-11-09 | **D344 (owner: «زر الشحن من الموقع يدخلك متصفح خارج التطبيق ويطلب اليوزر والباسورد. اريد جعل الشحن من الموقع يفتح من نفس التطبيق ويدخل اليوزر والباسورد تلقائي دون ملاحظة الشخص»; then «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»):** tag `topup` — `createTopupWebsiteSession` (`POST /wallet/topup-session`), `exchangeTopupHandoff` (`POST /topup/handoff`, public); schemas `TopupWebsiteSession`, `TopupHandoffRequest`, `TopupHandoffSession`; `RechargePackages.websiteTopupUrl` also per store (`TOPUP_APP_LINK_PLATFORMS`); `TopupPackages.priceMinor` and the Checkout amount include Stripe's fee (gross-up); `AdminPaymentSettings.options` / `effective` `stripeFeeGrossUp`, `stripeFeePercentBps`, `stripeFeeFixedMinor`, `feeCurrency`, and the same three in `UpdateAdminPaymentSettingsRequest`; audit `topup.handoff.mint|exchange|refused`, `topup.fee.exceeded`; migrations `20270416090000_topup_handoffs`, `20270416090100_topup_stripe_fee`. §7, §10.53, §10.143. | **Additive** on the wire (new operations and fields). **Behaviour change**: the website's package prices are higher by Stripe's fee while the gross-up is on (the default); the coins are unchanged. |
 | v1.108-social (draft) | 2026-11-09 | **D343 (owner: «في انشاء الحساب هناك صندوق يدخل شخص اما رمز الدعوة او رمز المشرف … النظام يعرف ان كان الشخص قام بتحميل التطبيق قبل»):** `RegisterRequest.referralCode` also takes a supervisor's staff ID; `register` 400 `referralCode` `not_found`; `checkSignupCode` (`POST /auth/signup-code/check`, public); `StaffRecruitList.signupCode` / `signupLink` / `signups`; `listAdminSignupRecruits`, `AdminSignupRecruit`, `SignupCreditStatus`; referral reject reasons `DEVICE_HAD_ACCOUNT`, `EMAIL_HAD_ACCOUNT`; settings SIGNUP_IDENTITY_RETENTION_DAYS (365), RATE_LIMIT_SIGNUP_CODE_IP (30/600). Migration `20270415090000_signup_codes`. §10.142. | **Additive**, except: an unknown code at sign-up is now a 400 on `referralCode` (was a silent 202 without a referral). |
 | v1.106-social (draft) | 2026-11-09 | **D341 (owner: «لو مضيف تفعل من خلالنا دون وكيل تصبح نسبته ٧٢٪ — ولو صانع المحتوى تفعل من خلالنا تصبح نسبته ٧٥٪»; corrected by the owner: the direct host **70 %**, the direct creator 75 %):** a normal gift (not quips, lucky or custom) sent in a live whose recipients are **all direct** — the hosting permission (`live_hosts`) and no ACTIVE agency membership (`agency_hosts`) at the send — stores `live_gifts.host_share_bps` = `GIFT_DIRECT_HOST_SHARE_PERCENT` (70: 1 000 000 coins → 7 000 000 cherries) instead of the category share (65 %), and in a creator's live (the D295 creator send) `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75: → 7 500 000) instead of the creator share (70 %); never below the share it replaces. Agency members keep 65 % / 70 % and the agency commission on top. No wire change (the stored share is already returned as `shareBps` where shown), no migration. §10.140. | **Behaviour change, no shape change** (higher stored shares for direct recipients; everything reading the stored share follows). |
 | v1.104-social (draft) | 2026-11-09 | **D339 (owner: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية» — archived chats and group messages in the Messages tab):** `archiveDmConversation` / `unarchiveDmConversation` (`PUT` / `DELETE /dm/conversations/{id}/archive`), `DmConversation.archived`; `listDmChats` (`GET /dm/chats?box=CHATS\|ARCHIVED&q=`, `DmChat`, `DmChatPage`: conversations and groups by recency, one cursor); groups `createDmGroup`, `getDmGroup`, `updateDmGroup`, `addDmGroupMembers`, `removeDmGroupMember`, `setDmGroupMemberRole`, `leaveDmGroup`, `listDmGroupMessages`, `sendDmGroupMessage`, `markDmGroupRead`, `deleteDmGroupMessage`, `muteDmGroup` / `unmuteDmGroup`, `archiveDmGroup` / `unarchiveDmGroup`, `listDmGroupCandidates` (`DmGroup`, `DmGroupDetail`, `DmGroupMember`, `DmGroupRole`, `DmGroupMessage`, `DmGroupMessagePage`, `DmGroupSendResult`, `CreateDmGroupRequest`, `UpdateDmGroupRequest`, `AddDmGroupMembersRequest`, `SetDmGroupRoleRequest`, `DmGroupSendRequest`); `DmUnread.groups`; `MediaKind` `DM_GROUP_PHOTO`; report target `DM_GROUP` (`Report.dmGroupSnapshot`, `DmGroupReportSnapshot`); codes `DM_NOT_ARCHIVABLE`, `DM_GROUP_FULL` (409), `DM_GROUP_MEMBER_NOT_ALLOWED` (403); settings `DM_GROUP_MAX_MEMBERS` (100), `RATE_LIMIT_DM_GROUP_CREATE_USER` (2 / day, owner). Migrations `20270411090000_dm_groups_enums`, `20270411090100_dm_archive_groups`. §4, §7, §10.132, §10.133, §11.13, §11.13.1. | **Additive** (new operations, fields, schemas and enum values). **Behaviour change:** an archived conversation leaves `listDmConversations?box=INBOX` and `getDmUnread.messages` — only an app that archives can make one, so an older app of the same account just stops seeing it in its inbox until a message from the peer brings it back. |
@@ -3922,7 +3925,9 @@ script, nothing framed; the access token lives in the tab's `sessionStorage` onl
 - **The app** never takes a card payment. `RechargePackages.websiteTopupUrl` is `${TOPUP_PUBLIC_BASE_URL}/topup`
   only while `TOPUP_APP_LINK_ENABLED=true` (**on by default**, owner answer CP-033 Q4; a per-environment server switch;
   store payment rules reviewed before release, PP-35) and top-ups are on; the wallet then shows
-  «الشحن من الموقع», which opens the browser.
+  «الشحن من الموقع», which opens the browser. **v1.109-social (D344, §10.143):** it opens in an in-app browser tab,
+  already signed in through a one-time code; the link is also per store (`TOPUP_APP_LINK_PLATFORMS`); the website
+  prices include Stripe's fee (§10.143.2).
 - **Migrations** `20270104090000_card_topups_enums` (the three ledger reasons), `20270104100000_card_topups` (tables,
   CHECKs, the wallet and ledger ranges below 0, the reason-sign rule), `20270104110000_topup_team_refunds` (the team
   refund columns).
@@ -10773,3 +10778,78 @@ in flight.
   «لديك رمز دعوة؟» unless pre-filled, a live check under the field after a 500 ms pause («رمز دعوة من صديق» / «رمز
   المشرف Kabso07» / «الرمز غير صحيح. تأكد منه أو اتركه فارغاً.»; offline: nothing), the 400 shown on the field, one
   primary button. Login keeps its own design (it never used this layout).
+
+### 10.143 «الشحن من الموقع» inside the app, signed in; Stripe's fee in the website price *(v1.109-social, DRAFT — D344)*
+
+Owner 2026-11-09: «زر الشحن من الموقع يدخلك متصفح خارج التطبيق ويطلب اليوزر والباسورد. اريد جعل الشحن من الموقع يفتح من
+نفس التطبيق ويدخل اليوزر والباسورد تلقائي دون ملاحظة الشخص». The person never types anything — but **no password is ever
+passed, stored or filled in**: the app's own session vouches for the website once. §10.53 is unchanged otherwise.
+
+#### 10.143.1 The one-time website sign-in
+
+- **Mint** (`POST /wallet/topup-session`, the app's access token): 32 random bytes (base64url, 43 characters); the server
+  stores only their **SHA-256** (`topup_handoffs.code_hash`, unique) with the user, the **minting session**, `expires_at`
+  = now + **60 s** (a CHECK bounds it to 60 s) and `consumed_at`. A new code deletes the session's unused one and the
+  caller's expired ones (the table stays small). The answer is `websiteUrl` =
+  `<TOPUP_PUBLIC_BASE_URL>/topup?lang=ar|en#h=<code>` (`lang` from `Accept-Language`) and `expiresAt`. The code rides in
+  the **fragment**: browsers never send a fragment to a server or in a `Referer`, so it is in no Caddy or API access log
+  (the API logs paths without the query anyway). Audited `topup.handoff.mint` (the handoff id, the platform — never the
+  code). 503 `TOPUP_UNAVAILABLE` when top-ups are off or the link is off for the session's platform (below); 429 after
+  `RATE_LIMIT_TOPUP_HANDOFF_USER` (10 / 10 min per user).
+- **The page** (`/topup`, D190's): its script first takes `#h=` out of the address (`history.replaceState`, before any
+  request), then sends the code once to `POST /topup/handoff` without an `Authorization` header. 200 → it keeps the
+  access token in the tab's `sessionStorage`, exactly as after its own sign-in (D190: **no cookie**; the website top-up
+  page lives on the API's host, not on kabsolive.com, and sets no cookie at all — the kabsolive.com no-tracker / no-cookie
+  rule of D198 is untouched). Anything else → the normal sign-in form, no error message and no retry loop; a 503 shows
+  «الشحن بالبطاقة غير مفعّل». Direct visitors sign in as before.
+- **Exchange** (`POST /topup/handoff`, public; body `{handoff}` only, 400 otherwise): one SQL `UPDATE … SET consumed_at
+  WHERE code_hash = $1 AND consumed_at IS NULL AND expires_at > now() RETURNING …` — of concurrent requests exactly one
+  wins. Then the code counts only while the **minting session** is not revoked or expired, the account is `ACTIVE`, not
+  locked (D208), and the session's device not banned (D250). So signing out, «تسجيل الخروج من الأجهزة الأخرى», a team
+  revocation, a password reset, a suspension, a deletion request or a device ban void every pending code (deleting the
+  session or the account deletes them: CASCADE). Success creates a **new session** (platform `web`, «Kabso website
+  (app)», the app session's device hash and install id, the request's IP / user agent) and answers `{accessToken,
+  accessTokenExpiresAt, username}` — **no refresh token** (the page never refreshes; after 15 minutes it asks to sign in).
+  Every refusal (unknown, used, expired, voided) is the same **410 `TOKEN_EXPIRED`**; audited `topup.handoff.exchange` or
+  `topup.handoff.refused` (`used`, `expired`, `session_revoked`, `account_not_active`, `account_locked`, `device_banned`;
+  never the code; an unknown code has no account and is not audited). 429 after `RATE_LIMIT_TOPUP_HANDOFF_IP` (30 /
+  10 min per IP). An `Authorization` header sent along is ignored: the code alone names the account.
+- **Logs:** `handoff` and `websiteUrl` are redacted keys (`REDACT_PATHS`); a bare 43-character base64url value is masked
+  in free text (SEC-017's pattern).
+- **The app** opens `websiteUrl` in an **in-app browser tab** — url_launcher's `LaunchMode.inAppBrowserView` (Android
+  Custom Tabs, iOS `SFSafariViewController`; the plugin already pinned, 6.3.2, no lockfile change). Not a WebView: Stripe's
+  3-D Secure, Google Pay and Apple Pay are not reliably supported in one, and the website keeps its own origin, cookie
+  jar and address bar. The tab has its own close button back to the wallet; when the app is in front again the balance is
+  read again (`AppLifecycleListener.onResume`). Android needs the `CustomTabsService` `<queries>` entry; without a Custom
+  Tabs browser the system browser opens. If the code cannot be had (offline, an older server) the plain
+  `websiteTopupUrl` opens and the website asks to sign in.
+- **Per store** (`TOPUP_APP_LINK_PLATFORMS`, default `android,ios` = D190's behaviour): `websiteTopupUrl` (and the mint)
+  only for a session whose sign-in platform is listed; a session of another or no platform only when both are. The
+  panel / `TOPUP_APP_LINK_ENABLED` switch still turns it off everywhere. Whether a store allows the link is the owner's
+  decision (PP-79).
+- Migration `20270416090000_topup_handoffs`.
+
+#### 10.143.2 Stripe's fee in the website price
+
+Owner 2026-11-09: «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe». The website price is grossed up so that, after
+Stripe takes `percent × charged + fixed`, Kabso keeps at least the package's base price (`TOPUP_PACKAGES` ×
+`COIN_RETAIL_USD_PER_MILLION`):
+
+`charged = ceil((base + fixed) / (1 − percent))` — integer arithmetic in the currency's minor unit (USD cents today; the
+formula is the same for a zero-decimal or a three-decimal currency), rounded up once.
+
+- **One all-inclusive price** per package (`TopupPackages.priceMinor`, the one Checkout line's `unit_amount`) — never a
+  separate «fee» line or field: surcharging consumer cards is forbidden in the EU / UK (legal review, PP-79). The coins
+  of a package do not change; in-app recharge agents and store purchases are unaffected.
+- **Rates:** env `TOPUP_STRIPE_FEE_GROSS_UP` (default `true`), `TOPUP_STRIPE_FEE_PERCENT` (0–20, two decimals; default
+  **2.9**), `TOPUP_STRIPE_FEE_FIXED_MINOR` (0–10000 cents; default **30**). The defaults are **placeholders** (Stripe's US
+  list price for domestic cards); the OWNER sets the account's real rates in «الدفع (Stripe)» («اضبطها حسب نسبة حسابك في
+  Stripe»: `stripeFeeGrossUp`, `stripeFeePercentBps`, `stripeFeeFixedMinor`, null = the server's; OWNER only, code +
+  reason, audited `payment.settings.update`), shown with `feeCurrency` and an example price.
+- **Each order** keeps `base_price_minor`, `fee_percent_bps`, `fee_fixed_minor` (0 when the gross-up is off) next to
+  `amount_minor`, and the checkout's audit row repeats them. After the webhook credits an order the API reads the fee
+  Stripe really took (the charge's balance transaction) into `stripe_fee_minor`; when it is more than `amount − base` the
+  server logs a warning and audits `topup.fee.exceeded` (the rates are too low, e.g. international cards or currency
+  conversion). Best effort: a failure is logged, never fails the webhook, and **never changes the coins**. A bank
+  transfer's fee is lower than a card's; the same price applies.
+- Migration `20270416090100_topup_stripe_fee` (the three settings with CHECKs; the four order columns with a CHECK).

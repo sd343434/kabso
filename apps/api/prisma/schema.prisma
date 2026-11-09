@@ -325,6 +325,8 @@ model User {
   topupTermsAcceptances  TopupTermsAcceptance[]
   topupOrders            TopupOrder[]
   topupFreeze            TopupFreeze?
+  /// v1.109-social (D344): the app's one-time website sign-in codes.
+  topupHandoffs          TopupHandoff[]
   topupCases             TopupCase[]
   stripeCustomer         StripeCustomer?
   // v1.62-social (D193): account deletion requests «حذف الحساب».
@@ -514,6 +516,8 @@ model Session {
   deviceTokens   DeviceToken[]
   /// v1.68-live (D273): the staff tools' step-up, bound to this session.
   adminAppGrants AdminAppGrant[]
+  /// v1.109-social (D344): the website sign-in codes this (app) session minted.
+  topupHandoffs  TopupHandoff[]
 
   @@index([userId, createdAt(sort: Desc)], map: "sessions_user_id_created_at_idx")
   @@index([expiresAt], map: "sessions_expires_at_idx")
@@ -5510,6 +5514,13 @@ model TopupOrder {
   /// recorded before the Stripe call) and why. Such a refund reverses its coins but never freezes the buyer.
   teamRefundedMinor     Int              @default(0) @map("team_refunded_minor")
   teamRefundReason      String?          @map("team_refund_reason") @db.VarChar(500)
+  /// v1.109-social (D344): how `amountMinor` was made — the package's base price and Stripe's estimated fee
+  /// (percent in basis points, fixed in cents; both 0 when the gross-up is off). NULL on older orders.
+  basePriceMinor        Int?             @map("base_price_minor")
+  feePercentBps         Int?             @map("fee_percent_bps")
+  feeFixedMinor         Int?             @map("fee_fixed_minor")
+  /// v1.109-social (D344): the fee Stripe really took (its balance transaction), read after the credit.
+  stripeFeeMinor        Int?             @map("stripe_fee_minor")
   createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
 
@@ -5540,6 +5551,31 @@ model TopupFreeze {
   order TopupOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@map("topup_freezes")
+}
+
+/// v1.109-social (D344, CONVENTIONS §10.143): a one-time code the app mints so the website top-up page opens signed
+/// in (owner: «يدخل اليوزر والباسورد تلقائي»). Only SHA-256 of the 32 random bytes is stored; it lives 60 s, is
+/// redeemed once (`consumed_at`), and is honoured only while the minting session is live and the account ACTIVE.
+/// Never a password. Rows are deleted with the session or the user (CASCADE) and pruned at the next mint.
+model TopupHandoff {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  /// The app session that minted it (revoking it voids the code).
+  sessionId    String    @map("session_id") @db.Uuid
+  /// SHA-256 (hex) of the code.
+  codeHash     String    @unique(map: "topup_handoffs_code_hash_key") @map("code_hash") @db.Char(64)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt   DateTime? @map("consumed_at") @db.Timestamptz(3)
+  /// The website session the code was exchanged for.
+  webSessionId String?   @map("web_session_id") @db.Uuid
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "topup_handoffs_user_idx")
+  @@index([sessionId], map: "topup_handoffs_session_idx")
+  @@map("topup_handoffs")
 }
 
 /// D190: an admin case after a refund, an early-fraud warning or a dispute, with the FIFO gift attribution.
@@ -5707,6 +5743,12 @@ model PaymentSettings {
   statementDescriptorSuffix  String?   @map("statement_descriptor_suffix") @db.VarChar(10)
   disputeAutoSubmit          Boolean?  @map("dispute_auto_submit")
   appLinkEnabled             Boolean?  @map("app_link_enabled")
+  /// v1.109-social (D344): the website price includes Stripe's fee (NULL = TOPUP_STRIPE_FEE_GROSS_UP).
+  stripeFeeGrossUp           Boolean?  @map("stripe_fee_gross_up")
+  /// v1.109-social (D344): Stripe's percent in basis points (290 = 2.9 %; NULL = TOPUP_STRIPE_FEE_PERCENT).
+  stripeFeePercentBps        Int?      @map("stripe_fee_percent_bps")
+  /// v1.109-social (D344): Stripe's fixed fee in the top-up currency's minor unit (NULL = TOPUP_STRIPE_FEE_FIXED_MINOR).
+  stripeFeeFixedMinor        Int?      @map("stripe_fee_fixed_minor")
   updatedAt                  DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
   updatedById                String?   @map("updated_by_id") @db.Uuid
 

@@ -385,6 +385,10 @@ export interface PaymentOptions {
   statementDescriptorSuffix: string | null;
   disputeAutoSubmit: boolean | null;
   appLinkEnabled: boolean | null;
+  /** v1.109-social (D344): Stripe's fee in the website price (null = the server's value). */
+  stripeFeeGrossUp: boolean | null;
+  stripeFeePercentBps: number | null;
+  stripeFeeFixedMinor: number | null;
 }
 
 /** v1.64-social (D196): `AdminPaymentSettings` «الدفع (Stripe)». */
@@ -405,7 +409,12 @@ export interface PaymentSettings {
     statementDescriptorSuffix: string | null;
     disputeAutoSubmit: boolean;
     appLinkEnabled: boolean;
+    stripeFeeGrossUp: boolean;
+    stripeFeePercentBps: number;
+    stripeFeeFixedMinor: number;
   };
+  /** v1.109-social (D344): the currency of the fixed fee and the website prices. */
+  feeCurrency: string;
   publicBaseUrl: string | null;
   webhookUrl: string | null;
   webhookEvents: string[];

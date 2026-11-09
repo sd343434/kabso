@@ -38,6 +38,11 @@ export interface StripeApi {
    * no answer throws {@link StripeUnreachableError}.
    */
   checkKey(): Promise<StripeKeyCheck>;
+  /**
+   * v1.109-social (D344): the fee Stripe took for a payment (its charge's balance transaction), in the balance
+   * currency; null when Stripe has no balance transaction for it yet.
+   */
+  paymentFee(paymentIntentId: string): Promise<{ feeMinor: number; currency: string } | null>;
 }
 
 /** The real client (`maxNetworkRetries` with Stripe's idempotency keys); null when top-ups are off. */
@@ -70,6 +75,14 @@ export function createStripeApi(secretKey: string): StripeApi {
     async createCustomer(params, idempotencyKey) {
       const c = await stripe.customers.create(params, { idempotencyKey });
       return { id: c.id };
+    },
+    async paymentFee(paymentIntentId) {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['latest_charge.balance_transaction'],
+      });
+      const charge = typeof pi.latest_charge === 'object' ? pi.latest_charge : null;
+      const bt = charge && typeof charge.balance_transaction === 'object' ? charge.balance_transaction : null;
+      return bt ? { feeMinor: bt.fee, currency: bt.currency.toUpperCase() } : null;
     },
     async checkKey() {
       try {

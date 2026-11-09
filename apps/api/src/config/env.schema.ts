@@ -627,6 +627,10 @@ export const envSchema = z
     RATE_LIMIT_REFERRAL_TICKER_IP: rateLimit('60/600'),
     /** v1.59-social (D190, §10.53): card top-up checkouts started, per user. */
     RATE_LIMIT_TOPUP_CHECKOUT_USER: rateLimit('20/3600'),
+    /** v1.109-social (D344, §10.143): the app's one-time website sign-in codes minted, per user. */
+    RATE_LIMIT_TOPUP_HANDOFF_USER: rateLimit('10/600'),
+    /** v1.109-social (D344): codes the website exchanges, per client IP (no account yet). */
+    RATE_LIMIT_TOPUP_HANDOFF_IP: rateLimit('30/600'),
     /** v1.61-social (D192, §10.55): the website's waitlist sign-ups, per client IP (no account). */
     RATE_LIMIT_WAITLIST_IP: rateLimit('10/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
@@ -1504,6 +1508,40 @@ export const envSchema = z
       .enum(['true', 'false'], { error: 'must be "true" or "false"' })
       .default('true')
       .transform((v) => v === 'true'),
+    /**
+     * v1.109-social (D344, §10.143): on which app platforms «الشحن من الموقع» is shown (store payment rules, PP-79).
+     * Comma-separated `android`, `ios`; empty = no platform. The platform is the caller's session's (its sign-in
+     * device). A session of another or no platform sees the link only when both are listed. Default: both (D190).
+     */
+    TOPUP_APP_LINK_PLATFORMS: z
+      .string()
+      .trim()
+      .default('android,ios')
+      .refine((v) => /^((android|ios)(,(android|ios))?)?$/.test(v), {
+        message: 'must be "android", "ios", "android,ios" or empty',
+      })
+      .transform((v) => (v === '' ? [] : [...new Set(v.split(','))]) as ('android' | 'ios')[]),
+    /**
+     * v1.109-social (D344, §10.143.2; owner: «اسعار الشحن من الموقع يجب اضافة عليها عمولة stripe»): the website price
+     * includes Stripe's fee, charged = ceil((base + fixed) / (1 − percent)), so Kabso nets the base price. One
+     * all-inclusive price (never a separate fee line). The OWNER may override all three in the panel «الدفع (Stripe)».
+     * The defaults are PLACEHOLDERS (Stripe's US card list price) — set the account's real rates (PP-79).
+     */
+    TOPUP_STRIPE_FEE_GROSS_UP: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    /** Stripe's percent fee, 0–20 with at most 2 decimals (e.g. 2.9). */
+    TOPUP_STRIPE_FEE_PERCENT: z
+      .string()
+      .trim()
+      .default('2.9')
+      .refine((v) => /^\d{1,2}(\.\d{1,2})?$/.test(v) && Number(v) <= 20, {
+        message: 'must be a percent from 0 to 20 with at most 2 decimals',
+      })
+      .transform((v) => Math.round(Number(v) * 100)),
+    /** Stripe's fixed fee per payment in the top-up currency's minor unit (cents), 0–10000. */
+    TOPUP_STRIPE_FEE_FIXED_MINOR: intSetting(30, 0, 10_000),
     /** The version of the «العملات رقمية وغير قابلة للاسترداد» statement recorded with every acceptance. */
     TOPUP_TERMS_VERSION: z
       .string()

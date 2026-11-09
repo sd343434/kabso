@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TopupFee } from '../topup/topup-rules.js';
 import type { AppConfig } from '../../config/app-config.js';
 import { AdminSecretBox, Secret } from '../admin-panel/admin-crypto.js';
 
@@ -95,6 +96,10 @@ export interface PaymentSettingsRow {
   readonly statementDescriptorSuffix: string | null;
   readonly disputeAutoSubmit: boolean | null;
   readonly appLinkEnabled: boolean | null;
+  /** v1.109-social (D344): Stripe's fee in the website price (NULL = the server's). */
+  readonly stripeFeeGrossUp: boolean | null;
+  readonly stripeFeePercentBps: number | null;
+  readonly stripeFeeFixedMinor: number | null;
   readonly updatedAt: Date;
 }
 
@@ -104,6 +109,8 @@ export interface TopupOptions {
   readonly statementDescriptorSuffix: string | null;
   readonly disputeAutoSubmit: boolean;
   readonly appLinkEnabled: boolean;
+  /** v1.109-social (D344): how the website price includes Stripe's fee. */
+  readonly fee: TopupFee;
 }
 
 /** The keys top-ups run with. Secrets are {@link Secret}s: this object can be logged or serialised safely. */
@@ -138,6 +145,7 @@ export interface ResolveEnv {
     | 'statementDescriptorSuffix'
     | 'disputeAutoSubmit'
     | 'appLinkEnabled'
+    | 'fee'
   >;
 }
 
@@ -176,6 +184,11 @@ export function resolvePaymentSettings(
           : row.statementDescriptorSuffix,
     disputeAutoSubmit: row?.disputeAutoSubmit ?? t.disputeAutoSubmit,
     appLinkEnabled: row?.appLinkEnabled ?? t.appLinkEnabled,
+    fee: {
+      grossUp: row?.stripeFeeGrossUp ?? t.fee.grossUp,
+      percentBps: row?.stripeFeePercentBps ?? t.fee.percentBps,
+      fixedMinor: row?.stripeFeeFixedMinor ?? t.fee.fixedMinor,
+    },
   };
   const previousPlain =
     row?.previousWebhookSecretEnc &&
@@ -255,6 +268,10 @@ export const updatePaymentSettingsSchema = z
       .optional(),
     disputeAutoSubmit: z.boolean().nullable().optional(),
     appLinkEnabled: z.boolean().nullable().optional(),
+    /** v1.109-social (D344): Stripe's fee in the website price (null = the server's value). */
+    stripeFeeGrossUp: z.boolean().nullable().optional(),
+    stripeFeePercentBps: z.number().int().min(0).max(2000).nullable().optional(),
+    stripeFeeFixedMinor: z.number().int().min(0).max(10_000).nullable().optional(),
     /** Only for a TEST key and only when NODE_ENV is not production: save without asking Stripe. */
     skipConnectionTest: z.boolean().optional(),
     totpCode,
@@ -270,6 +287,9 @@ export const updatePaymentSettingsSchema = z
         'statementDescriptorSuffix',
         'disputeAutoSubmit',
         'appLinkEnabled',
+        'stripeFeeGrossUp',
+        'stripeFeePercentBps',
+        'stripeFeeFixedMinor',
       ].some((k) => (b as Record<string, unknown>)[k] !== undefined),
     { message: 'nothing to change', path: ['secretKey'] },
   );

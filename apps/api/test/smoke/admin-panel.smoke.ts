@@ -734,6 +734,7 @@ function fakeStripe(secretKey: string): StripeApi {
     updateDispute: none,
     uploadEvidenceFile: none,
     createCustomer: none,
+    paymentFee: none,
     checkKey: async () =>
       secretKey.includes('Bad')
         ? { ok: false, reason: 'rejected' }

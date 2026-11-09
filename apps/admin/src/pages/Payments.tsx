@@ -32,6 +32,43 @@ export interface OptionsForm {
   statementDescriptorSuffix: string;
   disputeAutoSubmit: Tri;
   appLinkEnabled: Tri;
+  /** D344: Stripe's fee in the website price. The two texts left empty: back to the server's value. */
+  stripeFeeGrossUp: Tri;
+  /** Percent, e.g. "2.9". */
+  stripeFeePercent: string;
+  /** In the currency's units, e.g. "0.30". */
+  stripeFeeFixed: string;
+}
+
+/** D344: "2.9" → 290 basis points; "" → null (the server's); anything else → undefined (invalid). */
+export function percentBpsOf(text: string): number | null | undefined {
+  const v = text.trim().replace(',', '.');
+  if (v === '') return null;
+  if (!/^\d{1,2}(\.\d{1,2})?$/.test(v)) return undefined;
+  const bps = Math.round(Number(v) * 100);
+  return bps <= 2000 ? bps : undefined;
+}
+
+/** D344: "0.30" → 30 minor units; "" → null; anything else → undefined. */
+export function fixedMinorOf(text: string): number | null | undefined {
+  const v = text.trim().replace(',', '.');
+  if (v === '') return null;
+  if (!/^\d{1,3}(\.\d{1,2})?$/.test(v)) return undefined;
+  const minor = Math.round(Number(v) * 100);
+  return minor <= 10_000 ? minor : undefined;
+}
+
+const percentText = (bps: number | null) => (bps === null ? '' : String(bps / 100));
+const fixedText = (minor: number | null) => (minor === null ? '' : (minor / 100).toFixed(2));
+
+/** D344: the server's formula, for the example only: ceil((base + fixed) / (1 − percent)). */
+export function grossUpMinor(baseMinor: number, percentBps: number, fixedMinor: number): number {
+  return Math.ceil(((baseMinor + fixedMinor) * 10_000) / (10_000 - percentBps) - 1e-9);
+}
+
+/** D344: the typed rates are valid (or empty). */
+export function feeFormValid(form: OptionsForm): boolean {
+  return percentBpsOf(form.stripeFeePercent) !== undefined && fixedMinorOf(form.stripeFeeFixed) !== undefined;
 }
 
 export function optionsFormOf(data: PaymentSettings): OptionsForm {
@@ -41,6 +78,9 @@ export function optionsFormOf(data: PaymentSettings): OptionsForm {
     statementDescriptorSuffix: data.options.statementDescriptorSuffix ?? '',
     disputeAutoSubmit: triOf(data.options.disputeAutoSubmit),
     appLinkEnabled: triOf(data.options.appLinkEnabled),
+    stripeFeeGrossUp: triOf(data.options.stripeFeeGrossUp),
+    stripeFeePercent: percentText(data.options.stripeFeePercentBps),
+    stripeFeeFixed: fixedText(data.options.stripeFeeFixedMinor),
   };
 }
 
@@ -51,10 +91,15 @@ export function optionsPatch(form: OptionsForm, data: PaymentSettings): Partial<
   if (pk !== data.publishableKey) out.publishableKey = pk;
   const suffix = form.statementDescriptorSuffix.trim() || null;
   if (suffix !== data.options.statementDescriptorSuffix) out.statementDescriptorSuffix = suffix;
-  for (const k of ['bankTransferEnabled', 'disputeAutoSubmit', 'appLinkEnabled'] as const) {
+  for (const k of ['bankTransferEnabled', 'disputeAutoSubmit', 'appLinkEnabled', 'stripeFeeGrossUp'] as const) {
     const v = boolOf(form[k]);
     if (v !== data.options[k]) out[k] = v;
   }
+  // D344: only valid rates are sent (the form refuses to save otherwise).
+  const bps = percentBpsOf(form.stripeFeePercent);
+  if (bps !== undefined && bps !== data.options.stripeFeePercentBps) out.stripeFeePercentBps = bps;
+  const fixed = fixedMinorOf(form.stripeFeeFixed);
+  if (fixed !== undefined && fixed !== data.options.stripeFeeFixedMinor) out.stripeFeeFixedMinor = fixed;
   return out;
 }
 
@@ -105,6 +150,69 @@ function TriSelect({ id, label, value, serverValue, onChange }: { id: string; la
         <option value="off">{t('payOff')}</option>
       </select>
     </div>
+  );
+}
+
+/** D344: «عمولة Stripe في سعر الموقع» — the gross-up switch, the account's rates and an example price. */
+function FeeFields({ data, opts, setOpts }: { data: PaymentSettings; opts: OptionsForm; setOpts: (f: (o: OptionsForm) => OptionsForm) => void }) {
+  const { t } = useApp();
+  const cur = data.feeCurrency;
+  const money = (minor: number) => `${(minor / 100).toFixed(2)} ${cur}`;
+  const on = opts.stripeFeeGrossUp === 'default' ? data.effective.stripeFeeGrossUp : opts.stripeFeeGrossUp === 'on';
+  const bps = percentBpsOf(opts.stripeFeePercent);
+  const fixed = fixedMinorOf(opts.stripeFeeFixed);
+  // The example uses the typed rate, else the one in use now.
+  const rateBps = typeof bps === 'number' ? bps : data.effective.stripeFeePercentBps;
+  const rateFixed = typeof fixed === 'number' ? fixed : data.effective.stripeFeeFixedMinor;
+  const base = 1250;
+  return (
+    <fieldset className="field" aria-labelledby="pay-fee-title">
+      <legend id="pay-fee-title">{t('payFeeTitle')}</legend>
+      <p className="small muted">{t('payFeeIntro')}</p>
+      <TriSelect
+        id="pay-fee-grossup"
+        label={t('payFeeGrossUp')}
+        value={opts.stripeFeeGrossUp}
+        serverValue={data.options.stripeFeeGrossUp === null ? data.effective.stripeFeeGrossUp : null}
+        onChange={(v) => setOpts((o) => ({ ...o, stripeFeeGrossUp: v }))}
+      />
+      <p className="small warn-text" id="pay-fee-adjust">
+        {t('payFeeAdjust')}
+      </p>
+      <div className="field">
+        <label htmlFor="pay-fee-percent">{t('payFeePercent')}</label>
+        <input
+          id="pay-fee-percent"
+          type="text"
+          inputMode="decimal"
+          className="ltr"
+          maxLength={5}
+          value={opts.stripeFeePercent}
+          placeholder={String(data.effective.stripeFeePercentBps / 100)}
+          aria-describedby="pay-fee-adjust"
+          onChange={(e) => setOpts((o) => ({ ...o, stripeFeePercent: e.target.value }))}
+        />
+        <span className="small muted">{t('payFeeServer', { value: `${data.effective.stripeFeePercentBps / 100} %` })}</span>
+      </div>
+      <div className="field">
+        <label htmlFor="pay-fee-fixed">{t('payFeeFixed', { currency: cur })}</label>
+        <input
+          id="pay-fee-fixed"
+          type="text"
+          inputMode="decimal"
+          className="ltr"
+          maxLength={6}
+          value={opts.stripeFeeFixed}
+          placeholder={(data.effective.stripeFeeFixedMinor / 100).toFixed(2)}
+          aria-describedby="pay-fee-adjust"
+          onChange={(e) => setOpts((o) => ({ ...o, stripeFeeFixed: e.target.value }))}
+        />
+        <span className="small muted">{t('payFeeServer', { value: money(data.effective.stripeFeeFixedMinor) })}</span>
+      </div>
+      <p className="small" id="pay-fee-example">
+        {on ? t('payFeeExample', { base: money(base), price: money(grossUpMinor(base, rateBps, rateFixed)) }) : t('payFeeExampleOff', { base: money(base) })}
+      </p>
+    </fieldset>
   );
 }
 
@@ -315,6 +423,7 @@ export function PaymentsView({ data, onChange }: { data: PaymentSettings; onChan
           aria-labelledby="pay-options"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!feeFormValid(opts)) return setInfo(t('payFeeInvalid'));
             const body = optionsPatch(opts, data);
             if (Object.keys(body).length === 0) return setInfo(t('payNothing'));
             setInfo(null);
@@ -345,6 +454,7 @@ export function PaymentsView({ data, onChange }: { data: PaymentSettings; onChan
             serverValue={data.options.appLinkEnabled === null ? data.effective.appLinkEnabled : null}
             onChange={(v) => setOpts((o) => ({ ...o, appLinkEnabled: v }))}
           />
+          <FeeFields data={data} opts={opts} setOpts={setOpts} />
           <div className="field">
             <label htmlFor="pay-suffix">{t('payDescriptor')}</label>
             <input

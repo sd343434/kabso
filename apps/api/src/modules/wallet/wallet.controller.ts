@@ -1,6 +1,8 @@
 import { Controller, Get, Inject, Query, Req } from '@nestjs/common';
 import { languageFromAcceptLanguage } from '../../common/http/content-language.js';
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { appLinkShownFor } from '../topup/topup-rules.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PaymentSettingsStore } from '../payment-settings/payment-settings.store.js';
@@ -24,7 +26,9 @@ export interface RechargePackagesDto {
   purchasesEnabled: boolean;
   /**
    * v1.59-social (D190): the Kabso website's top-up page for the app's «الشحن من الموقع» link — only while
-   * TOPUP_APP_LINK_ENABLED (store policy; off by default) and card top-ups are configured; else null.
+   * TOPUP_APP_LINK_ENABLED (store policy; on by default) and card top-ups are configured; else null. v1.109-social
+   * (D344): also only on the platforms in TOPUP_APP_LINK_PLATFORMS. The app opens it through `POST
+   * /wallet/topup-session` (signed in), this plain URL being the fallback (the website's own sign-in).
    */
   websiteTopupUrl: string | null;
   packages: {
@@ -48,6 +52,7 @@ export class WalletController {
     private readonly users: UsersService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly payments: PaymentSettingsStore,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -56,15 +61,26 @@ export class WalletController {
    * (B5: no payment method and no legal review yet), so there is no purchase operation.
    */
   @Get('recharge-packages')
-  async rechargePackages(): Promise<RechargePackagesDto> {
+  async rechargePackages(@CurrentAuth() auth: AuthContext): Promise<RechargePackagesDto> {
     const { rechargePackages, rechargeCurrency } = this.config.programs;
     // D196: the keys and the app-link switch may come from the admin panel (over the env).
     const topup = await this.payments.resolved();
+    // v1.109-social (D344): per store (TOPUP_APP_LINK_PLATFORMS), by the platform the session signed in on.
+    const session = await this.prisma.session.findUnique({
+      where: { id: auth.sessionId },
+      select: { platform: true },
+    });
+    const shown =
+      topup.stripe !== null &&
+      appLinkShownFor(
+        session?.platform ?? null,
+        topup.options.appLinkEnabled,
+        this.config.topup.appLinkPlatforms,
+      );
     return {
       currency: rechargeCurrency,
       purchasesEnabled: false,
-      websiteTopupUrl:
-        topup.options.appLinkEnabled && topup.stripe ? `${topup.stripe.publicBaseUrl}/topup` : null,
+      websiteTopupUrl: shown && topup.stripe ? `${topup.stripe.publicBaseUrl}/topup` : null,
       packages: rechargePackages.map((p) => ({ ...p })),
     };
   }

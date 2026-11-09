@@ -214,6 +214,9 @@ export interface AppConfig {
     readonly referralApplyUser: RateLimitRule;
     readonly referralTickerIp: RateLimitRule;
     readonly topupCheckoutUser: RateLimitRule;
+    /** v1.109-social (D344): `POST /wallet/topup-session` (per user) and `POST /topup/handoff` (per IP). */
+    readonly topupHandoffUser: RateLimitRule;
+    readonly topupHandoffIp: RateLimitRule;
     /** v1.61-social (D192): `POST /waitlist`, per client IP. */
     readonly waitlistIp: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
@@ -373,6 +376,12 @@ export interface AppConfig {
     readonly statementDescriptorSuffix: string | null;
     readonly disputeAutoSubmit: boolean;
     readonly appLinkEnabled: boolean;
+    /** v1.109-social (D344): the app platforms that show «الشحن من الموقع» (TOPUP_APP_LINK_PLATFORMS). */
+    readonly appLinkPlatforms: readonly ('android' | 'ios')[];
+    /**
+     * v1.109-social (D344): Stripe's fee folded into the website price (TOPUP_STRIPE_FEE_*); the panel may override.
+     */
+    readonly fee: { readonly grossUp: boolean; readonly percentBps: number; readonly fixedMinor: number };
     readonly termsVersion: string;
   };
   /** v1.81-social (D245, §10.87): automatic exchange rates (the paid key is in the panel, never here). */
@@ -751,6 +760,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       referralApplyUser: e.RATE_LIMIT_REFERRAL_APPLY_USER,
       referralTickerIp: e.RATE_LIMIT_REFERRAL_TICKER_IP,
       topupCheckoutUser: e.RATE_LIMIT_TOPUP_CHECKOUT_USER,
+      topupHandoffUser: e.RATE_LIMIT_TOPUP_HANDOFF_USER,
+      topupHandoffIp: e.RATE_LIMIT_TOPUP_HANDOFF_IP,
       waitlistIp: e.RATE_LIMIT_WAITLIST_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
@@ -924,6 +935,12 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       statementDescriptorSuffix: e.STRIPE_STATEMENT_DESCRIPTOR_SUFFIX ?? null,
       disputeAutoSubmit: e.STRIPE_DISPUTE_AUTO_SUBMIT,
       appLinkEnabled: e.TOPUP_APP_LINK_ENABLED,
+      appLinkPlatforms: e.TOPUP_APP_LINK_PLATFORMS,
+      fee: {
+        grossUp: e.TOPUP_STRIPE_FEE_GROSS_UP,
+        percentBps: e.TOPUP_STRIPE_FEE_PERCENT,
+        fixedMinor: e.TOPUP_STRIPE_FEE_FIXED_MINOR,
+      },
       termsVersion: e.TOPUP_TERMS_VERSION,
     },
     adminPanel: {

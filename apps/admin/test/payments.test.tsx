@@ -7,7 +7,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { AppContext, type AppState } from '../src/context';
 import { translate, type Lang } from '../src/i18n';
-import { keysPatch, optionsFormOf, optionsPatch, PaymentsView } from '../src/pages/Payments';
+import {
+  feeFormValid,
+  fixedMinorOf,
+  grossUpMinor,
+  keysPatch,
+  optionsFormOf,
+  optionsPatch,
+  PaymentsView,
+  percentBpsOf,
+} from '../src/pages/Payments';
 import type { PaymentSettings } from '../src/types';
 
 const state = (lang: Lang): AppState => ({
@@ -42,8 +51,25 @@ function fixture(over: Partial<PaymentSettings> = {}): PaymentSettings {
     envKeys: null,
     panelKeysIgnored: null,
     publishableKey: null,
-    options: { bankTransferEnabled: null, statementDescriptorSuffix: null, disputeAutoSubmit: null, appLinkEnabled: false },
-    effective: { bankTransferEnabled: true, statementDescriptorSuffix: null, disputeAutoSubmit: true, appLinkEnabled: false },
+    options: {
+      bankTransferEnabled: null,
+      statementDescriptorSuffix: null,
+      disputeAutoSubmit: null,
+      appLinkEnabled: false,
+      stripeFeeGrossUp: null,
+      stripeFeePercentBps: null,
+      stripeFeeFixedMinor: null,
+    },
+    effective: {
+      bankTransferEnabled: true,
+      statementDescriptorSuffix: null,
+      disputeAutoSubmit: true,
+      appLinkEnabled: false,
+      stripeFeeGrossUp: true,
+      stripeFeePercentBps: 290,
+      stripeFeeFixedMinor: 30,
+    },
+    feeCurrency: 'USD',
     publicBaseUrl: 'https://api.kabsolive.com',
     webhookUrl: 'https://api.kabsolive.com/api/v1/payments/stripe/webhook',
     webhookEvents: EVENTS,
@@ -140,5 +166,58 @@ describe('the PATCH bodies', () => {
       statementDescriptorSuffix: 'COINS',
     });
     expect(optionsPatch({ ...form, publishableKey: ' pk_x ' }, data)).toEqual({ publishableKey: 'pk_x' });
+  });
+});
+
+describe('D344 Stripe fee in the website price', () => {
+  it('shows the switch, the rates with the «set your account rates» note, one-price legal note and an example', () => {
+    const html = render(fixture());
+    expect(html).toContain('عمولة Stripe في سعر الموقع');
+    expect(html).toContain('اضبطها حسب نسبة حسابك في Stripe');
+    expect(html).toContain('لا تُعرض العمولة كبند منفصل');
+    expect(html).toContain('الرسم الثابت (USD)');
+    expect(html).toContain('فارغ = قيمة الخادم (2.9 %)');
+    // 12.50 at 2.9 % + 0.30 → 13.19.
+    expect(html).toContain('مثال: باقة سعرها 12.50 USD تُعرض بسعر 13.19 USD');
+    const select = html.match(/<select id="pay-fee-grossup"[\s\S]*?<\/select>/)?.[0] ?? '';
+    expect(select).toContain('حسب الخادم (مفعّل)');
+    const off = render(fixture({ options: { ...fixture().options, stripeFeeGrossUp: false }, effective: { ...fixture().effective, stripeFeeGrossUp: false } }), 'en');
+    expect(off).toContain('Fee not added: the package sells at 12.50 USD');
+    expect(off).toContain("Set these to your Stripe account&#x27;s rates");
+  });
+
+  it('parses the typed rates; empty = the server value; invalid is refused', () => {
+    expect(percentBpsOf('2.9')).toBe(290);
+    expect(percentBpsOf('3,25')).toBe(325);
+    expect(percentBpsOf(' ')).toBeNull();
+    for (const bad of ['21', '2.905', '-1', 'abc', '100']) expect(percentBpsOf(bad), bad).toBeUndefined();
+    expect(fixedMinorOf('0.30')).toBe(30);
+    expect(fixedMinorOf('0')).toBe(0);
+    expect(fixedMinorOf('')).toBeNull();
+    for (const bad of ['101', '0.305', '-0.3', 'x']) expect(fixedMinorOf(bad), bad).toBeUndefined();
+    const form = optionsFormOf(fixture());
+    expect(feeFormValid({ ...form, stripeFeePercent: '25' })).toBe(false);
+    expect(feeFormValid({ ...form, stripeFeePercent: '3.4', stripeFeeFixed: '0.30' })).toBe(true);
+  });
+
+  it('the PATCH carries only the changed fee settings, in basis points and cents', () => {
+    const data = fixture();
+    const form = optionsFormOf(data);
+    expect(form).toMatchObject({ stripeFeeGrossUp: 'default', stripeFeePercent: '', stripeFeeFixed: '' });
+    expect(optionsPatch({ ...form, stripeFeePercent: '3.4', stripeFeeFixed: '0.30' }, data)).toEqual({
+      stripeFeePercentBps: 340,
+      stripeFeeFixedMinor: 30,
+    });
+    expect(optionsPatch({ ...form, stripeFeeGrossUp: 'off' }, data)).toEqual({ stripeFeeGrossUp: false });
+    const set = fixture({ options: { ...data.options, stripeFeePercentBps: 340, stripeFeeFixedMinor: 25 } });
+    const setForm = optionsFormOf(set);
+    expect(setForm).toMatchObject({ stripeFeePercent: '3.4', stripeFeeFixed: '0.25' });
+    expect(optionsPatch({ ...setForm, stripeFeePercent: '' }, set)).toEqual({ stripeFeePercentBps: null });
+  });
+
+  it('the example uses the server formula', () => {
+    expect(grossUpMinor(1250, 290, 30)).toBe(1319);
+    expect(grossUpMinor(970, 300, 0)).toBe(1000);
+    expect(grossUpMinor(1250, 0, 0)).toBe(1250);
   });
 });
