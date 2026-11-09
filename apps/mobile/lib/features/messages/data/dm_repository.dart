@@ -21,6 +21,19 @@ abstract interface class DmRepository {
     String? query,
   });
 
+  /// v1.103-social (D339): `GET /dm/chats?box=CHATS|ARCHIVED` — the
+  /// conversations and groups of «الدردشات» (or «المؤرشفة» with
+  /// [archived]), newest first; [query] a prefix of a peer's or a group's
+  /// name.
+  Future<DmChatPage> chats({
+    bool archived = false,
+    String? cursor,
+    String? query,
+  });
+
+  /// v1.103-social (D339): `PUT` / `DELETE /dm/conversations/{id}/archive`.
+  Future<void> setArchived(String conversationId, {required bool archived});
+
   /// `GET /dm/unread`: the Messages tab badge and the requests count.
   Future<DmUnread> unread();
 
@@ -98,6 +111,38 @@ class ApiDmRepository implements DmRepository {
         DmConversation.fromJson(c as Map<String, dynamic>),
     ], (body['page']! as Map<String, dynamic>)['nextCursor'] as String?);
   });
+
+  @override
+  Future<DmChatPage> chats({
+    bool archived = false,
+    String? cursor,
+    String? query,
+  }) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/dm/chats',
+      queryParameters: {
+        'box': archived ? 'ARCHIVED' : 'CHATS',
+        'q': ?query,
+        'cursor': ?cursor,
+      },
+    );
+    final body = res.data!;
+    return DmChatPage([
+      for (final c in body['data']! as List<dynamic>)
+        ?DmChat.fromJson(c as Map<String, dynamic>),
+    ], (body['page']! as Map<String, dynamic>)['nextCursor'] as String?);
+  });
+
+  @override
+  Future<void> setArchived(String conversationId, {required bool archived}) =>
+      guardApiCall(() async {
+        final path = '${_conv(conversationId)}/archive';
+        if (archived) {
+          await _dio.put<void>(path);
+        } else {
+          await _dio.delete<void>(path);
+        }
+      });
 
   @override
   Future<DmUnread> unread() => guardApiCall(() async {

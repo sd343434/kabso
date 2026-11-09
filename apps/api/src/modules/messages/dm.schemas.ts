@@ -105,3 +105,128 @@ export const dmDeleteMessageQuerySchema = z.strictObject({
     .transform((v) => v ?? 'me'),
 });
 export type DmDeleteMessageQuery = z.output<typeof dmDeleteMessageQuerySchema>;
+
+// ---- v1.103-social (DRAFT, D339): archived chats and group messages (CONVENTIONS §10.132, §10.133) -------------
+
+/** `listDmChats`: the conversations and groups of «الدردشات» (CHATS) or «المؤرشفة» (ARCHIVED), newest first. */
+export const dmChatsQuerySchema = z.strictObject({
+  box: z
+    .string()
+    .pipe(z.enum(['CHATS', 'ARCHIVED']))
+    .optional()
+    .transform((v) => v ?? 'CHATS'),
+  q: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@/, '').trim())
+    .pipe(z.string().min(1).max(30))
+    .optional(),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type DmChatsQuery = z.output<typeof dmChatsQuerySchema>;
+
+/** A group's name: 1–50 code points, one line, the §6 hygiene. */
+export const DM_GROUP_NAME_LIMITS: ContentTextLimits = {
+  maxCodePoints: 50,
+  maxLineBreaks: 0,
+  allowEmpty: false,
+};
+
+const groupNameSchema = z
+  .string()
+  .max(400)
+  .transform((raw, ctx) => {
+    const result = normalizeContentText(raw, DM_GROUP_NAME_LIMITS);
+    if ('issue' in result) {
+      ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+      return z.NEVER;
+    }
+    return result.value;
+  });
+
+/** Usernames (a leading `@` and any case accepted), each once. */
+const groupMembersSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .transform((v) => v.replace(/^@/, '').toLowerCase())
+      .pipe(z.string().min(1).max(64)),
+  )
+  .min(1)
+  .max(255)
+  .superRefine((names, ctx) => {
+    const seen = new Set<string>();
+    names.forEach((n, i) => {
+      if (seen.has(n)) ctx.addIssue({ code: 'custom', path: [i], params: { issue: 'duplicate_value' } });
+      seen.add(n);
+    });
+  });
+
+/** `CreateDmGroupRequest`. */
+export const dmGroupCreateSchema = z.strictObject({
+  name: groupNameSchema,
+  photoMediaId: z.uuid().optional(),
+  members: groupMembersSchema,
+  clientId: z.uuid(),
+});
+export type DmGroupCreateInput = z.output<typeof dmGroupCreateSchema>;
+
+/** `UpdateDmGroupRequest`: at least one field; `photoMediaId: null` removes the photo. */
+export const dmGroupUpdateSchema = z
+  .strictObject({
+    name: groupNameSchema.optional(),
+    photoMediaId: z.uuid().nullable().optional(),
+  })
+  .refine((v) => v.name !== undefined || v.photoMediaId !== undefined, {
+    message: 'nothing to change',
+    path: ['name'],
+    params: { issue: 'required' },
+  });
+export type DmGroupUpdateInput = z.output<typeof dmGroupUpdateSchema>;
+
+/** `AddDmGroupMembersRequest`. */
+export const dmGroupAddMembersSchema = z.strictObject({ members: groupMembersSchema });
+
+/** `SetDmGroupRoleRequest`. */
+export const dmGroupRoleSchema = z.strictObject({ role: z.string().pipe(z.enum(['ADMIN', 'MEMBER'])) });
+
+/** `DmGroupSendRequest`: `sendDmMessage` without `to` (and no gifts in a group). */
+export const dmGroupSendSchema = z
+  .strictObject({
+    kind: z.string().pipe(z.enum(['TEXT', 'IMAGE', 'VOICE', 'EMOJI'])),
+    text: dmTextSchema.optional(),
+    mediaId: z.uuid().optional(),
+    token: z.string().max(64).optional(),
+    clientId: z.uuid(),
+  })
+  .superRefine((v, ctx) => {
+    const need = v.kind === 'TEXT' ? 'text' : v.kind === 'EMOJI' ? 'token' : 'mediaId';
+    for (const field of ['text', 'mediaId', 'token'] as const) {
+      if (field === need) {
+        if (v[field] === undefined)
+          ctx.addIssue({ code: 'custom', path: [field], params: { issue: 'required' } });
+      } else if (v[field] !== undefined) {
+        ctx.addIssue({ code: 'custom', path: [field], params: { issue: 'unknown_field' } });
+      }
+    }
+    if (v.kind === 'EMOJI' && v.token !== undefined && !isSeatEmojiToken(v.token)) {
+      ctx.addIssue({ code: 'custom', path: ['token'], params: { issue: 'invalid_value' } });
+    }
+  });
+export type DmGroupSendInput = z.output<typeof dmGroupSendSchema>;
+
+/** `listDmGroupCandidates`: people the caller may add (mutual follows), optionally not yet in `groupId`. */
+export const dmGroupCandidatesQuerySchema = z.strictObject({
+  q: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@/, '').trim())
+    .pipe(z.string().min(1).max(30))
+    .optional(),
+  groupId: z.uuid().optional(),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 30),
+});
+export type DmGroupCandidatesQuery = z.output<typeof dmGroupCandidatesQuerySchema>;

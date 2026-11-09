@@ -67,7 +67,10 @@ import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/medals/presentation/medals_screen.dart';
 import 'package:kabso_live/features/medals/presentation/showcase_picker_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
+import 'package:kabso_live/features/messages/group_chat_screen.dart';
+import 'package:kabso_live/features/messages/group_info_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
+import 'package:kabso_live/features/messages/new_group_screen.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/posts/presentation/drafts_screen.dart';
 import 'package:kabso_live/features/posts/presentation/edit_post_screen.dart';
@@ -231,6 +234,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.editProfile,
         builder: (_, _) => const EditProfileScreen(),
+      ),
+      // D339 (§10.133): group messages.
+      GoRoute(
+        path: AppRoutes.newGroup,
+        builder: (_, _) => const NewGroupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.groupInfoPattern,
+        builder: (_, state) =>
+            GroupInfoScreen(groupId: state.pathParameters['groupId']!),
+      ),
+      GoRoute(
+        path: AppRoutes.groupAddPattern,
+        builder: (_, state) =>
+            NewGroupScreen(addTo: state.pathParameters['groupId']),
+      ),
+      GoRoute(
+        path: AppRoutes.groupChatPattern,
+        builder: (_, state) => GroupChatScreen(
+          groupId: state.pathParameters['groupId']!,
+          name: state.extra is String ? state.extra! as String : null,
+        ),
       ),
       GoRoute(
         path: AppRoutes.chatPattern,

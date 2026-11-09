@@ -234,6 +234,9 @@ All non-2xx responses use one envelope:
 | 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
 | 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
 | 409 | `DM_DELETE_WINDOW_PASSED` | *(v1.40-social, DRAFT, D155)* Deleting one's own message for everyone more than `DM_DELETE_FOR_EVERYONE_SECONDS` (1 hour) after sending it (§11.13); deleting it for oneself still works. |
+| 409 | `DM_NOT_ARCHIVABLE` | *(v1.103-social, DRAFT, D339)* `archiveDmConversation` on a message request waiting for the caller: a request is accepted or deleted, not archived (§10.132). |
+| 409 | `DM_GROUP_FULL` | *(v1.103-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: the group would pass `DM_GROUP_MAX_MEMBERS` (100, the creator included). Nothing was changed (§10.133). |
+| 403 | `DM_GROUP_MEMBER_NOT_ALLOWED` | *(v1.103-social, DRAFT, D339)* `createDmGroup` / `addDmGroupMembers`: some of `members` cannot be added by the caller — `details` names each, `[{field: "members.<i>", issue: "not_allowed"}]`, the same whatever the reason (not a mutual follow, «من يستطيع مراسلتك» NOBODY, a block either way, no such ACTIVE account), so a block is never told. Nothing was changed (§10.133). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -513,6 +516,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /dm/messages` *(v1.40-social, D155)* | 30 / min per user (bucket `dm:send`, `RATE_LIMIT_DM_SEND_USER`). **Replaces** the per-user default. A message that is a **message request** (§11.13) also counts 20 / hour per user (bucket `dm:request`, `RATE_LIMIT_DM_REQUEST_USER`), checked in the send after the request rules |
 | `POST /dm/gifts` *(v1.40-social, D155)* | the live gift buckets (`live:gift:any` first, then `live:gift` or, for a lucky gift, `live:gift:lucky`; §10.23), and a request gift also counts in `dm:request`. **Replaces** the per-user default |
 | `POST /dm/conversations/{id}/read`, `…/accept`, `DELETE /dm/conversations/{id}`, `PUT`/`DELETE …/mute`, `PUT`/`DELETE …/unread` *(v1.43.1-social, D165)*, `DELETE /dm/messages/{id}` *(v1.40-social, D155)* | 300 / hour per user (bucket `dm:write`, `RATE_LIMIT_DM_WRITE_USER`). **Replaces** the per-user default; `GET /dm/conversations`, `GET /dm/unread`, `GET /dm/peers/{username}` and `GET …/messages` use the per-user default |
+| `PUT`/`DELETE /dm/conversations/{id}/archive`; the group writes `PATCH /dm/groups/{id}`, `POST …/members`, `DELETE …/members/{username}`, `PUT …/members/{username}/role`, `POST …/leave`, `POST …/read`, `DELETE …/messages/{messageId}`, `PUT`/`DELETE …/mute`, `PUT`/`DELETE …/archive` *(v1.103-social, D339)* | the `dm:write` bucket above (300 / hour per user, `RATE_LIMIT_DM_WRITE_USER`). `POST /dm/groups/{id}/messages` counts in `dm:send` (30 / min per user). `POST /dm/groups` 10 / day per user (bucket `dm:group`, `RATE_LIMIT_DM_GROUP_CREATE_USER`). Each **replaces** the per-user default; `GET /dm/chats`, `GET /dm/group-candidates`, `GET /dm/groups/{id}` and `GET …/messages` use the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `GET /users/{username}/followers`, `GET /users/{username}/following` *(v1.25.2-live, D121)* | the `GET /users/{username}` bucket (`users:profile`, 300 / 15 min per user; profile scraping). **Replaces** the per-user default |
@@ -754,6 +758,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.103-social (draft) | 2026-11-09 | **D339 (owner: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية» — archived chats and group messages in the Messages tab):** `archiveDmConversation` / `unarchiveDmConversation` (`PUT` / `DELETE /dm/conversations/{id}/archive`), `DmConversation.archived`; `listDmChats` (`GET /dm/chats?box=CHATS\|ARCHIVED&q=`, `DmChat`, `DmChatPage`: conversations and groups by recency, one cursor); groups `createDmGroup`, `getDmGroup`, `updateDmGroup`, `addDmGroupMembers`, `removeDmGroupMember`, `setDmGroupMemberRole`, `leaveDmGroup`, `listDmGroupMessages`, `sendDmGroupMessage`, `markDmGroupRead`, `deleteDmGroupMessage`, `muteDmGroup` / `unmuteDmGroup`, `archiveDmGroup` / `unarchiveDmGroup`, `listDmGroupCandidates` (`DmGroup`, `DmGroupDetail`, `DmGroupMember`, `DmGroupRole`, `DmGroupMessage`, `DmGroupMessagePage`, `DmGroupSendResult`, `CreateDmGroupRequest`, `UpdateDmGroupRequest`, `AddDmGroupMembersRequest`, `SetDmGroupRoleRequest`, `DmGroupSendRequest`); `DmUnread.groups`; `MediaKind` `DM_GROUP_PHOTO`; report target `DM_GROUP` (`Report.dmGroupSnapshot`, `DmGroupReportSnapshot`); codes `DM_NOT_ARCHIVABLE`, `DM_GROUP_FULL` (409), `DM_GROUP_MEMBER_NOT_ALLOWED` (403); settings `DM_GROUP_MAX_MEMBERS` (100), `RATE_LIMIT_DM_GROUP_CREATE_USER` (10 / day). Migrations `20270411090000_dm_groups_enums`, `20270411090100_dm_archive_groups`. §4, §7, §10.132, §10.133, §11.13, §11.13.1. | **Additive** (new operations, fields, schemas and enum values). **Behaviour change:** an archived conversation leaves `listDmConversations?box=INBOX` and `getDmUnread.messages` — only an app that archives can make one, so an older app of the same account just stops seeing it in its inbox until a message from the peer brings it back. |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
 | v1.99-social (draft) | 2026-11-08 | **D311 (owner: «يمكنه حذف او حظر او تحذير اي شخص»; no code, no password):** `createOwnerModerationAction` (`POST /owner/users/{userId}/actions`, `OwnerModerationRequest`, `OwnerModerationResult`): WARN / SUSPEND (days) / BAN / DELETE_ACCOUNT by the app owner only, reusing the panel's rules, idempotent by `clientId`, audited `owner.moderation.action`; `RATE_LIMIT_OWNER_MODERATION_USER`. Migration `20270408090300_owner_moderation`. §10.117, §7, §8. | **Additive** (a new operation; no shape change elsewhere). Owner decision recorded: the panel step-up of D286 / D288 is waived for the OWNER in the app only. |
 | v1.98-social (draft) | 2026-11-08 | **D307 (owner, on the founder's page: «ازل شارة فريق كابسو من اسفل الإسم. وضع بايو بالعربي والانجليزي مناسب. بالإضافة ازل ايقونة فيديو والوقت اجعله يعمل تلقائي بصوت عند دخول الشخص للصفحة»):** `PublicProfile.ownerBio` / `Me.ownerBio` (`OwnerBio {ar?, en?}`), `setOwnerBio` (`PUT /owner/bio`, `SetOwnerBioRequest`; owner only, 403 `OWNER_ONLY`), audit `owner.bio.update`; migration `20270407090000_owner_bio`. App only (no wire change): no «فريق كابسو» badge under the founder's name (the special ID «Kabso» and the seal stay; other staff unchanged), the cover video starts by itself **with sound** and has no «فيديو» pill; «اقترح ميزة / أبلغ» outline only and no shadow under «متابعة المؤسس». §4, §10.112.1, §10.112.11. | **Additive** (one new operation, one optional field). |
@@ -9650,7 +9655,8 @@ configuration (`DM_*`).
   `RATE_LIMIT_DM_REQUEST_USER`, counted in the send after the request rules); `POST /dm/gifts` the
   live gift buckets; the other writes (`read`, `accept`, delete, mute) 300 / hour per user
   (`dm:write`, `RATE_LIMIT_DM_WRITE_USER`); reads the per-user default.
-- **Not in v1.40-social:** group conversations, typing and online indicators, message reactions,
+- *(v1.103-social, D339)* **Archived chats** «المؤرشفة» — §10.132; **group messages** «رسائل جماعية» — §10.133.
+- **Not in v1.40-social:** group conversations (since v1.103-social, §10.133), typing and online indicators, message reactions,
   replies/quotes, forwarding and share-to-DM, video messages, captions on pictures, read-receipt
   opt-out, keeping a message beyond 24 h, end-to-end encryption, iOS pushes.
 
@@ -9680,14 +9686,105 @@ reference's blue / pink), light and dark; Arabic RTL mirrors English LTR. One sc
   each box is searched on its own) carries the pending requests as a red count and opens a panel under the header
   (animated; instant with reduced motion) listing the boxes as rows — «الدردشات» and «طلبات المراسلة» with its
   count (D155). A row opens its box and closes the panel; tapping the button again closes it; the title names the
-  requests box while it is open. The app has **no archived and no group conversations** (not in the contract), so
-  the panel has no row for them.
+  requests box while it is open. *(D339, §10.132–§10.133)* The panel lists «الدردشات» (conversations **and groups**
+  mixed by recency, `listDmChats`), «طلبات المراسلة» and «المؤرشفة» (`listDmChats?box=ARCHIVED`); groups have no box
+  of their own. A «+» people button before the boxes button
+  opens «مجموعة جديدة» / "New group".
 - **Rows** (80.5 dp pitch): a 64 dp round picture at 23 dp, 20 dp to the text; the name (16 sp, medium; semibold
   while unread) with the verification seal (D293) and the muted icon; the preview (14.5 sp, tertiary grey, one
   line — pictures, voice, stickers and gifts as before); at the reading end the **compact time** («5د» / "5m",
   «3س» / "3h", «2ي» / "2d", a short date beyond 7 days; in words for screen readers) and under it the **red
   unread count** (24 dp, «99+» from 99; grey when muted; a dot when only marked unread). Long press keeps the
   D165 menu.
+
+### 10.132 Archived chats «المؤرشفة» *(v1.103-social, DRAFT — D339)*
+
+Owner (2026-11-09), on the D336 Messages tab: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية — يمكن وضع بجانب الفلتر
+خانة تفتحها»; then, for this work: «a user can archive/unarchive a conversation (per user, not for the other side) … a new
+message from the other side unarchives it (Instagram/WhatsApp behaviour — pick one, document it)».
+
+- **Per user.** `archiveDmConversation` / `unarchiveDmConversation` (`PUT` / `DELETE /dm/conversations/{id}/archive`;
+  idempotent; `dm:write`) and `archiveDmGroup` / `unarchiveDmGroup` (`PUT` / `DELETE /dm/groups/{id}/archive`) set the
+  caller's own archive time (`dm_participants.archived_at`, `dm_group_members.archived_at`). The other side is never
+  told and sees nothing change. `DmConversation.archived` / `DmGroup.archived` carry it.
+- **Where it shows.** An archived chat leaves «الدردشات» (`listDmChats?box=CHATS` and `listDmConversations?box=INBOX`)
+  and is listed in «المؤرشفة» (`listDmChats?box=ARCHIVED`, the same order, search and cursor rules). It is not counted
+  in the badge (`getDmUnread.messages` / `.conversations` / `.groups`). Muting is separate: an archived chat may be
+  muted or not.
+- **What brings it back — the decision (D339): classic WhatsApp.** A new message **from someone else** (the peer of a
+  conversation; any other member of a group) clears the archive at once, in the send's transaction; the caller's
+  **own** messages leave it archived (they are writing from «المؤرشفة» on purpose). Instagram's rule (a chat stays in
+  its folder) and WhatsApp's newer «keep chats archived» setting were not chosen: with 24-hour messages (§11.13) a
+  reply hidden in the archive would often expire unseen.
+- **Requests.** A message request waiting for the caller cannot be archived (409 `DM_NOT_ARCHIVABLE`: accept or
+  delete it, §11.13); a request the caller **sent** is in their chats and may be archived.
+- **Delete for me** (§11.13) and archive are independent: a deleted conversation that comes back with a new message
+  from the peer is also no longer archived.
+- **App** (§11.13.1): «أرشفة» / "Archive" and «إلغاء الأرشفة» / "Unarchive" in the long-press menu of a row and in the
+  conversation's ⋮ menu (a group's too); a swipe of a row towards the reading start archives it (towards the reading end
+  in Arabic, mirrored); «المؤرشفة» is the third row of the boxes panel. Snack «تمت الأرشفة» / "Archived".
+
+### 10.133 Group messages «رسائل جماعية» *(v1.103-social, DRAFT — D339)*
+
+Owner (2026-11-09): «رسائل جماعية» in the Messages tab — create a group (a name, an optional photo, the members from
+people you follow), the message types of a conversation, the members, admins, leave, rename, read state, a member cap,
+report, mute and pushes. Every route needs a token (tag `messages`, `/dm/groups/…`).
+
+- **A group** (`dm_groups`): a name (1–50 code points, one line, §6 hygiene), an optional photo (`DM_GROUP_PHOTO`: a
+  centre-cropped square like `FAMILY_EMBLEM`, §11.1; a replaced or removed photo's files are deleted), its creator, and
+  its members (`dm_group_members`, each with a role, mute, archive, a read pointer and the time they joined). Status
+  `ACTIVE`, or `REMOVED` by moderation (gone for everyone: every read → 404).
+- **Who may be added** — by the creator at creation, later by any ADMIN (`listDmGroupCandidates` lists exactly them):
+  an ACTIVE account that is a **mutual follow** of the adder (the adder follows them and they follow the adder), with
+  **no block either way** with the adder, whose «من يستطيع مراسلتك» (`whoCanMessage`, §11.13) is not `NOBODY`. Mutual
+  follows because a group has no message-request step: nobody lands in a group of strangers. Checked under each pair's
+  lock (the one follow and block use). Any other entry → 403 `DM_GROUP_MEMBER_NOT_ALLOWED` naming each refused entry
+  with the same issue (a block is never told); oneself → 400 `members.<i>`; nothing changes.
+- **The cap**: `DM_GROUP_MAX_MEMBERS` (server configuration like every `DM_*` number; default **100**, 3–256), the creator
+  included; more → 409 `DM_GROUP_FULL`. Groups created: 10 a day per user (`dm:group`, §7).
+- **Roles.** The creator is an ADMIN who cannot be removed or demoted (they may leave). An ADMIN adds and removes
+  members, renames the group, changes or removes its photo, makes members admins or admins members (not oneself: 400),
+  and may delete any message. Any member leaves (`leaveDmGroup`). When no admin is left, the member who joined first
+  becomes one; when the last member leaves, the group ends (its messages expire at once, its photo is deleted, it
+  cannot be opened again).
+- **Messages** (`sendDmGroupMessage`, `{kind, text|mediaId|token, clientId}`; 201, a retry → 200): `TEXT`, `IMAGE`
+  (`DM_IMAGE`), `VOICE` (`DM_VOICE`) and `EMOJI` exactly as in a conversation (§11.13) — **no gifts in a group** (the gift
+  pipeline has one recipient; D339 decision). The server's blocked words are masked (a group has no single recipient
+  whose own live words would apply). The `CHAT_MUTE` restriction (§10.67) refuses it (403 `ACCOUNT_RESTRICTED`). Each
+  message lives **`DM_RETENTION_HOURS` (24 h)** and is hard-deleted by the DM sweeper with its file, like a direct
+  message. A member reads the messages sent **since they joined**; messages between two people with a block either way
+  are hidden from each other (the others still see both), and such a person is not listed in the other's members.
+- **Read state**: one read pointer per member (`markDmGroupRead {lastMessageId}`, never back; sending moves one's own).
+  `DmGroup.unreadCount` (≤ 99) per member; on one's own messages `DmGroupMessage.readCount` = how many other members'
+  pointers reached it (no per-person list). `getDmUnread.groups` sums unread group messages that are neither muted nor
+  archived (≤ 99); the app adds it to the tab badge.
+- **Delete** (`deleteDmGroupMessage?scope=everyone`): one's own within `DM_DELETE_FOR_EVERYONE_SECONDS` (1 h; later →
+  409 `DM_DELETE_WINDOW_PASSED`), or any message by an ADMIN; someone else's by a member → 403 `AUTH_FORBIDDEN`. There
+  is no "delete for me" in a group (400 `scope`).
+- **Mute** (`PUT` / `DELETE /dm/groups/{id}/mute`, the D155 pattern): no push, not in the badge. **Archive**: §10.132.
+- **The list.** Groups are **mixed into «الدردشات»** by recency with the conversations (`listDmChats`, `DmChat {type:
+  DIRECT|GROUP}`), one cursor; a group's `lastActivityAt` is its newest message or when the caller joined, whichever is
+  later. `q` matches a group's name prefix. There is no separate groups box.
+- **Push** (§11.12, channel `kabso_messages`): a new group message to every other member who is ACTIVE, keeps `messages`
+  on, has not muted the group or the sender (§11.7) and has no block either way with the sender — one per member per
+  group per `PUSH_MESSAGES_GAP_SECONDS`; Android `tag` `dmg:<groupId>`; title the group's name, body «<sender>: <the
+  message>» (the §11.13 kinds' words). Being added: «<adder> أضافك إلى المجموعة» / "<adder> added you to the group".
+  Data: `kind: dm_group`, `channel: messages`, `groupId`, `messageId` (messages only), `senderUsername`.
+- **Report** (`POST /reports {targetType: DM_GROUP, targetId: <groupId>}`; a member only, else 404; once per open
+  report): the report keeps a **snapshot** (`reports.dm_snapshot`): the name, the members (usernames as they were) and
+  the newest 300 messages the reporter could read (text and emoji; pictures and voice are noted, their files are not
+  copied — a minimal mirror of §10.109.5). Admin views: `Report.dmGroupSnapshot`; the staff app's report and its
+  conversation view (`getStaffReportDmThread`, audited). `REMOVE_TARGET` removes the group for everyone (status
+  `REMOVED`, its messages expire now, its photo is deleted). The snapshot is cleared 30 days after resolution (the
+  members' names too). A group report is never put under an account's legal hold (D193): it is not one person's content.
+- **Real time**: as §11.13 — the open group reads its newest page every 3 s (to 15 s while quiet), the list and the
+  badge every 30 s and on a `dm_group` push.
+- **Not in v1.103-social:** gifts, replies, reactions, mentions, system lines («فلان أضاف فلان»), invite links, a
+  per-person read list, "delete for me", join requests, groups over 256.
+- **App** (§11.13.1): «+» in the «الرسائل» header → «مجموعة جديدة» (the photo, the name, then the people from
+  `listDmGroupCandidates` with search; «إنشاء»); a group row shows the group's photo (or a people disc) and «<sender>:
+  <message>»; the group screen is the conversation screen with the sender's name over others' bubbles; its ⋮ menu has
+  «معلومات المجموعة» (members, roles, add, remove, rename, photo), mute, archive, report and «مغادرة المجموعة».
 
 ### 11.14 Video posts and reels *(v1.41-social, DRAFT — D162, CP-023; CP-006 M2 without transcoding)*
 

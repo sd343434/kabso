@@ -170,6 +170,7 @@ class DmConversation {
     required this.lastActivityAt,
     this.muted = false,
     this.markedUnread = false,
+    this.archived = false,
     this.unreadCount = 0,
     this.lastMessage,
     this.peerReadAt,
@@ -186,6 +187,7 @@ class DmConversation {
       status: DmConversationStatus.fromWire(json['status']),
       muted: json['muted'] as bool? ?? false,
       markedUnread: json['markedUnread'] as bool? ?? false,
+      archived: json['archived'] as bool? ?? false,
       unreadCount: json['unreadCount'] as int? ?? 0,
       lastMessage: last == null ? null : DmMessage.fromJson(last),
       lastActivityAt: DateTime.parse(json['lastActivityAt']! as String),
@@ -202,6 +204,9 @@ class DmConversation {
 
   /// v1.43.1-social (D165): the caller marked it unread (a dot until read).
   final bool markedUnread;
+
+  /// v1.103-social (D339): the caller archived it «المؤرشفة».
+  final bool archived;
 
   /// Unread for the caller: unread messages or the mark (D165).
   bool get isUnread => unreadCount > 0 || markedUnread;
@@ -222,6 +227,7 @@ class DmConversation {
     bool? muted,
     DmConversationStatus? status,
     bool? markedUnread,
+    bool? archived,
     int? unreadCount,
   }) => DmConversation(
     id: id,
@@ -229,6 +235,7 @@ class DmConversation {
     status: status ?? this.status,
     muted: muted ?? this.muted,
     markedUnread: markedUnread ?? this.markedUnread,
+    archived: archived ?? this.archived,
     unreadCount: unreadCount ?? this.unreadCount,
     lastMessage: lastMessage,
     lastActivityAt: lastActivityAt,
@@ -273,30 +280,44 @@ class DmMessagePage {
   final DmConversation conversation;
 }
 
-/// `DmUnread`: the Messages tab badge ([messages]) and the requests count.
+/// `DmUnread`: the Messages tab badge ([messages] + [groups]) and the
+/// requests count.
 @immutable
 class DmUnread {
-  const new({this.messages = 0, this.conversations = 0, this.requests = 0});
+  const new({
+    this.messages = 0,
+    this.conversations = 0,
+    this.requests = 0,
+    this.groups = 0,
+  });
 
   factory fromJson(Map<String, dynamic> json) => DmUnread(
     messages: json['messages'] as int? ?? 0,
     conversations: json['conversations'] as int? ?? 0,
     requests: json['requests'] as int? ?? 0,
+    groups: json['groups'] as int? ?? 0,
   );
 
   final int messages;
   final int conversations;
   final int requests;
 
+  /// v1.103-social (D339): unread group messages (not muted or archived).
+  final int groups;
+
+  /// The tab badge: direct and group messages, capped at 99.
+  int get badge => (messages + groups).clamp(0, 99);
+
   @override
   bool operator ==(Object other) =>
       other is DmUnread &&
       other.messages == messages &&
       other.conversations == conversations &&
-      other.requests == requests;
+      other.requests == requests &&
+      other.groups == groups;
 
   @override
-  int get hashCode => Object.hash(messages, conversations, requests);
+  int get hashCode => Object.hash(messages, conversations, requests, groups);
 }
 
 /// `DmPeer`: the person, the conversation if any, and whether the caller
@@ -387,4 +408,282 @@ final class DmOutgoingMedia extends DmOutgoing {
   const new(this.mediaId, {required this.voice});
   final String mediaId;
   final bool voice;
+}
+
+// ---- v1.103-social (DRAFT, D339): archived chats and group messages ------
+// (CONVENTIONS §10.132, §10.133).
+
+/// `DmGroupRole`.
+enum DmGroupRole {
+  admin('ADMIN'),
+  member('MEMBER');
+
+  new(this.wire);
+
+  final String wire;
+
+  static DmGroupRole fromWire(Object? v) => v == 'ADMIN' ? admin : member;
+}
+
+/// `DmGroupMessage`: a message in a group (no gifts).
+@immutable
+class DmGroupMessage {
+  const new({
+    required this.id,
+    required this.groupId,
+    required this.mine,
+    required this.kind,
+    required this.createdAt,
+    required this.expiresAt,
+    this.sender,
+    this.text,
+    this.token,
+    this.media,
+    this.readCount = 0,
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    final media = json['media'] as Map<String, dynamic>?;
+    final sender = json['sender'] as Map<String, dynamic>?;
+    return DmGroupMessage(
+      id: json['id']! as String,
+      groupId: json['groupId']! as String,
+      sender: sender == null ? null : UserSummary.fromJson(sender),
+      mine: json['mine']! as bool,
+      kind: DmMessageKind.fromWire(json['kind']),
+      text: json['text'] as String?,
+      token: json['token'] as String?,
+      media: media == null ? null : LiveChatMedia.fromJson(media),
+      readCount: json['readCount'] as int? ?? 0,
+      createdAt: DateTime.parse(json['createdAt']! as String),
+      expiresAt: DateTime.parse(json['expiresAt']! as String),
+    );
+  }
+
+  final String id;
+  final String groupId;
+
+  /// Null when the sender's account is gone.
+  final UserSummary? sender;
+  final bool mine;
+  final DmMessageKind kind;
+  final String? text;
+  final String? token;
+  final LiveChatMedia? media;
+
+  /// On the caller's own messages: how many other members have read it.
+  final int readCount;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+
+  /// The same message as a conversation bubble shows it ([read]: every
+  /// other member has read it, ✓✓).
+  DmMessage asDmMessage({required bool read}) => DmMessage(
+    id: id,
+    conversationId: groupId,
+    senderId: sender?.id ?? '',
+    mine: mine,
+    kind: kind,
+    text: text,
+    token: token,
+    media: media,
+    read: read,
+    createdAt: createdAt,
+    expiresAt: expiresAt,
+  );
+}
+
+/// `DmGroup`: a group as the caller sees it.
+@immutable
+class DmGroup {
+  const new({
+    required this.id,
+    required this.name,
+    required this.memberCount,
+    required this.role,
+    required this.lastActivityAt,
+    required this.createdAt,
+    this.photoUrl,
+    this.muted = false,
+    this.archived = false,
+    this.unreadCount = 0,
+    this.lastMessage,
+  });
+
+  factory fromJson(Map<String, dynamic> json) {
+    final last = json['lastMessage'] as Map<String, dynamic>?;
+    return DmGroup(
+      id: json['id']! as String,
+      name: json['name']! as String,
+      photoUrl: json['photoUrl'] as String?,
+      memberCount: json['memberCount'] as int? ?? 1,
+      role: DmGroupRole.fromWire(json['role']),
+      muted: json['muted'] as bool? ?? false,
+      archived: json['archived'] as bool? ?? false,
+      unreadCount: json['unreadCount'] as int? ?? 0,
+      lastMessage: last == null ? null : DmGroupMessage.fromJson(last),
+      lastActivityAt: DateTime.parse(json['lastActivityAt']! as String),
+      createdAt: DateTime.parse(json['createdAt']! as String),
+    );
+  }
+
+  final String id;
+  final String name;
+  final String? photoUrl;
+  final int memberCount;
+
+  /// The caller's role.
+  final DmGroupRole role;
+  final bool muted;
+  final bool archived;
+  final int unreadCount;
+  final DmGroupMessage? lastMessage;
+  final DateTime lastActivityAt;
+  final DateTime createdAt;
+
+  bool get isAdmin => role == DmGroupRole.admin;
+
+  DmGroup copyWith({
+    String? name,
+    String? photoUrl,
+    bool clearPhoto = false,
+    bool? muted,
+    bool? archived,
+    int? unreadCount,
+    int? memberCount,
+    DmGroupRole? role,
+    DmGroupMessage? lastMessage,
+    DateTime? lastActivityAt,
+  }) => DmGroup(
+    id: id,
+    name: name ?? this.name,
+    photoUrl: clearPhoto ? null : (photoUrl ?? this.photoUrl),
+    memberCount: memberCount ?? this.memberCount,
+    role: role ?? this.role,
+    muted: muted ?? this.muted,
+    archived: archived ?? this.archived,
+    unreadCount: unreadCount ?? this.unreadCount,
+    lastMessage: lastMessage ?? this.lastMessage,
+    lastActivityAt: lastActivityAt ?? this.lastActivityAt,
+    createdAt: createdAt,
+  );
+}
+
+/// `DmGroupMember`.
+@immutable
+class DmGroupMember {
+  const new({
+    required this.user,
+    required this.role,
+    required this.joinedAt,
+    this.creator = false,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => DmGroupMember(
+    user: UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+    role: DmGroupRole.fromWire(json['role']),
+    creator: json['creator'] as bool? ?? false,
+    joinedAt: DateTime.parse(json['joinedAt']! as String),
+  );
+
+  final UserSummary user;
+  final DmGroupRole role;
+  final bool creator;
+  final DateTime joinedAt;
+}
+
+/// `DmGroupDetail`: the group, its members and the cap.
+@immutable
+class DmGroupDetail {
+  const new({
+    required this.group,
+    required this.members,
+    required this.maxMembers,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => DmGroupDetail(
+    group: DmGroup.fromJson(json['group']! as Map<String, dynamic>),
+    members: [
+      for (final m in json['members']! as List<dynamic>)
+        DmGroupMember.fromJson(m as Map<String, dynamic>),
+    ],
+    maxMembers: json['maxMembers'] as int? ?? 100,
+  );
+
+  final DmGroup group;
+  final List<DmGroupMember> members;
+  final int maxMembers;
+}
+
+/// `DmGroupMessagePage`: newest first, with the group's state.
+@immutable
+class DmGroupMessagePage {
+  const new({
+    required this.data,
+    required this.nextCursor,
+    required this.group,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => DmGroupMessagePage(
+    data: [
+      for (final m in json['data']! as List<dynamic>)
+        DmGroupMessage.fromJson(m as Map<String, dynamic>),
+    ],
+    nextCursor:
+        (json['page']! as Map<String, dynamic>)['nextCursor'] as String?,
+    group: DmGroup.fromJson(json['group']! as Map<String, dynamic>),
+  );
+
+  final List<DmGroupMessage> data;
+  final String? nextCursor;
+  final DmGroup group;
+}
+
+/// `DmGroupSendResult`.
+@immutable
+class DmGroupSendResult {
+  const new({required this.message, required this.group});
+
+  factory fromJson(Map<String, dynamic> json) => DmGroupSendResult(
+    message: DmGroupMessage.fromJson(json['message']! as Map<String, dynamic>),
+    group: DmGroup.fromJson(json['group']! as Map<String, dynamic>),
+  );
+
+  final DmGroupMessage message;
+  final DmGroup group;
+}
+
+/// `DmChat`: one row of «الدردشات» / «المؤرشفة» — a conversation or a group.
+@immutable
+class DmChat {
+  const new direct(DmConversation this.conversation) : group = null;
+  const new group(DmGroup this.group) : conversation = null;
+
+  /// Null for a type this app does not know.
+  static DmChat? fromJson(Map<String, dynamic> json) {
+    final c = json['conversation'] as Map<String, dynamic>?;
+    final g = json['group'] as Map<String, dynamic>?;
+    return switch (json['type']) {
+      'DIRECT' when c != null => DmChat.direct(DmConversation.fromJson(c)),
+      'GROUP' when g != null => DmChat.group(DmGroup.fromJson(g)),
+      _ => null,
+    };
+  }
+
+  final DmConversation? conversation;
+  final DmGroup? group;
+
+  String get id => conversation?.id ?? group!.id;
+  bool get isGroup => group != null;
+  DateTime get lastActivityAt =>
+      conversation?.lastActivityAt ?? group!.lastActivityAt;
+}
+
+/// A page of chats.
+@immutable
+class DmChatPage {
+  const new(this.data, this.nextCursor);
+
+  final List<DmChat> data;
+  final String? nextCursor;
 }

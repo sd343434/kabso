@@ -16704,4 +16704,156 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dmBoxes => 'صناديق الرسائل';
+
+  @override
+  String get dmTabArchived => 'المؤرشفة';
+
+  @override
+  String get dmArchive => 'أرشفة';
+
+  @override
+  String get dmUnarchive => 'إلغاء الأرشفة';
+
+  @override
+  String get dmArchivedDone => 'تمت الأرشفة';
+
+  @override
+  String get dmUnarchivedDone => 'أُعيدت إلى الدردشات';
+
+  @override
+  String get dmArchivedEmptyTitle => 'لا توجد دردشات مؤرشفة';
+
+  @override
+  String get dmArchivedHint =>
+      'الدردشات التي تؤرشفها تظهر هنا فقط لك، وتعود إلى الدردشات عندما يصلك رد جديد.';
+
+  @override
+  String get dmNewGroup => 'مجموعة جديدة';
+
+  @override
+  String get dmGroupNameLabel => 'اسم المجموعة';
+
+  @override
+  String get dmGroupNameHint => 'مثال: أصدقاء الجامعة';
+
+  @override
+  String get dmGroupNameRequired => 'اكتب اسمًا للمجموعة';
+
+  @override
+  String get dmGroupAddPhoto => 'إضافة صورة';
+
+  @override
+  String get dmGroupChangePhoto => 'تغيير الصورة';
+
+  @override
+  String get dmGroupRemovePhoto => 'إزالة الصورة';
+
+  @override
+  String get dmGroupPhoto => 'صورة المجموعة';
+
+  @override
+  String get dmGroupPickMembers => 'اختر الأعضاء';
+
+  @override
+  String get dmGroupPickHint => 'يمكنك إضافة من تتابعهم ويتابعونك.';
+
+  @override
+  String get dmGroupPickAtLeastOne => 'اختر شخصًا واحدًا على الأقل';
+
+  @override
+  String dmGroupSelected(String count) {
+    return 'المختارون: $count';
+  }
+
+  @override
+  String get dmGroupSearchPeople => 'ابحث عن شخص';
+
+  @override
+  String get dmGroupCreate => 'إنشاء';
+
+  @override
+  String get dmGroupCandidatesEmpty => 'لا يوجد أحد لإضافته بعد';
+
+  @override
+  String get dmGroupCandidatesEmptyBody =>
+      'تابِع أشخاصًا يتابعونك لتضيفهم إلى مجموعة.';
+
+  @override
+  String dmGroupMembersCount(String count) {
+    return 'الأعضاء: $count';
+  }
+
+  @override
+  String get dmGroupInfo => 'معلومات المجموعة';
+
+  @override
+  String get dmGroupMembers => 'الأعضاء';
+
+  @override
+  String get dmGroupAddMembers => 'إضافة أعضاء';
+
+  @override
+  String get dmGroupMembersAdded => 'أُضيف الأعضاء';
+
+  @override
+  String get dmGroupAdmin => 'مشرف';
+
+  @override
+  String get dmGroupCreator => 'المنشئ';
+
+  @override
+  String get dmGroupYou => 'أنت';
+
+  @override
+  String get dmGroupMakeAdmin => 'تعيين مشرفًا';
+
+  @override
+  String get dmGroupRemoveAdmin => 'إزالة الإشراف';
+
+  @override
+  String get dmGroupRemoveMember => 'إزالة من المجموعة';
+
+  @override
+  String get dmGroupRename => 'تغيير الاسم';
+
+  @override
+  String get dmGroupSave => 'حفظ';
+
+  @override
+  String get dmGroupLeave => 'مغادرة المجموعة';
+
+  @override
+  String get dmGroupLeaveTitle => 'مغادرة المجموعة؟';
+
+  @override
+  String get dmGroupLeaveBody =>
+      'لن تصلك رسائلها بعد الآن، ويمكن لمشرف إضافتك من جديد.';
+
+  @override
+  String get dmGroupReport => 'الإبلاغ عن المجموعة';
+
+  @override
+  String get dmGroupUnavailable => 'هذه المجموعة لم تعد متاحة';
+
+  @override
+  String get dmGroupUnknownSender => 'حساب غير متاح';
+
+  @override
+  String dmPreviewSender(String name, String text) {
+    return '$name: $text';
+  }
+
+  @override
+  String get dmGroupNoGifts => 'لا تُرسل الهدايا في المجموعات';
+
+  @override
+  String get errorDmNotArchivable =>
+      'لا يمكن أرشفة طلب مراسلة. اقبله أو احذفه.';
+
+  @override
+  String get errorDmGroupFull => 'وصلت المجموعة إلى الحد الأقصى من الأعضاء.';
+
+  @override
+  String get errorDmGroupMemberNotAllowed =>
+      'لا يمكنك إضافة بعض هؤلاء الأشخاص إلى مجموعة.';
 }

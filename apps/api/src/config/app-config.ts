@@ -191,6 +191,8 @@ export interface AppConfig {
     readonly dmSendUser: RateLimitRule;
     readonly dmRequestUser: RateLimitRule;
     readonly dmWriteUser: RateLimitRule;
+    /** v1.103-social (D339): new groups (per user). */
+    readonly dmGroupCreateUser: RateLimitRule;
     /** v1.48-social (D171): bag item sends (per user). */
     readonly bagSendUser: RateLimitRule;
     /** v1.54-social (D185). */
@@ -475,6 +477,8 @@ export interface AppConfig {
     readonly deleteForEveryoneSeconds: number;
     /** Percent of a non-lucky gift's value counted for the recipient's charm. */
     readonly giftRecipientSharePercent: number;
+    /** v1.103-social (D339): the most members of a group, its creator included. */
+    readonly groupMaxMembers: number;
   };
   /** v1.48-social (D171) the bag (CONVENTIONS §10.45). */
   readonly bag: {
@@ -723,6 +727,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dmSendUser: e.RATE_LIMIT_DM_SEND_USER,
       dmRequestUser: e.RATE_LIMIT_DM_REQUEST_USER,
       dmWriteUser: e.RATE_LIMIT_DM_WRITE_USER,
+      dmGroupCreateUser: e.RATE_LIMIT_DM_GROUP_CREATE_USER,
       bagSendUser: e.RATE_LIMIT_BAG_SEND_USER,
       rechargeSellUser: e.RATE_LIMIT_RECHARGE_SELL_USER,
       rechargeWriteUser: e.RATE_LIMIT_RECHARGE_WRITE_USER,
@@ -959,6 +964,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       requestMaxMessages: e.DM_REQUEST_MAX_MESSAGES,
       deleteForEveryoneSeconds: e.DM_DELETE_FOR_EVERYONE_SECONDS,
       giftRecipientSharePercent: e.GIFT_DM_RECIPIENT_SHARE_PERCENT,
+      groupMaxMembers: e.DM_GROUP_MAX_MEMBERS,
     },
     bag: {
       sweepIntervalSeconds: e.BAG_SWEEP_INTERVAL_SECONDS,

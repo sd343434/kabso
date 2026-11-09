@@ -717,10 +717,17 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
       requestMaxMessages: 3,
       deleteForEveryoneSeconds: 3600,
       giftRecipientSharePercent: 50,
+      // v1.103-social (D339): the group member cap.
+      groupMaxMembers: 100,
     });
     expect(loadConfig(base).rateLimits.dmSendUser).toEqual({ max: 30, windowSeconds: 60 });
     expect(loadConfig(base).rateLimits.dmRequestUser).toEqual({ max: 20, windowSeconds: 3600 });
     expect(loadConfig(base).rateLimits.dmWriteUser).toEqual({ max: 300, windowSeconds: 3600 });
+    // v1.103-social (D339): new groups, 10 a day; the cap 3–256.
+    expect(loadConfig(base).rateLimits.dmGroupCreateUser).toEqual({ max: 10, windowSeconds: 86400 });
+    expect(loadConfig({ ...base, DM_GROUP_MAX_MEMBERS: '256' }).dm.groupMaxMembers).toBe(256);
+    expect(() => loadConfig({ ...base, DM_GROUP_MAX_MEMBERS: '2' })).toThrow();
+    expect(() => loadConfig({ ...base, DM_GROUP_MAX_MEMBERS: '257' })).toThrow();
     expect(loadConfig({ ...base, DM_SWEEP_INTERVAL_SECONDS: '0' }).dm.sweepIntervalSeconds).toBe(0);
     expect(() => loadConfig({ ...base, NODE_ENV: 'production', DM_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
       /DM_SWEEP_INTERVAL_SECONDS/,

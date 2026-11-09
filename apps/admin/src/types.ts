@@ -326,6 +326,14 @@ export interface PanelReport {
   reporter?: { id: string; username: string; displayName: string; avatarUrl: string | null };
   dmSnapshot?: { text: string | null; sender: string | null; mediaUrl: string | null };
   linkSnapshot?: { username: string; url: string; label: string | null };
+  /** v1.103-social (D339): a DM_GROUP report — the group as it was when reported. */
+  dmGroupSnapshot?: {
+    name: string | null;
+    memberCount: number;
+    members: string[];
+    thread: { messages: { id: string; sender: string | null; kind: string; text: string | null }[] } | null;
+    purged: boolean;
+  };
   preview: {
     text: string | null;
     mediaUrl: string | null;

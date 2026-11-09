@@ -7,15 +7,18 @@ import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { LuckyGiftsService } from '../gifts/lucky-gifts.service.js';
 import type { PageDto } from '../posts/post-views.js';
 import {
+  dmChatsQuerySchema,
   dmConversationsQuerySchema,
   dmDeleteMessageQuerySchema,
   dmMessagesQuerySchema,
+  type DmChatsQuery,
   type DmConversationsQuery,
   type DmDeleteMessageQuery,
   type DmMessagesQuery,
 } from './dm.schemas.js';
 import {
   DmService,
+  type DmChatDto,
   type DmConversationDto,
   type DmGiftResultDto,
   type DmMessagePageDto,
@@ -46,6 +49,15 @@ export class DmController {
     @Query(new ZodValidationPipe(dmConversationsQuerySchema)) query: DmConversationsQuery,
   ): Promise<PageDto<DmConversationDto>> {
     return this.dm.list(auth.userId, query);
+  }
+
+  /** v1.103-social (D339): «الدردشات» / «المؤرشفة» — conversations and groups together. */
+  @Get('chats')
+  chats(
+    @CurrentAuth() auth: AuthContext,
+    @Query(new ZodValidationPipe(dmChatsQuerySchema)) query: DmChatsQuery,
+  ): Promise<PageDto<DmChatDto>> {
+    return this.dm.chats(auth.userId, query);
   }
 
   @Get('unread')
@@ -137,6 +149,24 @@ export class DmController {
   @RateLimit(DM_WRITE)
   unmute(@CurrentAuth() auth: AuthContext, @Param('conversationId') conversationId: string): Promise<void> {
     return this.dm.setMuted(auth.userId, conversationId, false);
+  }
+
+  /** v1.103-social (D339): archive the conversation for the caller «المؤرشفة». */
+  @Put('conversations/:conversationId/archive')
+  @HttpCode(204)
+  @RateLimit(DM_WRITE)
+  archive(@CurrentAuth() auth: AuthContext, @Param('conversationId') conversationId: string): Promise<void> {
+    return this.dm.setArchived(auth.userId, conversationId, true);
+  }
+
+  @Delete('conversations/:conversationId/archive')
+  @HttpCode(204)
+  @RateLimit(DM_WRITE)
+  unarchive(
+    @CurrentAuth() auth: AuthContext,
+    @Param('conversationId') conversationId: string,
+  ): Promise<void> {
+    return this.dm.setArchived(auth.userId, conversationId, false);
   }
 
   /** v1.43.1-social (D165): mark the conversation unread for the caller. */

@@ -3523,3 +3523,34 @@ CONVENTIONS §10.23 (owner 2026-11-08: «تاج الافتتاح» at 3 000 000 
 - **Rollback:** an older API keeps working with gifts priced above 1 000 000 (it reads and sends them; only its admin
   validation refuses such a price on an edit). Re-adding the old CHECK fails while such a gift exists — lower those
   prices first (`gift-admin update <code> --price …`).
+
+### 5.102 Archived chats and group messages (migrations `20270411090000_dm_groups_enums`, `20270411090100_dm_archive_groups`; D339) — [IMPLEMENTED, draft contract v1.103-social; not deployed, not device-tested]
+
+CONVENTIONS §10.132, §10.133 (owner 2026-11-09: «الدردشات، طلبات المراسلة، المؤرشفة، رسائل جماعية»). §5.100 / §5.101 and
+PP-70–PP-72 are taken on other local branches (D334, D337, D338); this section is numbered after them.
+
+- **Migrations** (in this order; the enum value goes first in a migration of its own, as D155 did):
+  `20270411090000_dm_groups_enums` adds `report_target_type` `DM_GROUP`; `20270411090100_dm_archive_groups` adds the
+  nullable `dm_participants.archived_at`, the tables `dm_groups`, `dm_group_members`, `dm_group_messages` (CHECKs on the
+  name and the message content), `reports.target_dm_group_id` (no foreign key) with its index and the open-once unique
+  index, and redefines the CHECKs `media_assets_kind_known` (+ `DM_GROUP_PHOTO`) and `reports_one_target` (+ the group
+  target). No GRANT (default privileges), no backfill; existing rows satisfy the new CHECKs (they only accept more).
+- **Settings** (all optional; defaults shown):
+
+  | Variable | Default | Meaning |
+  | --- | --- | --- |
+  | `DM_GROUP_MAX_MEMBERS` | `100` | The most members of a group, its creator included. 3–256 |
+  | `RATE_LIMIT_DM_GROUP_CREATE_USER` | `10/86400` | `POST /dm/groups` per user |
+
+  Group messages count in `RATE_LIMIT_DM_SEND_USER`, the other group and archive writes in `RATE_LIMIT_DM_WRITE_USER`;
+  group messages live `DM_RETENTION_HOURS` and the existing DM sweeper (`DM_SWEEP_INTERVAL_SECONDS`) deletes them with
+  their files. Pushes reuse `PUSH_MESSAGES_GAP_SECONDS` (per member and group; Android tag `dmg:<groupId>`) and need the
+  D152 key (§5.16).
+- **Media:** a group's photo is the new upload kind `DM_GROUP_PHOTO` (a centre-cropped square like `FAMILY_EMBLEM`);
+  its pictures and voice notes reuse `DM_IMAGE` / `DM_VOICE`.
+- **Order:** migrations, then the API, then the admin panel (the `DM_GROUP` report label and snapshot), then the app.
+  An older app keeps working: it never sees groups (it reads `listDmConversations`), but an archived conversation (only
+  a newer app archives) leaves its inbox until a message from the peer brings it back.
+- **Rollback:** an older API ignores the new tables and column (an archived conversation is back in every inbox; groups
+  disappear from the app until the API returns). Dropping the tables loses the groups and their messages (they live 24 h
+  anyway); `DM_GROUP` reports would then need to be resolved first (the CHECK names the column).

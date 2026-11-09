@@ -968,6 +968,18 @@ info:
     panel: `getAdminHostTargetSettings`, `updateAdminHostTargetSettings`, `getAdminTargetCatalogue`,
     `getAdminHostTargets` (`host_targets.view` / `host_targets.edit`, OWNER only, audited). Additive (CONVENTIONS
     §10.62.2, §10.41.4).
+    **D339 (DRAFT v1.103-social)**: archived chats «المؤرشفة» and group messages «رسائل جماعية» in the Messages tab
+    (owner 2026-11-09). `archiveDmConversation` / `unarchiveDmConversation` (`PUT` / `DELETE
+    /dm/conversations/{id}/archive`, per user; a message from the peer brings it back; `DmConversation.archived`;
+    archived conversations leave `listDmConversations?box=INBOX`), `listDmChats` (`GET /dm/chats?box=CHATS|ARCHIVED`:
+    conversations and groups together, newest first, `DmChat`), groups `createDmGroup`, `getDmGroup`, `updateDmGroup`,
+    `addDmGroupMembers`, `removeDmGroupMember`, `setDmGroupMemberRole`, `leaveDmGroup`, `listDmGroupMessages`,
+    `sendDmGroupMessage`, `markDmGroupRead`, `deleteDmGroupMessage`, `muteDmGroup` / `unmuteDmGroup`, `archiveDmGroup` /
+    `unarchiveDmGroup`, `listDmGroupCandidates` (mutual follows who accept messages); `DmUnread.groups`; media kind
+    `DM_GROUP_PHOTO`; report target `DM_GROUP` (`Report.dmGroupSnapshot`, admin views); codes `DM_NOT_ARCHIVABLE`,
+    `DM_GROUP_FULL` (409), `DM_GROUP_MEMBER_NOT_ALLOWED` (403); config `DM_GROUP_MAX_MEMBERS` (100) and
+    `RATE_LIMIT_DM_GROUP_CREATE_USER` (10 a day). Additive for old apps, except that an archived conversation leaves
+    their inbox (only a newer app archives) (CONVENTIONS §10.132, §10.133).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1037,7 +1049,7 @@ tags:
   - name: notifications
     description: "In-app notifications: inbox, unread count, mark read and settings (v1.5-social DRAFT, CP-009); the device's push token (v1.30-live DRAFT, D152)."
   - name: messages
-    description: "Direct messages: conversations, message requests, receipts, unread counts, gifts in a conversation; every message lives 24 hours (v1.40-social DRAFT, D155)."
+    description: "Direct messages: conversations, message requests, receipts, unread counts, gifts in a conversation; every message lives 24 hours (v1.40-social DRAFT, D155). Archived chats and group messages (v1.103-social DRAFT, D339)."
   - name: safety
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
@@ -10584,6 +10596,36 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/archive:
+    put:
+      tags: [messages]
+      operationId: archiveDmConversation
+      summary: "Archive a conversation for the caller «المؤرشفة» (v1.103-social, D339)"
+      description: |
+        The conversation leaves «الدردشات» (`listDmChats?box=CHATS`, and `listDmConversations?box=INBOX`) and shows in
+        `listDmChats?box=ARCHIVED`; it is not counted in `getDmUnread.messages`. Only the caller's side: the peer sees
+        nothing. A new message **from the peer** brings it back (the caller's own messages do not). A message request
+        waiting for the caller → 409 `DM_NOT_ARCHIVABLE` (accept or delete it). Idempotent (CONVENTIONS §10.132).
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Archived. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: unarchiveDmConversation
+      summary: "Move an archived conversation back to the chats (v1.103-social, D339)"
+      description: Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Unarchived. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/dm/messages/{messageId}:
     delete:
       tags: [messages]
@@ -10610,6 +10652,388 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.103-social (DRAFT, D339) — archived chats and group messages (CONVENTIONS §10.132, §10.133) ----------
+  /api/v1/dm/chats:
+    get:
+      tags: [messages]
+      operationId: listDmChats
+      summary: "«الدردشات» or «المؤرشفة»: the caller's conversations and groups together, newest first (v1.103-social, D339)"
+      description: |
+        `box=CHATS` (default): accepted conversations, the requests the caller sent, and the caller's groups — not
+        archived; `box=ARCHIVED`: the ones the caller archived. Message requests waiting for the caller stay in
+        `listDmConversations?box=REQUESTS`. Ordered by `lastActivityAt` (a group: its newest message, or when the caller
+        joined), one signed keyset cursor over both kinds (§5), bound to `box` and `q`. Conversations follow the rules of
+        `listDmConversations` (deleted for the caller, blocks, ACTIVE peers); groups removed by moderation are never
+        listed. `q`: a case-insensitive prefix of the peer's username or display name, or of the group's name (a leading
+        `@` ignored). CONVENTIONS §10.132, §10.133.
+      parameters:
+        - name: box
+          in: query
+          required: false
+          schema: { type: string, enum: [CHATS, ARCHIVED], default: CHATS }
+        - name: q
+          in: query
+          required: false
+          description: "A case-insensitive prefix (trimmed, then 1–30 characters; a leading `@` is ignored)."
+          schema: { type: string, minLength: 1, maxLength: 30 }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of chats.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmChatPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/group-candidates:
+    get:
+      tags: [messages]
+      operationId: listDmGroupCandidates
+      summary: "People the caller may add to a group: mutual follows who accept messages (v1.103-social, D339)"
+      description: |
+        Accounts the caller follows **and** that follow the caller, ACTIVE, with no block either way and whose «من يستطيع
+        مراسلتك» is not `NOBODY` — exactly the people `createDmGroup` / `addDmGroupMembers` accept from the caller. Newest
+        follow first (signed keyset cursor). `q`: a prefix of the username or display name. `groupId`: leave out the
+        people already in that group (the caller's group, else 404).
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 30 }
+        - name: groupId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of people.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummaryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups:
+    post:
+      tags: [messages]
+      operationId: createDmGroup
+      summary: "Create a group conversation «رسالة جماعية» (v1.103-social, D339)"
+      description: |
+        The caller becomes the group's creator and ADMIN; `members` join as MEMBER. Each member must be someone the
+        caller may add (`listDmGroupCandidates`: a mutual follow, ACTIVE, no block either way, not `whoCanMessage:
+        NOBODY`). Order (after auth and the rate limit, 10 a day, §7): 400 body → a retry with the same `clientId` → 200
+        with the first group → 400 `members.<i>` / `invalid_value` (oneself) → 409 `DM_GROUP_FULL` (more than
+        `DM_GROUP_MAX_MEMBERS` with the caller) → 403 `DM_GROUP_MEMBER_NOT_ALLOWED` (`details` names each refused entry,
+        `members.<i>` / `not_allowed`, whatever the reason) → 400 `photoMediaId` / `invalid_value` (not the caller's
+        unattached `DM_GROUP_PHOTO`) → stored. The new members are told by push (CONVENTIONS §10.133).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDmGroupRequest' }
+            example: { name: أصدقاء الجامعة, members: [sara_2026, omar.h], clientId: 0192f1d0-9999-7000-8000-000000000339 }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupDetail' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupDetail' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}:
+    get:
+      tags: [messages]
+      operationId: getDmGroup
+      summary: "A group: its state for the caller, the members and the cap (v1.103-social, D339)"
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '200':
+          description: The group.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [messages]
+      operationId: updateDmGroup
+      summary: "Rename a group or change its photo — admins (v1.103-social, D339)"
+      description: |
+        `name` and / or `photoMediaId` (`null` removes the photo; a replaced photo's files are deleted). A member who is not
+        an ADMIN → 403 `AUTH_FORBIDDEN`; 400 `photoMediaId` / `invalid_value` (not the caller's unattached `DM_GROUP_PHOTO`).
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDmGroupRequest' }
+      responses:
+        '200':
+          description: The group.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupDetail' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/members:
+    post:
+      tags: [messages]
+      operationId: addDmGroupMembers
+      summary: "Add members — admins (v1.103-social, D339)"
+      description: |
+        The rules of `createDmGroup` for each new member (403 `DM_GROUP_MEMBER_NOT_ALLOWED`; 409 `DM_GROUP_FULL` when the
+        group would pass `DM_GROUP_MAX_MEMBERS`); people already in it are ignored. A member who is not an ADMIN → 403
+        `AUTH_FORBIDDEN`. The new members see the messages sent from now on only, and are told by push.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddDmGroupMembersRequest' }
+      responses:
+        '200':
+          description: The group.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupDetail' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/members/{username}:
+    delete:
+      tags: [messages]
+      operationId: removeDmGroupMember
+      summary: "Remove a member — admins (v1.103-social, D339)"
+      description: |
+        Not oneself (400 `username` / `invalid_value`: use `leaveDmGroup`), not the creator (403 `AUTH_FORBIDDEN`); a
+        member who is not an ADMIN → 403 `AUTH_FORBIDDEN`; someone not in the group → 404. With no admin left the member
+        who joined first becomes one.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Removed. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/members/{username}/role:
+    put:
+      tags: [messages]
+      operationId: setDmGroupMemberRole
+      summary: "Make a member an admin, or an admin a member — admins (v1.103-social, D339)"
+      description: |
+        Not oneself (400 `username`), not the creator (403 `AUTH_FORBIDDEN`); a member who is not an ADMIN → 403
+        `AUTH_FORBIDDEN`; someone not in the group → 404. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetDmGroupRoleRequest' }
+      responses:
+        '204': { description: Set. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/leave:
+    post:
+      tags: [messages]
+      operationId: leaveDmGroup
+      summary: "Leave a group (v1.103-social, D339)"
+      description: |
+        The caller leaves (the creator too). With no admin left the member who joined first becomes one; when the last
+        member leaves, the group ends: its messages and photo are deleted and it cannot be opened again.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '204': { description: Left. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/messages:
+    get:
+      tags: [messages]
+      operationId: listDmGroupMessages
+      summary: "A group's messages, newest first (v1.103-social, D339)"
+      description: |
+        Messages not expired (24 h), sent since the caller joined, by ACTIVE accounts with no block either way with the
+        caller; `limit` default 30. `group` carries the caller's state.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of messages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupMessagePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [messages]
+      operationId: sendDmGroupMessage
+      summary: "Send a message to a group (v1.103-social, D339)"
+      description: |
+        Order (after auth and the rate limit — the `dm:send` bucket, 30 a minute, §7): 400 body → a retry with the same
+        `clientId` → 200 with the first message → 403 `ACCOUNT_RESTRICTED` → 404 → 400 `mediaId` / `invalid_value` →
+        stored. Kinds as `sendDmMessage` without gifts; blocked words (the server's list) are masked. The group moves up for
+        every member, leaves the other members' «المؤرشفة», and they are pushed (not the muted ones). Every message expires
+        24 h after it was sent.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DmGroupSendRequest' }
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupSendResult' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGroupSendResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/read:
+    post:
+      tags: [messages]
+      operationId: markDmGroupRead
+      summary: "Mark a group read up to a message (v1.103-social, D339)"
+      description: |
+        The caller's read pointer moves to `lastMessageId` (a message of this group the caller can read; else 400
+        `lastMessageId` / `invalid_value`) and never back; the senders see it in `DmGroupMessage.readCount`. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DmReadRequest' }
+      responses:
+        '204': { description: Read. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/messages/{messageId}:
+    delete:
+      tags: [messages]
+      operationId: deleteDmGroupMessage
+      summary: "Delete a group message for everyone (v1.103-social, D339)"
+      description: |
+        `scope=everyone` (required: 400 `scope` otherwise): one's own within `DM_DELETE_FOR_EVERYONE_SECONDS` (1 hour;
+        later → 409 `DM_DELETE_WINDOW_PASSED`), or any message by an ADMIN; someone else's by a member → 403
+        `AUTH_FORBIDDEN`. It is gone for every member and its file is deleted. A message the caller cannot read → 404.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: scope
+          in: query
+          required: false
+          schema: { type: string, enum: [me, everyone], default: me }
+      responses:
+        '204': { description: Deleted. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/mute:
+    put:
+      tags: [messages]
+      operationId: muteDmGroup
+      summary: "Mute a group for the caller: no push, not in the badge (v1.103-social, D339)"
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '204': { description: Muted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: unmuteDmGroup
+      summary: "Unmute a group (v1.103-social, D339)"
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '204': { description: Unmuted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/groups/{groupId}/archive:
+    put:
+      tags: [messages]
+      operationId: archiveDmGroup
+      summary: "Archive a group for the caller «المؤرشفة» (v1.103-social, D339)"
+      description: |
+        Leaves «الدردشات» for `listDmChats?box=ARCHIVED` and the badge; a message from another member brings it back.
+        Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '204': { description: Archived. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: unarchiveDmGroup
+      summary: "Move an archived group back to the chats (v1.103-social, D339)"
+      description: |
+        Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmGroupIdPath'
+      responses:
+        '204': { description: Unarchived. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   # ---- v1.44-social (DRAFT, D166) — the Me hub's programs: Task Center, Event Center, SVIP -------
   /api/v1/me/tasks:
@@ -20185,6 +20609,12 @@ components:
       required: true
       description: (D155) A malformed or unknown id, or a conversation that is not the caller's → 404.
       schema: { type: string, format: uuid }
+    DmGroupIdPath:
+      name: groupId
+      in: path
+      required: true
+      description: (v1.103-social, D339) A malformed or unknown id, a group the caller is not in, or one removed by moderation → 404.
+      schema: { type: string, format: uuid }
     UsernamePath:
       name: username
       in: path
@@ -22870,7 +23300,7 @@ components:
       required: [type, state, author]
       description: "(v1.93-social, D296, §10.109) The reported item as the staff see it, whatever its visibility (hidden, private, blocked, another region). A DM is only the report's frozen `dm.snapshot` — the conversation is never read."
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK] }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK, DM_GROUP] }
         state: { type: string, enum: [VISIBLE, HIDDEN, DELETED, EXPIRED, LIVE, ENDED, GONE], description: "HIDDEN: removed by moderation; DELETED: by its author or for good; EXPIRED: a story or DM past its life; GONE: no row any more." }
         author:
           description: The item's author (the reported user for USER, the sender for DM_MESSAGE); null when gone.
@@ -31344,8 +31774,9 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE, POST_VIDEO, REEL_VIDEO, VIDEO_POSTER, AVATAR, RECHARGE_AGENT_PHOTO, RECHARGE_AGENT_SELFIE, RECHARGE_ORDER_IMAGE, PROFILE_COVER, LEVEL_RAISE_VIDEO, PROFILE_COVER_VIDEO, OWNER_FEEDBACK_IMAGE, DM_GROUP_PHOTO]
       description: |
+        (v1.103-social, D339, §10.133) `DM_GROUP_PHOTO`: a group conversation's photo (a centre-cropped square like `FAMILY_EMBLEM`; attached by `createDmGroup` / `updateDmGroup`).
         (v1.95-social, D301, §10.112) `PROFILE_COVER_VIDEO`: the owner's cover video (like a reel's: ≤ 100 MiB, ≤ 60 s, a poster; owner only, else 403 `OWNER_ONLY`); `OWNER_FEEDBACK_IMAGE`: a private picture of «اقترح ميزة / أبلغ عن موظف» (never completed, consumed by `createOwnerFeedback`).
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
@@ -31917,7 +32348,7 @@ components:
         permanent: { type: boolean, const: true, description: "LIVE_MODERATION only (v1.60-live, D250): a DEVICE_BAN with no end (then no `endsAt`)." }
         roomId: { type: string, format: uuid, description: "LIVE_MODERATION only (v1.60-live, D250): the live; LIVE_ROOM (v1.68-live, D273) too." }
         live: { type: boolean, description: "LIVE_ROOM only (v1.68-live, D273): the live is still on air (the app opens it as staff)." }
-        reportTargetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK], description: "REPORT only (v1.78-live, D288): what the report is about." }
+        reportTargetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK, DM_GROUP], description: "REPORT only (v1.78-live, D288): what the report is about." }
         reportOpen: { type: boolean, description: "REPORT only (v1.78-live, D288): the report is still unresolved." }
         level: { type: integer, minimum: 1, description: "LEVEL_RAISE only (v1.89-social, D290): the support level approved (absent on a rejection)." }
         medalLevel: { type: integer, minimum: 1, maximum: 20, description: "MEDAL only (v1.81-live, D291): the level this MEDAL_AWARDED announces — 1 = the medal was earned, more = it reached that level. Absent on rows from before." }
@@ -32027,12 +32458,12 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK, DM_GROUP] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message or (v1.47-social, D175) profile link (`ProfileLink.id`) id, or a username for USER — (v1.93-social, D296) or the user's id.
+          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message, (D155) direct message, (v1.47-social, D175) profile link (`ProfileLink.id`) or (v1.103-social, D339) group (`DmGroup.id`, a group the reporter belongs to; else 404) id, or a username for USER — (v1.93-social, D296) or the user's id.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
         liveRoomId:
@@ -32050,7 +32481,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE, PROFILE_LINK, DM_GROUP] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }
@@ -32066,6 +32497,9 @@ components:
         linkSnapshot:
           description: (v1.47-social, D175) Admin views of `PROFILE_LINK` reports only.
           $ref: '#/components/schemas/ProfileLinkSnapshot'
+        dmGroupSnapshot:
+          description: (v1.103-social, D339) Admin views of `DM_GROUP` reports only.
+          $ref: '#/components/schemas/DmGroupReportSnapshot'
     ReportPage:
       type: object
       required: [data, page]
@@ -34209,13 +34643,14 @@ components:
         expiresAt: { type: string, format: date-time, description: "createdAt + DM_RETENTION_HOURS (24 h); the message is deleted then." }
     DmConversation:
       type: object
-      required: [id, peer, status, muted, markedUnread, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
+      required: [id, peer, status, muted, markedUnread, archived, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
       properties:
         id: { type: string, format: uuid }
         peer: { $ref: '#/components/schemas/UserSummary' }
         status: { $ref: '#/components/schemas/DmConversationStatus' }
         muted: { type: boolean }
         markedUnread: { type: boolean, description: "(v1.43.1-social, D165) The caller marked it unread (`markDmUnread`); cleared by `markDmRead` or `clearDmUnread`." }
+        archived: { type: boolean, description: "(v1.103-social, D339) The caller archived it «المؤرشفة» (`archiveDmConversation`); a message from the peer clears it." }
         unreadCount: { type: integer, minimum: 0, maximum: 99 }
         lastMessage:
           description: The newest message the caller can still read (null after 24 h or deletion).
@@ -34246,11 +34681,12 @@ components:
     DmUnread:
       type: object
       description: "(v1.43.1-social, D165) A conversation marked unread with no unread message counts as one in `messages` and `conversations` (accepted, not muted) or in `requests`."
-      required: [messages, conversations, requests]
+      required: [messages, conversations, requests, groups]
       properties:
-        messages: { type: integer, minimum: 0, maximum: 99 }
+        messages: { type: integer, minimum: 0, maximum: 99, description: "(v1.103-social, D339) Archived conversations are not counted." }
         conversations: { type: integer, minimum: 0, maximum: 99 }
         requests: { type: integer, minimum: 0, maximum: 99 }
+        groups: { type: integer, minimum: 0, maximum: 99, description: "(v1.103-social, D339) Unread messages in the caller's groups that are neither muted nor archived (the app adds them to the badge)." }
     DmPeer:
       type: object
       required: [user, conversation, canMessage, reason, asRequest]
@@ -34474,6 +34910,170 @@ components:
         giftCode: { type: [string, 'null'] }
         quantity: { type: [integer, 'null'] }
         purged: { type: boolean, description: The retention period ended; text and file were cleared. }
+    # ---- v1.103-social (DRAFT, D339) — archived chats and group messages (CONVENTIONS §10.132, §10.133) ------------
+    DmChat:
+      type: object
+      description: "(D339) One row of «الدردشات» / «المؤرشفة»: a direct conversation (`type: DIRECT`, `conversation`) or a group (`type: GROUP`, `group`)."
+      required: [type, id, lastActivityAt, conversation, group]
+      properties:
+        type: { type: string, enum: [DIRECT, GROUP] }
+        id: { type: string, format: uuid, description: The conversation's or the group's id. }
+        lastActivityAt: { type: string, format: date-time }
+        conversation:
+          oneOf:
+            - $ref: '#/components/schemas/DmConversation'
+            - type: 'null'
+        group:
+          oneOf:
+            - $ref: '#/components/schemas/DmGroup'
+            - type: 'null'
+    DmChatPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DmChat' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    DmGroupRole:
+      type: string
+      enum: [ADMIN, MEMBER]
+      description: "(D339) ADMIN: adds and removes members, renames the group, changes its photo and the roles, deletes any message. The creator is an ADMIN whose role cannot be changed or who cannot be removed (they may leave)."
+    DmGroupMessage:
+      type: object
+      required: [id, groupId, sender, mine, kind, text, token, media, readCount, createdAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        groupId: { type: string, format: uuid }
+        sender:
+          description: The sender (null when the account is no longer ACTIVE).
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        mine: { type: boolean, description: The caller sent it. }
+        kind: { type: string, enum: [TEXT, IMAGE, VOICE, EMOJI], description: "No gifts in a group (D339)." }
+        text: { type: [string, 'null'], description: "`TEXT`: 1–1 000 code points, the server's blocked words masked." }
+        token: { type: [string, 'null'], description: "`EMOJI`: the pack emoji token `:<pack>_<id>:`." }
+        media:
+          description: "`IMAGE` / `VOICE`: the picture or voice clip."
+          oneOf:
+            - $ref: '#/components/schemas/MediaAsset'
+            - type: 'null'
+        readCount: { type: integer, minimum: 0, description: "On the caller's own messages: how many other members have read it (their read pointer reached it); 0 on others' messages." }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: "createdAt + DM_RETENTION_HOURS (24 h), as a direct message." }
+    DmGroup:
+      type: object
+      required: [id, name, photoUrl, memberCount, role, muted, archived, unreadCount, lastMessage, lastActivityAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 50 }
+        photoUrl: { type: [string, 'null'], format: uri, description: "The group's photo (320 px square), or null." }
+        memberCount: { type: integer, minimum: 1, description: "ACTIVE members, the caller included." }
+        role: { $ref: '#/components/schemas/DmGroupRole' }
+        muted: { type: boolean }
+        archived: { type: boolean, description: "The caller archived it «المؤرشفة»; a message from another member clears it." }
+        unreadCount: { type: integer, minimum: 0, maximum: 99 }
+        lastMessage:
+          description: The newest message the caller can read (null when none is left).
+          oneOf:
+            - $ref: '#/components/schemas/DmGroupMessage'
+            - type: 'null'
+        lastActivityAt: { type: string, format: date-time, description: "The newest message, or when the caller joined (whichever is later)." }
+        createdAt: { type: string, format: date-time }
+    DmGroupMember:
+      type: object
+      required: [user, role, creator, joinedAt]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        role: { $ref: '#/components/schemas/DmGroupRole' }
+        creator: { type: boolean }
+        joinedAt: { type: string, format: date-time }
+    DmGroupDetail:
+      type: object
+      required: [group, members, maxMembers]
+      properties:
+        group: { $ref: '#/components/schemas/DmGroup' }
+        members:
+          type: array
+          description: "Admins first, then the others, each in the order they joined; people with a block either way with the caller are not listed."
+          items: { $ref: '#/components/schemas/DmGroupMember' }
+        maxMembers: { type: integer, minimum: 3, description: "`DM_GROUP_MAX_MEMBERS` (100), the creator included." }
+    DmGroupMessagePage:
+      type: object
+      required: [data, page, group]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DmGroupMessage' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        group: { $ref: '#/components/schemas/DmGroup' }
+    DmGroupSendResult:
+      type: object
+      required: [message, group]
+      properties:
+        message: { $ref: '#/components/schemas/DmGroupMessage' }
+        group: { $ref: '#/components/schemas/DmGroup' }
+    CreateDmGroupRequest:
+      type: object
+      additionalProperties: false
+      required: [name, members, clientId]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 400, description: "1–50 code points after trimming, one line, §6 hygiene." }
+        photoMediaId: { type: string, format: uuid, description: "A `DM_GROUP_PHOTO` asset of the caller (optional)." }
+        members:
+          type: array
+          minItems: 1
+          maxItems: 255
+          description: "Usernames (a leading `@` and any case accepted), each once; with the caller at most `DM_GROUP_MAX_MEMBERS`."
+          items: { type: string, minLength: 1, maxLength: 64 }
+        clientId: { type: string, format: uuid, description: Unique per creator; a retry answers the first group. }
+    UpdateDmGroupRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 400, description: "1–50 code points after trimming, one line." }
+        photoMediaId: { type: [string, 'null'], format: uuid, description: "A `DM_GROUP_PHOTO` asset of the caller; null removes the photo." }
+    AddDmGroupMembersRequest:
+      type: object
+      additionalProperties: false
+      required: [members]
+      properties:
+        members:
+          type: array
+          minItems: 1
+          maxItems: 255
+          items: { type: string, minLength: 1, maxLength: 64 }
+    SetDmGroupRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: '#/components/schemas/DmGroupRole' }
+    DmGroupSendRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, clientId]
+      properties:
+        kind: { type: string, enum: [TEXT, IMAGE, VOICE, EMOJI] }
+        text: { type: string, minLength: 1, maxLength: 8000, description: "`TEXT` only (required): 1–1 000 code points, ≤ 20 line breaks, §6 hygiene." }
+        mediaId: { type: string, format: uuid, description: "`IMAGE` (a `DM_IMAGE` asset) / `VOICE` (a `DM_VOICE` asset) only (required)." }
+        token: { type: string, maxLength: 64, description: "`EMOJI` only (required): `:<pack>_<id>:`." }
+        clientId: { type: string, format: uuid, description: Unique per sender; a retry answers the first message. }
+    DmGroupReportSnapshot:
+      type: object
+      description: "(D339) Admin views only: the group as it was when reported — its name, members and the messages the reporter could read (files are not copied), kept 30 days after the report is resolved."
+      required: [name, memberCount, members, thread, purged]
+      properties:
+        name: { type: [string, 'null'] }
+        memberCount: { type: integer, minimum: 0 }
+        members: { type: array, items: { type: string }, description: Usernames (emptied when purged). }
+        thread:
+          oneOf:
+            - $ref: '#/components/schemas/DmReportThread'
+            - type: 'null'
+        purged: { type: boolean }
     # ---- v1.44-social (DRAFT, D166) ------------------------------------------------------------
     ProgramTask:
       type: object

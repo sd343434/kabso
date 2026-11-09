@@ -11,10 +11,15 @@ import { uuidv7 } from '../levels/uuidv7.js';
 import { MediaService } from '../media/media.service.js';
 import {
   DM_REPORT_THREAD_MAX_FILES,
+  dmGroupSnapshotDto,
   dmSnapshotDto,
   dmThreadRowsOf,
+  removeDmGroupIn,
   removeDmMessageIn,
+  reportableDmGroup,
   reportableDmMessage,
+  type DmGroupSnapshot,
+  type DmGroupSnapshotDto,
   type DmSnapshot,
   type DmSnapshotDto,
   type DmThreadMessage,
@@ -78,7 +83,8 @@ export interface ReportDto {
     | 'CP_CONFESSION'
     | 'FAMILY_CHAT_MESSAGE'
     | 'DM_MESSAGE'
-    | 'PROFILE_LINK';
+    | 'PROFILE_LINK'
+    | 'DM_GROUP';
   targetId: string;
   reason: string;
   note: string | null;
@@ -88,6 +94,8 @@ export interface ReportDto {
   reporter?: UserSummaryDto;
   /** v1.40-social (D155): admin views of DM_MESSAGE reports. */
   dmSnapshot?: DmSnapshotDto;
+  /** v1.103-social (D339): admin views of DM_GROUP reports — the group as it was when reported. */
+  dmGroupSnapshot?: DmGroupSnapshotDto;
   /** v1.47-social (D175): admin views of PROFILE_LINK reports — what the link was. */
   linkSnapshot?: ProfileLinkSnapshot;
 }
@@ -135,9 +143,11 @@ export function reportTargetWhere(report: Report): Prisma.ReportWhereInput {
                 ? { targetFamilyChatMessageId: report.targetFamilyChatMessageId }
                 : report.targetDmMessageId
                   ? { targetDmMessageId: report.targetDmMessageId }
-                  : report.targetProfileLinkId
-                    ? { targetProfileLinkId: report.targetProfileLinkId }
-                    : { targetUserId: report.targetUserId };
+                  : report.targetDmGroupId
+                    ? { targetDmGroupId: report.targetDmGroupId }
+                    : report.targetProfileLinkId
+                      ? { targetProfileLinkId: report.targetProfileLinkId }
+                      : { targetUserId: report.targetUserId };
 }
 
 /** The reported item's id (the audit row's target). */
@@ -151,6 +161,7 @@ export function reportTargetId(report: Report): string | undefined {
     report.targetCpConfessionId ??
     report.targetFamilyChatMessageId ??
     report.targetDmMessageId ??
+    report.targetDmGroupId ??
     report.targetProfileLinkId ??
     report.targetUserId ??
     undefined
@@ -365,11 +376,19 @@ export class SafetyService {
     // v1.47-social (D175): a profile link is kept as a snapshot (its owner may edit it away).
     const link =
       input.targetType === 'PROFILE_LINK' ? await this.reportableLink(reporterId, input.targetId) : null;
+    // v1.103-social (D339): a group the reporter belongs to, kept as a snapshot (its messages live 24 h).
+    let group: DmGroupSnapshot | null = null;
+    if (input.targetType === 'DM_GROUP') {
+      if (!isUuid(input.targetId)) throw new AppException(ErrorCode.NOT_FOUND);
+      group = await reportableDmGroup(this.prisma, input.targetId.toLowerCase(), reporterId, new Date());
+    }
     const target = dm
       ? { targetDmMessageId: dm.id }
-      : link
-        ? { targetProfileLinkId: link.id }
-        : await this.resolveTarget(reporterId, input);
+      : group
+        ? { targetDmGroupId: group.groupId }
+        : link
+          ? { targetProfileLinkId: link.id }
+          : await this.resolveTarget(reporterId, input);
     const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', ...target };
     const existing = await this.prisma.report.findFirst({ where, include: REPORT_INCLUDE });
     if (existing) {
@@ -392,7 +411,9 @@ export class SafetyService {
       if (!conv) throw new AppException(ErrorCode.NOT_FOUND);
       personConversationId = conv.id;
     }
-    let snapshot: (DmSnapshot | { conversationId: string; thread: DmThreadSnapshot | null }) | null = null;
+    let snapshot:
+      (DmSnapshot | DmGroupSnapshot | { conversationId: string; thread: DmThreadSnapshot | null }) | null =
+      null;
     if (dm) {
       let mediaKey: string | null = null;
       if (dm.media) {
@@ -401,6 +422,8 @@ export class SafetyService {
       }
       const thread = await this.freezeThread(reportId, dm.snapshot.conversationId, dm.id, mediaKey);
       snapshot = { ...dm.snapshot, mediaKey, purged: false, thread };
+    } else if (group) {
+      snapshot = group;
     } else if (personConversationId !== null) {
       snapshot = {
         conversationId: personConversationId,
@@ -680,6 +703,7 @@ export class SafetyService {
     const id = reportId.toLowerCase();
     const endedRooms: string[] = [];
     let removedChat: { roomId: string; messageId: string } | null = null;
+    const removedGroupPhotos: string[] = [];
     await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<
         { id: string }[]
@@ -696,6 +720,7 @@ export class SafetyService {
         report.legalHoldId !== null &&
         report.targetCommentId === null &&
         report.targetDmMessageId === null &&
+        report.targetDmGroupId === null &&
         report.targetProfileLinkId === null;
       if (action === 'REMOVE_TARGET') {
         // §11.10: the author is told (CONTENT_REMOVED) when this action removed the item.
@@ -763,6 +788,12 @@ export class SafetyService {
           // report keeps its snapshot.
           await removeDmMessageIn(tx, report.targetDmMessageId, new Date());
         }
+        if (report.targetDmGroupId) {
+          // v1.103-social (D339): the group is removed for everyone and its messages expire now; the report keeps its
+          // snapshot. The photo's files go after the commit.
+          const removed = await removeDmGroupIn(tx, report.targetDmGroupId, new Date());
+          if (removed.photoMediaId) removedGroupPhotos.push(removed.photoMediaId);
+        }
         if (report.targetProfileLinkId) {
           // v1.47-social (D175): the link leaves the profile (when it is still there).
           await tx.userProfileLink.deleteMany({ where: { id: report.targetProfileLinkId } });
@@ -815,6 +846,13 @@ export class SafetyService {
       });
     });
     for (const roomId of endedRooms) await this.liveMedia.closeMedia(roomId);
+    if (removedGroupPhotos.length > 0) {
+      const assets = await this.prisma.mediaAsset.findMany({
+        where: { id: { in: removedGroupPhotos } },
+        select: { id: true, largeKey: true, thumbKey: true },
+      });
+      await this.media.purgeAssets(assets).catch(() => 0);
+    }
     const chat = removedChat as { roomId: string; messageId: string } | null;
     if (chat) await this.liveChat.afterRemoved(chat.roomId, chat.messageId);
     return this.toDto(
@@ -844,6 +882,7 @@ export class SafetyService {
         row.targetCpConfessionId ??
         row.targetFamilyChatMessageId ??
         row.targetDmMessageId ??
+        row.targetDmGroupId ??
         row.targetProfileLinkId ??
         row.legalHold?.targetId ??
         row.targetUser?.profile?.username ??
@@ -857,6 +896,9 @@ export class SafetyService {
       ...(admin ? { reporter: userSummary(row.reporter) } : {}),
       ...(admin && row.targetType === 'DM_MESSAGE'
         ? { dmSnapshot: dmSnapshotDto(row.dmSnapshot, this.media.publicBaseUrl) ?? undefined }
+        : {}),
+      ...(admin && row.targetType === 'DM_GROUP'
+        ? { dmGroupSnapshot: dmGroupSnapshotDto(row.dmSnapshot, this.media.publicBaseUrl) ?? undefined }
         : {}),
       ...(admin && row.targetType === 'PROFILE_LINK'
         ? { linkSnapshot: linkSnapshotDto(row.linkSnapshot) }

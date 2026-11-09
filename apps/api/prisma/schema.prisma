@@ -231,6 +231,10 @@ model User {
   dmSent                 DmMessage[]                @relation("DmMessageSender")
   dmReceived             DmMessage[]                @relation("DmMessageRecipient")
   dmHides                DmMessageHide[]
+  // v1.103-social (D339): group messages «رسائل جماعية».
+  dmGroupsCreated        DmGroup[]                  @relation("DmGroupCreator")
+  dmGroupMemberships     DmGroupMember[]            @relation("DmGroupMemberUser")
+  dmGroupMessagesSent    DmGroupMessage[]           @relation("DmGroupMessageSender")
   // v1.44-social (D166): the Me hub's programs.
   taskClaims             TaskClaim[]
   taskAssignments        TaskAssignment[]
@@ -1696,6 +1700,8 @@ enum ReportTargetType {
   DM_MESSAGE
   /// v1.47-social (D175): a link on someone's profile (kept as a snapshot: links can be edited).
   PROFILE_LINK
+  /// v1.103-social (D339): a group conversation (kept as a snapshot: its messages live 24 h).
+  DM_GROUP
 
   @@map("report_target_type")
 }
@@ -1784,6 +1790,9 @@ model MediaAsset {
   homeBannerVideo HomeBanner?        @relation("HomeBannerVideo")
   /// D155: a direct message's picture or voice clip.
   dmMessage       DmMessage?
+  /// v1.103-social (D339): a group message's picture or voice clip, and a group's photo.
+  dmGroupMessage  DmGroupMessage?
+  dmGroupPhoto    DmGroup?           @relation("DmGroupPhoto")
   /// D168: a profile photo.
   profileAvatar   UserProfile?       @relation("ProfileAvatar")
   /// D218: a profile cover.
@@ -2117,6 +2126,9 @@ model Report {
   /// the report keeps `dm_snapshot` (cleared 30 days after the report is resolved).
   targetDmMessageId         String?          @map("target_dm_message_id") @db.Uuid
   dmSnapshot                Json?            @map("dm_snapshot")
+  /// v1.103-social (D339): a group conversation — no foreign key (like a direct message); `dm_snapshot` keeps the
+  /// group as it was when reported (name, members, its newest messages), cleared 30 days after resolution.
+  targetDmGroupId           String?          @map("target_dm_group_id") @db.Uuid
   /// v1.47-social (D175): a profile link — no foreign key (the owner may edit it away); the report
   /// keeps `link_snapshot` ({userId, url, label}).
   targetProfileLinkId       String?          @map("target_profile_link_id") @db.Uuid
@@ -2163,6 +2175,7 @@ model Report {
   @@unique([reporterId, targetFamilyChatMessageId], map: "reports_open_family_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_family_chat_message_id IS NOT NULL"))
   @@unique([reporterId, targetDmMessageId], map: "reports_open_dm_message_once", where: raw("status = 'OPEN'::report_status AND target_dm_message_id IS NOT NULL"))
   @@unique([reporterId, targetProfileLinkId], map: "reports_open_profile_link_once", where: raw("status = 'OPEN'::report_status AND target_profile_link_id IS NOT NULL"))
+  @@unique([reporterId, targetDmGroupId], map: "reports_open_dm_group_once", where: raw("status = 'OPEN'::report_status AND target_dm_group_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
@@ -2173,6 +2186,7 @@ model Report {
   @@index([targetCpConfessionId], map: "reports_target_cp_confession_idx")
   @@index([targetFamilyChatMessageId], map: "reports_target_family_chat_message_idx")
   @@index([targetDmMessageId], map: "reports_target_dm_message_idx")
+  @@index([targetDmGroupId], map: "reports_target_dm_group_idx")
   @@index([targetProfileLinkId], map: "reports_target_profile_link_idx")
   @@index([legalHoldId], map: "reports_legal_hold_idx")
   @@index([contextLiveRoomId], map: "reports_context_live_room_idx", where: raw("context_live_room_id IS NOT NULL"))
@@ -3932,6 +3946,8 @@ model DmParticipant {
   muted          Boolean             @default(false)
   /// v1.43.1-social (D165): the user marked it unread (cleared by reading it).
   markedUnread   Boolean             @default(false) @map("marked_unread")
+  /// v1.103-social (D339): archived by this user «المؤرشفة» (null: not archived); a message from the peer clears it.
+  archivedAt     DateTime?           @map("archived_at") @db.Timestamptz(3)
   hasSent        Boolean             @default(false) @map("has_sent")
   requestSent    Int                 @default(0) @map("request_sent")
   readAt         DateTime?           @map("read_at") @db.Timestamptz(3)
@@ -3993,6 +4009,91 @@ model DmMessageHide {
   @@id([messageId, userId], map: "dm_message_hides_pkey")
   @@index([userId], map: "dm_message_hides_user_idx")
   @@map("dm_message_hides")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.103-social (DRAFT, D339, CONVENTIONS §10.133): group messages «رسائل جماعية». CHECKs in migration
+// 20270411090100_dm_archive_groups.
+
+/// D339: a member's place in a group (ADMIN: add / remove members, rename, the photo, roles).
+enum DmGroupRole {
+  ADMIN
+  MEMBER
+
+  @@map("dm_group_role")
+}
+
+/// D339: REMOVED by moderation (a DM_GROUP report's REMOVE_TARGET): gone for every member.
+enum DmGroupStatus {
+  ACTIVE
+  REMOVED
+
+  @@map("dm_group_status")
+}
+
+/// D339: a group conversation. `created_by_id` + `client_id`: the create's idempotency (null once the creator's account
+/// is gone). `last_message_at`: the newest message (the list's order; the create time before the first one).
+model DmGroup {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  name          String        @db.VarChar(50)
+  photoMediaId  String?       @unique(map: "dm_groups_photo_media_id_key") @map("photo_media_id") @db.Uuid
+  createdById   String?       @map("created_by_id") @db.Uuid
+  clientId      String        @map("client_id") @db.Uuid
+  status        DmGroupStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastMessageAt DateTime      @map("last_message_at") @db.Timestamptz(3)
+  removedAt     DateTime?     @map("removed_at") @db.Timestamptz(3)
+
+  photo     MediaAsset?      @relation("DmGroupPhoto", fields: [photoMediaId], references: [id], onDelete: SetNull)
+  createdBy User?            @relation("DmGroupCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members   DmGroupMember[]
+  messages  DmGroupMessage[]
+
+  @@unique([createdById, clientId], map: "dm_groups_client_once")
+  @@map("dm_groups")
+}
+
+/// D339: one member of a group, with their own state: role, mute, archive «المؤرشفة», the read pointer and when they
+/// joined (messages before it are not theirs to read). Leaving or being removed deletes the row.
+model DmGroupMember {
+  groupId    String      @map("group_id") @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  role       DmGroupRole @default(MEMBER)
+  muted      Boolean     @default(false)
+  archivedAt DateTime?   @map("archived_at") @db.Timestamptz(3)
+  readAt     DateTime?   @map("read_at") @db.Timestamptz(3)
+  joinedAt   DateTime    @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  group DmGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User    @relation("DmGroupMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId], map: "dm_group_members_pkey")
+  @@index([userId], map: "dm_group_members_user_idx")
+  @@map("dm_group_members")
+}
+
+/// D339: a group message (TEXT, IMAGE, VOICE or EMOJI — no gifts); hard-deleted by the DM sweeper at `expires_at`
+/// (sent + DM_RETENTION_HOURS) with its file. CHECK `dm_group_messages_content`: the column of its kind.
+model DmGroupMessage {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  groupId   String        @map("group_id") @db.Uuid
+  senderId  String        @map("sender_id") @db.Uuid
+  clientId  String        @map("client_id") @db.Uuid
+  kind      DmMessageKind
+  text      String?       @db.VarChar(1000)
+  token     String?       @db.VarChar(64)
+  mediaId   String?       @unique(map: "dm_group_messages_media_id_key") @map("media_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz(3)
+
+  group  DmGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender User        @relation("DmGroupMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  media  MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+
+  @@unique([senderId, clientId], map: "dm_group_messages_client_once")
+  @@index([groupId, createdAt, id], map: "dm_group_messages_group_idx")
+  @@index([expiresAt], map: "dm_group_messages_expires_idx")
+  @@map("dm_group_messages")
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -113,6 +113,26 @@ export function ReportCard({
           {text}
         </div>
       )}
+      {r.dmGroupSnapshot && (
+        <div className="preview small" data-group-snapshot={r.id}>
+          <div>
+            {t('repGroupMembers', {
+              n: String(r.dmGroupSnapshot.memberCount),
+              names: r.dmGroupSnapshot.members.map((u) => `@${u}`).join('، '),
+            })}
+          </div>
+          {r.dmGroupSnapshot.thread && r.dmGroupSnapshot.thread.messages.length > 0 && (
+            <details>
+              <summary>{t('repGroupMessages', { n: String(r.dmGroupSnapshot.thread.messages.length) })}</summary>
+              {r.dmGroupSnapshot.thread.messages.slice(-20).map((m) => (
+                <div key={m.id}>
+                  <span className="ltr">@{m.sender ?? '?'}</span>: {m.text ?? m.kind}
+                </div>
+              ))}
+            </details>
+          )}
+        </div>
+      )}
       {p.gone && <p className="muted small">{t('targetGone')}</p>}
       <div className="small muted">
         {t('reportedBy')}: {r.reporter ? <span className="ltr">@{r.reporter.username}</span> : t('none')}

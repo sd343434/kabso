@@ -207,6 +207,24 @@ abstract final class AppRoutes {
   static String chat(String username) =>
       '/messages/${Uri.encodeComponent(username)}';
 
+  /// D339 (§10.133): «مجموعة جديدة» — the photo, the name and the people.
+  static const newGroup = '/message-groups/new';
+
+  /// D339: a group conversation.
+  static const groupChatPattern = '/message-groups/:groupId';
+  static String groupChat(String groupId) =>
+      '/message-groups/${Uri.encodeComponent(groupId)}';
+
+  /// D339: «معلومات المجموعة» (members, roles, rename, photo, leave).
+  static const groupInfoPattern = '/message-groups/:groupId/info';
+  static String groupInfo(String groupId) =>
+      '/message-groups/${Uri.encodeComponent(groupId)}/info';
+
+  /// D339: «إضافة أعضاء» (admins).
+  static const groupAddPattern = '/message-groups/:groupId/add';
+  static String groupAdd(String groupId) =>
+      '/message-groups/${Uri.encodeComponent(groupId)}/add';
+
   /// D58: edit the own profile (read-only until the contract allows saving).
   static const editProfile = '/profile/edit';
 

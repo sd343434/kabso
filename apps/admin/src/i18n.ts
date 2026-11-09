@@ -261,6 +261,10 @@ const ar = {
   typeFAMILY_CHAT_MESSAGE: 'رسالة عائلة',
   typeDM_MESSAGE: 'رسالة خاصة',
   typePROFILE_LINK: 'رابط في الملف',
+  // v1.103-social (D339): a group conversation «رسائل جماعية».
+  typeDM_GROUP: 'مجموعة رسائل',
+  repGroupMembers: 'الأعضاء ({n}): {names}',
+  repGroupMessages: 'آخر الرسائل وقت البلاغ ({n})',
   // site
   siteTitle: 'إعدادات الموقع',
   siteSubtitle: 'روابط التواصل في تذييل الموقع العام وزر «شحن العملات». الرابط الفارغ يُخفي أيقونته.',
@@ -667,6 +671,9 @@ const en: Record<Key, string> = {
   typeFAMILY_CHAT_MESSAGE: 'Family chat message',
   typeDM_MESSAGE: 'Direct message',
   typePROFILE_LINK: 'Profile link',
+  typeDM_GROUP: 'Group chat',
+  repGroupMembers: 'Members ({n}): {names}',
+  repGroupMessages: 'Newest messages when reported ({n})',
   siteTitle: 'Website settings',
   siteSubtitle: 'The social links in the public website footer and the «Buy coins» link. An empty link hides its icon.',
   instagram: 'Instagram',
