@@ -9673,8 +9673,15 @@ reference's blue / pink), light and dark; Arabic RTL mirrors English LTR. One sc
   gradient without one). Loading, an empty tray or a failed tray show the caller's card alone — nothing is
   guessed. Followed accounts that are only live are not cards here (the posts page keeps D218's live ring).
   The stories step aside while the conversation search is open.
-- **«الرسائل» / "Messages"** (23 sp bold) with «من يستطيع مراسلتك» (D155) and search (D165, the field takes the
-  title's place), then the two boxes «الدردشات» / «طلبات المراسلة (n)» (D155 — not in the reference; kept).
+- **«الرسائل» / "Messages"** (23 sp bold) with, at the reading end, the **boxes button**, «من يستطيع مراسلتك»
+  (D155) and search (D165, the field takes the title's place). *Owner follow-up (2026-11-09): «الدردشات، طلبات
+  المراسلة، المؤرشفة، رسائل جماعية — يمكن وضع بجانب الفلتر خانة تفتحها، وأزلها كأيقونات».* No row of boxes in the
+  page: the boxes button (a chevron that turns; «صناديق الرسائل» / "Message boxes"; also shown while searching —
+  each box is searched on its own) carries the pending requests as a red count and opens a panel under the header
+  (animated; instant with reduced motion) listing the boxes as rows — «الدردشات» and «طلبات المراسلة» with its
+  count (D155). A row opens its box and closes the panel; tapping the button again closes it; the title names the
+  requests box while it is open. The app has **no archived and no group conversations** (not in the contract), so
+  the panel has no row for them.
 - **Rows** (80.5 dp pitch): a 64 dp round picture at 23 dp, 20 dp to the text; the name (16 sp, medium; semibold
   while unread) with the verification seal (D293) and the muted icon; the preview (14.5 sp, tertiary grey, one
   line — pictures, voice, stickers and gifts as before); at the reading end the **compact time** («5د» / "5m",
