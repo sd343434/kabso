@@ -500,6 +500,9 @@ export interface AppConfig {
     /** v1.82-live (D295, §10.108): a creator's live — non-lucky gifts (70 %) and quips (60 %), basis points. */
     readonly creatorShareBps: number;
     readonly creatorQuipShareBps: number;
+    /** v1.106-social (D341, §10.140): a normal gift to direct recipients only (no agency) — a host's 70 %, a creator's 75 %. */
+    readonly directHostShareBps: number;
+    readonly directCreatorShareBps: number;
     /** v1.100-social (D312, §10.118): a custom gift — the recipients' share and the gift owner's coin share, bps. */
     readonly customShareBps: number;
     readonly customOwnerBps: number;
@@ -786,6 +789,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       hostShareBps: e.GIFT_HOST_SHARE_PERCENTS,
       creatorShareBps: e.GIFT_CREATOR_SHARE_PERCENT,
       creatorQuipShareBps: e.GIFT_CREATOR_QUIP_SHARE_PERCENT,
+      directHostShareBps: e.GIFT_DIRECT_HOST_SHARE_PERCENT,
+      directCreatorShareBps: e.GIFT_DIRECT_CREATOR_SHARE_PERCENT,
       customShareBps: e.GIFT_CUSTOM_SHARE_PERCENT,
       customOwnerBps: e.GIFT_CUSTOM_OWNER_PERCENT,
       quipMaxWaitMs: e.QUIP_QUEUE_MAX_WAIT_SECONDS * 1000,
