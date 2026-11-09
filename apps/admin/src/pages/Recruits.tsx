@@ -338,6 +338,63 @@ function SettingsCard({ settings, onSaved }: { settings: Settings; onSaved: () =
 }
 
 /** «الاستقطاب» — the OWNER's view of every staff member's recruits. */
+/** D343 (§10.142): one account created with a supervisor's staff ID (`AdminSignupRecruit`). */
+export interface SignupRecruit {
+  user: Summary;
+  recruiter: Summary;
+  code: string;
+  status: 'GRANTED' | 'WITHHELD';
+  withholdReason: 'DEVICE_HAD_ACCOUNT' | 'EMAIL_HAD_ACCOUNT' | 'RECRUITER_INACTIVE' | null;
+  createdAt: string;
+}
+
+/** D343: «التسجيل برمز المشرف» — credited or withheld, and why. */
+export function SignupRecruitsTable({ rows }: { rows: SignupRecruit[] }) {
+  const { t, lang } = useApp();
+  if (rows.length === 0) return <p className="muted">{t('signupRecruitsNone')}</p>;
+  return (
+    <div className="table-wrap">
+      <table className="table" data-signup-recruits>
+        <thead>
+          <tr>
+            <th>{t('signupRecruitsUser')}</th>
+            <th>{t('recruitsRecruiter')}</th>
+            <th>{t('signupRecruitsCode')}</th>
+            <th>{t('signupRecruitsCredit')}</th>
+            <th>{t('signupRecruitsAt')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.user.id} data-status={r.status}>
+              <td>
+                <UserCell username={r.user.username} displayName={r.user.displayName} avatarUrl={r.user.avatarUrl} />
+              </td>
+              <td>
+                <UserCell
+                  username={r.recruiter.username}
+                  displayName={r.recruiter.displayName}
+                  avatarUrl={r.recruiter.avatarUrl}
+                />
+              </td>
+              <td className="ltr">{r.code}</td>
+              <td>
+                <span className={`badge ${r.status === 'GRANTED' ? 'ok' : 'warn'}`}>{t(`signupCredit${r.status}`)}</span>
+                {r.withholdReason && (
+                  <div className="muted small" data-withhold-reason>
+                    {t(`signupWithhold${r.withholdReason}`)}
+                  </div>
+                )}
+              </td>
+              <td>{formatDate(r.createdAt, lang)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function Recruits() {
   const { t, lang, can } = useApp();
   const [staff, setStaff] = useState<string | null>(null);
@@ -349,6 +406,10 @@ export function Recruits() {
   const list = useAsync(
     () => api.get<{ data: AdminRecruit[] }>('/admin/recruits', { recruiter: staff, type }),
     [staff, type],
+  );
+  const signups = useAsync(
+    () => api.get<{ data: SignupRecruit[] }>('/admin/recruits/signups', { recruiter: staff }),
+    [staff],
   );
   return (
     <div className="page" data-page="recruits">
@@ -416,6 +477,12 @@ export function Recruits() {
           onReassign={can('recruits.manage') ? setMoving : undefined}
         />
       )}
+      <div className="card" data-signup-card>
+        <h2>{t('signupRecruitsTitle')}</h2>
+        <p className="muted small">{t('signupRecruitsIntro')}</p>
+        <ErrorAlert error={signups.error} />
+        {signups.loading ? <Loading /> : <SignupRecruitsTable rows={signups.data?.data ?? []} />}
+      </div>
       {open && <DaysPanel path={`/admin/recruits/${open.id}/commissions`} onClose={() => setOpen(null)} />}
       {moving && (
         <FormDialog

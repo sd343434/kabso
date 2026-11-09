@@ -756,6 +756,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.108-social (draft) | 2026-11-09 | **D343 (owner: «في انشاء الحساب هناك صندوق يدخل شخص اما رمز الدعوة او رمز المشرف … النظام يعرف ان كان الشخص قام بتحميل التطبيق قبل»):** `RegisterRequest.referralCode` also takes a supervisor's staff ID; `register` 400 `referralCode` `not_found`; `checkSignupCode` (`POST /auth/signup-code/check`, public); `StaffRecruitList.signupCode` / `signupLink` / `signups`; `listAdminSignupRecruits`, `AdminSignupRecruit`, `SignupCreditStatus`; referral reject reasons `DEVICE_HAD_ACCOUNT`, `EMAIL_HAD_ACCOUNT`; settings SIGNUP_IDENTITY_RETENTION_DAYS (365), RATE_LIMIT_SIGNUP_CODE_IP (30/600). Migration `20270415090000_signup_codes`. §10.142. | **Additive**, except: an unknown code at sign-up is now a 400 on `referralCode` (was a silent 202 without a referral). |
 | v1.102-social (draft) | 2026-11-09 | **D334 (owner answers to the events v2 questions, 2026-11-09):** `EventAudience` HOSTS counts content creators as hosts on the events made after D334 (`AdminGiftEvent.creatorsAsHosts`; older events keep D295); `listHomeBanners` lists an event's banner to that event's audience only (any audience may have one; a guest: EVERYONE only); free pieces of an event's own gift sent from the bag credit the recipients nothing (`LiveGift` share 0); `GiftEventForm.boards[].shown` «عدد المعروضين» (1–100, default 20; editable while running), `EventBoard.shown`, `EventLeaderboard.shown`; the launch festival's gifts «هدية المهرجان 1…4» with FULLSCREEN on the 1 000 000 / 3 000 000 gifts; held milestones of an event without board prizes wait for the release. Migration `20270409090200_events_v2_followups`. §10.127.11. | **Additive** for the app (new optional fields; a HOSTS event's audience grows by content creators; a creator now sees a new HOSTS event's banner). **Panel:** `shown` optional; an older panel omits it (kept). |
 | v1.101-social (draft) | 2026-11-09 | **D325 (owner: «الفعاليات … لم تكن مضبوطة» — events v2, one events system; phase A server + panel):** `GiftEventForm` `status` DRAFT / PUBLISHED, nullable dates for a draft, `permanent`, `recurrence`, `scoring` COINS / MULTIPLIER (`pointsPerCoin` a decimal), `countedGifts`, `milestones`, `bannerMediaId`; `EventAudience` (+ AGENCIES, CP); prize type `GIFT_PIECES`, `displayKey` on every prize item (`uploadAdminEventMedia` kind `prize`); `createAdminGift.eventId`, `createAdminStoreItem.eventId`, `listAdminStoreItems?eventId=`, `getAdminEventOptions?eventId=`; `publishAdminEvent`, `unpublishAdminEvent`, `discardAdminEvent`, `changeStaffEvent` publish / unpublish / discard; `createAdminLaunchFestival`; `getRunningEvents`, `getEventMilestones`, `getEventLeaderboard?period=previous`, `EventLeaderboard.period`, a gift event's board top 20; `EventDetail` `recurrence`, `scoring`, `countedGifts`, `period`, `milestones`, `art.titleFormat`, overlay `MP4`; `EventGift` `multiplier`, `exclusive`, `animationUrl`, `fullscreen`; `EventPrizeItem` `GIFT_PIECES`, `count`, `displayUrl`, `stillUrl`, `animationUrl`; notification `EVENT_STARTED`. Migrations `20270409090000_events_v2_enums`, `20270409090100_events_v2`. §10.127 (extends §10.114). | **Additive** for the app (drafts never reach it; whole-number `pointsPerCoin` kept; new values ignored by clients). **Panel:** a published body without gifts or boards stays a 400; a draft body is new. |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
@@ -10445,3 +10446,81 @@ prizes), so a used gift is never removed. §10.131 follows §10.130 (D337); §10
   `pieces`; `AdminGiftDeleted`, `AdminGiftRestored`.
 - Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change (the bag already lists
   what the server returns).
+
+### 10.142 «رمز الدعوة أو رمز المشرف»: one sign-up code, the personal link, credit only for a new person *(v1.108-social, DRAFT — D343)*
+
+Owner (2026-11-09): «في انشاء الحساب هناك صندوق يدخل شخص اما رمز الدعوة او رمز المشرف الذي استقطبه. يمكن للمشرف ايضاً
+ارسال رابطه للشخص ليقوم بتحميل التطبيق والنظام يأخذ المستخدم الجديد وحده بحيث يدخل رمز الدعوة تلقائي عند انشاء حساب،
+النظام يعرف ان كان الشخص قام بتحميل التطبيق قبل المرة يلا يعتبره مستخدم جديد ولا حالة استقطاب. واريد تصميم صفحة انشاء
+الحساب بشكل ابسط وازالة كابي من الصفحة هذه». Builds on D217 (§10.71, invite codes), D223 (§10.75, the stable device id),
+D250 (sessions keep the device HMAC) and D285 (§10.96.13, recruitment by staff). §10.132–§10.141 are left for the work
+in flight.
+
+- **The codes accepted** (one optional field, `RegisterRequest.referralCode`, ≤ 200 characters, spaces / dashes ignored,
+  any case, an invite link `…/i/<code>` read): **INVITE** — a D217 invite code of an ACTIVE account (8 characters, no
+  `O`); **SUPERVISOR** — a staff ID «Kabso07» (`@` optional, leading zeros optional) of an ACTIVE staff member holding
+  MODERATION or BD now (D285's recruiters). They never collide (every staff ID contains `O`). Not accepted: staff
+  usernames (the field names a code, and a staff ID is public), SUPPORT / FINANCE / OWNER staff IDs (they do not
+  recruit), agency invite codes (D179: they attach an existing host to an agency, with the agency's approval — not a
+  sign-up attribution; owner decision if wanted).
+- **Validation, server side.** `checkSignupCode` (`POST /api/v1/auth/signup-code/check`, public, `signup_code:ip`
+  RATE_LIMIT_SIGNUP_CODE_IP 30 / 10 min): 200 `{kind, code}` (the stored form), or 400 `VALIDATION_FAILED` `code`
+  `invalid_format` / `not_found`. `register` answers the same 400 on `referralCode` before the username, the password
+  hash and the email are looked at (the answer depends on the code only — no address is revealed). `not_found` covers
+  unknown, a closed or suspended account, a staff ID of someone who left the team or does not recruit — never told
+  apart; nothing about the owner of a code is returned (no name, no username). The programme switched off (D217
+  `enabled` false) does not make an invite code unknown: the account is created without a referral, as before.
+- **Attribution** (once the account exists, in a transaction of its own after the account's — no attribution problem
+  ever fails a sign-up): an INVITE code makes the D217 referral (`attachReferralIn`, source SIGNUP); a SUPERVISOR code
+  makes one `staff_signup_recruits` row `{user, recruiter, code, status GRANTED | WITHHELD, withholdReason, createdAt}`
+  (audited `staff.recruit.signup` `{code, recruiter, status, reason}`). A GRANTED row makes that supervisor the
+  recruiter of the person's later host / creator / agency / recharge-agent application (`recruiterOfForm`; the form's
+  own field is then not read) while the supervisor can still recruit; the D285 attribution then happens at the
+  activation as before, with its commission. The supervisor's sign-ups are counted in `getMyStaffRecruits`
+  (`signups.granted` / `withheld`); the OWNER sees them in `listAdminSignupRecruits` (`recruits.view`).
+- **Cannot be changed after sign-up.** An account with a supervisor row cannot enter an invite code later
+  (`applyReferralCode` 409 `REFERRAL_NOT_ALLOWED` `ALREADY_REFERRED`); a referral stays one per account (D217); a
+  supervisor row is never edited (D285's OWNER reassignment applies to recruitments, not to this row).
+- **Credit only for a new person** (both kinds). The account is always created; only the credit is withheld, with the
+  reason, in order:
+  - `SELF_DEVICE` (INVITE): the device's other accounts include the inviter (also D217's install-id rule);
+  - D217's `SELF_EMAIL`, `SELF_IP`, `DUPLICATE_DEVICE`, `DUPLICATE_EMAIL` (INVITE) unchanged;
+  - `RECRUITER_INACTIVE` (SUPERVISOR): the supervisor could not recruit any more at the account's creation;
+  - **`DEVICE_HAD_ACCOUNT`**: the new account's device (its `device_signups` HMAC, D223) knew another account — one
+    created on it (any status: a purged account's tombstone row too) or one signed in on it (any `sessions` row with the
+    same `device_hash`, signed-out ones too, D250). Without a device key (the website, an app older than D223) this half
+    cannot run (KNOWN_LIMITATIONS);
+  - **`EMAIL_HAD_ACCOUNT`**: another account was created with the same mailbox (alias-folded like D217:
+    `canonicalEmail`) — live, or purged less than SIGNUP_IDENTITY_RETENTION_DAYS ago.
+  A withheld INVITE is a REJECTED referral (no reward, D217's panel shows the reason); a withheld SUPERVISOR is a
+  WITHHELD row (never the recruiter of a later application). **No fingerprinting:** no IP or user-agent matching is
+  used for this rule (D217's existing SELF_IP inviter check is unchanged).
+- **What is kept (data minimisation).** The device: nothing new — the D223 HMAC already kept per account
+  (`device_signups`) and per session. The mailbox: `signup_email_marks` `{user_id, email_hash, created_at, purged_at}` —
+  HMAC-SHA-256 of the canonical mailbox under a key from HKDF(SIGNUP_DEVICE_KEY when set, else RATE_LIMIT_KEY_SECRET;
+  info `signup-email/v1`), never the address; written at the account's creation, and by the referral sweeper (500 per
+  run) for accounts that existed before the migration (the key is not in the database). Read only by this rule; never
+  shown (not in the panel, not in the data export — an internal anti-abuse signal like D223's).
+- **Deletion and retention.** At the purge (D193) the mark gets `purged_at`; SIGNUP_IDENTITY_RETENTION_DAYS (default
+  **365**, 30–2557) later the referral sweeper deletes it — after that the mailbox counts as new again. The device HMAC
+  follows D223 (kept with the tombstone). A `staff_signup_recruits` row stays with the tombstone like D285's
+  recruitments (ids, the staff ID typed, the status; no personal data). Changing the key source makes every mailbox new.
+- **The personal link.** A supervisor's is `<APP_PUBLIC_URL>/i/<staffId>` (`StaffRecruitList.signupLink`,
+  `signupCode`; app: «رابطك الشخصي» on «استقطاباتي» with «نسخ الرابط» / «مشاركة»); an inviter's stays
+  `MyReferral.link` (D217). The website's `/i/<code>` (Caddy → `invite.html`): Kabso branding, the code with «نسخ
+  الرمز», «مشرف من كابسو لايف يدعوك» for a staff ID, and the download buttons of `config.json` `apps`:
+  - **Google Play** (shown when `apps.playListed` is true): `https://play.google.com/store/apps/details?id=<androidPackage>
+    &referrer=kabso_code%3D<code>`; the app reads the Play Install Referrer once per install (Google's
+    `com.android.installreferrer:installreferrer:2.2` over the `com.kabso/install_referrer` channel — no pub package)
+    and pre-fills the field with «أُضيف تلقائياً من رابط الدعوة. يمكنك إزالته.»; the code is kept in the app's
+    preferences until a sign-up is sent with it or the person removes it;
+  - **the direct APK** (`apps.apkUrl`, the staging mirror `https://live.<domain>/app/`) and **the App Store**
+    (`apps.appStoreUrl`): no referrer exists, so the page explains «لديك رمز دعوة؟» → «لصق الرمز», and the app reads
+    the clipboard **only when «لصق الرمز» is tapped** (never on open, never silently).
+  The page stays tracker-free (`scripts/check-site-no-tracking.sh`): plain links, no cookie, no third-party script; the
+  code leaves the page only inside the Play link the visitor taps.
+- **The app's sign-up page** (owner: «ابسط وازالة كابي»): no Kabi stage (AuthScaffold without `hero`: the wordmark, the
+  back button and the language switch in the bar, the title), the fields as before, the code field collapsed under
+  «لديك رمز دعوة؟» unless pre-filled, a live check under the field after a 500 ms pause («رمز دعوة من صديق» / «رمز
+  المشرف Kabso07» / «الرمز غير صحيح. تأكد منه أو اتركه فارغاً.»; offline: nothing), the 400 shown on the field, one
+  primary button. Login keeps its own design (it never used this layout).

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
@@ -9,6 +10,7 @@ import 'package:kabso_live/features/recruits/data/recruits_repository.dart';
 import 'package:kabso_live/features/wallet/presentation/cherry_withdraw_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// The type's name in the app's language.
 String recruitTypeName(AppLocalizations l10n, RecruitType t) => switch (t) {
@@ -85,6 +87,10 @@ class _StaffRecruitsScreenState extends ConsumerState<StaffRecruitsScreen> {
             key: StaffRecruitsScreen.listKey,
             padding: const EdgeInsets.all(KSpacing.lg),
             children: [
+              if (value.signupLink != null) ...[
+                SignupLinkCard(list: value),
+                const SizedBox(height: KSpacing.lg),
+              ],
               Text(
                 l10n.staffRecruitsIntro,
                 style: t.body.copyWith(color: p.textSecondary),
@@ -536,6 +542,120 @@ class _Line extends StatelessWidget {
           ),
           Text(trailing, style: t.label.copyWith(color: p.success)),
         ],
+      ),
+    );
+  }
+}
+
+/// v1.108-social (D343, §10.142): the supervisor's personal link «رابطك
+/// الشخصي» — the code a new person types, the link to send (it opens the
+/// website, which offers the app with the code), «نسخ الرابط» / «مشاركة»
+/// and how many signed up with it.
+class SignupLinkCard extends StatelessWidget {
+  const new({required this.list, super.key});
+
+  static const cardKey = Key('staffRecruits.signupLink');
+  static const copyKey = Key('staffRecruits.signupLink.copy');
+  static const shareKey = Key('staffRecruits.signupLink.share');
+
+  final StaffRecruitList list;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final link = list.signupLink!;
+    final code = list.signupCode ?? '';
+    return Card(
+      key: cardKey,
+      color: p.surface,
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(KSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.link_rounded, color: p.primary),
+                const SizedBox(width: KSpacing.sm),
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.staffSignupLinkTitle,
+                      style: t.title.copyWith(color: p.textPrimary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: KSpacing.sm),
+            Text(
+              l10n.staffSignupLinkBody(code),
+              style: t.body.copyWith(color: p.textSecondary),
+            ),
+            const SizedBox(height: KSpacing.md),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: KSpacing.md,
+                vertical: KSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: p.background,
+                borderRadius: BorderRadius.circular(KRadius.sm),
+                border: Border.all(color: p.border),
+              ),
+              child: SelectableText(
+                link,
+                textDirection: TextDirection.ltr,
+                style: t.bodyStrong.copyWith(color: p.textPrimary),
+              ),
+            ),
+            const SizedBox(height: KSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: KButton(
+                    key: copyKey,
+                    label: l10n.staffSignupLinkCopy,
+                    variant: KButtonVariant.secondary,
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: link));
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                        SnackBar(content: Text(l10n.staffSignupLinkCopied)),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: KSpacing.sm),
+                Expanded(
+                  child: KButton(
+                    key: shareKey,
+                    label: l10n.staffSignupLinkShare,
+                    onPressed: () => SharePlus.instance.share(
+                      ShareParams(
+                        text: '${l10n.staffSignupLinkBody(code)}\n$link',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: KSpacing.md),
+            Text(
+              l10n.staffSignupCounts(list.signupsGranted, list.signupsWithheld),
+              style: t.bodyStrong.copyWith(color: p.textPrimary),
+            ),
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.staffSignupWithheldNote,
+              style: t.caption.copyWith(color: p.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }

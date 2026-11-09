@@ -13,7 +13,8 @@ import {
   profileTagIconsSchema,
   profileTagsSchema,
 } from '../users/profile-fields.js';
-import { installIdSchema, referralCodeInput } from '../referrals/referral-rules.js';
+import { installIdSchema } from '../referrals/referral-rules.js';
+import { signupCodeInput } from '../referrals/signup-codes.js';
 import { deviceKeySchema } from './device-signups.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
@@ -118,9 +119,10 @@ export const registerSchema = z.strictObject({
   device: deviceInfoSchema.optional(),
   /**
    * v1.74-social (D217, §10.71): an invite code (or invite link) typed at sign-up, or from the link that opened the
-   * app. Only its format is checked here (the answer stays the same 202); it is applied when the account is created.
+   * app. v1.108-social (D343, §10.142): or a supervisor's staff ID («رمز الدعوة أو رمز المشرف»); `register` answers 400
+   * `referralCode` `not_found` for a code nobody can use now; it is applied when the account is created.
    */
-  referralCode: referralCodeInput.optional(),
+  referralCode: signupCodeInput.optional(),
   /**
    * v1.66-social (D198, §10.61.2): the sign-up's «عمري 18 عاماً أو أكثر وأوافق على الشروط وسياسة الخصوصية» — the 18+
    * statement and the versions of the terms and the privacy policy shown (from `getLegalDocuments`). Optional for
@@ -177,6 +179,9 @@ export const registerVerifySchema = z.strictObject({
 export type RegisterVerifyInput = z.output<typeof registerVerifySchema>;
 
 export const registerResendSchema = z.strictObject({ email: emailSchema });
+
+/** v1.108-social (D343, §10.142): `CheckSignupCodeRequest` — the sign-up field's live check. */
+export const checkSignupCodeSchema = z.strictObject({ code: signupCodeInput });
 
 /** v1.45-social (D168, CONVENTIONS §10.42): a bio — ≤ 300 code points, ≤ 4 line breaks, §6 hygiene. */
 export const BIO_LIMITS: ContentTextLimits = { maxCodePoints: 300, maxLineBreaks: 4, allowEmpty: true };

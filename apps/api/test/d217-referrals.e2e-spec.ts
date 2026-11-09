@@ -403,10 +403,14 @@ describe('D217 «دعوة الأصدقاء»', { timeout: 900_000 }, () => {
   it('sign-up with the code: held 24 h, credited once as REFERRAL_REWARD, milestone 1, ticker, nothing twice', async () => {
     const a = await signup();
     const code = (await mine(a)).code;
-    // The format only at sign-up: a malformed code is a 400; an unknown one still 202 and no referral.
+    // A malformed code is a 400; v1.108-social (D343, §10.142): an unknown one is a 400 `not_found` too (owner: a clear
+    // error at sign-up), and a sign-up without a code makes no referral.
     const bad = await signupRaw({ code: '!!' });
     expect(bad.reg.status).toBe(400);
-    const stranger = await signup({ code: 'ZZZZZZZZ' });
+    const unknown = await signupRaw({ code: 'ZZZZZZZZ' });
+    expect(unknown.reg.status).toBe(400);
+    expect(issueOf(unknown.reg)).toBe('not_found');
+    const stranger = await signup();
     expect(await referralOf(stranger)).toBeNull();
 
     const b = await signup({ code: `${code.slice(0, 4).toLowerCase()}-${code.slice(4)}` });

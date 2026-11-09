@@ -48,6 +48,8 @@ const PUBLIC_ALLOWLIST = [
   // Contract v1.2 (KL-019): verify-first registration adds two public routes.
   'POST /api/v1/auth/register/verify',
   'POST /api/v1/auth/register/resend',
+  // v1.108-social (D343, §10.142): the sign-up code's live check (says only INVITE / SUPERVISOR; per-IP limit).
+  'POST /api/v1/auth/signup-code/check',
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/refresh',
   'POST /api/v1/auth/email/verify',

@@ -46,3 +46,14 @@ footer a{color:rgba(255,255,255,.65);text-decoration:none}
 footer a:hover{color:#fff;text-decoration:underline}
 footer a[aria-current=page]{color:#fff}
 footer .copy{direction:ltr}
+/* v1.108-social (D343): the invite landing page /i/<code> — logo, code, store buttons. */
+article.invite{text-align:center;max-width:560px;margin-inline:auto}
+.invite-logo{display:block;margin:0 auto 12px;width:72px;height:auto}
+.invite-code{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;margin:18px 0;padding:14px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.invite-code b{font:800 22px/1.2 Inter,Cairo,sans-serif;letter-spacing:.06em}
+.note-inline{font-size:13px;color:var(--mut)}
+.stores{display:flex;flex-direction:column;gap:10px;margin:18px 0 6px}
+.store{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 18px;border-radius:14px;background:var(--red);color:#fff;text-decoration:none;font-weight:800;font-size:16px}
+.store:hover,.store:focus-visible{background:var(--red2);color:#fff}
+.store.alt{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18)}
+.store.alt:hover{background:rgba(255,255,255,.16)}

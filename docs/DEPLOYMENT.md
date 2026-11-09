@@ -3687,3 +3687,27 @@ CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم ولي�
 - **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
   and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
   first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.
+
+### 5.106 «رمز الدعوة أو رمز المشرف» at sign-up (migration `20270415090000_signup_codes`; D343) — [IMPLEMENTED, draft contract v1.108-social; not deployed, not device-tested]
+
+CONVENTIONS §10.142. §5.102–§5.105 are left for the work in flight.
+
+- **Migration:** enum `signup_credit_status`, tables `staff_signup_recruits` and `signup_email_marks` (empty), and the
+  partial index `sessions_device_hash_all_idx` on `sessions(device_hash)` (built on a live table: on a large `sessions`
+  table run it in a quiet hour). No data change.
+- **Config (optional):** `SIGNUP_IDENTITY_RETENTION_DAYS` (365; how long a purged account's mailbox mark is kept),
+  `RATE_LIMIT_SIGNUP_CODE_IP` (30/600). The mark key derives from `SIGNUP_DEVICE_KEY`, else `RATE_LIMIT_KEY_SECRET` —
+  rotating it makes every mailbox count as new. The referral sweeper (`REFERRAL_SWEEP_INTERVAL_SECONDS`, already
+  required non-zero in production) writes the marks of existing accounts (500 per run) and deletes expired ones.
+- **Order:** migration, API, admin panel, website (`invite.html`, `assets/invite.js`, `assets/legal.css`,
+  `config.json` `apps`), then the app (the new sign-up page and the referrer channel need a new build).
+- **Website `config.json` `apps`:** `androidPackage` (`com.kabso.kabso_live`), `playListed` (false until the app is
+  live on Google Play — then true, so the Play button carries the code), `appStoreUrl` (empty until the App Store
+  listing exists; must start with `https://apps.apple.com/`), `apkUrl` (`https://live.kabsolive.com/app/`, the staging
+  mirror; empty hides it).
+- **Android build:** a new Gradle dependency `com.android.installreferrer:installreferrer:2.2` (Google Maven; no
+  permission). Play Console: nothing to enable — the referrer of a Play link is delivered to every app automatically.
+- **Behaviour change:** an unknown code at sign-up is now a 400 on the field (older apps show their generic invite-code
+  error there).
+- **Rollback:** an older API ignores the tables; a staff ID typed at sign-up then fails the format check of the old
+  rule only if it is not 6–16 letters/digits («Kabso07» passes and is silently ignored).

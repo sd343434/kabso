@@ -16800,4 +16800,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dmBoxes => 'Message boxes';
+
+  @override
+  String get signupCodeToggle => 'Have an invite code?';
+
+  @override
+  String get signupCodeLabel => 'Invite or supervisor code (optional)';
+
+  @override
+  String get signupCodeHelper =>
+      'A friend\'s invite code, or the code of the supervisor who brought you. It cannot be changed after you sign up.';
+
+  @override
+  String get signupCodePaste => 'Paste code';
+
+  @override
+  String get signupCodeRemove => 'Remove code';
+
+  @override
+  String get signupCodeFromLink =>
+      'Added from your invite link. You can remove it.';
+
+  @override
+  String get signupCodeChecking => 'Checking the code…';
+
+  @override
+  String get signupCodeInviteOk => 'A friend\'s invite code';
+
+  @override
+  String signupCodeSupervisorOk(String code) {
+    return 'Supervisor code $code';
+  }
+
+  @override
+  String get signupCodeNotFound =>
+      'This code is not valid. Check it or leave it empty.';
+
+  @override
+  String get signupCodeClipboardEmpty => 'There is no code in the clipboard';
+
+  @override
+  String get staffSignupLinkTitle => 'Your personal link';
+
+  @override
+  String staffSignupLinkBody(String code) {
+    return 'Send it to the people you bring: they get the app and your code $code is added when they sign up.';
+  }
+
+  @override
+  String get staffSignupLinkCopy => 'Copy link';
+
+  @override
+  String get staffSignupLinkShare => 'Share';
+
+  @override
+  String get staffSignupLinkCopied => 'Link copied';
+
+  @override
+  String staffSignupCounts(int granted, int withheld) {
+    return 'Signed up with your code: $granted · Not counted: $withheld';
+  }
+
+  @override
+  String get staffSignupWithheldNote =>
+      'People who already had an account on the same phone, or signed up with the same email before, are not counted.';
 }

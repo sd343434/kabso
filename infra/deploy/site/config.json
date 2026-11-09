@@ -19,5 +19,11 @@
       "version": "2026-11-01",
       "effective": ""
     }
+  },
+  "apps": {
+    "androidPackage": "com.kabso.kabso_live",
+    "playListed": false,
+    "appStoreUrl": "",
+    "apkUrl": "https://live.kabsolive.com/app/"
   }
 }

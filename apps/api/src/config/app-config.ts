@@ -105,6 +105,8 @@ export interface AppConfig {
     readonly loginAccount: RateLimitRule;
     readonly loginIp: RateLimitRule;
     readonly registerIp: RateLimitRule;
+    /** v1.108-social (D343): `checkSignupCode` per IP. */
+    readonly signupCodeIp: RateLimitRule;
     readonly forgotEmail: RateLimitRule;
     readonly forgotIp: RateLimitRule;
     readonly refreshSession: RateLimitRule;
@@ -591,6 +593,11 @@ export interface AppConfig {
     readonly maxAccountsPerDevice: number;
     /** v1.78-social (D223): dedicated device-HMAC key source; falls back to rateLimitKeySecret. */
     readonly deviceKey: string | undefined;
+    /**
+     * v1.108-social (D343, §10.142): days a purged account's mailbox mark is kept for the sign-up credit check
+     * (SIGNUP_IDENTITY_RETENTION_DAYS).
+     */
+    readonly identityRetentionDays: number;
   };
   readonly loginRecentSuccessTtlSeconds: number;
   readonly reservedDisplayNameTerms: readonly string[];
@@ -664,6 +671,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       loginAccount: e.RATE_LIMIT_LOGIN_ACCOUNT,
       loginIp: e.RATE_LIMIT_LOGIN_IP,
       registerIp: e.RATE_LIMIT_REGISTER_IP,
+      signupCodeIp: e.RATE_LIMIT_SIGNUP_CODE_IP,
       forgotEmail: e.RATE_LIMIT_FORGOT_EMAIL,
       forgotIp: e.RATE_LIMIT_FORGOT_IP,
       refreshSession: e.RATE_LIMIT_REFRESH_SESSION,
@@ -1044,6 +1052,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cleanupIntervalSeconds: e.REGISTRATION_CLEANUP_INTERVAL_SECONDS,
       maxAccountsPerDevice: e.SIGNUP_MAX_ACCOUNTS_PER_DEVICE,
       deviceKey: e.SIGNUP_DEVICE_KEY,
+      identityRetentionDays: e.SIGNUP_IDENTITY_RETENTION_DAYS,
     },
     loginRecentSuccessTtlSeconds: e.LOGIN_RECENT_SUCCESS_TTL_SECONDS,
     reservedDisplayNameTerms: e.RESERVED_DISPLAY_NAME_TERMS,

@@ -105,10 +105,18 @@ final class StaffRecruit {
 
 /// `StaffRecruitList`.
 final class StaffRecruitList {
-  const new({required this.counts, required this.recruits});
+  const new({
+    required this.counts,
+    required this.recruits,
+    this.signupCode,
+    this.signupLink,
+    this.signupsGranted = 0,
+    this.signupsWithheld = 0,
+  });
 
   factory fromJson(Map<String, dynamic> j) {
     final c = j['counts'] as Map<String, dynamic>? ?? const {};
+    final s = j['signups'] as Map<String, dynamic>? ?? const {};
     return StaffRecruitList(
       counts: {
         for (final t in RecruitType.values) t: (c[t.wire] as num? ?? 0).toInt(),
@@ -117,11 +125,26 @@ final class StaffRecruitList {
         for (final r in j['data'] as List<dynamic>? ?? const [])
           StaffRecruit.fromJson(r as Map<String, dynamic>),
       ],
+      signupCode: j['signupCode'] as String?,
+      signupLink: j['signupLink'] as String?,
+      signupsGranted: (s['granted'] as num? ?? 0).toInt(),
+      signupsWithheld: (s['withheld'] as num? ?? 0).toInt(),
     );
   }
 
   final Map<RecruitType, int> counts;
   final List<StaffRecruit> recruits;
+
+  /// v1.108-social (D343, §10.142): the staff ID a new person types in
+  /// «رمز الدعوة أو رمز المشرف», and the personal link
+  /// `https://kabsolive.com/i/<staffId>` (null: none).
+  final String? signupCode;
+  final String? signupLink;
+
+  /// D343: accounts created with that code — counted, or withheld (the
+  /// person already had an account on the phone or the email before).
+  final int signupsGranted;
+  final int signupsWithheld;
 
   int get total => counts.values.fold(0, (a, b) => a + b);
 }

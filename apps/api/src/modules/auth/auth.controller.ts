@@ -13,6 +13,7 @@ import { bodyField, byUserId, RateLimit } from '../../common/rate-limit/rate-lim
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import {
+  checkSignupCodeSchema,
   forgotPasswordSchema,
   loginSchema,
   refreshSchema,
@@ -108,6 +109,20 @@ export class AuthController {
     @Req() req: AppRequest,
   ): Promise<AuthResponseDto> {
     return this.registration.verify(body, requestMeta(req));
+  }
+
+  /**
+   * v1.108-social (D343, §10.142): what «رمز الدعوة أو رمز المشرف» is — INVITE or SUPERVISOR — or 400 `code`
+   * (`invalid_format`, `not_found`). Nothing about the code's owner is returned.
+   */
+  @Public()
+  @Post('signup-code/check')
+  @HttpCode(200)
+  @RateLimit({ bucket: 'signup_code:ip', rule: 'signupCodeIp', key: (req) => clientIpBucket(req) })
+  checkSignupCode(
+    @Body(new ZodValidationPipe(checkSignupCodeSchema)) body: { code: string },
+  ): Promise<{ kind: 'INVITE' | 'SUPERVISOR'; code: string }> {
+    return this.registration.checkSignupCode(body.code);
   }
 
   /** v1.2: re-sends the code if a live pending registration exists; always 202. */

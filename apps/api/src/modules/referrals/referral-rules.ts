@@ -226,4 +226,12 @@ export function milestoneState(
 
 /** Why a referral is refused at the start (`referrals.reject_reason`). */
 export type ReferralRejectReason =
-  'SELF_DEVICE' | 'SELF_EMAIL' | 'SELF_IP' | 'DUPLICATE_DEVICE' | 'DUPLICATE_EMAIL';
+  | 'SELF_DEVICE'
+  | 'SELF_EMAIL'
+  | 'SELF_IP'
+  | 'DUPLICATE_DEVICE'
+  | 'DUPLICATE_EMAIL'
+  // v1.108-social (D343, §10.142): not a new person — the device already had another Kabso account, or the mailbox
+  // was registered before (a live account or one purged within SIGNUP_IDENTITY_RETENTION_DAYS).
+  | 'DEVICE_HAD_ACCOUNT'
+  | 'EMAIL_HAD_ACCOUNT';

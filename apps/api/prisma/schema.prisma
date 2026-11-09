@@ -276,6 +276,12 @@ model User {
   verificationBadge      UserVerificationBadge?
   recruitedAs            StaffRecruitment[]         @relation("StaffRecruit")
   recruitCommissions     StaffRecruitCommission[]
+  /// v1.108-social (D343): the supervisor whose staff ID this account was created with, and the sign-ups a supervisor
+  /// brought with theirs.
+  signupRecruit          StaffSignupRecruit?        @relation("StaffSignupRecruit")
+  signupRecruitsMade     StaffSignupRecruit[]       @relation("StaffSignupRecruiter")
+  /// v1.108-social (D343): the keyed hash of the mailbox this account was created with («not a new person» check).
+  signupEmailMark        SignupEmailMark?
   /// v1.74-social (D217): the person's invite code, whom they invited, who invited them, their rewards.
   referralCode           ReferralCode?
   referralsMade          Referral[]                 @relation("ReferralInviter")
@@ -507,6 +513,8 @@ model Session {
   @@index([expiresAt], map: "sessions_expires_at_idx")
   @@index([installId], map: "sessions_install_id_idx", where: raw("install_id IS NOT NULL"))
   @@index([deviceHash], map: "sessions_device_hash_idx", where: raw("device_hash IS NOT NULL AND revoked_at IS NULL"))
+  /// v1.108-social (D343): every session of a device, for the sign-up credit check.
+  @@index([deviceHash], map: "sessions_device_hash_all_idx", where: raw("device_hash IS NOT NULL"))
   @@map("sessions")
 }
 
@@ -7320,6 +7328,52 @@ model StaffRecruitCommission {
   @@index([recruiterUserId, day(sort: Desc)], map: "staff_recruit_commissions_recruiter_idx")
   @@index([day], map: "staff_recruit_commissions_day_idx")
   @@map("staff_recruit_commissions")
+}
+
+// ---- v1.108-social (D343, CONVENTIONS §10.142): the sign-up code «رمز الدعوة أو رمز المشرف» -------------------------
+
+/// D343: whether a sign-up's attribution earns its credit (GRANTED) or was withheld with a reason (WITHHELD).
+enum SignupCreditStatus {
+  GRANTED
+  WITHHELD
+
+  @@map("signup_credit_status")
+}
+
+/// D343: an account created with a supervisor's staff ID (one row per account, never changed): the supervisor, the
+/// staff ID as typed, and whether the recruit counts — WITHHELD (`withholdReason` DEVICE_HAD_ACCOUNT, EMAIL_HAD_ACCOUNT,
+/// RECRUITER_INACTIVE) when the person is not a new person or the supervisor could not recruit any more. A GRANTED
+/// row is the person's recruiter on their later host / creator / agency / recharge-agent application (D285).
+model StaffSignupRecruit {
+  userId          String             @id @map("user_id") @db.Uuid
+  recruiterUserId String             @map("recruiter_user_id") @db.Uuid
+  code            String             @db.VarChar(16)
+  status          SignupCreditStatus
+  withholdReason  String?            @map("withhold_reason") @db.VarChar(32)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user      User @relation("StaffSignupRecruit", fields: [userId], references: [id], onDelete: Cascade)
+  recruiter User @relation("StaffSignupRecruiter", fields: [recruiterUserId], references: [id], onDelete: Cascade)
+
+  @@index([recruiterUserId, createdAt(sort: Desc)], map: "staff_signup_recruits_recruiter_idx")
+  @@index([status, createdAt(sort: Desc)], map: "staff_signup_recruits_status_idx")
+  @@map("staff_signup_recruits")
+}
+
+/// D343: HMAC-SHA-256 (server key, HKDF info `signup-email/v1`) of the canonical mailbox an account was created with —
+/// never the address. Kept while the account exists and SIGNUP_IDENTITY_RETENTION_DAYS after its purge (`purgedAt`),
+/// then deleted by the referral sweeper. Read only by the sign-up credit check («ليس شخصاً جديداً»).
+model SignupEmailMark {
+  userId    String    @id @map("user_id") @db.Uuid
+  emailHash String    @map("email_hash") @db.Char(64)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  purgedAt  DateTime? @map("purged_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([emailHash], map: "signup_email_marks_hash_idx")
+  @@index([purgedAt], map: "signup_email_marks_purged_idx", where: raw("purged_at IS NOT NULL"))
+  @@map("signup_email_marks")
 }
 
 // ---- v1.89-social (D290, CONVENTIONS §10.103): level-raise requests «طلب رفع ليفيل» ------------------------------------

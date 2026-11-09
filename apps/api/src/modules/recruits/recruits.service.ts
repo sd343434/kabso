@@ -14,6 +14,7 @@ import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import type { ProfitEconomy } from '../programs/host-target-engine.js';
 import { dateValue, programWindowsIn } from '../programs/programs-time.js';
+import { keptStaffIdOf } from '../users/staff-ids.js';
 import {
   bpsOf,
   findRecruiter,
@@ -246,12 +247,50 @@ export class RecruitsService {
     const all = await this.recruits(me, undefined);
     const counts = { HOST: 0, AGENCY: 0, RECHARGE_AGENT: 0, CREATOR: 0, total: all.length };
     for (const r of all) counts[r.type] += 1;
+    // v1.108-social (D343, §10.142): the supervisor's personal link and the accounts created with their staff ID.
+    const staffId = await keptStaffIdOf(this.prisma, me);
+    const signups = await this.prisma.staffSignupRecruit.groupBy({
+      by: ['status'],
+      where: { recruiterUserId: me },
+      _count: { _all: true },
+    });
     return {
+      signupCode: staffId,
+      signupLink: staffId ? `${this.config.appPublicUrl}/i/${staffId}` : null,
+      signups: {
+        granted: signups.find((g) => g.status === 'GRANTED')?._count._all ?? 0,
+        withheld: signups.find((g) => g.status === 'WITHHELD')?._count._all ?? 0,
+      },
       counts,
       data: all
         .filter((r) => q.data.type === undefined || r.type === q.data.type)
         .map(({ recruiter: _recruiter, reassignedAt: _reassigned, ...r }) => r),
     };
+  }
+
+  /**
+   * v1.108-social (D343, §10.142): the accounts created with a supervisor's staff ID (`listAdminSignupRecruits`), newest
+   * first, at most 500 — with whether the recruit counts (GRANTED) or why it was withheld.
+   */
+  async signupRecruits(filter: { recruiter?: string; status?: 'GRANTED' | 'WITHHELD' }) {
+    const now = this.clock.now();
+    const rows = await this.prisma.staffSignupRecruit.findMany({
+      where: {
+        ...(filter.recruiter ? { recruiterUserId: filter.recruiter } : {}),
+        ...(filter.status ? { status: filter.status } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { userId: 'desc' }],
+      take: 500,
+      include: { user: { select: USER_SUMMARY_SELECT }, recruiter: { select: USER_SUMMARY_SELECT } },
+    });
+    return rows.map((r) => ({
+      user: userSummary(r.user, now),
+      recruiter: userSummary(r.recruiter, now),
+      code: r.code,
+      status: r.status,
+      withholdReason: r.withholdReason,
+      createdAt: r.createdAt.toISOString(),
+    }));
   }
 
   /** `GET /me/staff/earnings`: «أرباحي» (MODERATION / BD). */

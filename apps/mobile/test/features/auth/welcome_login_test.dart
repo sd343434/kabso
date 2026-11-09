@@ -209,7 +209,8 @@ void main() {
     await tapVisible(tester, find.byKey(JoinScreen.createKey));
     await tester.pumpAndSettle();
     expect(find.byType(RegisterScreen), findsOneWidget);
-    expect(find.byKey(AuthHero.stageKey), findsOneWidget);
+    // D343 (owner): the sign-up page has no Kabi stage any more.
+    expect(find.byKey(AuthHero.stageKey), findsNothing);
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
