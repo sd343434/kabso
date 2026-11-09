@@ -23,24 +23,36 @@ export function PrizeItemEditor({
   item,
   options,
   onChange,
+  types,
+  eventId,
+  withDisplay = false,
 }: {
   board: BoardKind;
   item: PrizeItemForm;
   options: EventOptions;
   onChange: (next: PrizeItemForm) => void;
+  /** v1.101-social (D325): the types offered (default D303's for the board). */
+  types?: PrizeType[];
+  /** v1.101-social (D325): the event whose own gifts are offered as pieces. */
+  eventId?: string;
+  /** v1.101-social (D325): an upload of the prize's display picture. */
+  withDisplay?: boolean;
 }) {
   const { t, lang } = useApp();
   const name = (o: { nameAr: string; nameEn: string }) => (lang === 'ar' ? o.nameAr : o.nameEn);
   const set = (patch: Partial<PrizeItemForm>) => onChange({ ...item, ...patch });
   const timed = item.type === 'BAG_ITEM' || item.type === 'BADGE' || item.type === 'VIP';
+  const [displayError, setDisplayError] = useState<unknown>(null);
   const codes =
     item.type === 'BAG_ITEM'
-      ? options.bagItems
+      ? options.bagItems.filter((b) => !b.eventId || b.eventId === eventId)
       : item.type === 'VIP'
         ? options.vipTiers
         : item.type === 'BADGE'
           ? (options.badges ?? [])
-          : null;
+          : item.type === 'GIFT_PIECES'
+            ? options.gifts.filter((g) => eventId !== undefined && g.eventId === eventId)
+            : null;
   const levels = item.type === 'BADGE' ? ((options.badges ?? []).find((b) => b.code === item.code)?.levels ?? []) : [];
   return (
     <span className="gev-item" data-type={item.type}>
@@ -55,7 +67,7 @@ export function PrizeItemEditor({
           })
         }
       >
-        {prizeTypesFor(board).map((p) => (
+        {(types ?? prizeTypesFor(board)).map((p) => (
           <option key={p} value={p}>
             {t(`gevItem_${p}`)}
           </option>
@@ -105,14 +117,36 @@ export function PrizeItemEditor({
         </>
       ) : (
         <input
-          aria-label={timed ? t('gevDays') : t('gevAmount')}
+          aria-label={timed ? t('gevDays') : item.type === 'GIFT_PIECES' ? t('evPieces') : t('gevAmount')}
+          title={item.type === 'GIFT_PIECES' ? t('evPieces') : undefined}
           type="number"
           min={1}
-          max={timed ? 365 : undefined}
+          max={timed ? 365 : item.type === 'GIFT_PIECES' ? 100000 : undefined}
           disabled={item.permanent === true}
           value={item.value}
           onChange={(e) => set({ value: e.target.value })}
         />
+      )}
+      {withDisplay && (
+        <label className="small gev-display" title={t('evDisplay')}>
+          {item.displayKey ? <span className="badge ok">{t('evDisplaySet')}</span> : t('evDisplay')}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            aria-label={t('evDisplay')}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setDisplayError(null);
+              uploadEventMedia('prize', file).then(
+                (up) => set({ displayKey: up.key ?? '', displayUrl: up.url ?? '' }),
+                setDisplayError,
+              );
+            }}
+          />
+          {item.displayUrl && <img className="gev-display-thumb" src={item.displayUrl} alt="" />}
+          <ErrorAlert error={displayError} />
+        </label>
       )}
       {(item.type === 'BAG_ITEM' || item.type === 'BADGE') && (
         <label className="check small">

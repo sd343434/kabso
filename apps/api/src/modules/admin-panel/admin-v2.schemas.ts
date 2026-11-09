@@ -195,6 +195,8 @@ export const createGiftBody = z
     soundMs: giftFields.soundMs.optional(),
     quipText: giftFields.quipText.optional(),
     owner: giftFields.owner.optional(),
+    /** v1.101-social (D325): the event this gift belongs to (an exclusive event gift, uploaded inside the event). */
+    eventId: z.uuid().optional(),
     reason,
   })
   .refine((v) => v.badge === undefined || v.badges === undefined, {

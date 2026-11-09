@@ -73,9 +73,19 @@ export const createStoreItemBody = z
     isNew: z.boolean().optional(),
     badges: itemBadgesInput.optional(),
     enabled: z.boolean().optional(),
+    /**
+     * v1.101-social (D325): an event-exclusive prize item (uploaded inside the event): never sold — no prices, always
+     * off and hidden from the store; granted only as that event's prize.
+     */
+    eventId: z.uuid().optional(),
     reason,
   })
-  .refine((v) => v.isNew === undefined || v.badges === undefined, badgesOrIsNew);
+  .refine((v) => v.isNew === undefined || v.badges === undefined, badgesOrIsNew)
+  .refine((v) => v.eventId === undefined || (v.prices.length === 0 && v.enabled !== true), {
+    message: 'an event prize item has no prices and is never on sale',
+    path: ['eventId'],
+    params: { issue: 'conflict' },
+  });
 export type CreateStoreItemBody = z.output<typeof createStoreItemBody>;
 
 /** The kind never changes (owners' bag rows are of that kind). */
@@ -101,6 +111,9 @@ export const storeOptionalReasonBody = z
   .strictObject({ reason: z.string().trim().max(500).optional() })
   .default({});
 export type StoreOptionalReasonBody = z.output<typeof storeOptionalReasonBody>;
+
+/** v1.101-social (D325): `GET /admin/store/items?eventId=` — that event's own prize items (else the store's). */
+export const storeItemsAdminQuery = z.strictObject({ eventId: z.uuid().optional() });
 
 /** `POST /admin/store/uploads?kind=animation|still` (an animation is an SVGA 2.x or an MP4, told by its bytes). */
 export const storeUploadQuery = z.strictObject({ kind: z.enum(['animation', 'still']) });

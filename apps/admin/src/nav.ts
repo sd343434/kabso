@@ -60,6 +60,8 @@ export const NAV: NavGroup[] = [
       { to: '/gift-categories', key: 'navGiftCategories', icon: 'list', cap: 'catalog.view', match: ['giftCategories'] },
       { to: '/items', key: 'navItems', icon: 'frame', cap: 'catalog.view', match: ['items'] },
       { to: '/promo', key: 'navPromo', icon: 'calendar', cap: 'catalog.view', match: ['promo'] },
+      // v1.101-social (D325): «الفعاليات» — every event, the step-by-step editor, drafts and publishing.
+      { to: '/events', key: 'navEvents', icon: 'calendar', cap: 'catalog.view', match: ['events'] },
       // v1.51-live (D233): the rocket stages' prices.
       { to: '/live-boost-prices', key: 'navBoostPrices', icon: 'coins', cap: 'catalog.view', match: ['boostPrices'] },
       // v1.81-live (D291): the medals and their levels.

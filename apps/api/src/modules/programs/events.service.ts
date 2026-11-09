@@ -6,7 +6,7 @@ import type { ContentLanguage } from '../../common/http/content-language.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import { Prisma, type Event, type EventMetric, type ProgramAudience } from '../../generated/prisma/client.js';
+import { Prisma, type Event, type EventAudience, type EventMetric } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
@@ -19,20 +19,27 @@ import {
   boardRankedSql,
   bundleCoins,
   bundleForRank,
+  currentWindow,
   EVENT_BOARD_KINDS,
+  EVENT_BOARD_SHOWN,
   freezeGiftEventIn,
+  grantMilestonesIn,
   parseBundle,
   parsePrizeLines,
   payGiftEventIn,
+  rollOverPeriodIn,
   type BoardRow,
   type EventBoardKind,
   type PrizeItem,
+  type PrizeItemWithDisplay,
 } from './gift-events.js';
 import { EVENT_LEADERBOARD_MAX, parseEventPrizes, prizeForRank, type EventPrize } from './programs-rules.js';
 
 type Tx = Prisma.TransactionClient;
 
 const DAY_MS = 86_400_000;
+/** The end of an open window (a permanent event): nothing is stored after now, so the window may run on. */
+const OPEN_END = new Date('9999-12-31T00:00:00Z');
 /** Ended events stay listed (permanent and regional tabs) this long. */
 const ENDED_VISIBLE_MS = 30 * DAY_MS;
 /** At most this many events in one list. */
@@ -51,8 +58,14 @@ export const eventsQuerySchema = z.strictObject({
 
 export type EventStatus = 'UPCOMING' | 'RUNNING' | 'ENDED';
 
-/** v1.97-social (D303): `getEventLeaderboard?board=` (a gift event's board; a D166 event takes none). */
-export const leaderboardQuerySchema = z.strictObject({ board: z.enum(EVENT_BOARD_KINDS).optional() });
+/**
+ * v1.97-social (D303): `getEventLeaderboard?board=` (a gift event's board; a D166 event takes none). v1.101-social
+ * (D325): `period=current|previous` (a recurring gift event's last frozen period: «الفترة السابقة»).
+ */
+export const leaderboardQuerySchema = z.strictObject({
+  board: z.enum(EVENT_BOARD_KINDS).optional(),
+  period: z.enum(['current', 'previous']).optional(),
+});
 
 /** `EventPrizeItem` (v1.97-social, D303): one item of a prize bundle, with what the app shows. */
 export interface EventPrizeItemDto {
@@ -77,6 +90,13 @@ export interface EventPrizeItemDto {
   /** v1.97-social (D303 follow-up) CP_MONEY: cherries for a host / creator partner, coins for another (payout time). */
   cherries?: number;
   coins?: number;
+  /** v1.101-social (D325) GIFT_PIECES: how many pieces of the exclusive gift (`code`, `name`, `imageUrl`). */
+  count?: number;
+  /** v1.101-social (D325): the prize's display picture on the event page (uploaded per prize), else null. */
+  displayUrl?: string | null;
+  /** v1.101-social (D325) BAG_ITEM of the event: the item's hosted still and animation (frames, entrances …). */
+  stillUrl?: string | null;
+  animationUrl?: string | null;
 }
 
 /** `EventPrizeLine`. */
@@ -103,8 +123,26 @@ export interface EventGiftDto {
   imageUrl: string | null;
   pointsPerCoin: number;
   pointsPerGift: number;
-  /** The points one gift of this kind earns per recipient (`priceCoins × pointsPerCoin + pointsPerGift`). */
+  /** The points one gift of this kind earns per recipient (`floor(priceCoins × pointsPerCoin) + pointsPerGift`). */
   pointsEach: number;
+  /** v1.101-social (D325): the points multiplier (a decimal, e.g. 1.2; scoring COINS: 1). */
+  multiplier?: number;
+  /** v1.101-social (D325): the event's own exclusive gift (sent with coins only while the event runs). */
+  exclusive?: boolean;
+  /** v1.101-social (D325): the gift's hosted effect (SVGA / MP4) and whether it plays full screen («شاشة كاملة»). */
+  animationUrl?: string | null;
+  fullscreen?: boolean;
+}
+
+/** v1.101-social (D325): a milestone «مرحلة» and, for the caller, the progress to it. */
+export interface EventMilestoneDto {
+  board: EventBoardKind;
+  points: number;
+  prize: EventPrizeItemDto[];
+  /** The caller's score on that board in the current period, and whether the milestone was given to them. */
+  score: number;
+  reached: boolean;
+  granted: boolean;
 }
 
 /** `EventSummary` (openapi v1.44-social, D166). */
@@ -116,7 +154,7 @@ export interface EventSummaryDto {
   endsAt: string | null;
   status: EventStatus;
   metric: EventMetric;
-  audience: ProgramAudience;
+  audience: EventAudience;
   permanent: boolean;
   featured: boolean;
   regions: string[];
@@ -150,7 +188,8 @@ export interface EventDetailDto extends EventSummaryDto {
   art: {
     background: { kind: 'IMAGE' | 'ANIMATED' | 'VIDEO'; url: string; posterUrl: string | null } | null;
     titleUrl: string | null;
-    overlay: { format: 'SVGA' | 'LOTTIE'; url: string } | null;
+    titleFormat?: 'IMAGE' | 'ANIMATED' | 'LOTTIE' | null;
+    overlay: { format: 'SVGA' | 'LOTTIE' | 'MP4'; url: string } | null;
   };
   /** v1.97-social (D303): an EVENT_GIFTS event's gifts and boards (empty for the other metrics). */
   gifts: EventGiftDto[];
@@ -159,6 +198,13 @@ export interface EventDetailDto extends EventSummaryDto {
   frozenAt: string | null;
   payoutDueAt: string | null;
   paidAt: string | null;
+  /** v1.101-social (D325): the v2 fields (absent for D166 metric events). */
+  recurrence?: 'NONE' | 'WEEKLY' | 'MONTHLY';
+  scoring?: 'COINS' | 'MULTIPLIER';
+  countedGifts?: 'EVENT_GIFTS' | 'ALL_GIFTS';
+  /** The current period (recurring: the running one; NONE: the event's dates) and whether a previous one exists. */
+  period?: { index: number; startsAt: string; endsAt: string | null; hasPrevious: boolean };
+  milestones?: Omit<EventMilestoneDto, 'score' | 'reached' | 'granted'>[];
 }
 
 /** `EventLeaderboardEntry`. */
@@ -196,11 +242,35 @@ export interface EventLeaderboardDto {
   /** v1.97-social (D303): the board shown (null for a D166 event) and its minimum. */
   board?: EventBoardKind | null;
   minPoints?: number;
+  /** v1.101-social (D325): the period shown (`previous`: a recurring event's last frozen period) and its window. */
+  period?: { index: number; startsAt: string; endsAt: string | null; previous: boolean } | null;
+}
+
+/** v1.101-social (D325): `EventMilestones` — the event's milestones with the caller's progress. */
+export interface EventMilestonesDto {
+  eventId: string;
+  period: number;
+  data: EventMilestoneDto[];
+}
+
+/** v1.101-social (D325): `RunningEvents` — the published events running now that the caller may see (inside lives). */
+export interface RunningEventsDto {
+  data: (EventSummaryDto & { endsAt: string | null; giftCodes: string[] })[];
 }
 
 export interface EventsSweepResult {
   readonly frozen: number;
   readonly paid: number;
+}
+
+/** v1.101-social (D325): one pass with the v2 steps counted too. */
+export interface EventsSweepDetail extends EventsSweepResult {
+  /** Events whose start was announced to their audience, and the notifications written. */
+  readonly started: number;
+  readonly notified: number;
+  /** Recurring periods frozen and restarted, and milestones given. */
+  readonly rolled: number;
+  readonly milestones: number;
 }
 
 interface RankRow {
@@ -266,7 +336,7 @@ function rankedSql(event: Event, to: Date): Prisma.Sql {
   const hostsOnly = event.audience === 'HOSTS';
   const regions = event.regions.map((r) => r.trim());
   return Prisma.sql`
-    WITH s AS (${scoresSql(event.metric, event.startsAt, to)})
+    WITH s AS (${scoresSql(event.metric, event.startsAt!, to)})
     SELECT s.user_id::text AS user_id, s.score,
            row_number() OVER (ORDER BY s.score DESC, s.user_id) AS rank
       FROM s
@@ -279,6 +349,31 @@ function rankedSql(event: Event, to: Date): Prisma.Sql {
                                        WHERE h.user_id = s.user_id AND h.source <> 'CREATOR'::live_host_source)
                               AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = s.user_id)))
        AND (${regions.length === 0} OR p.country_code = ANY(string_to_array(${regions.join(',')}::text, ',')))`;
+}
+
+/**
+ * v1.101-social (D325): the people of an audience (the start notification): HOSTS — approved hosts who are not content
+ * creators (D295); CREATORS — creator members; AGENCIES — owners of an open agency and its active member hosts; CP —
+ * people in a couple now.
+ */
+function audienceSql(audience: EventAudience, user: Prisma.Sql): Prisma.Sql {
+  switch (audience) {
+    case 'EVERYONE':
+      return Prisma.sql`true`;
+    case 'HOSTS':
+      return Prisma.sql`(EXISTS (SELECT 1 FROM live_hosts h WHERE h.user_id = ${user}
+                                  AND h.source <> 'CREATOR'::live_host_source)
+                     AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ${user}))`;
+    case 'CREATORS':
+      return Prisma.sql`EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ${user})`;
+    case 'AGENCIES':
+      return Prisma.sql`(EXISTS (SELECT 1 FROM agencies a WHERE a.owner_user_id = ${user} AND a.status = 'OPEN')
+                      OR EXISTS (SELECT 1 FROM agency_hosts ah JOIN agencies a ON a.id = ah.agency_id AND a.status = 'OPEN'
+                                  WHERE ah.host_user_id = ${user} AND ah.status = 'ACTIVE' AND ah.ended_at IS NULL))`;
+    case 'CP':
+      return Prisma.sql`EXISTS (SELECT 1 FROM cp_couples c
+                                 WHERE (c.user_a_id = ${user} OR c.user_b_id = ${user}) AND c.ended_at IS NULL)`;
+  }
 }
 
 /**
@@ -332,7 +427,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private status(e: Event, now: Date): EventStatus {
-    if (now < e.startsAt) return 'UPCOMING';
+    if (e.startsAt === null || now < e.startsAt) return 'UPCOMING';
     if (e.endsAt === null || now < e.endsAt) return 'RUNNING';
     return 'ENDED';
   }
@@ -342,7 +437,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       id: e.id,
       title: lang === 'ar' ? e.titleAr : e.titleEn,
       bannerUrl: e.bannerUrl,
-      startsAt: e.startsAt.toISOString(),
+      // A published event always has its start (drafts are never read here).
+      startsAt: e.startsAt!.toISOString(),
       endsAt: e.endsAt?.toISOString() ?? null,
       status: this.status(e, now),
       metric: e.metric,
@@ -370,12 +466,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const { tab } = parsed.data;
     const now = this.clock.now();
     const country = await this.country(me);
-    // D295 (owner, int16: «تختفي من عنده فعاليات المضيفين»): a content creator does not see host-only events.
-    const creator = (await this.prisma.creatorMember.count({ where: { userId: me } })) > 0;
-    // v1.97-social (D303): a creators-only event is shown to creator members only.
-    const audience = creator
-      ? { audience: { not: 'HOSTS' as const } }
-      : { audience: { not: 'CREATORS' as const } };
+    const audience = { status: 'PUBLISHED', audience: { in: await this.audiencesOf(me) } };
     const visibleSince = new Date(now.getTime() - ENDED_VISIBLE_MS);
     let month: string | null = null;
     let events: Event[] = [];
@@ -434,10 +525,36 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async eventOr404(eventId: string): Promise<Event> {
+  /**
+   * The audiences whose events the person sees: D295 (owner, int16: «تختفي من عنده فعاليات المضيفين») a content creator
+   * does not see host-only events; v1.97-social (D303) a creators-only event is shown to creator members only;
+   * v1.101-social (D325) an agencies event to agency owners and the member hosts of an open agency, a CP event to people
+   * in a couple now.
+   */
+  async audiencesOf(me: string): Promise<EventAudience[]> {
+    const [row] = await this.prisma.$queryRaw<{ creator: boolean; agency: boolean; cp: boolean }[]>`
+      SELECT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ${me}::uuid) AS creator,
+             (EXISTS (SELECT 1 FROM agencies a WHERE a.owner_user_id = ${me}::uuid AND a.status = 'OPEN')
+              OR EXISTS (SELECT 1 FROM agency_hosts h JOIN agencies a ON a.id = h.agency_id AND a.status = 'OPEN'
+                          WHERE h.host_user_id = ${me}::uuid AND h.status = 'ACTIVE' AND h.ended_at IS NULL)) AS agency,
+             EXISTS (SELECT 1 FROM cp_couples c
+                      WHERE (c.user_a_id = ${me}::uuid OR c.user_b_id = ${me}::uuid) AND c.ended_at IS NULL) AS cp`;
+    const out: EventAudience[] = ['EVERYONE', row?.creator ? 'CREATORS' : 'HOSTS'];
+    if (row?.agency) out.push('AGENCIES');
+    if (row?.cp) out.push('CP');
+    return out;
+  }
+
+  /** A published event (a draft, or an event of an audience the caller is not in, is not found). */
+  private async eventOr404(eventId: string, me?: string): Promise<Event> {
     if (!isUuid(eventId)) throw new AppException(ErrorCode.NOT_FOUND);
     const event = await this.prisma.event.findUnique({ where: { id: eventId.toLowerCase() } });
-    if (!event) throw new AppException(ErrorCode.NOT_FOUND);
+    if (!event || event.status !== 'PUBLISHED' || event.startsAt === null) {
+      throw new AppException(ErrorCode.NOT_FOUND);
+    }
+    if (me !== undefined && !(await this.audiencesOf(me)).includes(event.audience)) {
+      throw new AppException(ErrorCode.NOT_FOUND);
+    }
     return event;
   }
 
@@ -445,7 +562,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   async detail(eventId: string, lang: ContentLanguage): Promise<EventDetailDto> {
     const e = await this.eventOr404(eventId);
     const gift = e.metric === 'EVENT_GIFTS';
-    const [gifts, boards] = gift
+    const [gifts, boards, milestones, previous] = gift
       ? await Promise.all([
           this.prisma.eventGift.findMany({
             where: { eventId: e.id },
@@ -453,30 +570,42 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
             include: { gift: true },
           }),
           this.prisma.eventBoard.findMany({ where: { eventId: e.id }, orderBy: { sortOrder: 'asc' } }),
+          this.prisma.eventMilestone.findMany({ where: { eventId: e.id }, orderBy: { sortOrder: 'asc' } }),
+          this.prisma.eventPeriod.count({ where: { eventId: e.id, period: { lt: e.period } } }),
         ])
-      : [[], []];
+      : [[], [], [], 0];
     const base = this.storageSettings.current().publicBaseUrl;
     const lines = boards.map((b) => parsePrizeLines(b.prizes));
     const items = await this.itemNames(
-      lines.flat().flatMap((l) => l.items),
+      [...lines.flat().flatMap((l) => l.items), ...milestones.flatMap((m) => parseBundle(m.prizes))],
       lang,
     );
+    const w = currentWindow(e);
+    const coinsOnly = e.scoring === 'COINS';
     return {
       ...this.summary(e, this.clock.now(), lang),
       rules: lang === 'ar' ? e.rulesAr : e.rulesEn,
       prizes: parseEventPrizes(e.prizes) ?? [],
       timeZone: e.timeZone ?? this.zone,
       art: this.artOf(e),
-      gifts: gifts.map((g) => ({
-        code: g.giftCode,
-        name: lang === 'ar' ? g.gift.nameAr : g.gift.nameEn,
-        priceCoins: g.gift.priceCoins,
-        assetKey: g.gift.assetKey,
-        imageUrl: giftArtUrl(base, g.gift.imageObjectKey),
-        pointsPerCoin: g.pointsPerCoin,
-        pointsPerGift: g.pointsPerGift,
-        pointsEach: g.gift.priceCoins * g.pointsPerCoin + g.pointsPerGift,
-      })),
+      gifts: gifts.map((g) => {
+        const multiplier = coinsOnly ? 1 : Number(g.pointsPerCoin);
+        return {
+          code: g.giftCode,
+          name: lang === 'ar' ? g.gift.nameAr : g.gift.nameEn,
+          priceCoins: g.gift.priceCoins,
+          assetKey: g.gift.assetKey,
+          imageUrl: giftArtUrl(base, g.gift.imageObjectKey),
+          // Older apps read whole numbers: the multiplier itself is `multiplier`.
+          pointsPerCoin: Math.floor(multiplier),
+          pointsPerGift: coinsOnly ? 0 : g.pointsPerGift,
+          pointsEach: Math.floor(g.gift.priceCoins * multiplier) + (coinsOnly ? 0 : g.pointsPerGift),
+          multiplier,
+          exclusive: g.gift.eventId === e.id,
+          animationUrl: giftArtUrl(base, g.gift.animationObjectKey),
+          fullscreen: g.gift.badges.includes('FULLSCREEN'),
+        };
+      }),
       boards: boards.map((b, i) => ({
         kind: b.kind as EventBoardKind,
         minPoints: Number(b.minPoints),
@@ -485,6 +614,102 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       frozenAt: e.frozenAt?.toISOString() ?? null,
       payoutDueAt: e.payoutDueAt?.toISOString() ?? null,
       paidAt: e.paidAt?.toISOString() ?? null,
+      ...(gift
+        ? {
+            recurrence: e.recurrence as 'NONE' | 'WEEKLY' | 'MONTHLY',
+            scoring: e.scoring as 'COINS' | 'MULTIPLIER',
+            countedGifts: e.countedGifts as 'EVENT_GIFTS' | 'ALL_GIFTS',
+            period: {
+              index: w?.period ?? 0,
+              startsAt: (w?.from ?? e.startsAt!).toISOString(),
+              endsAt: w?.to?.toISOString() ?? null,
+              hasPrevious: previous > 0,
+            },
+            milestones: milestones.map((m) => ({
+              board: m.board as EventBoardKind,
+              points: Number(m.points),
+              prize: parseBundle(m.prizes).map(items),
+            })),
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * v1.101-social (D325): `GET /events/{eventId}/milestones` — each milestone of the current period with the caller's
+   * score on its board (AGENCIES: the agency they own; CP: their best couple), whether it is reached and given.
+   */
+  async milestones(me: string, eventId: string, lang: ContentLanguage): Promise<EventMilestonesDto> {
+    const e = await this.eventOr404(eventId);
+    const rows = await this.prisma.eventMilestone.findMany({
+      where: { eventId: e.id },
+      orderBy: { sortOrder: 'asc' },
+      include: { grants: { where: { userId: me } } },
+    });
+    const w = currentWindow(e);
+    const now = this.clock.now();
+    const running = w !== null && now >= w.from;
+    const to = w?.to ?? e.endsAt ?? OPEN_END;
+    const scores = new Map<string, bigint>();
+    if (running && w) {
+      for (const kind of [...new Set(rows.map((r) => r.board as EventBoardKind))]) {
+        const [mine] = await this.prisma.$queryRaw<BoardRow[]>`
+          SELECT * FROM (${boardRankedSql(e, kind, { from: w.from, to })}) b
+           WHERE b.user_id = ${me} OR (${kind === 'CP'} AND b.partner_id = ${me})
+           ORDER BY b.rank LIMIT 1`;
+        scores.set(kind, mine?.score ?? 0n);
+      }
+    }
+    const named = await this.itemNames(
+      rows.flatMap((r) => parseBundle(r.prizes)),
+      lang,
+    );
+    const period = w?.period ?? 0;
+    return {
+      eventId: e.id,
+      period,
+      data: rows.map((r) => {
+        const score = scores.get(r.board) ?? 0n;
+        return {
+          board: r.board as EventBoardKind,
+          points: Number(r.points),
+          prize: parseBundle(r.prizes).map(named),
+          score: Number(score),
+          reached: score >= r.points,
+          granted: r.grants.some((g) => g.period === period && g.status === 'PAID'),
+        };
+      }),
+    };
+  }
+
+  /**
+   * v1.101-social (D325): `GET /events/running` — the published events running now that the caller may see (their
+   * audience and regions), with their event gifts: for the strip inside lives and the gift panel.
+   */
+  async running(me: string, lang: ContentLanguage): Promise<RunningEventsDto> {
+    const now = this.clock.now();
+    const country = await this.country(me);
+    const rows = await this.prisma.event.findMany({
+      where: {
+        status: 'PUBLISHED',
+        metric: 'EVENT_GIFTS',
+        audience: { in: await this.audiencesOf(me) },
+        startsAt: { lte: now },
+        frozenAt: null,
+        AND: [
+          { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          { OR: [{ regions: { isEmpty: true } }, ...(country ? [{ regions: { has: country } }] : [])] },
+        ],
+      },
+      include: { gifts: { orderBy: { sortOrder: 'asc' }, select: { giftCode: true } } },
+      orderBy: [{ featured: 'desc' }, { startsAt: 'asc' }, { id: 'asc' }],
+      take: 20,
+    });
+    return {
+      data: rows.map((e) => ({
+        ...this.summary(e, now, lang),
+        giftCodes: e.gifts.map((g) => g.giftCode),
+      })),
     };
   }
 
@@ -505,9 +730,24 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
             }
           : null,
       titleUrl: url(e.titleKey),
+      // v1.101-social (D325): a still / animated WebP or a Lottie title; an SVGA, Lottie or alpha-MP4 overlay.
+      titleFormat: e.titleKey
+        ? e.titleKey.endsWith('.json')
+          ? 'LOTTIE'
+          : e.titleKey.endsWith('.anim.webp')
+            ? 'ANIMATED'
+            : 'IMAGE'
+        : null,
       overlay:
         e.overlayKey && overlayUrl
-          ? { format: e.overlayKey.endsWith('.json') ? 'LOTTIE' : 'SVGA', url: overlayUrl }
+          ? {
+              format: e.overlayKey.endsWith('.json')
+                ? 'LOTTIE'
+                : e.overlayKey.endsWith('.mp4')
+                  ? 'MP4'
+                  : 'SVGA',
+              url: overlayUrl,
+            }
           : null,
     };
   }
@@ -517,6 +757,53 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     all: readonly PrizeItem[],
     lang: ContentLanguage,
   ): Promise<(item: PrizeItem) => EventPrizeItemDto> {
+    const base = this.storageSettings.current().publicBaseUrl;
+    const pieceCodes = [...new Set(all.flatMap((i) => (i.type === 'GIFT_PIECES' ? [i.giftCode] : [])))];
+    const bagCodes0 = [...new Set(all.flatMap((i) => (i.type === 'BAG_ITEM' ? [i.itemCode] : [])))];
+    const [pieceGifts, storeArt] = await Promise.all([
+      pieceCodes.length > 0 ? this.prisma.gift.findMany({ where: { code: { in: pieceCodes } } }) : [],
+      bagCodes0.length > 0
+        ? this.prisma.storeItem.findMany({
+            where: { bagCode: { in: bagCodes0 } },
+            select: { bagCode: true, still: true, animation: true },
+          })
+        : [],
+    ]);
+    const inner = await this.itemNamesD303(all, lang);
+    // v1.101-social (D325): the display picture of each prize, the exclusive gift's pieces, an event item's hosted art.
+    return (item) => {
+      const display = (item as PrizeItemWithDisplay).displayKey ?? null;
+      if (item.type === 'GIFT_PIECES') {
+        const g = pieceGifts.find((x) => x.code === item.giftCode);
+        return {
+          type: item.type,
+          amount: item.count,
+          days: null,
+          code: item.giftCode,
+          name: g ? (lang === 'ar' ? g.nameAr : g.nameEn) : null,
+          category: 'GIFT',
+          assetKey: g?.assetKey ?? null,
+          color: null,
+          count: item.count,
+          imageUrl: giftArtUrl(base, g?.imageObjectKey ?? null),
+          displayUrl: giftArtUrl(base, display),
+        };
+      }
+      const out = inner(item);
+      const art = item.type === 'BAG_ITEM' ? storeArt.find((x) => x.bagCode === item.itemCode) : undefined;
+      return {
+        ...out,
+        displayUrl: giftArtUrl(base, display),
+        ...(art ? { stillUrl: art.still, animationUrl: art.animation } : {}),
+      };
+    };
+  }
+
+  /** v1.97-social (D303): the display fields of the D303 prize types. */
+  private async itemNamesD303(
+    all: readonly PrizeItem[],
+    lang: ContentLanguage,
+  ): Promise<(item: Exclude<PrizeItem, { type: 'GIFT_PIECES' }>) => EventPrizeItemDto> {
     const bagCodes = [...new Set(all.flatMap((i) => (i.type === 'BAG_ITEM' ? [i.itemCode] : [])))];
     const tierCodes = [...new Set(all.flatMap((i) => (i.type === 'VIP' ? [i.tierCode] : [])))];
     const badgeCodes = [...new Set(all.flatMap((i) => (i.type === 'BADGE' ? [i.badgeCode] : [])))];
@@ -620,9 +907,12 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const parsed = leaderboardQuerySchema.safeParse(query ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const e = await this.eventOr404(eventId);
-    if (e.metric === 'EVENT_GIFTS') return this.giftLeaderboard(me, e, parsed.data.board, lang);
-    if (parsed.data.board !== undefined) {
-      throw AppException.validation([{ field: 'board', issue: 'invalid_value' }]);
+    if (e.metric === 'EVENT_GIFTS')
+      return this.giftLeaderboard(me, e, parsed.data.board, lang, parsed.data.period === 'previous');
+    if (parsed.data.board !== undefined || parsed.data.period === 'previous') {
+      throw AppException.validation([
+        { field: parsed.data.board !== undefined ? 'board' : 'period', issue: 'invalid_value' },
+      ]);
     }
     const prizes = parseEventPrizes(e.prizes) ?? [];
     const now = this.clock.now();
@@ -636,7 +926,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       });
       rows = results.map((r) => ({ user_id: r.userId, score: r.score, rank: BigInt(r.rank) }));
       mine = rows.find((r) => r.user_id === me);
-    } else if (now < e.startsAt) {
+    } else if (now < e.startsAt!) {
       rows = [];
     } else {
       const to = e.endsAt !== null && e.endsAt < now ? e.endsAt : now;
@@ -692,6 +982,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     e: Event,
     wanted: EventBoardKind | undefined,
     lang: ContentLanguage,
+    previous = false,
   ): Promise<EventLeaderboardDto> {
     const boards = await this.prisma.eventBoard.findMany({
       where: { eventId: e.id },
@@ -706,9 +997,38 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     let mine: (BoardRow & { prize?: PrizeItem[] }) | undefined;
     const isMine = (r: BoardRow) =>
       kind === 'CP' ? r.user_id === me || r.partner_id === me : r.user_id === me;
-    if (e.frozenAt !== null) {
+    // v1.101-social (D325): the period shown — the current one (live, or its results once frozen) or, with
+    // `period=previous`, a recurring event's last frozen period before the current one.
+    const w = currentWindow(e)!;
+    const frozenPeriod = previous
+      ? await this.prisma.eventPeriod.findFirst({
+          where: { eventId: e.id, period: { lt: w.period } },
+          orderBy: { period: 'desc' },
+        })
+      : e.frozenAt !== null
+        ? await this.prisma.eventPeriod.findUnique({
+            where: { eventId_period: { eventId: e.id, period: w.period } },
+          })
+        : null;
+    const period = previous
+      ? frozenPeriod
+        ? {
+            index: frozenPeriod.period,
+            startsAt: frozenPeriod.startsAt.toISOString(),
+            endsAt: frozenPeriod.endsAt.toISOString(),
+            previous: true,
+          }
+        : null
+      : {
+          index: w.period,
+          startsAt: w.from.toISOString(),
+          endsAt: (e.frozenAt !== null ? e.endsAt : w.to)?.toISOString() ?? null,
+          previous: false,
+        };
+    const shownAt = previous ? (frozenPeriod?.period ?? -1) : w.period;
+    if (previous || e.frozenAt !== null) {
       const results = await this.prisma.eventResult.findMany({
-        where: { eventId: e.id, board: kind },
+        where: { eventId: e.id, board: kind, period: shownAt },
         orderBy: { rank: 'asc' },
       });
       const agencies =
@@ -730,13 +1050,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         prize: parseBundle(r.prize),
       }));
       mine = rows.find(isMine);
-    } else if (now < e.startsAt) {
+    } else if (now < w.from) {
       rows = [];
     } else {
-      const to = e.endsAt !== null && e.endsAt < now ? e.endsAt : now;
-      const ranked = boardRankedSql(e, kind, to);
+      // The live board counts the whole window (nothing is stored after now; a send at this very instant counts).
+      const ranked = boardRankedSql(e, kind, { from: w.from, to: w.to ?? e.endsAt ?? OPEN_END });
       rows = await this.prisma.$queryRaw<BoardRow[]>`
-        SELECT * FROM (${ranked}) b ORDER BY b.rank LIMIT ${EVENT_LEADERBOARD_MAX}`;
+        SELECT * FROM (${ranked}) b ORDER BY b.rank LIMIT ${EVENT_BOARD_SHOWN}`;
       [mine] = await this.prisma.$queryRaw<BoardRow[]>`
         SELECT * FROM (${ranked}) b
          WHERE b.user_id = ${me} OR (${kind === 'CP'} AND b.partner_id = ${me})
@@ -747,7 +1067,13 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       select: { blockerId: true, blockedId: true },
     });
     const hidden = new Set(blocked.map((b) => (b.blockerId === me ? b.blockedId : b.blockerId)));
-    const shown = rows.filter((r) => !hidden.has(r.user_id) && !(r.partner_id && hidden.has(r.partner_id)));
+    // v1.101-social (D325, owner): the top 20 are shown; the caller's own place is in `me` whatever it is.
+    const shown = rows.filter(
+      (r) =>
+        Number(r.rank) <= EVENT_BOARD_SHOWN &&
+        !hidden.has(r.user_id) &&
+        !(r.partner_id && hidden.has(r.partner_id)),
+    );
     const ids = [...new Set(shown.flatMap((r) => (r.partner_id ? [r.user_id, r.partner_id] : [r.user_id])))];
     const profiles = await this.prisma.user.findMany({
       where: { id: { in: ids } },
@@ -766,9 +1092,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     return {
       eventId: e.id,
       metric: e.metric,
-      final: e.frozenAt !== null,
+      final: previous || e.frozenAt !== null,
       board: kind,
       minPoints: Number(minPoints),
+      period,
       data: shown.flatMap((r) => {
         const u = byId.get(r.user_id);
         if (!u?.profile) return [];
@@ -804,18 +1131,86 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
 
   /** One pass: every ended event not frozen yet, then every frozen event whose payout is due. */
   async sweep(): Promise<EventsSweepResult> {
+    const r = await this.sweepDetail();
+    return { frozen: r.frozen, paid: r.paid };
+  }
+
+  /**
+   * One pass with v1.101-social (D325)'s steps: (1) the start of each published event announced to its audience once;
+   * (2) each recurring event whose period ended frozen and restarted; (3) the milestones reached in running events
+   * given (not while held); (4) every ended event frozen; (5) every due payout paid (not while held). Drafts are never
+   * swept.
+   */
+  async sweepDetail(): Promise<EventsSweepDetail> {
     const now = this.clock.now();
     let frozen = 0;
     let paid = 0;
+    let started = 0;
+    let notified = 0;
+    let rolled = 0;
+    let milestones = 0;
+    const toAnnounce = await this.prisma.event.findMany({
+      where: {
+        status: 'PUBLISHED',
+        startNotifiedAt: null,
+        startsAt: { lte: now },
+        frozenAt: null,
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+      },
+      select: { id: true },
+      orderBy: { startsAt: 'asc' },
+      take: 20,
+    });
+    for (const { id } of toAnnounce) {
+      const n = await this.announce(id, now);
+      if (n !== null) {
+        started++;
+        notified += n;
+      }
+    }
+    const toRoll = await this.prisma.event.findMany({
+      where: { status: 'PUBLISHED', recurrence: { not: 'NONE' }, frozenAt: null, periodEndsAt: { lte: now } },
+      select: { id: true },
+      orderBy: { periodEndsAt: 'asc' },
+      take: 50,
+    });
+    for (const { id } of toRoll) {
+      const done = await this.prisma.$transaction(async (tx) => {
+        const e = await this.lockEvent(tx, id);
+        return e ? rollOverPeriodIn(tx, e, now, this.zone) : false;
+      });
+      if (done) rolled++;
+    }
+    const withMilestones = await this.prisma.event.findMany({
+      where: {
+        status: 'PUBLISHED',
+        frozenAt: null,
+        payoutHold: false,
+        startsAt: { lte: now },
+        milestones: { some: {} },
+      },
+      select: { id: true },
+      take: 50,
+    });
+    for (const { id } of withMilestones) {
+      milestones += await this.prisma.$transaction(async (tx) => {
+        const e = await this.lockEvent(tx, id);
+        const w = e ? currentWindow(e) : null;
+        if (!e || !w || e.frozenAt !== null || e.payoutHold || now < w.from) return 0;
+        return grantMilestonesIn(tx, e, { from: w.from, to: w.to ?? e.endsAt ?? OPEN_END }, w.period, now);
+      });
+    }
     const toFreeze = await this.prisma.event.findMany({
-      where: { frozenAt: null, endsAt: { lte: now } },
+      where: { status: 'PUBLISHED', frozenAt: null, endsAt: { lte: now } },
       select: { id: true },
       orderBy: { endsAt: 'asc' },
       take: 50,
     });
     for (const { id } of toFreeze) if (await this.freeze(id, now)) frozen++;
+    // v1.101-social (D325): a recurring event's period is due before the event is frozen (`payout_due_at` is set by
+    // every freeze, so this is D166's rule for the others).
     const toPay = await this.prisma.event.findMany({
-      where: { frozenAt: { not: null }, paidAt: null, payoutHold: false, payoutDueAt: { lte: now } },
+      where: { paidAt: null, payoutHold: false, payoutDueAt: { lte: now } },
       select: { id: true },
       orderBy: { payoutDueAt: 'asc' },
       take: 50,
@@ -825,7 +1220,34 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.userEventBadge.deleteMany({
       where: { expiresAt: { lt: new Date(now.getTime() - DAY_MS) } },
     });
-    return { frozen, paid };
+    return { frozen, paid, started, notified, rolled, milestones };
+  }
+
+  /**
+   * v1.101-social (D325): the start notification EVENT_STARTED to every ACTIVE person of the event's audience (and
+   * regions) — one INSERT … SELECT, once per person and event (`notifications_event_started_once`), the event marked
+   * announced in the same transaction. Returns the rows written, or null when another pass did it.
+   */
+  private async announce(id: string, now: Date): Promise<number | null> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const e = await this.lockEvent(tx, id);
+        if (!e || e.startNotifiedAt !== null || e.status !== 'PUBLISHED') return null;
+        const regions = e.regions.map((r) => r.trim());
+        const n = await tx.$executeRaw`
+          INSERT INTO notifications (id, recipient_id, type, event_id, created_at, updated_at)
+          SELECT gen_random_uuid(), u.id, 'EVENT_STARTED'::notification_type, ${e.id}::uuid, ${now}, ${now}
+            FROM users u
+            JOIN user_profiles p ON p.user_id = u.id
+           WHERE u.status = 'ACTIVE'
+             AND (${regions.length === 0} OR p.country_code = ANY(string_to_array(${regions.join(',')}::text, ',')))
+             AND ${audienceSql(e.audience, Prisma.sql`u.id`)}
+          ON CONFLICT (recipient_id, event_id) WHERE type = 'EVENT_STARTED'::notification_type DO NOTHING`;
+        await tx.event.update({ where: { id: e.id }, data: { startNotifiedAt: now } });
+        return n;
+      },
+      { timeout: 120_000 },
+    );
   }
 
   private async lockEvent(tx: Tx, id: string): Promise<Event | null> {
@@ -840,11 +1262,16 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private async freeze(id: string, now: Date): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const e = await this.lockEvent(tx, id);
-      if (!e || e.frozenAt !== null || e.endsAt === null || e.endsAt > now) return false;
+      if (!e || e.status !== 'PUBLISHED' || e.frozenAt !== null || e.endsAt === null || e.endsAt > now)
+        return false;
       // v1.97-social (D303): a gift event freezes each of its boards and is due at once (paid automatically).
       if (e.metric === 'EVENT_GIFTS') return freezeGiftEventIn(tx, e, now);
       const prizes = parseEventPrizes(e.prizes) ?? [];
       const ranked = rankedSql(e, e.endsAt);
+      // v1.101-social (D325): the frozen period is recorded for every event (period 0 here).
+      await tx.eventPeriod.create({
+        data: { eventId: e.id, period: 0, startsAt: e.startsAt!, endsAt: e.endsAt, frozenAt: now },
+      });
       const rows = await tx.$queryRaw<RankRow[]>`
         SELECT * FROM (${ranked}) b ORDER BY b.rank LIMIT ${EVENT_LEADERBOARD_MAX}`;
       if (rows.length > 0) {
@@ -882,7 +1309,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   private async payout(id: string, now: Date): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const e = await this.lockEvent(tx, id);
-      if (!e || e.frozenAt === null || e.paidAt !== null || e.payoutHold) return false;
+      if (!e || e.paidAt !== null || e.payoutHold) return false;
       if (e.payoutDueAt === null || e.payoutDueAt > now) return false;
       if (e.metric === 'EVENT_GIFTS') {
         await payGiftEventIn(tx, e, now);

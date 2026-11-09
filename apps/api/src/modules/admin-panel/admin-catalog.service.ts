@@ -107,6 +107,8 @@ export interface GiftInput {
   audioObjectKey?: string | null | undefined;
   /** v1.100-social (D312): a custom gift's owner — a username (Kabso ID), lower-cased; null removes. */
   owner?: string | null | undefined;
+  /** v1.101-social (D325): create only — the event this exclusive gift belongs to. */
+  eventId?: string | undefined;
 }
 
 export interface GiftCategoryInput {
@@ -542,11 +544,45 @@ export class AdminCatalogService {
     if (problems.length > 0) throw refused(problems.join('; '));
     if (!rest.imageObjectKey) throw refused('The gift needs its picture «صورة الهدية».');
     Object.assign(fields, await rule(() => this.mediaFields(code, rest)));
+    const eventId = rest.eventId;
+    if (eventId !== undefined) await this.assertEventGift(eventId, fields);
     const created = await rule(() =>
-      this.prisma.$transaction((tx) => addGiftByAdminIn(tx, code, fields, viaOf(ctx), reason, now)),
+      this.prisma.$transaction(async (tx) => {
+        const made = await addGiftByAdminIn(tx, code, fields, viaOf(ctx), reason, now);
+        // v1.101-social (D325): an exclusive event gift (listed and bought only while its event runs).
+        if (made && eventId !== undefined) await tx.gift.update({ where: { code }, data: { eventId } });
+        return made;
+      }),
     );
     if (!created) throw refused(`A gift ${code} exists already.`);
-    return { code, created: true };
+    return { code, created: true, ...(eventId !== undefined ? { eventId } : {}) };
+  }
+
+  /**
+   * v1.101-social (D325): an event's own gift — the event is a gift event that has not ended, and the gift is a plain
+   * one (not lucky, a quip, custom or a PK booster; CHECK `gifts_event_plain`).
+   */
+  private async assertEventGift(eventId: string, fields: GiftFields): Promise<void> {
+    const e = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { metric: true, frozenAt: true, endsAt: true },
+    });
+    if (!e || e.metric !== 'EVENT_GIFTS')
+      throw refused(`No gift event ${eventId}.`, 'event_not_found', 'eventId');
+    if (e.frozenAt !== null || (e.endsAt !== null && e.endsAt <= new Date())) {
+      throw refused('The event has ended; it takes no new gifts.', 'event_ended', 'eventId');
+    }
+    if (
+      ['LUCKY', 'QUIPS', CUSTOM_CATEGORY].includes(fields.category) ||
+      fields.ownerUserId ||
+      fields.pkBooster
+    ) {
+      throw refused(
+        'An event gift is a plain gift (not lucky, a quip, custom or a PK booster).',
+        'event_gift_kind',
+        'category',
+      );
+    }
   }
 
   async updateGift(code: string, input: GiftInput & { reason: string }, ctx: AdminContext) {
@@ -866,7 +902,8 @@ export class AdminCatalogService {
         titleEn: e.titleEn,
         metric: e.metric,
         audience: e.audience,
-        startsAt: e.startsAt.toISOString(),
+        // v1.101-social (D325): null for a draft without dates.
+        startsAt: e.startsAt?.toISOString() ?? null,
         endsAt: e.endsAt?.toISOString() ?? null,
         permanent: e.permanent,
         featured: e.featured,
@@ -875,6 +912,13 @@ export class AdminCatalogService {
         tone: e.tone,
         state: eventState(e, now),
         payoutHold: e.payoutHold,
+        // v1.101-social (D325): the v2 fields of «الفعاليات».
+        status: e.status,
+        recurrence: e.recurrence,
+        period: e.period,
+        periodEndsAt: e.periodEndsAt?.toISOString() ?? null,
+        scoring: e.scoring,
+        countedGifts: e.countedGifts,
       })),
     };
   }

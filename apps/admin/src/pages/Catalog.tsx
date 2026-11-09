@@ -16,7 +16,6 @@ import { formatDate, formatNumber } from '../format';
 import { Icon } from '../ui/icons';
 import { BadgeChip, BadgePicker, SeasonalNoEndHint, SeasonalNoEndNote } from './BadgePicker';
 import { BannerForm, placementLabelKey } from './BannerForm';
-import { GiftEventForm, GiftEventResults } from './GiftEventForm';
 import { FileSlot, NO_FILE, previewUrl, type Alpha, type FileValue } from './GiftFiles';
 
 /**
@@ -575,151 +574,18 @@ interface BannerDto {
   imageUrl: string | null;
 }
 
-interface EventDto {
-  id: string;
-  titleAr: string;
-  titleEn: string;
-  metric: string;
-  audience: string;
-  startsAt: string;
-  endsAt: string | null;
-  permanent: boolean;
-  featured: boolean;
-  regions: string[];
-  prizes: number;
-  tone: string | null;
-  state: string;
-  payoutHold: boolean;
-}
-
-const METRICS = ['GIFT_COINS_RECEIVED', 'GIFT_COINS_SENT', 'LIVE_MINUTES', 'TAPS_RECEIVED', 'NEW_FOLLOWERS'] as const;
-
 /** Local `datetime-local` text → an ISO time with the browser's offset. */
 export function localToIso(value: string): string {
   return new Date(value).toISOString();
 }
 
-function EventForm({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const { t } = useApp();
-  const [f, setF] = useState<Record<string, string>>({ metric: 'GIFT_COINS_RECEIVED', audience: 'EVERYONE' });
-  const [permanent, setPermanent] = useState(false);
-  const [featured, setFeatured] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const [busy, setBusy] = useState(false);
-  const set = (k: string) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
-  const ok = !!f.titleAr?.trim() && !!f.titleEn?.trim() && !!f.startsAt && (permanent || !!f.endsAt) && !!f.reason?.trim();
-  return (
-    <Dialog title={t('eventCreate')} onClose={onClose}>
-      <ErrorAlert error={error} />
-      <form
-        className="form-grid"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!ok || busy) return;
-          setBusy(true);
-          api
-            .post('/admin/events', {
-              titleAr: f.titleAr!.trim(),
-              titleEn: f.titleEn!.trim(),
-              ...(f.rulesAr?.trim() ? { rulesAr: f.rulesAr.trim() } : {}),
-              ...(f.rulesEn?.trim() ? { rulesEn: f.rulesEn.trim() } : {}),
-              startsAt: localToIso(f.startsAt!),
-              ...(permanent ? { permanent: true } : { endsAt: localToIso(f.endsAt!) }),
-              metric: f.metric,
-              audience: f.audience,
-              featured,
-              ...(f.prizes?.trim() ? { prizes: f.prizes.trim() } : {}),
-              reason: f.reason!.trim(),
-            })
-            .then(onDone, (err: unknown) => {
-              setError(err);
-              setBusy(false);
-            });
-        }}
-      >
-        <div className="field">
-          <label htmlFor="ev-ar">{t('eventTitleAr')}</label>
-          <input id="ev-ar" type="text" maxLength={120} value={f.titleAr ?? ''} onChange={set('titleAr')} />
-        </div>
-        <div className="field">
-          <label htmlFor="ev-en">{t('eventTitleEn')}</label>
-          <input id="ev-en" type="text" dir="ltr" maxLength={120} value={f.titleEn ?? ''} onChange={set('titleEn')} />
-        </div>
-        <div className="field">
-          <label htmlFor="ev-start">{t('eventStarts')}</label>
-          <input id="ev-start" type="datetime-local" value={f.startsAt ?? ''} onChange={set('startsAt')} />
-        </div>
-        <div className="field">
-          <label htmlFor="ev-end">{t('eventEnds')}</label>
-          <input id="ev-end" type="datetime-local" disabled={permanent} value={f.endsAt ?? ''} onChange={set('endsAt')} />
-        </div>
-        <label className="check field">
-          <input type="checkbox" checked={permanent} onChange={(e) => setPermanent(e.target.checked)} />
-          {t('eventPermanent')}
-        </label>
-        <label className="check field">
-          <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
-          {t('eventFeatured')}
-        </label>
-        <div className="field">
-          <label htmlFor="ev-metric">{t('eventMetric')}</label>
-          <select id="ev-metric" value={f.metric} onChange={set('metric')}>
-            {METRICS.map((m) => (
-              <option key={m} value={m}>
-                {t(`metric${m}` as never)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="ev-aud">{t('eventAudience')}</label>
-          <select id="ev-aud" value={f.audience} onChange={set('audience')}>
-            <option value="EVERYONE">{t('audienceEVERYONE')}</option>
-            <option value="HOSTS">{t('audienceHOSTS')}</option>
-          </select>
-        </div>
-        <div className="field span-2">
-          <label htmlFor="ev-prizes">{t('eventPrizes')}</label>
-          <input id="ev-prizes" type="text" className="ltr mono" placeholder="1:5000,2:3000,3-10:500" value={f.prizes ?? ''} onChange={set('prizes')} />
-        </div>
-        <div className="field">
-          <label htmlFor="ev-rar">{t('eventRulesAr')}</label>
-          <textarea id="ev-rar" maxLength={4000} value={f.rulesAr ?? ''} onChange={set('rulesAr')} />
-        </div>
-        <div className="field">
-          <label htmlFor="ev-ren">{t('eventRulesEn')}</label>
-          <textarea id="ev-ren" dir="ltr" maxLength={4000} value={f.rulesEn ?? ''} onChange={set('rulesEn')} />
-        </div>
-        <div className="field span-2">
-          <label htmlFor="ev-reason">{t('reason')}</label>
-          <textarea id="ev-reason" maxLength={500} value={f.reason ?? ''} onChange={set('reason')} />
-          <span className="hint">{t('reasonHint')}</span>
-        </div>
-        <div className="actions span-2">
-          <button type="button" className="btn" onClick={onClose}>
-            {t('cancel')}
-          </button>
-          <button className="btn primary" disabled={!ok || busy}>
-            {t('eventCreate')}
-          </button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
-
-/** «البانرات والفعاليات» (D197): banners on / off / removed; Event Center events created, ended, held, released. */
+/** «البانرات» (D197): banners on / off / removed; v1.101-social (D325): the events are in «الفعاليات». */
 export function Promo() {
   const { t, lang, can, toast } = useApp();
   const banners = useAsync(() => api.get<{ data: BannerDto[] }>('/admin/banners'), []);
-  const events = useAsync(() => api.get<{ data: EventDto[] }>('/admin/events'), []);
   const [act, setAct] = useState<{ path: string; label: string; danger?: boolean; reload: () => void } | null>(null);
-  const [creating, setCreating] = useState(false);
   const [addingBanner, setAddingBanner] = useState(false);
-  // v1.97-social (D303): gift events — create, edit, results; the event commands need `events.manage`.
-  const [giftEvent, setGiftEvent] = useState<{ id?: string; results?: boolean } | null>(null);
   const manage = can('catalog.manage');
-  const manageEvents = can('events.manage');
   return (
     <>
       <div className="page-head">
@@ -777,96 +643,15 @@ export function Promo() {
           ))}
         </div>
       </section>
+      {/* v1.101-social (D325): the events moved to «الفعاليات» — one events system with the step-by-step editor. */}
       <section className="card" style={{ marginTop: 16 }}>
         <div className="card-head">
           <h2>{t('eventsTitle')}</h2>
-          {manageEvents && (
-            <span className="row">
-              <button className="btn primary small" onClick={() => setGiftEvent({})}>
-                <Icon name="plus" size={16} />
-                {t('gevCreate')}
-              </button>
-              <button className="btn small" onClick={() => setCreating(true)}>
-                <Icon name="plus" size={16} />
-                {t('eventCreate')}
-              </button>
-            </span>
-          )}
+          <a className="btn small" href="/events">
+            {t('navEvents')}
+          </a>
         </div>
-        <ErrorAlert error={events.error} />
-        {events.data && events.data.data.length === 0 && <p className="muted">{t('eventsNone')}</p>}
-        {events.data && events.data.data.length > 0 && (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('colTitle')}</th>
-                  <th>{t('eventMetric')}</th>
-                  <th>{t('colStatus')}</th>
-                  <th>{t('eventStarts')}</th>
-                  <th>{t('eventEnds')}</th>
-                  <th className="num">{t('eventPrizesCount')}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {events.data.data.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      {lang === 'ar' ? e.titleAr : e.titleEn} {e.featured && <span className="badge warn">{t('eventFeatured')}</span>}
-                    </td>
-                    <td className="small">{t(`metric${e.metric}` as never)}</td>
-                    <td>
-                      <span className={`badge ${e.state === 'RUNNING' ? 'ok' : e.state === 'HELD' ? 'warn' : ''}`}>{t(`evState${e.state}` as never)}</span>
-                    </td>
-                    <td className="date small">{formatDate(e.startsAt, lang)}</td>
-                    <td className="date small">{e.permanent ? '∞' : formatDate(e.endsAt, lang)}</td>
-                    <td className="num">{formatNumber(e.prizes, lang)}</td>
-                    <td>
-                      <span className="row">
-                        {e.metric === 'EVENT_GIFTS' && (
-                          <button className="btn small" onClick={() => setGiftEvent({ id: e.id, results: true })}>
-                            {t('gevResults')}
-                          </button>
-                        )}
-                        {manageEvents && e.metric === 'EVENT_GIFTS' && (e.state === 'UPCOMING' || e.state === 'RUNNING') && (
-                          <button className="btn small" onClick={() => setGiftEvent({ id: e.id })}>
-                            {t('gevEdit')}
-                          </button>
-                        )}
-                        {/* D303: a gift event's payout can be held before its end too (suspected fraud). */}
-                        {manageEvents && e.metric === 'EVENT_GIFTS' && !e.payoutHold && (e.state === 'UPCOMING' || e.state === 'RUNNING') && (
-                          <button className="btn small" title={t('gevHoldHint')} onClick={() => setAct({ path: `/admin/events/${e.id}/hold`, label: t('gevHold'), reload: events.reload })}>
-                            {t('gevHold')}
-                          </button>
-                        )}
-                      </span>
-                      {manageEvents && (
-                        <span className="row">
-                          {e.state === 'RUNNING' && (
-                            <button className="btn small danger" onClick={() => setAct({ path: `/admin/events/${e.id}/end`, label: t('eventEnd'), danger: true, reload: events.reload })}>
-                              {t('eventEnd')}
-                            </button>
-                          )}
-                          {e.state !== 'PAID' && !e.payoutHold && e.state !== 'RUNNING' && e.state !== 'UPCOMING' && (
-                            <button className="btn small" onClick={() => setAct({ path: `/admin/events/${e.id}/hold`, label: t('eventHold'), reload: events.reload })}>
-                              {t('eventHold')}
-                            </button>
-                          )}
-                          {e.payoutHold && e.state !== 'PAID' && (
-                            <button className="btn small" onClick={() => setAct({ path: `/admin/events/${e.id}/release`, label: t('eventRelease'), reload: events.reload })}>
-                              {t('eventRelease')}
-                            </button>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <p className="muted small">{t('evSubtitle')}</p>
       </section>
       {act && (
         <FormDialog
@@ -890,28 +675,6 @@ export function Promo() {
             setAddingBanner(false);
             toast(t('bannerCreated'));
             banners.reload();
-          }}
-        />
-      )}
-      {giftEvent && giftEvent.results && giftEvent.id && <GiftEventResults eventId={giftEvent.id} onClose={() => setGiftEvent(null)} />}
-      {giftEvent && !giftEvent.results && (
-        <GiftEventForm
-          eventId={giftEvent.id}
-          onClose={() => setGiftEvent(null)}
-          onDone={() => {
-            setGiftEvent(null);
-            toast(t('done'));
-            events.reload();
-          }}
-        />
-      )}
-      {creating && (
-        <EventForm
-          onClose={() => setCreating(false)}
-          onDone={() => {
-            setCreating(false);
-            toast(t('done'));
-            events.reload();
           }}
         />
       )}

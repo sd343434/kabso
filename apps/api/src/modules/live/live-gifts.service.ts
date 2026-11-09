@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
+import { eventGiftBuyableIn } from '../programs/gift-events.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { refuseWatchStaff } from './live-staff.js';
@@ -346,6 +347,15 @@ export class LiveGiftsService {
     });
     // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either.
     if (!gift?.enabled || !gift.categoryRef.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    // v1.101-social (D325, §10.127): an event's own gift is bought only while its event runs; afterwards only the
+    // pieces held in the bag are sent.
+    if (
+      gift.eventId !== null &&
+      input.source === 'COINS' &&
+      !(await eventGiftBuyableIn(this.prisma, gift.eventId, new Date()))
+    ) {
+      throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    }
     // v1.27-live (D132, §10.27): a lucky gift — on, paid with coins, the caller's region and 18+.
     const isLucky = gift.category === 'LUCKY';
     // v1.32-live (D154, §10.33): a quip — paid with coins (or free), one at a time.
@@ -937,6 +947,15 @@ export class LiveGiftsService {
     });
     // v1.46-live (D207): a gift of a disabled category is not listed, so not sendable either.
     if (!gift?.enabled || !gift.categoryRef.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    // v1.101-social (D325, §10.127): an event's own gift is bought only while its event runs; afterwards only the
+    // pieces held in the bag are sent.
+    if (
+      gift.eventId !== null &&
+      input.source === 'COINS' &&
+      !(await eventGiftBuyableIn(this.prisma, gift.eventId, new Date()))
+    ) {
+      throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    }
     const isLucky = gift.category === 'LUCKY';
     // v1.32-live (D154, §10.33) in a conversation: a paid quip, COINS and one at a time (as in a
     // live); the free quip belongs to a live (one per viewer per live) and is refused here.

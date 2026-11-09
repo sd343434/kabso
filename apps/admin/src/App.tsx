@@ -5,6 +5,7 @@ import { Levels, SpecialUsernames, Tasks, Waitlist } from './pages/Programs';
 import { Team } from './pages/Team';
 import { Cards, Report, AgentTopups } from './pages/Finance';
 import { Gifts, Items, Promo } from './pages/Catalog';
+import { Events } from './pages/Events';
 import { GiftCategories } from './pages/GiftCategories';
 import { LiveBoostPrices } from './pages/LiveBoostPrices';
 import { Medals } from './pages/Medals';
@@ -274,6 +275,10 @@ export function App() {
           break;
         case 'promo':
           page = <Promo />;
+          break;
+        // v1.101-social (D325): «الفعاليات» — one events system.
+        case 'events':
+          page = <Events />;
           break;
         case 'boostPrices':
           page = <LiveBoostPrices />;

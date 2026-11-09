@@ -243,6 +243,8 @@ export function notificationBody(n: NotificationText, locale: PushLocale): strin
     }
     case 'EVENT_PRIZE_WON':
       return ar ? 'مبروك، وصلتك جائزة فعالية' : 'Congratulations, your event prize has arrived';
+    case 'EVENT_STARTED':
+      return ar ? 'بدأت فعالية جديدة، شارك الآن' : 'A new event has started, join now';
     case 'LEVEL_RAISED': {
       const lv = n.level ?? null;
       if (ar)

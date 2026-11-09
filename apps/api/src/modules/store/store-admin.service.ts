@@ -65,6 +65,8 @@ export interface AdminStoreItemDto {
   enabled: boolean;
   /** v1.79-live (D289b): when it was taken out of the store (hidden; still working for its owners), else null. */
   hiddenAt: string | null;
+  /** v1.101-social (D325): the event this exclusive prize belongs to, else null. */
+  eventId: string | null;
   /** People holding it now (not expired). */
   owners: number;
   /** Purchases of it, ever. */
@@ -271,8 +273,10 @@ export class StoreAdminService {
     };
   }
 
-  async list(): Promise<AdminStoreItemListDto> {
+  async list(eventId?: string): Promise<AdminStoreItemListDto> {
     const rows = await this.prisma.storeItem.findMany({
+      // v1.101-social (D325): an event's own prize items are listed with that event, never with the store.
+      where: { eventId: eventId ?? null },
       include: { prices: true },
       orderBy: [{ kind: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     });
@@ -294,8 +298,20 @@ export class StoreAdminService {
     const badges = badgeWrite({ ...body, isNew: body.isNew ?? (body.badges ? undefined : false) }, [], now);
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('kabso:store-items'))`;
-      if ((await tx.storeItem.count()) >= STORE_MAX_ITEMS)
+      if (
+        body.eventId === undefined &&
+        (await tx.storeItem.count({ where: { eventId: null } })) >= STORE_MAX_ITEMS
+      )
         throw refused(`At most ${STORE_MAX_ITEMS} store items.`);
+      if (body.eventId !== undefined) {
+        const e = await tx.event.findUnique({
+          where: { id: body.eventId },
+          select: { metric: true, frozenAt: true, endsAt: true },
+        });
+        if (!e || e.metric !== 'EVENT_GIFTS') throw refused(`No gift event ${body.eventId}.`);
+        if (e.frozenAt !== null || (e.endsAt !== null && e.endsAt <= now))
+          throw refused('The event has ended; it takes no new prizes.');
+      }
       const sortOrder =
         body.sortOrder ??
         ((await tx.storeItem.aggregate({ where: { kind: body.kind }, _max: { sortOrder: true } }))._max
@@ -328,7 +344,9 @@ export class StoreAdminService {
           artHeight: (art.artHeight as number | null | undefined) ?? null,
           sortOrder,
           ...badges,
-          enabled: body.enabled ?? false,
+          enabled: body.eventId === undefined ? (body.enabled ?? false) : false,
+          // v1.101-social (D325): an event prize is exclusive (CHECK `store_items_event_exclusive`).
+          ...(body.eventId !== undefined ? { eventId: body.eventId, hiddenAt: now } : {}),
         },
       });
       await this.writePrices(tx, item.id, body.prices);
@@ -392,6 +410,7 @@ export class StoreAdminService {
   async setEnabled(id: string, enabled: boolean, reason: string, by: AdminVia): Promise<AdminStoreItemDto> {
     return this.prisma.$transaction(async (tx) => {
       const before = await this.lockItem(tx, id);
+      if (enabled && before.eventId !== null) throw refused('An event prize is exclusive: it is never sold.');
       if (enabled && before.hiddenAt !== null) {
         throw refused('The item was taken out of the store; put it back with «إرجاع للمتجر» first.');
       }
@@ -483,6 +502,7 @@ export class StoreAdminService {
   async restore(id: string, reason: string | undefined, by: AdminVia): Promise<AdminStoreItemDto> {
     return this.prisma.$transaction(async (tx) => {
       const before = await this.lockItem(tx, id);
+      if (before.eventId !== null) throw refused('An event prize is exclusive: it is never sold.');
       if (before.hiddenAt !== null) {
         await tx.storeItem.update({ where: { id }, data: { hiddenAt: null, enabled: true } });
         await tx.auditLog.create({
@@ -628,6 +648,7 @@ export class StoreAdminService {
       badges: adminItemBadges(i, this.clock.now()),
       enabled: i.enabled,
       hiddenAt: i.hiddenAt?.toISOString() ?? null,
+      eventId: i.eventId,
       owners: stats?.owners ?? 0,
       sold: stats?.sold ?? 0,
       createdAt: i.createdAt.toISOString(),

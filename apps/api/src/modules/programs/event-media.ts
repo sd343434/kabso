@@ -29,6 +29,8 @@ export const EVENT_MEDIA_KINDS = [
   'title',
   'overlay',
   'badge',
+  // v1.101-social (D325): a prize's display picture on the event page.
+  'prize',
 ] as const;
 export type EventMediaKind = (typeof EVENT_MEDIA_KINDS)[number];
 
@@ -97,28 +99,31 @@ export const EVENT_MEDIA_SPECS: Readonly<Record<EventMediaKind, EventMediaSpec>>
     transparent: false,
     safeZone: 'As the background; its poster is a background still (required).',
   },
+  // v1.101-social (D325): the title may be animated (WebP / GIF) or a Lottie JSON (its canvas the same 9:4 shape).
   title: {
     kind: 'title',
     width: 1080,
     height: 480,
-    formats: ['PNG', 'WEBP'],
+    formats: ['PNG', 'WEBP', 'GIF (animated)', 'WEBP (animated)', 'Lottie JSON'],
     maxStillBytes: 1 * MB,
-    maxAnimatedBytes: null,
-    maxDurationMs: null,
+    maxAnimatedBytes: 3 * MB,
+    maxDurationMs: 10_000,
     transparent: true,
     safeZone: 'Shown over the background’s top 480 px.',
   },
+  // v1.101-social (D325): also an alpha MP4 (side-by-side alpha, H.264 / HEVC, muted).
   overlay: {
     kind: 'overlay',
     width: null,
     height: null,
-    formats: ['SVGA 2.x', 'Lottie JSON'],
+    formats: ['SVGA 2.x', 'Lottie JSON', 'MP4 (side-by-side alpha, H.264 / HEVC, muted)'],
     maxStillBytes: null,
     maxAnimatedBytes: 2 * MB,
     maxDurationMs: 10_000,
     transparent: true,
     safeZone:
-      'Plays looping over the whole page (falling coins, sparkles); pauses off screen and with reduced motion.',
+      'Plays looping over the whole page (falling coins, sparkles); pauses off screen and with reduced motion. An MP4 ' +
+      'overlay is at most 8 MB.',
   },
   badge: {
     kind: 'badge',
@@ -131,7 +136,21 @@ export const EVENT_MEDIA_SPECS: Readonly<Record<EventMediaKind, EventMediaSpec>>
     transparent: true,
     safeZone: 'The medal centred, about 40 px of transparent margin.',
   },
+  prize: {
+    kind: 'prize',
+    width: 512,
+    height: 512,
+    formats: ['PNG', 'JPEG', 'WEBP'],
+    maxStillBytes: 1 * MB,
+    maxAnimatedBytes: null,
+    maxDurationMs: null,
+    transparent: false,
+    safeZone: 'The prize centred; shown in a square card on the event page.',
+  },
 };
+
+/** v1.101-social (D325): the largest alpha-MP4 overlay. */
+export const EVENT_OVERLAY_MP4_MAX_BYTES = 8 * MB;
 
 /** A refused upload: a machine-readable issue and a message (the panel and the app show it). */
 export class EventMediaError extends Error {
@@ -187,7 +206,12 @@ export async function checkEventImage(kind: EventMediaKind, bytes: Buffer): Prom
   const format = meta.format ?? '';
   const pages = meta.pages ?? 1;
   const animated = pages > 1;
-  const allowed = kind === 'title' || kind === 'badge' ? ['png', 'webp'] : ['png', 'jpeg', 'webp', 'gif'];
+  const allowed =
+    kind === 'badge'
+      ? ['png', 'webp']
+      : kind === 'title'
+        ? ['png', 'webp', 'gif']
+        : ['png', 'jpeg', 'webp', 'gif'];
   if (!allowed.includes(format)) {
     throw new EventMediaError(
       'event_media_format',
@@ -367,7 +391,60 @@ const FOLDER: Readonly<Record<Exclude<EventMediaKind, 'banner' | 'banner_video'>
   title: 'title',
   overlay: 'overlay',
   badge: 'badge',
+  prize: 'prize',
 };
+
+/** v1.101-social (D325): a Lottie title — the overlay's JSON checks, ≤ 1 MB, a canvas of the title's 9:4 shape. */
+export function checkEventLottieTitle(bytes: Buffer): EventMediaChecked {
+  const spec = EVENT_MEDIA_SPECS.title;
+  if (bytes.length > spec.maxStillBytes!) {
+    throw new EventMediaError(
+      'event_media_bytes',
+      `The file is ${mb(bytes.length)}; at most ${mb(spec.maxStillBytes!)}.`,
+    );
+  }
+  let json: Record<string, unknown>;
+  try {
+    json = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+  } catch {
+    throw new EventMediaError('event_media_format', 'Not a Lottie JSON file.');
+  }
+  const fr = Number(json.fr);
+  const op = Number(json.op);
+  const ip = Number(json.ip);
+  const w = Number(json.w);
+  const h = Number(json.h);
+  if (!Array.isArray(json.layers) || !(fr > 0) || !(op > ip) || !(w > 0) || !(h > 0)) {
+    throw new EventMediaError(
+      'event_media_format',
+      'Not a Lottie animation (needs w, h, fr, ip, op and layers).',
+    );
+  }
+  const want = spec.width! / spec.height!;
+  if (Math.abs(w / h - want) / want > 0.01) {
+    throw new EventMediaError(
+      'event_media_size',
+      `The Lottie canvas is ${String(w)} × ${String(h)}; it must have the title's shape ${String(spec.width)} × ${String(spec.height)}.`,
+    );
+  }
+  const durationMs = Math.round(((op - ip) / fr) * 1000);
+  if (durationMs > spec.maxDurationMs!) {
+    throw new EventMediaError(
+      'event_media_duration',
+      `The loop must be at most ${String(spec.maxDurationMs! / 1000)} s.`,
+    );
+  }
+  return {
+    kind: 'title',
+    body: bytes,
+    contentType: 'application/json',
+    ext: 'json',
+    width: w,
+    height: h,
+    animated: true,
+    durationMs,
+  };
+}
 
 /** Stores checked event art at `media/events/<folder>/<uuid>.<ext>`; returns its key. */
 export async function storeEventArt(
@@ -378,4 +455,60 @@ export async function storeEventArt(
   const key = `media/events/${FOLDER[kind]}/${randomUUID()}.${checked.ext}`;
   await storage.put(key, checked.body, checked.contentType, 'public, max-age=31536000, immutable');
   return key;
+}
+
+/** v1.101-social (D325): whether the bytes are an MP4 / MOV container. */
+export function isMp4(bytes: Buffer): boolean {
+  return bytes.length >= 12 && bytes.toString('latin1', 4, 8) === 'ftyp';
+}
+
+/**
+ * v1.101-social (D325): an alpha-MP4 overlay (side-by-side alpha, as the gifts' D207 MP4 effects) — ≤ 8 MB, H.264 or
+ * HEVC, a loop of at most 10 s; stored unchanged (the app plays it over the page with its alpha half as the mask).
+ */
+export async function checkEventOverlayVideo(bytes: Buffer): Promise<EventMediaChecked> {
+  const spec = EVENT_MEDIA_SPECS.overlay;
+  if (bytes.length > EVENT_OVERLAY_MP4_MAX_BYTES) {
+    throw new EventMediaError(
+      'event_media_bytes',
+      `The video is ${mb(bytes.length)}; at most ${mb(EVENT_OVERLAY_MP4_MAX_BYTES)}.`,
+    );
+  }
+  const contentType: VideoContentType =
+    bytes.toString('latin1', 8, 12) === 'qt  ' ? 'video/quicktime' : 'video/mp4';
+  try {
+    const info = await inspectVideo(
+      (offset, length) => Promise.resolve(bytes.subarray(offset, Math.min(offset + length, bytes.length))),
+      bytes.length,
+      contentType,
+      'EVENT_VIDEO',
+    );
+    if (!(VIDEO_CODECS as readonly string[]).includes(info.codec)) {
+      throw new EventMediaError('event_media_codec', 'The video must be H.264 or HEVC.');
+    }
+    if (info.durationMs > spec.maxDurationMs!) {
+      throw new EventMediaError(
+        'event_media_duration',
+        `The overlay loop lasts ${(info.durationMs / 1000).toFixed(1)} s; at most ${String(spec.maxDurationMs! / 1000)} s.`,
+      );
+    }
+    return {
+      kind: 'overlay',
+      body: bytes,
+      contentType: 'video/mp4',
+      ext: 'mp4',
+      width: info.width,
+      height: info.height,
+      animated: true,
+      durationMs: info.durationMs,
+    };
+  } catch (err) {
+    if (err instanceof InvalidVideoError) {
+      throw new EventMediaError(
+        'event_media_format',
+        `The video cannot be read (${err.message}); send an MP4 with H.264 or HEVC.`,
+      );
+    }
+    throw err;
+  }
 }

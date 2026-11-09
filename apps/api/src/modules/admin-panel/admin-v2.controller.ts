@@ -26,7 +26,9 @@ import { AdminCatalogService, type GiftCategoryInput, type GiftUploadKind } from
 import {
   AdminGiftEventsService,
   eventBadgeInputSchema,
+  eventOptionsQuery,
   eventUploadQuery,
+  launchFestivalBody,
   type EventBadgeInput,
 } from './admin-gift-events.service.js';
 import type { EventMediaKind } from '../programs/event-media.js';
@@ -741,8 +743,8 @@ export class AdminV2Controller {
 
   @Get('event-options')
   @RequireCapability('events.manage')
-  eventOptions() {
-    return this.giftEvents.options();
+  eventOptions(@Query(new ZodValidationPipe(eventOptionsQuery)) q: { eventId?: string }) {
+    return this.giftEvents.options(q.eventId);
   }
 
   @Post('gift-events')
@@ -753,6 +755,17 @@ export class AdminV2Controller {
     @CurrentAdmin() admin: AdminContext,
   ) {
     return this.giftEvents.create(body, admin);
+  }
+
+  /** v1.101-social (D325): «مهرجان انطلاقة Kabso» as a draft (its four gifts without art; dates set at launch). */
+  @Post('gift-events/launch-festival')
+  @HttpCode(201)
+  @RequireCapability('events.manage')
+  launchFestival(
+    @Body(new ZodValidationPipe(launchFestivalBody)) body: { reason: string; category?: string },
+    @CurrentAdmin() admin: AdminContext,
+  ) {
+    return this.giftEvents.launchFestival(body, admin);
   }
 
   /** D303 follow-ups (§10.114.9): one piece of an event's art, checked against the published spec. */
@@ -804,6 +817,9 @@ export class AdminV2Controller {
     @Body(new ZodValidationPipe(reasonBody)) body: { reason: string },
     @CurrentAdmin() admin: AdminContext,
   ) {
+    // v1.101-social (D325): publish / unpublish / discard a draft.
+    if (command === 'publish' || command === 'unpublish' || command === 'discard')
+      return this.giftEvents.lifecycle(pathUuid(id), command, body.reason, admin);
     if (command !== 'end' && command !== 'hold' && command !== 'release')
       throw new AppException(ErrorCode.NOT_FOUND);
     return this.catalog.changeEvent(pathUuid(id), command, body.reason, admin);

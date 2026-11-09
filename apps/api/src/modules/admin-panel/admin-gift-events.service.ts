@@ -12,21 +12,32 @@ import {
 } from '../programs/event-admin-rules.js';
 import {
   createGiftEventIn,
+  EVENT_AUDIENCES,
   EVENT_BOARD_KINDS,
+  EVENT_COUNTED_GIFTS,
+  EVENT_RECURRENCES,
+  EVENT_SCORINGS,
   GIFT_EVENT_LIMITS,
+  lifecycleIn,
   parseBundle,
   parsePrizeLines,
+  PRIZE_ITEM_TYPES,
   updateGiftEventIn,
+  type EventLifecycleCommand,
   type GiftEventInput,
 } from '../programs/gift-events.js';
+import { createLaunchFestivalDraftIn } from '../programs/launch-festival.js';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../media/object-storage.js';
 import { MediaService } from '../media/media.service.js';
 import { BannerError, storeBannerImage } from '../home/home-banners.js';
 import {
   checkEventImage,
+  checkEventLottieTitle,
   checkEventOverlay,
+  checkEventOverlayVideo,
   checkEventVideo,
+  isMp4,
   EVENT_MEDIA_SPECS,
   EventMediaError,
   storeEventArt,
@@ -127,7 +138,16 @@ export class AdminGiftEventsService {
           spec,
         };
       }
-      const checked = kind === 'overlay' ? checkEventOverlay(body) : await checkEventImage(kind, body);
+      // v1.101-social (D325): an overlay may be an alpha MP4; a title may be a Lottie JSON.
+      const json = body.subarray(0, 64).toString('utf8').trimStart().startsWith('{');
+      const checked =
+        kind === 'overlay'
+          ? isMp4(body)
+            ? await checkEventOverlayVideo(body)
+            : checkEventOverlay(body)
+          : kind === 'title' && json
+            ? checkEventLottieTitle(body)
+            : await checkEventImage(kind, body);
       const key = await storeEventArt(this.storage, kind, checked);
       return {
         kind,
@@ -185,20 +205,43 @@ export class AdminGiftEventsService {
     };
   }
 
-  /** Every art key the body names must be an uploaded object (409 otherwise). */
+  /** Every art key the body names must be an uploaded object (409 otherwise); v1.101-social: the prizes' pictures too. */
   private async assertArt(body: GiftEventInput): Promise<void> {
-    for (const key of [body.backgroundKey, body.backgroundPosterKey, body.titleKey, body.overlayKey]) {
+    const displays = [
+      ...body.boards.flatMap((b) => b.prizes.flatMap((l) => l.items)),
+      ...body.milestones.flatMap((m) => m.prizes),
+    ].map((i) => (i as { displayKey?: string | null }).displayKey ?? null);
+    for (const key of [
+      body.backgroundKey,
+      body.backgroundPosterKey,
+      body.titleKey,
+      body.overlayKey,
+      ...new Set(displays),
+    ]) {
       if (key && !(await this.storage.head(key))) throw refused(`Upload ${key} first (it is not stored).`);
     }
   }
 
-  /** `AdminEventOptions`: what an event can use — gifts, bag items, VIP tiers, the board kinds and the limits. */
-  async options() {
+  /**
+   * `AdminEventOptions`: what an event can use — gifts, bag items, VIP tiers, the board kinds and the limits.
+   * v1.101-social (D325): with `eventId`, that event's own exclusive gifts and items too (another event's never), the
+   * gift categories an event gift may go in, and the v2 choices.
+   */
+  async options(eventId?: string) {
     const base = this.storageSettings.current().publicBaseUrl;
-    const [gifts, items, tiers] = await Promise.all([
-      this.prisma.gift.findMany({ orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
-      this.prisma.bagItem.findMany({ orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }] }),
+    const own = eventId ? [{ eventId: null }, { eventId }] : [{ eventId: null }];
+    const [gifts, items, tiers, categories] = await Promise.all([
+      this.prisma.gift.findMany({ where: { OR: own }, orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }] }),
+      this.prisma.bagItem.findMany({
+        where: { OR: [{ storeItem: null }, { storeItem: { OR: own } }] },
+        include: { storeItem: { select: { eventId: true, still: true, animation: true } } },
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }],
+      }),
       this.prisma.vipTier.findMany({ orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }),
+      this.prisma.giftCategory.findMany({
+        where: { kind: 'NORMAL', code: { notIn: ['LUCKY', 'QUIPS', 'CUSTOM'] } },
+        orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+      }),
     ]);
     const badges = await this.prisma.eventBadge.findMany({
       orderBy: { createdAt: 'desc' },
@@ -216,6 +259,13 @@ export class AdminGiftEventsService {
         levels: b.levels.map((l) => ({ level: l.level, imageUrl: this.url(l.imageKey) })),
       })),
       limits: { ...GIFT_EVENT_LIMITS },
+      // v1.101-social (D325): the v2 choices.
+      audiences: [...EVENT_AUDIENCES],
+      recurrences: [...EVENT_RECURRENCES],
+      scorings: [...EVENT_SCORINGS],
+      countedGifts: [...EVENT_COUNTED_GIFTS],
+      prizeTypes: [...PRIZE_ITEM_TYPES],
+      giftCategories: categories.map((c) => ({ code: c.code, nameAr: c.nameAr, nameEn: c.nameEn })),
       gifts: gifts.map((g) => ({
         code: g.code,
         nameAr: g.nameAr,
@@ -224,6 +274,9 @@ export class AdminGiftEventsService {
         assetKey: g.assetKey,
         imageUrl: giftArtUrl(base, g.imageObjectKey),
         enabled: g.enabled,
+        eventId: g.eventId,
+        fullscreen: g.badges.includes('FULLSCREEN'),
+        hasEffect: g.animationObjectKey !== null,
       })),
       bagItems: items.map((i) => ({
         code: i.code,
@@ -231,6 +284,8 @@ export class AdminGiftEventsService {
         nameAr: i.nameAr,
         nameEn: i.nameEn,
         assetKey: i.assetKey,
+        eventId: i.storeItem?.eventId ?? null,
+        stillUrl: i.storeItem?.still ?? null,
       })),
       vipTiers: tiers.map((t) => ({
         code: t.code,
@@ -255,11 +310,13 @@ export class AdminGiftEventsService {
         titleAr: e.titleAr,
         titleEn: e.titleEn,
         metric: e.metric,
-        startsAt: e.startsAt.toISOString(),
+        startsAt: e.startsAt?.toISOString() ?? null,
         endsAt: e.endsAt?.toISOString() ?? null,
         state: eventState(e, now),
         payoutHold: e.payoutHold,
         editable: e.metric === 'EVENT_GIFTS' && e.frozenAt === null && (e.endsAt === null || e.endsAt > now),
+        status: e.status,
+        recurrence: e.recurrence,
       })),
     };
   }
@@ -271,13 +328,18 @@ export class AdminGiftEventsService {
       include: {
         gifts: { orderBy: { sortOrder: 'asc' } },
         boards: { orderBy: { sortOrder: 'asc' } },
+        milestones: { orderBy: { sortOrder: 'asc' }, include: { _count: { select: { grants: true } } } },
+        periods: { orderBy: { period: 'asc' } },
+        ownGifts: { orderBy: { sortOrder: 'asc' } },
+        ownItems: { orderBy: { sortOrder: 'asc' } },
+        bannerMedia: true,
       },
     });
     if (!e || e.metric !== 'EVENT_GIFTS') throw new AppException(ErrorCode.NOT_FOUND);
     const now = this.clock.now();
     const results = await this.prisma.eventResult.findMany({
       where: { eventId: id },
-      orderBy: [{ board: 'asc' }, { rank: 'asc' }],
+      orderBy: [{ period: 'desc' }, { board: 'asc' }, { rank: 'asc' }],
       include: {
         user: { select: { profile: { select: { username: true, displayName: true } } } },
         payouts: { select: { userId: true, status: true, granted: true } },
@@ -289,7 +351,7 @@ export class AdminGiftEventsService {
       payoutHold: e.payoutHold,
       frozenAt: e.frozenAt?.toISOString() ?? null,
       paidAt: e.paidAt?.toISOString() ?? null,
-      structureLocked: e.startsAt <= now,
+      structureLocked: e.status === 'PUBLISHED' && e.startsAt !== null && e.startsAt <= now,
       artUrls: {
         background: this.url(e.backgroundKey),
         backgroundPoster: this.url(e.backgroundPosterKey),
@@ -305,9 +367,16 @@ export class AdminGiftEventsService {
         summaryEn: e.summaryEn,
         tone: e.tone,
         bannerUrl: e.bannerUrl,
-        startsAt: e.startsAt.toISOString(),
+        startsAt: e.startsAt?.toISOString() ?? null,
         endsAt: e.endsAt?.toISOString() ?? null,
         timeZone: e.timeZone,
+        // v1.101-social (D325).
+        status: e.status,
+        permanent: e.permanent,
+        recurrence: e.recurrence,
+        scoring: e.scoring,
+        countedGifts: e.countedGifts,
+        bannerMediaId: e.bannerMediaId,
         audience: e.audience,
         regions: e.regions.map((r) => r.trim()),
         featured: e.featured,
@@ -317,7 +386,7 @@ export class AdminGiftEventsService {
         overlayKey: e.overlayKey,
         gifts: e.gifts.map((g) => ({
           giftCode: g.giftCode,
-          pointsPerCoin: g.pointsPerCoin,
+          pointsPerCoin: Number(g.pointsPerCoin),
           pointsPerGift: g.pointsPerGift,
         })),
         boards: e.boards.map((b) => ({
@@ -325,8 +394,44 @@ export class AdminGiftEventsService {
           minPoints: Number(b.minPoints),
           prizes: parsePrizeLines(b.prizes),
         })),
+        milestones: e.milestones.map((m) => ({
+          board: m.board,
+          points: Number(m.points),
+          prizes: parseBundle(m.prizes),
+        })),
       },
+      // v1.101-social (D325): the current period, the frozen ones, the event's own gifts and items, the banner.
+      period: e.period,
+      periodStartsAt: e.periodStartsAt?.toISOString() ?? null,
+      periodEndsAt: e.periodEndsAt?.toISOString() ?? null,
+      periods: e.periods.map((p) => ({
+        period: p.period,
+        startsAt: p.startsAt.toISOString(),
+        endsAt: p.endsAt.toISOString(),
+        frozenAt: p.frozenAt.toISOString(),
+      })),
+      milestoneGrants: e.milestones.reduce((n, m) => n + m._count.grants, 0),
+      bannerImageUrl: e.bannerMedia ? this.url(e.bannerMedia.largeKey) : null,
+      ownGifts: e.ownGifts.map((g) => ({
+        code: g.code,
+        nameAr: g.nameAr,
+        nameEn: g.nameEn,
+        priceCoins: g.priceCoins,
+        imageUrl: this.url(g.imageObjectKey),
+        hasEffect: g.animationObjectKey !== null,
+        fullscreen: g.badges.includes('FULLSCREEN'),
+      })),
+      ownItems: e.ownItems.map((i) => ({
+        id: i.id,
+        code: i.bagCode,
+        kind: i.kind,
+        nameAr: i.nameAr,
+        nameEn: i.nameEn,
+        still: i.still,
+        animation: i.animation,
+      })),
       results: results.map((r) => ({
+        period: r.period,
         board: r.board,
         rank: r.rank,
         username: r.user.profile?.username ?? null,
@@ -342,17 +447,41 @@ export class AdminGiftEventsService {
     };
   }
 
+  private get zone(): string {
+    return this.config.live.rankingsTimeZone;
+  }
+
   async create(body: GiftEventInput, ctx: AdminContext) {
     await this.assertArt(body);
     return rule(() =>
-      this.prisma.$transaction((tx) => createGiftEventIn(tx, body, this.clock.now(), viaOf(ctx))),
+      this.prisma.$transaction((tx) => createGiftEventIn(tx, body, this.clock.now(), viaOf(ctx), this.zone)),
     );
   }
 
   async update(id: string, body: GiftEventInput, ctx: AdminContext) {
     await this.assertArt(body);
     return rule(() =>
-      this.prisma.$transaction((tx) => updateGiftEventIn(tx, id, body, this.clock.now(), viaOf(ctx))),
+      this.prisma.$transaction((tx) =>
+        updateGiftEventIn(tx, id, body, this.clock.now(), viaOf(ctx), this.zone),
+      ),
+    );
+  }
+
+  /** v1.101-social (D325): «مهرجان انطلاقة Kabso» as a draft with its four exclusive gifts (launch-festival.ts). */
+  async launchFestival(body: { reason: string; category?: string | undefined }, ctx: AdminContext) {
+    return rule(() =>
+      this.prisma.$transaction((tx) =>
+        createLaunchFestivalDraftIn(tx, viaOf(ctx), this.clock.now(), body.reason, this.zone, body.category),
+      ),
+    );
+  }
+
+  /** v1.101-social (D325): publish / unpublish / discard (a draft). */
+  async lifecycle(id: string, command: EventLifecycleCommand, reason: string, ctx: AdminContext) {
+    return rule(() =>
+      this.prisma.$transaction((tx) =>
+        lifecycleIn(tx, id, command, reason, this.clock.now(), viaOf(ctx), this.zone),
+      ),
     );
   }
 
@@ -387,5 +516,26 @@ export const eventBadgeInputSchema = z.strictObject({
 export type EventBadgeInput = z.infer<typeof eventBadgeInputSchema>;
 
 export const eventUploadQuery = z.strictObject({
-  kind: z.enum(['banner', 'banner_video', 'background', 'background_video', 'title', 'overlay', 'badge']),
+  kind: z.enum([
+    'banner',
+    'banner_video',
+    'background',
+    'background_video',
+    'title',
+    'overlay',
+    'badge',
+    'prize',
+  ]),
 });
+
+/** v1.101-social (D325): `GET /admin/event-options?eventId=`. */
+/** v1.101-social (D325): `POST /admin/gift-events/launch-festival`. */
+export const launchFestivalBody = z.strictObject({
+  reason: z.string().trim().min(3).max(500),
+  category: z
+    .string()
+    .regex(/^[A-Z0-9_]{1,40}$/)
+    .optional(),
+});
+
+export const eventOptionsQuery = z.strictObject({ eventId: z.uuid().optional() });

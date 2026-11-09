@@ -112,6 +112,10 @@ export async function changeEventByAdminIn(
 ): Promise<boolean> {
   const event = await tx.event.findUnique({ where: { id: eventId } });
   if (!event) throw new EventAdminError(`No event ${eventId}.`);
+  // v1.101-social (D325): a draft is not running; it is deleted or published instead.
+  if (event.status === 'DRAFT' || event.startsAt === null) {
+    throw new EventAdminError('This event is a draft: publish it or delete the draft.');
+  }
   if (command === 'end') {
     if (now < event.startsAt) throw new EventAdminError('This event has not started; nothing to end.');
     if (event.endsAt !== null && event.endsAt <= now) return false;
@@ -145,11 +149,19 @@ export async function changeEventByAdminIn(
   return true;
 }
 
-/** An event's state for lists (the CLI's `list` words). */
+/** An event's state for lists (the CLI's `list` words); v1.101-social (D325): DRAFT. */
 export function eventState(
-  e: { startsAt: Date; endsAt: Date | null; paidAt: Date | null; frozenAt: Date | null; payoutHold: boolean },
+  e: {
+    startsAt: Date | null;
+    endsAt: Date | null;
+    paidAt: Date | null;
+    frozenAt: Date | null;
+    payoutHold: boolean;
+    status?: string;
+  },
   now: Date,
-): 'UPCOMING' | 'RUNNING' | 'PAID' | 'HELD' | 'IN_REVIEW' | 'ENDED' {
+): 'DRAFT' | 'UPCOMING' | 'RUNNING' | 'PAID' | 'HELD' | 'IN_REVIEW' | 'ENDED' {
+  if (e.status === 'DRAFT' || e.startsAt === null) return 'DRAFT';
   if (now < e.startsAt) return 'UPCOMING';
   if (e.endsAt === null || now < e.endsAt) return 'RUNNING';
   if (e.paidAt) return 'PAID';
