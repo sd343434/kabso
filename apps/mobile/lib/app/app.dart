@@ -6,6 +6,7 @@ import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/programs/presentation/event_announcement.dart';
 import 'package:kabso_live/features/push/push_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -57,6 +58,8 @@ class KabsoApp extends ConsumerWidget {
           children: [
             child!,
             LiveMiniWindow(router: router),
+            // D340: full-screen event announcements (outside lives).
+            EventAnnouncementGate(router: router),
           ],
         );
         if (_emulatePhoneInsets) {

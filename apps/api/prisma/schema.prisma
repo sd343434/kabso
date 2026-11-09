@@ -240,6 +240,8 @@ model User {
   eventResults           EventResult[]
   /// v1.97-social (D303): event prizes paid to the person (one row per result and winner).
   eventPrizePayouts      EventPrizePayout[]
+  /// v1.105-social (D340): the event starts this person saw full screen.
+  eventStartsSeen        EventStartAnnouncement[]
   /// v1.97-social (D303 follow-up): event badges the person holds (until `expires_at`).
   eventBadges            UserEventBadge[]
   /// v1.101-social (D325): event milestones the person reached.
@@ -4296,6 +4298,9 @@ model Event {
   /// v1.102-social (D334, §10.127.11): content creators count as hosts (HOSTS audience; the D166 HOSTS board). True for
   /// every event made after migration 20270409090200; false for the older ones (D295's rule kept).
   creatorsAsHosts     Boolean       @default(true) @map("creators_as_hosts")
+  /// v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» — the app shows the start full screen once per person.
+  /// True for every event made after migration 20270412090000; false for the older ones.
+  announceFullscreen  Boolean       @default(true) @map("announce_fullscreen")
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -4311,7 +4316,9 @@ model Event {
   ownItems      StoreItem[]
   milestones    EventMilestone[]
   periods       EventPeriod[]
-  bannerMedia   MediaAsset?      @relation("EventBannerMedia", fields: [bannerMediaId], references: [id], onDelete: SetNull)
+  /// v1.105-social (D340): who has seen the full-screen start announcement.
+  startsSeen    EventStartAnnouncement[]
+  bannerMedia   MediaAsset?              @relation("EventBannerMedia", fields: [bannerMediaId], references: [id], onDelete: SetNull)
 
   @@index([startsAt], map: "events_starts_idx")
   @@index([status], map: "events_status_idx")
@@ -4398,20 +4405,37 @@ model EventBoard {
 /// v1.97-social (D303, §10.114.4): one winner's payout of one result (CP: both partners) — once (the key); `granted`
 /// lists what was given (items skipped because gone from the catalogue are listed with `skipped`).
 model EventPrizePayout {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  resultId  String   @map("result_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
+  id          String    @id @default(uuid(7)) @db.Uuid
+  resultId    String    @map("result_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
   /// PAID, or FORFEITED (the account was not ACTIVE at payout time).
-  status    String   @db.VarChar(10)
-  granted   Json     @default("[]")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  status      String    @db.VarChar(10)
+  granted     Json      @default("[]")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// v1.105-social (D340, §10.134): when the winner saw the full-screen «مبروك» (null: not yet; PAID rows only).
+  announcedAt DateTime? @map("announced_at") @db.Timestamptz(3)
 
   result EventResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([resultId, userId], map: "event_prize_payouts_once")
   @@index([userId], map: "event_prize_payouts_user_idx")
+  @@index([userId], map: "event_prize_payouts_unannounced_idx", where: raw("((announced_at IS NULL) AND ((status)::text = 'PAID'::text))"))
   @@map("event_prize_payouts")
+}
+
+/// v1.105-social (D340, CONVENTIONS §10.134): a person saw an event's full-screen start announcement (once).
+model EventStartAnnouncement {
+  eventId String   @map("event_id") @db.Uuid
+  userId  String   @map("user_id") @db.Uuid
+  seenAt  DateTime @map("seen_at") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId], map: "event_start_announcements_pkey")
+  @@index([userId], map: "event_start_announcements_user_idx")
+  @@map("event_start_announcements")
 }
 
 /// v1.101-social (D325, §10.127): one frozen period of an event (its window), written at each freeze.

@@ -10204,3 +10204,68 @@ names — the template uses «هدية المهرجان 1…4» and marks gifts 
 6. **Milestones held with the payout** *(owner: yes)*: not given while held; given at the release (once per key) with
    the board prizes. Fix: a held event whose boards pay nothing but which has milestones is no longer settled at its
    freeze — it stays due until the release gives the milestones.
+
+### 10.134 An event's final result and its full-screen announcements *(v1.105-social, DRAFT — D340)*
+
+Owner (2026-11-09): after an event ends its page still said «باقي 600 نقطة للتأهل» as if it ran; a board with no minimum
+showed «لم تدخل الترتيب بعد · 0 نقطة»; and «نعم» to a full-screen announcement when an event starts and when someone
+wins. It **extends §10.127** (every rule there holds).
+
+#### 10.134.1 The final result on the event page *(app + `getEventLeaderboard`)*
+
+- **Server.** On a final board (`final: true`: the event, or the recurring period shown, is frozen) `me` is the caller's
+  **final place whatever it is**: from `event_results` (the frozen top 100) when the caller is there, else computed over
+  the frozen period's window with the board's own ranking (`boardRankedSql`, the same exclusions) — `rank` may be above
+  100, `qualified` is `score ≥ minPoints`, no prize (prizes stop at rank 100). `rank` null and `score` 0: the caller did
+  not take part. `me.prizeStatus` (final boards of gift events): **NONE** (no prize for this place), **PENDING** (frozen,
+  not paid: held or due in the next pass), **PAID**, **FORFEITED** (not ACTIVE at payout). A live board is unchanged.
+- **App** (`EventDetailScreen`, the board's «مركزي» card and the sticky bar). Once the event has **ended** (its status,
+  or the board is final) the page never shows the points still missing; it shows the result:
+  - qualified with a prize: «مركزك النهائي: N» and «فزت بـ …» with the bundle (PENDING: «تُسلَّم بعد المراجعة»);
+  - qualified without a prize: «مركزك النهائي: N»;
+  - on the board but below the minimum: «مركزك النهائي: N» and «لم تتأهل»;
+  - not on the board (score 0): «لم تشارك».
+  Between the end and the sweeper's freeze (≤ one pass) the scores can no longer move (nothing after `endsAt` counts),
+  so the page already shows them as the result, marked «النتائج النهائية قيد الاعتماد».
+- **Zero minimum.** A board whose `minPoints` is 0 shows no «الحد الأدنى للتأهل» line and never «باقي N نقطة للتأهل»;
+  a caller not on it yet reads «لم تدخل الترتيب بعد» (no «· 0 نقطة»); the sticky bar «مركزي: N · X نقطة» with the
+  points to the next place, as before.
+
+#### 10.134.2 Full-screen announcements *(`getEventAnnouncements`, `markEventAnnouncementSeen`)*
+
+- **`EVENT_START`** «بدأت فعالية»: a published gift event (`metric = EVENT_GIFTS`) running now (`startsAt ≤ now`, not
+  frozen, before its end), whose start was announced by the sweeper (`start_notified_at`: the `EVENT_STARTED`
+  notification of §10.127.8 went out), with **`announce_fullscreen`** on, that is the caller's to join — listed to them
+  by the Event Center (`eventAudienceWhere`: the audience incl. D334's `creators_as_hosts`; the event's regions against
+  the caller's country) **and** inside the start notification's audience (`audienceSql`: a HOSTS event, browsable by
+  every non-creator under D295, interrupts its hosts only) — checked when asked, so a person who joins the audience
+  later sees it too — and that the caller has not seen (`event_start_announcements` (event, user), once). The event's
+  title, dates, art (`titleUrl`, `backgroundUrl` — a still or animated WebP, or a video's poster; else `bannerUrl`; else
+  Kabso's own artwork in the app), and the key prize: the first board's rank-1 bundle. «شارك الآن» opens the event page,
+  «لاحقاً» closes it; both mark it seen.
+- **`EVENT_WIN`** «مبروك»: each `event_prize_payouts` row of the caller with status **PAID** (the payout that wrote
+  `EVENT_PRIZE_WON`; a CP result: each partner's own payout) whose `announced_at` is null — the board, the final rank and
+  the bundle won (`event_results.prize`). **Always on** (no switch). «عرض النتائج» opens the event page. A held payout is
+  announced only once paid; a FORFEITED one never. Rows paid before migration `20270412090000_event_announcements` are
+  marked announced by the migration (no burst of old wins after the deploy). D166 metric events (coins only, no payout
+  rows) are not announced.
+- **Who.** A caller whose account is not ACTIVE gets an empty list (a suspended account cannot sign in anyway). A
+  person outside the event's audience never sees its start (and `markEventAnnouncementSeen` → 404 for it). Blocks
+  between people do not apply: an announcement names no other person.
+- **Order and size.** Wins first (oldest payout first), then starts (newest start first); at most 10 per call.
+- **Seen.** `POST /events/announcements/{id}/seen` — `start_<eventId>` inserts `(event, user)` `ON CONFLICT DO NOTHING`;
+  `win_<payoutId>` sets `announced_at` where null and the payout is the caller's. Idempotent (204 again, nothing
+  written); unknown, malformed or someone else's → 404.
+- **Admin.** `events.announce_fullscreen` «إعلان بملء الشاشة عند البدء» — `GiftEventForm.announceFullscreen`, in the
+  panel's design step: **true by default** for every event made from now on (any path: panel, the app's staff tool,
+  `event-admin`, the launch festival); **false for every event that existed before the migration** (an event running at
+  the deploy is not suddenly announced to everyone); absent on an edit: kept; a display setting, so it may change while
+  the event runs (switching it on for a running event announces it from then on). Audited with the edit.
+- **App.** A gate above the router (`EventAnnouncementGate`) asks `getEventAnnouncements` once signed in, on each return
+  to the foreground and when a live is left; it never shows while the person hosts a live (the go-live screen or its
+  minimized window) or watches one (a live room, or its minimized window) — the announcements wait until they leave.
+  One at a time, full screen, dismissible (the back button and «لاحقاً» close it; each shown one is marked seen when
+  closed). Animated entrance (fade + scale, the event art drifting) — **none when the system asks for reduced motion**
+  (`MediaQuery.disableAnimations`). Arabic RTL / English LTR, light / dark, 360 × 800 and text scale 1.3 (the content
+  scrolls). Kabso's own artwork only when the event has no art (the owner's gift box `assets/art/kabso_gift_box.webp` for a
+  start, Kabso's rank shields `assets/leaderboard/rank_shield_1…3.webp` for a win): never third-party art.

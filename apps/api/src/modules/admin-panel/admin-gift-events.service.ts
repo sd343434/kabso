@@ -379,6 +379,8 @@ export class AdminGiftEventsService {
         scoring: e.scoring,
         countedGifts: e.countedGifts,
         bannerMediaId: e.bannerMediaId,
+        // v1.105-social (D340): «إعلان بملء الشاشة عند البدء».
+        announceFullscreen: e.announceFullscreen,
         audience: e.audience,
         regions: e.regions.map((r) => r.trim()),
         featured: e.featured,

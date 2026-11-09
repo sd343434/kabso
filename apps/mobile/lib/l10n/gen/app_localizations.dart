@@ -28143,6 +28143,126 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يُرسل أحد هدايا بعد في هذه الفترة.'**
   String get liveRankRichEmpty;
+
+  /// D340: the caller's final place on an ended event's board.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركزك النهائي: {rank}'**
+  String eventsFinalRank(String rank);
+
+  /// D340: an ended event the caller scored nothing in.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تشارك'**
+  String get eventsNotParticipated;
+
+  /// D340: an ended board's place below the minimum.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتأهل — الحد الأدنى {points} نقطة'**
+  String eventsNotQualifiedFinal(String points);
+
+  /// D340: before the prize chips of an ended board.
+  ///
+  /// In ar, this message translates to:
+  /// **'فزت بـ:'**
+  String get eventsYouWon;
+
+  /// D340: the sticky bar's prize line.
+  ///
+  /// In ar, this message translates to:
+  /// **'فزت بـ {prize}'**
+  String eventsYouWonShort(String prize);
+
+  /// D340: the sticky bar's prize line when the bundle has more items.
+  ///
+  /// In ar, this message translates to:
+  /// **'فزت بـ {prize} +{count}'**
+  String eventsYouWonMore(String prize, String count);
+
+  /// D340: a won prize held for review.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُسلَّم الجائزة بعد المراجعة'**
+  String get eventsPrizePending;
+
+  /// D340: ended, the board not frozen yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'النتائج النهائية قيد الاعتماد'**
+  String get eventsResultsPending;
+
+  /// D340: the sticky bar after the end.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركزك النهائي: {rank} · {points} نقطة'**
+  String eventsMyBarFinal(String rank, String points);
+
+  /// D340: the sticky bar when not ranked (no «· 0 نقطة»).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تدخل الترتيب بعد'**
+  String get eventsMyBarNotRanked;
+
+  /// D340: the full-screen start announcement's badge.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدأت فعالية جديدة'**
+  String get eventsAnnounceStarted;
+
+  /// D340: the start announcement's button (opens the event).
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك الآن'**
+  String get eventsAnnounceJoin;
+
+  /// D340: closes a full-screen announcement.
+  ///
+  /// In ar, this message translates to:
+  /// **'لاحقاً'**
+  String get eventsAnnounceLater;
+
+  /// D340: the start announcement's key prize.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجائزة الكبرى'**
+  String get eventsAnnounceTopPrize;
+
+  /// D340: the winner's full-screen announcement.
+  ///
+  /// In ar, this message translates to:
+  /// **'مبروك'**
+  String get eventsAnnounceWinTitle;
+
+  /// D340: the winner's place and event.
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على المركز {rank} في {event}'**
+  String eventsAnnounceWinBody(String rank, String event);
+
+  /// D340: the winner's bundle.
+  ///
+  /// In ar, this message translates to:
+  /// **'جائزتك'**
+  String get eventsAnnounceYourPrize;
+
+  /// D340: the winner's announcement button (opens the event).
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض النتائج'**
+  String get eventsAnnounceResults;
+
+  /// D340: the announcement's close button (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق الإعلان'**
+  String get eventsAnnounceClose;
+
+  /// D340: the sticky bar after the end, below the minimum.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتأهل'**
+  String get eventsNotQualifiedYou;
 }
 
 class _AppLocalizationsDelegate

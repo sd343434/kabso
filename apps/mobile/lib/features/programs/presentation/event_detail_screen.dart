@@ -148,7 +148,10 @@ class EventDetailScreen extends ConsumerWidget {
           ProgramSection(
             key: rulesKey,
             title: l10n.eventsRules,
-            child: GiftEventRules(rules: e.rules),
+            child: GiftEventRules(
+              rules: e.rules,
+              hasMinimum: e.boards.any((b) => b.minPoints > 0),
+            ),
           ),
           GiftEventBoards(event: e),
           // Room for the sticky «مركزي» bar.

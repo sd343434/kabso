@@ -823,6 +823,7 @@ final class EventLeaderboard {
     this.myQualified = false,
     this.pointsToQualify = 0,
     this.myBundle = const [],
+    this.myPrizeStatus,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -849,6 +850,7 @@ final class EventLeaderboard {
       myQualified: me['qualified'] as bool? ?? false,
       pointsToQualify: _int(me['pointsToQualify']),
       myBundle: _items(me['prize']),
+      myPrizeStatus: EventPrizeStatus.fromWire(me['prizeStatus']),
       isFinal: json['final']! as bool,
       rows: [
         for (final r in _list(json['data']))
@@ -879,6 +881,26 @@ final class EventLeaderboard {
   final bool myQualified;
   final int pointsToQualify;
   final List<EventPrizeItem> myBundle;
+
+  /// v1.105-social (D340, §10.134.1): a final board's prize for the caller
+  /// (null on a live board, or from an older server).
+  final EventPrizeStatus? myPrizeStatus;
+}
+
+/// v1.105-social (D340): `EventLeaderboard.me.prizeStatus`.
+enum EventPrizeStatus {
+  none('NONE'),
+  pending('PENDING'),
+  paid('PAID'),
+  forfeited('FORFEITED');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// Null for a value this app does not know (or none sent).
+  static EventPrizeStatus? fromWire(Object? wire) =>
+      values.where((s) => s.wire == wire).firstOrNull;
 }
 
 /// `EventList.tab`.

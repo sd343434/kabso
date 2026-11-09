@@ -103,6 +103,8 @@ export interface GiftEventFormState {
   countedGifts: (typeof COUNTED_GIFTS)[number];
   /** The Live home banner (a `banner` upload's media id), "" for none. */
   bannerMediaId: string;
+  /** v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» (on by default; editable while running). */
+  announceFullscreen: boolean;
   milestones: MilestoneForm[];
   bannerUrl: string;
   /** D303 follow-ups: the uploaded page art (keys from `POST /admin/event-uploads`), "" for none. */
@@ -237,6 +239,7 @@ export function emptyGiftEvent(timeZone: string): GiftEventFormState {
     scoring: 'MULTIPLIER',
     countedGifts: 'EVENT_GIFTS',
     bannerMediaId: '',
+    announceFullscreen: true,
     milestones: [],
     bannerUrl: '',
     gifts: [{ giftCode: '', pointsPerCoin: '1', pointsPerGift: '0' }],
@@ -320,6 +323,7 @@ export function giftEventBody(f: GiftEventFormState) {
     scoring: f.scoring,
     countedGifts: f.countedGifts,
     bannerMediaId: f.bannerMediaId || null,
+    announceFullscreen: f.announceFullscreen,
     milestones: f.milestones.map((m) => ({ board: m.board, points: int(m.points), prizes: m.items.map(prizeItemBody) })),
     titleAr: f.titleAr.trim(),
     titleEn: f.titleEn.trim(),
@@ -376,6 +380,7 @@ export function formFromServer(
     scoring?: string;
     countedGifts?: string;
     bannerMediaId?: string | null;
+    announceFullscreen?: boolean;
     milestones?: { board: string; points: number; prizes: Record<string, unknown>[] }[];
     backgroundKey?: string | null;
     backgroundPosterKey?: string | null;
@@ -412,6 +417,8 @@ export function formFromServer(
     scoring: (form.scoring as GiftEventFormState['scoring']) ?? 'MULTIPLIER',
     countedGifts: (form.countedGifts as GiftEventFormState['countedGifts']) ?? 'EVENT_GIFTS',
     bannerMediaId: form.bannerMediaId ?? '',
+    // v1.105-social (D340): absent (an older server) reads as the default.
+    announceFullscreen: form.announceFullscreen ?? true,
     milestones: (form.milestones ?? []).map((m) => ({
       board: m.board as BoardKind,
       points: String(m.points),

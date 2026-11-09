@@ -853,6 +853,19 @@ function Wizard({
               <span className="hint">{t('evBannerHint')}</span>
               {bannerUrl && <img className="ev-banner-preview" src={bannerUrl} alt="" />}
             </div>
+            {/* v1.105-social (D340): a display setting — editable while the event runs. */}
+            <div className="field span-2">
+              <label className="check">
+                <input
+                  id="ev-announce"
+                  type="checkbox"
+                  checked={f.announceFullscreen}
+                  onChange={(e) => set('announceFullscreen', e.target.checked)}
+                />
+                {t('evAnnounceFullscreen')}
+              </label>
+              <span className="hint">{t('evAnnounceFullscreenHint')}</span>
+            </div>
             <EventArtFields
               f={f}
               options={options}

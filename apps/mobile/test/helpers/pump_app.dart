@@ -32,6 +32,7 @@ import 'package:kabso_live/features/notifications/data/notifications_repository.
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/privacy/privacy_repository.dart';
+import 'package:kabso_live/features/programs/data/event_announcements_repository.dart';
 import 'package:kabso_live/features/recharge/data/recharge_repository.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -39,6 +40,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_dm_repository.dart';
+import 'fake_event_announcements_repository.dart';
 import 'fake_home_banners_repository.dart';
 import 'fake_inline_video.dart';
 import 'fake_kyc_repository.dart';
@@ -112,6 +114,10 @@ Future<void> pumpKabsoApp(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
+        // D340: never the network for the full-screen event announcements.
+        eventAnnouncementsRepositoryProvider.overrideWithValue(
+          FakeEventAnnouncementsRepository(),
+        ),
         // D185: never the network for the recharge-agent state.
         rechargeRepositoryProvider.overrideWithValue(FakeRechargeRepository()),
         // D198: never the network for the legal documents and consents.
@@ -268,6 +274,10 @@ Future<void> pumpScreen(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // D340: never the network for the full-screen event announcements.
+        eventAnnouncementsRepositoryProvider.overrideWithValue(
+          FakeEventAnnouncementsRepository(),
+        ),
         // D185: never the network for the recharge-agent state.
         rechargeRepositoryProvider.overrideWithValue(
           rechargeRepository ?? FakeRechargeRepository(),

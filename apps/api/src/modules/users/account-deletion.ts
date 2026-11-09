@@ -347,6 +347,8 @@ export async function purgeAccountIn(
   await tx.$executeRaw`DELETE FROM comment_mentions WHERE user_id = ${u}`;
   await tx.$executeRaw`DELETE FROM story_views WHERE viewer_id = ${u}`;
   await tx.$executeRaw`DELETE FROM story_mentions WHERE user_id = ${u}`;
+  // v1.105-social (D340): which event starts the person saw full screen (nothing else reads it).
+  await tx.$executeRaw`DELETE FROM event_start_announcements WHERE user_id = ${u}`;
   await softDeleteCommentsIn(tx, userId, now);
   await tx.$executeRaw`UPDATE comments SET text = '' WHERE author_id = ${u}`;
 

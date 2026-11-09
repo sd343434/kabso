@@ -238,6 +238,11 @@ export const giftEventInputSchema = z
     audience: z.enum(EVENT_AUDIENCES).default('EVERYONE'),
     /** v1.101-social (D325): the Live home banner (a `banner` upload's media id), made a banner at publish. */
     bannerMediaId: z.uuid().nullable().optional(),
+    /**
+     * v1.105-social (D340, §10.134): «إعلان بملء الشاشة عند البدء» — the start shown full screen in the app once per person.
+     * Absent: true on a create (the column's default), kept on an edit. A display setting: it may change while running.
+     */
+    announceFullscreen: z.boolean().optional(),
     regions: z
       .array(z.string().regex(/^[A-Za-z]{2}$/))
       .max(50)
@@ -586,6 +591,7 @@ function rowFields(input: GiftEventInput, startsAt: Date | null, endsAt: Date | 
     scoring: input.scoring,
     countedGifts: input.countedGifts,
     bannerMediaId: input.bannerMediaId ?? null,
+    ...(input.announceFullscreen !== undefined ? { announceFullscreen: input.announceFullscreen } : {}),
   };
 }
 
@@ -671,6 +677,7 @@ function auditMeta(input: GiftEventInput, by: AdminVia) {
     recurrence: input.recurrence,
     scoring: input.scoring,
     countedGifts: input.countedGifts,
+    ...(input.announceFullscreen !== undefined ? { announceFullscreen: input.announceFullscreen } : {}),
     gifts: input.gifts.map((g) => `${g.giftCode}:${String(g.pointsPerCoin)}/${String(g.pointsPerGift)}`),
     boards: input.boards.map((b) => ({
       kind: b.kind,
@@ -922,6 +929,7 @@ export async function inputOfIn(tx: Tx, eventId: string, reason: string): Promis
     timeZone: e.timeZone,
     audience: e.audience,
     bannerMediaId: e.bannerMediaId,
+    announceFullscreen: e.announceFullscreen,
     regions: e.regions.map((r) => r.trim()),
     featured: e.featured,
     backgroundKey: e.backgroundKey,

@@ -26,6 +26,12 @@ String eventBoardLabel(AppLocalizations l10n, EventBoardKind kind) =>
       EventBoardKind.cp => l10n.eventsBoardCp,
     };
 
+/// v1.105-social (D340, §10.134.1): the event is over for this board — the
+/// event ended (the server's status), or the board shown is final. Then the
+/// page shows the result, never the points still missing.
+bool eventBoardEnded(EventSummary event, EventLeaderboard? board) =>
+    event.status == EventStatus.ended || (board?.isFinal ?? false);
+
 /// One prize item as words (coins are drawn with the coin by
 /// [EventPrizeChips]; this is their spoken form too).
 String eventPrizeText(AppLocalizations l10n, EventPrizeItem item) =>
@@ -206,9 +212,12 @@ class EventGiftsSection extends ConsumerWidget {
 /// The gift event's rules: the team's text, then the three rules every
 /// gift event has (owner's reference).
 class GiftEventRules extends StatelessWidget {
-  const new({required this.rules, super.key});
+  const new({required this.rules, super.key, this.hasMinimum = true});
 
   final String rules;
+
+  /// D340: no rule about the minimum when no board has one.
+  final bool hasMinimum;
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +227,7 @@ class GiftEventRules extends StatelessWidget {
     final lines = [
       if (rules.trim().isNotEmpty) rules.trim(),
       l10n.eventsRuleOnlyGifts,
-      l10n.eventsRuleMinimum,
+      if (hasMinimum) l10n.eventsRuleMinimum,
       l10n.eventsRuleAutoPayout,
     ];
     return Column(
@@ -308,10 +317,18 @@ class _GiftEventBoardsState extends ConsumerState<GiftEventBoards> {
     final board = boards[index];
     final key = (id: widget.event.id, board: board.kind);
     final live = ref.watch(eventBoardProvider(key));
+    final ended = eventBoardEnded(widget.event, live.value);
     return ProgramSection(
       key: GiftEventBoards.sectionKey,
       title: l10n.eventsBoardsTitle,
-      subtitle: l10n.eventsMinPoints(KFormat.grouped(board.minPoints)),
+      // D340: after the end the results; a board without a minimum says none.
+      subtitle: ended
+          ? (live.value?.isFinal ?? false)
+                ? l10n.eventsBoardFinal
+                : l10n.eventsResultsPending
+          : board.minPoints > 0
+          ? l10n.eventsMinPoints(KFormat.grouped(board.minPoints))
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -395,7 +412,7 @@ class _GiftEventBoardsState extends ConsumerState<GiftEventBoards> {
           ),
           const SizedBox(height: KSpacing.md),
           switch (live) {
-            AsyncValue(value: final b?) => _BoardRows(board: b),
+            AsyncValue(value: final b?) => _BoardRows(board: b, ended: ended),
             AsyncValue(:final error?, isLoading: false) => FailureErrorState(
               title: l10n.eventsLoadError,
               failure: toAppFailure(error),
@@ -414,21 +431,44 @@ class _GiftEventBoardsState extends ConsumerState<GiftEventBoards> {
 }
 
 class _BoardRows extends StatelessWidget {
-  const new({required this.board});
+  const new({required this.board, required this.ended});
 
   final EventLeaderboard board;
+
+  /// D340: the event is over — the caller's result instead of what is
+  /// missing.
+  final bool ended;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final mine = board.myRank == null
+    final rank = board.myRank;
+    final mine = ended
+        ? rank == null
+              ? l10n.eventsNotParticipated
+              : l10n.eventsFinalRank('$rank')
+        : rank == null
         ? l10n.eventsMeNotRanked
-        : l10n.eventsMeRank('${board.myRank}');
-    final status = board.myQualified
+        : l10n.eventsMeRank('$rank');
+    final won = ended && board.myQualified && board.myBundle.isNotEmpty;
+    // D340: no «باقي N نقطة للتأهل» once ended, nor on a board without a
+    // minimum (nothing is missing there); «لم تتأهل» after the end.
+    final status = ended
+        ? rank == null
+              ? null
+              : won
+              ? l10n.eventsYouWon
+              : board.myQualified
+              ? null
+              : l10n.eventsNotQualifiedFinal(KFormat.grouped(board.minPoints))
+        : board.myQualified
         ? l10n.eventsQualified
-        : l10n.eventsPointsToQualify(KFormat.grouped(board.pointsToQualify));
+        : board.minPoints > 0
+        ? l10n.eventsPointsToQualify(KFormat.grouped(board.pointsToQualify))
+        : null;
+    final gold = board.myQualified && (won || !ended);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -453,25 +493,34 @@ class _BoardRows extends StatelessWidget {
                       style: t.bodyStrong.copyWith(color: p.textPrimary),
                     ),
                   ),
-                  Text(
-                    KFormat.grouped(board.myScore),
-                    textDirection: TextDirection.ltr,
-                    style: t.bodyStrong.copyWith(color: p.textPrimary),
-                  ),
+                  // D340: no «0» beside «not on the board».
+                  if (rank != null)
+                    Text(
+                      KFormat.grouped(board.myScore),
+                      textDirection: TextDirection.ltr,
+                      style: t.bodyStrong.copyWith(color: p.textPrimary),
+                    ),
                 ],
               ),
-              const SizedBox(height: KSpacing.xxs),
-              Text(
-                status,
-                style: t.caption.copyWith(
-                  color: board.myQualified
-                      ? programGold(context)
-                      : p.textSecondary,
+              if (status != null) ...[
+                const SizedBox(height: KSpacing.xxs),
+                Text(
+                  status,
+                  style: t.caption.copyWith(
+                    color: gold ? programGold(context) : p.textSecondary,
+                  ),
                 ),
-              ),
-              if (board.myBundle.isNotEmpty) ...[
+              ],
+              if (board.myBundle.isNotEmpty && (!ended || won)) ...[
                 const SizedBox(height: KSpacing.xxs),
                 EventPrizeChips(board.myBundle),
+              ],
+              if (won && board.myPrizeStatus == EventPrizeStatus.pending) ...[
+                const SizedBox(height: KSpacing.xxs),
+                Text(
+                  l10n.eventsPrizePending,
+                  style: t.caption.copyWith(color: p.textSecondary),
+                ),
               ],
             ],
           ),
@@ -843,17 +892,48 @@ class GiftEventMyBar extends ConsumerWidget {
             .value;
         if (b == null) return const SizedBox.shrink();
         final rank = b.myRank;
+        final ended = eventBoardEnded(event, b);
         final above = rank == null || rank <= 1
             ? null
             : b.giftRows.where((r) => r.rank == rank - 1).firstOrNull;
-        final hint = !b.myQualified
-            ? l10n.eventsPointsToQualify(KFormat.grouped(b.pointsToQualify))
-            : above != null
-            ? l10n.eventsToNextRank(
-                KFormat.grouped(above.score - b.myScore + 1),
-                '${above.rank}',
-              )
-            : l10n.eventsQualified;
+        final String? hint;
+        final String label;
+        if (ended) {
+          // D340 (§10.134.1): the final result, never what is missing.
+          label = rank == null
+              ? l10n.eventsNotParticipated
+              : l10n.eventsMyBarFinal('$rank', KFormat.grouped(b.myScore));
+          final first = b.myBundle.firstOrNull;
+          hint = rank == null
+              ? null
+              : !b.myQualified
+              ? l10n.eventsNotQualifiedYou
+              : first == null
+              ? null
+              : b.myBundle.length == 1
+              ? l10n.eventsYouWonShort(eventPrizeText(l10n, first))
+              : l10n.eventsYouWonMore(
+                  eventPrizeText(l10n, first),
+                  '${b.myBundle.length - 1}',
+                );
+        } else {
+          label = rank == null
+              ? l10n.eventsMyBarNotRanked
+              : l10n.eventsMyBar('$rank', KFormat.grouped(b.myScore));
+          // D340: a board without a minimum has nothing «to qualify».
+          hint = !b.myQualified
+              ? b.minPoints > 0
+                    ? l10n.eventsPointsToQualify(
+                        KFormat.grouped(b.pointsToQualify),
+                      )
+                    : null
+              : above != null
+              ? l10n.eventsToNextRank(
+                  KFormat.grouped(above.score - b.myScore + 1),
+                  '${above.rank}',
+                )
+              : l10n.eventsQualified;
+        }
         return SafeArea(
           top: false,
           child: Container(
@@ -877,23 +957,22 @@ class GiftEventMyBar extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    rank == null
-                        ? l10n.eventsMyBarNone(KFormat.grouped(b.myScore))
-                        : l10n.eventsMyBar('$rank', KFormat.grouped(b.myScore)),
+                    label,
                     style: context.textStyles.bodyStrong.copyWith(
                       color: const Color(0xFFFFFFFF),
                     ),
                   ),
                 ),
-                Flexible(
-                  child: Text(
-                    hint,
-                    textAlign: TextAlign.end,
-                    style: context.textStyles.caption.copyWith(
-                      color: kEventGold,
+                if (hint != null)
+                  Flexible(
+                    child: Text(
+                      hint,
+                      textAlign: TextAlign.end,
+                      style: context.textStyles.caption.copyWith(
+                        color: kEventGold,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),

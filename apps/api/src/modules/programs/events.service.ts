@@ -51,6 +51,10 @@ const OPEN_END = new Date('9999-12-31T00:00:00Z');
 const ENDED_VISIBLE_MS = 30 * DAY_MS;
 /** At most this many events in one list. */
 const EVENTS_LIST_MAX = 200;
+/** v1.105-social (D340): at most this many full-screen announcements per call. */
+const ANNOUNCEMENTS_MAX = 10;
+/** `start_<eventId>` / `win_<payoutId>`. */
+const ANNOUNCEMENT_ID = /^(start|win)_([0-9a-fA-F-]{36})$/;
 
 export const EVENT_TABS = ['CALENDAR', 'PERMANENT', 'REGIONAL'] as const;
 export type EventTab = (typeof EVENT_TABS)[number];
@@ -247,6 +251,8 @@ export interface EventLeaderboardDto {
     qualified?: boolean;
     pointsToQualify?: number;
     prize?: EventPrizeItemDto[];
+    /** v1.105-social (D340): final boards of gift events — the caller's prize (NONE / PENDING / PAID / FORFEITED). */
+    prizeStatus?: 'NONE' | 'PENDING' | 'PAID' | 'FORFEITED';
   };
   /** v1.97-social (D303): the board shown (null for a D166 event) and its minimum. */
   board?: EventBoardKind | null;
@@ -267,6 +273,25 @@ export interface EventMilestonesDto {
 /** v1.101-social (D325): `RunningEvents` — the published events running now that the caller may see (inside lives). */
 export interface RunningEventsDto {
   data: (EventSummaryDto & { endsAt: string | null; giftCodes: string[] })[];
+}
+
+/** v1.105-social (D340, §10.134.2): `EventAnnouncement` — one full-screen announcement. */
+export interface EventAnnouncementDto {
+  /** `start_<eventId>` or `win_<payoutId>` (the `markEventAnnouncementSeen` path). */
+  id: string;
+  kind: 'EVENT_START' | 'EVENT_WIN';
+  event: EventSummaryDto;
+  titleUrl: string | null;
+  backgroundUrl: string | null;
+  /** START: the first board's rank-1 bundle (the key prize); WIN: the bundle won. */
+  prize: EventPrizeItemDto[];
+  board: EventBoardKind | null;
+  rank: number | null;
+}
+
+/** v1.105-social (D340): `EventAnnouncements`. */
+export interface EventAnnouncementsDto {
+  data: EventAnnouncementDto[];
 }
 
 export interface EventsSweepResult {
@@ -690,6 +715,124 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * v1.105-social (D340, CONVENTIONS §10.134.2): `GET /events/announcements` — the caller's full-screen announcements
+   * not seen yet: each prize payout received (EVENT_WIN, always on; oldest first), then each published gift event running
+   * now whose start was announced (EVENT_STARTED), with «إعلان بملء الشاشة» on, that the caller may see (the Event
+   * Center's audience and regions; EVENT_START, newest start first). None for an account that is not ACTIVE.
+   */
+  async announcements(me: string, lang: ContentLanguage): Promise<EventAnnouncementsDto> {
+    const user = await this.prisma.user.findUnique({ where: { id: me }, select: { status: true } });
+    if (user?.status !== 'ACTIVE') return { data: [] };
+    const now = this.clock.now();
+    const wins = await this.prisma.eventPrizePayout.findMany({
+      where: { userId: me, status: 'PAID', announcedAt: null, result: { event: { status: 'PUBLISHED' } } },
+      include: { result: { include: { event: true } } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: ANNOUNCEMENTS_MAX,
+    });
+    const country = await this.country(me);
+    const candidates =
+      wins.length >= ANNOUNCEMENTS_MAX
+        ? []
+        : await this.prisma.event.findMany({
+            where: {
+              status: 'PUBLISHED',
+              metric: 'EVENT_GIFTS',
+              announceFullscreen: true,
+              startNotifiedAt: { not: null },
+              startsAt: { lte: now },
+              frozenAt: null,
+              startsSeen: { none: { userId: me } },
+              AND: [
+                eventAudienceWhere(await this.audienceOf(me)),
+                { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+                { OR: [{ regions: { isEmpty: true } }, ...(country ? [{ regions: { has: country } }] : [])] },
+              ],
+            },
+            include: { boards: { orderBy: { sortOrder: 'asc' }, take: 1 } },
+            orderBy: [{ startsAt: 'desc' }, { id: 'asc' }],
+            take: 50,
+          });
+    // Interrupted only by what is the person's own to join: the start notification's audience too (`audienceSql` — a
+    // HOSTS event is browsable by every non-creator under D295, but announced to its hosts only).
+    const starts: typeof candidates = [];
+    for (const e of candidates) {
+      if (starts.length >= ANNOUNCEMENTS_MAX - wins.length) break;
+      const [row] = await this.prisma.$queryRaw<{ ok: boolean }[]>`
+        SELECT ${audienceSql(e, Prisma.sql`${me}::uuid`)} AS ok`;
+      if (row?.ok === true) starts.push(e);
+    }
+    const keyPrize = (e: (typeof starts)[number]): PrizeItem[] => {
+      const first = e.boards[0];
+      return first ? [...bundleForRank(parsePrizeLines(first.prizes), 1)] : [];
+    };
+    const named = await this.itemNames(
+      [...wins.flatMap((w) => parseBundle(w.result.prize)), ...starts.flatMap(keyPrize)],
+      lang,
+    );
+    return {
+      data: [
+        ...wins.map((w): EventAnnouncementDto => ({
+          id: `win_${w.id}`,
+          kind: 'EVENT_WIN',
+          event: this.summary(w.result.event, now, lang),
+          ...this.announcementArt(w.result.event),
+          prize: parseBundle(w.result.prize).map(named),
+          board: w.result.board as EventBoardKind,
+          rank: w.result.rank,
+        })),
+        ...starts.map((e): EventAnnouncementDto => ({
+          id: `start_${e.id}`,
+          kind: 'EVENT_START',
+          event: this.summary(e, now, lang),
+          ...this.announcementArt(e),
+          prize: keyPrize(e).map(named),
+          board: null,
+          rank: null,
+        })),
+      ],
+    };
+  }
+
+  /**
+   * v1.105-social (D340): `POST /events/announcements/{id}/seen` — idempotent. `start_<eventId>`: a published event the
+   * caller may see; `win_<payoutId>`: the caller's own payout. Anything else → 404.
+   */
+  async markAnnouncementSeen(me: string, announcementId: string): Promise<void> {
+    const m = ANNOUNCEMENT_ID.exec(announcementId);
+    if (!m || !isUuid(m[2]!)) throw new AppException(ErrorCode.NOT_FOUND);
+    const target = m[2]!.toLowerCase();
+    const now = this.clock.now();
+    if (m[1] === 'start') {
+      const e = await this.eventOr404(target, me);
+      await this.prisma.eventStartAnnouncement.createMany({
+        data: [{ eventId: e.id, userId: me, seenAt: now }],
+        skipDuplicates: true,
+      });
+      return;
+    }
+    const payout = await this.prisma.eventPrizePayout.findUnique({
+      where: { id: target },
+      select: { userId: true },
+    });
+    if (!payout || payout.userId !== me) throw new AppException(ErrorCode.NOT_FOUND);
+    await this.prisma.eventPrizePayout.updateMany({
+      where: { id: target, userId: me, announcedAt: null },
+      data: { announcedAt: now },
+    });
+  }
+
+  /** v1.105-social (D340): the art of an announcement — the title (not a Lottie) and the background as a still. */
+  private announcementArt(e: Event): { titleUrl: string | null; backgroundUrl: string | null } {
+    const art = this.artOf(e);
+    const bg = art.background;
+    return {
+      titleUrl: art.titleFormat === 'LOTTIE' ? null : art.titleUrl,
+      backgroundUrl: bg ? (bg.kind === 'VIDEO' ? bg.posterUrl : bg.url) : null,
+    };
+  }
+
   /** v1.97-social (D303 follow-ups): an event's page art as URLs. */
   private artOf(e: Event): EventDetailDto['art'] {
     const base = this.storageSettings.current().publicBaseUrl;
@@ -1003,6 +1146,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
           previous: false,
         };
     const shownAt = previous ? (frozenPeriod?.period ?? -1) : w.period;
+    // v1.105-social (D340): the caller's prize on a final board.
+    let myPrizeStatus: 'NONE' | 'PENDING' | 'PAID' | 'FORFEITED' | undefined;
     if (previous || e.frozenAt !== null) {
       const results = await this.prisma.eventResult.findMany({
         where: { eventId: e.id, board: kind, period: shownAt },
@@ -1027,6 +1172,25 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         prize: parseBundle(r.prize),
       }));
       mine = rows.find(isMine);
+      myPrizeStatus = 'NONE';
+      const myResult = mine ? results.find((r) => r.entrantKey === mine!.entrant_key) : undefined;
+      if (myResult) {
+        // A CP result pays each partner on their own: the caller's own payout says what they got.
+        const payout = await this.prisma.eventPrizePayout.findUnique({
+          where: { resultId_userId: { resultId: myResult.id, userId: me } },
+          select: { status: true },
+        });
+        myPrizeStatus = (payout?.status ?? myResult.prizeStatus) as typeof myPrizeStatus;
+      } else if (frozenPeriod) {
+        // v1.105-social (D340, §10.134.1): below the frozen top 100 the caller's final place is computed over the
+        // frozen period's window with the board's own ranking (no prize: prizes stop at rank 100).
+        const ranked = boardRankedSql(e, kind, { from: frozenPeriod.startsAt, to: frozenPeriod.endsAt });
+        const [below] = await this.prisma.$queryRaw<BoardRow[]>`
+          SELECT * FROM (${ranked}) b
+           WHERE b.user_id = ${me} OR (${kind === 'CP'} AND b.partner_id = ${me})
+           ORDER BY b.rank LIMIT 1`;
+        if (below) mine = { ...below, prize: [] };
+      }
     } else if (now < w.from) {
       rows = [];
     } else {
@@ -1101,6 +1265,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
         qualified: mine !== undefined && myScore >= minPoints,
         pointsToQualify: Number(myScore >= minPoints ? 0n : minPoints - myScore),
         prize: myBundle.map(named),
+        ...(myPrizeStatus !== undefined ? { prizeStatus: myPrizeStatus } : {}),
       },
     };
   }
