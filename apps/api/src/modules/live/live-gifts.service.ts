@@ -187,6 +187,14 @@ const GIFT_INCLUDE = {
 type GiftRow = Prisma.LiveGiftGetPayload<{ include: typeof GIFT_INCLUDE }>;
 
 /**
+ * v1.102-social (D334, §10.127.11): an event's own exclusive gift sent from the bag — the free pieces won as that event's
+ * prize (`GIFT_PIECES`; the gift is never sold once its event ends): the recipients get nothing for it (share 0).
+ */
+export function isEventPrizePieces(gift: { eventId: string | null }, source: 'COINS' | 'BAG'): boolean {
+  return source === 'BAG' && gift.eventId !== null;
+}
+
+/**
  * The recipients' share of a non-lucky gift's send by its category (`GIFT_HOST_SHARE_PERCENTS`). v1.46-live (D207): a
  * category added in the panel has no setting of its own and takes the POPULAR share (an ordinary gift's, 65 %).
  */
@@ -412,8 +420,13 @@ export class LiveGiftsService {
       (await this.prisma.creatorMember.count({
         where: { userId: { in: [...new Set([row.host_user_id, ...toIds])] } },
       })) === new Set([row.host_user_id, ...toIds]).size;
-    const hostShareBps =
-      gift.category === 'LUCKY'
+    // v1.102-social (D334, owner: «لا تصله على محفظته»): an event's own gift sent from the bag — free pieces won as
+    // that event's prize — gives the recipients nothing: the stored share is 0, so no cherries, no agency or parent
+    // commission and nothing for the room's / host's cherries (everything else counts as any bag send).
+    const prizePieces = isEventPrizePieces(gift, input.source);
+    const hostShareBps = prizePieces
+      ? 0
+      : gift.category === 'LUCKY'
         ? table.hostShareBps
         : isCustom
           ? this.config.gifts.customShareBps
@@ -1055,7 +1068,7 @@ export class LiveGiftsService {
             VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, NULL, ${conversationId}::uuid,
                     ${gift.code}, ${input.quantity}, ${input.source}::live_gift_source, ${unitPrice},
                     ${amounts.totalCoins}, ${isCoins ? amounts.totalCoins : 0}, ${recipientsKey([recipientId])},
-                    ${giftId}::uuid, 1, ${input.quantity}, ${shareBps}, ${at}::timestamptz)
+                    ${giftId}::uuid, 1, ${input.quantity}, ${isEventPrizePieces(gift, input.source) ? 0 : shareBps}, ${at}::timestamptz)
             RETURNING id),
           recipients AS (
             INSERT INTO live_gift_recipients (gift_id, user_id, position, coins)

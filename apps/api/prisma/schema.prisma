@@ -4293,6 +4293,9 @@ model Event {
   /// When the start notification went to the audience (once).
   startNotifiedAt     DateTime?     @map("start_notified_at") @db.Timestamptz(3)
   publishedAt         DateTime?     @map("published_at") @db.Timestamptz(3)
+  /// v1.102-social (D334, §10.127.11): content creators count as hosts (HOSTS audience; the D166 HOSTS board). True for
+  /// every event made after migration 20270409090200; false for the older ones (D295's rule kept).
+  creatorsAsHosts     Boolean       @default(true) @map("creators_as_hosts")
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -4374,7 +4377,7 @@ model EventGift {
 
 /// v1.97-social (D303, §10.114.3): one board of an EVENT_GIFTS event — SENDERS «الداعمين», RECEIVERS «المضيفين»,
 /// AGENCIES «الوكالات», CP — with its qualification minimum and its prize bundles per rank range (CHECK
-/// `event_boards_kind`, `event_boards_min_points`).
+/// `event_boards_kind`, `event_boards_min_points`; v1.102-social `event_boards_shown`).
 model EventBoard {
   id        String @id @default(uuid(7)) @db.Uuid
   eventId   String @map("event_id") @db.Uuid
@@ -4383,6 +4386,8 @@ model EventBoard {
   /// `[{rankFrom, rankTo, items: [{type: COINS|CHERRIES|BAG_ITEM|VIP, amount?, itemCode?, tierCode?, days?}]}]`.
   prizes    Json   @default("[]")
   sortOrder Int    @default(0) @map("sort_order")
+  /// v1.102-social (D334): «عدد المعروضين» — how many places the board lists (1–100, default 20).
+  shown     Int    @default(20)
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
