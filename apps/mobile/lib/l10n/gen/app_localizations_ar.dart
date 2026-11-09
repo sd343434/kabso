@@ -16951,4 +16951,76 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get errorDmGroupMemberNotAllowed =>
       'لا يمكنك إضافة بعض هؤلاء الأشخاص إلى مجموعة.';
+
+  @override
+  String eventsFinalRank(String rank) {
+    return 'مركزك النهائي: $rank';
+  }
+
+  @override
+  String get eventsNotParticipated => 'لم تشارك';
+
+  @override
+  String eventsNotQualifiedFinal(String points) {
+    return 'لم تتأهل — الحد الأدنى $points نقطة';
+  }
+
+  @override
+  String get eventsYouWon => 'فزت بـ:';
+
+  @override
+  String eventsYouWonShort(String prize) {
+    return 'فزت بـ $prize';
+  }
+
+  @override
+  String eventsYouWonMore(String prize, String count) {
+    return 'فزت بـ $prize +$count';
+  }
+
+  @override
+  String get eventsPrizePending => 'تُسلَّم الجائزة بعد المراجعة';
+
+  @override
+  String get eventsResultsPending => 'النتائج النهائية قيد الاعتماد';
+
+  @override
+  String eventsMyBarFinal(String rank, String points) {
+    return 'مركزك النهائي: $rank · $points نقطة';
+  }
+
+  @override
+  String get eventsMyBarNotRanked => 'لم تدخل الترتيب بعد';
+
+  @override
+  String get eventsAnnounceStarted => 'بدأت فعالية جديدة';
+
+  @override
+  String get eventsAnnounceJoin => 'شارك الآن';
+
+  @override
+  String get eventsAnnounceLater => 'لاحقاً';
+
+  @override
+  String get eventsAnnounceTopPrize => 'الجائزة الكبرى';
+
+  @override
+  String get eventsAnnounceWinTitle => 'مبروك';
+
+  @override
+  String eventsAnnounceWinBody(String rank, String event) {
+    return 'حصلت على المركز $rank في $event';
+  }
+
+  @override
+  String get eventsAnnounceYourPrize => 'جائزتك';
+
+  @override
+  String get eventsAnnounceResults => 'عرض النتائج';
+
+  @override
+  String get eventsAnnounceClose => 'إغلاق الإعلان';
+
+  @override
+  String get eventsNotQualifiedYou => 'لم تتأهل';
 }

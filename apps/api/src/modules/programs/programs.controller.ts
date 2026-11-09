@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { z } from 'zod';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
@@ -14,6 +14,7 @@ import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import { UsersService } from '../users/users.service.js';
 import {
   EventsService,
+  type EventAnnouncementsDto,
   type EventDetailDto,
   type EventLeaderboardDto,
   type EventMilestonesDto,
@@ -165,6 +166,25 @@ export class ProgramsController {
   @Get('events/running')
   async runningEvents(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<RunningEventsDto> {
     return this.events.running(auth.userId, await this.language(req, auth));
+  }
+
+  /** v1.105-social (D340, §10.134.2): the caller's full-screen event announcements not seen yet. */
+  @Get('events/announcements')
+  async eventAnnouncements(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+  ): Promise<EventAnnouncementsDto> {
+    return this.events.announcements(auth.userId, await this.language(req, auth));
+  }
+
+  /** v1.105-social (D340): one announcement seen (idempotent). */
+  @Post('events/announcements/:announcementId/seen')
+  @HttpCode(204)
+  async eventAnnouncementSeen(
+    @CurrentAuth() auth: AuthContext,
+    @Param('announcementId') announcementId: string,
+  ): Promise<void> {
+    await this.events.markAnnouncementSeen(auth.userId, announcementId);
   }
 
   /** v1.101-social (D325): an event's milestones with the caller's progress. */

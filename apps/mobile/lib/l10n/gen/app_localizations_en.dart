@@ -16953,4 +16953,76 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorDmGroupMemberNotAllowed =>
       'You can\'t add some of these people to a group.';
+
+  @override
+  String eventsFinalRank(String rank) {
+    return 'Your final place: $rank';
+  }
+
+  @override
+  String get eventsNotParticipated => 'You did not take part';
+
+  @override
+  String eventsNotQualifiedFinal(String points) {
+    return 'Not qualified — minimum $points pts';
+  }
+
+  @override
+  String get eventsYouWon => 'You won:';
+
+  @override
+  String eventsYouWonShort(String prize) {
+    return 'You won $prize';
+  }
+
+  @override
+  String eventsYouWonMore(String prize, String count) {
+    return 'You won $prize +$count';
+  }
+
+  @override
+  String get eventsPrizePending => 'Your prize is delivered after the review';
+
+  @override
+  String get eventsResultsPending => 'Final results being confirmed';
+
+  @override
+  String eventsMyBarFinal(String rank, String points) {
+    return 'Final place: $rank · $points pts';
+  }
+
+  @override
+  String get eventsMyBarNotRanked => 'Not ranked yet';
+
+  @override
+  String get eventsAnnounceStarted => 'A new event has started';
+
+  @override
+  String get eventsAnnounceJoin => 'Join now';
+
+  @override
+  String get eventsAnnounceLater => 'Later';
+
+  @override
+  String get eventsAnnounceTopPrize => 'Top prize';
+
+  @override
+  String get eventsAnnounceWinTitle => 'Congratulations';
+
+  @override
+  String eventsAnnounceWinBody(String rank, String event) {
+    return 'You took place $rank in $event';
+  }
+
+  @override
+  String get eventsAnnounceYourPrize => 'Your prize';
+
+  @override
+  String get eventsAnnounceResults => 'See the results';
+
+  @override
+  String get eventsAnnounceClose => 'Close the announcement';
+
+  @override
+  String get eventsNotQualifiedYou => 'Not qualified';
 }

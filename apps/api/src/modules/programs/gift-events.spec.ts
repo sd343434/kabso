@@ -213,3 +213,14 @@ describe('D303 follow-ups: the board money, CP two-amount lines, permanent prize
     expect(ok({ type: 'VIP', tierCode: 'VIP_1', days: null })).toBe(false);
   });
 });
+
+describe('D340 «إعلان بملء الشاشة عند البدء» in the input', () => {
+  it('is optional (absent: the default on a create, kept on an edit) and a boolean only', () => {
+    expect(input().announceFullscreen).toBeUndefined();
+    expect(input({ announceFullscreen: false }).announceFullscreen).toBe(false);
+    expect(input({ announceFullscreen: true }).announceFullscreen).toBe(true);
+    for (const bad of ['yes', 1, null]) {
+      expect(giftEventInputSchema.safeParse({ ...input(), announceFullscreen: bad }).success).toBe(false);
+    }
+  });
+});

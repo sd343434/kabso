@@ -418,6 +418,14 @@ info:
     a Lottie / animated title, an alpha-MP4 overlay (`EventDetail.art.titleFormat`, overlay `MP4`). Migrations
     `20270409090000_events_v2_enums`, `20270409090100_events_v2`. Additive for older apps (whole-number `pointsPerCoin`
     kept, `multiplier` added; drafts never reach the app; unknown values ignored).
+    **D340 (DRAFT v1.105-social)** event results and full-screen announcements (CONVENTIONS §10.134; owner 2026-11-09):
+    an ended gift event's `getEventLeaderboard` `me` is the caller's FINAL place whatever it is (beyond the frozen top 100
+    too) with `me.prizeStatus`, so the app shows «مركزك النهائي» / «لم تتأهل» / «لم تشارك» instead of the points still
+    missing; `getEventAnnouncements` and `markEventAnnouncementSeen` — a full-screen announcement when an event the caller
+    may see starts (`EVENT_START`, once per person and event, after its `EVENT_STARTED` notification) and when the caller
+    wins a prize (`EVENT_WIN`, once per payout, after its `EVENT_PRIZE_WON`); `GiftEventForm.announceFullscreen` «إعلان
+    بملء الشاشة عند البدء» (default true; false on every event made before D340). Migration
+    `20270412090000_event_announcements`. Additive for older apps.
     **D334 (DRAFT v1.102-social)** events v2 follow-ups (CONVENTIONS §10.127.11; owner answers 2026-11-09): content
     creators count as hosts on the events made from now on (`EventAudience` HOSTS: seen, announced, a D166 HOSTS board;
     `AdminGiftEvent.creatorsAsHosts`; older events keep D295), hosts are not creators; an event of any audience may have
@@ -11436,6 +11444,47 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/RunningEvents' }
         '401': { $ref: '#/components/responses/Error' }
+  /api/v1/events/announcements:
+    get:
+      tags: [programs]
+      operationId: getEventAnnouncements
+      summary: "(v1.105-social, D340) The caller's full-screen event announcements not seen yet"
+      description: |
+        CONVENTIONS §10.134. What the app shows full screen on its next open or return to the foreground (never while
+        the caller hosts or watches a live — the app keeps them until the live is left), one after the other: wins first
+        (`EVENT_WIN`, oldest payout first), then starts (`EVENT_START`, newest start first); at most 10.
+        - `EVENT_WIN`: each prize payout the caller received (status PAID, `EVENT_PRIZE_WON` written) not seen yet — the
+          board, the final rank and the bundle won. Always on (no switch).
+        - `EVENT_START`: each published gift event running now whose start was announced (`EVENT_STARTED`), with
+          `announceFullscreen` on, that is the caller's to join (listed to them as in `listEvents` — audience and
+          regions — and inside the `EVENT_STARTED` audience: a HOSTS event interrupts its hosts only), not seen yet —
+          with the first board's rank-1 bundle as the key prize.
+        A caller whose account is not ACTIVE gets none. Payouts made before migration `20270412090000` are never
+        announced.
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventAnnouncements' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/events/announcements/{announcementId}/seen:
+    post:
+      tags: [programs]
+      operationId: markEventAnnouncementSeen
+      summary: "(v1.105-social, D340) One announcement seen (shown and closed, or its button tapped)"
+      description: "CONVENTIONS §10.134. Idempotent: once seen it is never listed again (a second call is 204 and writes nothing). `start_<eventId>`: a published event the caller may see; `win_<payoutId>`: the caller's own payout. Anything else (unknown, malformed, another person's payout, an event outside the caller's audience) → 404."
+      parameters:
+        - name: announcementId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^(start|win)_[0-9a-fA-F-]{36}$', maxLength: 42 }
+      responses:
+        '204': { description: Seen. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/events/{eventId}/milestones:
     get:
       tags: [programs]
@@ -11469,6 +11518,9 @@ paths:
         v1.101-social (D325): a gift event's board lists its top 20 (`data` at most 20); `period` says which period.
         v1.102-social (D334, §10.127.11): the board's own «عدد المعروضين» instead (`shown`, 1–100, 20 by default — D303's
         boards included); `me` stays the caller's place whatever it is.
+        v1.105-social (D340, §10.134): on a final board (`final: true`) `me` is the caller's FINAL place — from the frozen
+        results, or, below the frozen top 100, computed over the period's window (`rank` beyond 100, `qualified`, no
+        prize) — with `me.prizeStatus`; `rank` null and `score` 0 mean the caller did not take part.
       parameters:
         - $ref: '#/components/parameters/ProgramEventIdPath'
         - name: board
@@ -26670,6 +26722,7 @@ components:
         recurrence: { type: string, enum: [NONE, WEEKLY, MONTHLY], default: NONE, description: "(v1.101-social, §10.127.3) A recurring event restarts its boards every week / calendar month (in its zone) from `startsAt`; each period is frozen and paid on its own; `endsAt` (optional) ends the series." }
         scoring: { type: string, enum: [COINS, MULTIPLIER], default: MULTIPLIER, description: "(v1.101-social, §10.127.2) COINS — points = the coins of each counted gift; MULTIPLIER — each event gift's `pointsPerCoin` (a decimal multiplier, e.g. 1.2) plus `pointsPerGift`." }
         countedGifts: { type: string, enum: [EVENT_GIFTS, ALL_GIFTS], default: EVENT_GIFTS, description: "(v1.101-social) EVENT_GIFTS — only the event's gifts score; ALL_GIFTS — every gift (a gift not listed counts its coins × 1)." }
+        announceFullscreen: { type: boolean, description: "(v1.105-social, D340, §10.134) «إعلان بملء الشاشة عند البدء» — when the event starts the app shows it full screen once to each person who may see it (`getEventAnnouncements` `EVENT_START`). Absent on a create: true; absent on an edit: kept. A display setting: it may change while the event runs. False on every event made before D340. The winners' announcement is always on." }
         bannerMediaId: { type: [string, 'null'], format: uuid, description: "(v1.101-social) The Live home banner — an `uploadAdminEventMedia` kind `banner` media id; made a banner opening the event at publish, shown from the start to the end. (v1.102-social, D334) For every audience: `listHomeBanners` lists it to the event's audience only." }
         milestones:
           type: array
@@ -36108,6 +36161,36 @@ components:
                 required: [giftCodes]
                 properties:
                   giftCodes: { type: array, items: { type: string } }
+    EventAnnouncement:
+      type: object
+      additionalProperties: false
+      description: "(v1.105-social, D340, §10.134) One full-screen announcement. `EVENT_START`: «بدأت فعالية …» with the event's art, dates and key prize (the first board's rank-1 bundle; empty when none), «شارك الآن» opens the event. `EVENT_WIN`: «مبروك حصلت على المركز N في …» with the bundle won, the button opens the results. Clients ignore kinds they do not know (and mark nothing)."
+      required: [id, kind, event, titleUrl, backgroundUrl, prize, board, rank]
+      properties:
+        id: { type: string, pattern: '^(start|win)_[0-9a-f-]{36}$', description: "`start_<eventId>` or `win_<payoutId>` — the `markEventAnnouncementSeen` path." }
+        kind: { type: string, enum: [EVENT_START, EVENT_WIN] }
+        event: { $ref: '#/components/schemas/EventSummary' }
+        titleUrl: { type: [string, 'null'], format: uri, description: "The event's uploaded title art (`EventDetail.art.titleUrl`), else null." }
+        backgroundUrl: { type: [string, 'null'], format: uri, description: "The event's uploaded page background as a still (an image or animated WebP; a video's poster), else null — the app falls back to `event.bannerUrl`, then Kabso's own artwork." }
+        prize:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/EventPrizeItem' }
+        board:
+          description: "EVENT_WIN: the board won on; EVENT_START: null."
+          oneOf:
+            - { $ref: '#/components/schemas/EventBoardKind' }
+            - { type: 'null' }
+        rank: { type: [integer, 'null'], minimum: 1, maximum: 100, description: "EVENT_WIN: the final rank; EVENT_START: null." }
+    EventAnnouncements:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/EventAnnouncement' }
     EventLeaderboard:
       type: object
       required: [eventId, metric, final, data, me]
@@ -36149,6 +36232,10 @@ components:
             prize:
               type: array
               items: { $ref: '#/components/schemas/EventPrizeItem' }
+            prizeStatus:
+              type: string
+              enum: [NONE, PENDING, PAID, FORFEITED]
+              description: "(v1.105-social, D340) Gift events, final boards only: the caller's prize — NONE (no prize for this place, not qualified, or not on the board), PENDING (frozen, not paid yet: held for review or due in the next pass), PAID, FORFEITED (the account was not ACTIVE at payout time). Clients ignore values they do not know."
         board:
           oneOf:
             - { $ref: '#/components/schemas/EventBoardKind' }

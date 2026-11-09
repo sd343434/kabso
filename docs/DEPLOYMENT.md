@@ -3719,3 +3719,29 @@ after them.
 - **Rollback:** an older API ignores the new tables and column (an archived conversation is back in every inbox; groups
   disappear from the app until the API returns). Dropping the tables loses the groups and their messages (they live 24 h
   anyway); `DM_GROUP` reports would then need to be resolved first (the CHECK names the column).
+
+### 5.103 Event results and full-screen announcements (migration `20270412090000_event_announcements`; D340) — [IMPLEMENTED, draft contract v1.105-social; not deployed, not device-tested]
+
+CONVENTIONS §10.134 (owner 2026-11-09). Deploy after §5.100 (it needs `20270409090200_events_v2_followups`); independent
+of D338's §5.101 (`20270410090000_gift_archive`) and D339's §5.102 (`20270411090000`…`0100`) — the migrations touch
+different tables; the timestamp keeps it after them.
+
+- **Migration:** `events.announce_fullscreen` BOOLEAN NOT NULL — every existing event gets **false** (an event running
+  at the deploy is not suddenly announced full screen to everyone), then the default becomes **true**;
+  `event_prize_payouts.announced_at` TIMESTAMPTZ — every existing payout is written `created_at` (no burst of old
+  «مبروك» after the deploy) — and the partial index `event_prize_payouts_unannounced_idx`; the new table
+  `event_start_announcements` (event, user) with its FKs (ON DELETE CASCADE). Small tables; a short lock. Account
+  deletion also deletes the person's `event_start_announcements` rows.
+- **Behaviour once deployed:**
+  - `getEventLeaderboard` on a final board returns the caller's final place whatever it is (one extra ranked query over
+    the frozen period's window when the caller is below the frozen top 100) and `me.prizeStatus`.
+  - `GET /events/announcements` (default per-user rate limit): at most one payout query, one events query (≤ 50 rows)
+    and one audience check per candidate. The app calls it on open, on each return to the foreground and when a live is
+    left. `POST /events/announcements/{id}/seen` writes one row (idempotent).
+  - The first published gift event that **starts after the deploy** is announced full screen (once per person) to its
+    audience once the sweeper has sent `EVENT_STARTED`; switch it off per event in the panel's design step.
+- **Order:** migration, API, admin panel (the switch; an older panel omits it and the stored value is kept), then the
+  app (an older app ignores the new endpoints and `prizeStatus`; it still shows «باقي N نقطة للتأهل» after the end).
+- **Check after deploy:** `SELECT count(*) FROM event_prize_payouts WHERE announced_at IS NULL` is 0 right after the
+  migration; `SELECT announce_fullscreen, count(*) FROM events GROUP BY 1` shows only false until a new event is made.
+- **Rollback:** the previous API ignores the columns and the table; leave them (dropping is not needed).
