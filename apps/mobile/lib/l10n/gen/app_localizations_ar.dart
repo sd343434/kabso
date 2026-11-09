@@ -16701,4 +16701,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String relativeShortDays(int n) {
     return '$nي';
   }
+
+  @override
+  String get dmBoxes => 'صناديق الرسائل';
 }

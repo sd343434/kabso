@@ -17,6 +17,7 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/messages/data/dm_repository.dart';
+import 'package:kabso_live/features/messages/domain/dm_models.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/messages/widgets/dm_new_message_sheet.dart';
 import 'package:kabso_live/features/messages/widgets/dm_story_cards.dart';
@@ -235,6 +236,96 @@ void main() {
     });
   });
 
+  group('boxes button', () {
+    for (final language in AppLanguage.values) {
+      testWidgets('no row of boxes in the page: the button beside search opens '
+          'and closes them, shows the pending requests, and a box closes the '
+          'panel (${language.name})', (tester) async {
+        final l10n = language == AppLanguage.ar ? ar : en;
+        final dm = _dm()
+          ..addConversation(
+            dmPerson('omar.k', name: 'Omar'),
+            status: DmConversationStatus.requestReceived,
+            unread: 1,
+            messages: [FakeDmRepository().message('c-omar.k', mine: false)],
+          )
+          ..unreadCounts = const DmUnread(requests: 3);
+        await _pump(tester, dm: dm, language: language);
+        // Collapsed: no boxes in the page; the requests on the button.
+        expect(find.byKey(DmInboxScreen.boxesPanelKey), findsNothing);
+        expect(find.byKey(DmInboxScreen.requestsTabKey), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byKey(DmInboxScreen.boxesBadgeKey),
+            matching: find.text('3'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<IconButton>(find.byKey(DmInboxScreen.boxesToggleKey))
+              .tooltip,
+          l10n.dmBoxes,
+        );
+        // The button sits in the «Messages» row, before search.
+        final toggle = tester.getCenter(
+          find.byKey(DmInboxScreen.boxesToggleKey),
+        );
+        final search = tester.getCenter(find.byKey(DmInboxScreen.searchKey));
+        expect(toggle.dy, moreOrLessEquals(search.dy));
+        if (language == AppLanguage.ar) {
+          expect(toggle.dx, greaterThan(search.dx));
+        } else {
+          expect(toggle.dx, lessThan(search.dx));
+        }
+        // The first row sits right under the «Messages» row.
+        final rowTop = tester
+            .getTopLeft(find.byKey(DmInboxScreen.rowKey('c-sara_2026')))
+            .dy;
+        expect(
+          rowTop - tester.getBottomLeft(find.byKey(DmInboxScreen.searchKey)).dy,
+          lessThan(KSpacing.lg),
+        );
+
+        await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(DmInboxScreen.boxesPanelKey), findsOneWidget);
+        expect(find.text(l10n.dmTabChats), findsOneWidget);
+        expect(
+          find.bySemanticsLabel(
+            l10n.dmTabRequestsCount(KFormat.compact(3, l10n)),
+          ),
+          findsOneWidget,
+        );
+        // The panel pushes the list down.
+        expect(
+          tester.getTopLeft(find.byKey(DmInboxScreen.rowKey('c-sara_2026'))).dy,
+          greaterThan(rowTop),
+        );
+        // Tap again: closed.
+        await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(DmInboxScreen.boxesPanelKey), findsNothing);
+
+        // A box opens and closes the panel; the title names it.
+        await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(DmInboxScreen.requestsTabKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(DmInboxScreen.boxesPanelKey), findsNothing);
+        expect(find.text(l10n.dmTabRequests), findsOneWidget);
+        expect(find.byKey(DmInboxScreen.rowKey('c-omar.k')), findsOneWidget);
+        expect(dm.calls, contains('conversations:requests'));
+      });
+    }
+
+    testWidgets('no pending requests: no count on the button', (tester) async {
+      await _pump(tester);
+      expect(find.byKey(DmInboxScreen.boxesToggleKey), findsOneWidget);
+      expect(find.byKey(DmInboxScreen.boxesBadgeKey), findsNothing);
+    });
+  });
+
   group('rows', () {
     for (final language in AppLanguage.values) {
       testWidgets('compact time with the red count under it; the picture at '
@@ -311,6 +402,10 @@ void main() {
         );
         expect(tester.takeException(), isNull);
         expect(find.text('99+'), findsOneWidget);
+        await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byKey(DmInboxScreen.boxesPanelKey), findsOneWidget);
       });
     }
   });

@@ -14533,5 +14533,7 @@
   "relativeShortHours": "{n}س",
   "@relativeShortHours": {"description": "D336: compact time since, in hours.", "placeholders": {"n": {"type": "int"}}},
   "relativeShortDays": "{n}ي",
-  "@relativeShortDays": {"description": "D336: compact time since, in days.", "placeholders": {"n": {"type": "int"}}}
+  "@relativeShortDays": {"description": "D336: compact time since, in days.", "placeholders": {"n": {"type": "int"}}},
+  "dmBoxes": "صناديق الرسائل",
+  "@dmBoxes": {"description": "D336: the button beside search that opens the Messages boxes (chats, requests)."}
 }

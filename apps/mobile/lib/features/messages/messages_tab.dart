@@ -54,13 +54,17 @@ abstract final class KDmList {
 
   /// Header row → cards, cards → «الرسائل».
   static const double cardsTop = 10;
-  static const double cardsBottom = 27;
+  static const double cardsBottom = 25;
   static const double unreadBadge = 24;
   static const double timeToBadge = 10;
 
   /// The time sits a little lower than the row's centre (on the name).
   static const double timeTop = 10;
   static const double mutedIcon = 14;
+
+  /// The boxes button's chevron and its requests count.
+  static const double boxesIcon = 28;
+  static const double boxesBadge = 16;
 }
 
 /// `/messages` — the Messages tab (D86; D155: real direct messages). Two
@@ -109,6 +113,12 @@ class DmInboxScreen extends ConsumerStatefulWidget {
   static const searchEmptyKey = Key('dm.search.empty');
   static const newMessageKey = Key('dm.new');
 
+  /// D336 follow-up: the button that opens the boxes, its requests count
+  /// and the panel.
+  static const boxesToggleKey = Key('dm.boxes');
+  static const boxesBadgeKey = Key('dm.boxes.badge');
+  static const boxesPanelKey = Key('dm.boxes.panel');
+
   /// D336: «القصص» and its «+» (a new story).
   static const storiesTitleKey = Key('dm.stories.title');
   static const newStoryKey = Key('dm.stories.new');
@@ -129,6 +139,9 @@ class DmInboxScreen extends ConsumerStatefulWidget {
 
 class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
   bool _requests = false;
+
+  /// D336 follow-up: the boxes panel under «الرسائل» is open.
+  bool _boxesOpen = false;
   Timer? _poll;
 
   /// D165: the search field is open; [_query] is what it searches (after a
@@ -285,7 +298,7 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
                 : Semantics(
                     header: true,
                     child: Text(
-                      l10n.conversationsTitle,
+                      _requests ? l10n.dmTabRequests : l10n.conversationsTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: t.headline.copyWith(
@@ -295,6 +308,14 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
                       ),
                     ),
                   ),
+          ),
+          // D336 follow-up (owner): the boxes open from here (also while
+          // searching: each box is searched on its own), with the pending
+          // requests on the button so they are not missed.
+          _BoxesToggle(
+            open: _boxesOpen,
+            requests: requests,
+            onPressed: () => setState(() => _boxesOpen = !_boxesOpen),
           ),
           if (_searching)
             IconButton(
@@ -338,28 +359,14 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
           const SizedBox(height: KDmList.cardsBottom),
         ],
         messagesHeader,
-        Padding(
-          padding: const EdgeInsetsDirectional.only(
-            start: KDmList.startInset - KSpacing.sm,
-          ),
-          child: KChipRow(
-            children: [
-              KChip(
-                key: DmInboxScreen.inboxTabKey,
-                label: l10n.dmTabChats,
-                selected: !_requests,
-                onSelected: () => setState(() => _requests = false),
-              ),
-              KChip(
-                key: DmInboxScreen.requestsTabKey,
-                label: requests > 0
-                    ? l10n.dmTabRequestsCount(KFormat.compact(requests, l10n))
-                    : l10n.dmTabRequests,
-                selected: _requests,
-                onSelected: () => setState(() => _requests = true),
-              ),
-            ],
-          ),
+        _BoxesPanel(
+          open: _boxesOpen,
+          requestsSelected: _requests,
+          requests: requests,
+          onSelect: (box) => setState(() {
+            _requests = box;
+            _boxesOpen = false;
+          }),
         ),
       ],
     );
@@ -524,6 +531,213 @@ class _Box extends ConsumerWidget {
         ),
       ]),
     };
+  }
+}
+
+/// D336 follow-up: the button beside search that opens the boxes panel —
+/// a chevron that turns when open, with the pending requests as a red
+/// count (none when there are none).
+class _BoxesToggle extends StatelessWidget {
+  const new({
+    required this.open,
+    required this.requests,
+    required this.onPressed,
+  });
+
+  final bool open;
+  final int requests;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final reduce = MediaQuery.of(context).disableAnimations;
+    return Semantics(
+      expanded: open,
+      value: requests > 0
+          ? l10n.dmTabRequestsCount(KFormat.compact(requests, l10n))
+          : null,
+      child: IconButton(
+        key: DmInboxScreen.boxesToggleKey,
+        tooltip: l10n.dmBoxes,
+        onPressed: onPressed,
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedRotation(
+              turns: open ? 0.5 : 0,
+              duration: reduce ? Duration.zero : KMotion.base,
+              curve: KMotion.standard,
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: KDmList.boxesIcon,
+                color: p.textPrimary,
+              ),
+            ),
+            if (requests > 0)
+              PositionedDirectional(
+                top: -4,
+                end: -6,
+                child: Container(
+                  key: DmInboxScreen.boxesBadgeKey,
+                  constraints: const BoxConstraints(
+                    minWidth: KDmList.boxesBadge,
+                  ),
+                  height: KDmList.boxesBadge,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: p.primary,
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                    border: Border.all(color: p.background, width: 1.5),
+                  ),
+                  child: Text(
+                    requests >= 99 ? '99+' : KFormat.compact(requests, l10n),
+                    style: context.textStyles.caption.copyWith(
+                      fontSize: 10,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      color: p.onPrimary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// D336 follow-up: the boxes — «الدردشات» and «طلبات المراسلة» (D155, with
+/// its count) — as rows in a panel that opens under «الرسائل»; a row opens
+/// its box and closes the panel. (The app has no archived or group
+/// conversations: no row for them.)
+class _BoxesPanel extends StatelessWidget {
+  const new({
+    required this.open,
+    required this.requestsSelected,
+    required this.requests,
+    required this.onSelect,
+  });
+
+  final bool open;
+  final bool requestsSelected;
+  final int requests;
+  final ValueChanged<bool> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    final l10n = context.l10n;
+    final reduce = MediaQuery.of(context).disableAnimations;
+    Widget row({
+      required Key key,
+      required IconData icon,
+      required String label,
+      required bool selected,
+      required bool box,
+      int count = 0,
+    }) => Semantics(
+      button: true,
+      selected: selected,
+      label: count > 0
+          ? l10n.dmTabRequestsCount(KFormat.compact(count, l10n))
+          : label,
+      excludeSemantics: true,
+      child: InkWell(
+        key: key,
+        onTap: () => onSelect(box),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: KDmList.startInset,
+              end: KDmList.endInset,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: selected ? p.primary : p.textSecondary,
+                ),
+                const SizedBox(width: KSpacing.md),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.bodyStrong.copyWith(
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+                if (count > 0)
+                  Container(
+                    constraints: const BoxConstraints(
+                      minWidth: KDmList.unreadBadge,
+                    ),
+                    height: KDmList.unreadBadge,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: p.primary,
+                      borderRadius: BorderRadius.circular(KRadius.pill),
+                    ),
+                    child: Text(
+                      count >= 99 ? '99+' : KFormat.compact(count, l10n),
+                      style: t.caption.copyWith(
+                        fontSize: 12,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
+                        color: p.onPrimary,
+                      ),
+                    ),
+                  ),
+                if (selected) ...[
+                  const SizedBox(width: KSpacing.sm),
+                  Icon(Icons.check_rounded, size: 20, color: p.primary),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return AnimatedSize(
+      duration: reduce ? Duration.zero : KMotion.base,
+      curve: KMotion.standard,
+      alignment: AlignmentDirectional.topStart,
+      child: open
+          ? Column(
+              key: DmInboxScreen.boxesPanelKey,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                row(
+                  key: DmInboxScreen.inboxTabKey,
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: l10n.dmTabChats,
+                  selected: !requestsSelected,
+                  box: false,
+                ),
+                row(
+                  key: DmInboxScreen.requestsTabKey,
+                  icon: Icons.mark_email_unread_outlined,
+                  label: l10n.dmTabRequests,
+                  selected: requestsSelected,
+                  box: true,
+                  count: requests,
+                ),
+                Divider(height: KSpacing.sm, color: p.border),
+              ],
+            )
+          : const SizedBox(width: double.infinity),
+    );
   }
 }
 

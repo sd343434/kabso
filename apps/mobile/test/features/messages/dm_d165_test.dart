@@ -126,6 +126,12 @@ FakeDmRepository _world() {
 
 Finder _row(String id) => find.byKey(DmInboxScreen.rowKey(id));
 
+/// D336: the boxes (chats, requests) open from the button beside search.
+Future<void> _openBoxes(WidgetTester tester) async {
+  await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _longPress(WidgetTester tester, String id) async {
   await tester.longPress(
     find.descendant(of: _row(id), matching: find.byType(InkWell)),
@@ -170,7 +176,9 @@ void main() {
       expect(find.byKey(DmInboxScreen.searchEmptyKey), findsOneWidget);
       expect(_row('c-sara_2026'), findsNothing);
 
-      // The requests box is searched on its own.
+      // The requests box is searched on its own (D336: through the boxes
+      // button).
+      await _openBoxes(tester);
       await tester.tap(find.byKey(DmInboxScreen.requestsTabKey));
       await tester.pumpAndSettle();
       expect(dm.calls, contains('conversations:requests:q=zz'));
@@ -179,6 +187,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(DmInboxScreen.searchFieldKey), findsNothing);
       expect(_row('c-omar.k'), findsOneWidget);
+      await _openBoxes(tester);
       await tester.tap(find.byKey(DmInboxScreen.inboxTabKey));
       await tester.pumpAndSettle();
       expect(_row('c-sara_2026'), findsOneWidget);
@@ -268,6 +277,7 @@ void main() {
         'know); it can be marked unread', (tester) async {
       final dm = _world();
       await _pump(tester, const MessagesTab(), dm: dm);
+      await _openBoxes(tester);
       await tester.tap(find.byKey(DmInboxScreen.requestsTabKey));
       await tester.pumpAndSettle();
       await _longPress(tester, 'c-omar.k');

@@ -16702,4 +16702,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String relativeShortDays(int n) {
     return '${n}d';
   }
+
+  @override
+  String get dmBoxes => 'Message boxes';
 }

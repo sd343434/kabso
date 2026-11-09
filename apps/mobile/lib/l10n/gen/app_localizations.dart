@@ -28173,6 +28173,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{n}ي'**
   String relativeShortDays(int n);
+
+  /// D336: the button beside search that opens the Messages boxes (chats, requests).
+  ///
+  /// In ar, this message translates to:
+  /// **'صناديق الرسائل'**
+  String get dmBoxes;
 }
 
 class _AppLocalizationsDelegate

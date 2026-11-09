@@ -5187,5 +5187,6 @@
   "dmStoriesAdd": "Add story",
   "relativeShortMinutes": "{n}m",
   "relativeShortHours": "{n}h",
-  "relativeShortDays": "{n}d"
+  "relativeShortDays": "{n}d",
+  "dmBoxes": "Message boxes"
 }

@@ -46,6 +46,12 @@ import '../../helpers/fake_stories_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/pump_app.dart';
 
+/// D336: the boxes (chats, requests) open from the button beside search.
+Future<void> _openBoxes(WidgetTester tester) async {
+  await tester.tap(find.byKey(DmInboxScreen.boxesToggleKey));
+  await tester.pumpAndSettle();
+}
+
 /// Every location the screen went to (other than the start).
 final List<String> _visited = [];
 
@@ -161,7 +167,17 @@ void main() {
       expect(find.text('are you live tonight?'), findsOneWidget);
       expect(find.text(en.dmPreviewYou('hey Lina')), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
-      expect(find.text(en.dmTabRequestsCount('1')), findsOneWidget);
+      // D336: the pending requests show on the boxes button beside search,
+      // and the requests box reads «Requests (1)» once the boxes are open.
+      expect(
+        find.descendant(
+          of: find.byKey(DmInboxScreen.boxesBadgeKey),
+          matching: find.text('1'),
+        ),
+        findsOneWidget,
+      );
+      await _openBoxes(tester);
+      expect(find.bySemanticsLabel(en.dmTabRequestsCount('1')), findsOneWidget);
 
       await tester.tap(find.byKey(DmInboxScreen.requestsTabKey));
       await tester.pumpAndSettle();
@@ -216,6 +232,7 @@ void main() {
     testWidgets('empty boxes say so honestly', (tester) async {
       await _pump(tester, const MessagesTab(), dm: FakeDmRepository());
       expect(find.text(en.conversationsEmptyTitle), findsOneWidget);
+      await _openBoxes(tester);
       await tester.tap(find.byKey(DmInboxScreen.requestsTabKey));
       await tester.pumpAndSettle();
       expect(find.text(en.dmRequestsEmptyTitle), findsOneWidget);
@@ -622,6 +639,9 @@ void main() {
           size: const Size(360, 800),
           textScale: 1.3,
         );
+        expect(tester.takeException(), isNull);
+        // D336: the boxes open from the button beside search.
+        await _openBoxes(tester);
         expect(tester.takeException(), isNull);
         expect(find.text(l10n.dmTabChats), findsOneWidget);
         await tester.pumpWidget(const SizedBox.shrink());
