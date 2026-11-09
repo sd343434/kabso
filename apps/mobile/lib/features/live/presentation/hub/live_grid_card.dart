@@ -75,7 +75,9 @@ class KLiveGridCard extends StatelessWidget {
 
   /// The card's only text at the bottom: the live's title (2 lines).
   static const titleKey = Key('liveGrid.title');
-  static const initialKey = Key('liveGrid.initial');
+
+  /// D337: no cover and no host photo — the owner's default picture.
+  static const defaultAvatarKey = Key('liveGrid.defaultAvatar');
 
   /// D154b: the «مميز» label of a live with a running traffic card.
   static const featuredKey = Key('liveGrid.featured');
@@ -418,7 +420,7 @@ class _Scrims extends StatelessWidget {
 }
 
 /// A room's picture filling its box: the live cover (CP-015); else the
-/// host's photo; else the host's initial on the brand gradient. A picture
+/// host's photo; else (D337) the owner's default picture. A picture
 /// that fails to load falls back the same way (VG-13).
 class KLiveRoomPicture extends StatelessWidget {
   const new({required this.room, super.key});
@@ -439,8 +441,8 @@ class KLiveRoomPicture extends StatelessWidget {
   }
 }
 
-/// No (working) cover: the host's photo filling the card, else their
-/// initial on the brand gradient.
+/// No (working) cover: the host's photo filling the card, else (D337) the
+/// owner's default picture (it replaced the initial on the brand gradient).
 class _Fallback extends StatelessWidget {
   const new({required this.room});
 
@@ -448,53 +450,14 @@ class _Fallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = _Initial(name: room.hostName);
+    const none = KDefaultAvatarImage(key: KLiveGridCard.defaultAvatarKey);
     final avatar = room.hostAvatar;
-    if (avatar == null) return initial;
+    if (avatar == null) return none;
     return Image(
       image: avatar,
       fit: BoxFit.cover,
       gaplessPlayback: true,
-      errorBuilder: (_, _, _) => initial,
-    );
-  }
-}
-
-class _Initial extends StatelessWidget {
-  const new({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final trimmed = name.trim();
-    final letter = trimmed.isEmpty
-        ? '?'
-        : trimmed.characters.first.toUpperCase();
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: AlignmentDirectional.topStart,
-          end: AlignmentDirectional.bottomEnd,
-          colors: KBrandColors.gradientLive,
-        ),
-      ),
-      child: LayoutBuilder(
-        builder: (context, box) => Align(
-          alignment: const Alignment(0, -0.15),
-          child: Text(
-            letter,
-            key: KLiveGridCard.initialKey,
-            textScaler: TextScaler.noScaling,
-            style: TextStyle(
-              color: KPalette.dark.textPrimary,
-              fontSize: box.maxWidth * 0.42,
-              fontWeight: FontWeight.w600,
-              height: 1,
-            ),
-          ),
-        ),
-      ),
+      errorBuilder: (_, _, _) => none,
     );
   }
 }

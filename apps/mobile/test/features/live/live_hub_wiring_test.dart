@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/components/k_default_avatar.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
@@ -340,8 +341,14 @@ void main() {
         find.descendant(of: card, matching: find.text('0')),
         findsOneWidget,
       );
-      // No cover and no avatar in the fixture: the host's initial.
-      expect(find.byKey(KLiveGridCard.initialKey), findsOneWidget);
+      // No cover and no avatar in the fixture: (D337) the owner's default
+      // picture, not the host's initial.
+      expect(find.byKey(KLiveGridCard.defaultAvatarKey), findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.byType(KDefaultAvatarImage)),
+        findsOneWidget,
+      );
+      expect(find.descendant(of: card, matching: find.text('S')), findsNothing);
       expect(tester.widget<KLiveGridCard>(card).room.roomId, 'room-0');
     });
   });

@@ -1,4 +1,5 @@
 import 'package:kabso_live/design_system/components/k_badge.dart';
+import 'package:kabso_live/design_system/components/k_default_avatar.dart';
 import 'package:kabso_live/design_system/components/k_team_avatar.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/design_system/tokens/component_metrics.dart';
@@ -10,8 +11,9 @@ import 'package:material_ui/material_ui.dart';
 enum KAvatarRing { none, storyUnseen, storySeen, live }
 
 /// Circular avatar: [image] (or a network [imageUrl]) when set, otherwise
-/// the first letter of [name] on a surface circle. An optional [ring] is
-/// drawn outside the image; [size] is always the image diameter.
+/// (and when it fails to load) the owner's default picture (D337,
+/// [KDefaultAvatarImage]; it replaced the initial of [name]). An optional
+/// [ring] is drawn outside the image; [size] is always the image diameter.
 class KAvatar extends StatelessWidget {
   const new({
     required this.name,
@@ -42,12 +44,6 @@ class KAvatar extends StatelessWidget {
   final KAvatarRing ring;
   final String? semanticLabel;
 
-  String get _initial {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return '?';
-    return String.fromCharCode(trimmed.runes.first).toUpperCase();
-  }
-
   bool get _isStory => size == KMetrics.storyImage;
 
   double get _stroke => switch (ring) {
@@ -75,26 +71,9 @@ class KAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final l10n = context.l10n;
-    final fallback = Container(
-      width: size,
-      height: size,
-      alignment: AlignmentDirectional.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: p.surfaceOverlay,
-        border: Border.all(color: p.border),
-      ),
-      child: Text(
-        _initial,
-        textScaler: TextScaler.noScaling,
-        style: context.textStyles.title.copyWith(
-          fontSize: size * 0.4,
-          color: p.textPrimary,
-        ),
-      ),
-    );
+    // D337: no photo (or a broken one) → the owner's default picture.
+    final Widget fallback = ClipOval(child: KDefaultAvatarImage(size: size));
 
     final url = imageUrl;
     // v1.72-live (D283, §10.96.10): a Kabso Team account's fixed picture —

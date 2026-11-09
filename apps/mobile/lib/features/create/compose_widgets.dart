@@ -1203,15 +1203,11 @@ class _CaptionSuggestionsState extends ConsumerState<CaptionSuggestions> {
                   final UserSummary u => ActionChip(
                     key: CaptionSuggestions.userKey(u.username),
                     onPressed: () => _complete(u.username),
-                    avatar: CircleAvatar(
-                      backgroundColor: p.surfaceOverlay,
-                      foregroundImage: u.avatarUrl == null
-                          ? null
-                          : NetworkImage(u.avatarUrl!),
-                      child: Text(
-                        u.displayName.characters.firstOrNull ?? '',
-                        style: t.caption,
-                      ),
+                    // D337: the photo, else the owner's default picture.
+                    avatar: KAvatar(
+                      name: u.displayName,
+                      imageUrl: u.avatarUrl,
+                      size: 24,
                     ),
                     label: Text(
                       '${u.displayName}  @${u.username}',

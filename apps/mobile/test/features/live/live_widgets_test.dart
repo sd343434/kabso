@@ -261,7 +261,15 @@ void main() {
         ),
       );
       expect(find.byType(KAvatar), findsOneWidget);
-      expect(find.text('Z'), findsOneWidget);
+      // D337: no photo → the owner's default picture, not the initial.
+      expect(
+        find.descendant(
+          of: find.byType(KAvatar),
+          matching: find.byType(KDefaultAvatarImage),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Z'), findsNothing);
       expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
 
       await pumpComponent(tester, card(liveRooms(AppLanguage.en)[3]));

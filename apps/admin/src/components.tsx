@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import defaultAvatar from './assets/kabso_default_avatar_192.webp';
 import { useApp } from './context';
 import { errorKey, serverMessage } from './errors';
 import { isKey } from './i18n';
@@ -109,15 +110,16 @@ export function StatusBadge({ status }: { status: string }) {
   return <span className={`badge ${TONES[status] ?? ''}`}>{label}</span>;
 }
 
-export function Avatar({ url, name, large }: { url: string | null; name: string; large?: boolean }) {
+/**
+ * D337 (owner: «اجعل هذه الصورة التلقائية لأي حساب»): an account without a photo, or whose photo fails to load,
+ * shows the owner's default picture (the app's `apps/mobile/assets/avatar/kabso_default_avatar_192.webp`,
+ * PROVENANCE there) instead of its initial. Decorative (`alt=""`): the name is beside it.
+ */
+export function Avatar({ url, large }: { url: string | null; name: string; large?: boolean }) {
   const [broken, setBroken] = useState(false);
   const cls = `avatar${large ? ' lg' : ''}`;
   if (url && !broken) return <img className={cls} src={url} alt="" onError={() => setBroken(true)} />;
-  return (
-    <span className={cls} aria-hidden="true">
-      {(name.trim()[0] ?? '?').toUpperCase()}
-    </span>
-  );
+  return <img className={`${cls} default`} src={defaultAvatar} alt="" data-default-avatar="true" />;
 }
 
 export function UserCell({ username, displayName, avatarUrl }: { username: string; displayName: string; avatarUrl?: string | null }) {

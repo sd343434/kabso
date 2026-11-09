@@ -11,11 +11,11 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The room card's picture on the go-live screen (owner ref 65): the host's
-/// live cover (`Me.liveCoverUrl`, CP-015), else their avatar, else their
-/// initial, with **Edit** on it. Tapping it opens the cover options: choose a
-/// photo (uploaded as a `LIVE_COVER`, cropped square by the server) or go
-/// back to the avatar. While uploads are off the server answers 503 and the
-/// screen says so; nothing changes.
+/// live cover (`Me.liveCoverUrl`, CP-015), else their avatar, else (D337)
+/// the owner's default picture, with **Edit** on it. Tapping it opens the
+/// cover options: choose a photo (uploaded as a `LIVE_COVER`, cropped square
+/// by the server) or go back to the avatar. While uploads are off the server
+/// answers 503 and the screen says so; nothing changes.
 class LiveCoverPicture extends ConsumerWidget {
   const new({
     required this.hostName,
@@ -54,10 +54,8 @@ class LiveCoverPicture extends ConsumerWidget {
     final cover = ref.watch(currentUserProvider.select((u) => u?.liveCoverUrl));
     final state = ref.watch(liveCoverControllerProvider);
     final url = cover ?? hostAvatarUrl;
-    final initial = Text(
-      hostName.characters.firstOrNull ?? '',
-      style: text.title.copyWith(color: _white, fontSize: 24),
-    );
+    // D337: no cover and no photo → the owner's default picture.
+    const none = KDefaultAvatarImage();
     return Semantics(
       button: true,
       enabled: enabled && !state.busy,
@@ -82,9 +80,9 @@ class LiveCoverPicture extends ConsumerWidget {
                       ? Image.network(
                           url,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Center(child: initial),
+                          errorBuilder: (_, _, _) => none,
                         )
-                      : Center(child: initial),
+                      : none,
                 ),
                 // Keeps "Edit" legible on a bright photo; invisible on the
                 // empty black picture of the reference.
