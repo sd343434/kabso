@@ -507,7 +507,7 @@ info:
     (false = «إخفاء أشرطة الفوز»; migration `20270418090000_lucky_strip_setting`). Additive.
     **int21 (DRAFT v1.112-social)** «الشحن من الموقع» only in the direct APK (CONVENTIONS §10.143.3; owner «موافق على
     الاقتراحات», D345 #7 + D344): `InstallSource` {PLAY, APP_STORE, SIDELOAD} in `DeviceInfo.installSource` (sign-in)
-    and in the `refresh` body (kept on the session; migration `20270418090000_session_install_source`);
+    and in the `refresh` body (kept on the session; migration `20270418090100_session_install_source`);
     `RechargePackages.websiteTopupUrl` and `createTopupWebsiteSession` follow TOPUP_APP_LINK_SOURCES (default SIDELOAD)
     on top of TOPUP_APP_LINK_PLATFORMS. Additive in shape; **behaviour change**: a session that reported no source (an
     app older than this) no longer gets the link.

@@ -3821,7 +3821,7 @@ CONVENTIONS §10.143 (owner 2026-11-09). §5.102–§5.106 are left for the work
 - **Rollback:** an older API ignores the new table and columns (prices go back to the base); an older app ignores the
   new endpoints. Dropping them is not needed.
 - **int21 — the link only in the direct APK** (CONVENTIONS §10.143.3, v1.112-social; migration
-  `20270418090000_session_install_source`: the nullable `sessions.install_source` with a CHECK, no backfill, no rewrite):
+  `20270418090100_session_install_source`, applied after D347's `20270418090000_lucky_strip_setting` — independent tables: the nullable `sessions.install_source` with a CHECK, no backfill, no rewrite):
   new optional setting `TOPUP_APP_LINK_SOURCES` (default `SIDELOAD`; `PLAY`, `APP_STORE`, `SIDELOAD` comma-separated,
   empty = none), checked with `TOPUP_APP_LINK_PLATFORMS`. **Behaviour from this deploy:** a session whose app has not
   reported an install source (every app older than this build) gets no «الشحن من الموقع» until the person updates the
