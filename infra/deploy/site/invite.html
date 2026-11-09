@@ -32,7 +32,8 @@
 </header>
 <main>
  <!-- v1.108-social (D343, CONVENTIONS §10.142): the same page for a friend's invite code and a supervisor's staff ID
-      («Kabso07»). Download buttons come from config.json `apps`: Google Play carries the code to the app
+      («Kabso07»). Download buttons come from config.json `apps` and the text follows the buttons shown: Google Play
+      is named only while its button is shown (`apps.playListed`); Google Play carries the code to the app
       (`&referrer=kabso_code%3D<code>`, read once by the app with the Play Install Referrer API); the direct APK and the
       App Store cannot, so the page offers «نسخ الرمز» and the app's sign-up offers «لصق الرمز». No tracker, no cookie,
       no third-party script: the buttons are plain links. -->
@@ -40,28 +41,30 @@
   <img class="invite-logo" src="/assets/logo.webp" alt="Kabso Live" width="96" height="121">
   <h1 data-invite-title-friend>صديقك يدعوك إلى كابسو لايف</h1>
   <h1 data-invite-title-supervisor hidden>مشرف من كابسو لايف يدعوك</h1>
-  <p>حمّل التطبيق وأنشئ حسابك. يُضاف الرمز تلقائياً عند التحميل من Google Play، وإلا فانسخه والصقه في «لديك رمز دعوة؟» عند إنشاء الحساب.</p>
+  <p data-invite-intro-play hidden>حمّل التطبيق وأنشئ حسابك. يُضاف الرمز تلقائياً عند التحميل من Google Play، وإلا فانسخه والصقه في «لديك رمز دعوة؟» عند إنشاء الحساب.</p>
+  <p data-invite-intro-copy>حمّل التطبيق وأنشئ حسابك، ثم انسخ الرمز والصقه في «لديك رمز دعوة؟» عند إنشاء الحساب.</p>
   <p class="invite-code" data-invite-box hidden><span>الرمز:</span> <b class="ltr" data-invite-code></b> <button class="chip" type="button" data-invite-copy>نسخ الرمز</button> <span class="note-inline" data-invite-copied hidden>تم النسخ</span></p>
   <div class="stores" data-invite-stores hidden>
    <a class="store" data-store="play" href="#" hidden>تحميل من Google Play</a>
    <a class="store" data-store="ios" href="#" hidden>تحميل من App Store</a>
    <a class="store alt" data-store="apk" href="#" hidden>تحميل ملف التطبيق (Android)</a>
   </div>
-  <p class="note" data-invite-apk-note hidden>بعد تثبيت ملف التطبيق: افتح Kabso Live، اختر «إنشاء حساب»، ثم «لديك رمز دعوة؟» و«لصق الرمز».</p>
+  <p class="note" data-invite-apk-note hidden>بعد تثبيت التطبيق: افتح Kabso Live، اختر «إنشاء حساب»، ثم «لديك رمز دعوة؟» و«لصق الرمز».</p>
   <p class="note" data-invite-missing hidden>هذا الرابط لا يحمل رمز دعوة صالحاً.</p>
  </article>
  <article lang="en" dir="ltr" data-lang="en" class="invite" hidden>
   <img class="invite-logo" src="/assets/logo.webp" alt="Kabso Live" width="96" height="121">
   <h1 data-invite-title-friend>A friend invites you to Kabso Live</h1>
   <h1 data-invite-title-supervisor hidden>A Kabso Live supervisor invites you</h1>
-  <p>Get the app and create your account. From Google Play the code is added for you; otherwise copy it and paste it under “Have an invite code?” when you sign up.</p>
+  <p data-invite-intro-play hidden>Get the app and create your account. From Google Play the code is added for you; otherwise copy it and paste it under “Have an invite code?” when you sign up.</p>
+  <p data-invite-intro-copy>Get the app and create your account, then copy the code and paste it under “Have an invite code?” when you sign up.</p>
   <p class="invite-code" data-invite-box hidden><span>Code:</span> <b class="ltr" data-invite-code></b> <button class="chip" type="button" data-invite-copy>Copy code</button> <span class="note-inline" data-invite-copied hidden>Copied</span></p>
   <div class="stores" data-invite-stores hidden>
    <a class="store" data-store="play" href="#" hidden>Get it on Google Play</a>
    <a class="store" data-store="ios" href="#" hidden>Download on the App Store</a>
    <a class="store alt" data-store="apk" href="#" hidden>Download the app file (Android)</a>
   </div>
-  <p class="note" data-invite-apk-note hidden>After installing the app file: open Kabso Live, choose “Create account”, then “Have an invite code?” and “Paste code”.</p>
+  <p class="note" data-invite-apk-note hidden>After installing the app: open Kabso Live, choose “Create account”, then “Have an invite code?” and “Paste code”.</p>
   <p class="note" data-invite-missing hidden>This link has no valid invite code.</p>
  </article>
 </main>

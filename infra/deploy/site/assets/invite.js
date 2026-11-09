@@ -1,6 +1,6 @@
 /* Kabso Live website — /i/<code> (D217, CONVENTIONS §10.71; v1.108-social D343, §10.142). Shows the code from the
  * address — a friend's invite code, or a supervisor's staff ID «Kabso07» — with «نسخ الرمز» and the download buttons
- * of config.json `apps`. The code is never sent anywhere by this page: Google Play's link carries it in `referrer` only
+ * of config.json `apps`; the text names Google Play only while the Play button is shown. The code is never sent anywhere by this page: Google Play's link carries it in `referrer` only
  * when the visitor taps it (the app reads it once with the Play Install Referrer API). No fingerprinting, no tracker,
  * no cookie; no inline script (CSP). */
 (function () {
@@ -79,6 +79,10 @@
         }
       });
       show('[data-invite-stores]', any);
+      // The text names Google Play only while its button is shown (owner, D343 #6): until the app is listed
+      // (`apps.playListed` false) the page says «copy the code and paste it» and never mentions Google Play.
+      show('[data-invite-intro-play]', links.play !== '');
+      show('[data-invite-intro-copy]', links.play === '');
       show('[data-invite-apk-note]', links.apk !== '' || links.ios !== '');
     });
   });

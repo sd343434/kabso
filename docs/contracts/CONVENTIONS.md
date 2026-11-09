@@ -10776,6 +10776,9 @@ in flight.
   - **the direct APK** (`apps.apkUrl`, the staging mirror `https://live.<domain>/app/`) and **the App Store**
     (`apps.appStoreUrl`): no referrer exists, so the page explains «لديك رمز دعوة؟» → «لصق الرمز», and the app reads
     the clipboard **only when «لصق الرمز» is tapped** (never on open, never silently).
+  The text follows the buttons shown (owner, int21): Google Play is named only while its button is shown — with
+  `apps.playListed` false the page reads «حمّل التطبيق وأنشئ حسابك، ثم انسخ الرمز والصقه في «لديك رمز دعوة؟» عند إنشاء
+  الحساب.» and never mentions Google Play; the note under the buttons says «بعد تثبيت التطبيق» (the APK or the App Store).
   The page stays tracker-free (`scripts/check-site-no-tracking.sh`): plain links, no cookie, no third-party script; the
   code leaves the page only inside the Play link the visitor taps.
 - **The app's sign-up page** (owner: «ابسط وازالة كابي»): no Kabi stage (AuthScaffold without `hero`: the wordmark, the
