@@ -1,7 +1,15 @@
 import { auditBy, CLI_VIA, type AdminVia } from '../../common/audit/admin-actor.js';
 import { AuditAction } from '../../common/audit/audit.service.js';
-import type { Prisma } from '../../generated/prisma/client.js';
-import { addGiftIn, setGiftEnabledIn, updateGiftIn, type GiftFields } from './gift-catalogue.js';
+import type { Gift, Prisma } from '../../generated/prisma/client.js';
+import {
+  addGiftIn,
+  giftInUse,
+  giftUsageIn,
+  setGiftEnabledIn,
+  updateGiftIn,
+  type GiftFields,
+  type GiftUsage,
+} from './gift-catalogue.js';
 import { badgeSettingsOf, badgeText } from './item-badges.js';
 
 type Tx = Prisma.TransactionClient;
@@ -109,4 +117,109 @@ export async function setGiftEnabledByAdminIn(
     });
   }
   return result;
+}
+
+/** v1.102-social (D338): what «حذف» did — DELETED (the row is gone) or ARCHIVED (kept for history, off and hidden). */
+export interface GiftRemoval {
+  readonly result: 'DELETED' | 'ARCHIVED';
+  /** The gift before (its uploaded files are removed after the commit when DELETED). */
+  readonly before: Gift;
+  readonly usage: GiftUsage;
+  /** ARCHIVED only: false when it was archived already (nothing written). */
+  readonly changed: boolean;
+}
+
+/**
+ * v1.102-social (D338, CONVENTIONS §10.131) «حذف», shared by the panel and `gift-admin delete`: the gift row is locked,
+ * then — nothing ever used it ({@link giftUsageIn} all 0) — DELETED for real (audit `gift.delete` with the gift before);
+ * otherwise ARCHIVED: `archived_at` set and `enabled` false (audit `gift.archive` with the usage and whether it was on),
+ * so it leaves the catalogue, the bag's send choices, the panel's normal list and the pickers while every row that
+ * points at it keeps working as history. Archived already: ARCHIVED, nothing written. Null when there is no such gift.
+ * Deleting the uploaded files is the caller's step after the commit (only when DELETED).
+ */
+export async function removeGiftByAdminIn(
+  tx: Tx,
+  code: string,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
+  now = new Date(),
+): Promise<GiftRemoval | null> {
+  const locked = await tx.$queryRaw<
+    { code: string }[]
+  >`SELECT code FROM gifts WHERE code = ${code} FOR UPDATE`;
+  if (locked.length === 0) return null;
+  const before = await tx.gift.findUniqueOrThrow({ where: { code } });
+  const usage = await giftUsageIn(tx, code);
+  const meta = { usage: { ...usage }, ...(reason ? { reason } : {}), via: by.via };
+  if (!giftInUse(usage)) {
+    await tx.gift.delete({ where: { code } });
+    await tx.auditLog.create({
+      data: {
+        ...auditBy(by),
+        action: AuditAction.GIFT_DELETE,
+        targetType: 'gift',
+        targetId: code,
+        metadata: {
+          ...meta,
+          case: 'deleted',
+          before: {
+            ...giftAuditFields({
+              category: before.category,
+              nameAr: before.nameAr,
+              nameEn: before.nameEn,
+              priceCoins: before.priceCoins,
+              assetKey: before.assetKey,
+              animationKey: before.animationKey,
+            }),
+            enabled: before.enabled,
+            imageObjectKey: before.imageObjectKey,
+            animationObjectKey: before.animationObjectKey,
+            audioObjectKey: before.audioObjectKey,
+            ownerUserId: before.ownerUserId,
+            eventId: before.eventId,
+          },
+        },
+      },
+    });
+    return { result: 'DELETED', before, usage, changed: true };
+  }
+  if (before.archivedAt !== null) return { result: 'ARCHIVED', before, usage, changed: false };
+  await tx.gift.update({ where: { code }, data: { archivedAt: now, enabled: false } });
+  await tx.auditLog.create({
+    data: {
+      ...auditBy(by),
+      action: AuditAction.GIFT_ARCHIVE,
+      targetType: 'gift',
+      targetId: code,
+      metadata: { ...meta, case: 'archived', wasEnabled: before.enabled },
+    },
+  });
+  return { result: 'ARCHIVED', before, usage, changed: true };
+}
+
+/**
+ * v1.102-social (D338) «استعادة»: an archived gift back in the panel's list and the catalogue — `archived_at` cleared and
+ * the gift switched on (audit `gift.restore`). Not archived: false, nothing written. Null when there is no such gift.
+ */
+export async function restoreGiftByAdminIn(
+  tx: Tx,
+  code: string,
+  by: AdminVia = CLI_VIA,
+  reason: string | null = null,
+): Promise<boolean | null> {
+  const locked = await tx.$queryRaw<{ archived: boolean }[]>`
+    SELECT archived_at IS NOT NULL AS archived FROM gifts WHERE code = ${code} FOR UPDATE`;
+  if (locked.length === 0) return null;
+  if (!locked[0]!.archived) return false;
+  await tx.gift.update({ where: { code }, data: { archivedAt: null, enabled: true } });
+  await tx.auditLog.create({
+    data: {
+      ...auditBy(by),
+      action: AuditAction.GIFT_RESTORE,
+      targetType: 'gift',
+      targetId: code,
+      metadata: { ...(reason ? { reason } : {}), via: by.via },
+    },
+  });
+  return true;
 }

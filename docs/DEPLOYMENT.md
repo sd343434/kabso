@@ -3634,3 +3634,18 @@ CONVENTIONS §10.127 (owner 2026-11-08 / 11-09: one events system; phase A — s
   status = 'DRAFT'`); recurring events would stop rolling over (their current period freezes at the series end only);
   event-exclusive gifts would be listed and bought at any time (unlist them: `gift-admin disable <code>`). Reverting the
   migration is not supported (data in the new tables); restore from the pre-release backup if needed.
+
+### 5.101 «حذف» of a gift (migration `20270410090000_gift_archive`; D338) — [IMPLEMENTED, draft contract v1.102-social; not deployed]
+
+CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم وليس فقط إيقافهم»). §5.100 is left for D334.
+
+- **Migration:** `gifts.archived_at` (nullable) and the CHECK `gifts_archived_off` (archived ⇒ off). Metadata only on the
+  small `gifts` table (the CHECK scans it under a short lock); no data change, no new config.
+- **Order:** migration, then the API, then the admin panel (the «حذف» button, the «المحذوفة» filter and «استعادة»). The
+  apps need no update: an archived gift is simply off (not in the catalogue or the bag's list).
+- **Storage:** a real delete (a gift nothing ever used) removes its uploaded files from the bucket when no other gift
+  names them (best effort; a failure is logged and only leaves the files). `gift-admin delete` does the same when the job
+  has the `S3_*` settings, otherwise it says the files stay. Archiving touches no file.
+- **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
+  and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
+  first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.

@@ -418,6 +418,13 @@ info:
     a Lottie / animated title, an alpha-MP4 overlay (`EventDetail.art.titleFormat`, overlay `MP4`). Migrations
     `20270409090000_events_v2_enums`, `20270409090100_events_v2`. Additive for older apps (whole-number `pointsPerCoin`
     kept, `multiplier` added; drafts never reach the app; unknown values ignored).
+    **D338 (DRAFT v1.102-social)** «حذف» of a gift in the panel (CONVENTIONS §10.131; owner 2026-11-09: «أريد زر لإزالتهم
+    وليس فقط إيقافهم»): `deleteAdminGift` (`DELETE /admin/gifts/{code}`, catalog.manage: OWNER; reason; audited) deletes a
+    gift nothing ever used (row and unused uploaded files; `gift.delete`) and archives a used one (`gift.archive`): off,
+    out of `getGiftCatalogue`, `getGiftBag`, the panel's normal list and `getAdminEventOptions`, never sent, while history
+    keeps its row (`AdminGiftDeleted`); `restoreAdminGift` («استعادة», `gift.restore`) brings it back switched on;
+    `enableAdminGift` refuses an archived gift (409 `ADMIN_ACTION_REFUSED`). `AdminGift.archivedAt`, `inUse`, `holders`.
+    `gift-admin delete|restore <code>`. Migration `20270410090000_gift_archive`. The apps are unchanged.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -16765,13 +16772,90 @@ paths:
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
+    delete:
+      tags:
+      - admin-panel
+      operationId: deleteAdminGift
+      summary: "Deletes a gift nothing ever used, or archives a used one (catalog.manage: OWNER; reason; audited)"
+      description: |
+        (v1.102-social, D338, §10.131) Owner: «أريد زر لإزالتهم وليس فقط إيقافهم». In the gift's transaction: nothing points
+        at it — no send (live or direct), lucky draw, bag row, event, PK boost, wish list, task / host target or prize
+        bundle — **DELETED** for real, then its uploaded files that no other gift names (a storage failure only leaves the
+        files); audited `gift.delete` with the gift before. Otherwise **ARCHIVED**: `archivedAt` set and off, gone from
+        `getGiftCatalogue`, `getGiftBag` (pieces kept, not sendable), the panel's normal list and `getAdminEventOptions`,
+        never sent (409 `GIFT_UNAVAILABLE`), while every row that points at it keeps working as history; audited
+        `gift.archive` with the usage. Archived already: 200 ARCHIVED, nothing written. `enableAdminGift` refuses an
+        archived gift (409 `ADMIN_ACTION_REFUSED`): `restoreAdminGift` brings it back.
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: What was done.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftDeleted'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+  /api/v1/admin/gifts/{code}/restore:
+    post:
+      tags:
+      - admin-panel
+      operationId: restoreAdminGift
+      summary: "Brings an archived gift back, switched on (catalog.manage: OWNER; reason; audited)"
+      description: "(v1.102-social, D338, §10.131) «استعادة»: `archivedAt` cleared and the gift switched on (in the catalogue and the bag again). Not archived: 200 with `changed` false, nothing written. Audited `gift.restore`."
+      security:
+      - adminSession: []
+      parameters:
+      - $ref: '#/components/parameters/AdminGiftCodePath'
+      - $ref: '#/components/parameters/AdminCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminReasonRequest'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGiftRestored'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
   /api/v1/admin/gifts/{code}/enable:
     post:
       tags:
       - admin-panel
       operationId: enableAdminGift
       summary: Enables a gift (reason; audited) (catalog.manage)
-      description: '(v1.65-social, D197) '
+      description: '(v1.65-social, D197) v1.102-social (D338): an archived gift is refused (409 `ADMIN_ACTION_REFUSED`; `restoreAdminGift` first).'
       security:
       - adminSession: []
       parameters:
@@ -16797,6 +16881,8 @@ paths:
         '403':
           $ref: '#/components/responses/Error'
         '404':
+          $ref: '#/components/responses/Error'
+        '409':
           $ref: '#/components/responses/Error'
         '429':
           $ref: '#/components/responses/Error'
@@ -25283,6 +25369,9 @@ components:
       - enabled
       - sends
       - coinsSpent
+      - archivedAt
+      - inUse
+      - holders
       properties:
         code:
           type: string
@@ -25416,6 +25505,17 @@ components:
           type: integer
         coinsSpent:
           type: integer
+        archivedAt:
+          type: [string, 'null']
+          format: date-time
+          description: v1.102-social (D338, §10.131) — set while the gift is archived («المحذوفة»; always off); null otherwise.
+        inUse:
+          type: boolean
+          description: v1.102-social (D338) — something points at it (sends, bags, events, PK boosts, wish lists, tasks, prizes), so «حذف» archives it; false — «حذف» deletes it for real. The server decides again.
+        holders:
+          type: integer
+          minimum: 0
+          description: v1.102-social (D338) — people holding pieces of it in their bag now.
     AdminGiftList:
       type: object
       required:
@@ -25705,6 +25805,38 @@ components:
           type: array
           items:
             type: string
+    AdminGiftDeleted:
+      type: object
+      additionalProperties: false
+      required: [result, code, usage, filesDeleted]
+      description: "v1.102-social (D338, §10.131). What «حذف» did: DELETED (gone for good) or ARCHIVED (kept for history, off and hidden)."
+      properties:
+        result: { type: string, enum: [DELETED, ARCHIVED] }
+        code: { type: string }
+        usage:
+          type: object
+          additionalProperties: false
+          description: What points at the gift (all 0 → DELETED). `holders` is part of `bagRows`.
+          required: [sends, luckyDraws, bagRows, holders, events, pkBoosts, wishes, tasks, prizes]
+          properties:
+            sends: { type: integer, minimum: 0, description: "Sends (live and direct), ever." }
+            luckyDraws: { type: integer, minimum: 0 }
+            bagRows: { type: integer, minimum: 0, description: "Bag rows (any quantity, also 0)." }
+            holders: { type: integer, minimum: 0, description: "People holding pieces now." }
+            events: { type: integer, minimum: 0, description: "Events listing it." }
+            pkBoosts: { type: integer, minimum: 0 }
+            wishes: { type: integer, minimum: 0, description: "Live rooms wishing for it." }
+            tasks: { type: integer, minimum: 0, description: "Daily tasks and host targets naming it." }
+            prizes: { type: integer, minimum: 0, description: "Prize bundles and paid prizes naming it." }
+        filesDeleted: { type: integer, minimum: 0, description: "Uploaded files removed from storage (DELETED only)." }
+    AdminGiftRestored:
+      type: object
+      additionalProperties: false
+      required: [code, restored, changed]
+      properties:
+        code: { type: string }
+        restored: { type: boolean, const: true }
+        changed: { type: boolean, description: "false: it was not archived (nothing written)." }
     AdminGiftEnabled:
       type: object
       required:

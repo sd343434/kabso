@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  giftInUse,
   catalogueVersion,
   compareGifts,
   GIFT_CODE_PATTERN,
@@ -190,5 +191,31 @@ describe('gift catalogue (CP-020)', () => {
     expect(catalogueVersion([{ ...quip, quipText: 'x' }], [1, 10], 5)).not.toBe(
       catalogueVersion([quip], [1, 10], 5),
     );
+  });
+});
+
+describe('v1.102-social (D338) giftInUse', () => {
+  const none = {
+    sends: 0,
+    luckyDraws: 0,
+    bagRows: 0,
+    holders: 0,
+    events: 0,
+    pkBoosts: 0,
+    wishes: 0,
+    tasks: 0,
+    prizes: 0,
+  };
+  it('a gift nothing points at is not in use (it may be deleted for real)', () => {
+    expect(giftInUse(none)).toBe(false);
+  });
+  it('any one reference — by key or by code only — makes it in use (archived instead)', () => {
+    for (const key of Object.keys(none) as (keyof typeof none)[]) {
+      if (key === 'holders') continue;
+      expect(giftInUse({ ...none, [key]: 1 }), key).toBe(true);
+    }
+  });
+  it('an empty bag row (quantity 0) is history too', () => {
+    expect(giftInUse({ ...none, bagRows: 1, holders: 0 })).toBe(true);
   });
 });

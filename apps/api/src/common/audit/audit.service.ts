@@ -97,6 +97,13 @@ export enum AuditAction {
   GIFT_DISABLE = 'gift.disable',
   GIFT_ENABLE = 'gift.enable',
   GIFT_GRANT = 'gift.grant',
+  /**
+   * v1.102-social (D338, §10.131): «حذف» in the panel or `gift-admin delete` — a gift nothing ever used deleted for real
+   * (`delete`), a used one archived (`archive`), an archived one brought back (`restore`).
+   */
+  GIFT_DELETE = 'gift.delete',
+  GIFT_ARCHIVE = 'gift.archive',
+  GIFT_RESTORE = 'gift.restore',
   /** v1.46-live (D207, §10.66): the gift categories (panel tabs), changed in the panel or with `gift-admin category-*`. */
   GIFT_CATEGORY_ADD = 'gift.category.add',
   GIFT_CATEGORY_UPDATE = 'gift.category.update',
