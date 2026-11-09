@@ -126,6 +126,8 @@ Future<_Harness> _pump(
   final gifts = FakeLiveGiftRepository(
     codes: [...giftFixtureCodes, ...quipFixtureCodes],
     ar: language == AppLanguage.ar,
+    // D349: a paid quip costs 100 000.
+    coins: 1000000,
   )..categories = const ['POPULAR', 'EVENT', 'FUN', 'QUIPS'];
   final audio = _FakeAudio();
   await pumpScreen(
@@ -181,7 +183,7 @@ void main() {
           inCell('quip_ghazal_01', find.text('إيه الجمال ده! تحفة بجد!')),
           findsOne,
         );
-        expect(inCell('quip_ghazal_01', find.text('99')), findsOne);
+        expect(inCell('quip_ghazal_01', find.text('100000')), findsOne);
         // The quantity is 1 for a quip.
         await tester.tap(find.byKey(KLiveGiftSheet.cellKey('quip_ghazal_01')));
         await tester.pumpAndSettle();

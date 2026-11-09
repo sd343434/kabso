@@ -24,13 +24,22 @@
  *   pnpm gift:admin bag <email>        # the user's gift bag
  *   pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]   # latest lucky sends with a win
  *   pnpm gift:admin lucky-day [YYYY-MM-DD]                         # a day's lucky spend and payout
- *   pnpm gift:admin quips-seed         # adds the owner's «إفيهات» pack (8 free, 27 paid); idempotent
+ *   pnpm gift:admin quips-seed         # adds the owner's «إفيهات» pack's missing quips; idempotent
+ *   pnpm gift:admin quips-sync [--texts <file.json>]   # D349: adds the missing quips and sets every pack
+ *                                      # quip's price, sub-category and order (and texts); idempotent
  *
  * v1.32-live (D154, CONVENTIONS §10.33): `--category QUIPS` makes a quip: `--sound <key>` (the app's
  * bundled sound, e.g. `kabi/ghazal_01`) and `--sound-ms <ms>` are required, `--quip-text <text>` is the
  * optional line shown while it plays; `--price 0` makes it free (one per viewer per live, and the
- * host's/moderators' soundboard). `quips-seed` adds the owner's pack (prices ghazal 99, funny 199,
- * tease 299 coins) — gifts that exist already are left as they are (change them with `update`).
+ * host's/moderators' soundboard). `quips-seed` adds the owner's pack — gifts that exist already are left as
+ * they are (change them with `update`).
+ *
+ * D349 (owner 2026-11-09): the pack is 8 free sounds «مجانية» and 45 lines at 100 000 coins — «مصري» (the 27
+ * Kabi lines of D154), «خليجي» (14) and «أردني» (4). `quips-sync` brings a catalogue seeded before in line:
+ * it adds the missing quips and, on the pack's existing quips, sets the price, the sub-category and the sort
+ * order (names, sounds, art, texts and on/off are left alone); `--texts <file.json>` (a JSON object of quip
+ * code → its words, null removes them) also sets those quips' texts. One transaction, audited per gift
+ * (`gift.add`, `gift.update`); a second run changes nothing. A price change applies to later sends only.
  *
  * v1.43-live (D195, CONVENTIONS §10.58): `--pk-booster DOUBLE|DOUBLE_TURBO|TRIPLE|TRIPLE_TURBO` makes the
  * gift a PK booster's activation gift (shown in the app's «PK» tab during a PK only; never LUCKY or
@@ -104,6 +113,7 @@ import {
   giftPkBoosterProblem,
   giftQuipProblem,
   PK_BOOSTER_PACK,
+  QUIP_TEXT_MAX,
   giftTagProblem,
   grantStockIn,
   unusedGiftFileKeysIn,
@@ -120,7 +130,7 @@ import {
   updateGiftByAdminIn,
 } from '../modules/gifts/gift-admin-rules.js';
 import { budgetLeft, percentToBps } from '../modules/gifts/lucky-odds.js';
-import { QUIP_PACK } from '../modules/gifts/quips.js';
+import { parseQuipTexts, QUIP_PACK, QuipTextsError, quipSyncPlan } from '../modules/gifts/quips.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -149,6 +159,7 @@ const USAGE = [
   '       pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]',
   '       pnpm gift:admin lucky-day [YYYY-MM-DD]',
   '       pnpm gift:admin quips-seed',
+  '       pnpm gift:admin quips-sync [--texts <file.json>]',
   '       pnpm gift:admin pk-boosters-seed',
   '       (PK: --pk-booster DOUBLE|DOUBLE_TURBO|TRIPLE|TRIPLE_TURBO|none)',
   '       (QUIPS: --sound <key> --sound-ms <ms> [--quip-text <text>]; update: --quip-text none)',
@@ -682,6 +693,88 @@ async function quipsSeed(): Promise<void> {
 }
 
 /**
+ * D349: brings the catalogue's quips in line with QUIP_PACK (`quipSyncPlan`): adds the missing ones and
+ * sets the existing ones' price, sub-category and sort order, and with `--texts <file.json>` their texts.
+ * One transaction, audited per gift; idempotent.
+ */
+async function quipsSync(args: readonly string[]): Promise<void> {
+  let values: { texts?: string };
+  try {
+    ({ values } = parseArgs({
+      args: [...args],
+      options: { texts: { type: 'string' } },
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  let texts: ReadonlyMap<string, string | null> = new Map();
+  if (values.texts !== undefined) {
+    let json: unknown;
+    try {
+      json = JSON.parse(await readFile(values.texts, 'utf8'));
+    } catch (err) {
+      fail(`Cannot read ${values.texts}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    try {
+      texts = parseQuipTexts(json, QUIP_TEXT_MAX);
+    } catch (err) {
+      if (err instanceof QuipTextsError) fail(`${values.texts}: ${err.message}.`);
+      throw err;
+    }
+  }
+  let result: { added: string[]; updated: string[] };
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.gift.findMany({
+        where: { code: { in: QUIP_PACK.map((q) => q.code) } },
+        select: {
+          code: true,
+          category: true,
+          priceCoins: true,
+          tagCode: true,
+          tagNameAr: true,
+          tagNameEn: true,
+          sortOrder: true,
+          quipText: true,
+        },
+      });
+      const added: string[] = [];
+      const updated: string[] = [];
+      for (const step of quipSyncPlan(existing, texts)) {
+        if (step.kind === 'add') {
+          const { code, ...fields } = step.entry;
+          if (await addGiftIn(tx, code, fields)) {
+            added.push(code);
+            await tx.auditLog.create({
+              data: {
+                action: AuditAction.GIFT_ADD,
+                targetType: 'gift',
+                targetId: code,
+                metadata: { ...giftAuditFields(fields), via: 'cli', pack: 'quips' },
+              },
+            });
+          }
+        } else if (((await updateGiftByAdminIn(tx, step.code, step.fields)) ?? []).length > 0) {
+          updated.push(step.code);
+        }
+      }
+      return { added, updated };
+    });
+  } catch (err) {
+    if (err instanceof QuipTextsError || err instanceof GiftFieldsError) fail(`quips-sync: ${err.message}.`);
+    throw err;
+  }
+  const list = (codes: string[]) => (codes.length > 0 ? ` (${codes.join(', ')})` : '');
+  const same = QUIP_PACK.length - result.added.length - result.updated.length;
+  process.stdout.write(
+    `quips: ${String(result.added.length)} added${list(result.added)}, ` +
+      `${String(result.updated.length)} updated${list(result.updated)}, ${String(same)} unchanged.\n`,
+  );
+}
+
+/**
  * v1.43-live (D195): adds the four PK boosters' activation gifts (PK_BOOSTER_PACK, suggested prices).
  * Idempotent like `quips-seed`: an existing code is left as it is (change it with `update`).
  */
@@ -956,6 +1049,9 @@ try {
     case 'quips-seed':
       if (first !== undefined) fail(USAGE);
       await quipsSeed();
+      break;
+    case 'quips-sync':
+      await quipsSync(first === undefined ? [] : [first, ...rest]);
       break;
     case 'pk-boosters-seed':
       if (first !== undefined) fail(USAGE);

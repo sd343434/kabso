@@ -1110,6 +1110,8 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
 
   Until it runs, the «إفيهات» tab and the host's soundboard stay empty (the app hides the tab). Older apps
   ignore the QUIPS category.
+  **D349 (§5.111):** a database seeded before D349 is brought to the dialect pack (prices 100 000, «مصري» /
+  «خليجي» / «أردني») with `gift-admin quips-sync`.
 - **New optional config:**
 
   | Variable | Default | Meaning |
@@ -3687,3 +3689,40 @@ CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم ولي�
 - **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
   and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
   first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.
+
+### 5.111 «إفيهات» by dialect — مجانية · مصري · خليجي · أردني (`gift-admin quips-sync`; D349) — [IMPLEMENTED; no migration, no contract change; not deployed]
+
+CONVENTIONS §10.147 (owner 2026-11-09). Catalogue data and bundled sounds only: no migration, no new config, no new
+endpoint. The CHECKs `gifts_quip_fields` and `gifts_price_range` (≤ 100 000 000 since §5.97, and ≤ 1 000 000 before it)
+already allow the new sounds and prices.
+
+- **Order:** (1) deploy the API image of this release (it carries the new `QUIP_PACK` and the `quips-sync` command);
+  (2) run the sync once on the server, as the migration role:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js quips-sync
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js list | grep quip_
+  ```
+
+  On the staging database seeded by D154 it prints `quips: 18 added (quip_gulf_01, …, quip_jordan_04), 27 updated
+  (quip_ghazal_01, …, quip_tease_09), 8 unchanged.` — the 18 Gulf / Jordanian lines added with their texts, the 27
+  Egyptian lines moved to «مصري» at 100 000 (each audited `gift.update` with from/to), the 8 free sounds untouched. A
+  second run prints `quips: 0 added, 0 updated, 53 unchanged.` (safe to repeat). On an empty catalogue it adds all 53.
+  (3) ship the new APK: only an app that bundles `assets/sounds/quips/gulf/` and `jordan/` plays the new sounds; an older
+  app lists and shows them (name, words, price, generic art) and plays nothing for them, without an error.
+- **Texts later:** to correct or add words without a release, put them in a JSON file (quip code → text; `null` removes
+  it), mount it into the job and run the sync with it, e.g.
+
+  ```bash
+  docker compose --profile jobs run --rm -v /srv/kabso/quip-texts.json:/tmp/quip-texts.json:ro migrate \
+    node dist/cli/gift-admin.js quips-sync --texts /tmp/quip-texts.json
+  ```
+
+  `{"quip_gulf_01": "…", "quip_jordan_04": "…"}`; an unknown code, an empty or over-200-character text or bad JSON
+  exits 1 and changes nothing. Only the named quips' texts change; running it again changes nothing.
+- **Prices and history:** a price change applies to later sends only (each send stores its own price and host share).
+  Shares are unchanged: `GIFT_HOST_SHARE_PERCENTS` `QUIPS:50`, `GIFT_CREATOR_QUIP_SHARE_PERCENT=60`.
+- **Rollback:** the previous API image still serves and sends these gifts (its own `quips-seed` would leave them as
+  they are). To go back to D154's prices, `gift-admin update <code> --price 99|199|299 --tag ghazal|funny|tease
+  --tag-ar … --tag-en …` per line, and `gift-admin disable quip_gulf_NN|quip_jordan_NN` (or `delete`: never-sent ones
+  are removed, sent ones archived, §5.101).

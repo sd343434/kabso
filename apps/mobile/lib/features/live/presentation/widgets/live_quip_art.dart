@@ -4,8 +4,9 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// D154: the emoji of a quip by its `assetKey` (`quips/<sound>` for the
-/// free sounds, `quips/<group>` for the Kabi lines) — Unicode emoji, the
-/// owner's sounds have no picture of their own.
+/// free sounds, `quips/<kind>` for the lines: D154's Egyptian ghazal / funny
+/// / tease, D349's gulf / jordan) — Unicode emoji, the owner's sounds have no
+/// picture of their own. An unknown key (a newer server's) shows 🎙️.
 String quipEmoji(String assetKey) => switch (assetKey) {
   'quips/clap' => '👏',
   'quips/laugh' => '😂',
@@ -18,16 +19,19 @@ String quipEmoji(String assetKey) => switch (assetKey) {
   'quips/ghazal' => '😍',
   'quips/funny' => '🤣',
   'quips/tease' => '😏',
+  'quips/gulf' => '😎',
+  'quips/jordan' => '🔥',
   _ => '🎙️',
 };
 
 /// The quip art key of a sound when the catalogue is not loaded yet:
-/// `room/clap` → `quips/clap`, `kabi/ghazal_01` → `quips/ghazal`.
+/// `room/clap` → `quips/clap`, `kabi/ghazal_01` → `quips/ghazal`,
+/// `gulf/gulf_01` → `quips/gulf` (D349; the server's `quipAssetKey`).
 String quipAssetOf(String soundKey) {
   final name = soundKey.split('/').last;
-  return soundKey.startsWith('kabi/')
-      ? 'quips/${name.split('_').first}'
-      : 'quips/$name';
+  return soundKey.startsWith('room/')
+      ? 'quips/$name'
+      : 'quips/${name.split('_').first}';
 }
 
 /// D216: Kabso's own art for a quip by its `assetKey` — the owner's Kabi
@@ -45,6 +49,9 @@ KabsoEmoji quipArt(String assetKey) => switch (assetKey) {
   'quips/ghazal' => KabsoEmoji.kabi('kiss'),
   'quips/funny' => KabsoEmoji.kabi('silly'),
   'quips/tease' => KabsoEmoji.kabi('wink'),
+  // D349: the Gulf and Jordanian lines (Kabso's own Kabi art).
+  'quips/gulf' => KabsoEmoji.kabi('cool'),
+  'quips/jordan' => KabsoEmoji.kabi('fire'),
   _ => KabsoEmoji.kabi('sing'),
 };
 

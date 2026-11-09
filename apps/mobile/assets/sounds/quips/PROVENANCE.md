@@ -1,4 +1,4 @@
-# «إفيهات» quip sounds (owner-supplied Kabso assets, 2026-10-28, D154)
+# «إفيهات» quip sounds (owner-supplied Kabso assets, 2026-10-28, D154; 2026-11-09, D349)
 
 Made for Kabso and supplied by the owner on 2026-10-28 (D154 items 5c and 5d), who confirmed both packs are
 Kabso's own assets that may enter the repository:
@@ -96,4 +96,89 @@ f2168378b9af860571cca8f7908be35a73655ad69fbf7ebd7e9f38a483bcec32  kabi/tease_02.
 9c62ca4b964576b3672eed45749e4bc74849f3afc1ce2a05df62a62edec677f5  kabi/tease_07.mp3
 d177a73d7bfaa3d5848c0cad9fe84c9578a3551b2268f20e92bb584b96fb1e7f  kabi/tease_08.mp3
 ce19e904aacbe80fa2b2bd5a8d2d03cac4b8fe0ee54d140a08e08ad66d4771c3  kabi/tease_09.mp3
+```
+
+## D349 — the Gulf «خليجي» and Jordanian «أردني» lines (owner-supplied 2026-11-09)
+
+Supplied by the owner on 2026-11-09 as two folders, «افيهات خليجي» (14 files) and «افيهات اردنية» (4 files), made by
+him with **ElevenLabs** text-to-speech: the Gulf lines with the voice «Talya - Human-like Arabic AI Bot», the Jordanian
+ones with «Abd Ulrahman» (both ElevenLabs v4, as the source file names say). **Commercial use:** the owner stated on
+2026-11-09 that he generated them on a **paid** ElevenLabs plan (commercial use included); recorded in PP-83. The
+texts are the owner's own ElevenLabs history (direction tags such as `[chuckles]` removed), matched to the files by
+generation order and clip length — the owner confirms by ear (PP-83). They live on the server
+(`apps/api/src/modules/gifts/quips.ts`); the source files stay outside git (scratch).
+
+D349 also moves the 27 `kabi/` lines above (prices there are D154's) to the sub-category «مصري» at **100 000 coins**
+each (owner 2026-11-09); their files are unchanged.
+
+**Processing:** the same as the D154 pack — ffmpeg two-pass `loudnorm` to I = −16 LUFS, TP = −1.5 dBTP, LRA = 11
+(linear mode), re-encoded as MPEG-1 Layer III, mono, 44.1 kHz, 96 kbps, metadata stripped; no trimming (the D154
+pipeline trimmed nothing). The sources were 128 kbps mono 44.1 kHz. Numbered `gulf_01…14` / `jordan_01…04` in the
+order of the timestamps in their ElevenLabs file names (2026-11-05, given below). Measured after processing:
+
+| File | Length | Made (2026-11-05) | Before (LUFS / dBTP) | After (LUFS / dBTP) | Use |
+| ---- | ------ | ----------------- | -------------------- | ------------------- | --- |
+| `gulf/gulf_01.mp3` | 6.71 s | 07:39:42 | -19.00 / -3.63 | -16.55 / -1.80 | 100 000 coins — «يا زينك بس، حتى الحظ إذا شافك قال: أنا مالي شغل!» |
+| `gulf/gulf_02.mp3` | 5.36 s | 07:43:10 | -19.59 / -4.06 | -16.09 / -1.73 | 100 000 coins — «وش هالثقة؟ داخل علينا كأن التطبيق باسمك!» |
+| `gulf/gulf_03.mp3` | 5.09 s | 07:44:05 | -19.46 / -4.33 | -16.49 / -1.75 | 100 000 coins — «هدي اللعب يا وحش، ترى القلوب مو كلها تتحمل! ❤️» |
+| `gulf/gulf_04.mp3` | 5.36 s | 07:46:40 | -19.56 / -3.54 | -16.18 / -1.73 | 100 000 coins — «يا جماعة الخير، عطوه هدية يمكن يسكت شوي!» |
+| `gulf/gulf_05.mp3` | 5.51 s | 07:47:16 | -20.12 / -4.17 | -16.31 / -1.71 | 100 000 coins — «لا تسوي نفسك مشغول، شفناك متصل من الفجر!» |
+| `gulf/gulf_06.mp3` | 4.62 s | 07:47:54 | -18.78 / -4.14 | -16.42 / -1.93 | 100 000 coins — «يا بعد حيي، حضورك لحاله يسوى مليون كوين! 💎» |
+| `gulf/gulf_07.mp3` | 4.00 s | 07:48:30 | -21.18 / -5.53 | -16.18 / -1.85 | 100 000 coins — «تكفى لا تطلع، توّنا بدينا نستانس! 🥹» |
+| `gulf/gulf_08.mp3` | 5.36 s | 07:49:01 | -19.69 / -3.30 | -16.27 / -1.64 | 100 000 coins — «وش السالفة؟ داخل دخول الملوك وطالع بدون سلام؟» |
+| `gulf/gulf_09.mp3` | 6.30 s | 07:49:35 | -20.59 / -5.35 | -16.55 / -1.97 | 100 000 coins — «يا ساتر، منو عطاه المايك؟ شكله ما راح يسكته أحد! 🎤» |
+| `gulf/gulf_10.mp3` | 5.51 s | 07:55:02 | -19.30 / -3.69 | -16.32 / -1.80 | 100 000 coins — «وش هالحلا؟ تكفى خف علينا، قلوبنا مو قد هالجمال!» |
+| `gulf/gulf_11.mp3` | 5.90 s | 07:55:35 | -20.46 / -4.42 | -16.87 / -1.78 | 100 000 coins — «تدري إنك مشكلة؟ كل ما أشوفك أنسى وش كنت بقول!» |
+| `gulf/gulf_12.mp3` | 5.28 s | 07:56:16 | -19.06 / -4.46 | -16.26 / -1.90 | 100 000 coins — «يا زين ضحكتك، أحسها تسوي إعادة تشغيل لقلبي!» |
+| `gulf/gulf_13.mp3` | 6.30 s | 07:56:43 | -19.51 / -4.06 | -15.80 / -1.78 | 100 000 coins — «أنت وش تستخدم؟ عسل ولا سحر؟ لأنك مسوي فيني عمايل!» |
+| `gulf/gulf_14.mp3` | 7.34 s | 07:57:36 | -19.65 / -3.56 | -16.56 / -1.87 | 100 000 coins — «تدري وش ناقص الدنيا؟ نسخة ثانية منك، عشان إذا اشتقت لك أروح لها! 😂» |
+| `jordan/jordan_01.mp3` | 5.02 s | 08:00:43 | -20.36 / -1.45 | -16.94 / -1.69 | 100 000 coins — «ولك شو هالحلا؟ إنت مش بني آدم، إنت مخالفِة جمال!» |
+| `jordan/jordan_02.mp3` | 6.87 s | 08:01:29 | -18.98 / -0.87 | -16.58 / -1.77 | 100 000 coins — «يا زلمة قلبي مش واتساب، بس إنت كل ما تطلّ عليّ... بعملك اتصال!» |
+| `jordan/jordan_03.mp3` | 5.17 s | 08:02:17 | -20.30 / -1.27 | -15.81 / -1.67 | 100 000 coins — «يا ريتني شاحن تلفون، عشان أضل قريب منك وما تِفصل عني!» |
+| `jordan/jordan_04.mp3` | 7.34 s | 08:03:17 | -27.08 / -6.45 | -17.33 / -1.55 | 100 000 coins — «ولك إنت حلو بطريقة بتخليني أستحي أحكي معك، وبنفس الوقت نفسي ما أسكُت!» |
+
+Source files (SHA-256 of the owner's originals, not in git):
+
+```
+dc9c34a341611eb177d6a8136f0347989b547068c91528a8ae1c2b67bbe8848d  ElevenLabs_2026-11-05T07_39_42_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_v4.mp3  → gulf/gulf_01.mp3
+bd06a9875d71c267634c187c845b3dd5560ea9d690031cb2be4a5cb2e24bae59  ElevenLabs_2026-11-05T07_43_10_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_02.mp3
+7b13f000257450b62fdcb64d0abe343e5ced21f661c6a7a855d7be86af0f772f  ElevenLabs_2026-11-05T07_44_05_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_03.mp3
+5680fafb92afd1a4d8e9e7ab54895269e1cfff84c5be68eae608f5f9c094cd15  ElevenLabs_2026-11-05T07_46_40_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_04.mp3
+40915a3ec8ab5a12a8f024a91455a6f9a7ea5b46e29561aaaeff3e64af99f59e  ElevenLabs_2026-11-05T07_47_16_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_05.mp3
+77c8a8a3dba0d253d33041865a7ee8bb19623cc008f213ff4fb785768ebd4cb1  ElevenLabs_2026-11-05T07_47_54_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_06.mp3
+18bc7b1bb2da43b82a6d8f1c216d6f0bcdfc1a348c14a7e5760462750a364aa7  ElevenLabs_2026-11-05T07_48_30_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_07.mp3
+c4243cfd268c14149868d592c7ccc3c912423fee17bd7d9e471b11d5c1565b9e  ElevenLabs_2026-11-05T07_49_01_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_08.mp3
+e1ac077e767fe107c62292dbe390ec496111d6f10f811fa11f9563eb765ebfd1  ElevenLabs_2026-11-05T07_49_35_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_09.mp3
+5ea0352d30bbeae816feed0f4a93e1d83924ff040e5d24154301a8f6334de3a1  ElevenLabs_2026-11-05T07_55_02_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_10.mp3
+e34e5236ebe942d65995fec7a5f0a0b852599b8db1b03783da82adc4a83e16b9  ElevenLabs_2026-11-05T07_55_35_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_11.mp3
+6cbec7a20b7950cf51496d7f3d138d6bb38c13eedb135921063f4b72825f0239  ElevenLabs_2026-11-05T07_56_16_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_12.mp3
+d4dbde5e453f42e265fda4d332c04eabb06861bf09200acd8c4579a2f42cc4e3  ElevenLabs_2026-11-05T07_56_43_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_13.mp3
+c780c11bebe33282874b8e5ab88434dd9d706e659e23778b892e8f6c36042607  ElevenLabs_2026-11-05T07_57_36_Talya - Human-like Arabic AI Bot_pvc_s50_sim75_cs6_v4.mp3  → gulf/gulf_14.mp3
+de06ef24f4bf1920c1f12de1bbe7547b9ee193065cde1e7e31fe6ad6e6614cc1  ElevenLabs_2026-11-05T08_00_43_Abd Ulrahman_pvc_s50_sim75_v4.mp3  → jordan/jordan_01.mp3
+52241ba06b83792d016834c65bac109468b5f354853d5323b79d34b57d3a590b  ElevenLabs_2026-11-05T08_01_29_Abd Ulrahman_pvc_s50_sim75_v4.mp3  → jordan/jordan_02.mp3
+7b9ef4456c5c631ca788cee416fcbe25e1ad7a649a8839a94544bcf04b4e3b0b  ElevenLabs_2026-11-05T08_02_17_Abd Ulrahman_pvc_s50_sim75_v4.mp3  → jordan/jordan_03.mp3
+98341c41197f0b5c06e325aca65cd18030f61e9fb0c4eb281262c7044a622080  ElevenLabs_2026-11-05T08_03_17_Abd Ulrahman_pvc_s50_sim75_v4.mp3  → jordan/jordan_04.mp3
+```
+
+SHA-256 of the bundled files:
+
+```
+43d96c800a905a15f768620a1f721b7e1c73765cf47e0f0f0dd2afa381d756d7  gulf/gulf_01.mp3
+dcbe6a1d5579d57777ecf06f55a9f7e3b2afe01cb1553821da8d3d296cb70b5e  gulf/gulf_02.mp3
+cc00451617c03fed14a192c3a2d6632e88e35cd71c2f6fe425ebe5a5ae7f150d  gulf/gulf_03.mp3
+87e3ed2f8801f68efc30fafcb242641ebc5cf8ffb79cb40525822acc3f2927a2  gulf/gulf_04.mp3
+b4065725ec53993599951131c86232df0015fe0952e3aef800c4078efbc78145  gulf/gulf_05.mp3
+c0db30b23c00207b835537376014796891bb80f69b4a66dc3c1d89ef9ce2f1d5  gulf/gulf_06.mp3
+dbeccfe7a9c40fc12ac7be05dfbc659b596d1b7182af196c3b4d938b47084314  gulf/gulf_07.mp3
+a811b05252adf2437ee68467d7c028c93c96fc432965eaa7e8e3548a72fc4eed  gulf/gulf_08.mp3
+3fb79536c80e4ca30f2409db544824e576e5e9da31e82ecbe2dd99b67c3f47e4  gulf/gulf_09.mp3
+f51c75caa5c838d5db3f6cf3c61ec35fafb5810d5a6e7d4d545b1999a2fb0471  gulf/gulf_10.mp3
+f24bcfeef0f957ff1f0466e2b048d60e2298dfebe6830702b4d51a2a6e5dc1d6  gulf/gulf_11.mp3
+88782172706362c908476f077435a13aaaf926fadfcd7d28f57a26a0559ee710  gulf/gulf_12.mp3
+3363664f0853203bb6958e2ad376225b12072758520e1bb07d927cbaedd9d42b  gulf/gulf_13.mp3
+29a836c0050e6f407b4a295f9c539032fe344e4dc908056874bf0dc2e5b159b4  gulf/gulf_14.mp3
+aa3940900a2a1937d278d73760f3e704ff9bdc2c81b8955905e5065e32cf74b2  jordan/jordan_01.mp3
+f5a892504668782ad82cd90c9544fd74e63110ffeadd22048d4613eae83d6bc6  jordan/jordan_02.mp3
+a272054e3633309781406b58e095eb7279a9c86581e8f875314e8f6528fb3893  jordan/jordan_03.mp3
+d0b6eb5268aae1c5221a5ed88d7760553d73d5a3673ae45ffcbdc133d0c4f6f0  jordan/jordan_04.mp3
 ```

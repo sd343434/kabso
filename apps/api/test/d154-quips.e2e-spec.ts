@@ -13,7 +13,7 @@ import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
 import { addGiftIn } from '../src/modules/gifts/gift-catalogue.js';
-import { QUIP_GAP_MS, QUIP_PACK } from '../src/modules/gifts/quips.js';
+import { QUIP_GAP_MS, QUIP_PACK, QUIP_PRICES } from '../src/modules/gifts/quips.js';
 import { LIVE_MEDIA_PROVIDER } from '../src/modules/live/media/live-media.provider.js';
 import { creditIn } from '../src/modules/wallet/wallet-ledger.js';
 import { MemoryLiveMedia } from './helpers/memory-live-media.js';
@@ -53,6 +53,8 @@ function giftAdmin(...args: string[]): { status: number; out: string } {
 }
 
 const durationOf = (code: string): number => QUIP_PACK.find((q) => q.code === code)!.soundMs!;
+/** D349: every paid line costs 100 000 coins (was ghazal 99 · funny 199 · tease 299). */
+const P = QUIP_PRICES.egypt;
 
 describe('D154 contract coverage', () => {
   it('openapi v1.32-live declares the soundboard operation', () => {
@@ -156,7 +158,7 @@ describe('D154 quips', { timeout: 180_000 }, () => {
     );
     const seeded = giftAdmin('quips-seed');
     expect(seeded.status, seeded.out).toBe(0);
-    expect(seeded.out).toContain('35 added');
+    expect(seeded.out).toContain('53 added');
   });
   afterAll(async () => ctx?.close());
 
@@ -164,18 +166,18 @@ describe('D154 quips', { timeout: 180_000 }, () => {
     const again = giftAdmin('quips-seed');
     expect(again.status, again.out).toBe(0);
     expect(again.out).toContain('0 added');
-    expect(again.out).toContain('35 already there');
+    expect(again.out).toContain('53 already there');
     const u = await signup();
     const res = await ctx.http.get('/api/v1/gifts/catalogue').set(auth(u)).set('Accept-Language', 'ar');
     expect(res.status).toBe(200);
     expectContract(res, 'getGiftCatalogue');
     expect(res.body.categories).toEqual(['POPULAR', 'EVENT', 'FUN', 'QUIPS']);
     const quips = (res.body.data as { category: string }[]).filter((g) => g.category === 'QUIPS');
-    expect(quips).toHaveLength(35);
+    expect(quips).toHaveLength(53);
     expect(res.body.data.find((g: { code: string }) => g.code === 'quip_tease_02')).toMatchObject({
-      priceCoins: 299,
+      priceCoins: P,
       name: 'تريقة ٢',
-      tag: { code: 'tease', name: 'تريقة' },
+      tag: { code: 'egypt', name: 'مصري' },
       quip: { soundKey: 'kabi/tease_02', durationMs: 5721, text: 'إنت لو التركيز فلوس، كنت استلفت مننا.' },
     });
     expect(res.body.data.find((g: { code: string }) => g.code === 'quip_clap')).toMatchObject({
@@ -207,13 +209,13 @@ describe('D154 quips', { timeout: 180_000 }, () => {
 
   it('a paid quip charges its price, fixes the 50 % share, plays as a `quip` message (not a gift effect)', async () => {
     const { h, viewer, roomId } = await scene();
-    await coins(viewer, 1000);
+    await coins(viewer, 1_000_000);
     drain();
     const res = await send(roomId, viewer, 'quip_ghazal_01', h);
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expectContract(res, 'sendLiveGift');
-    expect(res.body.coins).toBe(1000 - 99);
-    expect(res.body.gift).toMatchObject({ giftCode: 'quip_ghazal_01', unitPrice: 99, totalCoins: 99 });
+    expect(res.body.coins).toBe(1_000_000 - P);
+    expect(res.body.gift).toMatchObject({ giftCode: 'quip_ghazal_01', unitPrice: P, totalCoins: P });
     expect(res.body.quip).toMatchObject({
       id: res.body.gift.id,
       roomId,
@@ -234,10 +236,10 @@ describe('D154 quips', { timeout: 180_000 }, () => {
     const ledger = await ctx.prisma.walletLedgerEntry.findMany({
       where: { userId: viewer.id, reason: 'LIVE_GIFT' },
     });
-    expect(ledger.map((l) => Number(l.delta))).toEqual([-99]);
+    expect(ledger.map((l) => Number(l.delta))).toEqual([-P]);
     // The score counts it like a normal gift (100 a coin).
     const room = await ctx.http.get(`/api/v1/live/rooms/${roomId}`).set(auth(viewer));
-    expect(room.body.score).toBe(99 * 100);
+    expect(room.body.score).toBe(P * 100);
     // A normal gift fixes the normal share (65 %).
     const rose = await send(roomId, viewer, 'd154_rose', h);
     expect(rose.status).toBe(201);
@@ -254,12 +256,12 @@ describe('D154 quips', { timeout: 180_000 }, () => {
     const retry = await send(roomId, viewer, 'quip_funny_01', h, { clientId });
     expect(retry.status).toBe(200);
     expect(retry.body.gift.id).toBe(first.body.gift.id);
-    expect(await wallet(viewer)).toBe(1000 - 99 - 10 - 199);
+    expect(await wallet(viewer)).toBe(1_000_000 - P - 10 - P);
   });
 
   it("quips take turns in the room's one queue; past the wait limit → 409 QUIP_QUEUE_FULL, nothing charged", async () => {
     const { h, viewer, roomId } = await scene();
-    await coins(viewer, 10_000);
+    await coins(viewer, 1_000_000);
     drain();
     const a = await send(roomId, viewer, 'quip_funny_03', h);
     const b = await send(roomId, viewer, 'quip_ghazal_02', h);
@@ -317,7 +319,7 @@ describe('D154 quips', { timeout: 180_000 }, () => {
     expect(await ctx.prisma.liveRoomTapper.count({ where: { roomId, userId: viewer.id } })).toBe(0);
     expect(await ctx.prisma.walletLedgerEntry.count({ where: { userId: viewer.id } })).toBe(0);
     // Paid quips are still available to them.
-    await coins(viewer, 500);
+    await coins(viewer, P);
     expect((await send(roomId, viewer, 'quip_ghazal_05', h)).status).toBe(201);
     // In their next live the host's viewers get a new free quip.
     await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
