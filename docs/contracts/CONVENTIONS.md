@@ -663,6 +663,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.88-live)* Tables `game_ticket_spends` (unique `(game_code, reference)`), `game_ticket_spends_hourly`, `game_ticket_spends_monthly`; setting `LIVE_GAMES_ENABLED` | Backend — `live` module (`recordGameTicketSpendIn`, the only writer, called by a game in its own transaction; the board; the sweeper) | CTO; Security (money-adjacent: tickets) |
 | *(v1.90-live)* Tables `gift_coins_sent_hourly`, `gift_coins_sent_monthly` (CHECKs `…_coins` ≥ 0) | Backend — `live` module (`addGiftCoinsSentIn` from the live / DM sends and `couples` CP gifts; `takeBackGiftCoinsSentIn` from `economy` `reverseGiftCherriesIn`; the board; the sweeper) | CTO |
 | *(v1.101-social)* Enum `event_audience` (`events.audience`, was `program_audience`: + AGENCIES, CP); columns `events.status`, `recurrence`, `period`, `period_starts_at`, `period_ends_at`, `scoring`, `counted_gifts`, `banner_media_id`, `start_notified_at`, `published_at` (CHECKs `events_shape` — a draft may have no dates —, `events_v2_shape`, `events_audience_not_creators`, `events_art_keys`); `event_gifts.points_per_coin` NUMERIC(7,2); `event_results.period` (unique keys with the period); tables `event_periods`, `event_milestones`, `event_milestone_grants`; columns `gifts.event_id` (CHECK `gifts_event_plain`), `store_items.event_id` (CHECK `store_items_event_exclusive`); notification `EVENT_STARTED` (unique `notifications_event_started_once`) | Backend — `programs` module (`gift-events.ts` the only writer of the event structure, periods, milestones and payouts; `events.service.ts` the sweeper and the reads); `gifts` / `live` (an event gift's listing and sale), `store` (event items) | CTO; Security (money: automatic prizes and free gift pieces; mass start notification) |
+| *(v1.102-social)* Columns `events.creators_as_hosts` (existing rows false, default true) and `event_boards.shown` (CHECK `event_boards_shown`, 1–100, default 20) | Backend — `programs` module (`event-audience.ts`, `gift-events.ts`, `events.service.ts`), `home` (banners) | CTO |
 
 ## 9. Contract change log
 
@@ -755,6 +756,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.102-social (draft) | 2026-11-09 | **D334 (owner answers to the events v2 questions, 2026-11-09):** `EventAudience` HOSTS counts content creators as hosts on the events made after D334 (`AdminGiftEvent.creatorsAsHosts`; older events keep D295); `listHomeBanners` lists an event's banner to that event's audience only (any audience may have one; a guest: EVERYONE only); free pieces of an event's own gift sent from the bag credit the recipients nothing (`LiveGift` share 0); `GiftEventForm.boards[].shown` «عدد المعروضين» (1–100, default 20; editable while running), `EventBoard.shown`, `EventLeaderboard.shown`; the launch festival's gifts «هدية المهرجان 1…4» with FULLSCREEN on the 1 000 000 / 3 000 000 gifts; held milestones of an event without board prizes wait for the release. Migration `20270409090200_events_v2_followups`. §10.127.11. | **Additive** for the app (new optional fields; a HOSTS event's audience grows by content creators; a creator now sees a new HOSTS event's banner). **Panel:** `shown` optional; an older panel omits it (kept). |
 | v1.101-social (draft) | 2026-11-09 | **D325 (owner: «الفعاليات … لم تكن مضبوطة» — events v2, one events system; phase A server + panel):** `GiftEventForm` `status` DRAFT / PUBLISHED, nullable dates for a draft, `permanent`, `recurrence`, `scoring` COINS / MULTIPLIER (`pointsPerCoin` a decimal), `countedGifts`, `milestones`, `bannerMediaId`; `EventAudience` (+ AGENCIES, CP); prize type `GIFT_PIECES`, `displayKey` on every prize item (`uploadAdminEventMedia` kind `prize`); `createAdminGift.eventId`, `createAdminStoreItem.eventId`, `listAdminStoreItems?eventId=`, `getAdminEventOptions?eventId=`; `publishAdminEvent`, `unpublishAdminEvent`, `discardAdminEvent`, `changeStaffEvent` publish / unpublish / discard; `createAdminLaunchFestival`; `getRunningEvents`, `getEventMilestones`, `getEventLeaderboard?period=previous`, `EventLeaderboard.period`, a gift event's board top 20; `EventDetail` `recurrence`, `scoring`, `countedGifts`, `period`, `milestones`, `art.titleFormat`, overlay `MP4`; `EventGift` `multiplier`, `exclusive`, `animationUrl`, `fullscreen`; `EventPrizeItem` `GIFT_PIECES`, `count`, `displayUrl`, `stillUrl`, `animationUrl`; notification `EVENT_STARTED`. Migrations `20270409090000_events_v2_enums`, `20270409090100_events_v2`. §10.127 (extends §10.114). | **Additive** for the app (drafts never reach it; whole-number `pointsPerCoin` kept; new values ignored by clients). **Panel:** a published body without gifts or boards stays a 400; a draft body is new. |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
 | v1.99-social (draft) | 2026-11-08 | **D311 (owner: «يمكنه حذف او حظر او تحذير اي شخص»; no code, no password):** `createOwnerModerationAction` (`POST /owner/users/{userId}/actions`, `OwnerModerationRequest`, `OwnerModerationResult`): WARN / SUSPEND (days) / BAN / DELETE_ACCOUNT by the app owner only, reusing the panel's rules, idempotent by `clientId`, audited `owner.moderation.action`; `RATE_LIMIT_OWNER_MODERATION_USER`. Migration `20270408090300_owner_moderation`. §10.117, §7, §8. | **Additive** (a new operation; no shape change elsewhere). Owner decision recorded: the panel step-up of D286 / D288 is waived for the OWNER in the app only. |
@@ -8957,6 +8959,8 @@ Owner (2026-11-08, from a device): «في صفحة المؤسس لا تحتوي 
 
 > *v1.101-social (D325):* extended by **§10.127 Events v2** — drafts, recurrence, the scoring method, counted gifts,
 > gifts and prizes uploaded inside the event, gift pieces, milestones, audiences AGENCIES / CP and the start notification.
+> *v1.102-social (D334):* §10.127.11 — content creators count as hosts on events made after it, banners for every
+> audience, free gift pieces credit nothing, «عدد المعروضين» per board (D303's boards included).
 
 Owner (2026-11-07), from a third-party event page («ملك الكنوز»; the look and the idea only — none of its art, names or
 brand; the screenshot stays out of git, D40): an event of **its own gifts**, points per gift, ranks and prizes (items,
@@ -10033,6 +10037,9 @@ gifts**, the same five periods (§10.119), «والأيقونة التي بجا�
 
 ### 10.127 Events v2 «الفعاليات» — one events system *(v1.101-social, DRAFT — D325)*
 
+> *v1.102-social (D334):* the owner's answers of 2026-11-09 change §10.127.4 (free pieces), .5 (the number shown), .7
+> (the banner), .8 (the HOSTS audience) and .10 (the festival's names) — see **§10.127.11**.
+
 Owner (2026-11-08 / 11-09): the D303 events «لم تكن مضبوطة»; one events system in the panel section «الفعاليات», built
 step by step; phase A (server + panel) now, the app page later (phase B). Decisions marked *(owner)*; the rest are CTO
 defaults the owner may change (PP-71). It **extends §10.114** (every D303 rule holds unless changed here). Excluded by the
@@ -10101,7 +10108,8 @@ owner: a points shop and daily missions.
 #### 10.127.5 Boards *(owner: one or more per event; top 20 shown)*
 
 The five D303 kinds, each with its minimum and prize lines (ranks 1–100 frozen as before). A gift event's board **shows
-its top 20** (`data` ≤ 20) and `me` the caller's place whatever it is (the sticky «مركزي»).
+its top 20** (`data` ≤ 20) and `me` the caller's place whatever it is (the sticky «مركزي»). *(D334: the number is set
+per board, §10.127.11.)*
 
 #### 10.127.6 Milestones «مراحل» *(owner: optional)*
 
@@ -10118,14 +10126,16 @@ The §10.114.9 specs, extended: the **title** may be a still or **animated** Web
 (≤ 1 MB, the 9 : 4 canvas, ≤ 10 s); the **overlay** may also be an **alpha MP4** (side-by-side alpha, H.264 / HEVC, ≤ 8 MB,
 ≤ 10 s); a **prize** picture (above). `EventDetail.art.titleFormat` (IMAGE / ANIMATED / LOTTIE), overlay `format` MP4. The
 **banner** (1 500 × 300, `bannerMediaId`) becomes, at publish, a HOME banner opening the event, shown from its start to
-its end (EVERYONE events — the Live home is the same for everyone; other audiences find it in «الفعاليات»).
+its end (EVERYONE events — the Live home is the same for everyone; other audiences find it in «الفعاليات»). *(D334:
+every audience, listed to that audience only — §10.127.11.)*
 
 #### 10.127.8 Shown and announced *(owner: Live home, inside lives, Event Center, a notification)*
 
 - Live home: the banner above. Event Center: `listEvents` / `getEvent` (published only; the audience below).
   Inside lives: `getRunningEvents` — the published gift events running now that the caller may see, with their gift
   codes (the app's strip and gift panel, phase B).
-- **Audience** (`EventAudience`): EVERYONE; HOSTS (not shown to content creators, D295); CREATORS (creator members);
+- **Audience** (`EventAudience`): EVERYONE; HOSTS (not shown to content creators, D295 — *D334: creators count as hosts
+  on the events made after it, §10.127.11*); CREATORS (creator members);
   **AGENCIES** (owners and active member hosts of an open agency); **CP** (people in a couple now). It decides who sees
   the event in the lists and who is notified; the boards still rank by their kind.
 - At the start the sweeper sends **`EVENT_STARTED`** (system, target EVENT, pushed «بدأت فعالية جديدة، شارك الآن») to
@@ -10146,4 +10156,51 @@ Nothing is seeded. The team makes it when it wants: the panel's «قالب مه�
 الانطلاق» 50 000 ×1, «صاروخ Kabso» 250 000 ×1, «تاج الافتتاح» 1 000 000 ×1.2, «ليلة المهرجان» 3 000 000 ×1.5 (tab EVENT, no
 art yet), boards SENDERS / RECEIVERS / CREATORS and four SENDERS milestones — the **prize table and milestones are a
 CTO proposal** (coins for supporters, cherries for hosts and creators, festival gift pieces on every rank) for the owner
-to change in the panel. The owner uploads the art, sets the dates and publishes.
+to change in the panel. The owner uploads the art, sets the dates and publishes. *(D334: the owner did not approve the
+names — the template uses «هدية المهرجان 1…4» and marks gifts 3 and 4 «شاشة كاملة»; §10.127.11.)*
+
+#### 10.127.11 Follow-ups *(v1.102-social, DRAFT — D334; owner answers 2026-11-09)*
+
+1. **Content creators count as hosts; hosts are not creators** *(owner: «صناع المحتوى يعتبرون مضيفين … والمضيفون ليسوا
+   صناع محتوى»)*. `events.creators_as_hosts` — **false for every event that existed before migration
+   `20270409090200_events_v2_followups`** (D303 / D166 / D325 rows: D295's rule kept to their end), **true for every event
+   made after it** (any path: the panel, the app's staff tool, `event-admin`, the launch festival). On such an event:
+   - **HOSTS audience** (`event-audience.ts`): shown to content-creator members too (`listEvents`, `getRunningEvents`,
+     the Live home banner) — D295 already showed HOSTS events to every non-creator — and the start notification
+     `EVENT_STARTED` goes to every approved host (`live_hosts`, any source) **and** every creator member (was: hosts whose
+     permission is not a creator's, creators excluded).
+   - **A D166 HOSTS board** (a metric event with audience HOSTS) ranks creator members and every approved host.
+   - **Gift-event boards are unchanged:** RECEIVERS already counted hosts and creator members (the D303 follow-up) —
+     on old and new events alike; **CREATORS** (board and audience) stays creator members only: a host is never on it.
+   - `AdminGiftEvent.creatorsAsHosts` (read-only) lets the panel mark an older HOSTS event («فعالية قديمة … بدون صناع
+     المحتوى»).
+   - `getEvent` by id stays open to any signed-in caller (a shared link), as before; the audience decides the lists,
+     the banner and the notification.
+2. **A banner for any audience** *(owner: «أي فعالية يمكن أن يكون لها بانر … يظهر لجمهورها»)*. `bannerMediaId` makes the
+   HOME banner at publish for **every** audience (was EVERYONE only). `GET /home/banners` lists a banner that opens an
+   event (`home_banners.event_id`) only while the event is PUBLISHED and only to its audience — the same rule as the
+   Event Center lists (item 1 included); a caller without a token (`placement=room`) sees only EVERYONE events' banners;
+   a banner without an event is everyone's. Older apps sign in, so they get the same per-user list. The event's regions
+   do not filter its banner (as before). The panel offers the banner on every audience.
+3. **Free event gift pieces give the recipient nothing** *(owner: «لا تصله على محفظته»)*. A send whose source is BAG of a
+   gift that is an event's own (`gifts.event_id` set — its pieces only come from that event's `GIFT_PIECES` prizes and
+   milestones; the gift is never sold once the event ends) is stored with `live_gifts.host_share_bps = 0`: **no
+   cherries** (`GIFT_RECEIVED`), **no agency or parent commission**, nothing in the agency month, the room's or the
+   host pill's cherries, nor in what the host targets / recruits / data center count as earned — in a live and in a
+   direct conversation. **Everything else follows the existing bag rules** (a bag send counts as a gift send): the
+   live score and the host's popularity points, the recipients' charm and the sender's support levels, «ملوك الثروة» /
+   «الأغنى» and the PK points move at the gift's coin value; it never scores on any event (§10.127.2). Coin sends of an
+   event gift while the event runs keep the usual 65 % / 70 % share; every other bag gift keeps its share.
+4. **«عدد المعروضين» per board** *(owner: top 20 by default, set per event / board in the panel)*. `event_boards.shown`
+   1–100 (CHECK `event_boards_shown`; default 20 — every existing board, D303's included, keeps 20).
+   `GiftEventForm.boards[].shown` (absent: 20 on a new board, kept on an edit); a display setting, so it **may change
+   while the event runs** (the rest of the board stays locked). `getEventLeaderboard` lists that many (`data`,
+   `shown`), `me` the caller's place whatever it is; `EventDetail.boards[].shown`. The frozen top 100 and its prizes are
+   unchanged.
+5. **Festival template** *(owner: names not approved; «شاشة كاملة» on the 1 000 000 and 3 000 000 gifts)*: the four gifts are
+   «هدية المهرجان 1…4» / “Festival gift 1…4” (`kabso_festival_gift_1` … `_4`, the same prices and multipliers ×1 / ×1 /
+   ×1.2 / ×1.5); gifts 3 and 4 carry the FULLSCREEN badge (the D324 full-screen effect when their art is uploaded). The
+   prize table and milestones remain placeholders the owner sets (answer 1).
+6. **Milestones held with the payout** *(owner: yes)*: not given while held; given at the release (once per key) with
+   the board prizes. Fix: a held event whose boards pay nothing but which has milestones is no longer settled at its
+   freeze — it stays due until the release gives the milestones.
