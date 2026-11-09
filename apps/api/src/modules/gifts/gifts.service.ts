@@ -1,3 +1,4 @@
+import { eventGiftListedWhere } from '../programs/gift-events.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { StorageSettingsStore } from '../storage-settings/storage-settings.store.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
@@ -297,6 +298,8 @@ export class GiftsService {
         enabled: true,
         category: { in: categories0 },
         OR: [{ ownerUserId: null }, { owner: { status: 'ACTIVE' } }],
+        // v1.101-social (D325): an event's own gift only while its event runs.
+        AND: [eventGiftListedWhere(new Date())],
       },
       include: GIFT_OWNER_INCLUDE,
       orderBy: [...CATALOGUE_ORDER],

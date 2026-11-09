@@ -16,6 +16,8 @@ import {
   EventsService,
   type EventDetailDto,
   type EventLeaderboardDto,
+  type EventMilestonesDto,
+  type RunningEventsDto,
   type EventListDto,
 } from './events.service.js';
 import { SvipService, type SvipStatusDto } from './svip.service.js';
@@ -157,6 +159,22 @@ export class ProgramsController {
     @Query() query: unknown,
   ): Promise<EventListDto> {
     return this.events.list(auth.userId, query, await this.language(req, auth));
+  }
+
+  /** v1.101-social (D325): the published events running now that the caller may see (inside lives). */
+  @Get('events/running')
+  async runningEvents(@CurrentAuth() auth: AuthContext, @Req() req: AppRequest): Promise<RunningEventsDto> {
+    return this.events.running(auth.userId, await this.language(req, auth));
+  }
+
+  /** v1.101-social (D325): an event's milestones with the caller's progress. */
+  @Get('events/:eventId/milestones')
+  async eventMilestones(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('eventId') eventId: string,
+  ): Promise<EventMilestonesDto> {
+    return this.events.milestones(auth.userId, eventId, await this.language(req, auth));
   }
 
   @Get('events/:eventId')

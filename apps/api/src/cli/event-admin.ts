@@ -16,6 +16,9 @@
  *   pnpm event:admin end <eventId>    # ends a running event now (the sweeper then freezes it)
  *   pnpm event:admin hold <eventId>   # stops the automatic prize payout (during the review)
  *   pnpm event:admin release <eventId>
+ *   pnpm event:admin festival-draft --reason <text> [--category EVENT]
+ *                   # v1.101-social (D325): «مهرجان انطلاقة Kabso» as a DRAFT (no dates) with its four exclusive
+ *                   # gifts (art uploaded in the panel); finished and published in the panel's «الفعاليات»
  *
  * v1.50-social (D176): `--summary-ar` / `--summary-en` are the calendar bar's second line (a short prize
  * line, ≤ 80 characters; empty clears it) and `--tone` its colour among Kabso's hues (none = a hue
@@ -40,6 +43,8 @@ import {
   eventState,
 } from '../modules/programs/event-admin-rules.js';
 import { parsePrizeText } from '../modules/programs/programs-rules.js';
+import { createLaunchFestivalDraftIn } from '../modules/programs/launch-festival.js';
+import { CLI_VIA } from '../common/audit/admin-actor.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -55,6 +60,7 @@ const USAGE = [
   '         [--featured true|false]',
   '       pnpm event:admin list',
   '       pnpm event:admin end|hold|release <eventId>',
+  '       pnpm event:admin festival-draft --reason <text> [--category EVENT]',
 ].join('\n');
 
 const METRICS = EVENT_METRICS;
@@ -201,7 +207,7 @@ async function list(): Promise<void> {
     const state = eventState(e, now).replace('_', ' ');
     process.stdout.write(
       `${e.id} ${state} ${e.metric} ${e.audience}${e.permanent ? ' permanent' : ''}${e.featured ? ' featured' : ''}` +
-        `${e.regions.length > 0 ? ` [${e.regions.join(',')}]` : ''} ${e.startsAt.toISOString()} → ` +
+        `${e.regions.length > 0 ? ` [${e.regions.join(',')}]` : ''} ${e.startsAt?.toISOString() ?? '…'} → ` +
         `${e.endsAt?.toISOString() ?? '…'} «${e.titleAr}» / ${e.titleEn}\n`,
     );
   }
@@ -272,6 +278,33 @@ async function style(id: string, args: readonly string[]): Promise<void> {
   process.stdout.write(`Event ${event.id}: style updated.\n`);
 }
 
+/** v1.101-social (D325): the launch festival's draft (nothing is published; the panel finishes it). */
+async function festivalDraft(args: readonly string[]): Promise<void> {
+  let values: { reason?: string; category?: string };
+  try {
+    ({ values } = parseArgs({
+      args: [...args],
+      options: { reason: { type: 'string' }, category: { type: 'string' } },
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  const reason = values.reason?.trim() ?? '';
+  if (reason.length < 3) fail(`--reason is required (3–500 characters).\n${USAGE}`);
+  const zone = process.env.LIVE_RANKINGS_TIME_ZONE?.trim() || 'UTC';
+  const made = await eventStep(() =>
+    prisma.$transaction((tx) =>
+      createLaunchFestivalDraftIn(tx, CLI_VIA, new Date(), reason, zone, values.category ?? 'EVENT'),
+    ),
+  );
+  process.stdout.write(
+    `Draft ${made.id} created with gifts ${made.gifts.join(', ')}. Upload the art, set the dates and publish ` +
+      'it in the panel («الفعاليات»).\n',
+  );
+}
+
 const [command, ...rest] = process.argv.slice(2);
 try {
   switch (command) {
@@ -288,6 +321,9 @@ try {
       await style(id, options);
       break;
     }
+    case 'festival-draft':
+      await festivalDraft(rest);
+      break;
     case 'end':
     case 'hold':
     case 'release':

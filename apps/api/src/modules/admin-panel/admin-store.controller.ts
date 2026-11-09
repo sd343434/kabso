@@ -28,6 +28,7 @@ import {
   createStoreItemBody,
   storeOptionalReasonBody,
   storeReasonBody,
+  storeItemsAdminQuery,
   storeSalesQuery,
   storeUploadQuery,
   updateStoreItemBody,
@@ -70,8 +71,10 @@ export class AdminStoreController {
 
   @Get('items')
   @RequireCapability('catalog.view')
-  list(): Promise<AdminStoreItemListDto> {
-    return this.store.list();
+  list(
+    @Query(new ZodValidationPipe(storeItemsAdminQuery)) q: z.output<typeof storeItemsAdminQuery>,
+  ): Promise<AdminStoreItemListDto> {
+    return this.store.list(q.eventId);
   }
 
   @Post('items')

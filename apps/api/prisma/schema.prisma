@@ -242,6 +242,8 @@ model User {
   eventPrizePayouts      EventPrizePayout[]
   /// v1.97-social (D303 follow-up): event badges the person holds (until `expires_at`).
   eventBadges            UserEventBadge[]
+  /// v1.101-social (D325): event milestones the person reached.
+  eventMilestoneGrants   EventMilestoneGrant[]
   // v1.52-social (D179): the cherry economy.
   cherryWallet           CherryWallet?
   cherryLedger           CherryLedgerEntry[]
@@ -329,32 +331,32 @@ model User {
   balanceAdjustmentsBy      AdminBalanceAdjustment[] @relation("AdjustedBy")
 
   // v1.82-social (D252): «شراء VIP» — the person's membership and purchases.
-  vipMembership         VipMembership?
-  vipPurchases          VipPurchase[]
+  vipMembership           VipMembership?
+  vipPurchases            VipPurchase[]
   /// D270 (§10.98).
-  storePurchases        StorePurchase[]     @relation("StorePurchaseBuyer")
-  storeGiftsReceived    StorePurchase[]     @relation("StorePurchaseRecipient")
-  vipDailyCoinClaims    VipDailyCoinClaim[]
+  storePurchases          StorePurchase[]          @relation("StorePurchaseBuyer")
+  storeGiftsReceived      StorePurchase[]          @relation("StorePurchaseRecipient")
+  vipDailyCoinClaims      VipDailyCoinClaim[]
   /// v1.83-social (D258, §10.94.9): who visited this user's profile, and whose profiles this user visited.
-  profileVisitsReceived ProfileVisit[]      @relation("ProfileVisitOwner")
-  profileVisitsMade     ProfileVisit[]      @relation("ProfileVisitVisitor")
+  profileVisitsReceived   ProfileVisit[]           @relation("ProfileVisitOwner")
+  profileVisitsMade       ProfileVisit[]           @relation("ProfileVisitVisitor")
   /// v1.95-social (D301, §10.112): the owner's cover videos, «رحلة Kabso», and «صندوق المؤسس» (sent / about).
-  ownerCoverVideos      OwnerCoverVideo[]
-  ownerJourney          OwnerJourneyMilestone[]
-  ownerBio              OwnerBio?
-  ownerFeedbackSent     OwnerFeedback[]     @relation("OwnerFeedbackSender")
-  ownerFeedbackAbout    OwnerFeedback[]     @relation("OwnerFeedbackStaff")
+  ownerCoverVideos        OwnerCoverVideo[]
+  ownerJourney            OwnerJourneyMilestone[]
+  ownerBio                OwnerBio?
+  ownerFeedbackSent       OwnerFeedback[]          @relation("OwnerFeedbackSender")
+  ownerFeedbackAbout      OwnerFeedback[]          @relation("OwnerFeedbackStaff")
   /// v1.100-social (D312, §10.118): the custom gifts this user owns «صاحب الهدية».
-  ownedGifts            Gift[]              @relation("GiftOwner")
+  ownedGifts              Gift[]                   @relation("GiftOwner")
   /// v1.99-social (D311, §10.117): the founder's moderation actions taken by / on this user.
-  ownerActionsTaken     OwnerModerationAction[] @relation("OwnerModerationActor")
-  ownerActionsReceived  OwnerModerationAction[] @relation("OwnerModerationTarget")
+  ownerActionsTaken       OwnerModerationAction[]  @relation("OwnerModerationActor")
+  ownerActionsReceived    OwnerModerationAction[]  @relation("OwnerModerationTarget")
   /// v1.88-live (D315, §10.120): game tickets spent «مجنون اللعب» (the ledger and its rollups).
-  gameTicketSpends       GameTicketSpend[]
-  gameTicketSpendsHourly GameTicketSpendHourly[]
+  gameTicketSpends        GameTicketSpend[]
+  gameTicketSpendsHourly  GameTicketSpendHourly[]
   gameTicketSpendsMonthly GameTicketSpendMonthly[]
-  giftCoinsSentHourly    GiftCoinsSentHourly[]
-  giftCoinsSentMonthly   GiftCoinsSentMonthly[]
+  giftCoinsSentHourly     GiftCoinsSentHourly[]
+  giftCoinsSentMonthly    GiftCoinsSentMonthly[]
 
   @@index([createdAt], map: "users_created_at_idx")
   /// v1.95-social (D301, §10.112.4): «لوحة المؤسس» counts who is online now.
@@ -1782,6 +1784,8 @@ model MediaAsset {
   homeBanner      HomeBanner?        @relation("HomeBannerMedia")
   /// v1.97-social (D303): a video banner's `BANNER_VIDEO`.
   homeBannerVideo HomeBanner?        @relation("HomeBannerVideo")
+  /// v1.101-social (D325): the event whose Live home banner this is (before publish).
+  eventBanners    Event[]            @relation("EventBannerMedia")
   /// D155: a direct message's picture or voice clip.
   dmMessage       DmMessage?
   /// D168: a profile photo.
@@ -1833,7 +1837,7 @@ model Post {
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author        User                     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   media         PostMedia[]
   likes         PostLike[]
   saves         PostSave[]
@@ -1919,12 +1923,12 @@ model PostRepost {
 
 /// One row per viewer and post; `viewed_at` moves when a new 24-hour view counts (§11.4).
 model PostView {
-  postId   String   @map("post_id") @db.Uuid
-  userId   String   @map("user_id") @db.Uuid
-  viewedAt DateTime @map("viewed_at") @db.Timestamptz(3)
+  postId       String   @map("post_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  viewedAt     DateTime @map("viewed_at") @db.Timestamptz(3)
   /// D300 (§10.111): the §11.4 views this row has counted (1 per rolling 24 h; rows before D300 start at 1) — a
   /// creator's views from ACTIVE viewers are summed from it. CHECK ≥ 1.
-  countedViews Int  @default(1) @map("counted_views")
+  countedViews Int      @default(1) @map("counted_views")
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2344,6 +2348,8 @@ enum NotificationType {
   OWNER_ANNOUNCEMENT
   /// v1.97-social (D303, system; target EVENT): the person won a prize of an event board (paid automatically).
   EVENT_PRIZE_WON
+  /// v1.101-social (D325, system; target EVENT): an event for the person's audience started (once per person and event).
+  EVENT_STARTED
 
   @@map("notification_type")
 }
@@ -2427,6 +2433,9 @@ model Notification {
   agency        Agency?               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   actors        NotificationActor[]
 
+  /// D301 follow-up: one OWNER_ANNOUNCEMENT per person and announcement (the fan-out is idempotent).
+  @@unique([recipientId, postId], map: "notifications_owner_announcement_once", where: raw("type = 'OWNER_ANNOUNCEMENT'::notification_type"))
+  @@unique([recipientId, eventId], map: "notifications_event_started_once", where: raw("type = 'EVENT_STARTED'::notification_type"))
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
   @@index([agencyId], map: "notifications_agency_idx", where: raw("agency_id IS NOT NULL"))
   @@index([liveModerationId], map: "notifications_live_moderation_idx", where: raw("live_moderation_id IS NOT NULL"))
@@ -2434,8 +2443,6 @@ model Notification {
   @@index([reportId], map: "notifications_report_idx", where: raw("report_id IS NOT NULL"))
   @@index([levelRaiseRequestId], map: "notifications_level_raise_idx", where: raw("level_raise_request_id IS NOT NULL"))
   @@index([ownerFeedbackId], map: "notifications_owner_feedback_idx", where: raw("owner_feedback_id IS NOT NULL"))
-  /// D301 follow-up: one OWNER_ANNOUNCEMENT per person and announcement (the fan-out is idempotent).
-  @@unique([recipientId, postId], map: "notifications_owner_announcement_once", where: raw("type = 'OWNER_ANNOUNCEMENT'::notification_type"))
   @@index([eventId], map: "notifications_event_idx", where: raw("event_id IS NOT NULL"))
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
@@ -3306,9 +3313,14 @@ model Gift {
   sends       LiveGift[]
   /// v1.97-social (D303): the events this gift scores in.
   eventGifts  EventGift[]
+  /// v1.101-social (D325): the event this gift belongs to (an exclusive event gift, CHECK `gifts_event_plain`): sent
+  /// with coins only while that event runs, otherwise only from the bag (pieces won as prizes).
+  eventId     String?         @map("event_id") @db.Uuid
+  event       Event?          @relation(fields: [eventId], references: [id], onDelete: Restrict)
 
   @@index([category, sortOrder], map: "gifts_category_sort_idx")
   @@index([ownerUserId], map: "gifts_owner_idx")
+  @@index([eventId], map: "gifts_event_idx", where: raw("(event_id IS NOT NULL)"))
   @@map("gifts")
 }
 
@@ -4018,6 +4030,18 @@ enum ProgramAudience {
   @@map("program_audience")
 }
 
+/// v1.101-social (D325, §10.127): who an event is for (its own type since v2; was `program_audience`). AGENCIES: agency
+/// owners and the member hosts of an open agency; CP: people in a CP couple now (gift events only).
+enum EventAudience {
+  EVERYONE
+  HOSTS
+  CREATORS
+  AGENCIES
+  CP
+
+  @@map("event_audience")
+}
+
 /// D166: what an event's leaderboard counts.
 enum EventMetric {
   GIFT_COINS_RECEIVED
@@ -4213,45 +4237,64 @@ model DailyCheckIn {
 /// `regions` (ISO 3166-1 alpha-2) targets the event at those countries (the Regional tab).
 /// `prizes` is a JSON array of `{rankFrom, rankTo, coins}`.
 model Event {
-  id                  String          @id @default(uuid(7)) @db.Uuid
-  titleAr             String          @map("title_ar") @db.VarChar(120)
-  titleEn             String          @map("title_en") @db.VarChar(120)
-  bannerUrl           String?         @map("banner_url") @db.VarChar(2048)
-  startsAt            DateTime        @map("starts_at") @db.Timestamptz(3)
-  endsAt              DateTime?       @map("ends_at") @db.Timestamptz(3)
-  rulesAr             String          @map("rules_ar") @db.VarChar(4000)
-  rulesEn             String          @map("rules_en") @db.VarChar(4000)
+  id                  String        @id @default(uuid(7)) @db.Uuid
+  titleAr             String        @map("title_ar") @db.VarChar(120)
+  titleEn             String        @map("title_en") @db.VarChar(120)
+  bannerUrl           String?       @map("banner_url") @db.VarChar(2048)
+  /// v1.101-social (D325): null only for a DRAFT (CHECK `events_shape`).
+  startsAt            DateTime?     @map("starts_at") @db.Timestamptz(3)
+  endsAt              DateTime?     @map("ends_at") @db.Timestamptz(3)
+  rulesAr             String        @map("rules_ar") @db.VarChar(4000)
+  rulesEn             String        @map("rules_en") @db.VarChar(4000)
   /// D176: the calendar bar's second line (a short prize line) and its tone.
-  summaryAr           String?         @map("summary_ar") @db.VarChar(80)
-  summaryEn           String?         @map("summary_en") @db.VarChar(80)
-  tone                String?         @db.VarChar(6)
+  summaryAr           String?       @map("summary_ar") @db.VarChar(80)
+  summaryEn           String?       @map("summary_en") @db.VarChar(80)
+  tone                String?       @db.VarChar(6)
   metric              EventMetric
-  audience            ProgramAudience @default(EVERYONE)
-  permanent           Boolean         @default(false)
-  regions             String[]        @default([]) @db.Char(2)
-  featured            Boolean         @default(false)
-  prizes              Json            @default("[]")
+  audience            EventAudience @default(EVERYONE)
+  permanent           Boolean       @default(false)
+  regions             String[]      @default([]) @db.Char(2)
+  featured            Boolean       @default(false)
+  prizes              Json          @default("[]")
   /// The leaderboard was frozen into `event_results` (once, after the end).
-  frozenAt            DateTime?       @map("frozen_at") @db.Timestamptz(3)
+  frozenAt            DateTime?     @map("frozen_at") @db.Timestamptz(3)
   /// The prizes are paid from this time (the review window after the freeze).
-  payoutDueAt         DateTime?       @map("payout_due_at") @db.Timestamptz(3)
+  payoutDueAt         DateTime?     @map("payout_due_at") @db.Timestamptz(3)
   /// An admin holds the payout during the review (event-admin hold / release).
-  payoutHold          Boolean         @default(false) @map("payout_hold")
-  paidAt              DateTime?       @map("paid_at") @db.Timestamptz(3)
+  payoutHold          Boolean       @default(false) @map("payout_hold")
+  paidAt              DateTime?     @map("paid_at") @db.Timestamptz(3)
   /// v1.97-social (D303, §10.114.1): the IANA zone the event's dates are shown in (null: LIVE_RANKINGS_TIME_ZONE).
-  timeZone            String?         @map("time_zone") @db.VarChar(64)
+  timeZone            String?       @map("time_zone") @db.VarChar(64)
   /// v1.97-social (D303 follow-ups, owner; CONVENTIONS §10.114.9): the event page's art, uploaded per event
   /// (`uploadAdminEventMedia` / `uploadStaffEventMedia`, the published specs): the background (`media/events/bg/…`:
   /// `.webp` still, `.anim.webp` animated, `.mp4` / `.mov` video with `backgroundPosterKey`), the transparent title art
   /// (`media/events/title/…webp`) and the animation overlay (`media/events/overlay/….svga|.json`). Null = none.
-  backgroundKey       String?         @map("background_key") @db.VarChar(200)
-  backgroundPosterKey String?         @map("background_poster_key") @db.VarChar(200)
-  titleKey            String?         @map("title_key") @db.VarChar(200)
-  overlayKey          String?         @map("overlay_key") @db.VarChar(200)
+  backgroundKey       String?       @map("background_key") @db.VarChar(200)
+  backgroundPosterKey String?       @map("background_poster_key") @db.VarChar(200)
+  titleKey            String?       @map("title_key") @db.VarChar(200)
+  overlayKey          String?       @map("overlay_key") @db.VarChar(200)
   /// v1.97-social (D303): who made it last («via» panel / app / cli) — audit has the full trail.
-  createdById         String?         @map("created_by_id") @db.Uuid
-  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdById         String?       @map("created_by_id") @db.Uuid
+  /// v1.101-social (D325, CONVENTIONS §10.127; CHECK `events_v2_shape`): DRAFT (no dates needed, never shown, scored or
+  /// swept) or PUBLISHED.
+  status              String        @default("PUBLISHED") @db.VarChar(10)
+  /// NONE, WEEKLY or MONTHLY (a period restarts the boards; each period frozen and paid on its own).
+  recurrence          String        @default("NONE") @db.VarChar(8)
+  /// The current period (0-based) and its window (recurring events only; NONE: the event's own dates).
+  period              Int           @default(0)
+  periodStartsAt      DateTime?     @map("period_starts_at") @db.Timestamptz(3)
+  periodEndsAt        DateTime?     @map("period_ends_at") @db.Timestamptz(3)
+  /// COINS (points = coins) or MULTIPLIER (each event gift's `points_per_coin`, a decimal).
+  scoring             String        @default("MULTIPLIER") @db.VarChar(10)
+  /// EVENT_GIFTS (only the event's gifts score) or ALL_GIFTS (every gift; a gift not listed counts its coins × 1).
+  countedGifts        String        @default("EVENT_GIFTS") @map("counted_gifts") @db.VarChar(12)
+  /// The Live home banner (a HOME_BANNER asset; a banner opening the event is made from it at publish).
+  bannerMediaId       String?       @map("banner_media_id") @db.Uuid
+  /// When the start notification went to the audience (once).
+  startNotifiedAt     DateTime?     @map("start_notified_at") @db.Timestamptz(3)
+  publishedAt         DateTime?     @map("published_at") @db.Timestamptz(3)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   results       EventResult[]
   /// v1.97-social (D303): an EVENT_GIFTS event's gifts and boards.
@@ -4260,8 +4303,16 @@ model Event {
   banners       HomeBanner[]
   notifications Notification[]
   badgeGrants   UserEventBadge[]
+  /// v1.101-social (D325): the event's own gifts and prize items, its milestones and frozen periods.
+  ownGifts      Gift[]
+  ownItems      StoreItem[]
+  milestones    EventMilestone[]
+  periods       EventPeriod[]
+  bannerMedia   MediaAsset?      @relation("EventBannerMedia", fields: [bannerMediaId], references: [id], onDelete: SetNull)
 
   @@index([startsAt], map: "events_starts_idx")
+  @@index([status], map: "events_status_idx")
+  @@index([periodEndsAt], map: "events_period_due_idx", where: raw("((recurrence)::text <> 'NONE'::text) AND (frozen_at IS NULL)"))
   @@index([endsAt], map: "events_due_idx", where: raw("(paid_at IS NULL)"))
   @@map("events")
 }
@@ -4273,6 +4324,8 @@ model EventResult {
   eventId     String    @map("event_id") @db.Uuid
   /// v1.97-social (D303): `MAIN` (a D166 event's one board) or the board kind (SENDERS, RECEIVERS, AGENCIES, CP).
   board       String    @default("MAIN") @db.VarChar(10)
+  /// v1.101-social (D325): the period of a recurring event (0 otherwise).
+  period      Int       @default(0)
   rank        Int
   /// The person (SENDERS / RECEIVERS / MAIN), the agency's OWNER (AGENCIES) or the couple's first partner (CP).
   userId      String    @map("user_id") @db.Uuid
@@ -4295,8 +4348,8 @@ model EventResult {
   user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   payouts EventPrizePayout[]
 
-  @@unique([eventId, board, rank], map: "event_results_rank_once")
-  @@unique([eventId, board, entrantKey], map: "event_results_entrant_once")
+  @@unique([eventId, period, board, rank], map: "event_results_rank_once")
+  @@unique([eventId, period, board, entrantKey], map: "event_results_entrant_once")
   @@index([userId], map: "event_results_user_idx")
   @@map("event_results")
 }
@@ -4304,11 +4357,12 @@ model EventResult {
 /// v1.97-social (D303, CONVENTIONS §10.114.2): a gift that scores in an EVENT_GIFTS event — each recipient of a send
 /// adds `coins × points_per_coin + quantity × points_per_gift` points (CHECK `event_gifts_points`).
 model EventGift {
-  eventId       String @map("event_id") @db.Uuid
-  giftCode      String @map("gift_code") @db.VarChar(40)
-  pointsPerCoin Int    @default(1) @map("points_per_coin")
-  pointsPerGift Int    @default(0) @map("points_per_gift")
-  sortOrder     Int    @default(0) @map("sort_order")
+  eventId       String  @map("event_id") @db.Uuid
+  giftCode      String  @map("gift_code") @db.VarChar(40)
+  /// v1.101-social (D325): the points multiplier per coin (a decimal, 0–1000, e.g. 1.2).
+  pointsPerCoin Decimal @default(1) @map("points_per_coin") @db.Decimal(7, 2)
+  pointsPerGift Int     @default(0) @map("points_per_gift")
+  sortOrder     Int     @default(0) @map("sort_order")
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   gift  Gift  @relation(fields: [giftCode], references: [code], onDelete: Restrict)
@@ -4353,6 +4407,57 @@ model EventPrizePayout {
   @@unique([resultId, userId], map: "event_prize_payouts_once")
   @@index([userId], map: "event_prize_payouts_user_idx")
   @@map("event_prize_payouts")
+}
+
+/// v1.101-social (D325, §10.127): one frozen period of an event (its window), written at each freeze.
+model EventPeriod {
+  eventId  String   @map("event_id") @db.Uuid
+  period   Int
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt   DateTime @map("ends_at") @db.Timestamptz(3)
+  frozenAt DateTime @map("frozen_at") @db.Timestamptz(3)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, period], map: "event_periods_pkey")
+  @@map("event_periods")
+}
+
+/// v1.101-social (D325, §10.127): a points threshold of an event board; every entrant reaching it gets its bundle once
+/// per period (CHECK `event_milestones_shape`).
+model EventMilestone {
+  id        String @id @default(uuid(7)) @db.Uuid
+  eventId   String @map("event_id") @db.Uuid
+  board     String @db.VarChar(10)
+  points    BigInt
+  /// The bundle (the prize items of a prize line).
+  prizes    Json   @default("[]")
+  sortOrder Int    @default(0) @map("sort_order")
+
+  event  Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  grants EventMilestoneGrant[]
+
+  @@unique([eventId, board, points], map: "event_milestones_once")
+  @@map("event_milestones")
+}
+
+/// v1.101-social (D325): a milestone reached — once per milestone, person and period (the key); `granted` as payouts.
+model EventMilestoneGrant {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  milestoneId String   @map("milestone_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  period      Int      @default(0)
+  score       BigInt
+  status      String   @db.VarChar(10)
+  granted     Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  milestone EventMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([milestoneId, userId, period], map: "event_milestone_grants_once")
+  @@index([userId], map: "event_milestone_grants_user_idx")
+  @@map("event_milestone_grants")
 }
 
 // ---- v1.52-social (D179, CONVENTIONS §10.46): the cherry economy, phase 1 ----------------------------
@@ -7004,6 +7109,9 @@ model StoreItem {
   hiddenAt           DateTime?            @map("hidden_at") @db.Timestamptz(3)
   createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// v1.101-social (D325): an event-exclusive prize item (always off and hidden, CHECK `store_items_event_exclusive`).
+  eventId            String?              @map("event_id") @db.Uuid
+  event              Event?               @relation(fields: [eventId], references: [id], onDelete: Restrict)
 
   bagItem   BagItem          @relation(fields: [bagCode, kind], references: [code, category], onDelete: Restrict)
   prices    StoreItemPrice[]
@@ -7011,6 +7119,7 @@ model StoreItem {
 
   @@unique([bagCode, kind], map: "store_items_bag_code_kind_key")
   @@index([kind, sortOrder, id], map: "store_items_kind_sort_idx")
+  @@index([eventId], map: "store_items_event_idx", where: raw("(event_id IS NOT NULL)"))
   @@map("store_items")
 }
 
@@ -7403,10 +7512,10 @@ model AgencyBan {
 
 /// One cover video per owner and language (`ar` / `en`); the asset is a `PROFILE_COVER_VIDEO`.
 model OwnerCoverVideo {
-  userId    String   @map("user_id") @db.Uuid
-  lang      String   @db.VarChar(2)
-  mediaId   String   @unique(map: "owner_cover_videos_media_once") @map("media_id") @db.Uuid
-  setAt     DateTime @default(now()) @map("set_at") @db.Timestamptz(3)
+  userId  String   @map("user_id") @db.Uuid
+  lang    String   @db.VarChar(2)
+  mediaId String   @unique(map: "owner_cover_videos_media_once") @map("media_id") @db.Uuid
+  setAt   DateTime @default(now()) @map("set_at") @db.Timestamptz(3)
 
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
@@ -7446,8 +7555,8 @@ model OwnerJourneyMilestone {
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  @@index([ownerId, position], map: "owner_journey_owner_position_idx")
   @@unique([ownerId], map: "owner_journey_one_latest", where: raw("latest"))
+  @@index([ownerId, position], map: "owner_journey_owner_position_idx")
   @@map("owner_journey_milestones")
 }
 

@@ -78,6 +78,8 @@ export const SYSTEM_TYPES: readonly NotificationType[] = [
   'OWNER_ANNOUNCEMENT',
   // v1.97-social (D303): a prize of an event board was paid (target the event).
   'EVENT_PRIZE_WON',
+  // v1.101-social (D325): an event for the person's audience started (target the event).
+  'EVENT_STARTED',
 ];
 
 /** Types that join one unread row per target (owner, D92). */

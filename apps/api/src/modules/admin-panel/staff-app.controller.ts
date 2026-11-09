@@ -440,6 +440,9 @@ export class StaffAppController {
     @Body(new ZodValidationPipe(EVENT_REASON_BODY)) body: { reason: string },
     @CurrentStaff() ctx: AdminContext,
   ) {
+    // v1.101-social (D325): publish / unpublish / discard a draft, the panel's rules.
+    if (command === 'publish' || command === 'unpublish' || command === 'discard')
+      return this.giftEvents.lifecycle(pathUuid(id), command, body.reason, ctx);
     if (command !== 'end' && command !== 'hold' && command !== 'release')
       throw new AppException(ErrorCode.NOT_FOUND);
     return this.giftEvents.change(pathUuid(id), command, body.reason, ctx);

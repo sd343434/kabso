@@ -240,8 +240,9 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'OWNER_FEEDBACK_NEW', ownerFeedbackId: { not: null } },
       // D301 follow-up: the app owner's official announcement (system; the post is the target, as the caller may see it).
       { type: 'OWNER_ANNOUNCEMENT', post: visiblePostWhere(me) },
-      // v1.97-social (D303): an event prize paid (system; the event is the target).
-      { type: 'EVENT_PRIZE_WON', eventId: { not: null } },
+      // v1.97-social (D303): an event prize paid (system; the event is the target); v1.101-social (D325): an event
+      // started (to its audience).
+      { type: { in: ['EVENT_PRIZE_WON', 'EVENT_STARTED'] }, eventId: { not: null } },
       // v1.80-kyc (D227): the identity check's result (system, no target).
       { type: { in: ['KYC_APPROVED', 'KYC_DECLINED', 'KYC_IN_REVIEW'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
@@ -526,7 +527,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       };
     }
     // v1.97-social (D303): the event whose prize was paid (the app opens it; no text).
-    if (row.type === 'EVENT_PRIZE_WON' && row.eventId !== null) {
+    if ((row.type === 'EVENT_PRIZE_WON' || row.type === 'EVENT_STARTED') && row.eventId !== null) {
       return { type: 'EVENT', id: row.eventId, postId: null, thumbUrl: null, text: null };
     }
     // v1.89-social (D290): a level-raise request — the level approved; the supporter's username for the staff member.
