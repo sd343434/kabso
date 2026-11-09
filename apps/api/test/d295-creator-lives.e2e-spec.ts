@@ -1249,6 +1249,9 @@ describe('D295 content creators go live', { timeout: 900_000 }, () => {
         permanent: true,
         metric: 'GIFT_COINS_RECEIVED',
         audience: 'HOSTS',
+        // An event of D295's time: v1.102-social (D334) keeps its rule for the events made before it (the events made
+        // after it count creators as hosts — d334-events-v2-followups).
+        creatorsAsHosts: false,
       },
     });
     advance(1000);
