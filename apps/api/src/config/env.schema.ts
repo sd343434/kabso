@@ -302,6 +302,10 @@ const percentSetting = (fallback: string) =>
       return bps;
     });
 
+/** v1.106-social (D341): a recipients' share — a percentage (two decimals at most) of 0–100 → basis points. */
+const sharePercentSetting = (fallback: string) =>
+  percentSetting(fallback).refine((bps) => bps <= 10_000, { error: 'must be a percentage from 0 to 100' });
+
 /** v1.27-live (D132): a comma-separated list of plain whole numbers (checked further in superRefine). */
 const wholeNumberList = (fallback: string) =>
   z
@@ -781,6 +785,16 @@ export const envSchema = z
      */
     GIFT_CREATOR_SHARE_PERCENT: percentSetting('70'),
     GIFT_CREATOR_QUIP_SHARE_PERCENT: percentSetting('60'),
+    /**
+     * v1.106-social (D341, CONVENTIONS §10.140, owner: «لو مضيف تفعل من خلالنا دون وكيل … ولو صانع المحتوى تفعل من خلالنا
+     * تصبح نسبته ٧٥٪»; corrected: the direct host 70 %): the recipients' share of a normal gift (not quips, lucky or custom)
+     * sent in a live when every recipient is a DIRECT host or creator — one with the hosting permission and no ACTIVE
+     * agency membership at the send. A host's or a guest's send: GIFT_DIRECT_HOST_SHARE_PERCENT (70 %: 1,000,000 coins →
+     * 7,000,000 cherries) instead of the category share; a content creator's live (the creator share applies):
+     * GIFT_DIRECT_CREATOR_SHARE_PERCENT (75 %: → 7,500,000). Never below the share it replaces. Stored per send.
+     */
+    GIFT_DIRECT_HOST_SHARE_PERCENT: sharePercentSetting('70'),
+    GIFT_DIRECT_CREATOR_SHARE_PERCENT: sharePercentSetting('75'),
     /**
      * v1.100-social (D312, CONVENTIONS §10.118, owner: «يأخذ المضيف 60٪ … 100 ألف → 600 ألف كرزة»): the recipients' share
      * of a custom «مُخصَّص» gift wherever it is sent — any live (a host's or a content creator's: the creator rate does not

@@ -93,9 +93,17 @@ describe('D164 Me hub', { timeout: 120_000 }, () => {
   };
 
   beforeAll(async () => {
-    ctx = await createTestApp({ LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '3600' }, [
-      { token: LIVE_MEDIA_PROVIDER, value: media },
-    ]);
+    ctx = await createTestApp(
+      {
+        // v1.106-social (D341): this suite's arithmetic is the category share (65 %) of a host in no agency; the direct
+        // share of D341 (70 % / a creator's 75 %) is covered by d341-direct-share.e2e-spec.ts.
+        GIFT_DIRECT_HOST_SHARE_PERCENT: '65',
+        GIFT_DIRECT_CREATOR_SHARE_PERCENT: '70',
+        LIVE_HOSTING_ENABLED: 'true',
+        LIVE_HEARTBEAT_STALE_SECONDS: '3600',
+      },
+      [{ token: LIVE_MEDIA_PROVIDER, value: media }],
+    );
     await gift('hub_rose', 'POPULAR', 10);
     await gift('hub_quip', 'QUIPS', 99);
   });

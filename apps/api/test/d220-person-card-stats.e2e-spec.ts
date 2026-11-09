@@ -143,7 +143,15 @@ describe('D220 person card totals and their privacy', { timeout: 300_000 }, () =
 
   beforeAll(async () => {
     ctx = await createTestApp(
-      { LIVE_HOSTING_ENABLED: 'true', LIVE_HEARTBEAT_STALE_SECONDS: '3600', LIVE_RANKINGS_TIME_ZONE: 'UTC' },
+      {
+        LIVE_HOSTING_ENABLED: 'true',
+        LIVE_HEARTBEAT_STALE_SECONDS: '3600',
+        LIVE_RANKINGS_TIME_ZONE: 'UTC',
+        // v1.106-social (D341): this suite's arithmetic is the category share (65 %) of a host in no agency; the direct
+        // share of D341 (70 % / a creator's 75 %) is covered by d341-direct-share.e2e-spec.ts.
+        GIFT_DIRECT_HOST_SHARE_PERCENT: '65',
+        GIFT_DIRECT_CREATOR_SHARE_PERCENT: '70',
+      },
       [{ token: LIVE_MEDIA_PROVIDER, value: media }],
     );
     await gift('d220_rose', {});

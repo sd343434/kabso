@@ -348,11 +348,12 @@ describe('D312 custom gifts «مُخصَّص»', { timeout: 600_000 }, () => {
       expect(room.body.scoreParts.roomCherries).toBe(1_200_000);
     });
 
-    it('a normal and a lucky gift are unchanged (65 % / the lucky share; no owner coins)', async () => {
+    it('a normal and a lucky gift are unchanged (the host share / the lucky share; no owner coins)', async () => {
       const ownerBefore = await wallet(designer);
+      // v1.106-social (D341, §10.140): the host is in no agency — a direct host, 70 % (custom gifts keep 60 %).
       const rose = await sendId(sendLive(roomId, sender, [host], 'd312_rose'), sender);
-      expect(rose.hostShareBps).toBe(6500);
-      expect(await cherriesOf(host, rose.id)).toBe(650_000);
+      expect(rose.hostShareBps).toBe(7000);
+      expect(await cherriesOf(host, rose.id)).toBe(700_000);
       expect(await royaltyRows(rose.id)).toEqual([]);
       const lucky = await sendId(sendLive(roomId, sender, [host], 'd312_lucky'), sender);
       expect(lucky.hostShareBps).toBe(1000);
@@ -385,9 +386,9 @@ describe('D312 custom gifts «مُخصَّص»', { timeout: 600_000 }, () => {
       expect(crown.hostShareBps).toBe(6000);
       expect(await cherriesOf(creator, crown.id)).toBe(600_000);
       expect(await wallet(designer)).toBe(ownerBefore + 3000);
-      // A normal gift there keeps the creator's 70 %.
+      // A normal gift there keeps the creator share — v1.106-social (D341): a creator in no agency, the direct 75 %.
       const rose = await sendId(sendLive(live, sender, [creator], 'd312_rose'), sender);
-      expect(rose.hostShareBps).toBe(7000);
+      expect(rose.hostShareBps).toBe(7500);
     });
 
     it('a direct conversation: 60 % and the owner 3 %', async () => {

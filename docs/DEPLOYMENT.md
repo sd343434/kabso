@@ -3687,3 +3687,26 @@ CONVENTIONS §10.131 (owner 2026-11-09: «أريد زر لإزالتهم ولي�
 - **Rollback:** an older API ignores `archived_at`; archived gifts stay off (the CHECK holds while the column exists),
   and an older panel shows them as plain disabled gifts — do not enable them there (the CHECK refuses it); restore them
   first with the new API, or `UPDATE gifts SET archived_at = NULL WHERE …` before switching them on.
+
+### 5.104 The direct share «تفعّل من خلالنا دون وكيل» (no migration; D341) — [IMPLEMENTED, draft contract v1.106-social; not deployed]
+
+CONVENTIONS §10.140 (owner 2026-11-09: «لو مضيف تفعل من خلالنا دون وكيل … ولو صانع المحتوى تفعل من خلالنا تصبح نسبته
+٧٥٪», corrected: the direct host 70 %). §5.102–§5.103 are left for D339 / D340.
+
+- **New config (all optional; defaults are the owner's):** `GIFT_DIRECT_HOST_SHARE_PERCENT=70` (a normal gift whose
+  recipients are all direct hosts — the hosting permission and no ACTIVE agency membership: 1 000 000 coins → 7 000 000
+  cherries, instead of 65 %) and `GIFT_DIRECT_CREATOR_SHARE_PERCENT=75` (the same in a content creator's live, instead of
+  `GIFT_CREATOR_SHARE_PERCENT` 70: → 7 500 000). Each is a percentage 0–100 with at most two decimals; anything else stops
+  the API at boot. Quips, lucky, custom, DM and CP gifts keep their settings; agency members keep 65 % / 70 % and the
+  agency commission on top.
+- **No migration, no backfill:** the share is stored per send, so only sends after the API update take it; earlier sends
+  keep their stored share. The apps and the panel need no update (they show the stored `shareBps`).
+- **Cost check before switching on** (read-only, as the migration role; last 30 days of direct sends that the new rate
+  would have raised, in cherries):
+  `SELECT sum(gr.coins * 5 * 10 / 100) AS extra_cherries FROM live_gift_recipients gr JOIN live_gifts g ON g.id = gr.gift_id
+  WHERE g.room_id IS NOT NULL AND g.host_share_bps = 6500 AND g.created_at > now() - interval '30 days'
+  AND NOT EXISTS (SELECT 1 FROM agency_earnings e WHERE e.gift_id = g.id);` (an upper bound: it also counts guests
+  without the hosting permission).
+- **Rollback:** set `GIFT_DIRECT_HOST_SHARE_PERCENT=65` and `GIFT_DIRECT_CREATOR_SHARE_PERCENT=70` (the shares it replaces;
+  `max` keeps the category share) or deploy the previous API; sends already made keep the share they stored.
+

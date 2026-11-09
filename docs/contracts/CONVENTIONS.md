@@ -756,6 +756,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.88-live (draft) | 2026-11-08 | **D315 (owner: a third tab «مجنون اللعب» / Game Crazy — players ranked by the game tickets they SPEND in games, the same five periods, the tickets beside each player; hidden until a game is on):** `GET /live/rankings` query `board` (`LiveRankingBoard` POPULARITY \| GAMES, default POPULARITY), `LiveRankings.board`; `me` on GAMES for any signed-in caller; `LiveConfig.gamesEnabled` (`LIVE_GAMES_ENABLED`, default false). The server hook `recordGameTicketSpendIn` (the ledger `game_ticket_spends` + hourly / monthly rollups) that the first game calls. Migration `20270408090500_game_ticket_spends`. §10.120. | **Additive** (an optional query parameter, two fields; an older app never asks for GAMES). |
 | v1.87-live (draft) | 2026-11-08 | **D314 (owner: the ranking page's periods «هذه الساعة / اليوم / هذا الأسبوع / هذا الشهر / هذه السنة» on every tab):** `LiveRankingPeriod` gains `MONTH`, `YEAR` (local calendar month from the 1st, year from 1 January, in `LIVE_RANKINGS_TIME_ZONE`), read from the new monthly rollup `live_host_points_monthly` (≤ 12 rows a host for a year). Migration `20270408090400_live_rankings_month_year` (backfill from the hourly rows kept). §10.119, §10.15. | **Additive** enum values (an older app never sends them; one that did would have got 400). |
 | v1.91-live (draft) | 2026-11-08 | **D323 (owner: «تاج الافتتاح» at 3 000 000 coins was refused with "Value must be less than or equal to 1000000"; then «السقف 100,000,000»):** a gift's price may be **1 … 100 000 000** coins (was 1 … 1 000 000; a free quip 0 as before): `AdminCreateGiftRequest.priceCoins` / `AdminUpdateGiftRequest.priceCoins` `maximum` 100000000, the panel form, `gift-admin --price`, the DB CHECK `gifts_price_range` (migration `20270408090700_gift_price_cap`). Overflow audit of a maximum send (§10.23 «Size of a send»): two BIGINT products of a recipient's coins × the send's charge (host targets, recruits) now computed in `numeric`. §10.23. | **Widening** (a larger accepted range; no shape change). |
+| v1.106-social (draft) | 2026-11-09 | **D341 (owner: «لو مضيف تفعل من خلالنا دون وكيل تصبح نسبته ٧٢٪ — ولو صانع المحتوى تفعل من خلالنا تصبح نسبته ٧٥٪»; corrected by the owner: the direct host **70 %**, the direct creator 75 %):** a normal gift (not quips, lucky or custom) sent in a live whose recipients are **all direct** — the hosting permission (`live_hosts`) and no ACTIVE agency membership (`agency_hosts`) at the send — stores `live_gifts.host_share_bps` = `GIFT_DIRECT_HOST_SHARE_PERCENT` (70: 1 000 000 coins → 7 000 000 cherries) instead of the category share (65 %), and in a creator's live (the D295 creator send) `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75: → 7 500 000) instead of the creator share (70 %); never below the share it replaces. Agency members keep 65 % / 70 % and the agency commission on top. No wire change (the stored share is already returned as `shareBps` where shown), no migration. §10.140. | **Behaviour change, no shape change** (higher stored shares for direct recipients; everything reading the stored share follows). |
 | v1.102-social (draft) | 2026-11-09 | **D334 (owner answers to the events v2 questions, 2026-11-09):** `EventAudience` HOSTS counts content creators as hosts on the events made after D334 (`AdminGiftEvent.creatorsAsHosts`; older events keep D295); `listHomeBanners` lists an event's banner to that event's audience only (any audience may have one; a guest: EVERYONE only); free pieces of an event's own gift sent from the bag credit the recipients nothing (`LiveGift` share 0); `GiftEventForm.boards[].shown` «عدد المعروضين» (1–100, default 20; editable while running), `EventBoard.shown`, `EventLeaderboard.shown`; the launch festival's gifts «هدية المهرجان 1…4» with FULLSCREEN on the 1 000 000 / 3 000 000 gifts; held milestones of an event without board prizes wait for the release. Migration `20270409090200_events_v2_followups`. §10.127.11. | **Additive** for the app (new optional fields; a HOSTS event's audience grows by content creators; a creator now sees a new HOSTS event's banner). **Panel:** `shown` optional; an older panel omits it (kept). |
 | v1.101-social (draft) | 2026-11-09 | **D325 (owner: «الفعاليات … لم تكن مضبوطة» — events v2, one events system; phase A server + panel):** `GiftEventForm` `status` DRAFT / PUBLISHED, nullable dates for a draft, `permanent`, `recurrence`, `scoring` COINS / MULTIPLIER (`pointsPerCoin` a decimal), `countedGifts`, `milestones`, `bannerMediaId`; `EventAudience` (+ AGENCIES, CP); prize type `GIFT_PIECES`, `displayKey` on every prize item (`uploadAdminEventMedia` kind `prize`); `createAdminGift.eventId`, `createAdminStoreItem.eventId`, `listAdminStoreItems?eventId=`, `getAdminEventOptions?eventId=`; `publishAdminEvent`, `unpublishAdminEvent`, `discardAdminEvent`, `changeStaffEvent` publish / unpublish / discard; `createAdminLaunchFestival`; `getRunningEvents`, `getEventMilestones`, `getEventLeaderboard?period=previous`, `EventLeaderboard.period`, a gift event's board top 20; `EventDetail` `recurrence`, `scoring`, `countedGifts`, `period`, `milestones`, `art.titleFormat`, overlay `MP4`; `EventGift` `multiplier`, `exclusive`, `animationUrl`, `fullscreen`; `EventPrizeItem` `GIFT_PIECES`, `count`, `displayUrl`, `stillUrl`, `animationUrl`; notification `EVENT_STARTED`. Migrations `20270409090000_events_v2_enums`, `20270409090100_events_v2`. §10.127 (extends §10.114). | **Additive** for the app (drafts never reach it; whole-number `pointsPerCoin` kept; new values ignored by clients). **Panel:** a published body without gifts or boards stays a 400; a draft body is new. |
 | v1.100-social (draft) | 2026-11-08 | **D312 (owner: «هدايا من فئة مُخصَّص تستند الى مستخدم. يأخذ المضيف 60٪ … وصاحب الهدية يأخذ 3٪ لكن كوينزات»):** the special gift category kind `CUSTOM` (seeded `CUSTOM` «مُخصَّص»; renamed / reordered / given an icon only); `Gift.owner` (`GiftOwner`), `AdminGift.owner`, `AdminCreateGiftRequest.owner` / `AdminUpdateGiftRequest.owner` (Kabso ID); `WalletLedgerReason` `GIFT_OWNER_ROYALTY`, `GIFT_OWNER_ROYALTY_REVERSAL`; settings `GIFT_CUSTOM_SHARE_PERCENT` (60), `GIFT_CUSTOM_OWNER_PERCENT` (3). Migrations `20270408090100_custom_gift_enums`, `20270408090200_custom_gifts`. §10.118, §10.66, §10.112.10. | **Additive** (a new kind — an older app treats it as NORMAL —, a new optional field, new ledger reasons shown as a generic change). |
@@ -2693,6 +2694,9 @@ Owner decisions (2026-10-28, D154 items 5, 5b–5f) are marked *(owner)*.
   score, charm and boards are unchanged (§10.23, §10.27). A gift sent in a direct conversation
   (v1.40-social, §11.13) stores the DM recipient share instead (`GIFT_DM_RECIPIENT_SHARE_PERCENT`,
   quips included; lucky: the lucky share).
+  *(v1.106-social, D341, §10.140)* A normal gift whose recipients are all **direct** (the hosting permission, no
+  agency) stores `GIFT_DIRECT_HOST_SHARE_PERCENT` (70 %) instead of the category share — a creator's live
+  `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %); quips unchanged.
 - **Not in v1.32-live:** hosted (downloadable) quip sounds (a new sound needs an app release), a
   room-wide switch to turn viewers' quips off, quips outside a live, payouts of the host share (D149).
 
@@ -8269,6 +8273,9 @@ creator colour `#7B3FC4`) on the live card and next to the host's name in the ro
   recipient and one commission per agency on a send (no double pay). The D285 shares stay 1 % hosts, 1 % creators,
   1 % agencies, 0.75 % recharge agents, and the RECHARGE_AGENT formula's cautious share stays the highest *host*
   category share (65 %; the 992 045 example unchanged) — owner 2026-11-06, decided.
+- *(v1.106-social, D341, §10.140)* A creator in **no agency** (a direct creator) takes `GIFT_DIRECT_CREATOR_SHARE_PERCENT`
+  (**75 %**, 1 000 000 coins → 7 500 000 cherries) instead of the 70 % above, when every recipient of the send is
+  direct; the 70 % stays the share of a creator who is an agency member. Quips keep 60 %.
 
 #### 10.108.6 The agency activation «تفعيل كمضيف / كصانع محتوى»
 
@@ -10445,3 +10452,43 @@ prizes), so a used gift is never removed. §10.131 follows §10.130 (D337); §10
   `pieces`; `AdminGiftDeleted`, `AdminGiftRestored`.
 - Migration `20270410090000_gift_archive` (the column and the CHECK). The apps need no change (the bag already lists
   what the server returns).
+
+### 10.140 The direct share «تفعّل من خلالنا دون وكيل» *(v1.106-social, DRAFT — D341)*
+
+Owner (2026-11-09): «لو مضيف تفعل من خلالنا دون وكيل تصبح نسبته ٧٢٪ — ولو صانع المحتوى تفعل من خلالنا تصبح نسبته ٧٥٪»,
+then corrected: a direct host **70 %** (not 72 %), a direct content creator **75 %**. §10.140 follows §10.131; §10.132–§10.139
+are left for D339 / D340.
+
+- **Who is direct.** A recipient is *direct* when, at the moment of the send, they hold the hosting permission
+  (`live_hosts`, any source: an admin's grant, the team's approval «كن مضيفاً مع الإدارة», an agency owner's activation, a
+  creator membership) **and** have no ACTIVE agency membership (`agency_hosts.status = ACTIVE`). The rule reads the
+  membership, not who once activated the person: the permission's `source` does not tell a host the team activated for
+  an agency (before D295 agency hosts got the permission as `ADMIN`) from a direct one, and a host who **left** their
+  agency (or was released by the team, or whose agency was closed) is served by Kabso alone from then on (no agency
+  commission is paid on them). A host or creator who joins an agency stops being direct at their next send.
+- **The share** (`liveShareBpsOf`, stored per send in `live_gifts.host_share_bps`, D154): a **normal** gift (any category
+  but `QUIPS`, `LUCKY` and `CUSTOM` — `POPULAR`, `EVENT`, `FUN` and any category added in the panel) sent in a live, when
+  **every** recipient is direct:
+  - a host's live, or any send that is not a D295 creator send: `GIFT_DIRECT_HOST_SHARE_PERCENT` (default **70**) instead
+    of the category share (`GIFT_HOST_SHARE_PERCENTS`, 65): 1 000 000 coins → **7 000 000** cherries (1 coin = 10 cherries).
+    A direct creator seated in a host's live is paid as a direct host there (as D295 pays creators the host share
+    outside their own lives);
+  - a D295 creator send (a creator's live, every recipient a creator member): `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (default
+    **75**) instead of `GIFT_CREATOR_SHARE_PERCENT` (70): 1 000 000 coins → **7 500 000** cherries;
+  - never below the share it replaces (`max`), so a category configured above the direct rate keeps its own.
+- **One share per send.** The share is stored per send, not per recipient, so a send that also reaches an agency member
+  or a seated guest without the hosting permission keeps the ordinary share for every recipient (as §10.108.5: a higher
+  rate is never paid through a shared send). A send to several direct recipients (the host and seated direct hosts; a PK
+  booster goes to the host alone) takes the direct share.
+- **Unchanged:** agency members keep 65 % (creators 70 %) and the agency's commission (15 % / 16 %) and its parent's (3 %)
+  stay **on top**, from the platform's part (§10.46): 1 000 000 coins to an agency host → 6 500 000 cherries + 975 000
+  commission. Quips keep 50 % (a creator's 60 %), lucky gifts `LUCKY_GIFT_HOST_SHARE_PERCENT`, custom gifts
+  `GIFT_CUSTOM_SHARE_PERCENT` (60 %), direct-conversation gifts `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %), CP gifts their own
+  rule, an event's prize pieces 0 (D334). Sends made before D341 keep their stored share.
+- **Where it shows.** Everything that reads the stored share follows by itself: the cherry ledger and agency earnings,
+  the gift history's `shareBps` (the app's cherry and wallet tabs show it per gift), the data center, the host cherries
+  pill, the D281 targets' and D285 recruits' actual profit. No screen shows a fixed percentage. The D281 / D285 cautious
+  estimates keep the highest *category* share (an owner decision to confirm).
+- **Config:** `GIFT_DIRECT_HOST_SHARE_PERCENT` (70), `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75) — a percentage 0–100 with at
+  most two decimals (else the API refuses to start). Read once at the send, before its transaction (like the D295 creator
+  check): a membership change racing a send applies from the next send.

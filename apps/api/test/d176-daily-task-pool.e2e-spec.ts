@@ -240,6 +240,10 @@ describe('D176 daily task pool', { timeout: 240_000 }, () => {
     ctx = await createTestApp(
       {
         LIVE_HOSTING_ENABLED: 'true',
+        // v1.106-social (D341): this suite's arithmetic is the category share (65 %) of a host in no agency; the direct
+        // share of D341 (70 % / a creator's 75 %) is covered by d341-direct-share.e2e-spec.ts.
+        GIFT_DIRECT_HOST_SHARE_PERCENT: '65',
+        GIFT_DIRECT_CREATOR_SHARE_PERCENT: '70',
         LIVE_HEARTBEAT_STALE_SECONDS: '3600',
         LIVE_RANKINGS_TIME_ZONE: noonZone(),
         TASK_DAILY_CAP_CHERRIES: String(CAP),

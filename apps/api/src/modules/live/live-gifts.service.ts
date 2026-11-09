@@ -210,11 +210,45 @@ export function hostShareBpsOf(config: AppConfig, category: string): number {
  * when every recipient is a creator member, it is GIFT_CREATOR_SHARE_PERCENT (70 %) — quips
  * GIFT_CREATOR_QUIP_SHARE_PERCENT (60 %); otherwise the category share. The share is stored per send, so a send that
  * also reaches someone who is not a creator (a seated host, a guest) keeps the category share: the creator rate is
- * never paid to a host through a creator's live.
+ * never paid to a host through a creator's live. v1.106-social (D341, §10.140): `directSend` (every recipient a direct
+ * host or creator, {@link allRecipientsDirect}) raises a normal gift's share to GIFT_DIRECT_HOST_SHARE_PERCENT (70 %) —
+ * in a creator's send GIFT_DIRECT_CREATOR_SHARE_PERCENT (75 %) — never below the share it replaces; quips unchanged.
  */
-export function liveShareBpsOf(config: AppConfig, category: string, creatorSend: boolean): number {
-  if (!creatorSend) return hostShareBpsOf(config, category);
-  return category === 'QUIPS' ? config.gifts.creatorQuipShareBps : config.gifts.creatorShareBps;
+export function liveShareBpsOf(
+  config: AppConfig,
+  category: string,
+  creatorSend: boolean,
+  directSend = false,
+): number {
+  if (category === 'QUIPS')
+    return creatorSend ? config.gifts.creatorQuipShareBps : hostShareBpsOf(config, category);
+  const base = creatorSend ? config.gifts.creatorShareBps : hostShareBpsOf(config, category);
+  if (!directSend) return base;
+  // v1.106-social (D341, §10.140): every recipient is direct (no agency) — never below the share it replaces.
+  return Math.max(base, creatorSend ? config.gifts.directCreatorShareBps : config.gifts.directHostShareBps);
+}
+
+/**
+ * v1.106-social (D341, CONVENTIONS §10.140, owner): whether every recipient of a live send is a DIRECT host or creator
+ * — one with the hosting permission (`live_hosts`, any source: an admin's or the team's approval, an agency's activation,
+ * a creator membership) and no ACTIVE agency membership (`agency_hosts`) at the send. Such a send takes
+ * GIFT_DIRECT_HOST_SHARE_PERCENT (70 %) — in a creator's live GIFT_DIRECT_CREATOR_SHARE_PERCENT (75 %) — for a normal
+ * gift. One share is stored per send, so a send that also reaches an agency member or a guest who is not a host keeps
+ * the ordinary share for everyone (as D295: the higher rate is never paid through a shared send).
+ */
+export async function allRecipientsDirect(
+  db: Pick<PrismaService, '$queryRaw'>,
+  recipientIds: readonly string[],
+): Promise<boolean> {
+  const ids = [...new Set(recipientIds)];
+  if (ids.length === 0) return false;
+  const [row] = await db.$queryRaw<{ direct: number }[]>`
+    SELECT count(*)::int AS direct
+      FROM live_hosts h
+     WHERE h.user_id = ANY(${ids}::uuid[])
+       AND NOT EXISTS (SELECT 1 FROM agency_hosts ah
+                        WHERE ah.host_user_id = h.user_id AND ah.status = 'ACTIVE'::agency_host_status)`;
+  return (row?.direct ?? 0) === ids.length;
 }
 
 function toDto(row: GiftRow, originRoomId: string, publicBaseUrl: string | undefined): LiveGiftDto {
@@ -429,13 +463,16 @@ export class LiveGiftsService {
     // that event's prize — gives the recipients nothing: the stored share is 0, so no cherries, no agency or parent
     // commission and nothing for the room's / host's cherries (everything else counts as any bag send).
     const prizePieces = isEventPrizePieces(gift, input.source);
+    // v1.106-social (D341, §10.140): a normal gift whose recipients are all direct (no agency) — 70 %, a creator's 75 %.
+    const directSend =
+      !prizePieces && !isLucky && !isQuip && !isCustom && (await allRecipientsDirect(this.prisma, toIds));
     const hostShareBps = prizePieces
       ? 0
       : gift.category === 'LUCKY'
         ? table.hostShareBps
         : isCustom
           ? this.config.gifts.customShareBps
-          : liveShareBpsOf(this.config, gift.category, creatorSend);
+          : liveShareBpsOf(this.config, gift.category, creatorSend, directSend);
     let created: {
       dto: LiveGiftDto;
       coins: number | null;

@@ -238,14 +238,14 @@ describe('D154 quips', { timeout: 180_000 }, () => {
     // The score counts it like a normal gift (100 a coin).
     const room = await ctx.http.get(`/api/v1/live/rooms/${roomId}`).set(auth(viewer));
     expect(room.body.score).toBe(99 * 100);
-    // A normal gift fixes the normal share (65 %).
+    // A normal gift fixes the normal share — v1.106-social (D341): the host is in no agency, so the direct 70 %.
     const rose = await send(roomId, viewer, 'd154_rose', h);
     expect(rose.status).toBe(201);
     expect(rose.body.quip).toBeUndefined();
     const roseRow = await ctx.prisma.liveGift.findUniqueOrThrow({
       where: { id: rose.body.gift.id as string },
     });
-    expect(roseRow.hostShareBps).toBe(6500);
+    expect(roseRow.hostShareBps).toBe(7000);
     // A retry with the same clientId is answered with the first send and plays nothing again.
     const clientId = randomUUID();
     drain();

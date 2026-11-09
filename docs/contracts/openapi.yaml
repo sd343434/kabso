@@ -437,6 +437,13 @@ info:
     refuses an archived gift (409 `ADMIN_ACTION_REFUSED`). `AdminGift.archivedAt`, `inUse`, `holders`, `pieces`.
     `gift-admin delete|restore <code>`, `gift-admin finish`. Migration `20270410090000_gift_archive`. The apps are
     unchanged.
+    **D341 (DRAFT v1.106-social)** the direct share «تفعّل من خلالنا دون وكيل» (CONVENTIONS §10.140; owner 2026-11-09,
+    corrected: a direct host 70 %, a direct creator 75 %): a normal gift (not quips, lucky or custom) sent in a live whose
+    recipients all hold the hosting permission and no ACTIVE agency membership stores the share
+    `GIFT_DIRECT_HOST_SHARE_PERCENT` (70 %: 1 000 000 coins → 7 000 000 cherries) instead of the category share — in a
+    content creator's live `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %: → 7 500 000) instead of 70 %; never below the
+    share it replaces; agency members keep 65 % / 70 % and the commission on top. No shape change (the stored share is
+    the `shareBps` already returned); no migration.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -3952,7 +3959,10 @@ paths:
         counts nothing. A quip goes to the room as a `quip` data message on topic `quip`
         (`{"type":"quip","quip":LiveQuip}`) instead of the `gift` message, and the response carries
         `quip` (its slot in the room's queue). The recipients' earnings share of every send is fixed
-        at the time of the send (`GIFT_HOST_SHARE_PERCENTS`: quips 50 %, other gifts 65 %).
+        at the time of the send (`GIFT_HOST_SHARE_PERCENTS`: quips 50 %, other gifts 65 %). v1.106-social (D341,
+        CONVENTIONS §10.140): a normal gift whose recipients are all direct (the hosting permission, no ACTIVE agency
+        membership) stores `GIFT_DIRECT_HOST_SHARE_PERCENT` (70 %) — in a content creator's live
+        `GIFT_DIRECT_CREATOR_SHARE_PERCENT` (75 %, instead of 70 %); quips, lucky and custom gifts unchanged.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:

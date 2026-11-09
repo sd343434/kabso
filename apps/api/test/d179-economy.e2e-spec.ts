@@ -277,25 +277,26 @@ describe('D179 cherry economy', { timeout: 300_000 }, () => {
     const room = await startLive(h);
     await enter(room, viewer);
     const normal = await liveGift(room, viewer, h, 'eco_rose');
-    expect(await balance(h)).toBe(650); // 100 coins × 65 % × 10
+    // v1.106-social (D341, §10.140): a host in no agency is a direct host — 70 % (an agency host's 65 %: below).
+    expect(await balance(h)).toBe(700); // 100 coins × 70 % × 10
     // A retry of the same send (same clientId) → 200, nothing credited twice.
     const clientId = randomUUID();
     await liveGift(room, viewer, h, 'eco_rose', clientId);
     const again = await liveGift(room, viewer, h, 'eco_rose', clientId);
     expect(again.res.status).toBe(200);
-    expect(await balance(h)).toBe(1300);
+    expect(await balance(h)).toBe(1400);
     await liveGift(room, viewer, h, 'eco_lucky');
-    expect(await balance(h)).toBe(1400); // lucky 10 % → 100
+    expect(await balance(h)).toBe(1500); // lucky 10 % → 100 (unchanged by D341)
     await liveGift(room, viewer, h, 'eco_quip');
-    expect(await balance(h)).toBe(1900); // quips 50 % → 500
+    expect(await balance(h)).toBe(2000); // quips 50 % → 500 (unchanged by D341)
     await dmGift(viewer, h, 'eco_rose');
-    expect(await balance(h)).toBe(2400); // a direct-conversation gift: 50 % → 500
+    expect(await balance(h)).toBe(2500); // a direct-conversation gift: 50 % → 500 (unchanged by D341)
     await dmGift(viewer, h, 'eco_lucky');
-    expect(await balance(h)).toBe(2500); // a lucky gift in a conversation: 10 % → 100
+    expect(await balance(h)).toBe(2600); // a lucky gift in a conversation: 10 % → 100
 
     const w = await cherries(h);
-    expect(w).toMatchObject({ cherries: 2500, heldCherries: 0, earnedTotal: 2500, commissionTotal: 0 });
-    expect(w.valueMinor).toBe(275); // 2 500 cherries at 1 000 = 110 → $2.75
+    expect(w).toMatchObject({ cherries: 2600, heldCherries: 0, earnedTotal: 2600, commissionTotal: 0 });
+    expect(w.valueMinor).toBe(286); // 2 600 cherries at 1 000 = 110 → $2.86
     const ledger = await ctx.http
       .get('/api/v1/wallet/me/cherries/ledger?limit=10')
       .set(auth(h))
@@ -303,19 +304,19 @@ describe('D179 cherry economy', { timeout: 300_000 }, () => {
     expect(ledger.status).toBe(200);
     expectContract(ledger, 'listMyCherryLedger');
     expect(ledger.body.data).toHaveLength(6);
-    expect(ledger.body.data.map((e: { delta: number }) => e.delta)).toEqual([100, 500, 500, 100, 650, 650]);
+    expect(ledger.body.data.map((e: { delta: number }) => e.delta)).toEqual([100, 500, 500, 100, 700, 700]);
     const first = ledger.body.data[5];
-    expect(first).toMatchObject({ reason: 'GIFT_RECEIVED', balanceAfter: 650 });
+    expect(first).toMatchObject({ reason: 'GIFT_RECEIVED', balanceAfter: 700 });
     expect(first.gift).toMatchObject({
       giftCode: 'eco_rose',
       giftName: 'Gift',
       giftCoins: 100,
-      shareBps: 6500,
+      shareBps: 7000,
       context: 'LIVE',
     });
     expect(first.gift.sender.username).toBe(viewer.username);
     expect((await ledgerOf(h, normal.id)).map((r) => [r.reason, Number(r.delta)])).toEqual([
-      ['GIFT_RECEIVED', 650],
+      ['GIFT_RECEIVED', 700],
     ]);
     // The sender earns nothing; the coin ledger is untouched by cherries.
     expect(await balance(viewer)).toBe(0);
