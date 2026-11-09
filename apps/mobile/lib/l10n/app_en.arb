@@ -489,6 +489,8 @@
   "profileNotFoundBody": "The link may be broken, or the account may have been removed.",
   "profileUnfollowConfirm": "Unfollow {name}?",
   "previewsHubUserProfile": "Public profile",
+  "profileBondsShow": "Show family, couple and medals",
+  "profileBondsHide": "Hide family, couple and medals",
   "profileMessage": "Message",
   "chatUnavailable": "Private messages aren't available yet. When they are, your conversation will appear here.",
   "profileCopyUsername": "Copy username",

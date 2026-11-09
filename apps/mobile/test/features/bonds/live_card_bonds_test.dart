@@ -18,6 +18,7 @@ import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart'
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
+import 'package:kabso_live/features/profile/profile_cover_header.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:material_ui/material_ui.dart';
@@ -356,9 +357,8 @@ void main() {
   });
 
   group('profile', () {
-    testWidgets("someone's profile: medal row and the three tiles", (
-      tester,
-    ) async {
+    testWidgets("someone's profile: medal row; D335: the three tiles behind "
+        'the chevron', (tester) async {
       final fakes = await pumpBonds(
         tester,
         const PublicProfileScreen(username: 'host0'),
@@ -370,6 +370,10 @@ void main() {
         ],
       );
       expect(find.byKey(MedalShowcaseRow.rowKey), findsOneWidget);
+      // D335 (owner 4): the tiles are closed until the chevron opens them.
+      expect(find.text(en.familyBoxValue('Stars', 3)), findsNothing);
+      await tester.tap(find.byKey(ProfileCoverHeader.bondsToggleKey));
+      await tester.pumpAndSettle();
       expect(find.text(en.familyBoxValue('Stars', 3)), findsOneWidget);
       expect(find.text(en.cpSendShort), findsOneWidget);
       expect(find.text(en.medalsOwned(2, 9)), findsOneWidget);
@@ -390,6 +394,8 @@ void main() {
         ],
       );
       expect(find.byKey(MedalShowcaseRow.rowKey), findsNothing);
+      await tester.tap(find.byKey(ProfileCoverHeader.bondsToggleKey));
+      await tester.pumpAndSettle();
       expect(find.byKey(ProfileBondsRow.familyKey), findsOneWidget);
     });
 

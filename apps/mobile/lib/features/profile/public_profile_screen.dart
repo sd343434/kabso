@@ -70,7 +70,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const messageKey = Key('profile.public.message');
   static const moreKey = Key('profile.public.more');
 
-  /// D278: the more button in the action row over the cover.
+  /// D335: the box around the top bar's ⋯ ([moreKey]).
   static const dropdownKey = Key('profile.public.dropdown');
   static const copyUsernameKey = Key('profile.public.copyUsername');
   static const copyLinkKey = Key('profile.public.copyLink');
@@ -394,28 +394,34 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     }
   }
 
-  /// D278: the action row over the cover — «متابعة» in Kabso red (or
-  /// متابَع / تم الطلب / إلغاء الحظر), the chat button (the conversation)
-  /// and the more button (the same sheet as the bar's dots); your own
-  /// profile gets Edit profile. D316: «متابعة» / «مراسلة» pills and the
-  /// round ⋯ under the centred header (the founder's page keeps D301).
-  Widget _actions(PublicProfile profile) {
+  /// D335: the button row — «متابعة» on the Kabso-red gradient (or تتابعه /
+  /// تم الطلب / إلغاء الحظر), «مراسلة» with the send icon, then the header's
+  /// chevron ([toggle]: the family / couple / medals tiles). Your own page
+  /// gets «تعديل الملف» (+ the chevron). The ⋯ is in the top bar (owner 4).
+  Widget _actions(PublicProfile profile, Widget? toggle) {
     final l10n = context.l10n;
-    final p = context.palette;
     final quiet = ProfileCoverButtons.pill(context);
-    final strong = ProfileCoverButtons.pillPrimary(context);
+    final tail = [
+      if (toggle != null) ...[const SizedBox(width: KSpacing.sm), toggle],
+    ];
     if (profile.isSelf) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          style: quiet,
-          onPressed: () => context.push(AppRoutes.editProfile),
-          child: ProfileCoverButtons.label(l10n.profileEditShort),
-        ),
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              style: quiet,
+              onPressed: () => context.push(AppRoutes.editProfile),
+              child: ProfileCoverButtons.label(l10n.profileEditShort),
+            ),
+          ),
+          ...tail,
+        ],
       );
     }
-    // D301 (§10.112.6): the app owner's page — «متابعة المؤسس» and «اقترح
-    // ميزة / أبلغ عن موظف» (the follow of §10.6, styled for the page).
+    // D301 (§10.112.6) / D307: the app owner's page — «متابعة المؤسس» (no
+    // shadow) and «اقترح ميزة / أبلغ» (outline), as D335 pills, then the
+    // chevron when he holds a family, a couple or medals.
     if (profile.kabsoOwner && !profile.blockedByMe) {
       return OwnerVisitorActions(
         following: profile.isFollowing,
@@ -425,23 +431,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             : profile.followRequested
             ? () => _confirmCancelRequest(profile)
             : () => _setFollowing(follow: true),
-        more: ProfileCoverButtons.square(
-          context: context,
-          key: PublicProfileScreen.dropdownKey,
-          tooltip: l10n.feedPostMore,
-          icon: AppIcon(
-            AppIcons.chevronDown,
-            size: KMetrics.iconMd - 2,
-            color: p.textPrimary,
-          ),
-          onPressed: () => _openMore(profile),
-        ),
+        more: toggle,
       );
     }
     final main = profile.blockedByMe
-        ? FilledButton(
+        ? ProfileCoverButtons.gradientPill(
+            context: context,
             key: PublicProfileScreen.unblockKey,
-            style: strong,
             onPressed: () => _unblock(profile),
             child: ProfileCoverButtons.label(l10n.safetyUnblock),
           )
@@ -460,25 +456,25 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             onPressed: () => _confirmCancelRequest(profile),
             child: ProfileCoverButtons.label(l10n.followRequested),
           )
-        : FilledButton(
+        : ProfileCoverButtons.gradientPill(
+            context: context,
             key: PublicProfileScreen.followKey,
-            style: strong,
             // D175: a private account gets a follow request (§10.47).
             onPressed: profile.canFollowOrRequest
                 ? () => _setFollowing(follow: true)
                 : null,
             child: ProfileCoverButtons.label(l10n.liveFollow),
           );
-    // D316 (the owner's reference: «Message» / «Request» / ⋮): «متابعة»
-    // and «مراسلة» as two equal pills, then the round ⋯ (the bar's sheet).
+    // The reference: «Follow» a little wider than «Message» (M 178.5 : 162).
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: main),
+        Expanded(flex: 11, child: main),
         if (!profile.blockedByMe) ...[
-          const SizedBox(width: KSpacing.sm),
+          const SizedBox(width: KPublicProfile.buttonGap),
           Expanded(
-            child: OutlinedButton(
+            flex: 10,
+            child: OutlinedButton.icon(
               key: PublicProfileScreen.messageKey,
               style: quiet,
               onPressed: () => context.push(
@@ -488,24 +484,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   premiumTier: profile.premiumTier,
                 ),
               ),
-              child: ProfileCoverButtons.label(l10n.profileMessage),
+              icon: ProfileCoverButtons.sendIcon(context),
+              label: ProfileCoverButtons.label(l10n.profileMessage),
             ),
           ),
         ],
-        const SizedBox(width: KSpacing.sm),
-        // D316: the page's only ⋯ (the bar has none): [_openMore] — copy,
-        // mute, block, report (and what else that sheet offers). Found by
-        // both [PublicProfileScreen.moreKey] (the bar's key before) and
-        // [PublicProfileScreen.dropdownKey].
-        KeyedSubtree(
-          key: PublicProfileScreen.dropdownKey,
-          child: ProfileCoverButtons.round(
-            context: context,
-            key: PublicProfileScreen.moreKey,
-            tooltip: l10n.feedPostMore,
-            onPressed: () => _openMore(profile),
-          ),
-        ),
+        ...tail,
       ],
     );
   }
@@ -533,39 +517,31 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
       ),
       _ => const ProfileSkeleton(),
     };
-    // D278: the bar of before (owner: «استخدم ازراري» — back, the @username
-    // and the three dots) over the full-bleed cover: no background and the
-    // buttons on translucent circles until the cover has scrolled away.
+    // D335: the bar over the cover — back and the @username at the reading
+    // start, ⋯ at the end, on translucent circles; solid once the list has
+    // moved (D307), and while nothing is read yet.
     final solid = _solid || load.value == null;
-    // D316: on every profile but the founder's (no cover under the bar), the
-    // bar's buttons and title take the theme's colours from the start.
-    final faint = !(load.value?.kabsoOwner ?? false);
-    final themed = solid || faint;
     return Scaffold(
       backgroundColor: p.background,
       extendBodyBehindAppBar: true,
       appBar: ProfileCoverBar(
         solid: solid,
-        faint: faint,
-        // D299d (owner: «اليوزر اجعله في أعلى الصفحة»): the @username at
-        // the top over the cover too (D146: a premium one with its badge;
-        // D283c: a staff account's «ID: Kabso01»).
+        // D299d: the @username (D146: a premium one with its badge; D283c:
+        // a staff account's ID).
         title: ProfileCoverHandle(
-          solid: themed,
-          start: faint,
+          solid: solid,
           username: load.value?.username ?? widget.username,
           tier: load.value?.premiumTier,
           staffId: load.value?.staffId,
         ),
-        // D316 (owner: «أزل الثلاث نقاط من الأعلى لأنها موجودة بجانب
-        // مراسلة»): the bar's ⋯ only on the founder's page (D301 / D307) and
-        // on your own page seen from here (it has no round ⋯); everyone
-        // else's ⋯ is the round button beside «مراسلة» (the same sheet,
-        // [_openMore], and the same [PublicProfileScreen.moreKey]).
+        // D335 (owner 4: the reference's ⋯ on the cover's bar): the page's
+        // only ⋯ — [_openMore] (copy, mute, block, report, «إجراءات
+        // المؤسس»), found by [PublicProfileScreen.moreKey] and
+        // [PublicProfileScreen.dropdownKey].
         actions: [
-          if (load.value case final value?
-              when value.kabsoOwner || value.isSelf)
-            IconButton(
+          KeyedSubtree(
+            key: PublicProfileScreen.dropdownKey,
+            child: IconButton(
               key: PublicProfileScreen.moreKey,
               tooltip: l10n.feedPostMore,
               // Needs the loaded profile (its id and whether it is you).
@@ -573,16 +549,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 AsyncValue(:final value?) => () => _openMore(value),
                 _ => null,
               },
-              // D292: a plain glyph with a soft shadow over the cover.
-              icon: ProfileCoverBar.glyph(
-                solid: themed,
-                child: AppIcon(
-                  AppIcons.moreHoriz,
-                  size: KMetrics.iconMd,
-                  color: themed ? p.textPrimary : KPalette.dark.textPrimary,
-                ),
+              icon: AppIcon(
+                AppIcons.moreHoriz,
+                size: KPublicProfile.barIcon,
+                color: solid ? p.textPrimary : KPalette.dark.textPrimary,
               ),
             ),
+          ),
         ],
       ),
       // Until the profile is read, the states sit under the bar.
@@ -628,7 +601,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
             SliverToBoxAdapter(
               child: ProfileCoverHeader(
                 profile: profile,
-                actions: _actions(profile),
+                actions: (_, toggle) => _actions(profile, toggle),
                 // D301: the owner's cover video, in the app's language.
                 coverVideo: ownerCoverVideoFor(context, profile),
                 // D121: the lists; a private account's are its followers'

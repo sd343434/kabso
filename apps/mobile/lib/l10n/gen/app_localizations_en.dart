@@ -1436,6 +1436,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewsHubUserProfile => 'Public profile';
 
   @override
+  String get profileBondsShow => 'Show family, couple and medals';
+
+  @override
+  String get profileBondsHide => 'Hide family, couple and medals';
+
+  @override
   String get profileMessage => 'Message';
 
   @override

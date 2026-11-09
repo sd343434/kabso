@@ -201,37 +201,29 @@ void main() {
       await _end(tester);
     });
 
-    testWidgets("the worn medals (D316, owner 3a: the reference's icon row): "
-        'their own row first under the cover, then the bio (owner: '
-        '«الميداليات قبل البايو»), the art alone (no chip: «الميداليات '
-        'داخل فقاعة، أزلها»), in order, a 44 dp '
-        'button; once (${language.name})', (tester) async {
+    testWidgets('the worn medals (D335, owner 4: their own row under the '
+        'levels, then the bio; D316: the art alone, no chip), in order, '
+        'from the reading start, a 44 dp button; once (${language.name})', (
+      tester,
+    ) async {
       await pumpOther(tester, _full(ar: ar), language: language);
       final nameRow = _r(tester, ProfileCoverHeader.nameRowKey);
+      final badges = _r(tester, ProfileCoverHeader.badgesKey);
       final row = _r(tester, ProfileCoverHeader.medalsKey);
       final bio = _r(tester, ProfileCoverHeader.bioKey);
       final stats = _r(tester, ProfileScreen.statsKey);
       final handle = _r(tester, ProfileCoverHeader.handleKey);
-      // D316: the medals right under the cover (under the name row), then
-      // the bio; D299d: the @username at the top (in the bar); the numbers
-      // after.
-      final area = _r(tester, ProfileCoverHeader.topBlockKey);
+      // D335: the medals under the badges (the levels), then the bio;
+      // D299d: the @username at the top (in the bar); the numbers after.
       expect(row.top, greaterThanOrEqualTo(nameRow.bottom));
-      expect(
-        bio.top - row.bottom,
-        moreOrLessEquals(KPublicProfile.centredBioGap, epsilon: 0.5),
-      );
+      expect(row.top, greaterThanOrEqualTo(badges.bottom));
+      expect(bio.top, greaterThanOrEqualTo(row.bottom));
       expect(handle.bottom, lessThanOrEqualTo(nameRow.top));
       expect(stats.top, greaterThanOrEqualTo(bio.bottom));
-      // A 44 dp tap target, the art centred in it, 10 dp under the name
-      // block.
-      expect(row.height, moreOrLessEquals(KPublicProfile.centredMedalTap));
-      expect(KPublicProfile.centredMedalTap, greaterThanOrEqualTo(44));
+      // A 44 dp tap target, the art centred in it.
+      expect(row.height, moreOrLessEquals(KPublicProfile.medalTap));
+      expect(KPublicProfile.medalTap, greaterThanOrEqualTo(44));
       final art = _r(tester, MedalShowcaseRow.medalKey('WEALTH_KINGS'));
-      expect(
-        art.top - area.bottom,
-        moreOrLessEquals(KPublicProfile.centredMedalsGap, epsilon: 0.5),
-      );
       expect(art.center.dy, moreOrLessEquals(row.center.dy, epsilon: 0.5));
       // No chip behind the art: no round box around any medal (the art's
       // own drawing aside).
@@ -247,8 +239,7 @@ void main() {
         ),
         findsNothing,
       );
-      // Exactly one showcase on the page (none in the block under the
-      // cover).
+      // Exactly one showcase on the page.
       expect(find.byKey(MedalShowcaseRow.rowKey), findsOneWidget);
       expect(
         find.descendant(
@@ -262,10 +253,8 @@ void main() {
           _r(tester, MedalShowcaseRow.medalKey(m.code)),
       ];
       for (final i in icons) {
-        expect(i.height, KPublicProfile.centredMedal);
+        expect(i.height, KPublicProfile.medal);
       }
-      // A little larger than D299b's 28 (no chip any more).
-      expect(KPublicProfile.centredMedal, greaterThan(KPublicProfile.medal));
       // The user's order, from the reading start.
       for (var i = 1; i < icons.length; i++) {
         if (ar) {
@@ -274,17 +263,11 @@ void main() {
           expect(icons[i].left, greaterThanOrEqualTo(icons[i - 1].right));
         }
       }
-      // D316: centred, like the name; 42 dp between the centres.
+      // D335: at the reading start, as the name.
       final name = _r(tester, const Key('profile.displayName'));
-      final mid = (icons.first.center.dx + icons.last.center.dx) / 2;
-      expect(mid, moreOrLessEquals(name.center.dx, epsilon: 1));
-      expect(mid, moreOrLessEquals(393 / 2, epsilon: 1));
       expect(
-        (icons[1].center.dx - icons[0].center.dx).abs(),
-        moreOrLessEquals(
-          KPublicProfile.centredMedal + KPublicProfile.centredMedalGap,
-          epsilon: 0.5,
-        ),
+        ar ? 393 - icons.first.right : icons.first.left,
+        moreOrLessEquals(ar ? 393 - name.right : name.left, epsilon: 1),
       );
       // The current-level art, no number on it (D291).
       final icon = tester.widget<MedalIcon>(
@@ -330,8 +313,8 @@ void main() {
     });
 
     testWidgets('360 × 800 at text scale 1.3, every badge: the name row '
-        'wraps cleanly, a long @username on one line; back and the dots side '
-        'by side at the reading start '
+        'wraps cleanly, a long @username on one line; back at the reading '
+        'start, the dots at the end (D335) '
         '(${language.name})', (tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.3;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -368,12 +351,13 @@ void main() {
       expect(handle.right, lessThanOrEqualTo(360));
       final back = tester.getRect(find.byType(BackButton));
       final more = _r(tester, PublicProfileScreen.moreKey);
+      // D335 (owner 4): back at the reading start, ⋯ at the reading end.
       if (ar) {
-        expect(back.right, greaterThan(360 - 16));
-        expect(more.right, lessThanOrEqualTo(back.left + 4));
+        expect(back.right, greaterThanOrEqualTo(360 - 16));
+        expect(more.left, lessThanOrEqualTo(16));
       } else {
-        expect(back.left, lessThan(16));
-        expect(more.left, greaterThanOrEqualTo(back.right - 4));
+        expect(back.left, lessThanOrEqualTo(16));
+        expect(more.right, greaterThanOrEqualTo(360 - 16));
       }
       expect(handle.overlaps(back), isFalse);
       expect(handle.overlaps(more), isFalse);

@@ -71,13 +71,13 @@ class _BadgeRows extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // D335: the header's name row (22 dp, the 20 dp seal 6 dp
+                // after it).
                 Text(ar ? 'نبّ' : 'Nabb', style: nameStyle),
-                const SizedBox(width: KSpacing.sm),
+                const SizedBox(width: KPublicProfile.sealGap),
                 ProfileVerificationBadge(
                   badge: b,
-                  size: ProfileVerificationBadge.sizeForFont(
-                    KPublicProfile.nameFont,
-                  ),
+                  size: KPublicProfile.nameSeal,
                 ),
               ],
             ),
@@ -242,10 +242,7 @@ void main() {
         );
         final vip = tester.getRect(find.byType(VipNameBadge));
         expect(seal.center.dy, moreOrLessEquals(name.center.dy, epsilon: 4));
-        expect(
-          seal.width,
-          ProfileVerificationBadge.sizeForFont(KPublicProfile.centredNameFont),
-        );
+        expect(seal.width, KPublicProfile.nameSeal);
         if (ar) {
           // Right to left: the seal is to the left of the name.
           expect(seal.right, lessThan(name.left));

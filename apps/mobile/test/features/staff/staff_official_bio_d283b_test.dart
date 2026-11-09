@@ -9,6 +9,7 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
+import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/staff/domain/staff_identity.dart';
 import 'package:kabso_live/features/staff/presentation/staff_official_bio.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -44,11 +45,19 @@ void main() {
         '${l10n.staffOfficialBioTitle}  ·  ${arabModerator.line(l10n)}',
       );
       expect(find.text(staffProfile(ar: ar).bio!), findsNothing);
-      // The card sits under the stats and buttons.
+      // D335 follow-up (owner: «وضع أسفلهم بعد ذلك صندوق البايو»): the card
+      // right under the name line, before the numbers and the buttons.
+      final card = tester.getRect(find.byKey(StaffOfficialBio.cardKey));
       expect(
-        tester.getRect(find.byKey(StaffOfficialBio.cardKey)).top,
-        greaterThan(
-          tester.getRect(find.byKey(ProfileCoverHeader.actionsKey)).bottom,
+        card.top,
+        greaterThanOrEqualTo(
+          tester.getRect(find.byKey(ProfileCoverHeader.nameLineKey)).bottom,
+        ),
+      );
+      expect(
+        card.bottom,
+        lessThanOrEqualTo(
+          tester.getRect(find.byKey(ProfileScreen.statsKey)).top,
         ),
       );
     });

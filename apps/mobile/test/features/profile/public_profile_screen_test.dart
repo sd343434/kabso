@@ -66,10 +66,11 @@ Future<FakeProfileRepository> _pump(
 }
 
 void main() {
-  testWidgets('header from GET /users/{username} (D316 layout): no cover; '
-      'back and the @username in the bar; the photo with the live ring and '
-      'badge (a tap opens the room), the name and the level badges centred; '
-      'then the bio, the counts, Follow and Message pills and a round more', (
+  testWidgets('header from GET /users/{username} (D335 layout): the cover '
+      '(the default Kabso one here); back, the @username and ⋯ in the bar; '
+      'the photo with the live ring and badge (a tap opens the room) at the '
+      'reading start; the name and the level badges under it; then the bio, '
+      'the counts, the Follow / Message pills and the bonds chevron', (
     tester,
   ) async {
     final repo = await _pump(tester);
@@ -89,7 +90,7 @@ void main() {
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
     final handle = tester.getRect(find.byKey(ProfileCoverHeader.handleKey));
     expect(handle.bottom, lessThanOrEqualTo(name.top));
-    // D316: the level badges right under the name.
+    // D335 (owner 4): the level badges right under the name.
     final levels = tester.getRect(find.byKey(PublicProfileScreen.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(name.bottom));
     expect(find.byType(LivePkRecordLine), findsNothing);
@@ -100,9 +101,8 @@ void main() {
     final avatar = tester.widget<KAvatar>(find.byType(KAvatar).first);
     expect(avatar.ring, KAvatarRing.live);
     expect(find.byType(KBadge), findsOneWidget);
-    // Our top bar, no background over the cover; D316 (owner: «أزل الثلاث
-    // نقاط من الأعلى لأنها موجودة بجانب مراسلة»): no ⋯ in the bar — the
-    // round ⋯ beside «مراسلة» carries its key and sheet.
+    // Our top bar, no background over the cover; D335 (owner 4): the ⋯ is
+    // back in the bar (the round ⋯ beside «مراسلة» of D316 is gone).
     final bar = find.byType(AppBar);
     expect(bar, findsOneWidget);
     expect(
@@ -110,29 +110,36 @@ void main() {
         of: bar,
         matching: find.byKey(PublicProfileScreen.moreKey),
       ),
-      findsNothing,
+      findsOneWidget,
     );
     expect(
       find.descendant(
         of: find.byKey(ProfileCoverHeader.actionsKey),
         matching: find.byKey(PublicProfileScreen.moreKey),
       ),
-      findsOneWidget,
+      findsNothing,
     );
     expect(tester.widget<AppBar>(bar).backgroundColor, Colors.transparent);
-    // D316 (owner: «بدون غلاف»): no cover and no fallback gradient; the
-    // photo and the name block on the plain page.
-    expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsNothing);
+    // D335 (owner 1): no cover of hers — the default Kabso cover.
+    expect(find.byKey(PublicProfileScreen.coverFallbackKey), findsOneWidget);
     expect(find.byKey(PublicProfileScreen.coverKey), findsNothing);
-    final cover = tester.getRect(find.byKey(ProfileCoverHeader.topBlockKey));
+    final cover = tester.getRect(find.byKey(ProfileCoverHeader.coverAreaKey));
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, greaterThanOrEqualTo(tester.getRect(bar).bottom));
-    expect(photo.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
-    expect(photo.bottom, lessThanOrEqualTo(cover.bottom));
+    expect(
+      photo.center.dx,
+      moreOrLessEquals(
+        KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2,
+        epsilon: 0.5,
+      ),
+    );
+    expect(
+      photo.center.dy,
+      moreOrLessEquals(cover.bottom - KPublicProfile.avatarLift, epsilon: 0.5),
+    );
     expect(name.top, greaterThan(photo.bottom));
-    expect(name.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
-    expect(levels.bottom, lessThanOrEqualTo(cover.bottom));
-    // D316: the bio under the badges, then the numbers, then the buttons.
+    expect(name.left, moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5));
+    // The bio under the badges, then the numbers, then the buttons.
     final bio = tester.getRect(find.text('Arabic music every evening'));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
     expect(bio.top, greaterThanOrEqualTo(levels.bottom));
@@ -142,16 +149,19 @@ void main() {
     expect(find.bySemanticsLabel(_en.profileWatchLive), findsWidgets);
     expect(find.text(_en.liveFollow), findsOneWidget);
     expect(find.text(_en.profileMessage), findsOneWidget);
-    // D316: Follow and Message two equal pills, then the round more.
+    // D335: Follow a little wider than Message (M 178.5 : 162), then the
+    // round bonds chevron.
     final follow = tester.getRect(find.byKey(PublicProfileScreen.followKey));
     final message = tester.getRect(find.byKey(PublicProfileScreen.messageKey));
-    final more = tester.getRect(find.byKey(PublicProfileScreen.dropdownKey));
+    final toggle = tester.getRect(
+      find.byKey(ProfileCoverHeader.bondsToggleKey),
+    );
     expect(follow.top, greaterThanOrEqualTo(stats.bottom));
-    expect(follow.height, KPublicProfile.centredButtonHeight);
-    expect(follow.width, moreOrLessEquals(message.width, epsilon: 0.5));
-    expect(more.width, moreOrLessEquals(more.height, epsilon: 0.5));
+    expect(follow.height, KPublicProfile.buttonHeight);
+    expect(follow.width, greaterThan(message.width));
+    expect(toggle.width, moreOrLessEquals(toggle.height, epsilon: 0.5));
     expect(follow.right, lessThan(message.left));
-    expect(message.right, lessThan(more.left));
+    expect(message.right, lessThan(toggle.left));
     expect(
       follow.bottom,
       lessThanOrEqualTo(
@@ -317,12 +327,17 @@ void main() {
     expect(find.text(_en.profileNotFoundTitle), findsOneWidget);
   });
 
-  testWidgets('RTL (D316): the photo centred, Follow at the reading start', (
-    tester,
-  ) async {
+  testWidgets('RTL (D335): the photo at the reading start (right), Follow '
+      'at the reading start', (tester) async {
     await _pump(tester, language: AppLanguage.ar);
     final avatar = tester.getRect(find.byType(KAvatar).first);
-    expect(avatar.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+    expect(
+      393 - avatar.center.dx,
+      moreOrLessEquals(
+        KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2,
+        epsilon: 0.5,
+      ),
+    );
     final follow = tester.getRect(find.byKey(PublicProfileScreen.followKey));
     final message = tester.getRect(find.byKey(PublicProfileScreen.messageKey));
     expect(follow.left, greaterThan(message.right));

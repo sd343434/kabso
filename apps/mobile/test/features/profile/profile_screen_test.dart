@@ -92,10 +92,10 @@ void main() {
     );
   });
 
-  testWidgets('D316: our bar (back and the @username, drafts and settings); '
-      'no cover (owner: «بدون غلاف»); the photo, the name and the level '
-      'badges centred; then the bio, the counts and «Edit profile»; no PK '
-      'record', (tester) async {
+  testWidgets('D335: our bar (back and the @username, drafts and settings) '
+      'over the cover (the default Kabso one); the photo at the reading '
+      'start, the name and the level badges under it; then the bio, the '
+      'counts and «Edit profile»; no PK record', (tester) async {
     await _pump(tester);
     expect(
       tester.widget<Text>(find.byKey(const Key('profile.title'))).data,
@@ -108,40 +108,43 @@ void main() {
       Colors.transparent,
     );
     final bar = tester.getRect(find.byType(AppBar));
-    // D316: no cover picture, no fallback gradient (the edit screen keeps
-    // «صورة الغلاف»).
-    for (final key in [
-      ProfileCoverHeader.coverAreaKey,
-      ProfileCoverHeader.coverKey,
-      ProfileCoverHeader.coverFallbackKey,
-      ProfileCoverHeader.coverButtonKey,
-    ]) {
-      expect(find.byKey(key), findsNothing);
-    }
-    final top = tester.getRect(find.byKey(ProfileCoverHeader.topBlockKey));
-    // D316: the photo centred under the bar, the name and the level badges
-    // centred under it (the @username is the bar's title only); under them
-    // the bio, the numbers and «Edit profile», centred.
+    // D335 (owner 1): the cover is back — none set, so the default Kabso
+    // cover; a tap on it changes it.
+    expect(find.byKey(ProfileCoverHeader.coverFallbackKey), findsOneWidget);
+    expect(find.byKey(ProfileCoverHeader.coverButtonKey), findsOneWidget);
+    final cover = tester.getRect(find.byKey(ProfileCoverHeader.coverAreaKey));
+    expect(cover.top, 0);
+    // D335: the photo at the reading start over the cover's edge; the name
+    // and the level badges under it at the start (the @username is the
+    // bar's title only); then the bio, the numbers and «Edit profile».
     final photo = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     expect(photo.top, greaterThanOrEqualTo(bar.bottom));
-    expect(photo.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+    expect(
+      photo.center.dx,
+      moreOrLessEquals(
+        KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2,
+        epsilon: 0.5,
+      ),
+    );
+    expect(
+      photo.center.dy,
+      moreOrLessEquals(cover.bottom - KPublicProfile.avatarLift, epsilon: 0.5),
+    );
     final header = tester.getRect(find.byKey(ProfileCoverHeader.headerKey));
     final name = tester.getRect(find.byKey(const Key('profile.displayName')));
     expect(name.top, greaterThan(photo.bottom));
-    expect(name.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+    expect(name.left, moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5));
     expect(find.textContaining('@layla.k'), findsOneWidget);
     final levels = tester.getRect(find.byKey(ProfileInfoBlock.levelsKey));
     expect(levels.top, greaterThanOrEqualTo(name.bottom));
-    expect(levels.bottom, lessThanOrEqualTo(top.bottom));
-    expect(levels.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+    expect(levels.left, moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5));
     expect(find.text('Music every evening'), findsOneWidget);
     final bio = tester.getRect(find.text('Music every evening'));
     expect(bio.top, greaterThanOrEqualTo(levels.bottom));
-    expect(bio.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+    expect(bio.left, moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
     expect(stats.top, greaterThanOrEqualTo(bio.bottom));
     expect(stats.bottom, lessThanOrEqualTo(header.bottom));
-    expect(stats.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
     expect(find.textContaining('5.6K'), findsOneWidget);
     expect(find.text(_en.liveCardFollowers), findsOneWidget);
     final edit = find.byKey(ProfileScreen.editButtonKey);
@@ -149,20 +152,19 @@ void main() {
       find.descendant(of: edit, matching: find.text(_en.profileEditShort)),
       findsOneWidget,
     );
-    expect(tester.getSize(edit).height, KPublicProfile.centredButtonHeight);
+    expect(tester.getSize(edit).height, KPublicProfile.buttonHeight);
     expect(tester.getRect(edit).top, greaterThanOrEqualTo(stats.bottom));
     expect(tester.getRect(edit).bottom, lessThanOrEqualTo(header.bottom));
     expect(find.byType(LivePkRecordLine), findsNothing);
   });
 
-  testWidgets('D316: no cover on the page, so its clear top changes '
-      'nothing (the cover is set in «Edit profile», '
-      'edit_profile_d168_test)', (tester) async {
+  testWidgets('D335: the cover is back on the page; a tap on it (under the '
+      'bar) offers «صورة الغلاف» (as D218)', (tester) async {
     await _pump(tester);
     final bar = tester.getRect(find.byType(AppBar));
     await tester.tapAt(Offset(393 - KSpacing.lg, bar.bottom + KSpacing.xs));
     await tester.pumpAndSettle();
-    expect(find.byKey(EditProfileScreen.coverLibraryKey), findsNothing);
+    expect(find.byKey(EditProfileScreen.coverLibraryKey), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -187,10 +189,8 @@ void main() {
   });
 
   for (final brightness in Brightness.values) {
-    testWidgets('${brightness.name}: the edit pill is neutral (D316: the '
-        'chip colour of the centred header), never the brand colour', (
-      tester,
-    ) async {
+    testWidgets('${brightness.name}: the edit pill is neutral (D316 / D335: '
+        'the chip colour), never the brand colour', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
@@ -254,8 +254,8 @@ void main() {
   });
 
   testWidgets('D59 + KL-060: four tabs in order Posts, Reels, Reposts, '
-      "Saved (bookmark), equal widths; Saved has the posts' cells (D316: "
-      '0.9)', (tester) async {
+      "Saved (bookmark), equal widths; Saved has the posts' cells (D335: "
+      'square)', (tester) async {
     await _pump(tester, overrides: _overrides(grid: _items(6)));
     expect(ProfileTab.values, [
       ProfileTab.posts,
@@ -270,7 +270,11 @@ void main() {
     for (var i = 0; i < rects.length - 1; i++) {
       expect(rects[i].right, lessThanOrEqualTo(rects[i + 1].left));
     }
-    expect(rects[3].width, moreOrLessEquals(393 / 4, epsilon: 0.5));
+    // D335: the tabs 11 dp in from each edge.
+    expect(
+      rects[3].width,
+      moreOrLessEquals((393 - 2 * KProfile.tabsInset) / 4, epsilon: 0.5),
+    );
     expect(find.bySemanticsLabel(_en.profileReposts), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileSaved), findsOneWidget);
     await tester.tap(find.byKey(ProfileScreen.tabKey(ProfileTab.saved)));
@@ -311,8 +315,10 @@ void main() {
     expect(find.text(_en.profileNoReels), findsOneWidget);
   });
 
-  testWidgets('D316: 3-column grid 16 dp in from the edges, 4 dp apart; '
-      'posts 0.9, portrait reels; the tabs stay pinned', (tester) async {
+  testWidgets('D335: 3-column grid 13 dp in from the edges, 3 dp apart, '
+      'rounded; square posts, portrait reels; the tabs stay pinned', (
+    tester,
+  ) async {
     await _pump(tester, overrides: _overrides(grid: _items(12)));
     Rect firstCell() => tester.getRect(
       find
@@ -323,6 +329,17 @@ void main() {
           .first,
     );
     final post = firstCell();
+    expect(
+      find.descendant(
+        of: find.byType(SliverGrid),
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is ClipRRect &&
+              w.borderRadius == BorderRadius.circular(KProfile.gridRadius),
+        ),
+      ),
+      findsWidgets,
+    );
     expect(
       post.width,
       moreOrLessEquals(
@@ -366,12 +383,18 @@ void main() {
     );
   });
 
-  testWidgets('RTL (D316): the photo and the counts centred; Followers at '
-      'the reading start (right)', (tester) async {
+  testWidgets('RTL (D335): the photo at the reading start (right), the '
+      'counts centred; Followers at the reading start (right)', (tester) async {
     await _pump(tester, language: AppLanguage.ar);
     final avatar = tester.getRect(find.byKey(ProfileHeaderView.avatarKey));
     final stats = tester.getRect(find.byKey(ProfileScreen.statsKey));
-    expect(avatar.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
+    expect(
+      393 - avatar.center.dx,
+      moreOrLessEquals(
+        KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2,
+        epsilon: 0.5,
+      ),
+    );
     expect(stats.top, greaterThan(avatar.bottom));
     expect(stats.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
     final followers = tester.getRect(

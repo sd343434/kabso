@@ -32,6 +32,11 @@
 // and the medals beside it; under it the @username, the numbers, the
 // buttons, the tags, the bio and the links.
 //
+// D335 (owner, «أريده مطابق»): the cover is back for every profile (the
+// default Kabso cover when none), the photo at the reading start over its
+// bottom edge, the name block start-aligned under it, the ⋯ in the bar; the
+// checks below follow (D316's centred, cover-less header is superseded).
+//
 // With D278_CAPTURE_DIR set, the capture group writes PNGs there (not
 // committed).
 
@@ -56,6 +61,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_cover_header.dart';
+import 'package:kabso_live/features/profile/profile_default_cover.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/vip/presentation/vip_wear.dart';
@@ -276,39 +282,46 @@ Future<void> pumpOwn(
 
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
-/// D316 (was D278 / D299): no cover (owner: «بدون غلاف»); the centred
-/// photo and name block at the top of the page; under it the medals, the
-/// bio, the tags, the links, the numbers and the buttons; nothing outside
-/// the screen.
+/// D335 (was D316: no cover, centred): the cover from the top, full width
+/// (the person's picture, else the default Kabso cover); the photo at the
+/// reading start over its bottom edge; the name block, the numbers and the
+/// buttons start-aligned under it; nothing outside the screen.
 void expectCover(
   WidgetTester tester, {
   required Size screen,
   required bool own,
 }) {
   expect(tester.takeException(), isNull);
+  final rtl =
+      Directionality.of(
+        tester.element(find.byKey(ProfileCoverHeader.headerKey)),
+      ) ==
+      TextDirection.rtl;
   final header = _rect(tester, ProfileCoverHeader.headerKey);
   expect(header.top, 0);
   expect(header.left, 0);
   expect(header.width, screen.width);
-  final area = _rect(tester, ProfileCoverHeader.topBlockKey);
+  final area = _rect(tester, ProfileCoverHeader.coverAreaKey);
   final bar = tester.getRect(find.byType(AppBar));
   expect(area.top, 0);
   expect(area.width, screen.width);
-  for (final key in [
-    ProfileCoverHeader.coverAreaKey,
-    ProfileCoverHeader.coverKey,
-    ProfileCoverHeader.coverFallbackKey,
-    ProfileCoverHeader.coverAvatarKey,
-    ProfileCoverHeader.staffCoverKey,
-  ]) {
-    expect(find.byKey(key), findsNothing);
-  }
+  expect(area.height, KPublicProfile.coverHeightFor(bar.bottom));
+  expect(find.byKey(ProfileCoverHeader.coverFallbackKey), findsOneWidget);
   final photo = _rect(tester, ProfileHeaderView.avatarKey);
-  // D316: the photo centred under the top bar; the name row centred under
-  // it, both in the top block.
+  // The photo under the bar, its centre above the cover's edge, at the
+  // reading start.
   expect(photo.top, greaterThanOrEqualTo(bar.bottom));
-  expect(photo.bottom, lessThanOrEqualTo(area.bottom));
-  expect(photo.center.dx, moreOrLessEquals(screen.width / 2, epsilon: 0.5));
+  expect(
+    photo.center.dy,
+    moreOrLessEquals(area.bottom - KPublicProfile.avatarLift, epsilon: 0.5),
+  );
+  expect(
+    rtl ? screen.width - photo.center.dx : photo.center.dx,
+    moreOrLessEquals(
+      KPublicProfile.avatarStart + KPublicProfile.avatarOuter / 2,
+      epsilon: 0.5,
+    ),
+  );
   final name = _rect(tester, const Key('profile.displayName'));
   final nameRow = _rect(tester, ProfileCoverHeader.nameRowKey);
   final handle = _rect(tester, ProfileCoverHeader.handleKey);
@@ -316,15 +329,17 @@ void expectCover(
   final actions = _rect(tester, ProfileCoverHeader.actionsKey);
   expect(name.overlaps(photo), isFalse);
   expect(name.top, greaterThan(photo.bottom));
-  expect(name.center.dx, moreOrLessEquals(screen.width / 2, epsilon: 1));
   expect(nameRow.top, greaterThanOrEqualTo(photo.bottom));
-  expect(nameRow.bottom, lessThanOrEqualTo(area.bottom));
+  expect(
+    rtl ? screen.width - nameRow.right : nameRow.left,
+    moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5),
+  );
   // D299d: the @username at the top, in the bar; the numbers under the
-  // top block, centred.
+  // name block, centred.
   expect(handle.bottom, lessThanOrEqualTo(bar.bottom));
   expect(handle.left, greaterThanOrEqualTo(0));
   expect(handle.right, lessThanOrEqualTo(screen.width));
-  expect(stats.top, greaterThanOrEqualTo(area.bottom));
+  expect(stats.top, greaterThanOrEqualTo(nameRow.bottom));
   expect(stats.center.dx, moreOrLessEquals(screen.width / 2, epsilon: 1));
   expect(actions.top, greaterThanOrEqualTo(stats.bottom));
   for (final r in [name, nameRow, stats, actions]) {
@@ -334,24 +349,20 @@ void expectCover(
   }
   final buttons = own
       ? [ProfileScreen.editButtonKey]
-      : [
-          PublicProfileScreen.followKey,
-          PublicProfileScreen.messageKey,
-          PublicProfileScreen.dropdownKey,
-        ];
-  for (final key in buttons) {
+      : [PublicProfileScreen.followKey, PublicProfileScreen.messageKey];
+  for (final key in [...buttons, ProfileCoverHeader.bondsToggleKey]) {
     final r = _rect(tester, key);
     expect(r.top, greaterThanOrEqualTo(actions.top - 0.5));
     expect(r.bottom, lessThanOrEqualTo(actions.bottom + 0.5));
     expect(r.left, greaterThanOrEqualTo(0));
     expect(r.right, lessThanOrEqualTo(screen.width));
   }
-  // The tags: one line (D292; was two); D316: under the bio, above the
-  // numbers.
+  // The tags: one line (D292; was two); D316 / D335: under the bio, above
+  // the numbers.
   final tags = find.byKey(ProfileTagChips.wrapKey);
   if (tags.evaluate().isNotEmpty) {
     final t = tester.getRect(tags);
-    expect(t.top, greaterThanOrEqualTo(area.bottom));
+    expect(t.top, greaterThanOrEqualTo(nameRow.bottom));
     expect(t.bottom, lessThanOrEqualTo(stats.top));
     final chips = find.descendant(
       of: tags,
@@ -383,28 +394,20 @@ void main() {
     profileCoverImageFor = NetworkImage.new;
   });
 
-  test('D299: the cover holds the whole photo box (≈ 270 dp under a '
-      '125 dp bar; D292: 213 dp; D278b: 42 % of the screen, 358 dp)', () {
-    expect(
-      KPublicProfile.coverHeightFor(125),
-      (125 +
-              KPublicProfile.avatarTopGap +
-              KPublicProfile.avatarSlot.height +
-              KPublicProfile.coverBottomGap)
-          .roundToDouble(),
-    );
-    expect(KPublicProfile.coverHeightFor(125), 270);
+  test('D335: the cover runs 184 dp under the bar (309 dp under a 125 dp '
+      'bar; D299: 270; D292: 213; D278b: 42 % of the screen, 358 dp)', () {
+    expect(KPublicProfile.coverHeightFor(125), 125 + 184);
+    expect(KPublicProfile.coverHeightFor(125), 309);
   });
 
   group("D278 someone else's profile", () {
     for (final language in AppLanguage.values) {
       final ar = language == AppLanguage.ar;
       for (final brightness in Brightness.values) {
-        testWidgets('${language.name} ${brightness.name}: no cover '
-            '(D316); the centred photo and name; the counts and '
-            'Follow / Message / more pills (D316); our top buttons', (
-          tester,
-        ) async {
+        testWidgets('${language.name} ${brightness.name}: the cover '
+            '(D335); the photo at the start and the name under it; the '
+            'counts and Follow / Message / chevron pills; our top buttons on '
+            'circles with ⋯ in the bar', (tester) async {
           await pumpOther(
             tester,
             otherProfile(ar: ar),
@@ -412,10 +415,9 @@ void main() {
             brightness: brightness,
           );
           expectCover(tester, screen: const Size(393, 852), own: false);
-          // The bar: no background, back and (D316, owner: «اليوزر بجانب
-          // السهم، وأزل الثلاث نقاط من الأعلى») the @username right beside
-          // it; no ⋯ in the bar — the page's ⋯ is the round button beside
-          // «مراسلة»; plain glyphs (no circles).
+          expect(find.byKey(ProfileCoverHeader.coverKey), findsOneWidget);
+          // The bar: no background, back with the @username right beside it
+          // (D316) and (D335, owner 4) the ⋯ at the end, on circles.
           final bar = tester.widget<AppBar>(find.byType(AppBar));
           expect(bar.backgroundColor, Colors.transparent);
           expect(find.byType(BackButton), findsOneWidget);
@@ -424,15 +426,14 @@ void main() {
               of: find.byType(AppBar),
               matching: find.byKey(PublicProfileScreen.moreKey),
             ),
-            findsNothing,
+            findsOneWidget,
           );
-          expect(find.byKey(PublicProfileScreen.moreKey), findsOneWidget);
           expect(
             find.descendant(
               of: find.byKey(ProfileCoverHeader.actionsKey),
               matching: find.byKey(PublicProfileScreen.moreKey),
             ),
-            findsOneWidget,
+            findsNothing,
           );
           // D299d (owner: «اليوزر اجعله في أعلى الصفحة»): the @username is
           // the bar's title over the cover too (no fade).
@@ -446,58 +447,68 @@ void main() {
           final back = tester.getRect(find.byType(BackButton));
           final title = _rect(tester, ProfileCoverHeader.handleKey);
           if (ar) {
-            // Back at the right edge, the @username just left of it.
-            expect(back.right, greaterThan(393 - 16));
+            // Back at the right edge (its circle 18 dp in, D335), the
+            // @username just left of it.
+            expect(back.right, greaterThanOrEqualTo(393 - 16));
             expect(title.right, lessThanOrEqualTo(back.left + 0.5));
             expect(back.left - title.right, lessThan(16));
           } else {
-            expect(back.left, lessThan(16));
+            expect(back.left, lessThanOrEqualTo(16));
             expect(title.left, greaterThanOrEqualTo(back.right - 0.5));
             expect(title.left - back.right, lessThan(16));
           }
           expect(back.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
-          // No circle behind the buttons.
-          expect(
-            find.descendant(
-              of: find.byType(AppBar),
-              matching: find.byWidgetPredicate(
-                (w) =>
-                    w is DecoratedBox &&
-                    w.decoration is ShapeDecoration &&
-                    ((w.decoration as ShapeDecoration).shape is CircleBorder ||
-                        (w.decoration as ShapeDecoration).shape
-                            is StadiumBorder),
-              ),
+          // D335: back and ⋯ on translucent circles over the cover.
+          final circles = find.descendant(
+            of: find.byType(AppBar),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is DecoratedBox &&
+                  w.decoration is ShapeDecoration &&
+                  (w.decoration as ShapeDecoration).shape is CircleBorder &&
+                  (w.decoration as ShapeDecoration).color ==
+                      KPublicProfile.barCircleFill,
             ),
-            findsNothing,
           );
+          expect(circles, findsNWidgets(2));
+          for (final e in circles.evaluate()) {
+            expect(
+              tester.getSize(find.byWidget(e.widget)).width,
+              KPublicProfile.barCircle,
+            );
+          }
           expect((back.center.dy - title.center.dy).abs(), lessThan(2));
           // The bar's back button sits under the status bar (59).
           expect(back.top, greaterThanOrEqualTo(59));
-          // D316: «متابعة» a Kabso-red pill, «مراسلة» a pill of the same
-          // width in the chip colour, then the round more.
+          // D335 (owner 3): «متابعة» a pill on the Kabso-red gradient (no
+          // shadow), «مراسلة» a narrower pill in the chip colour with the
+          // send icon, then the round chevron.
           final follow = tester.widget<FilledButton>(
             find.byKey(PublicProfileScreen.followKey),
           );
-          expect(
-            follow.style!.backgroundColor!.resolve({}),
-            KBrandColors.red500,
-          );
           expect(follow.style!.shape!.resolve({}), isA<StadiumBorder>());
+          expect(follow.style!.elevation!.resolve({}), 0);
+          final fill = tester.widget<DecoratedBox>(
+            find
+                .ancestor(
+                  of: find.byKey(PublicProfileScreen.followKey),
+                  matching: find.byType(DecoratedBox),
+                )
+                .first,
+          );
+          expect(
+            ((fill.decoration as ShapeDecoration).gradient! as LinearGradient)
+                .colors,
+            KPublicProfile.gradient,
+          );
           final f = _rect(tester, PublicProfileScreen.followKey);
           final m = _rect(tester, PublicProfileScreen.messageKey);
-          final d = _rect(tester, PublicProfileScreen.dropdownKey);
-          expect(
-            f.height,
-            moreOrLessEquals(KPublicProfile.centredButtonHeight),
-          );
-          expect(m.width, moreOrLessEquals(f.width, epsilon: 0.5));
+          final d = _rect(tester, ProfileCoverHeader.bondsToggleKey);
+          expect(f.height, moreOrLessEquals(KPublicProfile.buttonHeight));
+          expect(f.width, greaterThan(m.width));
           expect(d.width, moreOrLessEquals(d.height));
-          expect(
-            d.height,
-            moreOrLessEquals(KPublicProfile.centredButtonHeight),
-          );
-          // Reading order: Follow, chat, more (RTL mirrors it).
+          expect(d.height, moreOrLessEquals(KPublicProfile.buttonHeight));
+          // Reading order: Follow, chat, chevron (RTL mirrors it).
           if (ar) {
             expect(f.left, greaterThan(m.right));
             expect(m.left, greaterThan(d.right));
@@ -506,8 +517,8 @@ void main() {
             expect(m.right, lessThan(d.left));
           }
           // D268: the VIP badge first; D278b: the level badges after it.
-          // D316: on the badges' line right under the name (the @username
-          // is the bar's title only), the line centred.
+          // D335: on the badges' line right under the name (the @username
+          // is the bar's title only), at the reading start.
           final name = _rect(tester, const Key('profile.displayName'));
           final badge = tester.getRect(find.byType(VipNameBadge));
           final levels = _rect(tester, ProfileInfoBlock.levelsKey);
@@ -530,13 +541,14 @@ void main() {
               tester.getRect(find.byWidget(e.widget)),
           ];
           expect(line, isNotEmpty);
-          final first = ar ? badge.right : badge.left;
-          final last = ar ? levels.left : levels.right;
           expect(
-            (first + last) / 2,
-            moreOrLessEquals(badges.center.dx, epsilon: 1),
+            ar ? 393 - badge.right : badge.left,
+            moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5),
           );
-          expect(badges.center.dx, moreOrLessEquals(393 / 2, epsilon: 1));
+          expect(
+            ar ? 393 - badges.right : badges.left,
+            moreOrLessEquals(KPublicProfile.inset, epsilon: 0.5),
+          );
           expect(
             levels.center.dy,
             moreOrLessEquals(badge.center.dy, epsilon: 6),
@@ -561,11 +573,10 @@ void main() {
               matching: find.byType(Text),
             ),
           );
-          // D316: with no cover the @username in the bar takes the theme's
-          // text colour, no shadow (D299d: white with a shadow over the
-          // full cover — the founder's page only now).
-          expect(handleText.style?.color, palette.textPrimary);
-          expect(handleText.style?.shadows, isNull);
+          // D299d / D335: over the cover the @username is white with the
+          // bar's soft shadow.
+          expect(handleText.style?.color, KPalette.dark.textPrimary);
+          expect(handleText.style?.shadows, ProfileCoverBar.coverShadow);
           final chip = tester.widget<DecoratedBox>(
             find
                 .descendant(
@@ -625,8 +636,8 @@ void main() {
       }
     }
 
-    testWidgets('D316 (owner: «بدون غلاف»): without a cover either — no '
-        'Kabso gradient, no blurred photo', (tester) async {
+    testWidgets('D335 (owner 1): without a cover — the default Kabso cover '
+        '(no blurred photo)', (tester) async {
       await pumpOther(
         tester,
         otherProfile(
@@ -637,7 +648,14 @@ void main() {
       );
       expectCover(tester, screen: const Size(393, 852), own: false);
       expect(find.byKey(ProfileCoverHeader.coverKey), findsNothing);
-      expect(find.byKey(ProfileCoverHeader.coverAvatarKey), findsNothing);
+      expect(find.byType(ProfileDefaultCover), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(ProfileCoverHeader.coverAreaKey),
+          matching: find.byType(ImageFiltered),
+        ),
+        findsNothing,
+      );
     });
 
     // D282: a staff account's profile wears the Kabso Team badge in the
@@ -760,7 +778,7 @@ void main() {
     for (final language in AppLanguage.values) {
       for (final brightness in Brightness.values) {
         testWidgets('${language.name} ${brightness.name}: the same layout '
-            '(no cover); «تعديل الملف» instead of follow and chat; our '
+            '(the cover); «تعديل الملف» instead of follow and chat; our '
             'buttons (back, drafts, settings)', (tester) async {
           await pumpOwn(tester, language: language, brightness: brightness);
           expectCover(tester, screen: const Size(393, 852), own: true);
@@ -777,9 +795,8 @@ void main() {
             ),
             findsOneWidget,
           );
-          // D316: no cover on the page, so no cover button (it is set in
-          // the edit screen).
-          expect(find.byKey(ProfileCoverHeader.coverButtonKey), findsNothing);
+          // D335: the cover is back, and a button on the own page (D218).
+          expect(find.byKey(ProfileCoverHeader.coverButtonKey), findsOneWidget);
         });
       }
       testWidgets('360 × 800 at 2.0 (${language.name}): no overflow', (

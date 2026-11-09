@@ -1,5 +1,6 @@
-// D316: these pages show no cover any more (the centred header); the names
-// are kept so the history of the set stays readable.
+// D335: the cover is back (the photo at the reading start over its edge,
+// §10.73.7); D316 had removed it. The names are kept so the history of the
+// set stays readable.
 //
 // D278 (owner: «اظهر ملف شخصي بغلاف بهذا الحجم ويغطي للاعلى وايقونات دردشة
 // والشات»; «استخدم ازراري»): the profile with the tall full-bleed cover.
@@ -43,9 +44,8 @@ void main() {
     testWidgets('profile.cover.other ${language.name}', (tester) async {
       await pumpOther(tester, otherProfile(ar: ar), language: language);
       await precacheImages(tester);
-      // D316 (owner: «بدون غلاف»): the profile set has a cover, the page
-      // shows none.
-      expect(find.byKey(ProfileCoverHeader.coverKey), findsNothing);
+      // D335 (owner 1): the profile's cover is shown again.
+      expect(find.byKey(ProfileCoverHeader.coverKey), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('png/profile.cover.other.${language.name}.phone.png'),
@@ -55,9 +55,8 @@ void main() {
     testWidgets('profile.cover.own ${language.name}', (tester) async {
       await pumpOwn(tester, language: language, brightness: Brightness.dark);
       await precacheImages(tester);
-      // D316 (owner: «بدون غلاف»): the profile set has a cover, the page
-      // shows none.
-      expect(find.byKey(ProfileCoverHeader.coverKey), findsNothing);
+      // D335 (owner 1): the profile's cover is shown again.
+      expect(find.byKey(ProfileCoverHeader.coverKey), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('png/profile.cover.own.${language.name}.phone.png'),

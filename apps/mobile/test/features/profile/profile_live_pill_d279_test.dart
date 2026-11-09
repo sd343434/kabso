@@ -82,9 +82,10 @@ Future<void> atNow(Future<void> Function() body) =>
 
 Rect _rect(WidgetTester tester, Key key) => tester.getRect(find.byKey(key));
 
-/// The pill on the cover; small (28 dp, a little more with large text).
-/// D316: the centred header — the pill centred between the photo and the
-/// name (was at the reading end opposite the photo, D279b / D299).
+/// The pill; small (28 dp, a little more with large text). D335: on the
+/// name's line, after the name and its seal (toward the reading end), on
+/// the page under the cover — never on the name or the photo (was centred
+/// under the photo, D316; at the reading end on the cover, D279b / D299).
 void expectPill(
   WidgetTester tester, {
   required double width,
@@ -93,23 +94,25 @@ void expectPill(
 }) {
   expect(tester.takeException(), isNull);
   final pill = _rect(tester, ProfileLivePill.pillKey);
-  final cover = _rect(tester, ProfileCoverHeader.topBlockKey);
+  final cover = _rect(tester, ProfileCoverHeader.coverAreaKey);
   final avatar = _rect(tester, ProfileHeaderView.avatarKey);
+  final name = _rect(tester, const Key('profile.displayName'));
+  final line = _rect(tester, ProfileCoverHeader.nameLineKey);
   expect(pill.height, greaterThanOrEqualTo(ProfileLivePill.height - 0.5));
   expect(pill.height, lessThanOrEqualTo(maxHeight));
   expect(pill.width, lessThan(width / 2));
-  // In the top block, under the photo, never on the name.
-  expect(pill.top, greaterThanOrEqualTo(cover.top));
-  expect(pill.bottom, lessThanOrEqualTo(cover.bottom));
-  expect(pill.top, greaterThanOrEqualTo(avatar.bottom));
-  expect(
-    pill.bottom,
-    lessThanOrEqualTo(_rect(tester, ProfileCoverHeader.nameRowKey).top),
-  );
-  // Centred, as the photo, in both directions ([ar] is the page's
-  // language: the same place in RTL and LTR).
-  expect(pill.center.dx, moreOrLessEquals(width / 2, epsilon: 0.5));
-  expect(avatar.center.dx, moreOrLessEquals(width / 2, epsilon: 0.5));
+  // On the page, on the name's line, after the name (reading order).
+  expect(pill.top, greaterThan(cover.bottom));
+  expect(pill.overlaps(avatar), isFalse);
+  expect(pill.overlaps(name), isFalse);
+  expect(pill.center.dy, moreOrLessEquals(line.center.dy, epsilon: 4));
+  if (ar) {
+    expect(pill.right, lessThanOrEqualTo(line.left));
+  } else {
+    expect(pill.left, greaterThanOrEqualTo(line.right));
+  }
+  expect(pill.left, greaterThanOrEqualTo(0));
+  expect(pill.right, lessThanOrEqualTo(width));
   final box = tester.widget<Container>(find.byKey(ProfileLivePill.pillKey));
   final gradient =
       (box.decoration! as BoxDecoration).gradient! as LinearGradient;
