@@ -208,6 +208,17 @@ void main() {
 
     testWidgets('«+» opens «New group»', (tester) async {
       await _pump(tester, const MessagesTab());
+      // One entry only (owner: «ال+ في الاعلى … يجب ان يكون هذا الزر + زر عمل
+      // مجموعة»): the header's «+» disc, no separate group button.
+      expect(find.byKey(DmInboxScreen.newGroupKey), findsOneWidget);
+      expect(find.byIcon(Icons.group_add_outlined), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(DmInboxScreen.newGroupKey),
+          matching: find.byIcon(Icons.add_rounded),
+        ),
+        findsOneWidget,
+      );
       final button = tester.widget<IconButton>(
         find.byKey(DmInboxScreen.newGroupKey),
       );

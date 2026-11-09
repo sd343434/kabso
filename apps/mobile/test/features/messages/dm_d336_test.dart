@@ -174,16 +174,25 @@ void main() {
       });
     });
 
-    testWidgets('«Add story» and the «+» open a new story', (tester) async {
+    testWidgets('«Add story» opens a new story; the header «+» opens «New '
+        'group» (D339, owner)', (tester) async {
       await _pump(tester);
       await tester.tap(find.byKey(DmStoryCards.addKey));
       await tester.pumpAndSettle();
       expect(_visited, [AppRoutes.newStory]);
 
+      // D339 (owner: «ال+ في الاعلى … يجب ان يكون هذا الزر + زر عمل مجموعة»).
       await _pump(tester);
-      await tester.tap(find.byKey(DmInboxScreen.newStoryKey));
+      final plus = find.byKey(DmInboxScreen.newGroupKey);
+      expect(plus, findsOneWidget);
+      expect(tester.widget<IconButton>(plus).tooltip, en.dmNewGroup);
+      expect(
+        find.descendant(of: plus, matching: find.byIcon(Icons.add_rounded)),
+        findsOneWidget,
+      );
+      await tester.tap(plus);
       await tester.pumpAndSettle();
-      expect(_visited, [AppRoutes.newStory]);
+      expect(_visited, [AppRoutes.newGroup]);
     });
 
     testWidgets("with a story of their own the caller's card is «Your story» "

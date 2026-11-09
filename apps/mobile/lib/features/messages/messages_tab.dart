@@ -70,9 +70,6 @@ abstract final class KDmList {
   static const double boxesIcon = 28;
   static const double boxesBadge = 16;
 
-  /// D339: the «+» new-group glyph beside the boxes button.
-  static const double newGroupIcon = 26;
-
   /// The rows' geometry, shared with the group rows (D339).
   static const geometry = DmRowGeometry(
     rowHeight: rowHeight,
@@ -134,7 +131,9 @@ class DmInboxScreen extends ConsumerStatefulWidget {
   static const privacyKey = Key('dm.privacy');
   static const requestsTabKey = Key('dm.tab.requests');
 
-  /// D339: «المؤرشفة», the new-group button and the archive actions.
+  /// D339: «المؤرشفة», the new-group button (the header's «+», owner: «ال+
+  /// في الاعلى … يجب ان يكون هذا الزر + زر عمل مجموعة») and the archive
+  /// actions.
   static const archivedTabKey = Key('dm.tab.archived');
   static const archivedHintKey = Key('dm.archived.hint');
   static const newGroupKey = Key('dm.group.new');
@@ -156,9 +155,9 @@ class DmInboxScreen extends ConsumerStatefulWidget {
   static const boxesBadgeKey = Key('dm.boxes.badge');
   static const boxesPanelKey = Key('dm.boxes.panel');
 
-  /// D336: «القصص» and its «+» (a new story).
+  /// D336: «القصص» (a new story is added from the «قصتك» card,
+  /// [DmStoryCards.addKey]; the header's «+» makes a group, D339).
   static const storiesTitleKey = Key('dm.stories.title');
-  static const newStoryKey = Key('dm.stories.new');
   static const actionReadKey = Key('dm.action.read');
   static const actionUnreadKey = Key('dm.action.unread');
   static const actionMuteKey = Key('dm.action.mute');
@@ -247,8 +246,9 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
         if (before != next) _refresh();
       });
     final requests = ref.watch(dmUnreadProvider.select((u) => u.requests));
-    // D336: «القصص» — the title, a dark «+» (a new story) and the paper
-    // plane (a new message).
+    // D336: «القصص» — the title, a dark «+» and the paper plane (a new
+    // message). D339 (owner: «ال+ في الاعلى … يجب ان يكون هذا الزر + زر عمل
+    // مجموعة»): the «+» makes a group; a story is added from «قصتك» below.
     final storiesHeader = SizedBox(
       height: KDmList.headerHeight,
       child: Row(
@@ -271,9 +271,9 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
             ),
           ),
           IconButton(
-            key: DmInboxScreen.newStoryKey,
-            tooltip: l10n.storyNewTitle,
-            onPressed: () => context.push(AppRoutes.newStory),
+            key: DmInboxScreen.newGroupKey,
+            tooltip: l10n.dmNewGroup,
+            onPressed: () => context.push(AppRoutes.newGroup),
             icon: Container(
               width: KDmList.addDisc,
               height: KDmList.addDisc,
@@ -348,18 +348,6 @@ class _DmInboxScreenState extends ConsumerState<DmInboxScreen> {
                     ),
                   ),
           ),
-          // D339: a new group.
-          if (!_searching)
-            IconButton(
-              key: DmInboxScreen.newGroupKey,
-              tooltip: l10n.dmNewGroup,
-              onPressed: () => context.push(AppRoutes.newGroup),
-              icon: Icon(
-                Icons.group_add_outlined,
-                size: KDmList.newGroupIcon,
-                color: p.textPrimary,
-              ),
-            ),
           // D336 follow-up (owner): the boxes open from here (also while
           // searching: each box is searched on its own), with the pending
           // requests on the button so they are not missed.

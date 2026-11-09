@@ -9758,7 +9758,8 @@ were measured on the reference (533 px phone = 393 dp, 1.356 px/dp); colours are
 reference's blue / pink), light and dark; Arabic RTL mirrors English LTR. One scrolling page, top to bottom:
 
 - **«القصص» / "Stories"** — the page title (30 sp bold, at 23 dp from the reading start) with a dark «+» disc
-  (a new story, `/story/new`) and the paper plane (`AppIcons.send`, mirrored in Arabic; «رسالة جديدة», the D165
+  (D336: a new story; **since D339 it makes a group** — «مجموعة جديدة», `/message-groups/new`, see below; a story
+  is added from the caller's story card) and the paper plane (`AppIcons.send`, mirrored in Arabic; «رسالة جديدة», the D165
   sheet) at the reading end, on a 48 dp row under the status bar gap (D142).
 - **Story cards** from `GET /feed/stories` (CP-008, the same tray as the posts page): the caller's card first —
   «أضف قصة» / "Add story" (89 × 152 dp, a faint red tint, their picture with a red «+»; a tap adds a story), or
@@ -9778,8 +9779,10 @@ reference's blue / pink), light and dark; Arabic RTL mirrors English LTR. One sc
   count (D155). A row opens its box and closes the panel; tapping the button again closes it; the title names the
   requests box while it is open. *(D339, §10.132–§10.133)* The panel lists «الدردشات» (conversations **and groups**
   mixed by recency, `listDmChats`), «طلبات المراسلة» and «المؤرشفة» (`listDmChats?box=ARCHIVED`); groups have no box
-  of their own. A «+» people button before the boxes button
-  opens «مجموعة جديدة» / "New group".
+  of their own. *Owner (2026-11-09): «ال+ في الاعلى … يجب ان يكون هذا الزر + زر عمل مجموعة».* The
+  dark «+» disc of the «القصص» row opens «مجموعة جديدة» / "New group" (tooltip and label «مجموعة جديدة»); it is the
+  only entry — there is no separate group button in the «الرسائل» header. Stories are added from «أضف قصة» /
+  «قصتك»'s «+» on the caller's card.
 - **Rows** (80.5 dp pitch): a 64 dp round picture at 23 dp, 20 dp to the text; the name (16 sp, medium; semibold
   while unread) with the verification seal (D293) and the muted icon; the preview (14.5 sp, tertiary grey, one
   line — pictures, voice, stickers and gifts as before); at the reading end the **compact time** («5د» / "5m",
@@ -9871,7 +9874,8 @@ report, mute and pushes. Every route needs a token (tag `messages`, `/dm/groups/
   badge every 30 s and on a `dm_group` push.
 - **Not in v1.104-social:** gifts, replies, reactions, mentions, system lines («فلان أضاف فلان»), invite links, a
   per-person read list, "delete for me", join requests, groups over 256.
-- **App** (§11.13.1): «+» in the «الرسائل» header → «مجموعة جديدة» (the photo, the name, then the people from
+- **App** (§11.13.1): the dark «+» at the top of the tab (the «القصص» row; owner: «ال+ في الاعلى … يجب ان يكون
+  هذا الزر + زر عمل مجموعة»; the only entry) → «مجموعة جديدة» (the photo, the name, then the people from
   `listDmGroupCandidates` with search; «إنشاء»); a group row shows the group's photo (or a people disc) and «<sender>:
   <message>»; the group screen is the conversation screen with the sender's name over others' bubbles; its ⋮ menu has
   «معلومات المجموعة» (members, roles, add, remove, rename, photo), mute, archive, report and «مغادرة المجموعة».
