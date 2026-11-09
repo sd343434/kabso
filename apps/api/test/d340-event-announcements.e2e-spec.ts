@@ -145,7 +145,7 @@ describe('D340 event results and full-screen announcements', { timeout: 900_000 
         nameAr: 'وردة',
         nameEn: 'Rose',
         priceCoins: 100,
-        assetKey: 'gift_d340_rose',
+        assetKey: 'gift_d340_rose', // gitleaks:allow (an asset name)
         animationKey: null,
         sortOrder: 0,
         badge: 'NONE',
