@@ -106,6 +106,8 @@ open PR produces both a push run and a PR run; only the PR run is cancellable.
 | `contracts` | `docs/contracts/**`, `redocly.yaml`, `tools/redocly/**`, or the workflow file changed | `npm ci --ignore-scripts` in `tools/redocly` (Redocly CLI 2.57.0 pinned by `package-lock.json` with sha512 integrity), then `redocly lint` with the rules in `redocly.yaml`; results shown as PR annotations |
 | `secrets` | always | gitleaks 8.30.1 CLI (download checked against its SHA-256) scans the full git history with redacted output |
 | `ci-ok` | always | **Allowlist:** passes only if every job's result is `success` or `skipped` (path-filtered or gated); any other result (`failure`, `cancelled`, `abandoned`, `timed_out`, missing, or a future value) fails and names the job. Since KL-010c: run 29 passed while `ios` was `abandoned` (no macOS runner) under the old failure/cancelled denylist. **Make this the only required status check** in branch protection. |
+| `staging-apk` | push to `staging`, after a green `ci-ok` | The staging test APK: `flutter build apk --profile --split-per-abi --target-platform android-arm64` (arm64-v8a only since KL-069; no universal APK for staging) with `API_BASE_URL=https://api.kabsolive.com`, `APP_VERSION=0.1.0-staging+<sha7>` and the DeepAR key (D144); `google-services.json` from the secret (D152). Artifact `kabso-live-staging-arm64-apk` (file `kabso-live-staging-arm64.apk`), kept 14 days. |
+| `staging-apk-release` | after `staging-apk` succeeded | *(D330, §11.8)* Publishes that APK as `kabso-staging.apk` + `kabso-staging.txt` (commit, version, sha256, size) of the rolling public prerelease `staging-latest` (tag moved to the commit, assets replaced). The only job with `contents: write` (+ `actions: read` for `gh run download`); no checkout, no third-party action, no secret. |
 
 CI test configuration lives in the workflow `env`. It contains clearly fake values
 (`ci_test_password_not_secret`, `ci_migrator_password_not_secret`, `ci_app_password_not_secret`,
@@ -1441,7 +1443,7 @@ the `deploy-image` job of `.github/workflows/ci.yml`.
 | `kabsolive.com` | Caddy, the public website (`infra/deploy/site`, D192 §11.7); `/api/v1/waitlist`, `/api/v1/site/settings` → API; `/topup*` → 302 to `api.` (D190) |
 | `www.kabsolive.com` | Caddy, permanent redirect to `kabsolive.com` (D192) |
 | `api.kabsolive.com` | Caddy → API (`/internal/*` answers 404 from outside) |
-| `live.kabsolive.com` | Caddy → LiveKit signalling (`wss://`); media on 7881/tcp, 7882/udp |
+| `live.kabsolive.com` | Caddy → LiveKit signalling (`wss://`); media on 7881/tcp, 7882/udp; *(D330)* `/app/` the staging test APK mirror (§11.8) |
 | `admin.kabsolive.com` | *(D191)* Caddy, the admin panel's static build (`infra/deploy/admin/current`) and `/api/*` → API (§11.6) |
 | `studio.kabsolive.com` | *(D247)* Caddy, «استوديو البث»'s static build (`infra/deploy/studio/current`) and `/api/*` → API (§5.48) |
 
@@ -1636,6 +1638,82 @@ or `… export [--locale ar|en] > waitlist.csv` (delete the file after the launc
 'none'`, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS one year with
 subdomains, `Permissions-Policy` off for camera/microphone/geolocation/payment. Art and fonts are cached 30 days (a
 changed image gets a new file name); pages, CSS, JS and config.json 5 minutes.
+
+### 11.8 The staging test APK at https://live.kabsolive.com/app/ (D330) — [IMPLEMENTED; validated locally (Caddy 2.10.2, a fake release), not on the server or in CI yet]
+
+**Why:** the staging APK was only a GitHub Actions artifact: a ≈106 MB zip (105.93–105.96 MB for the last three
+runs, 2026-11-08), behind a GitHub login, slow on the owner's phone, and a zip to unpack before installing.
+
+**Size.** The staging build has been **arm64-v8a only since KL-069** (`--split-per-abi --target-platform
+android-arm64`); the ≈106 MB is already the one-ABI profile APK, zipped. So D330 does **not** make the APK itself
+smaller; what changes is how it is delivered. Estimated (not measured — no Android SDK here, the artifact could not be
+downloaded): native code is stored uncompressed in the APK (minSdk 24, AGP's default), about 36 MB MediaPipe + ML Kit
+(measured from the AARs, §9), 11–23 MB DeepAR, roughly 10 MB each WebRTC and the Flutter engine, plus the app's own
+AOT code and ~38 MB of assets — so the APK file is about **140–170 MB**, and gzip brings it back to about the
+artifact's ≈106 MB on the wire. The other ABIs (armeabi-v7a, x86, x86_64) would add roughly 60–80 MB each, which is
+why no universal APK is built for staging. Smaller still needs app-side changes, not CI: a release build with a real
+keystore (R8 and the release engine; estimated 10–20 % less, blocked on the upload key, §9), or moving large art to
+download-on-demand. CI's `android` job still builds its **universal debug** APK (`kabso-live-debug-apk`) as the
+compile check on every branch; nothing downloads it for testing.
+
+**Flow (no secret, no token on the server):**
+
+1. A green push to `staging` → CI's `staging-apk` builds the APK (unchanged: profile, the same dart-defines, signed
+   with the runner's debug key like every Flutter profile build), uploaded as `kabso-live-staging-arm64-apk`.
+2. `staging-apk-release` (only this job has `contents: write`) publishes it to the rolling **prerelease
+   `staging-latest`** (tag moved to the commit; never marked "latest"): `kabso-staging.apk`, then `kabso-staging.txt`
+   (`commit`, `version`, `sha256`, `size`, `built`, `run`). Public repository (D40) → downloadable without a login from
+   GitHub's CDN: `https://github.com/sd343434/kabso/releases/download/staging-latest/kabso-staging.apk`.
+3. On the server, every `kabso-update.timer` run (5 minutes) ends with `infra/deploy/mirror-apk.sh` (an EXIT trap in
+   `update.sh`, so also after "nothing changed" and after a failed deploy; `timeout 600`; a failure only logs
+   `staging APK mirror failed …` and never changes the API update or its result). It fetches the ~200-byte manifest
+   (release downloads, not the rate-limited API), and only when its sha256 differs from the one served downloads the
+   APK, checks the size bounds (10–400 MB), the size and sha256 against the manifest and the ZIP signature, writes a
+   gzip copy and the page, and moves them into `/opt/kabso/infra/deploy/app/` with renames (git-ignored; an open
+   download keeps the old file). Only the latest build is kept; a half-replaced release pair (sha mismatch) is skipped
+   until the next run. By hand: `sudo /opt/kabso/infra/deploy/mirror-apk.sh [--force]`.
+4. Caddy (`live.` block, before the LiveKit proxy; LiveKit never uses `/app`; `./app:/srv/app:ro`) serves:
+
+| URL | What |
+| --- | ---- |
+| `https://live.kabsolive.com/app/` | page: version, commit, build time, size, sha256, «تحميل التطبيق / Download APK» (Arabic + English), `noindex` |
+| `https://live.kabsolive.com/app/kabso-staging.apk` | the APK, `Content-Type: application/vnd.android.package-archive`, `Content-Disposition: attachment`; `Content-Encoding: gzip` when the browser accepts it (then no Content-Length: the phone shows MB received without a percentage) |
+| `https://live.kabsolive.com/app/raw/kabso-staging.apk` | the same APK never compressed (for a download manager that saves gzip undecoded → "problem parsing the package") |
+| `https://live.kabsolive.com/app/kabso-staging.txt` | the manifest |
+
+Every response: `Cache-Control: no-cache` (the name never changes; revalidated by ETag), HSTS, `nosniff`, CSP
+`default-src 'none'; style-src 'unsafe-inline'` (no script), `X-Frame-Options: DENY`, `X-Robots-Tag: noindex`; any
+other `/app/*` name (the `.gz` copy, temp files) answers 404. `file_server { precompressed gzip }` was **not** used:
+Caddy 2.10.2 answered it with 206 Partial Content to a request without `Range` (reproduced locally).
+
+**What becomes public:** the APK is downloadable by anyone with the link, and the `staging-latest` prerelease is
+listed on the public repository's Releases page. It contains what any copy of the staging APK contains, and **no
+server secret**: the staging API address `https://api.kabsolive.com` (already public), the version/commit, the app's
+compiled code (a profile build: the FX diagnostics overlay is visible; demo data off, D86), the **DeepAR client
+licence key** (a client key that ships in every APK by design, §9; DeepAR bills by monthly active users and the key is
+tied to the package name — a copied key only works in an app with this package id) and, when the secret is set, the
+**Firebase client config** from `google-services.json` (project id, app id, the Android API key — public client
+identifiers by Firebase's design; restricting that key to the Android app in Google Cloud is good practice). Anyone
+who installs it can use the staging server like the app itself (it was already reachable on the internet).
+
+**One-time server steps (owner):** none are required — once this commit is on `staging`, the next timer run
+fast-forwards the checkout, recreates Caddy (the Caddyfile and the compose volume changed) and the run after that,
+once CI's `staging-apk-release` has published, mirrors the APK. To check (as root):
+
+```bash
+systemctl start kabso-update.service && journalctl -u kabso-update.service -n 30 --no-pager   # "staging APK: serving …"
+ls -l /opt/kabso/infra/deploy/app/                       # index.html, kabso-staging.apk(.gz), kabso-staging.txt
+curl -sI https://live.kabsolive.com/app/kabso-staging.apk | grep -iE '^(HTTP|content-type|content-disposition)'
+```
+
+If the update ran before the new `update.sh` was on the server, run
+`docker compose -f /opt/kabso/infra/deploy/docker-compose.yml up -d --force-recreate caddy` and
+`sudo /opt/kabso/infra/deploy/mirror-apk.sh` once by hand. Before the first `staging-apk-release` run the manifest
+answers 404 and the mirror does nothing (silently); `/app/` answers 404 until then. On the phone: open
+`https://live.kabsolive.com/app/` in Chrome → «تحميل التطبيق» → open the file → allow installs from Chrome if asked
+(installing over the previous staging build needs the same signing key; CI signs the profile build with the runner's
+debug key, which can differ between runs — if Android answers "App not installed" / a package conflict, uninstall the
+old staging app first, as with the artifact before).
 
 ### 5.25 Video posts and reels (migration `20261211090000_video_posts_reels`; D162) — [IMPLEMENTED, draft contract v1.41-social; not deployed, not device-tested]
 

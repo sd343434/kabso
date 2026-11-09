@@ -130,6 +130,64 @@ studio.{$KABSO_DOMAIN} {
 	}
 }
 
+# LiveKit signalling (wss://live.<domain>: /rtc, /twirp/*, its health check on /), plus, under /app (a path LiveKit
+# never uses), D330's staging test APK (docs/DEPLOYMENT.md §11.8): mirror-apk.sh keeps the latest arm64 APK of the
+# public `staging-latest` release in infra/deploy/app/ (mounted at /srv/app) with a gzip copy and a generated page.
+#   /app/                         the page (version, commit, sha256, download button; Arabic + English)
+#   /app/kabso-staging.apk        the APK; gzip on the wire when the browser accepts it (the .gz copy)
+#   /app/raw/kabso-staging.apk    the same APK never compressed (download managers that do not decode gzip)
+#   /app/kabso-staging.txt        the manifest (commit, version, sha256, size, built)
+# The file name never changes, so it is revalidated on every request (ETag / Last-Modified), never cached stale.
 live.{$KABSO_DOMAIN} {
-	reverse_proxy livekit:7880
+	redir /app /app/ 308
+
+	handle /app/* {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "no-referrer"
+			X-Robots-Tag "noindex, nofollow"
+			Cache-Control "no-cache"
+			-Server
+		}
+		@apk path /app/kabso-staging.apk /app/raw/kabso-staging.apk
+		header @apk {
+			Content-Type "application/vnd.android.package-archive"
+			Content-Disposition "attachment; filename=\"kabso-staging.apk\""
+		}
+		# Only these names; the .gz copy, temp files and anything else answer 404.
+		@unlisted not path /app/ /app/index.html /app/kabso-staging.apk /app/raw/kabso-staging.apk /app/kabso-staging.txt
+		route {
+			respond @unlisted 404
+			root * /srv/app
+			uri strip_prefix /app
+			handle /raw/kabso-staging.apk {
+				rewrite * /kabso-staging.apk
+				file_server
+			}
+			# The gzip copy, with the headers set here: `file_server { precompressed gzip }` answers 206 to a request
+			# without Range in Caddy 2.10.2, which a download must not get. Ranges then count gzip bytes (RFC 9110); the
+			# response has no Content-Length (Go's ServeContent omits it with a Content-Encoding), so the phone shows
+			# the bytes received without a percentage. The header matcher adds `Vary: Accept-Encoding` itself.
+			@gzip {
+				path /kabso-staging.apk
+				header Accept-Encoding *gzip*
+				file {path}.gz
+			}
+			handle @gzip {
+				rewrite * /kabso-staging.apk.gz
+				header Content-Encoding gzip
+				file_server
+			}
+			handle {
+				file_server
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy livekit:7880
+	}
 }

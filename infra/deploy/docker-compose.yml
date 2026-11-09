@@ -100,6 +100,8 @@ services:
       - ./admin:/srv/admin:ro
       # v1.57-live (D247): «استوديو البث»'s build (build-studio.sh swaps studio/current; not in git).
       - ./studio:/srv/studio:ro
+      # D330: the staging test APK mirror (mirror-apk.sh, run by update.sh; not in git), at https://live.<domain>/app/.
+      - ./app:/srv/app:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on: [api, livekit]
