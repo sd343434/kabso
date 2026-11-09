@@ -739,8 +739,8 @@ void main() {
       expect(h.engine.screenPublishes, 0);
       expect(h.repo.startRequests, isEmpty);
       _said(
-        'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح Kabso Live '
-        'من جديد وحاول مرة أخرى',
+        'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. '
+        'افتح Kabso Live من جديد وحاول مرة أخرى',
       );
       expect(find.text('نسخ تقرير المشكلة'), findsOneWidget);
       await copyReport(tester);
@@ -778,8 +778,8 @@ void main() {
       expect(h.repo.startRequests, hasLength(1));
       expect(find.byKey(StreamerHostStage.stageKey), findsNothing);
       _said(
-        'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. افتح Kabso Live '
-        'من جديد وحاول مرة أخرى',
+        'لم يسمح أندرويد بتشغيل خدمة البث، فلا يمكن تصوير الشاشة. '
+        'افتح Kabso Live من جديد وحاول مرة أخرى',
       );
       await copyReport(tester);
       expect(copied, contains('step: capture'));
