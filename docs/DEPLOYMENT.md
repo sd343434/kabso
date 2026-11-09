@@ -3634,3 +3634,36 @@ CONVENTIONS §10.127 (owner 2026-11-08 / 11-09: one events system; phase A — s
   status = 'DRAFT'`); recurring events would stop rolling over (their current period freezes at the series end only);
   event-exclusive gifts would be listed and bought at any time (unlist them: `gift-admin disable <code>`). Reverting the
   migration is not supported (data in the new tables); restore from the pre-release backup if needed.
+
+
+### 5.100 Events v2 follow-ups (migration `20270409090200_events_v2_followups`; D334) — [IMPLEMENTED, draft contract v1.102-social; not deployed, not device-tested]
+
+CONVENTIONS §10.127.11 (owner answers 2026-11-09). Deploy after §5.99 (it needs `20270409090100_events_v2`).
+
+- **Migration:** two columns, no data rewrite beyond their fill: `events.creators_as_hosts` BOOLEAN NOT NULL — every
+  existing event gets **false** (D295's rule kept: content creators stay out of its HOSTS audience), then the default
+  becomes **true** (every event made afterwards counts creators as hosts); `event_boards.shown` INTEGER NOT NULL DEFAULT
+  20 with CHECK `event_boards_shown` (1–100) — every existing board keeps showing 20. Both `ADD COLUMN … DEFAULT` on
+  small tables (PostgreSQL 11+: no rewrite); a short lock.
+- **Behaviour once deployed:**
+  - A HOSTS event made after the deploy is listed, bannered and announced to content creators too; its start
+    notification therefore reaches more accounts than a D295-era one. Events made before keep their audience.
+  - `GET /home/banners` filters event banners per signed-in user by the event's audience (one extra query per call; the
+    response stays `Cache-Control: private` and `Vary: Authorization`). An event's banner is now made for every audience
+    at publish. Banners added by `banner-admin --event` to a non-EVERYONE event stop reaching people outside its
+    audience.
+  - **Money:** a send from the bag of an event's own gift (prize pieces) credits the recipients **no cherries and no
+    agency / parent commission** (`live_gifts.host_share_bps = 0`); every other send is unchanged. Check after the first
+    festival: `SELECT count(*) FROM live_gifts g JOIN gifts x ON x.code = g.gift_code WHERE g.source = 'BAG' AND
+    x.event_id IS NOT NULL AND g.host_share_bps <> 0` is 0 for sends after the deploy.
+  - A board lists `shown` places (20 unless the panel sets 1–100). A held event with milestones and no board prizes is no
+    longer settled at its freeze; it is paid (milestones given) at the release.
+- **Order:** migration, then the API, then the admin panel (the «عدد المعروضين» field; an older panel omits it and the
+  stored value is kept). The app needs no update (`shown` is additive; it already lists what `data` holds).
+- **Launch festival:** made after this deploy, its gifts are «هدية المهرجان 1…4» (codes `kabso_festival_gift_1` … `_4`)
+  with «شاشة كاملة» on gifts 3 and 4; the owner renames them in the panel. A festival draft made before (codes
+  `kabso_launch_*`) keeps its names — rename them in the panel or delete the draft and make it again.
+- **Rollback:** an older API ignores both columns: HOSTS events go back to D295's audience, every board shows 20, event
+  banners are listed to everyone again (unpublish or end a non-EVERYONE event's banner first if that matters), and bag
+  prize pieces would credit cherries again — disable those gifts (`gift-admin disable <code>`) before rolling back if
+  prize pieces are outstanding. Dropping the columns is not needed.

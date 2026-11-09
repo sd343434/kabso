@@ -79,7 +79,8 @@ export class HomeController {
     const language =
       languageFromAcceptLanguage(req.headers['accept-language']) ??
       (caller === null ? 'ar' : await this.users.getLocale(caller));
-    const data = await this.home.listBanners(language, placement);
+    // v1.102-social (D334): an event's banner reaches that event's audience only.
+    const data = await this.home.listBanners(language, placement, caller);
     res.setHeader('Cache-Control', HOME_BANNERS_CACHE_CONTROL);
     res.setHeader('Vary', 'Authorization, Accept-Language');
     return placement === 'HUB_CARD' ? { data, cell: this.config.home.hubCardCell } : { data };

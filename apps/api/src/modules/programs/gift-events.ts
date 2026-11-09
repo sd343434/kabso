@@ -22,7 +22,8 @@ const DAY_MS = 86_400_000;
 
 /**
  * The board kinds (CHECK `event_boards_kind`): SENDERS «ترتيب الداعمين» (who sent the event gifts), RECEIVERS «ترتيب
- * المضيفين» (who received them — never a content-creator member, D295), CREATORS «صناع المحتوى» (creator members who
+ * المضيفين» (approved hosts and content-creator members who received them — the D303 follow-up overrides D295 for gift
+ * events), CREATORS «صناع المحتوى» (creator members who
  * received them), AGENCIES «الوكالات» (the receiving host's agency at the time of the gift; the prize to its owner) and CP
  * (the event gifts two partners sent each other while a couple; both partners win the bundle).
  */
@@ -57,8 +58,12 @@ export type EventCountedGifts = (typeof EVENT_COUNTED_GIFTS)[number];
 /** v1.101-social (D325): who an event is for (visibility and the start notification). */
 export const EVENT_AUDIENCES = ['EVERYONE', 'HOSTS', 'CREATORS', 'AGENCIES', 'CP'] as const;
 export type EventAudience = (typeof EVENT_AUDIENCES)[number];
-/** The boards show the top 20 (owner, D325), the caller's own place pinned below. */
+/**
+ * The boards show the top 20 (owner, D325), the caller's own place pinned below. v1.102-social (D334): «عدد المعروضين»
+ * per board (`event_boards.shown`, 1–100; this default), D303's boards included.
+ */
 export const EVENT_BOARD_SHOWN = 20;
+export const EVENT_BOARD_SHOWN_MAX = 100;
 export type PrizeItemType = (typeof PRIZE_ITEM_TYPES)[number];
 
 /**
@@ -260,6 +265,11 @@ export const giftEventInputSchema = z
           kind: z.enum(EVENT_BOARD_KINDS),
           minPoints: z.number().int().min(0).max(GIFT_EVENT_LIMITS.maxMinPoints).default(0),
           prizes: z.array(prizeLineSchema).max(GIFT_EVENT_LIMITS.prizeLines).default([]),
+          /**
+           * v1.102-social (D334): «عدد المعروضين» — how many places the board lists (1–100). Absent: kept on an edit, 20
+           * on a new board. A display setting: it may change while the event runs.
+           */
+          shown: z.number().int().min(1).max(EVENT_BOARD_SHOWN_MAX).optional(),
         }),
       )
       .max(GIFT_EVENT_LIMITS.boards)
@@ -580,6 +590,13 @@ function rowFields(input: GiftEventInput, startsAt: Date | null, endsAt: Date | 
 }
 
 async function writeStructureIn(tx: Tx, eventId: string, input: GiftEventInput): Promise<void> {
+  // v1.102-social (D334): a board's «عدد المعروضين» the body leaves out stays what it was.
+  const shownBefore = new Map(
+    (await tx.eventBoard.findMany({ where: { eventId }, select: { kind: true, shown: true } })).map((b) => [
+      b.kind,
+      b.shown,
+    ]),
+  );
   await tx.eventGift.deleteMany({ where: { eventId } });
   await tx.eventBoard.deleteMany({ where: { eventId } });
   await tx.eventMilestone.deleteMany({ where: { eventId } });
@@ -603,6 +620,7 @@ async function writeStructureIn(tx: Tx, eventId: string, input: GiftEventInput):
         items: l.items.map((x) => ({ ...x })),
       })),
       sortOrder: i,
+      shown: b.shown ?? shownBefore.get(b.kind) ?? EVENT_BOARD_SHOWN,
     })),
   });
   await tx.eventMilestone.createMany({
@@ -654,7 +672,12 @@ function auditMeta(input: GiftEventInput, by: AdminVia) {
     scoring: input.scoring,
     countedGifts: input.countedGifts,
     gifts: input.gifts.map((g) => `${g.giftCode}:${String(g.pointsPerCoin)}/${String(g.pointsPerGift)}`),
-    boards: input.boards.map((b) => ({ kind: b.kind, minPoints: b.minPoints, lines: b.prizes.length })),
+    boards: input.boards.map((b) => ({
+      kind: b.kind,
+      minPoints: b.minPoints,
+      lines: b.prizes.length,
+      ...(b.shown !== undefined ? { shown: b.shown } : {}),
+    })),
     milestones: input.milestones.map((m) => `${m.board}:${String(m.points)}`),
     reason: input.reason,
     via: by.via,
@@ -663,7 +686,7 @@ function auditMeta(input: GiftEventInput, by: AdminVia) {
 
 /**
  * The steps of publishing (in the caller's transaction, the event row written): the first period of a recurring event,
- * the publish time, and the Live home banner made from the event's banner picture (EVERYONE events; once).
+ * the publish time, and the Live home banner made from the event's banner picture (once; any audience since D334).
  */
 async function publishStepsIn(tx: Tx, eventId: string, now: Date): Promise<void> {
   const e = await tx.event.findUniqueOrThrow({ where: { id: eventId } });
@@ -697,15 +720,11 @@ async function firstPeriodIn(
 
 /**
  * v1.101-social (D325): the event's Live home banner — one HOME banner opening the event, from its banner picture, shown
- * from its start to its end (EVERYONE events only: the Live home is the same for everyone). A new picture replaces it.
+ * from its start to its end. A new picture replaces it. v1.102-social (D334, owner): an event of ANY audience may have
+ * one; `GET /home/banners` lists it to that event's audience only (`HomeService.listBanners`).
  */
 export async function syncEventBannerIn(tx: Tx, e: Event): Promise<void> {
-  if (
-    e.status !== 'PUBLISHED' ||
-    e.bannerMediaId === null ||
-    e.audience !== 'EVERYONE' ||
-    e.startsAt === null
-  ) {
+  if (e.status !== 'PUBLISHED' || e.bannerMediaId === null || e.startsAt === null) {
     return;
   }
   const existing = await tx.homeBanner.findFirst({ where: { eventId: e.id, placement: 'HOME' } });
@@ -834,6 +853,13 @@ export async function updateGiftEventIn(
     },
   });
   if (!running) await writeStructureIn(tx, eventId, input);
+  else {
+    // v1.102-social (D334): «عدد المعروضين» is a display setting — it may change while the event runs.
+    for (const b of input.boards) {
+      if (b.shown === undefined) continue;
+      await tx.eventBoard.updateMany({ where: { eventId, kind: b.kind }, data: { shown: b.shown } });
+    }
+  }
   if (input.status === 'PUBLISHED') {
     if (!running) await publishStepsIn(tx, eventId, now);
     else {
@@ -911,6 +937,7 @@ export async function inputOfIn(tx: Tx, eventId: string, reason: string): Promis
       kind: b.kind,
       minPoints: Number(b.minPoints),
       prizes: parsePrizeLines(b.prizes),
+      shown: b.shown,
     })),
     milestones: e.milestones.map((m) => ({
       board: m.board,
@@ -1184,9 +1211,14 @@ async function freezeBoardsIn(
   return anyPrize;
 }
 
-/** Whether results of the event still wait for their payout (a held earlier period). */
-async function pendingLeftIn(tx: Tx, eventId: string): Promise<boolean> {
-  return (await tx.eventResult.count({ where: { eventId, prizeStatus: 'PENDING' } })) > 0;
+/**
+ * Whether results of the event still wait for their payout (a held earlier period) — or, v1.102-social (D334), held
+ * milestones: a held event with milestones stays due until its release gives them (`payGiftEventIn`), even when no
+ * board line pays anything.
+ */
+async function pendingLeftIn(tx: Tx, event: Event): Promise<boolean> {
+  if ((await tx.eventResult.count({ where: { eventId: event.id, prizeStatus: 'PENDING' } })) > 0) return true;
+  return event.payoutHold && (await tx.eventMilestone.count({ where: { eventId: event.id } })) > 0;
 }
 
 /**
@@ -1200,7 +1232,7 @@ export async function freezeGiftEventIn(tx: Tx, event: Event, now: Date): Promis
   if (!event.payoutHold)
     await grantMilestonesIn(tx, event, { from: w.from, to: event.endsAt }, w.period, now);
   const anyPrize = await freezeBoardsIn(tx, event, w.period, { from: w.from, to: event.endsAt }, now);
-  const settled = !anyPrize && !(await pendingLeftIn(tx, event.id));
+  const settled = !anyPrize && !(await pendingLeftIn(tx, event));
   await tx.event.update({
     where: { id: event.id },
     data: { frozenAt: now, payoutDueAt: now, ...(settled ? { paidAt: now } : { paidAt: null }) },
@@ -1228,7 +1260,7 @@ export async function rollOverPeriodIn(tx: Tx, event: Event, now: Date, zone: st
     event.periodEndsAt,
     event.timeZone ?? zone,
   );
-  const settled = !anyPrize && !(await pendingLeftIn(tx, event.id));
+  const settled = !anyPrize && !(await pendingLeftIn(tx, event));
   await tx.event.update({
     where: { id: event.id },
     data: {

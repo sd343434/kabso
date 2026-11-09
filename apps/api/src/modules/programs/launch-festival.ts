@@ -5,10 +5,12 @@
  * it, from the panel («قالب مهرجان الانطلاقة», `POST /admin/gift-events/launch-festival`) or the command line
  * (`event-admin festival-draft --reason …`), through the ordinary rules (`createGiftEventIn`), audited.
  *
- * The four exclusive gifts and their multipliers are the owner's (2026-11-09, «method 2»: ×1, ×1, ×1.2, ×1.5; names
- * proposed and not objected to). The prize table and milestones below are a PROPOSAL for the owner to change in the
- * panel before publishing (the notes held no amounts): pieces of the festival's own gifts on every board, coins for
- * the supporters, cherries for the hosts and creators.
+ * The four exclusive gifts, their prices and multipliers are the owner's (2026-11-09, «method 2»: ×1, ×1, ×1.2, ×1.5).
+ * v1.102-social (D334, owner answer 6): the gifts carry NEUTRAL placeholder names «هدية المهرجان 1…4» / "Festival gift
+ * 1…4" — the owner names them himself in the panel — and the 1 000 000 and 3 000 000 gifts carry the «شاشة كاملة»
+ * (FULLSCREEN) badge. The prize table and milestones below are placeholders the owner sets in the panel before
+ * publishing (owner answer 1): pieces of the festival's own gifts on every board, coins for the supporters, cherries
+ * for the hosts and creators.
  */
 import type { AdminVia } from '../../common/audit/admin-actor.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -18,39 +20,46 @@ import { createGiftEventIn, giftEventInputSchema, updateGiftEventIn, type PrizeI
 
 type Tx = Prisma.TransactionClient;
 
-/** The festival's four gifts (owner): code, names, price in coins and the points multiplier. */
+/**
+ * The festival's four gifts (owner): code, placeholder names (D334: the owner names them), price in coins, the points
+ * multiplier and whether the gift carries «شاشة كاملة» (D334: the 1 000 000 and 3 000 000 gifts).
+ */
 export const LAUNCH_FESTIVAL_GIFTS = [
   {
-    code: 'kabso_launch_flame',
-    nameAr: 'شعلة الانطلاق',
-    nameEn: 'Launch Flame',
+    code: 'kabso_festival_gift_1',
+    nameAr: 'هدية المهرجان 1',
+    nameEn: 'Festival gift 1',
     priceCoins: 50_000,
     multiplier: 1,
+    fullscreen: false,
   },
   {
-    code: 'kabso_launch_rocket',
-    nameAr: 'صاروخ Kabso',
-    nameEn: 'Kabso Rocket',
+    code: 'kabso_festival_gift_2',
+    nameAr: 'هدية المهرجان 2',
+    nameEn: 'Festival gift 2',
     priceCoins: 250_000,
     multiplier: 1,
+    fullscreen: false,
   },
   {
-    code: 'kabso_launch_crown',
-    nameAr: 'تاج الافتتاح',
-    nameEn: 'Opening Crown',
+    code: 'kabso_festival_gift_3',
+    nameAr: 'هدية المهرجان 3',
+    nameEn: 'Festival gift 3',
     priceCoins: 1_000_000,
     multiplier: 1.2,
+    fullscreen: true,
   },
   {
-    code: 'kabso_launch_night',
-    nameAr: 'ليلة المهرجان',
-    nameEn: 'Festival Night',
+    code: 'kabso_festival_gift_4',
+    nameAr: 'هدية المهرجان 4',
+    nameEn: 'Festival gift 4',
     priceCoins: 3_000_000,
     multiplier: 1.5,
+    fullscreen: true,
   },
 ] as const;
 
-const [FLAME, ROCKET, CROWN, NIGHT] = LAUNCH_FESTIVAL_GIFTS.map((g) => g.code) as [
+const [GIFT1, GIFT2, GIFT3, GIFT4] = LAUNCH_FESTIVAL_GIFTS.map((g) => g.code) as [
   string,
   string,
   string,
@@ -63,11 +72,11 @@ const pieces = (giftCode: string, count: number): PrizeItem => ({ type: 'GIFT_PI
 function lines(money: 'COINS' | 'CHERRIES', amounts: readonly [number, number, number, number, number]) {
   const m = (amount: number): PrizeItem => ({ type: money, amount });
   return [
-    { rankFrom: 1, rankTo: 1, items: [m(amounts[0]), pieces(NIGHT, 3)] },
-    { rankFrom: 2, rankTo: 2, items: [m(amounts[1]), pieces(CROWN, 5)] },
-    { rankFrom: 3, rankTo: 3, items: [m(amounts[2]), pieces(CROWN, 3)] },
-    { rankFrom: 4, rankTo: 10, items: [m(amounts[3]), pieces(ROCKET, 5)] },
-    { rankFrom: 11, rankTo: 20, items: [m(amounts[4]), pieces(FLAME, 10)] },
+    { rankFrom: 1, rankTo: 1, items: [m(amounts[0]), pieces(GIFT4, 3)] },
+    { rankFrom: 2, rankTo: 2, items: [m(amounts[1]), pieces(GIFT3, 5)] },
+    { rankFrom: 3, rankTo: 3, items: [m(amounts[2]), pieces(GIFT3, 3)] },
+    { rankFrom: 4, rankTo: 10, items: [m(amounts[3]), pieces(GIFT2, 5)] },
+    { rankFrom: 11, rankTo: 20, items: [m(amounts[4]), pieces(GIFT1, 10)] },
   ];
 }
 
@@ -78,12 +87,12 @@ export function launchFestivalInput(reason: string) {
     titleAr: 'مهرجان انطلاقة Kabso',
     titleEn: 'Kabso Launch Festival',
     rulesAr:
-      'أرسل هدايا المهرجان الأربع لتجمع النقاط: كل كوينز = نقطة، وتاج الافتتاح ×1.2 وليلة المهرجان ×1.5. ' +
+      'أرسل هدايا المهرجان الأربع لتجمع النقاط: كل كوينز = نقطة، وهدية المهرجان 3 ×1.2 وهدية المهرجان 4 ×1.5. ' +
       'ترتيب الداعمين للمرسلين، وترتيب المضيفين وصناع المحتوى للمستلمين. الجوائز تصل تلقائياً عند نهاية المهرجان، ' +
       'وهدايا المهرجان الحصرية تصل الفائزين قطعاً مجانية في الحقيبة.',
     rulesEn:
-      'Send the four festival gifts to collect points: each coin is a point, the Opening Crown ×1.2 and the Festival ' +
-      'Night ×1.5. Supporters rank by what they send; hosts and creators by what they receive. Prizes arrive ' +
+      'Send the four festival gifts to collect points: each coin is a point, festival gift 3 ×1.2 and festival gift 4 ' +
+      '×1.5. Supporters rank by what they send; hosts and creators by what they receive. Prizes arrive ' +
       'automatically at the end, and the festival’s exclusive gifts arrive as free pieces in the winners’ bag.',
     startsAt: null,
     endsAt: null,
@@ -115,10 +124,10 @@ export function launchFestivalInput(reason: string) {
       },
     ],
     milestones: [
-      { board: 'SENDERS', points: 1_000_000, prizes: [pieces(FLAME, 5)] },
-      { board: 'SENDERS', points: 5_000_000, prizes: [pieces(ROCKET, 5)] },
-      { board: 'SENDERS', points: 20_000_000, prizes: [pieces(CROWN, 3)] },
-      { board: 'SENDERS', points: 50_000_000, prizes: [pieces(NIGHT, 1)] },
+      { board: 'SENDERS', points: 1_000_000, prizes: [pieces(GIFT1, 5)] },
+      { board: 'SENDERS', points: 5_000_000, prizes: [pieces(GIFT2, 5)] },
+      { board: 'SENDERS', points: 20_000_000, prizes: [pieces(GIFT3, 3)] },
+      { board: 'SENDERS', points: 50_000_000, prizes: [pieces(GIFT4, 1)] },
     ],
     reason,
   });
@@ -165,6 +174,8 @@ export async function createLaunchFestivalDraftIn(
         animationKey: null,
         sortOrder: i,
         badge: 'NONE',
+        // v1.102-social (D334, owner): «شاشة كاملة» on the 1 000 000 and 3 000 000 gifts.
+        badges: g.fullscreen ? [{ code: 'FULLSCREEN', until: null }] : [],
         tagCode: null,
         tagNameAr: null,
         tagNameEn: null,

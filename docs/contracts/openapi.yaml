@@ -418,6 +418,14 @@ info:
     a Lottie / animated title, an alpha-MP4 overlay (`EventDetail.art.titleFormat`, overlay `MP4`). Migrations
     `20270409090000_events_v2_enums`, `20270409090100_events_v2`. Additive for older apps (whole-number `pointsPerCoin`
     kept, `multiplier` added; drafts never reach the app; unknown values ignored).
+    **D334 (DRAFT v1.102-social)** events v2 follow-ups (CONVENTIONS §10.127.11; owner answers 2026-11-09): content
+    creators count as hosts on the events made from now on (`EventAudience` HOSTS: seen, announced, a D166 HOSTS board;
+    `AdminGiftEvent.creatorsAsHosts`; older events keep D295), hosts are not creators; an event of any audience may have
+    its Live home banner, which `listHomeBanners` lists to that event's audience only (a guest: EVERYONE events only); free
+    pieces of an event's own gift sent from the bag give the recipients nothing (no cherries, no agency commission —
+    `LiveGift` share 0); «عدد المعروضين» per board (`GiftEventForm.boards[].shown` 1–100, default 20, editable while the
+    event runs; `EventBoard.shown`, `EventLeaderboard.shown`); the launch festival's gifts named «هدية المهرجان 1…4» with
+    «شاشة كاملة» on the 1 000 000 and 3 000 000 gifts. Migration `20270409090200_events_v2_followups`. Additive for the app.
     **D303 (DRAFT v1.97-social)** gift events «فعاليات الهدايا» and animated / video promo banners (CONVENTIONS
     §10.114; owner 2026-11-07): `EventMetric` `EVENT_GIFTS` — an event of its own gifts (`EventDetail.gifts`, points per
     coin and per gift) on typed boards (`EventDetail.boards`: SENDERS «الداعمين», RECEIVERS «المضيفين», CREATORS «صناع
@@ -8192,6 +8200,11 @@ paths:
         live card's aspect; signed-in only) and the response adds `cell`: the 0-based index, in reading order over every
         cell of the hub's 2-column grid, of the one cell they take (several active ones take turns in it). The banners
         never count as lives and never change the rooms' cursor.
+        *(v1.102-social, D334, §10.127.11)* A banner that opens an event (`eventId`) is listed only while that event is
+        published and only to its audience (`EventAudience`, the same rule as the Event Center's `listEvents` /
+        `getRunningEvents`): a signed-in caller gets the banners of the events they may see (older apps too: they sign
+        in); a caller without a token (`placement=room`) gets only the banners of EVERYONE events. A banner without an
+        event is everyone's. The event's regions do not filter its banner.
       parameters:
         - name: placement
           in: query
@@ -11018,6 +11031,8 @@ paths:
         `agency` (the `user` is its owner); `me` is the caller (AGENCIES: the agency they own; CP: their best couple).
         Paid automatically at the end unless held.
         v1.101-social (D325): a gift event's board lists its top 20 (`data` at most 20); `period` says which period.
+        v1.102-social (D334, §10.127.11): the board's own «عدد المعروضين» instead (`shown`, 1–100, 20 by default — D303's
+        boards included); `me` stays the caller's place whatever it is.
       parameters:
         - $ref: '#/components/parameters/ProgramEventIdPath'
         - name: board
@@ -17654,7 +17669,7 @@ paths:
       tags: [admin-panel]
       operationId: createAdminLaunchFestival
       summary: "(v1.101-social, D325) «مهرجان انطلاقة Kabso» as a DRAFT — its four exclusive gifts (without art), boards, a proposed prize table and milestones; no dates (events.manage; reason; audited)"
-      description: "CONVENTIONS §10.127.10. Nothing is published: upload the art, review the prizes, set the dates and publish. Its gifts exist already (made before) → 409."
+      description: "CONVENTIONS §10.127.10. Nothing is published: upload the art, review the prizes, set the dates and publish. Its gifts exist already (made before) → 409. (v1.102-social, D334) The four gifts carry neutral placeholder names «هدية المهرجان 1…4» / \"Festival gift 1…4\" (codes `kabso_festival_gift_1` … `_4`; the owner names them) and the 1 000 000- and 3 000 000-coin gifts the FULLSCREEN «شاشة كاملة» badge; the prize table and milestones are placeholders the owner sets."
       security:
         - adminSession: []
       parameters:
@@ -26080,7 +26095,7 @@ components:
         recurrence: { type: string, enum: [NONE, WEEKLY, MONTHLY], default: NONE, description: "(v1.101-social, §10.127.3) A recurring event restarts its boards every week / calendar month (in its zone) from `startsAt`; each period is frozen and paid on its own; `endsAt` (optional) ends the series." }
         scoring: { type: string, enum: [COINS, MULTIPLIER], default: MULTIPLIER, description: "(v1.101-social, §10.127.2) COINS — points = the coins of each counted gift; MULTIPLIER — each event gift's `pointsPerCoin` (a decimal multiplier, e.g. 1.2) plus `pointsPerGift`." }
         countedGifts: { type: string, enum: [EVENT_GIFTS, ALL_GIFTS], default: EVENT_GIFTS, description: "(v1.101-social) EVENT_GIFTS — only the event's gifts score; ALL_GIFTS — every gift (a gift not listed counts its coins × 1)." }
-        bannerMediaId: { type: [string, 'null'], format: uuid, description: "(v1.101-social) The Live home banner — an `uploadAdminEventMedia` kind `banner` media id; made a banner opening the event at publish (EVERYONE events), shown from the start to the end." }
+        bannerMediaId: { type: [string, 'null'], format: uuid, description: "(v1.101-social) The Live home banner — an `uploadAdminEventMedia` kind `banner` media id; made a banner opening the event at publish, shown from the start to the end. (v1.102-social, D334) For every audience: `listHomeBanners` lists it to the event's audience only." }
         milestones:
           type: array
           maxItems: 10
@@ -26130,6 +26145,7 @@ components:
             properties:
               kind: { $ref: '#/components/schemas/EventBoardKind' }
               minPoints: { type: integer, format: int64, minimum: 0, maximum: 1000000000000, default: 0 }
+              shown: { type: integer, minimum: 1, maximum: 100, description: "(v1.102-social, D334, §10.127.11) «عدد المعروضين» — how many places the board lists in the app (`EventLeaderboard.data`). Absent on a create: 20; absent on an edit: kept. A display setting: it may change while the event runs (the rest of the board stays locked). `getAdminGiftEvent` returns it on every board." }
               prizes:
                 type: array
                 maxItems: 20
@@ -26331,6 +26347,7 @@ components:
       required: [id, state, payoutHold, frozenAt, paidAt, structureLocked, artUrls, form, results]
       properties:
         id: { type: string, format: uuid }
+        creatorsAsHosts: { type: boolean, description: "(v1.102-social, D334, §10.127.11) Content creators count as hosts for this event's HOSTS audience — true for every event made after D334, false for the older ones (D295's rule kept). Read-only." }
         state: { type: string, enum: [DRAFT, UPCOMING, RUNNING, PAID, HELD, IN_REVIEW, ENDED] }
         period: { type: integer, minimum: 0, description: "(v1.101-social) The current period (recurring events)." }
         periodStartsAt: { type: [string, 'null'], format: date-time }
@@ -35211,11 +35228,11 @@ components:
       type: string
       enum: [EVERYONE, HOSTS, CREATORS, AGENCIES, CP]
       default: EVERYONE
-      description: "Who an event is for (who sees it and gets its start notification): EVERYONE; HOSTS (not shown to content creators, D295); CREATORS (creator members only, D303); (v1.101-social, D325) AGENCIES — owners and active member hosts of an open agency; CP — people in a CP couple now. Clients ignore values they do not know."
+      description: "Who an event is for (who sees it, its Live home banner — v1.102-social — and its start notification): EVERYONE; HOSTS (D295: not shown to content creators; announced to approved hosts who are not creators; (v1.102-social, D334) on an event made after D334 content creators count as hosts — they see it and are announced, and rank on a D166 HOSTS board; the older events keep D295's rule); CREATORS (creator members only, D303 — a host is never a creator); (v1.101-social, D325) AGENCIES — owners and active member hosts of an open agency; CP — people in a CP couple now. Clients ignore values they do not know."
     EventBoardKind:
       type: string
       enum: [SENDERS, RECEIVERS, CREATORS, AGENCIES, CP]
-      description: "v1.97-social (D303, §10.114.3): SENDERS «ترتيب الداعمين» (who sent the event gifts); RECEIVERS «ترتيب المضيفين» (who received them, never a content-creator member, D295); CREATORS «صناع المحتوى» (creator members who received them); AGENCIES «الوكالات» (the receiving host's agency at the time of the gift; the agency's owner wins); CP (the event gifts two partners sent each other while a couple; both partners win). Clients ignore kinds they do not know."
+      description: "v1.97-social (D303, §10.114.3): SENDERS «ترتيب الداعمين» (who sent the event gifts); RECEIVERS «ترتيب المضيفين» (approved hosts and content-creator members who received them — the D303 follow-up «ان كانت للمضيفين تشمل صناع المحتوى»; D334 confirms it); CREATORS «صناع المحتوى» (creator members who received them); AGENCIES «الوكالات» (the receiving host's agency at the time of the gift; the agency's owner wins); CP (the event gifts two partners sent each other while a couple; both partners win). Clients ignore kinds they do not know."
     EventBoard:
       type: object
       additionalProperties: false
@@ -35223,6 +35240,7 @@ components:
       properties:
         kind: { $ref: '#/components/schemas/EventBoardKind' }
         minPoints: { type: integer, format: int64, minimum: 0, description: "The qualification minimum: a rank below it wins nothing." }
+        shown: { type: integer, minimum: 1, maximum: 100, description: "(v1.102-social, D334) «عدد المعروضين» — how many places the board lists (20 unless the team set 1–100)." }
         prizes:
           type: array
           maxItems: 20
@@ -35392,6 +35410,7 @@ components:
             - { type: 'null' }
           description: "v1.97-social (D303): the board shown (gift events)."
         minPoints: { type: integer, format: int64, minimum: 0 }
+        shown: { type: integer, minimum: 1, maximum: 100, description: "(v1.102-social, D334) Gift events: how many places this board lists — `data` has at most this many; `me` is the caller's place whatever it is." }
         period:
           description: "(v1.101-social, D325) The period shown (`previous`: a recurring event's last frozen one), null when there is none."
           oneOf:

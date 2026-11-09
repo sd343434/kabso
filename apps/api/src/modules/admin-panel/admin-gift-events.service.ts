@@ -352,6 +352,8 @@ export class AdminGiftEventsService {
       frozenAt: e.frozenAt?.toISOString() ?? null,
       paidAt: e.paidAt?.toISOString() ?? null,
       structureLocked: e.status === 'PUBLISHED' && e.startsAt !== null && e.startsAt <= now,
+      // v1.102-social (D334): content creators count as hosts (HOSTS audience) — false on the events made before it.
+      creatorsAsHosts: e.creatorsAsHosts,
       artUrls: {
         background: this.url(e.backgroundKey),
         backgroundPoster: this.url(e.backgroundPosterKey),
@@ -393,6 +395,8 @@ export class AdminGiftEventsService {
           kind: b.kind,
           minPoints: Number(b.minPoints),
           prizes: parsePrizeLines(b.prizes),
+          // v1.102-social (D334): «عدد المعروضين».
+          shown: b.shown,
         })),
         milestones: e.milestones.map((m) => ({
           board: m.board,

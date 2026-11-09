@@ -12,6 +12,7 @@ import {
   type BannerPlacement,
   type BannerTitleSide,
 } from './home-banners.js';
+import { eventAudienceWhere, GUEST_AUDIENCE, personAudienceOf } from '../programs/event-audience.js';
 
 /** `HomeBanner` (openapi v1.26-live draft, D124). */
 export interface HomeBannerDto {
@@ -50,13 +51,25 @@ export class HomeService {
   /**
    * The active banners now, in order, at most [HOME_BANNER_LIMIT]. A row whose link no longer
    * passes the allowlist (rules tightened after it was added) is left out rather than sent.
+   * v1.102-social (D334, owner: «أي فعالية يمكن أن يكون لها بانر … يظهر لجمهورها فقط»): a banner that opens an event
+   * is listed only while the event is published and only to its audience — `caller` (null: a guest, EVERYONE events
+   * only); a banner without an event is everyone's.
    */
   async listBanners(
     language: ContentLanguage,
     placement: BannerPlacement = 'HOME',
+    caller: string | null = null,
   ): Promise<HomeBannerDto[]> {
+    const audience = caller === null ? GUEST_AUDIENCE : await personAudienceOf(this.prisma, caller);
     const rows = await this.prisma.homeBanner.findMany({
-      where: activeBannerWhere(this.clock.now(), placement),
+      where: {
+        AND: [
+          activeBannerWhere(this.clock.now(), placement),
+          {
+            OR: [{ eventId: null }, { event: { status: 'PUBLISHED', AND: [eventAudienceWhere(audience)] } }],
+          },
+        ],
+      },
       orderBy: BANNER_ORDER,
       take: HOME_BANNER_LIMIT,
       include: { media: true, video: true },

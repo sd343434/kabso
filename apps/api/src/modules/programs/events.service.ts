@@ -21,7 +21,6 @@ import {
   bundleForRank,
   currentWindow,
   EVENT_BOARD_KINDS,
-  EVENT_BOARD_SHOWN,
   freezeGiftEventIn,
   grantMilestonesIn,
   parseBundle,
@@ -34,6 +33,14 @@ import {
   type PrizeItemWithDisplay,
 } from './gift-events.js';
 import { EVENT_LEADERBOARD_MAX, parseEventPrizes, prizeForRank, type EventPrize } from './programs-rules.js';
+import {
+  audienceSql,
+  eventAudienceWhere,
+  hostOfEventSql,
+  inEventAudience,
+  personAudienceOf,
+  type PersonAudience,
+} from './event-audience.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -111,6 +118,8 @@ export interface EventBoardDto {
   kind: EventBoardKind;
   /** The qualification minimum: below it no prize. */
   minPoints: number;
+  /** v1.102-social (D334): «عدد المعروضين» — how many places the board lists (1–100). */
+  shown: number;
   prizes: EventPrizeLineDto[];
 }
 
@@ -242,6 +251,8 @@ export interface EventLeaderboardDto {
   /** v1.97-social (D303): the board shown (null for a D166 event) and its minimum. */
   board?: EventBoardKind | null;
   minPoints?: number;
+  /** v1.102-social (D334): how many places this board lists (`data` at most this many). */
+  shown?: number;
   /** v1.101-social (D325): the period shown (`previous`: a recurring event's last frozen period) and its window. */
   period?: { index: number; startsAt: string; endsAt: string | null; previous: boolean } | null;
 }
@@ -344,36 +355,9 @@ function rankedSql(event: Event, to: Date): Prisma.Sql {
       JOIN user_profiles p ON p.user_id = s.user_id
      WHERE s.score > 0
        -- D295 (owner, int16): a content creator is not a host for host-only events (neither their own CREATOR
-       -- permission nor the membership counts); creators get their own events later.
-       AND (${!hostsOnly} OR (EXISTS (SELECT 1 FROM live_hosts h
-                                       WHERE h.user_id = s.user_id AND h.source <> 'CREATOR'::live_host_source)
-                              AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = s.user_id)))
+       -- permission nor the membership counts). v1.102-social (D334): an event made after it counts creators as hosts.
+       AND (${!hostsOnly} OR ${hostOfEventSql(Prisma.sql`s.user_id`, event.creatorsAsHosts)})
        AND (${regions.length === 0} OR p.country_code = ANY(string_to_array(${regions.join(',')}::text, ',')))`;
-}
-
-/**
- * v1.101-social (D325): the people of an audience (the start notification): HOSTS — approved hosts who are not content
- * creators (D295); CREATORS — creator members; AGENCIES — owners of an open agency and its active member hosts; CP —
- * people in a couple now.
- */
-function audienceSql(audience: EventAudience, user: Prisma.Sql): Prisma.Sql {
-  switch (audience) {
-    case 'EVERYONE':
-      return Prisma.sql`true`;
-    case 'HOSTS':
-      return Prisma.sql`(EXISTS (SELECT 1 FROM live_hosts h WHERE h.user_id = ${user}
-                                  AND h.source <> 'CREATOR'::live_host_source)
-                     AND NOT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ${user}))`;
-    case 'CREATORS':
-      return Prisma.sql`EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ${user})`;
-    case 'AGENCIES':
-      return Prisma.sql`(EXISTS (SELECT 1 FROM agencies a WHERE a.owner_user_id = ${user} AND a.status = 'OPEN')
-                      OR EXISTS (SELECT 1 FROM agency_hosts ah JOIN agencies a ON a.id = ah.agency_id AND a.status = 'OPEN'
-                                  WHERE ah.host_user_id = ${user} AND ah.status = 'ACTIVE' AND ah.ended_at IS NULL))`;
-    case 'CP':
-      return Prisma.sql`EXISTS (SELECT 1 FROM cp_couples c
-                                 WHERE (c.user_a_id = ${user} OR c.user_b_id = ${user}) AND c.ended_at IS NULL)`;
-  }
 }
 
 /**
@@ -466,7 +450,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     const { tab } = parsed.data;
     const now = this.clock.now();
     const country = await this.country(me);
-    const audience = { status: 'PUBLISHED', audience: { in: await this.audiencesOf(me) } };
+    const audience = eventAudienceWhere(await personAudienceOf(this.prisma, me));
     const visibleSince = new Date(now.getTime() - ENDED_VISIBLE_MS);
     let month: string | null = null;
     let events: Event[] = [];
@@ -483,7 +467,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       month = w!.month;
       events = await this.prisma.event.findMany({
         where: {
-          ...audience,
+          status: 'PUBLISHED',
+          AND: [audience],
           permanent: false,
           regions: { isEmpty: true },
           startsAt: { lt: w!.end },
@@ -495,10 +480,11 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     } else if (tab === 'PERMANENT') {
       events = await this.prisma.event.findMany({
         where: {
-          ...audience,
+          status: 'PUBLISHED',
           permanent: true,
           OR: [{ endsAt: null }, { endsAt: { gt: visibleSince } }],
           AND: [
+            audience,
             { OR: [{ regions: { isEmpty: true } }, ...(country ? [{ regions: { has: country } }] : [])] },
           ],
         },
@@ -508,7 +494,8 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     } else if (country !== null) {
       events = await this.prisma.event.findMany({
         where: {
-          ...audience,
+          status: 'PUBLISHED',
+          AND: [audience],
           regions: { has: country },
           OR: [{ endsAt: null }, { endsAt: { gt: visibleSince } }],
         },
@@ -526,23 +513,12 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * The audiences whose events the person sees: D295 (owner, int16: «تختفي من عنده فعاليات المضيفين») a content creator
-   * does not see host-only events; v1.97-social (D303) a creators-only event is shown to creator members only;
-   * v1.101-social (D325) an agencies event to agency owners and the member hosts of an open agency, a CP event to people
-   * in a couple now.
+   * The audiences whose events the person sees (`event-audience.ts`): D295 a content creator does not see the older
+   * host-only events; v1.102-social (D334) the HOSTS events made after it count creators as hosts; v1.97-social (D303) a
+   * creators-only event is shown to creator members only; v1.101-social (D325) AGENCIES and CP.
    */
-  async audiencesOf(me: string): Promise<EventAudience[]> {
-    const [row] = await this.prisma.$queryRaw<{ creator: boolean; agency: boolean; cp: boolean }[]>`
-      SELECT EXISTS (SELECT 1 FROM creator_members cm WHERE cm.user_id = ${me}::uuid) AS creator,
-             (EXISTS (SELECT 1 FROM agencies a WHERE a.owner_user_id = ${me}::uuid AND a.status = 'OPEN')
-              OR EXISTS (SELECT 1 FROM agency_hosts h JOIN agencies a ON a.id = h.agency_id AND a.status = 'OPEN'
-                          WHERE h.host_user_id = ${me}::uuid AND h.status = 'ACTIVE' AND h.ended_at IS NULL)) AS agency,
-             EXISTS (SELECT 1 FROM cp_couples c
-                      WHERE (c.user_a_id = ${me}::uuid OR c.user_b_id = ${me}::uuid) AND c.ended_at IS NULL) AS cp`;
-    const out: EventAudience[] = ['EVERYONE', row?.creator ? 'CREATORS' : 'HOSTS'];
-    if (row?.agency) out.push('AGENCIES');
-    if (row?.cp) out.push('CP');
-    return out;
+  audienceOf(me: string): Promise<PersonAudience> {
+    return personAudienceOf(this.prisma, me);
   }
 
   /** A published event (a draft, or an event of an audience the caller is not in, is not found). */
@@ -552,7 +528,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     if (!event || event.status !== 'PUBLISHED' || event.startsAt === null) {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
-    if (me !== undefined && !(await this.audiencesOf(me)).includes(event.audience)) {
+    if (me !== undefined && !inEventAudience(await this.audienceOf(me), event)) {
       throw new AppException(ErrorCode.NOT_FOUND);
     }
     return event;
@@ -609,6 +585,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       boards: boards.map((b, i) => ({
         kind: b.kind as EventBoardKind,
         minPoints: Number(b.minPoints),
+        shown: b.shown,
         prizes: lines[i]!.map((l) => ({ rankFrom: l.rankFrom, rankTo: l.rankTo, items: l.items.map(items) })),
       })),
       frozenAt: e.frozenAt?.toISOString() ?? null,
@@ -693,10 +670,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       where: {
         status: 'PUBLISHED',
         metric: 'EVENT_GIFTS',
-        audience: { in: await this.audiencesOf(me) },
         startsAt: { lte: now },
         frozenAt: null,
         AND: [
+          eventAudienceWhere(await this.audienceOf(me)),
           { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
           { OR: [{ regions: { isEmpty: true } }, ...(country ? [{ regions: { has: country } }] : [])] },
         ],
@@ -1056,7 +1033,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       // The live board counts the whole window (nothing is stored after now; a send at this very instant counts).
       const ranked = boardRankedSql(e, kind, { from: w.from, to: w.to ?? e.endsAt ?? OPEN_END });
       rows = await this.prisma.$queryRaw<BoardRow[]>`
-        SELECT * FROM (${ranked}) b ORDER BY b.rank LIMIT ${EVENT_BOARD_SHOWN}`;
+        SELECT * FROM (${ranked}) b ORDER BY b.rank LIMIT ${board.shown}`;
       [mine] = await this.prisma.$queryRaw<BoardRow[]>`
         SELECT * FROM (${ranked}) b
          WHERE b.user_id = ${me} OR (${kind === 'CP'} AND b.partner_id = ${me})
@@ -1068,9 +1045,10 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
     });
     const hidden = new Set(blocked.map((b) => (b.blockerId === me ? b.blockedId : b.blockerId)));
     // v1.101-social (D325, owner): the top 20 are shown; the caller's own place is in `me` whatever it is.
+    // v1.102-social (D334): the board's own «عدد المعروضين» (1–100, default 20).
     const shown = rows.filter(
       (r) =>
-        Number(r.rank) <= EVENT_BOARD_SHOWN &&
+        Number(r.rank) <= board.shown &&
         !hidden.has(r.user_id) &&
         !(r.partner_id && hidden.has(r.partner_id)),
     );
@@ -1095,6 +1073,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
       final: previous || e.frozenAt !== null,
       board: kind,
       minPoints: Number(minPoints),
+      shown: board.shown,
       period,
       data: shown.flatMap((r) => {
         const u = byId.get(r.user_id);
@@ -1241,7 +1220,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
             JOIN user_profiles p ON p.user_id = u.id
            WHERE u.status = 'ACTIVE'
              AND (${regions.length === 0} OR p.country_code = ANY(string_to_array(${regions.join(',')}::text, ',')))
-             AND ${audienceSql(e.audience, Prisma.sql`u.id`)}
+             AND ${audienceSql(e, Prisma.sql`u.id`)}
           ON CONFLICT (recipient_id, event_id) WHERE type = 'EVENT_STARTED'::notification_type DO NOTHING`;
         await tx.event.update({ where: { id: e.id }, data: { startNotifiedAt: now } });
         return n;

@@ -72,7 +72,13 @@ export interface BoardForm {
   kind: BoardKind;
   minPoints: string;
   prizes: PrizeLineForm[];
+  /** v1.102-social (D334): «عدد المعروضين» — how many places the board lists (1–100; 20 when empty). */
+  shown?: string;
 }
+
+/** v1.102-social (D334): a board lists 20 places unless the panel sets 1–100. */
+export const BOARD_SHOWN_DEFAULT = 20;
+export const BOARD_SHOWN_MAX = 100;
 export interface GiftForm {
   giftCode: string;
   pointsPerCoin: string;
@@ -340,6 +346,7 @@ export function giftEventBody(f: GiftEventFormState) {
     boards: f.boards.map((b) => ({
       kind: b.kind,
       minPoints: int(b.minPoints),
+      ...(b.shown !== undefined && b.shown.trim() !== '' ? { shown: int(b.shown) } : {}),
       prizes: b.prizes.map((l) => ({
         rankFrom: int(l.rankFrom),
         rankTo: int(l.rankTo),
@@ -378,6 +385,7 @@ export function formFromServer(
     boards: {
       kind: string;
       minPoints: number;
+      shown?: number;
       prizes: {
         rankFrom: number;
         rankTo: number;
@@ -422,6 +430,7 @@ export function formFromServer(
     boards: form.boards.map((b) => ({
       kind: b.kind as BoardKind,
       minPoints: String(b.minPoints),
+      ...(b.shown !== undefined ? { shown: String(b.shown) } : {}),
       prizes: b.prizes.map((l) => ({
         rankFrom: String(l.rankFrom),
         rankTo: String(l.rankTo),
@@ -472,6 +481,8 @@ export function giftEventProblems(f: GiftEventFormState): string[] {
   if (!draft && f.boards.length === 0) out.push('gevNeedBoard');
   for (const b of f.boards) {
     if (!whole(b.minPoints, 0)) out.push('gevBadMin');
+    if (b.shown !== undefined && b.shown.trim() !== '' && (!whole(b.shown, 1) || Number(b.shown) > BOARD_SHOWN_MAX))
+      out.push('evBadShown');
     let last = 0;
     for (const l of b.prizes) {
       const from = Number(l.rankFrom);
