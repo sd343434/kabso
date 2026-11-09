@@ -8,14 +8,17 @@ describe('verifyAppleJws', () => {
   let apple: Chain;
   let rogue: Chain;
   let unmarked: Chain;
+  // Signed after the test certificates exist: openssl starts their validity at their creation second, so a
+  // signedDate taken before `beforeAll` could fall before notBefore on a slow runner (CI 2026-11-09).
+  let payload: { transactionId: string; bundleId: string; signedDate: number };
   beforeAll(() => {
     apple = pki.chain('apple');
     rogue = pki.chain('rogue');
     unmarked = pki.chain('unmarked', false);
+    payload = { transactionId: '2000000123', bundleId: 'com.kabso.live', signedDate: Date.now() };
   });
   afterAll(() => pki.cleanup());
 
-  const payload = { transactionId: '2000000123', bundleId: 'com.kabso.live', signedDate: Date.now() };
   const issue = (fn: () => unknown) => {
     try {
       fn();
