@@ -116,7 +116,11 @@ class ComposeState {
     this.failure,
     this.rejections = const {},
     this.settings = const PostSettingsDraft(),
+    this.retrying = false,
   });
+
+  /// D333: the connection dropped; the upload waits to try again by itself.
+  final bool retrying;
 
   final List<ComposePhoto> photos;
 
@@ -154,7 +158,9 @@ class ComposeState {
     bool clearFailure = false,
     Set<PhotoRejection>? rejections,
     PostSettingsDraft? settings,
+    bool? retrying,
   }) => ComposeState(
+    retrying: retrying ?? false,
     photos: photos ?? this.photos,
     video: clearVideo ? null : (video ?? this.video),
     phase: phase ?? this.phase,
@@ -290,6 +296,29 @@ class ComposeController extends Notifier<ComposeState> {
     );
   }
 
+  /// D333: the photo [localId] edited on the device (crop, turn, look):
+  /// its new bytes replace the old ones and it uploads again.
+  void replacePhoto(int localId, Uint8List bytes) {
+    if (state.busy) return;
+    final type = sniffImageType(bytes);
+    if (type == null || bytes.length > maxPhotoBytes) return;
+    state = state.copyWith(
+      photos: List.unmodifiable([
+        for (final p in state.photos)
+          if (p.localId == localId)
+            ComposePhoto(
+              localId: p.localId,
+              bytes: bytes,
+              contentType: type,
+              sourceId: p.sourceId,
+            )
+          else
+            p,
+      ]),
+      clearFailure: true,
+    );
+  }
+
   /// Moves the photo at [from] to [to] (indices in the current order; the
   /// post keeps this order).
   void movePhoto(int from, int to) {
@@ -320,13 +349,74 @@ class ComposeController extends Notifier<ComposeState> {
     final caption = text.trim();
     final place = location.trim();
     if (caption.isEmpty && !state.hasMedia) return null;
+    _last = (text: text, location: location, status: status, at: publishAt);
+    // D333: the upload runs on after Create is left; a lost connection is
+    // retried by itself ([retryDelays]) — the media already uploaded and the
+    // idempotency key are kept, so a retry never makes two posts.
+    for (var attempt = 0; ; attempt++) {
+      try {
+        final post = await _attempt(caption, place, status, publishAt);
+        if (post != null) {
+          _last = null;
+          ref
+              .read(composeOutcomeProvider.notifier)
+              .done(ComposeOutcome(post, status: status, publishAt: publishAt));
+        }
+        return post;
+      } on Object catch (e) {
+        if (!ref.mounted) return null;
+        final failure = toAppFailure(e);
+        if (failure is NetworkFailure && attempt < retryDelays.length) {
+          state = state.copyWith(retrying: true);
+          await Future<void>.delayed(retryDelays[attempt]);
+          if (!ref.mounted) return null;
+          continue;
+        }
+        state = state.copyWith(phase: ComposePhase.editing, failure: failure);
+        return null;
+      }
+    }
+  }
+
+  /// D333: the waits before each automatic retry after a lost connection
+  /// (none in widget tests unless a test sets them).
+  static List<Duration> retryDelays = const [
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+  ];
+
+  ({String text, String location, String status, DateTime? at})? _last;
+
+  /// D333: a failed upload can be retried (from the upload bar) with what
+  /// was shared.
+  bool get canRetry => _last != null && !state.busy && state.failure != null;
+
+  /// D333: tries the last share again (the upload bar's Retry).
+  Future<Post?> retry() async {
+    final last = _last;
+    if (last == null) return null;
+    return await publish(
+      text: last.text,
+      location: last.location,
+      status: last.status,
+      publishAt: last.at,
+    );
+  }
+
+  Future<Post?> _attempt(
+    String caption,
+    String place,
+    String status,
+    DateTime? publishAt,
+  ) async {
     state = state.copyWith(
       phase: ComposePhase.uploading,
       uploaded: state.photos.where((p) => p.assetId != null).length,
       progress: 0,
       clearFailure: true,
     );
-    try {
+    {
       final media = ref.read(mediaRepositoryProvider);
       if (state.video case ComposeVideo(:final video, assetId: null)) {
         final asset = await media.uploadVideo(
@@ -394,16 +484,35 @@ class ComposeController extends Notifier<ComposeState> {
         ref.invalidate(myPostsProvider);
       }
       return post;
-    } on Object catch (e) {
-      if (!ref.mounted) return null;
-      state = state.copyWith(
-        phase: ComposePhase.editing,
-        failure: toAppFailure(e),
-      );
-      return null;
     }
   }
 }
+
+/// D333: a share that went through (the upload bar's «تم النشر» and its
+/// View button).
+@immutable
+class ComposeOutcome {
+  const new(this.post, {required this.status, this.publishAt});
+
+  final Post post;
+  final String status;
+  final DateTime? publishAt;
+}
+
+/// D333: the last share that went through, until the upload bar shows it.
+class ComposeOutcomes extends Notifier<ComposeOutcome?> {
+  @override
+  ComposeOutcome? build() => null;
+
+  // A named step of the share flow, not a property.
+  // ignore: use_setters_to_change_properties
+  void done(ComposeOutcome outcome) => state = outcome;
+
+  void clear() => state = null;
+}
+
+final composeOutcomeProvider =
+    NotifierProvider<ComposeOutcomes, ComposeOutcome?>(ComposeOutcomes.new);
 
 final composeControllerProvider =
     NotifierProvider<ComposeController, ComposeState>(ComposeController.new);

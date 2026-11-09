@@ -7,7 +7,6 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
-import 'package:kabso_live/features/create/create_mode_bar.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -31,6 +30,7 @@ class CreateMediaStep extends ConsumerStatefulWidget {
     required this.onClose,
     required this.onPickFromDevice,
     required this.onPickVideoFromDevice,
+    this.onEditPhoto,
     super.key,
   });
 
@@ -40,6 +40,12 @@ class CreateMediaStep extends ConsumerStatefulWidget {
 
   /// D162: the system video picker.
   final VoidCallback onPickVideoFromDevice;
+
+  /// D333: opens the photo editor on the photo with this local id.
+  final ValueChanged<int>? onEditPhoto;
+
+  static const previewKey = Key('create.media.preview');
+  static const editKey = Key('create.media.edit');
 
   static const nextKey = Key('create.next');
   static const gridKey = Key('create.media.grid');
@@ -197,6 +203,17 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
             icon: const AppIcon(AppIcons.close),
           ),
         ),
+        // D333: Post · Reels · Story at the top (D283: not for a Kabso
+        // Team account, which posts announcements only).
+        if (ref.watch(currentUserProvider)?.staff == null)
+          CreateKindTabs(
+            selected: CreateKind.post,
+            onSelect: (kind) => switch (kind) {
+              CreateKind.post => null,
+              CreateKind.reel => context.push(AppRoutes.newReel),
+              CreateKind.story => context.push(AppRoutes.newStory),
+            },
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             KCompose.mediaInset,
@@ -218,6 +235,14 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
               loading: _loading,
               onToggle: _toggle,
               onManage: () => _manage(value.access),
+              // D333: the photo last added, large, with Edit.
+              header: draft.photos.isNotEmpty && !draft.busy
+                  ? _BigPreview(
+                      photo: draft.photos.last,
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.26,
+                      onEdit: widget.onEditPhoto,
+                    )
+                  : null,
             ),
             AsyncData(:final value) => _NoLibrary(
               message: value.access == LibraryAccess.denied
@@ -266,19 +291,11 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
               ],
               _UpToNote(video: videos || draft.video != null),
               const SizedBox(height: KSpacing.xs),
-              // D283: a Kabso Team account posts announcements only — no
-              // story or live modes, the label instead.
+              // D283: a Kabso Team account posts announcements only (the
+              // label). D333: Post · Reels · Story are tabs at the top now
+              // (Go live stays in the ➕ menu and on the Live tab).
               if (ref.watch(currentUserProvider)?.staff != null)
-                const AnnouncementComposerNote()
-              else
-                CreateModeBar(
-                  selected: CreateMode.post,
-                  onSelect: (mode) => switch (mode) {
-                    CreateMode.post => null,
-                    CreateMode.story => context.push(AppRoutes.newStory),
-                    CreateMode.live => context.push(AppRoutes.goLive),
-                  },
-                ),
+                const AnnouncementComposerNote(),
             ],
           ),
         ),
@@ -402,6 +419,7 @@ class _Grid extends ConsumerWidget {
     required this.loading,
     required this.onToggle,
     required this.onManage,
+    this.header,
   });
 
   final LibraryFilter filter;
@@ -410,6 +428,9 @@ class _Grid extends ConsumerWidget {
   final Set<String> loading;
   final ValueChanged<LibraryItem> onToggle;
   final VoidCallback onManage;
+
+  /// D333: the big preview, scrolling away with the grid.
+  final Widget? header;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -431,6 +452,13 @@ class _Grid extends ConsumerWidget {
       child: CustomScrollView(
         key: CreateMediaStep.gridKey,
         slivers: [
+          if (header case final h?)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: KSpacing.md),
+                child: h,
+              ),
+            ),
           if (limited)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
@@ -487,12 +515,15 @@ class _Grid extends ConsumerWidget {
               itemBuilder: (context, i) {
                 final item = items[i];
                 final id = item.id;
+                final order = item.video
+                    ? (draft.video?.video.sourceId == id ? 0 : -1)
+                    : librarySelectionIndex(draft.photos, id);
                 return _Tile(
                   key: CreateMediaStep.itemKey(id),
                   item: item,
-                  selected: item.video
-                      ? draft.video?.video.sourceId == id
-                      : librarySelectionIndex(draft.photos, id) >= 0,
+                  selected: order >= 0,
+                  // D333: photos carry their place in the album (1…10).
+                  order: item.video || order < 0 ? null : order + 1,
                   loading: loading.contains(id),
                   onTap: draft.busy ? null : () => onToggle(item),
                 );
@@ -519,10 +550,14 @@ class _Tile extends ConsumerWidget {
     required this.selected,
     required this.loading,
     required this.onTap,
+    this.order,
     super.key,
   });
 
   final LibraryItem item;
+
+  /// D333: the photo's place in the album, when selected.
+  final int? order;
 
   String get id => item.id;
   final bool selected;
@@ -540,6 +575,7 @@ class _Tile extends ConsumerWidget {
     return Semantics(
       button: true,
       selected: selected,
+      value: order?.toString(),
       label: !item.video
           ? l10n.createLibraryPhoto
           : tooLong
@@ -573,7 +609,7 @@ class _Tile extends ConsumerWidget {
               PositionedDirectional(
                 top: KSpacing.sm,
                 start: KSpacing.sm,
-                child: _Check(selected: selected),
+                child: _Check(selected: selected, order: order),
               ),
               PositionedDirectional(
                 bottom: KSpacing.sm,
@@ -642,9 +678,12 @@ class _Tile extends ConsumerWidget {
 }
 
 class _Check extends StatelessWidget {
-  const new({required this.selected});
+  const new({required this.selected, this.order});
 
   final bool selected;
+
+  /// D333: the album order shown in the disc (1…10); a tick without one.
+  final int? order;
 
   @override
   Widget build(BuildContext context) {
@@ -658,9 +697,19 @@ class _Check extends StatelessWidget {
         color: selected ? p.primary : const Color(0x33000000),
         border: Border.all(color: Colors.white, width: 1.6),
       ),
-      child: selected
-          ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-          : null,
+      child: !selected
+          ? null
+          : order != null
+          ? Text(
+              '$order',
+              textDirection: TextDirection.ltr,
+              style: context.textStyles.caption.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            )
+          : const Icon(Icons.check_rounded, size: 16, color: Colors.white),
     );
   }
 }
@@ -1001,6 +1050,144 @@ class _VideoTray extends ConsumerWidget {
             icon: AppIcon(AppIcons.close, size: 14, color: p.textSecondary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// D333: the kinds Create makes, as tabs at its top.
+enum CreateKind { post, reel, story }
+
+/// D333: Post · Reels · Story at the top of Create (the big apps' pattern;
+/// our words and colours). Post is this screen; the others open theirs.
+class CreateKindTabs extends StatelessWidget {
+  const new({required this.selected, required this.onSelect, super.key});
+
+  final CreateKind selected;
+  final ValueChanged<CreateKind> onSelect;
+
+  static Key tabKey(CreateKind kind) => Key('create.kind.${kind.name}');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: KCompose.mediaInset),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (final kind in CreateKind.values)
+            Flexible(
+              child: Semantics(
+                button: true,
+                selected: kind == selected,
+                child: InkWell(
+                  key: tabKey(kind),
+                  borderRadius: BorderRadius.circular(KRadius.sm),
+                  onTap: kind == selected ? null : () => onSelect(kind),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: KSizes.minTouchTarget,
+                      minWidth: KSizes.minTouchTarget,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: KSpacing.md,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            switch (kind) {
+                              CreateKind.post => l10n.createKindPost,
+                              CreateKind.reel => l10n.createKindReel,
+                              CreateKind.story => l10n.createKindStory,
+                            },
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.bodyStrong.copyWith(
+                              color: kind == selected
+                                  ? p.textPrimary
+                                  : p.textTertiary,
+                            ),
+                          ),
+                          const SizedBox(height: KSpacing.xs),
+                          AnimatedContainer(
+                            duration: KMotion.fast,
+                            width: kind == selected ? 24 : 0,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: p.primary,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// D333: the last photo added, large above the grid, with Edit.
+class _BigPreview extends StatelessWidget {
+  const new({required this.photo, required this.maxHeight, this.onEdit});
+
+  final ComposePhoto photo;
+  final double maxHeight;
+  final ValueChanged<int>? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        KCompose.mediaInset,
+        KSpacing.xs,
+        KCompose.mediaInset,
+        0,
+      ),
+      child: SizedBox(
+        key: CreateMediaStep.previewKey,
+        height: maxHeight,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(KCompose.cardRadius),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(color: p.surfaceOverlay),
+              Semantics(
+                image: true,
+                label: l10n.createLibraryPhoto,
+                child: Image.memory(
+                  photo.bytes,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+              if (onEdit case final edit?)
+                PositionedDirectional(
+                  bottom: KSpacing.sm,
+                  end: KSpacing.sm,
+                  child: FilledButton.tonalIcon(
+                    key: CreateMediaStep.editKey,
+                    onPressed: () => edit(photo.localId),
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                    label: Text(l10n.createEditPhoto),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

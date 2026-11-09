@@ -12,8 +12,10 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/media/inline_video.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/create/compose_upload_bar.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_media_step.dart';
+import 'package:kabso_live/features/create/photo_editor.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
 import 'package:kabso_live/features/posts/data/video_source.dart';
@@ -152,6 +154,19 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     setState(() => _details = false);
   }
 
+  /// D333: crop, turn, look and light of one photo, applied on the device.
+  Future<void> _editPhoto(int localId) async {
+    final photo = ref
+        .read(composeControllerProvider)
+        .photos
+        .where((p) => p.localId == localId)
+        .firstOrNull;
+    if (photo == null) return;
+    final edited = await showPhotoEditor(context, photo.bytes);
+    if (edited == null || !mounted) return;
+    ref.read(composeControllerProvider.notifier).replacePhoto(localId, edited);
+  }
+
   /// The system picker (no library on this platform, or no access to it).
   Future<void> _pickFromDevice() async {
     final l10n = context.l10n;
@@ -216,27 +231,21 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       KSnack.error(context, l10n.createScheduleWindow);
       return;
     }
-    final post = await ref
-        .read(composeControllerProvider.notifier)
-        .publish(
-          text: _text.text,
-          location: place,
-          status: at == null ? 'PUBLISHED' : 'SCHEDULED',
-          publishAt: at,
-        );
-    if (!mounted || post == null) return;
+    // D333: the upload goes on in the background (the upload bar above
+    // the tab bar shows it, retries a lost connection and says «تم النشر»
+    // with View); Create is left at once.
+    unawaited(
+      ref
+          .read(composeControllerProvider.notifier)
+          .publish(
+            text: _text.text,
+            location: place,
+            status: at == null ? 'PUBLISHED' : 'SCHEDULED',
+            publishAt: at,
+          ),
+    );
     unawaited(ref.read(recentPlacesProvider.notifier).remember(place));
     _reset();
-    KSnack.success(
-      context,
-      at != null
-          ? l10n.createScheduled(scheduleLabel(context, at))
-          : post.pendingModeration
-          ? (post.video != null
-                ? l10n.createPostedVideoInReview
-                : l10n.createPostedInReview)
-          : l10n.createPosted,
-    );
     context.go(AppRoutes.reels);
   }
 
@@ -413,6 +422,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   onClose: _close,
                   onPickFromDevice: _pickFromDevice,
                   onPickVideoFromDevice: _pickVideoFromDevice,
+                  onEditPhoto: _editPhoto,
                 ),
         ),
       ),
@@ -511,6 +521,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   onHashtag: _hashtag,
                 ),
               ),
+              // D333: #tag and @friend suggestions while typing.
+              CaptionSuggestions(controller: _text, enabled: !draft.busy),
               const SizedBox(height: KSpacing.md),
               for (final row in [
                 ComposeOptionRow(
@@ -1290,7 +1302,6 @@ class _Progress extends StatelessWidget {
     final total = draft.photos.length;
     final uploading =
         draft.phase == ComposePhase.uploading && (total > 0 || video);
-    final current = draft.uploaded + 1 > total ? total : draft.uploaded + 1;
     return Padding(
       key: CreateScreen.progressKey,
       padding: const EdgeInsets.only(bottom: KSpacing.md),
@@ -1298,11 +1309,7 @@ class _Progress extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            uploading && video
-                ? l10n.createUploadingVideo((draft.progress * 100).floor())
-                : uploading
-                ? l10n.createUploading(current, total)
-                : l10n.createPublishing,
+            composeProgressLabel(l10n, draft),
             style: context.textStyles.caption.copyWith(
               color: context.palette.textSecondary,
             ),
@@ -1334,15 +1341,7 @@ class _FailureBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
-    final message = switch (failure) {
-      ServerFailure(code: ErrorCode.mediaUploadsUnavailable) =>
-        video
-            ? l10n.createVideoUploadsUnavailable
-            : l10n.createUploadsUnavailable,
-      ServerFailure(code: ErrorCode.mediaInvalid) =>
-        video ? l10n.createVideoInvalid : l10n.createPhotoInvalid,
-      _ => failureMessage(l10n, failure),
-    };
+    final message = composeFailureMessage(l10n, failure, video: video);
     return Container(
       key: CreateScreen.failureKey,
       margin: const EdgeInsets.only(bottom: KSpacing.md),

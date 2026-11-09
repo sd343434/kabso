@@ -1067,3 +1067,163 @@ class _ComposePhotoPreviewState extends ConsumerState<ComposePhotoPreview> {
     );
   }
 }
+
+/// D333: the `#tag` or `@name` being typed just before the cursor — its
+/// start, and the text after the sign — or `null`.
+({int start, String sign, String query})? captionTokenAtCursor(
+  TextEditingValue value,
+) {
+  final sel = value.selection;
+  if (!sel.isValid || !sel.isCollapsed) return null;
+  final before = value.text.substring(0, sel.start);
+  final m = RegExp(
+    r'(?:^|(?<=[\s]))([#@])([\p{L}\p{M}\p{N}_.]*)$',
+    unicode: true,
+  ).firstMatch(before);
+  if (m == null) return null;
+  return (start: m.start, sign: m.group(1)!, query: m.group(2)!);
+}
+
+/// D333 (owner: «اقتراحات الهاشتاق و@الأصدقاء أثناء الكتابة»): while a
+/// `#tag` or `@name` is typed in the caption, a row of suggestions under it
+/// — hashtags from `GET /search/hashtags` (with their post counts), people
+/// from the mention search; a tap completes the word. Hidden otherwise.
+class CaptionSuggestions extends ConsumerStatefulWidget {
+  const new({required this.controller, this.enabled = true, super.key});
+
+  final CaptionController controller;
+  final bool enabled;
+
+  static const rowKey = Key('create.suggestions');
+  static Key tagKey(String tag) => Key('create.suggestion.tag.$tag');
+  static Key userKey(String username) =>
+      Key('create.suggestion.user.$username');
+
+  @override
+  ConsumerState<CaptionSuggestions> createState() => _CaptionSuggestionsState();
+}
+
+class _CaptionSuggestionsState extends ConsumerState<CaptionSuggestions> {
+  Timer? _debounce;
+  String? _for;
+  List<Object> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    widget.controller.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    final token = captionTokenAtCursor(widget.controller.value);
+    final key = token == null ? null : '${token.sign}${token.query}';
+    if (key == _for) return;
+    _for = key;
+    _debounce?.cancel();
+    if (token == null || token.query.isEmpty) {
+      if (_items.isNotEmpty) setState(() => _items = const []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      final repo = ref.read(postsRepositoryProvider);
+      try {
+        final found = <Object>[
+          ...token.sign == '#'
+              ? (await repo.searchHashtags(token.query)).items.take(10)
+              : (await repo.searchUsers(token.query)).take(10),
+        ];
+        if (!mounted || _for != key) return;
+        setState(() => _items = found);
+      } on Object {
+        // Suggestions are optional: the caption keeps working without them.
+        if (mounted && _for == key) setState(() => _items = const []);
+      }
+    });
+  }
+
+  void _complete(String word) {
+    final c = widget.controller;
+    final token = captionTokenAtCursor(c.value);
+    if (token == null) return;
+    final end = c.selection.start;
+    final insert = '${token.sign}$word ';
+    c.value = TextEditingValue(
+      text: c.text.replaceRange(token.start, end, insert),
+      selection: TextSelection.collapsed(offset: token.start + insert.length),
+    );
+    setState(() => _items = const []);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled || _items.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    String posts(int n) => l10n.createSuggestionPosts(KFormat.compact(n, l10n));
+    return Semantics(
+      container: true,
+      label: l10n.createSuggestions,
+      child: SizedBox(
+        key: CaptionSuggestions.rowKey,
+        height: KSizes.minTouchTarget + KSpacing.sm,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(vertical: KSpacing.xs),
+          children: [
+            for (final item in _items)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: KSpacing.sm),
+                child: switch (item) {
+                  Hashtag(:final tag, :final postCount) => ActionChip(
+                    key: CaptionSuggestions.tagKey(tag),
+                    onPressed: () => _complete(tag),
+                    label: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '#$tag',
+                            style: t.bodyStrong.copyWith(color: p.primary),
+                          ),
+                          TextSpan(
+                            text: '  ${posts(postCount)}',
+                            style: t.caption.copyWith(color: p.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  final UserSummary u => ActionChip(
+                    key: CaptionSuggestions.userKey(u.username),
+                    onPressed: () => _complete(u.username),
+                    avatar: CircleAvatar(
+                      backgroundColor: p.surfaceOverlay,
+                      foregroundImage: u.avatarUrl == null
+                          ? null
+                          : NetworkImage(u.avatarUrl!),
+                      child: Text(
+                        u.displayName.characters.firstOrNull ?? '',
+                        style: t.caption,
+                      ),
+                    ),
+                    label: Text(
+                      '${u.displayName}  @${u.username}',
+                      style: t.body,
+                    ),
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

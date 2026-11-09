@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/create/compose_upload_bar.dart';
 import 'package:kabso_live/features/messages/unread_messages.dart';
 import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
@@ -32,18 +33,26 @@ class AppShell extends ConsumerWidget {
     }
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: shellNavBar(
-        context.l10n,
-        currentIndex: navigationShell.currentIndex,
-        onTap: navigationShell.goBranch,
-        // Tapping the active tab returns to its first page (its animation
-        // replays too).
-        onReselect: (index) =>
-            navigationShell.goBranch(index, initialLocation: true),
-        // D130: real sources only — unread direct messages (D155) and
-        // unseen stories of followed accounts.
-        unreadMessages: ref.watch(unreadMessagesProvider),
-        newStories: ref.watch(unseenFollowedStoriesProvider),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // D333: a post still uploading in the background (Create is
+          // above the shell since D322, so the bar is always here).
+          const ComposeUploadBar(),
+          shellNavBar(
+            context.l10n,
+            currentIndex: navigationShell.currentIndex,
+            onTap: navigationShell.goBranch,
+            // Tapping the active tab returns to its first page (its animation
+            // replays too).
+            onReselect: (index) =>
+                navigationShell.goBranch(index, initialLocation: true),
+            // D130: real sources only — unread direct messages (D155) and
+            // unseen stories of followed accounts.
+            unreadMessages: ref.watch(unreadMessagesProvider),
+            newStories: ref.watch(unseenFollowedStoriesProvider),
+          ),
+        ],
       ),
     );
   }
