@@ -297,11 +297,12 @@ describe('D325 events v2', { timeout: 900_000 }, () => {
     expectContract(made, 'createAdminLaunchFestival');
     const id = made.body.id as string;
     const gifts = await ctx.prisma.gift.findMany({ where: { eventId: id }, orderBy: { sortOrder: 'asc' } });
-    expect(gifts.map((g) => [g.nameAr, g.priceCoins])).toEqual([
-      ['شعلة الانطلاق', 50_000],
-      ['صاروخ Kabso', 250_000],
-      ['تاج الافتتاح', 1_000_000],
-      ['ليلة المهرجان', 3_000_000],
+    // v1.102-social (D334, owner): neutral placeholder names; «شاشة كاملة» on the 1 000 000 and 3 000 000 gifts.
+    expect(gifts.map((g) => [g.nameAr, g.nameEn, g.priceCoins, g.badges.includes('FULLSCREEN')])).toEqual([
+      ['هدية المهرجان 1', 'Festival gift 1', 50_000, false],
+      ['هدية المهرجان 2', 'Festival gift 2', 250_000, false],
+      ['هدية المهرجان 3', 'Festival gift 3', 1_000_000, true],
+      ['هدية المهرجان 4', 'Festival gift 4', 3_000_000, true],
     ]);
     const form = await p.send(owner, 'get', `/admin/gift-events/${id}`);
     expectContract(form, 'getAdminGiftEvent');
@@ -324,7 +325,7 @@ describe('D325 events v2', { timeout: 900_000 }, () => {
     expect(form.body.form.milestones).toHaveLength(4);
     expect(form.body.ownGifts).toHaveLength(4);
     // Never listed (a draft), and the template is made once.
-    expect(await catalogue(viewer)).not.toContain('kabso_launch_night');
+    expect(await catalogue(viewer)).not.toContain('kabso_festival_gift_4');
     expect(
       (await p.send(owner, 'post', '/admin/gift-events/launch-festival', { reason: 'again' })).status,
     ).toBe(409);
@@ -341,7 +342,7 @@ describe('D325 events v2', { timeout: 900_000 }, () => {
     expect(published.status, JSON.stringify(published.body)).toBe(200);
     expectContract(published, 'publishAdminEvent');
     expect(published.body.status).toBe('PUBLISHED');
-    expect(await catalogue(viewer)).not.toContain('kabso_launch_night');
+    expect(await catalogue(viewer)).not.toContain('kabso_festival_gift_4');
     const back = await p.send(owner, 'post', `/admin/events/${id}/unpublish`, { reason: 'not yet' });
     expect(back.status, JSON.stringify(back.body)).toBe(200);
     expect(back.body.status).toBe('DRAFT');
