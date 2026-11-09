@@ -16681,4 +16681,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveRankRichEmpty => 'No gifts sent yet in this period.';
+
+  @override
+  String get dmStoriesTitle => 'Stories';
+
+  @override
+  String get dmStoriesAdd => 'Add story';
+
+  @override
+  String relativeShortMinutes(int n) {
+    return '${n}m';
+  }
+
+  @override
+  String relativeShortHours(int n) {
+    return '${n}h';
+  }
+
+  @override
+  String relativeShortDays(int n) {
+    return '${n}d';
+  }
 }

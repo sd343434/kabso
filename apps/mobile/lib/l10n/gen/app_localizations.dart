@@ -28143,6 +28143,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يُرسل أحد هدايا بعد في هذه الفترة.'**
   String get liveRankRichEmpty;
+
+  /// D336: the Messages tab's page title above the story cards.
+  ///
+  /// In ar, this message translates to:
+  /// **'القصص'**
+  String get dmStoriesTitle;
+
+  /// D336: the caller's story card on the Messages tab (no active story).
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف قصة'**
+  String get dmStoriesAdd;
+
+  /// D336: compact time since, in minutes (the Messages tab's rows and story cards).
+  ///
+  /// In ar, this message translates to:
+  /// **'{n}د'**
+  String relativeShortMinutes(int n);
+
+  /// D336: compact time since, in hours.
+  ///
+  /// In ar, this message translates to:
+  /// **'{n}س'**
+  String relativeShortHours(int n);
+
+  /// D336: compact time since, in days.
+  ///
+  /// In ar, this message translates to:
+  /// **'{n}ي'**
+  String relativeShortDays(int n);
 }
 
 class _AppLocalizationsDelegate

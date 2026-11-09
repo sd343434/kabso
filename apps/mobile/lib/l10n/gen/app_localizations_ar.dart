@@ -16680,4 +16680,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveRankRichEmpty => 'لم يُرسل أحد هدايا بعد في هذه الفترة.';
+
+  @override
+  String get dmStoriesTitle => 'القصص';
+
+  @override
+  String get dmStoriesAdd => 'أضف قصة';
+
+  @override
+  String relativeShortMinutes(int n) {
+    return '$nد';
+  }
+
+  @override
+  String relativeShortHours(int n) {
+    return '$nس';
+  }
+
+  @override
+  String relativeShortDays(int n) {
+    return '$nي';
+  }
 }
