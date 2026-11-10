@@ -204,6 +204,16 @@ export enum ErrorCode {
   STORE_IAP_PURCHASE_CONFLICT = 'STORE_IAP_PURCHASE_CONFLICT',
   /** v1.110-social (DRAFT, D345): the store has not completed the payment yet (pending). */
   STORE_IAP_PENDING = 'STORE_IAP_PENDING',
+  /** v1.116-social (DRAFT, D355): WhatsApp is not configured on this server (the credentials are missing). */
+  WHATSAPP_UNAVAILABLE = 'WHATSAPP_UNAVAILABLE',
+  /** v1.116-social (DRAFT, D355): Meta's 24-hour window is closed — only an approved template can be sent. */
+  WHATSAPP_WINDOW_CLOSED = 'WHATSAPP_WINDOW_CLOSED',
+  /** v1.116-social (DRAFT, D355): the conversation belongs to another staff member (claim or transfer first). */
+  WHATSAPP_CONVERSATION_ASSIGNED = 'WHATSAPP_CONVERSATION_ASSIGNED',
+  /** v1.116-social (DRAFT, D355): the conversation is closed (reopen it first). */
+  WHATSAPP_CONVERSATION_CLOSED = 'WHATSAPP_CONVERSATION_CLOSED',
+  /** v1.116-social (DRAFT, D355): Meta refused or did not answer the send (details: Meta's error code). */
+  WHATSAPP_SEND_FAILED = 'WHATSAPP_SEND_FAILED',
   /** v1.60-social (DRAFT, D191): the admin panel is off (ADMIN_TOTP_KEY is not set on the server). */
   ADMIN_PANEL_UNAVAILABLE = 'ADMIN_PANEL_UNAVAILABLE',
   /** v1.60-social (DRAFT, D191): too many failed sign-in or code attempts; the admin account is locked a while. */
@@ -477,6 +487,11 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.STORE_IAP_VERIFICATION_FAILED]: 400,
   [ErrorCode.STORE_IAP_PURCHASE_CONFLICT]: 409,
   [ErrorCode.STORE_IAP_PENDING]: 409,
+  [ErrorCode.WHATSAPP_UNAVAILABLE]: 503,
+  [ErrorCode.WHATSAPP_WINDOW_CLOSED]: 409,
+  [ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED]: 409,
+  [ErrorCode.WHATSAPP_CONVERSATION_CLOSED]: 409,
+  [ErrorCode.WHATSAPP_SEND_FAILED]: 502,
   [ErrorCode.ADMIN_PANEL_UNAVAILABLE]: 503,
   [ErrorCode.ADMIN_LOCKED]: 429,
   [ErrorCode.ADMIN_TOTP_INVALID]: 403,
@@ -646,6 +661,11 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.STORE_IAP_VERIFICATION_FAILED]: 'The store could not confirm this purchase.',
   [ErrorCode.STORE_IAP_PURCHASE_CONFLICT]: 'This purchase belongs to another account.',
   [ErrorCode.STORE_IAP_PENDING]: 'The store has not completed this payment yet.',
+  [ErrorCode.WHATSAPP_UNAVAILABLE]: 'WhatsApp is not enabled.',
+  [ErrorCode.WHATSAPP_WINDOW_CLOSED]: 'The 24-hour window is closed: send an approved template.',
+  [ErrorCode.WHATSAPP_CONVERSATION_ASSIGNED]: 'Another team member is handling this conversation.',
+  [ErrorCode.WHATSAPP_CONVERSATION_CLOSED]: 'This conversation is closed.',
+  [ErrorCode.WHATSAPP_SEND_FAILED]: 'WhatsApp did not accept the message.',
   [ErrorCode.ADMIN_PANEL_UNAVAILABLE]: 'The admin panel is not available.',
   [ErrorCode.ADMIN_LOCKED]: 'Too many failed attempts. Try again later.',
   [ErrorCode.ADMIN_TOTP_INVALID]: 'The code is not valid.',

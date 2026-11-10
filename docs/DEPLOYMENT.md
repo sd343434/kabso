@@ -3938,3 +3938,85 @@ left for in-flight work.
   `room.mode`; the new app reads an older server's message without them). **Rollback:** the older API sends ×100+ again
   with the 10 s gap; the new app shows those too.
 
+
+### 11.13 «واتساب» — the official Kabso WhatsApp number (D355) — [IMPLEMENTED, draft contract v1.116-social; off until the owner configures it, never run against Meta]
+
+The staff answer one official Kabso WhatsApp number from the app («أنا» → «واتساب») and the panel («واتساب»)
+(CONVENTIONS §10.151). It stays **off** until the five settings below are on the server; nothing else needs a deploy.
+Meta's screens and names change often — follow Meta's current wording; the links are Meta's official pages.
+
+**Step by step (the owner, once):**
+
+1. **Meta Business account (Business Portfolio).** https://business.facebook.com → create the business «Kabso Live»
+   with the legal name, address, website `https://kabsolive.com` and a business e-mail on that domain. Then **Business
+   verification** (Security Center → «Start verification»: the company's registration document and a matching
+   utility bill / bank statement; usually a few working days). Without verification the number is limited (messaging
+   limits, display name) — start it first.
+2. **Meta developer app.** https://developers.facebook.com/apps → «Create app» → use case «Connect with customers
+   through WhatsApp» (type Business) → link it to the business portfolio. This creates a **WhatsApp Business
+   Account (WABA)**. Note the **App secret** (App settings → Basic → «Show»).
+3. **Phone number.** WhatsApp Manager (https://business.facebook.com/wa/manage/) → Phone numbers → «Add phone number»:
+   the display name «Kabso Live» (Meta reviews it against the brand), category, then verify the number by SMS or a
+   call. **Use a new number that is not on any WhatsApp app** (recommended). A number already on the *WhatsApp
+   Business app* can be onboarded with **coexistence** (the app and the Cloud API share it), but with constraints —
+   not every country / feature is supported, the chat history sync is limited, some app features (e.g. groups,
+   broadcast lists, view-once, live location) are off, and throughput is lower; read Meta's coexistence page before
+   choosing it. A number on the *personal* WhatsApp app must be deleted from it first. Note the **Phone number ID**
+   and the **WhatsApp Business Account ID** (WhatsApp Manager / the app's «API Setup» page).
+4. **Payment method** on the WABA (WhatsApp Manager → Settings → Payment methods): needed for templates outside the
+   24-hour window. **Costs:** Meta prices per message / category per country and changes the prices; read
+   https://developers.facebook.com/docs/whatsapp/pricing — no figure is written here on purpose.
+5. **System User and permanent token.** Business settings → Users → **System users** → «Add» (Admin) → «Assign
+   assets»: the app (full control) and the WABA (full control) → «Generate new token» for the app with the permissions
+   **`whatsapp_business_messaging`** and **`whatsapp_business_management`** (and `business_management` only if Meta
+   asks), expiry «Never». Copy it once into the token file (step 7). Never use the 24-hour temporary token of «API
+   Setup» in production.
+6. **Message templates.** WhatsApp Manager → Message templates → create the ones the team needs after 24 h of silence,
+   e.g. `kabso_followup` (Utility, Arabic): «مرحباً {{1}}، هل ما زلت تحتاج المساعدة في طلبك {{2}}؟», plus an English one.
+   Only **APPROVED** templates appear in «إرسال قالب» (the inbox re-reads Meta's list every 10 minutes, or at once
+   with «اختبار الاتصال»). Marketing templates need the customer's opt-in.
+7. **Files on the server** (as root; readable by the API container's user only — the same pattern as §5.108):
+   ```sh
+   install -d -m 700 /opt/kabso/secrets/whatsapp
+   umask 077
+   printf '%s' '<the System User token>'        > /opt/kabso/secrets/whatsapp/access_token
+   printf '%s' '<the App secret>'               > /opt/kabso/secrets/whatsapp/app_secret
+   openssl rand -hex 32                         > /opt/kabso/secrets/whatsapp/verify_token   # any random string
+   ```
+   Mount the folder read-only into the API container and set in the server's env file:
+   ```
+   WHATSAPP_PHONE_NUMBER_ID=<Phone number ID>
+   WHATSAPP_BUSINESS_ACCOUNT_ID=<WhatsApp Business Account ID>
+   WHATSAPP_ACCESS_TOKEN_FILE=/run/secrets/whatsapp/access_token
+   WHATSAPP_APP_SECRET_FILE=/run/secrets/whatsapp/app_secret
+   WHATSAPP_VERIFY_TOKEN_FILE=/run/secrets/whatsapp/verify_token
+   # optional
+   WHATSAPP_GRAPH_API_VERSION=v23.0      # keep it at a version Meta still supports (Meta's changelog)
+   WHATSAPP_DISPLAY_NAME=Kabso Live
+   WHATSAPP_RETENTION_DAYS=180
+   WHATSAPP_MEDIA_MAX_BYTES=16777216
+   API_PUBLIC_URL=https://api.kabsolive.com   # the panel shows the webhook address from it
+   ```
+   All five or none: a partial set, or a missing / empty file, stops the API at boot with the variable's name.
+   Restart the API; the log says «WhatsApp is on».
+8. **Webhook.** Developer app → WhatsApp → Configuration → Webhook → «Edit»: **Callback URL** = the address the panel
+   shows in «واتساب» → «الإعدادات» (`https://api.kabsolive.com/api/v1/webhooks/whatsapp`), **Verify token** = the
+   content of `verify_token` → «Verify and save» (the API answers Meta's challenge). Then «Webhook fields» →
+   **subscribe `messages`** (it carries the customers' messages and the sent / delivered / read / failed statuses).
+   Also make sure the app is **Live** (App mode) and the WABA is subscribed to the app (WhatsApp Manager shows it;
+   otherwise `POST /{WABA-ID}/subscribed_apps` with the token).
+9. **Check.** Panel → «واتساب» → «الإعدادات» → «اختبار الاتصال»: the verified name, the quality rating and the
+   approved templates. Send «مرحبا» from a phone to the number: within seconds it appears in «غير مسندة» in the panel
+   and the app, the on-shift staff get a push, and a reply arrives on the phone. Then PP-87.
+10. **Who answers.** The OWNER gives the roles in «الموظفون والصلاحيات»: MODERATION «مشرف» and SUPPORT «دعم» answer;
+    OWNER and MODERATION also manage the quick replies. Each staff member can mute their own WhatsApp pushes.
+
+**Rotation.** A new System User token or app secret: replace the file, restart the API (the files are read at boot).
+A new verify token: replace the file, restart, then save it again in Meta's webhook settings.
+**Turning it off.** Remove the five settings and restart: the inbox hides itself; stored conversations stay until the
+retention removes them. **Rollback** of the code: the migration only adds `wa_*` tables (drop them if the feature is
+abandoned; nothing else references them).
+**Limits to know:** free-form replies only within 24 h of the customer's last message (then templates); Meta's
+throughput and pair rate limits answer 429 in the inbox (retry after a minute); media up to
+`WHATSAPP_MEDIA_MAX_BYTES` (Meta's own per-type limits are lower: images 5 MB, video / audio 16 MB, documents 100 MB);
+the webhook must answer within Meta's timeout (it stores and answers at once; media is fetched after the answer).

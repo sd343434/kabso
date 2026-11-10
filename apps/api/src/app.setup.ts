@@ -14,6 +14,7 @@ import {
   GIFT_UPLOAD_PATH,
 } from './modules/admin-panel/admin-v2.controller.js';
 import { STAFF_EVENT_UPLOAD_PATH } from './modules/admin-panel/staff-app.controller.js';
+import { WHATSAPP_MEDIA_UPLOAD_PATH, WHATSAPP_WEBHOOK_PATH } from './modules/whatsapp/whatsapp.controller.js';
 import { LEVEL_RAISE_VIDEO_UPLOAD_PATH } from './modules/level-raise/level-raise.controller.js';
 import { VIP_UPLOAD_PATH } from './modules/admin-panel/admin-vip.controller.js';
 import { STORE_UPLOAD_PATH } from './modules/admin-panel/admin-store.controller.js';
@@ -100,6 +101,18 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
       (req.url ?? '').split('?')[0] === LEVEL_RAISE_VIDEO_UPLOAD_PATH &&
       String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
     limit: '101mb',
+  });
+  // v1.116-social (D355, §10.151.3): Meta signs its WhatsApp webhook (X-Hub-Signature-256 over the exact bytes), so
+  // that one path keeps a raw Buffer whatever its content type; and the staff's outbound media is the raw bytes.
+  app.useBodyParser('raw', {
+    type: (req: { url?: string }) => (req.url ?? '').split('?')[0] === WHATSAPP_WEBHOOK_PATH,
+    limit: '3mb',
+  });
+  app.useBodyParser('raw', {
+    type: (req: { url?: string; headers?: Record<string, string | string[] | undefined> }) =>
+      WHATSAPP_MEDIA_UPLOAD_PATH.test((req.url ?? '').split('?')[0] ?? '') &&
+      String(req.headers?.['content-type'] ?? '').startsWith('application/octet-stream'),
+    limit: config.whatsapp.mediaMaxBytes + 1024,
   });
   app.useBodyParser('json', { limit: config.http.bodyLimit, strict: true });
   // CP-010: the media server's signed webhook (`application/webhook+json`) is verified against

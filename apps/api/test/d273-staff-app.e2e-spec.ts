@@ -291,12 +291,14 @@ describe('D273 «فريق كابسو» from the app', { timeout: 900_000 }, () =
     expect(new Date(s.body.stepUp.expiresAt as string).getTime()).toBeGreaterThan(clock);
     // v1.78-live (D288): and the shared report queue «بلاغات» (read + «تم حله»), in the table's order.
     // v1.93-social (D296): SUPPORT's temporary lock from a report (`users.lock`, the panel's matrix).
+    // v1.116-social (D355): and «واتساب» (the inbox; not its quick-reply management).
     expect(s.body.capabilities).toEqual([
       'reports.view',
       'reports.resolve',
       'users.lock',
       'lives.watch',
       'lives.reports',
+      'support.whatsapp',
     ]);
     const m = await sget(mod, '/staff/me');
     expect(m.body.capabilities).toEqual(

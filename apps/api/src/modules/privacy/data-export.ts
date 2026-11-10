@@ -51,6 +51,9 @@ export const EXPORT_SECTIONS = [
   'topups',
   // v1.110-social (D345): coins bought in Google Play / the App Store (no store token, no device).
   'store_purchases',
+  // v1.116-social (D355, §10.151.8): the WhatsApp conversations the team linked to the account (messages only — the
+  // team's internal notes and who answered are not the person's data about themselves).
+  'whatsapp',
   'recharge_agent',
   // v1.70-social (D206): the «افتح وكالة» applications (the person's own KYC) and their pictures.
   'agency_applications',
@@ -681,6 +684,42 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     consent: { version: p.consentVersion, shareConsumptionData: p.consentShareData, at: iso(p.consentAt) },
   }));
 
+  // -- v1.116-social (D355): the WhatsApp conversations linked to the account (the customer's and Kabso's messages).
+  const whatsapp = (
+    await db.waConversation.findMany({
+      where: { linkedUserId: u, purgeAfter: null },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        phoneE164: true,
+        createdAt: true,
+        messages: {
+          where: { type: { not: 'REACTION' } },
+          orderBy: { createdAt: 'asc' },
+          take: L,
+          select: {
+            direction: true,
+            type: true,
+            body: true,
+            mediaFilename: true,
+            createdAt: true,
+            status: true,
+          },
+        },
+      },
+    })
+  ).map((c) => ({
+    phone: c.phoneE164,
+    since: iso(c.createdAt),
+    messages: c.messages.map((m) => ({
+      from: m.direction === 'INBOUND' ? 'you' : 'kabso',
+      type: m.type,
+      text: m.body,
+      file: m.mediaFilename,
+      status: m.status,
+      at: iso(m.createdAt),
+    })),
+  }));
+
   // -- Website card top-ups (D190): the order, never Stripe ids, early-fraud warnings, disputes or freezes.
   const topups = (
     await db.topupOrder.findMany({
@@ -970,6 +1009,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     withdrawals,
     topups,
     store_purchases: storePurchases,
+    whatsapp,
     recharge_agent: rechargeAgent,
     agency_applications: agencyApplications,
     host_applications: hostApplications,
@@ -993,6 +1033,7 @@ export async function buildDataExport(db: Db, o: BuildExportOptions): Promise<Ex
     withdrawals: withdrawals.length,
     topups: topups.length,
     store_purchases: storePurchases.length,
+    whatsapp: whatsapp.reduce((n, c) => n + c.messages.length, 0),
     recharge_agent: rechargeAgent.length,
     agency_applications: agencyApplications.length,
     host_applications: hostApplications.length,

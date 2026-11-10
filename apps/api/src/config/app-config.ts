@@ -406,6 +406,24 @@ export interface AppConfig {
     readonly sweepIntervalSeconds: number;
     readonly consentVersion: string;
   };
+  /** v1.116-social (D355, CONVENTIONS §10.151): «واتساب» (ids and file paths only; the files are read at boot). */
+  readonly whatsapp: {
+    readonly credentials: {
+      readonly phoneNumberId: string;
+      readonly businessAccountId: string;
+      readonly accessTokenFile: string;
+      readonly appSecretFile: string;
+      readonly verifyTokenFile: string;
+    } | null;
+    readonly graphApiVersion: string;
+    readonly graphBaseUrl: string;
+    readonly displayName: string | null;
+    readonly retentionDays: number;
+    readonly mediaMaxBytes: number;
+    readonly sweepIntervalSeconds: number;
+    readonly templateCacheSeconds: number;
+    readonly pushGapSeconds: number;
+  };
   /** v1.81-social (D245, §10.87): automatic exchange rates (the paid key is in the panel, never here). */
   readonly fx: {
     readonly freeUrl: string;
@@ -998,6 +1016,30 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       voidedPollHours: e.STORE_IAP_VOIDED_POLL_HOURS,
       sweepIntervalSeconds: e.STORE_IAP_SWEEP_INTERVAL_SECONDS,
       consentVersion: e.STORE_IAP_CONSENT_VERSION,
+    },
+    whatsapp: {
+      credentials:
+        e.WHATSAPP_PHONE_NUMBER_ID !== undefined &&
+        e.WHATSAPP_BUSINESS_ACCOUNT_ID !== undefined &&
+        e.WHATSAPP_ACCESS_TOKEN_FILE !== undefined &&
+        e.WHATSAPP_APP_SECRET_FILE !== undefined &&
+        e.WHATSAPP_VERIFY_TOKEN_FILE !== undefined
+          ? {
+              phoneNumberId: e.WHATSAPP_PHONE_NUMBER_ID,
+              businessAccountId: e.WHATSAPP_BUSINESS_ACCOUNT_ID,
+              accessTokenFile: e.WHATSAPP_ACCESS_TOKEN_FILE,
+              appSecretFile: e.WHATSAPP_APP_SECRET_FILE,
+              verifyTokenFile: e.WHATSAPP_VERIFY_TOKEN_FILE,
+            }
+          : null,
+      graphApiVersion: e.WHATSAPP_GRAPH_API_VERSION,
+      graphBaseUrl: e.WHATSAPP_GRAPH_BASE_URL,
+      displayName: e.WHATSAPP_DISPLAY_NAME ?? null,
+      retentionDays: e.WHATSAPP_RETENTION_DAYS,
+      mediaMaxBytes: e.WHATSAPP_MEDIA_MAX_BYTES,
+      sweepIntervalSeconds: e.WHATSAPP_SWEEP_INTERVAL_SECONDS,
+      templateCacheSeconds: e.WHATSAPP_TEMPLATE_CACHE_SECONDS,
+      pushGapSeconds: e.WHATSAPP_PUSH_GAP_SECONDS,
     },
     adminPanel: {
       totpKey: e.ADMIN_TOTP_KEY ?? null,

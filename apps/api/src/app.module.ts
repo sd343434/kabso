@@ -47,6 +47,7 @@ import { EconomyModule } from './modules/economy/economy.module.js';
 import { RechargeModule } from './modules/recharge/recharge.module.js';
 import { TopupModule } from './modules/topup/topup.module.js';
 import { IapModule } from './modules/store-iap/iap.module.js';
+import { WhatsAppModule } from './modules/whatsapp/whatsapp.module.js';
 import { CouplesModule } from './modules/couples/couples.module.js';
 import { FamiliesModule } from './modules/families/families.module.js';
 import { MedalsModule } from './modules/medals/medals.module.js';
@@ -155,6 +156,8 @@ export class AppModule {
         TopupModule,
         // v1.110-social (D345): coins from the stores.
         IapModule,
+        // v1.116-social (D355): «واتساب» — the official Kabso WhatsApp number answered by the staff.
+        WhatsAppModule,
         // v1.60-social (DRAFT, D191): the admin panel and the public website's settings (one module, D191 + D192).
         AdminPanelModule,
         SiteSettingsModule,
