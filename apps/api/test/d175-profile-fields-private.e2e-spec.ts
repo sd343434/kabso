@@ -359,14 +359,21 @@ describe('D175 profile fields, private accounts and follow requests', () => {
       expect(((await me(u)).links as { url: string }[]).map((l) => l.url)).toEqual(['https://example.com/']);
     });
 
-    it('the database refuses a non-https link and a fourth position (CHECK backstop)', async () => {
+    it('the database refuses a non-https link and an eighth position (CHECK backstop; D357: 0–6)', async () => {
       const u = await signup();
       await withMigrationClient(async (c) => {
         await expect(
           c.userProfileLink.create({ data: { userId: u.id, position: 0, url: 'http://example.com/' } }),
         ).rejects.toThrow();
+        // v1.118-social (D357): the app owner may keep 7 (positions 0–6); the API keeps everyone else at 3.
         await expect(
-          c.userProfileLink.create({ data: { userId: u.id, position: 3, url: 'https://example.com/' } }),
+          c.userProfileLink.create({ data: { userId: u.id, position: 7, url: 'https://example.com/' } }),
+        ).rejects.toThrow();
+        await expect(
+          c.userProfileLink.create({ data: { userId: u.id, position: 6, url: 'https://example.com/' } }),
+        ).resolves.toMatchObject({ position: 6 });
+        await expect(
+          c.userProfileLink.create({ data: { userId: u.id, position: -1, url: 'https://example.com/' } }),
         ).rejects.toThrow();
       });
     });

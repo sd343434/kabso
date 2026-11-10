@@ -42,7 +42,7 @@ describe('D357 founder socials and no OWNER seal', { timeout: 300_000 }, () => {
   const grant = (u: TestUser, role: string) =>
     withMigrationClient((db) => db.$transaction((tx) => grantRoleIn(tx, u.email, role as never)));
   const get = (u: TestUser, path: string) => ctx.http.get(`/api/v1${path}`).set(auth(u));
-  const patchMe = (u: TestUser, body: unknown) => ctx.http.patch('/api/v1/me').set(auth(u)).send(body);
+  const patchMe = (u: TestUser, body: object) => ctx.http.patch('/api/v1/me').set(auth(u)).send(body);
   const details = (res: { body: { error?: { details?: unknown } } }) => res.body.error?.details;
 
   let owner: TestUser;
