@@ -322,16 +322,12 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
                   "install_id", "referral_code", "device_hash"`;
       const pending = rows[0];
       if (!pending) {
-        // Lazy cleanup of an expired/exhausted row for this address.
+        // Lazy cleanup of an expired row for this address. Never an exhausted one: the request that took the last
+        // attempt may hold the correct code and still be creating the account — deleting the row under it would
+        // fail every concurrent verify. An exhausted row is deleted by that request (wrong code below, or the
+        // account's transaction), and it can no longer be claimed meanwhile.
         await this.prisma.pendingRegistration.deleteMany({
-          where: {
-            email: input.email,
-            OR: [
-              { expiresAt: { lte: now } },
-              { attempts: { gte: MAX_CODE_ATTEMPTS } },
-              { totalAttempts: { gte: MAX_TOTAL_ATTEMPTS } },
-            ],
-          },
+          where: { email: input.email, expiresAt: { lte: now } },
         });
         throw new VerifyFailed('no_live_pending');
       }
