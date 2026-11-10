@@ -284,7 +284,8 @@ describe('D325 the step-by-step editor', () => {
     expect(editor('ar', 'evStepMilestones')).toContain('إضافة مرحلة');
     const d = editor('ar', 'evStepDesign');
     expect(d).toContain('بانر الصفحة الرئيسية للبث (1500 × 300)');
-    expect(d).toContain('معاينة الصفحة قبل النشر');
+    // D356: the real preview (the app's page) replaces the sketch, which stays as its fallback.
+    expect(d).toContain('معاينة حقيقية');
     const r = editor('ar', 'evStepReview');
     expect(r).toContain('بلا موعد بعد');
     expect(r).toContain('حفظ ونشر');

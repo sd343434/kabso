@@ -499,10 +499,83 @@ jobs:
       - name: Scan git history
         run: '"$RUNNER_TEMP/gitleaks" git --redact --no-banner --verbose --exit-code 1 .'
 
+  # D356 (CONVENTIONS §10.152, docs/DEPLOYMENT.md §11.14): the event page preview bundle — the app's real Flutter event
+  # page built for the web (lib/preview_main.dart; never part of the APK), which the panel's design step embeds at
+  # /event-preview/. Built with the pinned Flutter, then smoke-tested in headless Chromium against the built panel
+  # (apps/admin/e2e-preview: the bundle answers «ready», draws a posted design, reports a bad message; the design step
+  # follows the fields and falls back to the sketch). The archive + manifest are this run's artifact; on `staging`
+  # `event-preview-release` publishes them for the server's mirror-event-preview.sh.
+  event-preview:
+    name: Event page preview (Flutter web bundle + Chromium smoke)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true' || needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+      - name: Pub get (lockfile enforced)
+        working-directory: apps/mobile
+        run: flutter pub get --enforce-lockfile
+      - name: Build the preview bundle
+        run: apps/mobile/tool/build_event_preview.sh "$RUNNER_TEMP/event-preview"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          cache_dependency_path: pnpm-lock.yaml
+      - name: Install dependencies (admin only)
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter @kabso/admin
+      - name: Build the panel
+        run: pnpm --filter @kabso/admin build
+      - name: Install Chromium (Playwright)
+        run: pnpm --filter @kabso/admin exec playwright install --with-deps chromium
+      - name: Smoke test (headless Chromium)
+        run: >-
+          EVENT_PREVIEW_DIR="$RUNNER_TEMP/event-preview"
+          pnpm --filter @kabso/admin exec playwright test -c playwright.preview.config.ts event-preview
+      - name: Package the bundle
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/event-preview-out"
+          mkdir -p "$dir"
+          tar -czf "$dir/kabso-event-preview.tar.gz" -C "$RUNNER_TEMP/event-preview" .
+          size=$(stat -c %s "$dir/kabso-event-preview.tar.gz")
+          # mirror-event-preview.sh refuses anything outside 3 MB … 120 MB; fail here first.
+          [ "$size" -gt 3000000 ] && [ "$size" -lt 120000000 ]
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "protocol=1"
+            echo "sha256=$(sha256sum "$dir/kabso-event-preview.tar.gz" | cut -d' ' -f1)"
+            echo "size=$size"
+            echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "run=$GITHUB_RUN_ID"
+          } > "$dir/kabso-event-preview.txt"
+          cat "$dir/kabso-event-preview.txt"
+          du -sh "$RUNNER_TEMP/event-preview"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kabso-event-preview
+          path: ${{ runner.temp }}/event-preview-out/
+          retention-days: 14
+          if-no-files-found: error
+
   ci-ok:
     name: CI OK
     if: always()
-    needs: [changes, api, admin, studio, mobile, android, ios, contracts, secrets, site]
+    needs: [changes, api, admin, studio, mobile, android, ios, contracts, secrets, site, event-preview]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -725,3 +798,42 @@ jobs:
           gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-staging.apk"
           gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-staging.txt"
           echo "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/kabso-staging.apk"
+
+  # D356 (docs/DEPLOYMENT.md §11.14): publishes the event page preview bundle of a green `staging` push as the assets
+  # kabso-event-preview.tar.gz + kabso-event-preview.txt of the rolling prerelease `staging-latest` (with the staging
+  # APK, D330), which the server's mirror-event-preview.sh serves at https://admin.<domain>/event-preview/. Like
+  # `staging-apk-release`: only this job holds `contents: write`; no checkout, no third-party action, only `gh`.
+  event-preview-release:
+    name: Publish the event page preview (staging-latest)
+    needs: [ci-ok, event-preview]
+    if: >-
+      !cancelled() && needs.ci-ok.result == 'success' && needs.event-preview.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release when the APK job has not yet, replace its assets
+      actions: read # gh run download (this run's artifact)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: staging-latest
+    steps:
+      - name: Download this run's bundle
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/event-preview"
+          gh run download "$GITHUB_RUN_ID" -R "$GITHUB_REPOSITORY" -n kabso-event-preview -D "$dir"
+          grep -qx "commit=$GITHUB_SHA" "$dir/kabso-event-preview.txt"
+          echo "DIR=$dir" >> "$GITHUB_ENV"
+      - name: Publish to the staging-latest prerelease
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "Kabso Live staging (${GITHUB_SHA::7})" --notes "Staging builds, replaced on every green push to \`staging\`."
+          fi
+          # The archive first, then the manifest; the mirror checks the sha256, so a half-replaced pair is skipped
+          # until the next timer run.
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-event-preview.tar.gz"
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber "$DIR/kabso-event-preview.txt"
+          echo "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/kabso-event-preview.txt"

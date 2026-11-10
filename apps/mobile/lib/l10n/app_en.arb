@@ -5468,5 +5468,6 @@
   "eventsDaysShort": "{days, plural, =1{1 day} other{{days} days}}",
   "eventsNoEnd": "No end",
   "eventsMilestonesTitle": "Milestones",
-  "eventsMilestoneAt": "At {points} points"
+  "eventsMilestoneAt": "At {points} points",
+  "eventPreviewSampleLabel": "Preview · sample leaderboard data"
 }

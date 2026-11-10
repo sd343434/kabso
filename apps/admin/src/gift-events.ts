@@ -4,6 +4,8 @@
  * whatever the browser's own zone. The server checks everything again (the same rules as the app's staff editor).
  */
 
+import { designBody, designFromServer, type DesignChoices, type DesignForm } from './event-design';
+
 export const BOARD_KINDS = ['SENDERS', 'RECEIVERS', 'CREATORS', 'AGENCIES', 'CP'] as const;
 export type BoardKind = (typeof BOARD_KINDS)[number];
 export const PRIZE_TYPES = ['COINS', 'CHERRIES', 'CP_MONEY', 'BAG_ITEM', 'VIP', 'BADGE'] as const;
@@ -115,6 +117,11 @@ export interface GiftEventFormState {
   gifts: GiftForm[];
   boards: BoardForm[];
   reason: string;
+  /**
+   * v1.115-social (D354 / D356): the page design «التصميم». Undefined: not loaded (left out of the body, so the server
+   * keeps the stored one); null: today's page; otherwise the design.
+   */
+  design?: DesignForm | null;
 }
 
 /** `EventOptions` (openapi). */
@@ -178,6 +185,8 @@ export interface EventOptions {
   }[];
   /** v1.101-social (D325): the ordinary tabs an event's own gift may go in. */
   giftCategories?: { code: string; nameAr: string; nameEn: string }[];
+  /** v1.115-social (D354): the page designer's choices and limits. */
+  designChoices?: DesignChoices;
   vipTiers: {
     code: string;
     nameAr: string;
@@ -358,6 +367,8 @@ export function giftEventBody(f: GiftEventFormState) {
       })),
     })),
     reason: f.reason.trim(),
+    // v1.115-social (D354 / D356): sent once the step has it (absent = kept).
+    ...(f.design !== undefined ? { design: designBody(f.design) } : {}),
   };
 }
 
@@ -397,8 +408,12 @@ export function formFromServer(
         items: Record<string, unknown>[];
       }[];
     }[];
+    /** v1.115-social (D354): the stored design (null: today's page; absent: an older server). */
+    design?: unknown;
   },
   fallbackZone: string,
+  /** v1.115-social (D354): `AdminGiftEvent.artUrls.leaderboardBackground`. */
+  boardBackgroundUrl: string | null = null,
 ): GiftEventFormState {
   const zone = form.timeZone ?? fallbackZone;
   return {
@@ -445,6 +460,8 @@ export function formFromServer(
       })),
     })),
     reason: '',
+    // An older server sends no design: leave it out of the body (kept).
+    ...('design' in form ? { design: designFromServer(form.design, boardBackgroundUrl) } : {}),
   };
 }
 

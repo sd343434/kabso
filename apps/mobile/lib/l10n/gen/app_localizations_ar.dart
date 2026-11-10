@@ -17623,4 +17623,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String eventsMilestoneAt(String points) {
     return 'عند $points نقطة';
   }
+
+  @override
+  String get eventPreviewSampleLabel => 'معاينة · بيانات المتصدرين تجريبية';
 }

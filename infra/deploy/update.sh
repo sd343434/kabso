@@ -12,7 +12,9 @@
 #    (docs/DEPLOYMENT.md §5); the next run tries again, because the API is still on the old image.
 # 4. D330: at the end of every run, whatever happened above, mirrors the staging test APK from the public
 #    `staging-latest` release into infra/deploy/app/ (mirror-apk.sh; https://live.<domain>/app/, §11.8). Best effort:
-#    its failure is logged and changes neither this run's result nor the API.
+#    its failure is logged and changes neither this run's result nor the API. D356: then the event page preview bundle
+#    the panel embeds, from the same release, into infra/deploy/event-preview/ (mirror-event-preview.sh, §11.14), the
+#    same best-effort way.
 set -euo pipefail
 
 APP_DIR=/opt/kabso
@@ -35,10 +37,15 @@ mirror_apk() {
     timeout 600 "$APP_DIR/infra/deploy/mirror-apk.sh" ||
       echo "staging APK mirror failed (exit $?); the previous APK stays served" >&2
   fi
+  # D356: the event page preview bundle (the panel's design step).
+  if [ -x "$APP_DIR/infra/deploy/mirror-event-preview.sh" ]; then
+    timeout 600 "$APP_DIR/infra/deploy/mirror-event-preview.sh" ||
+      echo "event preview mirror failed (exit $?); the previous bundle stays served" >&2
+  fi
 }
 trap mirror_apk EXIT
-# The directory Caddy mounts at /srv/app (git-ignored); created here so Docker never has to create it.
-mkdir -p infra/deploy/app
+# The directories Caddy mounts at /srv/app and /srv/event-preview (git-ignored); created here so Docker never has to.
+mkdir -p infra/deploy/app infra/deploy/event-preview
 
 C=(docker compose -f infra/deploy/docker-compose.yml)
 

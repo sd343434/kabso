@@ -11286,9 +11286,8 @@ node limits would otherwise refuse new viewers of the lives already running).
 Owner (2026-11-10), after the KL-352 option rounds (D352): **«اجعل كل الخيارات متاحة»** — every option is selectable
 per event by the team, nothing is fixed for all events. Approved earlier: sections can be reordered and hidden, the
 rules can be a button, a rewards tab by rank tiers. **Phase 1** (this section): the contract, the server (stored,
-validated, audited, returned) and the app (every option drawn from real data). **Phase 2** (later): the panel's designer
-UI and its live preview (Flutter web); until then a design is set through the API (`PUT /admin/gift-events/{id}` with
-`design`), the staff app's event editor or a script.
+validated, audited, returned) and the app (every option drawn from real data). **Phase 2** (D356, §10.152): the panel's
+designer step and its real live preview (the app's page built for the web).
 
 #### 10.150.1 The design (version 1)
 
@@ -11527,3 +11526,93 @@ Meta charges per message / conversation category and changes its pricing (the mo
 one example); service replies inside the 24-hour window and templates are priced differently by country. No number is
 written here on purpose — the owner reads the current prices at
 https://developers.facebook.com/docs/whatsapp/pricing before sending templates at scale.
+
+### 10.152 The event page designer in the panel and its real preview *(D356; no contract change — v1.115-social as §10.150)*
+
+Phase 2 of §10.150 (owner 2026-11-10: «معاينة حقيقية بالاضافة التحكم في شكل الصناديق والبوكسات والحركة»). §10.151 is
+D355 (merged in int22). The contract, the server and the rules are D354's, unchanged: the panel only edits
+`GiftEventForm.design` and shows the app's own page.
+
+#### 10.152.1 The «التصميم» step (`apps/admin`, events editor step 7)
+
+Beside the banner, the full-screen announcement and the art uploads (D303 / D325 / D340), «تصميم صفحة الفعالية في
+التطبيق»:
+
+- **«صمّم صفحة هذه الفعالية»** — off: `design: null` (today's page); on: the defaults (§10.150.1). A design the step has
+  not touched is not sent (absent = kept, §10.150.2); once loaded or changed it is always sent. **«إعادة إلى التصميم
+  الافتراضي»** puts every choice back to its default (an uploaded leaderboard background stays).
+- **Pickers with thumbnails** for the layout (3), the leaderboard (5), the countdown (6), the cards preset «طابع البطاقات
+  والصناديق» (6) and the rules button (none + 6, then the edge START / END — START is right in Arabic; GOLD_PILL and
+  APP_BAR_LINK say the edge does not apply). Only the values `EventOptions.designChoices` lists are offered (an older
+  server lists none of a newer value). The thumbnails are captures of the **real page** (the preview bundle, sample data,
+  no event art: `apps/admin/e2e-preview/thumbnails.spec.ts` + `thumbnails.py` → `src/assets/event-design/*.webp`,
+  27 files, ~115 KB); regenerate them when a style's look changes.
+- **The sections**: drag to reorder (HTML5 drag and drop) or ↑ / ↓; a «ظاهر» switch each. The server's rules are applied
+  as you go, with the reason beside the switch: BOARDS cannot be hidden while the event has boards; RULES can be hidden
+  only with a rules button; choosing «بدون زر» shows RULES again. REWARDS before BOARDS says «يفتح تبويب الجوائز أولاً».
+- **The leaderboard background**: upload `kind=board_background` (`EventOptions.specs`, 1 080 × 1 440) →
+  `leaderboardBackgroundMediaId`; «إزالة الخلفية» clears it.
+- **The rewards tiers**: «شريحة لكل سطر جوائز (الافتراضي)» (`rewards: null`) or «شرائح أحددها» (starts from one tier per
+  prize line). Per board: from / to (1 … «عدد المعروضين»), optional Arabic / English labels (≤ 24), the covering prize line
+  shown, and up to 3 «جوائز تظهر كبيرة» picked from **that line's** items (worded like the results table). The problems
+  of a tier show on its row.
+- **Motion**: entrance FADE / SLIDE / SCALE / NONE, length 0–1 500 ms (step 50), shimmer, the first place's pulse, the
+  overlay's speed (×0.25–×2) and opacity (0–100 %); a note that the phone's reduce-motion stops all of it.
+- **The rules are the server's** (`src/event-design.ts` `designProblems` mirrors `event-design.ts` §10.150.3 field for
+  field, plus the label length the schema checks); a problem blocks «حفظ» / «حفظ كمسودة» / publishing and is listed in
+  the review step. **The server's refusal** (400 `VALIDATION_FAILED`, `details[].field` `design.*`) is mapped back: the
+  editor opens the design step and shows each issue at its field (`design.sections` → the list, `design.rulesButton` →
+  the rules picker, `design.rewards.tiers.N` → tier N, `design.leaderboardBackgroundMediaId` → the upload).
+- **The contrast warning «قد يصعب قراءة النص»** (never blocks saving): the cards' text over the chosen preset's fill
+  (the presets' gradient stops as the app draws them, `PRESET_CARDS`, the most transparent stop) on the event's
+  background, and the leaderboard names (white) over the uploaded board background under the style's scrim (THRONE 20 %,
+  others 40 % black, `BOARD_SCRIM`), each below **4.5 : 1** (WCAG AA). A picture is measured in the browser: drawn on a
+  24 × 32 canvas, the colour at the **90th percentile of luminance** (the light parts, not one bright pixel) —
+  from the uploaded file itself, else from its URL when the media host allows reading it (CORS); a picture that cannot
+  be read is not judged. No art: the page's own dark backdrop.
+
+#### 10.152.2 The real preview
+
+The step's right column shows **the app's own event page** — `EventDetailScreen`, so a design draws `EventDesignedPage`
+and anything else today's page — built for the web from `apps/mobile/lib/preview_main.dart` and served at
+`/event-preview/` on the panel's origin (DEPLOYMENT §11.14), in an iframe inside a phone frame (scaled to the window's
+height), with switches: language ar / en, theme dark / light, state UPCOMING / RUNNING / FINAL_HOUR / ENDED, device
+393 × 852 / 360 × 800, reduce motion.
+
+- **Protocol v1** (`window.postMessage`, JSON **text**): panel → preview `{type: "kabso.eventPreview.render", v: 1, seq,
+  language, theme, state, reduceMotion, event}` where `event` is the draft as the app's `EventDetail` (titles, rules,
+  gifts with their points, boards with «عدد المعروضين» and prize lines whose items carry the catalogue's names /
+  categories / pictures, milestones, the uploaded art's URLs, `design` + `leaderboardBackgroundUrl`); preview → panel
+  `kabso.eventPreview.ready` (once loaded), `kabso.eventPreview.rendered {seq, designed}`, `kabso.eventPreview.error
+  {seq?, reason}`. The panel posts 250 ms after the last change. **Origins:** the preview listens only to its own
+  origin (the panel's) and only to its parent window, and answers only that origin (never `*`); a development build may
+  add origins at build time (`--dart-define=PREVIEW_PARENT_ORIGINS=…`). The panel reads replies only from the iframe's
+  window and the bundle's origin.
+- **What the preview draws:** the posted event, its dates and status moved around «now» for the chosen state (upcoming:
+  starts in 2 days; running: ends in 3 days 5 h; final hour: ends in 42 min; ended: ended 2 h ago, final boards); the
+  leaderboards are **sample rows** made in the preview (12 made-up names, Kabso's development photos on the first five,
+  the viewer 8th) and the page says so at the top: «معاينة · بيانات المتصدرين تجريبية» (`eventPreviewSampleLabel`, the
+  preview only). **No sign-in, no API call** (the repository is the posted draft; any other call throws), **no
+  navigation away** (one route; «اذهب إلى البث» and the like land back on the page). Semantics are on (screen readers;
+  the smoke test reads the text). A broken message (not JSON, another version, no `EventDetail`) → an error reply, the
+  last page stays; an unknown design version or layout → today's page (§10.150.6). A new section order reopens the
+  page (it picks its first tab when it opens, as a phone does); other changes redraw in place.
+- **Fallback:** no `ready` within 20 s (the bundle missing, blocked or broken) → the old sketch preview
+  (`EventPagePreview`) with «تعذر تحميل المعاينة الحقيقية، فهذه معاينة تقريبية للصورة فقط».
+- **Images:** the art is loaded like any URL; on the web an art host without CORS headers still shows (an `<img>`
+  element, `WebHtmlElementStrategy.fallback` in `GiftEventBackdrop.image`; the phone ignores it).
+- **Not in the phone app:** `lib/main.dart` never imports `lib/preview/`; the APK / IPA are unchanged but for one ARB
+  string. The only web shell is `apps/mobile/web/index.html` (no inline script, no CDN).
+
+#### 10.152.3 Tests
+
+Admin vitest `event-designer-d356.test.tsx` (the form ↔ body ↔ server, every mirrored rule, the reorder and visibility
+helpers, the tiers, the server issues by field, the draft `EventDetail`, the protocol's origin / window checks, the
+contrast maths and notice, the step and the preview rendered in ar / en, the Caddyfile's preview headers equal to the
+test server's); `events-d325` now expects the real preview in step 7. Playwright `apps/admin/e2e-preview/event-preview
+.spec.ts` against the **built** bundle and panel (`serve.mjs` = Caddy's headers, the API answered in the browser): the
+bundle alone (ready, a design drawn, English + ended + no design = today's page, v2 design = today's page, a broken
+event = error reply, another type ignored, no CSP or missing-asset error) and the design step (live updates across
+three combinations, the light background's warning, the server's refusal at its tier, 393 wide, the fallback). Flutter
+`test/preview/event_preview_d356_test.dart` (parsing, origins, states' dates, sample boards, the repository, the page:
+waiting → designed page + label, unknown design → today's page, redraw, English, reduce motion).

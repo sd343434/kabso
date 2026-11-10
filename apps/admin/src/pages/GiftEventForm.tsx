@@ -29,7 +29,10 @@ export interface AdminGiftEvent {
   structureLocked: boolean;
   /** v1.102-social (D334): content creators count as hosts (false on the events made before it). */
   creatorsAsHosts?: boolean;
-  artUrls?: Partial<Record<'background' | 'backgroundPoster' | 'title' | 'overlay', string | null>>;
+  /** v1.115-social (D354): `leaderboardBackground` — the design's leaderboard background. */
+  artUrls?: Partial<
+    Record<'background' | 'backgroundPoster' | 'title' | 'overlay' | 'leaderboardBackground', string | null>
+  >;
   form: Parameters<typeof formFromServer>[0];
   results: {
     board: string;
@@ -99,7 +102,10 @@ export function GiftEventForm({
     );
   }
   const start =
-    initial ?? (loaded.data ? formFromServer(loaded.data.form, options.timeZone) : emptyGiftEvent(options.timeZone));
+    initial ??
+    (loaded.data
+      ? formFromServer(loaded.data.form, options.timeZone, loaded.data.artUrls?.leaderboardBackground ?? null)
+      : emptyGiftEvent(options.timeZone));
   return (
     <Editor
       eventId={eventId}
